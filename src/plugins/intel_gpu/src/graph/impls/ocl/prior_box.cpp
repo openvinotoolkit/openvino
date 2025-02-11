@@ -20,7 +20,7 @@ struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::prior_box_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<prior_box_impl>(*this);
+        return make_deep_copy<prior_box_impl, kernel_params_t>(*this);
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
@@ -89,7 +89,7 @@ struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
 namespace detail {
 
 attach_prior_box_impl::attach_prior_box_impl() {
-    auto types = {data_types::i32, data_types::i64};
+    auto types = {data_types::i32, data_types::i64, data_types::f32, data_types::f16};
     auto formats = {format::bfyx,
                     format::b_fs_yx_fsv16,
                     format::b_fs_yx_fsv32,

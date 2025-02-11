@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_infrastructure_Assign_6}
-
 Assign
 ======
 

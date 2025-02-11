@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_activation_Mish_4}
-
 Mish
 ====
 
 
 .. meta::
-  :description: Learn about Mish-4 - an element-wise, activation operation, which 
+  :description: Learn about Mish-4 - an element-wise, activation operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Mish-4*

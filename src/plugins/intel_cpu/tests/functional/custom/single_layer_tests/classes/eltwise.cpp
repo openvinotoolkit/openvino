@@ -106,6 +106,7 @@ ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& 
                 break;
         }
     }
+
     ov::test::utils::InputGenerateData in_data;
     in_data.start_from = params.start_from;
     in_data.range = params.range;
@@ -257,11 +258,27 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
     if ((eltwise_type == utils::EltwiseTypes::ADD) ||
        (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
        (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
-       (eltwise_type == utils::EltwiseTypes::DIVIDE)) {
+       (eltwise_type == utils::EltwiseTypes::DIVIDE) ||
+       (eltwise_type == utils::EltwiseTypes::FLOOR_MOD) ||
+       (eltwise_type == utils::EltwiseTypes::MOD)) {
         return "jit";
     }
 #endif
-    return "acl";
+    if (eltwise_type == utils::EltwiseTypes::FLOOR_MOD ||
+        eltwise_type == utils::EltwiseTypes::MOD) {
+        return "ref";
+    } else {
+        return "acl";
+    }
+#elif defined(OV_CPU_WITH_SHL)
+    if ((eltwise_type == utils::EltwiseTypes::ADD) ||
+        (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
+        (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
+        (eltwise_type == utils::EltwiseTypes::DIVIDE)) {
+        return "shl";
+    } else {
+        return "ref";
+    }
 #else
     return CPUTestsBase::getPrimitiveType();
 #endif
@@ -301,9 +318,20 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInp() {
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         utils::EltwiseTypes::SUBTRACT,                // TODO: Fix CVS-105430
         utils::EltwiseTypes::DIVIDE,                  // TODO: Fix CVS-105430
-        utils::EltwiseTypes::FLOOR_MOD,               // TODO: Fix CVS-111875
 #endif
+        utils::EltwiseTypes::FLOOR_MOD,
         utils::EltwiseTypes::SQUARED_DIFF,
+        utils::EltwiseTypes::MOD,
+    };
+    return eltwiseOpTypesBinInp;
+}
+
+const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInpSnippets() {
+    static const std::vector<utils::EltwiseTypes> eltwiseOpTypesBinInp = {
+        utils::EltwiseTypes::ADD,
+        utils::EltwiseTypes::MULTIPLY,
+        utils::EltwiseTypes::FLOOR_MOD,
+        utils::EltwiseTypes::MOD,
     };
     return eltwiseOpTypesBinInp;
 }

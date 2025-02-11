@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -17,7 +17,7 @@ namespace pass {
  */
 class TRANSFORMATIONS_API EnableShapeOfConstantFolding : public MatcherPass {
 public:
-    OPENVINO_RTTI("EnableShapeOfConstantFolding", "0");
+    OPENVINO_MATCHER_PASS_RTTI("EnableShapeOfConstantFolding");
     explicit EnableShapeOfConstantFolding(bool check_shape = true);
 };
 

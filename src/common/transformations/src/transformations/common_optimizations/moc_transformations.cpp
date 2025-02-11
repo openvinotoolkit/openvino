@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,7 @@
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/clamp_fusion.hpp"
+#include "transformations/common_optimizations/concat_to_broadcast.hpp"
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
 #include "transformations/common_optimizations/conv_to_binary_conv.hpp"
 #include "transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp"
@@ -29,6 +30,7 @@
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/common_optimizations/divide_fusion.hpp"
 #include "transformations/common_optimizations/eliminate_duplicate_ti_inputs.hpp"
+#include "transformations/common_optimizations/eliminate_loop_inputs_outputs.hpp"
 #include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
 #include "transformations/common_optimizations/fold_subgraph_empty_inputs.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
@@ -63,6 +65,7 @@
 #include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
 #include "transformations/common_optimizations/ric_fusion.hpp"
+#include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/common_optimizations/select_with_one_value_condition.hpp"
 #include "transformations/common_optimizations/sequence_fusion.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
@@ -123,12 +126,12 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
         f->validate_nodes_and_infer_types();
     }
 
-    ov::pass::Manager manager(get_pass_config());
+    ov::pass::Manager manager(get_pass_config(), "MOC");
     manager.set_per_pass_validation(false);
     using namespace ov::pass;
     REGISTER_PASS(manager, InitNodeInfo)
     if (m_low_precision_enabled) {
-        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
+        manager.register_pass<ov::pass::MarkDequantization>(
             element::TypeVector{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4});
     }
     if (!m_use_shapes) {
@@ -141,8 +144,10 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     // In particular, if zero dim tensor is consumed in body of MultiSubGraphOp
     // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParamsResults should be called together.
     using namespace ov::pass;
+    REGISTER_PASS(manager, EliminateConvert)
     REGISTER_PASS(manager, EliminateScatterUpdate)
     REGISTER_PASS(manager, RemoveConcatZeroDimInput)
+    REGISTER_PASS(manager, EliminateLoopInputsOutputs);
     REGISTER_PASS(manager, Validate)
     // todo: ticket 96960
     // the order EliminateDuplicateTIInputs and RemoveMultiSubGraphOpDanglingParamsResults is important
@@ -186,6 +191,8 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, GRUCellFusion)
     REGISTER_PASS(manager, SequenceFusion)
 
+    REGISTER_PASS(manager, ConcatToBroadcast);
+
     auto transpose_sinking = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(transpose_sinking, TransposeSinking)
     // SplitSqueezeConcatFusion should work in same GraphRewrite as TransposesSinking,
@@ -223,6 +230,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(common_fusions, ConvertTensorIteratorToSequence)
     ADD_MATCHER(common_fusions, SplitConcatPairToInterpolateFusion, m_use_shapes)
     ADD_MATCHER(common_fusions, ConvolutionToGroupConvolutionFusion)
+    ADD_MATCHER(common_fusions, SDPAFusion)
     if (m_use_shapes) {
         ADD_MATCHER(common_fusions, NearestNeighborUpsamplingFusion)
     }
@@ -277,7 +285,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, SharedOpOptimization)
     REGISTER_PASS(manager, ConstantFolding)
     REGISTER_PASS(manager, SymbolicOptimizations)
-    manager.register_pass<ResolveNameCollisions>(true);
+    REGISTER_PASS(manager, ResolveNameCollisions, true);
     manager.run_passes(f);
 
     if (!m_use_shapes) {

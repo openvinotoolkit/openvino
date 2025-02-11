@@ -1,5 +1,3 @@
-.. {#openvino_deployment_guide}
-
 Deploy Locally
 ==============
 
@@ -8,8 +6,10 @@ Deploy Locally
    :maxdepth: 1
    :hidden:
 
-   Local Distribution Libraries <deployment-locally/local-distribution-libraries>
-   Optimize Binaries Size <deployment-locally/optimial-binary-size-conditional-compilation>
+   Local Distribution Libraries <./deployment-locally/local-distribution-libraries>
+   Optimize Binaries Size <./deployment-locally/optimial-binary-size-conditional-compilation>
+   Integrate OpenVINO with Ubuntu Snap <./deployment-locally/integrate-openvino-with-ubuntu-snap>
+
 
 .. meta::
    :description: There are several ways of deploying OpenVINO™ application once
@@ -43,11 +43,11 @@ The table below shows which distribution type can be used for what target operat
    * - Distribution type
      - Operating systems
    * - Debian packages
-     - Ubuntu 18.04 long-term support (LTS), 64-bit; Ubuntu 20.04 long-term support (LTS), 64-bit
+     - Ubuntu 18.04, 20.04, 22.04, 24.04 (64-bit)
    * - RPM packages
      - Red Hat Enterprise Linux 8, 64-bit
    * - Docker images
-     - Ubuntu 22.04 long-term support (LTS), 64-bit; Ubuntu 20.04 long-term support (LTS), 64-bit; Red Hat Enterprise Linux 8, 64-bit
+     - Ubuntu 20.04, 22.04, 24.04 (64-bit); Red Hat Enterprise Linux 8, 64-bit
    * - PyPI (PIP package manager)
      - See https://pypi.org/project/openvino
    * - :doc:`Libraries for Local Distribution <deployment-locally/local-distribution-libraries>`
@@ -61,11 +61,11 @@ Granularity of Major Distribution Types
 
 The granularity of OpenVINO packages may vary for different distribution types. For example, the PyPI distribution of OpenVINO has a `single 'openvino' package <https://pypi.org/project/openvino/>`__ that contains all the runtime libraries and plugins, while a :doc:`local distribution <deployment-locally/local-distribution-libraries>` is a more configurable type providing higher granularity. Below are important details of the set of libraries included in the OpenVINO Runtime package:
 
-.. image:: ../_static/images/deployment_simplified.svg
+.. image:: ../assets/images/deployment_simplified.svg
 
 
 - The main library ``openvino`` is used by users' C++ applications to link against with. For C language applications, ``openvino_c`` is additionally required for distribution. The library includes OpenVINO API 2.0.
-- The "optional" plugin libraries like ``openvino_intel_cpu_plugin`` (matching the ``openvino_.+_plugin`` pattern) are used to provide inference capabilities on specific devices or additional capabilities like :doc:`Hetero Execution <running-inference/inference-devices-and-modes/hetero-execution>` and :doc:`Multi-Device Execution <running-inference/inference-devices-and-modes/multi-device>`.
+- The "optional" plugin libraries like ``openvino_intel_cpu_plugin`` (matching the ``openvino_.+_plugin`` pattern) are used to provide inference capabilities on specific devices or additional capabilities like :doc:`Hetero Execution <running-inference/inference-devices-and-modes/hetero-execution>`.
 - The "optional" plugin libraries like ``openvino_ir_frontend`` (matching ``openvino_.+_frontend``) are used to provide capabilities to read models of different file formats such as OpenVINO IR, TensorFlow, ONNX, and PaddlePaddle.
 
 Here the term "optional" means that if the application does not use the capability enabled by the plugin, the plugin library or a package with the plugin is not needed in the final distribution.

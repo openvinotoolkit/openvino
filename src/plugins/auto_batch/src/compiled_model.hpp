@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,7 @@ public:
         std::condition_variable _cond;
         std::mutex _mutex;
         std::exception_ptr _exception_ptr;
+        bool _is_wakeup;
     };
 
     CompiledModel(const std::shared_ptr<ov::Model>& model,

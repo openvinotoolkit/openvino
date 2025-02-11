@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
 
 import numpy as np
-from openvino.runtime import Shape, PartialShape, Dimension  # pylint: disable=no-name-in-module,import-error
+from openvino import Shape, PartialShape, Dimension  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.error import Error
 
 

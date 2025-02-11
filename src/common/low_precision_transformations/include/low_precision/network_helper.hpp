@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,6 @@
 #include "rt_info/precisions_attribute.hpp"
 #include "rt_info/quantization_granularity_attribute.hpp"
 #include "rt_info/intervals_alignment_attribute.hpp"
-#include "transformation_context.hpp"
 #include "quantization_details.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common/fake_quantize_dequantization.hpp"
@@ -187,7 +186,9 @@ public:
 
     static size_t getParentOutputIndex(const std::shared_ptr<ov::Node>& parent, const std::shared_ptr<ov::Node>& child);
 
-    static FakeQuantizeDequantizationValues createEmptyValues(const FakeQuantizeDequantization& dequantization, const element::Type precision);
+    static FakeQuantizeDequantizationValues createEmptyValues(
+        const FakeQuantizeDequantization& dequantization,
+        const element::Type& precision = element::undefined);
 
     static bool isZeroConst(const std::shared_ptr<Node>& node);
     static bool checkZeroPoint(const std::shared_ptr<Node>& node, const DataPrecision& dataPrecision = DataPrecision());

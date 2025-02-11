@@ -79,6 +79,8 @@ static ov::test::utils::InputGenerateData get_range_by_type(
     }
         CASE_OV_TYPE(ov::element::Type_t::f8e4m3)
         CASE_OV_TYPE(ov::element::Type_t::f8e5m2)
+        CASE_OV_TYPE(ov::element::Type_t::f4e2m1)
+        CASE_OV_TYPE(ov::element::Type_t::f8e8m0)
         CASE_OV_TYPE(ov::element::Type_t::bf16)
         CASE_OV_TYPE(ov::element::Type_t::f16)
         CASE_C_TYPE(ov::element::Type_t::f32)

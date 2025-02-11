@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@ std::vector<TRShape> shape_infer(const Col2Im* op,
                                  const std::vector<TShape>& input_shapes,
                                  const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 3);
-
     const auto& data_shape = input_shapes[0];
     const auto& output_size_shape = input_shapes[1];
     const auto& kernel_shape = input_shapes[2];
@@ -87,7 +86,7 @@ std::vector<TRShape> shape_infer(const Col2Im* op,
             idx++;
             output_shape[idx] = (*output_size_val)[1];
             const size_t L_idx = is_batched ? 2 : 1;
-            if (data_shape.rank().is_static() && data_shape[L_idx].is_static()) {
+            if (data_shape.rank().is_static() && data_shape[L_idx].is_static() && (*output_size_val).is_static()) {
                 constexpr size_t spatial_dims = 2;
 
                 const auto& pads_begin = op->get_pads_begin();

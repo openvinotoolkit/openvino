@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -16,9 +16,9 @@ from openvino._offline_transformations import (
 )
 
 from openvino import Model, PartialShape, Core, serialize, save_model
-import openvino.runtime as ov
+import openvino as ov
 
-from tests.utils.helpers import create_filename_for_test, compare_models, _compare_models
+from tests.utils.helpers import create_filenames_for_ir, compare_models, _compare_models
 
 
 def get_relu_model():
@@ -171,10 +171,10 @@ def test_fused_names_cleanup():
 
 
 def prepare_test_model_for_serialize(request, tmp_path, is_path_xml, is_path_bin):
-    xml_path, bin_path = create_filename_for_test(request.node.name,
-                                                  tmp_path,
-                                                  is_path_xml,
-                                                  is_path_bin)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name,
+                                                 tmp_path,
+                                                 is_path_xml,
+                                                 is_path_bin)
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
@@ -267,10 +267,10 @@ def test_compress_model_transformation():
 )
 def test_version_default(request, tmp_path, is_path_xml, is_path_bin):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name,
-                                                  tmp_path,
-                                                  is_path_xml,
-                                                  is_path_bin)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name,
+                                                 tmp_path,
+                                                 is_path_xml,
+                                                 is_path_bin)
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
@@ -297,10 +297,10 @@ def test_version_default(request, tmp_path, is_path_xml, is_path_bin):
 ],
 )
 def test_serialize_default_bin(request, tmp_path, is_path_xml, is_path_bin):
-    xml_path, bin_path = create_filename_for_test(request.node.name,
-                                                  tmp_path,
-                                                  is_path_xml,
-                                                  is_path_bin)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name,
+                                                 tmp_path,
+                                                 is_path_xml,
+                                                 is_path_bin)
     model = get_relu_model()
     serialize(model, xml_path)
     assert os.path.exists(bin_path)
@@ -311,7 +311,7 @@ def test_serialize_default_bin(request, tmp_path, is_path_xml, is_path_bin):
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_version_ir_v10(request, tmp_path):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
@@ -332,7 +332,7 @@ def test_version_ir_v10(request, tmp_path):
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_version_ir_v11(request, tmp_path):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")

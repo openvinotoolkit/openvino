@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_movement_ShuffleChannels_1}
-
 ShuffleChannels
 ===============
 
 
 .. meta::
-  :description: Learn about ShuffleChannels-1 - a data movement operation, 
+  :description: Learn about ShuffleChannels-1 - a data movement operation,
                 which can be performed on a single input tensor.
 
 **Versioned name**: *ShuffleChannels-1*
@@ -77,7 +75,7 @@ where ``group`` is the layer attribute described below.
 **Example**
 
 .. code-block:: xml
-   :force: 
+   :force:
 
     <layer ... type="ShuffleChannels" ...>
         <data group="3" axis="1"/>

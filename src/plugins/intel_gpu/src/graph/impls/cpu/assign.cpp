@@ -3,9 +3,8 @@
 //
 
 #include "assign_inst.h"
-#include "implementation_map.hpp"
+#include "impls/registry/implementation_map.hpp"
 #include "register.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -53,9 +52,7 @@ struct assign_impl : public typed_primitive_impl<assign> {
 
         auto& stream = instance.get_network().get_stream();
 
-        for (auto e : events) {
-            e->wait();
-        }
+        stream.wait_for_events(events);
 
         const auto ev_set_memory = variable.get_memory()->copy_from(stream, instance.input_memory());
         variable.set();

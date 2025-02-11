@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #! [imports]
@@ -30,7 +30,7 @@ nncf_config = register_default_init_args(nncf_config, train_loader) # train_load
 #! [nncf_congig]
 
 #! [wrap_model]
-model = TorchModel() # instance of torch.nn.Module 
+model = TorchModel() # instance of torch.nn.Module
 compression_ctrl, model = create_compressed_model(model, nncf_config)
 #! [wrap_model]
 
@@ -39,7 +39,7 @@ compression_ctrl.distributed() # call it before the training loop
 #! [distributed]
 
 #! [tune_model]
-... # fine-tuning preparations, e.g. dataset, loss, optimizer setup, etc.
+... # fine-tuning preparations, e.g. dataset, loss, optimization setup, etc.
 
 # tune quantized model for 50 epochs as the baseline
 for epoch in range(0, 50):
@@ -52,7 +52,7 @@ for epoch in range(0, 50):
 
 #! [export]
 compression_ctrl.export_model("compressed_model.onnx")
-#! [export] 
+#! [export]
 
 #! [save_checkpoint]
 checkpoint = {
@@ -65,8 +65,8 @@ torch.save(checkpoint, path_to_checkpoint)
 
 #! [load_checkpoint]
 resuming_checkpoint = torch.load(path_to_checkpoint)
-compression_state = resuming_checkpoint['compression_state'] 
+compression_state = resuming_checkpoint['compression_state']
 compression_ctrl, model = create_compressed_model(model, nncf_config, compression_state=compression_state)
-state_dict = resuming_checkpoint['state_dict'] 
+state_dict = resuming_checkpoint['state_dict']
 model.load_state_dict(state_dict)
 #! [load_checkpoint]

@@ -163,13 +163,21 @@ h1 {
     }
 }
 
+p.sd-card-text > .sd-btn-outline-primary {
+    position: absolute;
+    bottom: 20px;
+}
+
 .sd-btn-outline-primary {
     color: #0054AE !important;
     text-decoration: none !important;
     background-color: #FFF !important;
     border-radius: 0;
-    position: absolute;
-    bottom: 20px;
+}
+
+p.sd-text-right:has(a.key-feat-btn) {
+    position:relative;
+    top:-50px;
 }
 
 .homepage-begin-tile {

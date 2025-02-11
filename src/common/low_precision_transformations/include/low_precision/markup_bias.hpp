@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 #include "low_precision/lpt_visibility.hpp"
 #include <memory>
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 
 namespace ov {
@@ -23,7 +23,7 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API MarkupBias : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MarkupBias", "0");
+    OPENVINO_MATCHER_PASS_RTTI("low_precision::MarkupBias");
     MarkupBias();
 };
 

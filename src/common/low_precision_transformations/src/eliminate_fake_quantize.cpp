@@ -30,16 +30,16 @@ EliminateFakeQuantizeTransformation::EliminateFakeQuantizeTransformation(const P
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     const auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool EliminateFakeQuantizeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
+bool EliminateFakeQuantizeTransformation::transform(ov::pass::pattern::Matcher& m) {
     const auto root = m.get_match_root();
-    if (!canBeTransformed(context, root)) {
+    if (!canBeTransformed(root)) {
         return false;
     }
 
@@ -51,7 +51,7 @@ bool check_interval(const std::shared_ptr<ov::opset1::FakeQuantize>& fq,
                     const std::shared_ptr<ov::opset1::Constant>& constant,
                     const float value,
                     const float max_diff,
-                    const bool exact_comparison) noexcept {
+                    const bool exact_comparison) {
     bool need_to_check_intervals = false;
     const auto& constant_values = constant->cast_vector<float>();
     for (const auto constant_value : constant_values) {
@@ -93,9 +93,13 @@ bool check_interval(const std::shared_ptr<ov::opset1::FakeQuantize>& fq,
 bool check_intervals(const std::shared_ptr<ov::opset1::FakeQuantize>& fakeQuantize) {
     const auto& element_type = fakeQuantize->get_output_element_type(0);
     const auto levels = fakeQuantize->get_levels();
+    if (levels == 0) {
+        return false;
+    }
     const auto min_value = DataPrecision::getMinValue(element_type, levels);
     const auto max_value = DataPrecision::getMaxValue(element_type, levels);
-    const auto max_diff = (max_value - min_value) / levels;
+    // let's divide before to avoid overflow
+    const auto max_diff = max_value / levels - min_value / levels;
     // input intervals can be not equal with type intervals for low precision only
     const auto exact_comparison = !element_type.is_integral();
 
@@ -111,8 +115,8 @@ bool check_intervals(const std::shared_ptr<ov::opset1::FakeQuantize>& fakeQuanti
 }
 } // namespace
 
-bool EliminateFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!CleanupTransformation::canBeTransformed(context, operation)) {
+bool EliminateFakeQuantizeTransformation::canBeTransformed(const std::shared_ptr<Node>& operation) const {
+    if (!CleanupTransformation::canBeTransformed(operation)) {
         return false;
     }
 

@@ -3,6 +3,8 @@
         "checkOutput" : "CheckOutputMode",
         "bmPerf" : "BenchmarkAppPerformanceMode",
         "compareBlobs" : "CompareBlobsMode",
+        "ac" : "AccuracyCheckerMode",
+        "llmBench" : "LLMBenchMode",
         "nop" : "NopMode"
     },
     "traversalMap" : {
@@ -69,7 +71,10 @@
     "appPath" : "../../../../../bin/intel64/Release/",
     "buildPath" : "../../../../../build/",
     "cachePath" : "{workPath}/slider_cache/",
+    "userCachePath" : "",
     "logPath" : "{workPath}/log/",
+    "userLogPath" : "",
+    "clearLogsAposteriori" : false,
     "workPath" : "will be defined in runtime",
     "linWorkPath" : "/tmp/commit_slider_tool",
     "winWorkPath" : "%tmp%\\commit_slider",
@@ -83,6 +88,7 @@
         "venvDir": "{workPath}/venv/",
         "venvName": "tempVenv"
     },
+    "buildEnvVars": [],
     "preliminaryCheckCfg": {
         "leftCheck": true,
         "rightCheck": false,

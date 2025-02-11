@@ -19,7 +19,7 @@ namespace pass {
  */
 class PropagatePrecision: public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("PropagatePrecision", "0");
+    OPENVINO_MODEL_PASS_RTTI("snippets::pass::PropagatePrecision");
     PropagatePrecision(const std::shared_ptr<const TargetMachine>& target_machine);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 

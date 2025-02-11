@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@
 #include "openvino/reference/broadcast.hpp"
 
 #include "snippets/itt.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/op/convert_saturation.hpp"
 
 
@@ -35,7 +35,7 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::FakeQuantizeDecomposition")
         auto& pattern_to_output = m.get_pattern_value_map();
-        const auto fake_quantize_node = std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(
+        const auto fake_quantize_node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(
             pattern_to_output.at(fake_quantize).get_node_shared_ptr());
 
         if (!fake_quantize_node || transformation_callback(fake_quantize_node)) {
@@ -70,7 +70,8 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
                                                                  return val == 0.f;
                                                              })) ||
                                                 out_scales.size() != 0));
-        const bool do_rounding = do_dequantize || fake_quantize_node->get_output_element_type(0) == ov::element::f32;
+        const bool do_rounding = do_dequantize || fake_quantize_node->get_output_element_type(0) == ov::element::f32 ||
+                                 fake_quantize_node->get_output_element_type(0) == ov::element::f16;
 
         ov::NodeVector decomp_ops;
         if (input_type != input_low.get_element_type()) {
@@ -92,16 +93,18 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
             ov::PartialShape::broadcast_merge_into(scale_shape,
                                                        input_high.get_partial_shape(),
                                                        broadcast_type);
-            const auto scales =
-                std::make_shared<ov::op::v0::Constant>(ov::element::f32, scale_shape.get_shape(), out_scales);
+            const auto scales = std::make_shared<ov::op::v0::Constant>(input_low.get_element_type(),
+                                                                       scale_shape.get_shape(),
+                                                                       out_scales);
             decomp_ops.push_back(scales);
 
             result = std::make_shared<ov::op::v1::Multiply>(min, scales);
             decomp_ops.push_back(result);
         } else {
             // (levels-1)
-            const auto levels_minus_one =
-                std::make_shared<ov::op::v0::Constant>(input_type, Shape{}, fake_quantize_node->get_levels() - 1);
+            const auto levels_minus_one = std::make_shared<ov::op::v0::Constant>(input_low.get_element_type(),
+                                                                                 Shape{},
+                                                                                 fake_quantize_node->get_levels() - 1);
             decomp_ops.push_back(levels_minus_one);
             // (input_high - input_low)
             const auto subInHighLow = std::make_shared<ov::op::v1::Subtract>(input_high, input_low);
@@ -129,8 +132,9 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
 
         if (do_dequantize) {
             // (levels-1)
-            const auto levels_minus_one =
-                std::make_shared<ov::op::v0::Constant>(input_type, Shape{}, fake_quantize_node->get_levels() - 1);
+            const auto levels_minus_one = std::make_shared<ov::op::v0::Constant>(output_high.get_element_type(),
+                                                                                 Shape{},
+                                                                                 fake_quantize_node->get_levels() - 1);
             // (output_high - output_low)
             const auto sub_out_high_low = std::make_shared<ov::op::v1::Subtract>(output_high, output_low);
             // (output_high - output_low) / (levels-1)
@@ -354,7 +358,7 @@ bool ov::snippets::pass::CommonFakeQuantizeDecomposition::is_supported_fq(const 
         if (!greater_equal->constant_fold(result, greater_equal->input_values()))
             return false;
 
-        const auto res_node = std::dynamic_pointer_cast<const ov::op::v0::Constant>(result[0].get_node_shared_ptr());
+        const auto res_node = ov::as_type_ptr<const ov::op::v0::Constant>(result[0].get_node_shared_ptr());
         const auto comp_result = res_node->cast_vector<bool>();
         return !std::any_of(comp_result.begin(), comp_result.end(), [](const bool value) {
             return value;
@@ -371,7 +375,7 @@ bool ov::snippets::pass::CommonFakeQuantizeDecomposition::is_supported_fq(const 
 
 bool ov::snippets::pass::CommonFakeQuantizeDecomposition::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(CommonFakeQuantizeDecomposition);
-    ov::pass::Manager manager;
+    ov::pass::Manager manager("Snippets:CommonFakeQuantizeDecomposition");
     manager.set_per_pass_validation(false);
     manager.register_pass<ov::snippets::pass::FakeQuantizeDecomposition>();
     manager.register_pass<ov::pass::ConstantFolding>();

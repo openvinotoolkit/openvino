@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,29 +22,6 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI, "AUTO:TEMPLATE", ov::test::utils::DEVICE_AUTO),
                        ::testing::ValuesIn(inproperties)),
     OVClassCompiledModelPropertiesIncorrectTests::getTestCaseName);
-
-#if (defined(__APPLE__) || defined(_WIN32))
-auto default_affinity = [] {
-    auto numaNodes = ov::get_available_numa_nodes();
-    auto coreTypes = ov::get_available_cores_types();
-    if (coreTypes.size() > 1) {
-        return ov::Affinity::HYBRID_AWARE;
-    } else if (numaNodes.size() > 1) {
-        return ov::Affinity::NUMA;
-    } else {
-        return ov::Affinity::NONE;
-    }
-}();
-#else
-auto default_affinity = [] {
-    auto coreTypes = ov::get_available_cores_types();
-    if (coreTypes.size() > 1) {
-        return ov::Affinity::HYBRID_AWARE;
-    } else {
-        return ov::Affinity::CORE;
-    }
-}();
-#endif
 
 const std::vector<ov::AnyMap> multi_properties = {
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::num_streams(ov::streams::AUTO)},

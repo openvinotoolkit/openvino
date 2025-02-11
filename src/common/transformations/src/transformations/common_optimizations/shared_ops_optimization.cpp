@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/loop.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 
@@ -65,8 +66,7 @@ bool inputs_from_same_source_or_equal_constants(const std::shared_ptr<Node>& lhs
             return false;
         if (lhs_constant->get_element_type() != rhs_constant->get_element_type())
             return false;
-        const auto& lhs_shape = lhs_constant->get_shape();
-        if (lhs_shape != rhs_constant->get_shape() || shape_size(lhs_shape) > 10)
+        if (lhs_constant->get_shape() != rhs_constant->get_shape())
             return false;
         if (memcmp(lhs_constant->get_data_ptr(), rhs_constant->get_data_ptr(), lhs_constant->get_byte_size()) != 0)
             return false;
@@ -103,10 +103,13 @@ bool nodes_are_equal(const std::shared_ptr<Node>& lhs, const std::shared_ptr<Nod
 
 bool shared_node_optimization(const shared_ptr<Model>& model) {
     bool rewritten = false;
-
-    for (const auto& op : model->get_ordered_ops()) {
+    std::unordered_map<std::shared_ptr<ov::Node>, size_t> index_map;
+    const auto& order = model->get_ordered_ops();
+    for (size_t i = 0; i < order.size(); ++i)
+        index_map[order[i]] = i;
+    for (const auto& op : order) {
         // Recursively apply transformation for sub-graph based operations
-        if (auto multi_subgraph_op = dynamic_pointer_cast<op::util::MultiSubGraphOp>(op)) {
+        if (auto multi_subgraph_op = ov::as_type_ptr<op::util::MultiSubGraphOp>(op)) {
             for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
                 if (sub_graph)
                     rewritten = shared_node_optimization(sub_graph) || rewritten;
@@ -124,6 +127,13 @@ bool shared_node_optimization(const shared_ptr<Model>& model) {
                 auto& shared_nodes = item.second;
                 if (shared_nodes.size() < 2)
                     continue;
+                // sort shared_nodes so that root would be the earliest in the topological order
+                // it is critical for continuous application of this optimization
+                std::sort(shared_nodes.begin(),
+                          shared_nodes.end(),
+                          [&index_map](const std::shared_ptr<ov::Node>& a, const std::shared_ptr<ov::Node>& b) {
+                              return index_map[a] < index_map[b];
+                          });
 
                 std::vector<bool> visited_nodes(shared_nodes.size(), false);
                 for (size_t i = 0; i < visited_nodes.size(); ++i) {
@@ -135,6 +145,12 @@ bool shared_node_optimization(const shared_ptr<Model>& model) {
                         if (visited_nodes[j])
                             continue;
                         const auto& child_op = shared_nodes[j];
+
+                        // no functionality is implemented to compare bodies of MultiSubGraphOp operations
+                        if (ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(root_op)) {
+                            continue;
+                        }
+
                         if (nodes_are_equal(root_op, child_op)) {
                             rewritten =
                                 replace_output_update_name(child_op->output(0), root_op->output(0)) || rewritten;
@@ -152,7 +168,7 @@ bool shape_of_upgrade(const shared_ptr<Model>& model) {
     bool rewritten = false;
     for (const auto& op : model->get_ordered_ops()) {
         // Recursively apply transformation for sub-graph based operations
-        if (auto multi_subgraph_op = dynamic_pointer_cast<op::util::MultiSubGraphOp>(op)) {
+        if (auto multi_subgraph_op = ov::as_type_ptr<op::util::MultiSubGraphOp>(op)) {
             for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
                 if (sub_graph)
                     rewritten = shape_of_upgrade(sub_graph) || rewritten;

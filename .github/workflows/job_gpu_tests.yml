@@ -1,0 +1,136 @@
+name: GPU
+
+on:
+  workflow_call:
+    inputs:
+      test_type:
+        description: 'Type of tests to execute'
+        type: string
+        required: true
+      device:
+        description: 'Device name (igpu or dgpu)'
+        type: string
+        required: true
+      runner:
+        description: 'Runner labels by which the runner will be chosen. Example: [ "self-hosted", "igpu" ]'
+        type: string
+        required: true
+      container:
+        description: 'JSON to be converted to the value of the "container" configuration for the job'
+        type: string
+        required: false
+        default: '{"image": null}'
+
+permissions: read-all
+
+jobs:
+  GPU:
+    timeout-minutes: 80
+    runs-on: ${{ fromJSON(inputs.runner) }}
+    container: ${{ fromJSON(inputs.container) }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      GTEST_PARALLEL_SCRIPT: ${{ github.workspace }}/gtest_parallel.py
+    steps:
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: 'openvino_package'
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: 'openvino_tests'
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      - name: Setup Variables
+        run: |
+          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
+          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
+          echo "GTEST_PARALLEL_SCRIPT=$GITHUB_WORKSPACE/gtest_parallel.py" >> "$GITHUB_ENV"
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd $INSTALL_DIR
+            pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
+          popd
+          pushd $INSTALL_TEST_DIR
+            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
+          popd
+
+      - name: Install dependencies (Linux)
+        run: |
+          $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
+          
+          apt-get update && apt-get install -y wget software-properties-common ca-certificates gpg-agent tzdata clinfo
+        env:
+          DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+          TZ: "Europe/London" # to prevent tzdata from waiting user input
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Get gtest-parallel script
+        run: wget https://raw.githubusercontent.com/google/gtest-parallel/master/gtest_parallel.py
+
+      - name: Install compute runtime drivers
+        run: |
+          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-core_1.0.15985.7_amd64.deb
+          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-opencl_1.0.15985.7_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu-dbgsym_1.3.28454.6_amd64.ddeb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu_1.3.28454.6_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd-dbgsym_24.05.28454.6_amd64.ddeb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd_24.05.28454.6_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/libigdgmm12_22.3.11_amd64.deb
+          dpkg -i *.deb
+
+      - name: Install media & display runtimes
+        if: ${{ inputs.device == 'dgpu' }}
+        run: |
+          apt-get update && apt-get install -y \
+            libegl-mesa0 libegl1-mesa libegl1-mesa-dev libgbm1 libgl1-mesa-dev libgl1-mesa-dri \
+            libglapi-mesa libgles2-mesa-dev libglx-mesa0 libigdgmm11 libxatracker2 mesa-va-drivers \
+            mesa-vdpau-drivers mesa-vulkan-drivers va-driver-all
+
+      - name: Verify devices
+        run: clinfo
+
+      #
+      # Tests
+      #
+
+      - name: OpenVINO GPU ${{ inputs.test_type }} Tests
+        id: run_tests
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+
+          TEST_RESULTS_DIR="${{ inputs.device }}_${{ inputs.test_type }}_tests"
+          echo "test_results_dir=$TEST_RESULTS_DIR" >> $GITHUB_OUTPUT
+
+          rm -rf ${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR} && mkdir -p ${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}
+
+          test_filter=''
+          if [[ "${{ inputs.test_type }}" == "unit" ]]; then
+            # Ticket: 138018
+            test_filter='-*scatter_nd_update_gpu.dynamic_padded_output*:*border_gpu.basic_zero_input*:*bicubic_zeros_no_align_data1x1*:*bicubic_border_align_batches*:*bilinear_zeros_no_align_data1x1*:*non_zero_gpu.empty_input*:*mark_shape_of_subgraphs.concat_with_empty_tensor_inputs*:*concat_cpu_impl.dynamic_4d_f*:*border_gpu.basic_zero_input_dynamic*:*network_test.model_with_empty_input_is_not_dynamic*:*bicubic_zeros_align_data1x1*'
+          else
+            test_filter='*smoke*'
+          fi
+          python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_${{ inputs.test_type }}_tests --dump_json_test_results=${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}/ov_gpu_${{ inputs.test_type }}_tests.json -- --report_unique_name --gtest_filter=$test_filter
+
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        if: always()
+        with:
+          name: test-results-${{ inputs.test_type }}-${{ inputs.device }}
+          path: ${{ env.INSTALL_TEST_DIR }}/${{ steps.run_tests.outputs.test_results_dir }}
+          if-no-files-found: 'error'

@@ -24,8 +24,7 @@ typedef std::tuple <
     std::string                   // target device
 > CheckBroadcastParams;
 
-class CheckBroadcast : public testing::WithParamInterface<CheckBroadcastParams>,
-                virtual public ov::test::SnippetsTestsCommon {
+class CheckBroadcast : public testing::WithParamInterface<CheckBroadcastParams>, virtual public SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<CheckBroadcastParams> obj);
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,10 +43,6 @@ OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
     Strides dilations(2);
     convert_nhwc_to_hw(is_nhwc, tf_strides, strides);
     convert_nhwc_to_hw(is_nhwc, tf_dilations, dilations);
-
-    Shape ng_image_shape(2);
-    Shape ng_kernel_shape(2);
-
     convert_nhwc_to_nchw(is_nhwc, input, ov::Rank(4));
 
     // prepare filter to have a number of groups equal to CIN

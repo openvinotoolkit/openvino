@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <string>
 
 #include "common_test_utils/test_constants.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/frontend/extension.hpp"
 #include "openvino/frontend/manager.hpp"

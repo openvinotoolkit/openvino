@@ -10,7 +10,6 @@
 #include "cpu_memory.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
-#include "nodes/executors/dnnl/dnnl_utils.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 
@@ -25,7 +24,6 @@ class DnnlFCPrimitive {
         DnnlMemoryDescCPtr dst;
         dnnl::primitive_attr attr;
         bool sparseWeights;
-        bool transposedWeights;
         Config::ModelType modelType;
 
         size_t hash() const;
@@ -60,10 +58,16 @@ public:
     static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const FCAttrs& attrs,
                                                             const PostOps& postOps,
                                                             const MemoryArgs& memory,
-                                                            const ExecutorContext::CPtr context,
+                                                            const ExecutorContext::CPtr& context,
                                                             const bool cacheWeights);
 
-    static bool useWeightsDecompressionImpl(const ov::element::Type inputType, const ov::element::Type weightsType, const Config::ModelType modelType);
+    static bool useWeightsDecompressionImpl(const ov::element::Type inputType,
+                                            const ov::element::Type weightsType,
+                                            const Config::ModelType modelType);
+
+    static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
+                                                            const DnnlMemoryDescPtr& dstDesc,
+                                                            bool weightsNonTransposed);
 
     static std::shared_ptr<DnnlFCPrimitive> create(const MemoryArgs& memory,
                                                    const FCAttrs& attrs,
@@ -71,9 +75,6 @@ public:
                                                    const DnnlShapeAgnosticDataPtr& shapeAgnosticData);
 
 private:
-    static bool useDynamicQuantizationImpl(size_t dqGroupSize, const MemoryDescPtr srcDesc, const MemoryDescPtr weightsDesc,
-                                           MemoryCPtr scalesPtr, MemoryCPtr zpPtr, bool needTranspose);
-
     dnnl::stream m_stream;
     dnnl::primitive_desc m_primDesc;
     impl_desc_type m_implType;

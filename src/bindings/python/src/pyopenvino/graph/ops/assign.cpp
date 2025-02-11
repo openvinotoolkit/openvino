@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,9 +15,19 @@ namespace py = pybind11;
 void regclass_graph_op_Assign(py::module m) {
     py::class_<ov::op::v6::Assign, std::shared_ptr<ov::op::v6::Assign>, ov::Node> assign(m, "assign");
 
-    assign.doc() = "openvino.runtime.op.assign wraps ov::op::v6::Assign";
+    assign.doc() = "openvino.op.assign wraps ov::op::v6::Assign";
 
     assign.def(py::init<>());
+
+    assign.def(py::init([](py::object& new_value,
+                           const std::shared_ptr<ov::op::util::Variable>& variable,
+                           const std::string& name) {
+                   auto node = new_value.cast<std::shared_ptr<ov::Node>>();
+                   return std::make_shared<ov::op::v6::Assign>(node, variable);
+               }),
+               py::arg("new_value"),
+               py::arg("variable"),
+               py::arg("name") = "");
 
     assign.def(py::init([](py::object& new_value, const std::string& variable_id, const std::string& name) {
                    auto node = new_value.cast<std::shared_ptr<ov::Node>>();
@@ -37,6 +47,18 @@ void regclass_graph_op_Assign(py::module m) {
                py::arg("new_value"),
                py::arg("variable_id"),
                py::arg("name") = "");
+
+    assign.def(
+        "get_variable_id",
+        [](ov::op::v6::Assign& self) {
+            return self.get_variable_id();
+        },
+        R"(
+            Gets variable id.
+
+            :return: variable id.
+            :rtype: str
+        )");
 
     assign.def("__repr__", [](ov::op::v6::Assign& self) {
         std::stringstream shapes_ss;

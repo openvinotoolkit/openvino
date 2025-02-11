@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
@@ -68,6 +68,8 @@ public:
     Napi::Value set_property(const Napi::CallbackInfo& info);
     Napi::Value get_property(const Napi::CallbackInfo& info);
 
+    Napi::Value query_model(const Napi::CallbackInfo& info);
+
     void add_extension(const Napi::CallbackInfo& info);
 protected:
     Napi::Value compile_model_sync(const Napi::CallbackInfo& info,
@@ -91,6 +93,9 @@ protected:
     /** @brief Imports a compiled model from the previously exported one. */
     Napi::Value import_model(const Napi::CallbackInfo& info);
 
+    /** @brief Implements Core.importModel() defined in ../lib/addon.ts. */
+    Napi::Value import_model_async(const Napi::CallbackInfo& info);
+
     /** @brief Returns devices available for inference. */
     Napi::Value get_available_devices(const Napi::CallbackInfo& info);
 
@@ -99,6 +104,7 @@ protected:
 
 private:
     ov::Core _core;
+    std::mutex _mutex;
 };
 
 struct TsfnContextModel {
@@ -125,6 +131,20 @@ struct TsfnContextPath {
     std::string _device;
     ov::CompiledModel _compiled_model;
     std::map<std::string, ov::Any> _config = {};
+};
+
+struct ImportModelContext {
+    ImportModelContext(Napi::Env env, ov::Core& core) : deferred(Napi::Promise::Deferred::New(env)), _core{core} {};
+    std::thread nativeThread;
+
+    Napi::Promise::Deferred deferred;
+    Napi::ThreadSafeFunction tsfn;
+
+    std::stringstream _stream;
+    std::string _device;
+    std::map<std::string, ov::Any> _config = {};
+    ov::Core& _core;
+    ov::CompiledModel _compiled_model;
 };
 
 void FinalizerCallbackModel(Napi::Env env, void* finalizeData, TsfnContextModel* context);

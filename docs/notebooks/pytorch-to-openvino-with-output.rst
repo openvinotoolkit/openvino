@@ -29,8 +29,9 @@ but elevated to the design space level. The RegNet design space provides
 simple and fast networks that work well across a wide range of flop
 regimes.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Load PyTorch Model <#load-pytorch-model>`__
@@ -75,6 +76,16 @@ Table of contents:
    -  `Benchmark OpenVINO Model Inference Converted From Traced
       Model <#benchmark-openvino-model-inference-converted-from-traced-model>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -89,7 +100,6 @@ Install notebook dependencies
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -251,7 +261,7 @@ Benchmark PyTorch Model Inference
 
 .. parsed-literal::
 
-    16.9 ms ± 130 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    18.1 ms ± 484 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 
 Convert PyTorch Model to OpenVINO Intermediate Representation
@@ -322,14 +332,16 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    import requests
     
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
     
     device
 
@@ -410,7 +422,7 @@ Benchmark OpenVINO Model Inference
 
 .. parsed-literal::
 
-    3.16 ms ± 11 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    3.29 ms ± 3.63 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 
 Convert PyTorch Model with Static Input Shape
@@ -540,7 +552,7 @@ Benchmark OpenVINO Model Inference with Static Input Shape
 
 .. parsed-literal::
 
-    2.95 ms ± 6.16 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    2.91 ms ± 10.5 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 
 Convert TorchScript Model to OpenVINO Intermediate Representation
@@ -635,7 +647,7 @@ Benchmark Scripted Model Inference
 
 .. parsed-literal::
 
-    14.1 ms ± 67.7 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    14.3 ms ± 70 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 
 Convert PyTorch Scripted Model to OpenVINO Intermediate Representation
@@ -694,7 +706,7 @@ Benchmark OpenVINO Model Inference Converted From Scripted Model
 
 .. parsed-literal::
 
-    3.27 ms ± 6.74 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    3.25 ms ± 5.19 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 
 Traced Model
@@ -770,7 +782,7 @@ Benchmark Traced Model Inference
 
 .. parsed-literal::
 
-    14.7 ms ± 193 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    15.2 ms ± 315 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 
 Convert PyTorch Traced Model to OpenVINO Intermediate Representation
@@ -829,5 +841,5 @@ Benchmark OpenVINO Model Inference Converted From Traced Model
 
 .. parsed-literal::
 
-    3.4 ms ± 3.83 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    3.35 ms ± 3.85 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 

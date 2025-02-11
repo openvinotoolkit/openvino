@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ TEST_F(ConvolutionV1StaticShapeInferenceTest, default_ctor) {
     op->set_pads_end({2, 1});
     op->set_auto_pad(op::PadType::VALID);
 
-    input_shapes = ShapeVector{{1, 3, 10, 12}, {2, 3, 5, 5}};
+    input_shapes = StaticShapeVector{{1, 3, 10, 12}, {2, 3, 5, 5}};
     auto shape_infer = make_shape_inference(op);
     const auto input_shape_refs = make_static_shape_refs(input_shapes);
     output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
@@ -47,7 +47,7 @@ TEST_F(ConvolutionV1StaticShapeInferenceTest, default_ctor_three_input_shapes) {
     op->set_auto_pad(op::PadType::VALID);
 
     // Third input shape (bias) can be provided, but is not used
-    input_shapes = ShapeVector{{1, 3, 10, 12}, {2, 3, 5, 5}, {2}};
+    input_shapes = StaticShapeVector{{1, 3, 10, 12}, {2, 3, 5, 5}, {2}};
     auto shape_infer = make_shape_inference(op);
     const auto input_shape_refs = make_static_shape_refs(input_shapes);
     output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
@@ -70,7 +70,7 @@ TEST_F(ConvolutionV1StaticShapeInferenceTest, 2d_auto_pads_same_lower_inputs_dyn
 
     op = make_op(data, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
-    input_shapes = ShapeVector{{3, 6, 5, 5}, {7, 6, 3, 3}};
+    input_shapes = StaticShapeVector{{3, 6, 5, 5}, {7, 6, 3, 3}};
     output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
@@ -89,7 +89,7 @@ TEST_F(ConvolutionV1StaticShapeInferenceTest, 3d_auto_pad_same_lower_inputs_stat
 
     op = make_op(data, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
-    input_shapes = ShapeVector{{3, 6, 5, 5, 5}, {7, 6, 3, 3, 3}};
+    input_shapes = StaticShapeVector{{3, 6, 5, 5, 5}, {7, 6, 3, 3, 3}};
     output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
@@ -108,7 +108,7 @@ TEST_F(ConvolutionV1StaticShapeInferenceTest, data_and_filters_num_channels_not_
 
     op = make_op(data, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
-    input_shapes = ShapeVector{{3, 5, 5, 5, 5}, {7, 6, 3, 3, 3}};
+    input_shapes = StaticShapeVector{{3, 5, 5, 5, 5}, {7, 6, 3, 3, 3}};
 
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,
@@ -127,7 +127,7 @@ TEST_F(ConvolutionV1StaticShapeInferenceTest, data_rank_not_compatible_with_filt
 
     op = make_op(data, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
-    input_shapes = ShapeVector{{3, 6, 5, 5, 5}, {7, 6, 3, 3}};
+    input_shapes = StaticShapeVector{{3, 6, 5, 5, 5}, {7, 6, 3, 3}};
 
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,

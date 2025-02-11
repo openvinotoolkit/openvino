@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "transformations/cpu_opset/common/op/submodel.hpp"
 #include "utils/caseless.hpp"
 
 namespace ov {
@@ -61,11 +62,14 @@ enum class Type {
     TensorIterator,
     Convert,
     ColorConvert,
+    Col2Im,
     MVN,
     NormalizeL2,
     ScatterUpdate,
     ScatterElementsUpdate,
     ScatterNDUpdate,
+    StringTensorPack,
+    StringTensorUnpack,
     Interpolate,
     Reduce,
     Broadcast,
@@ -85,6 +89,7 @@ enum class Type {
     ShuffleChannels,
     DFT,
     RDFT,
+    STFT,
     Math,
     CTCLoss,
     Bucketize,
@@ -113,6 +118,7 @@ enum class Type {
     MulticlassNms,
     Multinomial,
     Subgraph,
+    SubModel,
     PriorBox,
     PriorBoxClustered,
     Interaction,
@@ -124,6 +130,11 @@ enum class Type {
     PagedAttention,
     RoPE,
     CausalMaskPreprocess,
+    LLMMLP,
+    QKVProjection,
+    RMS,
+    SearchSorted,
+    LoRA
 };
 
 enum class Algorithm {
@@ -153,7 +164,10 @@ enum class Algorithm {
     EltwiseMultiply,
     EltwiseSubtract,
     EltwiseDivide,
+    EltwiseFloor,
+    EltwiseCeiling,
     EltwiseFloorMod,
+    EltwiseNegative,
     EltwiseMod,
     EltwiseMaximum,
     EltwiseMinimum,
@@ -197,6 +211,14 @@ enum class Algorithm {
     EltwiseBitwiseNot,
     EltwiseBitwiseOr,
     EltwiseBitwiseXor,
+    EltwiseBitwiseLeftShift,
+    EltwiseBitwiseRightShift,
+
+    // FullyConnected algorithms
+    FullyConnectedCommon,
+    FullyConnectedCompressed,
+    FullyConnectedQuantized,
+    FullyConnectedQuantizedLegacy,
 
     // FakeQuantize algorithms
     FQCommon,

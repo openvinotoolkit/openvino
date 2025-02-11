@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "condition_inst.h"
 #include "data_inst.h"
-#include "implementation_map.hpp"
+#include "impls/registry/implementation_map.hpp"
 #include "register.hpp"
 
 #include <algorithm>
@@ -40,7 +40,6 @@ struct condition_impl : typed_primitive_impl<condition> {
             events[0]->wait();
 
         auto& stream = instance.get_network().get_stream();
-        auto ev = stream.create_user_event(false);
         set_node_params(instance.get_node());
 
         auto pred = condition_inst::get_pred_from_memory(instance.pred_memory_ptr(), stream);
@@ -172,7 +171,7 @@ attach_condition_common::attach_condition_common() {
     implementation_map<condition>::add(impl_types::common,
                                     shape_types::dynamic_shape,
                                     condition_impl::create,
-                                    {},
+                                    std::vector<data_types>{},
                                     {});
     implementation_map<condition>::add(impl_types::common, condition_impl::create, {});
 }

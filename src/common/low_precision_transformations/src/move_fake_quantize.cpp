@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 
 #include <memory>
 #include "openvino/core/node.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 
@@ -45,7 +46,7 @@ MoveFakeQuantize::MoveFakeQuantize(const Params& params) : LayerTransformation(p
             return false;
         }
 
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(
@@ -54,9 +55,9 @@ MoveFakeQuantize::MoveFakeQuantize(const Params& params) : LayerTransformation(p
     this->register_matcher(m, callback);
 }
 
-bool MoveFakeQuantize::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
+bool MoveFakeQuantize::transform(ov::pass::pattern::Matcher& m) {
     const auto fq = m.get_match_root();
-    if (!canBeTransformed(context, fq)) {
+    if (!canBeTransformed(fq)) {
         return false;
     }
 
@@ -83,10 +84,17 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ov::pass::patte
     if (concat_node == nullptr) {
         return false;
     }
-    const auto concat_axis = concat_node->get_concatenation_axis();
+
+    const auto rank = concat_node->get_output_partial_shape(0).rank();
+    if (rank.is_dynamic()) {
+        return false;
+    }
+
+    const auto concat_axis = ov::util::normalize(concat_node->get_axis(), rank.get_length());
+
     for (size_t i = 0; i < 4; i++) {
         curr_constants[i] = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(i + 1));
-        if (!multi_chanels && concat_axis >= 0 && curr_constants[i]->get_shape().size() > static_cast<size_t>(concat_axis)
+        if (!multi_chanels && curr_constants[i]->get_shape().size() > static_cast<size_t>(concat_axis)
             && curr_constants[i]->get_shape()[concat_axis] != 1) {
             multi_chanels = true;
         }
@@ -148,16 +156,16 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ov::pass::patte
     newConcat->set_friendly_name(concat->get_friendly_name());
     NetworkHelper::copyInfo(concat, newConcat);
     if (!dequantization.empty()) {
-        moveDequantizationBefore(context, newConcat, dequantization);
+        moveDequantizationBefore(newConcat, dequantization);
         return true;
     }
     replace_node(fq, newConcat);
-    updateOutput(context, newConcat, fq);
+    updateOutput(newConcat, fq);
 
     return true;
 }
 
-bool MoveFakeQuantize::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+bool MoveFakeQuantize::canBeTransformed(const std::shared_ptr<Node>& layer) const {
     auto operation = layer->get_input_node_shared_ptr(0);
     std::shared_ptr<ov::Node> concat;
     if (is_type<opset1::Concat>(operation)) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,9 @@ public:
     Kernel() = default;
     Kernel(lowered::LinearIR region);
 
-    static std::shared_ptr<Kernel> make_kernel(const lowered::LinearIR& region);
+    template<typename ... ArgTypes>
+    static std::shared_ptr<Kernel> make_kernel(bool is_dynamic, ArgTypes&&... args);
+    virtual size_t get_num_call_args() const = 0;
 
     std::shared_ptr<lowered::LinearIR> region;
     const void *compile_params = nullptr;
@@ -33,6 +35,7 @@ public:
     OPENVINO_OP("KernelStatic", "SnippetsOpset", Kernel);
     KernelStatic() = default;
     KernelStatic(lowered::LinearIR region);
+    size_t get_num_call_args() const override { return  2; }
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 };
 
@@ -41,8 +44,18 @@ public:
     OPENVINO_OP("KernelDynamic", "SnippetsOpset", Kernel);
     KernelDynamic() = default;
     KernelDynamic(lowered::LinearIR region);
+    size_t get_num_call_args() const override { return  1; }
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 };
+
+template<typename ... ArgTypes>
+std::shared_ptr<Kernel> Kernel::make_kernel(bool is_dynamic, ArgTypes&&... args) {
+    if (is_dynamic) {
+        return std::make_shared<KernelDynamic>(std::forward<ArgTypes>(args)...);
+    } else {
+        return std::make_shared<KernelStatic>(std::forward<ArgTypes>(args)...);
+    }
+}
 
 } // namespace op
 } // namespace snippets

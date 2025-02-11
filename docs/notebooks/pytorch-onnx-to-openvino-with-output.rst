@@ -33,8 +33,9 @@ plant, sheep, sofa, train, tv monitor**
 More information about the model is available in the `torchvision
 documentation <https://pytorch.org/vision/main/models/lraspp.html>`__
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Preparation <#preparation>`__
 
@@ -66,6 +67,16 @@ Table of contents:
 -  `Performance Comparison <#performance-comparison>`__
 -  `References <#references>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. code:: ipython3
 
     # Install openvino package
@@ -74,13 +85,6 @@ Table of contents:
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    googleapis-common-protos 1.63.0 requires protobuf!=3.20.0,!=3.20.1,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0.dev0,>=3.19.5, but you have protobuf 5.26.1 which is incompatible.
-    pytorch-lightning 1.6.5 requires protobuf<=3.20.1, but you have protobuf 5.26.1 which is incompatible.
-    tensorflow 2.12.0 requires protobuf!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0dev,>=3.20.3, but you have protobuf 5.26.1 which is incompatible.
-    tensorflow-metadata 1.14.0 requires protobuf<4.21,>=3.20.3, but you have protobuf 5.26.1 which is incompatible.
-    tf2onnx 1.16.1 requires protobuf~=3.20, but you have protobuf 5.26.1 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -118,13 +122,7 @@ Imports
     
     open("notebook_utils.py", "w").write(r.text)
     
-    from notebook_utils import (
-        segmentation_map_to_image,
-        viz_result_image,
-        SegmentationMap,
-        Label,
-        download_file,
-    )
+    from notebook_utils import segmentation_map_to_image, viz_result_image, SegmentationMap, Label, download_file, device_widget
 
 Settings
 ~~~~~~~~
@@ -199,12 +197,18 @@ have not downloaded the model before.
 
 .. parsed-literal::
 
-    model/lraspp_mobilenet_v3_large.pt:   0%|          | 0.00/12.5M [00:00<?, ?B/s]
+    lraspp_mobilenet_v3_large.pt:   0%|          | 0.00/12.5M [00:00<?, ?B/s]
 
 
 .. parsed-literal::
 
     Loaded PyTorch LRASPP MobileNetV3 model
+
+
+.. parsed-literal::
+
+    /tmp/ipykernel_2234490/47468665.py:10: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+      state_dict = torch.load(weights_path, map_location="cpu")
 
 
 ONNX Model Conversion
@@ -330,7 +334,7 @@ Images need to be normalized before propagating through the network.
 
 .. parsed-literal::
 
-    data/coco.jpg:   0%|          | 0.00/202k [00:00<?, ?B/s]
+    coco.jpg:   0%|          | 0.00/202k [00:00<?, ?B/s]
 
 
 Load the OpenVINO IR Network and Run Inference on the ONNX model
@@ -366,14 +370,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 
@@ -566,18 +563,21 @@ performance.
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.039 seconds per image, FPS: 25.93
-    ONNX model in OpenVINO Runtime/AUTO: 0.018 seconds per image, FPS: 54.11
-    OpenVINO IR model in OpenVINO Runtime/AUTO: 0.028 seconds per image, FPS: 35.60
+    PyTorch model on CPU: 0.040 seconds per image, FPS: 25.15
+    ONNX model in OpenVINO Runtime/AUTO: 0.018 seconds per image, FPS: 55.72
+    OpenVINO IR model in OpenVINO Runtime/AUTO: 0.028 seconds per image, FPS: 35.73
 
 
 **Show Device Information**
 
 .. code:: ipython3
 
+    import openvino.properties as props
+    
+    
     devices = core.available_devices
     for device in devices:
-        device_name = core.get_property(device, "FULL_DEVICE_NAME")
+        device_name = core.get_property(device, props.device.full_name)
         print(f"{device}: {device_name}")
 
 
@@ -594,7 +594,7 @@ References
 -  `Torchvision <https://pytorch.org/vision/stable/index.html>`__
 -  `Pytorch ONNX
    Documentation <https://pytorch.org/docs/stable/onnx.html>`__
--  `PIP install openvino-dev <https://pypi.org/project/openvino-dev/>`__
+-  `PIP install openvino <https://pypi.org/project/openvino/>`__
 -  `OpenVINO ONNX
    support <https://docs.openvino.ai/2021.4/openvino_docs_IE_DG_ONNX_Support.html>`__
 -  `Model Conversion API

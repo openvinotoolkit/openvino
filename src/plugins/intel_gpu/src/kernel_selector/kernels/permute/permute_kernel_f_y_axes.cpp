@@ -65,7 +65,7 @@ size_t GetTileWidth(const permute_params& params) {
 
     // i64 only supports tile size 4
     if ((input_type == Datatype::INT64) || (output_type == Datatype::INT64)) {
-        min_divisor = min_divisor / 2;
+        min_divisor = min_divisor >= 4 ? min_divisor / 2 : min_divisor;
     }
     if (input_type == Datatype::F16) {
         min_divisor = min_divisor * 2;
@@ -77,7 +77,7 @@ size_t GetTileWidth(const permute_params& params) {
     if (params.inputs[0].X().v == 1) {
         return std::min(params.inputs[0].Y().v, min_divisor);
     }
-    return std::min(params.inputs[0].X().v, min_divisor);
+    return std::min(GetDivisor(params.inputs[0].X().v), min_divisor);
 }
 
 size_t GetTileSize(const permute_params& params) {
@@ -129,8 +129,8 @@ JitConstants PermuteKernel_f_y_axes::GetJitConstants(const permute_params& param
     }
 
     const size_t tile_width = GetTileWidth(params);
-    const size_t vector_size = std::min(tile_width, static_cast<size_t>(4));
     const size_t tile_size = GetTileSize(params);
+    const size_t vector_size = IsSimpleMemCopyOperation(params) ? std::min(tile_width, static_cast<size_t>(4)): std::min(tile_size, static_cast<size_t>(4));
     const size_t j_times = IsSimpleMemCopyOperation(params) ? tile_width / vector_size : tile_size / vector_size;
     const size_t feature_block_size = GetFeatureBlockSize(params);
     jit.AddConstant(MakeJitConstant("BLOCK_SIZE", tile_width));
@@ -214,6 +214,8 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
     const auto& params = dynamic_cast<const permute_params&>(p);
     const auto& in = params.inputs[0];
     const auto in_layout = in.GetLayout();
+    const auto& out = params.outputs[0];
+    const auto& out_layout = out.GetLayout();
 
     const auto feature_div = GetDivisor(in.Feature().v);
     const auto y_div = GetDivisor(in.Y().v);
@@ -224,6 +226,10 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
         return false;
     }
     if (!is_swapping_f_with_y(params.order)) {
+        return false;
+    }
+
+    if (in_layout != out_layout) {
         return false;
     }
 

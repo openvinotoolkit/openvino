@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include "snippets_isa.hpp"
 
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/kernel_executor_table.hpp"
 #include "snippets/shape_types.hpp"
 #include "target_machine.hpp"
 
@@ -32,7 +33,8 @@ class LoweringResult {
     std::vector<std::shared_ptr<Emitter>> m_saved_emitters{};
 
 public:
-    std::shared_ptr<CompiledSnippet> compiled_snippet = nullptr;
+    CompiledSnippetPtr compiled_snippet = nullptr;
+    KernelExecutorTablePtr kernel_executor_table = nullptr;
 };
 
 /**
@@ -63,7 +65,7 @@ public:
  * @brief Target independent code generator interface
  * @ingroup snippets
  */
-class Generator {
+class Generator : public std::enable_shared_from_this<Generator>{
 public:
     /**
      * @brief Default constructor
@@ -79,7 +81,7 @@ public:
      * @param compile_params compile-time parameters used for code generation
      * @return variable to handle the result
      */
-    LoweringResult generate(lowered::LinearIR& linear_ir, const void* compile_params = nullptr) const;
+    LoweringResult generate(const lowered::LinearIRPtr& linear_ir, const void* compile_params = nullptr) const;
 
     /**
      * @brief gets target machine

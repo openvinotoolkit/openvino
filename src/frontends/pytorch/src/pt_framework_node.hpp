@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,8 +20,9 @@ public:
     PtFrameworkNode(const std::shared_ptr<TorchDecoder>& decoder,
                     const OutputVector& inputs,
                     size_t output_size,
-                    bool is_reverseprop = false)
-        : ov::op::util::FrameworkNode(inputs, output_size, decoder->get_subgraph_size()),
+                    bool is_reverseprop = false,
+                    bool skip_subgraphs = false)
+        : ov::op::util::FrameworkNode(inputs, output_size, skip_subgraphs ? 0 : decoder->get_subgraph_size()),
           m_decoder(decoder) {
         ov::op::util::FrameworkNodeAttrs attrs;
         attrs.set_type_name("PTFrameworkNode");

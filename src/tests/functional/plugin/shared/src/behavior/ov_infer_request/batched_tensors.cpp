@@ -459,7 +459,7 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Correct_all) {
     std::vector<ov::Tensor> tensors;
     tensors.emplace_back(element::f32, one_shape, buffer.data());
     tensors.emplace_back(element::f32, one_shape, buffer.data() + ov::shape_size(one_shape));
-    ASSERT_NO_THROW(req.set_input_tensors(tensors));
+    OV_ASSERT_NO_THROW(req.set_input_tensors(tensors));
 }
 
 TEST_P(OVInferRequestBatchedTests, SetInputTensors_Cache_CheckDeepCopy) {
@@ -482,8 +482,8 @@ TEST_P(OVInferRequestBatchedTests, SetInputTensors_Cache_CheckDeepCopy) {
     tensors.emplace_back(element::f32, one_shape, buffer.data() + ov::shape_size(one_shape));
     auto out_tensor = ov::Tensor(element::f32, batch_shape, buffer_out.data());
     // Verify that infer request still has its own copy of input/output, user can use old names
-    ASSERT_NO_THROW(req.set_tensors("tensor_input0", tensors));
-    ASSERT_NO_THROW(req.set_tensor("tensor_output0", out_tensor));
+    OV_ASSERT_NO_THROW(req.set_tensors("tensor_input0", tensors));
+    OV_ASSERT_NO_THROW(req.set_tensor("tensor_output0", out_tensor));
 }
 
 TEST_P(OVInferRequestBatchedTests, SetInputTensors_Incorrect_tensor_element_type) {

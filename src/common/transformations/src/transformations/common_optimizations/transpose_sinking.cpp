@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -164,9 +164,9 @@ ov::pass::TransposeReduction::TransposeReduction() {
 
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto reduction = pattern_to_output.at(reduce_or_squeeze_label).get_node_shared_ptr();
-        auto arithmetic_reduce = std::dynamic_pointer_cast<op::util::ArithmeticReductionKeepDims>(reduction);
-        auto logical_reduce = std::dynamic_pointer_cast<op::util::LogicalReductionKeepDims>(reduction);
-        auto squeeze = std::dynamic_pointer_cast<ov::op::v0::Squeeze>(reduction);
+        auto arithmetic_reduce = ov::as_type_ptr<op::util::ArithmeticReductionKeepDims>(reduction);
+        auto logical_reduce = ov::as_type_ptr<op::util::LogicalReductionKeepDims>(reduction);
+        auto squeeze = ov::as_type_ptr<ov::op::v0::Squeeze>(reduction);
         if (!transpose || !(arithmetic_reduce || logical_reduce || squeeze))
             return false;
 
@@ -176,14 +176,15 @@ ov::pass::TransposeReduction::TransposeReduction() {
         else if (arithmetic_reduce)
             keep_dims = arithmetic_reduce->get_keep_dims();
 
-        auto transpose_order = std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
-        auto reduction_axes = std::dynamic_pointer_cast<ov::op::v0::Constant>(reduction->get_input_node_shared_ptr(1));
+        auto transpose_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
+        auto reduction_axes = ov::as_type_ptr<ov::op::v0::Constant>(reduction->get_input_node_shared_ptr(1));
         if (!transpose_order || !reduction_axes)
             return false;
 
-        const auto& non_negative_axes = ov::util::normalize_axes(reduction->get_friendly_name(),
-                                                                 reduction_axes->cast_vector<int64_t>(),
-                                                                 reduction->get_input_partial_shape(0).rank());
+        const auto non_negative_axes =
+            util::try_get_normalized_axis_vector(reduction_axes->get_tensor_view(),
+                                                 reduction->get_input_partial_shape(0).rank(),
+                                                 *reduction);
         reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {non_negative_axes.size()}, non_negative_axes);
 
         ov::NodeVector new_ops;
@@ -240,7 +241,7 @@ ov::pass::TransposeFQReduction::TransposeFQReduction() {
         if (!transpose)
             return false;
 
-        auto transpose_order = std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
+        auto transpose_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
         auto fq = pattern_to_output.at(fq_label).get_node_shared_ptr();
         if (!transpose_order || !fq)
             return false;
@@ -304,10 +305,8 @@ ov::pass::TransposeFuse::TransposeFuse() {
         auto transpose2 = pattern_to_output.at(transpose_2).get_node_shared_ptr();
         auto input = transpose1->input_value(0);
 
-        auto transpose1_order =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose1->get_input_node_shared_ptr(1));
-        auto transpose2_order =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose2->get_input_node_shared_ptr(1));
+        auto transpose1_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose1->get_input_node_shared_ptr(1));
+        auto transpose2_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose2->get_input_node_shared_ptr(1));
         if (!transpose1_order || !transpose2_order)
             return false;
 

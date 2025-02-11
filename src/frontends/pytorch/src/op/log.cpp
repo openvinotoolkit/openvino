@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,7 +77,7 @@ OutputVector translate_log10(const NodeContext& context) {
 };
 
 OutputVector translate_logsumexp(const NodeContext& context) {
-    num_inputs_check(context, 1, 2);
+    num_inputs_check(context, 1, 3);
     auto input = context.get_input(0);
     ov::Output<ov::Node> dim;
     if (!context.input_is_none(1)) {
@@ -85,8 +85,12 @@ OutputVector translate_logsumexp(const NodeContext& context) {
     } else {
         dim = context.mark_node(get_axes_range(context, 0));
     }
+    bool keepdim = false;
+    if (!context.input_is_none(2)) {
+        keepdim = context.const_input<bool>(2);
+    }
     auto exp = context.mark_node(std::make_shared<v0::Exp>(input));
-    auto sum = context.mark_node(std::make_shared<v1::ReduceSum>(exp, dim, false));
+    auto sum = context.mark_node(std::make_shared<v1::ReduceSum>(exp, dim, keepdim));
     auto log = context.mark_node(std::make_shared<v0::Log>(sum));
     return {log};
 };

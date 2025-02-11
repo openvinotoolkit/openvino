@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,6 +69,7 @@ AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<SyncInferRequest>& re
                 // it is ok to call size() here as the queue only grows (and the bulk removal happens under the mutex)
                 const int sz = static_cast<int>(workerInferRequest->_tasks.size());
                 if (sz == workerInferRequest->_batch_size) {
+                    workerInferRequest->_is_wakeup = true;
                     workerInferRequest->_cond.notify_one();
                 }
             };

@@ -1,10 +1,13 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
 import numpy as np
+from packaging.version import parse as parse_version
+import torch
+import sys
 
-from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
+from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestUnique2(PytorchLayerTest):
@@ -54,7 +57,6 @@ class TestUnique2(PytorchLayerTest):
                 result, _, _ = self.op(x, self.sorted, False, False)
                 return result
 
-        ref_net = None
         if return_inverse and return_counts:
             model_class, op = (aten_unique2_return_both, "aten::_unique2")
         elif return_inverse:
@@ -64,7 +66,7 @@ class TestUnique2(PytorchLayerTest):
         else:
             model_class, op = (aten_unique2_return_neither, "aten::_unique2")
 
-        return model_class(sorted), ref_net, op
+        return model_class(sorted), None, op
 
     @pytest.mark.parametrize("input_shape", [
         [115], [24, 30], [5, 4, 6], [3, 7, 1, 4], [16, 3, 32, 32]
@@ -75,5 +77,7 @@ class TestUnique2(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_unique2(self, input_shape, sorted, return_inverse, return_counts, ie_device, precision, ir_version):
+        if sys.platform == "win32" and input_shape == [16, 3, 32, 32] and parse_version(torch.__version__).release == (2, 4, 0):
+            pytest.skip(reason="torch==2.4.0 fails on windows, but is fixed in nightly.")
         self.input_tensor = np.random.randint(0, 10, size=input_shape).astype(np.int32)
         self._test(*self.create_model(sorted, return_inverse, return_counts), ie_device, precision, ir_version)

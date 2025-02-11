@@ -123,7 +123,7 @@ std::shared_ptr<ov::Node> ConvolutionLayerCPUTest::modifyGraph(const ov::element
                 }
 
                 std::vector<ov::Shape> secondParameterShapes;
-                if (auto parameter = dynamic_cast<ov::op::v0::Parameter*>(opToShapeInfer->get_input_node_ptr(0))) {
+                if (auto parameter = ov::as_type<ov::op::v0::Parameter>(opToShapeInfer->get_input_node_ptr(0))) {
                     parameter->set_partial_shape(targetShapes.front());
                     parameter->validate_and_infer_types();
                 }
@@ -160,11 +160,16 @@ void ConvolutionLayerCPUTest::SetUp() {
     init_input_shapes({inputShape});
 
     auto it = configuration.find(ov::hint::inference_precision.name());
-    if (it != configuration.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
+    ov::element::Type inference_precision = (it != configuration.end()) ?
+                                            it->second.as<ov::element::Type>() : ov::element::undefined;
+    if (inference_precision == ov::element::bf16) {
         selectedType += "_BF16";
         rel_threshold = 1e-2f;
         if (selectedType == "jit_gemm_BF16")
             rel_threshold = 0.05f;
+    } else if (inference_precision == ov::element::f16) {
+            selectedType +=  "_FP16";
+            rel_threshold = 0.00125f;
     } else {
         selectedType = makeSelectedTypeStr(selectedType, netType);
     }

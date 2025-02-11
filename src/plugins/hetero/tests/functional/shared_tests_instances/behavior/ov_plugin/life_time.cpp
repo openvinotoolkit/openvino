@@ -1,16 +1,21 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "behavior/ov_plugin/life_time.hpp"
 
-using namespace ov::test::behavior;
+namespace ov {
+namespace test {
+namespace behavior {
+INSTANTIATE_TEST_SUITE_P(smoke_VirtualPlugin_BehaviorTests,
+                         OVHoldersTest,
+                         ::testing::Values("HETERO:TEMPLATE"),
+                         OVHoldersTest::getTestCaseName);
 
-namespace {
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVHoldersTestOnImportedNetwork,
-                         ::testing::Values(ov::test::utils::DEVICE_TEMPLATE, "HETERO:TEMPLATE"),
-                         OVHoldersTestOnImportedNetwork::getTestCaseName);
-
-}  // namespace
+INSTANTIATE_TEST_SUITE_P(nightly_VirtualPlugin_BehaviorTests,
+                         OVHoldersTest,
+                         ::testing::Values("HETERO:GPU"),
+                         OVHoldersTest::getTestCaseName);
+}  // namespace behavior
+}  // namespace test
+}  // namespace ov

@@ -95,7 +95,11 @@ describe('save', () => {
 
   it('Cache files: absent remote cache dir', async () => {
     // Set the action's inputs as return values from core.getInput()
-    const cacheRemotePathAbsent = path.join(tempDir, 'cache_remote_absent');
+    const cacheRemotePathAbsent = path.join(
+      tempDir,
+      'cache_remote_absent',
+      'subdir'
+    );
     getInputMock.mockImplementation(name => {
       switch (name) {
         case 'cache-path':

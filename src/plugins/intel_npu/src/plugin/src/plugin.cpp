@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,15 +7,26 @@
 #include <fstream>
 
 #include "compiled_model.hpp"
-#include "compiler.hpp"
-#include "device_helpers.hpp"
-#include "intel_npu/al/config/common.hpp"
-#include "intel_npu/al/config/compiler.hpp"
-#include "intel_npu/al/config/runtime.hpp"
-#include "intel_npu/al/itt.hpp"
+#include "compiler_adapter_factory.hpp"
+#include "driver_compiler_adapter.hpp"
+#include "intel_npu/common/device_helpers.hpp"
+#include "intel_npu/common/icompiler_adapter.hpp"
+#include "intel_npu/common/igraph.hpp"
+#include "intel_npu/common/itt.hpp"
+#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/compiler.hpp"
+#include "intel_npu/config/npuw.hpp"
+#include "intel_npu/config/runtime.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
+#include "metadata.hpp"
+#include "npuw/compiled_model.hpp"
+#include "npuw/llm_compiled_model.hpp"
+#include "npuw/serialization.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "remote_context.hpp"
 
 using namespace intel_npu;
 
@@ -33,62 +44,52 @@ const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
  * Note that a stored compiled model does not hold the original IR model within it. The only related information
  * which may be extracted is the original model's "parameter"/"result" nodes. Thus, we need to build a dummy model
  * starting from these fields in order to satisfy the API.
- * @param parameterDescriptors Describes the input nodes.
- * @param resultDescriptors Describes the output nodes.
- * @param inputNames The names of the inputs registered in the order given by the model.
- * @param outputNames The names of the outputs registered in the order given by the model.
- * @param isBatchingSupported Newer driver versions support batching mode on the plugin.
+ *
+ * @param inputDescriptors Describes the input nodes.
+ * @param outputDescriptors Describes the output nodes.
+ * @returns The dummy "ov::Model" composed of "parameter" and "result" nodes built using the given descriptors.
  */
-std::shared_ptr<ov::Model> create_dummy_model(const IONodeDescriptorMap& parameterDescriptors,
-                                              const IONodeDescriptorMap& resultDescriptors,
-                                              const std::vector<std::string>& inputNames,
-                                              const std::vector<std::string>& outputNames,
-                                              bool isBatchingSupported) {
+std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& inputDescriptors,
+                                              const std::vector<IODescriptor>& outputDescriptors) {
     ov::ParameterVector parameters;
     ov::NodeVector results;
 
-    for (const std::string& inputName : inputNames) {
-        const IONodeDescriptor& parameterDescriptor = parameterDescriptors.at(inputName);
+    for (const IODescriptor& inputDescriptor : inputDescriptors) {
+        if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor) {
+            continue;
+        }
 
-        std::shared_ptr<ov::op::v0::Parameter> parameter = [&] {
-            if (isBatchingSupported) {
-                return std::make_shared<ov::op::v0::Parameter>(parameterDescriptor.precision,
-                                                               parameterDescriptor.originalShape);
-            }
-            return std::make_shared<ov::op::v0::Parameter>(parameterDescriptor.precision,
-                                                           parameterDescriptor.transposedShape);
-        }();
+        std::shared_ptr<ov::op::v0::Parameter> parameter = std::make_shared<ov::op::v0::Parameter>(
+            inputDescriptor.precision,
+            inputDescriptor.shapeFromIRModel.has_value() ? *inputDescriptor.shapeFromIRModel
+                                                         : inputDescriptor.shapeFromCompiler);
 
-        parameter->set_friendly_name(parameterDescriptor.currentNodeName);
-        parameter->output(0).get_tensor().set_names(parameterDescriptor.outputTensorNames);
+        parameter->set_friendly_name(inputDescriptor.nodeFriendlyName);
+        parameter->output(0).get_tensor().set_names(inputDescriptor.outputTensorNames);
         parameters.push_back(parameter);
     }
 
-    // The "result" nodes require a parent node in order to satisfy the legacy API naming conventions as well (in
-    // the 1.0 API, the name of an output is given by the parent of the "result" node). Additionally, a dummy shape for
+    // The "result" nodes require a parent node in order to satisfy the API conventions. Additionally, a dummy shape for
     // the "Constant" node was required since the specific constructor does not accept "ov::PartialShape" values (a
     // constant can't have dynamic shape). The dummy tensor was also brought in order to register the correct,
     // potentially dynamic, output shape.
-    for (const std::string& outputName : outputNames) {
-        const IONodeDescriptor& resultDescriptor = resultDescriptors.at(outputName);
-        std::shared_ptr<ov::Node> constantDummy =
-            std::make_shared<ov::op::v0::Constant>(resultDescriptor.precision, CONSTANT_NODE_DUMMY_SHAPE);
-        constantDummy->set_friendly_name(resultDescriptor.legacyName);
+    for (const IODescriptor& outputDescriptor : outputDescriptors) {
+        if (outputDescriptor.isStateInput || outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor) {
+            continue;
+        }
 
-        const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy = [&] {
-            if (isBatchingSupported) {
-                return std::make_shared<ov::descriptor::Tensor>(resultDescriptor.precision,
-                                                                resultDescriptor.originalShape,
-                                                                resultDescriptor.outputTensorNames);
-            }
-            return std::make_shared<ov::descriptor::Tensor>(resultDescriptor.precision,
-                                                            resultDescriptor.transposedShape,
-                                                            resultDescriptor.outputTensorNames);
-        }();
+        std::shared_ptr<ov::Node> constantDummy =
+            std::make_shared<ov::op::v0::Constant>(outputDescriptor.precision, CONSTANT_NODE_DUMMY_SHAPE);
+
+        const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy = std::make_shared<ov::descriptor::Tensor>(
+            outputDescriptor.precision,
+            outputDescriptor.shapeFromIRModel.has_value() ? *outputDescriptor.shapeFromIRModel
+                                                          : outputDescriptor.shapeFromCompiler,
+            outputDescriptor.outputTensorNames);
 
         std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>(constantDummy);
         result->output(0).set_tensor_ptr(tensorDummy);
-        result->set_friendly_name(resultDescriptor.currentNodeName);
+        result->set_friendly_name(outputDescriptor.nodeFriendlyName);
         results.push_back(result);
     }
 
@@ -97,13 +98,13 @@ std::shared_ptr<ov::Model> create_dummy_model(const IONodeDescriptorMap& paramet
 
 /**
  * @brief Setting batching mode
- * @details  In the case of older drivers or discrete platforms, we force batching to compiler mode since it is not
+ * @details  In the case of older drivers, we force batching to compiler mode since it is not
  * supported. Othwersie set it tu AUTO if this wasn't set by the user
  * @param isBatchingSupported  Newer driver versions support batching mode on the plugin.
  * @param config A configuration map.
  */
 void set_batch_config(bool isBatchingSupported, Config& config) {
-    if (!isBatchingSupported || config.get<PLATFORM>() == ov::intel_npu::Platform::NPU3700) {
+    if (!isBatchingSupported) {
         if (config.has<BATCH_MODE>()) {
             if (config.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
                 OPENVINO_THROW("Batching on plugin is not supported with this driver version");
@@ -125,17 +126,23 @@ void set_batch_config(bool isBatchingSupported, Config& config) {
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     std::map<std::string, std::string> result;
     for (auto&& value : params) {
+        // The value of cache_encryption_callbacks cannot be converted to std::string
+        if (value.first == ov::cache_encryption_callbacks.name()) {
+            continue;
+        }
         result.emplace(value.first, value.second.as<std::string>());
     }
     return result;
 }
 
-size_t getFileSize(std::istream& stream) {
-    const size_t streamStart = stream.tellg();
-    stream.seekg(0, std::ios_base::end);
-    const size_t streamEnd = stream.tellg();
-    stream.seekg(streamStart, std::ios_base::beg);
-    return streamEnd - streamStart;
+void update_log_level(const std::map<std::string, std::string>& propertiesMap) {
+    auto it = propertiesMap.find(std::string(LOG_LEVEL::key()));
+    if (it != propertiesMap.end()) {
+        std::istringstream is(it->second);
+        ov::log::Level level;
+        is >> level;
+        Logger::global().setLevel(level);
+    }
 }
 
 }  // namespace
@@ -145,6 +152,7 @@ namespace intel_npu {
 static Config merge_configs(const Config& globalConfig,
                             const std::map<std::string, std::string>& rawConfig,
                             OptionMode mode = OptionMode::Both) {
+    update_log_level(rawConfig);
     Config localConfig = globalConfig;
     localConfig.update(rawConfig, mode);
     return localConfig;
@@ -175,7 +183,6 @@ Plugin::Plugin()
 
     // parse env_variables to get LOG_LEVEL if needed
     _globalConfig.parseEnvVars();
-    Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
 
     // TODO: generation of available backends list can be done during execution of CMake scripts
     std::vector<AvailableBackends> backendRegistry;
@@ -284,6 +291,12 @@ Plugin::Plugin()
           [&](const Config&) {
               return _metrics->GetAvailableDevicesNames();
           }}},
+        {ov::workload_type.name(),
+         {_backends->isCommandQueueExtSupported(),
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<WORKLOAD_TYPE>();
+          }}},
         {ov::device::capabilities.name(),
          {true,
           ov::PropertyMutability::RO,
@@ -323,6 +336,13 @@ Plugin::Plugin()
               const auto specifiedDeviceName = get_specified_device_name(config);
               auto devUuid = _metrics->GetDeviceUuid(specifiedDeviceName);
               return decltype(ov::device::uuid)::value_type{devUuid};
+          }}},
+        {ov::device::luid.name(),
+         {_backends->isLUIDExtSupported(),
+          ov::PropertyMutability::RO,
+          [&](const Config& config) {
+              const auto specifiedDeviceName = get_specified_device_name(config);
+              return _metrics->GetDeviceLUID(specifiedDeviceName);
           }}},
         // Add FULL_DEVICE_NAME and DEVICE_ARCHITECTURE in supported
         // properties list only in case of non-empty device list (#1424144d)
@@ -414,6 +434,61 @@ Plugin::Plugin()
           [&](const Config& config) {
               return _metrics->GetDriverVersion();
           }}},
+        {ov::intel_npu::compiler_version.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [&](const Config& config) {
+              /// create dummy compiler
+              CompilerAdapterFactory compilerAdapterFactory;
+              auto dummyCompiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), config);
+              return dummyCompiler->get_version();
+          }}},
+        {ov::intel_npu::compilation_mode_params.name(),
+         {true,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<COMPILATION_MODE_PARAMS>();
+          }}},
+        {ov::intel_npu::compiler_dynamic_quantization.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<COMPILER_DYNAMIC_QUANTIZATION>();
+          }}},
+        {ov::intel_npu::turbo.name(),
+         {_backends->isCommandQueueExtSupported(),
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<TURBO>();
+          }}},
+        {ov::intel_npu::tiles.name(),
+         {true,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<TILES>();
+          }}},
+        {ov::intel_npu::max_tiles.name(),
+         {true,
+          ov::PropertyMutability::RW,
+          [&](const Config& config) {
+              if (!config.has<MAX_TILES>()) {
+                  const auto specifiedDeviceName = get_specified_device_name(config);
+                  return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
+              }
+              return config.get<MAX_TILES>();
+          }}},
+        {ov::intel_npu::bypass_umd_caching.name(),
+         {true,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<BYPASS_UMD_CACHING>();
+          }}},
+        {ov::intel_npu::defer_weights_load.name(),
+         {true,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<DEFER_WEIGHTS_LOAD>();
+          }}},
         // NPU Private
         // =========
         {ov::intel_npu::dma_engines.name(),
@@ -421,12 +496,6 @@ Plugin::Plugin()
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.get<DMA_ENGINES>();
-          }}},
-        {ov::intel_npu::tiles.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<TILES>();
           }}},
         {ov::intel_npu::dpu_groups.name(),
          {false,
@@ -437,26 +506,19 @@ Plugin::Plugin()
         {ov::intel_npu::stepping.name(),
          {false,
           ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<STEPPING>();
-          }}},
-        {ov::intel_npu::max_tiles.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<MAX_TILES>();
+          [&](const Config& config) {
+              if (!config.has<STEPPING>()) {
+                  const auto specifiedDeviceName = get_specified_device_name(config);
+                  return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
+              } else {
+                  return config.get<STEPPING>();
+              }
           }}},
         {ov::intel_npu::compilation_mode.name(),
          {false,
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.get<COMPILATION_MODE>();
-          }}},
-        {ov::intel_npu::compilation_mode_params.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<COMPILATION_MODE_PARAMS>();
           }}},
         {ov::intel_npu::compiler_type.name(),
          {false,
@@ -476,11 +538,11 @@ Plugin::Plugin()
           [&](const Config&) {
               return _metrics->GetBackendName();
           }}},
-        {ov::intel_npu::use_elf_compiler_backend.name(),
+        {ov::intel_npu::create_executor.name(),
          {false,
           ov::PropertyMutability::RW,
           [](const Config& config) {
-              return config.getString<USE_ELF_COMPILER_BACKEND>();
+              return config.get<CREATE_EXECUTOR>();
           }}},
         {ov::intel_npu::dynamic_shape_to_static.name(),
          {false,
@@ -500,14 +562,21 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.getString<BACKEND_COMPILATION_PARAMS>();
           }}},
-        {ov::intel_npu::batch_mode.name(),
+        {ov::intel_npu::run_inferences_sequentially.name(),
          {false,
           ov::PropertyMutability::RW,
           [](const Config& config) {
-              return config.getString<BATCH_MODE>();
+              return config.get<RUN_INFERENCES_SEQUENTIALLY>();
           }}},
-    };
+        {ov::intel_npu::batch_mode.name(), {false, ov::PropertyMutability::RW, [](const Config& config) {
+                                                return config.getString<BATCH_MODE>();
+                                            }}}};
+}
 
+void Plugin::reset_supported_properties() const {
+    /// reset first
+    _supportedProperties.clear();  /// Mutable member
+    /// populate
     for (auto& property : _properties) {
         if (std::get<0>(property.second)) {
             _supportedProperties.emplace_back(ov::PropertyName(property.first, std::get<1>(property.second)));
@@ -515,8 +584,34 @@ Plugin::Plugin()
     }
 }
 
+void Plugin::reset_compiler_dependent_properties() const {
+    uint32_t active_compiler_version = 0;
+    // get active compiler version
+    try {
+        CompilerAdapterFactory compilerAdapterFactory;
+        auto dummyCompiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), _globalConfig);
+        active_compiler_version = dummyCompiler->get_version();
+    } catch (...) {
+        _logger.warning(
+            "No available compiler. Can not determine version > compiler dependent properties remain hidden");
+        return;
+    }
+
+    // NPU_COMPILER_DYNAMIC_QUANTIZATION
+    // unpublish if compiler version requirement is not met
+    if (_properties.find(ov::intel_npu::compiler_dynamic_quantization.name()) != _properties.end()) {
+        if (active_compiler_version >= ICOMPILER_MAKE_VERSION(7, 1)) {
+            std::get<0>(_properties[ov::intel_npu::compiler_dynamic_quantization.name()]) = true;  /// mark supported
+        } else {
+            std::get<0>(_properties[ov::intel_npu::compiler_dynamic_quantization.name()]) = false;  // mark unsupported
+        }
+    }
+}
+
 void Plugin::set_property(const ov::AnyMap& properties) {
     const std::map<std::string, std::string> config = any_copy(properties);
+    update_log_level(config);
+    bool compiler_type_change = false;
     for (const auto& configEntry : config) {
         if (_properties.find(configEntry.first) == _properties.end()) {
             OPENVINO_THROW("Unsupported configuration key: ", configEntry.first);
@@ -524,11 +619,14 @@ void Plugin::set_property(const ov::AnyMap& properties) {
             if (std::get<1>(_properties[configEntry.first]) == ov::PropertyMutability::RO) {
                 OPENVINO_THROW("READ-ONLY configuration key: ", configEntry.first);
             }
+            if (configEntry.first == ov::intel_npu::compiler_type.name()) {
+                // we just assume its a change, not compare against old value
+                compiler_type_change = true;
+            }
         }
     }
 
     _globalConfig.update(config);
-    Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
     if (_backends != nullptr) {
         _backends->setup(_globalConfig);
     }
@@ -536,11 +634,25 @@ void Plugin::set_property(const ov::AnyMap& properties) {
     for (const auto& entry : config) {
         _config[entry.first] = entry.second;
     }
+
+    if (compiler_type_change) {
+        // if compiler type was changed > need to reset properties to match the new compiler
+        // since properties have changed > need to reset supported_properties as well
+        reset_compiler_dependent_properties();
+        reset_supported_properties();
+    }
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
     const std::map<std::string, std::string>& amends = any_copy(arguments);
     const Config amendedConfig = merge_configs(_globalConfig, amends);
+
+    /// Special case for supportedProperties
+    /// populate it at first get
+    if (name == ov::supported_properties.name() && _supportedProperties.size() < 1) {
+        reset_compiler_dependent_properties();
+        reset_supported_properties();
+    }
 
     auto&& configIterator = _properties.find(name);
     if (configIterator != _properties.cend()) {
@@ -554,7 +666,25 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                           const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::compile_model");
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "merge_configs");
-    auto localConfig = merge_configs(_globalConfig, any_copy(properties));
+
+    // Before going any further: if
+    // ... 1 - NPUW mode is activated
+    // ... 2 - this request is NOT coming from NPUW,
+    // activate the NPUW path
+    auto useNpuwKey = ov::intel_npu::use_npuw.name();
+    ov::AnyMap localProperties = properties;
+    if (localProperties.count(useNpuwKey)) {
+        if (localProperties.at(useNpuwKey).as<bool>() == true) {
+            return ov::npuw::ICompiledModel::create(model->clone(), shared_from_this(), localProperties);
+        } else {
+            // NPUW is disabled, remove the key from the properties
+            localProperties.erase(useNpuwKey);
+        }
+    }
+
+    const std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
+    auto localConfig = merge_configs(_globalConfig, localPropertiesMap);
+    update_log_level(localPropertiesMap);
 
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
     if (!set_cache_dir.empty()) {
@@ -585,7 +715,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // Update stepping w/ information from driver, unless provided by user or we are off-device
     // Ignore, if compilation was requested for platform, different from current
     if (!localConfig.has<STEPPING>() && device != nullptr &&
-        device->getName() == ov::intel_npu::Platform::standardize(platform)) {
+        device->getName() == ov::intel_npu::Platform::standardize(platform) &&
+        _metrics->GetBackendName() == "level_zero") {
         try {
             localConfig.update({{ov::intel_npu::stepping.name(), std::to_string(device->getSubDevId())}});
         } catch (...) {
@@ -596,7 +727,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // Update max_tiles w/ information from driver, unless provided by user or we are off-device
     // Ignore, if compilation was requested for platform, different from current
     if (!localConfig.has<MAX_TILES>() && device != nullptr &&
-        device->getName() == ov::intel_npu::Platform::standardize(platform)) {
+        device->getName() == ov::intel_npu::Platform::standardize(platform) &&
+        _metrics->GetBackendName() == "level_zero") {
         try {
             localConfig.update({{ov::intel_npu::max_tiles.name(), std::to_string(device->getMaxNumSlices())}});
         } catch (...) {
@@ -605,19 +737,25 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
+    auto originalModel = model->clone();
+    CompilerAdapterFactory compilerAdapterFactory;
+    auto compiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), localConfig);
+
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
+    std::shared_ptr<intel_npu::IGraph> graph;
+    try {
+        _logger.debug("performing compile");
+        graph = compiler->compile(model, localConfig);
+    } catch (const std::exception& ex) {
+        OPENVINO_THROW(ex.what());
+    } catch (...) {
+        _logger.error("Unexpected exception");
+        OPENVINO_THROW("NPU plugin: got an unexpected exception from compiler");
+    }
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
-
     try {
-        bool profiling = localConfig.get<PERF_COUNT>();
-
-        compiledModel = std::make_shared<CompiledModel>(model,
-                                                        shared_from_this(),
-                                                        device,
-                                                        getCompiler(localConfig),
-                                                        profiling,
-                                                        localConfig);
+        compiledModel = std::make_shared<CompiledModel>(originalModel, shared_from_this(), device, graph, localConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -630,36 +768,60 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     return compiledModel;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& /*model*/,
-                                                          const ov::AnyMap& /*properties*/,
-                                                          const ov::SoPtr<ov::IRemoteContext>& /*context*/) const {
-    OPENVINO_THROW_NOT_IMPLEMENTED("The remote context feature is not supported by the NPU plugin");
+std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                          const ov::AnyMap& properties,
+                                                          const ov::SoPtr<ov::IRemoteContext>& context) const {
+    auto casted = std::dynamic_pointer_cast<RemoteContextImpl>(context._ptr);
+    if (casted == nullptr) {
+        OPENVINO_THROW("Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
+    }
+
+    return compile_model(model, properties);
 }
 
-ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& /*remote_properties*/) const {
-    OPENVINO_THROW_NOT_IMPLEMENTED("The remote context feature is not supported by the NPU plugin");
+ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
+    return get_default_context(remote_properties);
 }
 
-ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& /*remote_properties*/) const {
-    OPENVINO_THROW_NOT_IMPLEMENTED("The remote context feature is not supported by the NPU plugin");
+ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) const {
+    return std::make_shared<RemoteContextImpl>(_backends, _globalConfig);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
-
     OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "merge_configs");
-    auto localConfig = merge_configs(_globalConfig, any_copy(properties), OptionMode::RunTime);
+
+    // If was exported via NPUW
+    auto stream_start_pos = stream.tellg();
+    std::array<uint8_t, 6> serialization_indicator;
+    ov::npuw::s11n::read(stream, serialization_indicator);
+    if (serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
+        stream.seekg(stream_start_pos);
+        return ov::npuw::LLMCompiledModel::deserialize(stream, shared_from_this());
+    }
+    stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
+
+    // Drop NPUW properties if there are any
+    ov::AnyMap npu_plugin_properties;
+    for (auto it = properties.begin(); it != properties.end(); ++it) {
+        if (it->first.find("NPUW") == it->first.npos) {
+            npu_plugin_properties.insert(*it);
+        }
+    }
+    const std::map<std::string, std::string> propertiesMap = any_copy(npu_plugin_properties);
+
+    auto localConfig = merge_configs(_globalConfig, propertiesMap, OptionMode::RunTime);
+    _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
     auto device = _backends->getDevice(localConfig.get<DEVICE_ID>());
 
     set_batch_config(_backends->isBatchingSupported(), localConfig);
 
-    Logger logger("NPUPlugin", localConfig.get<LOG_LEVEL>());
-
     const auto loadedFromCache = localConfig.get<LOADED_FROM_CACHE>();
     if (!loadedFromCache) {
-        logger.warning("The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead!");
+        _logger.warning(
+            "The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead!");
     }
 
     OV_ITT_TASK_NEXT(PLUGIN_IMPORT_MODEL, "parse");
@@ -667,34 +829,30 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     std::shared_ptr<ov::ICompiledModel> compiledModel;
 
     try {
-        auto compiler = getCompiler(localConfig);
+        CompilerAdapterFactory compilerAdapterFactory;
+        auto compiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), localConfig);
 
-        auto graphSize = getFileSize(stream);
-        if (graphSize == 0) {
-            OPENVINO_THROW("Blob is empty");
+        auto storedMeta = read_metadata_from(stream);
+        if (!storedMeta->is_compatible()) {
+            OPENVINO_THROW("Incompatible blob version!");
         }
+
+        auto graphSize = storedMeta->get_blob_size();
+
         std::vector<uint8_t> blob(graphSize);
         stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
+        if (!stream) {
+            OPENVINO_THROW("Failed to read data from stream!");
+        }
+        _logger.debug("Successfully read %zu bytes into blob.", graphSize);
 
-        auto meta = compiler->parse(blob, localConfig);
-        meta.name = "net" + std::to_string(_compiledModelLoadCounter++);
+        auto graph = compiler->parse(std::move(blob), localConfig);
+        graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
 
-        const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(meta.parameters,
-                                                                         meta.results,
-                                                                         meta.inputNames,
-                                                                         meta.outputNames,
-                                                                         _backends->isBatchingSupported());
+        const std::shared_ptr<ov::Model> modelDummy =
+            create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
 
-        bool profiling = localConfig.get<PERF_COUNT>();
-
-        auto networkDescription = std::make_shared<const NetworkDescription>(std::move(blob), std::move(meta));
-
-        compiledModel = std::make_shared<CompiledModel>(modelDummy,
-                                                        shared_from_this(),
-                                                        networkDescription,
-                                                        device,
-                                                        profiling ? std::optional(compiler) : std::nullopt,
-                                                        localConfig);
+        compiledModel = std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {
@@ -706,21 +864,28 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     return compiledModel;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& /*stream*/,
-                                                         const ov::SoPtr<ov::IRemoteContext>& /*context*/,
-                                                         const ov::AnyMap& /*properties*/) const {
-    OPENVINO_THROW_NOT_IMPLEMENTED("The remote context feature is not supported by the NPU plugin");
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
+                                                         const ov::AnyMap& properties) const {
+    auto casted = std::dynamic_pointer_cast<RemoteContextImpl>(context._ptr);
+    if (casted == nullptr) {
+        OPENVINO_THROW("Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
+    }
+
+    return import_model(stream, properties);
 }
 
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                         const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
-
-    auto localConfig = merge_configs(_globalConfig, any_copy(properties), OptionMode::CompileTime);
+    const std::map<std::string, std::string> propertiesMap = any_copy(properties);
+    auto localConfig = merge_configs(_globalConfig, propertiesMap, OptionMode::CompileTime);
+    _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
-    auto compiler = getCompiler(localConfig);
+    CompilerAdapterFactory compilerAdapterFactory;
+    auto compiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), localConfig);
     ov::SupportedOpsMap supportedOpsMap;
     try {
         supportedOpsMap = compiler->query(model, localConfig);
@@ -731,11 +896,6 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     }
 
     return supportedOpsMap;
-}
-
-ov::SoPtr<ICompiler> Plugin::getCompiler(const Config& config) const {
-    auto compilerType = config.get<COMPILER_TYPE>();
-    return createCompiler(compilerType, _logger);
 }
 
 std::atomic<int> Plugin::_compiledModelLoadCounter{1};

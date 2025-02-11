@@ -10,6 +10,11 @@
 
 namespace cldnn {
 
+class SwigluFuseParams : public NodeFuseParams {
+public:
+    SwigluFuseParams(std::shared_ptr<swiglu> desc) : NodeFuseParams(swiglu::type_id()), _desc(std::move(desc)) {}
+    std::shared_ptr<swiglu> _desc;
+};
 template <>
 struct typed_program_node<swiglu> : public typed_program_node_base<swiglu> {
     using parent = typed_program_node_base<swiglu>;
@@ -19,6 +24,10 @@ public:
 
     program_node& input(size_t index = 0) const { return get_dependency(index); }
     std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+
+    std::shared_ptr<NodeFuseParams> get_fuse_params() const override {
+        return std::make_shared<SwigluFuseParams>(typed_desc());
+    }
 };
 
 using swiglu_node = typed_program_node<swiglu>;

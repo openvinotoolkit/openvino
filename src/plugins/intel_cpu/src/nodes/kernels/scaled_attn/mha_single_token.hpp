@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -6,8 +6,9 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <vector>
 #include <openvino/core/type/element_type.hpp>
+#include <vector>
+
 #include "utils/plain_tensor.hpp"
 
 namespace ov {

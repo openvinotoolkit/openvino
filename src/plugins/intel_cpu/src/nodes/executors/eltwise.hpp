@@ -4,9 +4,11 @@
 
 #pragma once
 
+#include <utility>
+
 #include "cpu_memory.h"
-#include "onednn/iml_type_mapper.h"
 #include "executor.hpp"
+#include "onednn/iml_type_mapper.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -19,10 +21,7 @@ struct EltwiseData {
     float gamma;
 
     bool operator==(const EltwiseData& rhs) const noexcept {
-        return algo == rhs.algo &&
-               onednnAlgorithm == rhs.onednnAlgorithm &&
-               alpha == rhs.alpha &&
-               beta == rhs.beta &&
+        return algo == rhs.algo && onednnAlgorithm == rhs.onednnAlgorithm && alpha == rhs.alpha && beta == rhs.beta &&
                gamma == rhs.gamma;
     }
 };
@@ -34,36 +33,27 @@ struct EltwiseAttrs {
     float gamma;
 
     EltwiseAttrs() : algorithm(Algorithm::Default), alpha(0), beta(0), gamma(0) {}
-    EltwiseAttrs(Algorithm algorithm, float alpha, float beta, float gamma) : algorithm(algorithm), alpha(alpha), beta(beta), gamma(gamma) {}
+    EltwiseAttrs(Algorithm algorithm, float alpha, float beta, float gamma)
+        : algorithm(algorithm),
+          alpha(alpha),
+          beta(beta),
+          gamma(gamma) {}
 
     bool operator==(const EltwiseAttrs& rhs) const {
         bool retVal = true;
-        retVal = algorithm == rhs.algorithm &&
-                 alpha == rhs.alpha &&
-                 beta == rhs.beta &&
-                 gamma == rhs.gamma;
+        retVal = algorithm == rhs.algorithm && alpha == rhs.alpha && beta == rhs.beta && gamma == rhs.gamma;
 
         return retVal;
     }
 };
 
-enum class EltwisePostOpType {
-    Undefined,
-    Eltwise,
-    Dnnl
-};
+enum class EltwisePostOpType { Undefined, Eltwise, Dnnl };
 
 class EltwisePostOp {
 public:
-    EltwisePostOp(EltwiseAttrs eltwise) {
-        type = EltwisePostOpType::Eltwise;
-        this->eltwise = eltwise;
-    }
+    EltwisePostOp(EltwiseAttrs eltwise) : eltwise(eltwise), type(EltwisePostOpType::Eltwise) {}
 
-    EltwisePostOp(dnnl::post_ops dnnlPostOps) {
-        type = EltwisePostOpType::Dnnl;
-        this->dnnlPostOps = dnnlPostOps;
-    }
+    EltwisePostOp(dnnl::post_ops dnnlPostOps) : dnnlPostOps(std::move(dnnlPostOps)), type(EltwisePostOpType::Dnnl) {}
 
     ~EltwisePostOp() = default;
 
@@ -72,17 +62,20 @@ public:
 
     EltwisePostOpType type = EltwisePostOpType::Undefined;
 
-    bool operator==(const EltwisePostOp &rhs) const {
-        if (type != rhs.type) { return false; }
+    bool operator==(const EltwisePostOp& rhs) const {
+        if (type != rhs.type) {
+            return false;
+        }
         bool ret = true;
         switch (type) {
-            case EltwisePostOpType::Eltwise:
-                ret = eltwise == rhs.eltwise;
-                break;
-            case EltwisePostOpType::Dnnl:
-                ret = dnnlPostOps == rhs.dnnlPostOps;
-                break;
-            default: assert(!"unsupported eltwise post operation type");
+        case EltwisePostOpType::Eltwise:
+            ret = eltwise == rhs.eltwise;
+            break;
+        case EltwisePostOpType::Dnnl:
+            ret = dnnlPostOps == rhs.dnnlPostOps;
+            break;
+        default:
+            assert(!"unsupported eltwise post operation type");
         }
         return ret;
     }
@@ -90,13 +83,15 @@ public:
 
 class EltwiseExecutor {
 public:
-    EltwiseExecutor(const ExecutorContext::CPtr context);
+    EltwiseExecutor(ExecutorContext::CPtr context);
     virtual bool init(const EltwiseAttrs& eltwiseAttrs,
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,
                       const std::vector<EltwisePostOp>& postOps) = 0;
 
-    virtual void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const void *post_ops_data_) = 0;
+    virtual void exec(const std::vector<MemoryCPtr>& src,
+                      const std::vector<MemoryPtr>& dst,
+                      const void* post_ops_data_) = 0;
     virtual ~EltwiseExecutor() = default;
 
     virtual impl_desc_type getImplType() const = 0;
@@ -121,5 +116,5 @@ public:
 using EltwiseExecutorBuilderPtr = std::shared_ptr<EltwiseExecutorBuilder>;
 using EltwiseExecutorBuilderCPtr = std::shared_ptr<const EltwiseExecutorBuilder>;
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

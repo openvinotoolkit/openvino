@@ -1,12 +1,10 @@
-.. {#openvino_docs_ops_detection_ExperimentalDetectronDetectionOutput_6}
-
 ExperimentalDetectronDetectionOutput
 ====================================
 
 
 .. meta::
-  :description: Learn about ExperimentalDetectronDetectionOutput-6 - an object 
-                detection operation, which can be performed on four required 
+  :description: Learn about ExperimentalDetectronDetectionOutput-6 - an object
+                detection operation, which can be performed on four required
                 input tensors in OpenVINO.
 
 **Versioned name**: *ExperimentalDetectronDetectionOutput-6*
@@ -42,7 +40,7 @@ refined boxes according to the formulas:
 ``ctr_y = y0 + 0.5f * box_h``
 
 * ``dx``, ``dy``, ``d_log_w`` and ``d_log_h`` are deltas calculated according to the formulas below, and ``deltas_tensor`` is a
-second input:
+  second input:
 
 ``dx = deltas_tensor[roi_idx, 4 * class_idx + 0] / deltas_weights[0]``
 
@@ -104,7 +102,7 @@ second input:
 
   * **Description**: *class_agnostic_box_regression* attribute is a flag that specifies whether to delete background classes or not.
   * **Range of values**:
-  
+
     * ``true`` means background classes should be deleted
     * ``false`` means background classes should not be deleted
   * **Type**: ``boolean``
@@ -149,7 +147,7 @@ second input:
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="ExperimentalDetectronDetectionOutput" version="opset6">
        <data class_agnostic_box_regression="false" deltas_weights="10.0,10.0,5.0,5.0" max_delta_log_wh="4.135166645050049" max_detections_per_image="100" nms_threshold="0.5" num_classes="81" post_nms_count="2000" score_threshold="0.05000000074505806"/>
        <input>

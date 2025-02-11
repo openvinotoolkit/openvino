@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,65 +6,60 @@
 
 #include <node.h>
 
-#include <string>
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-enum TopKLayoutType {
-    topk_ncsp,
-    topk_nspc,
-    topk_blocked
-};
+enum TopKLayoutType { topk_ncsp, topk_nspc, topk_blocked };
 
-enum TopKAlgorithm {
-    topk_bubble_sort,
-    topk_bitonic_sort,
-    topk_heap_sort
-};
+enum TopKAlgorithm { topk_bubble_sort, topk_bitonic_sort, topk_heap_sort };
 
 struct jit_topk_config_params {
-    bool mode_max;           // which of the two elements to select. ture: max; false: min
-    bool sort_index;         // sort by value or index. true: index; false: value
-    bool topk_innermost;     // if topk sorting is applied on innermost dimension or other dimension
-    bool bubble_inplace;     // all the elements in sorting is right in the register, no need to load and store for each comparison
-    bool stable;             // if require stable sorting
-    TopKLayoutType layout;   // memory layout
-    TopKAlgorithm algorithm; // topk sorting algorithm
-    ov::element::Type precision; // precision
-    int data_size;           // data size
-    int blk_size;            // block size
-    int top_k;               // number of the output elements in the sorting dimension
-    int work_amount;         // how many elements are processed when call jit kernel once
-    int axis_dim;            // size of topk axis
-    int sort_stride;         // memory stride of adjacent elements in sorting
-    int bitonic_idx_cnt;     // the repeatedly counted total number of elements in sorting, which equal the total number of comparison x 2
-    int bitonic_k_idx_cnt;   // the counterpart of bitonic_idx_cnt, when sort_index == true
+    bool mode_max;          // which of the two elements to select. ture: max; false: min
+    bool sort_index;        // sort by value or index. true: index; false: value
+    bool topk_innermost;    // if topk sorting is applied on innermost dimension or other dimension
+    bool bubble_inplace;    // all the elements in sorting is right in the register, no need to load and store for each
+                            // comparison
+    bool stable;            // if require stable sorting
+    TopKLayoutType layout;  // memory layout
+    TopKAlgorithm algorithm;      // topk sorting algorithm
+    ov::element::Type precision;  // precision
+    int data_size;                // data size
+    int blk_size;                 // block size
+    int top_k;                    // number of the output elements in the sorting dimension
+    int work_amount;              // how many elements are processed when call jit kernel once
+    int axis_dim;                 // size of topk axis
+    int sort_stride;              // memory stride of adjacent elements in sorting
+    int bitonic_idx_cnt;  // the repeatedly counted total number of elements in sorting, which equal the total number of
+                          // comparison x 2
+    int bitonic_k_idx_cnt;  // the counterpart of bitonic_idx_cnt, when sort_index == true
 };
 
 struct jit_topk_call_args {
-    const void *src;
-    void *process;
-    void *process_index;
-    void *dst;
-    void *index;
-    const int *bitonic_idx_buf;
-    const int *bitonic_k_idx_buf;
-    const int *idx_block_buf;// original idx sequence, repeated by block (eg. 00000000,11111111,...,77777777), only used in bubble sort
-    const int *idx_seq_buf;  // original idx sequence (eg. 01234567), only used in bubble sort and heap sort
-    size_t axis_dim;         // point to axis_dim, only used in heap sort with dynamic shapes to achieve axis_dim agnosic
+    const void* src;
+    void* process;
+    void* process_index;
+    void* dst;
+    void* index;
+    const int* bitonic_idx_buf;
+    const int* bitonic_k_idx_buf;
+    const int* idx_block_buf;  // original idx sequence, repeated by block (eg. 00000000,11111111,...,77777777), only
+                               // used in bubble sort
+    const int* idx_seq_buf;    // original idx sequence (eg. 01234567), only used in bubble sort and heap sort
+    size_t axis_dim;  // point to axis_dim, only used in heap sort with dynamic shapes to achieve axis_dim agnosic
     size_t top_k;
     size_t work_amount;
     size_t sort_stride;
 };
 
 struct jit_uni_topk_kernel {
-    void (*ker_)(const jit_topk_call_args *);
+    void (*ker_)(const jit_topk_call_args*);
 
-    void operator()(const jit_topk_call_args *args) {
+    void operator()(const jit_topk_call_args* args) {
         assert(ker_);
         ker_(args);
     }
@@ -79,7 +74,7 @@ struct jit_uni_topk_kernel {
 
 class TopK : public Node {
 public:
-    TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
     ~TopK() override = default;
 
     void getSupportedDescriptors() override;
@@ -89,26 +84,33 @@ public:
     void prepareParams() override;
     void createPrimitive() override;
     bool created() const override;
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
     bool canBeInPlace() const override {
         return false;
     }
 
-    static bool isSupportedOperation(const std::shared_ptr<const ov::Node> &op, std::string &errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    void topk_process(const uint8_t *in_ptr, uint8_t *out_ptr, uint8_t *dst_idx);
-    void topk_ref(const float *in_ptr, float *out_ptr, int32_t *dst_idx);
-    inline void topk_kernel_process(const uint8_t *in_p, uint8_t *out_p, uint8_t *src_idx,
-                                    uint8_t *process_p, uint8_t *process_idx_p, size_t work_amount);
+    void topk_process(const uint8_t* in_ptr, uint8_t* out_ptr, uint8_t* dst_idx);
+    void topk_ref(const float* in_ptr, float* out_ptr, int32_t* dst_idx);
+    inline void topk_kernel_process(const uint8_t* in_p,
+                                    uint8_t* out_p,
+                                    uint8_t* src_idx,
+                                    uint8_t* process_p,
+                                    uint8_t* process_idx_p,
+                                    size_t work_amount);
     inline static int count(const VectorDims& dims, size_t start_ind, size_t end_ind);
     inline static int count(const VectorDims& dims, size_t start_ind = 0);
-    inline void bitonic_push_idx(int p, int n, std::vector<int> &vec, int &cnt, bool cmp_val = true);
-    void calc_bitonic_idx(size_t n, int &cnt, bool cmp_val);
-    void calc_dims_size(const VectorDims &layout_dims);
-    void topk_ref_process(const float* src_data, float* dst_data, int32_t* dst_idx,
-                   const VectorDims &in_dims, std::function<float(float, float)> compare) const;
+    inline void bitonic_push_idx(int p, int n, std::vector<int>& vec, int& cnt, bool cmp_val = true);
+    void calc_bitonic_idx(size_t n, int& cnt, bool cmp_val);
+    void calc_dims_size(const VectorDims& layout_dims);
+    void topk_ref_process(const float* src_data,
+                          float* dst_data,
+                          int32_t* dst_idx,
+                          const VectorDims& in_dims,
+                          std::function<float(float, float)> compare) const;
     void preset_params();
     void prepare_original_idx();
 
@@ -144,10 +146,8 @@ private:
     std::vector<uint8_t> vec_process_idx_ptr;
 
     std::shared_ptr<jit_uni_topk_kernel> topk_kernel = nullptr;
-
-    std::string errorPrefix;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

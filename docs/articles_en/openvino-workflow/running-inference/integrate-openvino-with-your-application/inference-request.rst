@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_Infer_request}
-
 OpenVINO™ Inference Request
 =============================
 

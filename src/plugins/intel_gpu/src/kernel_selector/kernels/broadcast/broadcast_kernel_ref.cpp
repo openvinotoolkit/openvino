@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,7 @@ ParamsKey BroadcastKernelRef::GetSupportedKey() const {
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
 
+    k.EnableDifferentTypes();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();

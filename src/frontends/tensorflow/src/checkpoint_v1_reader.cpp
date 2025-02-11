@@ -254,7 +254,7 @@ void CheckpointV1Reader::read_variable(const std::string& variable_name, ov::Any
 
     // This is only present at the first item of each checkpoint file and serves
     // as a table of contents, listing all the tensor slices saved in this file.
-    ::tensorflow::SavedTensorSlices sts;
+    ::tensorflow::SavedTensorSlices sts{};
     FRONT_END_GENERAL_CHECK(sts.ParseFromArray(raw_data.data(), static_cast<int>(raw_data.size())),
                             "[TensorFlow Frontend] incorrect input checkpoint file or internal error: cannot parse "
                             "SavedTensorSlices entry");

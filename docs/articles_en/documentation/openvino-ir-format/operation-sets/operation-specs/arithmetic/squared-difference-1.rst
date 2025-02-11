@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_arithmetic_SquaredDifference_1}
-
 SquaredDifference
 =================
 
 
 .. meta::
-  :description: Learn about SquaredDifference-1 - an element-wise, arithmetic operation, which 
+  :description: Learn about SquaredDifference-1 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *SquaredDifference-1*

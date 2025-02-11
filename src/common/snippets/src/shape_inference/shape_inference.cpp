@@ -39,7 +39,6 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
         SHAPE_INFER_PREDEFINED(op::ConvertSaturation, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Load, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Store, PassThroughShapeInfer),
-        SHAPE_INFER_PREDEFINED(op::IntermediateMemoryBuffer, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Fill, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::op::v0::Parameter, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::op::v1::LogicalNot, PassThroughShapeInfer),
@@ -47,12 +46,12 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
         SHAPE_INFER_PREDEFINED(op::HorizonMax, HorizonOpShapeInfer),
         SHAPE_INFER_PREDEFINED(op::HorizonSum, HorizonOpShapeInfer),
         //
-        SHAPE_INFER_PREDEFINED(op::LoopBeginStatic, SingleElementShapeInfer),
-        SHAPE_INFER_PREDEFINED(op::LoopBeginDynamic, SingleElementShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Scalar, SingleElementShapeInfer),
         SHAPE_INFER_PREDEFINED(op::VectorBuffer, SingleElementShapeInfer),
-        SHAPE_INFER_PREDEFINED(op::LoopEndStatic, EmptyShapeInfer),
-        SHAPE_INFER_PREDEFINED(op::LoopEndDynamic, EmptyShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::LoopBegin, SingleElementShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::LoopEnd, EmptyShapeInfer),
+        SHAPE_INFER_OP_SPECIFIC(op::RegSpillBegin),
+        SHAPE_INFER_PREDEFINED(op::RegSpillEnd, EmptyShapeInfer),
 #ifdef SNIPPETS_DEBUG_CAPS
         SHAPE_INFER_PREDEFINED(op::PerfCountBegin, EmptyShapeInfer),
         SHAPE_INFER_PREDEFINED(op::PerfCountEnd, EmptyShapeInfer),
@@ -60,7 +59,6 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
         SHAPE_INFER_PREDEFINED(op::KernelStatic, EmptyShapeInfer),
         SHAPE_INFER_PREDEFINED(op::KernelDynamic, EmptyShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Nop, EmptyShapeInfer),
-        SHAPE_INFER_OP_SPECIFIC_EXTERNAL(op::Reshape, ReshapeShapeInfer),
         SHAPE_INFER_OP_SPECIFIC_EXTERNAL(opset1::Select, SelectShapeInfer),
         SHAPE_INFER_OP_SPECIFIC_EXTERNAL(op::Brgemm, BrgemmShapeInfer),
         SHAPE_INFER_OP_SPECIFIC_EXTERNAL(op::ReduceMax, ReduceShapeInfer),
@@ -68,11 +66,13 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
         // Note that Result has no output PortConnectors, so the shape must be empty
         SHAPE_INFER_PREDEFINED(ov::op::v0::Result, EmptyShapeInfer),
         //
-        SHAPE_INFER_OP_SPECIFIC(op::LoadReshape),
+        SHAPE_INFER_OP_SPECIFIC(op::LoadReorder),
+        SHAPE_INFER_OP_SPECIFIC(op::Reshape),
+        SHAPE_INFER_OP_SPECIFIC(op::Reorder),
         SHAPE_INFER_OP_SPECIFIC(op::RankNormalization),
         SHAPE_INFER_OP_SPECIFIC(op::BroadcastLoad),
         SHAPE_INFER_OP_SPECIFIC(op::BroadcastMove),
-        SHAPE_INFER_OP_SPECIFIC(op::NewMemoryBuffer),
+        SHAPE_INFER_OP_SPECIFIC(op::Buffer),
 };
 #undef SHAPE_INFER_OP_SPECIFIC_EXTERNAL
 #undef SHAPE_INFER_OP_SPECIFIC

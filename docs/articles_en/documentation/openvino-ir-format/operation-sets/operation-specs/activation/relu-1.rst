@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_activation_ReLU_1}
-
 ReLU
 ====
 

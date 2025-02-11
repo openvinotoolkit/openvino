@@ -1,14 +1,18 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
 # mypy: ignore-errors
 
+import inspect
+import logging
 import torch
 import numpy as np
 
-from openvino.runtime import op, Type as OVType, Shape, Tensor
-from openvino.runtime import opset11 as ops
+from openvino import op, Type as OVType, Shape, Tensor
+from openvino import opset11 as ops
+
+log = logging.getLogger(__name__)
 
 
 def make_constant(*args, **kwargs):
@@ -25,7 +29,7 @@ def fetch_attr(self_module, target: str):
     Return:
         Any: The value of the attribute.
     """
-    target_atoms = target.split('.')
+    target_atoms = target.split(".")
     attr_itr = self_module
     for i, atom in enumerate(target_atoms):
         if not hasattr(attr_itr, atom):
@@ -46,6 +50,15 @@ def get_type_from_py_type(value):
 
 
 def torch_tensor_to_ov_const(torch_t: torch.Tensor, shared_memory=True):
+    is_fake_tensor = False
+    try:
+        from torch._prims import FakeTensor
+        is_fake_tensor = isinstance(torch_t, FakeTensor)
+    except:
+        pass
+    assert not is_fake_tensor, '`FakeTensor` is found in the graph during conversion. ' \
+                               'In order to avoid `FakeTensor` in the traced model, ' \
+                               'try to infer the model before exporting.'
     torch_t = torch_t.contiguous()
     if torch_t.dtype == torch.bfloat16:
         # reinterpret bfloat16 data as float16 to allow conversion to numpy
@@ -91,12 +104,13 @@ def get_value_from_getattr(getattr_node, self_module):
         node = stack.pop()
         attr_name = node.s("name")
         assert hasattr(
-            module, attr_name), f"No attribute with name \"{attr_name}\" found in module."
+            module, attr_name), f'No attribute with name "{attr_name}" found in module.'
         path_name = ".".join([path_name, attr_name])
         module = getattr(module, attr_name)
     return module, path_name
 
-def graph_has_ops(graph, op_types:list) -> bool:
+
+def graph_has_ops(graph, op_types: list) -> bool:
     res = False
     for n in graph.nodes():
         if any(kind in n.kind() for kind in op_types):
@@ -106,7 +120,7 @@ def graph_has_ops(graph, op_types:list) -> bool:
         if res:
             return res
     return res
-    
+
 
 pt_to_ov_type_map = {
     "float": OVType.f32,
@@ -134,7 +148,7 @@ pt_to_ov_type_map = {
     "torch.BoolTensor": OVType.boolean,
     "torch.quint8": OVType.u8,
     "torch.qint8": OVType.i8,
-    "torch.qint32": OVType.i32
+    "torch.qint32": OVType.i32,
 }
 
 
@@ -152,6 +166,23 @@ class ModelWrapper(torch.nn.Module):
 """
 
 
+def build_wrapper(template, model):
+    """
+    Builds a wrapper around the given model using the provided template.
+    """
+    result = {}
+    try:
+        exec(template, result)
+
+        wrapped_model = result["ModelWrapper"](model)
+        wrapped_model.eval()
+    # if wrapping failed, it is better to return original model for avoid user confusion regarding error message
+    except Exception:
+        log.error("Failed to build model wrapper.")
+        wrapped_model = model
+    return wrapped_model
+
+
 def process_dict_inputs(inputs, input_params, model):
     ordered_inputs = []
     for input_name in input_params:
@@ -159,7 +190,7 @@ def process_dict_inputs(inputs, input_params, model):
             ordered_inputs.append(input_name)
 
     input_signature = list(input_params)
-    if ordered_inputs == input_signature[:len(ordered_inputs)]:
+    if ordered_inputs == input_signature[: len(ordered_inputs)]:
         example_inputs = [inputs[input_name] for input_name in ordered_inputs]
         if all([isinstance(inp, torch.Tensor) for inp in example_inputs]):
             return {"example_inputs": [inputs[name] for name in ordered_inputs]}, ordered_inputs, model
@@ -191,17 +222,10 @@ def process_dict_inputs(inputs, input_params, model):
             str(input_params[input_name]).replace("NoneType", "None"))
         input_params_str.append(f"{input_name}={input_name}")
 
-    wrapper_class = wrapper_template.format(input_sign=', '.join(
-        input_sign_str), example_input=', '.join(input_params_str))
-    result = {}
-    try:
-        exec(wrapper_class, result)
+    wrapper_class = wrapper_template.format(input_sign=", ".join(
+        input_sign_str), example_input=", ".join(input_params_str))
 
-        wrapped_model = result["ModelWrapper"](model)
-        wrapped_model.eval()
-    # if wrapping failed, it is better to return original model for avoid user confusion regarding error message
-    except Exception:
-        wrapped_model = model
+    wrapped_model = build_wrapper(wrapper_class, model)
 
     return {"example_inputs": [inputs[name] for name in ordered_inputs]}, ordered_inputs, wrapped_model
 
@@ -210,7 +234,8 @@ def prepare_example_inputs_and_model(inputs, input_params, model):
     input_is_list = False
     input_signature = list(input_params)
     if isinstance(inputs, dict):
-        examples, ordered, wrapped = process_dict_inputs(inputs, input_params, model)
+        examples, ordered, wrapped = process_dict_inputs(
+            inputs, input_params, model)
         return examples, ordered, wrapped, input_is_list
     if isinstance(inputs, list) and len(inputs) == 1 and isinstance(inputs[0], torch.Tensor):
         if "typing.List" in str(input_params[input_signature[0]].annotation):
@@ -219,7 +244,7 @@ def prepare_example_inputs_and_model(inputs, input_params, model):
 
     if isinstance(inputs, torch.Tensor):
         inputs = [inputs]
-    input_signature = input_signature[:len(inputs)]
+    input_signature = input_signature[: len(inputs)]
     return {"example_inputs": inputs}, input_signature, model, input_is_list
 
 
@@ -254,3 +279,88 @@ def convert_quantized_tensor(qtensor: torch.Tensor, shared_memory: bool):
         sub = ops.subtract(convert, zero_point)
         return ops.multiply(sub, scale).outputs()
     assert False, "Unsupported qscheme"
+
+
+def process_individual_input(x, x_name):
+    """
+    Processes an individual input and generates a signature,
+    parameter string, example entry, and a wrap flag.
+    """
+    sign = None
+    param = None
+    example_entry = None
+    to_wrap = False
+    if isinstance(x, tuple):
+        internal_input = []
+        new_tuple = []
+        index = 0
+        for v in x:
+            if v is None:
+                to_wrap = True
+                internal_input.append("None")
+            else:
+                internal_input.append(f"{x_name}[{index}]")
+                new_tuple.append(v)
+                index += 1
+        param = f"({', '.join(internal_input)},)"
+        if len(new_tuple) > 0:
+            example_entry = tuple(new_tuple)
+            sign = x_name
+    elif x is None:
+        to_wrap = True
+        param = "None"
+    else:
+        sign = x_name
+        param = x_name
+        example_entry = x
+    return sign, param, example_entry, to_wrap
+
+
+def patch_none_example(model: torch.nn.Module, example):
+    """
+    Patches a PyTorch model to handle None values in the input example.
+    """
+    callable_func = getattr(model, "forward", model.__call__)
+    input_params = inspect.signature(callable_func).parameters
+    input_signature = list(input_params)
+    input_sign_str = []
+    input_params_str = []
+    to_wrap = False
+    if isinstance(example, tuple) and len(input_signature) >= len(example):
+        new_example = []
+        for i, x in enumerate(example):
+            x_name = input_signature[i]
+            sign, param, example_entry, _to_wrap = process_individual_input(x, x_name)
+            to_wrap = to_wrap or _to_wrap
+            if sign is not None:
+                input_sign_str.append(str(input_params[sign]))
+            input_params_str.append(param)
+            if example_entry is not None:
+                new_example.append(example_entry)
+        if to_wrap:
+            wrapper_class = wrapper_template.format(input_sign=", ".join(input_sign_str),
+                                                    example_input=", ".join(input_params_str))
+            wrapped_model = build_wrapper(wrapper_class, model)
+            log.warning("Model has None in the example input. The input "
+                        "with None will be removed from the resulting model.")
+            return wrapped_model, tuple(new_example)
+    elif isinstance(example, dict) and len(input_signature) >= len(example):
+        new_example = {}
+        input_signature = [s for s in input_signature if s in example]
+        for x_name in input_signature:
+            x = example[x_name]
+            sign, param, example_entry, _to_wrap = process_individual_input(x, x_name)
+            to_wrap = to_wrap or _to_wrap
+            if sign is not None:
+                input_sign_str.append(str(input_params[sign]))
+            input_params_str.append(f"{x_name}={param}")
+            if example_entry is not None:
+                new_example[x_name] = example_entry
+        if to_wrap:
+            wrapper_class = wrapper_template.format(input_sign=", ".join(input_sign_str),
+                                                    example_input=", ".join(input_params_str))
+            wrapped_model = build_wrapper(wrapper_class, model)
+            log.warning("Model has None in the example input. The input "
+                        "with None will be removed from the resulting model.")
+            return wrapped_model, new_example
+    return model, example

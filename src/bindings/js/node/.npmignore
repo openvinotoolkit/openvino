@@ -1,6 +1,7 @@
 bin
 include
-lib
+/lib
+!/scripts/lib
 src
 tests
 thirdparty

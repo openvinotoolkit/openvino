@@ -1,73 +1,111 @@
-// Copyright (C) 2020-2023 Intel Corporation
+// Copyright (C) 2020-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "emitters/plugin/x64/jit_emitter.hpp"
-#include "emitters/snippets/jit_snippets_call_args.hpp"
-#include "emitters/snippets/cpu_kernel_executor_table.hpp"
-#include <cpu/x64/brgemm/brgemm.hpp>
+#include "brgemm_base.hpp"
 
 namespace ov {
 namespace intel_cpu {
-class BrgemmKernelExecutor;
-#define GET_OFF_BRGEMM_ARGS(field) offsetof(BrgemmKernelExecutor::call_args, field)
 
-struct BrgemmKernelConfig : public snippets::KernelExecutorBase::GenericConfig {
-    friend BrgemmKernelExecutor;
+struct BrgemmKernelConfig : public BrgemmBaseKernelConfig {
 public:
-    BrgemmKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype, float beta,
-                       bool is_with_amx, bool is_with_comp,
-                       size_t M = 0, size_t N = 0, size_t K = 0,
-                       size_t LDA = 0, size_t LDB = 0, size_t LDC = 0);
-    BrgemmKernelConfig() = default;
-    bool is_completed() const override;
-    size_t hash() const;
-    bool operator==(const BrgemmKernelConfig& rhs) const;
-    bool operator!=(const BrgemmKernelConfig& rhs) const;
-#ifdef SNIPPETS_DEBUG_CAPS
-    std::string to_string() const;
-#endif
+    BrgemmKernelConfig(const element::Type& in0_dtype,
+                       const element::Type& in1_dtype,
+                       bool is_with_comp,
+                       dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
+    BrgemmKernelConfig() = delete;
+
+    std::unique_ptr<snippets::KernelExecutorBase::GenericConfig> get_clone_ptr() const override {
+        return std::unique_ptr<BrgemmKernelConfig>(new BrgemmKernelConfig(*this));
+    }
+
+    bool is_with_comp() const {
+        return m_static_params->is_with_comp;
+    }
+
 private:
-    dnnl_data_type_t dt_in0 {dnnl_f32}, dt_in1 {dnnl_f32};
-    bool is_with_amx {false};
-    bool is_with_comp {false};
-    float beta {0};
-    dnnl::impl::cpu::x64::cpu_isa_t isa {dnnl::impl::cpu::x64::isa_undef};
-    dnnl_dim_t M {0}, N {0}, K {0}, LDA {0}, LDB {0}, LDC {0};
+    struct StaticParams : StaticBaseParams {
+        StaticParams(const element::Type& in0_dtype,
+                     const element::Type& in1_dtype,
+                     bool is_with_comp,
+                     dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
+
+        const bool is_with_comp{false};
+
+        bool operator==(const StaticParams& rhs) const;
+        bool operator!=(const StaticParams& rhs) const {
+            return !(*this == rhs);
+        }
+#ifdef SNIPPETS_DEBUG_CAPS
+        std::string to_string() const;
+#endif
+    private:
+        static size_t compute_hash(bool is_with_comp);
+    };
+
+    std::shared_ptr<StaticBaseParams> get_static_params() const override {
+        return m_static_params;
+    }
+
+    std::shared_ptr<StaticParams> m_static_params{nullptr};
 };
 
+// The `update_kernel` method verifies that a compiled kernel is not nullptr.
+// However, the compiled kernel might be empty in cases if nothing is to be compiled (`Config.is_empty() == true`).
+// To cover this case, we wrap the `brgemm_kernel_t` in the separate structure which may contain empty `brgemm_kernel_t`
 struct BrgemmCompiledKernel {
-    std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> compiled_kernel = nullptr;
-    // Note: Palette is treated as a part of a kernel because it is initialized during the kernel compilation stage.
-    //       Each kernel need to store the pallet it was compiled with.
-    char palette[64] = {};
+    std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_kernel = nullptr;
 };
 
-class BrgemmKernelExecutor : public CPUKernelExecutor<BrgemmKernelConfig, BrgemmCompiledKernel> {
+class BrgemmKernelExecutor : public BrgemmBaseKernelExecutor,
+                             public CPUKernelExecutor<BrgemmKernelConfig, BrgemmCompiledKernel> {
 public:
     struct call_args {
         const void* A = nullptr;
         const void* B = nullptr;
         void* C = nullptr;
         void* scratch = nullptr;
-        amx_tile_config_t* amx_tile_config = nullptr;
     };
-    BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, const std::shared_ptr<BrgemmKernelConfig>& config);
+    BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmKernelConfig config);
 
     /** Function that will be called in runtime to execute the kernel */
-    static void execute(const BrgemmKernelExecutor* desc, call_args* args);
+    static void execute(const BrgemmKernelExecutor* executor, call_args* args);
 
-    /** Update kernel config using the arguments passed, and recompile the kernel */
-    void update(size_t M, size_t N, size_t K, size_t LDA, size_t LDB, size_t LDC);
-
-    /** print current kernel config for debug purposes */
-#ifdef SNIPPETS_DEBUG_CAPS
-    std::string config_to_string() const;
-#endif
 protected:
-    std::shared_ptr<BrgemmCompiledKernel> compile_kernel(const std::shared_ptr<BrgemmKernelConfig>& c) const override;
+    std::shared_ptr<BrgemmCompiledKernel> compile_kernel(const BrgemmKernelConfig& c) const override;
+
+    void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
+                       const ov::snippets::lowered::LinearIRCPtr& linear_ir,
+                       BrgemmKernelConfig& config) const override;
 };
-}   // namespace intel_cpu
-}   // namespace ov
+#define GET_OFF_BRGEMM_ARGS(field) offsetof(BrgemmKernelExecutor::call_args, field)
+
+#ifdef SNIPPETS_DEBUG_CAPS
+class BrgemmKernelReferenceExecutor : public BrgemmKernelExecutor {
+public:
+    BrgemmKernelReferenceExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmKernelConfig config);
+    using BrgemmKernelExecutor::execute;
+
+protected:
+    std::shared_ptr<BrgemmCompiledKernel> compile_kernel(const BrgemmKernelConfig& c) const override;
+};
+
+struct brgemm_ref_kernel : public dnnl::impl::cpu::x64::brgemm_kernel_t {
+    brgemm_ref_kernel(BrgemmKernelConfig c);
+    void operator()(dnnl::impl::cpu::x64::brgemm_kernel_params_t*) const override;
+    dnnl_status_t create_kernel() override {
+        return dnnl_status_t::dnnl_success;
+    }
+    const dnnl::impl::cpu::x64::jit_generator* get_jit_generator() const override {
+        OV_CPU_JIT_EMITTER_THROW("get_jit_generator should not be called for reference kernel");
+        return nullptr;
+    }
+
+private:
+    BrgemmKernelConfig m_config;
+};
+#endif
+}  // namespace intel_cpu
+}  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,14 +65,14 @@ TEST_F(OpCacheFuncTest, get_op_cache_twice) {
 
 TEST_F(OpCacheFuncTest, update_cache) {
     auto op_cache = ov::tools::subgraph_dumper::OpCache::get();
-    ASSERT_NO_THROW(op_cache->update_cache(test_model, test_model_path, true));
-    ASSERT_NO_THROW(op_cache->update_cache(test_model, test_model_path, true));
+    OV_ASSERT_NO_THROW(op_cache->update_cache(test_model, test_model_path, true));
+    OV_ASSERT_NO_THROW(op_cache->update_cache(test_model, test_model_path, true));
 }
 
 TEST_F(OpCacheFuncTest, serialize_cache) {
     auto op_cache = ov::tools::subgraph_dumper::OpCache::get();
     op_cache->set_serialization_dir(test_artifacts_dir);
-    ASSERT_NO_THROW(op_cache->serialize_cache());
+    OV_ASSERT_NO_THROW(op_cache->serialize_cache());
 }
 
 // ====================== Operation Cache Unit tests ==============================
@@ -116,10 +116,10 @@ TEST_F(OpCacheUnitTest, update_cache_by_model) {
     // check cache
     ASSERT_EQ(m_ops_cache.size(), 2);
     for (const auto& cached_node : this->m_ops_cache) {
-        ASSERT_TRUE(std::dynamic_pointer_cast<ov::op::v0::Convert>(cached_node.first) ||
-                    std::dynamic_pointer_cast<ov::op::v0::ShapeOf>(cached_node.first));
+        ASSERT_TRUE(ov::as_type_ptr<ov::op::v0::Convert>(cached_node.first) ||
+                    ov::as_type_ptr<ov::op::v0::ShapeOf>(cached_node.first));
         auto meta = cached_node.second;
-        if (std::dynamic_pointer_cast<ov::op::v0::Convert>(cached_node.first)) {
+        if (ov::as_type_ptr<ov::op::v0::Convert>(cached_node.first)) {
             // check model_path
             ASSERT_EQ(meta.get_model_info().size(), 1);
             ASSERT_EQ(meta.get_model_info().begin()->first, test_model_name);
@@ -159,6 +159,10 @@ TEST_F(OpCacheUnitTest, update_cache_by_model) {
 }
 
 TEST_F(OpCacheUnitTest, serialize_op) {
+    // Ticket: 149824
+    if (std::getenv("GITHUB_ACTIONS")) {
+        GTEST_SKIP();
+    }
     this->set_serialization_dir(test_artifacts_dir);
     ASSERT_TRUE(this->serialize_op({convert_node, test_meta}));
     ASSERT_TRUE(ov::util::directory_exists(test_artifacts_dir));

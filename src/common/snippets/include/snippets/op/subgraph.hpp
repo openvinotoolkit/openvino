@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -116,6 +116,7 @@ public:
 
     std::shared_ptr<Subgraph> clone() const;
 
+    const std::shared_ptr<RuntimeConfigurator>& get_runtime_configurator() const;
     const std::shared_ptr<RuntimeConfig>& update_runtime_config() const;
 
     static auto wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<Subgraph>;
@@ -141,10 +142,6 @@ public:
                                       const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = std::make_shared<lowered::pass::PassConfig>(),
                                       const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes = {});
 
-    std::shared_ptr<lowered::LinearIR>
-    convert_body_to_linear_ir(size_t min_parallel_work_amount = 8, size_t min_kernel_work_amount = 256,
-                              const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory = std::make_shared<IShapeInferSnippetsFactory>());
-
     Schedule generate(const void* compile_params = nullptr) const;
     Schedule generate(const BlockedShapeVector& blocked_input_shapes = {},
                       const std::vector<ov::element::Type>& input_precisions = {},
@@ -157,6 +154,10 @@ public:
                       const void* compile_params = nullptr);
 
 private:
+    std::shared_ptr<lowered::LinearIR>
+    convert_body_to_linear_ir(size_t min_parallel_work_amount = 8, size_t min_kernel_work_amount = 256,
+                              const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory = std::make_shared<IShapeInferSnippetsFactory>());
+
     void init_config();
     // Count of Subgraph virtual ports:
     //  - Potential non-scalar Constants that will be created after some transformations (At the moment it's relevant only for FakeQuantize decomposition)

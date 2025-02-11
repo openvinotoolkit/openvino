@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
-import openvino.runtime.opset13 as ov_opset13
+import openvino.opset13 as ov_opset13
 
 from openvino import PartialShape, Dimension, Type
-from openvino.runtime.utils.types import make_constant_node
+from openvino.utils.types import make_constant_node
 
 
 @pytest.mark.parametrize(

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@ using namespace ov::frontend;
 /// \brief Helper class to register user function as a FunctionPass
 class CustomModelPass : public ov::pass::ModelPass {
 public:
+    OPENVINO_MODEL_PASS_RTTI("frontend::CustomModelPass");
     explicit CustomModelPass(std::function<bool(std::shared_ptr<ov::Model>)> pass) : m_pass(std::move(pass)) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
@@ -25,6 +26,7 @@ private:
 /// \brief Helper class to register user matcher pass initialization as a MatcherPass
 class CustomMatcherPass : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("frontend::CustomMatcherPass");
     explicit CustomMatcherPass(const std::function<void(ov::pass::MatcherPass*)>& matcher_pass_initializer) {
         matcher_pass_initializer(this);
     }

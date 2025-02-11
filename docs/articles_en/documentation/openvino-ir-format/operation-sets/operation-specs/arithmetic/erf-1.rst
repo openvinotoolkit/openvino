@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_arithmetic_Erf_1}
-
 Erf
 ===
 
 
 .. meta::
-  :description: Learn about Erf-1 - an element-wise, arithmetic operation, which 
+  :description: Learn about Erf-1 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Erf-1*
@@ -19,7 +17,7 @@ Erf
 *Erf* performs element-wise erf operation on a given input tensor, based on the following mathematical formula:
 
 .. math::
-   
+
    erf(x) = \pi^{-1} \int_{-x}^{x} e^{-t^2} dt
 
 **Attributes**: *Erf* operation has no attributes.
@@ -40,7 +38,7 @@ Erf
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="Erf">
        <input>
            <port id="0">

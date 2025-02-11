@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,13 +11,16 @@
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/reference/autobroadcast_binop.hpp"
 
-namespace ov {
-namespace reference {
+namespace ov::reference {
 namespace func {
 // Usage of custom function instead of lambda, gives smaller binary size.
 template <class T>
 T prelu(const T x, const T y) {
-    return x < T(0) ? x * y : x;
+    if constexpr (std::is_unsigned_v<T>) {
+        return x;
+    } else {
+        return x < T(0) ? x * y : x;
+    }
 }
 }  // namespace func
 
@@ -32,5 +35,4 @@ void prelu(const T* arg, const T* slope, T* out, const Shape& arg_shape, const S
     }
     autobroadcast_binop(arg, slope, out, arg_shape, slope_shape_tmp, op::AutoBroadcastType::NUMPY, func::prelu<T>);
 }
-}  // namespace reference
-}  // namespace ov
+}  // namespace ov::reference

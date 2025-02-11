@@ -34,8 +34,9 @@ hub <https://pytorch.org/hub/pytorch_vision_resnet/>`__.
    tools, including C++. For Linux you can install gcc with your
    distribution’s package manager.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Imports and Settings <#imports-and-settings>`__
 -  `Pre-train Floating-Point Model <#pre-train-floating-point-model>`__
@@ -53,6 +54,16 @@ Table of contents:
 -  `Benchmark Model Performance by Computing Inference
    Time <#benchmark-model-performance-by-computing-inference-time>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. code:: ipython3
 
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu  "openvino>=2024.0.0" "torch" "torchvision" "tqdm"
@@ -61,9 +72,7 @@ Table of contents:
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -113,7 +122,7 @@ models will be stored.
     )
     
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
     
     torch.manual_seed(0)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -148,14 +157,14 @@ models will be stored.
 
 .. parsed-literal::
 
-    model/resnet18_fp32.pth:   0%|          | 0.00/43.1M [00:00<?, ?B/s]
+    resnet18_fp32.pth:   0%|          | 0.00/43.1M [00:00<?, ?B/s]
 
 
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/pytorch-quantization-aware-training/model/resnet18_fp32.pth')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/pytorch-quantization-aware-training/model/resnet18_fp32.pth')
 
 
 
@@ -207,7 +216,7 @@ Download Tiny ImageNet dataset
 
 .. parsed-literal::
 
-    data/tiny-imagenet-200.zip:   0%|          | 0.00/237M [00:00<?, ?B/s]
+    tiny-imagenet-200.zip:   0%|          | 0.00/237M [00:00<?, ?B/s]
 
 
 .. parsed-literal::
@@ -460,9 +469,9 @@ section at the top of this notebook.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=None`.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=None`.
       warnings.warn(msg)
 
 
@@ -501,6 +510,12 @@ section at the top of this notebook.
 .. parsed-literal::
 
     Accuracy of FP32 model: 55.520
+
+
+.. parsed-literal::
+
+    /tmp/ipykernel_2226268/4059309989.py:7: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+      checkpoint = torch.load(str(fp32_pth_path), map_location="cpu")
 
 
 Export the ``FP32`` model to OpenVINO™ Intermediate Representation, to
@@ -572,15 +587,9 @@ about supported parameters can be found on this
 
 .. parsed-literal::
 
-    2024-05-07 01:02:39.722072: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-05-07 01:02:39.758422: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-12-10 03:57:46.081555: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-12-10 03:57:46.107485: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-05-07 01:02:40.294932: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
-
-.. parsed-literal::
-
-    WARNING:nncf:NNCF provides best results with torch==2.2.*, while current torch version is 2.3.0+cpu. If you encounter issues, consider switching to torch==2.2.*
 
 
 
@@ -590,17 +599,9 @@ about supported parameters can be found on this
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -617,17 +618,9 @@ about supported parameters can be found on this
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -644,14 +637,14 @@ demonstrated here.
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.202 (0.202)	Loss 1.005 (1.005)	Acc@1 78.91 (78.91)	Acc@5 88.28 (88.28)
-    Test: [10/79]	Time 0.164 (0.169)	Loss 1.992 (1.625)	Acc@1 44.53 (60.37)	Acc@5 79.69 (83.66)
-    Test: [20/79]	Time 0.163 (0.167)	Loss 1.814 (1.705)	Acc@1 60.94 (58.04)	Acc@5 80.47 (82.66)
-    Test: [30/79]	Time 0.163 (0.166)	Loss 2.287 (1.795)	Acc@1 50.78 (56.48)	Acc@5 68.75 (80.97)
-    Test: [40/79]	Time 0.171 (0.167)	Loss 1.615 (1.832)	Acc@1 60.94 (55.43)	Acc@5 82.81 (80.43)
-    Test: [50/79]	Time 0.165 (0.166)	Loss 1.952 (1.833)	Acc@1 57.03 (55.51)	Acc@5 75.00 (80.16)
-    Test: [60/79]	Time 0.197 (0.167)	Loss 1.794 (1.856)	Acc@1 57.03 (55.16)	Acc@5 84.38 (79.84)
-    Test: [70/79]	Time 0.192 (0.169)	Loss 2.371 (1.889)	Acc@1 46.88 (54.68)	Acc@5 74.22 (79.14)
+    Test: [ 0/79]	Time 0.212 (0.212)	Loss 1.005 (1.005)	Acc@1 78.91 (78.91)	Acc@5 88.28 (88.28)
+    Test: [10/79]	Time 0.207 (0.193)	Loss 1.992 (1.625)	Acc@1 44.53 (60.37)	Acc@5 79.69 (83.66)
+    Test: [20/79]	Time 0.217 (0.200)	Loss 1.814 (1.705)	Acc@1 60.94 (58.04)	Acc@5 80.47 (82.66)
+    Test: [30/79]	Time 0.168 (0.196)	Loss 2.287 (1.795)	Acc@1 50.78 (56.48)	Acc@5 68.75 (80.97)
+    Test: [40/79]	Time 0.170 (0.190)	Loss 1.615 (1.832)	Acc@1 60.94 (55.43)	Acc@5 82.81 (80.43)
+    Test: [50/79]	Time 0.171 (0.186)	Loss 1.952 (1.833)	Acc@1 57.03 (55.51)	Acc@5 75.00 (80.16)
+    Test: [60/79]	Time 0.168 (0.183)	Loss 1.794 (1.856)	Acc@1 57.03 (55.16)	Acc@5 84.38 (79.84)
+    Test: [70/79]	Time 0.169 (0.181)	Loss 2.371 (1.889)	Acc@1 46.88 (54.68)	Acc@5 74.22 (79.14)
      * Acc@1 55.040 Acc@5 79.730
     Accuracy of initialized INT8 model: 55.040
 
@@ -684,33 +677,33 @@ training pipeline are required. Here is a simple example.
 
 .. parsed-literal::
 
-    Epoch:[0][  0/782]	Time 0.416 (0.416)	Loss 0.917 (0.917)	Acc@1 76.56 (76.56)	Acc@5 93.75 (93.75)
-    Epoch:[0][ 50/782]	Time 0.369 (0.369)	Loss 0.628 (0.812)	Acc@1 87.50 (80.33)	Acc@5 96.09 (93.92)
-    Epoch:[0][100/782]	Time 0.364 (0.368)	Loss 0.759 (0.806)	Acc@1 79.69 (80.55)	Acc@5 93.75 (94.12)
-    Epoch:[0][150/782]	Time 0.363 (0.368)	Loss 0.865 (0.799)	Acc@1 82.81 (80.71)	Acc@5 92.97 (94.18)
-    Epoch:[0][200/782]	Time 0.363 (0.368)	Loss 0.581 (0.787)	Acc@1 86.72 (80.96)	Acc@5 97.66 (94.32)
-    Epoch:[0][250/782]	Time 0.363 (0.368)	Loss 0.720 (0.782)	Acc@1 83.59 (81.00)	Acc@5 93.75 (94.42)
-    Epoch:[0][300/782]	Time 0.363 (0.368)	Loss 0.739 (0.777)	Acc@1 78.91 (81.11)	Acc@5 93.75 (94.40)
-    Epoch:[0][350/782]	Time 0.364 (0.368)	Loss 0.819 (0.767)	Acc@1 78.12 (81.36)	Acc@5 92.97 (94.52)
-    Epoch:[0][400/782]	Time 0.375 (0.368)	Loss 0.787 (0.766)	Acc@1 80.47 (81.42)	Acc@5 94.53 (94.51)
-    Epoch:[0][450/782]	Time 0.366 (0.368)	Loss 0.733 (0.763)	Acc@1 82.03 (81.55)	Acc@5 96.88 (94.54)
-    Epoch:[0][500/782]	Time 0.368 (0.368)	Loss 0.728 (0.760)	Acc@1 82.81 (81.59)	Acc@5 94.53 (94.57)
-    Epoch:[0][550/782]	Time 0.371 (0.368)	Loss 0.777 (0.758)	Acc@1 83.59 (81.63)	Acc@5 95.31 (94.59)
-    Epoch:[0][600/782]	Time 0.372 (0.368)	Loss 0.725 (0.756)	Acc@1 80.47 (81.67)	Acc@5 97.66 (94.60)
-    Epoch:[0][650/782]	Time 0.363 (0.368)	Loss 0.920 (0.755)	Acc@1 76.56 (81.66)	Acc@5 92.97 (94.62)
-    Epoch:[0][700/782]	Time 0.365 (0.369)	Loss 0.648 (0.753)	Acc@1 84.38 (81.70)	Acc@5 92.97 (94.63)
-    Epoch:[0][750/782]	Time 0.366 (0.368)	Loss 0.782 (0.750)	Acc@1 80.47 (81.71)	Acc@5 94.53 (94.66)
-    Test: [ 0/79]	Time 0.145 (0.145)	Loss 1.094 (1.094)	Acc@1 76.56 (76.56)	Acc@5 86.72 (86.72)
-    Test: [10/79]	Time 0.143 (0.144)	Loss 1.848 (1.527)	Acc@1 49.22 (62.93)	Acc@5 80.47 (84.30)
-    Test: [20/79]	Time 0.143 (0.144)	Loss 1.540 (1.597)	Acc@1 64.06 (60.64)	Acc@5 81.25 (83.82)
-    Test: [30/79]	Time 0.146 (0.144)	Loss 2.052 (1.692)	Acc@1 56.25 (59.20)	Acc@5 71.88 (82.21)
-    Test: [40/79]	Time 0.143 (0.144)	Loss 1.515 (1.745)	Acc@1 64.06 (57.79)	Acc@5 85.16 (81.44)
-    Test: [50/79]	Time 0.143 (0.144)	Loss 1.915 (1.751)	Acc@1 53.91 (57.60)	Acc@5 77.34 (81.14)
-    Test: [60/79]	Time 0.143 (0.144)	Loss 1.585 (1.786)	Acc@1 67.19 (57.01)	Acc@5 85.16 (80.69)
-    Test: [70/79]	Time 0.142 (0.144)	Loss 2.454 (1.812)	Acc@1 44.53 (56.57)	Acc@5 74.22 (80.24)
-     * Acc@1 56.970 Acc@5 80.830
-    Accuracy of tuned INT8 model: 56.970
-    Accuracy drop of tuned INT8 model over pre-trained FP32 model: -1.450
+    Epoch:[0][  0/782]	Time 0.439 (0.439)	Loss 1.029 (1.029)	Acc@1 75.00 (75.00)	Acc@5 90.62 (90.62)
+    Epoch:[0][ 50/782]	Time 0.386 (0.385)	Loss 0.670 (0.823)	Acc@1 85.94 (79.99)	Acc@5 94.53 (93.84)
+    Epoch:[0][100/782]	Time 0.383 (0.384)	Loss 0.660 (0.799)	Acc@1 85.94 (80.38)	Acc@5 98.44 (94.42)
+    Epoch:[0][150/782]	Time 0.377 (0.390)	Loss 0.639 (0.797)	Acc@1 85.94 (80.56)	Acc@5 95.31 (94.26)
+    Epoch:[0][200/782]	Time 0.374 (0.388)	Loss 0.736 (0.790)	Acc@1 80.47 (80.74)	Acc@5 95.31 (94.31)
+    Epoch:[0][250/782]	Time 0.384 (0.387)	Loss 0.812 (0.785)	Acc@1 81.25 (80.85)	Acc@5 93.75 (94.36)
+    Epoch:[0][300/782]	Time 0.527 (0.397)	Loss 0.871 (0.781)	Acc@1 75.00 (80.93)	Acc@5 91.41 (94.38)
+    Epoch:[0][350/782]	Time 0.387 (0.398)	Loss 0.749 (0.774)	Acc@1 82.03 (81.11)	Acc@5 93.75 (94.44)
+    Epoch:[0][400/782]	Time 0.380 (0.396)	Loss 0.766 (0.772)	Acc@1 80.47 (81.18)	Acc@5 96.88 (94.43)
+    Epoch:[0][450/782]	Time 0.384 (0.397)	Loss 0.867 (0.768)	Acc@1 78.91 (81.33)	Acc@5 92.97 (94.48)
+    Epoch:[0][500/782]	Time 0.379 (0.395)	Loss 0.523 (0.765)	Acc@1 89.06 (81.37)	Acc@5 97.66 (94.53)
+    Epoch:[0][550/782]	Time 0.383 (0.394)	Loss 0.827 (0.762)	Acc@1 79.69 (81.42)	Acc@5 92.97 (94.54)
+    Epoch:[0][600/782]	Time 0.394 (0.396)	Loss 0.640 (0.761)	Acc@1 85.94 (81.47)	Acc@5 95.31 (94.54)
+    Epoch:[0][650/782]	Time 0.380 (0.395)	Loss 0.590 (0.757)	Acc@1 82.81 (81.60)	Acc@5 98.44 (94.59)
+    Epoch:[0][700/782]	Time 0.388 (0.394)	Loss 0.576 (0.755)	Acc@1 85.94 (81.66)	Acc@5 96.88 (94.60)
+    Epoch:[0][750/782]	Time 0.383 (0.394)	Loss 0.788 (0.752)	Acc@1 79.69 (81.71)	Acc@5 95.31 (94.63)
+    Test: [ 0/79]	Time 0.157 (0.157)	Loss 1.063 (1.063)	Acc@1 73.44 (73.44)	Acc@5 87.50 (87.50)
+    Test: [10/79]	Time 0.152 (0.154)	Loss 1.793 (1.515)	Acc@1 50.78 (63.14)	Acc@5 82.03 (84.59)
+    Test: [20/79]	Time 0.153 (0.154)	Loss 1.580 (1.590)	Acc@1 64.06 (60.79)	Acc@5 82.03 (84.19)
+    Test: [30/79]	Time 0.159 (0.154)	Loss 2.101 (1.690)	Acc@1 55.47 (59.12)	Acc@5 71.88 (82.66)
+    Test: [40/79]	Time 0.159 (0.155)	Loss 1.591 (1.744)	Acc@1 64.84 (57.79)	Acc@5 83.59 (81.65)
+    Test: [50/79]	Time 0.157 (0.156)	Loss 1.891 (1.750)	Acc@1 55.47 (57.71)	Acc@5 77.34 (81.30)
+    Test: [60/79]	Time 0.159 (0.156)	Loss 1.560 (1.782)	Acc@1 65.62 (57.11)	Acc@5 84.38 (80.75)
+    Test: [70/79]	Time 0.156 (0.156)	Loss 2.476 (1.811)	Acc@1 44.53 (56.59)	Acc@5 75.00 (80.27)
+     * Acc@1 57.080 Acc@5 80.940
+    Accuracy of tuned INT8 model: 57.080
+    Accuracy drop of tuned INT8 model over pre-trained FP32 model: -1.560
 
 
 Export INT8 Model to OpenVINO IR
@@ -759,16 +752,7 @@ throughput (frames per second) values.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
-    # Initialize OpenVINO runtime
-    core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices,
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 
@@ -777,7 +761,7 @@ throughput (frames per second) values.
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU',), value='CPU')
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
 
 
 
@@ -800,22 +784,26 @@ throughput (frames per second) values.
 .. parsed-literal::
 
     Benchmark FP32 model (IR)
-    [ INFO ] Throughput:   2943.57 FPS
+    [ INFO ] Throughput:   2942.44 FPS
     Benchmark INT8 model (IR)
-    [ INFO ] Throughput:   11901.74 FPS
+    [ INFO ] Throughput:   11278.62 FPS
 
 
 Show Device Information for reference.
 
 .. code:: ipython3
 
-    core.get_property(device.value, "FULL_DEVICE_NAME")
+    import openvino.properties as props
+    
+    
+    core = ov.Core()
+    core.get_property(device.value, props.device.full_name)
 
 
 
 
 .. parsed-literal::
 
-    'Intel(R) Core(TM) i9-10920X CPU @ 3.50GHz'
+    'AUTO'
 
 

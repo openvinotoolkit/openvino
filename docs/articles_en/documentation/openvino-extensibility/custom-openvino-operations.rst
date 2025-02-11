@@ -1,5 +1,3 @@
-.. {#openvino_docs_Extensibility_UG_add_openvino_ops}
-
 Custom OpenVINO Operations
 =============================
 
@@ -16,7 +14,7 @@ Operation Class
 
 To add your custom operation, create a new class that extends ``ov::Op``, which is in turn derived from ``ov::Node``, the base class for all graph operations in OpenVINO™. To add ``ov::Op``, include the next file:
 
-.. doxygensnippet:: ./src/core/template_extension/new/identity.hpp
+.. doxygensnippet:: src/core/template_extension/identity.hpp
    :language: cpp
    :fragment: [op:common_include]
 
@@ -45,7 +43,7 @@ OpenVINO™ operation contains two constructors:
 * Default constructor, which enables you to create an operation without attributes
 * Constructor that creates and validates an operation with specified inputs and attributes
 
-.. doxygensnippet:: ./src/core/template_extension/new/identity.cpp
+.. doxygensnippet:: src/core/template_extension/identity.cpp
    :language: cpp
    :fragment: [op:ctor]
 
@@ -54,7 +52,7 @@ OpenVINO™ operation contains two constructors:
 
 ``ov::Node::validate_and_infer_types`` method validates operation attributes and calculates output shapes using attributes of the operation.
 
-.. doxygensnippet:: ./src/core/template_extension/new/identity.cpp
+.. doxygensnippet:: src/core/template_extension/identity.cpp
    :language: cpp
    :fragment: [op:validate]
 
@@ -63,7 +61,7 @@ OpenVINO™ operation contains two constructors:
 
 ``ov::Node::clone_with_new_inputs`` method creates a copy of the operation with new inputs.
 
-.. doxygensnippet:: ./src/core/template_extension/new/identity.cpp
+.. doxygensnippet:: src/core/template_extension/identity.cpp
    :language: cpp
    :fragment: [op:copy]
 
@@ -72,7 +70,7 @@ OpenVINO™ operation contains two constructors:
 
 ``ov::Node::visit_attributes`` method enables you to visit all operation attributes.
 
-.. doxygensnippet:: ./src/core/template_extension/new/identity.cpp
+.. doxygensnippet:: src/core/template_extension/identity.cpp
    :language: cpp
    :fragment: [op:visit_attributes]
 
@@ -81,7 +79,7 @@ OpenVINO™ operation contains two constructors:
 
 ``ov::Node::evaluate`` method enables you to apply constant folding to an operation.
 
-.. doxygensnippet:: ./src/core/template_extension/new/identity.cpp
+.. doxygensnippet:: src/core/template_extension/identity.cpp
    :language: cpp
    :fragment: [op:evaluate]
 

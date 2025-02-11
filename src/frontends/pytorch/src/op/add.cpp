@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@ namespace op {
 
 using namespace ov::op;
 
+namespace {
 OutputVector translate_add_common(const NodeContext& context, bool inplace) {
     num_inputs_check(context, 2, 3);
     Output<Node> lhs;
@@ -67,6 +68,7 @@ OutputVector translate_add_common(const NodeContext& context, bool inplace) {
         context.mutate_input(0, add);
     return {add};
 };
+}  // namespace
 
 OutputVector translate_add(const NodeContext& context) {
     return translate_add_common(context, false);

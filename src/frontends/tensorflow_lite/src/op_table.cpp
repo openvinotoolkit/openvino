@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,7 +61,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         // CONV_3D
         // CONV_3D_TRANSPOSE
         {"COS", translate_unary<opset10::Cos>},
-        // CUMSUM
+        {"CUMSUM", translate_cumsum_op},
         // CUSTOM
         // DELEGATE
         {"DENSIFY", translate_identity_op},

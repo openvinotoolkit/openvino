@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -127,6 +127,7 @@ namespace ov {
 namespace pass {
 class InjectionPass : public ov::pass::ModelPass {
 public:
+    OPENVINO_MODEL_PASS_RTTI("InjectionPass");
     using injection_callback = std::function<void(std::shared_ptr<ov::Model>)>;
 
     explicit InjectionPass(injection_callback callback) : ModelPass(), m_callback(std::move(callback)) {}
@@ -268,6 +269,7 @@ class InitUniqueNames : public ov::pass::ModelPass {
     UniqueNamesHolder::Ptr m_unh;
 
 public:
+    OPENVINO_MODEL_PASS_RTTI("InitUniqueNames");
     InitUniqueNames(UniqueNamesHolder::Ptr unh) : m_unh(unh) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
         m_unh->init_names(f);
@@ -279,6 +281,7 @@ class CheckUniqueNames : public ov::pass::ModelPass {
     UniqueNamesHolder::Ptr m_unh;
 
 public:
+    OPENVINO_MODEL_PASS_RTTI("CheckUniqueNames");
     CheckUniqueNames(UniqueNamesHolder::Ptr unh,
                      bool soft_names_comparison = false,
                      bool result_friendly_names_check = true)

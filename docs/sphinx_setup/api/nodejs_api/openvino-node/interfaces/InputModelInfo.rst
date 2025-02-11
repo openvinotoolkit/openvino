@@ -8,14 +8,14 @@ Interface InputModelInfo
    }
 
 * **Defined in:**
-  `addon.ts:140 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L140>`__
+  `addon.ts:607 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L607>`__
 
 Methods
 #####################
 
 .. rubric:: setLayout
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -28,5 +28,5 @@ Methods
    * **Returns:** :doc:`InputModelInfo <InputModelInfo>`
 
    * **Defined in:**
-     `addon.ts:141 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L141>`__
+     `addon.ts:608 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L608>`__
 

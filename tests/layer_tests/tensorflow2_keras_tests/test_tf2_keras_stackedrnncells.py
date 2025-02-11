@@ -1,13 +1,23 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
 import pytest
 import tensorflow as tf
-
 from common.tf2_layer_test_class import CommonTF2LayerTest
+
+rng = np.random.default_rng(23423556)
 
 
 class TestKerasStackedRNNCells(CommonTF2LayerTest):
+    def _prepare_input(self, inputs_info):
+        input_names = list(inputs_info.keys())
+        assert len(input_names) == 1, "Test expects only one input"
+        x_shape = inputs_info[input_names[0]]
+        inputs_data = {}
+        inputs_data[input_names[0]] = rng.uniform(-1.0, 1.0, x_shape).astype(np.float32)
+        return inputs_data
+
     def create_keras_stackedrnncells_net(self, input_names, input_shapes, input_type, rnn_cells,
                                          ir_version):
         cells_structure = {

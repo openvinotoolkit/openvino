@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -6,6 +6,10 @@ add_definitions(-DIN_OV_COMPONENT)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     ov_add_compiler_flags(-Wmissing-declarations)
+endif()
+
+if(OV_COMPILER_IS_INTEL_LLVM)
+    ov_disable_deprecated_warnings()
 endif()
 
 include(cmake/install_tbb.cmake)

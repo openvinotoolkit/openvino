@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,13 +14,12 @@
     OPENVINO_ASSERT(m_ptr != nullptr, "OpenVINO Runtime Plugin was not initialized."); \
     try {                                                                              \
         __VA_ARGS__;                                                                   \
-    } catch (const ov::NotImplemented&) {                                              \
-        OPENVINO_NOT_IMPLEMENTED;                                                      \
     } catch (const std::exception& ex) {                                               \
         OPENVINO_THROW(ex.what());                                                     \
     } catch (...) {                                                                    \
         OPENVINO_THROW("Unexpected exception");                                        \
     }
+
 ov::Plugin::~Plugin() {
     m_ptr = {};
 }
@@ -46,7 +45,7 @@ const ov::Version ov::Plugin::get_version() const {
 }
 
 void ov::Plugin::set_property(const ov::AnyMap& config) {
-    OV_PLUGIN_CALL_STATEMENT(m_ptr->set_property(config));
+    m_ptr->set_property(config);
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -74,10 +73,10 @@ ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::istream& model, cons
     OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(model, properties), m_so});
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::istream& networkModel,
+ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::istream& model,
                                                        const ov::SoPtr<ov::IRemoteContext>& context,
                                                        const ov::AnyMap& config) const {
-    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(networkModel, context, config), m_so});
+    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(model, context, config), m_so});
 }
 
 ov::SoPtr<ov::IRemoteContext> ov::Plugin::create_context(const AnyMap& params) const {
@@ -99,7 +98,7 @@ ov::SoPtr<ov::IRemoteContext> ov::Plugin::get_default_context(const AnyMap& para
 }
 
 ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& arguments) const {
-    OV_PLUGIN_CALL_STATEMENT({ return {m_ptr->get_property(name, arguments), {m_so}}; });
+    return {m_ptr->get_property(name, arguments), {m_so}};
 }
 
 bool ov::Plugin::supports_model_caching() const {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -140,7 +140,7 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& const_node_pattern = pattern_map.at(const_pattern);
 
-        auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(const_node_pattern.get_node_shared_ptr());
+        auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(const_node_pattern.get_node_shared_ptr());
         if (!const_node)
             return false;
 

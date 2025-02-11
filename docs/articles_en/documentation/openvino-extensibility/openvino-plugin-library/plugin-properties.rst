@@ -1,5 +1,3 @@
-.. {#openvino_docs_ov_plugin_dg_properties}
-
 Plugin Properties
 =================
 

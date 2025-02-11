@@ -1,12 +1,10 @@
-.. {#openvino_docs_ops_detection_ExperimentalDetectronGenerateProposalsSingleImage_6}
-
 ExperimentalDetectronGenerateProposalsSingleImage
 =================================================
 
 
 .. meta::
-  :description: Learn about ExperimentalDetectronGenerateProposalsSingleImage-6 - 
-                an object detection operation, which can be performed on four 
+  :description: Learn about ExperimentalDetectronGenerateProposalsSingleImage-6 -
+                an object detection operation, which can be performed on four
                 required input tensors.
 
 **Versioned name**: *ExperimentalDetectronGenerateProposalsSingleImage-6*
@@ -64,7 +62,7 @@ ExperimentalDetectronGenerateProposalsSingleImage
 * **1**: A 1D tensor of type *T* with 3 elements ``[image_height, image_width, scale_height_and_width]`` providing input image size info. **Required.**
 * **2**: A 2D tensor of type *T* with shape ``[height * width * number_of_channels, 4]`` providing anchors. **Required.**
 * **3**: A 3D tensor of type *T* with shape ``[number_of_channels * 4, height, width]`` providing deltas for anchors.
-Height and width for third and fourth inputs should be equal. **Required.**
+  Height and width for third and fourth inputs should be equal. **Required.**
 * **4**: A 3D tensor of type *T* with shape ``[number_of_channels, height, width]`` providing proposals scores. **Required.**
 
 **Outputs**
@@ -80,7 +78,7 @@ Height and width for third and fourth inputs should be equal. **Required.**
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="ExperimentalDetectronGenerateProposalsSingleImage" version="opset6">
        <data min_size="0.0" nms_threshold="0.699999988079071" post_nms_count="1000" pre_nms_count="1000"/>
        <input>

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,6 +37,8 @@ struct Configuration {
     std::string device_priorities;
 
     std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {};
+
+    EncryptionCallbacks encryption_callbacks;
 
     ov::AnyMap device_properties;
 };

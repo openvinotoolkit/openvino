@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import openvino.runtime.opset8 as ov
+import openvino.opset8 as ov
 import numpy as np
 import pytest
 
-from openvino.runtime.utils.types import get_element_type
+from openvino.utils.types import get_element_type
 
 
 def einsum_op_check(input_shapes: list, equation: str, data_type: np.dtype,

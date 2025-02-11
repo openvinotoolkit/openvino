@@ -95,7 +95,7 @@ If an OpenVINO Core operation provides exactly what you need (without decomposit
 ```cpp
 core.add_extension(ov::frontend::onnx::OpExtension<ov::opset9::Add>("org.openvinotoolkit", "CustomAdd"));
 ```
-If you need to register an custom operation for a [Model Optimizer](../../../../tools/mo) scenario, you should consider `SOExtension`. More details about it can be found in [Library with Extensions](../../../../docs/Extensibility_UG/Intro.md#create-a-library-with-extensions).
+If you need to register an custom operation for [OpenVINO Model Converter](../../../../tools/ovc) scenario, you should consider `SOExtension`. More details about it can be found in [Library with Extensions](../../../../docs/Extensibility_UG/Intro.md#create-a-library-with-extensions).
 ### Python-based extensions
 C++ based extensions have their equivalents in Python. For `ConversionExtension`, an example of usage can look like:
 ```python

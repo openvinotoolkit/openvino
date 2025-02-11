@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,8 @@ class TRANSFORMATIONS_API ConvertTensorIteratorToRNNSequence;
 class TRANSFORMATIONS_API ConvertTensorIteratorToGRUSequence;
 class TRANSFORMATIONS_API ConvertTensorIteratorToSequence;
 
+class TRANSFORMATIONS_API ConvertLoopWithSlicedInputConcatOutputToLSTMSequence;
+class TRANSFORMATIONS_API ConvertLoopWithScatterUpdateToLSTMSequence;
 class TRANSFORMATIONS_API ConvertLoopToLSTMSequence;
 class TRANSFORMATIONS_API FuseReverseLSTMSequence;
 
@@ -34,7 +36,7 @@ class TRANSFORMATIONS_API FuseLSTMSequencesToBidirectionalLSTMSequence;
 
 class ov::pass::ConvertTensorIteratorToLSTMSequence : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertTensorIteratorToLSTMSequence", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertTensorIteratorToLSTMSequence");
     ConvertTensorIteratorToLSTMSequence();
 };
 
@@ -46,7 +48,7 @@ public:
 
 class ov::pass::ConvertTensorIteratorToRNNSequence : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertTensorIteratorToRNNSequence", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertTensorIteratorToRNNSequence");
     ConvertTensorIteratorToRNNSequence();
 };
 
@@ -58,24 +60,39 @@ public:
 
 class ov::pass::ConvertTensorIteratorToGRUSequence : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertTensorIteratorToGRUSequence", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertTensorIteratorToGRUSequence");
     ConvertTensorIteratorToGRUSequence();
 };
 
 class ov::pass::ConvertTensorIteratorToSequence : public GraphRewrite {
 public:
-    OPENVINO_RTTI("ConvertTensorIteratorToSequence", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("ConvertTensorIteratorToSequence");
     ConvertTensorIteratorToSequence();
+};
+
+class ov::pass::ConvertLoopWithSlicedInputConcatOutputToLSTMSequence : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ConvertLoopWithSlicedInputConcatOutputToLSTMSequence");
+    ConvertLoopWithSlicedInputConcatOutputToLSTMSequence();
+};
+
+class ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ConvertLoopWithScatterUpdateToLSTMSequence");
+    ConvertLoopWithScatterUpdateToLSTMSequence();
 };
 
 /**
  * @ingroup ov_transformation_common_api
  * @brief Replaces Loop with LSTMCell inside to LSTMSequence
  */
-class ov::pass::ConvertLoopToLSTMSequence : public ov::pass::MatcherPass {
+class ov::pass::ConvertLoopToLSTMSequence : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("ConvertLoopToLSTMSequence", "0");
-    ConvertLoopToLSTMSequence();
+    OPENVINO_GRAPH_REWRITE_RTTI("ConvertLoopToLSTMSequence");
+    ConvertLoopToLSTMSequence() {
+        add_matcher<ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence>();
+        add_matcher<ov::pass::ConvertLoopWithSlicedInputConcatOutputToLSTMSequence>();
+    }
 };
 
 /**
@@ -84,7 +101,7 @@ public:
  */
 class ov::pass::FuseReverseLSTMSequence : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("FuseReverseLSTMSequence", "0");
+    OPENVINO_MATCHER_PASS_RTTI("FuseReverseLSTMSequence");
     FuseReverseLSTMSequence();
 };
 
@@ -94,6 +111,6 @@ public:
  */
 class ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("FuseLSTMSequencesToBidirectionalLSTMSequence", "0");
+    OPENVINO_MATCHER_PASS_RTTI("FuseLSTMSequencesToBidirectionalLSTMSequence");
     FuseLSTMSequencesToBidirectionalLSTMSequence();
 };

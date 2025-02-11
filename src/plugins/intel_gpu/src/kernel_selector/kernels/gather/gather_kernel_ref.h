@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,8 @@ public:
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,
                  FusedOpType::ELTWISE,
-                 FusedOpType::ACTIVATION };
+                 FusedOpType::ACTIVATION,
+                 FusedOpType::REORDER };
     }
 
 protected:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@
 
 bool ov::pass::ConvertOpSet3ToOpSet2::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(ConvertOpSet3ToOpSet2);
-    ov::pass::Manager manager(get_pass_config());
+    ov::pass::Manager manager(get_pass_config(), "ConvertOpSet3ToOpSet2");
     manager.set_per_pass_validation(false);
 
     manager.register_pass<ov::pass::ConvertBroadcast3>();

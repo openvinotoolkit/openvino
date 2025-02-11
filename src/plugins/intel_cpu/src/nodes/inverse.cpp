@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace intel_cpu {
 namespace node {
 
 Inverse::Inverse(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         THROW_CPU_NODE_ERR(errorMessage);
@@ -84,11 +84,11 @@ bool Inverse::created() const {
     return getType() == Type::Inverse;
 }
 
-void Inverse::execute(dnnl::stream strm) {
+void Inverse::execute(const dnnl::stream& strm) {
     inverse();
 }
 
-void Inverse::executeDynamicImpl(dnnl::stream strm) {
+void Inverse::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

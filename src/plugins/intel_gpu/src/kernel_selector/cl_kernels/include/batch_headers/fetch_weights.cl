@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -403,6 +403,16 @@ inline uint get_os_zyxi_osv16_index(uint o, uint i, uint z, uint y, uint x, uint
         (y)*CAT(prefix, _Y_PITCH) +                                      \
         (i)*CAT(prefix, _IFM_PITCH) +                                    \
         ((o) / (sub_group_size))*CAT(prefix, _OFM_PITCH)                 \
+    )
+
+#define GET_FILTER_OS_IYX_OSV_INDEX_INT4_PACKED(prefix, o, i, y, x, sub_group_size) \
+    CAT(prefix, _OFFSET) +                                               \
+    ((o) % (sub_group_size)) +                                           \
+    (sub_group_size)*(                                                   \
+        (x)*CAT(prefix, _X_PITCH) +                                      \
+        (y)*CAT(prefix, _Y_PITCH) +                                      \
+        (i)*CAT(prefix, _IFM_PITCH) +                                    \
+        ((o) / (sub_group_size))*(CAT(prefix, _OFM_PITCH)/2)             \
     )
 
 #define GET_FILTER_OS_IS_YX_OSV_ISV_INDEX_INT4_PACKED(prefix, o, i, y, x, sub_group_size) \

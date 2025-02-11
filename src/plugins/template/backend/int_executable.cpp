@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,7 +56,7 @@ void ov::runtime::interpreter::INTExecutable::cancel() {
 
 void collect_variables(const ov::NodeVector& nodes, ov::op::util::VariableContext& variable_context) {
     for (const auto& op : nodes) {
-        if (auto multi_subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(op)) {
+        if (auto multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
             for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
                 collect_variables(sub_graph->get_ordered_ops(), variable_context);
             }
@@ -118,7 +118,7 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
     // for each ordered op in the graph
     for (const auto& op : m_nodes) {
         CHECK_TERMINATE()
-        if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op)) {
+        if (ov::as_type_ptr<ov::op::v0::Parameter>(op)) {
             continue;
         }
         // get op inputs from map

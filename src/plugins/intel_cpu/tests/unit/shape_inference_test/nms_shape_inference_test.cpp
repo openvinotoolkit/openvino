@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ TYPED_TEST_P(NMSNonDynamicOutputTest, default_ctor_no_args) {
     int16_t max_output_boxes = 3;
     const auto const_data = std::unordered_map<size_t, Tensor>{{2, {element::i16, ov::Shape{}, &max_output_boxes}}};
 
-    this->input_shapes = ShapeVector{{1, 6, 4}, {1, 1, 6}, {}, {}, {}};
+    this->input_shapes = StaticShapeVector{{1, 6, 4}, {1, 1, 6}, {}, {}, {}};
     const auto output_shapes = shape_inference(op.get(), this->input_shapes, const_data);
 
     EXPECT_EQ(output_shapes.size(), 1);
@@ -32,12 +32,12 @@ TYPED_TEST_P(NMSNonDynamicOutputTest, boxes_scores_dynamic_rank_max_out_as_const
     const auto boxes = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
     const auto scores = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
     const auto max_output_boxes_per_class = op::v0::Constant::create(element::i16, ov::Shape{}, {3});
-    const auto iou_threshold = std::make_shared<op::v0::Parameter>(element::f32, Shape{});
-    const auto score_threshold = std::make_shared<op::v0::Parameter>(element::f32, Shape{});
+    const auto iou_threshold = std::make_shared<op::v0::Parameter>(element::f32, ov::Shape{});
+    const auto score_threshold = std::make_shared<op::v0::Parameter>(element::f32, ov::Shape{});
 
     const auto op = this->make_op(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold);
 
-    this->input_shapes = ShapeVector{{1, 6, 4}, {1, 1, 6}, {}, {}, {}};
+    this->input_shapes = StaticShapeVector{{1, 6, 4}, {1, 1, 6}, {}, {}, {}};
     const auto output_shapes = shape_inference(op.get(), this->input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
@@ -56,7 +56,7 @@ TYPED_TEST_P(NMSNonDynamicOutputTest, all_inputs_are_dynamic) {
 
     const auto op = this->make_op(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold);
 
-    this->input_shapes = ShapeVector{{1, 6, 4}, {1, 1, 6}, {}, {}, {}};
+    this->input_shapes = StaticShapeVector{{1, 6, 4}, {1, 1, 6}, {}, {}, {}};
     const auto output_shapes = shape_inference(op.get(), this->input_shapes, const_data);
 
     EXPECT_EQ(output_shapes.size(), 1);

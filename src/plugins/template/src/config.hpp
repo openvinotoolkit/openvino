@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,6 +47,8 @@ struct Configuration {
     ov::log::Level log_level = ov::log::Level::NO;
 
     ov::hint::Priority model_priority = ov::hint::Priority::DEFAULT;
+
+    EncryptionCallbacks encryption_callbacks;
 };
 // ! [configuration:header]
 

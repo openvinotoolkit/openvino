@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -8,7 +8,7 @@
 
 set(BUILD_SHARED_LIBS OFF)
 
-if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
+if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
     ov_add_compiler_flags(-Wno-all)
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
         ov_add_compiler_flags(-Wno-stringop-overflow)
@@ -56,8 +56,7 @@ set(Protobuf_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/protobuf/src)
 # to hide libprotobuf warnings
 target_include_directories(libprotobuf-lite SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
 
-if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR
-   CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
     if(protobuf_BUILD_PROTOC_BINARIES)
         list(APPEND _protoc_libs protoc libprotoc libprotobuf)
         set_target_properties(${_protoc_libs} PROPERTIES

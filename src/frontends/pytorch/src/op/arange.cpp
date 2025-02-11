@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
 
@@ -63,8 +64,7 @@ OutputVector translate_arange(const NodeContext& context) {
         PYTORCH_OP_CONVERSION_CHECK(false, "Not expected number of inputs for ", context.get_op_type());
     }
     if (dtype_port >= 0 && !context.input_is_none(dtype_port)) {
-        if (std::dynamic_pointer_cast<v0::Constant>(
-                context.get_input_from_visible_context(dtype_port).get_node_shared_ptr())) {
+        if (ov::as_type_ptr<v0::Constant>(context.get_input_from_visible_context(dtype_port).get_node_shared_ptr())) {
             dtype = convert_dtype(context.const_input<int64_t>(dtype_port));
             dtype_applied = true;
         } else if (const auto& fw_node =
@@ -108,6 +108,17 @@ OutputVector translate_arange_fx(const NodeContext& context) {
     if (context.has_attribute("dtype")) {
         dtype = context.get_attribute<element::Type>("dtype");
     }
+    auto input_squeeze = [&context](ov::Output<Node> input) {
+        if (input.get_partial_shape().rank().is_dynamic() ||
+            (input.get_partial_shape().rank().is_static() && input.get_partial_shape().rank().get_length() == 1)) {
+            auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+            input = context.mark_node(std::make_shared<ov::op::v0::Squeeze>(input, zero));
+        }
+        return input;
+    };
+    start = input_squeeze(start);
+    end = input_squeeze(end);
+    step = input_squeeze(step);
     auto range = context.mark_node(std::make_shared<v4::Range>(start, end, step, dtype));
     if (!context.has_attribute("dtype")) {
         range = context.mark_node(std::make_shared<v1::ConvertLike>(range, context.get_input(0)));

@@ -10,8 +10,9 @@ used in this tutorial are provided as examples. These model files can be
 replaced with your own models. The exact outputs will be different, but
 the process is the same.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Loading OpenVINO Runtime and Showing
    Info <#loading-openvino-runtime-and-showing-info>`__
@@ -38,6 +39,16 @@ Table of contents:
 
 -  `Caching a Model <#caching-a-model>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. code:: ipython3
 
     # Required imports. Please execute this cell first.
@@ -53,7 +64,7 @@ Table of contents:
     
     open("notebook_utils.py", "w").write(r.text)
     
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
 
 .. parsed-literal::
@@ -83,10 +94,13 @@ the name of the device.
 
 .. code:: ipython3
 
+    import openvino.properties as props
+    
+    
     devices = core.available_devices
     
     for device in devices:
-        device_name = core.get_property(device, "FULL_DEVICE_NAME")
+        device_name = core.get_property(device, props.device.full_name)
         print(f"{device}: {device_name}")
 
 
@@ -103,14 +117,7 @@ inference using this widget
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
-    device = widgets.Dropdown(
-        options=core.available_devices,
-        value=core.available_devices[0],
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 
@@ -119,7 +126,7 @@ inference using this widget
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU',), value='CPU')
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
 
 
 
@@ -181,20 +188,20 @@ notebooks.
 
 .. parsed-literal::
 
-    model/classification.xml:   0%|          | 0.00/179k [00:00<?, ?B/s]
+    classification.xml:   0%|          | 0.00/179k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    model/classification.bin:   0%|          | 0.00/4.84M [00:00<?, ?B/s]
+    classification.bin:   0%|          | 0.00/4.84M [00:00<?, ?B/s]
 
 
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -236,14 +243,14 @@ points to the filename of an ONNX model.
 
 .. parsed-literal::
 
-    model/segmentation.onnx:   0%|          | 0.00/4.41M [00:00<?, ?B/s]
+    segmentation.onnx:   0%|          | 0.00/4.41M [00:00<?, ?B/s]
 
 
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.onnx')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.onnx')
 
 
 
@@ -290,20 +297,20 @@ without any conversion step. Pass the filename with extension to
 
 .. parsed-literal::
 
-    model/inference.pdmodel:   0%|          | 0.00/1.03M [00:00<?, ?B/s]
+    inference.pdmodel:   0%|          | 0.00/1.03M [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    model/inference.pdiparams:   0%|          | 0.00/21.0M [00:00<?, ?B/s]
+    inference.pdiparams:   0%|          | 0.00/21.0M [00:00<?, ?B/s]
 
 
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/openvino-api/model/inference.pdiparams')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/inference.pdiparams')
 
 
 
@@ -340,14 +347,14 @@ TensorFlow models saved in frozen graph format can also be passed to
 
 .. parsed-literal::
 
-    model/classification.pb:   0%|          | 0.00/9.88M [00:00<?, ?B/s]
+    classification.pb:   0%|          | 0.00/9.88M [00:00<?, ?B/s]
 
 
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.pb')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.pb')
 
 
 
@@ -381,30 +388,26 @@ It is pre-trained model optimized to work with TensorFlow Lite.
 
 .. code:: ipython3
 
+    %pip install -q kagglehub
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. code:: ipython3
+
     from pathlib import Path
+    import kagglehub
     
-    tflite_model_url = "https://www.kaggle.com/models/tensorflow/inception/frameworks/tfLite/variations/v4-quant/versions/1?lite-format=tflite"
-    tflite_model_path = Path("model/classification.tflite")
-    
-    download_file(
-        tflite_model_url,
-        filename=tflite_model_path.name,
-        directory=tflite_model_path.parent,
-    )
-
+    tflite_model_dir = kagglehub.model_download("tensorflow/inception/tfLite/v4-quant")
+    tflite_model_path = Path(tflite_model_dir) / "1.tflite"
 
 
 .. parsed-literal::
 
-    model/classification.tflite:   0%|          | 0.00/40.9M [00:00<?, ?B/s]
-
-
-
-
-.. parsed-literal::
-
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.tflite')
-
+    Warning: Looks like you're using an outdated `kagglehub` version, please consider updating (latest version: 0.3.4)
 
 
 .. code:: ipython3
@@ -428,13 +431,23 @@ PyTorch Model
 `PyTorch <https://pytorch.org/>`__ models can not be directly passed to
 ``core.read_model``. ``ov.Model`` for model objects from this framework
 can be obtained using ``ov.convert_model`` API. You can find more
-details in `pytorch-to-openvino <../pytorch-to-openvino>`__ notebook. In
+details in `pytorch-to-openvino <pytorch-to-openvino-with-output.html>`__ notebook. In
 this tutorial we will use
 `resnet18 <https://pytorch.org/vision/main/models/generated/torchvision.models.resnet18.html>`__
 model form torchvision library. After conversion model using
 ``ov.convert_model``, it can be compiled on device using
 ``core.compile_model`` or saved on disk for the next usage using
 ``ov.save_model``
+
+.. code:: ipython3
+
+    %pip install -q "torch>=2.1" torchvision --extra-index-url https://download.pytorch.org/whl/cpu
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
 
 .. code:: ipython3
 
@@ -474,17 +487,11 @@ Information about the inputs and outputs of the model are in
     download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory="model")
 
 
-.. parsed-literal::
-
-    'model/classification.xml' already exists.
-    'model/classification.bin' already exists.
-
-
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -680,17 +687,11 @@ produced data as values.
     download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory="model")
 
 
-.. parsed-literal::
-
-    'model/classification.xml' already exists.
-    'model/classification.bin' already exists.
-
-
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -726,7 +727,7 @@ the input layout of the network.
 
 .. parsed-literal::
 
-    data/coco_hollywood.jpg:   0%|          | 0.00/485k [00:00<?, ?B/s]
+    coco_hollywood.jpg:   0%|          | 0.00/485k [00:00<?, ?B/s]
 
 
 
@@ -866,20 +867,20 @@ input shape.
 
 .. parsed-literal::
 
-    model/segmentation.xml:   0%|          | 0.00/1.38M [00:00<?, ?B/s]
+    segmentation.xml:   0%|          | 0.00/1.38M [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    model/segmentation.bin:   0%|          | 0.00/1.09M [00:00<?, ?B/s]
+    segmentation.bin:   0%|          | 0.00/1.09M [00:00<?, ?B/s]
 
 
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.bin')
 
 
 
@@ -1021,17 +1022,11 @@ the cache.
     download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory="model")
 
 
-.. parsed-literal::
-
-    'model/classification.xml' already exists.
-    'model/classification.bin' already exists.
-
-
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -1061,7 +1056,7 @@ the cache.
 
 .. parsed-literal::
 
-    Loading the network to the CPU device took 0.17 seconds.
+    Loading the network to the AUTO device took 0.13 seconds.
 
 
 After running the previous cell, we know the model exists in the cache
@@ -1079,5 +1074,5 @@ measure the time it takes now.
 
 .. parsed-literal::
 
-    Loading the network to the CPU device took 0.07 seconds.
+    Loading the network to the AUTO device took 0.08 seconds.
 

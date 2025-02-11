@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,7 +52,7 @@ ov::pass::ReshapeSinkingMatMul::ReshapeSinkingMatMul() {
         // check first Reshape eligibility: has a constant output pattern in a form of [-1, K]
         auto reshape = pattern_to_node.at(reshape_label);
         int64_t K = -1;
-        if (const auto& constant = dynamic_pointer_cast<ov::op::v0::Constant>(reshape->get_input_node_shared_ptr(1))) {
+        if (const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(reshape->get_input_node_shared_ptr(1))) {
             auto output_pattern_vector = constant->cast_vector<int64_t>();
             if (output_pattern_vector.size() != 2 || output_pattern_vector[0] != -1)
                 return false;
@@ -70,11 +70,11 @@ ov::pass::ReshapeSinkingMatMul::ReshapeSinkingMatMul() {
             return false;
 
         // check matmul eligibility: has constant second input in a form of [O, K]
-        auto matmul = dynamic_pointer_cast<ov::op::v0::MatMul>(pattern_to_node.at(matmul_label));
+        auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_to_node.at(matmul_label));
         if (!matmul || matmul->get_transpose_a())
             return false;
         int64_t O = -1;
-        if (const auto& constant = dynamic_pointer_cast<ov::op::v0::Constant>(matmul->get_input_node_shared_ptr(1))) {
+        if (const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(matmul->get_input_node_shared_ptr(1))) {
             const auto& constant_shape = constant->get_shape();
             if (constant_shape.size() != 2)
                 return false;
@@ -90,10 +90,10 @@ ov::pass::ReshapeSinkingMatMul::ReshapeSinkingMatMul() {
         // check add eligibility if present: has constant second input that has a form of [1, 1, ..., O] (doesn't
         // broadcast first input)
         if (pattern_to_node.count(add_label)) {
-            auto add = dynamic_pointer_cast<ov::op::v1::Add>(pattern_to_node.at(add_label));
+            auto add = ov::as_type_ptr<ov::op::v1::Add>(pattern_to_node.at(add_label));
             if (!add || add->get_autob() != ov::op::AutoBroadcastType::NUMPY)
                 return false;
-            const auto& constant = dynamic_pointer_cast<ov::op::v0::Constant>(add->get_input_node_shared_ptr(1));
+            const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(add->get_input_node_shared_ptr(1));
             if (!constant)
                 return false;
             const auto& constant_shape = constant->get_shape();
@@ -110,7 +110,7 @@ ov::pass::ReshapeSinkingMatMul::ReshapeSinkingMatMul() {
         // input_shape of the pattern except for the batch and last dimension
         auto reshape_1 = m.get_match_root();
 
-        const auto& constant = dynamic_pointer_cast<ov::op::v0::Constant>(reshape_1->get_input_node_shared_ptr(1));
+        const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(reshape_1->get_input_node_shared_ptr(1));
         if (constant == nullptr)
             return false;
         auto output_pattern = constant->cast_vector<int64_t>();
@@ -131,8 +131,8 @@ ov::pass::ReshapeSinkingMatMul::ReshapeSinkingMatMul() {
                 return false;
         }
 
-        auto first_reshape = dynamic_pointer_cast<ov::op::v1::Reshape>(reshape);
-        auto second_reshape = dynamic_pointer_cast<ov::op::v1::Reshape>(reshape_1);
+        auto first_reshape = ov::as_type_ptr<ov::op::v1::Reshape>(reshape);
+        auto second_reshape = ov::as_type_ptr<ov::op::v1::Reshape>(reshape_1);
         if (!first_reshape || !second_reshape)
             return false;
 

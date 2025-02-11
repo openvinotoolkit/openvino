@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ void ov::populate_tensor_with_missing_symbols(ov::descriptor::Tensor& tensor) {
 void ov::remove_skip_invalidation_rti(const std::shared_ptr<ov::Model>& model, bool outermost_model) {
     const auto& type = ov::SkipInvalidation::get_type_info_static();
     for (const auto& op : model->get_ops()) {
-        if (auto multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(op))
+        if (auto multi_subgraph_op = ov::as_type_ptr<op::util::MultiSubGraphOp>(op))
             for (const auto& sub_graph : multi_subgraph_op->get_functions())
                 if (sub_graph)
                     remove_skip_invalidation_rti(sub_graph, false);

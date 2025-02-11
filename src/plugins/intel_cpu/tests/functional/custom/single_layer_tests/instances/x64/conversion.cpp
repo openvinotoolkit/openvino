@@ -4,6 +4,7 @@
 
 #include "custom/single_layer_tests/classes/conversion.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "utils/filter_cpu_info.hpp"
 
 using namespace CPUTestUtils;
 
@@ -22,6 +23,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_blocked_Dynamic, ConvertCPULa
                                 ::testing::ValuesIn(inShapes_4D_dynamic()),
                                 ::testing::ValuesIn(precisions()),
                                 ::testing::ValuesIn(precisions()),
+                                ::testing::Values(ov::test::SpecialValue::none),
                                 ::testing::ValuesIn(memForm4D_dynamic)),
                         ConvertCPULayerTest::getTestCaseName);
 
@@ -43,6 +45,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_Blocked, ConvertCPULayerTest,
                                 ::testing::ValuesIn(inShapes_4D_blocked),
                                 ::testing::ValuesIn(precisions()),
                                 ::testing::ValuesIn(precisions()),
+                                ::testing::Values(ov::test::SpecialValue::none),
                                 ::testing::ValuesIn(filterCPUSpecificParams(memForm4D_static_blocked))),
                         ConvertCPULayerTest::getTestCaseName);
 
@@ -51,6 +54,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_BOOL_Static, ConvertToBoolean
                                 ::testing::ValuesIn(inShapes_4D_static()),
                                 ::testing::ValuesIn(precisions_floating_point),
                                 ::testing::Values(ov::element::boolean),
+                                ::testing::Values(ov::test::SpecialValue::none),
                                 ::testing::Values(CPUSpecificParams({nchw}, {nchw}, {}, {}))),
                         ConvertToBooleanCPULayerTest::getTestCaseName);
 
@@ -59,6 +63,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_BOOL_Dynamic, ConvertToBoolea
                                 ::testing::ValuesIn(inShapes_4D_dynamic()),
                                 ::testing::ValuesIn(precisions_floating_point),
                                 ::testing::Values(ov::element::boolean),
+                                ::testing::Values(ov::test::SpecialValue::none),
                                 ::testing::Values(CPUSpecificParams({nchw}, {nchw}, {}, {}))),
                         ConvertToBooleanCPULayerTest::getTestCaseName);
 

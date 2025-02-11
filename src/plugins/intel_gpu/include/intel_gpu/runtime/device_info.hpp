@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,6 @@
 #include <string>
 #include <vector>
 #include <tuple>
-#include <array>
 
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
@@ -23,6 +22,18 @@ namespace cldnn {
 enum class device_type {
     integrated_gpu = 0,
     discrete_gpu = 1
+};
+
+enum class gpu_arch {
+    unknown = 0,
+    gen9 = 1,
+    gen11 = 2,
+    xe_lp = 3,
+    xe_hp = 4,
+    xe_hpg = 5,
+    xe_hpc = 6,
+    xe2 = 7,
+    xe3 = 8,
 };
 
 /// @brief Defines version of GFX IP
@@ -45,6 +56,7 @@ struct device_info {
     uint64_t max_local_mem_size;                ///< Maximum size of local memory arena in bytes.
     uint64_t max_global_mem_size;               ///< Maximum size of global device memory in bytes.
     uint64_t max_alloc_mem_size;                ///< Maximum size of memory object allocation in bytes.
+    uint64_t max_global_cache_size;             ///< Maximum size of cache memory bytes.
 
     uint64_t max_image2d_width;                 ///< Maximum image 2d width supported by the device.
     uint64_t max_image2d_height;                ///< Maximum image 2d height supported by the device.
@@ -77,6 +89,8 @@ struct device_info {
     device_type dev_type;                       ///< Defines type of current GPU device (integrated or discrete)
 
     gfx_version gfx_ver;                        ///< Defines GFX IP version
+    gpu_arch arch;                              ///< Defines arch human readable name
+    uint32_t ip_version;                        ///< Defines raw GFX IP version
     uint32_t device_id;                         ///< ID of current GPU
     uint32_t num_slices;                        ///< Number of slices
     uint32_t num_sub_slices_per_slice;          ///< Number of subslices in a slice

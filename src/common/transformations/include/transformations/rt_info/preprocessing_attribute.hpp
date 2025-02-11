@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ TRANSFORMATIONS_API void set_is_preprocessing_node(std::shared_ptr<Node> node);
  */
 class TRANSFORMATIONS_API PreprocessingAttribute : public ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("preprocessing", "0");
+    OPENVINO_RTTI("preprocessing", "0", ov::RuntimeAttribute);
     PreprocessingAttribute() = default;
     bool visit_attributes(AttributeVisitor& visitor) override {
         return true;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ size_t getOperationNumber(const arg_max_min_params& params) {
 
 std::string getOperationNumberString(const arg_max_min_params& params) {
     const auto& output = params.outputs[0];
-    DimensionAccessHelper dims(output);
+    DimensionAccessHelperJit dims(output);
     switch (params.argMaxMinAxis) {
         case ArgMaxMinAxis::BATCH: return toVectorMulString({dims.x(), dims.y(), dims.z(), dims.f()});
         case ArgMaxMinAxis::FEATURE: return toVectorMulString({dims.x(), dims.y(), dims.z(), dims.b()});
@@ -52,6 +52,7 @@ ParamsKey ArgMaxMinKernelAxis::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT32);
     k.EnableAllOutputDataType();
     k.EnableInputLayout(DataLayout::bfyx);

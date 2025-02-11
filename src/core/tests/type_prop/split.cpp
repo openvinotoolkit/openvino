@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -216,7 +216,7 @@ TEST(type_prop, split_v1_invalid_axis_value) {
     // axis value not in the range [-2, 1]
     OV_EXPECT_THROW(const auto split = make_shared<op::v1::Split>(data, axis, num_splits),
                     ov::Exception,
-                    HasSubstr("Parameter axis -5 out of the tensor rank range"));
+                    HasSubstr("Axis -5 out of the tensor rank range"));
 }
 
 TEST(type_prop, split_v1_incompatible_data_shape_with_num_splits) {
@@ -356,7 +356,7 @@ INSTANTIATE_TEST_SUITE_P(
            std::make_tuple(PartialShape{Dimension(2, 6), Dimension::dynamic(), Dimension(-1, 6), Dimension(7, -1)},
                            2,
                            std::vector<PartialShape>{{Dimension(2, 6), Dimension::dynamic()},
-                                                     {Dimension(-1, 6), Dimension::dynamic()}})),
+                                                     {Dimension(-1, 6), Dimension{7, -1}}})),
     PrintToStringParamName());
 
 TEST_P(SplitBoundTest, propagate_symbol_and_dynamic_value) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,7 +69,8 @@ public:
 
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
-    bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override {
+
+    bool can_constant_fold(const OutputVector& inputs_values) const override {
         return false;
     }
 

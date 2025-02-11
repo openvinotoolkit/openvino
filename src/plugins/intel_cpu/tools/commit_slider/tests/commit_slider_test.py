@@ -7,14 +7,15 @@ from tests import skip_commit_slider_devtest
 
 sys.path.append('./')
 from test_util import getExpectedCommit,\
-    getBordersByTestData, getActualCommit
+    getBordersByTestData, getActualCommit, getCSOutput
 from utils.break_validator import validateBMOutput, BmValidationError
 from test_data import FirstBadVersionData, FirstValidVersionData,\
     BmStableData, BmValidatorSteppedBreakData, BmValidatorSteppedBreakData2,\
     BenchmarkAppDataUnstable, BenchmarkAppDataStable, BenchmarkAppNoDegradationData,\
     BenchmarkAppUnstableDevData, BenchmarkAppWrongPathData, BenchmarkAppPathFoundData,\
-    BenchmarkFirstFixedAppData
-
+    BenchmarkFirstFixedAppData, AcModeData, BenchmarkMetricData, CustomizedLogData, \
+    MultiConfigData, ConfigMultiplicatorData, ConfigMultiplicatorWithKeyData, \
+    AcModeDataBitwise
 
 class CommitSliderTest(TestCase):
     @skip_commit_slider_devtest
@@ -33,6 +34,40 @@ class CommitSliderTest(TestCase):
         self.assertEqual(breakCommit, actualCommit)
 
     @skip_commit_slider_devtest
+    def testCustomizedLog(self):
+        breakCommit, updatedData = getExpectedCommit(
+            CustomizedLogData())
+        actualCommit, _ = getActualCommit(updatedData)
+        self.assertEqual(breakCommit, actualCommit)
+
+    @skip_commit_slider_devtest
+    def testMultiConfig(self):
+        _, updatedData = getExpectedCommit(
+            MultiConfigData())
+
+        self.assertEqual(
+            getCSOutput(updatedData),
+            "\n\n".join(['cfg #{n}'.format(n=n) for n in range(3)]) + "\n")
+
+    @skip_commit_slider_devtest
+    def testConfigMultiplicatorByKey(self):
+        from utils.helpers import multiplyCfgByKey
+        from utils.helpers import deepCopyJSON
+        testData = ConfigMultiplicatorData()
+        self.assertEqual(
+            multiplyCfgByKey(testData.testCfg),
+            deepCopyJSON(testData.multipliedCfg))
+
+    @skip_commit_slider_devtest
+    def testRunCSMultiplicatedCfgByKey(self):
+        _, updatedData = getExpectedCommit(
+            ConfigMultiplicatorWithKeyData())
+
+        self.assertEqual(
+            getCSOutput(updatedData),
+            "\n\n".join(['cfg #{n}'.format(n=n) for n in range(3)]) + "\n")
+
+    @skip_commit_slider_devtest
     def testBmUnstable(self):
         _, updatedData = getExpectedCommit(
             BenchmarkAppDataUnstable())
@@ -47,9 +82,23 @@ class CommitSliderTest(TestCase):
         self.assertEqual(breakCommit, actualCommit)
 
     @skip_commit_slider_devtest
+    def testACModeBitwise(self):
+        breakCommit, updatedData = getExpectedCommit(
+            AcModeDataBitwise())
+        actualCommit, _ = getActualCommit(updatedData)
+        self.assertEqual(breakCommit, actualCommit)
+
+    @skip_commit_slider_devtest
     def testBmFirstFixed(self):
         breakCommit, updatedData = getExpectedCommit(
             BenchmarkFirstFixedAppData())
+        actualCommit, _ = getActualCommit(updatedData)
+        self.assertEqual(breakCommit, actualCommit)
+
+    @skip_commit_slider_devtest
+    def testBmLatencyMetric(self):
+        breakCommit, updatedData = getExpectedCommit(
+            BenchmarkMetricData("latency:average"))
         actualCommit, _ = getActualCommit(updatedData)
         self.assertEqual(breakCommit, actualCommit)
 
@@ -142,7 +191,7 @@ class CommitSliderTest(TestCase):
         )
 
     @skip_commit_slider_devtest
-    def testForsubstitutionRule(self):
+    def testForMapSubstitutionRule(self):
         from utils.helpers import applySubstitutionRules
         cfg = {
                 "serviceConfig": {
@@ -229,6 +278,74 @@ class CommitSliderTest(TestCase):
         )
 
     @skip_commit_slider_devtest
+    def testForStaticSubstitutionRule(self):
+        from utils.helpers import applySubstitutionRules
+        cfg = {
+                "serviceConfig": {
+                    "previousKey": "previousValue"
+                },
+                "wrongDst": "{pathOne} is unchanged",
+                "dst": {
+                    "complex": {
+                        "path": [
+                            "{pathOne} is natural number",
+                            "{pathTwo} is natural number",
+                            "{pathOne} is not {pathTwo}"
+                        ]
+                    }
+                },
+                "src": {
+                    "complex": {
+                        "path": {
+                            "one": "1",
+                            "two": "2"
+                        }
+                    }
+                }
+        }
+        rules = [
+            {
+                "name": "testRule1",
+                "enabled": True,
+                "type": "static",
+                "placeholder": "pathOne",
+                "from": "$.src.complex.path.one",
+                "to": "$.dst.complex.path"
+            },
+            {
+                "name": "testRule2",
+                "enabled": True,
+                "type": "static",
+                "placeholder": "pathTwo",
+                "from": "$.src.complex.path.two",
+                "to": "$.dst.complex.path"
+            }
+        ]
+        def applyByRef(cfg: map, rules: list, substitution: str):
+            applySubstitutionRules(cfg, rules, substitution)
+
+        applyByRef(cfg, rules, "mustBeIgnored")
+
+        # assert substitutions
+        self.assertEqual(
+            cfg["dst"]["complex"]["path"][0],
+            "1 is natural number"
+        )
+
+        self.assertEqual(
+            cfg["dst"]["complex"]["path"][1],
+            "2 is natural number"
+        )
+        self.assertEqual(
+            cfg["dst"]["complex"]["path"][2],
+            "1 is not 2"
+        )
+        self.assertEqual(
+            cfg["wrongDst"],
+            "{pathOne} is unchanged"
+        )
+
+    @skip_commit_slider_devtest
     def testForDeepUpdate(self):
         from utils.helpers import deepMapUpdate
         cfg = {
@@ -241,7 +358,7 @@ class CommitSliderTest(TestCase):
                 }
             }
         }
-        cfg = deepMapUpdate(cfg, ["path", "to", "placeholder"], "updated")
+        deepMapUpdate(cfg, ["path", "to", "placeholder"], "updated")
         self.assertEqual(
             cfg["path"]["to"]["placeholder"],
             "updated"

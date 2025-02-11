@@ -1,9 +1,9 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 import tempfile
-from openvino.runtime import serialize
+from openvino import serialize
 from pathlib import Path
 from unit_tests.ovc.convert.utils import create_onnx_model, save_to_onnx
 from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -109,6 +109,13 @@ if(ENABLE_OV_IR_FRONTEND)
     ov_coverage_extract(INPUT "openvino" OUTPUT "ir_frontend"
         PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/ir/*")
     ov_coverage_genhtml(INFO_FILE "ir_frontend"
+        PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
+endif()
+
+if(ENABLE_OV_JAX_FRONTEND)
+    ov_coverage_extract(INPUT "openvino" OUTPUT "jax_frontend"
+        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/jax/*")
+    ov_coverage_genhtml(INFO_FILE "jax_frontend"
         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -255,6 +255,12 @@ static UNUSED void addRectangles(unsigned char* data,
                                  std::vector<int> rectangles,
                                  std::vector<int> classes,
                                  int thickness) {
+    if (height <= 0) {
+        throw std::runtime_error("height must be greater than 0");
+    }
+    if (width <= 0) {
+        throw std::runtime_error("width must be greater than 0");
+    }
     struct Color {
         unsigned char red;
         unsigned char green;

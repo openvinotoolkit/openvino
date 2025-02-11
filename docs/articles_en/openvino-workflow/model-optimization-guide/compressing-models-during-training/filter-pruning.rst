@@ -1,5 +1,3 @@
-.. {#filter_pruning}
-
 Filter Pruning of Convolutional Models
 ======================================
 
@@ -78,7 +76,7 @@ of optimization methods (`"compression"` section).
          :fragment: [nncf_congig]
 
 Here is a brief description of the required parameters of the Filter Pruning method. For a full description refer to the
-`GitHub <https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Pruning.md>`__ page.
+`GitHub <https://github.com/openvinotoolkit/nncf/blob/develop/docs/usage/training_time_compression/other_algorithms/Pruning.md>`__ page.
 
 * ``pruning_init`` - initial pruning rate target. For example, value ``0.1`` means that at the begging of training, convolutions that can be pruned will have 10% of their filters set to zero.
 
@@ -228,8 +226,7 @@ To restore the model from checkpoint you should use the following API:
          :language: python
          :fragment: [load_checkpoint]
 
-For more details on saving/loading checkpoints in the NNCF, see the following
-`documentation <https://github.com/openvinotoolkit/nncf/blob/develop/docs/Usage.md#saving-and-loading-compressed-models>`__.
+For more details, see the following `documentation <https://github.com/openvinotoolkit/nncf/blob/develop/docs/usage/training_time_compression/other_algorithms/Pruning.md>`__.
 
 Deploying pruned model
 ######################

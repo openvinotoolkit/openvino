@@ -14,11 +14,11 @@
 namespace ov {
 namespace intel_cpu {
 namespace utils {
-DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc, const DnnlMemoryDescPtr dstDesc);
 MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
                                const DnnlMemoryDescPtr dstWeightDesc,
                                const MemoryCPtr weightsMem,
-                               const ExecutorContext::CPtr context);
+                               const ExecutorContext::CPtr context,
+                               const bool needShiftSignedToUnsigned = false);
 }  // namespace utils
 }  // namespace intel_cpu
 }  // namespace ov

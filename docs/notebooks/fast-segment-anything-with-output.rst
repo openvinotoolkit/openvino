@@ -28,8 +28,9 @@ the prompt.
 
    pipeline
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 
@@ -54,6 +55,16 @@ Table of contents:
 
 -  `Try out the converted pipeline <#try-out-the-converted-pipeline>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -66,8 +77,8 @@ Install requirements
 
 .. code:: ipython3
 
-    %pip install -q "ultralytics==8.1.42" onnx tqdm --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "openvino-dev>=2024.0.0"
+    %pip install -q "ultralytics==8.2.24" "matplotlib>=3.4" "onnx<1.16.2" tqdm --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "openvino>=2024.4.0"
     %pip install -q "nncf>=2.9.0"
     %pip install -q "gradio>=4.13"
 
@@ -92,7 +103,7 @@ Imports
     
     import openvino as ov
     import torch
-    from PIL import Image, ImageDraw
+    from PIL import Image
     from ultralytics import FastSAM
     
     # Fetch skip_kernel_extension module
@@ -110,7 +121,7 @@ Imports
     )
     
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
     
     %load_ext skip_kernel_extension
 
@@ -140,12 +151,14 @@ model and generate a segmentation map.
 
 .. parsed-literal::
 
-    Downloading https://github.com/ultralytics/assets/releases/download/v8.1.0/FastSAM-x.pt to 'FastSAM-x.pt'...
+    Downloading https://github.com/ultralytics/assets/releases/download/v8.2.0/FastSAM-x.pt to 'FastSAM-x.pt'...
 
 
 .. parsed-literal::
 
-    100%|██████████| 138M/138M [00:01<00:00, 95.8MB/s]
+    100%|██████████| 138M/138M [00:03<00:00, 46.3MB/s]
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/ultralytics/nn/tasks.py:732: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+      ckpt = torch.load(file, map_location="cpu")
 
 
 
@@ -157,8 +170,8 @@ model and generate a segmentation map.
 .. parsed-literal::
 
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 768x1024 37 objects, 628.0ms
-    Speed: 3.4ms preprocess, 628.0ms inference, 27.9ms postprocess per image at shape (1, 3, 768, 1024)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 768x1024 37 objects, 638.3ms
+    Speed: 3.4ms preprocess, 638.3ms inference, 500.4ms postprocess per image at shape (1, 3, 768, 1024)
 
 
 The model returns segmentation maps for all the objects on the image.
@@ -196,15 +209,15 @@ tracing. The FastSAM model itself is based on YOLOv8 model.
 
 .. parsed-literal::
 
-    Ultralytics YOLOv8.1.42 🚀 Python-3.8.10 torch-2.3.0+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
+    Ultralytics YOLOv8.2.24 🚀 Python-3.8.10 torch-2.4.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
     
-    PyTorch: starting from 'FastSAM-x.pt' with input shape (1, 3, 1024, 1024) BCHW and output shape(s) ((1, 37, 21504), (1, 32, 256, 256)) (138.2 MB)
+    PyTorch: starting from 'FastSAM-x.pt' with input shape (1, 3, 1024, 1024) BCHW and output shape(s) ((1, 37, 21504), (1, 32, 256, 256)) (138.3 MB)
     
-    OpenVINO: starting export with openvino 2024.1.0-15008-f4afc983258-releases/2024/1...
-    OpenVINO: export success ✅ 6.1s, saved as 'FastSAM-x_openvino_model/' (276.1 MB)
+    OpenVINO: starting export with openvino 2024.4.0-16579-c3152d32c9c-releases/2024/4...
+    OpenVINO: export success ✅ 6.2s, saved as 'FastSAM-x_openvino_model/' (276.1 MB)
     
-    Export complete (9.0s)
-    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/fast-segment-anything
+    Export complete (9.2s)
+    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/fast-segment-anything
     Predict:         yolo predict task=segment model=FastSAM-x_openvino_model imgsz=1024  
     Validate:        yolo val task=segment model=FastSAM-x_openvino_model imgsz=1024 data=ultralytics/datasets/sa.yaml  
     Visualize:       https://netron.app
@@ -236,12 +249,7 @@ from the dropdown list:
 
 .. code:: ipython3
 
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 
@@ -313,8 +321,8 @@ pipeline.
 .. parsed-literal::
 
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 1024x1024 42 objects, 510.3ms
-    Speed: 6.8ms preprocess, 510.3ms inference, 34.2ms postprocess per image at shape (1, 3, 1024, 1024)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 1024x1024 42 objects, 498.5ms
+    Speed: 6.1ms preprocess, 498.5ms inference, 31.6ms postprocess per image at shape (1, 3, 1024, 1024)
 
 
 One can observe the converted model outputs in the next cell, they is
@@ -383,7 +391,7 @@ The quantization algorithm is based on `The YOLOv8 quantization
 example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/post_training_quantization/openvino/yolov8>`__
 in the NNCF repo, refer there for more details. Moreover, you can check
 out other quantization tutorials in the `OV notebooks
-repo <../yolov8-optimization/>`__.
+repo <-with-output.html>`__.
 
    **Note**: Model post-training quantization is time-consuming process.
    Be patient, it can take several minutes depending on your hardware.
@@ -515,6 +523,11 @@ repo <../yolov8-optimization/>`__.
 
 .. parsed-literal::
 
+    <string>:7: TqdmExperimentalWarning: Using `tqdm.autonotebook.tqdm` in notebook mode. Use `tqdm.tqdm` instead to force console mode (e.g. in jupyter console)
+
+
+.. parsed-literal::
+
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
@@ -532,17 +545,17 @@ repo <../yolov8-optimization/>`__.
 
 .. parsed-literal::
 
-    INFO:nncf:3 ignored nodes were found by name in the NNCFGraph
+    INFO:nncf:3 ignored nodes were found by names in the NNCFGraph
     INFO:nncf:8 ignored nodes were found by types in the NNCFGraph
-    INFO:nncf:Not adding activation input quantizer for operation: 275 __module.model.22/aten::sigmoid/Sigmoid
-    INFO:nncf:Not adding activation input quantizer for operation: 325 __module.model.22.dfl.conv/aten::_convolution/Convolution
-    INFO:nncf:Not adding activation input quantizer for operation: 351 __module.model.22/aten::sub/Subtract
-    INFO:nncf:Not adding activation input quantizer for operation: 352 __module.model.22/aten::add/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 365 __module.model.22/aten::add/Add_1
-    378 __module.model.22/aten::div/Divide
+    INFO:nncf:Not adding activation input quantizer for operation: 268 __module.model.22/aten::sigmoid/Sigmoid
+    INFO:nncf:Not adding activation input quantizer for operation: 309 __module.model.22.dfl.conv/aten::_convolution/Convolution
+    INFO:nncf:Not adding activation input quantizer for operation: 346 __module.model.22/aten::sub/Subtract
+    INFO:nncf:Not adding activation input quantizer for operation: 347 __module.model.22/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 359 __module.model.22/aten::add/Add_1
+    371 __module.model.22/aten::div/Divide
     
-    INFO:nncf:Not adding activation input quantizer for operation: 366 __module.model.22/aten::sub/Subtract_1
-    INFO:nncf:Not adding activation input quantizer for operation: 389 __module.model.22/aten::mul/Multiply
+    INFO:nncf:Not adding activation input quantizer for operation: 360 __module.model.22/aten::sub/Subtract_1
+    INFO:nncf:Not adding activation input quantizer for operation: 382 __module.model.22/aten::mul/Multiply
 
 
 
@@ -552,17 +565,9 @@ repo <../yolov8-optimization/>`__.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -573,17 +578,9 @@ repo <../yolov8-optimization/>`__.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -651,9 +648,9 @@ calibration dataset to measure the performance.
 
 .. parsed-literal::
 
-    Segmented in 22 seconds
-    Resulting in 5.82 fps
-    That is 3.09 times faster!
+    Segmented in 21 seconds
+    Resulting in 6.1 fps
+    That is 3.24 times faster!
 
 
 Try out the converted pipeline
@@ -774,26 +771,16 @@ bounding boxes on input image.
     
         return mask
 
-.. code:: ipython3
-
-    import gradio as gr
-    
-    examples = [
-        [image_uri],
-        ["https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/empty_road_mapillary.jpg"],
-        ["https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/wall.jpg"],
-    ]
-    
-    object_points = []
-    background_points = []
-    bbox_points = []
-    last_image = examples[0][0]
-
 This is the main callback function that is called to segment an image
 based on user input.
 
 .. code:: ipython3
 
+    object_points = []
+    background_points = []
+    bbox_points = []
+    
+    
     def segment(
         image,
         model_type,
@@ -881,98 +868,18 @@ based on user input.
 
 .. code:: ipython3
 
-    def select_point(img: Image.Image, point_type: str, evt: gr.SelectData) -> Image.Image:
-        """Gradio select callback."""
-        img = img.convert("RGBA")
-        x, y = evt.index[0], evt.index[1]
-        point_radius = np.round(max(img.size) / 100)
-        if point_type == "Object point":
-            object_points.append((x, y))
-            color = (30, 255, 30, 200)
-        elif point_type == "Background point":
-            background_points.append((x, y))
-            color = (255, 30, 30, 200)
-        elif point_type == "Bounding Box":
-            bbox_points.append((x, y))
-            color = (10, 10, 255, 255)
-            if len(bbox_points) % 2 == 0:
-                # Draw a rectangle if number of points is even
-                new_img = Image.new("RGBA", img.size, (255, 255, 255, 0))
-                _draw = ImageDraw.Draw(new_img)
-                x0, y0, x1, y1 = *bbox_points[-2], *bbox_points[-1]
-                x0, x1 = sorted([x0, x1])
-                y0, y1 = sorted([y0, y1])
-                # Save sorted order
-                bbox_points[-2] = (x0, y0)
-                bbox_points[-1] = (x1, y1)
-                _draw.rectangle((x0, y0, x1, y1), fill=(*color[:-1], 90))
-                img = Image.alpha_composite(img, new_img)
-        # Draw a point
-        ImageDraw.Draw(img).ellipse(
-            [(x - point_radius, y - point_radius), (x + point_radius, y + point_radius)],
-            fill=color,
-        )
-        return img
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/fast-segment-anything/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
     
+    from gradio_helper import make_demo
     
-    def clear_points() -> (Image.Image, None):
-        """Gradio clear points callback."""
-        global object_points, background_points, bbox_points
-        # global object_points; global background_points; global bbox_points
-        object_points = []
-        background_points = []
-        bbox_points = []
-        return last_image, None
-    
-    
-    def save_last_picked_image(img: Image.Image) -> None:
-        """Gradio callback saves the last used image."""
-        global last_image
-        last_image = img
-        # If we change the input image
-        # we should clear all the previous points
-        clear_points()
-        # Removes the segmentation map output
-        return None
-    
-    
-    with gr.Blocks(title="Fast SAM") as demo:
-        with gr.Row(variant="panel"):
-            original_img = gr.Image(label="Input", value=examples[0][0], type="pil")
-            segmented_img = gr.Image(label="Segmentation Map", type="pil")
-        with gr.Row():
-            point_type = gr.Radio(
-                ["Object point", "Background point", "Bounding Box"],
-                value="Object point",
-                label="Pixel selector type",
-            )
-            model_type = gr.Radio(
-                ["FP32 model", "Quantized model"] if do_quantize.value else ["FP32 model"],
-                value="FP32 model",
-                label="Select model variant",
-            )
-        with gr.Row(variant="panel"):
-            segment_button = gr.Button("Segment", variant="primary")
-            clear_button = gr.Button("Clear points", variant="secondary")
-        gr.Examples(
-            examples,
-            inputs=original_img,
-            fn=save_last_picked_image,
-            run_on_click=True,
-            outputs=segmented_img,
-        )
-    
-        # Callbacks
-        original_img.select(select_point, inputs=[original_img, point_type], outputs=original_img)
-        original_img.upload(save_last_picked_image, inputs=original_img, outputs=segmented_img)
-        clear_button.click(clear_points, outputs=[original_img, segmented_img])
-        segment_button.click(segment, inputs=[original_img, model_type], outputs=segmented_img)
+    demo = make_demo(fn=segment, quantized=do_quantize.value)
     
     try:
         demo.queue().launch(debug=False)
     except Exception:
         demo.queue().launch(share=True, debug=False)
-    
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name="your server name", server_port="server port in int")`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/

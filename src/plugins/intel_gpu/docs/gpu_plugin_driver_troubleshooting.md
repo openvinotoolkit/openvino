@@ -33,10 +33,12 @@ To get the support of Intel® Iris® Xe MAX Graphics with Linux, follow the [dri
 
 ## 3. Make sure that user has all required permissions to work with GPU device
 
-Add the current Linux user to the `video` group:
+Add the current Linux user to the `video` and `render` group:
 ```
 sudo usermod -a -G video "$(whoami)"
+sudo usermod -a -G render "$(whoami)"
 ```
+Note: The required group depends on the Linux distribution. Adding to both `video` and `render` is a safe option.
 
 ## 4. Make sure that iGPU is enabled
 
@@ -71,11 +73,10 @@ $ ./hello_query_device.py
 
 ## 8. If you have errors with OpenCL headers in application build
 OpenCL headers should be installed in your system to build application using OpenCL objects. OpenVINO source code distribution contains OpenCL headers thirdparty/ocl/cl_headers. Alternatively you can
-install them from [OpenCL Git](https://github.com/KhronosGroup/OpenCL-Headers)
-
+install them from [OpenCL Git](https://github.com/KhronosGroup/OpenCL-Headers). To ensure compatibility, make sure that the installed version of OpenCL headers had been released before the OpenVINO version you are using.
 
 ## See also
-
+ * [Overview for OpenCL on Linux and troubleshoot](https://bashbaug.github.io/opencl/2019/07/06/OpenCL-On-Linux.html)
  * [OpenVINO™ README](../../../../README.md)
  * [OpenVINO Core Components](../../../README.md)
  * [OpenVINO Plugins](../../README.md)

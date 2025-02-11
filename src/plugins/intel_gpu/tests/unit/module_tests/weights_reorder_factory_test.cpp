@@ -12,31 +12,13 @@
 
 #include "reorder_inst.h"
 #include "fully_connected_inst.h"
-#include "implementation_map.hpp"
+#include "impls/registry/registry.hpp"
 #include "graph/impls/ocl/register.hpp"
 
 #include <memory>
 
 using namespace cldnn;
 using namespace ::tests;
-
-TEST(weights_factory, impl_types) {
-    program::init_primitives();
-    ASSERT_NO_THROW(WeightsReordersFactory::get(impl_types::ocl, shape_types::static_shape));
-    ASSERT_NO_THROW(WeightsReordersFactory::get(impl_types::any, shape_types::static_shape));
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    ASSERT_NO_THROW(WeightsReordersFactory::get(impl_types::onednn, shape_types::static_shape));
-#endif  // ENABLE_ONEDNN_FOR_GPU
-
-    ASSERT_ANY_THROW(WeightsReordersFactory::get(impl_types::cpu, shape_types::static_shape));
-}
-
-TEST(weights_factory, shape_types) {
-    program::init_primitives();
-    ASSERT_NO_THROW(WeightsReordersFactory::get(impl_types::ocl, shape_types::static_shape));
-
-    ASSERT_ANY_THROW(WeightsReordersFactory::get(impl_types::ocl, shape_types::dynamic_shape));
-}
 
 TEST(weights_factory, reorder_test) {
     auto& engine = get_test_engine();
@@ -79,8 +61,8 @@ TEST(weights_factory, reorder_test) {
     reorder_kernel_params->prog = network.get_program().get();
 
     // Create new generic_layer_impl
-    auto factory = WeightsReordersFactory::get(impl_types::ocl, shape_types::static_shape);
-    auto reorder_impl = factory(*reorder_kernel_params);
+    auto factory = reorder::type_id()->get_best_impl(impl_types::ocl, shape_types::static_shape);
+    auto reorder_impl = factory->create(*reorder_kernel_params);
     ASSERT_TRUE(reorder_impl != nullptr);
 
     // Compile kernel

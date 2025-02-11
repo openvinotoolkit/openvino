@@ -4,9 +4,8 @@
 
 #include "remove_converts.hpp"
 
-#include "snippets/itt.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-
+#include "snippets/itt.hpp"
 #include "snippets/op/convert_saturation.hpp"
 
 ov::intel_cpu::pass::RemoveConverts::RemoveConverts() {
@@ -14,7 +13,8 @@ ov::intel_cpu::pass::RemoveConverts::RemoveConverts() {
     MATCHER_SCOPE(RemoveConverts);
     auto input_m = any_input(type_matches(ov::element::f32));
     auto parent_convert_m = wrap_type<snippets::op::ConvertSaturation>({input_m}, type_matches(ov::element::bf16));
-    auto child_convert_wrap = wrap_type<snippets::op::ConvertSaturation>({parent_convert_m}, type_matches(ov::element::f32));
+    auto child_convert_wrap =
+        wrap_type<snippets::op::ConvertSaturation>({parent_convert_m}, type_matches(ov::element::f32));
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::RemoveConverts")

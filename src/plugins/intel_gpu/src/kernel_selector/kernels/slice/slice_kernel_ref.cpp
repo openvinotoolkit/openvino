@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,6 +90,7 @@ ParamsKey SliceKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::INT64);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::bfyx);
@@ -122,7 +123,7 @@ JitConstants SliceKernelRef::GetJitConstants(const slice_params& params) const {
 
     // Define axes size as constant:
     if (params.compile_time_axes.empty()) {
-        kernel_selector::DimensionAccessHelper dims(params.inputs.back());
+        kernel_selector::DimensionAccessHelperJit dims(params.inputs.back());
         jit.AddConstant(MakeJitConstant(JIT_AXES_BUFF_SIZE_NAME,
                                         toVectorMulString({dims.b(), dims.f(), dims.x(), dims.y(), dims.z()})));
     } else {

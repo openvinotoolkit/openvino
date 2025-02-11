@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -29,8 +29,8 @@ namespace pass {
 
 class RMSFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("RMSFusion", "0");
-    RMSFusion();
+    OPENVINO_MATCHER_PASS_RTTI("RMSFusion");
+    RMSFusion(bool force_tail_convert = true);
 };
 
 }  // namespace pass

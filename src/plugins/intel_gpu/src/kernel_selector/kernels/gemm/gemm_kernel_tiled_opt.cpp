@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -96,7 +96,9 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
             tuning_data.tile_m_size = tuning_data.simd_size;
         }
         // Increasing tile_n_size has performance improvement when m_size and n_size are not shallow and n_size is aligned at 32.
-        if (m_size >= 128 && n_size >= 128 && (n_size % 32 == 0) && tuning_data.simd_size == 16 && params.fused_ops.empty())
+        // TODO: Support TILE_K_LEFTOVER true case at static shape
+        if (m_size >= 128 && n_size >= 128 && (n_size % 32 == 0) && tuning_data.simd_size == 16 &&
+            (k_size % tuning_data.tile_k_size == 0) && params.fused_ops.empty())
             tuning_data.tile_n_size = 32;
 
         GPU_DEBUG_LOG << params.layerID << ": m_size: " << m_size << ", n_size: " << n_size << ", k_size: " << k_size << std::endl;
@@ -135,10 +137,10 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
 
     jit.Merge(MakeTypeJitConstants(params.inputs[0].GetDType(), "ACCUMULATOR"));
     if (params.has_dynamic_tensors()) {
-        DimensionAccessHelper dims0(params.inputs[0]);
-        DimensionAccessHelper dims1(params.inputs[1]);
-        DimensionAccessHelper dims0_padded(params.inputs[0], true);
-        DimensionAccessHelper dims1_padded(params.inputs[1], true);
+        DimensionAccessHelperJit dims0(params.inputs[0]);
+        DimensionAccessHelperJit dims1(params.inputs[1]);
+        DimensionAccessHelperJit dims0_padded(params.inputs[0], true);
+        DimensionAccessHelperJit dims1_padded(params.inputs[1], true);
         // Note: Actually currently this kernel is not being selected if it is shape agnostic impl && transposed inputs
         // Because we cannot get the original rank
         auto input0_dims = ConvTo8dims(params.input0_order);
@@ -155,6 +157,20 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
         const std::string not_divisible_n = "(" + leftover_n + "!=0)";
         const std::string not_divisible_k = "(" + leftover_k + "!=0)";
         const std::string full_iteration_k = "(" + k_size + "/" + std::to_string(tuning_data.tile_k_size) + ")";
+        std::string n_aligned_4byte = "0";
+        std::string k_aligned_4byte = "0";
+        if (BytesPerElement(params.inputs[0].GetDType()) == 4 || BytesPerElement(params.inputs[0].GetDType()) == 8) {
+            n_aligned_4byte = "1";
+            k_aligned_4byte = "1";
+        } else {
+            auto bytes_per_element = std::to_string(BytesPerElement(params.inputs[0].GetDType()));
+            if (n_size.find("shape_info") == std::string::npos) {
+                n_aligned_4byte = "(" + n_size + "*" + bytes_per_element + " % 4 == 0)";
+            }
+            if (k_size.find("shape_info") == std::string::npos) {
+                k_aligned_4byte = "(" + k_size + "*" + bytes_per_element + " % 4 == 0)";
+            }
+        }
 
         jit.AddConstants({
             MakeJitConstant("M", m_size),
@@ -162,6 +178,8 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("N", n_size),
             MakeJitConstant("K_PADDED_IN0", k_padded_size_in0),
             MakeJitConstant("N_PADDED", n_padded_size),
+            MakeJitConstant("K_IS_ALIGNED_4BYTE", k_aligned_4byte),
+            MakeJitConstant("N_IS_ALIGNED_4BYTE", n_aligned_4byte),
             MakeJitConstant("SIMD_WIDTH", tuning_data.simd_size),
             MakeJitConstant("TILE_M", tuning_data.tile_m_size),
             MakeJitConstant("TILE_K", tuning_data.tile_k_size),
@@ -187,14 +205,10 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
         else
             jit.AddConstant(MakeJitConstant("TRANSPOSE_OUTPUT", 0 /* set as TRANSPOSE_X_LAST */));
 
-        bool has_dynamic_k_padding = params.transpose_input0 ? params.inputs[0].Y().pad.is_dynamic
-                                                             : params.inputs[0].X().pad.is_dynamic;
-        bool has_dynamic_n_padding = params.transpose_input1 ? params.inputs[1].Y().pad.is_dynamic
-                                                             : params.inputs[1].X().pad.is_dynamic;
-        if (has_dynamic_k_padding)
-            jit.AddConstant(MakeJitConstant("HAS_DYNAMIC_K_PADDING", 1));
-        if (has_dynamic_n_padding)
-            jit.AddConstant(MakeJitConstant("HAS_DYNAMIC_N_PADDING", 1));
+        if (dims0_padded.has_dynamic_pad)
+            jit.AddConstant(MakeJitConstant("INPUT0_HAS_DYNAMIC_PADDING", 1));
+        if (dims1_padded.has_dynamic_pad)
+            jit.AddConstant(MakeJitConstant("INPUT1_HAS_DYNAMIC_PADDING", 1));
     } else {
         auto get_transposed_dim_size = [](const kernel_selector::DataTensor &data_tensor,
                                           const std::vector<int64_t>& dims_order, const std::string dim) {

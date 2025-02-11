@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,9 +32,6 @@ FakeQuantizeDequantization::FakeQuantizeDequantization(
     subtractConstant(subtractConstant),
     multiply(multiply),
     multiplyConstant(multiplyConstant) {
-    // for most node with layout NC, NCHW, NCDWH, index of channel dimension is 1
-    channelDimIndex = 1ul;
-
     const auto rank = data.get_partial_shape().rank();
     if (rank.is_static()) {
         std::string data_src_type = data.get_node()->get_type_name();
@@ -87,6 +84,22 @@ bool FakeQuantizeDequantization::isShared() const {
 
 bool FakeQuantizeDequantization::isLowPrecision() const {
     return DataPrecision::isSupported(data.get_element_type());
+}
+
+ov::element::Type FakeQuantizeDequantization::getPrecision() const {
+    if (multiply != nullptr) {
+        return is_type<ov::opset1::Constant>(multiply->get_input_node_ptr(0)) ?
+            multiply->get_input_element_type(1) :
+            multiply->get_input_element_type(0);
+    }
+
+    if (subtract != nullptr) {
+        return is_type<ov::opset1::Constant>(subtract->get_input_node_ptr(0)) ?
+            subtract->get_input_element_type(1) :
+            subtract->get_input_element_type(0);
+    }
+
+    THROW_IE_LPT_EXCEPTION_BASE << "dequantization is empty";
 }
 
 bool FakeQuantizeDequantization::isPerTensor() const {

@@ -13,8 +13,9 @@ achieves excellent performance on a wide variety of tasks, even when
 using very few labeled examples from the target dataset. This tutorial
 uses OpenVINO backend for performing model quantization in NNCF.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Prepare Dataset <#prepare-dataset>`__
 -  `Plotting data samples <#plotting-data-samples>`__
@@ -33,38 +34,31 @@ Table of contents:
 -  `Compare inference results on one
    picture <#compare-inference-results-on-one-picture>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. code:: ipython3
 
     import platform
     
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
-    %pip install -q "tensorflow-macos>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version <= '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
-    %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version <= '3.8'" # macOS x86
     %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version > '3.8'"
-    %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform != 'darwin' and python_version <= '3.8'"
     
-    %pip install -q "openvino>=2024.0.0" "nncf>=2.7.0" "tensorflow-hub>=0.15.0" "tensorflow_datasets" tf_keras
+    %pip install -q "openvino>=2024.0.0" "nncf>=2.7.0" "tensorflow-hub>=0.15.0" tf_keras
     %pip install -q "scikit-learn>=1.3.2"
     
     if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
+        %pip install -q "matplotlib>=3.4" "tensorflow_datasets>=4.9.0"
     else:
-        %pip install -q "matplotlib>=3.4,<3.7"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
+        %pip install -q "matplotlib>=3.4" "tensorflow_datasets>=4.9.0,<4.9.3"
 
 .. code:: ipython3
 
@@ -93,12 +87,13 @@ Table of contents:
     
     tfds.core.utils.gcs_utils._is_gcs_disabled = True
     os.environ["NO_GCE_CHECK"] = "true"
-
-
-.. parsed-literal::
-
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-
+    
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
 
 .. code:: ipython3
 
@@ -133,13 +128,6 @@ Prepare Dataset
         read_config=tfds.ReadConfig(shuffle_seed=0),
     )
     train_ds, validation_ds = datasets["train"], datasets["validation"]
-
-
-.. parsed-literal::
-
-    2024-05-06 23:28:33.621246: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-05-06 23:28:33.621479: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
-
 
 .. code:: ipython3
 
@@ -215,8 +203,13 @@ Plotting data samples
     plt.show()
 
 
+.. parsed-literal::
 
-.. image:: tensorflow-bit-image-classification-nncf-quantization-with-output_files/tensorflow-bit-image-classification-nncf-quantization-with-output_9_0.png
+    2024-01-26 10:40:54.747316: W tensorflow/core/kernels/data/cache_dataset_ops.cc:854] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
+    
+
+
+.. image:: tensorflow-bit-image-classification-nncf-quantization-with-output_files/tensorflow-bit-image-classification-nncf-quantization-with-output_9_1.png
 
 
 .. code:: ipython3
@@ -238,8 +231,13 @@ Plotting data samples
     plt.show()
 
 
+.. parsed-literal::
 
-.. image:: tensorflow-bit-image-classification-nncf-quantization-with-output_files/tensorflow-bit-image-classification-nncf-quantization-with-output_10_0.png
+    2024-01-26 10:40:57.011386: W tensorflow/core/kernels/data/cache_dataset_ops.cc:854] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
+    
+
+
+.. image:: tensorflow-bit-image-classification-nncf-quantization-with-output_files/tensorflow-bit-image-classification-nncf-quantization-with-output_10_1.png
 
 
 Model Fine-tuning
@@ -252,6 +250,8 @@ Model Fine-tuning
     # Load the Big Transfer model
     bit_model_url = "https://www.kaggle.com/models/google/bit/frameworks/TensorFlow2/variations/m-r50x1/versions/1"
     bit_m = hub.KerasLayer(bit_model_url, trainable=True)
+    
+    tf_model_dir = Path("bit_tf_model")
     
     # Customize the model for the new task
     model = tf.keras.Sequential([bit_m, tf.keras.layers.Dense(NUM_CLASSES, activation="softmax")])
@@ -269,18 +269,13 @@ Model Fine-tuning
         epochs=FINE_TUNING_STEPS,
         validation_data=validation_dataset.take(1000),
     )
-    model.save("./bit_tf_model/", save_format="tf")
+    model.save(tf_model_dir, save_format="tf")
 
 
 .. parsed-literal::
 
-    101/101 [==============================] - 966s 9s/step - loss: 0.3938 - accuracy: 0.8968 - val_loss: 0.0654 - val_accuracy: 0.9820
-
-
-.. parsed-literal::
-
-    WARNING:absl:Found untraced functions such as _update_step_xla while saving (showing 1 of 1). These functions will not be directly callable after loading.
-
+    101/101 [==============================] - 472s 4s/step - loss: 0.4904 - accuracy: 0.8806 - val_loss: 0.0810 - val_accuracy: 0.9840
+    
 
 Perform model optimization (IR) step
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -289,7 +284,7 @@ Perform model optimization (IR) step
 
 .. code:: ipython3
 
-    ir_path = Path("./bit_ov_model/bit_m_r50x1_1.xml")
+    ir_path = Path("bit_ov_model/bit_m_r50x1_1.xml")
     if not ir_path.exists():
         print("Initiating model optimization..!!!")
         ov_model = ov.convert_model("./bit_tf_model")
@@ -301,7 +296,7 @@ Perform model optimization (IR) step
 .. parsed-literal::
 
     Initiating model optimization..!!!
-
+    
 
 Compute accuracy of the TF model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -310,7 +305,7 @@ Compute accuracy of the TF model
 
 .. code:: ipython3
 
-    tf_model = tf.keras.models.load_model("./bit_tf_model/")
+    tf_model = tf.keras.models.load_model(tf_model_dir)
     
     tf_predictions = []
     gt_label = []
@@ -334,6 +329,13 @@ Compute accuracy of the TF model
     
     tf_acc_score = accuracy_score(tf_predictions, gt_label)
 
+
+.. parsed-literal::
+
+    2024-01-26 10:51:24.539777: W tensorflow/core/common_runtime/graph_constructor.cc:839] Node 're_lu_48/PartitionedCall' has 1 outputs but the _output_shapes attribute specifies shapes for 2 outputs. Output shapes may be inaccurate.
+    2024-01-26 10:51:24.539856: W tensorflow/core/common_runtime/graph_constructor.cc:839] Node 'global_average_pooling2d/PartitionedCall' has 1 outputs but the _output_shapes attribute specifies shapes for 3 outputs. Output shapes may be inaccurate.
+    
+
 Compute accuracy of the OpenVINO model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -343,31 +345,17 @@ Select device for inference:
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    from notebook_utils import device_widget
     
-    core = ov.Core()
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 
-
-
-
-.. parsed-literal::
-
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
-
-
-
 .. code:: ipython3
 
-    ov_fp32_model = core.read_model("./bit_ov_model/bit_m_r50x1_1.xml")
+    core = ov.Core()
+    
+    ov_fp32_model = core.read_model(ir_path)
     ov_fp32_model.reshape([1, IMG_SIZE[0], IMG_SIZE[1], 3])
     
     # Target device set to CPU (Other options Ex: AUTO/GPU/dGPU/)
@@ -405,15 +393,16 @@ Model Quantization using NNCF
         return image
     
     
+    int8_ir_path = Path("bit_ov_int8_model/bit_m_r50x1_1_ov_int8.xml")
     val_ds = validation_ds.map(nncf_preprocessing, num_parallel_calls=tf.data.experimental.AUTOTUNE).batch(1).prefetch(tf.data.experimental.AUTOTUNE)
     
     calibration_dataset = nncf.Dataset(val_ds)
     
-    ov_fp32_model = core.read_model("./bit_ov_model/bit_m_r50x1_1.xml")
+    ov_fp32_model = core.read_model(ir_path)
     
     ov_int8_model = nncf.quantize(ov_fp32_model, calibration_dataset, fast_bias_correction=False)
     
-    ov.save_model(ov_int8_model, "./bit_ov_int8_model/bit_m_r50x1_1_ov_int8.xml")
+    ov.save_model(ov_int8_model, int8_ir_path)
 
 
 
@@ -423,18 +412,18 @@ Model Quantization using NNCF
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
+    
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
+
+
+
+
+    
 
 
 
@@ -444,18 +433,18 @@ Model Quantization using NNCF
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
+    
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
+
+
+
+
+    
 
 
 Compute accuracy of the quantized model
@@ -465,7 +454,7 @@ Compute accuracy of the quantized model
 
 .. code:: ipython3
 
-    nncf_quantized_model = core.read_model("./bit_ov_int8_model/bit_m_r50x1_1_ov_int8.xml")
+    nncf_quantized_model = core.read_model(int8_ir_path)
     nncf_quantized_model.reshape([1, IMG_SIZE[0], IMG_SIZE[1], 3])
     
     # Target device set to CPU by default
@@ -502,11 +491,11 @@ Compare FP32 and INT8 accuracy
 
 .. parsed-literal::
 
-    Accuracy of the tensorflow model (fp32):  98.20%
-    Accuracy of the OpenVINO optimized model (fp32):  98.20%
+    Accuracy of the tensorflow model (fp32):  98.40%
+    Accuracy of the OpenVINO optimized model (fp32):  98.40%
     Accuracy of the OpenVINO quantized model (int8):  98.00%
-    Accuracy drop between OV FP32 and INT8 model: 0.2% 
-
+    Accuracy drop between OV FP32 and INT8 model: 0.4% 
+    
 
 Compare inference results on one picture
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -547,11 +536,11 @@ Compare inference results on one picture
     
     
     # OpenVINO FP32 model
-    ov_fp32_model = core.read_model("./bit_ov_model/bit_m_r50x1_1.xml")
+    ov_fp32_model = core.read_model(ir_path)
     ov_fp32_model.reshape([1, IMG_SIZE[0], IMG_SIZE[1], 3])
     
     # OpenVINO INT8 model
-    ov_int8_model = core.read_model("./bit_ov_int8_model/bit_m_r50x1_1_ov_int8.xml")
+    ov_int8_model = core.read_model(int8_ir_path)
     ov_int8_model.reshape([1, IMG_SIZE[0], IMG_SIZE[1], 3])
     
     # OpenVINO FP32 model inference
@@ -577,7 +566,7 @@ Compare inference results on one picture
     
     Predicted label for the sample picture by qunatized (int8) model: gas pump
     
-
+    
 
 
 .. image:: tensorflow-bit-image-classification-nncf-quantization-with-output_files/tensorflow-bit-image-classification-nncf-quantization-with-output_27_1.png

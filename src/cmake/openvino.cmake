@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -30,7 +30,7 @@ add_library(${TARGET_NAME}
 add_library(openvino::runtime ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime)
 
-target_compile_features(${TARGET_NAME} PUBLIC cxx_std_11)
+target_compile_features(${TARGET_NAME} PUBLIC cxx_std_17)
 
 ov_add_vs_version_file(NAME ${TARGET_NAME} FILEDESCRIPTION "OpenVINO runtime library")
 
@@ -100,13 +100,13 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${OV_CPACK_COMP_CORE} ${OV_CPACK_COMP_CORE_EXCLUDE_ALL}
         ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_${archive_comp}} ${OV_CPACK_COMP_${archive_comp}_EXCLUDE_ALL}
         LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${OV_CPACK_COMP_CORE} ${OV_CPACK_COMP_CORE_EXCLUDE_ALL}
-        NAMELINK_COMPONENT ${OV_CPACK_COMP_CORE_DEV}
+        NAMELINK_COMPONENT ${OV_CPACK_COMP_LINKS} ${OV_CPACK_COMP_LINKS_EXCLUDE_ALL}
         INCLUDES DESTINATION ${OV_CPACK_INCLUDEDIR})
 
 # OpenVINO runtime library dev
 
 #
-# Add openvino::runtine::dev target
+# Add openvino::runtime::dev target
 #
 
 add_library(openvino_runtime_dev INTERFACE)
@@ -145,6 +145,10 @@ ov_cpack_add_component(${OV_CPACK_COMP_CORE}
 ov_cpack_add_component(${OV_CPACK_COMP_CORE_DEV}
                        HIDDEN
                        DEPENDS ${OV_CPACK_COMP_CORE} ${core_dev_components})
+
+ov_cpack_add_component(${OV_CPACK_COMP_LINKS}
+                       HIDDEN
+                       DEPENDS ${OV_CPACK_COMP_CORE_DEV})
 
 if(ENABLE_PLUGINS_XML)
     install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
@@ -216,6 +220,11 @@ install(FILES "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
 #
 
 if(ENABLE_PKGCONFIG_GEN)
+
+    ov_cpack_add_component(${OV_CPACK_COMP_PKG_CONFIG}
+                        HIDDEN
+                        DEPENDS ${OV_CPACK_COMP_CORE_DEV})
+
     # fill in PKGCONFIG_OpenVINO_DEFINITIONS
     get_target_property(openvino_defs openvino INTERFACE_COMPILE_DEFINITIONS)
     foreach(openvino_def IN LISTS openvino_defs)
@@ -290,6 +299,6 @@ if(ENABLE_PKGCONFIG_GEN)
 
     install(FILES "${pkgconfig_out}"
             DESTINATION "${OV_CPACK_RUNTIMEDIR}/pkgconfig"
-            COMPONENT ${OV_CPACK_COMP_CORE_DEV}
-            ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
+            COMPONENT ${OV_CPACK_COMP_PKG_CONFIG}
+            ${OV_CPACK_COMP_PKG_CONFIG_EXCLUDE_ALL})
 endif()

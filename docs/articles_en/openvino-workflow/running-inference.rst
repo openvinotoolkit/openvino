@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_OV_Runtime_User_Guide}
-
 Running Inference with OpenVINO™
 ==================================
 
@@ -39,9 +37,9 @@ OpenVINO IR provides by far the best first-inference latency scores.
    For more detailed information on how to convert, read, and compile supported model formats
    see the :doc:`Model Preparation article <model-preparation>`.
 
-   Note that TensorFlow models can be run using the
+   Note that PyTorch models can be run using the
    :doc:`torch.compile feature <torch-compile>`, as well as the standard ways of
-   :doc:`converting TensorFlow <model-preparation/convert-model-pytorch>`
+   :doc:`converting Pytorch <model-preparation/convert-model-pytorch>`
    or running its inference.
 
 OpenVINO Runtime uses a plugin architecture. Its plugins are software components that contain complete implementation for inference on a particular Intel® hardware device: CPU, GPU, etc. Each plugin implements the unified API and provides additional hardware-specific APIs for configuring devices or API interoperability between OpenVINO Runtime and underlying plugin backend.
@@ -49,6 +47,6 @@ OpenVINO Runtime uses a plugin architecture. Its plugins are software components
 The scheme below illustrates the typical workflow for deploying a trained deep learning model:
 
 
-.. image:: ../_static/images/BASIC_FLOW_IE_C.svg
+.. image:: ../assets/images/BASIC_FLOW_IE_C.svg
 
 

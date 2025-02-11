@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -314,6 +314,16 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_uint8_
     test_case.add_expected_output<float>(
         {3, 4},
         std::vector<float>{0.0f, 1.0f, 2.0f, 3.0f, 0.0f, 2.0f, 4.0f, 6.0f, 0.0f, 40.0f, 80.0f, 120.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_opset21) {
+    auto model = convert_model("dequantize_linear_21.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_expected_output<float>({6, 3},
+                                         std::vector<float>{1, 2, 3, 1, 2, 3, 1, 2, 3, 4, 5, 6, 4, 5, 6, 4, 5, 6});
     test_case.run();
 }
 

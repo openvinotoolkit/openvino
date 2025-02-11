@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "base_reference_test.hpp"
@@ -76,13 +76,7 @@ void CommonReferenceTest::Validate() {
 
     ASSERT_EQ(refOutData.size(), actualOutData.size());
     for (size_t i = 0; i < refOutData.size(); i++) {
-        ValidateBlobs(refOutData[i],
-                      actualOutData[i],
-                      i,
-                      threshold,
-                      abs_threshold,
-                      legacy_compare,
-                      actual_comparision_size);
+        ValidateBlobs(refOutData[i], actualOutData[i], i, threshold, abs_threshold, legacy_compare);
     }
 }
 
@@ -91,15 +85,12 @@ void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
                                         const size_t blob_idx,
                                         float threshold,
                                         float abs_threshold,
-                                        bool legacy_compare,
-                                        size_t actual_comparision_size) {
+                                        bool legacy_compare) {
     ASSERT_EQ(refBlob.get_element_type(), outBlob.get_element_type())
         << "Incompatible element type for blob with index " << blob_idx;
     ASSERT_EQ(refBlob.get_byte_size(), outBlob.get_byte_size())
         << "Incorrect byte size for blob with index " << blob_idx;
 
-    if (actual_comparision_size == 0)
-        actual_comparision_size = refBlob.get_size();
     // compare() get fundamental element type with element_type_traits firstly and cast data to relative ov type with
     // 'from' types listed below have a fundamental analogue as int8_t, but int8_t is converted only to i8 with from
     std::vector<ov::element::Type> raw_data_comp_only =
@@ -123,6 +114,7 @@ void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
         case ov::element::u64:
         case ov::element::f8e4m3:
         case ov::element::f8e5m2:
+        case ov::element::f8e8m0:
             ov::test::utils::compare(refBlob, outBlob, abs_threshold, threshold);
             break;
         case ov::element::string:
@@ -133,6 +125,8 @@ void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
         }
         return;
     }
+
+    const auto actual_comparision_size = refBlob.get_size();
     switch (element_type) {
     case ov::element::bf16:
         ov::test::utils::compare_raw_data<ov::bfloat16, ov::bfloat16>(refBlob.data<const ov::bfloat16>(),
@@ -158,6 +152,13 @@ void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
     case ov::element::f8e5m2:
         ov::test::utils::compare_raw_data<ov::float8_e5m2, ov::float8_e5m2>(refBlob.data<const ov::float8_e5m2>(),
                                                                             outBlob.data<const ov::float8_e5m2>(),
+                                                                            actual_comparision_size,
+                                                                            threshold,
+                                                                            abs_threshold);
+        break;
+    case ov::element::f8e8m0:
+        ov::test::utils::compare_raw_data<ov::float8_e8m0, ov::float8_e8m0>(refBlob.data<const ov::float8_e8m0>(),
+                                                                            outBlob.data<const ov::float8_e8m0>(),
                                                                             actual_comparision_size,
                                                                             threshold,
                                                                             abs_threshold);
@@ -276,6 +277,13 @@ void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
                                                           abs_threshold);
         break;
     case ov::element::nf4:
+        ov::test::utils::compare_raw_data<int8_t, int8_t>(static_cast<const int8_t*>(refBlob.data()),
+                                                          static_cast<const int8_t*>(outBlob.data()),
+                                                          actual_comparision_size / 2,
+                                                          threshold,
+                                                          abs_threshold);
+        break;
+    case ov::element::f4e2m1:
         ov::test::utils::compare_raw_data<int8_t, int8_t>(static_cast<const int8_t*>(refBlob.data()),
                                                           static_cast<const int8_t*>(outBlob.data()),
                                                           actual_comparision_size / 2,

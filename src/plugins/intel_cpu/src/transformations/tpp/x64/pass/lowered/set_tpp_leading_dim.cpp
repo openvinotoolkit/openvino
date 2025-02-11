@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/itt.hpp"
-#include "snippets/op/buffer.hpp"
-#include "transformations/tpp/x64/op/modifiers.hpp"
 #include "set_tpp_leading_dim.hpp"
-#include "snippets/op/brgemm.hpp"
+
+#include "snippets/itt.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/op/brgemm.hpp"
+#include "snippets/op/buffer.hpp"
+#include "snippets/utils/utils.hpp"
+#include "transformations/tpp/x64/op/modifiers.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -16,13 +17,7 @@ namespace tpp {
 namespace pass {
 namespace {
 using ExpressionPort = snippets::lowered::ExpressionPort;
-bool is_planar_layout(const std::vector<size_t>& layout) {
-    for (size_t i = 0; i < layout.size(); i++) {
-        if (layout[i] != i)
-            return false;
-    }
-    return true;
-}
+using LoopPort = snippets::lowered::LoopPort;
 // Note: Buffer is directly connected to the port if it remains in the same loops with the port's expression
 //  Directly connected Buffers store data densely, so strides are defined by subternsor dims
 //  Indirectly connected Buffers (with loops between the expr and Buffer) store data according
@@ -30,8 +25,8 @@ bool is_planar_layout(const std::vector<size_t>& layout) {
 bool has_directly_connected_buffer(const ExpressionPort& port, const snippets::lowered::LoopManagerPtr& loop_mngr) {
     auto accepted_loops = [&loop_mngr, &port](const std::vector<size_t>& orig, const std::vector<size_t>& connect) {
         size_t connect_idx = 0;
-        auto pred = [&port](const snippets::lowered::LoopPort& loop_port ) {
-            return *loop_port.expr_port == port;
+        auto pred = [&port](const LoopPort& loop_port) {
+            return *loop_port.get_expr_port() == port;
         };
         for (const auto orig_loop : orig) {
             if (connect_idx < connect.size() && orig_loop == connect[connect_idx]) {
@@ -42,11 +37,10 @@ bool has_directly_connected_buffer(const ExpressionPort& port, const snippets::l
             // as long as the port is the loop entry/exit, and it is not incremented.
             // This is the case for Brgemm K-blocking loops, for example.
             const auto loop_info = loop_mngr->get_loop_info(orig_loop);
-            const auto& border_points = port.get_type() == ExpressionPort::Type::Input ?
-                                                           loop_info->get_input_ports() :
-                                                           loop_info->get_output_ports();
+            const auto& border_points = port.get_type() == ExpressionPort::Type::Input ? loop_info->get_input_ports()
+                                                                                       : loop_info->get_output_ports();
             const auto& found = std::find_if(border_points.begin(), border_points.end(), pred);
-            if (found == border_points.end() || found->is_incremented)
+            if (found == border_points.end() || found->is_incremented())
                 return false;
         }
         return true;
@@ -74,55 +68,54 @@ size_t get_leading_dim(ExpressionPort port, const snippets::lowered::LoopManager
     bool full_dim_substituted = false;
     for (size_t i = 1; i <= subtensor.size(); i++) {
         const auto idx = subtensor.size() - i;
-        if (subtensor[idx] == snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM) {
+        if (ov::snippets::utils::is_full_dim_value(subtensor[idx])) {
             // the reason that we don't support FULL_DIM substitution for an arbitrary layout is that
             // the layout and subtersor can (and usually do) have different ranks
             full_dim_substituted = true;
             subtensor[idx] = shape[shape.size() - i];
         }
     }
-    OPENVINO_ASSERT(!full_dim_substituted || is_planar_layout(layout),
+    OPENVINO_ASSERT(!full_dim_substituted || ov::snippets::utils::is_planar_layout(layout),
                     "Only planar layouts are supported for FULL_DIM substitution");
 
     if (has_directly_connected_buffer(port, loop_mngr)) {
         shape = port_desc->get_subtensor();
-        OPENVINO_ASSERT(is_planar_layout(layout), "Only planar layouts are supported for Buffers");
+        OPENVINO_ASSERT(ov::snippets::utils::is_planar_layout(layout), "Only planar layouts are supported for Buffers");
         const auto rank_diff = static_cast<int64_t>(layout.size()) - static_cast<int64_t>(shape.size());
         if (rank_diff > 0)
             layout.erase(layout.end() - rank_diff, layout.end());
     }
 
     OPENVINO_ASSERT(layout.empty() || (layout.back() == layout.size() - 1 && layout.size() == shape.size()),
-            "get_leading_dim detected invalid layout values: check shape + layout combination");
+                    "get_leading_dim detected invalid layout values: check shape + layout combination");
     const auto dim = [&]() -> size_t {
-            switch (port.get_type()) {
-            // Input shape is original, so we need to correctly read this data by order
-            // Example:
-            //      Original shape (shape) = [1, 49, 2, 23]
-            //      Layout (transpose order) = [2, 0, 1, 3]
-            //      Transposed shape = [2, 1, 49, 23]
-            //      The leading dimension is equal to stride of shape[layout[3]] = 2 x 23
-            case ExpressionPort::Type::Input :
-                return snippets::utils::get_input_dim_idx(layout, 1); // `1` in example
-            // Output shape is already transposed, we need to correctly write the data with original shape by the order
-            // Example:
-            //      Original transposed shape (shape) = [49, 2, 7, 39]
-            //      Layout (transpose order) = [2, 0, 1, 3]
-            //      Before leading dimension with index 3 there is dimension with index 2 in planar layout.
-            //      Since we have non-planar layout, we have to find this before LD dim in transposed order.
-            //      In layout 2nd idx is first element, it means, that the leading dimension is equal to stride of shape[0]
-            case ExpressionPort::Type::Output :
-                return snippets::utils::get_output_dim_idx(layout, 1); // 0 in the example: shape[0] = 49
-            default:
-                OPENVINO_THROW("Unsupported Expression port type");
+        switch (port.get_type()) {
+        // Input shape is original, so we need to correctly read this data by order
+        // Example:
+        //      Original shape (shape) = [1, 49, 2, 23]
+        //      Layout (transpose order) = [2, 0, 1, 3]
+        //      Transposed shape = [2, 1, 49, 23]
+        //      The leading dimension is equal to stride of shape[layout[3]] = 2 x 23
+        case ExpressionPort::Type::Input:
+            return snippets::utils::get_input_dim_idx(layout, 1);  // `1` in example
+        // Output shape is already transposed, we need to correctly write the data with original shape by the order
+        // Example:
+        //      Original transposed shape (shape) = [49, 2, 7, 39]
+        //      Layout (transpose order) = [2, 0, 1, 3]
+        //      Before leading dimension with index 3 there is dimension with index 2 in planar layout.
+        //      Since we have non-planar layout, we have to find this before LD dim in transposed order.
+        //      In layout 2nd idx is first element, it means, that the leading dimension is equal to stride of shape[0]
+        case ExpressionPort::Type::Output:
+            return snippets::utils::get_output_dim_idx(layout, 1);  // 0 in the example: shape[0] = 49
+        default:
+            OPENVINO_THROW("Unsupported Expression port type");
         }
     };
-    return layout.size() == 1 ?
-           shape.back() :
-           std::accumulate(shape.cbegin() + dim() + 1, shape.cend(), 1, std::multiplies<size_t>());
+    return layout.size() == 1 ? shape.back()
+                              : std::accumulate(shape.cbegin() + dim() + 1, shape.cend(), 1, std::multiplies<size_t>());
 }
 
-} // namespace
+}  // namespace
 
 SetTPPLeadingDim::SetTPPLeadingDim() : RangedPass() {}
 
@@ -157,8 +150,7 @@ bool SetTPPLeadingDim::run(snippets::lowered::LinearIR& linear_ir,
     return modified;
 }
 
-
-} // namespace pass
-} // namespace tpp
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace pass
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

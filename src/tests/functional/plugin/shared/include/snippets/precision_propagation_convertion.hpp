@@ -20,7 +20,7 @@ typedef std::tuple<
 
 class PrecisionPropagationConvertion :
     public testing::WithParamInterface<PrecisionPropagationParams>,
-    virtual public ov::test::SnippetsTestsCommon {
+    virtual public SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<PrecisionPropagationParams> obj);
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,10 +34,10 @@ struct OutputTranspose {
 OutputTranspose GetOutputTransposes(const NodePtr& node) {
     for (size_t output_idx = 0; output_idx < node->get_output_size(); ++output_idx) {
         for (auto& input : node->get_output_target_inputs(output_idx)) {
-            auto transpose_node = dynamic_cast<ov::op::v1::Transpose*>(input.get_node());
+            auto transpose_node = ov::as_type<ov::op::v1::Transpose>(input.get_node());
             if (!transpose_node)
                 continue;
-            auto constant_node = dynamic_cast<ov::op::v0::Constant*>(transpose_node->input_value(1).get_node());
+            auto constant_node = ov::as_type<ov::op::v0::Constant>(transpose_node->input_value(1).get_node());
             if (!constant_node)
                 continue;
             {

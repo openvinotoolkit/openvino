@@ -1,5 +1,3 @@
-.. {#ovsa_get_started}
-
 OpenVINO™ Security Add-on
 ===========================
 
@@ -19,7 +17,7 @@ In this release, one person performs the role of both the Model Developer and th
 Overview
 ########
 
-The OpenVINO™ Security Add-on works with the :doc:`OpenVINO™ Model Server <../../ovms_what_is_openvino_model_server>` on Intel® architecture. Together, the OpenVINO™ Security Add-on and the OpenVINO™ Model Server provide a way for Model Developers and Independent Software Vendors to use secure packaging and secure model execution to enable access control to the OpenVINO™ models, and for model Users to run inference within assigned limits.
+The OpenVINO™ Security Add-on works with the :doc:`OpenVINO™ Model Server <../../openvino-workflow/model-server/ovms_what_is_openvino_model_server>` on Intel® architecture. Together, the OpenVINO™ Security Add-on and the OpenVINO™ Model Server provide a way for Model Developers and Independent Software Vendors to use secure packaging and secure model execution to enable access control to the OpenVINO™ models, and for model Users to run inference within assigned limits.
 
 The OpenVINO™ Security Add-on consists of three components that run in Kernel-based Virtual Machines (KVMs). These components provide a way to run security-sensitive operations in an isolated environment. A brief description of the three components are as follows. Click each triangled line for more information about each.
 
@@ -47,7 +45,7 @@ The OpenVINO™ Security Add-on consists of three components that run in Kernel-
 
 **Where the OpenVINO™ Security Add-on Fits into Model Development and Deployment**
 
-.. image:: ../../_static/images/ovsa_diagram.svg
+.. image:: ../../assets/images/ovsa_diagram.svg
 
 The binding between SWTPM (vTPM used in guest VM) and HW TPM (TPM on the host) is explained in `this document. <https://github.com/openvinotoolkit/security_addon/blob/master/docs/fingerprint-changes.md>`__
 
@@ -142,9 +140,9 @@ Begin this step on the Intel® Core™ or Xeon® processor machine that meets th
 
 3. Install the Kernel-based Virtual Machine (KVM) and QEMU packages.
 
-	.. code-block:: sh
+   .. code-block:: sh
 
-	   sudo apt install qemu qemu-kvm libvirt-bin  bridge-utils  virt-manager
+      sudo apt install qemu qemu-kvm libvirt-bin  bridge-utils  virt-manager
 
 
 4. Check the QEMU version:
@@ -226,15 +224,16 @@ This example in this step uses the following names. Your configuration might use
 4. Save and close the network configuration file.
 5. Run two commands to activate the updated network configuration file. If you use ssh, you might lose network connectivity when issuing these commands. If so, reconnect to the network.
 
-.. code-block:: sh
+   .. code-block:: sh
 
-   sudo netplan generate
+      sudo netplan generate
 
-.. code-block:: sh
+   .. code-block:: sh
 
-   sudo netplan apply
+      sudo netplan apply
 
-   A bridge is created and an IP address is assigned to the new bridge.
+      A bridge is created and an IP address is assigned to the new bridge.
+
 6. Verify the new bridge:
 
    .. code-block:: sh
@@ -288,16 +287,16 @@ This example in this step uses the following names. Your configuration might use
 
 10. Create a script named ``virbr0-qemu-ifdown`` to bring down the ``virbr0`` interface. Add the following script contents:
 
-   .. code-block:: sh
+    .. code-block:: sh
 
-      #!/bin/sh
-      nic=$1
-      if [ -f /etc/default/qemu-kvm ]; then
-      . /etc/default/qemu-kvm
-      fi
-      switch=virbr0
-      brctl delif $switch $nic
-      ifconfig $nic 0.0.0.0 down
+       #!/bin/sh
+       nic=$1
+       if [ -f /etc/default/qemu-kvm ]; then
+       . /etc/default/qemu-kvm
+       fi
+       switch=virbr0
+       brctl delif $switch $nic
+       ifconfig $nic 0.0.0.0 down
 
 
 See the QEMU documentation for more information about the QEMU network configuration.
@@ -390,43 +389,43 @@ As an option, you can use ``virsh`` and the virtual machine manager to create an
 
 10. Start the vTPM on Host, write the HW TPM data into its NVRAM and restart the vTPM for QEMU:
 
-   .. code-block:: sh
+    .. code-block:: sh
 
-      sudo swtpm socket --tpm2 --server port=8280 \
-                        --ctrl type=tcp,port=8281 \
-                        --flags not-need-init --tpmstate dir=/var/OVSA/vtpm/vtpm_isv_dev &
+       sudo swtpm socket --tpm2 --server port=8280 \
+                         --ctrl type=tcp,port=8281 \
+                         --flags not-need-init --tpmstate dir=/var/OVSA/vtpm/vtpm_isv_dev &
 
-      sudo tpm2_startup --clear -T swtpm:port=8280
-      sudo tpm2_startup -T swtpm:port=8280
-      python3 <path to Security-Addon source>/Scripts/host/OVSA_write_hwquote_swtpm_nvram.py 8280
-      sudo pkill -f vtpm_isv_dev
+       sudo tpm2_startup --clear -T swtpm:port=8280
+       sudo tpm2_startup -T swtpm:port=8280
+       python3 <path to Security-Addon source>/Scripts/host/OVSA_write_hwquote_swtpm_nvram.py 8280
+       sudo pkill -f vtpm_isv_dev
 
-     swtpm socket --tpmstate dir=/var/OVSA/vtpm/vtpm_isv_dev \
-      --tpm2 \
-      --ctrl type=unixio,path=/var/OVSA/vtpm/vtpm_isv_dev/swtpm-sock \
-      --log level=20
+      swtpm socket --tpmstate dir=/var/OVSA/vtpm/vtpm_isv_dev \
+       --tpm2 \
+       --ctrl type=unixio,path=/var/OVSA/vtpm/vtpm_isv_dev/swtpm-sock \
+       --log level=20
 
 
 11. Start the Guest VM:
 
-   .. code-block:: sh
+    .. code-block:: sh
 
-      sudo qemu-system-x86_64 \
-       -cpu host \
-       -enable-kvm \
-       -m 8192 \
-       -smp 8,sockets=1,cores=8,threads=1 \
-       -device e1000,netdev=hostnet0,mac=52:54:00:d1:66:6f \
-       -netdev tap,id=hostnet0,script=<path-to-scripts>/br0-qemu-ifup,downscript=<path-to-scripts>/br0-qemu-ifdown \
-       -device e1000,netdev=hostnet1,mac=52:54:00:d1:66:5f \
-       -netdev tap,id=hostnet1,script=<path-to-scripts>/virbr0-qemu-ifup,downscript=<path-to-scripts>/virbr0-qemu-ifdown \
-       -drive if=virtio,file=<path-to-disk-image>/ovsa_isv_dev_vm_disk.qcow2,cache=none \
-       -chardev socket,id=chrtpm,path=/var/OVSA/vtpm/vtpm_isv_dev/swtpm-sock \
-       -tpmdev emulator,id=tpm0,chardev=chrtpm \
-       -device tpm-tis,tpmdev=tpm0 \
-       -vnc :1
+       sudo qemu-system-x86_64 \
+        -cpu host \
+        -enable-kvm \
+        -m 8192 \
+        -smp 8,sockets=1,cores=8,threads=1 \
+        -device e1000,netdev=hostnet0,mac=52:54:00:d1:66:6f \
+        -netdev tap,id=hostnet0,script=<path-to-scripts>/br0-qemu-ifup,downscript=<path-to-scripts>/br0-qemu-ifdown \
+        -device e1000,netdev=hostnet1,mac=52:54:00:d1:66:5f \
+        -netdev tap,id=hostnet1,script=<path-to-scripts>/virbr0-qemu-ifup,downscript=<path-to-scripts>/virbr0-qemu-ifdown \
+        -drive if=virtio,file=<path-to-disk-image>/ovsa_isv_dev_vm_disk.qcow2,cache=none \
+        -chardev socket,id=chrtpm,path=/var/OVSA/vtpm/vtpm_isv_dev/swtpm-sock \
+        -tpmdev emulator,id=tpm0,chardev=chrtpm \
+        -device tpm-tis,tpmdev=tpm0 \
+        -vnc :1
 
-   Use the QEMU runtime options in the command to change the memory amount or CPU assigned to this Guest VM.
+    Use the QEMU runtime options in the command to change the memory amount or CPU assigned to this Guest VM.
 
 12. Use a VNC client to log on to the Guest VM at ``<host-ip-address>:1``
 
@@ -581,7 +580,7 @@ Building OpenVINO™ Security Add-on depends on OpenVINO™ Model Server docker 
 
 1. Download the `OpenVINO™ Model Server software <https://github.com/openvinotoolkit/model_server>`__
 
-2. Build the `OpenVINO™ Model Server Docker images <https://github.com/openvinotoolkit/model_server/blob/main/docs/docker_container.md>`__
+2. Build the `OpenVINO™ Model Server Docker images <https://github.com/openvinotoolkit/model_server/blob/main/docs/developer_guide.md#step-1-compile-source-code>`__
 
    .. code-block:: sh
 
@@ -701,9 +700,9 @@ The Model Hosting components install the OpenVINO™ Security Add-on Runtime Doc
 1. Log on to the Guest VM as ``<user>``.
 2. Create the OpenVINO™ Security Add-on directory in the home directory
 
-    .. code-block:: sh
+   .. code-block:: sh
 
-       mkdir -p ~/OVSA
+      mkdir -p ~/OVSA
 
 3. While on the Host Machine copy the ovsa-model-hosting.tar.gz from release_files to the Guest VM:
 
@@ -736,7 +735,7 @@ How to Use the OpenVINO™ Security Add-on
 
 This section requires interactions between the Model Developer/Independent Software vendor and the User. All roles must complete all applicable :ref:`set up steps <setup_host>` and :ref:`installation steps <install_ovsa>` before beginning this section.
 
-This document uses the :doc:`face-detection-retail-0004 <../../omz_models_model_face_detection_retail_0004>` model as an example.
+This document uses a face-detection model as an example.
 
 The following figure describes the interactions between the Model Developer, Independent Software Vendor, and User.
 
@@ -744,7 +743,7 @@ The following figure describes the interactions between the Model Developer, Ind
 
    The Model Developer/Independent Software Vendor and User roles are related to virtual machine use and one person might fill the tasks required by multiple roles. In this document the tasks of Model Developer and Independent Software Vendor are combined and use the Guest VM named ``ovsa_isv``. It is possible to have all roles set up on the same Host Machine.
 
-.. image:: ../../_static/images/ovsa_example.svg
+.. image:: ../../assets/images/ovsa_example.svg
 
 Model Developer Instructions
 ++++++++++++++++++++++++++++
@@ -770,7 +769,8 @@ Step 2: Create a key store and add a certificate to it
 ------------------------------------------------------
 
 1. Create files to request a certificate:
-This example uses a self-signed certificate for demonstration purposes. In a production environment, use CSR files to request for a CA-signed certificate.
+
+   This example uses a self-signed certificate for demonstration purposes. In a production environment, use CSR files to request for a CA-signed certificate.
 
    .. code-block:: sh
 
@@ -793,15 +793,8 @@ This example uses a self-signed certificate for demonstration purposes. In a pro
 Step 3: Create the model
 ------------------------
 
-This example uses ``curl`` to download the ``face-detection-retail-004`` model from the OpenVINO Model Zoo. If you are behind a firewall, check and set your proxy settings.
-
-Download a model from the Model Zoo:
-
-.. code-block:: sh
-
-   curl --create-dirs https://download.01.org/opencv/2021/openvinotoolkit/2021.1/open_../legacy-features/model-zoo/models_bin/1/face-detection-retail-0004/FP32/face-detection-retail-0004.xml https://download.01.org/opencv/2021/openvinotoolkit/2021.1/open_../legacy-features/model-zoo/models_bin/1/face-detection-retail-0004/FP32/face-detection-retail-0004.bin -o model/face-detection-retail-0004.xml -o model/face-detection-retail-0004.bin
-
-The model is downloaded to the ``OVSA_DEV_ARTEFACTS/model`` directory
+Download a `model <https://huggingface.co/OpenVINO>`__ in OpenVINO IR format to
+the ``OVSA_DEV_ARTEFACTS/model`` directory.
 
 Step 4: Define access control for  the model and create a master license for it
 -------------------------------------------------------------------------------
@@ -811,9 +804,9 @@ Define and enable the model access control and master license:
 .. code-block:: sh
 
    uuid=$(uuidgen)
-   /opt/ovsa/bin/ovsatool controlAccess -i model/face-detection-retail-0004.xml model/face-detection-retail-0004.bin -n "face detection" -d "face detection retail" -v 0004 -p face_detection_model.dat -m face_detection_model.masterlic -k isv_keystore -g $uuid
+   /opt/ovsa/bin/ovsatool controlAccess -i model/<name-of-the-model>.xml model/<name-of-the-model>.bin -n "name of the model" -d "detailed name of the model" -p <name-of-the-model>.dat -m <name-of-the-model>.masterlic -k isv_keystore -g $uuid
 
-The Intermediate Representation files for the ``face-detection-retail-0004`` model are encrypted as ``face_detection_model.dat`` and a master license is generated as ``face_detection_model.masterlic``
+The Intermediate Representation files for the model are encrypted as ``<name-of-the-model>.dat`` and a master license is generated as ``<name-of-the-model>.masterlic``
 
 Step 5: Create a Runtime Reference TCB
 --------------------------------------
@@ -824,7 +817,7 @@ Generate the reference TCB for the runtime
 
 .. code-block:: sh
 
-   /opt/ovsa/bin/ovsaruntime gen-tcb-signature -n "Face Detect @ Runtime VM" -v "1.0" -f face_detect_runtime_vm.tcb -k isv_keystore
+   /opt/ovsa/bin/ovsaruntime gen-tcb-signature -n "Face Detect @ Runtime VM" -v "1.0" -f model_inference_runtime_vm.tcb -k isv_keystore
 
 
 Step 6: Publish the access controlled Model and Runtime Reference TCB
@@ -856,7 +849,7 @@ Step 7: Receive a User Request
    .. code-block:: sh
 
       cd $OVSA_DEV_ARTEFACTS
-      /opt/ovsa/bin/ovsatool sale -m face_detection_model.masterlic -k isv_keystore -l 30daylicense.config -t face_detect_runtime_vm.tcb -p custkeystore.csr.crt -c face_detection_model.lic
+      /opt/ovsa/bin/ovsatool sale -m <name-of-the-model>.masterlic -k isv_keystore -l 30daylicense.config -t detect_runtime_vm.tcb -p custkeystore.csr.crt -c <name-of-the-model>.lic
 
 
 4. Update the license server database with the license.
@@ -864,13 +857,13 @@ Step 7: Receive a User Request
    .. code-block:: sh
 
       cd /opt/ovsa/DB
-      python3 ovsa_store_customer_lic_cert_db.py ovsa.db $OVSA_DEV_ARTEFACTS/face_detection_model.lic $OVSA_DEV_ARTEFACTS/custkeystore.csr.crt
+      python3 ovsa_store_customer_lic_cert_db.py ovsa.db $OVSA_DEV_ARTEFACTS/<name-of-the-model>.lic $OVSA_DEV_ARTEFACTS/custkeystore.csr.crt
 
 
 5. Provide these files to the User:
 
-	* ``face_detection_model.dat``
-	* ``face_detection_model.lic``
+   * ``<name-of-the-model>.dat``
+   * ``<name-of-the-model>.lic``
 
 Model User Instructions
 +++++++++++++++++++++++
@@ -930,14 +923,14 @@ Step 4: Receive and load the access controlled model into the OpenVINO™ Model 
 
 1. Receive the model as files named:
 
-   * face_detection_model.dat
-   * face_detection_model.lic
+   * <name-of-the-model>.dat
+   * <name-of-the-model>.lic
 
    .. code-block:: sh
 
       cd $OVSA_RUNTIME_ARTEFACTS
-      scp username@<developer-vm-ip-address>:/<username-home-directory>/OVSA/artefacts/face_detection_model.dat .
-      scp username@<developer-vm-ip-address>:/<username-home-directory>/OVSA/artefacts/face_detection_model.lic .
+      scp username@<developer-vm-ip-address>:/<username-home-directory>/OVSA/artefacts/<name-of-the-model>.dat .
+      scp username@<developer-vm-ip-address>:/<username-home-directory>/OVSA/artefacts/<name-of-the-model>.lic .
 
 2. Prepare the environment:
 
@@ -954,8 +947,8 @@ Step 4: Receive and load the access controlled model into the OpenVINO™ Model 
    .. code-block:: sh
 
       cd $OVSA_RUNTIME_ARTEFACTS/../ovms
-      cp $OVSA_RUNTIME_ARTEFACTS/face_detection_model.dat model/fd/1/.
-      cp $OVSA_RUNTIME_ARTEFACTS/face_detection_model.lic model/fd/1/.
+      cp $OVSA_RUNTIME_ARTEFACTS/<name-of-the-model>.dat model/fd/1/.
+      cp $OVSA_RUNTIME_ARTEFACTS/<name-of-the-model>.lic model/fd/1/.
       cp $OVSA_RUNTIME_ARTEFACTS/custkeystore model/fd/1/.
 
 4. Rename and edit ``sample.json`` to include the names of the access controlled model artefacts you received from the Model Developer. The file looks like this:
@@ -976,7 +969,7 @@ Step 4: Receive and load the access controlled model into the OpenVINO™ Model 
       	"config":{
 	   	"name":"controlled-access-model",
       		"base_path":"/sampleloader/model/fd",
-	   	"custom_loader_options": {"loader_name":  "ovsa", "keystore":  "custkeystore", "controlled_access_file": "face_detection_model"}
+	   	"custom_loader_options": {"loader_name":  "ovsa", "keystore":  "custkeystore", "controlled_access_file": "<name-of-the-model>"}
       	}
       	}
       ]
@@ -988,9 +981,9 @@ Step 5: Start the NGINX Model Server
 
 The NGINX Model Server publishes the access controlled model.
 
-   .. code-block:: sh
+.. code-block:: sh
 
-      ./start_secure_ovsa_model_server.sh
+   ./start_secure_ovsa_model_server.sh
 
 For information about the NGINX interface follow `here <https://github.com/openvinotoolkit/model_server/blob/main/extras/nginx-mtls-auth/README.md>`__.
 
@@ -1010,7 +1003,7 @@ Step 6: Prepare to run Inference
       pip3 install futures==3.1.1
       pip3 install tensorflow-serving-api==1.14.0
 
-3. Copy the ``face_detection.py`` from the example_client in ``/opt/ovsa/example_client``
+3. Copy the ``detection.py`` from the example_client in ``/opt/ovsa/example_client``
 
    .. code-block:: sh
 
@@ -1027,11 +1020,11 @@ Step 6: Prepare to run Inference
 Step 7: Run Inference
 ---------------------
 
-Run the ``face_detection.py`` script:
+Run the ``detection.py`` script:
 
 .. code-block:: sh
 
-   python3 face_detection.py --grpc_port 3335 --batch_size 1 --width 300 --height 300 --input_images_dir images --output_dir results --tls --server_cert /var/OVSA/Modelserver/server.pem --client_cert /var/OVSA/Modelserver/client.pem --client_key /var/OVSA/Modelserver/client.key --model_name controlled-access-model
+   python3 detection.py --grpc_port 3335 --batch_size 1 --width 300 --height 300 --input_images_dir images --output_dir results --tls --server_cert /var/OVSA/Modelserver/server.pem --client_cert /var/OVSA/Modelserver/client.pem --client_key /var/OVSA/Modelserver/client.key --model_name controlled-access-model
 
 
 Summary
@@ -1051,6 +1044,7 @@ References
 ##########
 
 Use these links for more information:
+
 - `OpenVINO toolkit <https://software.intel.com/en-us/openvino-toolkit>`__
 - `OpenVINO Model Server Quick Start Guide <https://github.com/openvinotoolkit/model_server/blob/main/docs/ovms_quickstart.md>`__
 - `Model repository <https://github.com/openvinotoolkit/model_server/blob/main/docs/models_repository.md>`__

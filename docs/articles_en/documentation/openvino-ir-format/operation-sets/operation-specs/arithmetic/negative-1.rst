@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_arithmetic_Negative_1}
-
 Negative
 ========
 
 
 .. meta::
-  :description: Learn about  Negative-1 - an element-wise, arithmetic operation, which 
+  :description: Learn about  Negative-1 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Negative-1*

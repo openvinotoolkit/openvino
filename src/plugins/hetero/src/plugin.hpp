@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,6 +69,8 @@ private:
         bool allow_exception = false) const;
 
     Configuration m_cfg;
+
+    mutable size_t independent_submodel_size = 0;
 };
 
 }  // namespace hetero

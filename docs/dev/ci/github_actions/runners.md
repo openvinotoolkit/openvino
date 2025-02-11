@@ -12,7 +12,7 @@ longer workflows (such as builds or functional tests) should use the self-hosted
 
 The runners are specified for each job using the `runs-on` key.
 
-An example `Build` job from the [`linux.yml`](./../../../../.github/workflows/linux.yml)
+An example `Build` job from the [`ubuntu_22.yml`](./../../../../.github/workflows/ubuntu_22.yml)
 workflow, using the `aks-linux-16-cores-32gb` runner group:
 
 ```yaml
@@ -38,7 +38,14 @@ OpenVINO repositories make use of the following runners:
 
 ## Available Self-hosted Runners
 
-The self-hosted runners are dynamically spawned for each requested pipeline.
+Two groups of self-hosted runners are available:
+
+* Dynamically-spawned Linux and Windows runners with CPU-only capabilities
+* Dedicated Linux runners with GPU capabilities
+
+### Dynamically-spawned Linux and Windows Runners
+
+These self-hosted runners are dynamically spawned for each requested pipeline.
 Several configurations are available, which are identified by different group names.
 The group names generally follow the pattern:
 `aks-{OS}-{CORES_N}-cores-|{RAM_SIZE}gb|-|{ARCH}|`, where:
@@ -65,12 +72,56 @@ The available configurations are:
 
 * `*` - Not specified in the group name
 
+### Dedicated GPU Runners
+
+Eighteen runners with GPU capabilities (both integrated and discrete, iGPU and dGPU) 
+are available to all repositories in the OpenVINO organisation's GitHub Actions. 
+
+These runners are virtual machines with Ubuntu 22.04 and have the following specifications:
+
+* CPU: i9-12900k
+* All of them have iGPU (UHD 770 Graphics)
+* Twelve of them have iGPU (UHD 770 Graphics) and dGPU (Arc A770)
+
+These runners may be selected using labels provided in the `runs-on` field in a job configuration.
+The available labels are:
+* `gpu` - encapsulates all the 18 runners
+* `igpu` - encapsulates all the 18 runners as all of them have iGPU
+* `dgpu` - encapsulates 12 runners that have dGPU
+
+Here is an example, a `GPU Tests` job that uses the `gpu` label and runs on any available GPU runner:
+```yaml
+  GPU:
+    name: GPU Tests
+    needs: [ Build, Smart_CI ]
+    runs-on: [ self-hosted, gpu ]
+    container:
+      image: ubuntu:20.04
+      options: --device /dev/dri:/dev/dri --group-add 109 --group-add 44
+      volumes:
+        - /dev/dri:/dev/dri
+  ...
+```
+
+If, for example, a job requires a dGPU, it should use the `dgpu` label, instead:
+```yaml
+  GPU:
+    name: GPU Tests
+    needs: [ Build, Smart_CI ]
+    runs-on: [ self-hosted, dgpu ]
+  ...
+```
+
+**NOTE**: as these are persistent runners, Docker should be used for the jobs that utilise the GPU runners.
+Learn more about the
+available images and how to choose one in the [OpenVINO Docker Image Overview](./docker_images.md).  
+
 ## How to Choose a Runner
 
 The configuration of a runner required for a job (building, testing, other tasks) depends on the
 nature of the job. Jobs that are more memory and/or CPU-intensive require a more robust configuration.
 
-The `Build` job in the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow uses
+The `Build` job in the [`ubuntu_22.yml`](./../../../../.github/workflows/ubuntu_22.yml) workflow uses
 the `aks-linux-16-cores-32gb` group as specified in the `runs-on` key:
 ```yaml
 Build:
@@ -82,7 +133,7 @@ Build:
 The `aks-linux-16-cores-32gb` group has machines with 16-core CPU and 32 GB of RAM.
 These resources are suitable for using in parallel by the build tools in the `Build` job.
 
-The `C++ unit tests` job in the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow uses the `aks-linux-4-cores-16gb` group:
+The `C++ unit tests` job in the [`ubuntu_22.yml`](./../../../../.github/workflows/ubuntu_22.yml) workflow uses the `aks-linux-4-cores-16gb` group:
 ```yaml
 CXX_Unit_Tests:
   name: C++ unit tests

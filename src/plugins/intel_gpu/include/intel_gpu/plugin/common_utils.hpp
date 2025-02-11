@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,11 +63,8 @@ inline cldnn::layout make_layout(const ov::element::Type type, const ov::Shape& 
 inline ov::element::Type convert_to_supported_device_type(ov::element::Type et) {
     switch (et) {
         case ov::element::f64:
-        case ov::element::i16:
-        case ov::element::u16:
             return ov::element::f32;
         case ov::element::u64:
-        case ov::element::u32:
             return ov::element::i32;
         default: return et;
     }
@@ -79,14 +76,9 @@ bool data_types_are_supported(const ov::Node* node);
 using PrecisionMap = std::map<ov::element::Type_t, ov::element::Type>;
 
 std::vector<cldnn::optional_data_type> get_output_data_types(const ov::Node* op, PrecisionMap precision_map = {});
-std::vector<cldnn::padding> get_output_paddings(const ov::Node* op);
 
 inline std::vector<cldnn::optional_data_type> get_output_data_types(const std::shared_ptr<ov::Node>& op, PrecisionMap precision_map = {}) {
     return get_output_data_types(op.get(), precision_map);
-}
-
-inline std::vector<cldnn::padding> get_output_paddings(const std::shared_ptr<ov::Node>& op) {
-    return get_output_paddings(op.get());
 }
 
 inline ov::Shape get_tensor_shape(const ov::PartialShape& pshape) {
@@ -127,7 +119,7 @@ void convert_and_copy(const ov::ITensor* src,
                       cldnn::stream& stream,
                       const cldnn::layout& src_layout = cldnn::layout({}, ov::element::undefined, cldnn::format::bfyx, cldnn::padding()));
 void convert_and_copy(const cldnn::memory::ptr src, ov::ITensor const* dst, const cldnn::stream& stream);
-void convert_and_copy(const ov::ITensor* src, ov::ITensor const* dst, const cldnn::stream& stream);
+void convert_and_copy(const ov::ITensor* src, ov::ITensor* dst, const cldnn::stream& stream);
 void convert_and_copy(const cldnn::memory::ptr src, cldnn::memory::ptr dst, cldnn::stream& stream);
 
 }  // namespace intel_gpu

@@ -11,6 +11,8 @@ from sphinx.util import parselinenos
 import requests
 import re
 import json
+import html
+import csv
 
 logger = logging.getLogger(__name__)
 
@@ -137,116 +139,54 @@ class Scrollbox(Directive):
             self.state.nested_parse(self.content, self.content_offset, node)
         return [node]
 
-def visit_showcase(self, node):
-    attrs = {}
-    notebook_file = ("../../notebooks/" + node["title"] + "-with-output.html") if 'title' in node is not None else ""
-    link_title = (node["title"]) if 'title' in node is not None else "OpenVINO Interactive Tutorial"
 
-    if "height" or "width" in node:
-        attrs["style"] = (
-            (("height:" + "".join(c for c in str(node["height"]) if c.isdigit()) + "px!important; " ) if "height" in node is not None else "")
-            + (("width:" + "".join(c for c in str(node["width"]) if c.isdigit()) ) if "width" in node is not None else "")
-            + (("px; " if node["width"].find("px") != -1 else "%;") if "width" in node is not None else "")
-        )
-    self.body.append("<div class='showcase-wrap'>")
-    self.body.append(self.starttag(node, "div", **attrs))
-    self.body.append("<div class='showcase-img-placeholder'>")
-    self.body.append("<a href='" + notebook_file + "' title='" + link_title + "'>")
-    self.body.append("<img " + (" class='" + (node["img-class"] + " showcase-img' ") if 'img-class' in node is not None else " class='showcase-img'"))
-    self.body.append("src='" + node["img"] + "' alt='"+os.path.basename(node["img"]) + "' /></a></div>") if "img" in node is not None else ""
-
-    self.body.append("<div class='showcase-content'><div class='showcase-content-container'>")
-
-
-def depart_showcase(self, node):
-    notebooks_repo = "https://github.com/openvinotoolkit/openvino_notebooks/blob/main/"
-    notebooks_binder = "https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath="
-    notebooks_colab = "https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/"
-    git_badge = "<img class='showcase-badge' src='https://badgen.net/badge/icon/github?icon=github&amp;label' alt='Github'>"
-    binder_badge = "<img class='showcase-badge' src='https://mybinder.org/badge_logo.svg' alt='Binder'>"
-    colab_badge = "<img class='showcase-badge' src='https://colab.research.google.com/assets/colab-badge.svg' alt='Colab'>"
-    binder_list_file = Path('../../../docs/notebooks/notebooks_with_binder_buttons.txt').resolve(strict=True)
-    colab_list_file = Path('../../../docs/notebooks/notebooks_with_colab_buttons.txt').resolve(strict=True)
-    openvino_notebooks_repo_listing = Path('../../../docs/notebooks/all_notebooks_paths.txt').resolve(strict=True)
-    with open(binder_list_file, 'r+', encoding='cp437') as file:
-        binder_buttons_list = file.read().splitlines()
-    with open(colab_list_file, 'r+', encoding='cp437') as file:
-        colab_buttons_list = file.read().splitlines()
-    if not os.path.exists(openvino_notebooks_repo_listing):
-        raise FileNotFoundError("all_notebooks_paths.txt is not found")
-    else:
-        paths_list = open(openvino_notebooks_repo_listing, 'r').readlines()
-        ipynb_list = [x for x in paths_list if re.match("notebooks/[0-9]{3}.*\.ipynb$", x)]
-        notebook_with_ext = node["title"] + ".ipynb"
-        matched_notebook = [match for match in ipynb_list if notebook_with_ext in match]
-
-
-    notebook_file = ("../../notebooks/" + node["title"] + "-with-output.html") if 'title' in node is not None else ""
-    link_title = (node["title"]) if 'title' in node is not None else "OpenVINO Interactive Tutorial"
-
-    self.body.append("<a href='" + notebook_file + "' title='" + link_title + "'>")
-    self.body.append("<h2 class='showcase-title'>" + node["title"] + "</h2></a>") if 'title' in node is not None else ""
-
-    if matched_notebook is not None:
-        for n in matched_notebook:
-            self.body.append(("<a href='" + notebooks_repo + n + "' target='_blank'>" + git_badge + "</a>") if 'title' in node is not None else "")
-            if node["title"] in binder_buttons_list:
-                self.body.append(("<a href='" + notebooks_binder + n + "' target='_blank'>" + binder_badge + "</a>"
-                                  ) if 'title' in node is not None else "")
-            if node["title"] in colab_buttons_list:
-                self.body.append(("<a href='" + notebooks_colab + n + "' target='_blank'>" + colab_badge + "</a>"
-                                  ) if 'title' in node is not None else "")
-
-    self.body.append("</div><button class='showcase-button' type='button' title='" + link_title +
-                     "' onclick=\"location.href='" + notebook_file + "'\">Read more</a></div></div></div>\n")
-
-
-class Nodeshowcase(nodes.container):
-    def create_showcase_component(
-        rawtext: str = "",
-        **attributes,
-    ) -> nodes.container:
-        node = nodes.container(rawtext, is_div=True, **attributes)
-        return node
-
-
-class Showcase(Directive):
-    has_content = True
+class DataTable(Directive):
     required_arguments = 0
-    optional_arguments = 1
-    final_argument_whitespace = True
-    option_spec = {
-        'class': directives.class_option,
-        'name': directives.unchanged,
-        'width': directives.length_or_percentage_or_unitless,
-        'height': directives.length_or_percentage_or_unitless,
-        'style': directives.unchanged,
-        'img': directives.unchanged,
-        'img-class': directives.unchanged,
-        'title': directives.unchanged,
-        'git': directives.unchanged,
-    }
+    has_content = False
+    option_spec = {'header-rows': directives.nonnegative_int,
+                   'file': directives.path,
+                   'class': directives.unchanged,
+                   'name': directives.unchanged,
+                   'data-column-hidden': directives.unchanged,
+                   'data-page-length': directives.unchanged,
+                   'data-order': directives.unchanged
+                   }
 
-    has_content = True
+    def run(self) -> List[Node]:
+        current_directory = os.path.dirname(os.path.abspath(self.state.document.current_source))
+        csv_file = os.path.normpath(os.path.join(current_directory, self.options['file']))
+        if os.path.isfile(csv_file) is False:
+            self.warning("Cannot find the specified CSV file. "
+                         "Please provide a correct path.")
+        csv_node = []
+        with open(csv_file, 'r') as j:
+            csv_data = list(csv.reader(j))
+            class_table_tag = f' class="{html.escape(self.options["class"])}"' if "class" in self.options else ""
+            id_table_tag = f' id="{html.escape(self.options["name"])}"' if "name" in self.options else ""
+            data_column_hidden_tag = f' data-column-hidden="{html.escape(self.options["data-column-hidden"])}"' if "data-column-hidden" in self.options else ""
+            data_order_tag = f' data-order="{html.escape(self.options["data-order"])}"' if "data-order" in self.options else ""
+            data_page_length_tag = f' data-page-length="{html.escape(self.options["data-page-length"])}"' if "data-page-length" in self.options else ""
+            csv_table_html = f'<table{class_table_tag}{id_table_tag}{data_column_hidden_tag}{data_order_tag}{data_page_length_tag}>'
+            head_rows = 0
+            head_rows += self.options.get('header-rows', 0)
+            row_count = 0
+            for row in csv_data[:head_rows]:
+                row_count += 1
+                parity = "row-even" if row_count % 2 == 0 else "row-odd"
+                csv_table_html += '<thead><tr class="' + parity + '">'
+                for value in row:
+                    csv_table_html += '<th class="head"><p>%s</p></th>' % value
+                csv_table_html += '</tr></thead>\n'
+            csv_table_html += '<tbody>'
+            for row in csv_data[head_rows:]:
+                row_count += 1
+                parity = "row-even" if row_count % 2 == 0 else "row-odd"
+                csv_table_html += '<tr class="' + parity + '">'
+                for value in row:
+                    csv_table_html += '<td><p>%s</p></td>' % value
+            csv_table_html += '</tr>\n</tbody>'
+            csv_table_html += "</tr>"
+            csv_table_html += '</tbody></table>'
+        csv_node.append(nodes.raw(csv_table_html, csv_table_html, format="html"))
 
-    def run(self):
-
-        classes = ['showcase']
-        node = Nodeshowcase("div", rawtext="\n".join(self.content), classes=classes)
-        if 'height' in self.options:
-            node['height'] = self.options['height']
-        if 'width' in self.options:
-            node['width'] = self.options['width']
-        if 'img' in self.options:
-            node['img'] = self.options['img']
-        if 'img-class' in self.options:
-            node['img-class'] = self.options['img-class']
-        if 'title' in self.options:
-            node['title'] = self.options['title']
-        if 'git' in self.options:
-            node['git'] = self.options['git']
-        node['classes'] += self.options.get('class', [])
-        self.add_name(node)
-        if self.content:
-            self.state.nested_parse(self.content, self.content_offset, node)
-        return [node]
+        return csv_node

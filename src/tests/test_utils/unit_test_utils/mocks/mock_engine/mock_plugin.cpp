@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -189,4 +189,9 @@ OPENVINO_PLUGIN_API void create_plugin_engine(std::shared_ptr<ov::IPlugin>& plug
 OPENVINO_PLUGIN_API void InjectPlugin(ov::IPlugin* target) {
     std::lock_guard<std::mutex> lock(targets_mutex);
     targets.push(std::make_shared<MockInternalPlugin>(target));
+}
+
+OPENVINO_PLUGIN_API void ClearTargets() {
+    std::lock_guard<std::mutex> lock(targets_mutex);
+    targets = {};
 }

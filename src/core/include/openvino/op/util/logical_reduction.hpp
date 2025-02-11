@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ protected:
     LogicalReduction(const Output<Node>& arg, const Output<Node>& reduction_axes);
 
 public:
-    OPENVINO_OP("LogicalReduction", "util");
+    OPENVINO_OP("LogicalReduction", "util", ReductionBase);
     void validate_and_infer_types() override;
 };
 }  // namespace util

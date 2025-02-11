@@ -4,9 +4,10 @@
 
 #pragma once
 
-#include <arm_compute/runtime/Scheduler.h>
 #include <arm_compute/core/CPP/ICPPKernel.h>
 #include <arm_compute/core/ITensorPack.h>
+#include <arm_compute/runtime/Scheduler.h>
+
 #include "support/Mutex.h"
 
 namespace ov {
@@ -20,12 +21,14 @@ public:
     ~ACLScheduler() override = default;
     std::uint32_t num_threads() const override;
     void set_num_threads(unsigned int num_threads) override;
-    void schedule(ICPPKernel *kernel, const Hints &hints) override;
-    void schedule_op(ICPPKernel *kernel, const Hints &hints, const Window &window, ITensorPack &tensors) override;
+    void schedule(ICPPKernel* kernel, const Hints& hints) override;
+    void schedule_op(ICPPKernel* kernel, const Hints& hints, const Window& window, ITensorPack& tensors) override;
+
 protected:
-    void run_workloads(std::vector<Workload> &workloads) override;
+    void run_workloads(std::vector<Workload>& workloads) override;
+
 private:
-    void schedule_custom(ICPPKernel *kernel, const Hints &hints, const Window &window, ITensorPack &tensors);
+    void schedule_custom(ICPPKernel* kernel, const Hints& hints, const Window& window, ITensorPack& tensors);
 };
 }  //  namespace intel_cpu
 }  //  namespace ov

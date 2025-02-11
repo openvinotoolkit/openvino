@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -147,7 +147,7 @@ xfail_issue_113506 = xfail_test(reason="Unsupported operation of type: LSTMSeque
 skip_dynamic_model = pytest.mark.skip(reason="CPU plug-in can't load a model with dynamic output shapes via legacy API")
 
 # ONNX 1.14
-xfail_issue_119896 = xfail_test(reason="Unsupported element type: FLOAT8")
+xfail_issue_119896 = xfail_test(reason="Unsupported element type: FLOAT8", strict=False)
 xfail_issue_119900 = xfail_test(reason="While validating ONNX node '<Node(Resize): Y>': "
                                        "half_pixel_symmetric - this type of coordinate transformation mode "
                                        "is not supported. Choose one of the following modes: "
@@ -173,6 +173,15 @@ xfail_issue_122776 = xfail_test(reason="test_mish_expanded_cpu - "
                                        "Not equal to tolerance")
 xfail_issue_122775 = xfail_test(reason="test_resize_downsample_scales_linear_cpu - "
                                        "Not equal to tolerance")
-skip_misalignment = pytest.mark.skip(reason="Misalignment between onnx versions") # Need to enable after bumping to 1.15
 skip_issue_127649 = pytest.mark.skip(reason="Not equal to tolerance rtol=0.001, atol=1e-07 - "
                                              "Mismatched elements: 1 / 1000 (0.1%)")
+
+# ONNX 1.16
+skip_misalignment = pytest.mark.skip(reason="Misalignment between onnx versions") # Need to enable after bumping to 1.16
+xfail_issue_139934 = xfail_test(reason = "Int4 isn't supported")
+xfail_issue_139936 = xfail_test(reason = "MaxPool accuracy fails")
+xfail_issue_139937 = xfail_test(reason = "GroupNorm, QLinearMatMul, DequantizeLinear translation failed")
+xfail_issue_139938 = xfail_test(reason = "QLinearMatMul accuracy fails")
+
+# ONNX 1.17
+skip_issue_119896 = pytest.mark.skip(reason="Unsupported element type: FLOAT8")

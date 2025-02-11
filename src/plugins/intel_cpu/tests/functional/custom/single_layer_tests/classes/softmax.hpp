@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,8 @@ struct SoftMaxConfig {
 typedef std::tuple<ElementType,    // netPrecision
                    SoftMaxConfig,  // softmaxTestConfig
                    std::string,    // targetDevice
-                   CPUSpecificParams>
+                   CPUSpecificParams,
+                   ov::AnyMap> //device_config
     softmaxCPUTestParams;
 
 class SoftMaxLayerCPUTest : public testing::WithParamInterface<softmaxCPUTestParams>,

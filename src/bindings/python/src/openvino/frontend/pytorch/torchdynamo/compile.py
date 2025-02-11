@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -14,7 +14,7 @@ from torch.fx import GraphModule
 
 from openvino.frontend import FrontEndManager
 from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
-from openvino.runtime import Core, Type, PartialShape, serialize
+from openvino import Core, Type, PartialShape, serialize
 from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_config, _is_cache_dir_in_config
 
 from typing import Callable, Optional
@@ -94,10 +94,14 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         input_shapes = []
         input_types = []
         for idx, input_data in enumerate(args):
-            input_types.append(input_data.type())
-            input_shapes.append(input_data.size())
+            if isinstance(input_data, int):
+                input_types.append(torch.int64)
+                input_shapes.append(torch.Size([1]))
+            else:
+                input_types.append(input_data.type())
+                input_shapes.append(input_data.size())
 
-        decoder = TorchFXPythonDecoder(gm, input_shapes=input_shapes, input_types=input_types)
+        decoder = TorchFXPythonDecoder(gm)
 
         im = fe.load(decoder)
 
@@ -118,8 +122,13 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
     }
 
     for idx, input_data in enumerate(args):
-        om.inputs[idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
-        om.inputs[idx].get_node().set_partial_shape(PartialShape(list(input_data.shape)))
+        if isinstance(input_data, int):
+            om.inputs[idx].get_node().set_element_type(dtype_mapping[torch.int64])
+            om.inputs[idx].get_node().set_partial_shape(PartialShape(list(torch.Size([1]))))
+        else:
+            om.inputs[idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
+            om.inputs[idx].get_node().set_partial_shape(PartialShape(list(decoder.input_shapes[idx])))
+
     om.validate_nodes_and_infer_types()
 
     config = _get_config(options)

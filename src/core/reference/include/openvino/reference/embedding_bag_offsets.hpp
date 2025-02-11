@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,7 +53,7 @@ void embeddingBagOffsets(const T* emb_table,
             } else {
                 // Empty or default bag
                 with_weights = false;
-                if (default_indices.size() == 1lu) {
+                if (default_indices.size() == 1lu && *default_indices.data() >= 0) {
                     indices_ref = default_indices.data();
                     indices_num = 1lu;
                 }

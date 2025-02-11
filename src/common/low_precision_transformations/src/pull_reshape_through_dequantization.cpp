@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -101,7 +101,7 @@ std::shared_ptr<Node> moveThroughConvert(const std::shared_ptr<Node>& reshape, c
 
 void fuseConstant(const std::shared_ptr<Node>& reshape, const std::shared_ptr<Node>& constant) {
     ov::OutputVector result(1);
-    reshape->constant_fold(result, { constant, reshape->input_value(1) });
+    OPENVINO_ASSERT(reshape->constant_fold(result, { constant, reshape->input_value(1) }), "Reshape constant folding failed");
     const auto newConstant = result[0].get_node_shared_ptr();
     replace_node(reshape, newConstant);
     copy_runtime_info({ constant, reshape }, newConstant);
@@ -139,7 +139,7 @@ ov::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroughDeq
             return false;
         }
 
-        while (reshape != nullptr) {
+        do {
             const auto parent = reshape->get_input_node_shared_ptr(0);
             if (ov::is_type<opset1::Multiply>(parent) || ov::is_type<opset1::Subtract>(parent)) {
                 reshape = pull_reshape_through_dequantization::moveThroughElementwise(reshape, parent);
@@ -151,7 +151,7 @@ ov::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroughDeq
             } else {
                 THROW_IE_LPT_EXCEPTION(*parent) << "unexepcted operation type";
             }
-        }
+        } while (reshape != nullptr);
 
         return true;
     };

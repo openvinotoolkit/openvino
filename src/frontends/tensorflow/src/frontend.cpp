@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include "helper_transforms/embedding_segments_feature_fusing.hpp"
 #include "helper_transforms/saved_model_unused_remover.hpp"
 #include "helper_transforms/tensor_array_v3_replacer.hpp"
+#include "helper_transforms/tensor_list_ops_resolver.hpp"
 #include "input_model.hpp"
 #include "op_table.hpp"
 #include "openvino/core/so_extension.hpp"
@@ -26,6 +27,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
 #include "tf_framework_node.hpp"
+#include "transformations/common_optimizations/eliminate_loop_inputs_outputs.hpp"
 #include "transformations/common_optimizations/remove_concat_zero_dim_input.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
@@ -64,7 +66,7 @@ void get_unsupported_operations_and_failures(const std::shared_ptr<Model>& model
                                              std::set<std::string>& unsupported_operations,
                                              std::unordered_map<std::string, std::string>& failures) {
     for (const auto& node : model->get_ordered_ops()) {
-        if (const auto& internal_op = std::dynamic_pointer_cast<InternalOperation>(node)) {
+        if (const auto& internal_op = ov::as_type_ptr<InternalOperation>(node)) {
             // handle internal operations separately
             // which can have elaborated reason of unconverted operation
             // like Const of string type
@@ -280,9 +282,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 HashTableKeysValuesMap{},
                                                 graph_iterator->get_checkpoint_v1_reader(),
                                                 false);
-        }
-        auto saved_model_tags = paths[1];
-        if (GraphIteratorSavedModel::is_supported(model_path)) {
+        } else if (GraphIteratorSavedModel::is_supported(model_path)) {
+            auto saved_model_tags = paths[1];
             std::shared_ptr<GraphIteratorSavedModel> graph_iterator;
             graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, saved_model_tags, mmap_enabled);
             return std::make_shared<InputModel>(graph_iterator,
@@ -465,12 +466,11 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
 
         // recommend to use openvino-tokenizers if some unconverted operations from tokenizers are met
         if (unsupported_ops_from_tokenizers.size() > 0) {
-            exception_message
-                << "\nEncountered unconverted operation(s) for which openvino-tokenizers package "
-                   "provides conversion extension(s): "
-                << unsupported_ops_from_tokenizers
-                << ". Refer to OpenVINO Tokenizers documentation: "
-                   "https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/ov-tokenizers.html \n";
+            exception_message << "\nEncountered unconverted operation(s) for which openvino-tokenizers package "
+                                 "provides conversion extension(s): "
+                              << unsupported_ops_from_tokenizers
+                              << ". Install OpenVINO Tokenizers, refer to the documentation: "
+                                 "https://docs.openvino.ai/2024/openvino-workflow-generative/ov-tokenizers.html \n";
         }
     }
 
@@ -487,7 +487,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::Input
     if (!m_transformation_extensions.empty()) {
         auto function = decode(model);
 
-        ov::pass::Manager manager;
+        ov::pass::Manager manager("Frontend:TF:convert_partially");
         for (const auto& transformation : m_transformation_extensions) {
             transformation->register_pass(manager);
         }
@@ -545,7 +545,7 @@ std::shared_ptr<ov::Model> FrontEnd::decode(const ov::frontend::InputModel::Ptr&
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) const {
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
         if (ov::is_type<FrameworkNode>(node)) {
-            translate_framework_node(std::dynamic_pointer_cast<FrameworkNode>(node), m_op_translators);
+            translate_framework_node(ov::as_type_ptr<FrameworkNode>(node), m_op_translators);
         }
     }
     for (const auto& result : partiallyConverted->get_results()) {
@@ -556,7 +556,7 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
 }
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
-    ov::pass::Manager manager;
+    ov::pass::Manager manager("Frontend:TF:normalize");
 
     // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
     // so that not extra memory is used for intermediate decompressed constants.
@@ -567,6 +567,17 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<pass::TensorArrayV3Replacer>();
     manager.register_pass<pass::ConstToResultRemover>();
     manager.register_pass<pass::SwitchMergeResolver>();
+
+    // apply EliminateLoopInputsOutputs to avoid extra Results
+    // that output the same value as receiving on input
+    // it is needed for applying TensorListInLoopOptimization
+    manager.register_pass<ov::pass::EliminateLoopInputsOutputs>();
+    manager.register_pass<pass::TensorListReplacer>();
+    manager.register_pass<pass::TensorListInLoopOptimization>();
+    manager.register_pass<pass::TensorListSetItemReplacer>();
+    manager.register_pass<pass::TensorListPushBackReplacer>();
+    manager.register_pass<pass::TensorListGetItemReplacer>();
+
     manager.register_pass<ov::pass::UnrollIf>();
     manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();

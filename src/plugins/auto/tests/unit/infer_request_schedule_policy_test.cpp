@@ -6,6 +6,7 @@
 
 #include <vector>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "async_infer_request.hpp"
 #include "common.hpp"
 #include "cumulative_schedule.hpp"
@@ -64,7 +65,7 @@ TEST_P(MockCumuSchedule, scheduleInferRequestBasedOnSchedulePolicy) {
     int expectedDevIndex = 0;
     while (true) {
         std::string actualSelectedDev;
-        ASSERT_NO_THROW(actualSelectedDev = schedule_to_next_device(devicesInfo, deviceIndexWithInferReq));
+        OV_ASSERT_NO_THROW(actualSelectedDev = schedule_to_next_device(devicesInfo, deviceIndexWithInferReq));
         if (numOfInferRequests[actualSelectedDev] > 0) {
             EXPECT_EQ(actualSelectedDev, expectedScheDevs[expectedDevIndex++]);
             // consume an available infer request on selected device

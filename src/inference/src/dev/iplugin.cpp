@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/runtime/iplugin.hpp"
 
+#include "core_impl.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
@@ -75,8 +76,10 @@ std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::string
                                                                const ov::AnyMap& properties) const {
     auto core = get_core();
     OPENVINO_ASSERT(core);
-    auto model = core->read_model(model_path, std::string());
-    return compile_model(model, properties);
+    const auto model = core->read_model(model_path, {}, properties);
+    auto local_properties = properties;
+    CoreConfig::remove_core_skip_cache_dir(local_properties);
+    return compile_model(model, local_properties);
 }
 
 std::unordered_set<std::string> ov::get_supported_nodes(
@@ -104,7 +107,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
     m.run_passes(transformed_model);
 
     transform(transformed_model);
-    auto ops = transformed_model->get_ordered_ops();
+    const auto& ops = transformed_model->get_ordered_ops();
 
     NameSet supported;
     NameSet unsupported;
@@ -120,18 +123,18 @@ std::unordered_set<std::string> ov::get_supported_nodes(
     // Collect all operation names even there are no such names in original model
     std::map<std::string, std::shared_ptr<ov::Node>> transformed_model_op_map;
     std::map<std::string, std::string> fused_model_op_map;
-    for (auto&& op : ops) {
+    for (const auto& op : ops) {
         auto names = get_names_set(op);
         for (auto& name : names) {
             if (name != op->get_friendly_name())
                 fused_model_op_map[name] = op->get_friendly_name();
         }
-        transformed_model_op_map[op->get_friendly_name()] = op;
         if (is_node_supported(op)) {
             supported.insert(names.begin(), names.end());
         } else {
             unsupported.insert(names.begin(), names.end());
         }
+        transformed_model_op_map[op->get_friendly_name()] = op;
     }
 
     // If operation was fused into several operations where one is supported
@@ -391,7 +394,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
                 }
             }
             // For example, A op need to be removed from supported:
-            //              A (fused on B, to be marked as unsupported)
+            //              A (removed nodes, to be marked as unsupported)
             //              |
             //              B (unsupported)
             //
@@ -400,8 +403,33 @@ std::unordered_set<std::string> ov::get_supported_nodes(
                 update_supported = false;
                 for (auto& op : model->get_ordered_ops()) {
                     const auto& name = op->get_friendly_name();
-                    if (fused_model_op_map.find(name) != fused_model_op_map.end() && supported.count(name)) {
-                        if (!supported.count(fused_model_op_map[name]) &&
+                    if (removed_nodes.count(name) && supported.count(name)) {
+                        if (has_all_consumers_unsupported(supported, op)) {
+                            supported.erase(name);
+                            removed_nodes.erase(name);
+                            update_supported = true;
+                        }
+                    }
+                }
+            }
+            // For example, A op need to be removed from supported:
+            //              A (fused on B, to be marked as unsupported)
+            //              |
+            //              B (unsupported)
+            //
+            //            A ShapeOf (to be marked as unsupported)
+            //              |
+            //              B (unsupported)
+            //
+            update_supported = true;
+            while (update_supported) {
+                update_supported = false;
+                for (auto& op : model->get_ordered_ops()) {
+                    const auto& name = op->get_friendly_name();
+                    bool is_shapeof = ov::is_type<op::util::ShapeOfBase>(op);
+                    if (((fused_model_op_map.find(name) != fused_model_op_map.end()) || is_shapeof) &&
+                        supported.count(name)) {
+                        if ((!supported.count(fused_model_op_map[name]) || is_shapeof) &&
                             has_all_consumers_unsupported(supported, op)) {
                             supported.erase(name);
                             update_supported = true;

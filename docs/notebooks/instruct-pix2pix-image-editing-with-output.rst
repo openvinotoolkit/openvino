@@ -30,8 +30,9 @@ Notebook contains the following steps:
    `NNCF <https://github.com/openvinotoolkit/nncf/>`__ quantization.
 4. Compare results of original and optimized pipelines.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Create Pytorch Models pipeline <#create-pytorch-models-pipeline>`__
@@ -51,6 +52,16 @@ Table of contents:
 
 -  `Interactive demo with Gradio <#interactive-demo-with-gradio>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -60,15 +71,8 @@ Install necessary packages
 
 .. code:: ipython3
 
-    import platform
-    
-    %pip install -q "transformers>=4.25.1" torch accelerate "gradio>4.19" "datasets>=2.14.6" diffusers pillow opencv-python --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "transformers>=4.25.1" torch accelerate "gradio>4.19" "datasets>=2.14.6" "matplotlib>=3.4" diffusers pillow opencv-python --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino>=2023.1.0"
-    
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
 
 Create Pytorch Models pipeline
 ------------------------------
@@ -208,21 +212,7 @@ hidden states.
         print(f"Text encoder will be loaded from {TEXT_ENCODER_OV_PATH}")
     
     del text_encoder
-    gc.collect()
-
-
-.. parsed-literal::
-
-    Text encoder will be loaded from text_encoder.xml
-
-
-
-
-.. parsed-literal::
-
-    32
-
-
+    gc.collect();
 
 VAE
 ~~~
@@ -325,22 +315,7 @@ into two independent models.
         print(f"VAE decoder will be loaded from {VAE_DECODER_OV_PATH}")
     
     del vae
-    gc.collect()
-
-
-.. parsed-literal::
-
-    VAE encoder will be loaded from vae_encoder.xml
-    VAE decoder will be loaded from vae_decoder.xml
-
-
-
-
-.. parsed-literal::
-
-    0
-
-
+    gc.collect();
 
 Unet
 ~~~~
@@ -403,21 +378,7 @@ Model predicts the ``sample`` state for the next step.
     else:
         print(f"Unet will be loaded from {UNET_OV_PATH}")
     del unet
-    gc.collect()
-
-
-.. parsed-literal::
-
-    Unet will be loaded from unet.xml
-
-
-
-
-.. parsed-literal::
-
-    0
-
-
+    gc.collect();
 
 Prepare Inference Pipeline
 --------------------------
@@ -937,14 +898,16 @@ can provide device selecting one from available in dropdown list.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    import requests
     
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
     
     device
 
@@ -975,13 +938,6 @@ can provide device selecting one from available in dropdown list.
         device=device.value,
     )
 
-
-.. parsed-literal::
-
-    /home/ltalamanova/env_ci/lib/python3.8/site-packages/diffusers/configuration_utils.py:134: FutureWarning: Accessing config attribute `unet` directly via 'OVInstructPix2PixPipeline' object attribute is deprecated. Please access 'unet' over 'OVInstructPix2PixPipeline's config object instead, e.g. 'scheduler.config.unet'.
-      deprecate("direct config name access", "1.0.0", deprecation_message, standard_warn=False)
-
-
 Now, you are ready to define editing instructions and an image for
 running the inference pipeline. You can find example results generated
 by the model on this
@@ -994,6 +950,8 @@ seed for latent state initialization and number of steps.
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+    
     style = {"description_width": "initial"}
     text_prompt = widgets.Text(value=" Make it in galaxy", description="your text")
     num_steps = widgets.IntSlider(min=1, max=100, value=10, description="steps:")
@@ -1094,11 +1052,9 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
+    from notebook_utils import quantization_widget
+    
+    to_quantize = quantization_widget()
     
     to_quantize
 
@@ -1375,17 +1331,7 @@ Interactive demo with Gradio
 .. code:: ipython3
 
     import gradio as gr
-    from pathlib import Path
     import numpy as np
-    
-    default_url = "https://user-images.githubusercontent.com/29454499/223343459-4ac944f0-502e-4acf-9813-8e9f0abc8a16.jpg"
-    path = Path("data/example.jpg")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    
-    r = requests.get(default_url)
-    
-    with path.open("wb") as f:
-        f.write(r.content)
     
     pipeline = int8_pipe if pipe_precision.value == "INT8" else ov_pipe
     
@@ -1398,23 +1344,15 @@ Interactive demo with Gradio
         return result
     
     
-    demo = gr.Interface(
-        generate,
-        [
-            gr.Image(label="Image", type="pil"),
-            gr.Textbox(label="Text"),
-            gr.Slider(0, 1024, label="Seed", value=42),
-            gr.Slider(
-                1,
-                100,
-                label="Steps",
-                value=10,
-                info="Consider increasing the value to get more precise results. A suggested value is 100, but it will take more time to process.",
-            ),
-        ],
-        gr.Image(label="Result"),
-        examples=[[path, "Make it in galaxy"]],
-    )
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/instruct-pix2pix-image-editing/gradio_helper.py"
+        )
+        open("gradio_helper.py", "w").write(r.text)
+    
+    from gradio_helper import make_demo
+    
+    demo = make_demo(fn=generate)
     
     try:
         demo.queue().launch(debug=False)
@@ -1423,3 +1361,8 @@ Interactive demo with Gradio
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

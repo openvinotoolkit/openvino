@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,7 +71,7 @@ void create_decomposed_block_lstm(const Output<Node>& x,
     auto squeeze_axis = std::make_shared<v0::Constant>(element::i32, Shape{1}, 0);
     auto xi = std::make_shared<v0::Squeeze>(xi_param, squeeze_axis);
 
-    auto lstm_cell = std::make_shared<v0::LSTMCell>(xi,
+    auto lstm_cell = std::make_shared<v4::LSTMCell>(xi,
                                                     h_prev_param,
                                                     c_prev_param,
                                                     w_param,

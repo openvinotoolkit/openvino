@@ -16,7 +16,7 @@ std::string SharedMatmulWeightsDecompression::getTestCaseName(testing::TestParam
     ov::test::ElementType weights_precision;
     ov::test::ElementType decompression_precision;
     bool transpose;
-    DecompressionSubtractType decompression_subtract_type;
+    DecompressionType decompression_subtract_type;
     bool use_decompression_impl;
 
     std::tie(target_device,
@@ -46,7 +46,7 @@ std::shared_ptr<ov::Model> SharedMatmulWeightsDecompression::initSubgraph(
     const ov::element::Type weights_precision,
     const ov::element::Type decompression_precision,
     const bool transpose_weights,
-    const DecompressionSubtractType decompression_subtract_type) {
+    const DecompressionType decompression_subtract_type) {
     const auto weights_subgraph = initMatMulDecompressionSubgraph(weights_shape,
                                                                   group_size,
                                                                   data_precision,
@@ -54,6 +54,7 @@ std::shared_ptr<ov::Model> SharedMatmulWeightsDecompression::initSubgraph(
                                                                   decompression_precision,
                                                                   ov::element::undefined,
                                                                   transpose_weights,
+                                                                  DecompressionType::full,
                                                                   decompression_subtract_type,
                                                                   false);
     ov::ParameterVector params;
@@ -71,6 +72,12 @@ std::shared_ptr<ov::Model> SharedMatmulWeightsDecompression::initSubgraph(
         params.push_back(param);
         last_layers.push_back(matMul);
     }
+
+    // if dynamic quantization is enabled
+    if (group_size != 0) {
+        abs_threshold = 0.1;
+    }
+
     return std::make_shared<ov::Model>(last_layers, params, "SharedMatmulWeightsDecompression");
 }
 
@@ -79,7 +86,7 @@ void SharedMatmulWeightsDecompression::SetUp() {
     ov::test::ElementType weights_precision;
     ov::test::ElementType decompression_precision;
     bool transpose_weights;
-    DecompressionSubtractType decompression_subtract_type;
+    DecompressionType decompression_subtract_type;
     bool use_decompression_impl;
 
     std::tie(targetDevice,

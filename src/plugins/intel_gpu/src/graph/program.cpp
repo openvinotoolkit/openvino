@@ -1,9 +1,13 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "impls/registry/implementation_manager.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
+#include "openvino/util/weights_path.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -17,6 +21,7 @@
 #include "pass_manager.h"
 #include "primitive_type.h"
 #include "program_dump_graph.h"
+#include "program_node.h"
 #include "sliding_window_utils.hpp"
 #include "program_helpers.h"
 
@@ -51,6 +56,7 @@
 #include "border_inst.h"
 #include "primitive_inst.h"
 #include "prior_box_inst.h"
+#include "scatter_elements_update_inst.h"
 #include "proposal_inst.h"
 #include "reorder_inst.h"
 #include "mvn_inst.h"
@@ -64,17 +70,17 @@
 #include "unique_inst.hpp"
 #include "condition_inst.h"
 #include "to_string_utils.h"
+#include "intel_gpu/graph/serialization/map_serializer.hpp"
+
+#include "intel_gpu/primitives/rnn.hpp"
 
 // TODO: Remove once we have interface for kernels cache
-#include "runtime/kernels_cache.hpp"
+#include "impls/ocl/kernels_cache.hpp"
 
 // TODO: implement self-registration for impls
 #include "impls/ocl/register.hpp"
 #include "impls/cpu/register.hpp"
 #include "impls/common/register.hpp"
-#ifdef ENABLE_ONEDNN_FOR_GPU
-#include "impls/onednn/register.hpp"
-#endif
 
 #include "kernel_base.h"
 
@@ -116,6 +122,7 @@ static ov::threading::IStreamsExecutor::Config make_task_executor_config(const E
                                                                  streams,
                                                                  1,
                                                                  core_type,
+                                                                 false,
                                                                  enable_cpu_pinning);
 
     return task_executor_config;
@@ -148,15 +155,14 @@ program::program(engine& engine_ref,
       is_internal(is_internal),
       _is_body_program(is_body_program),
       _compilation_context(compilation_context) {
-    _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
-    GPU_DEBUG_INFO << "Program config\n" << config.to_string();
+    GPU_DEBUG_INFO << "Program config\n" << _config.to_string();
     init_program();
     prepare_nodes(topology);
     program_node::reset_unique_id();
-
     if (no_optimizations) {
         init_graph();
+        _config.apply_user_properties(_engine.get_device_info());
     } else {
         build_program(is_internal);
         if (_is_body_program) {
@@ -199,8 +205,7 @@ program::program(engine& engine_ref,
     build_program(is_internal);
 }
 
-program::program(engine& engine,
-        const ExecutionConfig& config)
+program::program(engine& engine, const ExecutionConfig& config)
     : _engine(engine),
       _stream(_engine.create_stream({})),
       _config(config),
@@ -208,6 +213,7 @@ program::program(engine& engine,
     init_primitives();
     _config.apply_user_properties(_engine.get_device_info());
     new_shape_infer = _config.get_property(ov::intel_gpu::allow_new_shape_infer);
+    _layout_optimizer = cldnn::make_unique<layout_optimizer>();
 }
 
 program::~program() {
@@ -223,12 +229,16 @@ void program::init_program() {
     if (_task_executor == nullptr)
         _task_executor = program::make_task_executor(_config);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
-                                                                      kernel_selector::KernelBase::get_db().get_batch_header_str()));
+                                                                      kernel_selector::KernelBase::get_db().get_batch_headers(),
+                                                                      kernel_selector::KernelBase::get_db().get_cm_batch_headers()));
+
+    _kernels_cache->set_kernels_reuse(get_config().get_property(ov::intel_gpu::hint::enable_kernels_reuse));
 
     if (!_compilation_context)
         _compilation_context = program::make_compilation_context(_config);
 
 
+    _layout_optimizer = cldnn::make_unique<layout_optimizer>();
     size_t impls_cache_capacity = _impls_cache_capacity;
     GPU_DEBUG_IF(debug_config->impls_cache_capacity >= 0) {
         impls_cache_capacity = debug_config->impls_cache_capacity;
@@ -251,9 +261,6 @@ void program::init_primitives() {
     if (!is_initialized) {
         common::register_implementations();
         ocl::register_implementations();
-#ifdef ENABLE_ONEDNN_FOR_GPU
-        onednn::register_implementations();
-#endif
         cpu::register_implementations();
         is_initialized = true;
     }
@@ -433,7 +440,7 @@ void program::prepare_nodes(topology const& topology) {
     }
 }
 
-// add node's dependecies from its primitive dependencies
+// add node's dependencies from its primitive dependencies
 void program::add_node_dependencies(program_node* node) {
     auto deps = node->get_primitive()->dependencies();
     // add pointers to node's dependencies
@@ -450,7 +457,7 @@ void program::add_node_dependencies(program_node* node) {
 }
 
 /* helper method for program constructor from list of nodes which
-   copies src_node dependecies to the destination node dest_node dependencies.
+   copies src_node dependencies to the destination node dest_node dependencies.
    But only to those which appaer in this program implementation nodes_map */
 void program::copy_node_dependencies(program_node* dest_node, program_node* src_node) {
     if (dest_node->get_primitive()->id != src_node->get_primitive()->id) {
@@ -491,6 +498,7 @@ void program::set_options() {
 
 void program::build_program(bool is_internal) {
     init_graph();
+    _config.apply_user_properties(_engine.get_device_info());
     { pre_optimize_graph(is_internal); }
     run_graph_compilation();
     { post_optimize_graph(is_internal); }
@@ -517,7 +525,13 @@ void program::init_graph() {
     apply_opt_pass<graph_initializations>();
 
     apply_opt_pass<mark_nodes>();
-
+    for (auto& node : processing_order) {
+        if (!node->is_type<data>())
+            node->get_output_layouts();
+        if (node->is_type<lstm_seq>()) {
+            _config.set_property(ov::intel_gpu::use_onednn(true));
+        }
+    }
     // Perform initial shape_of subgraphs markup
     apply_opt_pass<mark_shape_of_subgraphs>();
 }
@@ -533,18 +547,14 @@ void program::pre_optimize_graph(bool is_internal) {
     processing_order.calculate_BFS_processing_order();  // this method makes sense only for OOOQ (out of order execution queue)
 
     bool output_size_handling_enabled = analyze_output_size_handling_need();
-    for (auto& node : processing_order) {
-        if (!node->is_type<data>())
-            node->get_output_layouts();
-    }
 
     bool optimize_data = _config.get_property(ov::intel_gpu::optimize_data);
     if (optimize_data) {
         apply_opt_pass<prepare_quantization>();
     }
 
-    layout_optimizer lo(output_size_handling_enabled);
-    set_layout_optimizer_attributes(lo);
+    _layout_optimizer = cldnn::make_unique<layout_optimizer>(output_size_handling_enabled);
+    set_layout_optimizer_attributes(*_layout_optimizer);
 
     reorder_factory rf;
     if (optimize_data) {
@@ -557,7 +567,7 @@ void program::pre_optimize_graph(bool is_internal) {
             apply_opt_pass<prepare_primitive_fusing_through>();
         }
 
-        apply_opt_pass<pre_replace_deconv>(lo);
+        apply_opt_pass<pre_replace_deconv>();
 
         apply_opt_pass<reorder_transfer>();
 
@@ -566,12 +576,12 @@ void program::pre_optimize_graph(bool is_internal) {
 #else
         {
 #endif
-            apply_opt_pass<prepare_primitive_fusing>(lo);
+            apply_opt_pass<prepare_primitive_fusing>();
         }
 
-        apply_opt_pass<select_preferred_formats>(lo);
+        apply_opt_pass<select_preferred_formats>();
 
-        apply_opt_pass<reorder_inputs>(lo, rf);
+        apply_opt_pass<reorder_inputs>(rf);
         // Ideally this should be done before fusing to simplify logic and make the pass more powerful,
         // but after format selection to select correct alignment.
         // Unfortunately those passes currently happen in reverse order.
@@ -582,7 +592,7 @@ void program::pre_optimize_graph(bool is_internal) {
 
     apply_opt_pass<prepare_padding>(output_size_handling_enabled);
 
-    apply_opt_pass<remove_redundant_reorders>(lo, optimize_data);
+    apply_opt_pass<remove_redundant_reorders>(optimize_data);
 
     // try to fuse buffers (i.e. depth_concat in bfyx format) after padding calculations
     if (optimize_data) {
@@ -602,7 +612,7 @@ void program::pre_optimize_graph(bool is_internal) {
 
     // Call shape_of subgraphs markup second time to update newely added nodes after graph
     // optimization passes
-    apply_opt_pass<mark_shape_of_subgraphs>(true);
+    apply_opt_pass<mark_shape_of_subgraphs>();
 
     // Mark operations that might be skipped at runtime as can_be_optimized.
     apply_opt_pass<mark_runtime_skippable_nodes>();
@@ -614,8 +624,6 @@ void program::post_optimize_graph(bool is_internal) {
     apply_opt_pass<post_input_reorder>();
 
     reorder_factory rf;
-    layout_optimizer lo;
-    set_layout_optimizer_attributes(lo);
 
     bool optimize_data = _config.get_property(ov::intel_gpu::optimize_data);
 
@@ -623,7 +631,7 @@ void program::post_optimize_graph(bool is_internal) {
         apply_opt_pass<post_optimize_weights>(rf);
     }
 
-    apply_opt_pass<remove_redundant_reorders>(lo, false, true);  // TODO: do we need it at this place also?
+    apply_opt_pass<remove_redundant_reorders>(false, true);  // TODO: do we need it at this place also?
 
     auto partial_build = _config.get_property(ov::intel_gpu::partial_build_program);
 #ifdef GPU_DEBUG_CONFIG
@@ -637,7 +645,7 @@ void program::post_optimize_graph(bool is_internal) {
     }
 
     if (optimize_data)
-        apply_opt_pass<remove_redundant_reorders>(lo, false, true, true); // pass to remove output reorders while all others graph optimizations were done
+        apply_opt_pass<remove_redundant_reorders>(false, true, true); // pass to remove output reorders while all others graph optimizations were done
 
     // update inner program input/output primitive mappings
     apply_opt_pass<update_inner_program_io_map>();
@@ -646,6 +654,8 @@ void program::post_optimize_graph(bool is_internal) {
     // for OOO queue
     if (_config.get_property(ov::intel_gpu::queue_type) == QueueTypes::out_of_order)
         get_processing_order().calculate_BFS_processing_order();
+
+    apply_opt_pass<mark_state_init_subgraphs>();
 }
 
 // mark if the node is constant assuming that all dependencies are marked properly
@@ -696,11 +706,14 @@ void program::transfer_memory_to_device() {
             auto& mem = data_node.get_attached_memory();
             auto mem_layout = mem.get_layout();
             auto alloc_type = mem.get_allocation_type();
+
+            if (mem_layout.count() == 0)
+                continue;
+
             if (!mem_layout.compatible(data_node_layout)) {
                 std::string err_str("Node and memory layouts are incompatible, error occurred for " + node->id() + " node");
                 throw std::invalid_argument(err_str);
             }
-
 
             if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
                 GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
@@ -804,6 +817,7 @@ void program::apply_needed_padding(program_node& node, program_node& prev_node, 
 
         auto r_prim = std::make_shared<reorder>("reorder_input_" + node.id(), prev_node.id(), target_layout);
         add_intermediate(r_prim, node, 0);
+        get_or_create(r_prim).recalc_output_layouts(false);
         return;
     }
 
@@ -817,6 +831,27 @@ void program::reverse_connection(program_node& dep_node, program_node& user_node
     } else {
         throw std::runtime_error("Trying to reverse connection, but nodes are wrongly or not connected.");
     }
+}
+
+void program::set_state_initializers(const std::string& variable_id, const primitive_id& id) {
+    state_initializers[variable_id].push_back(id);
+}
+
+bool program::has_state_initializers(const std::string& variable_id, const primitive_id& id) {
+    auto it = state_initializers.find(variable_id);
+    if (it != state_initializers.end()) {
+        const auto& initializers = it->second;
+        return std::find(initializers.begin(), initializers.end(), id) != initializers.end();
+    }
+    return false;
+}
+
+bool program::contains_state(const std::string& variable_id) {
+    auto it = state_initializers.find(variable_id);
+    if (it != state_initializers.end())
+        return true;
+    else
+        return false;
 }
 
 program_node& program::get_or_create(std::shared_ptr<primitive> prim) {
@@ -896,9 +931,12 @@ void program::add_intermediate(program_node& node,
     add_intermediate(node, next, idx, connect_int_node_with_old_dep, move_usrs_of_prev_to_node);
 }
 
-void program::add_connection(program_node& prev, program_node& next) {
+void program::add_connection(program_node& prev, program_node& next, int32_t port_idx) {
     prev.users.push_back(&next);
-    auto port_idx = next.get_port_from_deps(prev.id());
+    // When this function is called from program::replace, we need to keep the port number as it was
+    if (port_idx < 0)
+        port_idx = next.get_port_from_deps(prev.id());
+
     next.dependencies.push_back({&prev, port_idx});
 }
 
@@ -980,7 +1018,7 @@ void program::replace(program_node& old_node, program_node& new_node) {
     // copy old's dependencies
     // First copy them from old node to new node
     for (auto& dependency : old_node.dependencies) {
-        add_connection(*dependency.first, new_node);
+        add_connection(*dependency.first, new_node, dependency.second);
     }
     // Second delete them from old node
     while (!old_node.dependencies.empty()) {
@@ -1488,12 +1526,14 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::strided_slice::type_id() &&
             prim.type() != cldnn::region_yolo::type_id() &&
             prim.type() != cldnn::normalize::type_id() &&
+            prim.type() != cldnn::group_normalization::type_id() &&
             prim.type() != cldnn::mvn::type_id() &&
             prim.type() != cldnn::gather::type_id() &&
             prim.type() != cldnn::scatter_nd_update::type_id() &&
             prim.type() != cldnn::broadcast::type_id() &&
             prim.type() != cldnn::ctc_loss::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
+            prim.type() != cldnn::non_max_suppression_gather::type_id() &&
             prim.type() != cldnn::roi_align::type_id() &&
             prim.type() != cldnn::matrix_nms::type_id() &&
             prim.type() != cldnn::adaptive_pooling::type_id() &&
@@ -1546,6 +1586,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::quantize::type_id() &&
             prim.type() != cldnn::ctc_loss::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
+            prim.type() != cldnn::non_max_suppression_gather::type_id() &&
             prim.type() != cldnn::roi_align::type_id() &&
             prim.type() != cldnn::matrix_nms::type_id() &&
             prim.type() != cldnn::adaptive_pooling::type_id() &&
@@ -1566,6 +1607,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::deconvolution::type_id() &&
             prim.type() != cldnn::multiclass_nms::type_id() &&
             prim.type() != cldnn::normalize::type_id() &&
+            prim.type() != cldnn::group_normalization::type_id() &&
             prim.type() != cldnn::deconvolution::type_id() &&
             prim.type() != cldnn::unique_count::type_id() &&
             prim.type() != cldnn::unique_gather::type_id() &&
@@ -1620,11 +1662,19 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::bs_fs_yx_bsv16_fsv16_network, 1);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+    bool enable_onednn_for_tests = get_config().get_property(ov::intel_gpu::optimize_data) || is_internal_program();
     auto& engine = get_engine();
-    if (engine.get_device_info().supports_immad &&
-        engine.get_device_info().vendor_id == INTEL_VENDOR_ID &&
-        get_config().get_property(ov::intel_gpu::queue_type) == QueueTypes::in_order)
-        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
+    if (engine.get_device_info().vendor_id == INTEL_VENDOR_ID &&
+        get_config().get_property(ov::intel_gpu::queue_type) == QueueTypes::in_order &&
+        enable_onednn_for_tests) {
+            if (engine.get_device_info().supports_immad) {
+                lo.add_all_onednn_impls_optimization_attribute();
+            } else {
+                if (get_config().get_property(ov::intel_gpu::use_onednn)) {
+                    lo.enable_onednn_for<lstm_seq>();
+                }
+            }
+        }
 #endif
 }
 
@@ -1710,6 +1760,7 @@ void program::cancel_compilation_context() {
 void program::save(cldnn::BinaryOutputBuffer& ob) const {
     std::map<cldnn::memory::ptr, std::vector<const cldnn::program_node*>> mutable_datas_ptrs;
     ob << nodes_map.size();
+
     for (auto& node : nodes_map) {
         ob.setKernelImplParams(node.second->get_kernel_impl_params().get());
 
@@ -1722,6 +1773,7 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
                 node.second->as<data>().typed_desc()->mem = data_node.get_attached_memory_ptr();
             }
         }
+
         ob << true;
 
         ob << node.second->desc;
@@ -1766,6 +1818,13 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 
     ob << _is_body_program;
     ob << _can_be_optimized;
+    auto onednn_impls_size = get_layout_optimizer().get_all_onednn_impls_optimization_attribute().size();
+    ob << onednn_impls_size;
+    for (const auto& onednn_impl : get_layout_optimizer().get_all_onednn_impls_optimization_attribute()) {
+        ob << prim_map_storage::instance().get_type_string(onednn_impl.first);
+        ob << onednn_impl.second;
+    }
+
     processing_order.save(ob);
 
     {
@@ -1780,15 +1839,11 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
         ob << kernels_cache;
         ob << impl_ids;
         for (auto& impl_id : impl_ids) {
-            if (get_node_ptr(impl_id)->get_selected_impl()->is_onednn()) {
-                ob << true;
-                auto params = get_node_ptr(impl_id)->get_kernel_impl_params();
-                ob.setKernelImplParams(params.get());
-                ob << get_node_ptr(impl_id)->selected_impl;
-            } else {
-                ob << false;
-                ob << get_node_ptr(impl_id)->selected_impl;
-            }
+            std::string type_name = get_node_ptr(impl_id)->get_selected_impl()->m_manager->get_type_info().name;
+            ob << type_name;
+            auto params = get_node_ptr(impl_id)->get_kernel_impl_params();
+            ob.setKernelImplParams(params.get());
+            ob << get_node_ptr(impl_id)->selected_impl;
             ob << get_node_ptr(impl_id)->get_selected_impl()->get_cached_kernel_ids(kernels_cache);
         }
     }
@@ -1817,10 +1872,23 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
     for (auto const& node_id : allocating_order) {
         ob << node_id;
     }
+
+    ob << state_initializers.size();
+    for (auto& state_initializer : state_initializers) {
+        ob << state_initializer.first;
+        ob << state_initializer.second;
+    }
 }
 
 void program::load(cldnn::BinaryInputBuffer& ib) {
     init_program();
+
+    std::shared_ptr<ov::MappedMemory> mapped_memory = nullptr;
+    std::string weights_path = _config.get_property(ov::weights_path);
+    if (_config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE &&
+        ov::util::validate_weights_path(weights_path)) {
+        mapped_memory = ov::load_mmap_object(weights_path);
+    }
 
     size_t num_nodes;
     ib >> num_nodes;
@@ -1832,6 +1900,9 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
 
         std::shared_ptr<cldnn::primitive> prim;
         ib >> prim;
+        if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
+            data_prim->load_weights(ib, mapped_memory);
+        }
         get_or_create(prim);
     }
 
@@ -1883,9 +1954,22 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
 
     ib >> _is_body_program;
     ib >> _can_be_optimized;
+
+    size_t num_of_onednn_impls;
+    ib >> num_of_onednn_impls;
+    for (size_t num = 0; num < num_of_onednn_impls; num++) {
+        primitive_id p_id{};
+        bool enabled;
+        ib >> p_id;
+        ib >> enabled;
+        auto ptype_id = prim_map_storage::instance().get_type_id(p_id);
+        get_layout_optimizer().set_value_onednn(ptype_id, enabled);
+    }
+
     _loaded_from_cache = true;
 
     processing_order.load(ib, *this);
+    set_layout_optimizer_attributes(*_layout_optimizer);
 
     {
         auto& kernels_cache = get_kernels_cache();
@@ -1896,16 +1980,16 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
 
         for (auto& impl_id : impl_ids) {
             auto& p_node = get_node(impl_id);
+            std::string type_name;
+            ib >> type_name;
+            ov::DiscreteTypeInfo type(type_name.c_str());
+            auto impl_manager = p_node.type()->get(type);
 
-            bool is_onednn;
-            ib >> is_onednn;
-            if (is_onednn) {
-                auto params = p_node.get_kernel_impl_params();
-                ib.setKernelImplParams(params.get());
-                ib >> p_node.selected_impl;
-            } else {
-                ib >> p_node.selected_impl;
-            }
+            auto params = p_node.get_kernel_impl_params();
+            ib.setKernelImplParams(params.get());
+            ib >> p_node.selected_impl;
+
+            p_node.selected_impl->m_manager = impl_manager.get();
 
             std::vector<std::string> cached_kernel_ids;
             ib >> cached_kernel_ids;
@@ -1961,5 +2045,16 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
         primitive_id node_id;
         ib >> node_id;
         allocating_order.emplace_back(node_id);
+    }
+
+    size_t state_initializers_size;
+    ib >> state_initializers_size;
+    state_initializers.clear();
+    for (size_t i = 0; i < state_initializers_size; i++) {
+        std::string variable_id;
+        std::vector<primitive_id> initializers;
+        ib >> variable_id;
+        ib >> initializers;
+        state_initializers[variable_id] = initializers;
     }
 }

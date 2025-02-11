@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,8 +77,7 @@ static void CreateSelectOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::
                                     inputs[0],
                                     inputs[1],
                                     inputs[2],
-                                    broadcast_type,
-                                    cldnn::padding());
+                                    broadcast_type);
 
     p.add_primitive(*op, selectPrim);
 }

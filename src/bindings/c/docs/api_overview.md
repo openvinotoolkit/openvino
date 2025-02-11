@@ -181,7 +181,13 @@ typedef enum {
 
     U1,              //!< binary element type
 
+    U2,              //!< u2 element type
+
+    U3,              //!< u3 element type
+
     U4,              //!< u4 element type
+
+    U6,              //!< u6 element type
 
     U8,              //!< u8 element type
 
@@ -192,6 +198,16 @@ typedef enum {
     U64,             //!< u64 element type
 
     NF4,             //!< nf4 element type
+
+    F8E4M3,          //!< f8e4m3 element type
+
+    F8E5M3,          //!< f8e5m2 element type
+
+    STRING,          //!< string element type
+
+    F4E2M1,          //!< f4e2m1 element type
+
+    F8E8M0,          //!< f8e8m0 element type
 
 } ov_element_type_e;
 ```

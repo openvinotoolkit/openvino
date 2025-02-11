@@ -54,6 +54,8 @@ class TestKerasUpSampling2D(CommonTF2LayerTest):
     def test_keras_upsampling2d_nearest(self, params, input_type, data_format, interpolation,
                                         ie_device, precision, ir_version, temp_dir,
                                         use_legacy_frontend):
+        if input_type in [np.int8, np.uint8, np.int16, np.uint16, np.int32, np.int64]:
+            pytest.skip('151172: Check TF FE conversion. Accuracy issue on all platforms.')
         self._test(*self.create_keras_upsampling2d_net(**params, input_type=input_type, data_format=data_format,
                                                        interpolation=interpolation, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,

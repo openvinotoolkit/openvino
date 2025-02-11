@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,9 +27,11 @@ TensorExternalData::TensorExternalData(const TensorProto& tensor) {
             m_sha1_digest = entry.value();
         }
     }
+#ifdef ENABLE_OPENVINO_DEBUG
     if (m_sha1_digest.size() > 0) {
-        OPENVINO_WARN << "SHA1 checksum is not supported";
+        OPENVINO_WARN("SHA1 checksum is not supported");
     }
+#endif
 }
 
 Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::string& model_dir,

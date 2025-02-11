@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 
 namespace ov {
 namespace snippets {
@@ -18,7 +17,7 @@ namespace pass {
  */
 class TransposeDecomposition: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TransposeDecomposition", "0");
+    OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TransposeDecomposition");
     TransposeDecomposition();
 
     static bool is_supported_transpose(const Output<Node>& transpose_out);

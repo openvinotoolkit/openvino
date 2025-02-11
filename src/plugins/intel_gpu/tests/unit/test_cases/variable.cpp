@@ -35,7 +35,7 @@ struct variable_test : public ::testing::TestWithParam<VariableParams<T>> {
 
         topology topology;
         topology.add(input_layout("input", input_data->get_layout()));
-        topology.add(read_value{"read_value", { input_info("input") }, "v0", variable_layout});
+        topology.add(read_value{"read_value", { input_info("input") }, "v0", { variable_layout }});
         topology.add(eltwise{"sum", { input_info("input"), input_info("read_value") }, eltwise_mode::sum, {}, variable_layout.data_type});
         topology.add(assign{"assign", { input_info("sum") }, "v0", variable_layout});
 
@@ -129,7 +129,7 @@ void test_exception_on_wrong_layout(bool is_caching_test) {
 
     topology topology;
     topology.add(input_layout("input", input_data->get_layout()));
-    topology.add(read_value{"read_value", { input_info("input") }, "v0", variable_layout});
+    topology.add(read_value{"read_value", { input_info("input") }, "v0", { variable_layout }});
     topology.add(input_layout("wrong_input", wrong_input_data->get_layout()));
     topology.add(assign{"assign", { input_info("wrong_input") }, "v0", wrong_layout});
 
@@ -218,14 +218,14 @@ void test_variables_are_preserved_across_inferences(bool is_caching_test) {
     topology.add(assign{"assign_2", { input_info("input_2") }, "v2", variable_layout});
 
     topology.add(data("dummy1", dummy1));
-    topology.add(read_value{"read_value_1", { input_info("dummy1") }, "v1", variable_layout});
-    topology.add(read_value{"read_value_2", { input_info("dummy1") }, "v2", variable_layout});
+    topology.add(read_value{"read_value_1", { input_info("dummy1") }, "v1", { variable_layout }});
+    topology.add(read_value{"read_value_2", { input_info("dummy1") }, "v2", { variable_layout }});
 
     topology.add(eltwise{"sum", { input_info("read_value_1"), input_info("read_value_2") }, eltwise_mode::sum, {}, variable_layout.data_type});
     topology.add(assign{"assign_result", { input_info("sum") }, "v_result", variable_layout});
 
     topology.add(data("dummy2", dummy2));
-    topology.add(read_value{"read_result", { input_info("dummy2") }, "v_result", variable_layout});
+    topology.add(read_value{"read_result", { input_info("dummy2") }, "v_result", { variable_layout }});
 
     cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 

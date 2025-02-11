@@ -1,12 +1,16 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngram.hpp"
+
 #include "transformations/itt.hpp"
 
-ov::intel_cpu::NgramNode::NgramNode(const ov::Output<Node>& embeddings, const ov::Output<Node>& batch_idces, const size_t k)
-    : Op({embeddings, batch_idces}), m_k(k) {
+ov::intel_cpu::NgramNode::NgramNode(const ov::Output<Node>& embeddings,
+                                    const ov::Output<Node>& batch_idces,
+                                    const size_t k)
+    : Op({embeddings, batch_idces}),
+      m_k(k) {
     validate_and_infer_types();
 }
 
@@ -16,7 +20,7 @@ std::shared_ptr<ov::Node> ov::intel_cpu::NgramNode::clone_with_new_inputs(const 
     return std::make_shared<ov::intel_cpu::NgramNode>(new_args.at(0), new_args.at(1), m_k);
 }
 
-bool ov::intel_cpu::NgramNode::visit_attributes(ov::AttributeVisitor &visitor) {
+bool ov::intel_cpu::NgramNode::visit_attributes(ov::AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(NgramNode_visit_attributes);
     visitor.on_attribute("k", m_k);
     return true;

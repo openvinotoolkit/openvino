@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -61,5 +61,50 @@ class TestSwitchMerge(CommonTFLayerTest):
                                                   temp_dir,
                                                   use_legacy_frontend):
         self._test(*self.merge_eliminating_several_cond_flows_net(**params, cond_value=cond_value, x_type=x_type),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_legacy_frontend=use_legacy_frontend)
+
+
+class TestSwitchMergeWithVariablePredicate(CommonTFLayerTest):
+    def _prepare_input(self, inputs_info):
+        assert 'x:0' in inputs_info
+        x_shape = inputs_info['x:0']
+        inputs_data = {}
+        rng = np.random.default_rng()
+        inputs_data['x:0'] = rng.integers(-10, 10, x_shape).astype(np.float32)
+        inputs_data['cond:0'] = np.array(self.cond_value, dtype=bool)
+        return inputs_data
+
+    def switch_merge_with_variable_predicate_net(self, x_shape, cond_shape, cond_value):
+        self.cond_value = cond_value
+        tf.compat.v1.reset_default_graph()
+        # Create the graph and model
+        with tf.compat.v1.Session() as sess:
+            x = tf.compat.v1.placeholder(tf.float32, x_shape, 'x')
+            cond = tf.compat.v1.placeholder(tf.bool, cond_shape, 'cond')
+            const_add = tf.constant(3, dtype=tf.float32)
+            const_sub = tf.constant(1, dtype=tf.float32)
+            switch_false, switch_true = tf.raw_ops.Switch(data=x, pred=cond)
+            add = tf.raw_ops.AddV2(x=switch_false, y=const_add)
+            sub = tf.raw_ops.Sub(x=switch_true, y=const_sub)
+            merge = tf.raw_ops.Merge(inputs=[add, sub])
+            const_main = tf.constant(1, dtype=tf.float32)
+            tf.raw_ops.AddV2(x=merge[0], y=const_main, name='add_res')
+            tf.compat.v1.global_variables_initializer()
+            tf_net = sess.graph_def
+
+        return tf_net, None
+
+    @pytest.mark.parametrize('x_shape', [[], [2], [3, 2]])
+    @pytest.mark.parametrize('cond_shape', [None, []])
+    @pytest.mark.parametrize('cond_value', [True, False])
+    @pytest.mark.precommit
+    @pytest.mark.nightly
+    def test_switch_merge_with_variable_predicate(self, x_shape, cond_shape, cond_value,
+                                                  ie_device, precision, ir_version, temp_dir,
+                                                  use_legacy_frontend):
+        if ie_device == 'GPU':
+            pytest.skip("156244: accuracy error on GPU")
+        self._test(*self.switch_merge_with_variable_predicate_net(x_shape, cond_shape, cond_value),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)

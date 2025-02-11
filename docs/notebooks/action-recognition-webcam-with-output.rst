@@ -35,8 +35,9 @@ Transformer <https://en.wikipedia.org/wiki/Transformer_(machine_learning_model)>
 and
 `ResNet34 <https://pytorch.org/vision/main/models/generated/torchvision.models.resnet34.html>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Imports <#imports>`__
 -  `The models <#the-models>`__
@@ -54,6 +55,16 @@ Table of contents:
    -  `AI Functions <#ai-functions>`__
    -  `Main Processing Function <#main-processing-function>`__
    -  `Run Action Recognition <#run-action-recognition>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 .. code:: ipython3
 
@@ -142,13 +153,13 @@ and the system automatically downloads the two models
 
 .. parsed-literal::
 
-    model/intel/action-recognition-0001/action-recognition-0001-decoder/FP16/action-recognition-0001-decoder.bin: …
+    action-recognition-0001-decoder.bin:   0%|          | 0.00/14.4M [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    model/intel/action-recognition-0001/action-recognition-0001-encoder/FP16/action-recognition-0001-encoder.bin: …
+    action-recognition-0001-encoder.bin:   0%|          | 0.00/40.6M [00:00<?, ?B/s]
 
 
 Load your labels
@@ -181,7 +192,7 @@ also provides the text file embedded into this notebook.
 
 .. parsed-literal::
 
-    data/kinetics.txt:   0%|          | 0.00/5.82k [00:00<?, ?B/s]
+    kinetics.txt:   0%|          | 0.00/5.82k [00:00<?, ?B/s]
 
 
 .. parsed-literal::
@@ -210,15 +221,7 @@ Select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
-    core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = utils.device_widget()
     
     device
 

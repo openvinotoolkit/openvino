@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -151,5 +151,5 @@ TEST(type_prop, shape_of_3_dynamic_value_propagation_out_i32) {
     auto bc_param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     auto bc = std::make_shared<op::v1::Broadcast>(bc_param, op);
 
-    EXPECT_EQ(bc->get_output_partial_shape(0), PartialShape({-1, -1, -1, -1, {1, 1021}}));
+    EXPECT_EQ(bc->get_output_partial_shape(0), PartialShape({{2, -1}, {3, -1}, -1, -1, {1, 1021}}));
 }

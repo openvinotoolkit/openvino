@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,7 +81,7 @@ public:
      *
      * @param dst destination tensor
      */
-    void copy_to(const std::shared_ptr<ov::ITensor>& dst) const;
+    virtual void copy_to(const std::shared_ptr<ov::ITensor>& dst) const;
 
 protected:
     virtual ~ITensor();

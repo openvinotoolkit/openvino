@@ -1,5 +1,3 @@
-.. {#openvino_docs_MO_DG_IR_and_opsets}
-
 Operation Sets in OpenVINO
 ==========================
 
@@ -20,7 +18,7 @@ Input data can be in the form of images, video, text, audio, or preprocessed inf
 
 Here is an illustration of a small graph representing a model that consists of a single Convolutional layer and activation function:
 
-.. image:: ../../_static/images/small_IR_graph_demonstration.png
+.. image:: ../../assets/images/small_IR_graph_demonstration.png
 
 Vertices in the graph represent layers or operation instances such as convolution, pooling, and element-wise operations with tensors.
 The terms of "layer" and "operation" are used interchangeably within OpenVINO documentation and define how the input data is processed to produce output data for a node in a graph.

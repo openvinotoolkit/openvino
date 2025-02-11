@@ -13,6 +13,9 @@ LP_transformations:
     - TFL_FE
     - ONNX_FE
     - PDPD_FE
+    - JAX_FE
+  build:
+    - TOKENIZERS # TF_FE tests depends on tokenizers build
 
 preprocessing:
   revalidate:
@@ -32,12 +35,14 @@ CPU:
     - PyTorch_FE
     - TF_FE
     - ONNX_FE
+    - JAX_FE
   build:
     - AUTO
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
     - IR_FE
+    - TOKENIZERS # TF_FE tests depends on tokenizers build
 
 GPU:
   build:
@@ -105,7 +110,7 @@ IR_FE:
 
 ONNX_FE:
   revalidate:
-    - MO
+    - OVC
     - ONNX_RT
   build:
     - CPU
@@ -113,33 +118,40 @@ ONNX_FE:
 
 PDPD_FE:
   revalidate:
-    - MO
+    - OVC
   build:
     - CPU
     - Python_API
 
 TF_FE:
   revalidate:
-    - MO
+    - OVC
   build:
     - CPU
     - Python_API
-    - TOKENIZERS
+    - TOKENIZERS # TF_FE tests depends on tokenizers build
 
 TFL_FE:
   revalidate:
-    - MO
+    - OVC
   build:
     - CPU
     - Python_API
 
 PyTorch_FE:
   revalidate:
-    - MO
+    - OVC
   build:
     - CPU
     - Python_API
-    - TOKENIZERS
+    - TOKENIZERS # PyTorch_FE tests depend on tokenizers build
+
+JAX_FE:
+  revalidate:
+    - OVC
+  build:
+    - CPU
+    - Python_API
 
 C_API:
   build:
@@ -153,8 +165,10 @@ C_API:
 Python_API:
   revalidate:
     - samples
-    - MO
+    - OVC
     - tools
+    - TF_FE
+    - docs_snippets
   build:
     - CPU
     - HETERO
@@ -164,9 +178,10 @@ Python_API:
     - IR_FE
     - ONNX_FE
     - PDPD_FE
-    - TF_FE
     - TFL_FE
     - PyTorch_FE
+    - JAX_FE
+    - TOKENIZERS # TF_FE tests depends on tokenizers build
 
 JS_API:
   build:
@@ -194,12 +209,17 @@ IE_Tests:
   build:
     - IR_FE
 
-MO:
+OVC:
   revalidate:
     - PyTorch_FE
     - TF_FE
+    - TFL_FE
+    - ONNX_FE
+    - PDPD_FE
+    - JAX_FE
   build:
     - Python_API
+    - TOKENIZERS # TF_FE tests depends on tokenizers build
 
 tools:
   build:
@@ -209,6 +229,12 @@ tools:
 docs:
   revalidate: []
   build: []
+  
+docs_snippets:
+  revalidate:
+    - docs_snippets
+  build:
+    - Python_API
 
 licensing:
   revalidate: []
@@ -223,5 +249,6 @@ ONNX_RT:
   build: []
 
 TOKENIZERS:
-  revalidate: []
+  revalidate:
+    - TF_FE
   build: []

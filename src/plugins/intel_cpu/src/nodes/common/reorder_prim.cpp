@@ -4,15 +4,14 @@
 
 #include "reorder_prim.h"
 
-#include "dnnl_extension_utils.h"
-#include "dnnl_types.h"
-
 #include <algorithm>
-#include "common/primitive_hashing_utils.hpp"
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include <memory>
 #include <string>
 
+#include "common/primitive_hashing_utils.hpp"
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "dnnl_extension_utils.h"
+#include "dnnl_types.h"
 #include "utils/general_utils.h"
 
 namespace ov {
@@ -42,7 +41,7 @@ bool ReorderKey::operator==(const ReorderKey& rhs) const {
     return retVal;
 }
 
-dnnl::reorder getReorderPrim(MultiCachePtr cache,
+dnnl::reorder getReorderPrim(const MultiCachePtr& cache,
                              const dnnl::engine& engine,
                              const dnnl::memory::desc& src,
                              const dnnl::memory::desc& dest) {

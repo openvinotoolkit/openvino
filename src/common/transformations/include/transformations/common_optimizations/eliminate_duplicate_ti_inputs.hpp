@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -26,6 +26,6 @@ class TRANSFORMATIONS_API EliminateDuplicateTIInputs;
 
 class ov::pass::EliminateDuplicateTIInputs : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EliminateDuplicateTIInputs", "0");
+    OPENVINO_MATCHER_PASS_RTTI("EliminateDuplicateTIInputs");
     EliminateDuplicateTIInputs();
 };

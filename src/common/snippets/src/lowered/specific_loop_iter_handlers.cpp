@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,18 +6,30 @@
 
 #include "snippets/lowered/pass/iter_handler.hpp"
 #include "snippets/lowered/pass/propagate_subtensors.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 
 namespace ov {
 namespace snippets {
 namespace lowered {
 
-SpecificIterationHandlers::SpecificIterationHandlers(size_t loop_work_amount, size_t loop_increment) {
-    const auto tail_size = utils::is_dynamic_value(loop_work_amount) ? 1lu : loop_work_amount % loop_increment;
-    if (tail_size != 0) {
-        m_last_iter_handlers.register_pass<lowered::pass::UpdateMemoryAccessCounts>(tail_size);
-        m_last_iter_handlers.register_pass<lowered::pass::UpdateSubtensors>(tail_size);
+SpecificIterationHandlers::SpecificIterationHandlers(size_t loop_work_amount, size_t loop_increment, size_t processing_dim_idx) {
+    // The following handlers are set only for Last Iter processing
+    if (loop_increment > 1) {
+        size_t last_iter_increment = utils::get_dynamic_value<size_t>();
+        if (!utils::is_dynamic_value(loop_work_amount)) {
+            last_iter_increment = loop_work_amount % loop_increment;
+        } else if (utils::is_dynamic_value(loop_work_amount) && processing_dim_idx == 0) {
+            // [149935] : Last Iterations of Loop processed last dimensions with Eltwise nodes inside should have increment = 1
+            last_iter_increment = 1;
+        }
+        if (last_iter_increment != 0) {
+            m_last_iter_handlers.register_pass<lowered::pass::UpdateMemoryAccessCounts>(last_iter_increment);
+            m_last_iter_handlers.register_pass<lowered::pass::UpdateSubtensors>(last_iter_increment);
+            // Last Iterations of Loop processed last dimensions with Eltwise nodes inside should have increment = 1
+            if (last_iter_increment == 1)
+                m_last_iter_handlers.register_pass<lowered::pass::SetLoopIncrementOne>();
+        }
     }
 }
 

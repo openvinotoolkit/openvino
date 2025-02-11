@@ -47,8 +47,9 @@ LoRA, OpenVINO and quantization with
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__. Let us get
 “controlling”!
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Background <#background>`__
 
@@ -88,6 +89,16 @@ Table of contents:
       -  `Compare model file sizes <#compare-model-file-sizes>`__
 
 -  `Interactive Demo <#interactive-demo>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 Background
 ----------
@@ -138,7 +149,7 @@ OpenVINO, see the following
 ControlNet
 ~~~~~~~~~~
 
- ControlNet is a neural network
+ControlNet is a neural network
 structure to control diffusion models by adding extra conditions. Using
 this new framework, we can capture a scene, structure, object, or
 subject pose from an inputted image, and then transfer that quality to
@@ -224,8 +235,8 @@ Install required packages
 
 .. code:: ipython3
 
-    %pip install -q "torch" transformers "diffusers>=0.22.0" "controlnet-aux>=0.0.6" "peft==0.6.2" accelerate --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "openvino>=2023.2.0" pillow "gradio>=4.19" "datasets>=2.14.6" "nncf>=2.7.0"
+    %pip install -q "torch" transformers "diffusers>=0.24.0" "controlnet-aux>=0.0.6" "peft>=0.6.2" accelerate --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "openvino>=2023.2.0" pillow "gradio>=4.19" "datasets>=2.14.6" "nncf>=2.7.0" "matplotlib>=3.4"
 
 Prepare PyTorch models
 
@@ -235,7 +246,7 @@ Prepare PyTorch models
     
     controlnet_id = "lllyasviel/control_v11p_sd15_normalbae"
     adapter_id = "latent-consistency/lcm-lora-sdv1-5"
-    stable_diffusion_id = "runwayml/stable-diffusion-v1-5"
+    stable_diffusion_id = "botp/stable-diffusion-v1-5"
     
     TEXT_ENCODER_OV_PATH = Path("model/text_encoder.xml")
     UNET_OV_PATH = Path("model/unet_controlnet.xml")
@@ -806,7 +817,7 @@ Prepare Inference pipeline
 
 We already deeply discussed how the ControlNet-guided pipeline works on
 example pose-controlled generation in `controlnet
-notebook <../controlnet-stable-diffusion>`__. In our current example,
+notebook <controlnet-stable-diffusion-with-output.html>`__. In our current example,
 the pipeline remains without changes. Similarly to Diffusers
 ``StableDiffusionControlNetPipeline``, we define our own
 ``OVControlNetStableDiffusionPipeline`` inference pipeline based on
@@ -1236,16 +1247,16 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    import requests
     
-    core = ov.Core()
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
     
     device
 
@@ -1260,6 +1271,8 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
+    core = ov.Core()
+    
     ov_pipe = OVControlNetStableDiffusionPipeline(
         tokenizer,
         scheduler,
@@ -1366,13 +1379,10 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    is_gpu_device = "GPU" in device.value
-    to_quantize = widgets.Checkbox(
-        value=not is_gpu_device,
-        description="Quantization",
-        disabled=is_gpu_device,
-    )
+    from notebook_utils import quantization_widget
     
+    skip_for_device = "GPU" in device.value
+    to_quantize = quantization_widget(not skip_for_device)
     to_quantize
 
 Let’s load ``skip magic`` extension to skip quantization if
@@ -1689,72 +1699,47 @@ options for generation: ``Guidance scale``, ``Seed`` and ``Steps``.
     
     quantized_model_present = int8_pipe is not None
     
-    gr.close_all()
-    with gr.Blocks() as demo:
-        with gr.Row():
-            with gr.Column():
-                inp_img = gr.Image(label="Input image")
-            with gr.Column(visible=True) as step1:
-                out_normal = gr.Image(label="Normal Map", type="pil", interactive=False)
-                btn = gr.Button()
-                inp_prompt = gr.Textbox(label="Prompt")
-                inp_neg_prompt = gr.Textbox(
-                    "",
-                    label="Negative prompt",
-                )
-                with gr.Accordion("Advanced options", open=False):
-                    guidance_scale = gr.Slider(
-                        label="Guidance scale",
-                        minimum=0.1,
-                        maximum=2,
-                        step=0.1,
-                        value=0.5,
-                    )
-                    inp_seed = gr.Slider(label="Seed", value=42, maximum=MAX_SEED)
-                    inp_steps = gr.Slider(label="Steps", value=4, minimum=1, maximum=50, step=1)
-            with gr.Column(visible=True) as step2:
-                out_result = gr.Image(label="Result (Original)")
-            with gr.Column(visible=quantized_model_present) as quantization_step:
-                int_result = gr.Image(label="Result (Quantized)")
-        examples = gr.Examples([["example.png", "a head full of roses"]], [inp_img, inp_prompt])
     
-        def extract_normal_map(img):
-            if img is None:
-                raise gr.Error("Please upload the image or use one from the examples list")
-            return processor(img)
+    def extract_normal_map(img):
+        if img is None:
+            raise gr.Error("Please upload the image or use one from the examples list")
+        return processor(img)
     
-        def generate(img, prompt, negative_prompt, seed, num_steps, guidance_scale):
+    
+    def generate(img, prompt, negative_prompt, seed, num_steps, guidance_scale):
+        torch.manual_seed(seed)
+        control_img = extract_normal_map(img)
+    
+        result = ov_pipe(
+            prompt,
+            control_img,
+            num_steps,
+            guidance_scale=guidance_scale,
+            negative_prompt=negative_prompt,
+        )[0]
+        if quantized_model_present:
             torch.manual_seed(seed)
-            control_img = extract_normal_map(img)
-    
-            result = ov_pipe(
+            int8_result = int8_pipe(
                 prompt,
                 control_img,
                 num_steps,
                 guidance_scale=guidance_scale,
                 negative_prompt=negative_prompt,
             )[0]
-            if int8_pipe is not None:
-                torch.manual_seed(seed)
-                int8_result = int8_pipe(
-                    prompt,
-                    control_img,
-                    num_steps,
-                    guidance_scale=guidance_scale,
-                    negative_prompt=negative_prompt,
-                )[0]
-                return control_img, result, int8_result
-            return control_img, result
-    
-        output_images = [out_normal, out_result]
-        if quantized_model_present:
-            output_images.append(int_result)
-        btn.click(
-            generate,
-            [inp_img, inp_prompt, inp_neg_prompt, inp_seed, inp_steps, guidance_scale],
-            output_images,
+            return control_img, result, int8_result
+        return control_img, result
+
+.. code:: ipython3
+
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/latent-consistency-models-image-generation/gradio_helper.py"
         )
+        open("gradio_helper.py", "w").write(r.text)
     
+    from gradio_helper import make_demo_lcm_lora
+    
+    demo = make_demo_lcm_lora(fn=generate, quantized=quantized_model_present)
     
     try:
         demo.queue().launch(debug=False)
@@ -1763,3 +1748,8 @@ options for generation: ``Guidance scale``, ``Seed`` and ``Steps``.
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

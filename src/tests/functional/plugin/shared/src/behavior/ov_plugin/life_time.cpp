@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -148,9 +148,6 @@ void OVHoldersTestOnImportedNetwork::TearDown() {
 }
 
 TEST_P(OVHoldersTestOnImportedNetwork, LoadedTensor) {
-    if (sw_plugin_in_target_device(target_device)) {
-        return;
-    }
     ov::Core core = ov::test::utils::create_core();
     std::stringstream stream;
     {
@@ -163,9 +160,6 @@ TEST_P(OVHoldersTestOnImportedNetwork, LoadedTensor) {
 }
 
 TEST_P(OVHoldersTestOnImportedNetwork, CreateRequestWithCoreRemoved) {
-    if (sw_plugin_in_target_device(target_device)) {
-        return;
-    }
     ov::Core core = ov::test::utils::create_core();
     std::stringstream stream;
     {

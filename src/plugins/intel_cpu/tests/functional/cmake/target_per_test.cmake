@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -23,6 +23,9 @@ if(X86_64)
 elseif(ARM OR AARCH64)
     list(APPEND REQUIRED_OBJECT_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/utils/arm/filter_cpu_info.cpp)
+elseif(RISCV64)
+    list(APPEND REQUIRED_OBJECT_FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils/riscv64/filter_cpu_info.cpp)
 endif()
 
   file(GLOB LIST_OF_TEST_FILES ${TEST_DIR}/*.cpp)

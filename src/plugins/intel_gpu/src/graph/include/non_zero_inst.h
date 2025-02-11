@@ -54,8 +54,6 @@ struct typed_program_node<gather_nonzero> : public typed_program_node_base<gathe
 public:
     using parent::parent;
 
-    bool generates_dynamic_output() const override { return true; }
-
     program_node& input(size_t index = 0) const {
         OPENVINO_ASSERT(dependencies.size() == 2, "[GPU] Primitive ", id(), " has invalid number of depndencies");
         return get_dependency(index);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ static void TopKImpl(ProgramBuilder& p,
     if (p.use_new_shape_infer()) {
         size_t num_outputs = op->get_output_size();
 
-        auto topk_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
+        auto topk_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
         auto argmaxPrim = cldnn::arg_max_min(layerName,
                                             inputs[0],
                                             inputs[1],
@@ -38,10 +38,8 @@ static void TopKImpl(ProgramBuilder& p,
                                             stype,
                                             true,
                                             stable,
-                                            cldnn::padding({0, 0, 0, 0}, 0),
                                             cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                             num_outputs);
-        argmaxPrim.output_paddings = get_output_paddings(op);
         argmaxPrim.output_data_types = get_output_data_types(op);
         p.add_primitive(*op, argmaxPrim);
     } else {
@@ -73,7 +71,6 @@ static void TopKImpl(ProgramBuilder& p,
                                                  stype,
                                                  true,
                                                  stable,
-                                                 cldnn::padding({0, 0, 0, 0}, 0),
                                                  cldnn::element_type_to_data_type(op->get_output_element_type(0)));
 
             p.add_primitive(*op, argmaxPrim);
@@ -92,7 +89,6 @@ static void TopKImpl(ProgramBuilder& p,
                                                  stype,
                                                  true,
                                                  stable,
-                                                 cldnn::padding({0, 0, 0, 0}, 0),
                                                  cldnn::element_type_to_data_type(op->get_output_element_type(0)));
 
             p.add_primitive(*op, argmaxPrim);

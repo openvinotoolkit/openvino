@@ -31,9 +31,6 @@ bool LoadMoveBroadcastToBroadcastLoad::run(LinearIR& linear_ir, lowered::LinearI
                  load_expr->get_input_port_descriptor(0)->get_shape() != load_expr->get_output_port_descriptor(0)->get_shape())
                  continue;
 
-            OPENVINO_ASSERT(expr->get_loop_ids() == load_expr->get_loop_ids(),
-                            "The pair of Load and MoveBroadcast expressions must be in the same loops!");
-
             // Cannot rewrite Broadcast + Load if load has more than 1 user
             // or more than one input, or if Broadcast has several inputs
             const auto load_consumers_inputs = interm_connector->get_consumers();
@@ -50,7 +47,10 @@ bool LoadMoveBroadcastToBroadcastLoad::run(LinearIR& linear_ir, lowered::LinearI
             const auto& load_parent_node = load_expr->get_input_port_connector(0)->get_source().get_expr()->get_node();
             const auto& outshape = move_broadcast->get_output_partial_shape(0);
             const auto broadcastload = std::make_shared<snippets::op::BroadcastLoad>(load_parent_node, *outshape.rbegin(), load->get_offset());
-            expr_it = linear_ir.replace_with_node({ load_expr, expr }, broadcastload);
+            auto live_regs = load_expr->get_live_regs();
+            expr_it = linear_ir.replace_with_node({ load_expr, expr }, broadcastload, load_expr->get_loop_ids(), linear_ir.find(load_expr));
+            // Note: We have to set live regs manually, since this transformation is applied after all register-related passes.
+            expr_it->get()->set_live_regs(std::move(live_regs));
             modified |= true;
         }
     }

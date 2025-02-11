@@ -46,6 +46,6 @@ class TRANSFORMATIONS_API TSShapeOfForward;
  */
 class ov::pass::transpose_sinking::TSShapeOfForward : public ov::pass::transpose_sinking::TSForwardBase {
 public:
-    OPENVINO_RTTI("TSShapeOfForward", "0");
+    OPENVINO_RTTI("TSShapeOfForward", "0", ov::pass::transpose_sinking::TSForwardBase);
     TSShapeOfForward();
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,10 @@
 #define EXE_MODE_DEFAULT ""
 #define EXE_MODE_AGE_BASED "-cl-no-subgroup-ifp"
 #define EXE_MODE_NO_PRERA_SCH "-cl-intel-no-prera-scheduling"
+
+namespace micro {
+struct MicroKernelPackage;
+}  // namspace
 
 namespace kernel_selector {
 
@@ -42,6 +46,7 @@ namespace kernel_selector {
 
 std::string GetStringEnv(const char* varName);
 
+using KernelLanguage = cldnn::kernel_language;
 using KernelString = cldnn::kernel_string;
 using WorkGroupSizes = cldnn::work_group_sizes;
 using ScalarDescriptor = cldnn::scalar_desc;
@@ -64,7 +69,11 @@ struct KernelCode {
 struct clKernelData {
     KernelCode code;
     KernelParams params;
+    std::vector<std::shared_ptr<micro::MicroKernelPackage>> micro_kernels;
     bool skip_execution = false;
+
+    void save(cldnn::BinaryOutputBuffer& ob) const;
+    void load(cldnn::BinaryInputBuffer& ib);
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

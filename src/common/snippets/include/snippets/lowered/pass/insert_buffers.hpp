@@ -23,8 +23,8 @@ namespace pass {
  */
 class InsertBuffers : public RangedPass {
 public:
-    OPENVINO_RTTI("InsertBuffers", "RangedPass")
-    InsertBuffers(int32_t buffer_allocation_rank);
+    OPENVINO_RTTI("InsertBuffers", "", RangedPass);
+    InsertBuffers() = default;
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
 private:
@@ -32,15 +32,13 @@ private:
                    const LinearIR::constExprIt& begin_it,
                    const LinearIR::constExprIt& end_it,
                    const LoopManagerPtr& loop_manager,
-                   const std::vector<LoopPort>& loop_entries,
-                   const std::vector<LoopPort>& loop_exits) const;
+                   const std::vector<ExpressionPort>& loop_entries,
+                   const std::vector<ExpressionPort>& loop_exits) const;
 
     static LinearIR::constExprIt insertion_position(const LinearIR& linear_ir,
                                                     const LoopManagerPtr& loop_manager,
                                                     const ExpressionPtr& expr,
                                                     const ExpressionPtr& down_expr);
-
-    int32_t m_buffer_allocation_rank;
 };
 
 } // namespace pass

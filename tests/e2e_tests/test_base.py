@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Main entry-point to run E2E OSS tests.
@@ -95,7 +95,7 @@ def _test_run(instance, pregen_irs, record_property, prepare_test_info, inferenc
                     log.error('IR pre-generation failed. IR will be generated in runtime ...')
                 else:
                     if not mo_log:
-                        log.warning('IR was collected successfully, but MO log was not saved.')
+                        log.warning('IR was collected successfully, but OVC log was not saved.')
                     else:
                         with open(mo_log, "r") as file:
                             mo_output = file.read()

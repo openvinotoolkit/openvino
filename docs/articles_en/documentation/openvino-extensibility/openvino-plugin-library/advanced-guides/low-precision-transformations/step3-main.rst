@@ -1,5 +1,3 @@
-.. {#step3-main/step3_main}
-
 Step 3. Main Transformations
 ============================
 
@@ -20,7 +18,7 @@ Step 3. Main Transformations
    ConcatTransformation <step3-main/movement/concat>
    ConvolutionTransformation <step3-main/convolution/convolution>
    ConvolutionBackpropDataTransformation <step3-main/convolution/convolution-backprop-data>
-   DepthToSpaceTransformation <step3-main/movement-depth-to-space>
+   DepthToSpaceTransformation <step3-main/movement/depth-to-space>
    FakeQuantizeDecompositionTransformation <step4-cleanup/fake-quantize-decomposition>
    FakeQuantizeTransformation <step3-main/quantization/fake-quantize>
    InterpolateTransformation <step3-main/image/interpolate>
@@ -29,6 +27,7 @@ Step 3. Main Transformations
    MatMulTransformation <step3-main/matrix/mat-mul>
    MaxPoolTransformation <step3-main/pooling/max-pool>
    MultiplyPartialTransformation <step3-main/arithmetic/multiply-partial>
+   MultiplyTransformation <step3-main/arithmetic/multiply>
    MVNTransformation <step3-main/normalization/mvn>
    NormalizeL2Transformation <step3-main/normalization/normalize-l2>
    PadTransformation<step3-main/movement/pad>
@@ -44,6 +43,7 @@ Step 3. Main Transformations
    ShuffleChannelsTransformation <step3-main/movement/shuffle-channels>
    SplitTransformation <step3-main/movement/split>
    StridedSliceTransformation <step3-main/movement/strided-slice>
+   SubtractTransformation <step3-main/arithmetic/subtract>
    TransposeTransformation <step3-main/movement/transpose>
    UnsqueezeTransformation <step3-main/shape/unsqueeze>
    VariadicSplitTransformation <step3-main/movement/variadic-split>
@@ -67,6 +67,7 @@ Main transformations are the majority of low precision transformations. Transfor
 * :doc:`MatMulTransformation <step3-main/matrix/mat-mul>`
 * :doc:`MaxPoolTransformation <step3-main/pooling/max-pool>`
 * :doc:`MultiplyPartialTransformation <step3-main/arithmetic/multiply-partial>`
+* :doc:`MultiplyTransformation <step3-main/arithmetic/multiply>`
 * :doc:`MVNTransformation <step3-main/normalization/mvn>`
 * :doc:`NormalizeL2Transformation <step3-main/normalization/normalize-l2>`
 * :doc:`PadTransformation <step3-main/movement/pad>`
@@ -82,18 +83,19 @@ Main transformations are the majority of low precision transformations. Transfor
 * :doc:`ShuffleChannelsTransformation <step3-main/movement/shuffle-channels>`
 * :doc:`SplitTransformation <step3-main/movement/split>`
 * :doc:`StridedSliceTransformation <step3-main/movement/strided-slice>`
+* :doc:`SubtractTransformation <step3-main/arithmetic/subtract>`
 * :doc:`TransposeTransformation <step3-main/movement/transpose>`
 * :doc:`UnsqueezeTransformation <step3-main/shape/unsqueeze>`
 * :doc:`VariadicSplitTransformation <step3-main/movement/variadic-split>`
 
 Let's explore some main transformations on the example model. Original model:
 
-.. image:: ../../../../../_static/images/step3_original.svg
+.. image:: ../../../../../assets/images/step3_original.svg
    :alt: Original model
 
 Result model after main transformations:
 
-.. image:: ../../../../../_static/images/step3_transformed.svg
+.. image:: ../../../../../assets/images/step3_transformed.svg
    :alt: Transformed model
 
 Changes in the example model after main transformation:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 class Split;
-}   // namespace node
+}  // namespace node
 
 class MemoryDesc;
 
@@ -39,10 +39,10 @@ enum MemoryDescType {
 };
 
 enum class LayoutType : unsigned {
-    nspc,      // general per channels format
-    ncsp,      // general planar
-    nCsp8c,    // general channels blocked by 8
-    nCsp16c    // general channels blocked by 16
+    nspc,    // general per channels format
+    ncsp,    // general planar
+    nCsp8c,  // general channels blocked by 8
+    nCsp16c  // general channels blocked by 16
 };
 
 class MemoryDesc {
@@ -70,8 +70,8 @@ public:
 
     /**
      * @brief Clone descriptor with new dims.
-     * Throws an exception if relaxedCheck is false and some of the new dims conflicts with the internal shape (i.e. its defined dims ,rank, upper bounds)
-     * or if internal shape and dims have different ranks
+     * Throws an exception if relaxedCheck is false and some of the new dims conflicts with the internal shape (i.e. its
+     * defined dims ,rank, upper bounds) or if internal shape and dims have different ranks
      * @param dims new dims
      * @param relaxedCheck flag which defined must we check dims with internal desc on compatibility
      * @return MemoryDescPtr with new dims
@@ -136,8 +136,8 @@ public:
     }
 
     template <typename T,
-            typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-            typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
+              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+              typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
     T* as() {
         T* casted = dynamic_cast<T*>(this);
         if (!casted)
@@ -146,8 +146,8 @@ public:
     }
 
     template <typename T,
-            typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-            typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
+              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+              typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
     const T* as() const {
         const T* casted = dynamic_cast<const T*>(this);
         if (!casted)
@@ -159,17 +159,16 @@ public:
 
 protected:
     MemoryDesc() : type(MemoryDescType::Undef) {}
-    MemoryDesc(Shape shape, MemoryDescType type)
-            : type(type), shape(std::move(shape)) {}
+    MemoryDesc(Shape shape, MemoryDescType type) : type(type), shape(std::move(shape)) {}
 
-    MemoryDesc(const VectorDims& dims, MemoryDescType type)
-            : type(type), shape(dims) {}
+    MemoryDesc(const VectorDims& dims, MemoryDescType type) : type(type), shape(dims) {}
 
     virtual void setPrecision(ov::element::Type prc) = 0;
 
     virtual size_t getCurrentMemSizeImp() const = 0;
 
-    // Get offset to the n'th element. Returns physical index of the element by the logical one considering padding, layout, blocking etc.
+    // Get offset to the n'th element. Returns physical index of the element by the logical one considering padding,
+    // layout, blocking etc.
     virtual size_t getElementOffset(size_t elemNumber) const = 0;
 
     virtual bool canComputeMemSizeZeroDims() const = 0;
@@ -195,5 +194,5 @@ protected:
     friend class node::Split;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

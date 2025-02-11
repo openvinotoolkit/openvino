@@ -1,12 +1,12 @@
 Release Policy
 =============================================================================
 
-OpenVINO offers releases of three different types, each targeting a different use case:
+OpenVINO™ offers releases of four different types, each targeting a different use case:
 
 * `Regular releases <#regular-releases>`__
 * `Long-Term Support <#long-term-support-releases>`__
+* `Pre-release releases <#pre-release-releases>`__
 * `Nightly <#nightly-releases>`__
-
 
 Regular releases
 ####################
@@ -60,6 +60,16 @@ The following elements are not guaranteed to receive updates:
 * OpenVINO tools, such as NNCF and OVMS.
 * Code samples used in component testing.
 
+Pre-release releases
+######################
+
+OpenVINO pre-release is an early version of regular releases that has not undergone full release validation
+or qualification. Pre-release versions are more stable than nightly releases. No support is offered on pre-release software. The scope, functionality,
+and APIs/behavior are subject to change in the future. It **should NOT** be incorporated into
+any production software/solution, instead it should be used only for:
+
+* Performing early testing and integration.
+* Getting early feedback from the community.
 
 Nightly releases
 ###########################
@@ -169,7 +179,7 @@ Additional Information
 * Binary distribution:
 
   * Download from `OpenVINO storage <https://storage.openvinotoolkit.org/repositories/openvino/packages/>`__
-  * `pypi.org <https://pypi.org/project/openvino-dev/>`__
+  * `pypi.org <https://pypi.org/project/openvino/>`__
   * `DockerHub* <https://hub.docker.com/u/openvino>`__
 
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -181,7 +181,7 @@ KERNEL(gemm_tiled_opt)(
     // Start pointers offsets
 #if TRANSPOSE_INPUT0 == TRANSPOSE_X_LAST
     const __global INPUT0_TYPE* a_ptr = input0 + batch_offset_input0;
-    #if HAS_DYNAMIC_K_PADDING || INPUT0_HAS_PADDING
+    #if INPUT0_HAS_DYNAMIC_PADDING || INPUT0_HAS_PADDING
         const uint input0_offset = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (y+1), 0) - batch_offset_input0;
         const uint input0_offset1 = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, (TILE_K)) - batch_offset_input0;
     #else
@@ -190,7 +190,7 @@ KERNEL(gemm_tiled_opt)(
     #endif
 #elif TRANSPOSE_INPUT0 == TRANSPOSE_Y_LAST
     const __global INPUT0_TYPE* a_ptr = input0 + batch_offset_input0;
-    #if HAS_DYNAMIC_K_PADDING || INPUT0_HAS_PADDING
+    #if INPUT0_HAS_DYNAMIC_PADDING || INPUT0_HAS_PADDING
         const uint input0_offset = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, 1) - batch_offset_input0;
         const uint input0_offset1 = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, (TILE_K)) - batch_offset_input0;
     #else
@@ -200,14 +200,14 @@ KERNEL(gemm_tiled_opt)(
 #endif // TRANSPOSE_INPUT0
 #if TRANSPOSE_INPUT1 == TRANSPOSE_X_LAST
     const __global INPUT1_TYPE* b_ptr = input1 + batch_offset_input1;
-    #if HAS_DYNAMIC_K_PADDING || INPUT1_HAS_PADDING
+    #if INPUT1_HAS_DYNAMIC_PADDING || INPUT1_HAS_PADDING
         const uint input1_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, 1, tile_n_offset) - batch_offset_input1;
     #else
         const uint input1_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR 0, 0, 0, 0, 1, 0);
     #endif
 #elif TRANSPOSE_INPUT1 == TRANSPOSE_Y_LAST
     const __global INPUT1_TYPE* b_ptr = input1 + batch_offset_input1;
-    #if HAS_DYNAMIC_K_PADDING || INPUT1_HAS_PADDING
+    #if INPUT1_HAS_DYNAMIC_PADDING || INPUT1_HAS_PADDING
         const uint input1_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, 0, (tile_n_offset + 1)) - batch_offset_input1;
         const uint input1_offset1 = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (TILE_K), tile_n_offset) - batch_offset_input1;
     #else
@@ -281,13 +281,13 @@ KERNEL(gemm_tiled_opt)(
                 #if B_VEC_SIZE == 1
                 b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
                 #else // B_VEC_SIZE == 1
-                    #if TILE_N_NOT_DIVISIBLE
+                    if (TILE_N_NOT_DIVISIBLE == 0 || N_IS_ALIGNED_4BYTE)
+                        b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
+                    else {
                         unroll_for (uint b_elem = 0; b_elem < B_VEC_SIZE; ++b_elem) {
                             b_tile[b_load_id][b_elem] = b_ptr[sglid + SIMD_WIDTH * b_elem];
                         }
-                    #else // TILE_N_NOT_DIVISIBLE
-                        b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
-                    #endif // TILE_N_NOT_DIVISIBLE
+                    }
                 #endif // B_VEC_SIZE == 1
                 b_ptr += input1_offset;
             }
@@ -386,8 +386,8 @@ KERNEL(gemm_tiled_opt)(
 #endif // TRANSPOSE_INPUT1 == TRANSPOSE_Y_LAST
 
         // Loading A tile and tile C calculation
-#if IS_DYNAMIC && !INDIRECT_INPUT0 && !HAS_DYNAMIC_K_PADDING && TRANSPOSE_INPUT0 == TRANSPOSE_X_LAST
-        A_FLOATN a_read = TILE_K_NOT_DIVISIBLE ? a_ptr[sglid] : BLOCK_READ_A(a_ptr, 0);
+#if IS_DYNAMIC && !INDIRECT_INPUT0 && !INPUT0_HAS_DYNAMIC_PADDING && !INPUT1_HAS_DYNAMIC_PADDING && TRANSPOSE_INPUT0 == TRANSPOSE_X_LAST
+        A_FLOATN a_read = (TILE_K_NOT_DIVISIBLE == 0 || K_IS_ALIGNED_4BYTE) ? BLOCK_READ_A(a_ptr, 0): a_ptr[sglid];
 #endif
         unroll_for (uint dot_id = 0; dot_id < tile_m_iterations; dot_id++) {
 #if TRANSPOSE_INPUT0 == TRANSPOSE_X_LAST
@@ -395,7 +395,7 @@ KERNEL(gemm_tiled_opt)(
         #if INDIRECT_INPUT0
             uint a_idx = FUNC_CALL(get_input0_indirect_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (y + dot_id), (k * TILE_K + sglid), beam_table);
             A_FLOATN a_read = input0[a_idx];
-        #elif HAS_DYNAMIC_K_PADDING || INPUT0_HAS_PADDING
+        #elif INPUT0_HAS_DYNAMIC_PADDING || INPUT1_HAS_DYNAMIC_PADDING || INPUT0_HAS_PADDING
             // In case of dynamic padding we can't guarantee memory access alignment for
             // block reads (4 bytes), so use scattered read
             uint a_idx = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (y + dot_id), (k * TILE_K + sglid));
@@ -431,9 +431,9 @@ KERNEL(gemm_tiled_opt)(
     #endif // TILE_K > SIMD_WIDTH
                 }
             }
-    #if IS_DYNAMIC && !INDIRECT_INPUT0 && !HAS_DYNAMIC_K_PADDING
+    #if IS_DYNAMIC && !INDIRECT_INPUT0 && !INPUT0_HAS_DYNAMIC_PADDING && !INPUT1_HAS_DYNAMIC_PADDING
         // Read A for next dot_id
-        a_read = (dot_id + 1 < tile_m_iterations) ? TILE_K_NOT_DIVISIBLE ? a_ptr[sglid] : BLOCK_READ_A(a_ptr, 0) : 0;
+        a_read = (dot_id + 1 < tile_m_iterations) ? (TILE_K_NOT_DIVISIBLE == 0 || K_IS_ALIGNED_4BYTE) ? BLOCK_READ_A(a_ptr, 0) : a_ptr[sglid] : 0;
     #endif
 #elif TRANSPOSE_INPUT0 == TRANSPOSE_OTHER // TRANSPOSE_INPUT0
     #if INDIRECT_INPUT0
@@ -516,13 +516,13 @@ KERNEL(gemm_tiled_opt)(
                 #if B_VEC_SIZE == 1
                     b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
                 #else // B_VEC_SIZE == 1
-                    #if TILE_N_NOT_DIVISIBLE
+                    if (TILE_N_NOT_DIVISIBLE == 0 || N_IS_ALIGNED_4BYTE)
+                        b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
+                    else {
                         unroll_for (uint b_elem = 0; b_elem < B_VEC_SIZE; ++b_elem) {
                             b_tile[b_load_id][b_elem] = b_ptr[sglid + SIMD_WIDTH * b_elem];
                         }
-                    #else
-                        b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
-                    #endif // TILE_N_NOT_DIVISIBLE
+                    }
                 #endif // B_VEC_SIZE == 1
                     b_ptr += input1_offset;
                 }
@@ -786,6 +786,12 @@ KERNEL(gemm_tiled_opt)(
         ACCUMULATOR_TYPE_VEC dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * c_tile[write_id];
         #endif // BIAS_TERM
 
+        #if TRANSPOSE_OUTPUT == TRANSPOSE_X_LAST
+        const uint x_pitch = 1;
+        #else
+        const uint x_pitch = output_x_pitch;
+        #endif
+
         #if HAS_FUSED_OPS
             #if FUSED_OPS_CAN_USE_PRELOAD
         FUSED_OPS_CALC_VEC;
@@ -793,9 +799,13 @@ KERNEL(gemm_tiled_opt)(
         FUSED_OPS_VEC;
             #endif // FUSED_OPS_CAN_USE_PRELOAD
         OUTPUT_TYPE_VEC res = FUSED_OPS_RESULT_VEC;
-        BLOCK_WRITE_C(d_ptr, 0, res);
+        unroll_for (uint n_elem = 0; n_elem < B_VEC_SIZE; ++n_elem) {
+            BLOCK_WRITEN(OUTPUT_TYPE, 1, d_ptr, SIMD_WIDTH * n_elem * output_x_pitch, res[n_elem]);
+        }
         #else // HAS_FUSED_OPS
-        BLOCK_WRITE_C(d_ptr, 0, dequantized);
+        unroll_for (uint n_elem = 0; n_elem < B_VEC_SIZE; ++n_elem) {
+            BLOCK_WRITEN(OUTPUT_TYPE, 1, d_ptr, SIMD_WIDTH * n_elem * output_x_pitch, dequantized[n_elem]);
+        }
         #endif // HAS_FUSED_OPS
     #endif // TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1
 #endif // IS_DYNAMIC

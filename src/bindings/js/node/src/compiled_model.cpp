@@ -1,12 +1,14 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "node/include/compiled_model.hpp"
 
 #include "node/include/addon.hpp"
 #include "node/include/errors.hpp"
+#include "node/include/helper.hpp"
 #include "node/include/infer_request.hpp"
 #include "node/include/node_output.hpp"
+#include "node/include/type_validation.hpp"
 
 CompiledModelWrap::CompiledModelWrap(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<CompiledModelWrap>(info),
@@ -20,7 +22,9 @@ Napi::Function CompiledModelWrap::get_class(Napi::Env env) {
                         InstanceAccessor<&CompiledModelWrap::get_inputs>("inputs"),
                         InstanceMethod("output", &CompiledModelWrap::get_output),
                         InstanceAccessor<&CompiledModelWrap::get_outputs>("outputs"),
-                        InstanceMethod("exportModelSync", &CompiledModelWrap::export_model)});
+                        InstanceMethod("exportModelSync", &CompiledModelWrap::export_model),
+                        InstanceMethod("setProperty", &CompiledModelWrap::set_property),
+                        InstanceMethod("getProperty", &CompiledModelWrap::get_property)});
 }
 
 Napi::Object CompiledModelWrap::wrap(Napi::Env env, ov::CompiledModel compiled_model) {
@@ -121,4 +125,37 @@ Napi::Value CompiledModelWrap::export_model(const Napi::CallbackInfo& info) {
     _compiled_model.export_model(_stream);
     const auto& exported = _stream.str();
     return Napi::Buffer<const char>::Copy(info.Env(), exported.c_str(), exported.size());
+}
+
+Napi::Value CompiledModelWrap::set_property(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    std::vector<std::string> allowed_signatures;
+    try {
+        if (ov::js::validate<Napi::Object>(info, allowed_signatures)) {
+            const auto properties = to_anyMap(env, info[0]);
+            _compiled_model.set_property(properties);
+        } else {
+            OPENVINO_THROW("'setProperty'", ov::js::get_parameters_error_msg(info, allowed_signatures));
+        }
+    } catch (const std::exception& e) {
+        reportError(env, e.what());
+    }
+    return env.Undefined();
+}
+
+Napi::Value CompiledModelWrap::get_property(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    std::vector<std::string> allowed_signatures;
+    try {
+        if (ov::js::validate<Napi::String>(info, allowed_signatures)) {
+            const auto property_name = info[0].As<Napi::String>().Utf8Value();
+            const auto property = _compiled_model.get_property(property_name);
+            return any_to_js(info, property);
+        } else {
+            OPENVINO_THROW("'getProperty'", ov::js::get_parameters_error_msg(info, allowed_signatures));
+        }
+    } catch (const std::exception& e) {
+        reportError(env, e.what());
+    }
+    return env.Undefined();
 }

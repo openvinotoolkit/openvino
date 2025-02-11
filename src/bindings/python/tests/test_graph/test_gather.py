@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino import Tensor, Type
-import openvino.runtime.opset8 as ov
+import openvino.opset8 as ov
 import numpy as np
 import pytest
 
@@ -47,5 +47,5 @@ def test_gather_string(data_str, input_shape, indices, axis, expected_shape, bat
     assert list(node.get_output_shape(0)) == expected_shape
     assert node.get_output_element_type(0) == Type.string
 
-    node.evaluate([out_tensor], [Tensor(input_data), Tensor(input_indices), Tensor(input_axis)])
+    node.evaluate([out_tensor], [Tensor(input_data, shared_memory=False), Tensor(input_indices), Tensor(input_axis)])
     assert np.array(data_str[indices[0]]) == out_tensor.str_data

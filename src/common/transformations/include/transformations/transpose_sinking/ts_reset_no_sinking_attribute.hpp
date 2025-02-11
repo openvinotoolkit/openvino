@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/pass.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -25,6 +24,6 @@ class TRANSFORMATIONS_API TSResetNoSinkingAttribute;
  */
 class ov::pass::transpose_sinking::TSResetNoSinkingAttribute : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::pass::TSResetNoSinkingAttribute", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ov::pass::TSResetNoSinkingAttribute");
     TSResetNoSinkingAttribute();
 };

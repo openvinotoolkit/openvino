@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,16 +33,20 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& then_pshape, const
         return ov::PartialShape::dynamic();
     }
     if (then_rank.get_length() != else_rank.get_length()) {
+        auto is_one_element = [](const ov::PartialShape& pshape) {
+            return pshape.size() == 0 || (pshape.is_static() && pshape[0].get_length() == 1);
+        };
         // Union of scalar and 1D case
         if (then_rank.get_length() <= 1 && else_rank.get_length() <= 1) {
-            return ov::PartialShape::dynamic(1);
+            return (is_one_element(then_pshape) && is_one_element(else_pshape)) ? ov::PartialShape{1}
+                                                                                : ov::PartialShape::dynamic(1);
         } else {
             return ov::PartialShape::dynamic();
         }
     }
-    std::vector<ov::Dimension> new_dims;
 
-    // If rangs are equal each dimesion of then_body output is union with each dimension of
+    ov::PartialShape new_dims;
+    // If ranges are equal each dimension of then_body output is union with each dimension of
     // else_body
     for (auto then_it = then_pshape.cbegin(), else_it = else_pshape.cbegin(); then_it != then_pshape.cend();
          then_it++, else_it++) {
@@ -57,7 +61,7 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& then_pshape, const
         }
     }
 
-    return ov::PartialShape(new_dims);
+    return new_dims;
 }
 
 bool ov::op::v8::If::visit_attributes(AttributeVisitor& visitor) {

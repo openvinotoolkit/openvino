@@ -48,7 +48,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GPU_BehaviorTests, InferencePrecisionTests, ::tes
 TEST(InferencePrecisionTests, CantSetInvalidInferencePrecision) {
     ov::Core core;
 
-    ASSERT_NO_THROW(core.get_property(ov::test::utils::DEVICE_GPU, ov::hint::inference_precision));
+    OV_ASSERT_NO_THROW(core.get_property(ov::test::utils::DEVICE_GPU, ov::hint::inference_precision));
     ASSERT_ANY_THROW(core.set_property(ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::bf16)));
 }
 

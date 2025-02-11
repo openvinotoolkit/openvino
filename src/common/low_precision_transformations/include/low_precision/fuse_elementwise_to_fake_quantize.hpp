@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ public:
     FuseElementwiseToFakeQuantizeTransformation(const Params& params);
     virtual ~FuseElementwiseToFakeQuantizeTransformation() = default;
 
-    bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
+    bool canBeTransformed(const std::shared_ptr<Node>& layer) const override;
 };
 
 } // namespace low_precision

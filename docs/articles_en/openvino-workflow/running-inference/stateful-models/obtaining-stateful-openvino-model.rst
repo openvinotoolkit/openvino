@@ -1,7 +1,5 @@
-.. {#openvino_docs_OV_UG_ways_to_get_stateful_model}
-
 Obtaining a Stateful OpenVINO Model
-====================================
+======================================
 
 If the original framework does not offer a dedicated API for working with states, the
 resulting OpenVINO IR model will not be stateful by default. This means it will not contain
@@ -12,7 +10,7 @@ and you have three ways to do it:
 
 * `Optimum-Intel <https://github.com/huggingface/optimum-intel>`__ - an automated solution
   applicable to a selection of models (not covered by this article, for a usage guide
-  refer to the :doc:`LLM Inference with Hugging Face and Optimum Intel <../../../learn-openvino/llm_inference_guide>` article).
+  refer to the :doc:`LLM Inference with Hugging Face and Optimum Intel <../../../openvino-workflow-generative>` article).
 * :ref:`MakeStateful transformation <ov_ug_make_stateful>` - to choose which pairs of
   Parameter and Result to replace.
 * :ref:`LowLatency2 transformation <ov_ug_low_latency>` - to detect and replace Parameter
@@ -23,12 +21,12 @@ and you have three ways to do it:
 .. _ov_ug_make_stateful:
 
 MakeStateful Transformation
-###########################
+###############################
 
 The MakeStateful transformation changes the structure of the model by replacing the
 user-defined pairs of Parameter and Results with the Assign and ReadValue operations:
 
-.. image:: ../../../_static/images/make_stateful_simple.svg
+.. image:: ../../../assets/images/make_stateful_simple.svg
    :alt: diagram of MakeStateful Transformation
    :scale: 90 %
    :align: center
@@ -44,46 +42,68 @@ Parameter/Result tensor names. If there are no tensor names,
 
 **Examples:**
 
-.. image:: ../../../_static/images/make_stateful_detailed.png
+.. image:: ../../../assets/images/make_stateful_detailed.png
    :alt: detailed diagram of MakeStateful Transformation
    :align: center
 
 
 .. tab-set::
 
-   .. tab-item:: C++
+   .. tab-item:: Python
+      :sync: py
 
       .. tab-set::
 
          .. tab-item:: Using tensor names
+            :sync: using-tensor-names
+
+            .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.py
+               :language: py
+               :fragment: [ov:make_stateful_tensor_names]
+
+         .. tab-item:: Using Parameter/Result operations
+            :sync: using-ops
+
+            .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.py
+               :language: py
+               :fragment: [ov:make_stateful_ov_nodes]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. tab-set::
+
+         .. tab-item:: Using tensor names
+            :sync: using-tensor-names
 
             .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
                :language: cpp
                :fragment: [ov:make_stateful_tensor_names]
 
          .. tab-item:: Using Parameter/Result operations
+            :sync: using-ops
 
             .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
                :language: cpp
                :fragment: [ov:make_stateful_ov_nodes]
 
    .. tab-item:: command line
+      :sync: command-line
 
       .. tab-set::
 
          .. tab-item:: Using tensor names
+            :sync: using-tensor-names
 
             .. code-block:: sh
 
                --input_model <INPUT_MODEL> --transform "MakeStateful[param_res_names={'tensor_name_1':'tensor_name_4','tensor_name_3':'tensor_name_6'}]"
 
 
-
-
 .. _ov_ug_low_latency:
 
 LowLatency2 Transformation
-##########################
+###############################
 
 The LowLatency2 transformation changes the structure of a model containing
 :doc:`TensorIterator <../../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/tensor-iterator-1>`
@@ -91,7 +111,7 @@ and :doc:`Loop <../../../documentation/openvino-ir-format/operation-sets/operati
 and replacing pairs of Parameter and Results with the Assign and ReadValue operations,
 as illustrated by the following example:
 
-.. image:: ../../../_static/images/applying_low_latency_2.svg
+.. image:: ../../../assets/images/applying_low_latency_2.svg
    :alt: diagram of LowLatency Transformation
    :align: center
 
@@ -102,19 +122,27 @@ the current State API implementation. Input values are ignored, and the initial 
 for the ReadValue operations are set to zeros unless the user specifies otherwise via
 :doc:`State API <../stateful-models>`.
 
-Applying LowLatency2 Transformation
-++++++++++++++++++++++++++++++++++++
+To apply LowLatency2 Transformation, follow the instruction below:
 
 1. Get :doc:`ov::Model <../integrate-openvino-with-your-application/model-representation>`,
    for example:
 
    .. tab-set::
 
+      .. tab-item:: Python
+         :sync: py
+
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.py
+            :language: py
+            :fragment: [ov:get_ov_model]
+
       .. tab-item:: C++
+         :sync: cpp
 
          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
             :language: cpp
             :fragment: [ov:get_ov_model]
+
 
 2. Change the number of iterations inside TensorIterator/Loop nodes in the model using the
    :doc:`Reshape <../changing-input-shape>` feature.
@@ -125,11 +153,20 @@ Applying LowLatency2 Transformation
 
    .. tab-set::
 
+      .. tab-item:: Python
+         :sync: py
+
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.py
+            :language: py
+            :fragment: [ov:reshape_ov_model]
+
       .. tab-item:: C++
+         :sync: cpp
 
          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
             :language: cpp
             :fragment: [ov:reshape_ov_model]
+
 
    **Unrolling**: If the LowLatency2 transformation is applied to a model containing
    TensorIterator/Loop nodes with exactly one iteration inside, these nodes are unrolled.
@@ -139,7 +176,15 @@ Applying LowLatency2 Transformation
 
    .. tab-set::
 
+      .. tab-item:: Python
+         :sync: py
+
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.py
+            :language: py
+            :fragment: [ov:apply_low_latency_2]
+
       .. tab-item:: C++
+         :sync: cpp
 
          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
             :language: cpp
@@ -155,14 +200,22 @@ Applying LowLatency2 Transformation
 
    .. tab-set::
 
+      .. tab-item:: Python
+         :sync: py
+
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.py
+            :language: py
+            :fragment: [ov:low_latency_2_use_parameters]
+
       .. tab-item:: C++
+         :sync: cpp
 
          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
             :language: cpp
             :fragment: [ov:low_latency_2_use_parameters]
 
 
-   .. image:: ../../../_static/images/llt2_use_const_initializer.svg
+   .. image:: ../../../assets/images/llt2_use_const_initializer.svg
       :alt: diagram of constant subgraph initialization
       :align: center
 
@@ -174,7 +227,15 @@ Applying LowLatency2 Transformation
 
    .. tab-set::
 
+      .. tab-item:: Python
+         :sync: py
+
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.py
+            :language: py
+            :fragment: [ov:low_latency_2]
+
       .. tab-item:: C++
+         :sync: cpp
 
          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
             :language: cpp
@@ -184,7 +245,7 @@ Applying LowLatency2 Transformation
 4. Use state API. See sections :doc:`OpenVINO State API <../stateful-models>`,
    :ref:`Stateful Model Inference <ov_ug_stateful_model_inference>`.
 
-   .. image:: ../../../_static/images/low_latency_limitation_2.svg
+   .. image:: ../../../assets/images/low_latency_limitation_2.svg
       :alt: diagram showing low latency limitation
       :scale: 70 %
       :align: center
@@ -195,42 +256,31 @@ Applying LowLatency2 Transformation
    somewhere in the model.
 
    In such a case, trim non-reshapable layers via
-   :doc:`Model Optimizer command-line <../../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-setting-input-shapes>`
-   arguments: ``--input`` and ``--output``.
+   :doc:`Conversion Parameters <../../model-preparation/conversion-parameters>`:
+   ``--input`` and ``--output``. For example, check the `OpenVINO Model Conversion Tutorial <https://docs.openvino.ai/2024/notebooks/convert-to-openvino-with-output.html>`__.
 
-   For example, the parameter and the problematic constant in the picture above can be
-   trimmed using the ``--input Reshape_layer_name`` command-line option. The problematic
+   As for the parameter and the problematic constant in the picture above, it can be
+   trimmed by using the ``--input Reshape_layer_name`` command-line option. The problematic
    constant can be also replaced using OpenVINO, as shown in the following example:
 
    .. tab-set::
 
+      .. tab-item:: Python
+         :sync: py
+
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.py
+            :language: py
+            :fragment: [ov:replace_const]
+
       .. tab-item:: C++
+         :sync: cpp
 
          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
             :language: cpp
             :fragment: [ov:replace_const]
 
 
-
-Obtaining TensorIterator/Loop Operations using Model Optimizer
-###############################################################
-
-**ONNX and frameworks supported via ONNX format:** *LSTM, RNN, GRU* original layers are
-converted to the GRU/RNN/LSTM Sequence operations. *ONNX Loop* layer is converted to the
-OpenVINO Loop operation.
-
-**TensorFlow:** *BlockLSTM* is converted to a TensorIterator operation. TensorIterator
-body contains LSTM Cell operation. Modifications such as Peepholes and InputForget are
-not supported. The *While* layer is converted to a TensorIterator. TensorIterator body
-can contain any supported operations. However, dynamic cases where the count of iterations
-cannot be calculated during shape inference (Model Optimizer conversion) are not supported.
-
-**TensorFlow2:** *While* layer is converted to a Loop operation. The Loop body can contain
-any supported operations.
-
-
-
-Creating a Model via OpenVINO API
+Stateful Model from Scratch
 ##################################
 
 The main approach to obtaining stateful OpenVINO IR models is converting from other
@@ -245,9 +295,32 @@ a sink from `ov::Model` after deleting the node from the graph with the `delete_
 
 .. tab-set::
 
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.py
+         :language: py
+         :fragment: [ov:stateful_model]
+
    .. tab-item:: C++
+      :sync: cpp
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
          :language: cpp
-         :fragment: [ov:state_network]
+         :fragment: [ov:stateful_model]
 
+
+.. note::
+
+   **ONNX and frameworks supported via ONNX format:** *LSTM, RNN, GRU* original layers are
+   converted to the GRU/RNN/LSTM Sequence operations. *ONNX Loop* layer is converted to the
+   OpenVINO Loop operation.
+
+   **TensorFlow:** *BlockLSTM* is converted to a TensorIterator operation. The TensorIterator
+   body contains LSTM Cell operation. Modifications such as Peepholes and InputForget are
+   not supported. The *While* layer is converted to a TensorIterator. The TensorIterator body
+   can contain any supported operations. However, dynamic cases where the count of iterations
+   cannot be calculated during shape inference are not supported.
+
+   **TensorFlow2:** *While* layer is converted to a Loop operation. The Loop body can contain
+   any supported operations.

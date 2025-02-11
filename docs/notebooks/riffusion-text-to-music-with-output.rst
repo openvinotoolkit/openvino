@@ -74,8 +74,9 @@ The STFT is invertible, so the original audio can be reconstructed from
 a spectrogram. This idea is a behind approach to using Riffusion for
 audio generation.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Stable Diffusion pipeline in Optimum
@@ -87,6 +88,16 @@ Table of contents:
    image <#prepare-postprocessing-for-reconstruction-audio-from-spectrogram-image>`__
 -  `Run Inference pipeline <#run-inference-pipeline>`__
 -  `Interactive demo <#interactive-demo>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 Prerequisites
 -------------
@@ -146,17 +157,16 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    import openvino as ov
+    import requests
     
-    core = ov.Core()
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
     
     device
 
@@ -503,21 +513,6 @@ Interactive demo
 
     import gradio as gr
     
-    available_devices = core.available_devices + ["AUTO"]
-    
-    examples = [
-        "acoustic folk violin jam",
-        "bossa nova with distorted guitar",
-        "arabic gospel vocals",
-        "piano funk",
-        "swing jazz trumpet",
-        "jamaican dancehall vocals",
-        "ibiza at 3am",
-        "k-pop boy group",
-        "laughing",
-        "water drops",
-    ]
-    
     
     def select_device(device_str: str, current_text: str = "", progress: gr.Progress = gr.Progress()):
         """
@@ -537,58 +532,26 @@ Interactive demo
             for i in progress.tqdm(range(1), desc=f"Model loading on {device_str}"):
                 pipe.compile()
         return current_text
+
+.. code:: ipython3
+
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/riffusion-text-to-music/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
     
+    from gradio_helper import make_demo
     
-    with gr.Blocks() as demo:
-        with gr.Column():
-            gr.Markdown("# Riffusion music generation with OpenVINO\n" " Describe a musical prompt, generate music by getting a spectrogram image and sound.")
+    demo = make_demo(generate_fn=generate, select_device_fn=select_device)
     
-            prompt_input = gr.Textbox(placeholder="", label="Musical prompt")
-            negative_prompt = gr.Textbox(label="Negative prompt")
-            device = gr.Dropdown(choices=available_devices, value=DEVICE, label="Device")
-    
-            send_btn = gr.Button(value="Get a new spectrogram!")
-            gr.Examples(examples, prompt_input, examples_per_page=15)
-    
-        with gr.Column():
-            sound_output = gr.Audio(type="filepath", label="spectrogram sound")
-            spectrogram_output = gr.Image(label="spectrogram image result", height=256)
-    
-        send_btn.click(
-            generate,
-            inputs=[prompt_input, negative_prompt],
-            outputs=[spectrogram_output, sound_output],
-        )
-        device.change(select_device, [device, prompt_input], [prompt_input])
-    
-    if __name__ == "__main__":
-        try:
-            demo.queue().launch(debug=False, height=800)
-        except Exception:
-            demo.queue().launch(debug=False, share=True, height=800)
-    
+    try:
+        demo.queue().launch(debug=False, height=800)
+    except Exception:
+        demo.queue().launch(debug=False, share=True, height=800)
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
 
+.. code:: ipython3
 
-.. parsed-literal::
-
-    /tmp/ipykernel_180612/330468370.py:56: GradioDeprecationWarning: The `style` method is deprecated. Please set these arguments in the constructor instead.
-      spectrogram_output.style(height=256)
-    /tmp/ipykernel_180612/330468370.py:63: GradioDeprecationWarning: The `enable_queue` parameter has been deprecated. Please use the `.queue()` method instead.
-      demo.launch(enable_queue=True, height=800)
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-    
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

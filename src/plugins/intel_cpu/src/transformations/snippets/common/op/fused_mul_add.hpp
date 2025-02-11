@@ -27,5 +27,5 @@ public:
     const ov::op::AutoBroadcastSpec& get_autob() const override;
 };
 
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

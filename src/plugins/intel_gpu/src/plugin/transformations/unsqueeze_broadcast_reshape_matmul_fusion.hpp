@@ -11,7 +11,7 @@ namespace intel_gpu {
 
 class UnsqueezeBroadcastReshapeMatmulFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("UnsqueezeBroadcastReshapeMatmulFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("UnsqueezeBroadcastReshapeMatmulFusion");
     UnsqueezeBroadcastReshapeMatmulFusion();
 };
 

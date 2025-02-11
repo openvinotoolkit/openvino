@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 #include <gmock/gmock.h>
 
 #include <iostream>
-
+#include "common_test_utils/test_assertions.hpp"
 #include "compiled_model.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "plugin.hpp"

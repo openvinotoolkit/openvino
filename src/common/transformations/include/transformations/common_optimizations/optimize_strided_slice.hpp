@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,7 @@ class TRANSFORMATIONS_API StridedSliceOptimization;
 class TRANSFORMATIONS_API UselessSliceEraser;
 class TRANSFORMATIONS_API GroupedStridedSliceOptimizer;
 class TRANSFORMATIONS_API GroupedSliceToVSplitOptimization;
+class TRANSFORMATIONS_API SliceSequenceToSingleSlice;
 
 }  // namespace pass
 }  // namespace ov
@@ -28,7 +29,7 @@ class TRANSFORMATIONS_API GroupedSliceToVSplitOptimization;
  */
 class ov::pass::UselessSliceEraser : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("UselessSliceEraser", "0");
+    OPENVINO_MODEL_PASS_RTTI("UselessSliceEraser");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
@@ -40,7 +41,7 @@ public:
  */
 class ov::pass::GroupedStridedSliceOptimizer : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("GroupedStridedSliceOptimizer", "0");
+    OPENVINO_MODEL_PASS_RTTI("GroupedStridedSliceOptimizer");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
@@ -52,8 +53,26 @@ public:
  */
 class ov::pass::GroupedSliceToVSplitOptimization : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("GroupedSliceToVSplitOptimization", "0");
+    OPENVINO_MODEL_PASS_RTTI("GroupedSliceToVSplitOptimization");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief SliceSequenceToSingleSlice transformation replaces group of Slice
+ * operations with single Slice. All Slice operations must slice data
+ * with the different axis.
+ *
+ * Before:
+ * data (shape: 2, 3, 4) -> Slice (axis 0) -> Slice (axis 1) -> Slice (axis 2)
+ *
+ * After:
+ * data (shape: 2, 3, 4) -> Slice (axes: 0, 1, 2)
+ */
+class ov::pass::SliceSequenceToSingleSlice : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("SliceSequenceToSingleSlice");
+    SliceSequenceToSingleSlice();
 };
 
 /**
@@ -63,9 +82,9 @@ public:
  */
 class ov::pass::StridedSliceOptimization : public ov::pass::ModelPass {
 public:
+    OPENVINO_MODEL_PASS_RTTI("StridedSliceOptimization");
     StridedSliceOptimization(bool use_shapes = true);
 
-    OPENVINO_RTTI("StridedSliceOptimization", "0");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:

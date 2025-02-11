@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "intel_gpu/graph/program.hpp"
 
 #include "kernel_selector_helper.h"
+#include "intel_gpu/runtime/device_info.hpp"
 #include "kernel_selector_params.h"
 #include "to_string_utils.h"
 #include "program_node.h"
@@ -31,22 +32,23 @@
 #include "intel_gpu/primitives/embedding_bag.hpp"
 #include "intel_gpu/primitives/extract_image_patches.hpp"
 
+#include "swiglu_inst.h"
 #include "activation_inst.h"
-#include "depth_to_space_inst.h"
 #include "eltwise_inst.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
 
+#include "kernel_selector/kernels/swiglu/swiglu_kernel_base.h"
 #include "kernel_selector/kernels/activation/activation_kernel_base.h"
 #include "kernel_selector/kernels/depth_to_space/depth_to_space_kernel_base.h"
 #include "kernel_selector/kernels/eltwise/eltwise_kernel_base.h"
 #include "kernel_selector/kernels/quantize/quantize_kernel_params.h"
 #include "kernel_selector/kernels/reorder/reorder_kernel_base.h"
 
-#include "runtime/kernels_cache.hpp"
-#include "kernel_base.h"
+#include "impls/ocl/kernels_cache.hpp"
 
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace {
@@ -119,6 +121,88 @@ bool query_local_block_io_supported(engine& e, const ExecutionConfig& config) {
 
 namespace cldnn {
 
+bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
+    auto device = e.get_device().get();
+
+    static std::mutex m;
+    std::lock_guard<std::mutex> lock(m);
+
+    static std::map<cldnn::device*, bool> cache;
+    if (cache.find(device) != cache.end()) {
+        return cache.at(device);
+    }
+
+    std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
+    // This program checks if cm sources can be jitted by current IGC version
+    const char* kernel_code = R""""(
+        #include <cm/cm.h>
+        #include <cm/cmtl.h>
+
+        extern "C" _GENX_MAIN_ void cm_check() {
+            unsigned int id = cm_linear_global_id();
+        }
+        )"""";
+
+    kernel_string->str = kernel_code;
+    kernel_string->options = " -cmc ";
+    kernel_string->entry_point = "cm_check";
+    kernel_string->batch_compilation = true;
+
+    try {
+        cldnn::kernel_impl_params dummy_params;
+        auto _kernels_cache_device_query = std::unique_ptr<cldnn::kernels_cache>(new cldnn::kernels_cache(e, config, 0));
+        _kernels_cache_device_query->add_kernels_source(dummy_params, {kernel_string}, false);
+        _kernels_cache_device_query->build_all();
+        cache[device] = true;
+    } catch (std::exception&) {
+        cache[device] = false;
+    }
+
+    return cache.at(device);
+}
+
+bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
+    auto device = e.get_device().get();
+
+    static std::mutex m;
+    std::lock_guard<std::mutex> lock(m);
+    static std::map<cldnn::device*, bool> cache;
+    if (cache.find(device) != cache.end()) {
+        return cache.at(device);
+    }
+
+    std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
+    // This program check that all required vISA features are supported by current IGC version
+    const char* kernel_code = R""""(
+        kernel void igc_check() {
+            __asm__ volatile(
+                    ".decl AA0 v_type=G type=ud num_elts=1\n"
+                    ".decl AA1 v_type=G type=ud num_elts=1\n"
+                    ".implicit_PSEUDO_INPUT AA0 offset=256 size=4\n"
+                    ".implicit_PSEUDO_INPUT AA1 offset=256 size=4\n"
+                    "mov (M1_NM,1) AA0(0,0)<1> AA1(0,0)<0;1,0>\n"
+            );
+        }
+        )"""";
+
+    kernel_string->str = kernel_code;
+    kernel_string->options = "";
+    kernel_string->entry_point = "igc_check";
+    kernel_string->batch_compilation = true;
+
+    try {
+        cldnn::kernel_impl_params dummy_params;
+        auto _kernels_cache_device_query = std::unique_ptr<cldnn::kernels_cache>(new cldnn::kernels_cache(e, config, 0));
+        _kernels_cache_device_query->add_kernels_source(dummy_params, {kernel_string}, false);
+        _kernels_cache_device_query->build_all();
+        cache[device] = true;
+    } catch (std::exception&) {
+        cache[device] = false;
+    }
+
+    return cache.at(device);
+}
+
 kernel_selector::data_type to_data_type(data_types dt) {
     switch (dt) {
         case cldnn::data_types::i4:
@@ -129,14 +213,22 @@ kernel_selector::data_type to_data_type(data_types dt) {
             return kernel_selector::data_type::INT8;
         case cldnn::data_types::u8:
             return kernel_selector::data_type::UINT8;
+        case cldnn::data_types::i16:
+            return kernel_selector::data_type::INT16;
+        case cldnn::data_types::u16:
+            return kernel_selector::data_type::UINT16;
         case cldnn::data_types::i32:
             return kernel_selector::data_type::INT32;
+        case cldnn::data_types::u32:
+            return kernel_selector::data_type::UINT32;
         case cldnn::data_types::i64:
             return kernel_selector::data_type::INT64;
         case cldnn::data_types::f16:
             return kernel_selector::data_type::F16;
         case cldnn::data_types::f32:
             return kernel_selector::data_type::F32;
+        case cldnn::data_types::bf16:
+            return kernel_selector::data_type::BF16;
         default:
             OPENVINO_THROW("[GPU] Unable to convert cldnn data type ", dt, " to kernel_selector data type");
     }
@@ -152,8 +244,14 @@ data_types from_data_type(kernel_selector::data_type dt) {
             return cldnn::data_types::i8;
         case kernel_selector::data_type::UINT8:
             return cldnn::data_types::u8;
+        case kernel_selector::data_type::INT16:
+            return cldnn::data_types::i16;
+        case kernel_selector::data_type::UINT16:
+            return cldnn::data_types::u16;
         case kernel_selector::data_type::INT32:
             return cldnn::data_types::i32;
+        case kernel_selector::data_type::UINT32:
+            return cldnn::data_types::u32;
         case kernel_selector::data_type::INT64:
             return cldnn::data_types::i64;
         case kernel_selector::data_type::F16:
@@ -181,6 +279,8 @@ kernel_selector::weights_type to_weights_type(data_types dt) {
             return kernel_selector::weights_type::F32;
         case cldnn::data_types::i32:
             return kernel_selector::weights_type::INT32;
+        case cldnn::data_types::bf16:
+            return kernel_selector::weights_type::BF16;
         default:
             OPENVINO_THROW("[GPU] Unable to convert cldnn data type ", dt, " to kernel_selector weights type");
     }
@@ -251,6 +351,8 @@ kernel_selector::data_layout to_data_layout(format f) {
             return kernel_selector::data_layout::bfzyx;
         case format::bzyxf:
             return kernel_selector::data_layout::bzyxf;
+        case format::ybfx:
+            return kernel_selector::data_layout::ybfx;
         case format::fs_b_yx_fsv32:
             return kernel_selector::data_layout::fs_b_yx_fsv32;
         case format::bfwzyx:
@@ -500,6 +602,8 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::os_i_osv16;
         case format::os_is_yx_osv32_isv2:
             return kernel_selector::weights_layout::os_is_yx_osv32_isv2;
+        case format::os_is_yx_osv64_isv2:
+            return kernel_selector::weights_layout::os_is_yx_osv64_isv2;
         case format::os_is_zyx_isv16_osv16:
             return kernel_selector::weights_layout::os_is_zyx_isv16_osv16;
         case format::is_os_zyx_isv16_osv16:
@@ -624,6 +728,8 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::os_i_osv16;
         case kernel_selector::weights_layout::os_is_yx_osv32_isv2:
             return cldnn::format::os_is_yx_osv32_isv2;
+        case kernel_selector::weights_layout::os_is_yx_osv64_isv2:
+            return cldnn::format::os_is_yx_osv64_isv2;
         case kernel_selector::weights_layout::os_i_osv8__ai8:
             return cldnn::format::os_i_osv8__ai8;
         case kernel_selector::weights_layout::os_i_osv16__ai8:
@@ -776,7 +882,7 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor v
 
     // legacy get_tensor().sizes() impl return dims in external order, so we need to transpose dims
     ov::PartialShape vals_ordered;
-    auto axis_order = l.format.dims_order();
+    const auto& axis_order = l.format.dims_order();
     for (size_t i = 0; i < axis_order.size(); i++) {
         if (axis_order[i] >= vals_original.size())
             vals_ordered.push_back(ov::Dimension(1));
@@ -784,9 +890,9 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor v
             vals_ordered.push_back(vals_original[axis_order[i]]);
     }
     const auto& add_offsets = view_offset.sizes(l.format);
-    const auto& lower_pad = pad.lower_size().sizes(l.format);
-    const auto& upper_pad = pad.upper_size().sizes(l.format);
-    const auto& dynamic_pad_dims = pad.get_dynamic_pad_dims().sizes(l.format);
+    const auto& lower_pad = layout::format_sizes(pad._lower_size, l.format);
+    const auto& upper_pad = layout::format_sizes(pad._upper_size, l.format);
+    const auto& dynamic_pad_dims = layout::format_sizes(pad._dynamic_dims_mask, l.format);
     const auto ks_layout = to_data_layout(l.format);
     kernel_selector::n_dims vec(kernel_selector::DataTensor::ChannelsCount(ks_layout));
 
@@ -945,7 +1051,13 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
 }
 
 std::shared_ptr<kernel_selector::fuse_params> convert_fuse_params(std::shared_ptr<NodeFuseParams> p) {
-    if (p->type() == activation::type_id()) {
+    if (p->type() == swiglu::type_id()) {
+        auto casted = std::dynamic_pointer_cast<SwigluFuseParams>(p);
+        auto axis = casted->_desc->axis;
+        auto split_length = casted->_desc->split_lengths;
+        auto split_to_glu_idx = casted->_desc->split_to_glu_idx;
+        return std::make_shared<kernel_selector::swiglu_fuse_params>(axis, split_length, split_to_glu_idx);
+    } else if (p->type() == activation::type_id()) {
         auto casted = std::dynamic_pointer_cast<ActivationFuseParams>(p);
         auto desc = casted->_desc;
         kernel_selector::base_activation_params p;
@@ -1077,6 +1189,7 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.bOptHintsSupport = false;
 
     params.engineInfo.bLocalBlockIOSupport = query_local_block_io_supported(engine, config);
+    params.engineInfo.supports_microkernels = query_microkernels_supported(engine, config);
     params.engineInfo.deviceType = get_device_type(device_info.dev_type);
     params.engineInfo.maxWorkGroupSize = device_info.max_work_group_size;
     params.engineInfo.maxLocalMemSize = device_info.max_local_mem_size;
@@ -1088,6 +1201,8 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.driverVersion = device_info.driver_version;
     params.engineInfo.supportedSimdSizes = device_info.supported_simd_sizes;
     params.engineInfo.vendor_id = device_info.vendor_id;
+    params.engineInfo.ip_version = device_info.ip_version;
+    params.engineInfo.arch = kernel_selector::gpu_arch(static_cast<std::underlying_type<gpu_arch>::type>(device_info.arch));
 
     auto impl_forcing = config.get_property(ov::intel_gpu::force_implementations);
 
@@ -1161,8 +1276,7 @@ void set_default_params(const kernel_impl_params& param_info, kernel_selector::b
 
                 for (auto& dep : desc.dep_data) {
                     if (dep.dep_type == kernel_selector::DepType::UNDEFINED) {
-                        dep.dep_type    = kernel_selector::DepType::ORIGINAL;
-                        break;
+                        dep.dep_type = kernel_selector::DepType::ORIGINAL;
                     }
                 }
             }

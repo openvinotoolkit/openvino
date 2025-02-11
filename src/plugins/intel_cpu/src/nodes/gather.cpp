@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "gather.h"
 
-#include <partitioned_mem_mgr.h>
+#include <partitioned_mem_blk.h>
 
 #include <cstdint>
 #include <openvino/op/constant.hpp>
@@ -24,15 +24,13 @@
 
 using namespace dnnl::impl::cpu;
 
-#define THROW_ERROR(...) OPENVINO_THROW(getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
-
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
 bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto gather_compression = std::dynamic_pointer_cast<const ov::op::internal::GatherCompressed>(op);
+        const auto gather_compression = ov::as_type_ptr<const ov::op::internal::GatherCompressed>(op);
         if (gather_compression) {
             return true;
         }
@@ -58,7 +56,7 @@ bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
     return true;
 }
 
-Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, GatherShapeInferFactory(op)),
       batchDims(0) {
     std::string errorMessage;
@@ -69,7 +67,7 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
     if (one_of(op->get_input_size(), 4u, 5u) && op->get_output_size() == 1u) {
         compressed = true;
     } else if (op->get_input_size() != 3 || op->get_output_size() != 1) {
-        THROW_ERROR("has incorrect number of input/output edges!");
+        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
     }
 
     const auto& dataShape = getInputShapeAtPort(GATHER_DATA);
@@ -80,7 +78,7 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
     isIdxShapeStat = idxShape.isStatic();
     const auto indicesRank = idxShape.getRank();
     if (dataSrcRank == 0lu || indicesRank == 0lu)
-        THROW_ERROR("has incorrect input parameters ranks.");
+        THROW_CPU_NODE_ERR("has incorrect input parameters ranks.");
 
     if (ov::is_type<ov::op::v8::Gather>(op)) {
         batchDims = static_cast<int>(ov::as_type_ptr<ov::op::v8::Gather>(op)->get_batch_dims());
@@ -104,7 +102,7 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
     if (batchDims < 0)
         batchDims += indicesRank;
     if (batchDims < 0 || batchDims > std::min(static_cast<int>(dataSrcRank), static_cast<int>(indicesRank)))
-        THROW_ERROR("has incorrect batch_dims ", batchDims, "!");
+        THROW_CPU_NODE_ERR("has incorrect batch_dims ", batchDims, "!");
 
     if (ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(GATHER_AXIS))) {
         isAxisInputConst = true;
@@ -112,7 +110,7 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
         if (axis < 0)
             axis += dataSrcRank;
         if (axis < 0 || axis >= dataSrcRank || batchDims > axis)
-            THROW_ERROR("has incorrect input parameter axis value: ", axis);
+            THROW_CPU_NODE_ERR("has incorrect input parameter axis value: ", axis);
     }
 
     if (auto indices = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(GATHER_INDICES))) {
@@ -253,6 +251,7 @@ void Gather::createPrimitive() {
     if (isInPlace()) {
         return;
     }
+    m_threads_num = parallel_get_max_threads();
 #if defined(OPENVINO_ARCH_X86_64)
     uint64_t idxElPerVec = 1;
     if (!isDynamicNode()) {
@@ -294,11 +293,10 @@ void Gather::createPrimitive() {
 
             if (!isDynamicNode()) {
                 const uint64_t dataElPerVec = jitKernel->getDataElPerVec();
-                const uint64_t nthr = parallel_get_max_threads();
-                const uint64_t wpt = ((totalWork / dataElPerVec) / nthr + 1) * dataElPerVec;
-                execParamsPerThread.resize(nthr);
+                const uint64_t wpt = ((totalWork / dataElPerVec) / m_threads_num + 1) * dataElPerVec;
+                execParamsPerThread.resize(m_threads_num);
 
-                parallel_nt(nthr, [&](const int ithr, const int nthr) {
+                parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
                     const uint64_t dstStart = std::min(wpt * ithr, totalWork);
                     const uint64_t dstEnd = std::min(wpt * (ithr + 1), totalWork);
 
@@ -338,13 +336,13 @@ bool Gather::needPrepareParams() const {
 
 void Gather::prepareParams() {
     auto dataMemPtr = getSrcMemoryAtPort(GATHER_DATA);
-    if (!dataMemPtr || !dataMemPtr->isAllocated())
-        THROW_ERROR(" has not allocated input data memory.");
+    if (!dataMemPtr || !dataMemPtr->isDefined())
+        THROW_CPU_NODE_ERR("has undefined input data memory.");
     auto idxMemPtr = getSrcMemoryAtPort(GATHER_INDICES);
-    if (!idxMemPtr || !idxMemPtr->isAllocated())
-        THROW_ERROR(" has not allocated input indices memory.");
+    if (!idxMemPtr || !idxMemPtr->isDefined())
+        THROW_CPU_NODE_ERR("has undefined input indices memory.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_ERROR(" has unidentified preferable primitive descriptor.");
+        THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor.");
 
     // short 1D vector fast execution impl (typical in shape infer subgraph)
     canOptimize1DCase = false;
@@ -363,7 +361,7 @@ void Gather::prepareParams() {
         if (axis < 0)
             axis += dataSrcRank;
         if (axis < 0 || axis >= dataSrcRank || batchDims > axis)
-            THROW_ERROR("has incorrect input parameter axis value: ", axis);
+            THROW_CPU_NODE_ERR("has incorrect input parameter axis value: ", axis);
     }
 
     if (!isDataShapeStat || !isAxisInputConst) {
@@ -409,7 +407,7 @@ void Gather::prepareParams() {
 #endif
 }
 
-void Gather::execute(dnnl::stream strm) {
+void Gather::execute(const dnnl::stream& strm) {
     if (isInPlace()) {
         return;
     }
@@ -469,7 +467,7 @@ void Gather::execute(dnnl::stream strm) {
             (*jitKernel)(&arg);
         };
 
-        parallel_nt(0, threadBody);
+        parallel_nt(m_threads_num, threadBody);
 
         return;
     }
@@ -477,7 +475,7 @@ void Gather::execute(dnnl::stream strm) {
     execReference();
 }
 
-void Gather::executeDynamicImpl(dnnl::stream strm) {
+void Gather::executeDynamicImpl(const dnnl::stream& strm) {
     if (isInPlace()) {
         return;
     }
@@ -543,7 +541,7 @@ void Gather::executeDynamicImpl(dnnl::stream strm) {
             (*jitKernel)(&arg);
         };
 
-        parallel_nt(0, threadBody);
+        parallel_nt(m_threads_num, threadBody);
 
         return;
     }
@@ -553,7 +551,7 @@ void Gather::executeDynamicImpl(dnnl::stream strm) {
 
 void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
     if (!jitKernel)
-        THROW_ERROR("has uninitialized kernel in function initShortParams.");
+        THROW_CPU_NODE_ERR("has uninitialized kernel in function initShortParams.");
     const uint64_t idxElPerVec = jitKernel->getIdxElPerVec();
 
     if (afterAxisSize == 1) {  // Elementwise gather.
@@ -945,7 +943,7 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
                     "Gather node: ",
                     getName(),
                     " can not use inPlace memory with splitting on dynamic dimention");
-    auto baseMemMngr = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryMngr();
+    auto baseMemBlock = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryBlock();
     const auto index = constIndices.front();
     const ptrdiff_t offset = index < 0 ? baseDim + index : index;
     const auto& childEdges = getChildEdgesAtPort(outputPort);
@@ -956,8 +954,8 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
                         " with type ",
                         getTypeStr());
 
-        auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset);
-        auto newMem = std::make_shared<Memory>(getEngine(), config.outConfs[outputPort].getMemDesc(), memMngr);
+        auto memBlock = std::make_shared<PartitionedMemoryBlock>(baseMemBlock, baseDim, offset);
+        auto newMem = std::make_shared<Memory>(getEngine(), config.outConfs[outputPort].getMemDesc(), memBlock);
 
         childEdge->reuse(newMem);
     }

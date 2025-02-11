@@ -3,13 +3,11 @@
 //
 
 #include "snippets/lowered/port_descriptor.hpp"
-#include <snippets/utils.hpp>
+#include <snippets/utils/utils.hpp>
 
 namespace ov {
 namespace snippets {
 namespace lowered {
-
-size_t PortDescriptor::ServiceDimensions::FULL_DIM = SIZE_MAX;
 
 PortDescriptor::PortDescriptor(const ov::Input<ov::Node>& in, VectorDims subtensor_shape, std::vector<size_t> layout)
         : PortDescriptor(ov::Input<const Node>(in.get_node(), in.get_index()), std::move(subtensor_shape), std::move(layout)) {}
@@ -53,6 +51,11 @@ void PortDescriptor::set_shape(const VectorDims& tensor) {
     *m_tensor_shape = tensor;
 }
 
+void PortDescriptor::set_subtensor_dim(size_t idx, VectorDims::value_type value) {
+    OPENVINO_ASSERT(idx < m_subtensor_shape.size(), "Failed to set subtensor value: idx should be less than size");
+    *(m_subtensor_shape.rbegin() + idx) = value;
+}
+
 PortDescriptorPtr PortDescriptor::clone() const {
     auto desc = std::make_shared<PortDescriptor>(*m_tensor_shape, m_subtensor_shape, m_layout);
     desc->set_reg(m_reg);
@@ -71,7 +74,7 @@ std::string PortDescriptor::serialize() const {
     ss << m_layout.size() << " ";
     for (auto val : m_layout)
         ss << val << " ";
-    ss << regTypeToStr(m_reg.type) << "["<< m_reg.idx << "]";
+    ss << m_reg;
     return ss.str();
 }
 bool operator==(const PortDescriptor& lhs, const PortDescriptor& rhs) {
@@ -128,6 +131,26 @@ void PortDescriptorUtils::set_port_descriptor_ptr(const ov::Output<ov::Node>& ou
             OPENVINO_THROW("Set output port descriptor is failed: incorrect count");
         out_descs[out.get_index()] = desc;
     }
+}
+
+namespace {
+template<typename T>
+void set_port_desc(const T& port, std::vector<size_t> subtensor, std::vector<size_t> layout) {
+    const auto& shape = utils::pshape_to_vdims(port.get_partial_shape());
+    for (size_t i = 1; i <= std::min(subtensor.size(), shape.size()); i++) {
+        auto& dim = subtensor[subtensor.size() - i];
+        if (!utils::is_full_dim_value(dim))
+            dim = std::min(dim, shape[shape.size() - i]);
+    }
+    PortDescriptorUtils::set_port_descriptor_ptr(port, std::make_shared<PortDescriptor>(shape, subtensor, layout));
+}
+}  // namespace
+
+void PortDescriptorUtils::set_port_descriptor(const ov::Input<ov::Node>& in, std::vector<size_t> subtensor, std::vector<size_t> layout) {
+    set_port_desc(in, std::move(subtensor), std::move(layout));
+}
+void PortDescriptorUtils::set_port_descriptor(const ov::Output<ov::Node>& out, std::vector<size_t> subtensor, std::vector<size_t> layout) {
+    set_port_desc(out, std::move(subtensor), std::move(layout));
 }
 
 PortDescriptorPtr PortDescriptorUtils::get_port_descriptor_ptr(const ov::Input<ov::Node>& in) {

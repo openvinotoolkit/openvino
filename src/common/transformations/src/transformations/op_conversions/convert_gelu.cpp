@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ ov::pass::ConvertGELU::ConvertGELU() {
     auto gelu = pattern::wrap_type<ov::op::v0::Gelu>();
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto gelu = std::dynamic_pointer_cast<ov::op::v0::Gelu>(m.get_match_root());
+        auto gelu = ov::as_type_ptr<ov::op::v0::Gelu>(m.get_match_root());
         if (!gelu || transformation_callback(gelu))
             return false;
         auto input = gelu->input_value(0);

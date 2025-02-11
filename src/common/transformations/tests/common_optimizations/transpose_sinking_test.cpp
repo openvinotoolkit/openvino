@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -96,7 +96,7 @@ TEST_P(TransposeSinkingFQ, TransposeFQReduce) {
     manager.register_pass<ov::pass::TransposeReduction>();
     manager.register_pass<ov::pass::CheckUniqueNames>(unh);
     manager.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
 
     auto fc = FunctionsComparator::no_default()
                   .enable(FunctionsComparator::NODES)
@@ -209,9 +209,9 @@ private:
                         " version: ",
                         reduction_type_info.version_id);
 
-        if (auto arithmetic_reduce = std::dynamic_pointer_cast<op::util::ArithmeticReductionKeepDims>(reduction))
+        if (auto arithmetic_reduce = ov::as_type_ptr<op::util::ArithmeticReductionKeepDims>(reduction))
             arithmetic_reduce->set_keep_dims(keep_dims);
-        else if (auto logical_reduce = std::dynamic_pointer_cast<op::util::LogicalReductionKeepDims>(reduction))
+        else if (auto logical_reduce = ov::as_type_ptr<op::util::LogicalReductionKeepDims>(reduction))
             logical_reduce->set_keep_dims(keep_dims);
         reduction->validate_and_infer_types();
         return reduction;
@@ -226,7 +226,7 @@ TEST_P(TransposeSinking, TransposeReduction) {
     manager.register_pass<ov::pass::TransposeReduction>();
     manager.register_pass<ov::pass::CheckUniqueNames>(unh);
     manager.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
 
     auto fc = FunctionsComparator::no_default()
                   .enable(FunctionsComparator::NODES)

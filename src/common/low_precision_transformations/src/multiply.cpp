@@ -33,24 +33,21 @@ MultiplyTransformation::MultiplyTransformation(const Params& params) :
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool MultiplyTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
+bool MultiplyTransformation::transform(ov::pass::pattern::Matcher& m) {
     auto multiply = m.get_match_root();
-    if (!canBeTransformed(context, multiply)) {
+    if (!canBeTransformed(multiply)) {
         return false;
     }
 
     multiply = NetworkHelper::separateInStandaloneBranch(multiply, defaultPrecisions);
     decomposeFakeQuantizeForWeightsPath(multiply);
-
-    NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(multiply, defaultPrecisions, 0));
-    NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(multiply, defaultPrecisions, 1));
 
     const auto dequantization1 = NetworkHelper::getDequantization(multiply, defaultPrecisions, 0);
     const auto dequantization2 = NetworkHelper::getDequantization(multiply, defaultPrecisions, 1);
@@ -103,7 +100,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ov::pass:
                 ov::op::TemporaryReplaceOutputType(in2, deqPrecision).get());
 
         replace_node(multiply, new_multiply);
-        updateOutput(context, new_multiply, multiply);
+        updateOutput(new_multiply, multiply);
 
         return true;
     }
@@ -131,7 +128,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ov::pass:
             multiply->get_output_element_type(0));
 
     replace_node(multiply, new_scales);
-    const auto was_updated = updateOutput(context, new_scales, multiply);
+    const auto was_updated = updateOutput(new_scales, multiply);
     NetworkHelper::copyInfo(multiply, new_multiply, !was_updated);
 
     return true;

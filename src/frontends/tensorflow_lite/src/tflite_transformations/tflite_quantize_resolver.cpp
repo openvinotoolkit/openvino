@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -198,7 +198,7 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
 }
 
 bool pass::TFLQuantizeResolver::run_on_model(const std::shared_ptr<ov::Model>& m) {
-    ov::pass::Manager manager;
+    ov::pass::Manager manager("Frontend:TFLite:TFLQuantizeResolver");
     manager.register_pass<pass::TFLQuantizeConvert>();
     manager.register_pass<pass::TFLQuantizeReplacer>();
     manager.run_passes(m);

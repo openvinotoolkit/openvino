@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "openvino/op/op.hpp"
+#include "shape_infer_op.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 
 namespace ov {
@@ -21,9 +21,9 @@ namespace op {
  // Note that technically the same goal could be achieved using op::Unsqueeze operation,
  // but RankNormalization has a much narrower semantics, and hence allows for an easier control and a more efficient shape infer.
  //
-class  RankNormalization : public ov::op::Op {
+class  RankNormalization : public ShapeInferOp {
 public:
-    OPENVINO_OP("RankNormalization", "SnippetsOpset");
+    OPENVINO_OP("RankNormalization", "SnippetsOpset", ShapeInferOp);
 
     RankNormalization() = default;
     RankNormalization(const Output<Node>& data, size_t num_prepend, size_t num_append);

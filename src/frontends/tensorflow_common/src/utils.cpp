@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,20 +8,44 @@
 
 #include "common_op_table.hpp"
 #include "helper_ops/complex_type_mark.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/atan.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
+#include "openvino/op/cos.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/floor.hpp"
+#include "openvino/op/floor_mod.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/group_conv.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/logical_and.hpp"
 #include "openvino/op/maximum.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_min.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/sin.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace ov;
 using namespace ov::op;
@@ -414,6 +438,212 @@ Output<Node> compute_broadcast_args(const Output<Node>& shape1, const Output<Nod
     auto broadcasted_shape = make_shared<v1::Maximum>(padded_s0, padded_s1);
     return broadcasted_shape->output(0);
 }
+
+shared_ptr<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>> rgb_to_hsv(const ov::Output<ov::Node>& images) {
+    // image format conversion based on
+    // https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/kernels/image/adjust_saturation_op.cc
+    auto const_zero_f_ = create_same_type_const_scalar<float>(images, 0.0f);
+    auto const_one_f_ = create_same_type_const_scalar<float>(images, 1.0f);
+    auto const_six_f_ = create_same_type_const_scalar<float>(images, 6.0f);
+
+    // find max and min across channel axis. Max = Value (V)
+    auto const_minus_one_i_1 = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
+    auto max_rgb = make_shared<v1::ReduceMax>(images, const_minus_one_i_1, true);
+    auto min_rgb = make_shared<v1::ReduceMin>(images, const_minus_one_i_1, true);
+
+    auto range = make_shared<v1::Subtract>(max_rgb, min_rgb);
+    auto vv = max_rgb;
+
+    // compute Saturation (S)
+    auto ss_ = make_shared<v1::Divide>(range, vv);
+    auto ss = make_shared<v1::Select>(make_shared<v1::Greater>(vv, const_zero_f_), ss_, const_zero_f_);
+
+    // compute normalization factor (for Hue calculation)
+    auto norm = make_shared<v1::Divide>(const_one_f_, make_shared<v1::Multiply>(const_six_f_, range));
+
+    // split the image tensor into R, G, B channels
+    auto const_minus_one_i = make_shared<v0::Constant>(element::i32, Shape{}, -1);
+    auto channels = make_shared<v1::Split>(images, const_minus_one_i, 3);
+
+    auto r = channels->output(0);
+    auto g = channels->output(1);
+    auto b = channels->output(2);
+
+    // compute Hue (H)
+    // determine which component is the max (V) to compute Hue (H)
+    auto r_eq_v = make_shared<v1::Equal>(r, vv);
+    auto g_eq_v = make_shared<v1::Equal>(g, vv);
+
+    // r == vv: hh = norm * (g - b)
+    auto hue_case_r = make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(g, b));
+
+    // g == vv: hh = norm * (b - r) + 2.0 / 6.0
+    auto const_2_by_6 = create_same_type_const_scalar<float>(images, 2.0f / 6.0f);
+    auto hue_case_g =
+        make_shared<v1::Add>(make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(b, r)), const_2_by_6);
+
+    // b == vv: hh = norm * (r - g) + 4.0 / 6.0
+    auto const_4_by_6 = create_same_type_const_scalar<float>(images, 4.0f / 6.0f);
+    auto hue_case_b =
+        make_shared<v1::Add>(make_shared<v1::Multiply>(norm, make_shared<v1::Subtract>(r, g)), const_4_by_6);
+
+    // select hue based on the maximum component
+    // check if `r` is the max, otherwise check if `g` is the max, if not use `b`'s hue
+    auto hh = make_shared<v1::Select>(r_eq_v,
+                                      hue_case_r,  // Use hue_case_r if r is max
+                                      make_shared<v1::Select>(g_eq_v,
+                                                              hue_case_g,  // Use hue_case_g if g is max
+                                                              hue_case_b   // Use hue_case_b otherwise (b is max)
+                                                              ));
+
+    // range = 0.0: hh = 0
+    auto hh_zero_range = make_shared<v1::Select>(make_shared<v1::Equal>(range, const_zero_f_), const_zero_f_, hh);
+
+    // hh < 0.0: hh = hh + 1
+    auto hh_final = make_shared<v1::Select>(make_shared<v1::Less>(hh, const_zero_f_),
+                                            make_shared<v1::Add>(hh_zero_range, const_one_f_),
+                                            hh_zero_range);
+
+    return make_shared<tuple<shared_ptr<Node>, shared_ptr<Node>, shared_ptr<Node>>>(hh_final, ss, vv);
+}
+
+shared_ptr<Node> hsv_to_rgb(const ov::Output<ov::Node>& h,
+                            const ov::Output<ov::Node>& s,
+                            const ov::Output<ov::Node>& v) {
+    // image format conversion based on
+    // https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/kernels/image/adjust_saturation_op.cc
+    auto const_six_f_ = create_same_type_const_scalar<float>(h, 6.0f);
+    auto const_two_f_ = create_same_type_const_scalar<float>(h, 2.0f);
+    auto const_one_f_ = create_same_type_const_scalar<float>(h, 1.0f);
+    auto const_zero_f_ = create_same_type_const_scalar<float>(h, 0.0f);
+
+    auto const_minus_one_i_ = make_shared<v0::Constant>(element::i32, Shape{}, -1);
+    auto const_minus_two_i_ = make_shared<v0::Constant>(element::i32, Shape{}, -2);
+
+    // c = s * v;
+    auto c = make_shared<v1::Multiply>(s, v);
+    // m = v - c;
+    auto m = make_shared<v1::Subtract>(v, c);
+    // dh = h * 6;
+    auto dh = make_shared<v1::Multiply>(h, const_six_f_);
+
+    // fmodu rounded to within [0, 2)
+    auto fmodu = make_shared<v1::FloorMod>(dh, const_two_f_);
+
+    //  x = c * (1 - std::abs(fmodu - 1));
+    auto x = make_shared<v1::Multiply>(
+        c,
+        make_shared<v1::Subtract>(const_one_f_, make_shared<v0::Abs>(make_shared<v1::Subtract>(fmodu, const_one_f_))));
+
+    // h_category: [batch_dims..., H, W, 1]
+    auto h_category = make_shared<v0::Convert>(make_shared<v0::Floor>(dh), element::i32);
+
+    auto zeros = make_shared<v3::Broadcast>(const_zero_f_, make_shared<v3::ShapeOf>(x));
+
+    auto rr_options = NodeVector{c, x, zeros, zeros, x, c};
+    auto gg_options = NodeVector{x, c, c, x, zeros, zeros};
+    auto bb_options = NodeVector{zeros, zeros, x, c, c, x};
+
+    // rr_concat: [batch_dims..., H, W, 6]
+    auto rr_concat = make_shared<v0::Concat>(rr_options, -1);
+    auto gg_concat = make_shared<v0::Concat>(gg_options, -1);
+    auto bb_concat = make_shared<v0::Concat>(bb_options, -1);
+
+    // rr_unsqueeze: [batch_dims..., H, W, 6, 1]
+    auto rr_unsqueeze = make_shared<v0::Unsqueeze>(rr_concat, const_minus_one_i_);
+    auto gg_unsqueeze = make_shared<v0::Unsqueeze>(gg_concat, const_minus_one_i_);
+    auto bb_unsqueeze = make_shared<v0::Unsqueeze>(bb_concat, const_minus_one_i_);
+
+    // rgb_options: [batch_dims..., H, W, 6, 3]
+    auto rgb_options = make_shared<v0::Concat>(NodeVector{rr_unsqueeze, gg_unsqueeze, bb_unsqueeze}, -1);
+
+    // use a gather operation to select the correct channel values based on h_category
+    // rgb: [batch_dims..., H, W, 3]
+    // int batch_dim = rgb_options->get_shape().size() - 2;
+    int batch_dim = -1;
+    auto rgb_gather = make_shared<v8::Gather>(rgb_options, h_category, const_minus_two_i_, batch_dim);
+    auto rgb = make_shared<v0::Squeeze>(rgb_gather, const_minus_two_i_);
+
+    auto rgb_adjust = make_shared<v1::Add>(rgb, m);
+
+    // return concatenated RGB
+    return rgb_adjust;
+}
+
+ov::Output<ov::Node> create_dense_tensor(const ov::Output<ov::Node>& indices,
+                                         const ov::Output<ov::Node>& shape,
+                                         const ov::Output<ov::Node>& values) {
+    auto zero_const = create_same_type_const_scalar<int32_t>(values, 0);
+    ov::Output<ov::Node> dense_tensor = std::make_shared<v3::Broadcast>(zero_const, shape);
+    dense_tensor = std::make_shared<v15::ScatterNDUpdate>(dense_tensor, indices, values);
+    return dense_tensor;
+}
+
+ov::Output<ov::Node> atan2_op(const ov::Output<ov::Node>& y, const ov::Output<ov::Node>& x) {
+    // handle the first condition : x>0
+    auto div_y_x = std::make_shared<v1::Divide>(y, x);
+    auto atan = std::make_shared<v0::Atan>(div_y_x);
+    auto const_zero = create_same_type_const_scalar<int32_t>(x, 0);
+    auto result = atan->output(0);
+
+    // handle the second condition : x<0 && y>=0
+    auto const_pi = create_same_type_const_scalar<double>(x, std::atan(1.0) * 4);
+    auto is_x_negative = std::make_shared<v1::Less>(x, const_zero);
+    auto y_non_negative = std::make_shared<v1::GreaterEqual>(y, const_zero);
+    auto cond1 = std::make_shared<v1::LogicalAnd>(is_x_negative, y_non_negative);
+    auto atan_y_x_plus_pi = make_shared<v1::Add>(atan, const_pi);
+    result = make_shared<v1::Select>(cond1, atan_y_x_plus_pi, result);
+
+    // handle the third condition : x<0 && y<0
+    auto is_y_negative = std::make_shared<v1::Less>(y, const_zero);
+    auto cond2 = std::make_shared<v1::LogicalAnd>(is_x_negative, is_y_negative);
+    auto atan_y_x_minus_pi = std::make_shared<v1::Subtract>(atan, const_pi);
+    result = std::make_shared<v1::Select>(cond2, atan_y_x_minus_pi, result);
+
+    // handle the fourth condition : x=0 && y>0
+    auto is_x_zero = std::make_shared<v1::Equal>(x, const_zero);
+    auto is_y_positive = std::make_shared<v1::Greater>(y, const_zero);
+    auto cond3 = std::make_shared<v1::LogicalAnd>(is_x_zero, is_y_positive);
+    auto const_two = create_same_type_const_scalar<int32_t>(x, 2);
+    auto pi_div_two = make_shared<v1::Divide>(const_pi, const_two);
+    result = std::make_shared<v1::Select>(cond3, pi_div_two, result);
+
+    // handle the fifth condition : x=0 && y<0
+    auto cond4 = std::make_shared<v1::LogicalAnd>(is_x_zero, is_y_negative);
+    auto const_minus_two = create_same_type_const_scalar<int32_t>(x, -2);
+    auto pi_div_minus_two = make_shared<v1::Divide>(const_pi, const_minus_two);
+    result = std::make_shared<v1::Select>(cond4, pi_div_minus_two, result);
+
+    return result;
+}
+
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> complex_rectangular_to_polar(
+    const ov::Output<ov::Node>& real_part,
+    const ov::Output<ov::Node>& imag_part) {
+    // r = sqrt(a^2 + b^2)
+    auto const_two = create_same_type_const_scalar<float>(real_part, 2.0f);
+    auto sum_sq = std::make_shared<v1::Add>(std::make_shared<v1::Power>(real_part, const_two),
+                                            std::make_shared<v1::Power>(imag_part, const_two));
+    auto r = std::make_shared<v0::Sqrt>(sum_sq);
+
+    // theta = atan2(b, a)
+    auto theta = atan2_op(imag_part, real_part);
+
+    return std::make_pair(r, theta);
+};
+
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> complex_polar_to_rectangular(const ov::Output<ov::Node>& r,
+                                                                                   const ov::Output<ov::Node>& theta) {
+    // z = r * (cos(theta) + sin(theta)*j) = real_part + imag_part*j
+    auto sin = make_shared<v0::Sin>(theta);
+    auto cos = make_shared<v0::Cos>(theta);
+
+    auto real_part = make_shared<v1::Multiply>(r, cos);
+    auto imag_part = make_shared<v1::Multiply>(r, sin);
+
+    return std::make_pair(real_part, imag_part);
+};
+
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

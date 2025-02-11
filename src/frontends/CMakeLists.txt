@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -10,6 +10,10 @@ endif()
 
 if(ENABLE_OV_IR_FRONTEND)
     add_subdirectory(ir)
+endif()
+
+if(ENABLE_OV_JAX_FRONTEND)
+    add_subdirectory(jax)
 endif()
 
 if(ENABLE_OV_ONNX_FRONTEND)

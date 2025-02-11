@@ -40,16 +40,15 @@ std::vector<TRShape> shape_infer(const Unsqueeze* op,
         const auto expanded_rank = arg_shape.rank().get_length() + unique_axes.size();
 
         // Normalize then remove repeated axes after normalization.
-        ov::util::normalize_axes(op, expanded_rank, unique_axes);
-        const std::set<int64_t> axes(unique_axes.begin(), unique_axes.end());
+        ov::util::try_normalize_axes(unique_axes, expanded_rank, *op);
+        AxisSet axes;
+        for (const auto& axis : unique_axes) {
+            axes.insert(axis);
+        }
 
         out_shape = arg_shape;
         for (const auto& axis : axes) {
-            NODE_VALIDATION_CHECK(op,
-                                  static_cast<size_t>(axis) <= out_shape.size() + 1,
-                                  "provided 'axes' value ",
-                                  axis,
-                                  " is not valid.");
+            NODE_VALIDATION_CHECK(op, axis <= out_shape.size() + 1U, "provided 'axes' value ", axis, " is not valid.");
             // As shape not throw exception on repeated axis it has to be check if insert or append dimension.
             // This will be not required if this op has same behaviour as numpy expand_dims.
             if (static_cast<size_t>(axis) <= out_shape.size()) {

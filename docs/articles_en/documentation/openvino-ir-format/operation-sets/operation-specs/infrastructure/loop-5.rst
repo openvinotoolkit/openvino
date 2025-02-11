@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_infrastructure_Loop_5}
-
 Loop
 ====
 
@@ -13,7 +11,7 @@ Loop
 **Category**: *Infrastructure*
 
 **Short description**: *Loop* operation performs recurrent execution of the network, which is described in the ``body``, iterating through the data.
-The operation has similar semantic to the ONNX Loop `operation <https://github.com/onnx/onnx/blob/master/docs/Changelog.md#Loop-13>`__.
+The operation has similar semantic to the ONNX Loop `operation <https://github.com/onnx/onnx/blob/main/docs/Changelog.md#Loop-13>`__.
 
 **Detailed description**
 
@@ -72,10 +70,10 @@ There are several combinations of these two inputs ``(trip_count, execution cond
 Loop operation description in the IR has regular sections: ``input`` and ``output``. They connect Loop body to the outer graph and specify condition(s).
 Loop operation description in the IR also has several special sections: ``body``, ``port_map`` and ``back_edges`` similar to the ones from the TensorIterator operation but having some important features described below.
 
-1. The body operation getting an input from the main graph should have an entry in the ``port_map`` section of the Loop operation. These edges connect input ports of the Loop with the body ``Parameter``s.
+1. The body operation getting an input from the main graph should have an entry in the ``port_map`` section of the Loop operation. These edges connect input ports of the Loop with the body ``Parameter``\ s.
 2. Input tensors to the Loop can be sliced along a specified axis, the Loop can iterates over all sliced parts. The corresponding ``input`` entry in the ``port_map`` should have ``axis`` attribute specifying the axis to slice. Therefore, inputs to the Loop operation corresponding to ``input`` entries in the ``port_map`` without ``axis`` attribute are used "as is" (without slicing).
 3. The body operation producing tensor to be used in the subsequent iterations (like in RNN models) should have a back edge described in the ``back_edges`` section of the operation. The back edge connects the respective body ``Parameter`` and ``Result`` operations. For such a case the Loop operation node provides input for the first iteration, while corresponding Loop operation output produces the tensor computed during the last iteration.
-4. Output tensors produced by a particular body operation across all iterations can be concatenated and returned as a Loop operation output (this is a "scan output" according to the ONNX* Loop operation `specification <https://github.com/onnx/onnx/blob/master/docs/Changelog.md#Loop-13>`__ ). The corresponding ``output`` entry in the ``port_map`` should have ``axis`` attribute specifying the axis to concatenate. Therefore, outputs from operations corresponding to ``output`` entries in the ``port_map`` without ``axis`` attribute are returned "as is" (without concatenation).
+4. Output tensors produced by a particular body operation across all iterations can be concatenated and returned as a Loop operation output (this is a "scan output" according to the ONNX* Loop operation `specification <https://github.com/onnx/onnx/blob/main/docs/Changelog.md#Loop-13>`__ ). The corresponding ``output`` entry in the ``port_map`` should have ``axis`` attribute specifying the axis to concatenate. Therefore, outputs from operations corresponding to ``output`` entries in the ``port_map`` without ``axis`` attribute are returned "as is" (without concatenation).
 5. There is one body ``Parameter`` operation not connected through the ``port_map``. This is a "current iteration" input. The Loop operation is responsible for providing the appropriate value for each iteration.
 6. Connection of nodes inside the Loop body with the main graph should be done through ``Parameter`` and ``Result`` body operations. No other ways to connect graphs are allowed.
 
@@ -114,7 +112,7 @@ Loop operation description in the IR also has several special sections: ``body``
     * *axis*
 
       * **Description**: if *axis* is specified for ``output`` entry, then it is an axis to concatenate the body ``Result`` output across all iterations.
-      If *axis* is specified for ``input`` entry, then it is an axis to iterate through, it triggers the slicing of the input tensor.
+        If *axis* is specified for ``input`` entry, then it is an axis to iterate through, it triggers the slicing of the input tensor.
 
       * **Range of values**: an integer. Negative value means counting dimension from the end.
       * **Type**: ``int``

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -95,21 +95,18 @@ AddTransformation::AddTransformation(const Params& params) : EltwiseBaseTransfor
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool AddTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool AddTransformation::transform(ov::pass::pattern::Matcher &m) {
     std::shared_ptr<ov::opset1::Add> op = ov::as_type_ptr<ov::opset1::Add>(m.get_match_root());
-    if ((op == nullptr) || (!canBeTransformed(context, op))) {
+    if ((op == nullptr) || (!canBeTransformed(op))) {
         return false;
     }
-
-    NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(op, defaultPrecisions, 0));
-    NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(op, defaultPrecisions, 1));
 
     std::shared_ptr<Node> addNode = NetworkHelper::separateInStandaloneBranch(op, defaultPrecisions);
     std::shared_ptr<ov::opset1::Add> add = ov::as_type_ptr<ov::opset1::Add>(addNode);
@@ -217,32 +214,33 @@ bool AddTransformation::transform(TransformationContext& context, ov::pass::patt
                     newSubtractFullPathValues),
             newMultiplyFullPathValues);
 
+        auto output_type = scalingMode ? add->get_output_element_type(0) : element::f32;
         newAddOrSubtract = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Add>>(
-            std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ element::f32 },
-            ov::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
-            ov::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
+            std::vector<element::Type>{output_type, output_type}, std::vector<element::Type>{output_type},
+            ov::op::TemporaryReplaceOutputType(inputs[0], output_type).get(),
+            ov::op::TemporaryReplaceOutputType(inputs[1], output_type).get());
         newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
-            std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ add->get_output_element_type(0) },
-            ov::op::TemporaryReplaceOutputType(newAddOrSubtract, element::f32).get(),
-            ov::op::TemporaryReplaceOutputType(multiplyEmptyPathValues, element::f32).get());
+            std::vector<element::Type>{output_type, output_type}, std::vector<element::Type>{add->get_output_element_type(0)},
+            ov::op::TemporaryReplaceOutputType(newAddOrSubtract, output_type).get(),
+            ov::op::TemporaryReplaceOutputType(multiplyEmptyPathValues, output_type).get());
 
         NetworkHelper::insertDequantizationAfter(add, newMultiply, newAddOrSubtract);
         NetworkHelper::copyInfo(add, newAddOrSubtract);
         ov::copy_runtime_info({ add, newMultiply }, newMultiply);
     }
 
-    updateOutput(context, newMultiply, newAddOrSubtract);
+    updateOutput(newMultiply, newAddOrSubtract);
 
     if (fullPathIndex != -1) {
         std::shared_ptr<Node> node = add;
         NetworkHelper::foldDequantization(node, fullPathIndex, defaultPrecisions);
     }
 
-    OPENVINO_DEBUG << "LPT: done: " << newAddOrSubtract;
+    OPENVINO_DEBUG("LPT: done: ", newAddOrSubtract);
     return true;
 }
 
-bool AddTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+bool AddTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) const {
     const FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(layer, defaultPrecisions, 0ul);
     if (dequantization1.multiplyHasZeroOrDenormal()) {
         return false;
@@ -253,7 +251,7 @@ bool AddTransformation::canBeTransformed(const TransformationContext& context, s
         return false;
     }
 
-    return EltwiseBaseTransformation::canBeTransformed(context, layer);
+    return EltwiseBaseTransformation::canBeTransformed(layer);
 }
 
 } // namespace low_precision

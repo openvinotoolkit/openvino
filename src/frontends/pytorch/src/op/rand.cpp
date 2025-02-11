@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <random>
@@ -81,8 +81,7 @@ OutputVector translate_rand(const NodeContext& context) {
         dtype_id = 2;
     }
     if (!context.input_is_none(dtype_id)) {
-        if (std::dynamic_pointer_cast<v0::Constant>(
-                context.get_input_from_visible_context(dtype_id).get_node_shared_ptr())) {
+        if (ov::as_type_ptr<v0::Constant>(context.get_input_from_visible_context(dtype_id).get_node_shared_ptr())) {
             dtype = convert_dtype(context.const_input<int64_t>(dtype_id));
             low = context.mark_node(std::make_shared<v0::Convert>(low, dtype));
             high = context.mark_node(std::make_shared<v0::Convert>(high, dtype));
@@ -121,7 +120,7 @@ OutputVector translate_rand_like(const NodeContext& context) {
     bool dtype_applied = true;
     Output<Node> convert_like_out;
     if (!context.input_is_none(1)) {
-        if (std::dynamic_pointer_cast<v0::Constant>(context.get_input_from_visible_context(1).get_node_shared_ptr())) {
+        if (ov::as_type_ptr<v0::Constant>(context.get_input_from_visible_context(1).get_node_shared_ptr())) {
             dtype = convert_dtype(context.const_input<int64_t>(1));
             low = context.mark_node(std::make_shared<v0::Convert>(low, dtype));
             high = context.mark_node(std::make_shared<v0::Convert>(high, dtype));
@@ -177,8 +176,7 @@ OutputVector translate_randn(const NodeContext& context) {
     bool dtype_applied = true;
     Output<Node> convert_like_out;
     if (!context.input_is_none(dtype_id)) {
-        if (std::dynamic_pointer_cast<v0::Constant>(
-                context.get_input_from_visible_context(dtype_id).get_node_shared_ptr())) {
+        if (ov::as_type_ptr<v0::Constant>(context.get_input_from_visible_context(dtype_id).get_node_shared_ptr())) {
             dtype = convert_dtype(context.const_input<int64_t>(dtype_id));
         } else if (const auto& fw_node =
                        cast_fw_node(context.get_input(static_cast<int>(dtype_id)).get_node_shared_ptr(),
@@ -219,7 +217,7 @@ OutputVector translate_randn_like(const NodeContext& context) {
     bool dtype_applied = true;
     Output<Node> convert_like_out;
     if (!context.input_is_none(1)) {
-        if (std::dynamic_pointer_cast<v0::Constant>(context.get_input_from_visible_context(1).get_node_shared_ptr())) {
+        if (ov::as_type_ptr<v0::Constant>(context.get_input_from_visible_context(1).get_node_shared_ptr())) {
             dtype = convert_dtype(context.const_input<int64_t>(1));
         } else if (const auto& fw_node =
                        cast_fw_node(context.get_input(static_cast<int>(1)).get_node_shared_ptr(), "prim::dtype")) {
@@ -250,7 +248,7 @@ OutputVector translate_randint(const NodeContext& context) {
     bool dtype_applied = true;
     Output<Node> convert_like_out;
     if (!context.input_is_none(3)) {
-        if (std::dynamic_pointer_cast<v0::Constant>(context.get_input_from_visible_context(3).get_node_shared_ptr())) {
+        if (ov::as_type_ptr<v0::Constant>(context.get_input_from_visible_context(3).get_node_shared_ptr())) {
             dtype = convert_dtype(context.const_input<int64_t>(3));
         } else if (const auto& fw_node =
                        cast_fw_node(context.get_input(static_cast<int>(3)).get_node_shared_ptr(), "prim::dtype")) {
@@ -325,8 +323,7 @@ OutputVector translate_normal(const NodeContext& context) {
         Output<Node> convert_like_out;
         bool dtype_applied = true;
         if (!context.input_is_none(4)) {
-            if (std::dynamic_pointer_cast<v0::Constant>(
-                    context.get_input_from_visible_context(3).get_node_shared_ptr())) {
+            if (ov::as_type_ptr<v0::Constant>(context.get_input_from_visible_context(3).get_node_shared_ptr())) {
                 dtype = convert_dtype(context.const_input<int64_t>(4));
             } else if (const auto& fw_node = cast_fw_node(context.get_input(3).get_node_shared_ptr(), "prim::dtype")) {
                 convert_like_out = fw_node->input_value(0);

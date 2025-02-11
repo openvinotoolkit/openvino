@@ -1,6 +1,4 @@
-.. {#openvino_docs_MO_DG_prepare_model_convert_model_IR_suitable_for_INT8_inference}
-
-Intermediate Representation Suitable for INT8 Inference
+Low Precision IR (INT8 Inference)
 =======================================================
 
 
@@ -21,14 +19,14 @@ Such a model is called a Low Precision IR and can be generated in two ways:
 
 * By :doc:`quantizing regular IR with the Neural Network Compression Framework (NNCF) <../../openvino-workflow/model-optimization>`
 * Using model conversion of a model pre-trained for Low Precision inference: TensorFlow models (``.pb`` model file with ``FakeQuantize`` operations), quantized TensorFlow Lite models and ONNX quantized models.
-TensorFlow and ONNX quantized models can be prepared by `Neural Network Compression Framework <https://github.com/openvinotoolkit/nncf/blob/develop/README.md>`__.
+  TensorFlow and ONNX quantized models can be prepared by `Neural Network Compression Framework <https://github.com/openvinotoolkit/nncf/blob/develop/README.md>`__.
 
 For an operation to be executed in INT8, it must have `FakeQuantize` operations as inputs.
 For more details, see the :doc:`specification of FakeQuantize operation <operation-sets/operation-specs/quantization/fake-quantize-1>`.
 
 To execute the ``Convolution`` operation in INT8 on CPU, both data and weight inputs should have ``FakeQuantize`` as an input operation:
 
-.. image:: ../../_static/images/expanded_int8_Convolution_weights.png
+.. image:: ../../assets/images/expanded_int8_Convolution_weights.png
 
 
 Low precision IR is also suitable for FP32 and FP16 inference if a chosen plugin supports all operations of the IR. The only difference between a Low Precision IR and FP16 or FP32 IR is the existence of ``FakeQuantize`` in the Low Precision IR.
@@ -48,7 +46,7 @@ Weights compression replaces ``FakeQuantize`` with optional ``Subtract`` and ``M
 
 See the visualization of `Convolution` with the compressed weights:
 
-.. image:: ../../_static/images/compressed_int8_Convolution_weights.png
+.. image:: ../../assets/images/compressed_int8_Convolution_weights.png
 
 Model conversion API generates a compressed IR by default.
 

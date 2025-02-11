@@ -24,8 +24,9 @@ After creating the OpenVINO IR, load the model in `OpenVINO
 Runtime <https://docs.openvino.ai/2024/openvino-workflow/running-inference.html>`__
 and do inference with a sample image.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Imports <#imports>`__
@@ -51,6 +52,16 @@ Table of contents:
    -  `Integration preprocessing to
       model <#integration-preprocessing-to-model>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -60,40 +71,21 @@ Install required packages:
 
 .. code:: ipython3
 
-    import platform
-    
     %pip install -q "openvino>=2023.1.0" "numpy>=1.21.0" "opencv-python" "tqdm"
     
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "matplotlib>=3.4"
     
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
-    %pip install -q "tensorflow-macos>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version <= '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
-    %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version <= '3.8'" # macOS x86
     %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version > '3.8'"
-    %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform != 'darwin' and python_version <= '3.8'"
 
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -116,7 +108,7 @@ The notebook uses utility functions. The cell below will download the
 
 .. parsed-literal::
 
-    21503
+    24624
 
 
 
@@ -136,7 +128,7 @@ Imports
     import numpy as np
     
     # Notebook utils module
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
     
     # OpenVINO modules
     import openvino as ov
@@ -151,7 +143,7 @@ Define model related variables and create corresponding directories:
 .. code:: ipython3
 
     # Create directories for models files
-    model_dir = Path("model")
+    model_dir = Path("is-model")
     model_dir.mkdir(exist_ok=True)
     
     # Create directory for TensorFlow model
@@ -189,7 +181,7 @@ from TensorFlow Hub:
 
 .. parsed-literal::
 
-    model/tf/mask_rcnn_inception_resnet_v2_1024x1024.tar.gz:   0%|          | 0.00/232M [00:00<?, ?B/s]
+    mask_rcnn_inception_resnet_v2_1024x1024.tar.gz:   0%|          | 0.00/232M [00:00<?, ?B/s]
 
 
 Extract TensorFlow Instance Segmentation model from the downloaded
@@ -244,15 +236,8 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
     core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 
@@ -374,7 +359,7 @@ Load and save an image:
 
 .. parsed-literal::
 
-    data/coco_bike.jpg:   0%|          | 0.00/182k [00:00<?, ?B/s]
+    coco_bike.jpg:   0%|          | 0.00/182k [00:00<?, ?B/s]
 
 
 Read the image, resize and convert it to the input shape of the network:
@@ -401,7 +386,7 @@ Read the image, resize and convert it to the input shape of the network:
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f4ebe5b4760>
+    <matplotlib.image.AxesImage at 0x7f4a2c79b1c0>
 
 
 
@@ -467,7 +452,6 @@ Define utility functions to visualize the inference results
 
 .. code:: ipython3
 
-    import random
     from typing import Optional
     
     
@@ -494,7 +478,7 @@ Define utility functions to visualize the inference results
         """
         ymin, xmin, ymax, xmax = box
         point1, point2 = (int(xmin), int(ymin)), (int(xmax), int(ymax))
-        box_color = [random.randint(0, 255) for _ in range(3)]
+        box_color = [np.random.randint(0, 255) for _ in range(3)]
         line_thickness = round(0.002 * (image.shape[0] + image.shape[1]) / 2) + 1
     
         result = cv2.rectangle(
@@ -665,7 +649,7 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__:
 
 .. parsed-literal::
 
-    data/coco_91cl.txt:   0%|          | 0.00/421 [00:00<?, ?B/s]
+    coco_91cl.txt:   0%|          | 0.00/421 [00:00<?, ?B/s]
 
 
 Then we need to create dictionary ``coco_labels_map`` with mappings
@@ -714,7 +698,7 @@ performance of your application using OpenVINO.
 Async inference pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
- The key advantage of the Async
+The key advantage of the Async
 API is that when a device is busy with inference, the application can
 perform other tasks in parallel (for example, populating inputs or
 scheduling other requests) rather than wait for the current inference to

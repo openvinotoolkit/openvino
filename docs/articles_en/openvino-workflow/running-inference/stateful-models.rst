@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_stateful_models_intro}
-
 Stateful models and State API
 ==============================
 
@@ -16,7 +14,7 @@ output. In contrast, for a "stateless" model to pass data between runs, all prod
 returned as output and needs to be handled by the application itself for reuse at the next
 execution.
 
-.. image:: ../../_static/images/stateful_model_example.svg
+.. image:: ../../assets/images/stateful_model_example.svg
    :alt: example comparison between stateless and stateful model implementations
    :align: center
    :scale: 90 %
@@ -68,7 +66,7 @@ from the application code to OpenVINO and all related internal work is hidden fr
 
 There are three methods of turning an OpenVINO model into a stateful one:
 
-* :doc:`Optimum-Intel <../../learn-openvino/llm_inference_guide/llm-inference-hf>` - the most user-friendly option. All necessary optimizations
+* :doc:`Optimum-Intel <../../openvino-workflow-generative/inference-with-optimum-intel>` - the most user-friendly option. All necessary optimizations
   are recognized and applied automatically. The drawback is, the tool does not work with all
   models.
 
@@ -113,7 +111,7 @@ states.
   each run performed in a different infer request than the previous one would require the state
   to be set "manually", using the ``ov::VariableState::set_state`` method.
 
-.. image:: ../../_static/images/stateful_model_init_subgraph.svg
+.. image:: ../../assets/images/stateful_model_init_subgraph.svg
    :alt: diagram of how initial state value is set or reset
    :align: center
    :scale: 100 %
@@ -141,5 +139,5 @@ sequences.
 
 You can find more examples demonstrating how to work with states in other articles:
 
-* `LLM Chatbot notebook <../../notebooks/stable-zephyr-3b-chatbot-with-output.html>`__
-* :doc:`Serving Stateful Models with OpenVINO Model Server <../../ovms_docs_stateful_models>`
+* `LLaVA-NeXT Multimodal Chatbot notebook <../../notebooks/llava-next-multimodal-chatbot-with-output.html>`__
+* :doc:`Serving Stateful Models with OpenVINO Model Server <../../openvino-workflow/model-server/ovms_docs_stateful_models>`

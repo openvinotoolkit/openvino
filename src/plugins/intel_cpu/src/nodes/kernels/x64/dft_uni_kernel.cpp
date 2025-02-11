@@ -4,7 +4,6 @@
 
 #include "dft_uni_kernel.hpp"
 
-
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu::x64;
@@ -16,7 +15,8 @@ namespace ov {
 namespace intel_cpu {
 
 template <cpu::x64::cpu_isa_t isa>
-jit_uni_dft_kernel_f32<isa>::jit_uni_dft_kernel_f32() : jit_uni_dft_kernel(), jit_generator(jit_name()) {}
+jit_uni_dft_kernel_f32<isa>::jit_uni_dft_kernel_f32() : jit_uni_dft_kernel(),
+                                                        jit_generator(jit_name()) {}
 
 template <cpu::x64::cpu_isa_t isa>
 void jit_uni_dft_kernel_f32<isa>::create_ker() {
@@ -115,11 +115,9 @@ template struct jit_uni_dft_kernel_f32<cpu::x64::sse41>;
 template struct jit_uni_dft_kernel_f32<cpu::x64::avx2>;
 template struct jit_uni_dft_kernel_f32<cpu::x64::avx512_core>;
 
-
 template <cpu::x64::cpu_isa_t isa>
-jit_uni_fft_kernel_f32<isa>::jit_uni_fft_kernel_f32()
-    : jit_uni_fft_kernel(),
-      jit_generator(jit_name()) {}
+jit_uni_fft_kernel_f32<isa>::jit_uni_fft_kernel_f32() : jit_uni_fft_kernel(),
+                                                        jit_generator(jit_name()) {}
 
 template <cpu::x64::cpu_isa_t isa>
 void jit_uni_fft_kernel_f32<isa>::create_ker() {

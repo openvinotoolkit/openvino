@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "node/include/preprocess/output_tensor_info.hpp"
@@ -36,8 +36,6 @@ Napi::Value OutputTensorInfo::set_element_type(const Napi::CallbackInfo& info) {
         OPENVINO_ASSERT(info.Length() == 1, "Error in setElementType(). Wrong number of parameters.");
 
         const auto type = js_to_cpp<ov::element::Type_t>(info, 0);
-
-        OPENVINO_ASSERT(type != ov::element::string, "String tensors are not supported in JS API.");
 
         _tensor_info->set_element_type(type);
     } catch (std::exception& e) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace pass {
 
 class TransformIf : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::paddle::pass::TransformIf");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::paddle::pass::TransformIf");
     TransformIf(std::vector<std::shared_ptr<Model>> functions);
 
 private:

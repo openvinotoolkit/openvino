@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,14 +9,17 @@
 #include <vector>
 
 #include "openvino/core/runtime_attribute.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
 
 namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
 
-class SparsityInfo : public ov::RuntimeAttribute {
+class TENSORFLOW_LITE_API SparsityInfo : public ov::RuntimeAttribute {
 public:
+    OPENVINO_RTTI("SparsityInfo", "0", RuntimeAttribute);
+
     struct SparsityDataDesc {
         uint8_t segments_type;
         const void* segments;
@@ -24,18 +27,21 @@ public:
         const void* indices;
     };
 
-    OPENVINO_RTTI("SparsityInfo");
     SparsityInfo() = default;
     explicit SparsityInfo(const std::vector<int32_t>& shape,
                           const std::vector<int32_t>& traversal_order,
                           const std::vector<int32_t>& block_map,
                           const std::vector<uint16_t>& dim_format,
-                          const std::vector<SparsityDataDesc>& data_desc)
+                          const std::vector<SparsityDataDesc>& data_desc,
+                          const ov::element::Type target_type,
+                          const uint8_t* values)
         : m_shape(shape),
           m_traversal_order(traversal_order),
           m_block_map(block_map),
           m_dim_format(dim_format),
-          m_data_desc(data_desc) {
+          m_data_desc(data_desc),
+          m_target_type(target_type),
+          m_values(values) {
         enable();
     }
 
@@ -72,6 +78,21 @@ public:
     void set_data_desc(const std::vector<SparsityDataDesc>& data_desc) {
         m_data_desc = data_desc;
     }
+    const ov::element::Type get_target_type() const {
+        return m_target_type;
+    }
+
+    void set_target_type(const ov::element::Type target_type) {
+        m_target_type = target_type;
+    }
+
+    const uint8_t* get_values() const {
+        return m_values;
+    }
+
+    void set_values(const uint8_t* values) {
+        m_values = values;
+    }
     bool is_disabled() const {
         return m_disabled;
     }
@@ -100,6 +121,8 @@ private:
     std::vector<uint16_t> m_dim_format;         // List of dimension's format
     std::vector<SparsityDataDesc> m_data_desc;  // Tensor data descriptors
     std::vector<uint8_t> m_data;                // Dense data
+    ov::element::Type m_target_type;            // Target type
+    const uint8_t* m_values;                    // Sparse values
     bool m_disabled;
 
     // Unpack sparse tensor and return pointer on unpacked data

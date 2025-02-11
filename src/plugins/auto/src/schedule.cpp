@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "schedule.hpp"
@@ -85,8 +85,11 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
         OPENVINO_THROW("Every device used with AUTO should support query optimal_number_of_infer_requests property from compiled model ",
                     iie.what());
     }
-    const auto num_requests = (m_context->m_device_priorities.end() == it_numrequests ||
-                              it_numrequests->num_requests_per_devices == -1) ? optimal_num : it_numrequests->num_requests_per_devices;
+    auto num_requests =
+        (m_context->m_device_priorities.end() == it_numrequests || it_numrequests->num_requests_per_devices == -1)
+            ? optimal_num
+            : it_numrequests->num_requests_per_devices;
+    num_requests = (num_requests == 1) ? 2 : num_requests;
     auto& worker_requests = m_worker_requests[device];
     auto& idle_worker_requests = m_idle_worker_requests[device];
     worker_requests.resize(num_requests);
@@ -275,8 +278,9 @@ Schedule::~Schedule() {
             }
             size_t count = req_all_start_times.size();
             OPENVINO_ASSERT(count == req_all_end_times.size());
-            std::chrono::duration<double, std::milli> first_infer_durtation =
-                req_all_end_times.front() - req_all_start_times.front();
+            std::chrono::duration<double, std::milli> first_infer_duration =
+                (count != 0) ? req_all_end_times.front() - req_all_start_times.front()
+                             : std::chrono::duration<double, std::milli>(0.0);
             req_all_start_times.sort(std::less<Time>());
             req_all_end_times.sort(std::less<Time>());
             {
@@ -294,7 +298,7 @@ Schedule::~Schedule() {
                 if (n >= 1) {
                     LOG_INFO_TAG("%s: first inference time:%lf ms",
                                  worker_request.first.c_str(),
-                                 first_infer_durtation.count());
+                                 first_infer_duration.count());
                     LOG_INFO_TAG("%s:infer:%ld", worker_request.first.c_str(), count);
                     std::chrono::duration<double, std::milli> durtation =
                         req_all_end_times.back() - time;

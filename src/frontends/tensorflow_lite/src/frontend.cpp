@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -111,7 +111,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
     if (!m_transformation_extensions.empty()) {
         auto ov_model = decode(model);
 
-        ov::pass::Manager manager;
+        ov::pass::Manager manager("Frontend:TFLite:convert");
         for (const auto& transformation : m_transformation_extensions) {
             transformation->register_pass(manager);
         }
@@ -140,8 +140,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) const {
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
         if (ov::is_type<ov::frontend::tensorflow::FrameworkNode>(node)) {
-            translate_framework_node(std::dynamic_pointer_cast<ov::frontend::tensorflow::FrameworkNode>(node),
-                                     m_op_translators);
+            translate_framework_node(ov::as_type_ptr<ov::frontend::tensorflow::FrameworkNode>(node), m_op_translators);
         }
     }
     for (const auto& result : partiallyConverted->get_results()) {
@@ -153,7 +152,7 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
 std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::InputModel::Ptr& model) const {
     if (!m_transformation_extensions.empty()) {
         auto function = decode(model);
-        ov::pass::Manager manager;
+        ov::pass::Manager manager("Frontend:TFLite:convert_partially");
         for (const auto& transformation : m_transformation_extensions) {
             transformation->register_pass(manager);
         }
@@ -293,7 +292,7 @@ std::shared_ptr<ov::Model> FrontEnd::decode(const InputModel::Ptr& model) const 
 }
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
-    ov::pass::Manager manager;
+    ov::pass::Manager manager("Frontend:TFLite:normalize");
     // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
     // so that not extra memory is used for intermediate decompressed constants.
     manager.register_pass<ov::pass::MarkCompressedFloatConstants>();

@@ -20,7 +20,7 @@ namespace pass {
  */
 class SetLoadStoreScalar : public RangedPass {
 public:
-    OPENVINO_RTTI("SetLoadStoreScalar", "RangedPass")
+    OPENVINO_RTTI("SetLoadStoreScalar", "", RangedPass)
     SetLoadStoreScalar() = default;
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 };

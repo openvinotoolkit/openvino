@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,6 +45,14 @@ public:
     ///
     /// \return     State of TensorExternalData as string representation
     std::string to_string() const;
+
+    /// \brief      Object contains a data length after construction. Method allows read-only access to this
+    ///             information.
+    ///
+    /// \return     Returns a stored data size in bytes
+    uint64_t size() const {
+        return m_data_length;
+    }
 
 private:
     std::string m_data_location{};

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,18 +39,18 @@ ov::pass::DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer() {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto random_uniform = pattern_map.at(random_uniform_pattern);
         const auto shape_of = pattern_map.at(shape_pattern);
-        const auto ru = std::dynamic_pointer_cast<ov::op::v8::RandomUniform>(random_uniform.get_node_shared_ptr());
+        const auto ru = ov::as_type_ptr<ov::op::v8::RandomUniform>(random_uniform.get_node_shared_ptr());
         if (!ru)
             return false;
         if (!ru->get_out_type().is_real())
             return false;
 
         auto min_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(ru_min_const_pattern).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(ru_min_const_pattern).get_node_shared_ptr());
         auto max_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(ru_max_const_pattern).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(ru_max_const_pattern).get_node_shared_ptr());
         auto add_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(add_const_pattern).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(add_const_pattern).get_node_shared_ptr());
 
         bool valid_constant_values = op::util::has_constant_value<double>(min_const_value, 0.0) &&
                                      op::util::has_constant_value<double>(max_const_value, 1.0);

@@ -35,9 +35,17 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
-    double get_epsilon() const { return m_epsilon; }
+    double get_epsilon() const {
+        return m_epsilon;
+    }
 
-    void set_epsilon(double epsilon) { m_epsilon = epsilon; }
+    void set_epsilon(double epsilon) {
+        m_epsilon = epsilon;
+    }
+
+    void set_output_type_attr(const element::Type& output_type) {
+        m_output_type = output_type;
+    }
 
 private:
     double m_epsilon{0};

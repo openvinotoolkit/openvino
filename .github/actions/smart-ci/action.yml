@@ -30,7 +30,6 @@ inputs:
   components_config_schema:
     description: "Path to the schema file for components configuration"
     required: false
-    default: ".github/actions/smart-ci/components_schema.yml"
   labeler_config:
     description: "Path to labeler configuration file"
     required: false
@@ -43,6 +42,10 @@ inputs:
     description: "Comma-separated list of patterns (fnmatch-style). If PR has only matching files changed, 
                   return indicator that CI can be skipped"
     required: false
+  enable_for_org:
+    description: "Enables running workflows for a given organization; triggers from other orgs are skipped"
+    required: false
+    default: "openvinotoolkit"
 
 outputs:
   all_components:
@@ -62,7 +65,7 @@ runs:
   using: "composite"
   steps:
     - name: Wait for labeler to finish
-      uses: lewagon/wait-on-check-action@v1.3.1
+      uses: lewagon/wait-on-check-action@ccfb013c15c8afb7bf2b7c028fb74dc5a068cccc # v1.3.4
       if: ${{ github.event_name == 'pull_request' }}
       with:
         ref: ${{ github.event.pull_request.head.sha }}
@@ -71,13 +74,13 @@ runs:
         wait-interval: 10
 
     - name: checkout components file
-      uses: actions/checkout@v4
+      uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
       with:
         sparse-checkout: .github/components.yml
         sparse-checkout-cone-mode: false
 
     - name: Install Python dependencies
-      uses: py-actions/py-dependency-install@v4
+      uses: py-actions/py-dependency-install@30aa0023464ed4b5b116bd9fbdab87acf01a484e # v4.1.0
       with:
         path: "${{ github.action_path }}/requirements.txt"
         update-setuptools: "false"
@@ -97,10 +100,12 @@ runs:
           -f "${{ inputs.ref_name }}" \
           -p "${{ inputs.component_pattern }}" \
           -c "${{ inputs.components_config }}" \
-          -m "${{ inputs.components_config_schema }}" \
+          -m "${{ inputs.components_config_schema || env.DEFAULT_CONFIG_SCHEMA }}" \
           -l "${{ inputs.labeler_config }}" \
+          --enable_for_org "${{ inputs.enable_for_org }}" \
           --skip-when-only-listed-labels-set "${{ inputs.skip_when_only_listed_labels_set }}" \
           --skip-when-only-listed-files-changed "${{ inputs.skip_when_only_listed_files_changed }}"
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.repo_token }}
+        DEFAULT_CONFIG_SCHEMA: "${{ github.action_path }}/components_schema.yml"

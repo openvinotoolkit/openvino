@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
+#include "pyopenvino/core/remote_tensor.hpp"
 
 #define C_CONTIGUOUS py::detail::npy_api::constants::NPY_ARRAY_C_CONTIGUOUS_
 
@@ -29,6 +30,7 @@ const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype() {
         {ov::element::u4, py::dtype("uint8")},     {ov::element::nf4, py::dtype("uint8")},
         {ov::element::i4, py::dtype("int8")},      {ov::element::f8e4m3, py::dtype("uint8")},
         {ov::element::f8e5m2, py::dtype("uint8")}, {ov::element::string, py::dtype("bytes_")},
+        {ov::element::f4e2m1, py::dtype("uint8")}, {ov::element::f8e8m0, py::dtype("uint8")},
     };
     return ov_type_to_dtype_mapping;
 }
@@ -37,35 +39,37 @@ py::dtype get_dtype(const ov::element::Type& ov_type) {
     return ov_type_to_dtype().at(ov_type);
 }
 
-const std::map<int, ov::element::Type>& dtype_num_to_ov_type() {
-    static const std::map<int, ov::element::Type> dtype_to_ov_type_mapping = {
-        {23, ov::element::f16},  // float16
-        {11, ov::element::f32},  // float32
-        {12, ov::element::f64},  // float64
-        {1, ov::element::i8},    // int8
-        {3, ov::element::i16},   // int16
-#ifdef _WIN32
-        {7, ov::element::i32},  // int32
-        {9, ov::element::i64},  // int64
-#else
-        {5, ov::element::i32},  // int32
-        {7, ov::element::i64},  // int64
-#endif
-        {2, ov::element::u8},   // uint8
-        {4, ov::element::u16},  // uint16
-#ifdef _WIN32
-        {8, ov::element::u32},   // uint32
-        {10, ov::element::u64},  // uint64
-#else
-        {6, ov::element::u32},  // uint32
-        {8, ov::element::u64},  // uint64
-#endif
-        {0, ov::element::boolean},  // bool
-        {18, ov::element::string},  // bytes_
-        {19, ov::element::string},  // str_
-        {18, ov::element::string},  // bytes
-        {19, ov::element::string},  // str
+std::map<int, ov::element::Type> init_num_to_ov_type() {
+    static const std::map<std::string, ov::element::Type> str_to_type_mapping = {
+        {"float16", ov::element::f16},
+        {"float32", ov::element::f32},
+        {"float64", ov::element::f64},
+        {"int8", ov::element::i8},
+        {"int16", ov::element::i16},
+        {"int32", ov::element::i32},
+        {"int64", ov::element::i64},
+        {"uint8", ov::element::u8},
+        {"uint16", ov::element::u16},
+        {"uint32", ov::element::u32},
+        {"uint64", ov::element::u64},
+        {"bool", ov::element::boolean},
+        {"bytes_", ov::element::string},
+        {"str_", ov::element::string},
+        {"bytes", ov::element::string},
+        {"str", ov::element::string},
     };
+
+    std::map<int, ov::element::Type> int_to_type_mapping;
+
+    for (const auto& e : str_to_type_mapping) {
+        int_to_type_mapping[py::dtype(e.first).num()] = e.second;
+    }
+
+    return int_to_type_mapping;
+}
+
+const std::map<int, ov::element::Type>& dtype_num_to_ov_type() {
+    static const std::map<int, ov::element::Type> dtype_to_ov_type_mapping = init_num_to_ov_type();
     return dtype_to_ov_type_mapping;
 }
 
@@ -114,35 +118,48 @@ const TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs) {
 
 namespace string_helpers {
 
+namespace {
+const char* find_last_not_null(const char* str, size_t length) {
+    return std::find_if(std::make_reverse_iterator(str + length),
+                        std::make_reverse_iterator(str),
+                        [](const auto& c) {
+                            return c != '\0';
+                        })
+        .base();
+}
+}  // namespace
+
 py::array bytes_array_from_tensor(ov::Tensor&& t) {
     if (t.get_element_type() != ov::element::string) {
         OPENVINO_THROW("Tensor's type must be a string!");
     }
     auto data = t.data<std::string>();
+
     auto max_element = std::max_element(data, data + t.get_size(), [](const std::string& x, const std::string& y) {
         return x.length() < y.length();
     });
     auto max_stride = max_element->length();
     auto dtype = py::dtype("|S" + std::to_string(max_stride));
+
     // Adjusting strides to follow the numpy convention:
-    py::array array;
-    auto new_strides = t.get_strides();
-    if (new_strides.size() == 0) {
-        array = py::array(dtype, t.get_shape(), {});
-    } else {
-        auto element_stride = new_strides[new_strides.size() - 1];
-        for (size_t i = 0; i < new_strides.size(); ++i) {
-            new_strides[i] = (new_strides[i] / element_stride) * max_stride;
+    const auto py_array_strides = [&t, &max_stride] {
+        auto new_strides = t.get_strides();
+        if (!new_strides.empty()) {
+            const auto& element_stride = new_strides.back();
+            for (auto&& stride : new_strides) {
+                stride = (stride / element_stride) * max_stride;
+            }
         }
-        array = py::array(dtype, t.get_shape(), new_strides);
-    }
+        return new_strides;
+    };
+
     // Create an empty array and populate it with utf-8 encoded strings:
-    auto ptr = array.data();
+    auto array = py::array(dtype, t.get_shape(), py_array_strides());
+    auto ptr = reinterpret_cast<char*>(array.mutable_data());
     for (size_t i = 0; i < t.get_size(); ++i) {
-        auto start = &data[i][0];
-        auto length = data[i].length();
-        auto end = std::copy(start, start + length, (char*)ptr + i * max_stride);
-        std::fill_n(end, max_stride - length, 0);
+        const auto length = data[i].length();
+        ptr = std::copy_n(data[i].begin(), length, ptr);
+        ptr = std::fill_n(ptr, max_stride - length, '\0');
     }
     return array;
 }
@@ -173,7 +190,8 @@ void fill_tensor_from_bytes(ov::Tensor& tensor, py::array& array) {
     auto data = tensor.data<std::string>();
     for (size_t i = 0; i < tensor.get_size(); ++i) {
         const char* ptr = reinterpret_cast<const char*>(buf.ptr) + (i * buf.itemsize);
-        data[i] = std::string(ptr, buf.ndim == 0 ? buf.itemsize : buf.strides[0]);
+        auto first_not_null = find_last_not_null(ptr, buf.itemsize);
+        data[i] = std::string(ptr, first_not_null);
     }
 }
 
@@ -181,18 +199,20 @@ void fill_tensor_from_strings(ov::Tensor& tensor, py::array& array) {
     if (tensor.get_size() != static_cast<size_t>(array.size())) {
         OPENVINO_THROW("Passed array must have the same size (number of elements) as the Tensor!");
     }
-    py::buffer_info buf = array.request();
+
+    const py::buffer_info buf = array.request();
     auto data = tensor.data<std::string>();
-    for (size_t i = 0; i < tensor.get_size(); ++i) {
-        char* ptr = reinterpret_cast<char*>(buf.ptr) + (i * buf.itemsize);
+
+    for (auto a_first = reinterpret_cast<const uint8_t*>(buf.ptr), a_last = a_first + array.nbytes(); a_first < a_last;
+         a_first += array.itemsize(), ++data) {
         // TODO: check other unicode kinds? 2BYTE and 1BYTE?
-        PyObject* _unicode_obj =
-            PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, reinterpret_cast<void*>(ptr), buf.itemsize / 4);
-        PyObject* _utf8_obj = PyUnicode_AsUTF8String(_unicode_obj);
-        const char* _tmp_str = PyBytes_AsString(_utf8_obj);
-        data[i] = std::string(_tmp_str);
+        auto _unicode_obj = PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, a_first, array.itemsize() / 4);
+
+        Py_ssize_t utf8_size = 0;
+        const auto utf8_str = PyUnicode_AsUTF8AndSize(_unicode_obj, &utf8_size);
+
+        *data = std::string(utf8_str, find_last_not_null(utf8_str, utf8_size));
         Py_XDECREF(_unicode_obj);
-        Py_XDECREF(_utf8_obj);
     }
 }
 
@@ -354,48 +374,39 @@ py::array array_from_constant_copy(ov::op::v0::Constant&& c, py::dtype& dst_dtyp
 py::array array_from_constant_view(ov::op::v0::Constant&& c) {
     const auto& ov_type = c.get_element_type();
     const auto dtype = Common::type_helpers::get_dtype(ov_type);
+    py::array data;
     if (ov_type.bitwidth() < Common::values::min_bitwidth) {
-        return py::array(dtype, c.get_byte_size(), c.get_data_ptr(), py::cast(c));
+        data = py::array(dtype, c.get_byte_size(), c.get_data_ptr(), py::cast(c));
+    } else {
+        data = py::array(dtype, c.get_shape(), constant_helpers::_get_strides(c), c.get_data_ptr(), py::cast(c));
     }
-    return py::array(dtype, c.get_shape(), constant_helpers::_get_strides(c), c.get_data_ptr(), py::cast(c));
+    data.attr("flags").attr("writeable") = false;
+    return data;
 }
 
 };  // namespace array_helpers
 
 namespace constant_helpers {
+
+std::vector<size_t> _get_byte_strides(const ov::Shape& s, const size_t element_byte_size) {
+    auto byte_strides = ov::row_major_strides(s);
+    for (auto&& stride : byte_strides) {
+        stride *= element_byte_size;
+    }
+    return byte_strides;
+}
+
 std::vector<size_t> _get_strides(const ov::op::v0::Constant& self) {
-    auto element_type = self.get_element_type();
-    auto shape = self.get_shape();
-    if (element_type == ov::element::boolean) {
-        return _get_byte_strides<char>(shape);
-    } else if (element_type == ov::element::f16 || element_type == ov::element::bf16) {
-        // WA for bf16, returned as f16 array
-        return _get_byte_strides<ov::float16>(shape);
-    } else if (element_type == ov::element::f32) {
-        return _get_byte_strides<float>(shape);
-    } else if (element_type == ov::element::f64) {
-        return _get_byte_strides<double>(shape);
-    } else if (element_type == ov::element::i8 || element_type == ov::element::i4) {
-        // WA for i4, returned as int8 array
-        return _get_byte_strides<int8_t>(shape);
-    } else if (element_type == ov::element::i16) {
-        return _get_byte_strides<int16_t>(shape);
-    } else if (element_type == ov::element::i32) {
-        return _get_byte_strides<int32_t>(shape);
-    } else if (element_type == ov::element::i64) {
-        return _get_byte_strides<int64_t>(shape);
-    } else if (element_type == ov::element::u8 || element_type == ov::element::u1 || element_type == ov::element::u4 ||
-               element_type == ov::element::nf4) {
-        // WA for u1, u4, nf4, all returned as packed uint8 arrays
-        return _get_byte_strides<uint8_t>(shape);
-    } else if (element_type == ov::element::u16) {
-        return _get_byte_strides<uint16_t>(shape);
-    } else if (element_type == ov::element::u32) {
-        return _get_byte_strides<uint32_t>(shape);
-    } else if (element_type == ov::element::u64) {
-        return _get_byte_strides<uint64_t>(shape);
-    } else {
-        throw std::runtime_error("Unsupported data type!");
+    using namespace ov::element;
+    switch (self.get_element_type()) {
+    case i4:
+    case u1:
+    case u4:
+    case nf4:
+    case f4e2m1:
+        return _get_byte_strides(self.get_shape(), 8);
+    default:
+        return self.get_strides();
     }
 }
 };  // namespace constant_helpers
@@ -431,10 +442,14 @@ ov::op::v0::Constant create_shared(py::array& array) {
     // If ndim is equal to 0, creates scalar Constant.
     // If size is equal to 0, creates empty Constant.
     if (array_helpers::is_contiguous(array)) {
-        auto memory = std::make_shared<ov::SharedBuffer<py::array>>(
+        auto buffer = new ov::SharedBuffer<py::array>(
             static_cast<char*>((array.ndim() == 0 || array.size() == 0) ? array.mutable_data() : array.mutable_data(0)),
             array.ndim() == 0 ? array.itemsize() : array.nbytes(),
             array);
+        std::shared_ptr<ov::SharedBuffer<py::array>> memory(buffer, [](ov::SharedBuffer<py::array>* buffer) {
+            py::gil_scoped_acquire acquire;
+            delete buffer;
+        });
         return ov::op::v0::Constant(type_helpers::get_ov_type(array), array_helpers::get_shape(array), memory);
     }
     // If passed array is not C-style, throw an error.
@@ -563,7 +578,7 @@ ov::PartialShape partial_shape_from_list(const py::list& shape) {
         } else {
             throw py::type_error("Incorrect type " + std::string(py::str(dim.get_type())) +
                                  " for dimension. Expected types are: "
-                                 "int, str, openvino.runtime.Dimension, list/tuple with lower and upper values for "
+                                 "int, str, openvino.Dimension, list/tuple with lower and upper values for "
                                  "dynamic dimension.");
         }
     }
@@ -571,7 +586,13 @@ ov::PartialShape partial_shape_from_list(const py::list& shape) {
 }
 
 const ov::Tensor& cast_to_tensor(const py::handle& tensor) {
-    return tensor.cast<const ov::Tensor&>();
+    if (py::isinstance<ov::Tensor>(tensor)) {
+        return tensor.cast<const ov::Tensor&>();
+    } else if (py::isinstance<RemoteTensorWrapper>(tensor)) {
+        return tensor.cast<const RemoteTensorWrapper&>().tensor;
+    }
+
+    throw py::type_error("Unable to cast " + std::string(py::str(tensor.get_type())) + " object to ov::Tensor");
 }
 
 void set_request_tensors(ov::InferRequest& request, const py::dict& inputs) {
@@ -612,7 +633,7 @@ uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
 py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs, bool decode_strings) {
     py::dict res;
     for (const auto& out : request.m_outputs) {
-        auto t = request.m_request.get_tensor(out);
+        auto t = request.m_request->get_tensor(out);
         if (t.get_element_type() == ov::element::string) {
             if (share_outputs) {
                 PyErr_WarnEx(PyExc_RuntimeWarning, "Result of a string type will be copied to OVDict!", 1);

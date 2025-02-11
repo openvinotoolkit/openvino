@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_image_Interpolate_1}
-
 Interpolate
 ===========
 
@@ -51,7 +49,7 @@ Interpolate
 * *pads_begin*
 
   * **Description**: *pads_beg* specify the number of pixels to add to the beginning of the image being interpolated.
-This is a scalar that specifies padding for each spatial dimension.
+    This is a scalar that specifies padding for each spatial dimension.
   * **Range of values**: list of non-negative integer numbers
   * **Type**: ``int``
   * **Default value**: 0
@@ -60,7 +58,7 @@ This is a scalar that specifies padding for each spatial dimension.
 * *pads_end*
 
   * **Description**: *pads_end* specify the number of pixels to add to the beginning of the image being interpolated.
-This is a scalar that specifies padding for each spatial dimension.
+    This is a scalar that specifies padding for each spatial dimension.
   * **Range of values**: list of non-negative integer numbers
   * **Type**: ``int``
   * **Default value**: 0

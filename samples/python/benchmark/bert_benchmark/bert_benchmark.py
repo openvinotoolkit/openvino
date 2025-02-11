@@ -9,9 +9,9 @@ import sys
 import tempfile
 from time import perf_counter
 
-import datasets
 import openvino as ov
-from openvino.runtime import get_version
+import datasets
+from openvino import get_version
 from transformers import AutoTokenizer
 from transformers.onnx import export
 from transformers.onnx.features import FeaturesManager

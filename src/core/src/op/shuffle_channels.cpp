@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ bool ShuffleChannels::visit_attributes(AttributeVisitor& visitor) {
 size_t ShuffleChannels::get_zero_based_axis() const {
     const auto input_rank = get_input_partial_shape(0).rank();
     if (input_rank.is_static()) {
-        return ov::util::normalize_axis(this, m_axis, input_rank);
+        return ov::util::try_normalize_axis(m_axis, input_rank, *this);
     } else {
         OPENVINO_THROW("Cannot request zero-based axis with a input of unknown rank");
     }

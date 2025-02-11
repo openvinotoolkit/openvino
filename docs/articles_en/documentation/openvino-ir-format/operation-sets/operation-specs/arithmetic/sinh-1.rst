@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_arithmetic_Sinh_1}
-
 Sinh
 ====
 
 
 .. meta::
-  :description: Learn about Sinh-1 - an element-wise, arithmetic operation, which 
+  :description: Learn about Sinh-1 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Sinh-1*

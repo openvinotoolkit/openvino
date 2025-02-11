@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_activation_PReLU_1}
-
 PReLU
 =====
 
 
 .. meta::
-  :description: Learn about PReLU-1 -an element-wise, activation operation, which 
+  :description: Learn about PReLU-1 -an element-wise, activation operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *PReLU-1*
@@ -102,7 +100,7 @@ Example: 2D input tensor ``data``
 Example: 4D input tensor ``data``
 
 .. code-block:: xml
-   :force:  
+   :force:
 
     <layer ... type="Prelu">
         <input>

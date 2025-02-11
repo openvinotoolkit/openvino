@@ -13,13 +13,13 @@ namespace pass {
 
 /**
  * @interface InitBuffersDefault
- * @brief The pass inits Buffer expressions in LinearIR default (non-optimized): sets unique offsets and ID to Buffers.
+ * @brief The pass inits Buffer expressions in LinearIR default (non-optimized): sets unique offsets and reg groups to Buffers.
  * @ingroup snippets
  */
 
 class InitBuffersDefault : public RangedPass {
 public:
-    OPENVINO_RTTI("InitBuffersDefault", "RangedPass")
+    OPENVINO_RTTI("InitBuffersDefault", "", RangedPass);
 
     InitBuffersDefault(size_t& buffer_scratchpad_size) : m_buffer_scratchpad_size(buffer_scratchpad_size) {
         m_buffer_scratchpad_size = 0;

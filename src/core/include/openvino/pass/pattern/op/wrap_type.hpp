@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,6 +46,7 @@ public:
     NodeTypeInfo get_wrapped_type() const;
 
     const std::vector<NodeTypeInfo>& get_wrapped_types() const;
+    std::ostream& write_type_description(std::ostream& out) const override;
 
 private:
     std::vector<NodeTypeInfo> m_wrapped_types;

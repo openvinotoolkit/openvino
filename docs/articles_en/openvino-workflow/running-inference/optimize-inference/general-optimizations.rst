@@ -1,5 +1,3 @@
-.. {#openvino_docs_deployment_optimization_guide_common}
-
 General Optimizations
 =====================
 
@@ -20,7 +18,7 @@ Inputs Pre-Processing with OpenVINO
 
 In many cases, a network expects a pre-processed image. It is advised not to perform any unnecessary steps in the code:
 
-* Model conversion API can efficiently incorporate the mean and normalization (scale) values into a model (for example, to the weights of the first convolution). For more details, see the :doc:`relevant model conversion API command-line parameters <../../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-embedding-preprocessing-computation>`.
+* Model conversion API can efficiently incorporate the mean and normalization (scale) values into a model (for example, to the weights of the first convolution). For more details, see the :doc:`relevant model conversion API command-line parameters <../../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing/preprocessing-api-details>`.
 * Let OpenVINO accelerate other means of :doc:`Image Pre-processing and Conversion <optimize-preprocessing>`
 * Data which is already in the "on-device" memory can be input directly by using the :doc:`remote tensors API of the GPU Plugin <../inference-devices-and-modes/gpu-device/remote-tensor-api-gpu-plugin>`.
 
@@ -43,7 +41,7 @@ The key advantage of the Async approach is that when a device is busy with the i
 
 In the example below, inference is applied to the results of the video decoding. It is possible to keep two parallel infer requests, and while the current one is processed, the input frame for the next one is being captured. This essentially hides the latency of capturing, so that the overall frame rate is rather determined only by the slowest part of the pipeline (decoding vs inference) and not by the sum of the stages.
 
-.. image:: ../../../_static/images/synch-vs-asynch.svg
+.. image:: ../../../assets/images/synch-vs-asynch.svg
    :alt: Intel® VTune™ screenshot
 
 Below are example-codes for the regular and async-based approaches to compare:
@@ -62,7 +60,7 @@ Below are example-codes for the regular and async-based approaches to compare:
 
 
 The technique can be generalized to any available parallel slack. For example, you can do inference and simultaneously encode the resulting or previous frames or run further inference, like emotion detection on top of the face detection results.
-Refer to the `Object Detection C++ Demo <https://docs.openvino.ai/2023.3/omz_demos_object_detection_demo_cpp.html>`__ , `Object Detection Python Demo <https://docs.openvino.ai/2023.3/omz_demos_object_detection_demo_python.html>`__ (latency-oriented Async API showcase) and :doc:`Benchmark App Sample <../../../learn-openvino/openvino-samples/benchmark-tool>` for complete examples of the Async API in action.
+Refer to the :doc:`Benchmark App Sample <../../../learn-openvino/openvino-samples/benchmark-tool>` for complete examples of the Async API in action.
 
 .. note::
 

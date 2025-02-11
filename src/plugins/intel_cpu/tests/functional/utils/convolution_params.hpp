@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,10 @@ namespace CPUTestUtils {
     const auto conv_ref_1D = CPUSpecificParams{{ncw}, {ncw}, {"ref_any"}, "ref_any"};
     const auto conv_ref_2D = CPUSpecificParams{{nchw}, {nchw}, {"ref_any"}, "ref_any"};
     const auto conv_ref_3D = CPUSpecificParams{{ncdhw}, {ncdhw}, {"ref_any"}, "ref_any"};
+
+    const auto conv_ref_1D_nspc = CPUSpecificParams{{nwc}, {nwc}, {"ref_any"}, "ref_any"};
+    const auto conv_ref_2D_nspc = CPUSpecificParams{{nhwc}, {nhwc}, {"ref_any"}, "ref_any"};
+    const auto conv_ref_3D_nspc = CPUSpecificParams{{ndhwc}, {ndhwc}, {"ref_any"}, "ref_any"};
 
     const auto conv_gemm_1D = CPUSpecificParams{{ncw}, {ncw}, {"jit_gemm"}, "jit_gemm"};
     const auto conv_gemm_2D = CPUSpecificParams{{nchw}, {nchw}, {"jit_gemm"}, "jit_gemm"};

@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/itt.hpp"
 #include "scalar_to_scalar_tpp.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "snippets/op/scalar.hpp"
-#include "transformations/tpp/x64/op/scalar.hpp"
-#include "transformations/tpp/x64/op/modifiers.hpp"
-#include "snippets/lowered/port_connector.hpp"
 
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/lowered/port_connector.hpp"
+#include "snippets/op/scalar.hpp"
+#include "transformations/tpp/x64/op/modifiers.hpp"
+#include "transformations/tpp/x64/op/scalar.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -20,7 +20,6 @@ ScalarToScalarTPP::ScalarToScalarTPP() {
     MATCHER_SCOPE(ScalarToScalarTPP);
 
     auto snippets_scalar = ov::pass::pattern::wrap_type<ov::snippets::op::Scalar>();
-
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::ScalarToScalarTPP")
@@ -42,16 +41,16 @@ ScalarToScalarTPP::ScalarToScalarTPP() {
         tpp_scalar->set_friendly_name(node->get_friendly_name());
         ov::replace_node_update_name(node, tpp_scalar);
         const auto& out = tpp_scalar->output(0);
-        snippets::lowered::set_port_desc(out, {1});
+        ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(out, {1});
         for (const auto& in : out.get_target_inputs())
-            snippets::lowered::set_port_desc(in, {1});
+            ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(in, {1});
         return true;
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(snippets_scalar, matcher_name);
     register_matcher(m, callback);
 }
-} // namespace pass
-} // namespace tpp
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace pass
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

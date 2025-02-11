@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -99,12 +99,12 @@ shared_ptr<Model> gen_reference(WeightsFormat format,
     shared_ptr<Node> B = make_shared<Constant>(f32, Shape{1, 2 * hidden_size}, 0);
     if (use_bias_add_1) {
         B = make_shared<Parameter>(f32, Shape{1, 2 * hidden_size});
-        params.push_back(dynamic_pointer_cast<Parameter>(B));
+        params.push_back(ov::as_type_ptr<Parameter>(B));
     }
     shared_ptr<Node> Bh = make_shared<Constant>(f32, Shape{1, hidden_size}, 0);
     if (use_bias_add_2) {
         Bh = make_shared<Parameter>(f32, Shape{1, hidden_size});
-        params.push_back(dynamic_pointer_cast<Parameter>(Bh));
+        params.push_back(ov::as_type_ptr<Parameter>(Bh));
     }
 
     auto axis_0 = make_shared<Constant>(i64, Shape{}, 0);

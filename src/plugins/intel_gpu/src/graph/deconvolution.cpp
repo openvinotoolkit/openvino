@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <string>
@@ -325,12 +325,6 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
                                 "Spatial[0] of bias should be 1. Bias isn't 1D vector.");
     }
 
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
-                            "deconvolution padding filling value",
-                            node.get_output_layout().data_padding.filling_value(),
-                            "padding mode",
-                            0.0f,
-                            "Unknown padding mode in deconvolution.");
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                             "Weights feature maps number",
                             filter_inst.ifm() * filter_inst.group(),

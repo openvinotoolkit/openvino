@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ namespace util {
 ///
 class OPENVINO_API MultiSubGraphOp : public ov::op::Sink {
 public:
-    OPENVINO_OP("MultiSubGraphOp", "util");
+    OPENVINO_OP("MultiSubGraphOp", "util", ov::op::Sink);
     /// \brief Abstract class describes a connection between a MultiSubGraphOp input and
     /// the body.
     class InputDescription {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -158,7 +158,7 @@ TEST(threading, clone_with_new_inputs) {
 
             const auto inSize = op->get_input_size();
             for (size_t i = 0; i < inSize; i++) {
-                if (dynamic_cast<ov::opset8::Constant*>(op->get_input_node_ptr(i))) {
+                if (ov::as_type<ov::opset8::Constant>(op->get_input_node_ptr(i))) {
                     inputsForShapeInfer.push_back(op->get_input_node_ptr(i)->clone_with_new_inputs(ov::OutputVector{}));
                 } else {
                     inputsForShapeInfer.push_back(

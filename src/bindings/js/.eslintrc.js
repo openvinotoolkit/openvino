@@ -4,6 +4,6 @@ module.exports = {
     'plugin:@typescript-eslint/recommended',
     './.eslintrc-global.js',
   ],
-  ignorePatterns: ['**/*.js', 'node_modules/', 'types/', 'dist/', 'bin/'],
+  ignorePatterns: ['node_modules/', 'types/', 'dist/', 'bin/', '.eslintrc.js'],
   root: true,
 };

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -28,7 +28,12 @@ class OperatorSupport(OperatorSupport):
 
     def __init__(self, options):
         support_dict = {
+            "_operator.add": None,
+            "_operator.floordiv": None,
             "_operator.getitem": None,
+            "_operator.mul": None,
+            "_operator.sub": None,
+            "torch.ops.aten.sym_size.int": None,
             "torch.ops.aten._adaptive_avg_pool1d.default": None,
             "torch.ops.aten._adaptive_avg_pool2d.default": None,
             "torch.ops.aten._adaptive_avg_pool3d.default": None,
@@ -77,6 +82,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.avg_pool2d.default": None,
             "torch.ops.aten.avg_pool3d.default": None,
             "torch.ops.aten.baddbmm.default": None,
+            "torch.ops.aten.bitwise_and.Scalar": None,
             "torch.ops.aten.bitwise_and.Tensor": None,
             "torch.ops.aten.bitwise_not.default": None,
             "torch.ops.aten.bitwise_or.Tensor": None,
@@ -139,6 +145,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.hardtanh.default": None,
             "torch.ops.aten.hardtanh_.default": None,
             "torch.ops.aten.index.Tensor": None,
+            "torch.ops.aten._unsafe_index.Tensor": None,
             "torch.ops.aten.index_select.default": None,
             "torch.ops.aten.isfinite.default": None,
             "torch.ops.aten.isinf.default": None,
@@ -235,6 +242,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.transpose.int": None,
             "torch.ops.aten.tril.default": None,
             "torch.ops.aten.tril_.default": None,
+            "torch.ops.aten.triu.default": None,
             "torch.ops.aten.unbind.int": None,
             "torch.ops.aten.unfold.default": None,
             "torch.ops.aten.unsqueeze.default": None,
@@ -253,11 +261,16 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.quantized_decomposed.dequantize_per_channel.default": None
 
         }
+            
+        self.enabled_op_names = []
 
         for op in _get_disabled_ops(options):
             del support_dict[op]
 
         super().__init__(support_dict)
+
+    def enable_by_name(self, node: Node):
+        self.enabled_op_names.append(node.name)
 
     def is_node_supported(self, submodules: t.Mapping[str, Module], node: Node) -> bool:
         # OpenVINO FX subgraph should be purely functional
@@ -271,5 +284,8 @@ class OperatorSupport(OperatorSupport):
 
             if target in self._support_dict:
                 return True
+
+        if node.name in self.enabled_op_names:
+            return True
 
         return super().is_node_supported(submodules, node)

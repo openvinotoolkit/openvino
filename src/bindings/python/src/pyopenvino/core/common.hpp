@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,6 +46,8 @@ namespace type_helpers {
 const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype();
 
 py::dtype get_dtype(const ov::element::Type& ov_type);
+
+std::map<int, ov::element::Type> init_num_to_ov_type();
 
 const std::map<int, ov::element::Type>& dtype_num_to_ov_type();
 
@@ -111,13 +113,11 @@ py::array array_from_constant_view(ov::op::v0::Constant&& c);
 }; // namespace array_helpers
 
 namespace constant_helpers {
+std::vector<size_t> _get_byte_strides(const ov::Shape& s, size_t element_byte_size);
+
 template <typename T>
 std::vector<size_t> _get_byte_strides(const ov::Shape& s) {
-    auto byte_strides = ov::row_major_strides(s);
-    for (auto&& stride : byte_strides) {
-        stride *= sizeof(T);
-     }
-    return byte_strides;
+    return _get_byte_strides(s, sizeof(T));
 }
 
 std::vector<size_t> _get_strides(const ov::op::v0::Constant& self);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,16 +23,16 @@ ReduceSumTransformation::ReduceSumTransformation(const Params& params) : ReduceB
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool ReduceSumTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
+bool ReduceSumTransformation::canBeTransformed(const std::shared_ptr<Node>& reduce) const {
     const auto reduceSum = ov::as_type_ptr<ov::opset1::ReduceSum>(reduce);
-    if (!reduceSum || !ReduceBaseTransformation::canBeTransformed(context, reduceSum)) {
+    if (!reduceSum || !ReduceBaseTransformation::canBeTransformed(reduceSum)) {
         return false;
     }
 
@@ -69,10 +69,21 @@ void ReduceSumTransformation::changeDequantizationValues(
 
         // (a1 - s) + (a2 - s) + ... + (an - s) = (a1 + a2 + ... + an) - n * s
         const auto reductionSizeConstant = ov::opset1::Constant::create(deqPrecision, Shape{}, { static_cast<float>(reductionSize) });
-        const auto result = fold<ov::opset1::Multiply>(dequantization.subtractConstant, reductionSizeConstant);
+        OPENVINO_ASSERT(deqPrecision == dequantization.subtract->get_input_element_type(0),
+                        "dequantization precision ", deqPrecision,
+                        " differs from zero point 0 input ", dequantization.subtract->get_input_element_type(0));
+        const auto result = fold<ov::opset1::Multiply>(
+            foldConvert(dequantization.subtractConstant, deqPrecision),
+            reductionSizeConstant);
 
-        replace_node(dequantization.subtractConstant, result);
+        replace_node(
+            dequantization.subtractConvert != nullptr ?
+                std::dynamic_pointer_cast<ov::Node>(dequantization.subtractConvert) :
+                dequantization.subtractConstant,
+            result);
+
         dequantization.subtractConstant = ov::as_type_ptr<ov::opset1::Constant>(result);
+        dequantization.subtractConvert = nullptr;
     }
 }
 

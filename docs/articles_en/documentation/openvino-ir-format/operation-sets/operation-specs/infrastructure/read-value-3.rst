@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_infrastructure_ReadValue_3}
-
 ReadValue
 =========
 
 
 .. meta::
-  :description: Learn about ReadValue-3 - an infrastructure operation, which 
+  :description: Learn about ReadValue-3 - an infrastructure operation, which
                 can be performed on a single input tensor to return the value of variable_id.
 
 **Versioned name**: *ReadValue-3*
@@ -64,4 +62,4 @@ with the shape and type from the 1 input.
         </output>
     </layer>
 
-    
+

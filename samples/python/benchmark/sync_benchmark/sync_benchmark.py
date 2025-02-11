@@ -10,8 +10,8 @@ from time import perf_counter
 
 import numpy as np
 import openvino as ov
-from openvino.runtime import get_version
-from openvino.runtime.utils.types import get_dtype
+from openvino import get_version
+from openvino.utils.types import get_dtype
 
 
 def fill_tensor_random(tensor):

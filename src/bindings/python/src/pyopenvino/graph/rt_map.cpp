@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,7 +60,7 @@ public:
 
 void regclass_graph_PyRTMap(py::module m) {
     auto py_map = py::class_<PyRTMap>(m, "RTMap");
-    py_map.doc() = "openvino.runtime.RTMap makes bindings for std::map<std::string, "
+    py_map.doc() = "openvino.RTMap makes bindings for std::map<std::string, "
                    "ov::Any>, which can later be used as ov::Node::RTMap";
 
     py::class_<PyRTMapIterator>(m, "Iterator")

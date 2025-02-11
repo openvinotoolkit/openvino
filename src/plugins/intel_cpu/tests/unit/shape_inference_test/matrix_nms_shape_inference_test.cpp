@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,10 +22,10 @@ TEST_F(StaticShapeInferenceMatrixNmsV8Test, default_ctor_no_args) {
     op = make_op();
     op->set_attrs(attrs);
 
-    input_shapes = ShapeVector{{5, 2, 4}, {5, 3, 2}};
+    input_shapes = StaticShapeVector{{5, 2, 4}, {5, 3, 2}};
     output_shapes = shape_inference(op.get(), input_shapes);
 
-    EXPECT_EQ(output_shapes, ShapeVector({{20, 6}, {20, 1}, {5}}));
+    EXPECT_EQ(output_shapes, StaticShapeVector({{20, 6}, {20, 1}, {5}}));
 }
 
 TEST_F(StaticShapeInferenceMatrixNmsV8Test, inputs_static_rank) {
@@ -34,10 +34,10 @@ TEST_F(StaticShapeInferenceMatrixNmsV8Test, inputs_static_rank) {
 
     op = make_op(boxes, scores, attrs);
 
-    input_shapes = ShapeVector{{3, 2, 4}, {3, 3, 2}};
+    input_shapes = StaticShapeVector{{3, 2, 4}, {3, 3, 2}};
     output_shapes = shape_inference(op.get(), input_shapes);
 
-    EXPECT_EQ(output_shapes, ShapeVector({{18, 6}, {18, 1}, {3}}));
+    EXPECT_EQ(output_shapes, StaticShapeVector({{18, 6}, {18, 1}, {3}}));
 }
 
 TEST_F(StaticShapeInferenceMatrixNmsV8Test, all_inputs_are_dynamic) {
@@ -46,8 +46,8 @@ TEST_F(StaticShapeInferenceMatrixNmsV8Test, all_inputs_are_dynamic) {
 
     op = make_op(boxes, scores, attrs);
 
-    input_shapes = ShapeVector{{5, 2, 4}, {5, 3, 2}};
+    input_shapes = StaticShapeVector{{5, 2, 4}, {5, 3, 2}};
     output_shapes = shape_inference(op.get(), input_shapes);
 
-    EXPECT_EQ(output_shapes, ShapeVector({{30, 6}, {30, 1}, {5}}));
+    EXPECT_EQ(output_shapes, StaticShapeVector({{30, 6}, {30, 1}, {5}}));
 }

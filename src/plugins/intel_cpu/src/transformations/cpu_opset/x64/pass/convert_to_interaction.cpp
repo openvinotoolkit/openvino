@@ -1,20 +1,20 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "convert_to_interaction.hpp"
 
 #include <openvino/core/rt_info.hpp>
-#include "openvino/opsets/opset1.hpp"
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "ov_ops/type_relaxed.hpp"
-#include "transformations/cpu_opset/x64/op/interaction.hpp"
 #include "simplify_fakequantize.hpp"
+#include "transformations/cpu_opset/x64/op/interaction.hpp"
 
 ov::intel_cpu::ConvertToInteraction::ConvertToInteraction() {
     MATCHER_SCOPE(ConvertToInteraction);
@@ -115,8 +115,7 @@ ov::intel_cpu::FuseFQtoInteraction::FuseFQtoInteraction() {
         inter_node->set_output_type(0, fq_node->get_output_element_type(0), inter_node->get_output_partial_shape(0));
 
         auto replacement =
-            std::make_shared<ov::op::TypeRelaxed<InteractionNode>>(*inter_node,
-                                                                       fq_node->get_output_element_type(0));
+            std::make_shared<ov::op::TypeRelaxed<InteractionNode>>(*inter_node, fq_node->get_output_element_type(0));
         copy_runtime_info(inter_node, replacement);
         replace_node(inter_node, replacement);
         return success;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,18 +18,18 @@ class ReluReluFusionMatcher;
 // ! [graph_rewrite:template_transformation_hpp]
 // transformations/template_pattern_transformation.hpp
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Add transformation description.
  */
 class ov::pass::DecomposeDivideMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("DecomposeDivideMatcher", "0");
+    OPENVINO_MATCHER_PASS_RTTI("DecomposeDivideMatcher");
     DecomposeDivideMatcher();
 };
 // ! [graph_rewrite:template_transformation_hpp]
 
 class ov::pass::ReluReluFusionMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ReluReluFusionMatcher", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ReluReluFusionMatcher");
     ReluReluFusionMatcher();
 };

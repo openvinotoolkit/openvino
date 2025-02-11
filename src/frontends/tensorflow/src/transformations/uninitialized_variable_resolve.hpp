@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ namespace pass {
 // it borrows value of Variable that was used for some state (or node) in a graph
 class UninitializedVariableResolver : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::tensorflow::pass::UninitializedVariableResolver");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::tensorflow::pass::UninitializedVariableResolver");
     UninitializedVariableResolver();
 };
 

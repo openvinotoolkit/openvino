@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,7 +90,7 @@ void Loop::validate_and_infer_types() {
             m_num_iterations = 1;  // condition_always_false, do_while mode
         }
     } else if (const auto& cond_param =
-                   std::dynamic_pointer_cast<const op::v0::Parameter>(body_execution_condition.get_node_shared_ptr())) {
+                   ov::as_type_ptr<const op::v0::Parameter>(body_execution_condition.get_node_shared_ptr())) {
         // Const(true or false) -> Loop (body: Parameter -> execution_condition output)
         for (const auto& desc : get_input_descriptions()) {
             if (m_bodies[0]->get_parameters().at(desc->m_body_parameter_index) == cond_param) {
@@ -160,7 +160,7 @@ void Loop::validate_and_infer_types() {
             } else {
                 auto out_shape = input_partial_shape;
                 const auto axis =
-                    ov::util::normalize_axis(this, slice_input_description->m_axis, input_partial_shape.rank());
+                    ov::util::try_normalize_axis(slice_input_description->m_axis, input_partial_shape.rank(), *this);
                 out_shape[axis] = slice_input_description->m_part_size;
                 body_parameter->set_partial_shape(out_shape);
             }
@@ -179,8 +179,8 @@ void Loop::validate_and_infer_types() {
                        as_type_ptr<op::v0::TensorIterator::InvariantInputDescription>(input_description)) {
             auto body_parameter = m_bodies[0]->get_parameters().at(invariant_input_description->m_body_parameter_index);
 
-            auto input_partial_shape = input(index).get_partial_shape();
-            auto input_type = input(index).get_element_type();
+            const auto& input_partial_shape = input(index).get_partial_shape();
+            const auto& input_type = input(index).get_element_type();
 
             body_parameter->set_partial_shape(input_partial_shape);
             body_parameter->set_element_type(input_type);
@@ -269,7 +269,8 @@ void Loop::validate_and_infer_types() {
             if (zero_number_of_iter) {
                 out_shape = PartialShape{0};
             } else if (out_shape.rank().is_static()) {
-                const auto axis = ov::util::normalize_axis(this, concat_output_description->m_axis, out_shape.rank());
+                const auto axis =
+                    ov::util::try_normalize_axis(concat_output_description->m_axis, out_shape.rank(), *this);
                 const auto rank = out_shape.rank().get_length();
                 if (rank == 0) {
                     out_shape = PartialShape{1};

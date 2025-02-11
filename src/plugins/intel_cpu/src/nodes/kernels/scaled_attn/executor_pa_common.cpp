@@ -1,6 +1,8 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "executor_pa_common.hpp"
+
 #include <float.h>
 
 #include <cmath>
@@ -9,9 +11,9 @@
 #include <limits>
 #include <type_traits>
 
-#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/parallel.hpp"
-#include "executor_pa_common.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "utils/plain_tensor.hpp"
 
 namespace ov {
@@ -57,19 +59,23 @@ void TileConfiger::generate() {
     ret();
 }
 
-JitMatMulVecAMX::JitMatMulVecAMX(int head_size, int block_size) : jit_generator(jit_name()), m_head_size(head_size), m_block_size(block_size) {
+JitMatMulVecAMX::JitMatMulVecAMX(int head_size, int block_size, ov::element::Type amx_prec)
+    : jit_generator(jit_name()),
+      m_head_size(head_size),
+      m_block_size(block_size),
+      m_amx_prec(amx_prec) {
     create_kernel();
     m_tile_cfg.reset(1,
                      0,
                      {
-                        {16, 4},   // C:0   M x 1     (4b)
-                        {16, 64},  // A:1   M x 32/64 (64b)
-                        {16, 4},   // B:2   32/64 x 1 (4b)
-                        {16, 4},   // B:3
-                        {16, 4},   // B:4
-                        {16, 4},   // B:5
-                        {16, 4},   // B:6
-                        {16, 4},   // B:7
+                         {16, 4},   // C:0   M x 1     (4b)
+                         {16, 64},  // A:1   M x 32/64 (64b)
+                         {16, 4},   // B:2   32/64 x 1 (4b)
+                         {16, 4},   // B:3
+                         {16, 4},   // B:4
+                         {16, 4},   // B:5
+                         {16, 4},   // B:6
+                         {16, 4},   // B:7
                      });
 }
 
@@ -98,7 +104,11 @@ void JitMatMulVecAMX::generate() {
         tilezero(tmmC);
         for (int i = 0; i < num_B_tiles; i++) {
             tileloadd(tmmA, ptr[reg_k_addr + reg_stride_A + i * 64]);
-            tdpbf16ps(tmmC, tmmA, Xbyak::Tmm(tmmB0.getIdx() + i));
+            if (m_amx_prec == ov::element::bf16) {
+                tdpbf16ps(tmmC, tmmA, Xbyak::Tmm(tmmB0.getIdx() + i));
+            } else if (m_amx_prec == ov::element::f16) {
+                tdpfp16ps(tmmC, tmmA, Xbyak::Tmm(tmmB0.getIdx() + i));
+            }
         }
         tilestored(ptr[reg_dst_addr + reg_stride_BC + m * sizeof(float)], tmmC);
         add(reg_k_addr, m_head_size * 2 * 16);

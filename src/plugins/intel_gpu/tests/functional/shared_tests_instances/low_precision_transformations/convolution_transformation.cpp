@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -110,6 +110,14 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         false,
         "Convolution",
         "FP32"
+    },
+    {
+        { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 0.f }, { 0.f }, { 0.f } },
+        false,
+        { 255ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
+        false,
+        "Convolution",
+        "u8"
     }
 };
 

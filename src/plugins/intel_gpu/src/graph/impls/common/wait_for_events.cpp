@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 #include "data_inst.h"
 #include "prior_box_inst.h"
 #include "input_layout_inst.h"
-#include "implementation_map.hpp"
+#include "impls/registry/implementation_map.hpp"
 #include "register.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include <vector>
@@ -37,8 +37,7 @@ public:
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         auto& stream = instance.get_network().get_stream();
 
-        return events.empty() ? stream.create_user_event(true)
-                              : stream.enqueue_marker(events);
+        return stream.aggregate_events(events);
     }
 
     static std::unique_ptr<primitive_impl> create_data(const data_node& data, const kernel_impl_params&) {
@@ -49,12 +48,7 @@ public:
         return make_unique<wait_for_events_impl>(input);
     }
 
-    static std::unique_ptr<primitive_impl> create_prior_box(const prior_box_node& prior_box, const kernel_impl_params&) {
-        // This primitive is being executed on CPU during network compilation.
-        return make_unique<wait_for_events_impl>(prior_box);
-    }
-
-    void update_dispatch_data(const kernel_impl_params& impl_param) override { }
+    void update(primitive_inst& inst, const kernel_impl_params& impl_param) override { }
 };
 
 namespace detail {
@@ -65,10 +59,6 @@ attach_data_common::attach_data_common() {
 
 attach_input_layout_common::attach_input_layout_common() {
     implementation_map<input_layout>::add(impl_types::common, shape_types::any, wait_for_events_impl::create_input_layout, {});
-}
-
-attach_prior_box_common::attach_prior_box_common() {
-    implementation_map<prior_box>::add(impl_types::common, wait_for_events_impl::create_prior_box, {});
 }
 
 }  // namespace detail

@@ -20,7 +20,7 @@ typedef std::tuple<
 > ConvEltwiseParams;
 
 class ConvEltwise : public testing::WithParamInterface<ov::test::snippets::ConvEltwiseParams>,
-                    virtual public ov::test::SnippetsTestsCommon {
+                    virtual public SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::ConvEltwiseParams> obj);
 

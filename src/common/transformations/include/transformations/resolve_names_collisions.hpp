@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ namespace pass {
  */
 class TRANSFORMATIONS_API ResolveNameCollisions : public ModelPass {
 public:
-    OPENVINO_RTTI("ResolveNameCollisions", "0");
+    OPENVINO_MODEL_PASS_RTTI("ResolveNameCollisions");
     ResolveNameCollisions() = default;
     explicit ResolveNameCollisions(bool resolve_all_names) : m_resolve_all_names(resolve_all_names) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;

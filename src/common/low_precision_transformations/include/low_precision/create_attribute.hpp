@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/lpt_visibility.hpp"
 #include "low_precision/base_matcher_pass.hpp"

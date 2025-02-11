@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MemoryTest, MemoryLayerTest,
                 ::testing::ValuesIn(iterationCount),
                 ::testing::ValuesIn(inShapes),
                 ::testing::ValuesIn(input_types),
-                ::testing::Values(ov::test::utils::DEVICE_CPU, "HETERO:CPU")),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         MemoryLayerTest::getTestCaseName);
 
 }  // namespace

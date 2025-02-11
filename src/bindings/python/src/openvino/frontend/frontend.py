@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Union
@@ -7,7 +7,7 @@ from typing import Union
 from openvino._pyopenvino import FrontEnd as FrontEndBase
 from openvino._pyopenvino import FrontEndManager as FrontEndManagerBase
 from openvino._pyopenvino import InputModel
-from openvino.runtime import Model
+from openvino import Model
 
 
 class FrontEnd(FrontEndBase):

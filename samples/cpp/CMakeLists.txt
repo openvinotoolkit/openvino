@@ -1,8 +1,15 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_minimum_required (VERSION 3.10)
+if(WIN32)
+    cmake_minimum_required (VERSION 3.15)
+    if(POLICY CMP0091)
+        cmake_policy(SET CMP0091 NEW) # Enables use of MSVC_RUNTIME_LIBRARY
+    endif()
+else()
+    cmake_minimum_required (VERSION 3.10)
+endif()
 
 # Enable CMAKE_<LANG>_COMPILER_ID AppleClang
 if(POLICY CMP0025)
@@ -12,7 +19,7 @@ endif()
 project(Samples)
 
 get_property(OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
-if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
+if(CMAKE_GENERATOR STREQUAL "Ninja Multi-Config")
     # Ninja-Multi specific, see:
     # https://cmake.org/cmake/help/latest/variable/CMAKE_DEFAULT_BUILD_TYPE.html
     set(CMAKE_DEFAULT_BUILD_TYPE "Release" CACHE STRING "CMake default build type")
@@ -69,12 +76,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
     # disable some noisy warnings
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4267 /wd4819")
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-    if(WIN32)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qdiag-disable:177")
-    else()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable:177")
-    endif()
 endif()
 
 if(APPLE)
@@ -94,7 +95,7 @@ endif()
 ####################################
 ## to use C++11; can overwritten via cmake command line
 if(NOT DEFINED CMAKE_CXX_STANDARD)
-    set (CMAKE_CXX_STANDARD 11)
+    set (CMAKE_CXX_STANDARD 17)
     set (CMAKE_CXX_EXTENSIONS OFF)
     set (CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()

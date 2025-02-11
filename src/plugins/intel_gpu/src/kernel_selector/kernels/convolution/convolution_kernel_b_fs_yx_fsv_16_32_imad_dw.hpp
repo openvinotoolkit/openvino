@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,6 +36,7 @@ protected:
     bool ParamsHavePadding(const convolution_params& params) const;
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 
     struct AutoTuneParams {
         size_t simd;

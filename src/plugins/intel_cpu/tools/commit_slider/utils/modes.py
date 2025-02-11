@@ -16,9 +16,12 @@ from utils.common_mode import Mode
 class NopMode(Mode):
     # helpful with mode-ignorant traversal (brute force)
     def __init__(self, cfg):
+        self.msg = "default"
         super().__init__(cfg)
 
     def checkCfg(self, cfg):
+        if "msg" in cfg["runConfig"]:
+            self.msg = cfg["runConfig"]["msg"]
         super().checkCfg(cfg)
 
     def getPseudoMetric(self, commit, cfg):
@@ -31,6 +34,10 @@ class NopMode(Mode):
         checkOut = fetchAppOutput(cfg, commit)
         commitLogger.info(checkOut)
         return
+
+    def printResult(self):
+        print(self.msg)
+        self.outLogger.info(self.msg)
 
 
 class CheckOutputMode(Mode):
@@ -89,7 +96,6 @@ class CheckOutputMode(Mode):
 class BenchmarkAppPerformanceMode(Mode):
     def __init__(self, cfg):
         super().__init__(cfg)
-        self.outPattern = "Throughput:\s*([0-9]*[.][0-9]*)\s*FPS"
         self.perfRel = 0
         self.createCash()
 
@@ -128,13 +134,38 @@ class BenchmarkAppPerformanceMode(Mode):
             raise CfgError("Appropriate deviation is not configured")
         else:
             self.apprDev = cfg["runConfig"]["perfAppropriateDeviation"]
+        if ("metric" in cfg["runConfig"]):
+            self.outPattern = self.specifyMetric(cfg["runConfig"]["metric"])
+        else:
+            self.outPattern = self.specifyMetric()
+
+
+    def specifyMetric(self, metric: str = "throughput"):
+        if metric in [
+            "throughput",
+            "latency:max",
+            "latency:min",
+            "latency:median",
+            "latency:average"]:
+            spec = metric.split(":")
+            idStr = "FPS"
+            if len(spec) == 2:
+                spec = spec[1]
+                idStr = "ms"
+            else:
+                spec = spec[0]
+            spec = spec.title()
+            res = r'{spec}:\s*([0-9]*[.][0-9]*)\s*{idStr}'.format(
+                spec=spec, idStr=idStr)
+            return res
+        raise CfgError("Benchmark metric {} is not supported".format(metric))
 
     def preliminaryCheck(self, list, cfg):
         # model path checking
         if cfg["preliminaryCheckCfg"]["checkBenchmarkModelPath"]:
             cmdStr = cfg["appCmd"]
             matcher = re.search(
-                "benchmark.*-m[\s*]([^\S]*)",
+                r"benchmark.*-m[\s*]([^\S]*)",
                 cmdStr,
                 flags=re.MULTILINE
                 )
@@ -254,6 +285,247 @@ class BenchmarkAppPerformanceMode(Mode):
                 d=commit.perfRel)
 
 
+class LLMBenchMode(Mode):
+    def __init__(self, cfg):
+        super().__init__(cfg)
+        self.perfRel = 0
+        self.createCash()
+
+    def isPerformanceBased(self):
+        return True
+
+    def prepareRun(self, list, cfg):
+        super().prepareRun(list, cfg)
+        sampleCommit = list[0]
+        sampleCommit = sampleCommit.replace('"', "")
+        self.commonLogger.info(
+            "Prepare sample commit - {commit}".format(commit=sampleCommit)
+        )
+        commitLogger = getCommitLogger(cfg, sampleCommit)
+        foundThroughput = 0
+        isCommitCashed, cashedThroughput = self.getCommitIfCashed(sampleCommit)
+        if isCommitCashed:
+            logMsg = "Cashed commit - {commit}".format(commit=sampleCommit)
+            self.commonLogger.info(logMsg)
+            commitLogger.info(logMsg)
+            foundThroughput = cashedThroughput
+        else:
+            handleCommit(sampleCommit, cfg)
+            output = fetchAppOutput(cfg, sampleCommit)
+            commitLogger.info(output)
+            foundThroughput = re.search(
+                self.outPattern, output, flags=re.MULTILINE
+            ).group(1)
+            self.setCommitCash(sampleCommit, float(foundThroughput))
+        self.sampleThroughput = float(foundThroughput)
+        return list
+
+    def checkCfg(self, cfg):
+        super().checkCfg(cfg)
+        if not ("perfAppropriateDeviation" in cfg["runConfig"]):
+            raise CfgError("Appropriate deviation is not configured")
+        else:
+            self.apprDev = cfg["runConfig"]["perfAppropriateDeviation"]
+        if ("metric" in cfg["runConfig"]):
+            self.outPattern = self.specifyMetric(cfg["runConfig"]["metric"])
+        else:
+            self.outPattern = self.specifyMetric()
+
+
+    def specifyMetric(self, metric: str = "First token latency"):
+        if metric in [
+            "First token latency"]:
+            res = r"First token latency:\s*([0-9]*[.][0-9]*)\s*ms/token"
+            return res
+        raise CfgError("Metric {} is not supported".format(metric))
+
+    def preliminaryCheck(self, list, cfg):
+        # # model path checking - todo is necessary ?
+        # common if-degradation-exists check
+        super().preliminaryCheck(list, cfg)
+
+        # performance - specific check if results for borders are stable,
+        isLeftStable = not cfg["preliminaryCheckCfg"]["leftCheck"] or\
+            self.preliminaryStabilityCheck(list[0], cfg)
+        isRightStable = not cfg["preliminaryCheckCfg"]["rightCheck"] or\
+            self.preliminaryStabilityCheck(list[-1], cfg)
+        if (not isLeftStable or not isRightStable):
+            raise PreliminaryAnalysisError(
+                "{lCommit} is {lStable}, {rCommit} is {rStable}".format(
+                    lCommit=list[0],
+                    rCommit=list[-1],
+                    lStable="stable" if isLeftStable else "unstable",
+                    rStable="stable" if isRightStable else "unstable"
+                ),
+                PreliminaryAnalysisError.PreliminaryErrType.UNSTABLE_APPLICATION
+                )
+
+    def compareCommits(self, lCommit: str, rCommit: str, cfg: map):
+        leftThroughput = self.getPseudoMetric(lCommit, cfg)
+        rightThroughput = self.getPseudoMetric(rCommit, cfg)
+        isBad, curRel = self.traversal.numericComparator(
+            leftThroughput, rightThroughput, self.apprDev
+        )
+        if isBad:
+            self.perfRel = curRel
+        curCommit = rCommit.replace('"', "")
+        commitLogger = getCommitLogger(cfg, curCommit)
+        commitLogger.info("Performance relation is {rel}".format(rel=curRel))
+        commitLogger.info(
+            "Commit is {status}".format(status=("bad" if isBad else "good"))
+        )
+        return isBad
+
+    def getPseudoMetric(self, commit, cfg):
+        commit = commit.replace('"', "")
+        curThroughput = 0
+        commitLogger = getCommitLogger(cfg, commit)
+        isCommitCashed, cashedThroughput = self.getCommitIfCashed(commit)
+        pc = Mode.CommitPath.PathCommit(
+            commit,
+            Mode.CommitPath.CommitState.DEFAULT
+        )
+        self.setOutputInfo(pc)
+        self.commitPath.accept(self.traversal, pc)
+        if isCommitCashed:
+            logMsg = "Cashed commit - {commit}".format(commit=commit)
+            self.commonLogger.info(logMsg)
+            commitLogger.info(logMsg)
+            curThroughput = cashedThroughput
+        else:
+            self.commonLogger.info("New commit: {commit}".format(
+                commit=commit)
+            )
+            handleCommit(commit, cfg)
+            output = fetchAppOutput(cfg, commit)
+            commitLogger.info(output)
+            foundThroughput = re.search(
+                self.outPattern, output, flags=re.MULTILINE
+            ).group(1)
+            curThroughput = float(foundThroughput)
+            self.setCommitCash(commit, curThroughput)
+        return curThroughput
+
+    def preliminaryStabilityCheck(self, commit, cfg):
+        commit = commit.replace('"', "")
+        curThroughput = 0
+
+        self.commonLogger.info(
+            "Preliminary check of commit: {commit}".format(
+                commit=commit)
+        )
+        handleCommit(commit, cfg)
+        throughputList = []
+        dev = self.apprDev = cfg["runConfig"]["perfAppropriateDeviation"]
+        for i in range(cfg["preliminaryCheckCfg"]["tryCount"]):
+            output = fetchAppOutput(cfg, commit)
+            foundThroughput = re.search(
+                self.outPattern, output, flags=re.MULTILINE
+            ).group(1)
+            curThroughput = float(foundThroughput)
+            throughputList.append(curThroughput)
+        resStable = checkStability(throughputList, dev)
+        if resStable:
+            self.setCommitCash(commit, curThroughput)
+        return resStable
+
+    def setOutputInfo(self, pathCommit):
+        pathCommit.perfRel = self.perfRel
+
+    def getCommitInfo(self, commit):
+        return "{ci}, perf. ratio = {d}".format(
+                ci=super().getCommitInfo(commit),
+                d=commit.perfRel)
+
+
+class AccuracyCheckerMode(Mode):
+    def __init__(self, cfg):
+        super().__init__(cfg)
+        self.thresholdPattern = r":\s([0-9]*[.][0-9]*)%.*abs error"
+        self.curMetric = None
+        self.createCash()
+
+    def prepareRun(self, list, cfg):
+        super().prepareRun(list, cfg)
+        sampleCommit = list[0]
+        sampleCommit = sampleCommit.replace('"', "")
+        self.commonLogger.info(
+            "Prepare sample commit - {commit}".format(commit=sampleCommit)
+        )
+        commitLogger = getCommitLogger(cfg, sampleCommit)
+        foundThroughput = 0
+        isCommitCashed, cashedThroughput = self.getCommitIfCashed(sampleCommit)
+        if isCommitCashed:
+            logMsg = "Cashed commit - {commit}".format(commit=sampleCommit)
+            self.commonLogger.info(logMsg)
+            commitLogger.info(logMsg)
+            foundThroughput = cashedThroughput
+        else:
+            handleCommit(sampleCommit, cfg)
+            output = fetchAppOutput(cfg, sampleCommit)
+            commitLogger.info(output)
+            foundThroughput = re.search(
+                self.thresholdPattern, output, flags=re.MULTILINE
+            ).group(1)
+            self.setCommitCash(sampleCommit, float(foundThroughput))
+        self.sampleThroughput = float(foundThroughput)
+        return list
+
+    def compareCommits(self, lCommit: str, rCommit: str, cfg: map):
+        leftMetric = self.getPseudoMetric(lCommit, cfg)
+        rightMetric = self.getPseudoMetric(rCommit, cfg)
+        isDiff = leftMetric != rightMetric
+        if isDiff:
+            self.curMetric = rightMetric
+        curCommit = rCommit.replace('"', "")
+        commitLogger = getCommitLogger(cfg, curCommit)
+        commitLogger.info("Current accuracy is {}%".format(rightMetric))
+        commitLogger.info(
+            "Commit {status} from {c}".format(
+                status=("differs" if isDiff else "doesn't differ"),
+                c=lCommit)
+        )
+        return isDiff
+
+    def getPseudoMetric(self, commit, cfg):
+        commit = commit.replace('"', "")
+        curThroughput = 0
+        commitLogger = getCommitLogger(cfg, commit)
+        isCommitCashed, cashedThroughput = self.getCommitIfCashed(commit)
+        pc = Mode.CommitPath.PathCommit(
+            commit,
+            Mode.CommitPath.CommitState.DEFAULT
+        )
+        self.setOutputInfo(pc)
+        self.commitPath.accept(self.traversal, pc)
+        if isCommitCashed:
+            logMsg = "Cashed commit - {commit}".format(commit=commit)
+            self.commonLogger.info(logMsg)
+            commitLogger.info(logMsg)
+            curThroughput = cashedThroughput
+        else:
+            self.commonLogger.info("New commit: {commit}".format(
+                commit=commit)
+            )
+            handleCommit(commit, cfg)
+            output = fetchAppOutput(cfg, commit)
+            commitLogger.info(output)
+            foundThroughput = re.search(
+                self.thresholdPattern, output, flags=re.MULTILINE
+            ).group(1)
+            curThroughput = float(foundThroughput)
+            self.setCommitCash(commit, curThroughput)
+        return curThroughput
+
+    def setOutputInfo(self, pathCommit):
+        pathCommit.metric = self.curMetric
+
+    def getCommitInfo(self, commit):
+        return "{ci}, metric = {d}".format(
+                ci=super().getCommitInfo(commit),
+                d=commit.metric)
+
+
 class CompareBlobsMode(Mode):
     def __init__(self, cfg):
         super().__init__(cfg)
@@ -355,6 +627,7 @@ class CompareBlobsMode(Mode):
     def createCash(self):
         # we use separate files instead of json cache,
         # so, we just set up path to cache folder
+        # todo: handle usercache for multimodel case
         self.cachePath = getActualPath("cachePath", self.cfg)
         pass
 

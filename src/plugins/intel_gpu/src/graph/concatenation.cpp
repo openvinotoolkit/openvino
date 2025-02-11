@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,7 +69,7 @@ std::vector<layout> concatenation_inst::calc_output_layouts(const concatenation_
     }
     ov::op::v0::Concat op;
     op.set_friendly_name(desc->id);
-    op.set_concatenation_axis(axis_index);
+    op.set_axis(axis_index);
     std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
     return { layout {output_shapes[0], output_dt, output_format} };
 }
@@ -114,7 +114,7 @@ concatenation_inst::typed_primitive_inst(network& network, concatenation_node co
     auto input_size = input_layout.get_dims();
     auto output_size = output_layout.get_dims();
     for (const auto& i : node.get_dependencies()) {
-        auto input_i_layout = i.first->get_output_layout();
+        auto input_i_layout = i.first->get_output_layout(false, i.second);
         auto input_mem_size = input_i_layout.get_dims();
         for (int64_t dim = 0; dim < static_cast<int64_t>(output_layout.get_rank()); ++dim) {
             if (dim == node.get_primitive()->axis) {

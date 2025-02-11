@@ -29,8 +29,9 @@ If you want to learn more about ControlNet and particularly on
 conditioning by pose, please refer to this
 `tutorial <controlnet-stable-diffusion-with-output.html>`__
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Instantiating Generation
@@ -61,6 +62,16 @@ Table of contents:
 -  `Running Text-to-Image Generation with ControlNet Conditioning and
    OpenVINO <#running-text-to-image-generation-with-controlnet-conditioning-and-openvino>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. |image0| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/76463150/1a5978c6-e7a0-4824-9318-a3d8f4912c47
 
 Prerequisites
@@ -70,8 +81,8 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q accelerate diffusers transformers "torch>=2.1" "gradio>=4.19" qrcode opencv-python "peft==0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "openvino>=2023.1.0" "nncf>=2.7.0"
+    %pip install -q accelerate "diffusers>=0.24.0" transformers "torch>=2.1" "gradio>=4.19" qrcode opencv-python "peft>=0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "openvino>=2023.1.0" "nncf>=2.7.0" "matplotlib>=3.4"
 
 Instantiating Generation Pipeline
 ---------------------------------
@@ -107,9 +118,33 @@ controlnet model and ``stable-diffusion-v1-5``:
     controlnet = ControlNetModel.from_pretrained("monster-labs/control_v1p_sd15_qrcode_monster")
     
     pipe = StableDiffusionControlNetPipeline.from_pretrained(
-        "runwayml/stable-diffusion-v1-5",
+        "botp/stable-diffusion-v1-5",
         controlnet=controlnet,
     )
+
+
+.. parsed-literal::
+
+    2024-12-05 09:21:58.637418: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-12-05 09:21:58.649752: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:477] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+    WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+    E0000 00:00:1733376118.663808  222102 cuda_dnn.cc:8310] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+    E0000 00:00:1733376118.667978  222102 cuda_blas.cc:1418] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+    2024-12-05 09:21:58.683751: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+
+
+
+.. parsed-literal::
+
+    Loading pipeline components...:   0%|          | 0/7 [00:00<?, ?it/s]
+
+
+.. parsed-literal::
+
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/models/clip/feature_extraction_clip.py:28: FutureWarning: The class CLIPFeatureExtractor is deprecated and will be removed in version 5 of Transformers. Please use CLIPImageProcessor instead.
+      warnings.warn(
+
 
 Convert models to OpenVINO Intermediate representation (IR) format
 ------------------------------------------------------------------
@@ -418,16 +453,17 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    import requests
     
-    core = ov.Core()
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
     
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
+    from notebook_utils import device_widget
+    
+    device = device_widget()
     
     device
 
@@ -436,7 +472,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'GPU.0', 'GPU.1', 'GPU.2', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
 
 
 
@@ -878,6 +914,8 @@ on OpenVINO.
         qr.add_data(content)
         qr.make(fit=True)
         img = qr.make_image(fill_color="black", back_color="white")
+        img.save("base_qrcode.png")
+        img = Image.open("base_qrcode.png")
     
         # find smallest image size multiple of 256 that can fit qr
         offset_min = 8 * 16
@@ -901,6 +939,8 @@ on OpenVINO.
     tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14")
     scheduler = EulerAncestralDiscreteScheduler.from_config(pipe.scheduler.config)
     
+    core = ov.Core()
+    
     ov_pipe = OVContrlNetStableDiffusionPipeline(
         tokenizer,
         scheduler,
@@ -911,6 +951,13 @@ on OpenVINO.
         vae_ir_path,
         device=device.value,
     )
+
+
+.. parsed-literal::
+
+    /home/ea/work/py311/lib/python3.11/site-packages/diffusers/configuration_utils.py:140: FutureWarning: Accessing config attribute `unet` directly via 'OVContrlNetStableDiffusionPipeline' object attribute is deprecated. Please access 'unet' over 'OVContrlNetStableDiffusionPipeline's config object instead, e.g. 'scheduler.config.unet'.
+      deprecate("direct config name access", "1.0.0", deprecation_message, standard_warn=False)
+
 
 Now, let’s see model in action
 
@@ -933,7 +980,7 @@ Now, let’s see model in action
 
 .. parsed-literal::
 
-    /home/ltalamanova/omz/lib/python3.8/site-packages/diffusers/configuration_utils.py:135: FutureWarning: Accessing config attribute `controlnet` directly via 'OVContrlNetStableDiffusionPipeline' object attribute is deprecated. Please access 'controlnet' over 'OVContrlNetStableDiffusionPipeline's config object instead, e.g. 'scheduler.config.controlnet'.
+    /home/ea/work/py311/lib/python3.11/site-packages/diffusers/configuration_utils.py:140: FutureWarning: Accessing config attribute `controlnet` directly via 'OVContrlNetStableDiffusionPipeline' object attribute is deprecated. Please access 'controlnet' over 'OVContrlNetStableDiffusionPipeline's config object instead, e.g. 'scheduler.config.controlnet'.
       deprecate("direct config name access", "1.0.0", deprecation_message, standard_warn=False)
 
 
@@ -974,13 +1021,10 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    is_gpu_device = "GPU" in device.value
-    to_quantize = widgets.Checkbox(
-        value=not is_gpu_device,
-        description="Quantization",
-        disabled=is_gpu_device,
-    )
+    from notebook_utils import quantization_widget
     
+    skip_for_device = "GPU" in device.value
+    to_quantize = quantization_widget(not skip_for_device)
     to_quantize
 
 
@@ -1000,10 +1044,11 @@ Let’s load ``skip magic`` extension to skip quantization if
     # Fetch `skip_kernel_extension` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
-    )
-    open("skip_kernel_extension.py", "w").write(r.text)
+    if not Path("skip_kernel_extension.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
+        )
+        open("skip_kernel_extension.py", "w").write(r.text)
     
     int8_pipe = None
     
@@ -1115,19 +1160,6 @@ collect intermediate model inputs for calibration we should customize
         subset_size = 200
         unet_calibration_data = collect_calibration_data(ov_pipe, subset_size=subset_size)
 
-
-
-.. parsed-literal::
-
-      0%|          | 0/100 [00:00<?, ?it/s]
-
-
-.. parsed-literal::
-
-    /home/ltalamanova/omz/lib/python3.8/site-packages/diffusers/configuration_utils.py:135: FutureWarning: Accessing config attribute `controlnet` directly via 'OVContrlNetStableDiffusionPipeline' object attribute is deprecated. Please access 'controlnet' over 'OVContrlNetStableDiffusionPipeline's config object instead, e.g. 'scheduler.config.controlnet'.
-      deprecate("direct config name access", "1.0.0", deprecation_message, standard_warn=False)
-
-
 The first three inputs of ControlNet are the same as the inputs of UNet,
 the last ControlNet input is a preprocessed ``qrcode_image``.
 
@@ -1175,6 +1207,12 @@ improvement in SD models and increased quantization time.
         )
         ov.save_model(quantized_unet, UNET_INT8_OV_PATH)
 
+
+.. parsed-literal::
+
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+
+
 .. code:: ipython3
 
     %%skip not $to_quantize.value
@@ -1210,6 +1248,15 @@ pipelines.
             guidance_scale=7.7,
             controlnet_conditioning_scale=1.4
     )[0]
+
+
+.. parsed-literal::
+
+    /home/ea/work/py311/lib/python3.11/site-packages/diffusers/configuration_utils.py:140: FutureWarning: Accessing config attribute `unet` directly via 'OVContrlNetStableDiffusionPipeline' object attribute is deprecated. Please access 'unet' over 'OVContrlNetStableDiffusionPipeline's config object instead, e.g. 'scheduler.config.unet'.
+      deprecate("direct config name access", "1.0.0", deprecation_message, standard_warn=False)
+    /home/ea/work/py311/lib/python3.11/site-packages/diffusers/configuration_utils.py:140: FutureWarning: Accessing config attribute `controlnet` directly via 'OVContrlNetStableDiffusionPipeline' object attribute is deprecated. Please access 'controlnet' over 'OVContrlNetStableDiffusionPipeline's config object instead, e.g. 'scheduler.config.controlnet'.
+      deprecate("direct config name access", "1.0.0", deprecation_message, standard_warn=False)
+
 
 .. code:: ipython3
 
@@ -1278,8 +1325,8 @@ Compare model file sizes
 .. parsed-literal::
 
     FP16 UNet size: 1639.41 MB
-    INT8 UNet size: 820.96 MB
-    UNet compression rate: 1.997
+    INT8 UNet size: 821.79 MB
+    UNet compression rate: 1.995
 
 
 .. code:: ipython3
@@ -1297,8 +1344,8 @@ Compare model file sizes
 .. parsed-literal::
 
     FP16 ControlNet size: 689.09 MB
-    INT8 ControlNet size: 345.14 MB
-    ControlNet compression rate: 1.997
+    INT8 ControlNet size: 345.55 MB
+    ControlNet compression rate: 1.994
 
 
 Compare inference time of the FP16 and INT8 pipelines
@@ -1345,9 +1392,17 @@ pipelines, we use mean inference time on 3 samples.
 
 .. parsed-literal::
 
-    FP16 pipeline: 190.245 seconds
-    INT8 pipeline: 166.540 seconds
-    Performance speed up: 1.142
+    /home/ea/work/py311/lib/python3.11/site-packages/diffusers/configuration_utils.py:140: FutureWarning: Accessing config attribute `controlnet` directly via 'OVContrlNetStableDiffusionPipeline' object attribute is deprecated. Please access 'controlnet' over 'OVContrlNetStableDiffusionPipeline's config object instead, e.g. 'scheduler.config.controlnet'.
+      deprecate("direct config name access", "1.0.0", deprecation_message, standard_warn=False)
+    /home/ea/work/py311/lib/python3.11/site-packages/diffusers/configuration_utils.py:140: FutureWarning: Accessing config attribute `unet` directly via 'OVContrlNetStableDiffusionPipeline' object attribute is deprecated. Please access 'unet' over 'OVContrlNetStableDiffusionPipeline's config object instead, e.g. 'scheduler.config.unet'.
+      deprecate("direct config name access", "1.0.0", deprecation_message, standard_warn=False)
+
+
+.. parsed-literal::
+
+    FP16 pipeline: 176.250 seconds
+    INT8 pipeline: 119.885 seconds
+    Performance speed up: 1.470
 
 
 Running Text-to-Image Generation with ControlNet Conditioning and OpenVINO
@@ -1370,6 +1425,8 @@ launch the interactive demo.
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+    
     quantized_model_present = int8_pipe is not None
     
     use_quantized_model = widgets.Checkbox(
@@ -1417,61 +1474,21 @@ launch the interactive demo.
             guidance_scale=guidance_scale,
             controlnet_conditioning_scale=controlnet_conditioning_scale,
         )[0]
+
+.. code:: ipython3
+
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/qrcode-monster/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
     
+    from gradio_helper import make_demo
     
-    demo = gr.Interface(
-        _generate,
-        inputs=[
-            gr.Textbox(label="QR Code content"),
-            gr.Textbox(label="Text Prompt"),
-            gr.Textbox(label="Negative Text Prompt"),
-            gr.Number(
-                minimum=-1,
-                maximum=9999999999,
-                step=1,
-                value=42,
-                label="Seed",
-                info="Seed for the random number generator",
-            ),
-            gr.Slider(
-                minimum=0.0,
-                maximum=25.0,
-                step=0.25,
-                value=7,
-                label="Guidance Scale",
-                info="Controls the amount of guidance the text prompt guides the image generation",
-            ),
-            gr.Slider(
-                minimum=0.5,
-                maximum=2.5,
-                step=0.01,
-                value=1.5,
-                label="Controlnet Conditioning Scale",
-                info="""Controls the readability/creativity of the QR code.
-                High values: The generated QR code will be more readable.
-                Low values: The generated QR code will be more creative.
-                """,
-            ),
-            gr.Slider(label="Steps", step=1, value=5, minimum=1, maximum=50),
-        ],
-        outputs=["image"],
-        examples=[
-            [
-                "Hi OpenVINO",
-                "cozy town on snowy mountain slope 8k",
-                "blurry unreal occluded",
-                42,
-                7.7,
-                1.4,
-                25,
-            ],
-        ],
-    )
+    demo = make_demo(fn=_generate)
+    
     try:
         demo.queue().launch(debug=False)
     except Exception:
         demo.queue().launch(share=True, debug=False)
-    
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/

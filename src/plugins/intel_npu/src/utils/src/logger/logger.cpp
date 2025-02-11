@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,7 @@ Logger& Logger::global() {
     }
     static Logger log("global", logLvl);
 #else
-    static Logger log("global", ov::log::Level::NO);
+    static Logger log("global", ov::log::Level::ERR);
 #endif
     return log;
 }

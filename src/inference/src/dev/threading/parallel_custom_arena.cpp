@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "dev/threading/parallel_custom_arena.hpp"
@@ -229,8 +229,13 @@ static binding_oberver_ptr construct_binding_observer(tbb::task_arena& ta, int n
 task_arena::task_arena(int max_concurrency_, unsigned reserved_for_masters)
     : my_task_arena{max_concurrency_, reserved_for_masters},
       my_initialization_state{},
-      my_constraints{},
-      my_binding_observer{} {}
+      my_constraints{}
+#    if USE_TBBBIND_2_5
+      ,
+      my_binding_observer{}
+#    endif
+{
+}
 
 task_arena::task_arena(const constraints& constraints_, unsigned reserved_for_masters)
 #    if USE_TBBBIND_2_5
@@ -242,15 +247,24 @@ task_arena::task_arena(const constraints& constraints_, unsigned reserved_for_ma
 #    endif
       ,
       my_initialization_state{},
-      my_constraints{constraints_},
-      my_binding_observer{} {
+      my_constraints{constraints_}
+#    if USE_TBBBIND_2_5
+      ,
+      my_binding_observer{}
+#    endif
+{
 }
 
 task_arena::task_arena(const task_arena& s)
     : my_task_arena{s.my_task_arena},
       my_initialization_state{},
-      my_constraints{s.my_constraints},
-      my_binding_observer{} {}
+      my_constraints{s.my_constraints}
+#    if USE_TBBBIND_2_5
+      ,
+      my_binding_observer{}
+#    endif
+{
+}
 
 void task_arena::initialize() {
     my_task_arena.initialize();

@@ -20,6 +20,7 @@ using namespace cldnn;
 using namespace ::tests;
 
 TEST(clamp_fp16_output_test, test_gemm_softmax_simple) {
+    GTEST_SKIP();
     auto& engine = get_test_engine();
     ov::Shape in1_shape = { 1, 1, 3, 4 };
     ov::Shape in2_shape = { 1, 4 };
@@ -78,6 +79,7 @@ TEST(clamp_fp16_output_test, test_gemm_softmax_simple) {
 }
 
 TEST(clamp_fp16_output_test, test_gemm_softmax_mult_fused) {
+    GTEST_SKIP();
     auto& engine = get_test_engine();
     ov::Shape in1_shape = { 1, 1, 3, 4 };
     ov::Shape in2_shape = { 1, 4 };

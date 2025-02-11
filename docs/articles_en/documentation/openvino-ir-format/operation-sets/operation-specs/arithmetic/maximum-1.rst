@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_arithmetic_Maximum_1}
-
 Maximum
 =======
 
 
 .. meta::
-  :description: Learn about Maximum-1 - an element-wise, arithmetic operation, which 
+  :description: Learn about Maximum-1 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Maximum-1*

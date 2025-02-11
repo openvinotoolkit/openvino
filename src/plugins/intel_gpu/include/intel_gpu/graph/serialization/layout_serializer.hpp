@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,6 +55,10 @@ public:
             buffer << block_size.first;
             buffer << block_size.second;
         }
+        for (auto& block_size : traits.logic_block_sizes) {
+            buffer << block_size.first;
+            buffer << block_size.second;
+        }
     }
 };
 
@@ -79,6 +83,11 @@ public:
             buffer >> blk_size;
             buffer >> axis_idx;
             traits.block_sizes.push_back(std::make_pair(blk_size, axis_idx));
+        }
+        for (size_t i = 0; i < num_block_size; i++) {
+            buffer >> blk_size;
+            buffer >> axis_idx;
+            traits.logic_block_sizes.push_back(std::make_pair(blk_size, axis_idx));
         }
     }
 };

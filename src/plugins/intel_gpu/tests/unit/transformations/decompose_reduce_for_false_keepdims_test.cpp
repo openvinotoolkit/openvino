@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -211,5 +211,5 @@ TEST(DecomposeReduceForFalseKeepDims, Negative) {
         ReduceDecomposeTests::get_transformed_function(ov::PartialShape::dynamic(), {3}, reduce_mode::max, true);
     ov::pass::Manager manager;
     manager.register_pass<ov::intel_gpu::DecomposeReduceForFalseKeepDims>();
-    ASSERT_NO_THROW(manager.run_passes(f));
+    OV_ASSERT_NO_THROW(manager.run_passes(f));
 }

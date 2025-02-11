@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -176,7 +176,7 @@ bool ReadValue::has_evaluate() const {
     return true;
 }
 
-bool ReadValue::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
+bool ReadValue::can_constant_fold(const OutputVector& input_values) const {
     return false;
 }
 }  // namespace v6

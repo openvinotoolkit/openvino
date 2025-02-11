@@ -49,15 +49,16 @@ std::shared_ptr<ov::Model> FuseFakeQuantizeFunction::getOriginal(
 namespace {
 std::shared_ptr<ov::opset1::Convolution> make_convolution(
     const ov::PartialShape& inputShape,
-    const ov::element::Type precisionBefore,
+    const ov::element::Type precisionData,
+    const ov::element::Type precisionWeights,
     const std::shared_ptr<Node>& parent,
     const size_t index) {
     const ov::Shape shape = inputShape.to_shape();
     const ov::Shape weightsShape({ shape[1], shape[1], 1ull, 1ull });
-    auto weightsConstant = std::make_shared<ov::op::v0::Constant>(ov::element::f32, weightsShape, std::vector<float>(9, 1.f));
+    auto weightsConstant = std::make_shared<ov::op::v0::Constant>(precisionWeights, weightsShape, std::vector<float>(9, 1.f));
     auto weights = makeFakeQuantize(
         weightsConstant,
-        precisionBefore,
+        precisionData,
         FakeQuantizeOnData(
             255,
             ov::Shape({ shape[1], 1ull, 1ull, 1ull }),
@@ -65,7 +66,7 @@ std::shared_ptr<ov::opset1::Convolution> make_convolution(
             { 1.28f, 1.28f, 1.28f },
             { -1.27f, -1.27f, -1.27f },
             { 1.28f, 1.28f, 1.28f },
-            precisionBefore));
+            precisionData));
 
     auto convolution = std::make_shared<ov::opset1::Convolution>(
         parent,
@@ -160,8 +161,8 @@ std::shared_ptr<ov::Model> FuseFakeQuantizeFunction::get(
     }
 
     ov::ResultVector results{
-        std::make_shared<ov::opset1::Result>(make_convolution(inputShape, precisionBefore, parent, 0)),
-        std::make_shared<ov::opset1::Result>(make_convolution(inputShape, precisionBefore, parent, 1))
+        std::make_shared<ov::opset1::Result>(make_convolution(inputShape, precisionBefore, precisionBefore, parent, 0)),
+        std::make_shared<ov::opset1::Result>(make_convolution(inputShape, precisionBefore, precisionBefore, parent, 1))
     };
     return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "FuseFakeQuantizeFunction");
 }

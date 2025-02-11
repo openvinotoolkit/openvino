@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -96,6 +96,19 @@ TEST_F(TransformationTestsF, MatMulMultiplyFusionNonConstantTransposedWeightsNon
         auto matmul = std::make_shared<opset8::MatMul>(data, mul, false, true);
         model_ref = std::make_shared<Model>(NodeVector{matmul}, ParameterVector{data, weights});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, MatMulMultiplyFusionNonSingleConsumer) {
+    auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 3});
+    auto weights = opset8::Constant::create(element::f32, Shape{2, 3}, {2, 6, 6, 12, 10, 18});
+    auto matmul = std::make_shared<opset8::MatMul>(data, weights, false, true);
+    auto mul_const = opset8::Constant::create(element::f32, Shape{1, 2}, {4, 5});
+    auto mul = std::make_shared<opset8::Multiply>(matmul, mul_const);
+    auto add = std::make_shared<opset8::Add>(matmul, mul);
+    model = std::make_shared<Model>(NodeVector{add}, ParameterVector{data});
+
+    manager.register_pass<ov::pass::MatMulMultiplyFusion>();
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 

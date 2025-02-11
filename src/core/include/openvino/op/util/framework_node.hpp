@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,7 +75,7 @@ private:
 
 class OPENVINO_API FrameworkNode : public MultiSubGraphOp {
 public:
-    OPENVINO_OP("FrameworkNode", "util");
+    OPENVINO_OP("FrameworkNode", "util", MultiSubGraphOp);
 
     FrameworkNode() = default;
 

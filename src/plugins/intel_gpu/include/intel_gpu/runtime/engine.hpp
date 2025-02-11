@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "device.hpp"
 #include "event.hpp"
+#include "kernel.hpp"
 #include "memory_caps.hpp"
 #include "memory_pool.hpp"
 #include "layout.hpp"
@@ -56,6 +57,9 @@ public:
     /// Created memory object from memory @p params and reinterpred the data using specified @p layout
     virtual memory_ptr reinterpret_handle(const layout& new_layout, shared_mem_params params) = 0;
 
+    /// Created subbuffer memory object from the other @p memory and reinterpred the data using specified @p new_layout
+    virtual memory_ptr create_subbuffer(const memory& memory, const layout& new_layout, size_t byte_offset) = 0;
+
     /// Created memory object from the other @p memory and reinterpred the data using specified @p new_layout
     virtual memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) = 0;
 
@@ -94,7 +98,7 @@ public:
     bool supports_allocation(allocation_type type) const;
 
     /// Returns device structure which represents stores device capabilities
-    device_info get_device_info() const;
+    const device_info& get_device_info() const;
 
     /// Returns device object associated with the engine
     const device::ptr get_device() const;
@@ -149,6 +153,10 @@ public:
     virtual dnnl::engine& get_onednn_engine() const = 0;
 #endif
 
+    /// This method is intended to create kernel handle for current engine from handle from arbitrary engine
+    /// For instance, source kernel can be compiled using ocl engine, and then we can build L0 kernel object based on that
+    virtual kernel::ptr prepare_kernel(const kernel::ptr kernel) const = 0;
+
     /// Factory method which creates engine object with impl configured by @p engine_type
     /// @param engine_type requested engine type
     /// @param runtime_type requested execution runtime for the engine. @note some runtime/engine types configurations might be unsupported
@@ -167,10 +175,9 @@ protected:
     /// Create engine for given @p device and @p configuration
     engine(const device::ptr device);
     const device::ptr _device;
-    mutable std::mutex _mutex;
 
-    std::map<allocation_type, std::atomic<uint64_t>> _memory_usage_map;
-    std::map<allocation_type, std::atomic<uint64_t>> _peak_memory_usage_map;
+    std::array<std::atomic<uint64_t>, static_cast<size_t>(allocation_type::max_value)> _memory_usage_data{};
+    std::array<std::atomic<uint64_t>, static_cast<size_t>(allocation_type::max_value)> _peak_memory_usage_data{};
 };
 
 }  // namespace cldnn

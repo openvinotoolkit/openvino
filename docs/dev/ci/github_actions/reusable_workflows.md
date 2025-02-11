@@ -17,11 +17,11 @@ This document describes the setup used in the OpenVINO GitHub Actions.
 You can find all workflows for this repository in the [workflows folder](../../../../.github/workflows).
 
 There are two categories of workflows:
-* files starting with the OS name, for example: [`linux.yml`](./../../../../.github/workflows/linux.yml), [`windows_conditional_compilation.yml`](./../../../../.github/workflows/windows_conditional_compilation.yml). These are validation workflows that include building and testing of the corresponding OS,
+* files starting with the OS name, for example: [`ubuntu_22.yml`](./../../../../.github/workflows/ubuntu_22.yml), [`windows_conditional_compilation.yml`](./../../../../.github/workflows/windows_conditional_compilation.yml). These are validation workflows that include building and testing of the corresponding OS,
 architecture and set of tools. Read more on the [workflows page](./overview.md#structure-of-the-workflows).
 * files starting with the word `job`, for example: [`job_cxx_unit_tests.yml`](./../../../../.github/workflows/job_cxx_unit_tests.yml), [`job_samples_tests.yml`](./../../../../.github/workflows/job_samples_tests.yml). These workflows are  _reusable workflows_ used as jobs in several other workflows.
 
-For example, the [`job_python_unit_tests.yml`](./../../../../.github/workflows/job_python_unit_tests.yml) reusable workflow is used in the [`linux.yml`](./../../../../.github/workflows/linux.yml), [`linux_arm64.yml`](./../../../../.github/workflows/linux_arm64.yml),
+For example, the [`job_python_unit_tests.yml`](./../../../../.github/workflows/job_python_unit_tests.yml) reusable workflow is used in the [`ubuntu_22.yml`](./../../../../.github/workflows/ubuntu_22.yml), [`linux_arm64.yml`](./../../../../.github/workflows/linux_arm64.yml),
 [`mac.yml`](./../../../../.github/workflows/mac.yml) and [`mac_arm64.yml`](./../../../../.github/workflows/mac_arm64.yml) workflows as a `Python_Unit_Tests` job:
 ```yaml
   Python_Unit_Tests:
@@ -38,7 +38,7 @@ For example, the [`job_python_unit_tests.yml`](./../../../../.github/workflows/j
 
 A reusable workflow should be referenced as a `job`.
 The [`job_python_unit_tests.yml`](./../../../../.github/workflows/job_python_unit_tests.yml)
-reusable workflow example in the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow:
+reusable workflow example in the [`ubuntu_22.yml`](./../../../../.github/workflows/ubuntu_22.yml) workflow:
 ```yaml
   Python_Unit_Tests:
     name: Python unit tests

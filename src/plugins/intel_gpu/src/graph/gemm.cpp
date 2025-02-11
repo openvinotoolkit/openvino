@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "gemm_inst.h"
@@ -229,7 +229,8 @@ layout gemm_inst::transform_output_layout(const std::shared_ptr<const gemm> prim
                                 (i == 1) ? transposed_input1_pshape :
                                 input_layouts[i].get_partial_shape();
             for (size_t j = 0; j != input_pshape.size(); ++j) {
-                ov::Dimension::merge(output_pshape[j], output_pshape[j], input_pshape[j]);
+                if (input_pshape[j].get_max_length() != input_pshape[j].get_min_length())
+                    ov::Dimension::merge(output_pshape[j], output_pshape[j], input_pshape[j]);
             }
         }
 
@@ -272,6 +273,9 @@ std::string gemm_inst::to_string(gemm_node const& node) {
     gemm_info.add("transpose_input1", transpose_input1);
     gemm_info.add("indirect_input0", indirect_input0);
     gemm_info.add("indirect_input1", indirect_input1);
+    gemm_info.add("trasnpose_order_input0", desc->input0_transpose_order);
+    gemm_info.add("trasnpose_order_input1", desc->input1_transpose_order);
+    gemm_info.add("trasnpose_order_output", desc->output_transpose_order);
     node_info->add("gemm info", gemm_info);
     node_info->dump(primitive_description);
 

@@ -41,13 +41,13 @@ An example step from [`job_python_unit_tests.yml`](./../../../../.github/workflo
 steps:
 ...
   - name: OVC unit tests
-    if: fromJSON(inputs.affected-components).MO.test
+    if: fromJSON(inputs.affected-components).OVC.test
     run: python3 -m pytest -s ${INSTALL_TEST_DIR}/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
 ...
 ```
 The step includes:
 * a `name`: `OVC unit tests`.
-* an `if` condition: `fromJSON(inputs.affected-components).MO.test`
+* an `if` condition: `fromJSON(inputs.affected-components).OVC.test`
   * This step is executed only if the condition is `true`.
   * This is a part of the Smart CI system implemented for the OpenVINO workflow. Read the [Smart CI Overview](./smart_ci.md) to learn about the system and its usage.
 * a `run` section with commands to be executed.
@@ -61,7 +61,7 @@ more about workflows and job organization.
 If new tests do not align with any existing job across all workflows, it is possible to
 create a dedicated job for them.
 
-An example dedicated job for a single set of tests from [`linux.yml`](./../../../../.github/workflows/linux.yml):
+An example dedicated job for a single set of tests from [`ubuntu_22.yml`](./../../../../.github/workflows/ubuntu_22.yml):
 ```yaml
 NVIDIA_Plugin:
   name: NVIDIA plugin
@@ -122,7 +122,7 @@ Refer to the [official GitHub Actions documentation](https://docs.github.com/en/
 
 You can refer to the [structural overview of the existing workflows](./overview.md#structure-of-the-workflows) as a template for a new workflow.
 
-The [`fedora.yml`](./../../../../.github/workflows/fedora.yml) workflow example includes:
+The [`fedora_29.yml`](./../../../../.github/workflows/fedora_29.yml) workflow example includes:
 * The following jobs:
   * `Smart_CI` - the [Smart CI system](./smart_ci.md).
   * `Build` - installing prerequisites, building OpenVINO with the specified CMake configuration, packaging and uploading artifacts.

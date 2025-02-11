@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,13 +54,13 @@ public:
               OutputVector()) {}
 
     Label(const element::Type& type, const PartialShape& s, ValuePredicate pred)
-        : Label(type, s, pred, OutputVector{}) {}
+        : Label(type, s, std::move(pred), OutputVector{}) {}
 
     Label(const element::Type& type, const PartialShape& s, NodePredicate pred)
-        : Label(type, s, as_value_predicate(pred), OutputVector{}) {}
+        : Label(type, s, as_value_predicate(std::move(pred)), OutputVector{}) {}
 
-    Label(const element::Type& type, const PartialShape& s, const NodePredicate pred, const NodeVector& wrapped_values)
-        : Label(type, s, as_value_predicate(pred), as_output_vector(wrapped_values)) {}
+    Label(const element::Type& type, const PartialShape& s, NodePredicate pred, const NodeVector& wrapped_values)
+        : Label(type, s, as_value_predicate(std::move(pred)), as_output_vector(wrapped_values)) {}
 
     /// \brief creates a Label node containing a sub-pattern described by the type and
     ///        shape of \sa node.

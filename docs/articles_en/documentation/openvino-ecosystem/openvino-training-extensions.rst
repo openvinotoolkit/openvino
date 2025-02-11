@@ -1,5 +1,3 @@
-.. {#ote_documentation}
-
 OpenVINO™ Training Extensions
 ===============================
 
@@ -18,7 +16,7 @@ inference. It allows you to export and convert the models to the needed format. 
 Detailed Workflow
 #################
 
-.. image:: ./../../_static/images/training_extensions_framework.png
+.. image:: ../../assets/images/training_extensions_framework.png
 
 1. To start working with OpenVINO Training Extensions, prepare and annotate your dataset. For example, on CVAT.
 
@@ -34,9 +32,9 @@ If the results are unsatisfactory, add datasets and perform the same steps, star
 OpenVINO Training Extensions Components
 #######################################
 
-* `OpenVINO Training Extensions API <https://github.com/openvinotoolkit/training_extensions/tree/develop/src/otx/api>`__
+* `OpenVINO Training Extensions API <https://github.com/openvinotoolkit/training_extensions/tree/develop/src/otx/>`__
 * `OpenVINO Training Extensions CLI <https://github.com/openvinotoolkit/training_extensions/tree/develop/src/otx/cli>`__
-* `OpenVINO Training Extensions Algorithms <https://github.com/openvinotoolkit/training_extensions/tree/develop/src/otx/algorithms>`__
+* `OpenVINO Training Extensions Algorithms <https://github.com/openvinotoolkit/training_extensions/tree/develop/src/otx/algo>`__
 
 Tutorials
 #########

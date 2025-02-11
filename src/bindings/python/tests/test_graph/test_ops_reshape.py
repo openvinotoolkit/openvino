@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import openvino.runtime.opset8 as ov
+import openvino.opset8 as ov
 import numpy as np
 import pytest
 
 from openvino import Type
-from openvino.runtime.utils.types import get_element_type
+from openvino.utils.types import get_element_type
 
 
 @pytest.mark.parametrize("op_name", ["ABC", "concat", "123456"])

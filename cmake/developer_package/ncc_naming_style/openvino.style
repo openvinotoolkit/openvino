@@ -1,6 +1,6 @@
 # custom OpenVINO values
 CppMethod: '^(operator\W+|[a-z_\d]+|signaling_NaN|quiet_NaN|OPENVINO_OP)$'
-ClassName: '^([A-Z][\w]+|b?float16|float8_e4m3|float8_e5m2|numeric_limits|ngraph_error|stopwatch|unsupported_op)$'
+ClassName: '^([A-Z][\w]+|b?float16|float8_e4m3|float8_e5m2|float4_e2m1|float8_e8m0|numeric_limits|ngraph_error|stopwatch|unsupported_op)$'
 StructName: '^([A-Z][\w]+|element_type_traits|hash|oi_pair|stat)$'
 FunctionName: '^(operator\W+|[a-z_\d]+)|PrintTo$'
 Namespace: '^([a-z\d_]*|InferenceEngine)$'
@@ -18,7 +18,7 @@ VariableReference: '^\w+$'
 
 EnumName: '^[A-Z][\w]+$'
 # excepts element_type
-EnumConstantName: '^([A-Z\d_]+|undefined|dynamic|boolean|bf16|f16|f32|f64|i4|i8|i16|i32|i64|u1|u2|u3|u4|u6|u8|u16|u32|u64|nf4|f8e4m3|f8e5m2|string|asymmetric|align_corners|round_prefer_floor|round_prefer_ceil|floor|ceil|simple|nearest|linear|linear_onnx|cubic|area|scales|sizes|half_pixel|tf_half_pixel_for_nn|pytorch_half_pixel|asymetric)$'
+EnumConstantName: '^([A-Z\d_]+|undefined|dynamic|boolean|bf16|f16|f32|f64|i4|i8|i16|i32|i64|u1|u2|u3|u4|u6|u8|u16|u32|u64|nf4|f8e4m3|f8e5m2|f4e2m1|f8e8m0|string|asymmetric|align_corners|round_prefer_floor|round_prefer_ceil|floor|ceil|simple|nearest|linear|linear_onnx|cubic|area|scales|sizes|half_pixel|tf_half_pixel_for_nn|pytorch_half_pixel|asymetric)$'
 # TODO: align
 UsingDeclaration: '^.*$'
 TypedefName: '^.*$'

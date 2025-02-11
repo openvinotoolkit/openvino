@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -7,7 +7,7 @@
 import numpy as np
 import tensorflow as tf
 from openvino.frontend.tensorflow.py_tensorflow_frontend import _FrontEndDecoderBase as DecoderBase
-from openvino.runtime import PartialShape, Type, OVAny, Tensor
+from openvino import PartialShape, Type, OVAny, Tensor
 
 
 def tf_type_to_ov_type(tf_type_int):

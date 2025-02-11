@@ -17,7 +17,7 @@ class SnippetsMarkSkippedTests : public TransformationTestsF {
 public:
     void run() {
         ASSERT_TRUE(model);
-        ov::snippets::pass::SnippetsTokenization::Config config = { 1, 11, true, true, { 3, 4 } };
+        ov::snippets::pass::SnippetsTokenization::Config config = { 1, 11, true, true, true, { 3, 4 }};
         manager.register_pass<ov::intel_cpu::SnippetsMarkSkipped>();
         manager.register_pass<ov::snippets::pass::EnumerateNodes>();
         manager.register_pass<ov::snippets::pass::TokenizeSnippets>(config);
@@ -30,15 +30,7 @@ public:
     }
 };
 
-class SKIP_SnippetsMarkSkippedTests : public SnippetsMarkSkippedTests {
-public:
-    void SetUp() override {
-        GTEST_SKIP();
-    }
-    void TearDown() override{};
-};
-
-TEST_F(SKIP_SnippetsMarkSkippedTests /* CVS-114336 */, smoke_Snippets_SkipAfterInputsMatMulEltwise) {
+TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipAfterInputsMatMulEltwise) {
     const auto &f = MatMulEltwiseBranchesFunction(std::vector<PartialShape> {{1, 3, 4, 4}, {1, 3, 4, 4}});
     model = f.getOriginal();
     // Fully tokenizable, since inputs are followed by MatMul

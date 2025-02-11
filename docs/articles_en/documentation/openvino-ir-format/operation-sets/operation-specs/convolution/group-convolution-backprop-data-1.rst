@@ -1,12 +1,10 @@
-.. {#openvino_docs_ops_convolution_GroupConvolutionBackpropData_1}
-
 GroupConvolutionBackpropData
 ============================
 
 
 
 .. meta::
-  :description: Learn about GroupConvolutionBackpropData-1 - a 1D, 2D or 3D convolution operation, which 
+  :description: Learn about GroupConvolutionBackpropData-1 - a 1D, 2D or 3D convolution operation, which
                 can be performed on input and kernel tensors in OpenVINO.
 
 **Versioned name**: *GroupConvolutionBackpropData-1*
@@ -15,16 +13,16 @@ GroupConvolutionBackpropData
 
 **Short description**: Computes 1D, 2D or 3D *GroupConvolutionBackpropData* of input and kernel tensors.
 
-**Detailed description**: Splits input and filters into multiple groups, computes *ConvolutionBackpropData* 
+**Detailed description**: Splits input and filters into multiple groups, computes *ConvolutionBackpropData*
 on them and concatenates the results. It is equivalent to GroupConvolution and Convolution relationship.
 
-**Attributes**: The operation has the same attributes as a *ConvolutionBackpropData*. Number of groups 
+**Attributes**: The operation has the same attributes as a *ConvolutionBackpropData*. Number of groups
 is derived from the kernel shape.
 
 
 * *strides*
 
-  * **Description**: *strides* has the same definition as *strides* for a regular Convolution but applied in 
+  * **Description**: *strides* has the same definition as *strides* for a regular Convolution but applied in
     the backward way, for the output tensor.
   * **Range of values**: positive integers
   * **Type**: ``int[]``
@@ -32,7 +30,7 @@ is derived from the kernel shape.
 
 * *pads_begin*
 
-  * **Description**: *pads_begin* has the same definition as *pads_begin* for a regular Convolution but applied in 
+  * **Description**: *pads_begin* has the same definition as *pads_begin* for a regular Convolution but applied in
     the backward way, for the output tensor. May be omitted, in which case pads are calculated automatically.
   * **Range of values**: non-negative integers
   * **Type**: ``int[]``
@@ -50,7 +48,7 @@ is derived from the kernel shape.
 
 * *dilations*
 
-  * **Description**: *dilations* has the same definition as *dilations* for a regular Convolution but applied 
+  * **Description**: *dilations* has the same definition as *dilations* for a regular Convolution but applied
     in the backward way, for the output tensor.
   * **Range of values**: positive integers
   * **Type**: ``int[]``
@@ -58,7 +56,7 @@ is derived from the kernel shape.
 
 * *auto_pad*
 
-  * **Description**: *auto_pad* has the same definition as *auto_pad* for a regular Convolution but applied 
+  * **Description**: *auto_pad* has the same definition as *auto_pad* for a regular Convolution but applied
     in the backward way, for the output tensor.
 
     * *explicit* - use explicit padding values from *pads_begin* and *pads_end*.
@@ -73,9 +71,9 @@ is derived from the kernel shape.
 
 * *output_padding*
 
-  * **Description**: *output_padding* adds additional amount of paddings per each spatial axis in the output tensor. 
-    It unlocks more elements in the output allowing them to be computed. Elements are added at the higher coordinate 
-    indices for the spatial dimensions. Number of elements in *output_padding* list matches the number of spatial 
+  * **Description**: *output_padding* adds additional amount of paddings per each spatial axis in the output tensor.
+    It unlocks more elements in the output allowing them to be computed. Elements are added at the higher coordinate
+    indices for the spatial dimensions. Number of elements in *output_padding* list matches the number of spatial
     dimensions in input and output tensors.
   * **Range of values**: non-negative integer values
   * **Type**: ``int[]``
@@ -84,9 +82,9 @@ is derived from the kernel shape.
 
 **Inputs**:
 
-* **1**: Input tensor of type ``T1`` and rank 3, 4 or 5. Layout is ``[N, GROUPS * C_IN, Z, Y, X]`` 
+* **1**: Input tensor of type ``T1`` and rank 3, 4 or 5. Layout is ``[N, GROUPS * C_IN, Z, Y, X]``
   (number of batches, number of channels, spatial axes Z, Y, X). **Required.**
-* **2**: Kernel tensor of type ``T1`` and rank 4, 5 or 6. Layout is ``[GROUPS, C_IN, C_OUT, X, Y, Z]`` 
+* **2**: Kernel tensor of type ``T1`` and rank 4, 5 or 6. Layout is ``[GROUPS, C_IN, C_OUT, X, Y, Z]``
   (number of groups, number of input channels, number of output channels, spatial axes X, Y, Z). **Required.**
 
 * **3**: Output shape tensor of type ``T2`` and rank 1. It specifies spatial shape of the output. **Optional.**
@@ -99,7 +97,7 @@ is derived from the kernel shape.
 
 **Outputs**:
 
-* **1**: Output tensor of type ``T1`` and rank 3, 4 or 5 (the same as input *1*). Layout is ``[N, GROUPS * C_OUT, Z, Y, X]`` 
+* **1**: Output tensor of type ``T1`` and rank 3, 4 or 5 (the same as input *1*). Layout is ``[N, GROUPS * C_OUT, Z, Y, X]``
   (number of batches, number of kernel output channels, spatial axes Z, Y, X).
 
 **Types**:

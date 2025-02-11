@@ -5,8 +5,8 @@
 #pragma once
 
 #include "cpu_memory.h"
-#include "onednn/iml_type_mapper.h"
 #include "executor.hpp"
+#include "onednn/iml_type_mapper.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -20,12 +20,13 @@ struct ConvertParams {
 
 class ConvertExecutor : public Executor {
 public:
-    explicit ConvertExecutor(const ExecutorContext::CPtr context);
+    explicit ConvertExecutor(ExecutorContext::CPtr context);
     virtual bool init(const ConvertParams& convertParams,
                       const MemoryDescPtr& srcDesc,
                       const MemoryDescPtr& dstDesc,
-                      const dnnl::primitive_attr &attr) = 0;
+                      const dnnl::primitive_attr& attr) = 0;
     virtual ~ConvertExecutor() = default;
+
 protected:
     ConvertParams convertParams;
     const ExecutorContext::CPtr convertContext;
@@ -45,5 +46,5 @@ public:
 using ConvertExecutorBuilderPtr = std::shared_ptr<ConvertExecutorBuilder>;
 using ConvertExecutorBuilderCPtr = std::shared_ptr<const ConvertExecutorBuilder>;
 
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

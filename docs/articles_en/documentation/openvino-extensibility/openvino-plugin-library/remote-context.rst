@@ -1,5 +1,3 @@
-.. {#openvino_docs_ov_plugin_dg_remote_context}
-
 Remote Context
 ==============
 
@@ -13,7 +11,7 @@ ov::RemoteContext class functionality:
 * Represents device-specific inference context.
 * Allows to create remote device specific tensor.
 
-.. note::  
+.. note::
 
    If plugin provides a public API for own Remote Context, the API should be header only and does not depend on the plugin library.
 
@@ -21,7 +19,7 @@ ov::RemoteContext class functionality:
 RemoteContext Class
 ###################
 
-OpenVINO Plugin API provides the interface ov::IRemoteContext which should be used as a base class for a plugin specific remote context. Based on that, a declaration of an compiled model class can look as follows: 
+OpenVINO Plugin API provides the interface ov::IRemoteContext which should be used as a base class for a plugin specific remote context. Based on that, a declaration of an compiled model class can look as follows:
 
 .. doxygensnippet:: src/plugins/template/src/remote_context.hpp
    :language: cpp

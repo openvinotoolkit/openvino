@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -6,8 +6,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from openvino.runtime import get_version as get_rt_version
-from openvino.runtime import serialize, convert_model
+from openvino import get_version as get_rt_version
+from openvino import serialize, convert_model
 from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
 
 
@@ -74,7 +74,7 @@ class MetaDataTestTF(unittest.TestCase):
 
             serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))
 
-            from openvino.runtime import Core
+            from openvino import Core
             core = Core()
             deserialized_model = core.read_model(out_xml)
             self.check_meta_data(deserialized_model, ref_meta)

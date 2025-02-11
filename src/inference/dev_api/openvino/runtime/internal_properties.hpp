@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 
@@ -28,6 +29,19 @@ static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> sup
  * @ingroup ov_dev_api_plugin_api
  */
 static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> caching_properties{"CACHING_PROPERTIES"};
+
+/**
+ * @brief Read-only property to get a std::vector<PropertyName> of properties
+ * which should affect the loading time from cache
+ * @ingroup ov_dev_api_plugin_api
+ */
+static constexpr Property<bool, PropertyMutability::RO> caching_with_mmap{"CACHING_WITH_MMAP"};
+
+/**
+ * @brief Property to get a ov::AlignedBuffer with cached model
+ * @ingroup ov_dev_api_plugin_api
+ */
+static constexpr Property<std::shared_ptr<ov::AlignedBuffer>, PropertyMutability::RW> cached_model_buffer{"CACHED_MODEL_BUFFER"};
 
 /**
  * @brief Allow to create exclusive_async_requests with one executor

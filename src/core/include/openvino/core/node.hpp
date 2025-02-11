@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -207,6 +207,7 @@ public:
     virtual bool evaluate_upper(ov::TensorVector& output_values) const;
     virtual bool evaluate_symbol(TensorSymbolVector& output_symbols) const;
 
+    virtual bool can_constant_fold(const OutputVector& inputs_values) const;
     virtual bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values);
     /// \brief Decomposes the FusedOp into a sub-graph consisting of core openvino ops
     ///

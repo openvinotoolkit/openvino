@@ -44,7 +44,7 @@ void rms_ref(const memory::ptr input, const memory::ptr gamma, memory::ptr outpu
             for (uint32_t y = 0; y < y_size; ++y) {
                 for (uint32_t x = 0; x < x_size; ++x) {
                     auto tensor_src = tensor(batch(b), feature(f), spatial(x, y, 0, 0));
-                    auto tensor_weight = tensor(batch(b), feature(0), spatial(x, y, 0, 0));
+                    auto tensor_weight = tensor(batch(0), feature(0), spatial(x, y, 0, 0));
                     auto tensor_dst = tensor(batch(b), feature(f), spatial(x, y, 0, 0));
                     size_t src_offset = input_layout.get_linear_offset(tensor_src);
                     size_t weight_offset = input_layout.get_linear_offset(tensor_weight);
@@ -169,6 +169,186 @@ TEST(rms_gpu_test, rms_test_bfyx_opt_leftovers) {
 
     network.set_input_data("input", input);
     network.set_input_data("gamma", gamma);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "rms");
+
+    auto output = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
+
+    for (unsigned int i = 0; i < output_ref->count(); ++i) {
+        EXPECT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-3);
+    }
+}
+
+TEST(rms_gpu_test, rms_test_bfyx_opt_dyn) {
+    auto& engine = get_test_engine();
+
+    auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 4096},
+                                       data_types::f32, format::bfyx};
+    auto input = engine.allocate_memory({ov::PartialShape{2, 1, 4096}, data_types::f32, format::bfyx});
+    auto gamma = engine.allocate_memory({ov::PartialShape{1, 1, 4096}, data_types::f32, format::bfyx});
+    auto output_ref = engine.allocate_memory({ov::PartialShape{2, 1, 4096}, data_types::f32, format::bfyx});
+
+    tests::set_random_values<float>(input, true, 8, 100);
+    tests::set_random_values<float>(gamma, true, 8, 100);
+
+    rms_ref<float>(input, gamma, output_ref, 1e-5f);
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(input_layout("gamma", gamma->get_layout()));
+    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input);
+    network.set_input_data("gamma", gamma);
+
+    auto inst = network.get_primitive("rms");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "rms");
+
+    auto output = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
+
+    for (unsigned int i = 0; i < output_ref->count(); ++i) {
+        EXPECT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-3);
+    }
+}
+
+TEST(rms_gpu_test, rms_test_bfyx_opt_all_dims_dyn) {
+    auto& engine = get_test_engine();
+
+    auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+                                       data_types::f32, format::bfyx};
+    auto input = engine.allocate_memory({ov::PartialShape{2, 1, 4096}, data_types::f32, format::bfyx});
+    auto gamma = engine.allocate_memory({ov::PartialShape{1, 1, 4096}, data_types::f32, format::bfyx});
+    auto output_ref = engine.allocate_memory({ov::PartialShape{2, 1, 4096}, data_types::f32, format::bfyx});
+
+    tests::set_random_values<float>(input, true, 8, 100);
+    tests::set_random_values<float>(gamma, true, 8, 100);
+
+    rms_ref<float>(input, gamma, output_ref, 1e-5f);
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(input_layout("gamma", gamma->get_layout()));
+    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input);
+    network.set_input_data("gamma", gamma);
+
+    auto inst = network.get_primitive("rms");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "rms");
+
+    auto output = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
+
+    for (unsigned int i = 0; i < output_ref->count(); ++i) {
+        EXPECT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-3);
+    }
+}
+
+TEST(rms_gpu_test, rms_test_bfyx_opt_leftovers_dyn) {
+    auto& engine = get_test_engine();
+
+    auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 18},
+                                       data_types::f32, format::bfyx};
+    auto input = engine.allocate_memory({ov::PartialShape{2, 1, 18}, data_types::f32, format::bfyx});
+    auto gamma = engine.allocate_memory({ov::PartialShape{1, 1, 18}, data_types::f32, format::bfyx});
+    auto output_ref = engine.allocate_memory({ov::PartialShape{2, 1, 18}, data_types::f32, format::bfyx});
+
+    tests::set_random_values<float>(input, true, 8, 100);
+    tests::set_random_values<float>(gamma, true, 8, 100);
+
+    rms_ref<float>(input, gamma, output_ref, 1e-5f);
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(input_layout("gamma", gamma->get_layout()));
+    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input);
+    network.set_input_data("gamma", gamma);
+
+    auto inst = network.get_primitive("rms");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "rms");
+
+    auto output = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
+
+    for (unsigned int i = 0; i < output_ref->count(); ++i) {
+        EXPECT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-3);
+    }
+}
+
+TEST(rms_gpu_test, rms_test_bfyx_opt_unaligned_dyn) {
+    auto& engine = get_test_engine();
+
+    auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 3083},
+                                       data_types::f32, format::bfyx};
+    auto input = engine.allocate_memory({ov::PartialShape{2, 1, 3083}, data_types::f32, format::bfyx});
+    auto gamma = engine.allocate_memory({ov::PartialShape{1, 1, 3083}, data_types::f32, format::bfyx});
+    auto output_ref = engine.allocate_memory({ov::PartialShape{2, 1, 3083}, data_types::f32, format::bfyx});
+
+    tests::set_random_values<float>(input, true, 8, 100);
+    tests::set_random_values<float>(gamma, true, 8, 100);
+
+    rms_ref<float>(input, gamma, output_ref, 1e-5f);
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(input_layout("gamma", gamma->get_layout()));
+    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input);
+    network.set_input_data("gamma", gamma);
+
+    auto inst = network.get_primitive("rms");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
 
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));

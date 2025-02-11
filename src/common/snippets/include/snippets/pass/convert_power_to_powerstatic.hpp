@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 
 namespace ov {
 namespace snippets {
@@ -18,6 +17,7 @@ namespace pass {
  */
 class ConvertPowerToPowerStatic: public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("snippets::pass::ConvertPowerToPowerStatic");
     ConvertPowerToPowerStatic();
 };
 

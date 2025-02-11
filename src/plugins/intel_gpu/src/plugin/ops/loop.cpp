@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "intel_gpu/plugin/program_builder.hpp"
@@ -30,8 +30,14 @@ namespace intel_gpu {
 template<class DATA_TYPE>
 static DATA_TYPE CreateScalarData(ProgramBuilder &p, const cldnn::primitive_id& id, ov::Shape& shape, cldnn::data_types dtype, int64_t num, int64_t rank) {
     auto mem = p.get_engine().allocate_memory({ shape, dtype, cldnn::format::get_default_format(rank) });
-    cldnn::mem_lock<int64_t> ptr{mem, p.get_engine().get_service_stream()};
-    *ptr.begin() = num;
+    if (dtype == cldnn::data_types::i32) {
+        cldnn::mem_lock<int32_t> ptr{mem, p.get_engine().get_service_stream()};
+        *ptr.begin() = static_cast<int32_t>(num);
+    } else {
+        cldnn::mem_lock<int64_t> ptr{mem, p.get_engine().get_service_stream()};
+        *ptr.begin() = num;
+    }
+
     return {id, mem};
 }
 
@@ -69,7 +75,7 @@ static void SetLoopInputOutputMap(ProgramBuilder& p,
 
         // set input mapping
         if (const auto& sliceInfo =
-            std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::SliceInputDescription>(loop_input_desc)) {
+            ov::as_type_ptr<ov::op::util::MultiSubGraphOp::SliceInputDescription>(loop_input_desc)) {
             // sliced input
             input_primitive_maps.emplace_back(external_id, internal_id, sliceInfo->m_axis,
                 sliceInfo->m_start, sliceInfo->m_end, sliceInfo->m_stride);
@@ -88,7 +94,7 @@ static void SetLoopInputOutputMap(ProgramBuilder& p,
 
         // set back edges
         if (const auto& mergedInput =
-            std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::MergedInputDescription>(loop_input_desc)) {
+            ov::as_type_ptr<ov::op::util::MultiSubGraphOp::MergedInputDescription>(loop_input_desc)) {
             // backedge
             const auto& to = body_inputs.at(mergedInput->m_body_parameter_index);
             const auto& from = body_outputs.at(mergedInput->m_body_value_index);
@@ -112,7 +118,7 @@ static void SetLoopInputOutputMap(ProgramBuilder& p,
 
             // update primitive_map
             if (const auto& concatOutput =
-                std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::ConcatOutputDescription>(loop_output_desc)) {
+                ov::as_type_ptr<ov::op::util::MultiSubGraphOp::ConcatOutputDescription>(loop_output_desc)) {
                 // output which requires concatenation
                 output_primitive_maps.emplace_back(external_input_info, internal_id, concatOutput->m_axis,
                     concatOutput->m_start, concatOutput->m_end, concatOutput->m_stride);
@@ -122,7 +128,7 @@ static void SetLoopInputOutputMap(ProgramBuilder& p,
                         << concatOutput->m_axis << "," << concatOutput->m_start << ","
                         << concatOutput->m_end << "," << concatOutput->m_stride << "}" << std::endl;
             }
-            if (std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::BodyOutputDescription>(loop_output_desc)) {
+            if (ov::as_type_ptr<ov::op::util::MultiSubGraphOp::BodyOutputDescription>(loop_output_desc)) {
                 // output which requires no concatenation
                 output_primitive_maps.emplace_back(external_input_info, internal_id);
                 GPU_DEBUG_LOG << "loop_output_descs[" << layerName << "][BodyOutputDescription] external:"
@@ -152,7 +158,7 @@ static void SetLoopInputOutputMap(ProgramBuilder& p,
 
             // update primitive_map
             if (const auto& concatOutput =
-                std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::ConcatOutputDescription>(loop_output_desc)) {
+                ov::as_type_ptr<ov::op::util::MultiSubGraphOp::ConcatOutputDescription>(loop_output_desc)) {
                 // output which requires concatenation
                 output_primitive_maps.emplace_back(external_id, internal_id, concatOutput->m_axis,
                     concatOutput->m_start, concatOutput->m_end, concatOutput->m_stride);
@@ -162,7 +168,7 @@ static void SetLoopInputOutputMap(ProgramBuilder& p,
                         << concatOutput->m_axis << "," << concatOutput->m_start << ","
                         << concatOutput->m_end << "," << concatOutput->m_stride << "}" << std::endl;
             }
-            if (std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::BodyOutputDescription>(loop_output_desc)) {
+            if (ov::as_type_ptr<ov::op::util::MultiSubGraphOp::BodyOutputDescription>(loop_output_desc)) {
                 // output which requires no concatenation
                 output_primitive_maps.emplace_back(external_id, internal_id);
                 GPU_DEBUG_LOG << "loop_output_descs[" << layerName << "][BodyOutputDescription] external:"
@@ -218,7 +224,7 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
 
     std::shared_ptr<ov::op::v0::Parameter> current_iteration_input_op;
     if (is_loop_op) {
-        auto loop_op = std::dynamic_pointer_cast<Loop>(op);
+        auto loop_op = ov::as_type_ptr<Loop>(op);
         auto special_body_ports = loop_op->get_special_body_ports();
         if (special_body_ports.current_iteration_input_idx >= 0) {
             const auto& body_inputs = loop_op->get_function()->get_parameters();

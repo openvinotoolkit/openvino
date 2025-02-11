@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "gtest/gtest.h"
@@ -87,7 +87,7 @@ TEST(StaticShapeInferenceTest, transpose_input_shape_dim_dynamic) {
 TEST(StaticShapeInferenceTest, transpose_order_in_constant_map) {
     const auto input_shape = PartialShape{2, 4, 6, 8};
     const auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
-    const auto order = std::make_shared<op::v0::Parameter>(element::i64, Shape{4});
+    const auto order = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{4});
 
     const auto transpose = std::make_shared<op::v1::Transpose>(input, order);
 

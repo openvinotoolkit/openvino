@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,6 +38,7 @@ public:
 protected:
     float m_abs_threshold = 5e-4f;
     float m_rel_threshold = 1e-3f;
+    bool test_skipped = false;
 
 private:
     std::shared_ptr<ov::pass::UniqueNamesHolder> m_unh;

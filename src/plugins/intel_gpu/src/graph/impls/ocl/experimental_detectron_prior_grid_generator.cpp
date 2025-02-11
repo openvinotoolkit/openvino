@@ -21,7 +21,7 @@ struct experimental_detectron_prior_grid_generator_impl
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::experimental_detectron_prior_grid_generator_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<experimental_detectron_prior_grid_generator_impl>(*this);
+        return make_deep_copy<experimental_detectron_prior_grid_generator_impl, kernel_params_t>(*this);
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {

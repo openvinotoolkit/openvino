@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -92,8 +92,9 @@ class TestOVCTool(unittest.TestCase):
 
         x1 = tf.keras.Input(shape=input_shape, name=input_names[0])
         x2 = tf.keras.Input(shape=input_shape, name=input_names[1])
-        y = tf.nn.sigmoid(tf.nn.relu(x1 + x2))
-        keras_net = tf.keras.Model(inputs=[x1, x2], outputs=[y])
+        relu = tf.keras.layers.Activation('relu')(x1 + x2)
+        sigmoid = tf.keras.layers.Activation('sigmoid')(relu)
+        keras_net = tf.keras.Model(inputs=[x1, x2], outputs=[sigmoid])
 
         tf.saved_model.save(keras_net, temp_dir + "/test_model")
 
@@ -117,7 +118,7 @@ class TestOVCTool(unittest.TestCase):
 
         core = Core()
 
-        # tests for MO cli tool
+        # tests for OVC cli tool
         exit_code, stderr = generate_ir_ovc(coverage=False, **{"input_model": model_path, "output_model": self.tmp_dir + os.sep + "model1"})
         assert not exit_code
 
@@ -132,7 +133,7 @@ class TestOVCTool(unittest.TestCase):
 
         core = Core()
 
-        # tests for MO cli tool
+        # tests for OVC cli tool
         exit_code, stderr = generate_ir_ovc(coverage=False, **{"input_model": model_path, "output_model": self.tmp_dir})
         assert not exit_code
 
@@ -140,6 +141,10 @@ class TestOVCTool(unittest.TestCase):
         flag, msg = compare_functions(ov_model, create_ref_graph(), False)
         assert flag, msg
 
+    @unittest.skipIf(
+        (sys.version_info[0], sys.version_info[1]) == (3, 12),
+        'Ticket: 152216'
+    )
     def test_ovc_tool_saved_model_dir(self):
         from openvino.runtime import Core
         core = Core()
@@ -153,6 +158,10 @@ class TestOVCTool(unittest.TestCase):
         flag, msg = compare_functions(ov_model, ref_model, False)
         assert flag, msg
 
+    @unittest.skipIf(
+        (sys.version_info[0], sys.version_info[1]) == (3, 12),
+        'Ticket: 152216'
+    )
     def test_ovc_tool_saved_model_dir_with_sep_at_path_end(self):
         from openvino.runtime import Core
         core = Core()
@@ -166,6 +175,10 @@ class TestOVCTool(unittest.TestCase):
         flag, msg = compare_functions(ov_model, ref_model, False)
         assert flag, msg
 
+    @unittest.skipIf(
+        (sys.version_info[0], sys.version_info[1]) == (3, 12),
+        'Ticket: 152216'
+    )
     def test_ovc_tool_non_existng_output_dir(self):
         from openvino.runtime import Core
         core = Core()
@@ -179,7 +192,10 @@ class TestOVCTool(unittest.TestCase):
         flag, msg = compare_functions(ov_model, ref_model, False)
         assert flag, msg
 
-
+    @unittest.skipIf(
+        (sys.version_info[0], sys.version_info[1]) == (3, 12),
+        'Ticket: 152216'
+    )
     def test_ovc_tool_verbose(self):
         from openvino.runtime import Core
         core = Core()

@@ -1,9 +1,11 @@
-.. {#openvino_docs_OV_UG_supported_plugins_CPU}
-
 CPU Device
 ==========
 
+.. toctree::
+   :maxdepth: 1
+   :hidden:
 
+   cpu-device/performance-hint-and-thread-scheduling
 
 .. meta::
    :description: The CPU plugin in the Intel® Distribution of OpenVINO™ toolkit
@@ -51,24 +53,27 @@ the ``ov::Core::compile_model()`` method:
          :fragment: [compile_model_default]
 
 
-Supported Inference Data Types
-###########################################################
+Supported Model Precision
+#########################
 
 CPU plugin supports the following data types as inference precision of internal primitives:
 
 - Floating-point data types:
 
-  - ``f32`` (Intel® x86-64, Arm®)
-  - ``bf16`` (Intel® x86-64)
-  - ``f16`` (Intel® x86-64, Arm®)
+  - ``FP32`` (Intel® x86-64, Arm®)
+  - ``BF16`` (Intel® x86-64)
+  - ``FP16`` (Intel® x86-64, Arm®)
+  - ``:ref:`MXFP4 <mxfp4_support>``` (Intel® x86-64)
+
 - Integer data types:
 
-  - ``i32`` (Intel® x86-64, Arm®)
+  - ``INT32`` (Intel® x86-64, Arm®)
+
 - Quantized data types:
 
-  - ``u8`` (Intel® x86-64)
-  - ``i8`` (Intel® x86-64)
-  - ``u1`` (Intel® x86-64)
+  - ``uINT8`` (Intel® x86-64)
+  - ``INT8`` (Intel® x86-64)
+  - ``uINT1`` (Intel® x86-64)
 
 :doc:`Hello Query Device C++ Sample <../../../learn-openvino/openvino-samples/hello-query-device>` can be used to print out supported data types for all detected devices.
 
@@ -100,6 +105,11 @@ all the ``f16`` values to ``f32``, and all calculations are performed using the 
 On platforms that natively support half-precision calculations (``bfloat16`` or ``float16``), the half-precision type (``bf16`` or ``f16``) is automatically used instead
 of ``f32`` to achieve better performance (see the `Execution Mode Hint <#execution-mode-hint>`__).
 Thus, no special steps are required to run a model with ``bf16`` or ``f16`` inference precision.
+
+.. important::
+
+   The ``bf16`` floating-point precision appears to have some limitations that impact the
+   inference accuracy in LLM models. For more details, refer to this :ref:`article <limited_inference_precision>`.
 
 Using the half-precision provides the following performance benefits:
 
@@ -200,11 +210,11 @@ For more details and code examples, see the :doc:`Precision Control <../optimize
 Supported Features
 ###########################################################
 
-Multi-device Execution
+Automatic Device Selection
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 If a system includes OpenVINO-supported devices other than the CPU (e.g. an integrated GPU), then any supported model can be executed on all the devices simultaneously.
-This can be achieved by specifying ``MULTI:CPU,GPU.0`` as a target device in case of simultaneous usage of CPU and GPU.
+This can be achieved by specifying ``AUTO:CPU,GPU.0`` as a target device, and adding the ``CUMULATIVE_THROUGHPUT`` parameter.
 
 .. tab-set::
 
@@ -213,17 +223,19 @@ This can be achieved by specifying ``MULTI:CPU,GPU.0`` as a target device in cas
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_cpu.py
          :language: py
-         :fragment: [compile_model_multi]
+         :fragment: [compile_model_auto]
 
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_cpu.cpp
          :language: cpp
-         :fragment: [compile_model_multi]
+         :fragment: [compile_model_auto]
 
 
-For more details, see the :doc:`Multi-device execution <multi-device>` article.
+For more details, see the :doc:`Automatic Device Selection <auto-device-selection>`.
+
+.. _multi_stream_execution:
 
 Multi-stream Execution
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -233,14 +245,13 @@ property is set for CPU plugin, then multiple streams are created for the model.
 host thread, which means that incoming infer requests can be processed simultaneously. Each stream is pinned to its own group of
 physical cores with respect to NUMA nodes physical memory usage to minimize overhead on data transfer between NUMA nodes.
 
-For more details, see the :doc:`optimization guide <../optimize-inference>`.
+For more details, see the :doc:`optimization guide <../optimize-inference>` and :doc:`thread scheduling introduction <cpu-device/performance-hint-and-thread-scheduling>`.
 
 .. note::
 
    When it comes to latency, be aware that running only one stream on multi-socket platform may introduce additional overheads
    on data transfer between NUMA nodes. In that case it is better to use the ``ov::hint::PerformanceMode::LATENCY`` performance hint.
    For more details see the :doc:`performance hints <../optimize-inference/high-level-performance-hints>` overview.
-
 
 Dynamic Shapes
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -344,9 +355,9 @@ All parameters must be set before calling ``ov::Core::compile_model()`` in order
 - ``ov::hint::num_request``
 - ``ov::hint::scheduling_core_type``
 - ``ov::hint::enable_hyper_threading``
+- ``ov::hint::enable_cpu_reservation``
 - ``ov::hint::enable_cpu_pinning``
 - ``ov::num_streams``
-- ``ov::affinity``
 - ``ov::inference_num_threads``
 - ``ov::cache_dir``
 - ``ov::intel_cpu::denormals_optimization``
@@ -362,8 +373,6 @@ Read-only properties
 - ``ov::device::full_name``
 - ``ov::device::capabilities``
 
-.. note::
-   ``ov::affinity`` is replaced by ``ov::hint::enable_cpu_pinning``. As such, it is deprecated in the 2024.0 release and will be removed in the 2025 release.
 
 External Dependencies
 ###########################################################
@@ -382,70 +391,8 @@ Multi-Threading Optimization
 
 CPU inference will infer an input or multiple inputs in parallel on multiple logical processors.
 
-User can use the following properties to limit available CPU resource for model inference. If the platform or operating system can support this behavior, OpenVINO Runtime will perform multi-threading scheduling based on limited available CPU.
+For more details, see the :doc:`thread scheduling introduction <cpu-device/performance-hint-and-thread-scheduling>`.
 
-- ``ov::inference_num_threads`` limits number of logical processors used for CPU inference.
-  If the number set by the user is greater than the number of logical processors on the platform, multi-threading scheduler only uses the platform number for CPU inference.
-- ``ov::hint::scheduling_core_type`` limits the type of CPU cores for CPU inference when user runs inference on a hybird platform that includes both Performance-cores (P-cores) with Efficient-cores (E-cores).
-  If user platform only has one type of CPU cores, this property has no effect, and CPU inference always uses this unique core type.
-- ``ov::hint::enable_hyper_threading`` limits the use of one or two logical processors per CPU core when platform has CPU hyperthreading enabled.
-  If there is only one logical processor per CPU core, such as Efficient-cores, this property has no effect, and CPU inference uses all logical processors.
-
-.. tab-set::
-
-   .. tab-item:: Python
-      :sync: py
-
-      .. doxygensnippet:: docs/articles_en/assets/snippets/multi_threading.py
-         :language: python
-         :fragment: [ov:intel_cpu:multi_threading:part0]
-
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/articles_en/assets/snippets/multi_threading.cpp
-         :language: cpp
-         :fragment: [ov:intel_cpu:multi_threading:part0]
-
-
-.. note::
-
-   ``ov::hint::scheduling_core_type`` and ``ov::hint::enable_hyper_threading`` only support Intel® x86-64 CPU on Linux and Windows in current release.
-
-In some use cases, OpenVINO Runtime will enable CPU threads pinning by default for better performance. User can also turn it on or off using property ``ov::hint::enable_cpu_pinning``. Disable threads pinning might be beneficial in complex applications with several workloads executed in parallel. The following table describes the default setting for ``ov::hint::enable_cpu_pinning`` in different use cases.
-
-==================================================== ================================
- Use Case                                             Default Setting of CPU Pinning
-==================================================== ================================
- All use cases with Windows OS                        False
- Stream contains both Pcore and Ecore with Linux OS   False
- Stream only contains Pcore or Ecore with Linux OS    True
- All use cases with Mac OS                            False
-==================================================== ================================
-
-.. tab-set::
-
-   .. tab-item:: Python
-      :sync: py
-
-      .. doxygensnippet:: docs/articles_en/assets/snippets/multi_threading.py
-         :language: python
-         :fragment: [ov:intel_cpu:multi_threading:part1]
-
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/articles_en/assets/snippets/multi_threading.cpp
-         :language: cpp
-         :fragment: [ov:intel_cpu:multi_threading:part1]
-
-
-For details on multi-stream execution check the
-:doc:`optimization guide <../optimize-inference/optimizing-throughput/advanced_throughput_options>`.
-
-.. note::
-
-   ``ov::hint::enable_cpu_pinning`` is not supported on multi-socket platforms with Windows OS.
 
 Denormals Optimization
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

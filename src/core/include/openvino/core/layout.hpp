@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -205,7 +205,7 @@ protected:
 
 class OPENVINO_API LayoutAttribute : public ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("layout", "0");
+    OPENVINO_RTTI("layout", "0", RuntimeAttribute);
 
     LayoutAttribute() = default;
 

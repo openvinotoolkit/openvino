@@ -19,7 +19,7 @@ typedef std::tuple<
 > ExpParams;
 
 class Exp : public testing::WithParamInterface<ov::test::snippets::ExpParams>,
-            virtual public ov::test::SnippetsTestsCommon {
+            virtual public SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::ExpParams> obj);
 

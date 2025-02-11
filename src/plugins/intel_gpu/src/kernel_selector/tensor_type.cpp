@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,7 @@ DataTensor::DataChannelArray DataTensor::dataChannelArray {{
     { DataLayout::bxfy,                  {  2,  0, -1, -1, -1, -1,  1,  3 } },
     { DataLayout::fbyx,                  {  0,  1, -1, -1, -1, -1,  3,  2 } },
     { DataLayout::fyxb,                  {  1,  2, -1, -1, -1, -1,  3,  0 } },
+    { DataLayout::ybfx,                  {  0,  3, -1, -1, -1, -1,  1,  2 } },
     { DataLayout::b_fs_yx_fsv2,          {  0,  1, -1, -1, -1, -1,  2,  3 } },
     { DataLayout::b_fs_yx_fsv4,          {  0,  1, -1, -1, -1, -1,  2,  3 } },
     { DataLayout::b_fs_yx_fsv8,          {  0,  1, -1, -1, -1, -1,  2,  3 } },
@@ -118,6 +119,7 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::os_is_yx_osv32_isv4_swizzled_by_2,           {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_is_yx_osv32_isv4,                         {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_is_yx_osv32_isv2,                         {  0,  1, -1,   2,   3, -1 } },
+    { WeightsLayout::os_is_yx_osv64_isv2,                         {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_is_zyx_osv32_isv4,                        {  0,  1,  2,   3,   4, -1 } },
     { WeightsLayout::oizyx,                                       {  0,  1,  2,   3,   4, -1 } },
     { WeightsLayout::iozyx,                                       {  0,  1,  2,   4,   3, -1 } },

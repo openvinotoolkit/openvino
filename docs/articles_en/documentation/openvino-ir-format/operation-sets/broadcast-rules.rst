@@ -1,12 +1,10 @@
-.. {#openvino_docs_ops_broadcast_rules}
-
 Broadcast Rules For Elementwise Operations
 ==========================================
 
 
 .. meta::
-  :description: Learn about Numpy and PDPD broadcast types in OpenVINO, that 
-                enable performing element-wise operation for inputs of arbitrary 
+  :description: Learn about Numpy and PDPD broadcast types in OpenVINO, that
+                enable performing element-wise operation for inputs of arbitrary
                 number of dimensions.
 
 The purpose of this document is to provide a set of common rules which are applicable for ops using broadcasting.
@@ -40,81 +38,82 @@ Rules
 Numpy examples
 ##############
 
-* ``A: Shape(,) -> scalar`` 
-  ``B: Shape(,) -> scalar`` 
+* ``A: Shape(,) -> scalar``
+  ``B: Shape(,) -> scalar``
   ``Result: Shape(,) -> scalar``
 
-* ``A: Shape(2, 3)`` 
-  ``B: Shape(   1)`` 
+* ``A: Shape(2, 3)``
+  ``B: Shape(   1)``
   ``Result: Shape(2, 3)``
 
-* ``A: Shape(   3)`` 
-  ``B: Shape(2, 3)`` 
+* ``A: Shape(   3)``
+  ``B: Shape(2, 3)``
   ``Result: Shape(2, 3)``
 
-* ``A: Shape(2, 3, 5)`` 
-  ``B: Shape(,) -> scalar`` 
+* ``A: Shape(2, 3, 5)``
+  ``B: Shape(,) -> scalar``
   ``Result: Shape(2, 3, 5)``
 
-* ``A: Shape(2, 1, 5)`` 
+* ``A: Shape(2, 1, 5)``
   ``B: Shape(1, 4, 5)``
   ``Result: Shape(2, 4, 5)``
 
-* ``A: Shape(   6, 5)`` 
-  ``B: Shape(2, 1, 5)`` 
+* ``A: Shape(   6, 5)``
+  ``B: Shape(2, 1, 5)``
   ``Result: Shape(2, 6, 5)``
 
-* ``A: Shape(2, 1, 5)`` 
-  ``B: Shape(   4, 1)`` 
-  ``Result: Shape(2, 4, 5)`` 
+* ``A: Shape(2, 1, 5)``
+  ``B: Shape(   4, 1)``
+  ``Result: Shape(2, 4, 5)``
 
-* ``A: Shape(3, 2, 1, 4)`` 
-  ``B: Shape(      5, 4)`` 
+* ``A: Shape(3, 2, 1, 4)``
+  ``B: Shape(      5, 4)``
   ``Result: Shape(3, 2, 5, 4)``
 
-* ``A: Shape(   1, 5, 3)`` 
-  ``B: Shape(5, 2, 1, 3)`` 
+* ``A: Shape(   1, 5, 3)``
+  ``B: Shape(5, 2, 1, 3)``
   ``Result: Shape(5, 2, 5, 3)``
 
-* ``A: Shape(3)`` 
-  ``B: Shape(2)`` 
+* ``A: Shape(3)``
+  ``B: Shape(2)``
   ``Result: broadcast won't happen due to dimensions mismatch``
 
-* ``A: Shape(3, 1, 5)`` 
-  ``B: Shape(4, 4, 5)`` 
+* ``A: Shape(3, 1, 5)``
+  ``B: Shape(4, 4, 5)``
   ``Result: broadcast won't happen due to dimensions mismatch on the leftmost axis``
 
 PDPD examples
 #############
 
-* ``A: Shape(2, 3, 4, 5)`` 
-  ``B: Shape(   3, 4   ) with axis = 1`` 
+* ``A: Shape(2, 3, 4, 5)``
+  ``B: Shape(   3, 4   ) with axis = 1``
   ``Result: Shape(2, 3, 4, 5)``
 
-* ``A: Shape(2, 3, 4, 5)`` 
-  ``B: Shape(   3, 1   ) with axis = 1`` 
+* ``A: Shape(2, 3, 4, 5)``
+  ``B: Shape(   3, 1   ) with axis = 1``
   ``Result: Shape(2, 3, 4, 5)``
 
-* ``A: Shape(2, 3, 4, 5)`` 
-  ``B: Shape(      4, 5) with axis=-1(default) or axis=2`` 
+* ``A: Shape(2, 3, 4, 5)``
+  ``B: Shape(      4, 5) with axis=-1(default) or axis=2``
   ``Result: Shape(2, 3, 4, 5)``
 
-* ``A: Shape(2, 3, 4, 5)`` 
-  ``B: Shape(1, 3      ) with axis = 0`` 
+* ``A: Shape(2, 3, 4, 5)``
+  ``B: Shape(1, 3      ) with axis = 0``
   ``Result: Shape(2, 3, 4, 5)``
 
-* ``A: Shape(2, 3, 4, 5)`` 
-  ``B: Shape(,)`` 
-  ``Result: Shape(2, 3, 4, 5)`` 
+* ``A: Shape(2, 3, 4, 5)``
+  ``B: Shape(,)``
+  ``Result: Shape(2, 3, 4, 5)``
 
-* ``A: Shape(2, 3, 4, 5)`` 
+* ``A: Shape(2, 3, 4, 5)``
   ``B: Shape(         5) with axis=-1(default) or axis = 3``
   ``Result: Shape(2, 3, 4, 5)``
 
-* ``A: Shape(8, 1, 6, 1)`` 
-  ``B: Shape(   7, 1, 5) with axis = 1`` 
+* ``A: Shape(8, 1, 6, 1)``
+  ``B: Shape(   7, 1, 5) with axis = 1``
   ``Result: broadcast won't happen due to dimensions mismatch, only B to A broadcast is supported for PDPD``
-Bidirectional Broadcast Rules 
+
+Bidirectional Broadcast Rules
 #############################
 
 Description
@@ -138,23 +137,23 @@ Rules
 Bidirectional examples
 ++++++++++++++++++++++
 
-* ``A: Shape(5)`` 
-  ``B: Shape(1)`` 
+* ``A: Shape(5)``
+  ``B: Shape(1)``
   ``Result: Shape(5)``
 
-* ``A: Shape(2, 3)`` 
-  ``B: Shape(   3)`` 
+* ``A: Shape(2, 3)``
+  ``B: Shape(   3)``
   ``Result: Shape(2, 3)``
 
-* ``A: Shape(3, 1)`` 
-  ``B: Shape(3, 4)`` 
+* ``A: Shape(3, 1)``
+  ``B: Shape(3, 4)``
   ``Result: Shape(3, 4)``
 
-* ``A: Shape(3, 4)`` 
-  ``B: Shape(,) -> scalar`` 
+* ``A: Shape(3, 4)``
+  ``B: Shape(,) -> scalar``
   ``Result: Shape(3, 4)``
 
-* ``A: Shape(   3, 1)`` 
-  ``B: Shape(2, 1, 6)`` 
+* ``A: Shape(   3, 1)``
+  ``B: Shape(2, 1, 6)``
   ``Result: Shape(2, 3, 6)``
 

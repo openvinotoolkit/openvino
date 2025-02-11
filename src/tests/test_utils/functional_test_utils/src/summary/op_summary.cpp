@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -143,9 +143,8 @@ std::map<std::string, PassRate> OpSummary::getStatisticFromReport() {
 void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model>& model, const PassRate::Statuses& status, double k) {
     bool isFunctionalGraph = false;
     for (const auto& op : model->get_ordered_ops()) {
-        if (!std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) &&
-            !std::dynamic_pointer_cast<ov::op::v0::Constant>(op) &&
-            !std::dynamic_pointer_cast<ov::op::v0::Result>(op)) {
+        if (!ov::as_type_ptr<ov::op::v0::Parameter>(op) && !ov::as_type_ptr<ov::op::v0::Constant>(op) &&
+            !ov::as_type_ptr<ov::op::v0::Result>(op)) {
             // find all features
             isFunctionalGraph = true;
             break;
@@ -153,24 +152,23 @@ void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model>& model, const Pa
     }
 
     for (const auto& op : model->get_ordered_ops()) {
-        if ((std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
-             std::dynamic_pointer_cast<ov::op::v0::Constant>(op) ||
-             std::dynamic_pointer_cast<ov::op::v0::Result>(op)) &&
+        if ((ov::as_type_ptr<ov::op::v0::Parameter>(op) || ov::as_type_ptr<ov::op::v0::Constant>(op) ||
+             ov::as_type_ptr<ov::op::v0::Result>(op)) &&
             isFunctionalGraph) {
             continue;
         }
         if (extractBody) {
-            if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op)) {
+            if (ov::as_type_ptr<ov::op::v0::TensorIterator>(op)) {
                 updateOPsStats(op->get_type_info(), status, k);
                 auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(op);
                 auto ti_body = ti->get_function();
                 updateOPsStats(ti_body, status, k);
-            } else if (std::dynamic_pointer_cast<ov::op::v5::Loop>(op)) {
+            } else if (ov::as_type_ptr<ov::op::v5::Loop>(op)) {
                 updateOPsStats(op->get_type_info(), status, k);
                 auto loop = ov::as_type_ptr<ov::op::v5::Loop>(op);
                 auto loop_body = loop->get_function();
                 updateOPsStats(loop_body, status, k);
-            } else if (std::dynamic_pointer_cast<ov::op::v8::If>(op)) {
+            } else if (ov::as_type_ptr<ov::op::v8::If>(op)) {
                 updateOPsStats(op->get_type_info(), status, k);
                 auto if_op = ov::as_type_ptr<ov::op::v8::If>(op);
                 std::vector<std::shared_ptr<ov::Model>> bodies;
@@ -190,26 +188,24 @@ void OpSummary::updateOPsImplStatus(const std::shared_ptr<ov::Model>& model, con
     }
     bool isFunctionalGraph = false;
     for (const auto& op : model->get_ordered_ops()) {
-        if (!std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) &&
-            !std::dynamic_pointer_cast<ov::op::v0::Constant>(op) &&
-            !std::dynamic_pointer_cast<ov::op::v0::Result>(op)) {
+        if (!ov::as_type_ptr<ov::op::v0::Parameter>(op) && !ov::as_type_ptr<ov::op::v0::Constant>(op) &&
+            !ov::as_type_ptr<ov::op::v0::Result>(op)) {
             isFunctionalGraph = true;
             break;
         }
     }
 
     for (const auto& op : model->get_ordered_ops()) {
-        if ((std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
-             std::dynamic_pointer_cast<ov::op::v0::Constant>(op) ||
-             std::dynamic_pointer_cast<ov::op::v0::Result>(op)) &&
+        if ((ov::as_type_ptr<ov::op::v0::Parameter>(op) || ov::as_type_ptr<ov::op::v0::Constant>(op) ||
+             ov::as_type_ptr<ov::op::v0::Result>(op)) &&
             isFunctionalGraph) {
             continue;
-        } else if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op)) {
+        } else if (ov::as_type_ptr<ov::op::v0::TensorIterator>(op)) {
             updateOPsImplStatus(op->get_type_info(), implStatus);
             auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(op);
             auto ti_body = ti->get_function();
             updateOPsImplStatus(ti_body, implStatus);
-        } else if (std::dynamic_pointer_cast<ov::op::v5::Loop>(op)) {
+        } else if (ov::as_type_ptr<ov::op::v5::Loop>(op)) {
             updateOPsImplStatus(op->get_type_info(), implStatus);
             auto loop = ov::as_type_ptr<ov::op::v5::Loop>(op);
             auto loop_body = loop->get_function();

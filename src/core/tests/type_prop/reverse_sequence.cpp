@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -110,7 +110,7 @@ TEST(type_prop, reverse_sequence_invalid_batch_axis_value) {
     OV_EXPECT_THROW(
         auto reverse_seq = std::make_shared<op::v0::ReverseSequence>(data, seq_lengths, batch_axis, seq_axis),
         AssertFailure,
-        HasSubstr("Parameter axis 3 out of the tensor rank"));
+        HasSubstr("Axis 3 out of the tensor rank"));
 }
 
 TEST(type_prop, reverse_sequence_invalid_seq_axis_value) {
@@ -122,7 +122,7 @@ TEST(type_prop, reverse_sequence_invalid_seq_axis_value) {
     OV_EXPECT_THROW(
         auto reverse_seq = std::make_shared<op::v0::ReverseSequence>(data, seq_lengths, batch_axis, seq_axis),
         AssertFailure,
-        HasSubstr("Parameter axis 3 out of the tensor rank"));
+        HasSubstr("Axis 3 out of the tensor rank"));
 }
 
 TEST(type_prop, reverse_sequence_incompatible_seq_len_size_with_batch_dim) {
@@ -194,7 +194,7 @@ TEST(type_prop, reverse_sequence_dynamic_invalid_batch_axis) {
     OV_EXPECT_THROW(
         auto reverse_seq = std::make_shared<op::v0::ReverseSequence>(data, seq_lengths, batch_axis, seq_axis),
         AssertFailure,
-        HasSubstr("Parameter axis 4 out of the tensor rank"));
+        HasSubstr("Axis 4 out of the tensor rank"));
 }
 
 TEST(type_prop, reverse_sequence_dynamic_invalid_seq_axis) {
@@ -208,7 +208,7 @@ TEST(type_prop, reverse_sequence_dynamic_invalid_seq_axis) {
     OV_EXPECT_THROW(
         auto reverse_seq = std::make_shared<op::v0::ReverseSequence>(data, seq_lengths, batch_axis, seq_axis),
         AssertFailure,
-        HasSubstr("Parameter axis 4 out of the tensor rank"));
+        HasSubstr("Axis 4 out of the tensor rank"));
 }
 
 TEST(type_prop, reverse_sequence_dynamic_data_input_static_rank) {
@@ -275,7 +275,7 @@ TEST_F(TypePropReverseSequenceV0Test, dynamic_invalid_negative_axis_and_data_inp
 
     OV_EXPECT_THROW(auto reverse_seq = make_op(data, seq_lengths, batch_axis, seq_axis),
                     AssertFailure,
-                    HasSubstr("Rank must be static in order to normalize negative axis=-2"));
+                    HasSubstr("Rank must be static in order to normalize negative axis: -2"));
 }
 
 TEST_F(TypePropReverseSequenceV0Test, default_ctor) {

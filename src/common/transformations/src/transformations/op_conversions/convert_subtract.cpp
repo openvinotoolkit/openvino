@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@
 using namespace ov;
 
 static bool convert_subtract(const std::shared_ptr<Node>& node) {
-    auto sub = std::dynamic_pointer_cast<ov::op::v1::Subtract>(node);
+    auto sub = ov::as_type_ptr<ov::op::v1::Subtract>(node);
     if (!sub) {
         return false;
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,7 +63,6 @@ OutputVector make_batch_norm(const NodeContext& context,
     } else {
         b = context.mark_node(std::make_shared<v1::ConvertLike>(b, input));
     }
-    auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     auto zero_1d = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
     auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
     auto two = context.mark_node(v0::Constant::create(element::i32, Shape{}, {2}));

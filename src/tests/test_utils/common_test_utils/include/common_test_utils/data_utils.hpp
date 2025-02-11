@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -412,6 +412,10 @@ inline ov::float8_e4m3 ie_abs(const ov::float8_e4m3& val) {
 
 inline ov::float8_e5m2 ie_abs(const ov::float8_e5m2& val) {
     return ov::float8_e5m2::from_bits(val.to_bits() & 0x7F);
+}
+
+inline ov::float8_e8m0 ie_abs(const ov::float8_e8m0& val) {
+    return val;
 }
 
 template <class T_ACTUAL, class T_EXPECTED>

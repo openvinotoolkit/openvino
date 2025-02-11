@@ -24,7 +24,7 @@ namespace pass {
  */
 class MoveScalarToConsumer : public Pass {
 public:
-    OPENVINO_RTTI("MoveScalarsToConsumer", "Pass")
+    OPENVINO_RTTI("MoveScalarsToConsumer", "", Pass);
     MoveScalarToConsumer() = default;
     bool run(LinearIR& linear_ir) override;
 };

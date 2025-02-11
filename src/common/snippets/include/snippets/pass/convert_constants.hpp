@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 
 namespace ov {
@@ -19,6 +19,7 @@ namespace pass {
  */
 class ConvertConstantsToScalars: public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("snippets::pass::ConvertConstantsToScalars");
     ConvertConstantsToScalars();
 };
 

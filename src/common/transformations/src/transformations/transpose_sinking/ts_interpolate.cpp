@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ TSInterpolateForward::TSInterpolateForward() {
         const auto& new_axes = ChangeAxes(main_node->input_value(3), transpose_axis_order, axis);
         main_node->input(3).replace_source_output(new_axes);
 
-        const auto& interpolate = std::dynamic_pointer_cast<ov::op::v4::Interpolate>(main_node);
+        const auto& interpolate = ov::as_type_ptr<ov::op::v4::Interpolate>(main_node);
         if (interpolate) {
             op::v4::Interpolate::InterpolateAttrs attrs = interpolate->get_attrs();
             if (!attrs.pads_begin.empty() || !attrs.pads_end.empty()) {
@@ -99,7 +99,7 @@ TSInterpolateBackward::TSInterpolateBackward() {
         auto new_axes = ChangeAxes(main_node->input_value(3), reversed_transpose_order, axis);
         main_node->input(3).replace_source_output(new_axes);
 
-        const auto& interpolate = std::dynamic_pointer_cast<ov::op::v4::Interpolate>(main_node);
+        const auto& interpolate = ov::as_type_ptr<ov::op::v4::Interpolate>(main_node);
         if (interpolate) {
             op::v4::Interpolate::InterpolateAttrs attrs = interpolate->get_attrs();
             if (!attrs.pads_begin.empty() || !attrs.pads_end.empty()) {

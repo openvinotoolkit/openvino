@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "primitive_base.hpp"
 
 #include "deconvolution_inst.h"
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "deconvolution/deconvolution_kernel_selector.h"
 #include "deconvolution/deconvolution_kernel_base.h"
 
@@ -20,7 +21,7 @@ struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::deconvolution_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<deconvolution_impl>(*this);
+        return make_deep_copy<deconvolution_impl, kernel_params_t>(*this);
     }
 
 protected:
@@ -54,19 +55,16 @@ public:
 
         params.filterSize = { kx, ky, kz };
 
-        uint32_t pad_z = std::max<std::ptrdiff_t>(pad.size() >= 3 ? pad[pad.size() - 3] : 0, 0);
-        uint32_t pad_y = std::max<std::ptrdiff_t>(pad.size() >= 2 ? pad[pad.size() - 2] : 0, 0);
-        uint32_t pad_x = std::max<std::ptrdiff_t>(pad.size() >= 1 ? pad[pad.size() - 1] : 0, 0);
+        uint32_t pad_x, pad_y, pad_z;
+        std::tie(pad_x, pad_y, pad_z) = ov::intel_gpu::get_xyz<ov::CoordinateDiff, uint32_t>(pad, 0);
         params.padding = {pad_x, pad_y, pad_z};
 
-        uint32_t stride_z = stride.size() >= 3 ? static_cast<uint32_t>(stride[stride.size() - 3]) : 1;
-        uint32_t stride_y = stride.size() >= 2 ? static_cast<uint32_t>(stride[stride.size() - 2]) : 1;
-        uint32_t stride_x = stride.size() >= 1 ? static_cast<uint32_t>(stride[stride.size() - 1]) : 1;
+        uint32_t stride_x, stride_y, stride_z;
+        std::tie(stride_x, stride_y, stride_z) = ov::intel_gpu::get_xyz<ov::Strides, uint32_t>(stride, 1);
         params.stride = {stride_x, stride_y, stride_z};
 
-        uint32_t dilation_z = dilation.size() >= 3 ? static_cast<uint32_t>(dilation[dilation.size() - 3]) : 1;
-        uint32_t dilation_y = dilation.size() >= 2 ? static_cast<uint32_t>(dilation[dilation.size() - 2]) : 1;
-        uint32_t dilation_x = dilation.size() >= 1 ? static_cast<uint32_t>(dilation[dilation.size() - 1]) : 1;
+        uint32_t dilation_x, dilation_y, dilation_z;
+        std::tie(dilation_x, dilation_y, dilation_z) = ov::intel_gpu::get_xyz<ov::Strides, uint32_t>(dilation, 1);
         params.dilation = {dilation_x, dilation_y, dilation_z};
 
         return params;

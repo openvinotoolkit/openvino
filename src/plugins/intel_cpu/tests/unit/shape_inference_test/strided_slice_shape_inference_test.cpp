@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <gmock/gmock.h>
@@ -23,13 +23,13 @@ TEST_F(StridedSliceStaticShapeInferenceTest, reverse_stride_begin_end_clip_to_di
     const auto mask = std::vector<int64_t>(4, 0);
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape::dynamic());
-    const auto begin = op::v0::Constant::create(element::i64, Shape{3}, {100});
-    const auto end = op::v0::Constant::create(element::i64, Shape{3}, {-100});
-    const auto stride = op::v0::Constant::create(element::i64, Shape{3}, {-1});
+    const auto begin = op::v0::Constant::create(element::i64, ov::Shape{3}, {100});
+    const auto end = op::v0::Constant::create(element::i64, ov::Shape{3}, {-100});
+    const auto stride = op::v0::Constant::create(element::i64, ov::Shape{3}, {-1});
 
     const auto op = make_op(data, begin, end, stride, mask, mask);
 
-    input_shapes = ShapeVector{{3, 4, 5}, {3}, {3}, {3}};
+    input_shapes = StaticShapeVector{{3, 4, 5}, {3}, {3}, {3}};
     output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_THAT(output_shapes, ElementsAre(StaticShape{3, 4, 5}));
 }
@@ -38,9 +38,9 @@ TEST_F(StridedSliceStaticShapeInferenceTest, use_begin_end_variant_1) {
     const auto mask = std::vector<int64_t>(4, 0);
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape::dynamic());
-    const auto begin = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
-    const auto end = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
-    const auto stride = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
+    const auto begin = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
+    const auto end = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
+    const auto stride = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
 
     const auto op = make_op(data, begin, end, stride, mask, mask);
 
@@ -50,7 +50,7 @@ TEST_F(StridedSliceStaticShapeInferenceTest, use_begin_end_variant_1) {
     const auto const_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::i64, ov::Shape{3}, begin_v}},
                                                                    {2, {element::i64, ov::Shape{3}, end_v}},
                                                                    {3, {element::i64, ov::Shape{3}, stride_v}}};
-    input_shapes = ShapeVector{{3, 2, 3}, {3}, {3}, {3}};
+    input_shapes = StaticShapeVector{{3, 2, 3}, {3}, {3}, {3}};
     output_shapes = shape_inference(op.get(), input_shapes, const_data);
 
     EXPECT_THAT(output_shapes, ElementsAre(StaticShape{1, 1, 3}));
@@ -60,9 +60,9 @@ TEST_F(StridedSliceStaticShapeInferenceTest, use_begin_end_variant_2) {
     const auto mask = std::vector<int64_t>(4, 0);
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape::dynamic());
-    const auto begin = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
-    const auto end = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
-    const auto stride = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
+    const auto begin = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
+    const auto end = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
+    const auto stride = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
 
     const auto op = make_op(data, begin, end, stride, mask, mask);
 
@@ -72,7 +72,7 @@ TEST_F(StridedSliceStaticShapeInferenceTest, use_begin_end_variant_2) {
     const auto const_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::i64, ov::Shape{3}, begin_v}},
                                                                    {2, {element::i64, ov::Shape{3}, end_v}},
                                                                    {3, {element::i64, ov::Shape{3}, stride_v}}};
-    input_shapes = ShapeVector{{3, 2, 3}, {3}, {3}, {3}};
+    input_shapes = StaticShapeVector{{3, 2, 3}, {3}, {3}, {3}};
     output_shapes = shape_inference(op.get(), input_shapes, const_data);
 
     EXPECT_THAT(output_shapes, ElementsAre(StaticShape{1, 2, 3}));
@@ -82,9 +82,9 @@ TEST_F(StridedSliceStaticShapeInferenceTest, use_begin_end_variant_3) {
     const auto mask = std::vector<int64_t>(4, 0);
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape::dynamic());
-    const auto begin = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
-    const auto end = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
-    const auto stride = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
+    const auto begin = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
+    const auto end = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
+    const auto stride = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
 
     const auto op = make_op(data, begin, end, stride, mask, mask);
 
@@ -94,7 +94,7 @@ TEST_F(StridedSliceStaticShapeInferenceTest, use_begin_end_variant_3) {
     const auto const_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::i64, ov::Shape{3}, begin_v}},
                                                                    {2, {element::i64, ov::Shape{3}, end_v}},
                                                                    {3, {element::i64, ov::Shape{3}, stride_v}}};
-    input_shapes = ShapeVector{{3, 2, 3}, {3}, {3}, {3}};
+    input_shapes = StaticShapeVector{{3, 2, 3}, {3}, {3}, {3}};
     output_shapes = shape_inference(op.get(), input_shapes, const_data);
 
     EXPECT_THAT(output_shapes, ElementsAre(StaticShape{1, 2, 2}));
@@ -105,9 +105,9 @@ TEST_F(StridedSliceStaticShapeInferenceTest, ignore_begin_end) {
     const auto end_mask = std::vector<int64_t>(3, 1);
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape::dynamic());
-    const auto begin = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
-    const auto end = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
-    const auto stride = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
+    const auto begin = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
+    const auto end = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
+    const auto stride = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
 
     const auto op = make_op(data, begin, end, stride, begin_mask, end_mask);
 
@@ -117,7 +117,7 @@ TEST_F(StridedSliceStaticShapeInferenceTest, ignore_begin_end) {
     const auto const_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::i64, ov::Shape{3}, begin_v}},
                                                                    {2, {element::i64, ov::Shape{3}, end_v}},
                                                                    {3, {element::i64, ov::Shape{3}, stride_v}}};
-    input_shapes = ShapeVector{{3, 2, 3}, {3}, {3}, {3}};
+    input_shapes = StaticShapeVector{{3, 2, 3}, {3}, {3}, {3}};
     output_shapes = shape_inference(op.get(), input_shapes, const_data);
 
     EXPECT_THAT(output_shapes, ElementsAre(StaticShape{2, 2, 3}));
@@ -128,9 +128,9 @@ TEST_F(StridedSliceStaticShapeInferenceTest, ignore_begin_end_stride_by_two_last
     const auto end_mask = std::vector<int64_t>{0, 1, 1};
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape::dynamic());
-    const auto begin = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
-    const auto end = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
-    const auto stride = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
+    const auto begin = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
+    const auto end = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
+    const auto stride = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
 
     auto op = make_op(data, begin, end, stride, begin_mask, end_mask);
 
@@ -140,7 +140,7 @@ TEST_F(StridedSliceStaticShapeInferenceTest, ignore_begin_end_stride_by_two_last
     const auto const_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::i64, ov::Shape{3}, begin_v}},
                                                                    {2, {element::i64, ov::Shape{3}, end_v}},
                                                                    {3, {element::i64, ov::Shape{3}, stride_v}}};
-    input_shapes = ShapeVector{{3, 2, 3}, {3}, {3}, {3}};
+    input_shapes = StaticShapeVector{{3, 2, 3}, {3}, {3}, {3}};
     output_shapes = shape_inference(op.get(), input_shapes, const_data);
 
     EXPECT_THAT(output_shapes, ElementsAre(StaticShape{2, 1, 2}));
@@ -150,9 +150,9 @@ TEST_F(StridedSliceStaticShapeInferenceTest, use_reverse_stride_on_last_dimensio
     const auto mask = std::vector<int64_t>{0, 1, 1};
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape::dynamic());
-    const auto begin = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
-    const auto end = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
-    const auto stride = std::make_shared<op::v0::Parameter>(element::i64, Shape{3});
+    const auto begin = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
+    const auto end = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
+    const auto stride = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{3});
 
     const auto op = make_op(data, begin, end, stride, mask, mask);
 
@@ -162,7 +162,7 @@ TEST_F(StridedSliceStaticShapeInferenceTest, use_reverse_stride_on_last_dimensio
     const auto const_data = std::unordered_map<size_t, ov::Tensor>{{1, {element::i64, ov::Shape{3}, begin_v}},
                                                                    {2, {element::i64, ov::Shape{3}, end_v}},
                                                                    {3, {element::i64, ov::Shape{3}, stride_v}}};
-    input_shapes = ShapeVector{{3, 2, 3}, {3}, {3}, {3}};
+    input_shapes = StaticShapeVector{{3, 2, 3}, {3}, {3}, {3}};
     output_shapes = shape_inference(op.get(), input_shapes, const_data);
 
     EXPECT_THAT(output_shapes, ElementsAre(StaticShape{1, 2, 3}));
@@ -176,7 +176,7 @@ TEST_F(StridedSliceStaticShapeInferenceTest, default_stride) {
     const auto end = op::v0::Constant::create(element::i64, ov::Shape{3}, {1, 0, 2});
     const auto op = make_op(data, begin, end, mask, mask);
 
-    input_shapes = ShapeVector{{3, 2, 3}, {3}, {3}};
+    input_shapes = StaticShapeVector{{3, 2, 3}, {3}, {3}};
 
     output_shapes = shape_inference(op.get(), input_shapes);
 

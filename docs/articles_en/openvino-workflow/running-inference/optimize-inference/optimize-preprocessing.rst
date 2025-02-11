@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_Preprocessing_Overview}
-
 Optimize Preprocessing
 ======================
 
@@ -10,7 +8,6 @@ Optimize Preprocessing
 
    optimize-preprocessing/preprocessing-api-details
    optimize-preprocessing/layout-api-overview
-   optimize-preprocessing/integrate-save-preprocessing-use-case
    Torchvision preprocessing converter <optimize-preprocessing/torchvision-preprocessing-converter>
 
 .. meta::
@@ -35,7 +32,7 @@ Consider the following standard example: deep learning model expects input with 
 * For each pixel, subtract mean values and divide by scale factor.
 
 
-.. image:: ../../../_static/images/preprocess_not_fit.png
+.. image:: ../../../assets/images/preprocess_not_fit.png
 
 
 Even though it is relatively easy to implement all these steps in the application code manually, before actual inference, it is also possible with the use of Preprocessing API. Advantages of using the API are:

@@ -12,4 +12,4 @@ To use the C++ benchmark_app, you must first build it following the [Build the S
 
 > **NOTE**: If you installed OpenVINO Runtime using PyPI or Anaconda Cloud, only the [Benchmark Python Tool](https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html) is available, and you should follow the usage instructions on that page instead.
 
-The benchmarking application works with models in the OpenVINO IR, TensorFlow, TensorFlow Lite, PaddlePaddle, PyTorch and ONNX formats. If you need it, OpenVINO also allows you to [convert your models](https://docs.openvino.ai/2024/documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api.html).
+The benchmarking application works with models in the OpenVINO IR, TensorFlow, TensorFlow Lite, PaddlePaddle, PyTorch and ONNX formats. If you need it, OpenVINO also allows you to [convert your models](https://docs.openvino.ai/2024/documentation/openvino-workflow/model-preparation/convert-model-to-ir.html).

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -84,7 +84,7 @@ void QuantGroupConvLayerTest::SetUp() {
         weights = weightsNode;
     }
 
-    auto groupConv = std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(
+    auto groupConv = ov::as_type_ptr<ov::op::v1::GroupConvolution>(
             ov::test::utils::make_group_convolution(dataFq, weights, element_type, stride, padBegin, padEnd, dilation, padType));
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(groupConv)};

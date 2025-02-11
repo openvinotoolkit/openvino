@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
@@ -23,13 +23,6 @@ public:
     static Napi::Function get_class(Napi::Env env);
 
     void set_model(const std::shared_ptr<ov::Model>& model);
-    /**
-     * @brief Creates JavaScript Model object and wraps inside of it ov::Model object.
-     * @param env The environment in which to construct a JavaScript object.
-     * @param model a pointer to ov::Model to wrap.
-     * @return Javascript Model as Napi::Object. (Not ModelWrap object)
-     */
-    static Napi::Object wrap(Napi::Env env, std::shared_ptr<ov::Model> model);
 
     /** @return Napi::String containing a model name. */
     Napi::Value get_name(const Napi::CallbackInfo& info);
@@ -91,7 +84,7 @@ public:
      * @return number indicating the quantity of outputs for the model
      */
     Napi::Value get_output_size(const Napi::CallbackInfo& info);
-    
+
     /**
      * @brief Sets a friendly name for a model.
      * @param info Contains information about the environment and passed arguments
@@ -115,6 +108,20 @@ public:
      * @return Napi::Array containing a shape of requested output.
      */
     Napi::Value get_output_shape(const Napi::CallbackInfo& info);
+    
+    /**
+     * @brief Helper function to access model output elements types.
+     * @return Napi::String representing the element type of the requested output.
+     *
+     */
+    Napi::Value get_output_element_type(const Napi::CallbackInfo& info);
+
+    /**
+     * @brief Returns a cloned model for the current model
+     * @param info Contains information about the environment and passed arguments
+     * @return Napi::Value Cloned model returned from the API
+     */
+    Napi::Value clone(const Napi::CallbackInfo& info);
 
 private:
     std::shared_ptr<ov::Model> _model;

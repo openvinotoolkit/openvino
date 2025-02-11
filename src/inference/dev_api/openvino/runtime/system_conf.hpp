@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,6 +77,20 @@ OPENVINO_RUNTIME_API int get_number_of_blocked_cores();
 OPENVINO_RUNTIME_API bool with_cpu_x86_sse42();
 
 /**
+ * @brief      Checks whether CPU supports ARM NEON FP16 capability
+ * @ingroup    ov_dev_api_system_conf
+ * @return     `True` is ARM NEON FP16 instructions are available, `false` otherwise
+ */
+OPENVINO_RUNTIME_API bool with_cpu_neon_fp16();
+
+/**
+ * @brief      Checks whether CPU supports ARM SVE capability
+ * @ingroup    ov_dev_api_system_conf
+ * @return     `True` if ARM SVE instructions are available, `false` otherwise
+ */
+OPENVINO_RUNTIME_API bool with_cpu_sve();
+
+/**
  * @brief      Checks whether CPU supports AVX capability
  * @ingroup    ov_dev_api_system_conf
  * @return     `True` is AVX instructions are available, `false` otherwise
@@ -147,6 +161,13 @@ OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx_int8();
 OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx_bf16();
 
 /**
+ * @brief      Checks whether CPU supports AMX fp16 capability
+ * @ingroup    ov_dev_api_system_conf
+ * @return     `True` is tAMX_FP16 instructions are available, `false` otherwise
+ */
+OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx_fp16();
+
+/**
  * @brief      Checks whether CPU supports AMX capability
  * @ingroup    ov_dev_api_system_conf
  * @return     `True` is tAMX_INT8 or tAMX_BF16 instructions are available, `false` otherwise
@@ -197,6 +218,13 @@ OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_proc_type_table();
  * @return     socket ID in cpu mapping
  */
 OPENVINO_RUNTIME_API int get_current_socket_id();
+
+/**
+ * @brief      Returns the numa node ID in cpu mapping table of the currently running thread.
+ * @ingroup    ov_dev_api_system_conf
+ * @return     numa node ID in cpu mapping
+ */
+OPENVINO_RUNTIME_API int get_current_numa_node_id();
 
 /**
  * @brief      Returns a table of original number of processor types without filtering other plugins occupying CPU

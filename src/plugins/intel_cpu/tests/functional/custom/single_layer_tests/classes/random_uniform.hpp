@@ -17,6 +17,7 @@ typedef std::tuple<
         ov::test::ElementType,            // Output precision
         uint64_t,                         // Global seed
         uint64_t,                         // Operational seed
+        ov::op::PhiloxAlignment,          // Alignment of generator
         bool,                             // Is 1st input constant
         bool,                             // Is 2nd input constant
         bool,                             // Is 3rd input constant

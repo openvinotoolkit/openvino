@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,6 @@ static void CreateExperimentalDetectronROIFeatureExtractorOp(ProgramBuilder& p,
                                                                  operation_attributes.sampling_ratio,
                                                                  operation_attributes.aligned);
         prim.num_outputs = op->get_output_size();
-        prim.output_paddings = get_output_paddings(op);
         prim.output_data_types = get_output_data_types(op, {{ov::element::i64, ov::element::i32}});
 
         p.add_primitive(*op, prim);

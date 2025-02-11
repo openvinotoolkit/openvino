@@ -37,7 +37,7 @@ typedef std::tuple<
     std::string                 // target device
 > testsParams;
 
-class FakeQuantizeDecompositionTest : public testing::WithParamInterface<testsParams>, virtual public ov::test::SnippetsTestsCommon {
+class FakeQuantizeDecompositionTest : public testing::WithParamInterface<testsParams>, virtual public SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<testsParams> obj);
 

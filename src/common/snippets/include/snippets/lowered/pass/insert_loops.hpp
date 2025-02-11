@@ -21,12 +21,11 @@ namespace pass {
  */
 class InsertLoops : public RangedPass {
 public:
-    OPENVINO_RTTI("InsertLoops", "RangedPass")
+    OPENVINO_RTTI("InsertLoops", "", RangedPass);
     InsertLoops() = default;
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 private:
     static void insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_manager, size_t loop_id);
-    static bool is_loop_dynamic(const UnifiedLoopInfoPtr& loop_info);
 };
 
 } // namespace pass

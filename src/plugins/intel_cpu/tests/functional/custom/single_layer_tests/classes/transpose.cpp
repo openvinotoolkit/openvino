@@ -53,7 +53,15 @@ void TransposeLayerCPUTest::SetUp() {
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-    updateSelectedType("unknown", inType, configuration);
+    // ov::pass::TransposeSinking will moves Transposes through Convert, which will change Expected primType for the
+    // following cases, currently change selectedType to pass primType check
+    const auto it = configuration.find(ov::hint::inference_precision.name());
+    if (it != configuration.end() && it->second.as<ov::element::Type>() == ov::element::f16 &&
+        netPrecision == ov::element::f32) {
+        selectedType = "unknown_f32";
+    } else {
+        updateSelectedType("unknown", inType, configuration);
+    }
 
     init_input_shapes({inputShapes});
 

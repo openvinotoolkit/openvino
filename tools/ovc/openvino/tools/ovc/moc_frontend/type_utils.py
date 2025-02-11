@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
@@ -6,7 +6,7 @@ import sys
 import numpy as np
 
 import openvino as ov
-from openvino.runtime import Type
+from openvino import Type
 
 
 def is_type(val):

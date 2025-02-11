@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,7 +68,7 @@ public:
     };
 
     bool isExecutable() const override {return m_is_executable;}
-    void execute(dnnl::stream strm) override {};
+    void execute(const dnnl::stream& strm) override {};
     bool created() const override {return true;}
 
     bool needPrepareParams() const override {

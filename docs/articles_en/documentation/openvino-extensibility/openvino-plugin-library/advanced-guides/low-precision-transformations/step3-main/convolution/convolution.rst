@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_lpt_ConvolutionTransformation}
-
 ConvolutionTransformation transformation
 ========================================
 
@@ -29,18 +27,18 @@ Quantized weights in low precision with dequantization operations
 
 The subgraph with quantized ``Convolution`` before transformation with quantized weights in low precision constant and dequantization operations:
 
-.. image:: /../../../docs/sphinx_setup/_static/images/fq_and_convolution.common.png
+.. image:: ../../../../../../../assets/images/fq_and_convolution.common.png
 
 Weights in original precision with FakeQuantize operation
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 The subgraph with quantized ``Convolution`` before transformation with weights in original precision and `FakeQuantize` operation:
 
-.. image:: /../../../docs/sphinx_setup/_static/images/fq_fq_and_convolution.common.png
+.. image:: ../../../../../../../assets/images/fq_fq_and_convolution.common.png
 
 Subgraph after transformation
 #############################################
 
 The subgraph with `Convolution` operation after the transformation:
 
-.. image:: /../../../docs/sphinx_setup/_static/images/fq_and_convolution.transformed.png
+.. image:: ../../../../../../../assets/images/fq_and_convolution.transformed.png

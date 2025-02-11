@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # mypy: disable-error-code="no-redef"
@@ -20,10 +20,10 @@ import torch
 import torchvision.transforms as transforms
 from torchvision.transforms import InterpolationMode
 
-import openvino.runtime as ov
-import openvino.runtime.opset11 as ops
-from openvino.runtime import Layout, Type
-from openvino.runtime.utils.decorators import custom_preprocess_function
+import openvino as ov
+import openvino.opset11 as ops
+from openvino import Layout, Type
+from openvino.utils.decorators import custom_preprocess_function
 from openvino.preprocess import PrePostProcessor, ResizeAlgorithm, ColorFormat
 
 
@@ -294,12 +294,13 @@ class _(TransformConverterBase):
 
         target_h, target_w = _setup_size(transform.size, "Incorrect size type for Resize operation")
 
-        # rescale the smaller image edge
-        current_h, current_w = meta["image_dimensions"]
-        if current_h > current_w:
-            target_h = int(transform.size * (current_h / current_w))
-        elif current_w > current_h:
-            target_w = int(transform.size * (current_w / current_h))
+        if isinstance(transform.size, int):
+            # rescale the smaller image edge
+            current_h, current_w = meta["image_dimensions"]
+            if current_h > current_w:
+                target_h = int(transform.size * (current_h / current_w))
+            elif current_w > current_h:
+                target_w = int(transform.size * (current_w / current_h))
 
         ppp.input(input_idx).tensor().set_layout(Layout("NCHW"))
 

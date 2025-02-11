@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -104,14 +104,13 @@ class ReferenceGroupConvolutionBackpropDataLayerTest
       public CommonReferenceTest {
 public:
     void SetUp() override {
-        legacy_compare = true;
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         inputData = {params.inputData, params.filterData};
         refOutData = {params.refData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<GroupConvolutionBackpropDataParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "inputShape=" << param.inputShape << "_";
         result << "filterShape=" << param.filterShape << "_";
@@ -163,14 +162,13 @@ class ReferenceGroupConvolutionBackpropDataLayerOutShapeTest
       public CommonReferenceTest {
 public:
     void SetUp() override {
-        legacy_compare = true;
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         inputData = {params.inputData, params.filterData};
         refOutData = {params.refData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<GroupConvolutionBackpropDataOutShapeParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "inputShape=" << param.inputShape << "_";
         result << "filterShape=" << param.filterShape << "_";

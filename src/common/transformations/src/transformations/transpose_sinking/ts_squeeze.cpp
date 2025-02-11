@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -122,9 +122,8 @@ TSSqueezeForward::TSSqueezeForward() {
                 }
             } else {
                 auto rank = main_node->get_input_partial_shape(0).rank();
-                non_negative_axes = ov::util::normalize_axes(main_node->get_friendly_name(),
-                                                             squeeze_axes->cast_vector<int64_t>(),
-                                                             rank);
+                non_negative_axes =
+                    util::try_get_normalized_axis_vector(squeeze_axes->get_tensor_view(), rank, *main_node);
             }
         }
 
@@ -230,9 +229,8 @@ TSSqueezeBackward::TSSqueezeBackward() {
                 }
             } else {
                 auto rank = main_node->get_input_partial_shape(0).rank();
-                non_negative_axes = ov::util::normalize_axes(main_node->get_friendly_name(),
-                                                             squeeze_axes->cast_vector<int64_t>(),
-                                                             rank);
+                non_negative_axes =
+                    util::try_get_normalized_axis_vector(squeeze_axes->get_tensor_view(), rank, *main_node);
             }
         }
 

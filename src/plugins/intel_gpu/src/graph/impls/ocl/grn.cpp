@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ struct grn_impl : typed_primitive_impl_ocl<grn> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::grn_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<grn_impl>(*this);
+        return make_deep_copy<grn_impl, kernel_params_t>(*this);
     }
 
 public:

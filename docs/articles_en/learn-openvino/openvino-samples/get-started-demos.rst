@@ -1,5 +1,3 @@
-.. {#openvino_docs_get_started_get_started_demos}
-
 Get Started with Samples
 ========================
 
@@ -264,7 +262,7 @@ You need a model that is specific for your inference task. You can get it from o
 Convert the Model
 --------------------
 
-If Your model requires conversion, check the `article <https://docs.openvino.ai/2023.3/openvino_docs_../../get-started_../../get-started_demos.html>`__ for information how to do it.
+If Your model requires conversion, check the `article <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/get-started-demos.html>`__ for information how to do it.
 
 .. _download-media:
 
@@ -274,7 +272,6 @@ Download a Media to use
 Most of the samples require you to provide an image or a video as input for the model. OpenVINO provides several sample images and videos for you to run code samples and demo applications:
 
 - `Sample images and video <https://storage.openvinotoolkit.org/data/test_data/>`__
-- `Sample videos <https://github.com/intel-iot-devkit/sample-videos>`__
 
 To run the sample applications, you can use images and videos from the media files collection available `here <https://storage.openvinotoolkit.org/data/test_data>`__ . As an alternative, you can get them from sites like `Pexels <https://pexels.com>`__ or `Google Images <https://images.google.com>`__ .
 
@@ -472,7 +469,7 @@ The following command shows how to run the Image Classification Code Sample usin
 
 When the sample application is complete, you are given the label and confidence for the top 10 categories. The input image and sample output of the inference results is shown below:
 
-.. image:: ../../_static/images/dog.png
+.. image:: ../../assets/images/dog.png
 
 .. code-block:: sh
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,7 +66,7 @@ void ComparisonLayerTest::SetUp() {
     std::shared_ptr<ov::Node> second_input;
     if (second_input_type == InputLayerType::PARAMETER) {
         second_input = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[1]);
-        inputs.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(second_input));
+        inputs.push_back(ov::as_type_ptr<ov::op::v0::Parameter>(second_input));
     } else {
         ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(model_type, targetStaticShapes.front()[1]);
         second_input = std::make_shared<ov::op::v0::Constant>(tensor);

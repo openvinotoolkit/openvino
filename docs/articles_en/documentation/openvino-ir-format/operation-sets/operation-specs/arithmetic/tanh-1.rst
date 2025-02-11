@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_arithmetic_Tanh_1}
-
 Tanh
 ====
 
 
 .. meta::
-  :description: Learn about Tanh-1 - an element-wise, arithmetic operation, which 
+  :description: Learn about Tanh-1 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Tanh-1*
@@ -34,7 +32,7 @@ For each element from the input tensor calculates corresponding element in the o
 **Outputs**:
 
 * **1**: The result of element-wise *Tanh* operation. A tensor of type *T* and the same shape as input tensor.
-**Types**
+  **Types**
 
 * *T*: any numeric type.
 
@@ -44,7 +42,7 @@ For each element from the input tensor calculates corresponding element in the o
 *Example 1*
 
 .. code-block:: xml
-   :force: 
+   :force:
 
     <layer ... type="Tanh">
         <input>

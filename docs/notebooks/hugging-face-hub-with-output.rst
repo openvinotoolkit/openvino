@@ -17,8 +17,9 @@ Throughout this notebook we will learn: 1. How to load a HF pipeline
 using the ``transformers`` package and then convert it to OpenVINO. 2.
 How to load the same pipeline using Optimum Intel package.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Converting a Model from the HF Transformers
    Package <#converting-a-model-from-the-hf-transformers-package>`__
@@ -44,6 +45,16 @@ Table of contents:
       interface <#convert-model-using-optimum-cli-interface>`__
    -  `The Optimum Model Inference <#the-optimum-model-inference>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. |image0| image:: https://github.com/huggingface/optimum-intel/raw/main/readme_logo.png
 
 Converting a Model from the HF Transformers Package
@@ -67,7 +78,7 @@ Installing Requirements
 
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "transformers>=4.33.0" "torch>=2.1.0"
     %pip install -q ipywidgets
-    %pip install -q "openvino>=2023.1.0"
+    %pip install -q "openvino>=2023.1.0" "Pillow"
 
 
 .. parsed-literal::
@@ -121,8 +132,10 @@ tutorials <https://huggingface.co/learn/nlp-course/chapter2/2?fw=pt#behind-the-p
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
-      warnings.warn(
+    2024-12-10 01:56:55.614208: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-12-10 01:56:55.648106: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2024-12-10 01:56:56.193856: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
     - This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
     - This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
@@ -165,7 +178,7 @@ Let’s do a classification of a simple prompt below.
 Converting the Model to OpenVINO IR format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
- We use the OpenVINO `Model
+We use the OpenVINO `Model
 conversion
 API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html#convert-a-model-with-python-convert-model>`__
 to convert the model (this one is implemented in PyTorch) to OpenVINO
@@ -187,8 +200,15 @@ Note how we reuse our real ``encoded_input``, passing it to the
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4371: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
+
+
+.. parsed-literal::
+
+    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:5006: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
+    `loss_type=None` was set in the config but it is unrecognised.Using the default loss: `ForCausalLMLoss`.
 
 
 Converted Model Inference
@@ -200,16 +220,16 @@ First, we pick a device to do the model inference
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    import requests
     
-    core = ov.Core()
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
     
     device
 
@@ -227,6 +247,10 @@ model inference.
 
 .. code:: ipython3
 
+    import openvino as ov
+    
+    core = ov.Core()
+    
     compiled_model = core.compile_model(save_model_path, device.value)
     
     # Compiled model call is performed using the same parameters as for the original model
@@ -250,10 +274,10 @@ original model.
 This is a rather simple example as the pipeline includes just one
 encoder model. Contemporary state of the art pipelines often consist of
 several model, feel free to explore other OpenVINO tutorials: 1. `Stable
-Diffusion v2 <../stable-diffusion-v2>`__ 2. `Zero-shot Image
+Diffusion v2 <stable-diffusion-v2-with-output.html>`__ 2. `Zero-shot Image
 Classification with OpenAI
-CLIP <../clip-zero-shot-image-classification>`__ 3. `Controllable Music
-Generation with MusicGen <../music-generation>`__
+CLIP <clip-zero-shot-image-classification-with-output.html>`__ 3. `Controllable Music
+Generation with MusicGen <music-generation-with-output.html>`__
 
 The workflow for the ``diffusers`` package is exactly the same. The
 first example in the list above relies on the ``diffusers``.
@@ -313,26 +337,6 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 
     from optimum.intel.openvino import OVModelForSequenceClassification
 
-
-.. parsed-literal::
-
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-
-
-.. parsed-literal::
-
-    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
-    To disable this warning, you can either:
-    	- Avoid using `tokenizers` before the fork if possible
-    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
-    2024-05-07 00:16:16.370934: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-05-07 00:16:16.406467: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-05-07 00:16:17.026247: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
-      torch.utils._pytree._register_pytree_node(
-
-
 Initialize and Convert the Model Automatically using OVModel class
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -366,27 +370,9 @@ inference run.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
-      warnings.warn(
-    Framework not specified. Using pt to export the model.
     Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
     - This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
     - This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
-    Using framework PyTorch: 2.3.0+cpu
-    Overriding 1 configuration item(s)
-    	- use_cache -> False
-
-
-.. parsed-literal::
-
-    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4371: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
-      warnings.warn(
-    Compiling the model to AUTO ...
 
 
 Convert model using Optimum CLI interface
@@ -419,9 +405,10 @@ You can find a mapping between tasks and model classes in Optimum
 TaskManager
 `documentation <https://huggingface.co/docs/optimum/exporters/task_manager>`__.
 
-Additionally, you can specify weights compression ``--fp16`` for the
-compression model to FP16 and ``--int8`` for the compression model to
-INT8. Please note, that for INT8, it is necessary to install nncf.
+Additionally, you can specify weights compression using
+``--weight-format`` argument with one of following options: ``fp32``,
+``fp16``, ``int8`` and ``int4``. Fro int8 and int4 nncf will be used for
+weight compression.
 
 Full list of supported arguments available via ``--help``
 
@@ -440,19 +427,23 @@ Full list of supported arguments available via ``--help``
 
 .. parsed-literal::
 
-    2024-05-07 00:16:28.374572: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-12-10 01:57:20.152345: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     usage: optimum-cli export openvino [-h] -m MODEL [--task TASK]
-                                       [--cache_dir CACHE_DIR]
                                        [--framework {pt,tf}] [--trust-remote-code]
-                                       [--pad-token-id PAD_TOKEN_ID] [--fp16]
-                                       [--int8]
-                                       [--weight-format {fp32,fp16,int8,int4,int4_sym_g128,int4_asym_g128,int4_sym_g64,int4_asym_g64}]
+                                       [--weight-format {fp32,fp16,int8,int4,mxfp4,nf4}]
+                                       [--library {transformers,diffusers,timm,sentence_transformers,open_clip}]
+                                       [--cache_dir CACHE_DIR]
+                                       [--pad-token-id PAD_TOKEN_ID]
                                        [--ratio RATIO] [--sym]
                                        [--group-size GROUP_SIZE]
-                                       [--dataset DATASET] [--disable-stateful]
+                                       [--backup-precision {none,int8_sym,int8_asym}]
+                                       [--dataset DATASET] [--all-layers] [--awq]
+                                       [--scale-estimation] [--gptq]
+                                       [--lora-correction]
+                                       [--sensitivity-metric SENSITIVITY_METRIC]
+                                       [--num-samples NUM_SAMPLES]
+                                       [--disable-stateful]
                                        [--disable-convert-tokenizer]
-                                       [--convert-tokenizer]
-                                       [--library {transformers,diffusers,timm,sentence_transformers}]
                                        output
     
     optional arguments:
@@ -469,23 +460,20 @@ Full list of supported arguments available via ``--help``
       --task TASK           The task to export the model for. If not specified,
                             the task will be auto-inferred based on the model.
                             Available tasks depend on the model, but are among:
-                            ['feature-extraction', 'zero-shot-image-
-                            classification', 'conversational', 'text2text-
-                            generation', 'sentence-similarity', 'stable-
-                            diffusion', 'text-to-audio', 'stable-diffusion-xl',
-                            'fill-mask', 'image-to-text', 'text-generation',
-                            'semantic-segmentation', 'automatic-speech-
-                            recognition', 'mask-generation', 'token-
-                            classification', 'audio-classification', 'multiple-
-                            choice', 'question-answering', 'masked-im', 'zero-
-                            shot-object-detection', 'audio-xvector', 'image-
-                            segmentation', 'object-detection', 'image-
-                            classification', 'audio-frame-classification', 'image-
-                            to-image', 'depth-estimation', 'text-classification'].
-                            For decoder models, use `xxx-with-past` to export the
-                            model using past key values in the decoder.
-      --cache_dir CACHE_DIR
-                            Path indicating where to store cache.
+                            ['zero-shot-object-detection', 'multiple-choice',
+                            'audio-xvector', 'masked-im', 'text2text-generation',
+                            'inpainting', 'image-segmentation', 'semantic-
+                            segmentation', 'question-answering', 'token-
+                            classification', 'audio-frame-classification',
+                            'feature-extraction', 'text-to-audio', 'image-to-
+                            image', 'fill-mask', 'automatic-speech-recognition',
+                            'image-classification', 'text-classification', 'zero-
+                            shot-image-classification', 'object-detection',
+                            'image-to-text', 'audio-classification', 'sentence-
+                            similarity', 'depth-estimation', 'text-to-image',
+                            'mask-generation', 'text-generation']. For decoder
+                            models, use `xxx-with-past` to export the model using
+                            past key values in the decoder.
       --framework {pt,tf}   The framework to use for the export. If not provided,
                             will attempt to use the local checkpoint's original
                             framework or what is available in the environment.
@@ -494,33 +482,89 @@ Full list of supported arguments available via ``--help``
                             for repositories you trust and in which you have read
                             the code, as it will execute on your local machine
                             arbitrary code present in the model repository.
+      --weight-format {fp32,fp16,int8,int4,mxfp4,nf4}
+                            The weight format of the exported model.
+      --library {transformers,diffusers,timm,sentence_transformers,open_clip}
+                            The library used to load the model before export. If
+                            not provided, will attempt to infer the local
+                            checkpoint's library
+      --cache_dir CACHE_DIR
+                            The path to a directory in which the downloaded model
+                            should be cached if the standard cache should not be
+                            used.
       --pad-token-id PAD_TOKEN_ID
                             This is needed by some models, for some tasks. If not
                             provided, will attempt to use the tokenizer to guess
                             it.
-      --fp16                Compress weights to fp16
-      --int8                Compress weights to int8
-      --weight-format {fp32,fp16,int8,int4,int4_sym_g128,int4_asym_g128,int4_sym_g64,int4_asym_g64}
-                            The weight format of the exporting model, e.g. f32
-                            stands for float32 weights, f16 - for float16 weights,
-                            i8 - INT8 weights, int4_* - for INT4 compressed
-                            weights.
-      --ratio RATIO         Compression ratio between primary and backup
-                            precision. In the case of INT4, NNCF evaluates layer
-                            sensitivity and keeps the most impactful layers in
-                            INT8precision (by default 20% in INT8). This helps to
-                            achieve better accuracy after weight compression.
+      --ratio RATIO         A parameter used when applying 4-bit quantization to
+                            control the ratio between 4-bit and 8-bit
+                            quantization. If set to 0.8, 80% of the layers will be
+                            quantized to int4 while 20% will be quantized to int8.
+                            This helps to achieve better accuracy at the sacrifice
+                            of the model size and inference latency. Default value
+                            is 1.0.
       --sym                 Whether to apply symmetric quantization
       --group-size GROUP_SIZE
                             The group size to use for quantization. Recommended
                             value is 128 and -1 uses per-column quantization.
+      --backup-precision {none,int8_sym,int8_asym}
+                            Defines a backup precision for mixed-precision weight
+                            compression. Only valid for int4 weight format. If not
+                            provided, backup precision is int8_asym. 'none' stands
+                            for original floating-point precision of the model
+                            weights, in this case weights are retained in their
+                            original precision without any quantization.
+                            'int8_sym' stands for 8-bit integer symmetric
+                            quantization without zero point. 'int8_asym' stands
+                            for 8-bit integer asymmetric quantization with zero
+                            points per each quantization group.
       --dataset DATASET     The dataset used for data-aware compression or
-                            quantization with NNCF. You can use the one from the
-                            list ['wikitext2','c4','c4-new','ptb','ptb-new'] for
-                            LLLMs or
+                            quantization with NNCF. For language models you can
+                            use the one from the list
+                            ['auto','wikitext2','c4','c4-new']. With 'auto' the
+                            dataset will be collected from model's generations.
+                            For diffusion models it should be on of
                             ['conceptual_captions','laion/220k-GPT4Vision-
-                            captions-from-LIVIS','laion/filtered-wit'] for
-                            diffusion models.
+                            captions-from-LIVIS','laion/filtered-wit']. For visual
+                            language models the dataset must be set to
+                            'contextual'.
+      --all-layers          Whether embeddings and last MatMul layers should be
+                            compressed to INT4. If not provided an weight
+                            compression is applied, they are compressed to INT8.
+      --awq                 Whether to apply AWQ algorithm. AWQ improves
+                            generation quality of INT4-compressed LLMs, but
+                            requires additional time for tuning weights on a
+                            calibration dataset. To run AWQ, please also provide a
+                            dataset argument. Note: it is possible that there will
+                            be no matching patterns in the model to apply AWQ, in
+                            such case it will be skipped.
+      --scale-estimation    Indicates whether to apply a scale estimation
+                            algorithm that minimizes the L2 error between the
+                            original and compressed layers. Providing a dataset is
+                            required to run scale estimation. Please note, that
+                            applying scale estimation takes additional memory and
+                            time.
+      --gptq                Indicates whether to apply GPTQ algorithm that
+                            optimizes compressed weights in a layer-wise fashion
+                            to minimize the difference between activations of a
+                            compressed and original layer. Please note, that
+                            applying GPTQ takes additional memory and time.
+      --lora-correction     Indicates whether to apply LoRA Correction algorithm.
+                            When enabled, this algorithm introduces low-rank
+                            adaptation layers in the model that can recover
+                            accuracy after weight compression at some cost of
+                            inference latency. Please note, that applying LoRA
+                            Correction algorithm takes additional memory and time.
+      --sensitivity-metric SENSITIVITY_METRIC
+                            The sensitivity metric for assigning quantization
+                            precision to layers. It can be one of the following:
+                            ['weight_quantization_error',
+                            'hessian_input_activation',
+                            'mean_activation_variance', 'max_activation_variance',
+                            'mean_activation_magnitude'].
+      --num-samples NUM_SAMPLES
+                            The maximum number of samples to take from the dataset
+                            for quantization.
       --disable-stateful    Disable stateful converted models, stateless models
                             will be generated instead. Stateful models are
                             produced by default when this key is not used. In
@@ -531,15 +575,10 @@ Full list of supported arguments available via ``--help``
                             performance. Use it when you intentionally want to use
                             a stateless model, for example, to be compatible with
                             existing OpenVINO native inference code that expects
-                            kv-cache inputs and outputs in the model.
+                            KV-cache inputs and outputs in the model.
       --disable-convert-tokenizer
                             Do not add converted tokenizer and detokenizer
                             OpenVINO models.
-      --convert-tokenizer   [Deprecated] Add converted tokenizer and detokenizer
-                            with OpenVINO Tokenizers.
-      --library {transformers,diffusers,timm,sentence_transformers}
-                            The library on the model. If not provided, will
-                            attempt to infer the local checkpoint's library
 
 
 The command line export for model from example above with FP16 weights
@@ -547,7 +586,7 @@ compression:
 
 .. code:: ipython3
 
-    !optimum-cli export openvino --model $MODEL --task text-classification --fp16 models/optimum_model/fp16
+    !optimum-cli export openvino --model $MODEL --task text-classification --weight-format fp16 models/optimum_model/fp16
 
 
 .. parsed-literal::
@@ -560,24 +599,11 @@ compression:
 
 .. parsed-literal::
 
-    2024-05-07 00:16:33.077270: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
-      torch.utils._pytree._register_pytree_node(
-    `--fp16` option is deprecated and will be removed in a future version. Use `--weight-format` instead.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
-      warnings.warn(
-    Framework not specified. Using pt to export the model.
+    2024-12-10 01:57:25.755800: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
     - This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
     - This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
-    Using framework PyTorch: 2.3.0+cpu
-    Overriding 1 configuration item(s)
-    	- use_cache -> False
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4371: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
-      warnings.warn(
-    OpenVINO Tokenizers is not available. To deploy models in production with C++ code, please follow installation instructions: https://github.com/openvinotoolkit/openvino_tokenizers?tab=readme-ov-file#installation
-    
+    `loss_type=None` was set in the config but it is unrecognised.Using the default loss: `ForCausalLMLoss`.
     Tokenizer won't be converted.
 
 
@@ -587,12 +613,6 @@ be loaded using the same OVModelForXXX class.
 .. code:: ipython3
 
     model = OVModelForSequenceClassification.from_pretrained("models/optimum_model/fp16", device=device.value)
-
-
-.. parsed-literal::
-
-    Compiling the model to AUTO ...
-
 
 There are some models in the Hugging Face Models Hub, that are already
 converted and ready to run! You can filter those models out by library
@@ -630,9 +650,8 @@ OpenVINO <grammar-correction-with-output.html>`__ 3. `Stable
 Diffusion v2.1 using Optimum-Intel
 OpenVINO <stable-diffusion-v2-with-output.html>`__
 4. `Image generation with Stable Diffusion
-XL <../stable-diffusion-xl>`__ 5. `Instruction following using
-Databricks Dolly 2.0 <../dolly-2-instruction-following>`__ 6. `Create
-LLM-powered Chatbot using OpenVINO <../llm-chatbot>`__ 7. `Document
-Visual Question Answering Using Pix2Struct and
-OpenVINO <../pix2struct-docvqa>`__ 8. `Automatic speech recognition
-using Distil-Whisper and OpenVINO <../distil-whisper-asr>`__
+XL <stable-diffusion-xl-with-output.html>`__ 5. `Create LLM-powered Chatbot using
+OpenVINO <llm-chatbot-with-output.html>`__ 6. `Document Visual Question Answering
+Using Pix2Struct and OpenVINO <pix2struct-docvqa-with-output.html>`__ 7. `Automatic
+speech recognition using Distil-Whisper and
+OpenVINO <distil-whisper-asr-with-output.html>`__

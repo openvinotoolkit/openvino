@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ namespace py = pybind11;
 
 void regclass_VariableState(py::module m) {
     py::class_<ov::VariableState, std::shared_ptr<ov::VariableState>> variable_st(m, "VariableState");
-    variable_st.doc() = "openvino.runtime.VariableState class.";
+    variable_st.doc() = "openvino.VariableState class.";
 
     variable_st.def("__repr__", [](const ov::VariableState& self) {
         return Common::get_simple_repr(self);

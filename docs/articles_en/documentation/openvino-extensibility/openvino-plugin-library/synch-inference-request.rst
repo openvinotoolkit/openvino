@@ -1,5 +1,3 @@
-.. {#openvino_docs_ov_plugin_dg_infer_request}
-
 Synchronous Inference Request
 =============================
 
@@ -17,9 +15,9 @@ Synchronous Inference Request
 InferRequest Class
 ##################
 
-OpenVINO Plugin API provides the interface ov::ISyncInferRequest which should be 
-used as a base class for a synchronous inference request implementation. Based of that, a declaration 
-of a synchronous request class can look as follows: 
+OpenVINO Plugin API provides the interface ov::ISyncInferRequest which should be
+used as a base class for a synchronous inference request implementation. Based of that, a declaration
+of a synchronous request class can look as follows:
 
 .. doxygensnippet:: src/plugins/template/src/sync_infer_request.hpp
    :language: cpp
@@ -51,9 +49,9 @@ The constructor initializes helper fields and calls methods which allocate tenso
    :language: cpp
    :fragment: [infer_request:ctor]
 
-.. note:: 
+.. note::
 
-   Use inputs/outputs information from the compiled model to understand shape and element type of tensors, which you can set with ov::InferRequest::set_tensor and get with ov::InferRequest::get_tensor. A plugin uses these hints to determine its internal layouts and element types for input and output tensors if needed. 
+   Use inputs/outputs information from the compiled model to understand shape and element type of tensors, which you can set with ov::InferRequest::set_tensor and get with ov::InferRequest::get_tensor. A plugin uses these hints to determine its internal layouts and element types for input and output tensors if needed.
 
 ~InferRequest Destructor
 ++++++++++++++++++++++++

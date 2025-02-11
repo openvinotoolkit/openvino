@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "roi_align_rotated.h"
 
-#include <openvino/opsets/opset14.hpp>
+#include <openvino/opsets/opset15.hpp>
 
 #include "common/cpu_convert.h"
 #include "openvino/reference/roi_align.hpp"
@@ -13,9 +13,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-ROIAlignRotated::ROIAlignRotated(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
-    const auto roiAlign = ov::as_type_ptr<const ov::opset14::ROIAlignRotated>(op);
+ROIAlignRotated::ROIAlignRotated(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
+    : Node(op, context, NgraphShapeInferFactory(op)) {
+    const auto roiAlign = ov::as_type_ptr<const ov::opset15::ROIAlignRotated>(op);
     pooledH = roiAlign->get_pooled_h();
     pooledW = roiAlign->get_pooled_w();
     spatialScale = roiAlign->get_spatial_scale();
@@ -48,7 +48,7 @@ bool ROIAlignRotated::needPrepareParams() const {
     return false;
 }
 
-void ROIAlignRotated::executeDynamicImpl(dnnl::stream strm) {
+void ROIAlignRotated::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -83,7 +83,7 @@ void ROIAlignRotated::executeImpl() {
         clockwiseMode);
 }
 
-void ROIAlignRotated::execute(dnnl::stream) {
+void ROIAlignRotated::execute(const dnnl::stream&) {
     const ov::element::Type type = getOriginalInputPrecisionAtPort(0);
     executeImpl<ov::element::f32>();
 

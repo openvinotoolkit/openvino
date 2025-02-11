@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -233,7 +233,39 @@ TEST(nop_elimination, squeeze_unsqueeze_elimination_dynamic_without_squeeze_axis
     EXPECT_NO_THROW(pass_manager.run_passes(f));
 }
 
-TEST(nop_elimination, reshape_elimination_v1_dynamic) {
+TEST_F(TransformationTestsF, reshape_reshape_elimination_v1_dynamic) {
+    {
+        auto input = make_shared<op::v0::Parameter>(element::f32, PartialShape({-1, 32, 1, 128}));
+
+        auto top_reshape_const = op::v0::Constant::create(element::i32, Shape{4}, {-1, 32, 1, 128});
+        auto top_reshape = std::make_shared<op::v1::Reshape>(input, top_reshape_const, false);
+
+        auto bottom_reshape_const = op::v0::Constant::create(element::i32, Shape{2}, {-1, 4096});
+        auto bottom_reshape = std::make_shared<op::v1::Reshape>(top_reshape, bottom_reshape_const, false);
+
+        auto add_param = make_shared<op::v0::Parameter>(element::f32, PartialShape({-1, 4096}));
+        auto add = std::make_shared<op::v1::Add>(bottom_reshape, add_param);
+        model = std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{input, add_param});
+    }
+    {
+        auto input = make_shared<op::v0::Parameter>(element::f32, PartialShape({-1, 32, 1, 128}));
+
+        auto bottom_reshape_const = op::v0::Constant::create(element::i32, Shape{2}, {-1, 4096});
+        auto bottom_reshape = std::make_shared<op::v1::Reshape>(input, bottom_reshape_const, false);
+
+        auto add_param = make_shared<op::v0::Parameter>(element::f32, PartialShape({-1, 4096}));
+        auto add = std::make_shared<op::v1::Add>(bottom_reshape, add_param);
+        model_ref = std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{input, add_param});
+    }
+
+    manager.register_pass<ov::pass::NopElimination>();
+    manager.run_passes(model);
+
+    auto res = comparator.compare(model, model_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
+TEST(nop_elimination, reshape_elimination_v1_dynamic_negative) {
     auto arg = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic());
     auto pattern = make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
     auto reshape_v1 = std::make_shared<op::v1::Reshape>(arg, pattern, false);
@@ -243,6 +275,34 @@ TEST(nop_elimination, reshape_elimination_v1_dynamic) {
     pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
     ASSERT_TRUE(count_ops_of_type<op::v1::Reshape>(f) == 1);
+}
+
+TEST(nop_elimination, reshape_arithmetical_reduce_elimination_dynamic) {
+    auto arg = std::make_shared<op::v0::Parameter>(element::i64, PartialShape({-1, 96, 100, 100}));
+    auto reduce_axes = ov::op::v0::Constant::create(element::i64, Shape{2}, {2, 3});
+    auto reduce = std::make_shared<op::v1::ReduceMean>(arg, reduce_axes, true);
+    auto pattern = op::v0::Constant::create(element::i64, Shape{4}, {0, 96, 1, 1});
+    auto reshape_v1 = std::make_shared<op::v1::Reshape>(reduce, pattern, true);
+    auto abs = std::make_shared<op::v0::Abs>(reshape_v1);
+    auto f = std::make_shared<ov::Model>(NodeVector{abs}, ParameterVector{arg});
+    pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::NopElimination>(false);
+    pass_manager.run_passes(f);
+    ASSERT_TRUE(count_ops_of_type<op::v1::Reshape>(f) == 0);
+}
+
+TEST(nop_elimination, reshape_logical_reduce_elimination_dynamic) {
+    auto arg = std::make_shared<op::v0::Parameter>(element::boolean, PartialShape({-1, 96, 100, 100}));
+    auto reduce_axes = ov::op::v0::Constant::create(element::i64, Shape{2}, {2, 3});
+    auto reduce = std::make_shared<op::v1::ReduceLogicalAnd>(arg, reduce_axes, true);
+    auto pattern = op::v0::Constant::create(element::i64, Shape{4}, {0, 96, 1, 1});
+    auto reshape_v1 = std::make_shared<op::v1::Reshape>(reduce, pattern, true);
+    auto nz = std::make_shared<op::v3::NonZero>(reshape_v1);
+    auto f = std::make_shared<ov::Model>(NodeVector{nz}, ParameterVector{arg});
+    pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::NopElimination>(false);
+    pass_manager.run_passes(f);
+    ASSERT_TRUE(count_ops_of_type<op::v1::Reshape>(f) == 0);
 }
 
 TEST(nop_elimination, reshape_elimination_v1_check_consumer_count) {
@@ -1447,7 +1507,7 @@ TEST_F(TransformationTestsF, NopTile) {
     }
 }
 
-TEST_F(TransformationTestsF, NopSliceBeforeGatherElements) {
+TEST_F(TransformationTestsF, EliminateSliceBeforeGatherElements) {
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
 
@@ -1463,7 +1523,7 @@ TEST_F(TransformationTestsF, NopSliceBeforeGatherElements) {
         auto relu = std::make_shared<op::v0::Relu>(gather_elements);
         auto result = std::make_shared<ov::op::v0::Result>(relu);
         model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{data, indices});
-        manager.register_pass<ov::pass::NopSliceBeforeGatherElements>();
+        manager.register_pass<ov::pass::EliminateSliceBeforeGatherElements>();
     }
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
@@ -1477,7 +1537,7 @@ TEST_F(TransformationTestsF, NopSliceBeforeGatherElements) {
     }
 }
 
-TEST_F(TransformationTestsF, NopStridedSlice) {
+TEST_F(TransformationTestsF, EliminateStridedSlice) {
     {
         auto input = std::make_shared<op::v0::Parameter>(ov::element::f32,
                                                          PartialShape{ov::Dimension(), 4, ov::Dimension(), 64});
@@ -1498,7 +1558,7 @@ TEST_F(TransformationTestsF, NopStridedSlice) {
         auto result = std::make_shared<op::v0::Result>(strided_slice);
 
         model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{input});
-        manager.register_pass<ov::pass::NopStridedSlice>();
+        manager.register_pass<ov::pass::EliminateStridedSlice>();
     }
     {
         auto input = std::make_shared<op::v0::Parameter>(ov::element::f32,
@@ -1510,7 +1570,39 @@ TEST_F(TransformationTestsF, NopStridedSlice) {
     }
 }
 
-TEST_F(TransformationTestsF, NopStridedSliceWithoutStrides) {
+TEST_F(TransformationTestsF, EliminateStridedSlice_int32max) {
+    {
+        auto input = std::make_shared<op::v0::Parameter>(ov::element::f32, PartialShape{-1, 4, -1, 64});
+        auto relu = std::make_shared<op::v0::Relu>(input);
+        auto begin_const = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int>{0, 0});
+        auto end_const =
+            std::make_shared<op::v0::Constant>(ov::element::i32,
+                                               ov::Shape{2},
+                                               std::vector<int64_t>{0, std::numeric_limits<int32_t>::max()});
+        auto optional_stride_const =
+            std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int>{1, 1});
+        auto strided_slice = std::make_shared<ov::op::v1::StridedSlice>(relu,
+                                                                        begin_const,
+                                                                        end_const,
+                                                                        optional_stride_const,
+                                                                        std::vector<int64_t>{1, 0, 1, 1},
+                                                                        std::vector<int64_t>{1, 0, 1, 1});
+        auto result = std::make_shared<op::v0::Result>(strided_slice);
+
+        model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{input});
+        manager.register_pass<ov::pass::EliminateStridedSlice>();
+    }
+    {
+        auto input = std::make_shared<op::v0::Parameter>(ov::element::f32,
+                                                         PartialShape{ov::Dimension(), 4, ov::Dimension(), 64});
+        auto relu = std::make_shared<op::v0::Relu>(input);
+        auto result = std::make_shared<op::v0::Result>(relu);
+
+        model_ref = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{input});
+    }
+}
+
+TEST_F(TransformationTestsF, EliminateStridedSliceWithoutStrides) {
     {
         auto input = std::make_shared<op::v0::Parameter>(ov::element::f32,
                                                          PartialShape{ov::Dimension(), 4, ov::Dimension(), 64});
@@ -1528,7 +1620,7 @@ TEST_F(TransformationTestsF, NopStridedSliceWithoutStrides) {
         auto result = std::make_shared<op::v0::Result>(strided_slice);
 
         model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{input});
-        manager.register_pass<ov::pass::NopStridedSlice>();
+        manager.register_pass<ov::pass::EliminateStridedSlice>();
     }
     {
         auto input = std::make_shared<op::v0::Parameter>(ov::element::f32,
@@ -1540,7 +1632,7 @@ TEST_F(TransformationTestsF, NopStridedSliceWithoutStrides) {
     }
 }
 
-TEST_F(TransformationTestsF, NopStridedSliceByShape) {
+TEST_F(TransformationTestsF, EliminateStridedSliceByShape) {
     {
         auto input = std::make_shared<op::v0::Parameter>(ov::element::f32, Shape{1, 4, 8, 64});
         auto relu = std::make_shared<op::v0::Relu>(input);
@@ -1560,7 +1652,7 @@ TEST_F(TransformationTestsF, NopStridedSliceByShape) {
         auto result = std::make_shared<op::v0::Result>(strided_slice);
 
         model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{input});
-        manager.register_pass<ov::pass::NopStridedSliceByShape>();
+        manager.register_pass<ov::pass::EliminateStridedSliceByShape>();
     }
     {
         auto input = std::make_shared<op::v0::Parameter>(ov::element::f32, Shape{1, 4, 8, 64});
@@ -1571,7 +1663,7 @@ TEST_F(TransformationTestsF, NopStridedSliceByShape) {
     }
 }
 
-TEST_F(TransformationTestsF, NopStridedSliceByShapeNegative) {
+TEST_F(TransformationTestsF, EliminateStridedSliceByShapeNegative) {
     {
         auto input = std::make_shared<op::v0::Parameter>(ov::element::f32, Shape{1, 4, 8, 64});
         auto relu = std::make_shared<op::v0::Relu>(input);
@@ -1588,7 +1680,7 @@ TEST_F(TransformationTestsF, NopStridedSliceByShapeNegative) {
         auto result = std::make_shared<op::v0::Result>(strided_slice);
 
         model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{input});
-        manager.register_pass<ov::pass::NopStridedSliceByShape>();
+        manager.register_pass<ov::pass::EliminateStridedSliceByShape>();
     }
     {
         auto input = std::make_shared<op::v0::Parameter>(ov::element::f32, Shape{1, 4, 8, 64});
@@ -1631,5 +1723,108 @@ TEST_F(TransformationTestsF, SqueezeBinaryReshape) {
         auto binary = std::make_shared<op::v1::Multiply>(data, op::v0::Constant::create(element::f32, Shape{1}, {0.2}));
         auto relu = std::make_shared<op::v0::Relu>(binary);
         model_ref = std::make_shared<ov::Model>(OutputVector{relu}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, EliminateSlice) {
+    using namespace op::v0;
+    auto type = element::i64;
+    {
+        auto input = std::make_shared<Parameter>(element::f32, PartialShape{3, 6, 9});
+        auto slice = std::make_shared<op::v8::Slice>(input,
+                                                     Constant::create(type, {1}, {0}),
+                                                     Constant::create(type, {1}, {std::numeric_limits<int64_t>::max()}),
+                                                     Constant::create(type, {1}, {1}),
+                                                     Constant::create(type, {1}, {1}));
+        auto relu = std::make_shared<Relu>(slice);
+
+        auto result = std::make_shared<Result>(relu);
+
+        model = std::make_shared<Model>(ResultVector{result}, ParameterVector{input});
+        manager.register_pass<pass::EliminateSlice>();
+    }
+    {
+        auto input = std::make_shared<Parameter>(ov::element::f32, PartialShape{3, 6, 9});
+        auto relu = std::make_shared<Relu>(input);
+        auto result = std::make_shared<Result>(relu);
+        model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{input});
+    }
+}
+
+TEST_F(TransformationTestsF, EliminateSlice_int32max) {
+    using namespace op::v0;
+    auto type = element::i32;
+    {
+        auto input = std::make_shared<Parameter>(element::f32, PartialShape{3, 6, 9});
+        auto slice = std::make_shared<op::v8::Slice>(input,
+                                                     Constant::create(type, {1}, {0}),
+                                                     Constant::create(type, {1}, {std::numeric_limits<int32_t>::max()}),
+                                                     Constant::create(type, {1}, {1}),
+                                                     Constant::create(type, {1}, {1}));
+        auto relu = std::make_shared<Relu>(slice);
+
+        auto result = std::make_shared<Result>(relu);
+        model = std::make_shared<Model>(ResultVector{result}, ParameterVector{input});
+        manager.register_pass<pass::EliminateSlice>();
+    }
+    {
+        auto input = std::make_shared<Parameter>(ov::element::f32, PartialShape{3, 6, 9});
+        auto relu = std::make_shared<Relu>(input);
+        auto result = std::make_shared<Result>(relu);
+        model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{input});
+    }
+}
+
+TEST_F(TransformationTestsF, TransposeWithEmptyOrder) {
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2});
+        auto relu = std::make_shared<op::v0::Relu>(data);
+        auto empty_order = std::make_shared<op::v0::Constant>(element::i32, Shape{0}, std::vector<size_t>());
+        auto transpose = std::make_shared<op::v1::Transpose>(relu, empty_order);
+
+        auto result = std::make_shared<op::v0::Result>(transpose);
+        model = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{data});
+        manager.register_pass<ov::pass::NopElimination>();
+    }
+}
+
+TEST_F(TransformationTestsF, TransposeElimination) {
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2});
+        auto relu = std::make_shared<op::v0::Relu>(data);
+        auto order = std::make_shared<op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{0, 1});
+        auto transpose = std::make_shared<op::v1::Transpose>(relu, order);
+
+        auto result = std::make_shared<op::v0::Result>(transpose);
+        model = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{data});
+        manager.register_pass<ov::pass::NopElimination>();
+    }
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2});
+        auto relu = std::make_shared<op::v0::Relu>(data);
+        auto result = std::make_shared<op::v0::Result>(relu);
+        model_ref = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, ScatterNDUpdates15Elimination) {
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{100, 256, 10, 15});
+        auto indices = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{25, 0, 3});
+        auto updates = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{25, 0, 15});
+        auto relu = std::make_shared<op::v0::Relu>(data);
+        auto scatter = std::make_shared<op::v15::ScatterNDUpdate>(relu, indices, updates);
+
+        auto result = std::make_shared<op::v0::Result>(scatter);
+        model = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{data, indices, updates});
+        manager.register_pass<ov::pass::EliminateScatterUpdate>();
+    }
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{100, 256, 10, 15});
+        auto indices = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{25, 0, 3});
+        auto updates = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{25, 0, 15});
+        auto relu = std::make_shared<op::v0::Relu>(data);
+        auto result = std::make_shared<op::v0::Result>(relu);
+        model_ref = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{data, indices, updates});
     }
 }

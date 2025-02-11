@@ -6,10 +6,10 @@ from common.utils.tflite_utils import additional_test_params, activation_helper
 from common.utils.tflite_utils import parametrize_tests
 
 test_ops = [
-    {'op_name': 'ADD', 'op_func': tf.math.add},
-    {'op_name': 'DIV', 'op_func': tf.math.divide, 'kwargs_to_prepare_input': 'positive'},
-    {'op_name': 'MUL', 'op_func': tf.math.multiply},
-    {'op_name': 'SUB', 'op_func': tf.math.subtract},
+    {'op_name': 'ADD', 'op_func': 'tf.math.add'},
+    {'op_name': 'DIV', 'op_func': 'tf.math.divide', 'kwargs_to_prepare_input': 'positive'},
+    {'op_name': 'MUL', 'op_func': 'tf.math.multiply'},
+    {'op_name': 'SUB', 'op_func': 'tf.math.subtract'},
 ]
 
 test_params = [
@@ -35,8 +35,8 @@ class TestTFLiteBinaryWithActivationLayerTest(TFLiteLayerTest):
             in1 = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'], name=self.inputs[1])
             bin_op_name = self.outputs[0] if not params['activation'] else \
                 self.outputs[0] + "/op"
-            op = params['op_func'](in0, in1, name=bin_op_name)
-            op = activation_helper(op, params['activation'], self.outputs[0])
+            op = eval(params['op_func'])(in0, in1, name=bin_op_name)
+            op = activation_helper(op, eval(params['activation']) if params['activation'] else None, self.outputs[0])
 
             net = sess.graph_def
         return net

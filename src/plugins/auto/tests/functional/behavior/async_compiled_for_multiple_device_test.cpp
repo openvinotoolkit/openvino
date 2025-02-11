@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,8 @@ using namespace ov::auto_plugin::tests;
 #ifdef ENABLETESTTHREADING
 TEST_F(AutoFuncTests, can_compile_with_multiple_devices) {
     ov::CompiledModel compiled_model;
-    ASSERT_NO_THROW(compiled_model =
-                        core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU")}));
+    OV_ASSERT_NO_THROW(
+        compiled_model = core.compile_model(model_can_batch, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU")}));
     compiled_model = core.compile_model(model_can_batch,
                                         "AUTO",
                                         {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),

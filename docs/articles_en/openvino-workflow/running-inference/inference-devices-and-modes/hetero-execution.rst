@@ -1,6 +1,4 @@
-.. {#openvino_docs_OV_UG_Hetero_execution}
-
-Heterogeneous execution
+Heterogeneous Execution
 =======================
 
 
@@ -9,24 +7,28 @@ Heterogeneous execution
                  the inference of one model on several computing devices.
 
 
-Heterogeneous execution enables executing inference of one model on several devices. Its purpose is to:
+Heterogeneous execution enables executing inference of one model on several devices.
+Its purpose is to:
 
-* Utilize the power of accelerators to process the heaviest parts of the model and to execute unsupported operations on fallback devices, like the CPU.
+* Utilize the power of accelerators to process the heaviest parts of the model and to execute
+  unsupported operations on fallback devices, like the CPU.
 * Utilize all available hardware more efficiently during one inference.
 
 Execution via the heterogeneous mode can be divided into two independent steps:
 
-1. Setting hardware affinity to operations (`ov::Core::query_model <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_core.html#doxid-classov-1-1-core-1acdf8e64824fe4cf147c3b52ab32c1aab>`__ is used internally by the Hetero device).
-2. Compiling a model to the Heterogeneous device assumes splitting the model to parts, compiling them on the specified devices (via `ov::device::priorities <https://docs.openvino.ai/2024/api/c_cpp_api/structov_1_1device_1_1_priorities.html>`__), and executing them in the Heterogeneous mode. The model is split to subgraphs in accordance with the affinities, where a set of connected operations with the same affinity is to be a dedicated subgraph. Each subgraph is compiled on a dedicated device and multiple `ov::CompiledModel <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_compiled_model.html#doxid-classov-1-1-compiled-model>`__ objects are made, which are connected via automatically allocated intermediate tensors.
-   
-   If you set pipeline parallel (via ``ov::hint::model_distribution_policy``), the model is split into multiple stages, and each stage is assigned to a different device. The output of one stage is fed as input to the next stage.
+1. Setting hardware affinity to operations (`ov::Core::query_model <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_core.html#class-ov-core>`__ is used internally by the Hetero device).
+2. Compiling a model to the Heterogeneous device assumes splitting the model to parts, compiling them on the specified devices (via `ov::device::priorities <https://docs.openvino.ai/2024/api/c_cpp_api/structov_1_1device_1_1_priorities.html>`__), and executing them in the Heterogeneous mode. The model is split to subgraphs in accordance with the affinities, where a set of connected operations with the same affinity is to be a dedicated subgraph. Each subgraph is compiled on a dedicated device and multiple `ov::CompiledModel <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_compiled_model.html#class-ov-compiledmodel>`__ objects are made, which are connected via automatically allocated intermediate tensors.
+
+   If you set pipeline parallelism (via ``ov::hint::model_distribution_policy``), the model is split into multiple stages, and each stage is assigned to a different device. The output of one stage is fed as input to the next stage.
 
 These two steps are not interconnected and affinities can be set in one of two ways, used separately or in combination (as described below): in the ``manual`` or the ``automatic`` mode.
 
-Defining and Configuring the Hetero Device
+Defining and configuring the Hetero device
 ##########################################
 
-Following the OpenVINO™ naming convention, the Hetero execution plugin is assigned the label of ``"HETERO".`` It may be defined with no additional parameters, resulting in defaults being used, or configured further with the following setup options:
+Following the OpenVINO™ naming convention, the Hetero execution plugin is assigned the label of
+ ``"HETERO".`` It may be defined with no additional parameters, resulting in defaults being used,
+ or configured further with the following setup options:
 
 
 +--------------------------------------------+-------------------------------------------------------------+-----------------------------------------------------------+
@@ -37,19 +39,19 @@ Following the OpenVINO™ naming convention, the Hetero execution plugin is assi
 | |                                          | | comma-separated, no spaces                                | | from high to low.                                       |
 +--------------------------------------------+-------------------------------------------------------------+-----------------------------------------------------------+
 | |                                          | | ``empty``                                                 | | Model distribution policy for inference with            |
-| | "MODEL_DISTRIBUTION_POLICY"              | | ``ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL``  | | multiple devices. Distribute model to multiple          |
+| | "MODEL_DISTRIBUTION_POLICY"              | | ``ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL``  | | multiple devices. Distributes the model to multiple     |
 | |                                          | |                                                           | | devices during model compilation.                       |
-| | ``ov::hint::model_distribution_policy``  | | HETERO only support PIPELINE_PARALLEL, The default value  | |                                                         |
+| | ``ov::hint::model_distribution_policy``  | | HETERO only supports PIPELINE_PARALLEL, The default value | |                                                         |
 | |                                          | | is empty                                                  | |                                                         |
 +--------------------------------------------+-------------------------------------------------------------+-----------------------------------------------------------+
 
-Manual and Automatic modes for assigning affinities
+Manual and Automatic Modes for Assigning Affinities
 ###################################################
 
 The Manual Mode
-++++++++++++++++++
++++++++++++++++++++++
 
-It assumes setting affinities explicitly for all operations in the model using `ov::Node::get_rt_info <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_node.html#doxid-classov-1-1-node-1a6941c753af92828d842297b74df1c45a>`__ with the ``"affinity"`` key.
+It assumes setting affinities explicitly for all operations in the model using `ov::Node::get_rt_info <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_node.html#class-ov-node>`__ with the ``"affinity"`` key.
 
 If you assign specific operation to a specific device, make sure that the device actually supports the operation.
 Randomly selecting operations and setting affinities may lead to decrease in model accuracy. To avoid that, try to set the related operations or subgraphs of this operation to the same affinity, such as the constant operation that will be folded into this operation.
@@ -72,10 +74,10 @@ Randomly selecting operations and setting affinities may lead to decrease in mod
          :fragment: [set_manual_affinities]
 
 
-The Automatic Mode
+Automatic Mode
 ++++++++++++++++++
 
-Without pipeline parallelism
+Without Pipeline Parallelism
 -----------------------------
 
 It decides automatically which operation is assigned to which device according to the support from dedicated devices (``GPU``, ``CPU``, etc.) and query model step is called implicitly by Hetero device during model compilation.
@@ -100,12 +102,16 @@ It does not take into account device peculiarities such as the inability to infe
          :language: cpp
          :fragment: [compile_model]
 
-Pipeline parallelism
-------------------------
+Pipeline Parallelism (Preview)
+--------------------------------
 
-The pipeline parallelism is set via ``ov::hint::model_distribution_policy``. This mode is an efficient technique to infer large models on multiple devices. The model is split into multiple stages, and each stage is assigned to a different device (``dGPU``, ``iGPU``, ``CPU``, etc.). This mode assign operations to different devices as reasonably as possible, ensuring that different stages can be executed in sequence and minimizing the amount of data transfer between different devices.
+Pipeline parallelism is set via ``ov::hint::model_distribution_policy``. This mode is an efficient technique for inferring large models on multiple devices. The model is divided into multiple stages, with each stage assigned to a different device (``dGPU``, ``iGPU``, ``CPU``, etc.) in the sequence of device priority. This mode estimates memory size required by operations (includes weights memory and runtime memory), assigns operations (stage) to each device per the available memory size and considering the minimal data transfer between devices. Different stages are executed in sequence of model flow.
 
-For large models which don’t fit on a single first priority device, model pipeline parallelism is employed where certain parts of the model are placed on different devices to ensure that the device has enough memory to infer these operations.
+.. note::
+
+   Since iGPU and CPU share the host memory and host resource should be always considered as a fallback, it is recommended to use at most one of the iGPU or CPU and put it at the end of device list.
+
+   For large models that do not fit on a single first-priority device, model pipeline parallelism is employed. This technique distributes certain parts of the model across different devices, ensuring that each device has enough memory to infer the operations.
 
 
 .. tab-set::
@@ -150,14 +156,14 @@ In some cases you may need to consider manually adjusting affinities which were 
 
 Importantly, the automatic mode will not work if any operation in a model has its ``"affinity"`` already initialized.
 
-.. note:
+.. note::
 
-   `ov::Core::query_model <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_core.html#doxid-classov-1-1-core-1acdf8e64824fe4cf147c3b52ab32c1aab>`__ does not depend on affinities set by a user. Instead, it queries for an operation support based on device capabilities.
+   `ov::Core::query_model <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_core.html#_CPPv4NK2ov4Core11query_modelERKNSt10shared_ptrIKN2ov5ModelEEERKNSt6stringERK6AnyMap>`__ does not depend on affinities set by a user. Instead, it queries for an operation support based on device capabilities.
 
 Configure fallback devices
 ##########################
 
-If you want different devices in Hetero execution to have different device-specific configuration options, you can use the special helper property `ov::device::properties <https://docs.openvino.ai/2024/api/c_cpp_api/structov_1_1device_1_1_properties.html#doxid-group-ov-runtime-cpp-prop-api-1ga794d09f2bd8aad506508b2c53ef6a6fc>`__:
+If you want different devices in Hetero execution to have different device-specific configuration options, you can use the special helper property `ov::device::properties <https://docs.openvino.ai/2024/api/c_cpp_api/structov_1_1device_1_1_properties.html#struct-ov-device-properties>`__:
 
 
 .. tab-set::
@@ -220,7 +226,7 @@ Here is an example of the output for Googlenet v1 running on HDDL (device no lon
 
 
 Sample Usage
-############
+#####################
 
 OpenVINO™ sample programs can use the Heterogeneous execution used with the ``-d`` option:
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,9 +54,8 @@ struct space_to_depth : public primitive_base<space_to_depth> {
     space_to_depth(const primitive_id& id,
                    const input_info& input,
                    SpaceToDepth::SpaceToDepthMode mode,
-                   const size_t block_size = 1,
-                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}), mode(mode), block_size(block_size) {}
+                   const size_t block_size = 1)
+        : primitive_base(id, {input}), mode(mode), block_size(block_size) {}
 
     /// @brief Depth mode.
     SpaceToDepth::SpaceToDepthMode mode = SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST;

@@ -18,7 +18,7 @@ namespace pass {
  */
 class Validate : public RangedPass {
 public:
-    OPENVINO_RTTI("Validate", "Pass")
+    OPENVINO_RTTI("Validate", "", RangedPass)
     Validate();
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 

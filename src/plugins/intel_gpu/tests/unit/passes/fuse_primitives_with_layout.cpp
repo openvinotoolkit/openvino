@@ -20,7 +20,7 @@ TEST(fuse_primitives_with_layout, fuse_when_layout_format_of_input_and_output_ar
     //
     // This test case validates the pattern : eltwise --> quantize
     // If eltwise and quantize node have different output layout format, do not fuse.
-    //     
+    //
     auto& engine = get_test_engine();
 
     auto in_layout1 = layout{ ov::PartialShape{2304, 64, 3, 3}, data_types::f16, format::b_fs_yx_fsv16 };
@@ -51,6 +51,7 @@ TEST(fuse_primitives_with_layout, fuse_when_layout_format_of_input_and_output_ar
             node->set_output_layout(qt_layout, false);
         }
     }
+
     program_wrapper::apply_opt_pass<fuse_primitives_with_layout>(*program);
 
     ASSERT_TRUE(has_node(*program, "quantize"));

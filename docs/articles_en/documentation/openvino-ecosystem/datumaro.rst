@@ -1,5 +1,3 @@
-.. {#datumaro_documentation}
-
 Datumaro
 ========
 
@@ -21,7 +19,7 @@ Plus, enjoy `Jupyter notebooks <https://github.com/openvinotoolkit/datumaro/tree
 Detailed Workflow
 #################
 
-.. image:: ./../../_static/images/datumaro.png
+.. image:: ../../assets/images/datumaro.png
 
 1. To start working with Datumaro, download public datasets or prepare your own annotated dataset.
 
