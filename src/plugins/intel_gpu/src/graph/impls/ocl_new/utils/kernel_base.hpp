@@ -10,6 +10,10 @@
 #include "jitter.hpp"
 #include <string>
 
+namespace micro {
+struct MicroKernelPackage;
+}  // namspace
+
 namespace ov::intel_gpu::ocl {
 
 using namespace cldnn;
@@ -34,19 +38,17 @@ struct DispatchData {
     Scalars scalars;
 };
 
-using InternalBuffers = std::vector<layout>;
-using DispatchDataFunc = std::function<DispatchData(const kernel_impl_params&)>;
-using GetInternalBuffersFunc = std::function<InternalBuffers(const kernel_impl_params&)>;
-#define DISPATCH_DATA_FUNC(params, ...) [__VA_ARGS__](const kernel_impl_params& params) -> DispatchData
-#define INTERNAL_BUFFERS_FUNC(params, ...) [__VA_ARGS__](const kernel_impl_params& params) -> InternalBuffers
+struct KernelData;
+
+using DispatchDataFunc = std::function<DispatchData(const kernel_impl_params&, const KernelData&)>;
+#define DISPATCH_DATA_FUNC(params, kd, ...) [__VA_ARGS__](const kernel_impl_params& params, const KernelData& kd) -> DispatchData
 
 struct KernelData {
     KernelCode code;
     KernelParams params;
-    // std::vector<std::shared_ptr<micro::MicroKernelPackage>> micro_kernels;
+    std::vector<std::shared_ptr<micro::MicroKernelPackage>> micro_kernels;
     DispatchDataFunc update_dispatch_data_func = nullptr;
 
-    std::vector<layout> internal_buffers;
     WeightsReorderParams weightsReorderParams;
 };
 
@@ -58,34 +60,28 @@ public:
     KernelGeneratorBase() = default;
     virtual ~KernelGeneratorBase() = default;
 
-    virtual KernelData get_kernel_data(const program_node& node, const kernel_impl_params& params) const = 0;
-    virtual GetInternalBuffersFunc get_interanl_buffers_func(const program_node& node, const kernel_impl_params& params) const { return nullptr; }
+    virtual KernelData get_kernel_data(const kernel_impl_params& params) const = 0;
     virtual DispatchDataFunc get_dispatch_data_func(const kernel_impl_params& params) const = 0;
 };
 
-
 class SingleKernelGenerator : public KernelGeneratorBase {
 public:
-    explicit SingleKernelGenerator(const std::string name) : KernelGeneratorBase(), m_kernel_name(name) {}
+    explicit SingleKernelGenerator(std::string_view name) : KernelGeneratorBase(), m_kernel_name(name) {}
     virtual ~SingleKernelGenerator() = default;
 
-    KernelData get_kernel_data(const program_node& node, const kernel_impl_params& params) const override;
-    const std::string get_name() const { return m_kernel_name; }
+    KernelData get_kernel_data(const kernel_impl_params& params) const override;
 
-    void add_common_jit_constants(const JitConstants& jit_constants);
 protected:
+    virtual Arguments get_arguments_desc(const kernel_impl_params& params) const;
+    virtual JitConstants get_jit_constants(const kernel_impl_params& params) const;
+    virtual std::string get_entry_point(const kernel_impl_params& params) const;
+    virtual std::string get_build_options(const kernel_impl_params& params) const;
 
-    virtual DispatchData get_dispatch_data(const kernel_impl_params& params) const;
-    virtual Arguments get_arguments_desc(const program_node& node, const kernel_impl_params& params) const;
-    virtual JitConstants get_jit_constants(const program_node& node, const kernel_impl_params& params) const;
-    virtual std::string get_entry_point(const program_node& node, const kernel_impl_params& params) const;
-    virtual std::string get_build_options(const program_node& node, const kernel_impl_params& params) const;
-
-    JitConstants make_base_jit_constants(const program_node& node, const kernel_impl_params& params) const;
-    std::string build_code(const std::string& template_name, const JitConstants& jit_constants, const std::string& entry_point) const;
+    JitConstants make_base_jit_constants(const kernel_impl_params& params) const;
+    std::string build_code(std::string_view template_name, const JitConstants& jit_constants, const std::string& entry_point) const;
 
     const std::string m_kernel_name;
-    JitConstants m_jit_constants;
+    std::string m_stage_suffix;
 };
 
 }  // namespace ov::intel_gpu::ocl

@@ -16,7 +16,7 @@ namespace ocl {
 
 using namespace cldnn;
 
-enum class ChannelName { X = 0, Y = 1, Z = 2, W = 3, U = 4, V = 5, FEATURE = 6, BATCH = 7, IFM = 8, OFM = 9, G = 10 };
+enum class ChannelName { X = 0, Y = 1, Z = 2, W = 3, U = 4, V = 5, FEATURE = 6, BATCH = 7, IFM = 8, OFM = 9, G = 10, UNKNOWN = 11 };
 
 struct JitConstant {
     std::string name;
@@ -36,6 +36,53 @@ template <typename T>
 JitConstant make_jit_constant(const std::string& name, T value) {
     return JitConstant(name, to_code_string(value));
 }
+
+template <typename T>
+inline std::string get_ocl_type_name() {
+    throw std::runtime_error("Implement me");
+}
+template <>
+inline std::string get_ocl_type_name<int8_t>() {
+    return "char";
+}
+template <>
+inline std::string get_ocl_type_name<uint8_t>() {
+    return "uchar";
+}
+template <>
+inline std::string get_ocl_type_name<int16_t>() {
+    return "short";
+}
+template <>
+inline std::string get_ocl_type_name<uint16_t>() {
+    return "ushort";
+}
+template <>
+inline std::string get_ocl_type_name<int32_t>() {
+    return "int";
+}
+template <>
+inline std::string get_ocl_type_name<uint32_t>() {
+    return "uint";
+}
+template <>
+inline std::string get_ocl_type_name<int64_t>() {
+    return "long";
+}
+template <>
+inline std::string get_ocl_type_name<uint64_t>() {
+    return "ulong";
+}
+template <>
+inline std::string get_ocl_type_name<float>() {
+    return "float";
+}
+template <>
+inline std::string get_ocl_type_name<double>() {
+    return "double";
+}
+
+std::string to_ocl_type(ov::element::Type_t et);
 
 struct JitConstants : public std::vector<JitConstant> {
     void add(const JitConstant& constant) { push_back(constant); }

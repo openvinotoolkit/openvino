@@ -305,7 +305,7 @@ public:
                                        memory* curr_memory = nullptr,
                                        bool runtime_alloc = false);
 
-    std::vector<memory::ptr> get_intermediates_memories() const { return _intermediates_memory; }
+    const std::vector<memory::ptr>& get_intermediates_memories() const { return _intermediates_memory; }
 
     std::string get_implementation_name() const;
 

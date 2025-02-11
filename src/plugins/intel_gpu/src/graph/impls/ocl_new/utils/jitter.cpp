@@ -8,6 +8,7 @@
 #include "intel_gpu/primitives/activation.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -887,6 +888,31 @@ size_t extract_channel(ChannelName channel, const layout& l) {
     const auto& pshape = l.get_partial_shape();
     auto idx = get_channel_index(channel, pshape.size(), format::is_weights_format(l.format), format::is_grouped(l.format));
     return (idx < 0 || idx >= static_cast<int>(pshape.size())) ? 1 : static_cast<size_t>(pshape[idx].get_length());
+}
+
+std::string to_ocl_type(ov::element::Type_t et) {
+    switch (et) {
+        case ov::element::Type_t::i8:
+            return get_ocl_type_name<int8_t>();
+        case ov::element::Type_t::u8:
+            return get_ocl_type_name<uint8_t>();
+        case ov::element::Type_t::i16:
+            return get_ocl_type_name<int16_t>();
+        case ov::element::Type_t::u16:
+            return get_ocl_type_name<uint16_t>();
+        case ov::element::Type_t::i32:
+            return get_ocl_type_name<int32_t>();
+        case ov::element::Type_t::u32:
+            return get_ocl_type_name<uint32_t>();
+        case ov::element::Type_t::i64:
+            return get_ocl_type_name<int64_t>();
+        case ov::element::Type_t::f16:
+            return "half";
+        case ov::element::Type_t::f32:
+            return get_ocl_type_name<float>();
+        default:
+            return "";
+    }
 }
 
 }  // namespace ocl

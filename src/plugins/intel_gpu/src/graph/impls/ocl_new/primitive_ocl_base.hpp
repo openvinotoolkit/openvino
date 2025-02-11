@@ -24,10 +24,9 @@
 #include <utility>
 
 namespace ov::intel_gpu::ocl {
-/*
-Base class for all GPU implementation of specified primitive type.
-For example, all gpu convolution implementations should derive from primitive_impl_ocl<convolution>.
-*/
+
+// Base class for all GPU implementation of specified primitive type.
+// For example, all gpu convolution implementations should derive from primitive_impl_ocl<convolution>.
 struct PrimitiveImplOCL : public primitive_impl {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::PrimitiveImplOCL)
 
@@ -36,10 +35,10 @@ struct PrimitiveImplOCL : public primitive_impl {
     std::unordered_map<size_t, kernel::ptr> _kernels;
 
     template<typename StageType, size_t stage_id, typename... Args>
-    void add_stage(const program_node& node, const kernel_impl_params& params, Args&&... args) {
+    void add_stage(const kernel_impl_params& params, Args&&... args) {
         static_assert(std::is_base_of<ov::intel_gpu::ocl::KernelGeneratorBase, StageType>::value, "StageType must derive from KernelGeneratorBase");
         auto stage = std::make_unique<StageType>(std::forward<Args>(args)...);
-        _kernels_data.emplace(stage_id, stage->get_kernel_data(node, params));
+        _kernels_data.emplace(stage_id, stage->get_kernel_data(params));
         _stages_registration_order.push_back(stage_id);
     }
 
@@ -63,10 +62,12 @@ struct PrimitiveImplOCL : public primitive_impl {
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_impl::save(ob);
+        ob << _stages_registration_order;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_impl::load(ib);
+        ib >> _stages_registration_order;
     }
 
     void update(primitive_inst& inst, const kernel_impl_params& impl_params) override {
@@ -113,17 +114,19 @@ protected:
 
     void init_by_cached_kernels(const kernels_cache& kernels_cache, std::vector<std::string>& cached_kernel_ids) override {
         _kernels.clear();
-
         _kernels.reserve(cached_kernel_ids.size());
-        for (size_t k = 0; k < cached_kernel_ids.size(); ++k) {
-            _kernels.emplace(_stages_registration_order[k], kernels_cache.get_kernel_from_cached_kernels(cached_kernel_ids[k]));
+
+        for (size_t i = 0; i < cached_kernel_ids.size(); ++i) {
+            _kernels.emplace(_stages_registration_order[i], kernels_cache.get_kernel_from_cached_kernels(cached_kernel_ids[i]));
         }
         this->can_share_kernels = kernels_cache.get_kernels_reuse();
     }
 
     std::vector<std::string> get_cached_kernel_ids(const kernels_cache& kernels_cache) override {
         std::vector<kernel::ptr> kernels;
-        std::transform(_kernels.begin(), _kernels.end(), std::back_inserter(kernels), [](const decltype(_kernels)::value_type& e) { return e.second; });
+        for (size_t i = 0; i < _kernels.size(); i++) {
+            kernels.push_back(_kernels[_stages_registration_order[i]]);
+        }
         return {kernels_cache.get_cached_kernel_ids(kernels)};
     }
 
@@ -146,12 +149,13 @@ protected:
         args.scalars = &params.scalars;
 
 
-        if (instance.get_flag(ExecutionFlags::MEMORY_CHANGED)) {
-            stream.set_arguments(*_kernels[stage], _kernels_data[stage].params, args);
+        stream.set_arguments(*_kernels[stage], params, args);
+        // if (instance.get_flag(ExecutionFlags::MEMORY_CHANGED)) {
+            // stream.set_arguments(*_kernels[stage], _kernels_data[stage].params, args);
             // TODO: Can we call update dispatch data here for required kernels only?
             // Seems that it may conflict with fake alignment as get_impl_params stores not fake aligned data
             // params.workGroups = _kernels_data[stage].update_dispatch_data_func(*instance.get_impl_params()).work_groups;
-        }
+        // }
 
         const auto& gws = params.workGroups.global;
         const auto& lws = params.workGroups.local;
@@ -216,7 +220,9 @@ protected:
 
     virtual void update_dispatch_data(const kernel_impl_params& impl_params) {
         for (auto& [stage_id, kd] : _kernels_data) {
-            kd.params.workGroups = kd.update_dispatch_data_func(impl_params).work_groups;
+            auto dd = kd.update_dispatch_data_func(impl_params, kd);
+            kd.params.workGroups = dd.work_groups;
+            kd.params.scalars = dd.scalars;
         }
     }
 };

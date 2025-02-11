@@ -7,7 +7,7 @@
 #include "primitive_inst.h"
 
 #if OV_GPU_WITH_OCL
-    #include "impls/ocl_new/rope_ref.hpp"
+    #include "impls/ocl_new/rope_opt.hpp"
 #endif
 
 namespace ov {
@@ -17,7 +17,7 @@ using namespace cldnn;
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<rope>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
-        OV_GPU_CREATE_INSTANCE_OCL(ocl::RopeRef, shape_types::any)
+        OV_GPU_CREATE_INSTANCE_OCL(ocl::RopeOpt, shape_types::any)
     };
 
     return impls;
