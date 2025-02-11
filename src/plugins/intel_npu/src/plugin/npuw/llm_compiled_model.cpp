@@ -29,13 +29,12 @@ public:
     };
 
 protected:
-    // generic part of matchers, to transpose v-tensors, and concat, and update matmul args 
-    void transpose_matmul_b(Context::Ref ctx, 
+    // generic part of matchers, to transpose v-tensors, and concat, and update matmul args
+    void transpose_matmul_b(Context::Ref ctx,
             std::shared_ptr<ov::Node> node_param,
             std::shared_ptr<ov::Node> node_concat,
             std::shared_ptr<ov::Node> node_transpose,
             std::shared_ptr<ov::Node> node_matmul) {
-
         auto matched_param = std::static_pointer_cast<ov::op::v0::Parameter>(node_param);
         auto matched_concat = std::static_pointer_cast<ov::op::v0::Concat>(node_concat);
         auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(node_transpose);
@@ -141,7 +140,7 @@ private:
             auto matched_concat = std::static_pointer_cast<ov::op::v0::Concat>(matched_node_concat);
             auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(matched_node_transpose);
             auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
-            
+
             auto matched_unsqueeze  = std::static_pointer_cast<ov::op::v0::Unsqueeze>(matched_node_unsqueeze);
             auto matched_broadcast  = std::static_pointer_cast<ov::op::v3::Broadcast>(matched_node_broadcast);
             auto matched_reshape    = std::static_pointer_cast<ov::op::v1::Reshape>(matched_node_reshape);
