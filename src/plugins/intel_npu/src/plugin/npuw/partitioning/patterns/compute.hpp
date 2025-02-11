@@ -69,6 +69,12 @@ public:
     RMSNorm2(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
+class VariadicSplit : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::compute::VariadicSplit");
+    VariadicSplit(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
+};
+
 }  // namespace compute
 }  // namespace patterns
 }  // namespace npuw

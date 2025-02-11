@@ -406,6 +406,31 @@ RMSNorm2::RMSNorm2(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, 
     register_matcher(std::make_shared<opp::Matcher>(multiply, "TagRMSNorm2"), std::move(callback));
 }
 
+// TODO: visualize
+VariadicSplit::VariadicSplit(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
+    auto vsplit = opp::wrap_type<ov::op::v1::VariadicSplit>({opp::any_input(), opp::any_input(), opp::any_input()});
+    auto swish = opp::wrap_type<ov::op::v4::Swish>({vsplit});
+    auto multiply = opp::wrap_type<ov::op::v1::Multiply>({vsplit, swish});
+
+    auto node_to_gptr = snapshot->getNodeToGroupMap();
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_vsplit = node_to_output.at(vsplit).get_node_shared_ptr();
+        auto matched_swish = node_to_output.at(swish).get_node_shared_ptr();
+        auto matched_multiply = node_to_output.at(multiply).get_node_shared_ptr();
+
+        node_to_gptr->at(matched_vsplit)->isolate(isol_tag);
+        node_to_gptr->at(matched_swish)->isolate(isol_tag);
+        node_to_gptr->at(matched_multiply)->isolate(isol_tag);
+
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(multiply, "TagVariadicSplit"), std::move(callback));
+}
+
 }  // namespace compute
 }  // namespace patterns
 }  // namespace npuw
