@@ -25,7 +25,7 @@ EltwiseToEltwiseTPP::EltwiseToEltwiseTPP() {
                                                           ov::op::util::BinaryElementwiseArithmetic,
                                                           ov::snippets::op::ReduceBase>(is_supported_by_tpp);
 
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
+    auto callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::EltwiseToEltwiseTPP")
         const auto node = m.get_match_root();
         if (node->is_dynamic()) {
