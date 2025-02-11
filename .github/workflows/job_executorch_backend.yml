@@ -112,8 +112,11 @@ jobs:
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           cd executorch
+          ./install_executorch.sh --clean
+          git submodule sync
+          git submodule update --init
           ./install_requirements.sh
-          pkill -f buck && ./install_executorch.sh
+          ./install_executorch.sh
           cd examples/openvino
           ./openvino_build.sh
           cd ../..
