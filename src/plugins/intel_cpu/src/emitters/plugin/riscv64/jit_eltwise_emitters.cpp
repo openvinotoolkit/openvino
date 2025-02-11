@@ -338,10 +338,13 @@ jit_relu_emitter::jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, 
     } else {
         OPENVINO_THROW("Incompatible node!");
     }
+    prepare_table();
 }
 
 jit_relu_emitter::jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, float alpha, const ov::element::Type exec_prc)
-    : jit_emitter(host, exec_prc), alpha(alpha) {}
+    : jit_emitter(host, exec_prc), alpha(alpha) {
+    prepare_table();
+}
 
 size_t jit_relu_emitter::get_inputs_num() const {
     return 1;
