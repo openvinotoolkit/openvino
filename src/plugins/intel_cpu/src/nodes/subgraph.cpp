@@ -61,9 +61,7 @@
 #    include "transformations/tpp/x64/pass/scalar_to_scalar_tpp.hpp"
 #endif
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
@@ -170,7 +168,7 @@ Subgraph::Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
 #elif defined(OPENVINO_ARCH_X86_64)
     subgraph_attrs->snippet->set_generator(std::make_shared<CPUGenerator>(host_isa, context->getParamsCache()));
 #else
-    OPENVINO_THROW("CPU plugin: Subgraphs code-generator is not supported on non-x64 platforms");
+    THROW_CPU_NODE_ERR("Subgraphs code-generator is not supported on non-x64 platforms");
 #endif
 
     // Note: we have to update shapeInfer, so it uses the per-thread op::Subgraph copy
@@ -282,7 +280,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
                     ? context->getConfig().inferencePrecision
                     : originalInputPrecision;
             if (supportedPrecisions.count(precision) == 0) {
-                OPENVINO_THROW("Subgraph node with name `", getName(), "` doesn't support ", precision, " precision.");
+                THROW_CPU_NODE_ERR("doesn't support ", precision, " precision.");
             }
 
             const auto equalPrecisions =
@@ -302,7 +300,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
         for (size_t i = 0; i < outputShapes.size(); i++) {
             auto precision = getOriginalOutputPrecisionAtPort(i);
             if (supportedPrecisions.count(precision) == 0) {
-                OPENVINO_THROW("Subgraph node with name `", getName(), "` doesn't support ", precision, " precision.");
+                THROW_CPU_NODE_ERR("doesn't support ", precision, " precision.");
             }
 
             BlockedMemoryDesc::CmpMask outputMask = BlockedMemoryDesc::SKIP_OFFSET_MASK;
@@ -543,10 +541,13 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
                                     ov::intel_cpu::pass::BrgemmCPUBlocking);
 
 #ifdef SNIPPETS_DEBUG_CAPS
-    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
-                                    ov::intel_cpu::pass::BrgemmCPUBlocking,
-                                    ov::snippets::lowered::pass::InsertPerfCountVerbose,
-                                    getName());
+    const auto& debug_config = subgraph_attrs->snippet->get_debug_config();
+    if (debug_config.perf_count_mode != snippets::DebugCapsConfig::PerfCountMode::Disabled) {
+        SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
+                                        ov::intel_cpu::pass::BrgemmCPUBlocking,
+                                        ov::snippets::lowered::pass::InsertPerfCountVerbose,
+                                        getName());
+    }
 #endif  // SNIPPETS_DEBUG_CAPS
 
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
@@ -752,6 +753,4 @@ void Subgraph::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
