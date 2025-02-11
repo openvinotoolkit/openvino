@@ -83,7 +83,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
-    OPENVINO_ASSERT(orgInputNumber == 13 || orgInputNumber == 16,
+    CPU_NODE_ASSERT(orgInputNumber == 13 || orgInputNumber == 16,
                     "The input number of PagedAttention should be 13 or 16.");
     // kvcache, float, []
     auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
