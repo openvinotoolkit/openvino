@@ -241,6 +241,9 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
         if (is_skipped_op(node)) {
             continue;
         }
+        if (ov::is_type<const ov::op::v0::FakeQuantize>(node)) {
+            SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+        }
         // We perform this check separately because we mark here only weights path
         // Matmul itself will be checked further
         if (isSuitableMatMulWithConstantPath(node)) {

@@ -311,6 +311,8 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_MulticlassNmsLayerTest_dynamic2.*_outType=i32_.*)");
         // u8 is not supported on arm platform
         retVector.emplace_back(R"(smoke_LPT.*u8.*)");
+        // Temporary disable FQDecomposition tests as soon as FQ fusing is disabled
+        retVector.emplace_back(R"(smoke_Snippets_FQDecomposition.*netPRC=f32_D=CPU.*)");
     }
     // invalid test: checks u8 precision for runtime graph, while it should be f32
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
