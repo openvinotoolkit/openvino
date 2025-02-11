@@ -11,9 +11,7 @@
 #include "openvino/op/inverse.hpp"
 #include "utils/bfloat16.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 Inverse::Inverse(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
@@ -202,6 +200,4 @@ void Inverse::lu_solve(float* output, std::vector<float>& L, std::vector<float>&
     });
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

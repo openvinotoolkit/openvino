@@ -12,8 +12,7 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace {
 class jit_aux_gpr_holder {
@@ -262,5 +261,4 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::v
 
 /* ============================================================== */
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

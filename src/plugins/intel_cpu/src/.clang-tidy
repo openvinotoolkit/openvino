@@ -32,7 +32,6 @@
 # -readability-implicit-bool-conversion,
 # -readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers
 # -readability-function-cognitive-complexity. Reasonable way to enforce splitting complex code into simple functions
-# -modernize-concat-nested-namespaces. More compact way when C++17 is available
 # -modernize-use-constraints,
 # -modernize-use-std-numbers - to be enabled when align CI validation
 
@@ -55,7 +54,6 @@ Checks: >
   -google-readability-todo,
   -readability-braces-around-statements,
   -modernize-avoid-c-arrays,
-  -modernize-concat-nested-namespaces,
   -modernize-loop-convert,
   -modernize-use-constraints,
   -modernize-use-std-numbers,

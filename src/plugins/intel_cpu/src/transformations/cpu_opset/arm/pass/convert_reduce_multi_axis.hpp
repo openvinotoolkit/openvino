@@ -46,8 +46,7 @@
  *
  */
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class ConvertReduceMultiAxisBase : public ov::pass::MatcherPass {
 public:
@@ -91,5 +90,4 @@ public:
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

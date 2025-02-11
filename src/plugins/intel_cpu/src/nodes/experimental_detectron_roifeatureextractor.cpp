@@ -13,9 +13,7 @@
 #include "common/cpu_memcpy.h"
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 // implementation taken from Caffe2
@@ -381,6 +379,4 @@ bool ExperimentalDetectronROIFeatureExtractor::created() const {
     return getType() == Type::ExperimentalDetectronROIFeatureExtractor;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

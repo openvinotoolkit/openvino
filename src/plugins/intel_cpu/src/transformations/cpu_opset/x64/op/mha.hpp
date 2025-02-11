@@ -6,8 +6,7 @@
 
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class MHANode : public ov::op::Op {
 public:
@@ -92,5 +91,4 @@ private:
     ov::element::Type fq2_output_type;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

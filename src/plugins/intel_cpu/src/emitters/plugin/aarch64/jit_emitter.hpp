@@ -12,9 +12,7 @@
 #include "snippets/generator.hpp"
 #include "snippets/snippets_isa.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace aarch64 {
+namespace ov::intel_cpu::aarch64 {
 
 enum emitter_in_out_map {
     vec_to_vec,
@@ -186,6 +184,4 @@ private:
                          const std::unordered_set<size_t>& ignore_vec_regs = {}) const;
 };
 
-}  // namespace aarch64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::aarch64

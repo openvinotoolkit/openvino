@@ -7,8 +7,7 @@
 #include "dnnl_aliases.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct DnnlPrimitiveAttrs {
     dnnl::primitive_attr attr;
@@ -16,5 +15,4 @@ struct DnnlPrimitiveAttrs {
     MemoryArgs cpuArgs;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

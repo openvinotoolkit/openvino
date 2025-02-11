@@ -13,8 +13,7 @@
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/snippets/repacked_input.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct BrgemmCopyBKernelConfig : public snippets::KernelExecutorBase::GenericConfig {
 public:
@@ -209,5 +208,4 @@ protected:
 };
 #define GET_OFF_BRGEMM_COPY_B_ARGS(field) offsetof(BrgemmCopyBKernel::call_args, field)
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

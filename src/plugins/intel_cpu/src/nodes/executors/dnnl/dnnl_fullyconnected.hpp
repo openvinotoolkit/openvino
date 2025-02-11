@@ -16,8 +16,7 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "post_ops.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 template <typename ExecutorT, typename Attrs, typename ShapeAgnosticData>
 class DefaultInstantiator {
@@ -176,5 +175,4 @@ private:
     int curNumaNode = -1;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

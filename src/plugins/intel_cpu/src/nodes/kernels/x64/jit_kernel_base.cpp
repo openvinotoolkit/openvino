@@ -6,9 +6,7 @@
 
 using namespace dnnl::impl::cpu;
 
-namespace ov {
-namespace intel_cpu {
-namespace kernel {
+namespace ov::intel_cpu::kernel {
 
 JitKernelBase::JitKernelBase(const char* name, x64::cpu_isa_t isa)
     : x64::jit_generator(name, isa),
@@ -690,6 +688,4 @@ void JitKernelBase::memMovDD(const Xbyak::Reg64& rDst,
     L(lEnd);
 }
 
-}  // namespace kernel
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::kernel

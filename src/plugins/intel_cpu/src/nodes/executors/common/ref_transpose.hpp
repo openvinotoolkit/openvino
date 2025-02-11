@@ -6,8 +6,7 @@
 
 #include "nodes/executors/transpose.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 class RefTransposeExecutor : public TransposeExecutor {
 public:
     using TransposeExecutor::TransposeExecutor;
@@ -41,5 +40,4 @@ public:
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

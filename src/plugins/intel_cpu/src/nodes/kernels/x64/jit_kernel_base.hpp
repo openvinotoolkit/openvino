@@ -11,9 +11,7 @@
 #    include "registers_pool.hpp"
 #endif  // OPENVINO_ARCH_X86_64
 
-namespace ov {
-namespace intel_cpu {
-namespace kernel {
+namespace ov::intel_cpu::kernel {
 
 class JitKernelBase;
 
@@ -259,6 +257,4 @@ private:
 
 #endif  // OPENVINO_ARCH_X86_64
 
-}  // namespace kernel
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::kernel

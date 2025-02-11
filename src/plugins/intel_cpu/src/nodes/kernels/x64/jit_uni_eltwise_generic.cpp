@@ -12,8 +12,7 @@
 #include "emitters/plugin/x64/jit_eltwise_emitters.hpp"
 #include "nodes/eltwise.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 namespace x64 {
 
 using namespace Xbyak;
@@ -944,5 +943,4 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
     return precisions;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

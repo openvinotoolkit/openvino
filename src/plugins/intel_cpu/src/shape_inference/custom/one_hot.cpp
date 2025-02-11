@@ -7,9 +7,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 /**
  * Implements One Hot shape inference algorithm. The output shape is the input `indices` tensor shape, where a new axis
@@ -44,6 +42,4 @@ ShapeInferPtr OneHotShapeInferFactory::makeShapeInfer() const {
     }
     return std::make_shared<OneHotShapeInfer>(axis);
 }
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

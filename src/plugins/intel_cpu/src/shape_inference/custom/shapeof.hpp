@@ -8,9 +8,7 @@
 
 #pragma once
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 using Result = IShapeInfer::Result;
 
 /**
@@ -39,6 +37,4 @@ public:
     }
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

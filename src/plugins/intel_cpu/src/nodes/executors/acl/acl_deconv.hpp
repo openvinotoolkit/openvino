@@ -10,8 +10,7 @@
 #include "src/cpu/CpuTypes.h"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct ACLDeconvTensorInfo {
     arm_compute::TensorInfo srcTensorInfo;
@@ -68,5 +67,4 @@ public:
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

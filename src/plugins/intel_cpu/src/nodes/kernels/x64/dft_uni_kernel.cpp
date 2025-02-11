@@ -11,8 +11,7 @@ using namespace dnnl::impl::cpu::x64;
 #define GET_OFF_DFT(field) offsetof(jit_args_dft, field)
 #define GET_OFF_FFT(field) offsetof(jit_args_fft, field)
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 template <cpu::x64::cpu_isa_t isa>
 jit_uni_dft_kernel_f32<isa>::jit_uni_dft_kernel_f32() : jit_uni_dft_kernel(),
@@ -240,5 +239,4 @@ template struct jit_uni_fft_kernel_f32<cpu::x64::sse41>;
 template struct jit_uni_fft_kernel_f32<cpu::x64::avx2>;
 template struct jit_uni_fft_kernel_f32<cpu::x64::avx512_core>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

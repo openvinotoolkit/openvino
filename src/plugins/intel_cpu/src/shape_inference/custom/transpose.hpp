@@ -10,9 +10,7 @@
 
 #pragma once
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 using Result = IShapeInfer::Result;
 
 class TransposeDynShapeInfer : public ShapeInferEmptyPads {
@@ -56,6 +54,4 @@ private:
     const std::shared_ptr<ov::Node> m_op;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

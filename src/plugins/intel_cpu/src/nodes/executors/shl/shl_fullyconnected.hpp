@@ -7,8 +7,7 @@
 #include "cpu_memory.h"
 #include "nodes/executors/fullyconnected_config.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class ShlFCExecutor : public Executor {
 public:
@@ -48,5 +47,4 @@ private:
 };
 using ShlFCExecutorPtr = std::shared_ptr<ShlFCExecutor>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

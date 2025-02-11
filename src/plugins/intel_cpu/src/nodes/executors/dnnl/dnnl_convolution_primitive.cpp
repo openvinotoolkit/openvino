@@ -21,8 +21,7 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace dnnl;
 using namespace executor;
@@ -228,5 +227,4 @@ DnnlConvolutionPrimitive::DnnlConvolutionPrimitive(const Key& key,
       m_scratchPadDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.scratchpad_desc())),
       m_prim(primitive(m_primDesc)) {}
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

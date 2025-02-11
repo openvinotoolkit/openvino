@@ -18,8 +18,7 @@
 #include "utils/debug_capabilities.h"
 #include "utils/precision_support.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace ov::threading;
 using namespace dnnl::impl::cpu::x64;
@@ -509,5 +508,4 @@ void Config::applyRtInfo(const std::shared_ptr<const ov::Model>& model) {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

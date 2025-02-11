@@ -15,6 +15,10 @@ ov::Output<ov::Node> ov::frontend::onnx::NodeContext::get_input(int port_idx) co
     return m_inputs.at(port_idx);
 }
 
+const std::string& ov::frontend::onnx::NodeContext::get_name() const {
+    return m_context.get_name();
+}
+
 ov::Any ov::frontend::onnx::NodeContext::get_attribute_as_any(const std::string& name) const {
     try {
         return m_context.get_attribute_value<ov::Any>(name);

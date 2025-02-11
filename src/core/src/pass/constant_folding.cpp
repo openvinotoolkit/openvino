@@ -7,6 +7,7 @@
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -153,6 +154,7 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                     copy_runtime_info_from_input_values(original_node);
                     // Propagate runtime info attributes to replacement
                     copy_runtime_info(original_node, replacement_ptr);
+                    ov::copy_weightless_cache_attr(original_node, replacement_ptr);
 
                     rewritten = true;
                 }

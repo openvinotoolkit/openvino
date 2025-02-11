@@ -22,8 +22,7 @@ constexpr int CACHE_BLK_K_SIZE = 256;
 // cache blocking sie for M dimension
 constexpr int CACHE_BLK_M_SIZE = 256;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class AutoTileConfiger {
 public:
@@ -551,5 +550,4 @@ public:
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

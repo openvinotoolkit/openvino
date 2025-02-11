@@ -10,9 +10,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 template <typename T>
@@ -1004,6 +1002,4 @@ bool DetectionOutput::created() const {
     return getType() == Type::DetectionOutput;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

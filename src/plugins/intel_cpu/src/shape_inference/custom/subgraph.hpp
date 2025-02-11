@@ -11,9 +11,7 @@
 
 #pragma once
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 using Result = IShapeInfer::Result;
 
 class SnippetShapeInfer : public ShapeInferEmptyPads {
@@ -52,6 +50,4 @@ public:
 private:
     std::shared_ptr<snippets::op::Subgraph> m_subgraph = nullptr;
 };
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
