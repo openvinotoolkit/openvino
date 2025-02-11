@@ -345,7 +345,12 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     const bool applyCommonPassesFlag =
         (compilerVersion.major > 7) || (compilerVersion.major == 7 && compilerVersion.minor >= 2);
     if (applyCommonPassesFlag) {
+        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
         modelAfterPasses = applyCommonPasses(model);
+        std::cout
+            << "Running common passes "
+            << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - begin).count()
+            << "[microseconds]" << std::endl;
 
         _logger.debug("Common OV passes have been applied inside the plugin");
     } else {
