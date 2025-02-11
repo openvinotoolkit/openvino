@@ -1,0 +1,114 @@
+name: ExecuTorch OpenVINO Backend
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'Machine on which the tests would run'
+        type: string
+        required: true
+      container:
+        description: 'JSON to be converted to the value of the "container" configuration for the job'
+        type: string
+        required: false
+        default: '{"image": null}'
+      python-version:
+        description: 'Python version to setup. E.g., "3.11"'
+        type: string
+        required: true
+
+permissions: read-all
+
+env:
+  PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
+
+jobs:
+  ExecuTorch_OpenVINO_Backend:
+    name: ExecuTorch OpenVINO Backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: ${{ 'bash' }}
+    container: ${{ fromJSON(inputs.container) }}
+    env:
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
+      EXECUTORCH_REPO: ${{ github.workspace }}/executorch_repo
+
+    steps:
+      # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      - name: Setup Variables
+        run: |
+          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
+          echo "INSTALL_WHEELS_DIR=$GITHUB_WORKSPACE/install/wheels" >> "$GITHUB_ENV"
+          echo "EXECUTORCH_REPO=$GITHUB_WORKSPACE/executorch" >> "$GITHUB_ENV"
+
+      - name: Fetch setup_python and install wheels actions
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+            .github/actions/install_ov_wheels/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+#      - name: Clone ExecuTorch repository
+#        #uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+#        uses: GuillaumeFalourd/clone-github-repo-action@v2.3
+#        timeout-minutes: 15
+#        with:
+#          #repository: 'ynimmaga/executorch'
+#          repository: 'pytorch/executorch'
+#          #path: ${{ env.EXECUTORCH_REPO }}
+#          #ref: 'openvino_backend'
+#          #branch: 'openvino_backend'
+#          branch: 'main'
+#          #submodules: 'recursive'
+
+      - name: Clone ExecuTorch repository
+        run: |
+          git clone -b openvino_backend https://github.com/ynimmaga/executorch.git
+          cd executorch
+          git submodule update --init --recursive
+          cd ..
+
+      - name: Download OpenVINO artifacts (wheels)
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          pattern: openvino_[wheels|openvino_tokenizers]*
+          path: ${{ env.INSTALL_WHEELS_DIR }}
+          merge-multiple: true
+
+      - name: Setup Python ${{ inputs.python-version }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ inputs.python-version }}
+          pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH_LINUX || env.PIP_CACHE_PATH_WIN }}
+          should-setup-pip-paths: ${{ runner.os != 'macOS' }}
+          self-hosted-runner: ${{ runner.os != 'macOS' }}
+
+      - name: Install OpenVINO Python wheels
+        uses: ./openvino/.github/actions/install_ov_wheels
+        with:
+          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
+          wheels-to-install: 'openvino openvino_tokenizers'
+
+      - name: Build ET-OV
+        run: |
+          source openvino/dist/setupvars.sh
+          python3 -m venv env
+          source env/bin/activate
+          pip install --upgrade pip
+          cd executorch
+          ./install_requirements.sh
+          ./install_executorch.sh
+          cd examples/openvino
+          ./openvino_build.sh
+          cd ../..
+
+      - name: Run tests
+        run: |
+          cd backends/openvino/tests
+          python test_openvino_delegate.py --build_folder ../../../cmake-openvino-out --device CPU --test_type ops
