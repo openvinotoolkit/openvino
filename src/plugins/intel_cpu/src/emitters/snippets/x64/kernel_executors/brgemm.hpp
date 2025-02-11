@@ -6,8 +6,7 @@
 
 #include "brgemm_base.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct BrgemmKernelConfig : public BrgemmBaseKernelConfig {
 public:
@@ -107,5 +106,4 @@ private:
     BrgemmKernelConfig m_config;
 };
 #endif
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

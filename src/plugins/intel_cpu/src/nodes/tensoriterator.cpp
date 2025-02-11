@@ -21,9 +21,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 static NodeConfig make_plain_config(const std::shared_ptr<ov::Node>& op) {
     NodeConfig config;
@@ -475,7 +473,7 @@ void TensorIterator::createPrimitive() {
         std::string type_name = desc->get_type_info().name;
         if (type_name == "ConcatOutputDescription") {
             auto output_desc = ov::as_type_ptr<const ov::op::util::SubGraphOp::ConcatOutputDescription>(desc);
-            OPENVINO_ASSERT(output_desc != nullptr);
+            CPU_NODE_ASSERT(output_desc != nullptr, "Incorrect type of the output description");
 
             outputPortMap.emplace_back(PortMap{static_cast<int>(output_desc->m_output_index),
                                                static_cast<int>(body_output_idx),
@@ -486,7 +484,7 @@ void TensorIterator::createPrimitive() {
                                                static_cast<int>(output_desc->m_part_size)});
         } else if (type_name == "BodyOutputDescription") {
             auto output_desc = ov::as_type_ptr<const ov::op::util::SubGraphOp::BodyOutputDescription>(desc);
-            OPENVINO_ASSERT(output_desc != nullptr);
+            CPU_NODE_ASSERT(output_desc != nullptr, "Incorrect type of the output description");
 
             outputPortMap.emplace_back(PortMap{static_cast<int>(output_desc->m_output_index),
                                                static_cast<int>(body_output_idx),
@@ -1033,6 +1031,4 @@ bool TensorIterator::created() const {
     return getType() == Type::TensorIterator;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
