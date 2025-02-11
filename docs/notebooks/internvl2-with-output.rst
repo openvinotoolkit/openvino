@@ -83,6 +83,11 @@ Prerequisites
     if not Path("cmd_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py")
         open("cmd_helper.py", "w", encoding="utf-8").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("internvl2.ipynb")
 
 Select model
 ------------
@@ -351,7 +356,7 @@ Select inference device
 
     from notebook_utils import device_widget
     
-    device = device_widget(default="AUTO", exclude=["NPU"])
+    device = device_widget(default="CPU", exclude=["NPU", "AUTO"])
     
     device
 

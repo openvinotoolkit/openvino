@@ -12,17 +12,18 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 VectorDims TppEmitter::get_projected_subtensor(const snippets::lowered::PortDescriptorPtr& desc) {
     auto shape = desc->get_shape();
     auto subtensor = desc->get_subtensor();
     // Note: Scalar is a special case, so it's easier to prepend shapes than to handle it explicitly
-    if (shape.size() == 1)
+    if (shape.size() == 1) {
         shape.insert(shape.begin(), 1);
-    if (subtensor.size() == 1)
+    }
+    if (subtensor.size() == 1) {
         subtensor.insert(subtensor.begin(), 1);
+    }
     OV_CPU_JIT_EMITTER_ASSERT(subtensor.size() <= shape.size() && !subtensor.empty(),
                               "Invalid subtensor + shape combination");
     auto shape_it = shape.rbegin();
@@ -50,8 +51,9 @@ TppEmitter::TppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
     io_port_descriptors.resize(num_kernel_args);
     // Note: this is needed mostly for Reduce operations, since they allow the last subternsor dim to be FULL_DIM;
     auto replace_full_dim = [](size_t dim, size_t replace_dim) {
-        if (ov::snippets::utils::is_full_dim_value(dim))
+        if (ov::snippets::utils::is_full_dim_value(dim)) {
             return replace_dim;
+        }
         return dim;
     };
 
@@ -102,8 +104,9 @@ void TppEmitter::emit_impl(const std::vector<size_t>& in, const std::vector<size
 
     const auto data_ptr_reg = [&](Xmm xmm, Xbyak::Reg64 reg, size_t bytes_offset) {
         h->uni_vmovq(reg, xmm);
-        if (bytes_offset)
+        if (bytes_offset) {
             h->add(reg, bytes_offset);
+        }
     };
     const auto& compiled_kernel = get_compiled_kernel_ptr();
     OV_CPU_JIT_EMITTER_ASSERT(compiled_kernel, "Failed to compile libxsmm_kernel");
@@ -137,5 +140,4 @@ libxsmm_datatype TppEmitter::ov_to_xsmm_dtype(ov::element::Type_t elemet_type) {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

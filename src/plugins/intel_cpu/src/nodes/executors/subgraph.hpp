@@ -10,8 +10,7 @@
 #include "snippets/generator.hpp"
 #include "snippets/op/subgraph.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct SubgraphAttrs {
     // Local copy of subgraph node for canonization & code generation
@@ -73,8 +72,9 @@ protected:
     virtual void parallel_forNd(const initializer_functor& initializer, const call_functor& caller);
 
     inline void update_scratchpad_ptr(void*& scratchpad_ptr, size_t ithr) const {
-        if (m_buffer_scratchpad_size > 0)
+        if (m_buffer_scratchpad_size > 0) {
             scratchpad_ptr = m_buffer_scratchpad->getDataAs<uint8_t>() + ithr * m_buffer_scratchpad_size;
+        }
     }
 
     std::shared_ptr<snippets::Schedule> m_schedule;
@@ -113,11 +113,13 @@ protected:
                                const std::vector<ptrdiff_t>& start_offset_in,
                                const std::vector<ptrdiff_t>& start_offset_out,
                                size_t ithr) {
-        for (size_t i = 0; i < srcMemPtrs.size(); i++)
+        for (size_t i = 0; i < srcMemPtrs.size(); i++) {
             call_args.src_ptrs[i] = srcMemPtrs[i]->getDataAs<const uint8_t>() + start_offset_in[i];
+        }
 
-        for (size_t i = 0; i < dstMemPtrs.size(); i++)
+        for (size_t i = 0; i < dstMemPtrs.size(); i++) {
             call_args.dst_ptrs[i] = dstMemPtrs[i]->getDataAs<uint8_t>() + start_offset_out[i];
+        }
     }
 };
 
@@ -152,10 +154,12 @@ protected:
         src_ptrs.resize(in_num, nullptr);
         dst_ptrs.resize(out_num, nullptr);
 
-        for (size_t i = 0; i < in_num; i++)
+        for (size_t i = 0; i < in_num; i++) {
             src_ptrs[i] = srcMemPtrs[i]->getDataAs<const uint8_t>() + start_offset_in[i];
-        for (size_t i = 0; i < out_num; i++)
+        }
+        for (size_t i = 0; i < out_num; i++) {
             dst_ptrs[i] = dstMemPtrs[i]->getDataAs<uint8_t>() + start_offset_out[i];
+        }
     }
 
     inline void update_ptrs(jit_snippets_call_args& call_args,
@@ -184,5 +188,4 @@ protected:
     std::function<void()> m_reset_exec_table_state;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

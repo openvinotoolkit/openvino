@@ -11,18 +11,16 @@
 #include "snippets/utils/utils.hpp"
 #include "transformations/tpp/x64/op/brgemm.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
-namespace pass {
+namespace ov::intel_cpu::tpp::pass {
 using namespace ov::snippets::utils;
 
 bool BrgemmTPPBlocking::SetBrgemmBeta::run(ov::snippets::lowered::LinearIR& linear_ir,
                                            ov::snippets::lowered::LinearIR::constExprIt begin,
                                            ov::snippets::lowered::LinearIR::constExprIt end) {
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
-        if (const auto brgemm = ov::as_type_ptr<ov::intel_cpu::tpp::op::BrgemmTPP>(expr_it->get()->get_node()))
+        if (const auto brgemm = ov::as_type_ptr<ov::intel_cpu::tpp::op::BrgemmTPP>(expr_it->get()->get_node())) {
             brgemm->set_beta(0);
+        }
     }
     return true;
 }
@@ -55,7 +53,4 @@ ov::snippets::lowered::SpecificIterationHandlers BrgemmTPPBlocking::get_k_loop_h
     handlers.register_pass<ov::snippets::lowered::SpecificLoopIterType::FIRST_ITER, SetBrgemmBeta>();
     return handlers;
 }
-}  // namespace pass
-}  // namespace tpp
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::tpp::pass
