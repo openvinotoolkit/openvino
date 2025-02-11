@@ -9,7 +9,7 @@
 #include <limits>
 
 #include "openvino/core/type/float_util.hpp"
-#include "openvino/reference/fake_convert.hpp"
+#include "openvino/core/type/float16.hpp"
 
 namespace ov {
 
@@ -122,18 +122,13 @@ uint8_t f16_to_f8e4m3_bits(const float16 value) {
 
     return f8_bits;
 }
-
-uint8_t f32_to_f8e4m3_bits(const float value) {
-    auto f16 = static_cast<float16>(value);
-    return f16_to_f8e4m3_bits(f16);
-}
 }  // namespace
 
 float8_e4m3::float8_e4m3(const uint32_t sign, const uint32_t biased_exponent, const uint32_t fraction)
     : m_value(((sign & 0x01U) << (f8e4m3_e_size + f8e4m3_m_size)) |
               (biased_exponent & (f8e4m3_e_mask >> f8e4m3_m_size)) << f8e4m3_m_size | (fraction & f8e4m3_m_mask)) {}
 
-float8_e4m3::float8_e4m3(const float value) : m_value{f32_to_f8e4m3_bits(value)} {}
+float8_e4m3::float8_e4m3(const float value) : m_value{f16_to_f8e4m3_bits(static_cast<float16>(value))} {}
 
 float8_e4m3::operator float() const {
     auto f32_bits = util::f32_to_u32_bits(f8_to_float_lut[m_value & (f8e4m3_e_mask | f8e4m3_m_mask)]);
