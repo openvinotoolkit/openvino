@@ -45,6 +45,7 @@
 #include "transforms/tuple_unpack_replacer.hpp"
 #include "transforms/u4_block_repack.hpp"
 #include "translate_session.hpp"
+#include "operators/vstack_hstack.hpp"
 
 namespace ov {
 namespace frontend {
@@ -287,6 +288,12 @@ std::map<std::string, CreatorFunction> FrontEnd::get_supported_ops(const ov::fro
     for (auto i = m_op_extension_translators.begin(); i != m_op_extension_translators.end(); i++)
         supported_ops[i->first] = i->second;
     return supported_ops;
+}
+
+void FrontEnd::configure_opset() {
+    // Register vstack and hstack operators
+    register_operator(std::make_shared<op::VStackConverter>());
+    register_operator(std::make_shared<op::HStackConverter>());
 }
 
 }  // namespace pytorch
