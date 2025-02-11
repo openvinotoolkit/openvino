@@ -9,6 +9,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class aten_logit(torch.nn.Module):
     def __init__(self, eps=None):
+        super().__init__()
         self.eps = eps
 
     def forward(self, input_tensor):
