@@ -15,7 +15,7 @@ using namespace ov;
 
 TEST_F(TransformationTestsF, Einsum_2in_matmul) {
     PartialShape data_shape_1{5, 2};
-    PartialShape data_shape_2{10, 2, 25};
+    PartialShape data_shape_2{10, 1, 25};
     {
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
         auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
@@ -26,9 +26,13 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul) {
     {
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
         auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
+
+        // Transpose data_2 so that common labels, separated and reduced labels are grouped for both operands.
         auto order_2 = ov::op::v0::Constant::create(element::i64, {3}, {0, 2, 1});
         auto transpose_2 = std::make_shared<ov::op::v1::Transpose>(data_2, order_2);
 
+        // Broadcast data_1 and data_2 to common broadcasted shapes for common and reduced subshapes.
+        // Subgraphes are constant-folded, target subshapes are calculated broadcast_merge_shapes function.
         auto broadcast_shape_constant_1 =
             ov::op::v0::Constant::create(element::i64, Shape{data_shape_1.size()}, {5, 2});
         auto broadcast_shape_constant_2 =
@@ -39,13 +43,19 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul) {
         auto broadcast_2 = std::make_shared<ov::op::v3::Broadcast>(transpose_2,
                                                                    broadcast_shape_constant_2,
                                                                    ov::op::BroadcastType::BIDIRECTIONAL);
+        // Optionally reshape broadcasted data_1 and data_2 so separate and reduced labels are represented by one
+        // dimension. Subgraphes are constant-folded, target subshapes are calculated broadcast_merge_shapes function.
         auto shape_constant_1 = ov::op::v0::Constant::create(element::i64, Shape{2}, {5, 2});
         auto shape_constant_2 = ov::op::v0::Constant::create(element::i64, Shape{2}, {250, 2});
         auto reshape_1 = std::make_shared<ov::op::v1::Reshape>(broadcast_1, shape_constant_1, false);
         auto reshape_2 = std::make_shared<ov::op::v1::Reshape>(broadcast_2, shape_constant_2, false);
+        // Apply MatMul operation for formatted inputs.
         auto matmul = std::make_shared<ov::op::v0::MatMul>(reshape_1, reshape_2, false, true);
+        // Optionally reshape back by unrolling dimensions corresponding to separate labels if needed.
+        // Subgraphes are constant-folded, target subshapes are calculated broadcast_merge_shapes function.
         auto shape_out = ov::op::v0::Constant::create(element::i64, {3}, {5, 10, 25});
         auto reshape_out = std::make_shared<ov::op::v1::Reshape>(matmul, shape_out, false);
+        // Transpose to the original order of output labels.
         auto order_out = ov::op::v0::Constant::create(element::i64, {3}, {1, 0, 2});
         auto transpose_out = std::make_shared<ov::op::v1::Transpose>(reshape_out, order_out);
 
@@ -65,35 +75,20 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul_dynamic) {
     }
     {
         using namespace ov::gen_pattern;
-        auto node_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
-        auto node_0 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
-        auto ShapeOf_487 = makeOP<opset3::ShapeOf>({node_2}, {{"output_type", "i64"}});
-        auto Constant_507 = makeConst(element::i64,
+        auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
+        auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
+        // Transpose data_2 so that common labels, separated and reduced labels are grouped for both operands.
+        auto Constant_485 = makeConst(element::i64,
                                       ov::Shape({
-                                          1,
+                                          3,
                                       }),
-                                      {0});
-        auto Constant_508 = makeConst(element::i64,
-                                      ov::Shape({
-                                          1,
-                                      }),
-                                      {1});
-        auto Constant_510 = makeConst(element::i64,
-                                      ov::Shape({
-                                          1,
-                                      }),
-                                      {1});
-        auto StridedSlice_511 = makeOP<opset1::StridedSlice>({ShapeOf_487, Constant_507, Constant_508, Constant_510},
-                                                             {{"begin_mask", {0}},
-                                                              {"end_mask", {0}},
-                                                              {"new_axis_mask", {}},
-                                                              {"shrink_axis_mask", {}},
-                                                              {"ellipsis_mask", {}}});
-        auto Constant_499 = makeConst(element::i64,
-                                      ov::Shape({
-                                          1,
-                                      }),
-                                      {1});
+                                      {0, 2, 1});
+        auto Transpose_486 = makeOP<opset1::Transpose>({data_2, Constant_485});
+        // Get shapes of data_1 and data_2.
+        auto ShapeOf_data_1 = makeOP<opset3::ShapeOf>({data_1}, {{"output_type", "i64"}});
+        auto ShapeOf_data_2 = makeOP<opset3::ShapeOf>({Transpose_486}, {{"output_type", "i64"}});
+
+        // Get reduced subshape for data_1.
         auto Constant_489 = makeConst(element::i64,
                                       ov::Shape({
                                           1,
@@ -109,20 +104,13 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul_dynamic) {
                                           1,
                                       }),
                                       {1});
-        auto StridedSlice_493 = makeOP<opset1::StridedSlice>({ShapeOf_487, Constant_489, Constant_490, Constant_492},
-                                                             {{"begin_mask", {0}},
-                                                              {"end_mask", {0}},
-                                                              {"new_axis_mask", {}},
-                                                              {"shrink_axis_mask", {}},
-                                                              {"ellipsis_mask", {}}});
-        auto Broadcast_500 = makeOP<opset3::Broadcast>({Constant_499, StridedSlice_493}, {{"mode", "numpy"}});
-        auto Constant_485 = makeConst(element::i64,
-                                      ov::Shape({
-                                          3,
-                                      }),
-                                      {0, 2, 1});
-        auto Transpose_486 = makeOP<opset1::Transpose>({node_0, Constant_485});
-        auto ShapeOf_488 = makeOP<opset3::ShapeOf>({Transpose_486}, {{"output_type", "i64"}});
+        auto reduced1 = makeOP<opset1::StridedSlice>({ShapeOf_data_1, Constant_489, Constant_490, Constant_492},
+                                                     {{"begin_mask", {0}},
+                                                      {"end_mask", {0}},
+                                                      {"new_axis_mask", {}},
+                                                      {"shrink_axis_mask", {}},
+                                                      {"ellipsis_mask", {}}});
+        // Get reduced subshape for data_2.
         auto Constant_494 = makeConst(element::i64,
                                       ov::Shape({
                                           1,
@@ -138,25 +126,49 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul_dynamic) {
                                           1,
                                       }),
                                       {1});
-        auto StridedSlice_498 = makeOP<opset1::StridedSlice>({ShapeOf_488, Constant_494, Constant_495, Constant_497},
-                                                             {{"begin_mask", {0}},
-                                                              {"end_mask", {0}},
-                                                              {"new_axis_mask", {}},
-                                                              {"shrink_axis_mask", {}},
-                                                              {"ellipsis_mask", {}}});
-        auto Broadcast_503 = makeOP<opset3::Broadcast>({Broadcast_500, StridedSlice_498}, {{"mode", "bidirectional"}});
-        auto ShapeOf_506 = makeOP<opset3::ShapeOf>({Broadcast_503}, {{"output_type", "i64"}});
-        auto Concat_512 = makeOP<opset1::Concat>({StridedSlice_511, ShapeOf_506}, {{"axis", 0}});
-        auto Broadcast_513 = makeOP<opset3::Broadcast>({node_2, Concat_512}, {{"mode", "bidirectional"}});
-        auto Constant_525 = makeConst(element::i64,
+        auto reduced_2 = makeOP<opset1::StridedSlice>({ShapeOf_data_2, Constant_494, Constant_495, Constant_497},
+                                                      {{"begin_mask", {0}},
+                                                       {"end_mask", {0}},
+                                                       {"new_axis_mask", {}},
+                                                       {"shrink_axis_mask", {}},
+                                                       {"ellipsis_mask", {}}});
+
+        // broadcast_merge_shapes(reduced1, reduced_2)
+        auto Constant_499 = makeConst(element::i64,
+                                      ov::Shape({
+                                          1,
+                                      }),
+                                      {1});
+        auto Broadcast_500 = makeOP<opset3::Broadcast>({Constant_499, reduced1}, {{"mode", "numpy"}});
+        auto Broadcast_503 = makeOP<opset3::Broadcast>({Broadcast_500, reduced_2}, {{"mode", "bidirectional"}});
+        auto reduced_subshape_broadcast_merge_shapes =
+            makeOP<opset3::ShapeOf>({Broadcast_503}, {{"output_type", "i64"}});
+
+        // Extract separate subshape for data_1.
+        auto Constant_507 = makeConst(element::i64,
                                       ov::Shape({
                                           1,
                                       }),
                                       {0});
-        auto ReduceProd_526 = makeOP<opset1::ReduceProd>({StridedSlice_511, Constant_525}, {{"keep_dims", true}});
-        auto ReduceProd_528 = makeOP<opset1::ReduceProd>({ShapeOf_506, {0}}, {{"keep_dims", true}});
-        auto Concat_529 = makeOP<opset1::Concat>({ReduceProd_526, ReduceProd_528}, {{"axis", 0}});
-        auto Reshape_530 = makeOP<opset1::Reshape>({Broadcast_513, Concat_529}, {{"special_zero", false}});
+        auto Constant_508 = makeConst(element::i64,
+                                      ov::Shape({
+                                          1,
+                                      }),
+                                      {1});
+        auto Constant_510 = makeConst(element::i64,
+                                      ov::Shape({
+                                          1,
+                                      }),
+                                      {1});
+        auto separate1_subshape =
+            makeOP<opset1::StridedSlice>({ShapeOf_data_1, Constant_507, Constant_508, Constant_510},
+                                         {{"begin_mask", {0}},
+                                          {"end_mask", {0}},
+                                          {"new_axis_mask", {}},
+                                          {"shrink_axis_mask", {}},
+                                          {"ellipsis_mask", {}}});
+
+        // Extract separate subshape for data_2.
         auto Constant_516 = makeConst(element::i64,
                                       ov::Shape({
                                           1,
@@ -172,30 +184,65 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul_dynamic) {
                                           1,
                                       }),
                                       {1});
-        auto StridedSlice_520 = makeOP<opset1::StridedSlice>({ShapeOf_488, Constant_516, Constant_517, Constant_519},
-                                                             {{"begin_mask", {0}},
-                                                              {"end_mask", {0}},
-                                                              {"new_axis_mask", {}},
-                                                              {"shrink_axis_mask", {}},
-                                                              {"ellipsis_mask", {}}});
-        auto Concat_521 = makeOP<opset1::Concat>({StridedSlice_520, ShapeOf_506}, {{"axis", 0}});
-        auto Broadcast_522 = makeOP<opset3::Broadcast>({Transpose_486, Concat_521}, {{"mode", "bidirectional"}});
+        auto separate2_subshape =
+            makeOP<opset1::StridedSlice>({ShapeOf_data_2, Constant_516, Constant_517, Constant_519},
+                                         {{"begin_mask", {0}},
+                                          {"end_mask", {0}},
+                                          {"new_axis_mask", {}},
+                                          {"shrink_axis_mask", {}},
+                                          {"ellipsis_mask", {}}});
+
+        // Broadcast data_1 and data_2 based on caluculated subshapes.
+        auto Concat_512 =
+            makeOP<opset1::Concat>({separate1_subshape, reduced_subshape_broadcast_merge_shapes}, {{"axis", 0}});
+        auto Broadcast_data_1 = makeOP<opset3::Broadcast>({data_1, Concat_512}, {{"mode", "bidirectional"}});
+        auto Concat_521 =
+            makeOP<opset1::Concat>({separate2_subshape, reduced_subshape_broadcast_merge_shapes}, {{"axis", 0}});
+        auto Broadcast_data_2 = makeOP<opset3::Broadcast>({Transpose_486, Concat_521}, {{"mode", "bidirectional"}});
+
+        // Optionally reshape broadcasted data_1 and data_2 so separate and reduced labels are represented by one
+        // dimension. Subgraphes are constant-folded, target subshapes are calculated broadcast_merge_shapes function.
+        // Reshape 1
+        auto Constant_525 = makeConst(element::i64,
+                                      ov::Shape({
+                                          1,
+                                      }),
+                                      {0});
+        // Reduce separate and reduced
+        auto Separate1_subshape_red =
+            makeOP<opset1::ReduceProd>({separate1_subshape, Constant_525}, {{"keep_dims", true}});
+        auto Reduced1_subshape_red =
+            makeOP<opset1::ReduceProd>({reduced_subshape_broadcast_merge_shapes, {0}}, {{"keep_dims", true}});
+        // Merge subshapes
+        auto reshape_subshape1 = makeOP<opset1::Concat>({Separate1_subshape_red, Reduced1_subshape_red}, {{"axis", 0}});
+        auto Reshape_1 = makeOP<opset1::Reshape>({Broadcast_data_1, reshape_subshape1}, {{"special_zero", false}});
+        // Reshape 2
         auto Constant_569 = makeConst(element::i64,
                                       ov::Shape({
                                           1,
                                       }),
                                       {0});
-        auto ReduceProd_570 = makeOP<opset1::ReduceProd>({StridedSlice_520, Constant_569}, {{"keep_dims", true}});
-        auto ReduceProd_572 = makeOP<opset1::ReduceProd>({ShapeOf_506, {0}}, {{"keep_dims", true}});
-        auto Concat_573 = makeOP<opset1::Concat>({ReduceProd_570, ReduceProd_572}, {{"axis", 0}});
-        auto Reshape_574 = makeOP<opset1::Reshape>({Broadcast_522, Concat_573}, {{"special_zero", false}});
-        auto matmul = std::make_shared<ov::op::v0::MatMul>(Reshape_530, Reshape_574, false, true);
-        auto shape_out = makeOP<opset1::Concat>({StridedSlice_511, StridedSlice_520}, {{"axis", 0}});
+        // Reduce separate and reduced
+        auto Separate2_subshape_red =
+            makeOP<opset1::ReduceProd>({separate2_subshape, Constant_569}, {{"keep_dims", true}});
+        auto Reduced2_subshape_red =
+            makeOP<opset1::ReduceProd>({reduced_subshape_broadcast_merge_shapes, {0}}, {{"keep_dims", true}});
+        // Merge subshapes
+        auto reshape_subshape2 = makeOP<opset1::Concat>({Separate2_subshape_red, Reduced2_subshape_red}, {{"axis", 0}});
+        auto Reshape_2 = makeOP<opset1::Reshape>({Broadcast_data_2, reshape_subshape2}, {{"special_zero", false}});
+
+        // Apply MatMul operation for formatted inputs.
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(Reshape_1, Reshape_2, false, true);
+
+        // Optionally reshape back by unrolling dimensions corresponding to separate labels if needed.
+        // Target subshapes are calculated broadcast_merge_shapes function and concatenated.
+        auto shape_out = makeOP<opset1::Concat>({separate1_subshape, separate2_subshape}, {{"axis", 0}});
         auto reshape_out = std::make_shared<ov::op::v1::Reshape>(matmul, shape_out, false);
+        // Transpose to the original order of output labels.
         auto order_out = ov::op::v0::Constant::create(element::i64, {3}, {1, 0, 2});
         auto transpose_out = std::make_shared<ov::op::v1::Transpose>(reshape_out, order_out);
 
-        model_ref = std::make_shared<Model>(NodeVector{transpose_out}, ParameterVector{node_2, node_0});
+        model_ref = std::make_shared<Model>(NodeVector{transpose_out}, ParameterVector{data_1, data_2});
     }
 }
 
