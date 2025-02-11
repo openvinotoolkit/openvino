@@ -133,7 +133,7 @@ static void iterate_files_worker(const std::string& path,
         try {
             while ((ent = readdir(dir)) != nullptr) {
                 std::string name = ent->d_name;
-                std::string path_name = ov::util::path_join({path, name}).string();
+                std::string path_name = ov::util::path_join({path, name});
                 switch (ent->d_type) {
                 case DT_DIR:
                     if (name != "." && name != "..") {
@@ -476,7 +476,7 @@ ov::util::FilePath ov::util::get_plugin_path(const std::string& plugin, const st
 
     auto xml_path_ = xml_path;
     if (xml_path.find(ov::util::FileTraits<char>::file_separator) == std::string::npos)
-        xml_path_ = ov::util::path_join({std::string("."), xml_path});  // treat plugins.xml as CWD/plugins.xml
+        xml_path_ = ov::util::path_join({".", xml_path});  // treat plugins.xml as CWD/plugins.xml
 
     // For 2nd case
     if (plugin.find(ov::util::FileTraits<char>::file_separator) != std::string::npos) {
