@@ -21,15 +21,16 @@ permissions: read-all
 
 env:
   PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
+  PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
 
 jobs:
   ExecuTorch_OpenVINO_Backend:
     name: ExecuTorch OpenVINO Backend
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 30
     defaults:
       run:
-        shell: ${{ 'bash' }}
+        shell: ${{ contains(inputs.runner, 'win') && 'pwsh' || 'bash' }}
     container: ${{ fromJSON(inputs.container) }}
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
@@ -98,9 +99,6 @@ jobs:
       - name: Build ET-OV
         run: |
           source openvino/dist/setupvars.sh
-          python3 -m venv env
-          source env/bin/activate
-          pip install --upgrade pip
           cd executorch
           ./install_requirements.sh
           ./install_executorch.sh
