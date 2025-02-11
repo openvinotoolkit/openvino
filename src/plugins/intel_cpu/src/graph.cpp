@@ -52,6 +52,7 @@
 #include "utils/node_dumper.h"
 #include "utils/precision_support.h"
 #include "utils/verbose.h"
+#include "nodes/linux_perf.hpp"
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #    include <tbb/task.h>
@@ -123,6 +124,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "Graph::Replicate", "ov::Model");
 
     this->_name = model->get_friendly_name();
+    LinuxPerf::Init();
 
     // Map data object onto producer node
     std::map<std::shared_ptr<ov::Node>, NodePtr> op2node;
@@ -1340,6 +1342,7 @@ VecMemoryDescs Graph::getOutputMemoryDescriptors() const {
 
 void Graph::InferStatic(SyncInferRequest* request, int numaId) {
     for (const auto& node : m_executableGraphNodes) {
+        auto perf1 = LinuxPerf::Profile(node->getTypeStr());
         ExecuteNodeWithCatch(node, request, numaId);
     }
 }
@@ -1448,6 +1451,7 @@ public:
     using UpdateNodesBase::UpdateNodesBase;
 
     void operator()(size_t stopIndx) {
+        //auto perf1 = LinuxPerf::Profile("UpdateNodes");
         m_completion.store(false);
         auto startCounter = m_prepareCounter.load();
         tbb::detail::d1::wait_context wait_ctx(2);
@@ -1492,6 +1496,7 @@ class UpdateNodes : public UpdateNodesBase {
 public:
     using UpdateNodesBase::UpdateNodesBase;
     void operator()(size_t stopIndx) {
+        //auto perf1 = LinuxPerf::Profile("UpdateNodes");
         m_completion.store(false);
         auto startCounter = m_prepareCounter.load();
         tbb::task& root = *new (tbb::task::allocate_root()) tbb::empty_task;
@@ -1593,6 +1598,7 @@ inline void Graph::ExecuteNode(const NodePtr& node, SyncInferRequest* request, i
 
 inline void Graph::ExecuteNodeWithCatch(const NodePtr& node, SyncInferRequest* request, int numaId) const {
     VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(itt::domains::intel_cpu, node, getConfig());
+    //auto perf1 = LinuxPerf::Profile(node->getTypeStr());
 
     try {
         ExecuteNode(node, request, numaId);
@@ -1606,11 +1612,17 @@ inline void Graph::ExecuteNodeWithCatch(const NodePtr& node, SyncInferRequest* r
 template <typename UpdateStrategy>
 void Graph::InferDynamic(SyncInferRequest* request, int numaId, UpdateStrategy&& update) {
     size_t inferCounter = 0;
+    static size_t idx = 0;
+    auto perf = LinuxPerf::Profile(std::string("Graph::InferDynamic_#"), idx++);
     for (auto stopIndx : m_executableSyncNodesInds) {
-        update(stopIndx);
-
+        {
+            auto perf1 = LinuxPerf::Profile("update");
+            update(stopIndx);
+        }
         for (; inferCounter < stopIndx; ++inferCounter) {
             auto& node = m_executableGraphNodes[inferCounter];
+            // auto perf1 = LinuxPerf::Profile(node->getTypeStr() + "_" + node->getName());
+            auto perf1 = LinuxPerf::Profile(node->getTypeStr());
 
             ExecuteNodeWithCatch(node, request, numaId);
         }
