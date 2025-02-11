@@ -40,9 +40,7 @@ using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 #if defined(OPENVINO_ARCH_X86_64)
 #    define GET_OFF(field) offsetof(jit_quantize_call_args, field)
 
@@ -1217,7 +1215,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
             if (isInputLowBroadcasted) {
                 binarizationThresholds.push_back(inputLowData[0]);
             } else {
-                OPENVINO_ASSERT(axisSize != -1);
+                CPU_NODE_ASSERT(axisSize != -1, "axisSize is not set");
                 binarizationThresholds.resize(rnd_up(axisSize, 16));
                 for (int i = 0; i < axisSize; i++) {
                     binarizationThresholds[i] = inputLowData[i];
@@ -1227,7 +1225,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
             if (isOutputHighBroadcasted) {
                 binarizationOutputMask.push_back(outputHighData[0] == 1.f ? 0xffffffff : 0x00000000);
             } else {
-                OPENVINO_ASSERT(axisSize != -1);
+                CPU_NODE_ASSERT(axisSize != -1, "axisSize is not set");
                 binarizationOutputMask.resize(rnd_up(axisSize, 16));
                 for (int i = 0; i < axisSize; i++) {
                     binarizationOutputMask[i] = outputHighData[i] == 1.f ? 0xffffffff : 0x00000000;
@@ -1327,13 +1325,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
 #if defined(VALIDATE_QUANTIZATION_RANGES)
                 if ((il == ih && levels != 2) || il > ih || std::isnan(il) || std::isnan(ih) || std::isinf(il) ||
                     std::isinf(ih)) {
-                    OPENVINO_THROW("Quantize layer with name '",
-                                   getName(),
-                                   "' has invalid input quantize ranges: ",
-                                   "inputLow = ",
-                                   il,
-                                   ", inputHigh = ",
-                                   ih);
+                    THROW_CPU_NODE_ERR("has invalid input quantize ranges: ", "inputLow = ", il, ", inputHigh = ", ih);
                 }
 #endif
 #ifdef FQ_DOUBLE_PRECISION
@@ -1351,13 +1343,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
 
 #if defined(VALIDATE_QUANTIZATION_RANGES)
                 if (std::isnan(ol) || std::isnan(oh) || std::isinf(ol) || std::isinf(oh)) {
-                    OPENVINO_THROW("Quantize layer with name '",
-                                   getName(),
-                                   "' has wrong output quantize ranges: ",
-                                   "outputLow = ",
-                                   ol,
-                                   ", outputHigh = ",
-                                   oh);
+                    THROW_CPU_NODE_ERR("has wrong output quantize ranges: ", "outputLow = ", ol, ", outputHigh = ", oh);
                 }
 #endif
 #ifdef FQ_DOUBLE_PRECISION
@@ -1553,7 +1539,7 @@ bool FakeQuantize::needPrepareParams() const {
     if (isBinarization()) {
         auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
         if (!selectedPrimitiveDescriptor) {
-            OPENVINO_THROW("CPU quantize node with name '", getName(), "' doesn't have primitive descriptors.");
+            THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
         }
 
         if (internalBlobMemory.empty() ||
@@ -1575,7 +1561,7 @@ void FakeQuantize::prepareParams() {
     if (isBinarization()) {
         const size_t axisSize = getParentEdgeAt(0)->getMemory().getShape().getStaticDims()[getAxis()];
         const size_t newPaddedSize = rnd_up(axisSize, 16);
-        OPENVINO_ASSERT(newPaddedSize != 0);
+        CPU_NODE_ASSERT(newPaddedSize != 0, "newPaddedSize is 0");
 
         if (internalBlobMemory.empty() || newPaddedSize != rnd_up(currentAxisSize, 16) ||
             ((isInputLowBroadcasted || isOutputHighBroadcasted) && axisSize != currentAxisSize)) {
@@ -1630,7 +1616,7 @@ void FakeQuantize::createPrimitive() {
     Node::createPrimitive();
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor) {
-        OPENVINO_THROW("CPU quantize node with name '", getName(), "' doesn't have primitive descriptors.");
+        THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
     if (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref) {
         const auto& config = getSelectedPrimitiveDescriptor()->getConfig();
@@ -2152,7 +2138,7 @@ void FakeQuantize::appendPostOps(dnnl::post_ops& ops,
     std::vector<MemoryPtr> postOpsMemPtrs;
     appendPostOpsImpl(ops, postOpDims, postOpsMemPtrs);
 
-    OPENVINO_ASSERT(postOpsMemPtrs.size() <= 1, "at most 1 post ops memory args can be appended.");
+    CPU_NODE_ASSERT(postOpsMemPtrs.size() <= 1, "at most 1 post ops memory args can be appended.");
 
     if (!postOpsMemPtrs.empty()) {
         postOpsMem[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = postOpsMemPtrs[0];
@@ -2199,12 +2185,12 @@ void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
                           outputScale.size(),
                           outputShift.size()});
 
-    OPENVINO_ASSERT(inputScale.size() == 1 || inputScale.size() == OC);
-    OPENVINO_ASSERT(inputShift.size() == 1 || inputShift.size() == OC);
-    OPENVINO_ASSERT(cropLow.size() == 1 || cropLow.size() == OC);
-    OPENVINO_ASSERT(cropHigh.size() == 1 || cropHigh.size() == OC);
-    OPENVINO_ASSERT(outputScale.size() == 1 || outputScale.size() == OC);
-    OPENVINO_ASSERT(outputShift.size() == 1 || outputShift.size() == OC);
+    CPU_NODE_ASSERT(inputScale.size() == 1 || inputScale.size() == OC, "inputScale.size() == ", inputScale.size());
+    CPU_NODE_ASSERT(inputShift.size() == 1 || inputShift.size() == OC, "inputShift.size() == ", inputShift.size());
+    CPU_NODE_ASSERT(cropLow.size() == 1 || cropLow.size() == OC, "cropLow.size() == ", cropLow.size());
+    CPU_NODE_ASSERT(cropHigh.size() == 1 || cropHigh.size() == OC, "cropHigh.size() == ", cropHigh.size());
+    CPU_NODE_ASSERT(outputScale.size() == 1 || outputScale.size() == OC, "outputScale.size() == ", outputScale.size());
+    CPU_NODE_ASSERT(outputShift.size() == 1 || outputShift.size() == OC, "outputShift.size() == ", outputShift.size());
 
     // WA: a per-Tensor input shift may little drift away randomly
     //     from it's orginal value when FQ was fused with any
@@ -2431,6 +2417,4 @@ bool FakeQuantize::created() const {
     return getType() == Type::FakeQuantize;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
