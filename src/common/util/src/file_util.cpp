@@ -113,9 +113,9 @@ ov::util::Path path_join(Container&& paths) {
     return joined_path;
 }
 
-std::string ov::util::path_join(std::initializer_list<ov::util::Path>&& paths) {
-    // TODO: Remove string() / wstring() casts on function call site
-    return ::path_join<>(std::move(paths)).string();
+// TODO: Remove string() / wstring() casts on function call site
+ov::util::Path ov::util::path_join(std::initializer_list<ov::util::Path>&& paths) {
+    return ::path_join<>(std::move(paths));
 }
 
 std::wstring ov::util::path_join_w(std::initializer_list<std::wstring>&& paths) {
