@@ -109,13 +109,9 @@ jobs:
       - name: Run tests
         run: |
           cd executorch/backends/openvino/tests
-          echo "ls ../../..:"
-          ls ../../..
-          echo "ls ../../../cmake-openvino-out:"
-          ls ../../../cmake-openvino-out
-          echo "ls ../../../cmake-openvino-out/examples:"
-          ls ../../../cmake-openvino-out/examples
-          echo "ls ../../../cmake-openvino-out/examples/openvino:"
-          ls ../../../cmake-openvino-out/examples/openvino
+          echo "github_workspace:"
+          ls ${{ github.workspace }}
+          echo "github_workspace/executorch:"
+          ls ${{ github.workspace }}/executorch
           python test_openvino_delegate.py --build_folder ../../../cmake-openvino-out --device CPU --test_type ops
           python test_openvino_delegate.py --build_folder ../../../cmake-openvino-out --device CPU --test_type models
