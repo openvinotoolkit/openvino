@@ -12,9 +12,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/opsets/opset3.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool Bucketize::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -221,6 +219,10 @@ void Bucketize::prepareParams() {
                                  std::multiplies<size_t>());
 }
 
+bool Bucketize::neverExecute() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0);
+}
+
 bool Bucketize::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
@@ -253,6 +255,4 @@ bool Bucketize::created() const {
     return getType() == Type::Bucketize;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

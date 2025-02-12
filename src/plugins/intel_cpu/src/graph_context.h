@@ -7,6 +7,7 @@
 #include "cache/multi_cache.h"
 #include "config.h"
 #include "dnnl_scratch_pad.h"
+#include "memory_control.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "sub_memory_manager.hpp"
 #include "weights_cache.hpp"
@@ -18,6 +19,7 @@ namespace node {
 class MemoryStatesRegister;
 }  // namespace node
 
+class MemoryControl;
 class NetworkMemoryControl;
 
 class GraphContext {
@@ -73,33 +75,55 @@ public:
         return m_memoryStatesRegister;
     }
 
-    const std::shared_ptr<NetworkMemoryControl>& getNetworkMemoryControl() const {
-        return m_networkMemoryControl;
+    const std::shared_ptr<MemoryControl>& getMemoryControl() const {
+        return m_memoryControl;
+    }
+
+    const std::shared_ptr<NetworkMemoryControl>& getAuxiliaryNetworkMemoryControl() const {
+        return m_auxiliaryNetworkMemoryControl;
+    }
+
+    void releaseMemory() const {
+        m_auxiliaryNetworkMemoryControl->releaseMemory();
+    }
+
+    void allocateMemory() const {
+        for (const auto& controlUnit : m_auxiliaryNetworkMemoryControl->controlUnits()) {
+            if (!controlUnit->allocated()) {
+                controlUnit->allocateMemory();
+            }
+        }
     }
 
 private:
-    Config m_config;  // network-level config
-
-    WeightsSharing::Ptr m_weightsCache;  // per NUMA node caches for sharing weights data
-
-    MultiCachePtr m_rtParamsCache;     // primitive cache
-    DnnlScratchPadPtr m_rtScratchPad;  // scratch pad
+    // model-level config
+    Config m_config;
+    // per NUMA node caches for sharing weights data
+    WeightsSharing::Ptr m_weightsCache;
+    // primitive cache
+    MultiCachePtr m_rtParamsCache;
+    // global scratch pad
+    DnnlScratchPadPtr m_rtScratchPad;
 
     bool m_isGraphQuantizedFlag = false;
-
-    std::vector<DnnlScratchPadPtr> m_rtScratchPads;  // scratch pad (each sub-stream has its own copy)
-
-    ov::threading::IStreamsExecutor::Ptr m_streamExecutor;  // stream executor for current graph
-
-    ov::threading::CPUStreamsExecutor::Ptr m_cpuStreamExecutor;  // cpu stream executor for current graph
-
+    // scratch pad per sub-stream
+    std::vector<DnnlScratchPadPtr> m_rtScratchPads;
+    // stream executor for current graph
+    ov::threading::IStreamsExecutor::Ptr m_streamExecutor;
+    // cpu stream executor for current graph
+    ov::threading::CPUStreamsExecutor::Ptr m_cpuStreamExecutor;
+    // numa submemory manager
     std::shared_ptr<SubMemoryManager> m_subMemoryManager;
 
     int m_numNumaNodes = 1;
     int m_numaNodeId = 0;
 
     std::shared_ptr<node::MemoryStatesRegister> m_memoryStatesRegister;
-    std::shared_ptr<NetworkMemoryControl> m_networkMemoryControl;
+    // auxiliary object to allow creating additional memory control objects if the main one cannot be used
+    // i.e. fallback graph for dynamic in-place
+    std::shared_ptr<NetworkMemoryControl> m_auxiliaryNetworkMemoryControl;
+    // main memory control object, which is supposed to be globally reused
+    MemoryControl::Ptr m_memoryControl;
 };
 
 }  // namespace intel_cpu

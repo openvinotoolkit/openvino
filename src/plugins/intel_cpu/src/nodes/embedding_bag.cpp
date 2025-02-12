@@ -13,9 +13,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/opsets/opset1.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 EmbeddingBag::EmbeddingBag(const std::shared_ptr<ov::Node>& op,
                            size_t requiredInputNum,
@@ -165,6 +163,4 @@ void EmbeddingBag::execute(const uint8_t* srcData,
     }
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

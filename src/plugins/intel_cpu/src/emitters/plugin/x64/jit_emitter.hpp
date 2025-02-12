@@ -17,8 +17,7 @@
 #    include "emitters/snippets/x64/verbose.hpp"
 #endif
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 enum emitter_in_out_map {
     vec_to_vec,
@@ -67,8 +66,9 @@ public:
 
 #ifdef SNIPPETS_DEBUG_CAPS
     const char* info() const {
-        if (!info_.is_initialized())
+        if (!info_.is_initialized()) {
             info_.init(this);
+        }
         return info_.c_str();
     }
 #endif
@@ -184,5 +184,4 @@ private:
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

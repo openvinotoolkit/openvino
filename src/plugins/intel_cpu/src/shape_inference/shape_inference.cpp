@@ -128,8 +128,7 @@
 #include "utils/bit_util.hpp"
 #include "variadic_split_shape_inference.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 /**
  * @brief Base shape inference object implementing the IStaticShapeInfer without padding support.
  *
@@ -632,5 +631,4 @@ std::shared_ptr<IStaticShapeInfer> make_shape_inference(std::shared_ptr<ov::Node
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

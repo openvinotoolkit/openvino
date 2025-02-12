@@ -11,8 +11,7 @@ using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 std::set<std::vector<element::Type>> jit_dnnl_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
@@ -110,5 +109,4 @@ jit_dnnl_aux_emitter::jit_dnnl_aux_emitter(jit_generator* host,
                                            ov::element::Type exec_prc)
     : jit_dnnl_emitter(host, host_isa, algKind, inpAlpha, inpBeta, exec_prc) {}
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
