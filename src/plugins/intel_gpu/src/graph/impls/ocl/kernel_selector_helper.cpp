@@ -104,6 +104,8 @@ bool query_local_block_io_supported(engine& e, const ExecutionConfig& config) {
 
     try {
         kernel_impl_params dummy_params;
+        auto prog = std::make_unique<program>(e);
+        dummy_params.prog = prog.get();
         auto _kernels_cache_device_query = std::unique_ptr<kernels_cache>(new kernels_cache(e, config, 0));
         _kernels_cache_device_query->add_kernels_source(dummy_params, {kernel_string}, false);
         _kernels_cache_device_query->build_all();
