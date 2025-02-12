@@ -57,7 +57,7 @@ private:
     void custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_a,
                                                      const std::vector<size_t>& layout_b,
                                                      const std::vector<size_t>& layout_c);
-    void validate_inputs() const;
+    void validate_inputs() const override;
 
     size_t m_iter_count;
 };
