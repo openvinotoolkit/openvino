@@ -132,5 +132,9 @@ jobs:
 
       - name: Run tests
         run: |
+          echo "RUN_TESTS"
+          pwd
+          echo "ls:"
+          ls
           cd backends/openvino/tests
           python test_openvino_delegate.py --build_folder ../../../cmake-openvino-out --device CPU --test_type ops
