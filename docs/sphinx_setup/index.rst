@@ -37,8 +37,8 @@ hardware and environments, on-premises and on-device, in the browser or in the c
                   </li>
                   <li id="ov-homepage-slide3" class="splide__slide">
                   <p class="ov-homepage-slide-title">Improved model serving</p>
-                  <p class="ov-homepage-slide-subtitle">OpenVINO Model Server has improved parallel inferencing!</p>
-                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2025/ovms_what_is_openvino_model_server.html">Learn more</a>
+                  <p class="ov-homepage-slide-subtitle">OpenVINO Model Server has improved parallel inference!</p>
+                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2025/openvino-workflow/model-server/ovms_what_is_openvino_model_server.html">Learn more</a>
                   </li>
                   <li id="ov-homepage-slide4" class="splide__slide">
                   <p class="ov-homepage-slide-title">OpenVINO via PyTorch 2.0 torch.compile()</p>
@@ -193,8 +193,7 @@ Key Features
    :hidden:
 
    GET STARTED <get-started>
-   LEARN OPENVINO <learn-openvino>
    HOW TO USE - MAIN WORKFLOW <openvino-workflow>
    HOW TO USE - GENERATIVE AI WORKFLOW <openvino-workflow-generative>
-   DOCUMENTATION <documentation>
+   REFERENCE DOCUMENTATION <documentation>
    ABOUT OPENVINO <about-openvino>

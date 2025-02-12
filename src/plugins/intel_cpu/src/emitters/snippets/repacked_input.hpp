@@ -6,8 +6,7 @@
 
 #include "memory_desc/cpu_blocked_memory_desc.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct RepackedInputKernel {
     RepackedInputKernel() = default;
@@ -41,5 +40,4 @@ private:
     VectorDims m_out_offsets{};
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -10,8 +10,7 @@
 #include "ov_ops/rms.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 DecomposeRMSNorm::DecomposeRMSNorm() {
     MATCHER_SCOPE(DecomposeRMSNorm);
@@ -48,5 +47,4 @@ DecomposeRMSNorm::DecomposeRMSNorm() {
     register_matcher(m, callback);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

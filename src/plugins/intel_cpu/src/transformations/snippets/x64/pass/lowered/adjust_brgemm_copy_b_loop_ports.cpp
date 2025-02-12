@@ -11,8 +11,7 @@
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(
     const std::shared_ptr<snippets::lowered::UnifiedLoopInfo>& loop_info) {
@@ -35,7 +34,8 @@ bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(
                     // K blocking loop: account for zero padding
                     if (loop_port.get_dim_idx() == 1) {
                         const auto ptr_incr = loop_desc.ptr_increment;
-                        const auto blocked_shape_ptr_inc = brgemm_utils::repacking::compute_LDB(ptr_incr, precision);
+                        const auto blocked_shape_ptr_inc =
+                            brgemm_utils::repacking::compute_repacked_n_dim(ptr_incr, precision);
                         if (ptr_incr != 0 && ptr_incr != blocked_shape_ptr_inc) {
                             loop_desc.ptr_increment = blocked_shape_ptr_inc;
                             OPENVINO_ASSERT(loop_desc.finalization_offset % ptr_incr == 0,
@@ -111,5 +111,4 @@ bool pass::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& li
 
     return modified;
 }
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

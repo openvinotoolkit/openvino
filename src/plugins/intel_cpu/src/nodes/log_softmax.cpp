@@ -9,9 +9,7 @@
 
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool LogSoftmax::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -35,9 +33,7 @@ LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::
 
     const auto logSoftMax = ov::as_type_ptr<const ov::opset5::LogSoftmax>(op);
     if (logSoftMax == nullptr) {
-        OPENVINO_THROW("Operation with name '",
-                       op->get_friendly_name(),
-                       "' is not an instance of LogSoftmax from opset5.");
+        THROW_CPU_NODE_ERR("is not an instance of LogSoftmax from opset5.");
     }
 
     if (inputShapes.size() != 1 || outputShapes.size() != 1) {
@@ -146,6 +142,4 @@ bool LogSoftmax::created() const {
     return getType() == Type::LogSoftmax;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

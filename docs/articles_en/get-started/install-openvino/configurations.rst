@@ -15,6 +15,7 @@ Additional Configurations
    For GPU <configurations/configurations-intel-gpu>
    For NPU <configurations/configurations-intel-npu>
    GenAI Dependencies <configurations/genai-dependencies>
+   Troubleshooting Guide for OpenVINO™ Installation & Configuration <configurations/troubleshooting-install-config>
 
 For certain use cases, you may need to install additional software, to benefit from the full
 potential of OpenVINO™. Check the following list for components used in your workflow:

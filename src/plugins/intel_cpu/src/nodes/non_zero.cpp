@@ -12,9 +12,7 @@
 #include "openvino/opsets/opset3.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 static constexpr int blockSize = dnnl::impl::cpu::platform::get_cache_line_size() * 2;
 static constexpr int elementsStride = blockSize / sizeof(int);
@@ -66,11 +64,7 @@ void NonZero::initSupportedPrimitiveDescriptors() {
                 ov::element::u32,
                 ov::element::i8,
                 ov::element::u8)) {
-        OPENVINO_THROW("Can't create primitive descriptor for NonZero layer with name: ",
-                       getName(),
-                       " doesn't support ",
-                       inPrc.get_type_name(),
-                       " precision on 0 port");
+        THROW_CPU_NODE_ERR("doesn't support ", inPrc.get_type_name(), " precision on 0 port");
     }
 
     addSupportedPrimDesc({{LayoutType::ncsp}}, {{LayoutType::ncsp, ov::element::i32}}, impl_desc_type::ref);
@@ -408,6 +402,4 @@ bool NonZero::created() const {
     return getType() == Type::NonZero;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

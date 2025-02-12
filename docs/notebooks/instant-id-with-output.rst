@@ -50,37 +50,42 @@ additional part demonstrates how to run optimization with
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up
 pipeline.
 
-
 **Table of contents:**
 
 - `Prerequisites <#prerequisites>`__
-- `Convert and prepare Face
-  IdentityNet <#convert-and-prepare-face-identitynet>`__
-- `Select Inference Device for Face
-  Recognition <#select-inference-device-for-face-recognition>`__
-- `Perform Face Identity extraction <#perform-face-identity-extraction>`__
+- `Convert and prepare Face IdentityNet <#convert-and-prepare-face-identitynet>`__
+
+  - `Select Inference Device for Face Recognition <#select-inference-device-for-face-recognition>`__
+  - `Perform Face Identity extraction <#perform-face-identity-extraction>`__
+
 - `Prepare InstantID pipeline <#prepare-instantid-pipeline>`__
-- `Convert InstantID pipeline components to OpenVINO Intermediate
-  Representation format <#convert-instantid-pipeline-components-to-openvino-intermediate-representation-format>`__
-- `ControlNet <#controlnet>`__
-- `Unet <#unet>`__
-- `VAE Decoder <#vae-decoder>`__
-- `Text Encoders <#text-encoders>`__
-- `Image Projection Model <#image-projection-model>`__
+- `Convert InstantID pipeline components to OpenVINO Intermediate Representation format <#convert-instantid-pipeline-components-to-openvino-intermediate-representation-format>`__
+
+  - `ControlNet <#controlnet>`__
+  - `Unet <#unet>`__
+  - `VAE Decoder <#vae-decoder>`__
+  - `Text Encoders <#text-encoders>`__
+  - `Image Projection Model <#image-projection-model>`__
+
 - `Prepare OpenVINO InstantID Pipeline <#prepare-openvino-instantid-pipeline>`__
 - `Run OpenVINO pipeline inference <#run-openvino-pipeline-inference>`__
-- `Select inference device for InstantID <#select-inference-device-for-instantid>`__
-- `Create pipeline <#create-pipeline>`__
-- `Run inference <#run-inference>`__
+
+  - `Select inference device for InstantID <#select-inference-device-for-instantid>`__
+  - `Create pipeline <#create-pipeline>`__
+  - `Run inference <#run-inference>`__
+
 - `Quantization <#quantization>`__
-- `Prepare calibration datasets <#prepare-calibration-datasets>`__
-- `Run quantization <#run-quantization>`__
-- `Run ControlNet Quantization <#run-controlnet-quantization>`__
-- `Run UNet Hybrid Quantization <#run-unet-hybrid-quantization>`__
-- `Run Weights Compression <#run-weights-compression>`__
-- `Compare model file sizes <#compare-model-file-sizes>`__
-- `Compare inference time of the FP16 and INT8
-  pipelines <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__
+
+  - `Prepare calibration datasets <#prepare-calibration-datasets>`__
+  - `Run quantization <#run-quantization>`__
+
+    - `Run ControlNet Quantization <#run-controlnet-quantization>`__
+    - `Run UNet Hybrid Quantization <#run-unet-hybrid-quantization>`__
+    - `Run Weights Compression <#run-weights-compression>`__
+
+  - `Compare model file sizes <#compare-model-file-sizes>`__
+  - `Compare inference time of the FP16 and INT8 pipelines <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__
+
 - `Interactive demo <#interactive-demo>`__
 
 Installation Instructions
@@ -103,17 +108,24 @@ Prerequisites
 .. code:: ipython3
 
     import requests
+    from pathlib import Path
 
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
 
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+        )
+        open("cmd_helper.py", "w").write(r.text)
 
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
-    )
-    open("cmd_helper.py", "w").write(r.text)
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+
+    collect_telemetry("instant-id.ipynb")
 
 .. code:: ipython3
 
@@ -593,7 +605,10 @@ generated image
 
     from diffusers.utils import load_image
 
-    face_image = load_image("https://huggingface.co/datasets/YiYiXu/testing-images/resolve/main/vermeer.jpg")
+    face_image = Path("vermeer.jpg")
+
+    if not face_image.exists():
+        face_image = load_image("https://huggingface.co/datasets/YiYiXu/testing-images/resolve/main/vermeer.jpg")
 
     face_emb, face_kps = get_face_info(face_image)
 

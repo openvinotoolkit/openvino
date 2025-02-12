@@ -21,9 +21,7 @@
 #    include "kernels/x64/mlp_utils.hpp"
 #endif
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 #if defined(OPENVINO_ARCH_X86_64)
 
@@ -504,7 +502,7 @@ LLMMLP::LLMMLP(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
     std::string errorMessage;
     const auto& config = context->getConfig();
     if (!isSupportedOperation(op, errorMessage, config.fcDynamicQuantizationGroupSize)) {
-        OPENVINO_THROW("CPU: " + errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto node_mlp = ov::as_type_ptr<const LLMMLPNode>(op);
     m_mlp_config = node_mlp->get_config();
@@ -590,7 +588,7 @@ void LLMMLP::createPrimitive() {
     }
 #endif
     if (!m_executor) {
-        OPENVINO_THROW("LLMMLP Executor creation fails with precision " + rtPrecision.to_string());
+        THROW_CPU_NODE_ERR("Executor creation fails with precision " + rtPrecision.to_string());
     }
 }
 
@@ -648,6 +646,4 @@ bool LLMMLP::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
 #endif
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
