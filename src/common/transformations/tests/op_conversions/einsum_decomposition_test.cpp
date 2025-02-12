@@ -457,8 +457,9 @@ TEST_F(TransformationTestsF, Einsum_1in_repeated_labels_ellipsis_static_cf) {
     }
     {
         using namespace ov::gen_pattern;
-        auto node_0 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
-        auto Multiply_1382 = makeConst(
+        auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
+        // If shapes are static, multi-identity can be constant-folded.
+        auto multi_identity = makeConst(
             element::f32,
             ov::Shape({
                 1,
@@ -469,20 +470,21 @@ TEST_F(TransformationTestsF, Einsum_1in_repeated_labels_ellipsis_static_cf) {
                 1,
             }),
             {1.000000f, 0.000000f, 0.000000f, 0.000000f, 1.000000f, 0.000000f, 0.000000f, 0.000000f, 1.000000f});
-        auto Multiply_1383 = makeOP<opset1::Multiply>({node_0, Multiply_1382}, {{"auto_broadcast", "numpy"}});
+        auto Multiply_1383 = makeOP<opset1::Multiply>({data_1, multi_identity}, {{"auto_broadcast", "numpy"}});
         auto Constant_1384 = makeConst(element::i64,
                                        ov::Shape({
                                            3,
                                        }),
                                        {3, 4, 5});
-        auto ReduceSum_1385 = makeOP<opset1::ReduceSum>({Multiply_1383, Constant_1384}, {{"keep_dims", false}});
+        auto data_1_diagonal = makeOP<opset1::ReduceSum>({Multiply_1383, Constant_1384}, {{"keep_dims", false}});
+        // Transpose to the original order of output labels.
         auto Constant_1386 = makeConst(element::i64,
                                        ov::Shape({
                                            3,
                                        }),
                                        {1, 2, 0});
-        auto node_2 = makeOP<opset1::Transpose>({ReduceSum_1385, Constant_1386});
-        model_ref = std::make_shared<Model>(NodeVector{node_2}, ParameterVector{node_0});
+        auto transpose_out = makeOP<opset1::Transpose>({data_1_diagonal, Constant_1386});
+        model_ref = std::make_shared<Model>(NodeVector{transpose_out}, ParameterVector{data_1});
     }
 }
 
