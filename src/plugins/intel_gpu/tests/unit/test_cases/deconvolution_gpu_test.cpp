@@ -2701,10 +2701,12 @@ public:
         }
 
         auto out_mem = result.at("deconv").get_memory();
+        auto output_lockable = get_test_engine().allocate_memory(out_mem->get_layout());
+        out_mem->copy_to(get_test_stream(), *output_lockable, true);
 
         // Compare results
         {
-            cldnn::mem_lock<OutputT> ptr(out_mem, get_test_stream());
+            cldnn::mem_lock<OutputT> ptr(output_lockable, get_test_stream());
 
             auto b = static_cast<size_t>(out_mem->get_layout().batch());
             auto of = static_cast<size_t>(out_mem->get_layout().feature());
