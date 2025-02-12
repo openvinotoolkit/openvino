@@ -453,334 +453,97 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_d
     }
     {
         using namespace ov::gen_pattern;
-        auto node_0 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_3);
-        auto node_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
-        auto node_4 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
-        auto Constant_904 = makeConst(element::i64, ov::Shape({}), {0});
-        auto ShapeOf_901 = makeOP<opset3::ShapeOf>({node_2}, {{"output_type", "i64"}});
-        auto Constant_902 = makeConst(element::i64,
-                                      ov::Shape({
-                                          3,
-                                      }),
-                                      {1, 2, 3});
-        auto Gather_906 = makeOP<opset7::Gather>({ShapeOf_901, Constant_902, Constant_904}, {{"batch_dims", 0}});
-        auto ReduceProd_1318 = makeOP<opset1::ReduceProd>({Gather_906, Constant_904}, {{"keep_dims", true}});
-        auto Constant_1319 = makeConst(element::u8, ov::Shape({}), {0});
-        auto Broadcast_1320 =
-            makeOP<opset1::Broadcast>({Constant_904, ReduceProd_1318, Constant_1319}, {{"mode", "numpy"}});
-        auto Gather_907 = makeOP<opset7::Gather>({Gather_906, Constant_904, Constant_904}, {{"batch_dims", 0}});
-        auto Constant_903 = makeConst(element::i64, ov::Shape({}), {3});
-        auto Power_908 = makeOP<opset1::Power>({Gather_907, Constant_903}, {{"auto_broadcast", "numpy"}});
-        auto Constant_905 = makeConst(element::i64, ov::Shape({}), {1});
-        auto Subtract_909 = makeOP<opset1::Subtract>({Power_908, Constant_905}, {{"auto_broadcast", "numpy"}});
-        auto Maximum_912 = makeOP<opset1::Maximum>({Subtract_909, Constant_905}, {{"auto_broadcast", "numpy"}});
-        auto Subtract_910 = makeOP<opset1::Subtract>({Gather_907, Constant_905}, {{"auto_broadcast", "numpy"}});
-        auto Maximum_911 = makeOP<opset1::Maximum>({Subtract_910, Constant_905}, {{"auto_broadcast", "numpy"}});
-        auto Divide_913 =
-            makeOP<opset1::Divide>({Maximum_912, Maximum_911}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-        auto Range_914 = makeOP<opset1::Range>({Constant_904, Power_908, Divide_913});
-        auto Unsqueeze_1313 = makeOP<opset1::Unsqueeze>({Gather_907, Constant_904});
-        auto Constant_1314 = makeConst(element::u8, ov::Shape({}), {0});
-        auto Broadcast_1315 =
-            makeOP<opset1::Broadcast>({Constant_905, Unsqueeze_1313, Constant_1314}, {{"mode", "numpy"}});
-        auto ScatterElementsUpdate_1349 =
-            makeOP<opset3::ScatterElementsUpdate>({Broadcast_1320, Range_914, Broadcast_1315, Constant_904});
-        auto ShapeOf_1350 = makeOP<opset1::ShapeOf>({ShapeOf_901});
-        auto Constant_1351 = makeConst(element::u8, ov::Shape({}), {0});
-        auto Broadcast_1352 =
-            makeOP<opset1::Broadcast>({Constant_905, ShapeOf_1350, Constant_1351}, {{"mode", "numpy"}});
-        auto ScatterElementsUpdate_1355 =
-            makeOP<opset3::ScatterElementsUpdate>({Broadcast_1352, Constant_902, Gather_906, Constant_904});
-        auto Reshape_1356 = makeOP<opset1::Reshape>({ScatterElementsUpdate_1349, ScatterElementsUpdate_1355},
-                                                    {{"special_zero", false}});
-        auto Constant_1361 = makeConst(element::i64, ov::Shape({}), {0});
-        auto ShapeOf_1358 = makeOP<opset3::ShapeOf>({node_2}, {{"output_type", "i64"}});
-        auto Constant_1359 = makeConst(element::i64,
-                                       ov::Shape({
-                                           2,
-                                       }),
-                                       {4, 5});
-        auto Gather_1363 = makeOP<opset7::Gather>({ShapeOf_1358, Constant_1359, Constant_1361}, {{"batch_dims", 0}});
-        auto ReduceProd_1775 = makeOP<opset1::ReduceProd>({Gather_1363, Constant_1361}, {{"keep_dims", true}});
-        auto Constant_1776 = makeConst(element::u8, ov::Shape({}), {0});
-        auto Broadcast_1777 =
-            makeOP<opset1::Broadcast>({Constant_1361, ReduceProd_1775, Constant_1776}, {{"mode", "numpy"}});
-        auto Gather_1364 = makeOP<opset7::Gather>({Gather_1363, Constant_1361, Constant_1361}, {{"batch_dims", 0}});
-        auto Constant_1360 = makeConst(element::i64, ov::Shape({}), {2});
-        auto Power_1365 = makeOP<opset1::Power>({Gather_1364, Constant_1360}, {{"auto_broadcast", "numpy"}});
-        auto Constant_1362 = makeConst(element::i64, ov::Shape({}), {1});
-        auto Subtract_1366 = makeOP<opset1::Subtract>({Power_1365, Constant_1362}, {{"auto_broadcast", "numpy"}});
-        auto Maximum_1369 = makeOP<opset1::Maximum>({Subtract_1366, Constant_1362}, {{"auto_broadcast", "numpy"}});
-        auto Subtract_1367 = makeOP<opset1::Subtract>({Gather_1364, Constant_1362}, {{"auto_broadcast", "numpy"}});
-        auto Maximum_1368 = makeOP<opset1::Maximum>({Subtract_1367, Constant_1362}, {{"auto_broadcast", "numpy"}});
-        auto Divide_1370 =
-            makeOP<opset1::Divide>({Maximum_1369, Maximum_1368}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-        auto Range_1371 = makeOP<opset1::Range>({Constant_1361, Power_1365, Divide_1370});
-        auto Unsqueeze_1770 = makeOP<opset1::Unsqueeze>({Gather_1364, Constant_1361});
-        auto Constant_1771 = makeConst(element::u8, ov::Shape({}), {0});
-        auto Broadcast_1772 =
-            makeOP<opset1::Broadcast>({Constant_1362, Unsqueeze_1770, Constant_1771}, {{"mode", "numpy"}});
-        auto ScatterElementsUpdate_1806 =
-            makeOP<opset3::ScatterElementsUpdate>({Broadcast_1777, Range_1371, Broadcast_1772, Constant_1361});
-        auto ShapeOf_1807 = makeOP<opset1::ShapeOf>({ShapeOf_1358});
-        auto Constant_1808 = makeConst(element::u8, ov::Shape({}), {0});
-        auto Broadcast_1809 =
-            makeOP<opset1::Broadcast>({Constant_1362, ShapeOf_1807, Constant_1808}, {{"mode", "numpy"}});
-        auto ScatterElementsUpdate_1812 =
-            makeOP<opset3::ScatterElementsUpdate>({Broadcast_1809, Constant_1359, Gather_1363, Constant_1361});
-        auto Reshape_1813 = makeOP<opset1::Reshape>({ScatterElementsUpdate_1806, ScatterElementsUpdate_1812},
-                                                    {{"special_zero", false}});
-        auto Multiply_1815 = makeOP<opset1::Multiply>({Reshape_1356, Reshape_1813}, {{"auto_broadcast", "numpy"}});
-        auto ConvertLike_1816 = makeOP<opset1::ConvertLike>({Multiply_1815, node_2});
-        auto Multiply_1816 = makeOP<opset1::Multiply>({node_2, ConvertLike_1816}, {{"auto_broadcast", "numpy"}});
-        auto Constant_1817 = makeConst(element::i64,
-                                       ov::Shape({
-                                           3,
-                                       }),
-                                       {2, 3, 5});
-        auto ReduceSum_1818 = makeOP<opset1::ReduceSum>({Multiply_1816, Constant_1817}, {{"keep_dims", false}});
-        auto Constant_1833 = makeConst(element::i64,
-                                       ov::Shape({
-                                           1,
-                                       }),
-                                       {1});
-        auto ShapeOf_1821 = makeOP<opset3::ShapeOf>({ReduceSum_1818}, {{"output_type", "i64"}});
-        auto Constant_1823 = makeConst(element::i64,
-                                       ov::Shape({
-                                           1,
-                                       }),
-                                       {0});
-        auto Constant_1824 = makeConst(element::i64,
-                                       ov::Shape({
-                                           1,
-                                       }),
-                                       {2});
-        auto Constant_1826 = makeConst(element::i64,
-                                       ov::Shape({
-                                           1,
-                                       }),
-                                       {1});
-        auto StridedSlice_1827 =
-            makeOP<opset1::StridedSlice>({ShapeOf_1821, Constant_1823, Constant_1824, Constant_1826},
-                                         {{"begin_mask", {0}},
-                                          {"end_mask", {0}},
-                                          {"new_axis_mask", {}},
-                                          {"shrink_axis_mask", {}},
-                                          {"ellipsis_mask", {}}});
-        auto Broadcast_1834 = makeOP<opset3::Broadcast>({Constant_1833, StridedSlice_1827}, {{"mode", "numpy"}});
-        auto Constant_894 = makeConst(element::i64,
-                                      ov::Shape({
-                                          1,
-                                      }),
-                                      {0});
-        auto ReduceSum_895 = makeOP<opset1::ReduceSum>({node_4, Constant_894}, {{"keep_dims", false}});
-        auto Constant_898 = makeConst(element::i64,
-                                      ov::Shape({
-                                          2,
-                                      }),
-                                      {4, 5});
-        auto Unsqueeze_899 = makeOP<opset1::Unsqueeze>({ReduceSum_895, Constant_898});
-        auto Constant_430 = makeConst(element::i64,
-                                      ov::Shape({
-                                          1,
-                                      }),
-                                      {0});
-        auto Unsqueeze_431 = makeOP<opset1::Unsqueeze>({node_0, Constant_430});
-        auto Constant_432 = makeConst(element::i64,
-                                      ov::Shape({
-                                          2,
-                                      }),
-                                      {0, 1});
-        auto Unsqueeze_433 = makeOP<opset1::Unsqueeze>({Unsqueeze_431, Constant_432});
-        auto Constant_437 = makeConst(element::i64, ov::Shape({}), {0});
-        auto ShapeOf_434 = makeOP<opset3::ShapeOf>({Unsqueeze_433}, {{"output_type", "i64"}});
-        auto Constant_435 = makeConst(element::i64,
-                                      ov::Shape({
-                                          2,
-                                      }),
-                                      {5, 6});
-        auto Gather_439 = makeOP<opset7::Gather>({ShapeOf_434, Constant_435, Constant_437}, {{"batch_dims", 0}});
-        auto ReduceProd_851 = makeOP<opset1::ReduceProd>({Gather_439, Constant_437}, {{"keep_dims", true}});
-        auto Constant_852 = makeConst(element::u8, ov::Shape({}), {0});
-        auto Broadcast_853 =
-            makeOP<opset1::Broadcast>({Constant_437, ReduceProd_851, Constant_852}, {{"mode", "numpy"}});
-        auto Gather_440 = makeOP<opset7::Gather>({Gather_439, Constant_437, Constant_437}, {{"batch_dims", 0}});
-        auto Constant_436 = makeConst(element::i64, ov::Shape({}), {2});
-        auto Power_441 = makeOP<opset1::Power>({Gather_440, Constant_436}, {{"auto_broadcast", "numpy"}});
-        auto Constant_438 = makeConst(element::i64, ov::Shape({}), {1});
-        auto Subtract_442 = makeOP<opset1::Subtract>({Power_441, Constant_438}, {{"auto_broadcast", "numpy"}});
-        auto Maximum_445 = makeOP<opset1::Maximum>({Subtract_442, Constant_438}, {{"auto_broadcast", "numpy"}});
-        auto Subtract_443 = makeOP<opset1::Subtract>({Gather_440, Constant_438}, {{"auto_broadcast", "numpy"}});
-        auto Maximum_444 = makeOP<opset1::Maximum>({Subtract_443, Constant_438}, {{"auto_broadcast", "numpy"}});
-        auto Divide_446 =
-            makeOP<opset1::Divide>({Maximum_445, Maximum_444}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-        auto Range_447 = makeOP<opset1::Range>({Constant_437, Power_441, Divide_446});
-        auto Unsqueeze_846 = makeOP<opset1::Unsqueeze>({Gather_440, Constant_437});
-        auto Constant_847 = makeConst(element::u8, ov::Shape({}), {0});
-        auto Broadcast_848 =
-            makeOP<opset1::Broadcast>({Constant_438, Unsqueeze_846, Constant_847}, {{"mode", "numpy"}});
-        auto ScatterElementsUpdate_882 =
-            makeOP<opset3::ScatterElementsUpdate>({Broadcast_853, Range_447, Broadcast_848, Constant_437});
-        auto ShapeOf_883 = makeOP<opset1::ShapeOf>({ShapeOf_434});
-        auto Constant_884 = makeConst(element::u8, ov::Shape({}), {0});
-        auto Broadcast_885 = makeOP<opset1::Broadcast>({Constant_438, ShapeOf_883, Constant_884}, {{"mode", "numpy"}});
-        auto ScatterElementsUpdate_888 =
-            makeOP<opset3::ScatterElementsUpdate>({Broadcast_885, Constant_435, Gather_439, Constant_437});
-        auto Reshape_889 =
-            makeOP<opset1::Reshape>({ScatterElementsUpdate_882, ScatterElementsUpdate_888}, {{"special_zero", false}});
-        auto ConvertLike_890 = makeOP<opset1::ConvertLike>({Reshape_889, Unsqueeze_433});
-        auto Multiply_891 = makeOP<opset1::Multiply>({Unsqueeze_433, ConvertLike_890}, {{"auto_broadcast", "numpy"}});
-        auto Constant_892 = makeConst(element::i64,
-                                      ov::Shape({
-                                          1,
-                                      }),
-                                      {6});
-        auto ReduceSum_893 = makeOP<opset1::ReduceSum>({Multiply_891, Constant_892}, {{"keep_dims", false}});
-        auto Constant_896 = makeConst(element::i64,
-                                      ov::Shape({
-                                          6,
-                                      }),
-                                      {0, 1, 2, 4, 3, 5});
-        auto Transpose_897 = makeOP<opset1::Transpose>({ReduceSum_893, Constant_896});
-        auto Multiply_900 = makeOP<opset1::Multiply>({Unsqueeze_899, Transpose_897}, {{"auto_broadcast", "numpy"}});
-        auto Constant_1819 = makeConst(element::i64,
-                                       ov::Shape({
-                                           6,
-                                       }),
-                                       {3, 5, 0, 1, 2, 4});
-        auto Transpose_1820 = makeOP<opset1::Transpose>({Multiply_900, Constant_1819});
-        auto ShapeOf_1822 = makeOP<opset3::ShapeOf>({Transpose_1820}, {{"output_type", "i64"}});
-        auto Constant_1828 = makeConst(element::i64,
-                                       ov::Shape({
-                                           1,
-                                       }),
-                                       {0});
-        auto Constant_1829 = makeConst(element::i64,
-                                       ov::Shape({
-                                           1,
-                                       }),
-                                       {2});
-        auto Constant_1831 = makeConst(element::i64,
-                                       ov::Shape({
-                                           1,
-                                       }),
-                                       {1});
-        auto StridedSlice_1832 =
-            makeOP<opset1::StridedSlice>({ShapeOf_1822, Constant_1828, Constant_1829, Constant_1831},
-                                         {{"begin_mask", {0}},
-                                          {"end_mask", {0}},
-                                          {"new_axis_mask", {}},
-                                          {"shrink_axis_mask", {}},
-                                          {"ellipsis_mask", {}}});
-        auto Broadcast_1837 =
-            makeOP<opset3::Broadcast>({Broadcast_1834, StridedSlice_1832}, {{"mode", "bidirectional"}});
-        auto ShapeOf_1840 = makeOP<opset3::ShapeOf>({Broadcast_1837}, {{"output_type", "i64"}});
-        auto Constant_1851 = makeConst(element::i64,
-                                       ov::Shape({
-                                           1,
-                                       }),
-                                       {1});
-        auto Constant_1841 = makeConst(element::i64,
-                                       ov::Shape({
-                                           1,
-                                       }),
-                                       {2});
-        auto Constant_1842 = makeConst(element::i64,
-                                       ov::Shape({
-                                           1,
-                                       }),
-                                       {3});
-        auto Constant_1844 = makeConst(element::i64,
-                                       ov::Shape({
-                                           1,
-                                       }),
-                                       {1});
-        auto StridedSlice_1845 =
-            makeOP<opset1::StridedSlice>({ShapeOf_1821, Constant_1841, Constant_1842, Constant_1844},
-                                         {{"begin_mask", {0}},
-                                          {"end_mask", {0}},
-                                          {"new_axis_mask", {}},
-                                          {"shrink_axis_mask", {}},
-                                          {"ellipsis_mask", {}}});
-        auto Broadcast_1852 = makeOP<opset3::Broadcast>({Constant_1851, StridedSlice_1845}, {{"mode", "numpy"}});
-        auto Constant_1846 = makeConst(element::i64,
-                                       ov::Shape({
-                                           1,
-                                       }),
-                                       {5});
-        auto Constant_1847 = makeConst(element::i64,
-                                       ov::Shape({
-                                           1,
-                                       }),
-                                       {6});
-        auto Constant_1849 = makeConst(element::i64,
-                                       ov::Shape({
-                                           1,
-                                       }),
-                                       {1});
-        auto StridedSlice_1850 =
-            makeOP<opset1::StridedSlice>({ShapeOf_1822, Constant_1846, Constant_1847, Constant_1849},
-                                         {{"begin_mask", {0}},
-                                          {"end_mask", {0}},
-                                          {"new_axis_mask", {}},
-                                          {"shrink_axis_mask", {}},
-                                          {"ellipsis_mask", {}}});
-        auto Broadcast_1855 =
-            makeOP<opset3::Broadcast>({Broadcast_1852, StridedSlice_1850}, {{"mode", "bidirectional"}});
-        auto ShapeOf_1858 = makeOP<opset3::ShapeOf>({Broadcast_1855}, {{"output_type", "i64"}});
-        auto Concat_1859 = makeOP<opset1::Concat>({ShapeOf_1840, ShapeOf_1858}, {{"axis", 0}});
-        auto Broadcast_1860 = makeOP<opset3::Broadcast>({ReduceSum_1818, Concat_1859}, {{"mode", "bidirectional"}});
-        auto ReduceProd_1875 = makeOP<opset1::ReduceProd>({ShapeOf_1858, {0}}, {{"keep_dims", true}});
-        auto Constant_1873 = makeConst(element::i64,
-                                       ov::Shape({
-                                           1,
-                                       }),
-                                       {1});
-        auto Concat_1876 = makeOP<opset1::Concat>({ShapeOf_1840, ReduceProd_1875, Constant_1873}, {{"axis", 0}});
-        auto Reshape_1903 = makeOP<opset1::Reshape>({Broadcast_1860, Concat_1876}, {{"special_zero", false}});
-        auto Constant_1863 = makeConst(element::i64,
-                                       ov::Shape({
-                                           1,
-                                       }),
-                                       {2});
-        auto Constant_1864 = makeConst(element::i64,
-                                       ov::Shape({
-                                           1,
-                                       }),
-                                       {5});
-        auto Constant_1866 = makeConst(element::i64,
-                                       ov::Shape({
-                                           1,
-                                       }),
-                                       {1});
-        auto StridedSlice_1867 =
-            makeOP<opset1::StridedSlice>({ShapeOf_1822, Constant_1863, Constant_1864, Constant_1866},
-                                         {{"begin_mask", {0}},
-                                          {"end_mask", {0}},
-                                          {"new_axis_mask", {}},
-                                          {"shrink_axis_mask", {}},
-                                          {"ellipsis_mask", {}}});
-        auto Concat_1868 = makeOP<opset1::Concat>({ShapeOf_1840, StridedSlice_1867, ShapeOf_1858}, {{"axis", 0}});
-        auto Broadcast_1869 = makeOP<opset3::Broadcast>({Transpose_1820, Concat_1868}, {{"mode", "bidirectional"}});
-        auto Constant_1904 = makeConst(element::i64,
-                                       ov::Shape({
-                                           1,
-                                       }),
-                                       {0});
-        auto ReduceProd_1905 = makeOP<opset1::ReduceProd>({StridedSlice_1867, Constant_1904}, {{"keep_dims", true}});
-        auto ReduceProd_1907 = makeOP<opset1::ReduceProd>({ShapeOf_1858, {0}}, {{"keep_dims", true}});
-        auto Concat_1908 = makeOP<opset1::Concat>({ShapeOf_1840, ReduceProd_1905, ReduceProd_1907}, {{"axis", 0}});
-        auto Reshape_1961 = makeOP<opset1::Reshape>({Broadcast_1869, Concat_1908}, {{"special_zero", false}});
-        auto MatMul_1962 =
-            makeOP<opset1::MatMul>({Reshape_1903, Reshape_1961}, {{"transpose_a", true}, {"transpose_b", true}});
-        auto Concat_1963 = makeOP<opset1::Concat>({ShapeOf_1840, StridedSlice_1867}, {{"axis", 0}});
-        auto Reshape_1964 = makeOP<opset1::Reshape>({MatMul_1962, Concat_1963}, {{"special_zero", false}});
-        auto Constant_1965 = makeConst(element::i64,
-                                       ov::Shape({
-                                           5,
-                                       }),
-                                       {1, 2, 3, 4, 0});
-        auto node_6 = makeOP<opset1::Transpose>({Reshape_1964, Constant_1965});
-        model_ref = std::make_shared<Model>(NodeVector{node_6}, ParameterVector{node_0, node_2, node_4});
+        auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
+        auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
+        auto data_3 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_3);
+
+        // First pair of einsum inputs - data_1 and data_3
+        // data_1 - label `a` can be reduced by reduce_input()
+        auto indice_of_a_in_data_1 = makeConst(element::i64, ov::Shape({1}), {0});
+        auto data_1_processed = makeOP<opset1::ReduceSum>({data_1, indice_of_a_in_data_1}, {{"keep_dims", false}});
+        // data_3 - unsqueeze ellipse labels to allow for broadcasting and handle repeated labels
+        auto ellipsis_idx = makeConst(element::i64, ov::Shape({1}), {0});
+        auto data3_insert_missing_ellipsis = makeOP<opset1::Unsqueeze>({data_3, ellipsis_idx});
+        auto align_ellipsis_idx = makeConst(element::i64, ov::Shape({2}), {0, 1});
+        auto data_3_processed = makeOP<opset1::Unsqueeze>({data3_insert_missing_ellipsis, align_ellipsis_idx});
+        auto data_3_diagonal = extract_diagonal(data_3_processed, {{5, 6}});
+
+        // No reduced labels - use simplified subgraph that uses Multiply instead Matmul
+        auto convenient_layout = makeConst(element::i64, ov::Shape({6}), {0, 1, 2, 4, 3, 5});
+        // ...dbc -> ...bdc
+        auto rhs_convenient_layout = makeOP<opset1::Transpose>({data_3_diagonal, convenient_layout});
+        // Optionally unsqueeze both operands for elementwise-multiplication with broadcasting
+        // For LHS operand, unsqueeze at RHS separate dimensions indices (placed at end of RHS by transpose)
+        auto lhs_unsqueeze_dims = makeConst(element::i64, ov::Shape({2}), {4, 5});
+        auto lhs_unsqueeze = makeOP<opset1::Unsqueeze>({data_1_processed, lhs_unsqueeze_dims});
+        // Out subscript = LHS_subscript + RHS_separate_part_subscript
+        // ...bdc = ...b + dc
+        auto data_1_3 = makeOP<opset1::Multiply>({lhs_unsqueeze, rhs_convenient_layout}, {{"auto_broadcast", "numpy"}});
+
+        // Second pair of einsum inputs - data_2 and result of the first pair
+        // bcccdd,...bdc->c...b
+        // data_2 - handle repeated labels
+        auto data_2_diagonal = extract_diagonal(data_2,
+                                                {
+                                                    {1, 2, 3},  // indices of repeated label c
+                                                    {4, 5},     // indices_of_repeated_label_d
+                                                });
+        // data_1_3 - transpose to correctly group common, separate and reduced labels
+        // ...bdc->bc...d
+        auto transpose_data_1_3_target = makeConst(element::i64, ov::Shape({6}), {3, 5, 0, 1, 2, 4});
+        auto data_1_3_processed = makeOP<opset1::Transpose>({data_1_3, transpose_data_1_3_target});
+        // Extract and broadcast common subshapes (bc)
+        auto shapeof_data_1_3 = makeOP<opset3::ShapeOf>({data_1_3_processed}, {{"output_type", "i64"}});
+        auto common_data_1_3 = extract_subshape_from_shape(shapeof_data_1_3, 0, 2);
+        auto shapeof_data_2 = makeOP<opset3::ShapeOf>({data_2_diagonal}, {{"output_type", "i64"}});
+        auto common_data_2 = extract_subshape_from_shape(shapeof_data_2, 0, 2);
+        auto common_broadcast_merge_shapes = broadcast_merge_shapes(common_data_2, common_data_1_3);
+
+        // Extract and broadcast reduced subshapes (d)
+        auto reduced_data_2 = extract_subshape_from_shape(shapeof_data_2, 2, 3);
+        auto reduced_data_1_3 = extract_subshape_from_shape(shapeof_data_1_3, 5, 6);
+        auto reduced_broadcast_merge_shapes = broadcast_merge_shapes(reduced_data_2, reduced_data_1_3);
+
+        // Extract and broadcast separate subshapes if needed
+        auto separate_data_1_3 = extract_subshape_from_shape(shapeof_data_1_3, 2, 5);  // (...)
+
+        // Broadcast data_2 and data_1_3 based on calculated subshapes
+        auto broadcast_data_2_target =
+            makeOP<opset1::Concat>({common_broadcast_merge_shapes, reduced_broadcast_merge_shapes}, {{"axis", 0}});
+        auto broadcast_data_2 =
+            makeOP<opset3::Broadcast>({data_2_diagonal, broadcast_data_2_target}, {{"mode", "bidirectional"}});
+        auto broadcast_data_1_3_target =
+            makeOP<opset1::Concat>({common_broadcast_merge_shapes, separate_data_1_3, reduced_broadcast_merge_shapes},
+                                   {{"axis", 0}});
+        auto broadcast_data_1_3 =
+            makeOP<opset3::Broadcast>({data_1_3_processed, broadcast_data_1_3_target}, {{"mode", "bidirectional"}});
+
+        // Optionally reshape broadcasted data_2 and data_1_3 so separate and reduced labels are represented by one
+        // dimension. Subgraphes are constant-folded, target subshapes are calculated broadcast_merge_shapes function.
+        auto reduced_prod = makeOP<opset1::ReduceProd>({reduced_broadcast_merge_shapes, {0}}, {{"keep_dims", true}});
+        // Reshape data_2
+        auto separate_data_2_placeholder = makeConst(element::i64, ov::Shape({1}), {1});
+        auto reshape_data_2_target =
+            makeOP<opset1::Concat>({common_broadcast_merge_shapes, reduced_prod, separate_data_2_placeholder},
+                                   {{"axis", 0}});
+        auto reshape_data_2 =
+            makeOP<opset1::Reshape>({broadcast_data_2, reshape_data_2_target}, {{"special_zero", false}});
+        // Reshape data_1_3
+        auto Constant_1904 = makeConst(element::i64, ov::Shape({1}), {0});
+        auto separate_data_1_3_prod =
+            makeOP<opset1::ReduceProd>({separate_data_1_3, Constant_1904}, {{"keep_dims", true}});
+        auto reshape_data_1_3_target =
+            makeOP<opset1::Concat>({common_broadcast_merge_shapes, separate_data_1_3_prod, reduced_prod},
+                                   {{"axis", 0}});
+        auto reshape_data_1_3 =
+            makeOP<opset1::Reshape>({broadcast_data_1_3, reshape_data_1_3_target}, {{"special_zero", false}});
+        auto matmul =
+            makeOP<opset1::MatMul>({reshape_data_2, reshape_data_1_3}, {{"transpose_a", true}, {"transpose_b", true}});
+        auto reshape_out_subshape =
+            makeOP<opset1::Concat>({common_broadcast_merge_shapes, separate_data_1_3}, {{"axis", 0}});
+        auto reshape_out = makeOP<opset1::Reshape>({matmul, reshape_out_subshape}, {{"special_zero", false}});
+        auto Constant_1965 = makeConst(element::i64, ov::Shape({5}), {1, 2, 3, 4, 0});
+        auto transpose_out = makeOP<opset1::Transpose>({reshape_out, Constant_1965});
+        model_ref = std::make_shared<Model>(NodeVector{transpose_out}, ParameterVector{data_1, data_2, data_3});
     }
 }
