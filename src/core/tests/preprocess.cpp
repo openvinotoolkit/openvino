@@ -2460,12 +2460,8 @@ TEST_F(TransformationTestsF, preprocessing_mul_conv_fusion) {
         auto input = std::make_shared<op::v0::Parameter>(in_type, in_shape);
 
         auto weights = op::v0::Constant::create(element::f32, ov::Shape({1, 3, 3, 3}), {0.003922f});
-        auto axis = op::v0::Constant::create(element::i64, ov::Shape{1}, {1});
-        auto indices = op::v0::Constant::create(element::i64, ov::Shape{3}, {2, 1, 0});
-
-        auto gather = std::make_shared<op::v8::Gather>(weights, indices, axis);
         auto conv = std::make_shared<op::v1::Convolution>(input,
-                                                          gather,
+                                                          weights,
                                                           Strides{},
                                                           CoordinateDiff{},
                                                           CoordinateDiff{},
