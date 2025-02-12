@@ -783,13 +783,13 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op
     defConvAttr.group = defConvNodeBase->get_group();
     defConvAttr.deformable_group = defConvNodeBase->get_deformable_group();
     auto& strides = defConvNodeBase->get_strides();
-    for (size_t i = 0; i < strides.size(); i++) {
-        defConvAttr.stride.push_back(strides[i]);
+    for (uint64_t stride : strides) {
+        defConvAttr.stride.push_back(stride);
     }
 
     auto& dilations = defConvNodeBase->get_dilations();
-    for (size_t i = 0; i < dilations.size(); i++) {
-        defConvAttr.dilation.push_back(dilations[i] - 1);
+    for (uint64_t dilation : dilations) {
+        defConvAttr.dilation.push_back(dilation - 1);
     }
 
     defConvAttr.padL = defConvNodeBase->get_pads_begin();
