@@ -45,7 +45,6 @@ Checks: >
   -cppcoreguidelines-narrowing-conversions,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -google-build-using-namespace,
-  -google-default-arguments,
   -google-explicit-constructor,
   -google-readability-casting,
   -google-readability-todo,

@@ -247,10 +247,10 @@ void jit_emitter::prepare_table() {
     }
 }
 
-void jit_emitter::emit_code(const std::vector<size_t>& in_idxs,
-                            const std::vector<size_t>& out_idxs,
-                            const std::vector<size_t>& pool_vec_idxs,
-                            const std::vector<size_t>& pool_gpr_idxs) const {
+void jit_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
+                                 const std::vector<size_t>& out_idxs,
+                                 const std::vector<size_t>& pool_vec_idxs,
+                                 const std::vector<size_t>& pool_gpr_idxs) const {
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
     emit_impl(in_idxs, out_idxs);
