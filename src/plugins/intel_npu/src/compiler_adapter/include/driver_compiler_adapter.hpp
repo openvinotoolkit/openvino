@@ -48,8 +48,7 @@ private:
 
     SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
                              ze_graph_compiler_version_info_t compilerVersion,
-                             const uint32_t supportedOpsetVersio,
-                             const bool applyCommonPasses) const;
+                             const uint32_t supportedOpsetVersio) const;
 
     std::string serializeConfig(const Config& config, ze_graph_compiler_version_info_t compilerVersion) const;
 

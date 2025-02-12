@@ -14,12 +14,9 @@
 
 namespace intel_npu::driver_compiler_utils {
 
-IRSerializer::IRSerializer(const std::shared_ptr<const ov::Model>& origModel,
-                           const uint32_t supportedOpset,
-                           const bool commonPassesApplied)
+IRSerializer::IRSerializer(const std::shared_ptr<const ov::Model>& origModel, const uint32_t supportedOpset)
     : _logger("IRSerializer", Logger::global().level()),
-      _supportedOpset(supportedOpset),
-      _commonPassesApplied(commonPassesApplied) {
+      _supportedOpset(supportedOpset) {
     // There is no const variant of run_passes so use const_cast here
     // as model serialization does not mutate the model
     _model = std::const_pointer_cast<ov::Model>(origModel);
@@ -57,9 +54,6 @@ void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weigh
     // deserialize the I/O metadata.
     const auto useIndicesForIOMetadataKey = "use_indices_for_io_metadata";
 
-    // See the attribute's description
-    const auto commonPassesAppliedKey = "common_passes_applied";
-
     // We modify the original model object here therefore a mutex is required
     static std::mutex rtInfoMutex;
 
@@ -68,14 +62,12 @@ void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weigh
 
         _model->set_rt_info(true, newAPIKey);
         _model->set_rt_info(true, useIndicesForIOMetadataKey);
-        _model->set_rt_info(_commonPassesApplied, commonPassesAppliedKey);
 
         manager.run_passes(_model);
 
         auto& rtInfo = _model->get_rt_info();
         rtInfo.erase(newAPIKey);
         rtInfo.erase(useIndicesForIOMetadataKey);
-        rtInfo.erase(commonPassesAppliedKey);
     }
     _logger.debug("serializeModelToStream end");
 }

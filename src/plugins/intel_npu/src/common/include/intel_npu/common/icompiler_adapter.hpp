@@ -16,6 +16,14 @@ public:
     virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
     virtual uint32_t get_version() const = 0;
 
+    /**
+     * @brief Applies the common OV passes previously found inside the compiler.
+     *
+     * @param model The model on which the passes will be applied.
+     * @return A clone of the original model on which the passes have been applied.
+     */
+    std::shared_ptr<ov::Model> apply_common_passes(const std::shared_ptr<const ov::Model>& model) const;
+
     virtual ~ICompilerAdapter() = default;
 };
 

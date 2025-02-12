@@ -78,8 +78,11 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                                        const Config& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
+    const std::shared_ptr<const ov::Model> modelAfterPasses = apply_common_passes(model);
+    _logger.debug("Common OV passes have been applied inside the plugin");
+
     _logger.debug("compile start");
-    auto networkDesc = _compiler->compile(model, config);
+    auto networkDesc = _compiler->compile(modelAfterPasses, config);
     auto blobPtr = std::make_unique<BlobContainerVector>(std::move(networkDesc.compiledNetwork));
     _logger.debug("compile end");
 
@@ -138,7 +141,10 @@ ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov:
                                                  const Config& config) const {
     OV_ITT_TASK_CHAIN(QUERY_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "query");
 
-    return _compiler->query(model, config);
+    const std::shared_ptr<const ov::Model> modelAfterPasses = apply_common_passes(model);
+    _logger.debug("Common OV passes have been applied inside the plugin");
+
+    return _compiler->query(modelAfterPasses, config);
 }
 
 uint32_t PluginCompilerAdapter::get_version() const {
