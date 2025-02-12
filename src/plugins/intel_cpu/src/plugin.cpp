@@ -449,6 +449,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
             RW_property(ov::value_cache_precision.name()),
             RW_property(ov::key_cache_group_size.name()),
             RW_property(ov::value_cache_group_size.name()),
+            RW_property(ov::hint::model.name()),
         };
 
         std::vector<ov::PropertyName> supportedProperties;
@@ -529,6 +530,8 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
 #endif
     } else if (name == ov::optimal_batch_size){
         return decltype(ov::optimal_batch_size)::value_type(1);
+    } else if (name == ov::hint::model.name()) {
+        return decltype(ov::hint::model)::value_type(nullptr);
     }
 
     OPENVINO_THROW("Cannot get unsupported property: ", name);
