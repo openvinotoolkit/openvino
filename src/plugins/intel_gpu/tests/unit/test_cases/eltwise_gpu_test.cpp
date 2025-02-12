@@ -10,9 +10,11 @@
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/gather.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
 #include "eltwise_inst.h"
+#include "reshape_inst.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -3418,6 +3420,67 @@ TEST(eltwise_gpu_f32, broadcast_test_dim3_dim4) {
         topology.add(input_layout("input", input->get_layout()));
         topology.add(input_layout("input2", input2->get_layout()));
         topology.add(eltwise("eltwise", { input_info("input"), input_info("input2") }, eltwise_mode::sum));
+
+        network network(engine, topology, config);
+
+        network.set_input_data("input", input);
+        network.set_input_data("input2", input2);
+        auto outputs = network.execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "eltwise");
+
+        auto output = outputs.at("eltwise").get_memory();
+
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+        for (int i = 0; i < 16; i++)
+        {
+            ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+        }
+    }
+}
+
+
+TEST(eltwise_gpu_f32, broadcast_test_dim3_dim4_new_shape_infer_false) {
+    auto& engine = get_test_engine();
+
+    ov::Shape in2_shape = {1, 1, 4, 1};
+    auto input2 = engine.allocate_memory({ ov::PartialShape(in2_shape), data_types::f32, format::bfyx });
+
+    std::vector<float> const_input = {
+        1.f,   0.f, 5.f, 1.5f,
+        2.f,   0.f, 6.f, 5.2f,
+        3.f,  0.5f, 7.f, 12.f,
+        4.f, -0.5f, 8.f,  8.f
+    };
+
+    set_values(input2, {
+        0.5f,   2.5f,  0.5f,  2.5f
+    });
+
+    float answers[16] = {
+        1.5, 2.5, 5.5, 4,
+        2.5, 2.5, 6.5, 7.7,
+        3.5, 3, 7.5, 14.5,
+        4.5, 2, 8.5, 10.5
+    };
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(false));
+
+    // Eltwise in1:dim3, int2:dim4
+    {
+        ov::Shape in1_shape = {1, 2, 2, 4};
+
+        auto input = engine.allocate_memory({ ov::PartialShape(in1_shape), data_types::f32, format::bfyx });
+        set_values(input, const_input);
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(input_layout("input2", input2->get_layout()));
+        topology.add(reshape("reshape_input1", input_info("input"), false, {}, ov::PartialShape({2, 2, 4})));
+        topology.add(eltwise("eltwise", { input_info("reshape_input1"), input_info("input2") }, eltwise_mode::sum));
 
         network network(engine, topology, config);
 
