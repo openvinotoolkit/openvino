@@ -46,8 +46,7 @@ static bool can_compile_rvv100() {
         RVVGenerator gen;
         gen.ready();
         const auto caller = gen.getCode<uint32_t (*)()>();
-        const auto res = caller();
-        status = true;
+        status = static_cast<bool>(caller());
     }
 
     // Restore original signal handler
