@@ -6,10 +6,7 @@
 
 #include "snippets/lowered/pass/pass.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
-namespace pass {
+namespace ov::intel_cpu::tpp::pass {
 
 /**
  * @interface SetTPPLeadingDim
@@ -28,7 +25,4 @@ public:
              snippets::lowered::LinearIR::constExprIt end) override;
 };
 
-}  // namespace pass
-}  // namespace tpp
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::tpp::pass

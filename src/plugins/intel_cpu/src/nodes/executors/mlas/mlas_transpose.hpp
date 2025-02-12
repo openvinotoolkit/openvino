@@ -6,8 +6,7 @@
 
 #include "nodes/executors/transpose.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 class MlasTransposeExecutor : public TransposeExecutor {
 public:
     using TransposeExecutor::TransposeExecutor;
@@ -40,5 +39,4 @@ public:
     TransposeExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

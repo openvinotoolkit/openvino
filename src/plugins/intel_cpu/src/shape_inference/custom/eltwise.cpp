@@ -6,9 +6,7 @@
 
 #include "utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 /**
  * Implements Eltwise shape inference algorithm. The algorithm is based on broadcasting all the input shapes
@@ -53,6 +51,4 @@ Result EltwiseShapeInfer::infer(const std::vector<std::reference_wrapper<const V
     return {{std::move(output_shape)}, ShapeInferStatus::success};
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

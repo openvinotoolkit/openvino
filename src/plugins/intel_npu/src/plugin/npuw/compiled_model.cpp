@@ -695,7 +695,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
         read(stream, key);
         ov::Any val;
         read_any(stream, val);
-        compiled->m_non_npuw_props[key] = val;
+        compiled->m_non_npuw_props[key] = std::move(val);
     }
     compiled->implement_properties();
 
@@ -831,7 +831,7 @@ void ov::npuw::CompiledModel::detach_memory() {
 
 std::string ov::npuw::CompiledModel::global_mem_device() const {
     // Force globally set device if set
-    const std::string device_alloc = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>();
+    const std::string& device_alloc = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>();
     if (!device_alloc.empty()) {
         return device_alloc;
     }
@@ -852,7 +852,7 @@ std::string ov::npuw::CompiledModel::global_mem_device() const {
 
 std::string ov::npuw::CompiledModel::funcall_mem_device(const std::size_t idx) const {
     // Force globally set device if set
-    const std::string device_alloc = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>();
+    const std::string& device_alloc = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>();
     if (!device_alloc.empty()) {
         return device_alloc;
     }
