@@ -105,6 +105,13 @@ void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITenso
 ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
     : ov::ISyncInferRequest(compiled_model),
       m_npuw_llm_compiled_model(compiled_model) {
+    for (const auto& input_port : m_npuw_llm_compiled_model->inputs()) {
+        init_tensor(input_port);
+    }
+    for (const auto& output_port : m_npuw_llm_compiled_model->outputs()) {
+        init_tensor(output_port);
+    }
+
     m_kvcache_request = compiled_model->m_kvcache_compiled->create_infer_request();
     m_prefill_request = compiled_model->m_prefill_compiled->create_infer_request();
 
@@ -122,8 +129,31 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         m_kvcache_out_ports.emplace(output_port.get_any_name(), output_port);
     }
 
-    m_input_ids_history->set_state(ov::make_tensor(ov::element::i64, {1, 0}));
-    m_atten_mask_history->set_state(ov::make_tensor(ov::element::i64, {1, 0}));
+    m_input_ids_history =
+        std::make_shared<LLMIdsHistoryState>("input_ids_history", m_npuw_llm_compiled_model->m_kvcache_desc.dim);
+    m_position_ids_history =
+        std::make_shared<LLMIdsHistoryState>("position_ids_history", m_npuw_llm_compiled_model->m_kvcache_desc.dim);
+}
+
+void ov::npuw::LLMInferRequest::init_tensor(const ov::Output<const ov::Node>& port) {
+    ov::SoPtr<ITensor> tensor;
+    tensor = ov::ISyncInferRequest::get_tensor(port);
+
+    if (!tensor) {
+        const auto& shape = port.get_partial_shape();
+        const bool is_dynamic = shape.is_dynamic();
+        ov::Shape tensor_shape;
+        if (is_dynamic) {
+            for (auto&& item : shape) {
+                tensor_shape.push_back(item.is_static() ? item.get_length() : 0);
+            }
+        } else {
+            tensor_shape = shape.to_shape();
+        }
+
+        tensor = ov::make_tensor(port.get_element_type(), tensor_shape);
+        set_tensor(port, tensor);
+    }
 }
 
 void ov::npuw::LLMInferRequest::prepare_for_new_conversation() {
@@ -223,7 +253,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     std::copy_n(input_ids->data<int64_t>(), input_ids->get_size(), kv_input_ids->data<int64_t>());
 
     auto kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"));
-    std::copy_n(attention_mask->data<int64_t>(), attention_mask->get_size(), kv_attn_mask->data<int64_t>());
+    std::copy_n(attention_mask->data<int64_t>(), attention_mask->get_size() - 1, kv_attn_mask->data<int64_t>());
 
     auto kv_pos_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("position_ids"));
     std::copy_n(position_ids->data<int64_t>(), position_ids->get_size(), kv_pos_ids->data<int64_t>());
@@ -269,65 +299,48 @@ void ov::npuw::LLMInferRequest::infer() {
     auto attention_mask = get_tensor(inputs[1]);
     auto position_ids = get_tensor(inputs[2]);
 
-
     OPENVINO_ASSERT(ov::element::i64 == input_ids->get_element_type());
     OPENVINO_ASSERT(ov::element::i64 == attention_mask->get_element_type());
     OPENVINO_ASSERT(ov::element::i64 == position_ids->get_element_type());
 
     // NOTE: For chat mode, only new chat-templated input will be sent
-    if (m_is_chat_conversation) {
-        update_ids_state(input_ids, position_ids);
-    }
-
+    //       for input_ids and position_ids.
+    //       However, attention_mask will contain the full history.
+    update_ids_state(input_ids, position_ids);
     if (input_ids->get_size() != 1) {
-        if (m_is_chat_conversation) {
-            update_mask_state(attention_mask, true);
-            input_ids = m_input_ids_history->get_state();
-            attention_mask = m_atten_mask_history->get_state();
-            position_ids = m_position_ids_history->get_state();  
-        }
-        infer_prefill(input_ids, attention_mask, position_ids);
+        infer_prefill(get_ids_from_state(m_input_ids_history),
+                      attention_mask,
+                      get_ids_from_state(m_position_ids_history));
     } else {
-        if (m_is_chat_conversation) {
-            update_mask_state(attention_mask, false);
-        }
         infer_generate(input_ids, attention_mask, position_ids);
     }
 }
 
 void ov::npuw::LLMInferRequest::update_ids_state(ov::SoPtr<ov::ITensor> input_ids,
                                                  ov::SoPtr<ov::ITensor> position_ids) {
-    auto input_ids_state = m_input_ids_history->get_state();
-    auto input_ids_state_shape = input_ids_state->get_shape();
-    input_ids_state_shape[1] += input_ids->get_size();
-    input_ids_state->set_shape(input_ids_state_shape);
-    for (std::size_t i = input_ids->get_size() - 1; i >= 0; --i) {
-        input_ids_state->data<int64_t>()[input_ids_state_shape[1] - i] = input_ids->data<int64_t>()[input_ids->get_size() - i];
-    }
+    auto seq_len_dim = m_npuw_llm_compiled_model->m_kvcache_desc.dim;
 
-    auto position_ids_state = m_position_ids_history->get_state();
-    auto position_ids_state_shape = position_ids_state->get_shape();
-    position_ids_state_shape[1] += position_ids->get_size();
-    position_ids_state->set_shape(position_ids_state_shape);
-    for (std::size_t i = position_ids->get_size() - 1; i >= 0; --i) {
-        position_ids_state->data<int64_t>()[position_ids_state_shape[1] - i] = position_ids->data<int64_t>()[position_ids->get_size() - i];
-    }
+    auto update_ids = [&seq_len_dim](const std::shared_ptr<LLMIdsHistoryState> ids_history,
+                                     ov::SoPtr<ov::ITensor> ids_value) {
+        auto ids_state = ids_history->get_state();
+        auto new_ids_state_shape = ids_state->get_shape();
+        auto old_ids_state_size = new_ids_state_shape[seq_len_dim];
+        new_ids_state_shape[seq_len_dim] += ids_value->get_size();
+        auto new_ids_state = ov::make_tensor(ids_state->get_element_type(), new_ids_state_shape);
+        std::copy_n(ids_state->data<int64_t>(), old_ids_state_size, new_ids_state->data<int64_t>());
+        std::copy_n(ids_value->data<int64_t>(),
+                    ids_value->get_size(),
+                    new_ids_state->data<int64_t>() + old_ids_state_size);
+        ids_history->set_state(new_ids_state);
+    };
+
+    update_ids(m_input_ids_history, input_ids);
+    update_ids(m_position_ids_history, position_ids);
 }
 
-// Need to fix to accept attention_mask on 1 greater
-void ov::npuw::LLMInferRequest::update_mask_state(ov::SoPtr<ov::ITensor> atten_mask,
-                                                  bool accumulate) {
-    auto atten_mask_state = m_atten_mask_history->get_state();
-    if (accumulate) {
-        auto atten_mask_state_shape = atten_mask_state->get_shape();
-        atten_mask_state_shape[1] += atten_mask->get_size();
-        atten_mask_state->set_shape(atten_mask_state_shape);
-        for (std::size_t i = atten_mask->get_size() - 1; i >= 0; --i) {
-            atten_mask_state->data<int64_t>()[atten_mask_state_shape[1] - i] = atten_mask->data<int64_t>()[atten_mask->get_size() - i];
-        }
-    } else {
-        m_atten_mask_history->set_state(atten_mask);
-    }
+ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_ids_from_state(std::shared_ptr<LLMIdsHistoryState> ids_history) {
+    auto ids_state = ids_history->get_state();
+    return ov::make_tensor(ov::element::i64, ov::Shape{1, ids_state->get_size()}, ids_state->data<int64_t>());
 }
 
 ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
@@ -335,18 +348,10 @@ ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<co
     if (port == get_outputs()[0]) {
         return m_logits;
     }
+
     return ov::ISyncInferRequest::get_tensor(port);
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::LLMInferRequest::query_state() const {
-    return {m_input_ids_history, m_atten_mask_history, m_position_ids_history};
+    return {m_input_ids_history, m_position_ids_history};
 }
-
-// in chat_mode we need to: in the next prefill call apply prevous kvcache
-// however:how can we? prefill won't use it.
-// call only kvcache model to re-use cache. No extra steps are needed!
-//
-// or save all tokens.
-// this is bad practice only for the last token. But we don't need it.
-
-// GenAI rules everything other
