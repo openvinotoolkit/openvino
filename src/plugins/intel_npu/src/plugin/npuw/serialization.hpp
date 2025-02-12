@@ -183,7 +183,7 @@ void read(std::istream& stream, std::vector<T>& var) {
     for (std::size_t i = 0; i < var_size; ++i) {
         T elem;
         read(stream, elem);
-        var.push_back(elem);
+        var.push_back(std::move(elem));
     }
 }
 
@@ -204,7 +204,7 @@ void read(std::istream& stream, std::unordered_set<T>& var) {
     for (std::size_t i = 0; i < var_size; ++i) {
         T elem;
         read(stream, elem);
-        var.insert(elem);
+        var.insert(std::move(elem));
     }
 }
 
