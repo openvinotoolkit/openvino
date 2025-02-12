@@ -109,9 +109,9 @@ jobs:
       - name: Run tests
         run: |
           cd executorch/backends/openvino/tests
-          echo "github_workspace:"
-          ls ${{ github.workspace }}
-          echo "github_workspace/executorch:"
-          ls ${{ github.workspace }}/executorch
-          python test_openvino_delegate.py --build_folder ../../../cmake-openvino-out --device CPU --test_type ops
-          python test_openvino_delegate.py --build_folder ../../../cmake-openvino-out --device CPU --test_type models
+          python test_openvino_delegate.py --build_folder ../../../cmake-openvino-out --device CPU --test_type ops &> test_out_ops.txt
+          cat test_out_ops.txt
+          if ! tail -n 1 test_out_ops.txt | grep -q 'OpenVINO backend tests completed successfully'; then exit 1; fi
+          python test_openvino_delegate.py --build_folder ../../../cmake-openvino-out --device CPU --test_type models &> test_out_models.txt
+          cat test_out_models.txt
+          if ! tail -n 1 test_out_models.txt | grep -q 'OpenVINO backend tests completed successfully'; then exit 1; fi
