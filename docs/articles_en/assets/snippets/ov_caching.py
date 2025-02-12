@@ -46,11 +46,11 @@ caching_supported = 'EXPORT_IMPORT' in core.get_property(device_name, device.cap
 # ! [ov:caching:part4]
 import base64
 
-def encrypt_base64(src):
-    return base64.b64encode(bytes(src, "utf-8"))
+def encrypt_base64(src: bytes):
+    return base64.b64encode(src)
 
-def decrypt_base64(src):
-    return base64.b64decode(bytes(src, "utf-8"))
+def decrypt_base64(src: bytes):
+    return base64.b64decode(src)
 
 core = ov.Core()
 core.set_property({props.cache_dir: path_to_cache_dir})
@@ -63,14 +63,14 @@ compiled_model = core.compile_model(model=model, device_name=device_name, config
 # ! [ov:caching:part5]
 import base64
 
-def encrypt_base64(src):
-    return base64.b64encode(bytes(src, "utf-8"))
+def encrypt_base64(src: bytes):
+    return base64.b64encode(src)
 
-def decrypt_base64(src):
-    return base64.b64decode(bytes(src, "utf-8"))
+def decrypt_base64(src: bytes):
+    return base64.b64decode(src)
 
 core = ov.Core()
-if "GPU" in core.available_devices:
+if any("GPU" in device for device in core.available_devices):
     core.set_property({props.cache_dir: path_to_cache_dir})
     config_cache = {}
     config_cache["CACHE_ENCRYPTION_CALLBACKS"] = [encrypt_base64, decrypt_base64]
