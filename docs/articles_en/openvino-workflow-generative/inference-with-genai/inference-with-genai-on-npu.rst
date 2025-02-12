@@ -25,6 +25,13 @@ Install required dependencies:
          pip install  nncf==2.14.1 onnx==1.17.0 optimum-intel==1.21.0
          pip install openvino==2025.0 openvino-tokenizers==2025.0 openvino-genai==2025.0
 
+      For the pre-production version, use the following line, instead:
+
+      .. code-block:: console
+
+         pip install --pre openvino openvino-tokenizers openvino-genai --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+
+
    .. tab-item:: Windows
 
       .. code-block:: console
@@ -33,6 +40,12 @@ Install required dependencies:
          npu-env\Scripts\activate
          pip install  nncf==2.14.1 onnx==1.17.0 optimum-intel==1.21.0
          pip install openvino==2025.0 openvino-tokenizers==2025.0 openvino-genai==2025.0
+
+         For the pre-production version, use the following line, instead:
+
+      .. code-block:: console
+
+         pip install --pre openvino openvino-tokenizers openvino-genai --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
 
 
 Note that for systems based on Intel® Core™ Ultra Processors Series 2, more than 16GB of RAM
