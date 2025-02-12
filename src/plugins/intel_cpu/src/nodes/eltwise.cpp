@@ -2398,11 +2398,13 @@ bool Eltwise::canFuse(const NodePtr& node) const {
     const auto isISASupportedByJIT = false;
 #endif
 
-    if (!isISASupportedByJIT || (getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK))
+    if (!isISASupportedByJIT || (getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK)) {
         return false;
+    }
 
-    if (!EltwiseJitExecutor::isSupportedOp(this, getAlpha(), getBeta(), getGamma()))
+    if (!EltwiseJitExecutor::isSupportedOp(this, getAlpha(), getBeta(), getGamma())) {
         return false;
+    }
 
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
     const auto eltwise = dynamic_cast<const Eltwise*>(node.get());
