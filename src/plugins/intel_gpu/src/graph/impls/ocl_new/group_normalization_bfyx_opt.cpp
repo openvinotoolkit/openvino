@@ -303,7 +303,7 @@ public:
     std::vector<layout> get_internal_buffer_layouts(const kernel_impl_params& params) const override {
         auto desc = params.typed_desc<group_normalization>();
         const auto& shape = params.output_layouts[0].get_shape();
-        auto buf = layout{ov::PartialShape{shape[0] * shape[1]}, ov::element::f32, format::bfyx };
+        auto buf = layout{ov::PartialShape{static_cast<int64_t>(shape[0] * shape[1])}, ov::element::f32, format::bfyx };
         return { buf, buf };
     }
 };
