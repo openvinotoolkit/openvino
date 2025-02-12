@@ -245,7 +245,7 @@ std::shared_ptr<Model> PrePostProcessor::build() {
     // MO path : [fw model conversion -> PrePostProcessing -> MOC] -> nncf
     // OVC path: [fw model conversion -> MOC] -> PrePostProcessing -> nncf
     //
-    // Since nncf is applied with a not fully optimized model, extra FQ ops might appear,
+    // Since nncf is applied to a not fully optimized model, extra FQ ops might appear,
     // which can affect both accuracy and performance.
     // PrePostProcessing is not part of OVC, so we have to insert an additional
     // Transformation calls inside PrePostProcessing.

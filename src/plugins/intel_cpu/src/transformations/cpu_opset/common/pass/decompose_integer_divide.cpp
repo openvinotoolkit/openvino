@@ -6,8 +6,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset1.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 DecomposeIntegerDivide::DecomposeIntegerDivide() {
     register_matcher(std::make_shared<ov::pass::pattern::Matcher>(ov::pass::pattern::wrap_type<ov::opset1::Divide>(),
@@ -31,5 +30,4 @@ DecomposeIntegerDivide::DecomposeIntegerDivide() {
                      });
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

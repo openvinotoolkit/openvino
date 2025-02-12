@@ -20,9 +20,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 namespace {
 class MemoryStub : public IMemory {
@@ -1106,6 +1104,4 @@ bool MemoryInputSingle::isSupportedOperation(const std::shared_ptr<const ov::Nod
     return MemoryInput::isSupportedOperation(op, errorMessage);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
