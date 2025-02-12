@@ -457,7 +457,7 @@ void jit_uni_eltwise_generic<isa>::apply_post_ops() {
     }
 }
 
-template struct jit_uni_eltwise_generic<cpu_isa_t::imafdcv>;
+template struct jit_uni_eltwise_generic<cpu_isa_t::gcv>;
 
 }  // namespace riscv64
 
