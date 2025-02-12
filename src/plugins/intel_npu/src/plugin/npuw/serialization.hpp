@@ -64,6 +64,8 @@ struct Context {
     const std::unordered_map<const void*, std::size_t>& const_to_offset;
 };
 
+using Weights = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>;
+
 // Specific type overloads
 void write(std::ostream& stream, const std::streampos& var);
 void write(std::ostream& stream, const std::string& var);
@@ -93,7 +95,7 @@ void write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, 
 // No allocation needed
 void read_weightless(std::istream& stream,
                      std::vector<ov::Tensor>& var,
-                     const std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>& weights);
+                     const Weights& weights);
 
 // Forward declaration
 template <typename T1, typename T2>

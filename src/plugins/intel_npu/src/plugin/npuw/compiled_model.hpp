@@ -174,7 +174,7 @@ private:
 
         void serialize(std::ostream& stream, const ov::npuw::s11n::Context& ctx) const;
         void deserialize(std::istream& stream,
-                         const std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>& weights);
+                         const ov::npuw::s11n::Weights& weights);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 

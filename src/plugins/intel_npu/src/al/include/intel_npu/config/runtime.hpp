@@ -207,7 +207,7 @@ struct WEIGHTS_PATH final : OptionBase<WEIGHTS_PATH, std::string> {
     }
 
     static constexpr std::string_view getTypeName() {
-        return "ov::weights_path";
+        return "std::string";
     }
 
     static std::string defaultValue() {

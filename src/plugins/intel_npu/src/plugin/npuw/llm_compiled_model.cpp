@@ -677,11 +677,11 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     write(stream, m_cfg);
 
     // Identify either full flow or weightless
-    bool is_weightless = false;
+    bool is_weightless = true;
     if (m_non_llm_props.count(ov::cache_mode.name()) &&
-        m_non_llm_props.at(ov::cache_mode.name()).as<CacheMode>() == CacheMode::OPTIMIZE_SIZE) {
-        LOG_INFO("Serialization will be done via weightless flow.");
-        is_weightless = true;
+        m_non_llm_props.at(ov::cache_mode.name()).as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
+        LOG_INFO("Serialization will be done via flow with weights.");
+        is_weightless = false;
     }
     write(stream, is_weightless);
 

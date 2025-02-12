@@ -533,8 +533,6 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     write(stream, is_remote);
     write(stream, closure_uid);
 
-    write(stream, ctx.is_weightless);
-
     if (ctx.is_weightless) {
         write_weightless(stream, scales, ctx);
         write_weightless(stream, zerops, ctx);
@@ -555,8 +553,8 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
         }
 
         write(stream, cpu_closure_ids);
-        write(stream, non_cpu_tensors_ids);
         write_weightless(stream, cpu_closures, ctx);
+        write(stream, non_cpu_tensors_ids);
         write(stream, non_cpu_tensors);
     } else {
         write(stream, scales);
@@ -584,7 +582,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
 
 void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(
     std::istream& stream,
-    const std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>& weights) {
+    const ov::npuw::s11n::Weights& weights) {
     using namespace ov::npuw::s11n;
 
     LOG_DEBUG("Deserializing CompiledModelDesc...");
@@ -604,10 +602,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(
     read(stream, is_remote);
     read(stream, closure_uid);
 
-    bool is_weightless = false;
-    read(stream, is_weightless);
-
-    if (is_weightless) {
+    if (weights) {
         read_weightless(stream, scales, weights);
         read_weightless(stream, zerops, weights);
 
@@ -617,17 +612,19 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(
         lazy_closure.resize(closure_size);
 
         std::vector<std::size_t> cpu_closure_ids;
-        std::vector<std::size_t> non_cpu_tensors_ids;
         read(stream, cpu_closure_ids);
-        read(stream, non_cpu_tensors_ids);
 
         std::vector<ov::Tensor> cpu_closures;
-        std::vector<ov::npuw::weights::LazyTensor> non_cpu_tensors;
         read_weightless(stream, cpu_closures, weights);
         std::size_t tidx = 0;
         for (const auto& idx : cpu_closure_ids) {
             closure[idx] = std::move(cpu_closures[tidx++]);
         }
+
+        std::vector<std::size_t> non_cpu_tensors_ids;
+        read(stream, non_cpu_tensors_ids);
+
+        std::vector<ov::npuw::weights::LazyTensor> non_cpu_tensors;
         read(stream, non_cpu_tensors);
         std::size_t ltidx = 0;
         for (const auto& idx : non_cpu_tensors_ids) {
@@ -689,10 +686,10 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
     }
 
     // Write flow identifier
-    bool is_weightless = false;
+    bool is_weightless = true;
     if (m_non_npuw_props.count(ov::cache_mode.name()) &&
-        m_non_npuw_props.at(ov::cache_mode.name()).as<CacheMode>() == CacheMode::OPTIMIZE_SIZE) {
-        is_weightless = true;
+        m_non_npuw_props.at(ov::cache_mode.name()).as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
+        is_weightless = false;
     }
     write(stream, is_weightless);
 
@@ -784,7 +781,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
         weights_path = properties.at(ov::weights_path.name()).as<std::string>();
     }
 
-    std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>> weights = nullptr;
+    ov::npuw::s11n::Weights weights = nullptr;
     if (is_weightless) {
         auto mapped_memory = ov::load_mmap_object(weights_path);
         weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
