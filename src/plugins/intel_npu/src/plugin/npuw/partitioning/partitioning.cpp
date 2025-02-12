@@ -1548,6 +1548,7 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
         }      // for(inputs)
     }          // for(nodes)
     funcall._closure.resize(funcall._lazy_closure.size());
+    funcall._is_lazy_unpack.resize(funcall._lazy_closure.size(), false);
     function._num_params_total = new_param_idx;
     function._model->validate_nodes_and_infer_types();
     P.functions.insert({func_name, std::move(function)});
@@ -1675,6 +1676,7 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
         const auto& function = func_iter->second;
         funcall._closure.resize(function._num_params_total - function._param_offset);
         funcall._lazy_closure.resize(function._num_params_total - function._param_offset);
+        funcall._is_lazy_unpack.resize(function._num_params_total - function._param_offset, false);
 
         auto tmp_model = *mod_iter;
         for (auto&& node_ptr : tmp_model->get_ordered_ops()) {
@@ -1763,7 +1765,7 @@ void Partitioner::optimize(const std::string& func_name) {
         for (auto&& p : ctx.closures_to_permute) {
             auto param_idx = f._model->get_parameter_index(p.first);
             auto closure_idx = param_idx - f._param_offset;
-            ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+            ov::npuw::util::non_parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
                 funcall._lazy_closure[closure_idx] = funcall._lazy_closure[closure_idx].permute(p.second);
             });
@@ -1773,7 +1775,7 @@ void Partitioner::optimize(const std::string& func_name) {
         for (auto&& p : ctx.closures_to_f16) {
             auto param_idx = f._model->get_parameter_index(p);
             auto closure_idx = param_idx - f._param_offset;
-            ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+            ov::npuw::util::non_parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
                 funcall._lazy_closure[closure_idx] = funcall._lazy_closure[closure_idx].convert(ov::element::f16);
             });
@@ -1827,7 +1829,7 @@ void Partitioner::optimize(const std::string& func_name) {
                 to_concat_idx.push_back(p_to_concat_idx - f._param_offset);
                 to_remove_idx.insert(p_to_concat_idx);
             }
-            ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+            ov::npuw::util::non_parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
                 std::vector<LazyTensor> to_concat;
                 // Fill tensor vector
@@ -1838,6 +1840,7 @@ void Partitioner::optimize(const std::string& func_name) {
                 // and the new one added into the vector
                 if (!to_concat.empty()) {
                     funcall._lazy_closure.push_back(LazyTensor(to_concat, axis));
+                    funcall._is_lazy_unpack.push_back(false);
                     // Some of the tensors might be in closure - preserve it's 1:1 idx mapping with _lazy_closure
                     funcall._closure.push_back(ov::Tensor());
                 }
@@ -1862,7 +1865,7 @@ void Partitioner::optimize(const std::string& func_name) {
                 to_remove_idx.insert(z_idx);
             }
 
-            ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+            ov::npuw::util::non_parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
                 LazyTensor cw = funcall._lazy_closure[w_idx - f._param_offset];
                 LazyTensor cz = z_idx != -1 ? funcall._lazy_closure[z_idx - f._param_offset] : LazyTensor();
@@ -1871,6 +1874,11 @@ void Partitioner::optimize(const std::string& func_name) {
                     LazyTensor(cw, cz, cs, p.first->get_element_type(), p.first->get_shape()));
                 // Some of the tensors might be in closure - preserve it's 1:1 idx mapping with _lazy_closure
                 funcall._closure.push_back(ov::Tensor());
+                // FIXME: in some cases we might have DCOFF and DQ enabled together. This
+                // might lead to DQ passes finding patterns  and running remap on closures unconditionally.
+                // It assigns some closures to be calculated instead of keeping the lazy ones.
+                // Here we remember lazy closure not to be unpacked in compile time in DCOFF.
+                funcall._is_lazy_unpack.push_back(true);
             });
         }
 
@@ -1893,6 +1901,7 @@ void Partitioner::optimize(const std::string& func_name) {
                 // to the closure), this tensor should be non-empty to avoid this process.
                 funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
                 funcall.get()._lazy_closure.push_back(LazyTensor());
+                funcall.get()._is_lazy_unpack.push_back(false);
             }
         }
 
@@ -1903,16 +1912,19 @@ void Partitioner::optimize(const std::string& func_name) {
         for (auto&& fref : func_group.refs) {
             auto& funcall = fref.get();
             std::vector<LazyTensor> new_transforms;
+            std::vector<bool> new_is_lazy_unpack;
             // Some of the tensors might be in closure (e.g. host-gather), thus need to preserve the _closure as well
             std::vector<ov::Tensor> new_closure;
             for (std::size_t tidx = 0; tidx < funcall._lazy_closure.size(); tidx++) {
                 if (to_remove_idx.count(f._param_offset + tidx) == 0) {
                     new_transforms.push_back(funcall._lazy_closure[tidx]);
                     new_closure.push_back(funcall._closure[tidx]);
+                    new_is_lazy_unpack.push_back(funcall._is_lazy_unpack[tidx]);
                 }
             }
             funcall._lazy_closure = std::move(new_transforms);
             funcall._closure = std::move(new_closure);
+            funcall._is_lazy_unpack = std::move(new_is_lazy_unpack);
         }
         // Remove parameters that were concatenated
         for (auto&& now_remove : to_remove) {
@@ -1929,6 +1941,17 @@ void Partitioner::optimize(const std::string& func_name) {
             auto gather_idx_id = f._model->get_parameter_index(params_to_gather.pids);
             for (auto&& funcall : func_group.refs) {
                 funcall.get()._host_gather = ov::npuw::Subgraph::Gather{gather_dst_id, gather_src_id, gather_idx_id};
+            }
+        }
+
+        // FIXME: workaround
+        // Set lazy unpack indexes not to be unpacked in DCOFF
+        for (auto&& fref : func_group.refs) {
+            auto& funcall = fref.get();
+            for (std::size_t idx = 0; idx < funcall._is_lazy_unpack.size(); ++idx) {
+                if (funcall._is_lazy_unpack[idx]) {
+                    f._idx_lazy_unpack.insert(idx);
+                }
             }
         }
     }
