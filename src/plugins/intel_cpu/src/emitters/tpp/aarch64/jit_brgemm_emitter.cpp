@@ -10,9 +10,7 @@
 using namespace ov::intel_cpu::tpp;
 using namespace Xbyak_aarch64;
 
-namespace ov {
-namespace intel_cpu {
-namespace aarch64 {
+namespace ov::intel_cpu::aarch64 {
 
 using jit_generator = dnnl::impl::cpu::aarch64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
@@ -81,6 +79,4 @@ const uintptr_t jit_brgemm_emitter::get_execute_function_ptr() const {
     return reinterpret_cast<const uintptr_t>(BrgemmKernelExecutor::execute);
 }
 
-}  // namespace aarch64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::aarch64
