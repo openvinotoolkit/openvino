@@ -34,7 +34,9 @@ namespace op {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Op : public Node {
 public:
+    OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_START
     OPENVINO_RTTI_BASE("Op", "util")
+    OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_END
 
 protected:
     Op() : Node() {}

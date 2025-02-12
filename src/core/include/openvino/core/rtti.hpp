@@ -15,7 +15,13 @@
 #    define OPENVINO_DO_PRAGMA(x)
 #endif
 
-#if defined(__clang__) || ((__GNUC__) && (__GNUC__ * 100 + __GNUC_MINOR__ > 405))
+#if defined(__clang__)
+#    define OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_START                      \
+        OPENVINO_DO_PRAGMA(clang diagnostic push)                         \
+        OPENVINO_DO_PRAGMA(clang diagnostic ignored "-Wsuggest-override") \
+        OPENVINO_DO_PRAGMA(clang diagnostic ignored "-Winconsistent-missing-override")
+#    define OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_END OPENVINO_DO_PRAGMA(clang diagnostic pop)
+#elif (defined(__GNUC__) && (__GNUC__ * 100 + __GNUC_MINOR__ > 405))
 #    define OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_START \
         OPENVINO_DO_PRAGMA(GCC diagnostic push)      \
         OPENVINO_DO_PRAGMA(GCC diagnostic ignored "-Wsuggest-override")
@@ -36,15 +42,13 @@
 
 #define _OPENVINO_RTTI_BASE_WITH_TYPE(TYPE_NAME) _OPENVINO_RTTI_BASE_WITH_TYPE_VERSION(TYPE_NAME, "")
 
-#define _OPENVINO_RTTI_BASE_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME)                             \
-    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {          \
-        static ::ov::DiscreteTypeInfo type_info_static{TYPE_NAME, VERSION_NAME};                   \
-        type_info_static.hash();                                                                   \
-        return type_info_static;                                                                   \
-    }                                                                                              \
-    OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_START                                                       \
-    virtual const ::ov::DiscreteTypeInfo& get_type_info() const { return get_type_info_static(); } \
-    OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_END
+#define _OPENVINO_RTTI_BASE_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME)                    \
+    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() { \
+        static ::ov::DiscreteTypeInfo type_info_static{TYPE_NAME, VERSION_NAME};          \
+        type_info_static.hash();                                                          \
+        return type_info_static;                                                          \
+    }                                                                                     \
+    virtual const ::ov::DiscreteTypeInfo& get_type_info() const { return get_type_info_static(); }
 
 // todo: extend description comment
 /// Helper macro for base (without rtti parrent) class that provides RTTI block definition.
