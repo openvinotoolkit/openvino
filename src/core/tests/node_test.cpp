@@ -14,7 +14,7 @@ class TestNode : public ov::Node {
 public:
     TestNode() : Node() {}
     OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_START
-    OPENVINO_RTTI_BASE("TestNode")
+    OPENVINO_RTTI_BASE("TestNode", "")
     OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_END
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector&) const override {
