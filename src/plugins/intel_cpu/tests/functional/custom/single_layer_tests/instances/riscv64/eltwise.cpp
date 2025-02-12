@@ -6,6 +6,7 @@
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
+#include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 
 using namespace CPUTestUtils;
 
@@ -13,6 +14,20 @@ namespace ov {
 namespace test {
 namespace Eltwise {
 namespace {
+
+/*
+ * The motivation of this test is to validate different input and output precisions of Eltwise Op.
+ * If IO data type is not supported by jit emitter, they should be converted
+ * to supported types on input and output of ops in JIT kernel
+*/
+
+static const std::vector<ov::test::utils::EltwiseTypes> ops() {
+    // JIT us supported only when `gcv` is available
+    if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gcv)) {
+        return { utils::EltwiseTypes::ADD };
+    }
+    return {};
+}
 
 const std::vector<ov::AnyMap>& config_infer_prc_f32() {
     static const std::vector<ov::AnyMap> additionalConfig = {
@@ -24,7 +39,7 @@ const std::vector<ov::AnyMap>& config_infer_prc_f32() {
 const auto params_4D_jit = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D())),
-                ::testing::ValuesIn({ utils::EltwiseTypes::ADD }),
+                ::testing::ValuesIn(ops()),
                 ::testing::ValuesIn(secondaryInputTypes()),
                 ::testing::ValuesIn(opTypes()),
                 ::testing::ValuesIn({ ElementType::i8, ElementType::u8, ElementType::i32, ElementType::f32 }),
