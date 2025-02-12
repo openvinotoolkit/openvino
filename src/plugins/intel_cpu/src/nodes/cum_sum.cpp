@@ -13,9 +13,7 @@
 #include "openvino/opsets/opset3.hpp"
 #include "utils/bfloat16.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool CumSum::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -286,6 +284,4 @@ void CumSum::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -8,8 +8,7 @@
 #include "executor.hpp"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct PoolingAttrs {
     bool exclude_pad = false;
@@ -73,5 +72,4 @@ public:
 using PoolingExecutorBuilderPtr = std::shared_ptr<PoolingExecutorBuilder>;
 using PoolingExecutorBuilderCPtr = std::shared_ptr<const PoolingExecutorBuilder>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -6,8 +6,7 @@
 
 #include "snippets/lowered/expressions/buffer_expression.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class RepackedWeightsBufferExpression : public snippets::lowered::BufferExpression {
     friend class snippets::lowered::ExpressionFactory;
@@ -45,5 +44,4 @@ private:
     snippets::lowered::ExpressionPtr clone() const override;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

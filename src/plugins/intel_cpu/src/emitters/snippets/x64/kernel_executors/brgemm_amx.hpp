@@ -12,8 +12,7 @@
 #include "emitters/snippets/cpu_kernel_executor_table.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct BrgemmAMXKernelConfig : public BrgemmBaseKernelConfig {
 public:
@@ -122,5 +121,4 @@ protected:
 };
 #define GET_OFF_BRGEMM_AMX_ARGS(field) offsetof(BrgemmAMXKernelExecutor::call_args, field)
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

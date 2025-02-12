@@ -11,8 +11,7 @@
 #include "nodes/executors/executor_config.hpp"
 #include "ov_optional.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 // @todo Consider alternative of using template arguments instead of std::functions
 template <typename Attrs>
@@ -109,5 +108,4 @@ private:
 
 template <typename Attrs>
 using ExecutorImplementationPtr = std::shared_ptr<ExecutorImplementation<Attrs>>;
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

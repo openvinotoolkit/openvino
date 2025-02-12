@@ -7,8 +7,7 @@
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * @brief ACL supports arm_compute::MAX_DIMS maximum. The method squashes the last
@@ -195,5 +194,4 @@ arm_compute::ActivationLayerInfo getActivationLayerInfo(Algorithm algorithm, flo
  */
 bool checkActivationLayerInfo(Algorithm algorithm);
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

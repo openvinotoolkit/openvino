@@ -4,8 +4,7 @@
 
 #include "eltwise_list.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 const std::vector<EltwiseExecutorDesc>& getEltwiseExecutorsList() {
     static std::vector<EltwiseExecutorDesc> descs = {
@@ -15,5 +14,4 @@ const std::vector<EltwiseExecutorDesc>& getEltwiseExecutorsList() {
     return descs;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

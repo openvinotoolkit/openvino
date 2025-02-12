@@ -15,8 +15,7 @@
 
 #define BFLOAT16_ROUND_MODE_TO_NEAREST_EVEN
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class bfloat16_t {
 public:
@@ -69,8 +68,7 @@ private:
     uint16_t m_value;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 /**
  * std::numeric_limits overloaded for better compatibility with template metaprogramming.

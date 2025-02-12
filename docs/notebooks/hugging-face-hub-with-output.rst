@@ -356,7 +356,7 @@ TaskManager
 
 Additionally, you can specify weights compression using
 ``--weight-format`` argument with one of following options: ``fp32``,
-``fp16``, ``int8`` and ``int4``. Fro int8 and int4 nncf will be used for
+``fp16``, ``int8`` and ``int4``. For int8 and int4 nncf will be used for
 weight compression.
 
 Full list of supported arguments available via ``--help``

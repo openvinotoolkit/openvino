@@ -13,8 +13,7 @@
 #include "cpu/x64/jit_generator.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct jit_kernel;
 
@@ -999,5 +998,4 @@ variable<T[N], register_tag>::variable(jit_kernel& krnl, const shared_reg<reg_ty
 
 }  // namespace internal
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

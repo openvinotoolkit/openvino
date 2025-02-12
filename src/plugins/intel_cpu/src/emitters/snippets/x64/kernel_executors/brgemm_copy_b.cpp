@@ -13,8 +13,7 @@
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 BrgemmCopyBKernelConfig::BrgemmCopyBKernelConfig(const element::Type& src_dt,
                                                  const element::Type& wei_dt,
@@ -396,5 +395,4 @@ void BrgemmCopyBKernelExecutor::execute(const BrgemmCopyBKernelExecutor* executo
     (*kernel)(args);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

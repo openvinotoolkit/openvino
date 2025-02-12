@@ -11,9 +11,7 @@
 
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
-namespace utils {
+namespace ov::intel_cpu::utils {
 
 size_t get_buffer_cluster_id(const ov::snippets::lowered::ExpressionPort& port) {
     auto get_cluster_id = [](const snippets::lowered::ExpressionPort& p) {
@@ -96,6 +94,4 @@ void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* h
     }
 }
 
-}  // namespace utils
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::utils

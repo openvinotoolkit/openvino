@@ -8,8 +8,7 @@
 #include "nodes/executors/pooling.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class AclPoolingExecutor : public PoolingExecutor {
 public:
@@ -130,5 +129,4 @@ public:
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

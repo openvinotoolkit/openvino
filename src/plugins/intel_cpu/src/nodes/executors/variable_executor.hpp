@@ -11,8 +11,7 @@
 #include "executor_implementation.hpp"
 #include "nodes/executors/graph_emitter.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * A stateful (variable) executor
@@ -138,5 +137,4 @@ private:
     size_t m_implId;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

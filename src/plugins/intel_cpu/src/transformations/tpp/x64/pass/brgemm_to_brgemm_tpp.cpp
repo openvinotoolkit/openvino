@@ -14,10 +14,7 @@
 #include "transformations/tpp/x64/op/brgemm.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
-namespace pass {
+namespace ov::intel_cpu::tpp::pass {
 
 using namespace snippets::lowered;
 
@@ -40,7 +37,7 @@ BrgemmToBrgemmTPP::BrgemmToBrgemmTPP() {
 
     auto m_brgemm = ov::pass::pattern::wrap_type<snippets::op::Brgemm>();
 
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
+    auto callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::BrgemmToBrgemmTPP")
         const auto node = m.get_match_root();
         const auto brgemm = ov::as_type_ptr<snippets::op::Brgemm>(node);
@@ -113,7 +110,4 @@ BrgemmToBrgemmTPP::BrgemmToBrgemmTPP() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(m_brgemm, matcher_name);
     register_matcher(m, callback);
 }
-}  // namespace pass
-}  // namespace tpp
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::tpp::pass

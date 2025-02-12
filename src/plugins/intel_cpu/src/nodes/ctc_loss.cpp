@@ -9,9 +9,7 @@
 #include "ctc_loss.h"
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool CTCLoss::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -288,6 +286,4 @@ bool CTCLoss::created() const {
     return getType() == Type::CTCLoss;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

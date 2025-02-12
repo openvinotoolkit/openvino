@@ -39,8 +39,7 @@
 #    include "nodes/executors/shl/shl_fullyconnected.hpp"
 #endif
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace ov::element;
 using namespace TypeMaskAlias;
@@ -543,5 +542,4 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
 }
 // clang-format on
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

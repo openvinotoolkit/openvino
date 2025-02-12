@@ -21,8 +21,9 @@ find_package(OpenVINO REQUIRED COMPONENTS Runtime)
 # gflags is distributed in sources in OpenVINO packages so we need to build it explicitly
 #
 
-if(EXISTS "${PACKAGE_PREFIX_DIR}/samples/cpp/thirdparty/gflags")
-    add_subdirectory("${PACKAGE_PREFIX_DIR}/samples/cpp/thirdparty/gflags" gflags EXCLUDE_FROM_ALL)
+get_filename_component(OpenVINO_PACKAGE_DIR "${OpenVINO_DIR}/../.." REALPATH)
+if(EXISTS "${OpenVINO_PACKAGE_DIR}/samples/cpp/thirdparty/gflags")
+    add_subdirectory("${OpenVINO_PACKAGE_DIR}/samples/cpp/thirdparty/gflags" gflags EXCLUDE_FROM_ALL)
 else()
     find_package(gflags REQUIRED)
 endif()

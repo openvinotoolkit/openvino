@@ -9,10 +9,7 @@
 #include "common/cpu_memcpy.h"
 #include "shape_inference/shape_inference.hpp"
 
-namespace ov {
-namespace intel_cpu {
-
-namespace node {
+namespace ov::intel_cpu::node {
 
 Reference::Reference(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context, std::string errorMessage)
     : Node(op, context, NgraphShapeInferFactory(op)),
@@ -169,6 +166,4 @@ ov::TensorVector Reference::prepareOutputs() const {
     return outputs;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

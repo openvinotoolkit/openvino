@@ -198,7 +198,7 @@ tasks and model classes in Optimum TaskManager
 `documentation <https://huggingface.co/docs/optimum/exporters/task_manager>`__.
 Additionally, you can specify weights compression using
 ``--weight-format`` argument with one of following options: ``fp32``,
-``fp16``, ``int8`` and ``int4``. Fro int8 and int4
+``fp16``, ``int8`` and ``int4``. For int8 and int4
 `nncf <https://github.com/openvinotoolkit/nncf>`__ will be used for
 weight compression. More details about model export provided in `Optimum
 Intel

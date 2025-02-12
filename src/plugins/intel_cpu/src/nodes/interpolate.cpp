@@ -41,9 +41,7 @@ using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_interpolate_call_args, field)
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 static inline bool isFloatCompatible(ov::element::Type prc) {
     return one_of(prc, ov::element::f32, ov::element::bf16, ov::element::f16, ov::element::f64);
@@ -4337,6 +4335,4 @@ bool Interpolate::created() const {
     return getType() == Type::Interpolate;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

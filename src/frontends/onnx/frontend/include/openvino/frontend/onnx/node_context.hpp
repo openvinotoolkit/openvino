@@ -21,6 +21,8 @@ public:
 
     Output<ov::Node> get_input(int port_idx) const override;
 
+    const std::string& get_name() const override;
+
     ov::Any get_attribute_as_any(const std::string& name) const override;
 
 protected:

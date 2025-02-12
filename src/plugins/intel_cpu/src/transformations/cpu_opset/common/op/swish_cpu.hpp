@@ -6,8 +6,7 @@
 
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class SwishNode : public ov::op::Op {
 public:
@@ -27,5 +26,4 @@ protected:
     float m_alpha;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -153,3 +153,14 @@ def test_serialize_pass(request, tmp_path, is_path_xml, is_path_bin):
 
     os.remove(xml_path)
     os.remove(bin_path)
+
+
+@pytest.mark.parametrize(("transformation", "arguments"),
+                         [(ConstantFolding, []),
+                          (MakeStateful, [{"parameter": "result"}]),
+                          (ConvertFP32ToFP16, []),
+                          (LowLatency2, [])])
+def test_run_on_model_transformations(transformation, arguments):
+    model = get_model()
+    transformation(*arguments).run_on_model(model)
+    assert model is not None

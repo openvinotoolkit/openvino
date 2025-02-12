@@ -11,9 +11,7 @@
 #include "experimental_detectron_detection_output.h"
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 struct Indexer {
     std::vector<int> dims_;
@@ -393,6 +391,4 @@ bool ExperimentalDetectronDetectionOutput::created() const {
     return getType() == Type::ExperimentalDetectronDetectionOutput;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

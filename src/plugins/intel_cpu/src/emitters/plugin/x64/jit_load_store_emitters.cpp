@@ -35,8 +35,7 @@ using namespace Xbyak::util;
         data_reg_updated = true;                                    \
     }
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace {
 // heuristic threshold number by byte between mask load and emulation with several simple partial load
@@ -1426,5 +1425,4 @@ void jit_store_emitter::register_table_entries() {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -14,8 +14,7 @@
 #    include "arm_compute/core/CPP/CPPTypes.h"
 #endif
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 static bool hasFP16HardwareSupport(const ov::element::Type& precision) {
 #if defined(OPENVINO_ARCH_X86_64)
@@ -64,5 +63,4 @@ ov::element::Type defaultFloatPrecision() {
     return ov::element::f32;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
