@@ -1,0 +1,24 @@
+#include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/constant.hpp"
+
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
+
+OutputVector translate_ravel(const NodeContext& context) {
+    OV_OP_SCOPE(v0_PyTorch_ravel);
+    auto input = context.get_input(0);
+    
+    // Create shape tensor [-1] for flattening
+    auto shape = ov::op::v0::Constant::create(element::i64, Shape{1}, {-1});
+    
+    // Reshape input tensor to a 1D tensor
+    return {std::make_shared<ov::op::v1::Reshape>(input, shape, true)};
+}
+
+}  // namespace op
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov
