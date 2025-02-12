@@ -441,12 +441,12 @@ ov::util::FilePath ov::util::get_compiled_plugin_path(const std::string& plugin)
     str << "openvino-" << OpenVINO_VERSION;
     const auto sub_folder = str.str();
 
-    std::string abs_file_path = ov::util::path_join({ov_library_path, sub_folder, plugin});
+    std::string abs_file_path = ov::util::path_join({ov_library_path, sub_folder, plugin}).string();
     if (ov::util::file_exists(abs_file_path))
         return ov::util::to_file_path(abs_file_path);
 
     // 2. in the openvino.so location
-    abs_file_path = ov::util::path_join({ov_library_path, plugin});
+    abs_file_path = ov::util::path_join({ov_library_path, plugin}).string();
     if (ov::util::file_exists(abs_file_path))
         return ov::util::to_file_path(abs_file_path);
 
@@ -476,11 +476,11 @@ ov::util::FilePath ov::util::get_plugin_path(const std::string& plugin, const st
 
     auto xml_path_ = xml_path;
     if (xml_path.find(ov::util::FileTraits<char>::file_separator) == std::string::npos)
-        xml_path_ = ov::util::path_join({".", xml_path});  // treat plugins.xml as CWD/plugins.xml
+        xml_path_ = ov::util::path_join({".", xml_path}).string();  // treat plugins.xml as CWD/plugins.xml
 
     // For 2nd case
     if (plugin.find(ov::util::FileTraits<char>::file_separator) != std::string::npos) {
-        auto path_ = ov::util::path_join({ov::util::get_directory(xml_path_), plugin});
+        auto path_ = ov::util::path_join({ov::util::get_directory(xml_path_), plugin}).string();
         return ov::util::to_file_path(ov::util::get_absolute_file_path(path_));  // canonicalize path
     }
 
@@ -490,7 +490,7 @@ ov::util::FilePath ov::util::get_plugin_path(const std::string& plugin, const st
         lib_file_name = ov::util::make_plugin_library_name({}, plugin);
 
     // For 4th case
-    auto lib_path = ov::util::path_join({ov::util::get_directory(xml_path_), lib_file_name});
+    auto lib_path = ov::util::path_join({ov::util::get_directory(xml_path_), lib_file_name}).string();
     lib_path = ov::util::get_absolute_file_path(lib_path);  // canonicalize path
     if (as_abs_only || ov::util::file_exists(lib_path))
         return ov::util::to_file_path(lib_path);

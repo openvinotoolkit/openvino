@@ -150,7 +150,7 @@ std::string getCurrentWorkingDir() {
 }
 
 std::string getModelFromTestModelZoo(const std::string& relModelPath) {
-    return ov::util::path_join({getExecutableDirectory(), relModelPath});
+    return ov::util::path_join({getExecutableDirectory(), relModelPath}).string();
 }
 
 std::string getRelativePath(const std::string& from, const std::string& to) {
