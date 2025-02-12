@@ -327,7 +327,7 @@ void ov::util::create_directory_recursive(const std::string& path) {
 
 bool ov::util::directory_exists(const ov::util::Path& path) {
     std::error_code ec;
-    return std::filesystem::is_directory(path, ec) && !ec;
+    return std::filesystem::is_directory(path, ec);
 }
 
 namespace {
