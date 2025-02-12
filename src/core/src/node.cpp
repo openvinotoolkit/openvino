@@ -387,19 +387,15 @@ const ov::op::AutoBroadcastSpec& ov::Node::get_autob() const {
 
 namespace ov {
 ostream& operator<<(ostream& out, const Node& node) {
-    return node.write_description(out, 1);
+    return node.write_description(out, 0);
 }
 ostream& operator<<(ostream& out, const Node* node) {
-    return node->write_description(out, 1);
+    return node->write_description(out, 0);
 }
 }  // namespace ov
 
 std::ostream& ov::Node::write_description(std::ostream& out, uint32_t depth) const {
-    auto version = get_type_info().version_id;
-    if (version)
-        out << version << "::" << get_type_info().name << " " << get_friendly_name();
-    else
-        out << get_type_info().name << " " << get_friendly_name();
+    out << get_type_info().name << " " << get_friendly_name();
 
     if (depth > 0) {
         out << " (";

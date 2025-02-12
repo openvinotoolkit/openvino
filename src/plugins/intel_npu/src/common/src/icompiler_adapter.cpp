@@ -174,7 +174,10 @@ std::shared_ptr<ov::Model> ICompilerAdapter::apply_common_passes(const std::shar
     manager.register_pass<ov::pass::StridesOptimization>();
     manager.register_pass<ov::pass::ConvertSoftMax1ToSoftMax8>();
 
+    std::cout << "Starting NPU plugin passes" << std::endl;
+    std::cout << "Columns: Pass NodeType NodeFriendlyName" << std::endl;
     manager.run_passes(clonedModel);
+    std::cout << "Ending NPU plugin passes" << std::endl;
 
     // Notifies the compiler to skip applying the passes on its end
     clonedModel->set_rt_info(true, "common_passes_applied");
