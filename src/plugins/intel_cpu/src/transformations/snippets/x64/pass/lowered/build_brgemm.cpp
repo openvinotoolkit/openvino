@@ -36,7 +36,7 @@ bool pass::BuildBrgemm::run(snippets::lowered::LinearIR& linear_ir,
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& expr = *expr_it;
         const auto gemm_node = ov::as_type_ptr<GemmCPU>(expr->get_node());
-        if (!gemm_node || gemm_node->is_dynamic()) {
+        if (!gemm_node || gemm_node->is_dynamic() || with_compensations(gemm_node->get_type())) {
             continue;
         }
         const auto& loop_manager = linear_ir.get_loop_manager();
@@ -89,6 +89,9 @@ bool pass::BuildBrgemm::run(snippets::lowered::LinearIR& linear_ir,
         snippets::lowered::PortDescriptorUtils::set_port_descriptor(brgemm_node->output(0), out_subtensor, gemm_out_desc->get_layout());
         expr_it = linear_ir.replace_with_node({expr}, brgemm_node, expr->get_loop_ids(), linear_ir.find(expr));
         ov::replace_node_update_name(gemm_node, brgemm_node);
+        brgemm_node->set_friendly_name(gemm_node->get_friendly_name());
+        brgemm_node->get_rt_info() = gemm_node->get_rt_info();
+        ov::replace_node(gemm_node, brgemm_node);
         OPENVINO_ASSERT(expr_it != linear_ir.end(), "Failed to replace GemmCPU with BrgemmCPU");
 
         const auto& updated_expr = *expr_it;

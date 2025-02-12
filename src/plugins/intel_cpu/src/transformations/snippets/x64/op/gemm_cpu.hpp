@@ -78,7 +78,7 @@ public:
 
     constexpr static size_t SCRATCH_BYTE_SIZE = 32 * 1024;
 
-private:
+protected:
     void custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_a,
                                                      const std::vector<size_t>& layout_b,
                                                      const std::vector<size_t>& layout_c);
