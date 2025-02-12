@@ -7,9 +7,13 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/util/log.hpp"
 
+#ifdef ENABLE_OPENVINO_DEBUG
+using namespace ov::util;
+#endif
+
 bool ov::pass::pattern::op::True::match_value(Matcher* matcher,
                                               const Output<Node>& pattern_value,
                                               const Output<Node>& graph_value) {
-    OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  TRUE ALWAYS MATCHES");
+    OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  ", OV_GREEN, "TRUE ALWAYS MATCHES");
     return true;
 }

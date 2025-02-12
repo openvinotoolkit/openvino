@@ -23,6 +23,10 @@
 #include "shape_validation.hpp"
 #include "shared_node_info.hpp"
 
+#ifdef ENABLE_OPENVINO_DEBUG
+using namespace ov::util;
+#endif
+
 using namespace std;
 
 namespace {
@@ -558,13 +562,13 @@ bool ov::Node::match_node(ov::pass::pattern::Matcher* matcher, const Output<Node
             auto& pattern_map = matcher->get_pattern_value_map();
             pattern_map[shared_from_this()] = graph_value;
             OV_LOG_MATCHING(matcher, level_string(matcher->level), "│");
-            OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  ALL ARGUMENTS MATCHED");
+            OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  ", OV_GREEN, "ALL ARGUMENTS MATCHED");
             return true;
         }
         OV_LOG_MATCHING(matcher, level_string(matcher->level), "│");
-        OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  ARGUMENTS DIDN'T MATCH");
+        OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  ", OV_RED, "ARGUMENTS DIDN'T MATCH");
     } else {
-        OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  NODES' TYPE DIDN'T MATCH. EXPECTED: ", ov::node_version_type_str(shared_from_this()),
+        OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  ", OV_RED, "NODES' TYPE DIDN'T MATCH. EXPECTED: ", ov::node_version_type_str(shared_from_this()),
                                                                                                ". OBSERVED: ", ov::node_version_type_str(graph_value.get_node_shared_ptr()));
     }
     return false;

@@ -9,6 +9,10 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 
+#ifdef ENABLE_OPENVINO_DEBUG
+using namespace ov::util;
+#endif
+
 using namespace ov::pass::pattern::op;
 
 std::vector<ov::DiscreteTypeInfo> ov::pass::pattern::op::Optional::get_optional_types() const {
@@ -39,10 +43,10 @@ bool ov::pass::pattern::op::Optional::match_value(Matcher* matcher,
             pattern_map[shared_from_this()] = graph_value;
         }
         OV_LOG_MATCHING(matcher, level_string(--matcher->level), "│");
-        OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  OPTIONAL MATCHED");
+        OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  ", OV_GREEN, "OPTIONAL MATCHED");
         return true;
     }
     OV_LOG_MATCHING(matcher, level_string(--matcher->level), "│");
-    OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  OPTIONAL DIDN'T MATCH");
+    OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  ", OV_RED, "OPTIONAL DIDN'T MATCH");
     return false;
 }

@@ -11,13 +11,11 @@
 #include <mutex>
 
 #include "openvino/util/file_util.hpp"
-#include "openvino/util/env_util.hpp"
 
 void ov::util::default_logger_handler_func(const std::string& s) {
     std::cout << s << std::endl;
 }
 
-// This function prints the string only if its length greater than 0
 // (made to avoid unnecessary newlines)
 void ov::util::default_logger_handler_func_length(const std::string& s) {
     if (s.length() != 0) {

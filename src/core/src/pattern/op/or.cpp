@@ -7,6 +7,10 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/util/log.hpp"
 
+#ifdef ENABLE_OPENVINO_DEBUG
+using namespace ov::util;
+#endif
+
 bool ov::pass::pattern::op::Or::match_value(Matcher* matcher,
                                             const Output<Node>& pattern_value,
                                             const Output<Node>& graph_value) {
@@ -20,15 +24,15 @@ bool ov::pass::pattern::op::Or::match_value(Matcher* matcher,
             pattern_map[shared_from_this()] = graph_value;
             auto res = saved.finish(true);
             OV_LOG_MATCHING(matcher, level_string(--matcher->level), "│");
-            OV_LOG_MATCHING(matcher, level_string(matcher->level--), "}  BRANCH ", i, " MATCHED");
+            OV_LOG_MATCHING(matcher, level_string(matcher->level--), "}  ", OV_GREEN, "BRANCH ", i, " MATCHED");
             OV_LOG_MATCHING(matcher, level_string(matcher->level), "│");
-            OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  BRANCH ", i, " HAS MATCHED");
+            OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  ", OV_GREEN, "BRANCH ", i, " HAS MATCHED");
             return res;
         }
         OV_LOG_MATCHING(matcher, level_string(--matcher->level), "│");
-        OV_LOG_MATCHING(matcher, level_string(matcher->level--), "}  BRANCH ", i, " DIDN'T MATCH");
+        OV_LOG_MATCHING(matcher, level_string(matcher->level--), "}  ", OV_RED, "BRANCH ", i, " DIDN'T MATCH");
     }
     OV_LOG_MATCHING(matcher, level_string(matcher->level), "│");
-    OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  NONE OF OR BRANCHES MATCHED");
+    OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  ", OV_RED, "NONE OF OR BRANCHES MATCHED");
     return false;
 }
