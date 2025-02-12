@@ -90,11 +90,11 @@ private:
 #define symbol_statement(symbol)                                                                            \
     template <typename... Args>                                                                             \
     inline typename std::invoke_result<decltype(&::symbol), Args...>::type wrapped_##symbol(Args... args) { \
-        const auto& ref = ZeroApi::getInstance();                                                           \
-        if (ref->symbol == nullptr) {                                                                       \
+        const auto& ptr = ZeroApi::getInstance();                                                           \
+        if (ptr->symbol == nullptr) {                                                                       \
             OPENVINO_THROW("Unsupported symbol " #symbol);                                                  \
         }                                                                                                   \
-        return ref->symbol(std::forward<Args>(args)...);                                                    \
+        return ptr->symbol(std::forward<Args>(args)...);                                                    \
     }
 symbols_list();
 weak_symbols_list();
