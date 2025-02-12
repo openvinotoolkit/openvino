@@ -102,7 +102,7 @@ class NodeAccessor;
  * or a (possibly empty) tuple of values.
  * @ingroup ov_model_cpp_api
  */
-class OPENVINO_API Node : public std::enable_shared_from_this<Node>, public IRtti {
+class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
     // For access to m_outputs.
     friend class descriptor::Input;
 
@@ -176,6 +176,7 @@ public:
     // Called in constructors during transition
     void constructor_validate_and_infer_types();
 
+    using type_info_t = DiscreteTypeInfo;
 
     virtual ~Node();
 
@@ -215,6 +216,10 @@ public:
     virtual OutputVector decompose_op() const {
         return OutputVector();
     }
+    /// Returns the NodeTypeInfo for the node's class.
+    /// During transition to type_info, returns a dummy type_info for Node if the class
+    /// has not been updated yet.
+    virtual const type_info_t& get_type_info() const = 0;
     const char* get_type_name() const {
         return get_type_info().name;
     }

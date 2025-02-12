@@ -7,19 +7,44 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/visibility.hpp"
 
+#if defined(__GNUC__)
+#    define OPENVINO_DO_PRAGMA(x) _Pragma(#x)
+#elif defined(_MSC_VER)
+#    define OPENVINO_DO_PRAGMA(x) __pragma(x)
+#else
+#    define OPENVINO_DO_PRAGMA(x)
+#endif
+
+#if defined(__clang__) || ((__GNUC__) && (__GNUC__ * 100 + __GNUC_MINOR__ > 405))
+#    define OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_START \
+        OPENVINO_DO_PRAGMA(GCC diagnostic push)      \
+        OPENVINO_DO_PRAGMA(GCC diagnostic ignored "-Wsuggest-override")
+#    define OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_END OPENVINO_DO_PRAGMA(GCC diagnostic pop)
+#elif defined(_MSC_VER)
+#    define OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_START \
+        OPENVINO_DO_PRAGMA(warning(push))            \
+        OPENVINO_DO_PRAGMA(warning(disable : nnn))
+#    define OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_END OPENVINO_DO_PRAGMA(warning(pop))
+#else
+#    define OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_START
+#    define OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_END
+#endif
+
 #define _OPENVINO_RTTI_EXPAND(X)                                    X
 #define _OPENVINO_RTTI_DEFINITION_SELECTOR_2(_1, _2, NAME, ...)     NAME
 #define _OPENVINO_RTTI_DEFINITION_SELECTOR_3(_1, _2, _3, NAME, ...) NAME
 
 #define _OPENVINO_RTTI_BASE_WITH_TYPE(TYPE_NAME) _OPENVINO_RTTI_BASE_WITH_TYPE_VERSION(TYPE_NAME, "")
 
-#define _OPENVINO_RTTI_BASE_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME)                    \
-    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() { \
-        static ::ov::DiscreteTypeInfo type_info_static{TYPE_NAME, VERSION_NAME};          \
-        type_info_static.hash();                                                          \
-        return type_info_static;                                                          \
-    }                                                                                     \
-    virtual const ::ov::DiscreteTypeInfo& get_type_info() const override { return get_type_info_static(); }
+#define _OPENVINO_RTTI_BASE_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME)                             \
+    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {          \
+        static ::ov::DiscreteTypeInfo type_info_static{TYPE_NAME, VERSION_NAME};                   \
+        type_info_static.hash();                                                                   \
+        return type_info_static;                                                                   \
+    }                                                                                              \
+    OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_START                                                       \
+    virtual const ::ov::DiscreteTypeInfo& get_type_info() const { return get_type_info_static(); } \
+    OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_END
 
 // todo: extend description comment
 /// Helper macro for base (without rtti parrent) class that provides RTTI block definition.
@@ -28,14 +53,6 @@
     _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR_2(__VA_ARGS__,                           \
                                                                _OPENVINO_RTTI_BASE_WITH_TYPE_VERSION, \
                                                                _OPENVINO_RTTI_BASE_WITH_TYPE)(__VA_ARGS__))
-
-class IRtti {
-public:
-    using type_info_t = ::ov::DiscreteTypeInfo;
-    virtual const ::ov::DiscreteTypeInfo& get_type_info() const = 0;
-    // Should interface expose virtual destructor? I think not, it should be responsibility of deriving class
-    // virtual ~IRtti() = default;
-};
 
 #define _OPENVINO_RTTI_WITH_TYPE(TYPE_NAME) _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, "util")
 
