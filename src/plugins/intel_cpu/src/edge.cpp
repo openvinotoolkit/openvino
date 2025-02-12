@@ -10,8 +10,8 @@
 #include "openvino/util/pp.hpp"
 
 using namespace dnnl;
-namespace ov {
-namespace intel_cpu {
+
+namespace ov::intel_cpu {
 
 Edge::Edge(const NodePtr& parent, const NodePtr& child, int pr_port, int ch_port)
     : parent(parent),
@@ -668,5 +668,4 @@ std::ostream& operator<<(std::ostream& os, const Edge& edge) {
               << ":" << Edge::statusToString(edge.getStatus());
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

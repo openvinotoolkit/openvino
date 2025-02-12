@@ -13,9 +13,7 @@
 #include "openvino/core/parallel.hpp"
 #include "selective_build.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool BatchToSpace::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -268,6 +266,4 @@ bool BatchToSpace::created() const {
     return getType() == Type::BatchToSpace;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
