@@ -11,9 +11,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace aarch64 {
+namespace ov::intel_cpu::aarch64 {
 
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
@@ -2965,6 +2963,4 @@ std::set<std::vector<element::Type>> jit_tanh_emitter::get_supported_precisions(
     return {{element::f32}};
 }
 
-}  // namespace aarch64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::aarch64

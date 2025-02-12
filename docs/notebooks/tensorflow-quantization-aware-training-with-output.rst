@@ -65,10 +65,10 @@ models will be stored.
 
 .. code:: ipython3
 
-    %pip install -q "openvino>=2024.0.0" "nncf>=2.9.0"
-    %pip install -q "tensorflow-macos>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine == 'arm64'"
-    %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine != 'arm64'" # macOS x86
-    %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform != 'darwin'"
+    %pip install -q "openvino>=2024.6.0" "nncf>=2.14.0"
+    %pip install -q "tensorflow-macos>=2.9.3,<2.16.0; sys_platform == 'darwin' and platform_machine == 'arm64'"
+    %pip install -q "tensorflow>=2.9.3,<2.16.0; sys_platform == 'darwin' and platform_machine != 'arm64'" # macOS x86
+    %pip install -q "tensorflow>=2.9.3,<2.16.0; sys_platform != 'darwin'"
     %pip install -q "tensorflow-datasets>=4.9.0,<4.9.3; platform_system=='Windows'"
     %pip install -q "tensorflow-datasets>=4.9.0"
 
@@ -85,6 +85,19 @@ models will be stored.
     from nncf.tensorflow.initialization import register_default_init_args
     from nncf.common.logging.logger import set_log_level
     import openvino as ov
+
+    import requests
+
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+
+    collect_telemetry("tensorflow-quantization-aware-training.ipynb")
 
     set_log_level(logging.ERROR)
 
@@ -410,7 +423,7 @@ Export Models to OpenVINO Intermediate Representation (IR)
 Use model conversion Python API to convert the models to OpenVINO IR.
 
 For more information about model conversion, see this
-`page <https://docs.openvino.ai/2025/openvino-workflow/model-preparation.html>`__.
+`page <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__.
 
 Executing this command may take a while.
 
@@ -434,7 +447,7 @@ Benchmark Model Performance by Computing Inference Time
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
-Tool <https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/benchmark-tool.html>`__
+Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 - an inference performance measurement tool in OpenVINO. By default,
 Benchmark Tool runs inference for 60 seconds in asynchronous mode on
 CPU. It returns inference speed as latency (milliseconds per image) and
@@ -452,13 +465,6 @@ throughput (frames per second) values.
 Please select a benchmarking device using the dropdown list:
 
 .. code:: ipython3
-
-    import requests
-
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
 
     from notebook_utils import device_widget
 
@@ -518,3 +524,8 @@ Show Device Information for reference.
     'Intel(R) Core(TM) i9-10980XE CPU @ 3.00GHz'
 
 
+
+.. code:: ipython3
+
+    # Cleanup
+    # %pip uninstall -q -y tensorflow tf_keras

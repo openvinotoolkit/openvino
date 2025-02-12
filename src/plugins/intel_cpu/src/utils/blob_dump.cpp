@@ -14,8 +14,7 @@
 #include "dnnl_extension_utils.h"
 #include "utils/bfloat16.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 // IEB file format routine
 static const unsigned char IEB_MAGIC[4] = {'I', 'E', 'B', '0'};
@@ -175,7 +174,7 @@ void BlobDumper::dumpAsTxt(std::ostream& stream) const {
         stream << d << " ";
     }
     stream << "(" << data_size << ")"
-           << " by address 0x" << std::hex << memory->getDataAs<const int64_t>() << std::dec << std::endl;
+           << " by address 0x" << std::hex << memory->getDataAs<const int64_t>() << std::dec << '\n';
 
     const void* ptr = memory->getData();
 
@@ -183,14 +182,14 @@ void BlobDumper::dumpAsTxt(std::ostream& stream) const {
     case ov::element::f32: {
         auto* blob_ptr = reinterpret_cast<const float*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
-            stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
+            stream << blob_ptr[desc.getElementOffset(i)] << '\n';
         }
         break;
     }
     case ov::element::i32: {
         auto* blob_ptr = reinterpret_cast<const int32_t*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
-            stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
+            stream << blob_ptr[desc.getElementOffset(i)] << '\n';
         }
         break;
     }
@@ -198,56 +197,56 @@ void BlobDumper::dumpAsTxt(std::ostream& stream) const {
         auto* blob_ptr = reinterpret_cast<const bfloat16_t*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
             float fn = static_cast<float>(blob_ptr[desc.getElementOffset(i)]);
-            stream << fn << std::endl;
+            stream << fn << '\n';
         }
         break;
     }
     case ov::element::f16: {
         auto* blob_ptr = reinterpret_cast<const float16*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
-            stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
+            stream << blob_ptr[desc.getElementOffset(i)] << '\n';
         }
         break;
     }
     case ov::element::i8: {
         auto* blob_ptr = reinterpret_cast<const int8_t*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
-            stream << static_cast<int>(blob_ptr[desc.getElementOffset(i)]) << std::endl;
+            stream << static_cast<int>(blob_ptr[desc.getElementOffset(i)]) << '\n';
         }
         break;
     }
     case ov::element::u8: {
         auto* blob_ptr = reinterpret_cast<const uint8_t*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
-            stream << static_cast<int>(blob_ptr[desc.getElementOffset(i)]) << std::endl;
+            stream << static_cast<int>(blob_ptr[desc.getElementOffset(i)]) << '\n';
         }
         break;
     }
     case ov::element::i64: {
         auto* blob_ptr = reinterpret_cast<const int64_t*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
-            stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
+            stream << blob_ptr[desc.getElementOffset(i)] << '\n';
         }
         break;
     }
     case ov::element::u32: {
         auto* blob_ptr = reinterpret_cast<const uint32_t*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
-            stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
+            stream << blob_ptr[desc.getElementOffset(i)] << '\n';
         }
         break;
     }
     case ov::element::u16: {
         auto* blob_ptr = reinterpret_cast<const uint16_t*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
-            stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
+            stream << blob_ptr[desc.getElementOffset(i)] << '\n';
         }
         break;
     }
     case ov::element::i16: {
         auto* blob_ptr = reinterpret_cast<const int16_t*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
-            stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
+            stream << blob_ptr[desc.getElementOffset(i)] << '\n';
         }
         break;
     }
@@ -304,5 +303,4 @@ void BlobDumper::dumpAsTxt(const std::string& dump_path) const {
     dump_file.close();
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
