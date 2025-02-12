@@ -9,8 +9,7 @@
 
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 struct TypeMask {
     enum Value : uint64_t {
         _dynamic = 1 << 0,
@@ -122,5 +121,4 @@ constexpr auto _quant = _u8 | _i8;
 constexpr auto _any = std::numeric_limits<uint64_t>::max();
 }  // namespace TypeMaskAlias
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

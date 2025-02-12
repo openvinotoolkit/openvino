@@ -35,6 +35,8 @@ public:
 
     virtual ~MetadataBase() = default;
 
+    static std::streampos getFileSize(std::istream& stream);
+
     /**
      * @brief Returns a uint32_t value which represents two uint16_t values concatenated.
      * @details Convention for bumping the metadata version:
@@ -147,7 +149,7 @@ public:
      *
      *              - true: if all versions match.
      *
-     * @note The version check can be disabled if the "NPU_DISABLE_VERSION_CHECK" environment variable is set to '1'.
+     * @note The version check can be disabled if the "OV_NPU_DISABLE_VERSION_CHECK" environment variable is set to '1'.
      */
     bool is_compatible() override;
 
