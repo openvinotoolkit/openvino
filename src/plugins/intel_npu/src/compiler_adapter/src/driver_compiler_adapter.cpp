@@ -181,7 +181,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     }
 
     _logger.debug("serialize IR");
-    auto serializedIR = serializeIR(modelAfterPasses, compilerVersion, maxOpsetVersion);
+    auto serializedIR = serializeIR(modelAfterPasses, compilerVersion);
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
@@ -254,7 +254,7 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
     }
 
     _logger.debug("serialize IR");
-    auto serializedIR = serializeIR(modelAfterPasses, compilerVersion, maxOpsetVersion);
+    auto serializedIR = serializeIR(modelAfterPasses, compilerVersion);
 
     std::string buildFlags;
     buildFlags += serializeConfig(config, compilerVersion);
@@ -286,9 +286,8 @@ uint32_t DriverCompilerAdapter::get_version() const {
  * @details Format of the memory:
  */
 SerializedIR DriverCompilerAdapter::serializeIR(const std::shared_ptr<const ov::Model>& model,
-                                                ze_graph_compiler_version_info_t compilerVersion,
-                                                const uint32_t supportedOpsetVersion) const {
-    driver_compiler_utils::IRSerializer irSerializer(model, supportedOpsetVersion);
+                                                ze_graph_compiler_version_info_t compilerVersion) const {
+    driver_compiler_utils::IRSerializer irSerializer(model);
 
     // Contract between adapter and compiler in driver
     const uint32_t maxNumberOfElements = 10;

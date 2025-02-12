@@ -278,7 +278,6 @@ std::vector<std::string> disabledTestPatterns() {
                 // [Track number: E#70764]
                 ".*InferRequestCheckTensorPrecision.*",
                 ".*InferRequestIOTensorSetPrecisionTest.*",
-                ".*DriverCompilerAdapterDowngradeInterpolate11TestNPU.*",
                 ".*DriverCompilerAdapterInputsOutputsTestNPU.*",
         });
 
@@ -393,8 +392,6 @@ std::vector<std::string> disabledTestPatterns() {
                                   {
                                           // [Track number: E#49620]
                                           ".*NPU3720.*",
-                                          // [Track number: E#84621]
-                                          ".*DriverCompilerAdapterDowngradeInterpolate11TestNPU.*",
                                           ".*DriverCompilerAdapterInputsOutputsTestNPU.*",
                                   });
 
@@ -432,8 +429,6 @@ std::vector<std::string> disabledTestPatterns() {
                         // [Track number: E#30824]
                         ".*OVClassImportExportTestP.*",
                         ".*OVClassLoadNetworkTestNPU.*LoadNetwork.*",
-                        // [Track number: E#84621]
-                        ".*DriverCompilerAdapterDowngradeInterpolate11TestNPU.*",
                         ".*QueryNetworkTestSuite.*",
                 });
 

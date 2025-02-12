@@ -47,8 +47,7 @@ private:
     std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices) const;
 
     SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
-                             ze_graph_compiler_version_info_t compilerVersion,
-                             const uint32_t supportedOpsetVersio) const;
+                             ze_graph_compiler_version_info_t compilerVersion) const;
 
     std::string serializeConfig(const Config& config, ze_graph_compiler_version_info_t compilerVersion) const;
 

@@ -10,22 +10,14 @@
 #include <streambuf>
 
 #include "openvino/pass/serialize.hpp"
-#include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
 
 namespace intel_npu::driver_compiler_utils {
 
-IRSerializer::IRSerializer(const std::shared_ptr<const ov::Model>& origModel, const uint32_t supportedOpset)
-    : _logger("IRSerializer", Logger::global().level()),
-      _supportedOpset(supportedOpset) {
+IRSerializer::IRSerializer(const std::shared_ptr<const ov::Model>& origModel)
+    : _logger("IRSerializer", Logger::global().level()) {
     // There is no const variant of run_passes so use const_cast here
     // as model serialization does not mutate the model
     _model = std::const_pointer_cast<ov::Model>(origModel);
-
-    if (supportedOpset < 11) {
-        // Need to clone to modify the model and remain thread safe
-        _model = _model->clone();
-        _logger.info("Clone model for offset smaller than 11");
-    }
 
     countModelSize();
 }
@@ -34,13 +26,6 @@ void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weigh
     _logger.debug("serializeModelToStream");
     const auto passConfig = std::make_shared<ov::pass::PassConfig>();
     ov::pass::Manager manager(passConfig, "NPU:serializeModelToStream");
-
-    if (_supportedOpset < 11) {
-        // Downgrade to opset10
-        manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
-        _logger.info("Downgrade op for opset smaller than 11");
-    }
-
     manager.register_pass<ov::pass::Serialize>(xml, weights);
 
     // Depending on the driver version, the compiler attached to it may request this information as an indicator of the
