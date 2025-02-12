@@ -127,7 +127,7 @@ jobs:
           ./install_requirements.sh
           ./install_executorch.sh
           cd examples/openvino
-          ./openvino_build.sh
+          ./openvino_build_example.sh
           cd ../..
 
       - name: Run tests
