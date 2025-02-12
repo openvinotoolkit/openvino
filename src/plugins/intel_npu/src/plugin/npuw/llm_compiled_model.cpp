@@ -35,7 +35,6 @@ protected:
             std::shared_ptr<ov::Node> node_concat,
             std::shared_ptr<ov::Node> node_transpose,
             std::shared_ptr<ov::Node> node_matmul) {
-
         auto matched_param = std::static_pointer_cast<ov::op::v0::Parameter>(node_param);
         auto matched_concat = std::static_pointer_cast<ov::op::v0::Concat>(node_concat);
         auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(node_transpose);
