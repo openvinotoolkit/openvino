@@ -17,11 +17,11 @@ struct SDPARef : public ImplementationManager {
     SDPARef(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, vf) {}
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
     bool validate_impl(const program_node& node) const override {
-        constexpr static const std::array supported_q_types = {
+        static constexpr std::array supported_q_types = {
             ov::element::f32,
             ov::element::f16,
         };
-        constexpr static const std::array supported_kv_types = {
+        static constexpr std::array supported_kv_types = {
             ov::element::f32,
             ov::element::f16,
             ov::element::i8,

@@ -12,20 +12,27 @@
 #include <memory>
 
 namespace ov::intel_gpu::ocl {
+struct KernelsTypes {
+    constexpr static size_t SINGLE_TOKEN = 0;
+    constexpr static size_t MULTI_TOKENS = 1;
+    constexpr static size_t FINALIZATION = 2;
+    constexpr static size_t MICRO = 3;
+};
 
 struct SDPAOpt : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::sdpa::opt")
     SDPAOpt(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, vf) {}
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
+    static bool supports_micro_sdpa(const kernel_impl_params& params);
     bool validate_impl(const program_node& node) const override {
         constexpr size_t subgroup_size = 16;
 
         const auto desc = node.as<scaled_dot_product_attention>().get_primitive();
-        constexpr static const std::array supported_q_types = {
+        static constexpr std::array supported_q_types = {
             ov::element::f32,
             ov::element::f16,
         };
-        constexpr static const std::array supported_kv_types = {
+        static constexpr std::array supported_kv_types = {
             ov::element::f32,
             ov::element::f16,
             ov::element::i8,
@@ -53,8 +60,9 @@ struct SDPAOpt : public ImplementationManager {
         const bool combine_scales_and_zp =
                 desc->quantization_attributes.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
 
-        if (use_asymmetric_quantization && !combine_scales_and_zp)
-            return false;
+        auto p = node.get_kernel_impl_params();
+        if (use_asymmetric_quantization && (!combine_scales_and_zp || supports_micro_sdpa(*p)))
+            return true;
 
         return true;
     }

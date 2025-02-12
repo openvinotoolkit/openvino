@@ -16,9 +16,9 @@ struct CTCLoss : public ImplementationManager {
 
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
     bool validate_impl(const program_node& node) const override {
-        constexpr static const std::array supported_types = {data_types::f16, data_types::f32};
+        static constexpr std::array supported_types = {data_types::f16, data_types::f32};
 
-        constexpr static const std::array supported_fmts = {
+        static constexpr std::array supported_fmts = {
                                format::bfyx,
                                format::b_fs_yx_fsv16,
                                format::b_fs_yx_fsv32,
