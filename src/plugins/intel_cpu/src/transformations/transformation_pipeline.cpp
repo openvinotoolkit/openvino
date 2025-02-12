@@ -182,8 +182,7 @@
 #endif
 #include "openvino/core/validation_util.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
@@ -447,13 +446,13 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
-    CPU_REGISTER_PASS_X64(manager, ov::pass::KeepConstsPrecision, decompression_precisions, false, true);
+    CPU_REGISTER_PASS_X64(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
     CPU_SET_CALLBACK_X64(
         manager,
         [&](const_node_ptr& node) -> bool {
             return !is_decompression_multiply(node);
         },
-        ov::pass::KeepConstsPrecision);
+        ov::pass::KeepConstPrecision);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::WrapInterpolateIntoTransposes);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeSinking);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertSequenceToTensorIterator);
@@ -1077,7 +1076,7 @@ void Transformations::MainSnippets(void) {
         const auto is_bf16 = (in_type0 == ov::element::bf16 && in_type1 == ov::element::bf16) ||
                              ((in_type0 == element::f32 && in_type1 == ov::element::f32 &&
                                config.inferencePrecision == ov::element::bf16));
-        const auto is_int8 = in_type0 == ov::element::i8;
+        const auto is_int8 = (in_type0 == element::i8 || in_type0 == element::u8) && (in_type1 == element::i8);
         if (matmul->get_transpose_a()) {
             return false;
         }
@@ -1096,7 +1095,7 @@ void Transformations::MainSnippets(void) {
         if (is_fp16) {
             return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16);
         }
-        return true;
+        return false;
     };
     auto is_unsupported_parallel_work_amount = [&](const std::shared_ptr<const ov::Node>& n,
                                                    const ov::PartialShape& shape) {
@@ -1314,5 +1313,4 @@ void Transformations::Snippets(void) {
     PostSnippets();
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

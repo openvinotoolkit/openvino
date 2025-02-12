@@ -7,6 +7,7 @@
 #include "cpu_streams_calculation.hpp"
 #include "internal_properties.hpp"
 #include "itt.h"
+#include "openvino/core/parallel.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -31,8 +32,7 @@
 
 using namespace ov::threading;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 static std::string getDeviceFullName() {
     std::string brand_string;
@@ -608,8 +608,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
     auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), conf, loaded_from_cache);
     return compiled_model;
 }
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 using namespace ov::intel_cpu;
 

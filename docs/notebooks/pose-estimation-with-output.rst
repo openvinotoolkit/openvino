@@ -49,12 +49,6 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 
     %pip install -q "openvino>=2023.1.0" opencv-python tqdm
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-
-
 Imports
 -------
 
@@ -75,12 +69,19 @@ Imports
     # Fetch `notebook_utils` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
     
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
+    
     import notebook_utils as utils
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("pose-estimation.ipynb")
 
 The model
 ---------
@@ -122,19 +123,6 @@ precision in the code below.
             model_path.parent,
         )
 
-
-
-.. parsed-literal::
-
-    human-pose-estimation-0001.xml:   0%|          | 0.00/474k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    human-pose-estimation-0001.bin:   0%|          | 0.00/4.03M [00:00<?, ?B/s]
-
-
 Load the model
 ~~~~~~~~~~~~~~
 
@@ -154,15 +142,6 @@ using OpenVINO.
     device = utils.device_widget()
     
     device
-
-
-
-
-.. parsed-literal::
-
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
-
-
 
 .. code:: ipython3
 
@@ -190,15 +169,6 @@ there is 1 input and 2 outputs: PAFs and keypoints heatmap.
 .. code:: ipython3
 
     input_layer.any_name, [o.any_name for o in output_layers]
-
-
-
-
-.. parsed-literal::
-
-    ('data', ['Mconv7_stage2_L1', 'Mconv7_stage2_L2'])
-
-
 
 OpenPose Decoder
 ~~~~~~~~~~~~~~~~
@@ -846,18 +816,12 @@ Run the pose estimation:
 
     USE_WEBCAM = False
     cam_id = 0
-    video_file = "https://storage.openvinotoolkit.org/data/test_data/videos/store-aisle-detection.mp4"
+    video_file = Path("store-aisle-detection.mp4")
+    video_url = "https://storage.openvinotoolkit.org/data/test_data/videos/store-aisle-detection.mp4"
     source = cam_id if USE_WEBCAM else video_file
+    
+    if not USE_WEBCAM and not Path(video_file).exists():
+        utils.download_file(video_url)
     
     additional_options = {"skip_first_frames": 500} if not USE_WEBCAM else {}
     run_pose_estimation(source=source, flip=isinstance(source, int), use_popup=False, **additional_options)
-
-
-
-.. image:: pose-estimation-with-output_files/pose-estimation-with-output_22_0.png
-
-
-.. parsed-literal::
-
-    Source ended
-
