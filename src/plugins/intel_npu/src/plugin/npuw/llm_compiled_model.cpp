@@ -312,7 +312,7 @@ std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::M
 
 std::shared_ptr<ov::Model> cvt_value_tensors_layout(std::shared_ptr<ov::Model> model) {
     ov::preprocess::PrePostProcessor ppp(model);
-    for (auto tensor : model->outputs()) {
+    for (const auto& tensor : model->outputs()) {
         if (tensor.get_any_name().find("value") != std::string::npos) {
             // NB: [batch, num_heads, seq_len, emb_size] -> [batch, num_heads, emb_size, seq_len]
             ppp.output(tensor.get_any_name()).model().set_layout(ov::Layout("BHSE"));
@@ -336,7 +336,7 @@ bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
 
     ov::pass::Validate().run_on_model(model);
 
-    // NB: matmul parameters gets transposed pass applied
+    // NB: matmul parameters gets transposed, if pass applied
     return ctx.bTransposed;
 }
 
