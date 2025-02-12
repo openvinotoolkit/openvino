@@ -60,6 +60,11 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
         }
 
         auto in_layouts = node.get_input_layouts();
+        for (auto &layout : in_layouts) {
+            if (layout.is_dynamic()) {
+                return false;
+            }
+        }
         unsigned int expected_inputs = 7;
         if (in_layouts.size() != expected_inputs) {
             return false;
@@ -74,6 +79,11 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
 
 
         auto out_layouts = node.get_output_layouts();
+        for (auto &layout : out_layouts) {
+            if (layout.is_dynamic()) {
+                return false;
+            }
+        }
         for (auto &layout : in_layouts) {
             if (layout.format != format::bfyx || layout.data_type != data_types::f16) {
                 return false;
@@ -86,10 +96,10 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
         }
 
         auto num_gates = 4;
-        auto batch_size = in_layouts[0].get_dim(0);
-        auto input_size = in_layouts[0].get_dim(2);
-        auto hidden_size = in_layouts[3].get_dim(1) / num_gates;
-        auto num_dir = in_layouts[3].get_dim(0);
+        auto batch_size = static_cast<int32_t>(in_layouts[0].get_shape()[0]);
+        auto input_size = static_cast<int32_t>(in_layouts[0].get_shape()[2]);
+        auto hidden_size = static_cast<int32_t>(in_layouts[3].get_shape()[1]) / num_gates;
+        auto num_dir = static_cast<int32_t>(in_layouts[3].get_shape()[0]);
         if (hidden_size != 128 || batch_size != 1 || num_dir != 2 || (input_size != 64 && input_size != 256)) {
             return false;
         }
