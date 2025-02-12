@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -11,8 +11,7 @@
 #include <functional>
 #include <unordered_map>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 class RemoteContextImpl;
 
 struct VariableStateInfo {
@@ -84,5 +83,4 @@ protected:
 using VariablesMap = std::unordered_map<std::string, std::shared_ptr<VariableStateBase>>;
 using VariablesInfoMap = std::unordered_map<std::string, VariableStateInfo>;
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

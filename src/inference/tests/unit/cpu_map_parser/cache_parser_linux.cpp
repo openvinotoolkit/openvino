@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1275,6 +1275,41 @@ LinuxCpuMapTestCase cache_1sockets_14cores_hyperthreading_1 = {
     },
     {},
 };
+LinuxCpuMapTestCase cache_1sockets_14cores = {
+    9,
+    1,
+    1,
+    9,
+    {{9, 1, 8, 0, 0, 0}},
+    {
+        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {6, 0, 0, 1, EFFICIENT_CORE_PROC, 1, -1},
+        {7, 0, 0, 2, EFFICIENT_CORE_PROC, 1, -1},
+        {8, 0, 0, 3, EFFICIENT_CORE_PROC, 1, -1},
+        {9, 0, 0, 4, EFFICIENT_CORE_PROC, 1, -1},
+        {10, 0, 0, 5, EFFICIENT_CORE_PROC, 2, -1},
+        {11, 0, 0, 6, EFFICIENT_CORE_PROC, 2, -1},
+        {12, 0, 0, 7, EFFICIENT_CORE_PROC, 2, -1},
+        {13, 0, 0, 8, EFFICIENT_CORE_PROC, 2, -1},
+    },
+    {
+        {"0", "0", "0,6-13"},
+        {"", "", ""},
+        {"", "", ""},
+        {"", "", ""},
+        {"", "", ""},
+        {"", "", ""},
+        {"6", "6-9", "0,6-13"},
+        {"7", "6-9", "0,6-13"},
+        {"8", "6-9", "0,6-13"},
+        {"9", "6-9", "0,6-13"},
+        {"10", "10-13", "0,6-13"},
+        {"11", "10-13", "0,6-13"},
+        {"12", "10-13", "0,6-13"},
+        {"13", "10-13", "0,6-13"},
+    },
+    {},
+};
 LinuxCpuMapTestCase cache_1sockets_10cores_hyperthreading = {
     12,
     1,
@@ -1475,6 +1510,7 @@ INSTANTIATE_TEST_SUITE_P(CPUMap,
                                          cache_1sockets_16cores_hyperthreading,
                                          cache_1sockets_14cores_hyperthreading,
                                          cache_1sockets_14cores_hyperthreading_1,
+                                         cache_1sockets_14cores,
                                          cache_1sockets_10cores_hyperthreading,
                                          cache_1sockets_8cores_hyperthreading,
                                          cache_1sockets_8cores_hyperthreading_1,

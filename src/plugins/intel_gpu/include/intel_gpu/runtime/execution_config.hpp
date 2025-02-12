@@ -7,8 +7,7 @@
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/device.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 enum class PropertyVisibility {
     INTERNAL = 0,
@@ -140,7 +139,7 @@ public:
 
     // Note that RT info property value has lower priority than values set by user via core.set_property or passed to compile_model call
     // So this method should be called after setting all user properties, but before apply_user_properties() call.
-    void apply_rt_info(const cldnn::device_info& info, const ov::RTMap& rt_info);
+    void apply_rt_info(const cldnn::device_info& info, const ov::RTMap& rt_info, const bool is_llm);
 
     std::string to_string() const;
 
@@ -167,10 +166,11 @@ private:
 
     std::map<std::string, PropertyVisibility> supported_properties;
     std::map<std::string, BaseValidator::Ptr> property_validators;
+
+    bool finalized = false;
 };
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu
 
 namespace cldnn {
 using ov::intel_gpu::ExecutionConfig;

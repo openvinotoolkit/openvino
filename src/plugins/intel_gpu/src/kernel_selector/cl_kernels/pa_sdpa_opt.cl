@@ -62,7 +62,10 @@ KERNEL(pa_sdpa_opt)(
     // past_lens: [sequences_num]
     // subsequence_begins: [sequences_num + 1]
     // block_indices: [used_blocks_num]
-    // block_indices: [sequences_num + 1]
+    // block_indices_begins: [sequences_num + 1]
+    // rotated_block_indices: [num_rotated_blocks ]
+    // rotation_deltas [num_rotated_blocks, 1 || PAGED_ATTENTION_BLOCK_SIZE ]
+    // rotation_trig_lut [MAX_CONTEXT_LEN, HEAD_SIZE]
     //
     // Output shapes:
     // output: [sequences_num, HEADS_NUM * HEAD_SIZE]
@@ -115,7 +118,8 @@ KERNEL(pa_sdpa_opt)(
     {
 #if STORE_QUERY_TO_SLM
         const uint query_idx_local = sgid * SUBGROUP_SIZE + sglid;
-        const uint query_idx = seq_idx * HEAD_SIZE * HEADS_NUM +
+        const uint query_idx = INPUT0_OFFSET +
+                               seq_idx * (HEAD_SIZE * HEADS_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM + INPUT0_PAD_AFTER_FEATURE_NUM) +
                                head_num_idx * HEAD_SIZE +
                                query_idx_local;
 
@@ -134,7 +138,8 @@ KERNEL(pa_sdpa_opt)(
 #else
         INPUT0_TYPE q_val[HEAD_SIZE / SUBGROUP_SIZE];
         unroll_for (uint i = 0; i < HEAD_SIZE / SUBGROUP_SIZE; i++) {
-            const uint query_idx = seq_idx * HEAD_SIZE * HEADS_NUM +
+            const uint query_idx = INPUT0_OFFSET +
+                                   seq_idx * (HEAD_SIZE * HEADS_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM + INPUT0_PAD_AFTER_FEATURE_NUM) +
                                    head_num_idx * HEAD_SIZE +
                                    i * SUBGROUP_SIZE;
             q_val[i] = BLOCK_READN(INPUT0_TYPE, 1, query, query_idx);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,7 @@
 #    include "emitters/snippets/x64/verbose.hpp"
 #endif
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 enum emitter_in_out_map {
     vec_to_vec,
@@ -67,8 +66,9 @@ public:
 
 #ifdef SNIPPETS_DEBUG_CAPS
     const char* info() const {
-        if (!info_.is_initialized())
+        if (!info_.is_initialized()) {
             info_.init(this);
+        }
         return info_.c_str();
     }
 #endif
@@ -135,7 +135,7 @@ protected:
     static constexpr int k_mask_num = 8;
     static constexpr int gpr_size = 8;
 
-    Xbyak::Address table_val(std::string key, size_t key_off_val_shift = 0) const {
+    Xbyak::Address table_val(const std::string& key, size_t key_off_val_shift = 0) const {
         auto off = table_off(key, key_off_val_shift);
         return h->ptr[p_table + off];
     }
@@ -145,7 +145,7 @@ protected:
 
     mapped_table_t entry_map_;
 
-    void push_arg_entry_of(const std::string key, const table_entry_val_t val, const bool broadcast) {
+    void push_arg_entry_of(const std::string& key, const table_entry_val_t val, const bool broadcast) {
         mapped_table_entry_t te{0, val, broadcast};
         entry_map_.insert(std::make_pair(key, te));
     }
@@ -172,7 +172,7 @@ private:
     void push_vec(const Xbyak::Address& addr, size_t vec_idx) const;
     void pop_vec(size_t vec_idx, const Xbyak::Address& addr) const;
 
-    size_t table_off(std::string& key, size_t key_off_val_shift = 0) const {
+    size_t table_off(const std::string& key, size_t key_off_val_shift = 0) const {
         // assumption: all table entries sharing the same key also
         // share their broadcast property
         // TODO: enforce through data structure
@@ -184,5 +184,4 @@ private:
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,7 @@
 
 #include "utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 TransposeShapeInfer::TransposeShapeInfer(const size_t& out_rank, const std::vector<size_t>& axes_vec)
     : m_out_rank(out_rank),
@@ -39,6 +37,4 @@ ShapeInferPtr TransposeShapeInferFactory::makeShapeInfer() const {
         return std::make_shared<TransposeDynShapeInfer>();
     }
 }
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -118,7 +118,7 @@ TEST(type_prop, if_clone_test) {
     if_op->set_input(X, Xt, Xe);
     if_op->set_input(Y, Yt, Ye);
     auto res = if_op->set_output(then_body_res, else_body_res);
-    auto new_if = std::dynamic_pointer_cast<op::v8::If>(if_op->clone_with_new_inputs(OutputVector{cond, Xnew, Ynew}));
+    auto new_if = ov::as_type_ptr<op::v8::If>(if_op->clone_with_new_inputs(OutputVector{cond, Xnew, Ynew}));
     EXPECT_EQ(true, true);
 }
 
@@ -336,6 +336,36 @@ TEST(type_prop, if_scalar_and_1d_static_union) {
     auto res = if_op->set_output(then_body_res, else_body_res);
     auto result0 = make_shared<ov::op::v0::Result>(res);
     PartialShape out_shape{PartialShape::dynamic(1)};
+    auto sh = result0->get_output_partial_shape(0);
+    EXPECT_EQ(sh, out_shape);
+}
+
+TEST(type_prop, if_output_one_element) {
+    // That which we iterate over
+    auto X = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
+    auto Y = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    auto cond = make_shared<ov::op::v0::Parameter>(element::boolean, Shape{});
+
+    // Body parameters
+    auto Xt = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto Ye = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    // Body
+    auto then_op = std::make_shared<op::v1::Add>(Xt, Xt);
+    auto then_body_res = make_shared<ov::op::v0::Result>(then_op);
+    auto then_body = make_shared<ov::Model>(OutputVector{then_body_res}, ParameterVector{Xt});
+
+    auto else_op = std::make_shared<op::v1::Maximum>(Ye, Ye);
+    auto else_body_res = make_shared<ov::op::v0::Result>(else_op);
+    auto else_body = make_shared<ov::Model>(OutputVector{else_body_res}, ParameterVector{Ye});
+
+    auto if_op = make_shared<op::v8::If>(cond);
+    if_op->set_then_body(then_body);
+    if_op->set_else_body(else_body);
+    if_op->set_input(X, Xt, nullptr);
+    if_op->set_input(Y, nullptr, Ye);
+    auto res = if_op->set_output(then_body_res, else_body_res);
+    auto result0 = make_shared<ov::op::v0::Result>(res);
+    PartialShape out_shape{1};
     auto sh = result0->get_output_partial_shape(0);
     EXPECT_EQ(sh, out_shape);
 }

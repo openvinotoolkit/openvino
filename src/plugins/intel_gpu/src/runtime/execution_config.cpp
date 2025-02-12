@@ -5,11 +5,11 @@
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/properties.hpp"
 
 #include <thread>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 ExecutionConfig::ExecutionConfig() {
     set_default();
@@ -46,6 +46,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::hint::execution_mode, ov::hint::ExecutionMode::PERFORMANCE),
         std::make_tuple(ov::hint::num_requests, 0),
         std::make_tuple(ov::hint::enable_cpu_pinning, false),
+        std::make_tuple(ov::hint::enable_cpu_reservation, false),
 
         std::make_tuple(ov::intel_gpu::hint::host_task_priority, ov::hint::Priority::MEDIUM),
         std::make_tuple(ov::intel_gpu::hint::queue_throttle, ov::intel_gpu::hint::ThrottleLevel::MEDIUM),
@@ -58,10 +59,10 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::cache_mode, ov::CacheMode::OPTIMIZE_SPEED),
         std::make_tuple(ov::cache_encryption_callbacks, EncryptionCallbacks{}),
         std::make_tuple(ov::hint::dynamic_quantization_group_size, 0),
-        std::make_tuple(ov::hint::kv_cache_precision, ov::element::undefined),
+        std::make_tuple(ov::hint::kv_cache_precision, ov::element::f16),
         std::make_tuple(ov::intel_gpu::hint::enable_kernels_reuse, false),
         std::make_tuple(ov::weights_path, ""),
-        std::make_tuple(ov::hint::activations_scale_factor, 0.f),
+        std::make_tuple(ov::hint::activations_scale_factor, -1.f),
 
         // Legacy API properties
         std::make_tuple(ov::intel_gpu::nv12_two_inputs, false),
@@ -230,6 +231,9 @@ void ExecutionConfig::apply_hints(const cldnn::device_info& info) {
 }
 
 void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
+    if (finalized)
+        return;
+
     // Copy internal properties before applying hints to ensure that
     // a property set by hint won't be overriden by a value in user config.
     // E.g num_streams=AUTO && hint=THROUGHPUT
@@ -248,25 +252,43 @@ void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
     if (get_property(ov::intel_gpu::use_onednn)) {
         set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
     }
+    if (!is_set_by_user(ov::hint::enable_cpu_reservation)) {
+        if (get_property(ov::hint::enable_cpu_pinning)) {
+            set_property(ov::hint::enable_cpu_reservation(true));
+        }
+    }
+    if (get_property(ov::hint::enable_cpu_reservation)) {
+        if (!is_set_by_user(ov::hint::enable_cpu_pinning)) {
+            set_property(ov::hint::enable_cpu_pinning(true));
+        }
+    }
 
-    // Enable KV-cache compression by default for non-systolic platforms
-    if (!is_set_by_user(ov::hint::kv_cache_precision) && !info.supports_immad) {
-        set_property(ov::hint::kv_cache_precision(ov::element::i8));
+    if (!is_set_by_user(ov::hint::kv_cache_precision) || get_property(ov::hint::kv_cache_precision) == ov::element::undefined) {
+        if (info.supports_immad) {  // MFDNN-11755
+            set_property(ov::hint::kv_cache_precision(get_property(ov::hint::inference_precision)));
+        } else {
+            // Enable KV-cache compression by default for non-systolic platforms only
+            set_property(ov::hint::kv_cache_precision(ov::element::i8));
+        }
     }
 
     // Enable dynamic quantization by default for non-systolic platforms
-    if (!is_set_by_user(ov::hint::dynamic_quantization_group_size) && !info.supports_immad) {
+    if (!is_set_by_user(ov::hint::dynamic_quantization_group_size) &&
+         get_property(ov::hint::dynamic_quantization_group_size) == 0 && !info.supports_immad) {
         set_property(ov::hint::dynamic_quantization_group_size(32));
     }
+
+    finalized = true;
 
     user_properties.clear();
 }
 
-void ExecutionConfig::apply_rt_info(const cldnn::device_info& info, const ov::RTMap& rt_info) {
+void ExecutionConfig::apply_rt_info(const cldnn::device_info& info, const ov::RTMap& rt_info, const bool is_llm) {
     if (!info.supports_immad) {
         apply_rt_info_property(ov::hint::kv_cache_precision, rt_info);
-        apply_rt_info_property(ov::hint::activations_scale_factor, rt_info);
     }
+    if (!is_llm)
+        apply_rt_info_property(ov::hint::activations_scale_factor, rt_info);
     apply_rt_info_property(ov::hint::dynamic_quantization_group_size, rt_info);
 }
 
@@ -283,5 +305,4 @@ std::string ExecutionConfig::to_string() const {
     return s.str();
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

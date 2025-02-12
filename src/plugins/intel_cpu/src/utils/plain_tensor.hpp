@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,14 +13,14 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #ifdef _WIN32
 #    include <cstdlib>
 #endif
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 template <typename T>
 inline void assert_dt(ov::element::Type dt) {
@@ -90,8 +90,8 @@ struct precision_of<float16> {
 #define PLAINTENSOR_RANK_MAX 8
 
 struct PlainTensor {
-    size_t m_strides[PLAINTENSOR_RANK_MAX];
-    size_t m_dims[PLAINTENSOR_RANK_MAX];
+    size_t m_strides[PLAINTENSOR_RANK_MAX] = {};
+    size_t m_dims[PLAINTENSOR_RANK_MAX] = {};
     size_t m_rank = 0;
     std::shared_ptr<uint8_t> m_ptr;
     size_t m_capacity = 0;
@@ -109,8 +109,9 @@ struct PlainTensor {
     }
 
     size_t size(int i) const {
-        if (i < 0)
+        if (i < 0) {
             i += m_rank;
+        }
         assert(static_cast<typename std::make_unsigned<decltype(i)>::type>(i) < m_rank);
         return m_dims[i];
     }
@@ -126,12 +127,13 @@ struct PlainTensor {
     template <typename T>
     std::vector<T> get_strides() const {
         std::vector<T> strides(m_rank);
-        for (size_t i = 0; i < m_rank; i++)
+        for (size_t i = 0; i < m_rank; i++) {
             strides[i] = static_cast<T>(m_strides[i]);
+        }
         return strides;
     }
 
-    PlainTensor(MemoryPtr mem) {
+    PlainTensor(const MemoryPtr& mem) {
         reset(mem);
     }
 
@@ -149,7 +151,7 @@ struct PlainTensor {
         return *this;
     }
 
-    void reset(MemoryPtr mem) {
+    void reset(const MemoryPtr& mem) {
         auto mem_desc = mem->getDescWithType<BlockedMemoryDesc>();
         // not support block layout
         OPENVINO_ASSERT(mem_desc && mem_desc->getOrder().size() == mem->getStaticDims().size());
@@ -177,11 +179,7 @@ struct PlainTensor {
         int step;
         int count;
         // select all
-        tensor_index() {
-            start = 0;
-            end = INT_MAX;
-            step = 1;
-        }
+        tensor_index() : start(0), end(INT_MAX), step(1) {}
         bool slice_with_squeeze() {
             return end == INT_MIN;
         }
@@ -190,14 +188,17 @@ struct PlainTensor {
         tensor_index(int start, int end = INT_MIN, int step = 1) : start(start), end(end), step(step) {}
 
         void regularize(int size) {
-            if (start < 0)
+            if (start < 0) {
                 start += size;
+            }
             assert(start >= 0 && start < size);
             if (end != INT_MIN) {
-                if (end < 0)
+                if (end < 0) {
                     end += size;
-                if (end > size)
+                }
+                if (end > size) {
                     end = size;
+                }
                 assert(end >= 0 && end <= size);
                 count = (end - start + step - 1) / step;
             } else {
@@ -275,8 +276,9 @@ struct PlainTensor {
         // check if it's dense tensor
         size_t stride = 1;
         for (int i = m_rank - 1; i >= 0; i--) {
-            if (m_strides[i] != stride)
+            if (m_strides[i] != stride) {
                 return false;
+            }
             stride *= m_dims[i];
         }
         return true;
@@ -431,8 +433,9 @@ struct PlainTensor {
             for (int i = m_rank - 1; i >= 0; i--) {
                 if (index[i] >= m_dims[i]) {
                     // carry on
-                    if (i == 0)
+                    if (i == 0) {
                         return *this;
+                    }
                     index[i] = 0;
                     index[i - 1]++;
                 }
@@ -456,8 +459,9 @@ struct PlainTensor {
             match = true;
             auto it = expect_dims.begin();
             for (size_t i = 0; i < m_rank; ++i, ++it) {
-                if (*it == 0 && special_zero)
+                if (*it == 0 && special_zero) {
                     continue;
+                }
                 if (*it != m_dims[i]) {
                     match = false;
                     break;
@@ -468,8 +472,9 @@ struct PlainTensor {
         if (!match) {
             std::stringstream ss;
             ss << " m_dims=[";
-            for (size_t i = 0; i < m_rank; i++)
+            for (size_t i = 0; i < m_rank; i++) {
                 ss << m_dims[i] << ",";
+            }
             ss << "] expect_dims=[";
             for (auto& i : expect_dims)
                 ss << i << ",";
@@ -501,8 +506,9 @@ struct PlainTensor {
             sep = ",";
         }
         ss << "] {";
-        if (m_rank > 1)
+        if (m_rank > 1) {
             ss << "\n";
+        }
         auto last_dim_size = m_dims[m_rank - 1];
         int row_id = 0;
         int cur_row_lines_left = lines_per_row;
@@ -518,32 +524,34 @@ struct PlainTensor {
 
             // display current element if we still have buget
             if (cur_row_lines_left > 0) {
-                if (m_dt == ov::element::Type_t::f32)
+                if (m_dt == ov::element::Type_t::f32) {
                     ss << (ptr<float>())[i] << ",";
-                else if (m_dt == ov::element::Type_t::bf16)
+                } else if (m_dt == ov::element::Type_t::bf16) {
                     ss << (ptr<bfloat16>())[i] << ",";
-                else if (m_dt == ov::element::Type_t::f16)
+                } else if (m_dt == ov::element::Type_t::f16) {
                     ss << (ptr<float16>())[i] << ",";
-                else if (m_dt == ov::element::Type_t::i32)
+                } else if (m_dt == ov::element::Type_t::i32) {
                     ss << (ptr<int32_t>())[i] << ",";
-                else if (m_dt == ov::element::Type_t::i8)
+                } else if (m_dt == ov::element::Type_t::i8) {
                     ss << (ptr<int8_t>())[i] << ",";
-                else if (m_dt == ov::element::Type_t::u8)
+                } else if (m_dt == ov::element::Type_t::u8) {
                     ss << (ptr<uint8_t>())[i] << ",";
-                else if (m_dt == ov::element::Type_t::boolean)
+                } else if (m_dt == ov::element::Type_t::boolean) {
                     ss << static_cast<bool>((ptr<uint8_t>())[i]) << ",";
-                else
+                } else {
                     ss << "?,";
+                }
                 cur_line_elecnt++;
                 cur_row_elecnt++;
                 if (((cur_line_elecnt % 16) == 15 || (cur_row_elecnt == last_dim_size)) && (m_rank > 1)) {
                     max_total_lines--;
                     cur_row_lines_left--;
                     if (cur_row_lines_left == 0) {
-                        if (cur_row_elecnt == last_dim_size)
+                        if (cur_row_elecnt == last_dim_size) {
                             ss << ",\n";
-                        else
+                        } else {
                             ss << "...\n";
+                        }
                         cur_row_elecnt = 0;
                     } else {
                         ss << "\n\t\t";
@@ -567,5 +575,4 @@ inline std::ostream& operator<<(std::ostream& os, const PlainTensor& dt) {
     return os;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

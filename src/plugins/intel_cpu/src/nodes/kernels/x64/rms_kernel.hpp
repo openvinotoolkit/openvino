@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,9 +7,7 @@
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "jit_kernel_base.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace kernel {
+namespace ov::intel_cpu::kernel {
 
 struct jit_rms_compile_params {
     ov::element::Type src_prc;
@@ -95,6 +93,4 @@ private:
     const std::vector<size_t> pool_aux_vmm_idxs = {7};
 };
 
-}  // namespace kernel
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::kernel

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -185,50 +185,17 @@ std::vector<std::string> disabledTestPatterns() {
         R"(^smoke_Multinomial(?:Static|Dynamic)+(?:Log)*.*seed_g=0_seed_o=0.*device=CPU.*)",
         // Issue: 129025
         R"(.*smoke_CpuExecNetworkCheck.*StreamsHasHigherPriorityThanLatencyHint.*)",
-        // Issue: 119648
-        R"(.*smoke_LPT/InterpolateTransformation.*)",
         // Issue: 129931
         R"(smoke_LPT/ConvolutionTransformation.CompareWithRefImpl/f32_\[.*,3,16,16\]_CPU_f32_rank=4D_fq_on_data=\{level=256_shape=\[1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ .*18.7 \}_output_high\{ 18.8 \}_precision=\}_fq_on_weights=\{_255_\[6,1,1,1\]_\{ .*1.52806e.*39, .*0.2, .*0.3, .*0.3, .*0.2, .*0.1 \}_\{ 1.52806e.*39, 0.2, 0.3, 0.3, 0.2, 0.1 \}\})",
         // TODO: 141068
         R"(smoke_Snippets_FQDecomposition.*netPRC=f16_D=CPU.*)",
-        // Issue: 133173
-        R"(.*smoke_ScaledAttn_CPU/ScaledAttnLayerCPUTest.CompareWithRefs/netPRC=bf16.*has_scale=0.*)",
-        R"(.*smoke_LPT_4D/ConvolutionBackpropDataTransformation.CompareWithRefImpl/f32_\[1,8,16,16\]_CPU_f32_\[16,16\]_level=256_shape=\[.*\]_input_low=\{ 0 \}_input_high=\{ 25.5 \}_output_low=\{ 0 \}_output_high\{ 25.5 \}_precision=__255_\[.*\]_\{ -12.7 \}_\{ 12.7 \}_\{\}.*)",
-        R"(.*smoke_LPT_4D/ConvolutionBackpropDataTransformation.CompareWithRefImpl/f32_\[1,8,16,16\]_CPU_f32_\[16,16\]_level=256_shape=\[1,1,1,1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ -12.7 \}_output_high\{ 12.8 \}_precision=.*)",
-        R"(.*smoke_LPT_3D/ConvolutionBackpropDataTransformation.CompareWithRefImpl/f32_\[1,8,16\]_CPU_f32_\[16\]_.*_input_high=\{ 25.5 \}_.*_precision=__255_\[1,1,1\]_\{ -12.7 \}_\{ 12.7 \}_\{\}.*)",
+        // Issue: 160737
         R"(.*smoke_LPT/ConvolutionQDqTransformation.CompareWithRefImpl/f32_\[(1,3,4,4|4,3,4,4)\]_CPU_f32_level=256_shape=\[1,1,1,1\]_input_low=\{ -12.8 \}_input_high=\{ 12.7 \}_output_low=\{ 0 \}_output_high=\{ 255 \}_precision=f32__u8___f32__.*_f32_\[\]_1_1_undefined__\{, 15\}_f32_\[\]__255_\[1,1,1,1\]_\{ -128 \}_\{ 127 \}__i8___f32__\{ -128 \}_.*_1_1_i8_.*)",
-        R"(.*smoke_LPT/ConvolutionQDqTransformation.CompareWithRefImpl/f32_\[(1,3,4,4|4,3,4,4)\]_CPU_f32_level=256_shape=\[1,1,1,1\]_input_low=\{ -12.8 \}_input_high=\{ 12.7 \}_output_low=\{ 0 \}_output_high=\{ 255 \}_precision=f32__u8___f32_\{\}__\{ 0.1 \}_f32_\[\]_1_1_undefined__\{, 15\}_f32_\[\]__255_\[1,1,1,1\]_\{ -128 \}_\{ 127 \}__i8_.*)",
-        R"(.*smoke_LPT/MultiplyTransformation.CompareWithRefImpl/f32_\[1,3,16,16\]_CPU_f32_undefined__on_branch1_0_2.55_0_2.55_on_branch2_-1.28_1.27_-1.28_1.27_1.*)",
-        R"(.*smoke_LPT/MultiplyTransformation.CompareWithRefImpl/f32_\[1,3,16,16\]_CPU_f32_broadcast1_undefined__on_branch1_-1.28_1.27_-1.28_1.27_on_branch2_0_2.55_0_2.55_0.*)",
-        R"(.*smoke_LPT/MultiplyTransformation.CompareWithRefImpl/f32_\[1,3,16,16\]_CPU_f32_broadcast2_undefined__on_branch1_0_2.55_0_2.55_on_branch2_-1.27_1.28_-1.27_1.28_0.*)",
-        R"(.*smoke_LPT/ConvolutionTransformation.CompareWithRefImpl/f32_\[(1|4),3,16,16\]_CPU_f32_rank=4D_fq_on_data=\{level=256_shape=\[1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ -18.7 \}_output_high\{ 18.8 \}_precision=\}_fq_on_weights=\{_255_\[1\]_\{ -18.7 \}_\{ 18.7 \}\}.*)",
-        R"(.*smoke_LPT/ConvolutionTransformation.CompareWithRefImpl/f32_\[(1|4),3,16,16\]_CPU_f32_rank=4D_fq_on_data=\{level=256_shape=\[1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ -18.7 \}_output_high\{ 18.8 \}_precision=\}_fq_on_weights=\{_255_\[6,1,1,1\].*)",
-        R"(.*smoke_LPT/RecurrentCellTransformation.CompareWithRefImpl/f32_\[1,2,16\]_CPU_f32FQ_X_level=256_.*_FQ_W_level=255.*)",
-        R"(.*smoke_LPT/SubtractTransformation.CompareWithRefImpl/f16_\[1,3,16,16\]_CPU_f32.*)",
-        R"(.*smoke_LPT/FakeQuantizeTransformation.CompareWithRefImpl/f32_\[1,32,72,48\]_CPU_f32_0_level=65536_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 65.535 \}_output_low=\{ 0 \}_output_high=\{ 65.535 \}_precision=.*)",
-        R"(.*smoke_LPT/FakeQuantizeTransformation.CompareWithRefImpl/f32_\[1,32,72,48\]_CPU_f32_0_level=65536_shape=\[\]_input_low=\{ -32.768 \}_input_high=\{ 32.767 \}_output_low=\{ -32.768 \}_output_high=\{ 32.767 \}_precision=.*)",
-        R"(.*smoke_LPT/MoveFakeQuantizeTransformation.CompareWithRefImpl/f32_\[(1|4),1,16,16\]_CPU_f32SPLIT:0_OP:_FQ:level=256_shape=\[\]_input_low=\{ (0|-1.28) \}_input_high=\{ (2.55|1.27) \}_output_low=\{ (0|-1.28) \}_output_high=\{ (2.55|255|1.27) \}_precision=_DQ:.*)",
-        R"(.*smoke_LPT/MoveFakeQuantizeTransformation.CompareWithRefImpl/f32_\[(1|4),1,16,16\]_CPU_f32SPLIT:0_OP:relu_FQ:level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 2.55 \}_output_low=\{ 0 \}_output_high=\{ 255 \}_precision=_DQ:__f32_\{\}__\{ 0.01 \}_undefined_\[\]_0_1_undefined.*)",
-        R"(.*smoke_LPT/MoveFakeQuantizeTransformation.CompareWithRefImpl/f32_\[(1|4),1,16,16\]_CPU_f32SPLIT:0_OP:relu_FQ:level=256_shape=\[1,6,1,1\]_input_low=\{ 0, 0, 0, 0, 0, 0 \}_input_high=\{ 2.55, 1.275, 0.85, 0.6375, 0.51, 0.425 \}_output_low=\{ -128, -128, -128, -128, -128, -128 \}_output_high=\{ 127, 127, 127, 127, 127, 127 \}_precision=_DQ:\{\}.*)",
-        R"(.*smoke_LPT/MoveFakeQuantizeTransformation.CompareWithRefImpl/f32_\[(1|4),1,16,16\]_CPU_f32SPLIT:(0|1)_OP:_FQ:level=256_shape=\[1,6,1,1\]_input_low=\{ 0, 0, 0, 0, 0, 0 \}_input_high=\{ 2.55, 1.275, 0.85, 0.6375, 0.51, 0.425 \}_output_low=\{ 0, 0, 0, 0, 0, 0 \}_output_high=\{ 255, 127.5, 85, 63.75, 51, 42.5 \}_precision=_DQ:__f32_.*)",
-        R"(.*smoke_LPT/EliminateFakeQuantizeTransformation.CompareWithRefImpl/CPU_f32_level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 127.5 \}_output_low=\{ 0 \}_output_high\{ 127.5 \}_precision=f32_level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ (127.5|121.429) \}_output_low=\{ 0 \}_output_high\{ (127.5|121.429) \}_precision=f32.*)",
-        R"(.*smoke_LPT/MatMulWithOptimizedConstantFq.CompareWithRefImpl/f32_\[1,16\]_\[(10|16),(10|16)\]_CPU_level=256_shape=\[1\]_input_low=\{ 0 \}_input_high=\{ 25.5 \}_output_low=\{ 0 \}_output_high\{ 25.5 \}_precision=_level=255_shape=\[1\]_input_low=\{ -12.7 \}_input_high=\{ 12.7 \}_output_low=\{ -12.7 \}_output_high\{ 12.7 \}_precision=.*)",
-        R"(.*smoke_LPT/FuseDequantizeToFakeQuantizeTransformation.CompareWithRefImpl/CPU_f32_0_undefined_\[\]_f32__\{\}_\{\}__\{ (0.01|0.01, 0.1, 1) \}_.*)",
-        R"(.*smoke_LPT/GroupConvolutionTransformation.CompareWithRefImpl/f32_\[1,6,24,24\]_CPU_f32_4D_\[1,6,24,24\]_\[1,24,18,18\]_3_-1_level=256_shape=\[1,1,1,1\]_input_low=\{ 0 \}_input_high=\{ 25.5 \}_output_low=\{ 0 \}_output_high\{ 25.5 \}_precision=_wo_reshape__255_\[3,8,1,1,1\]_\{ -127 \}_\{ 127 \}.*)",
-        R"(.*smoke_LPT/GroupConvolutionTransformation.CompareWithRefImpl/f32_\[1,6,24(,24)*\]_CPU_f32_(3D|4D)_\[1,6,24(,24)*\]_\[1,24,18(,18)*\]_3_-1_level=256_shape=\[1,1,1.*\]_input_low=\{ 0 \}_input_high=\{ 25.5 \}_output_low=\{ 0 \}_output_high\{ 25.5 \}_precision=_wo_reshape__255_\[3,8,1,1(,1)*\]_\{ -127, -12.7, -1.27,.*)",
-        R"(.*smoke_LPT/GroupConvolutionTransformation.CompareWithRefImpl/f32_\[1,6,1,24,24\]_CPU_f32_5D_\[1,6,1,24,24\]_\[1,24,1,18,18\]_3_-1_level=256_shape=\[1,1,1,1,1\]_input_low=\{ -12.8 \}_input_high=\{ 12.7 \}_output_low=\{ -12.8 \}_output_high\{ 12.7 \}_precision=_reshape_on_weights__255_\[1,1,1,1,1\]_\{ -127 \}_\{ 127 \}.*)",
-        R"(.*smoke_LPT/GroupConvolutionTransformation.CompareWithRefImpl/f32_\[1,24,8,12,12\]_CPU_f32_5D_\[1,24,8,12,12\]_\[1,24,1,1,1\]_3_-1_level=256_shape=\[1,1,1,1,1\]_input_low=\{ -12.8 \}_input_high=\{ 12.7 \}_output_low=\{ -12.8 \}_output_high\{ 12.7 \}_precision=_reshape_on_weights__255_\[1,1,1,1,1\]_\{ -127 \}_\{ 127 \}.*)",
         R"(.*smoke_LPT/GroupConvolutionQDqTransformation.CompareWithRefImpl/f32_\[1,6,24,24\]_CPU_f32_level=256_shape=\[1,1,1,1\]_input_low=\{ -12.8 \}_input_high=\{ 12.7 \}_output_low=\{ 0 \}_output_high=\{ 255 \}_precision=f32__u8___f32_.*_undefinedoutput_original_f32_multiplyAfter=(false|true).*)",
-        R"(.*smoke_LPT/GroupConvolutionQDqTransformation.CompareWithRefImpl/f32_\[1,6,24,24\]_CPU_f32_level=256_.*_precision=f32__u8___f32_\{\}__\{ 0.1 \}.*_f32_\[6,2,5,5\]__255_\[1,1,1,1\]_\{ -128 \}_\{ 127 \}__i8.*undefinedoutput_original_u8_multiplyAfter=(false|true).*)",
-        R"(.*smoke_LPT/MatMulWithConstantTransformation.CompareWithRefImpl/\[(2,3,4|1,1,3,4)\]_f32_CPU_.*_shape=\[1,1,1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ 0, 0, 0 \}_output_high=\{ 255, 25.5, 255 \}_precision=_level=256_shape=\[1\]_input_low=\{ -128 \}_.*)",
-        R"(.*smoke_LPT/ReduceSumTransformation.CompareWithRefImpl/f32_\[1,3,10,10\]_CPU_f32_level=256_shape=\[1,1,1,1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ 0 \}_output_high\{ 127 \}_precision=_keepDims__reduce_axis_2_3_.*)",
-        R"(.*smoke_TestsDFT_3d/DFTLayerTest.Inference/.*TS=.*10.4.20.32.2.*_Precision=bf16.*)",
-        R"(.*smoke_TestsDFT_3d/DFTLayerTest.Inference/.*TS=.*2.5.7.8.2.*_Precision=bf16.*)",
-        R"(.*smoke_TestsDFT_3d/DFTLayerTest.Inference/.*TS=.*1.120.128.1.2.*_Precision=bf16.*_signal_size=\(\).*)",
-        R"(.*smoke_TestsDFT_4d/DFTLayerTest.Inference/.*2.5.7.8.2.*Precision=bf16.*signal_size=\(\).*)",
+        // Issue: 160734
+        R"(.*smoke_LPT/ConvolutionTransformation.CompareWithRefImpl/f32_\[(1|4),3,16,16\]_CPU_f32_rank=4D_fq_on_data=\{level=256_shape=\[1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ -18.7 \}_output_high\{ 18.8 \}_precision=\}_fq_on_weights=\{_255_\[1\]_\{ -18.7 \}_\{ 18.7 \}\}.*)",
+        // Issue: 160735
         R"(.*smoke_TestsDFT_4d/DFTLayerTest.Inference/.*TS=\{\((10.4.20.32.2|1.120.128.1.2)\)\}.*Precision=f32.*signal_size=\(\).*)",
-        R"(.*smoke_TestsDFT_4d/DFTLayerTest.Inference/.*1.120.128.1.2.*Precision=bf16.*signal_size=\(\).*)",
-        R"(.*smoke_TestsDFT_2d/DFTLayerTest.Inference/.*TS.*1.120.128.1.2.*Precision=bf16_Axes=\(2.1\)_signal_size=\(\).*)",
         // by calc abs_threshold with expected value
         R"(.*smoke_.*_4D.*/GatherLayerTestCPU.CompareWithRefs.*INFERENCE_PRECISION_HINT=bf16.*)",
         R"(.*smoke.*Mvn6LayerTest.Inference/.*TS.*1.10.5.7.8.*_ModelType=f32.*_Ax=\((2.3.4|-3.-2.-1)\).*)",
@@ -493,7 +460,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_Snippets.*\[.*\?.*\].*)");
     retVector.emplace_back(R"(smoke_Snippets_Eltwise.*\[1.1..10.1..8.1..4\].*)");
     // smoke_Snippets test cases are not supported on arm64 platforms, except for smoke_Snippets_Eltwise
-    retVector.emplace_back(R"(smoke_Snippets(?!_Eltwise|_Convert).*)");
+    retVector.emplace_back(R"(smoke_Snippets(?!_Eltwise|_Convert|_FQDecomposition_).*)");
     // arm snippets doesn't support sve_128 that required by dnnl injector jit_uni_eltwise_injector_f32 yet
     retVector.emplace_back(R"(smoke_Snippets_Eltwise_TwoResults.*)");
     retVector.emplace_back(R"(smoke_Snippets_Eltwise/TwoInputsAndOutputs.*)");
@@ -512,18 +479,12 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_MatMulCompressedWeights_corner_cases_basic/MatmulWeightsDecompression.CompareWithRefs/data_shape=\[\?.\?.\?\]_\(\[1,1,4096\]\)_weights_shape=\[4096,4096\]_group_size=128_weights_precision=nf4_decompression_precision=f16_scale_precision=undefined_transpose_weights=0_decompression_subtract=full_reshape_on_decompression=1_config=\(\).*)");
     retVector.emplace_back(R"(.*smoke_RDFT_CPU_1D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\(126\)\)_constAxes=true_axes=\(\(0\)\)_isInverse=false.*)");
     retVector.emplace_back(R"(.*smoke_RDFT_CPU_2D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\(16.38\)\)_constAxes=true_axes=\(\(0.1\)\)_isInverse=false.*)");
-    // Issue: MFDNN-12818
-    retVector.emplace_back(R"(.*smoke_LPT/RecurrentCellTransformation.CompareWithRefImpl/f32_\[1,1,3\]_CPU_f32FQ_X_level=256_.*_FQ_W_level=255.*)");
-    retVector.emplace_back(R"(.*smoke_static/ConvertFqRnnToQuantizedRnn.CompareWithRefs/Type=GRUSequence.*2.5.10.*2.1.4.*2.1.4.*)");
 #endif
     if (!ov::with_cpu_x86_avx512_core()) {
         // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
         // tests are useless on such platforms
         retVector.emplace_back(R"(.*(BF|bf)16.*)");
         retVector.emplace_back(R"(.*bfloat16.*)");
-        // Issue: MFDNN-12818
-        retVector.emplace_back(R"(.*smoke_LPT/RecurrentCellTransformation.CompareWithRefImpl/f32_\[1,1,3\]_CPU_f32FQ_X_level=256_.*_FQ_W_level=255.*)");
-        retVector.emplace_back(R"(.*smoke_static/ConvertFqRnnToQuantizedRnn.CompareWithRefs/Type=GRUSequence.*2.5.10.*2.1.4.*2.1.4.*)");
     }
     if (!ov::with_cpu_x86_avx2()) {
         // MatMul in Snippets uses BRGEMM that is supported only on AVX2 (and newer) platforms
@@ -551,6 +512,46 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(
             R"(.*EltwiseLayerCPUTest.*IS=\(\[1\.\.10\.2\.5\.6\]_\).*eltwiseOpType=SqDiff.*_configItem=INFERENCE_PRECISION_HINT=f16.*)");
     }
+#endif
+#if defined(OPENVINO_ARCH_ARM)
+    retVector.emplace_back(R"(.*ActivationLayerTest.*Inference.*)");
+    retVector.emplace_back(R"(.*AddConvertToReorderTest.*smoke_TestAddReorder_CPU.*)");
+    retVector.emplace_back(R"(.*AddOutputsTest.*smoke_CheckOutputExist.*)");
+    retVector.emplace_back(R"(.*CompileModelCacheRuntimePropertiesTestBase.*CanLoadFromFileWithoutException.*)");
+    retVector.emplace_back(R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*2InputSubtract_f.*)");
+    retVector.emplace_back(R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*ConvPoolRelu_f.*)");
+    retVector.emplace_back(R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*MatMulBias_f.*)");
+    retVector.emplace_back(R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*SimpleFunctionRelu_f.*)");
+    retVector.emplace_back(R"(.*CompileModelCacheTestBase.*CompareWithRefImpl/MatMulBias_f32_batch1_CPU)");
+    retVector.emplace_back(R"(.*CompileModelLoadFromCacheTest.*CanGetCorrectLoadedFromCacheProperty.*)");
+    retVector.emplace_back(R"(.*CompileModelLoadFromFileTestBase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)");
+    retVector.emplace_back(R"(.*CompileModelLoadFromFileTestBase.*CanLoadFromFileWithoutException.*)");
+    retVector.emplace_back(R"(.*CompileModelLoadFromMemoryTestBase.*CanLoadFromMemoryWithoutExecption.*)");
+    retVector.emplace_back(R"(.*CompileModelLoadFromMemoryTestBase.*CanLoadFromMemoryWithoutWeightsANdExecption.*)");
+    retVector.emplace_back(R"(.*CompileModelWithCacheEncryptionTest.*CanImportModelWithoutException.*)");
+    retVector.emplace_back(R"(.*ConcatMultiQuerySDPTest.*f16.*)");
+    retVector.emplace_back(R"(.*ConcatSDPTest.*f16.*)");
+    retVector.emplace_back(R"(.*CoreThreadingTestsWithCacheEnabled.*smoke_compiled_model_cache_enabled.*)");
+    retVector.emplace_back(R"(.*CoreThreadingTestsWithIter.*smoke_CompileModel.*)");
+    retVector.emplace_back(R"(.*CustomOpConvertI64CPUTest.*CompareWithRefs.*)");
+    retVector.emplace_back(R"(.*EltwiseLayerCPUTest.*CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)");
+    retVector.emplace_back(R"(.*EltwiseLayerTest.*Inference.*)");
+    retVector.emplace_back(R"(.*ExecGraphDuplicateInputsOutputsNames.*CheckOutputsMatch.*)");
+    retVector.emplace_back(R"(.*ExecGraphKeepAssignNode.*KeepAssignNode.*)");
+    retVector.emplace_back(R"(.*ExecGraphRemoveParameterNode.*RemoveParameterNode.*)");
+    retVector.emplace_back(R"(.*IndexAddTest.*CompareWithRefs.*)");
+    retVector.emplace_back(R"(.*InterpolateLayerCPUTest.*CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)");
+    retVector.emplace_back(R"(.*MatMulLayerCPUTest.*CompareWithRefs.*)");
+    retVector.emplace_back(R"(.*MatmulWeightsDecompression.*CompareWithRefs.*)");
+    retVector.emplace_back(R"(.*MvnLayerCPUTest.*CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)");
+    retVector.emplace_back(R"(.*NonInputInPlaceTest.*CompareWithRefs.*)");
+    retVector.emplace_back(R"(.*OVClassCompiledModelGetPropertyTest_EXEC_DEVICES.*CanGetExecutionDeviceInfo.*)");
+    retVector.emplace_back(R"(.*OVClassConfigTestCPU.*smoke_.*)");
+    retVector.emplace_back(R"(.*OVClassConfigTestCPU.*smoke_CpuExecNetwork.*)");
+    retVector.emplace_back(R"(.*OVInferenceChaining.*StaticOutputToDynamicInput.*)");
+    retVector.emplace_back(R"(.*OVInferenceChaining.*StaticOutputToStaticInput.*)");
+    retVector.emplace_back(R"(.*OVInferenceChainingStatic.*StaticOutputToStaticInput.*)");
+    retVector.emplace_back(R"(.*ReduceCPULayerTest.*CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)");
 #endif
     if (!ov::with_cpu_x86_avx512_core_vnni() &&
         !ov::with_cpu_x86_avx2_vnni() &&

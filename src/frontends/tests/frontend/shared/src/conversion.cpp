@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -96,7 +96,7 @@ TEST_P(FrontEndConversionExtensionTest, TestConversionExtensionViaSO) {
     ASSERT_NE(model, nullptr);
 }
 
-#ifdef OPENVINO_CPP_VER_17
+#ifdef OPENVINO_CPP_VER_AT_LEAST_17
 TEST_P(FrontEndConversionExtensionTest, TestConversionExtensionViaSOByPath) {
     auto frontend = m_param.m_frontend;
     const std::filesystem::path lib_path = get_lib_path("test_builtin_extensions");

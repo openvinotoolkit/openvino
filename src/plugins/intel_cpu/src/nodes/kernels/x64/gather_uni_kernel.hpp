@@ -25,8 +25,7 @@
 #include "dnnl_types.h"
 #include "jit_kernel_base.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct jGatherConfParams {
     uint64_t dataTypeSize = 1lu;
@@ -75,7 +74,12 @@ struct jitGatherKernelBase {
         assert(ker_);
         ker_(args);
     }
-    explicit jitGatherKernelBase(const jGatherConfParams& jcp) : ker_(nullptr), jcp(jcp) {}
+    explicit jitGatherKernelBase(const jGatherConfParams& jcp, uint64_t vlen, uint64_t indicesTypeSize)
+        : ker_(nullptr),
+          jcp(jcp),
+          vlen(vlen),
+          dataElPerVec(vlen / jcp.dataTypeSize),
+          idxElPerVec(vlen / indicesTypeSize) {}
     virtual ~jitGatherKernelBase() {}
 
     virtual void create_ker() = 0;
@@ -214,5 +218,4 @@ protected:
     const unsigned* permMask16bitUni;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

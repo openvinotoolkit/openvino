@@ -1,15 +1,16 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <utility>
+
 #include "node.h"
 
 #define MAX_INPUT_INTERPOLATE 8
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 enum InterpolateLayoutType { planar, block, by_channel };
 
@@ -102,7 +103,7 @@ public:
     static constexpr size_t SCALES_ID = 2;
     static constexpr size_t AXES_ID = 3;
     static constexpr int CUBIC_GRID_LEN = 4;
-    InterpolateExecutor(const ExecutorContext::CPtr context) : _context(context) {}
+    InterpolateExecutor(ExecutorContext::CPtr context) : _context(std::move(context)) {}
 
     virtual bool init(const InterpolateAttrs& interpolateAttrs,
                       const std::vector<MemoryDescPtr>& srcDescs,
@@ -176,5 +177,4 @@ public:
 
 using InterpolateExecutorBuilderPtr = std::shared_ptr<InterpolateExecutorBuilder>;
 using InterpolateExecutorBuilderCPtr = std::shared_ptr<const InterpolateExecutorBuilder>;
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

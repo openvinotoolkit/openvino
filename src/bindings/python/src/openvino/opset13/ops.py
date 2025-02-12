@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for ops added to openvino opset13."""
@@ -11,12 +11,12 @@ import numpy as np
 
 log = logging.getLogger(__name__)
 
-from openvino.runtime import Node, Shape, Type, Output, Tensor
+from openvino import Node, Shape, Type, Output, Tensor
 from openvino.op import Constant, Result
 from openvino.opset1 import convert_like
-from openvino.runtime.opset_utils import _get_node_factory
-from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op, overloading
-from openvino.runtime.utils.types import (
+from openvino.utils.node_factory import _get_node_factory
+from openvino.utils.decorators import binary_op, nameable_op, unary_op, overloading
+from openvino.utils.types import (
     NumericData,
     NodeInput,
     NumericType,
@@ -343,7 +343,7 @@ def constant(
 @nameable_op
 def constant(  # noqa: F811
     tensor: Tensor,
-    shared_memory: bool = False,
+    shared_memory: bool = True,
     name: Optional[str] = None,
 ) -> Constant:
     return Constant(tensor, shared_memory=shared_memory)

@@ -10,9 +10,9 @@
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/snippets/cpu_kernel_executor_table.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/snippets/repacked_input.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct BrgemmCopyBKernelConfig : public snippets::KernelExecutorBase::GenericConfig {
 public:
@@ -139,7 +139,7 @@ private:
     size_t m_hash{SIZE_MAX};
 };
 
-struct BrgemmCopyBKernel : public dnnl::impl::cpu::x64::jit_generator {
+struct BrgemmCopyBKernel : public RepackedInputKernel, public dnnl::impl::cpu::x64::jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(BrgemmCopyBKernel)
     struct call_args {
         const void* src = nullptr;
@@ -152,7 +152,7 @@ struct BrgemmCopyBKernel : public dnnl::impl::cpu::x64::jit_generator {
 
     dnnl::impl::status_t create_kernel() override;
 
-    void operator()(const call_args* args) const;
+    void operator()(const void* args) const override;
 
 private:
     void generate() override;
@@ -168,6 +168,8 @@ private:
 
     void init_brgemm_copy_b_kernel(std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t>& kernel,
                                    const BrgemmCopyBKernelConfig& conf) const;
+
+    std::set<snippets::Reg> get_live_regs() const;
 
     static constexpr auto abi_param_regs = dnnl::impl::cpu::x64::abi_param_regs;
     const Xbyak::Reg64 src_reg = abi_param2;
@@ -205,5 +207,4 @@ protected:
 };
 #define GET_OFF_BRGEMM_COPY_B_ARGS(field) offsetof(BrgemmCopyBKernel::call_args, field)
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -30,14 +30,24 @@ add_library(${TARGET_NAME}
 add_library(openvino::runtime ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime)
 
-target_compile_features(${TARGET_NAME} PUBLIC cxx_std_11)
+target_compile_features(${TARGET_NAME} PUBLIC cxx_std_17)
 
 ov_add_vs_version_file(NAME ${TARGET_NAME} FILEDESCRIPTION "OpenVINO runtime library")
 
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/common/include>)
+
+# to be aligned with OpenVINO archive, where all headers are located in the same folder and
+# exposed via openvino::runtime
+target_include_directories(${TARGET_NAME} INTERFACE
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/common/include>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include>)
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/onnx/frontend/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/paddle/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/pytorch/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/tensorflow/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/tensorflow_lite/include>)
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::reference
                                              openvino::shape_inference

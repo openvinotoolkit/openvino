@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,8 +23,7 @@ using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_args_permute, field)
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 #if defined(OPENVINO_ARCH_X86_64)
 
@@ -181,8 +180,9 @@ PermuteKernel::PermuteKernel(const PermuteParams& params) : params(params) {
     }
 #endif  // OPENVINO_ARCH_X86_64
 
-    if (permute_kernel)
+    if (permute_kernel) {
         permute_kernel->create_ker();
+    }
 }
 
 void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {
@@ -209,8 +209,9 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data,
     const VectorDims dst_strides = jcp.dst_strides;
     const VectorDims src_strides = jcp.src_strides;
 
-    if (static_cast<int>(dst_dims[0]) != mb)
+    if (static_cast<int>(dst_dims[0]) != mb) {
         dst_dims[0] = mb;
+    }
 
     switch (jcp.n) {
     case 1:
@@ -273,5 +274,4 @@ bool PermuteParams::operator==(const PermuteParams& rhs) const {
            (order == rhs.order) && (data_size == rhs.data_size);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

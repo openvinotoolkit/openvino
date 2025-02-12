@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -10,8 +10,7 @@
 #include <cstddef>
 #include <openvino/core/type/element_type.hpp>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class BrgemmKernel {
 public:
@@ -113,5 +112,4 @@ private:
                     void* pout,
                     void* wsp);
 };
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

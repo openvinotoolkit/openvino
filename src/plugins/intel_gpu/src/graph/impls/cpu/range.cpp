@@ -21,7 +21,7 @@ struct range_impl : public typed_primitive_impl<range> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::range_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<range_impl>(*this);
+        return std::make_unique<range_impl>(*this);
     }
 
     range_impl() : parent("range_cpu_impl") {}
@@ -88,7 +88,7 @@ struct range_impl : public typed_primitive_impl<range> {
 
 public:
     static std::unique_ptr<primitive_impl> create(const range_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<range_impl>();
+        return std::make_unique<range_impl>();
     }
 };
 

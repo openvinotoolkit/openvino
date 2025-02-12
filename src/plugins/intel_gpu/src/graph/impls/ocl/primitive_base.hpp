@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,7 +94,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
             !((impl_param.is_type<concatenation>() ||
                impl_param.is_type<crop>() ||
                impl_param.runtime_skippable()) && impl_param.is_dynamic())) {
-            return make_unique<ImplType>(kernel_selector::kernel_data{});
+            return std::make_unique<ImplType>(kernel_selector::kernel_data{});
         }
         auto kernel_params = ImplType::get_kernel_params(ImplType::static_canonicalize_shapes(impl_param));
         kernel_params.is_shape_agnostic = impl_param.is_dynamic();
@@ -102,7 +102,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         auto& kernel_selector = ImplType::kernel_selector_t::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(kernel_params);
 
-        return make_unique<ImplType>(best_kernel);
+        return std::make_unique<ImplType>(best_kernel);
     }
 
     void update(primitive_inst& inst, const kernel_impl_params& impl_params) override {
@@ -172,10 +172,10 @@ protected:
 
     template<typename ImplType, typename KernelParamsType>
     static std::unique_ptr<primitive_impl> make_deep_copy(const ImplType& impl_ocl) {
-        auto prim_impl = make_unique<ImplType>(impl_ocl);
+        auto prim_impl = std::make_unique<ImplType>(impl_ocl);
         KernelParamsType* params_ptr = dynamic_cast<KernelParamsType*>((*prim_impl)._kernel_data.params.get());
         if (params_ptr != nullptr) {
-            (*prim_impl)._kernel_data.params = make_unique<KernelParamsType>(*params_ptr);
+            (*prim_impl)._kernel_data.params = std::make_unique<KernelParamsType>(*params_ptr);
         }
         return prim_impl;
     }

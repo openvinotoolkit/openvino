@@ -12,9 +12,7 @@
 #include "snippets/generator.hpp"
 #include "snippets/snippets_isa.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace aarch64 {
+namespace ov::intel_cpu::aarch64 {
 
 enum emitter_in_out_map {
     vec_to_vec,
@@ -60,6 +58,7 @@ public:
     virtual size_t get_inputs_count() const = 0;
     virtual size_t get_aux_vecs_count() const;
     virtual size_t get_aux_gprs_count() const;
+    emitter_in_out_map get_in_out_type() const;
 
     /**
      * @brief Returns supported precisions.
@@ -125,18 +124,18 @@ protected:
 
     mapped_table_t entry_map_;
 
-    Xbyak_aarch64::AdrImm table_val(std::string key, size_t key_off_val_shift = 0) const {
+    Xbyak_aarch64::AdrImm table_val(const std::string& key, size_t key_off_val_shift = 0) const {
         const int32_t off = table_off(key, key_off_val_shift);
         return Xbyak_aarch64::ptr(p_table, off);
     }
 
-    Xbyak_aarch64::AdrNoOfs table_val2(std::string key, size_t key_off_val_shift = 0) const {
+    Xbyak_aarch64::AdrNoOfs table_val2(const std::string& key, size_t key_off_val_shift = 0) const {
         const int32_t off = table_off(key, key_off_val_shift);
         h->add_imm(h->X_DEFAULT_ADDR, p_table, off, h->X_TMP_0);
         return Xbyak_aarch64::ptr(h->X_DEFAULT_ADDR);
     }
 
-    void push_arg_entry_of(const std::string key, const table_entry_val_t val, const bool broadcast) {
+    void push_arg_entry_of(const std::string& key, const table_entry_val_t val, const bool broadcast) {
         mapped_table_entry_t te{0, val, broadcast};
         entry_map_.insert(std::make_pair(key, te));
     }
@@ -185,6 +184,4 @@ private:
                          const std::unordered_set<size_t>& ignore_vec_regs = {}) const;
 };
 
-}  // namespace aarch64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::aarch64

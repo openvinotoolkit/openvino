@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -103,8 +103,9 @@ ov::intel_cpu::FuseFQtoInteraction::FuseFQtoInteraction() {
         std::vector<float> fq_scale;
         if (fq_node) {
             fq_scale = simplifyToScale(fq_node, 0.001f);
-            if (fq_scale.empty())
+            if (fq_scale.empty()) {
                 return false;
+            }
         }
         bool success = ov::replace_output_update_name(fq_node->output(0), fq_node->input_value(0));
         if (!success) {

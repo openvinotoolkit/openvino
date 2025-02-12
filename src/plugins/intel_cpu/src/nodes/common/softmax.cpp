@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,8 +23,7 @@ using namespace dnnl::impl::utils;
 
 #define GET_OFF(field) offsetof(jit_args_softmax, field)
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct jit_args_softmax {
     const void* src;
@@ -71,8 +70,9 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
         exp_injector.reset(
             new jit_uni_eltwise_injector<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.0f, data_type::f32));
 
-        if (mayiuse(avx512_core))
+        if (mayiuse(avx512_core)) {
             uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa));
+        }
 
         this->preamble();
 
@@ -172,8 +172,9 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
 
         this->postamble();
 
-        if (uni_vcvtneps2bf16)
+        if (uni_vcvtneps2bf16) {
             uni_vcvtneps2bf16->emit_data();
+        }
 
         exp_injector->prepare_table();
     }
@@ -261,8 +262,9 @@ SoftmaxGeneric::SoftmaxGeneric(ov::element::Type inpPrc, ov::element::Type outPr
         softmax_kernel.reset(new jit_uni_softmax_kernel_f32<x64::sse41>(jcp));
         block_size = 4;
     }
-    if (softmax_kernel)
+    if (softmax_kernel) {
         softmax_kernel->create_ker();
+    }
 #endif
 }
 
@@ -279,8 +281,8 @@ void SoftmaxGeneric::calculate(const in_data_t* src_data, out_data_t* dst_data, 
 
                 arg.src = src_data + b * C * H * W + ib * block_size;
                 arg.dst = dst_data + b * C * H * W + ib * block_size;
-                arg.src_stride = static_cast<size_t>((size_t)(H)*W * sizeof(in_data_t));
-                arg.dst_stride = static_cast<size_t>((size_t)(H)*W * sizeof(out_data_t));
+                arg.src_stride = static_cast<size_t>(static_cast<size_t>(H) * W * sizeof(in_data_t));
+                arg.dst_stride = static_cast<size_t>(static_cast<size_t>(H) * W * sizeof(out_data_t));
                 arg.work_amount = static_cast<size_t>(C);
 
                 (*softmax_kernel)(&arg);
@@ -294,8 +296,9 @@ void SoftmaxGeneric::calculate(const in_data_t* src_data, out_data_t* dst_data, 
             float max = src_data[b * C * H * W + offset];
             for (int c = 0; c < C; c++) {
                 float val = src_data[b * C * H * W + c * H * W + offset];
-                if (val > max)
+                if (val > max) {
                     max = val;
+                }
             }
 
             float expSum = 0;
@@ -339,5 +342,4 @@ void SoftmaxGeneric::execute(const uint8_t* src_data, uint8_t* dst_data, int B, 
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

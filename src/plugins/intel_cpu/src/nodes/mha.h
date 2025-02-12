@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,19 +41,18 @@ struct jit_mul_add_softmax_call_args {
 };
 
 struct jit_uni_mul_add_softmax_kernel {
-    void (*ker_)(const jit_mul_add_softmax_call_args*);
-
     void operator()(const jit_mul_add_softmax_call_args* call_args) {
         assert(ker_);
         ker_(call_args);
     }
 
-    explicit jit_uni_mul_add_softmax_kernel(const jit_mul_add_softmax_compile_params& jcp) : ker_(nullptr), jcp_(jcp) {}
+    explicit jit_uni_mul_add_softmax_kernel(const jit_mul_add_softmax_compile_params& jcp) : jcp_(jcp), ker_(nullptr) {}
     virtual ~jit_uni_mul_add_softmax_kernel() {}
 
     virtual void create_ker() = 0;
 
     jit_mul_add_softmax_compile_params jcp_;
+    void (*ker_)(const jit_mul_add_softmax_call_args*);
 };
 
 struct jit_convert_reorder_compile_params {
@@ -129,17 +128,17 @@ struct jit_uni_convert_transpose_kernel {
 
 class MHA : public Node {
 public:
-    MHA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    MHA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 protected:
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
     void prepareParams() override;
 
 private:

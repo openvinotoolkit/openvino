@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -88,5 +88,18 @@ struct OPENVINO_API TensorExtension {
  * @param input_descriptor   Input descriptor to set in output as shared tensor.
  */
 OPENVINO_API void set_shared_tensor(Output& output_descriptor, const Input& input_descriptor);
+
+/**
+ * @brief Retrieves the set of output names assigned to tensor descriptor.
+ *
+ * This function returns tensor descriptor names:
+ * - same as ov::descriptor::Tensor::get_names() for regular descriptor.
+ * - return specific output names for shared tensor.
+ *
+ * @param descriptor The tensor descriptor to get names.
+ * @return The set of output names.
+ */
+OPENVINO_API const std::unordered_set<std::string>& get_assigned_names(const Tensor& descriptor);
+
 }  // namespace descriptor
 }  // namespace ov

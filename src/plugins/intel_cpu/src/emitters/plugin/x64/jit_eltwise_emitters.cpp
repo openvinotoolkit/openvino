@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,7 @@ using namespace Xbyak;
 #define INF_MASK     0x7F800000
 #define INF_NEG_MASK 0xFF800000
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace {
 ov::element::Type get_arithmetic_binary_exec_precision(const std::shared_ptr<ov::Node>& n) {
@@ -159,8 +158,9 @@ void jit_mul_add_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                 vmm_mul1 = vmm_src1;
             }
 
-            if (vmm_dst.getIdx() != vmm_src2.getIdx())
+            if (vmm_dst.getIdx() != vmm_src2.getIdx()) {
                 h->uni_vmovups(vmm_dst, vmm_src2);
+            }
 
             h->uni_vfmadd231ps(vmm_dst, vmm_mul0, vmm_mul1);
         } break;
@@ -508,16 +508,18 @@ void jit_floor_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     Vmm vmm_aux0 = Vmm(aux_vec_idxs[0]);
 
     if (isa == x64::sse41) {
-        if (vmm_dst.getIdx() != vmm_src0.getIdx())
+        if (vmm_dst.getIdx() != vmm_src0.getIdx()) {
             h->uni_vmovups(vmm_dst, vmm_src0);
+        }
         h->uni_vmovups(vmm_aux0, vmm_src0);
         h->uni_vdivps(vmm_aux0, vmm_aux0, vmm_src1);
         h->uni_vroundps(vmm_aux0, vmm_aux0, 1);  // rounding down
         h->uni_vmulps(vmm_aux0, vmm_aux0, vmm_src1);
         h->uni_vsubps(vmm_dst, vmm_dst, vmm_aux0);
     } else {
-        if (vmm_dst.getIdx() != vmm_src0.getIdx())
+        if (vmm_dst.getIdx() != vmm_src0.getIdx()) {
             h->uni_vmovups(vmm_dst, vmm_src0);
+        }
         h->uni_vdivps(vmm_aux0, vmm_src0, vmm_src1);
         h->uni_vroundps(vmm_aux0, vmm_aux0, 1);  // rounding down
         h->uni_vmulps(vmm_aux0, vmm_aux0, vmm_src1);
@@ -567,16 +569,18 @@ void jit_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
     Vmm vmm_aux0 = Vmm(aux_vec_idxs[0]);
 
     if (isa == x64::sse41) {
-        if (vmm_dst.getIdx() != vmm_src0.getIdx())
+        if (vmm_dst.getIdx() != vmm_src0.getIdx()) {
             h->uni_vmovups(vmm_dst, vmm_src0);
+        }
         h->uni_vmovups(vmm_aux0, vmm_src0);
         h->uni_vdivps(vmm_aux0, vmm_aux0, vmm_src1);
         h->uni_vroundps(vmm_aux0, vmm_aux0, 3);  // truncate
         h->uni_vmulps(vmm_aux0, vmm_aux0, vmm_src1);
         h->uni_vsubps(vmm_dst, vmm_dst, vmm_aux0);
     } else {
-        if (vmm_dst.getIdx() != vmm_src0.getIdx())
+        if (vmm_dst.getIdx() != vmm_src0.getIdx()) {
             h->uni_vmovups(vmm_dst, vmm_src0);
+        }
         h->uni_vdivps(vmm_aux0, vmm_src0, vmm_src1);
         h->uni_vroundps(vmm_aux0, vmm_aux0, 3);  // truncate
         h->uni_vmulps(vmm_aux0, vmm_aux0, vmm_src1);
@@ -635,8 +639,9 @@ void jit_maximum_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     };
 
     if (isa == x64::sse41) {
-        if (vmm_src0.getIdx() != vmm_dst.getIdx())
+        if (vmm_src0.getIdx() != vmm_dst.getIdx()) {
             h->uni_vmovups(vmm_dst, vmm_src0);
+        }
         uni_vmax(vmm_dst, vmm_dst, vmm_src1);
     } else {
         uni_vmax(vmm_dst, vmm_src0, vmm_src1);
@@ -695,8 +700,9 @@ void jit_minimum_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     };
 
     if (isa == x64::sse41) {
-        if (vmm_src0.getIdx() != vmm_dst.getIdx())
+        if (vmm_src0.getIdx() != vmm_dst.getIdx()) {
             h->uni_vmovups(vmm_dst, vmm_src0);
+        }
         uni_vmin(vmm_dst, vmm_dst, vmm_src1);
     } else {
         uni_vmin(vmm_dst, vmm_src0, vmm_src1);
@@ -760,8 +766,9 @@ void jit_squared_difference_emitter::emit_isa(const std::vector<size_t>& in_vec_
     };
 
     if (isa == x64::sse41) {
-        if (vmm_src0.getIdx() != vmm_dst.getIdx())
+        if (vmm_src0.getIdx() != vmm_dst.getIdx()) {
             h->uni_vmovups(vmm_dst, vmm_src0);
+        }
         uni_vsqdiff(vmm_dst, vmm_dst, vmm_src1);
     } else {
         uni_vsqdiff(vmm_dst, vmm_src0, vmm_src1);
@@ -823,18 +830,20 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
 
     h->sub(h->rsp, n_gprs_to_save * gpr_size);
-    for (size_t i = 0; i < n_gprs_to_save; ++i)
+    for (size_t i = 0; i < n_gprs_to_save; ++i) {
         h->mov(h->ptr[h->rsp + i * gpr_size], gprs_to_save[i]);
+    }
 
     // caller obligation to save k-regs as callee may use them
     size_t n_k_regs_to_save = 8;
     if (isa == x64::avx512_core) {
         h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
         for (size_t i = 0; i < n_k_regs_to_save; ++i) {
-            if (x64::mayiuse(x64::avx512_core))
+            if (x64::mayiuse(x64::avx512_core)) {
                 h->kmovq(h->ptr[h->rsp + i * k_mask_size], Opmask(i));
-            else
+            } else {
                 h->kmovw(h->ptr[h->rsp + i * k_mask_size], Opmask(i));
+            }
         }
     }
 
@@ -846,8 +855,9 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     // `vlen` should be replaced with `host_isa::vlen` and
     // `host_isa::vecs_count`.
     h->sub(h->rsp, (get_max_vecs_count() + 2) * get_vec_length());
-    for (size_t i = 2; i < get_max_vecs_count() + 2; ++i)
+    for (size_t i = 2; i < get_max_vecs_count() + 2; ++i) {
         h->uni_vmovups(h->ptr[h->rsp + i * get_vec_length()], Vmm(i - 2));
+    }
     h->uni_vmovups(h->ptr[h->rsp + 0 * get_vec_length()], vmm_src0);  // src
     h->uni_vmovups(h->ptr[h->rsp + 1 * get_vec_length()], vmm_src1);  // beta
 
@@ -871,25 +881,28 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     h->add(h->rsp, h->rbx);
 
     // restore vector registers
-    for (size_t i = get_max_vecs_count() + 1; i >= 2; --i)
+    for (size_t i = get_max_vecs_count() + 1; i >= 2; --i) {
         h->uni_vmovups(Vmm(i - 2), h->ptr[h->rsp + i * get_vec_length()]);
+    }
     h->uni_vmovups(vmm_dst, h->ptr[h->rsp + 0 * get_vec_length()]);
     h->add(h->rsp, (get_max_vecs_count() + 2) * get_vec_length());
 
     // restore k registers
     if (isa == x64::avx512_core) {
         for (int i = n_k_regs_to_save - 1; i >= 0; --i) {
-            if (x64::mayiuse(x64::avx512_core))
+            if (x64::mayiuse(x64::avx512_core)) {
                 h->kmovq(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
-            else
+            } else {
                 h->kmovw(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
+            }
         }
         h->add(h->rsp, n_k_regs_to_save * k_mask_size);
     }
 
     // restore gpr registers
-    for (int i = n_gprs_to_save - 1; i >= 0; --i)
+    for (int i = n_gprs_to_save - 1; i >= 0; --i) {
         h->mov(gprs_to_save[i], h->ptr[h->rsp + i * gpr_size]);
+    }
     h->add(h->rsp, n_gprs_to_save * gpr_size);
 }
 
@@ -1755,8 +1768,9 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
             }
         }
     } else {
-        if (vmm_dst.getIdx() != vmm_src0.getIdx())
+        if (vmm_dst.getIdx() != vmm_src0.getIdx()) {
             h->uni_vmovups(vmm_dst, vmm_src0);
+        }
     }
 
     if (power == 1.f) {
@@ -1776,10 +1790,12 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         int64_t ipower = std::abs(static_cast<int64_t>(power)) - 1;
         h->uni_vmovups(vmm_aux0, vmm_dst);
         while (ipower > 0) {
-            if (ipower & 0x1)
+            if (ipower & 0x1) {
                 h->uni_vmulps(vmm_dst, vmm_dst, vmm_aux0);
-            if (ipower > 1)
+            }
+            if (ipower > 1) {
                 h->uni_vmulps(vmm_aux0, vmm_aux0, vmm_aux0);
+            }
             ipower = ipower >> 1;
         }
 
@@ -1802,18 +1818,20 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
 
         h->sub(h->rsp, n_gprs_to_save * gpr_size);
-        for (size_t i = 0; i < n_gprs_to_save; ++i)
+        for (size_t i = 0; i < n_gprs_to_save; ++i) {
             h->mov(h->ptr[h->rsp + i * gpr_size], gprs_to_save[i]);
+        }
 
         // caller obligation to save k-regs as callee may use them
         size_t n_k_regs_to_save = 8;
         if (isa == x64::avx512_core) {
             h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
             for (size_t i = 0; i < n_k_regs_to_save; ++i) {
-                if (x64::mayiuse(x64::avx512_core))
+                if (x64::mayiuse(x64::avx512_core)) {
                     h->kmovq(h->ptr[h->rsp + i * k_mask_size], Opmask(i));
-                else
+                } else {
                     h->kmovw(h->ptr[h->rsp + i * k_mask_size], Opmask(i));
+                }
             }
         }
 
@@ -1825,8 +1843,9 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         // `vlen` should be replaced with `host_isa::vlen` and
         // `host_isa::vecs_count`.
         h->sub(h->rsp, (get_max_vecs_count() + 2) * get_vec_length());
-        for (size_t i = 2; i < get_max_vecs_count() + 2; ++i)
+        for (size_t i = 2; i < get_max_vecs_count() + 2; ++i) {
             h->uni_vmovups(h->ptr[h->rsp + i * get_vec_length()], Vmm(i - 2));
+        }
         h->uni_vmovups(h->ptr[h->rsp + 0 * get_vec_length()], vmm_dst);   // src
         h->uni_vmovups(h->ptr[h->rsp + 1 * get_vec_length()], vmm_aux0);  // beta
 
@@ -1850,25 +1869,28 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         h->add(h->rsp, h->rbx);
 
         // restore vector registers
-        for (size_t i = get_max_vecs_count() + 1; i >= 2; --i)
+        for (size_t i = get_max_vecs_count() + 1; i >= 2; --i) {
             h->uni_vmovups(Vmm(i - 2), h->ptr[h->rsp + i * get_vec_length()]);
+        }
         h->uni_vmovups(vmm_dst, h->ptr[h->rsp + 0 * get_vec_length()]);
         h->add(h->rsp, (get_max_vecs_count() + 2) * get_vec_length());
 
         // restore k registers
         if (isa == x64::avx512_core) {
             for (int i = n_k_regs_to_save - 1; i >= 0; --i) {
-                if (x64::mayiuse(x64::avx512_core))
+                if (x64::mayiuse(x64::avx512_core)) {
                     h->kmovq(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
-                else
+                } else {
                     h->kmovw(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
+                }
             }
             h->add(h->rsp, n_k_regs_to_save * k_mask_size);
         }
 
         // restore gpr registers
-        for (int i = n_gprs_to_save - 1; i >= 0; --i)
+        for (int i = n_gprs_to_save - 1; i >= 0; --i) {
             h->mov(gprs_to_save[i], h->ptr[h->rsp + i * gpr_size]);
+        }
         h->add(h->rsp, n_gprs_to_save * gpr_size);
     }
 }
@@ -1933,8 +1955,9 @@ void jit_prelu_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         h->cmpps(vmm_aux0, vmm_src0, _cmp_gt_os);
         h->movups(vmm_aux1, vmm_src1);
         h->mulps(vmm_aux1, vmm_src0);
-        if (vmm_src0.getIdx() != vmm_dst.getIdx())
+        if (vmm_src0.getIdx() != vmm_dst.getIdx()) {
             h->movups(vmm_dst, vmm_src0);
+        }
         h->blendvps(vmm_dst, vmm_aux1);
     } else if (isa == x64::avx2) {
         h->vmulps(vmm_aux0, vmm_src0, vmm_src1);
@@ -1943,8 +1966,9 @@ void jit_prelu_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         h->vblendvps(vmm_dst, vmm_aux0, vmm_src0, vmm_aux1);
     } else if (isa == x64::avx512_core) {
         h->vxorpd(vmm_aux0, vmm_aux0, vmm_aux0);
-        if (vmm_src0.getIdx() != vmm_dst.getIdx())
+        if (vmm_src0.getIdx() != vmm_dst.getIdx()) {
             h->vmovups(vmm_dst, vmm_src0);
+        }
         h->vcmpps(k_mask, vmm_src0, vmm_aux0, _cmp_lt_os);
         h->vmulps(vmm_dst | k_mask, vmm_src0, vmm_src1);
     }
@@ -1997,6 +2021,10 @@ void jit_sqrt_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
 jit_negative_emitter::jit_negative_emitter(x64::jit_generator* host,
                                            x64::cpu_isa_t host_isa,
                                            const std::shared_ptr<ov::Node>& node,
+                                           ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
+jit_negative_emitter::jit_negative_emitter(x64::jit_generator* host,
+                                           x64::cpu_isa_t host_isa,
                                            ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
@@ -2527,12 +2555,13 @@ std::set<std::vector<element::Type>> jit_select_emitter::get_supported_precision
 }
 
 size_t jit_select_emitter::aux_vecs_count() const {
-    if (host_isa_ == x64::avx512_core)
+    if (host_isa_ == x64::avx512_core) {
         return 0;
-    else if (host_isa_ == x64::avx2)  // tmp vec for mask
+    } else if (host_isa_ == x64::avx2) {  // tmp vec for mask
         return 1;
-    else  // mask should be xmm0 on sse41 +  tmp vec for mask
+    } else {  // mask should be xmm0 on sse41 +  tmp vec for mask
         return 2;
+    }
 }
 
 void jit_select_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -2798,5 +2827,4 @@ void jit_bitwise_xor_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     h->uni_vxorps(vmm_dst, vmm_src0, vmm_src1);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,7 @@
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * @brief Defines how many records can be stored in the CPU runtime parameters cache per CPU runtime parameter type per
@@ -68,5 +67,4 @@ inline std::istream& operator>>(std::istream& is, SnippetsMode& mode) {
  */
 static constexpr Property<SnippetsMode, PropertyMutability::RW> snippets_mode{"SNIPPETS_MODE"};
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

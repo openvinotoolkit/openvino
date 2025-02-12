@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -574,6 +574,7 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
     traits.internal_order = internal_order;
     traits.block_sizes = block_sizes;
     traits.logic_block_sizes = logic_block_sizes;
+    traits.desc_size = desc.get_size();
     traits.str = "custom";
 
     return traits;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,12 +8,173 @@
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
+#include "transformations/rt_info/disable_constant_folding.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/convert_precision.hpp"
 
 using namespace ov;
+
+static std::shared_ptr<ov::Node> make_branch(const std::shared_ptr<ov::op::v0::Convert> zp_convert,
+                                             const ov::Shape& lp_const_shape,
+                                             const std::vector<size_t>& sub_mul_shape,
+                                             bool ref_model = false) {
+        // const data path
+        const auto lp_const = std::make_shared<opset10::Constant>(element::i8, lp_const_shape, 1);
+        const auto data_convert = std::make_shared<opset10::Convert>(lp_const, element::f32);
+
+        const auto zp_target_shape = std::make_shared<opset10::Constant>(ov::element::i64, ov::Shape{sub_mul_shape.size()}, sub_mul_shape);
+        const auto zp_reshape = std::make_shared<opset10::Reshape>(zp_convert, zp_target_shape, false);
+
+        const auto subtract = std::make_shared<opset10::Subtract>(data_convert, zp_reshape);
+
+        // scale
+        std::shared_ptr<ov::Node> scale_const;
+        std::shared_ptr<ov::Node> scale_reshape;
+        if (ref_model) {
+            scale_const = std::make_shared<opset10::Constant>(element::f32, ov::Shape{sub_mul_shape}, 1);
+            scale_reshape = scale_const;
+        } else {
+            scale_const = std::make_shared<opset10::Constant>(element::f32, ov::Shape{64}, 1);
+            auto scale_target_shape = std::make_shared<opset10::Constant>(ov::element::i64, ov::Shape{sub_mul_shape.size()}, sub_mul_shape);
+            scale_reshape = std::make_shared<opset10::Reshape>(scale_const, scale_target_shape, false);
+        }
+
+        const auto multiply = std::make_shared<opset10::Multiply>(subtract, scale_reshape);
+
+        if (ref_model) {
+            mark_as_dequantization_node(subtract);
+            mark_as_dequantization_node(multiply);
+            disable_constant_folding(data_convert);
+            disable_constant_folding(zp_convert);
+            enable_keep_const_precision(lp_const);
+            disable_keep_const_precision(scale_const);
+        }
+
+        return multiply;
+}
+
+/* Construct a following graph that will have only Scale constant
+   folded during Constant folding as swapping of ZP Reshape & Convert
+   is not possible due to different shapes, hence no CF here.
+
+                              ZP Const
+                                 │
+                                 ▼
+         Input                Convert                Input
+           │                  │     │                  │
+           ▼                  ▼     ▼                  ▼
+Scale      Convert      Reshape     Reshape      Convert      Scale
+    |            │    (64,1,1,1)   (1,64,1,1)    │            │
+    |            │      │                 │      │            |
+    ▼            ▼      ▼                 ▼      ▼            ▼
+    Reshape      Subtract                 Subtract      Reshape
+          |      |                               |      |
+          ▼      ▼                               ▼      ▼
+          Multiply                               Multiply
+*/
+
+TEST_F(TransformationTestsF, KeepConstPrecision2BranchesDiffShapes) {
+    {
+
+        // zero points
+        const auto zp_const = std::make_shared<opset10::Constant>(element::i8, ov::Shape{64}, 1);
+        const auto zp_convert = std::make_shared<opset10::Convert>(zp_const, element::f32);
+
+        const auto right_branch = make_branch(zp_convert, {128,64,2,2}, {1, 64, 1, 1});
+        const auto result_right = std::make_shared<opset10::Result>(right_branch);
+
+        const auto left_branch = make_branch(zp_convert, {64,3,3,3}, {64, 1, 1, 1});
+        const auto result_left = std::make_shared<opset10::Result>(left_branch);
+
+        model = std::make_shared<Model>(ResultVector{result_right, result_left}, ParameterVector{});
+    }
+
+    manager.register_pass<pass::MarkDequantization>(element::TypeVector{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4});
+    manager.register_pass<pass::ConstantFolding>();
+    manager.register_pass<pass::KeepConstPrecision>(element::TypeVector{element::i8});
+    manager.register_pass<pass::ConvertPrecision>(ov::element::u4, ov::element::u8, type_to_fuse_map{}, false, false);
+
+    {
+        // zero points
+        const auto zp_const = std::make_shared<opset10::Constant>(element::i8, ov::Shape{64}, 1);
+        enable_keep_const_precision(zp_const);
+        const auto zp_convert = std::make_shared<opset10::Convert>(zp_const, element::f32);
+
+        const auto right_branch = make_branch(zp_convert, {128, 64, 2, 2}, {1, 64, 1, 1}, true);
+        const auto result_right = std::make_shared<opset10::Result>(right_branch);
+
+        const auto left_branch = make_branch(zp_convert, {64, 3, 3, 3}, {64, 1, 1, 1}, true);
+        const auto result_left = std::make_shared<opset10::Result>(left_branch);
+
+        model_ref = std::make_shared<Model>(ResultVector{result_right, result_left}, ParameterVector{});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+}
+
+
+static std::shared_ptr<ov::Node> make_branch_same(const std::shared_ptr<ov::op::v0::Convert> zp_convert) {
+    // const data
+    const auto lp_const = std::make_shared<opset10::Constant>(element::i8, ov::Shape{64, 3, 3, 3}, 1);
+    const auto data_convert = std::make_shared<opset10::Convert>(lp_const, element::f32);
+
+    const auto subtract = std::make_shared<opset10::Subtract>(data_convert, zp_convert);
+
+    // scale
+    const auto scale_const = std::make_shared<opset10::Constant>(element::f32, ov::Shape{64, 1, 1, 1}, 1);
+    const auto multiply = std::make_shared<opset10::Multiply>(subtract, scale_const);
+
+    enable_keep_const_precision(lp_const);
+    disable_constant_folding(data_convert);
+    mark_as_dequantization_node(subtract);
+    mark_as_dequantization_node(multiply);
+    disable_keep_const_precision(scale_const);
+
+    return multiply;
+}
+
+/* Construct the same as graph above, but with shapes being identical, hence
+   possible to swap and then Constant fold*/
+
+TEST_F(TransformationTestsF, KeepConstPrecision2BranchesSameShapes) {
+    {
+
+        // zero points
+        const auto zp_const = std::make_shared<opset10::Constant>(element::i8, ov::Shape{64}, 1);
+        const auto zp_convert = std::make_shared<opset10::Convert>(zp_const, element::f32);
+
+        const auto right_branch = make_branch(zp_convert, {64, 3, 3, 3}, {64, 1, 1, 1});
+        const auto result_right = std::make_shared<opset10::Result>(right_branch);
+
+        const auto left_branch = make_branch(zp_convert, {64, 3, 3, 3}, {64, 1, 1, 1});
+        const auto result_left = std::make_shared<opset10::Result>(left_branch);
+
+        model = std::make_shared<Model>(ResultVector{result_right, result_left}, ParameterVector{});
+    }
+
+    manager.register_pass<pass::MarkDequantization>(element::TypeVector{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4});
+    manager.register_pass<pass::ConstantFolding>();
+    manager.register_pass<pass::KeepConstPrecision>(element::TypeVector{element::i8});
+    manager.register_pass<pass::ConvertPrecision>(ov::element::u4, ov::element::u8, type_to_fuse_map{}, false, false);
+
+    {
+        // zero points
+        const auto zp_const = std::make_shared<opset10::Constant>(element::i8, ov::Shape{64, 1, 1, 1}, 1);
+        const auto zp_convert = std::make_shared<opset10::Convert>(zp_const, element::f32);
+
+        const auto multiply_left = make_branch_same(zp_convert);
+        const auto result_left = std::make_shared<opset10::Result>(multiply_left);
+
+        const auto multiply_right = make_branch_same(zp_convert);
+        const auto result_right = std::make_shared<opset10::Result>(multiply_right);
+
+        model_ref = std::make_shared<Model>(ResultVector{result_right, result_left}, ParameterVector{});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+}
 
 TEST_F(TransformationTestsF, KeepConstPrecision) {
     {
@@ -33,7 +194,7 @@ TEST_F(TransformationTestsF, KeepConstPrecision) {
 
     manager.register_pass<pass::MarkDequantization>(element::TypeVector{element::u4});
     manager.register_pass<pass::ConstantFolding>();
-    manager.register_pass<pass::KeepConstsPrecision>(element::TypeVector{element::u4});
+    manager.register_pass<pass::KeepConstPrecision>(element::TypeVector{element::u4});
     manager.register_pass<pass::ConvertPrecision>(ov::element::u4, ov::element::u8, type_to_fuse_map{}, false, false);
 
     {
@@ -124,7 +285,7 @@ TEST_F(TransformationTestsF, MarkDequantizationTransformation) {
     }
 
     manager.register_pass<pass::MarkDequantization>(element::TypeVector{element::u8, element::i8});
-    manager.register_pass<pass::KeepConstsPrecision>(element::TypeVector{element::u8, element::i8});
+    manager.register_pass<pass::KeepConstPrecision>(element::TypeVector{element::u8, element::i8});
     manager.register_pass<pass::ConstantFolding>();
 
     {
@@ -240,7 +401,7 @@ TEST_F(TransformationTestsF, MarkDequantizationTransformationNoZeroPoint) {
     }
 
     manager.register_pass<pass::MarkDequantization>(element::TypeVector{element::u8, element::i8});
-    manager.register_pass<pass::KeepConstsPrecision>(element::TypeVector{element::u8, element::i8});
+    manager.register_pass<pass::KeepConstPrecision>(element::TypeVector{element::u8, element::i8});
     manager.register_pass<pass::ConstantFolding>();
 
     {
@@ -349,7 +510,7 @@ TEST_F(TransformationTestsF, MarkDequantizationTransformationNoZeroPointFP16) {
     }
 
     manager.register_pass<pass::MarkDequantization>(element::TypeVector{element::u8, element::i8});
-    manager.register_pass<pass::KeepConstsPrecision>(element::TypeVector{element::u8, element::i8});
+    manager.register_pass<pass::KeepConstPrecision>(element::TypeVector{element::u8, element::i8});
 
     {
         auto parameter = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 16, 14, 14});
@@ -469,7 +630,7 @@ TEST_F(TransformationTestsF, MarkDequantizationTransformationNotConstantWeights)
     }
 
     manager.register_pass<pass::MarkDequantization>(element::TypeVector{element::u8, element::i8});
-    manager.register_pass<pass::KeepConstsPrecision>(element::TypeVector{element::u8, element::i8});
+    manager.register_pass<pass::KeepConstPrecision>(element::TypeVector{element::u8, element::i8});
     manager.register_pass<pass::ConstantFolding>();
 
     {
@@ -556,7 +717,7 @@ TEST_F(TransformationTestsF, MarkDequantizationTransformationFoldSubConst) {
     }
 
     manager.register_pass<pass::MarkDequantization>(element::TypeVector{element::u8}, true);
-    manager.register_pass<pass::KeepConstsPrecision>(element::TypeVector{element::u8}, true);
+    manager.register_pass<pass::KeepConstPrecision>(element::TypeVector{element::u8}, true);
     manager.register_pass<pass::ConstantFolding>();
 
     {

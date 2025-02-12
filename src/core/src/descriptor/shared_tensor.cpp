@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,6 +90,10 @@ public:
         }
     }
 
+    const auto& get_output_names() const {
+        return m_output_names;
+    }
+
 private:
     void rm_tensor_output_names() {
         auto names = m_shared_tensor->get_names();
@@ -118,6 +122,15 @@ void set_shared_tensor(Output& output, const Input& input) {
         result_ptr->set_tensor(input_descriptor);
     } else {
         output_descriptor = std::make_shared<SharedTensor>(input_descriptor);
+    }
+}
+
+const std::unordered_set<std::string>& get_assigned_names(const Tensor& tensor) {
+    if (auto&& descriptor = TensorExtension::get_descriptor(tensor);
+        auto&& shared_tensor = dynamic_cast<const SharedTensor*>(&descriptor)) {
+        return shared_tensor->get_output_names();
+    } else {
+        return descriptor.get_names();
     }
 }
 

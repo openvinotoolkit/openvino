@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,7 @@
 #include <string>
 #include <vector>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 impl_desc_type parse_impl_name(std::string impl_desc_name) {
     impl_desc_type res = impl_desc_type::unknown;
@@ -41,8 +40,9 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
     SEARCH_WORD(jit);
     SEARCH_WORD(brgconv);
     SEARCH_WORD(brgemm);
-    if ((res & impl_desc_type::brgemm) != impl_desc_type::brgemm)
+    if ((res & impl_desc_type::brgemm) != impl_desc_type::brgemm) {
         SEARCH_WORD(gemm);
+    }
     SEARCH_WORD(blas);
     SEARCH_WORD(mlas);
     SEARCH_WORD(sse42);
@@ -60,12 +60,14 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
     SEARCH_WORD(shl);
     SEARCH_WORD(asimd);
     if ((res & impl_desc_type::avx2) != impl_desc_type::avx2 &&
-        (res & impl_desc_type::avx512) != impl_desc_type::avx512)
+        (res & impl_desc_type::avx512) != impl_desc_type::avx512) {
         SEARCH_WORD(avx);
+    }
     if ((res & impl_desc_type::sse42) != impl_desc_type::sse42 && (res & impl_desc_type::avx) != impl_desc_type::avx &&
         (res & impl_desc_type::avx2) != impl_desc_type::avx2 &&
-        (res & impl_desc_type::avx512) != impl_desc_type::avx512)
+        (res & impl_desc_type::avx512) != impl_desc_type::avx512) {
         SEARCH_WORD(uni);
+    }
 
     SEARCH_WORD_2(nchw, ref);
     SEARCH_WORD_2(ncdhw, ref);
@@ -74,8 +76,9 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
 #undef SEARCH_WORD_2
 #undef SEARCH_WORD
     // Deconv case would set both jit and any in onednn, only set the jit bit.
-    if ((res & jit) && (res & any))
+    if ((res & jit) && (res & any)) {
         res = static_cast<impl_desc_type>(res & ~any);
+    }
     return res;
 }
 
@@ -158,5 +161,4 @@ bool contains(const std::vector<impl_desc_type>& priorities, const impl_desc_typ
     return std::find(priorities.begin(), priorities.end(), impl_type_str) != priorities.end();
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

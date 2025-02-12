@@ -9,13 +9,11 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 class IndirectGemm : public ov::intel_gpu::op::Gemm {
 public:
-    OPENVINO_OP("IndirectGemm", "gpu_opset");
+    OPENVINO_OP("IndirectGemm", "gpu_opset", ov::intel_gpu::op::Gemm);
 
     IndirectGemm() = default;
 
@@ -49,6 +47,4 @@ protected:
     int64_t m_indirect_axis = 0;
 };
 
-}   // namespace op
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu::op

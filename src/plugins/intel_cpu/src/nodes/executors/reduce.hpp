@@ -9,8 +9,7 @@
 #include "executor.hpp"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct ReduceAttrs {
     std::vector<int> axes;
@@ -20,7 +19,7 @@ struct ReduceAttrs {
 
 class ReduceExecutor {
 public:
-    ReduceExecutor(const ExecutorContext::CPtr context);
+    ReduceExecutor(ExecutorContext::CPtr context);
     virtual bool init(const ReduceAttrs& reduceAttrs,
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,
@@ -53,5 +52,4 @@ public:
 using ReduceExecutorBuilderPtr = std::shared_ptr<ReduceExecutorBuilder>;
 using ReduceExecutorBuilderCPtr = std::shared_ptr<const ReduceExecutorBuilder>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

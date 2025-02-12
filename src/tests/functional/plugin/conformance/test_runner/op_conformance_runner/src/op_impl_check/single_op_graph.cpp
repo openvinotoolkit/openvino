@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1937,6 +1937,18 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v15::STFT>& no
     const auto stft = std::make_shared<ov::op::v15::STFT>(data, window, frame_size, step_size, transpose_frames);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(stft)};
     return std::make_shared<ov::Model>(results, ov::ParameterVector{data, window}, "STFTGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v16::ISTFT>& node) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{9, 2, 2});
+    const auto window = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{16});
+    const auto frame_size = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {}, {16});
+    const auto step_size = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {}, {4});
+    constexpr bool center = true;
+    constexpr bool normalized = true;
+    const auto stft = std::make_shared<ov::op::v16::ISTFT>(data, window, frame_size, step_size, center, normalized);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(stft)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{data, window}, "ISTFTGraph");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v15::StringTensorUnpack> &node) {

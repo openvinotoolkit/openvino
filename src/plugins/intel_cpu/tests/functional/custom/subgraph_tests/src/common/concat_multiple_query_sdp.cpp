@@ -152,9 +152,9 @@ public:
         auto unsqueezeK = std::make_shared<ov::op::v0::Unsqueeze>(concatK, unsquezeAxis);
         auto unsqueezeV = std::make_shared<ov::op::v0::Unsqueeze>(concatV, unsquezeAxis);
 
-        auto targetShape = ov::op::v0::Constant::create(qkvType, {1, 1, 1, 4, 1}, {1});
-        auto broadcastK = std::make_shared<ov::op::v1::Multiply>(unsqueezeK, targetShape);
-        auto broadcastV = std::make_shared<ov::op::v1::Multiply>(unsqueezeV, targetShape);
+        auto targetShape = ov::op::v0::Constant::create(element::i32, {5}, {1, 1, 1, 4, 1});
+        auto broadcastK = std::make_shared<ov::op::v3::Broadcast>(unsqueezeK, targetShape, op::BroadcastType::BIDIRECTIONAL);
+        auto broadcastV = std::make_shared<ov::op::v3::Broadcast>(unsqueezeV, targetShape, op::BroadcastType::BIDIRECTIONAL);
 
         auto target4D = ov::op::v0::Constant::create(ov::element::i32, {4}, {0, 0, 8, 64});
 

@@ -26,7 +26,7 @@ class TRANSFORMATIONS_API TSTileBackward;
  */
 class ov::pass::transpose_sinking::TSTileForward : public ov::pass::transpose_sinking::TSForwardBase {
 public:
-    OPENVINO_RTTI("ov::pass::TSBinaryForward", "0");
+    OPENVINO_RTTI("ov::pass::TSBinaryForward", "0", ov::pass::transpose_sinking::TSForwardBase);
     TSTileForward();
 };
 

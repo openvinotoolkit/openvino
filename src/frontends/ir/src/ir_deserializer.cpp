@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <pugixml.hpp>
 #include <regex>
+#include <string_view>
 
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/except.hpp"
@@ -32,6 +33,32 @@
 #include "utils.hpp"
 
 using namespace ov::util;
+
+namespace {
+/**
+ * @brief Function deserializing tensor names.
+ *
+ * Each tensor names are separated by comma. Escaped commas in tensor names are replaced by actual comma.
+ *
+ * @param tensor_names A string view to serialized tensor names.
+ * @return A set of unique tensor names.
+ */
+std::unordered_set<std::string> deserialize_tensor_names(const std::string_view& tensor_names) {
+    // tensor names are separated by comma, but ignore escaped comma
+    static const auto splitter = std::regex(R"((?:[^\\,\n]|\\.)+)");
+
+    auto output_names = std::unordered_set<std::string>();
+    std::transform(std::cregex_token_iterator{tensor_names.data(), tensor_names.data() + tensor_names.size(), splitter},
+                   std::cregex_token_iterator{},
+                   std::inserter(output_names, output_names.end()),
+                   [](const auto& token) {
+                       // If tensor name contains escaped comma, replace it with comma
+                       static const auto escaped_delim = std::regex(R"(\\,)");
+                       return std::regex_replace(token.str(), escaped_delim, ",");
+                   });
+    return output_names;
+}
+}  // namespace
 
 ov::XmlDeserializer::IoMap ov::XmlDeserializer::updated_io_map(const pugi::xml_node& node,
                                                                const pugi::xml_node& body_node) {
@@ -533,18 +560,18 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
         auto node = create_node(inputs, p.xml, weights, p.params);
         id_to_node[layer_id] = node;
 
-        if (const auto& parameter_node = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node)) {
+        if (const auto& parameter_node = ov::as_type_ptr<ov::op::v0::Parameter>(node)) {
             io_map.inputs.insert({layer_id, func_nodes.parameters.size()});
             func_nodes.parameters.emplace_back(parameter_node);
         }
 
-        if (const auto& result_node = std::dynamic_pointer_cast<ov::op::v0::Result>(node)) {
+        if (const auto& result_node = ov::as_type_ptr<ov::op::v0::Result>(node)) {
             io_map.outputs.insert({layer_id, func_nodes.results.size()});
             func_nodes.results.emplace_back(result_node);
         }
 
-        if (const auto& sink = std::dynamic_pointer_cast<ov::op::Sink>(node)) {
-            auto subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node);
+        if (const auto& sink = ov::as_type_ptr<ov::op::Sink>(node)) {
+            auto subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node);
             if (subgraph_op) {
                 for (const auto& body_model : subgraph_op->get_functions()) {
                     if (body_model->get_sinks().size()) {
@@ -557,7 +584,7 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
             }
         }
 
-        if (const auto& read_value = std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(node)) {
+        if (const auto& read_value = ov::as_type_ptr<ov::op::util::ReadValueBase>(node)) {
             variable_id_to_read_value[read_value->get_variable_id()] = read_value;
         }
 
@@ -569,7 +596,7 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
                                                 func_nodes.parameters,
                                                 pugixml::get_str_attr(root, "name", ""));
     for (const auto& sink : func_nodes.sinks) {
-        if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::AssignBase>(sink)) {
+        if (const auto& assign = ov::as_type_ptr<ov::op::util::AssignBase>(sink)) {
             assign->add_control_dependency(variable_id_to_read_value.at(assign->get_variable_id()));
         }
     }
@@ -763,21 +790,8 @@ ov::GenericLayerParams ov::XmlDeserializer::parse_generic_params(const pugi::xml
             type = ov::element::Type(preStr);
         }
         port.precision = type;
-        std::vector<std::string> names;
-        if (getParameters<std::string>(parentNode, "names", names)) {
-            for (size_t i = 0; i < names.size(); i++) {
-                std::string name = names[i];
-                // Restore original name if it contains delimiter
-                // getParameters(...) returns the vector of names which were split by delimiter ','
-                // but some names can contain ',' as a part of name, in this case we use '\' to
-                // escape delimiter the cycle below is needed in order to find names which contained
-                // delimiter and restore the original name
-                while (i < names.size() && names[i].at(names[i].length() - 1) == '\\') {
-                    name.replace(names[i].length() - 1, 1, ",");
-                    name += names[++i];
-                }
-                port.names.emplace(name);
-            }
+        if (auto names = parentNode.attribute("names"); !names.empty()) {
+            port.names = deserialize_tensor_names(names.value());
         }
         return port;
     };
@@ -902,7 +916,7 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
             OPENVINO_THROW("Opset ", params.version, " doesn't contain the operation with type: ", type_name);
         }
         // Share Weights form constant blob
-        if (auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(ovNode)) {
+        if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(ovNode)) {
             constant->alloc_buffer_on_visit_attributes(false);
         }
         ovNode->set_arguments(inputs);
@@ -1026,14 +1040,17 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
             }
         }
 
-        // The IR does not store information about dedicated output names for Result node (model output),
+        // If IR has no information about dedicated output names for Result node (model output),
         // assume all names from parent node are Result's (model's) tensor names.
-        //  Consider adding dedicated RT info with information about Result's output names.
         if (auto result = ov::as_type<ov::op::v0::Result>(ovNode.get())) {
-            if (!ov::op::util::is_parameter(result->get_input_source_output(0).get_node())) {
-                // Copy names if parent node is not parameter, model's input names should not be dedicated
-                // output names as they could be removed from Parameter's tensor during model transformations.
-                ov::descriptor::copy_tensor_names(result->get_output_tensor(0), result->get_input_tensor(0));
+            if (const auto names = node.attribute("output_names"); names.empty()) {
+                if (!ov::op::util::is_parameter(result->get_input_source_output(0).get_node())) {
+                    // Copy names if parent node is not parameter, model's input names should not be dedicated
+                    // output names as they could be removed from Parameter's tensor during model transformations.
+                    result->get_output_tensor(0).add_names(result->get_input_tensor(0).get_names());
+                }
+            } else {
+                result->get_output_tensor(0).set_names(deserialize_tensor_names(names.value()));
             }
         }
     }

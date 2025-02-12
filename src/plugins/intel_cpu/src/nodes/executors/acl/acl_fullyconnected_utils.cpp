@@ -16,8 +16,7 @@
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 VectorDims acl_fc_executor::makeDummyInputDims(const Shape& inShape, const Shape& wShape) {
     const auto& weightDims = wShape.getStaticDims();
@@ -52,8 +51,8 @@ VectorDims acl_fc_executor::makeDummyOutputDims(const VectorDims& inShape,
     return outputShape;
 }
 
-DnnlMemoryDescPtr acl_fc_executor::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc,
-                                                                  const DnnlMemoryDescPtr dstDesc) {
+DnnlMemoryDescPtr acl_fc_executor::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
+                                                                  const DnnlMemoryDescPtr& dstDesc) {
     const auto& weiDesc = srcDesc->getDnnlDesc();
     dnnl::memory::dims wgtDims2D = reshapeDownToRank<2>(weiDesc.get_dims());
     const auto reorderedWeiDesc = dnnl::memory::desc{wgtDims2D, weiDesc.get_data_type(), dnnl::memory::format_tag::ba};
@@ -62,8 +61,8 @@ DnnlMemoryDescPtr acl_fc_executor::makeTransposedWeightDescriptor(const DnnlMemo
     return DnnlExtensionUtils::makeDescriptor(transposedWeiDesc);
 }
 
-ov::optional<MemoryPtr> acl_fc_executor::convertWeightPrecision(MemoryPtr input,
-                                                                MemoryPtr output,
+ov::optional<MemoryPtr> acl_fc_executor::convertWeightPrecision(const MemoryPtr& input,
+                                                                const MemoryPtr& output,
                                                                 ov::element::Type weightPrecision) {
     MemoryArgs memoryArgs;
     memoryArgs[ARG_SRC] = input;
@@ -93,9 +92,9 @@ ov::optional<MemoryPtr> acl_fc_executor::convertWeightPrecision(MemoryPtr input,
                                                             tmpBuff.data()));
 }
 
-ov::optional<MemoryPtr> acl_fc_executor::reorderDataFallback(MemoryPtr input,
-                                                             MemoryPtr output,
-                                                             ExecutorContext::CPtr context) {
+ov::optional<MemoryPtr> acl_fc_executor::reorderDataFallback(const MemoryPtr& input,
+                                                             const MemoryPtr& output,
+                                                             const ExecutorContext::CPtr& context) {
     if (output->getDataType() == input->getDataType()) {
         return {};
     }
@@ -109,31 +108,32 @@ ov::optional<MemoryPtr> acl_fc_executor::reorderDataFallback(MemoryPtr input,
 
     if (reorderWithoutConvert &&
         parse_impl_name(reorderWithoutConvert.get_primitive_desc()->impl()->name()) != ref_any) {
-        auto convertOutput = convertWeightPrecision(input, output, inPrc);
-        if (!convertOutput) {
+        auto convertOutputOpt = convertWeightPrecision(input, output, inPrc);
+        if (!convertOutputOpt) {
             return {};
         }
-        input = *convertOutput;
+        auto convertOutput = *convertOutputOpt;
 
         if (reorderWithoutConvert) {
             dnnl::stream loc_stream(output->getPrimitive().get_engine(), dnnl::stream::flags::in_order);
             reorderWithoutConvert.execute(
                 loc_stream,
-                {{DNNL_ARG_FROM, input->getPrimitive()}, {DNNL_ARG_TO, output->getPrimitive()}});
+                {{DNNL_ARG_FROM, convertOutput->getPrimitive()}, {DNNL_ARG_TO, output->getPrimitive()}});
             return ov::optional<MemoryPtr>(output);
         }
     }
     return {};
 }
 
-MemoryPtr acl_fc_executor::reorderData(DnnlMemoryDescPtr srcWeightDesc,
-                                       DnnlMemoryDescPtr dstWeightDesc,
-                                       MemoryCPtr weightsMem,
-                                       ExecutorContext::CPtr context) {
+MemoryPtr acl_fc_executor::reorderData(const DnnlMemoryDescPtr& srcWeightDesc,
+                                       const DnnlMemoryDescPtr& dstWeightDesc,
+                                       const MemoryCPtr& weightsMem,
+                                       const ExecutorContext::CPtr& context) {
     MemoryPtr input = std::make_shared<Memory>(context->getEngine(), srcWeightDesc, weightsMem->getData());
     MemoryPtr output = std::make_shared<Memory>(context->getEngine(), dstWeightDesc);
-    if (!input->getDesc().isDefined() || !output->getDesc().isDefined())
+    if (!input->getDesc().isDefined() || !output->getDesc().isDefined()) {
         OPENVINO_THROW("Can't reorder data with dynamic shapes");
+    }
 
     if (input->getShape().hasZeroDims() || output->getShape().hasZeroDims()) {
         return output;
@@ -203,7 +203,7 @@ MemoryPtr acl_fc_executor::reorderWeights(const MemoryArgs& memory,
 }
 
 MemoryPtr acl_fc_executor::prepareWeightMemory(const MemoryArgs& memory,
-                                               const ExecutorContext::CPtr context,
+                                               const ExecutorContext::CPtr& context,
                                                const FCAttrs& attrs,
                                                ACLFCAttrs& aclfcAttrs,
                                                const PostOps& postOps,
@@ -363,5 +363,4 @@ ACLFunction acl_fc_executor::ACLWeightFormatGenerator::configureFunction(const A
     return std::make_unique<arm_compute::NEFullyConnectedLayer>();
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

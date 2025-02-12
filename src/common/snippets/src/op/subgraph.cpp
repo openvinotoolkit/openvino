@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,6 @@
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/linear_ir_builder.hpp"
-#include "snippets/lowered/pass/assign_registers.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
 #include "snippets/lowered/pass/split_loops.hpp"
 #include "snippets/lowered/pass/fuse_loops.hpp"
@@ -48,7 +47,6 @@
 #include "snippets/lowered/pass/validate.hpp"
 #include "snippets/lowered/pass/pass_config.hpp"
 #include "snippets/lowered/pass/reduce_decomposition.hpp"
-#include "snippets/lowered/pass/assign_registers.hpp"
 #include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
 #include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
@@ -56,13 +54,15 @@
 #include "snippets/lowered/pass/validate_expanded_loops.hpp"
 #include "snippets/lowered/pass/set_load_store_scalar.hpp"
 #include "snippets/lowered/pass/extract_loop_invariants.hpp"
+#include "snippets/lowered/pass/set_dynamic_wa_to_outermost_loop.hpp"
+
+#include "snippets/lowered/pass/init_registers.hpp"
 
 #include "transformations/utils/utils.hpp"
 
 #include "snippets/pass/manager.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "ov_ops/type_relaxed.hpp"
-#include "openvino/pass/serialize.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -95,8 +95,7 @@ auto Subgraph::is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bo
 }
 
 auto Subgraph::is_shape_infer_op(const std::shared_ptr<ov::Node>& op) -> bool {
-    return ov::is_type<snippets::op::Reshape>(op) ||
-           ov::is_type<snippets::op::RankNormalization>(op);
+    return ov::is_type<ov::snippets::op::ShapeInferOp>(op);
 }
 
 void Subgraph::init_config() {
@@ -291,7 +290,7 @@ auto Subgraph::constant_input_should_be_inside_body(const std::shared_ptr<ov::No
 }
 
 bool Subgraph::check_broadcast(const std::shared_ptr<const ov::Node>& node) noexcept {
-    const auto elementwise = std::dynamic_pointer_cast<const ov::op::util::BinaryElementwiseArithmetic>(node);
+    const auto elementwise = ov::as_type_ptr<const ov::op::util::BinaryElementwiseArithmetic>(node);
     return
         (elementwise == nullptr) ||
         (elementwise->get_input_partial_shape(0).size() == elementwise->get_input_partial_shape(1).size()) ||
@@ -364,6 +363,10 @@ Subgraph::convert_body_to_linear_ir(size_t min_parallel_work_amount, size_t min_
     lowering_config.m_enable_domain_optimization = !config.m_has_domain_sensitive_ops;
     lowering_config.m_min_parallel_work_amount = min_parallel_work_amount;
     lowering_config.m_min_kernel_work_amount = min_kernel_work_amount;
+#ifdef SNIPPETS_DEBUG_CAPS
+    lowering_config.debug_config = config.m_debug_config;
+    OPENVINO_ASSERT(lowering_config.debug_config, "Debug config is not initialized");
+#endif  // SNIPPETS_DEBUG_CAPS
 
     m_linear_ir = std::make_shared<lowered::LinearIR>(body_ptr(), shape_infer_factory, lowering_config);
     m_shape_infer = m_linear_ir->get_shape_infer_instance();
@@ -469,6 +472,7 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     pipeline.register_pass<lowered::pass::ValidateShapes>();
     pipeline.register_pass<lowered::pass::ValidateUnifiedLoops>();
     pipeline.register_pass<lowered::pass::InitLoops>();
+    pipeline.register_pass<lowered::pass::SetDynamicWAToOuterMostLoop>();
     pipeline.register_pass<lowered::pass::InsertLoops>();
     pipeline.register_pass<lowered::pass::AllocateBuffers>(m_linear_ir->get_config().m_are_buffers_optimized);
     pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
@@ -481,7 +485,7 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     validation_pipeline.run(*m_linear_ir);
 
 #ifdef SNIPPETS_DEBUG_CAPS
-    if (m_linear_ir->get_config().debug_config.perf_count_mode != DebugCapsConfig::PerfCountMode::Disabled) {
+    if (m_linear_ir->get_config().debug_config->perf_count_mode != DebugCapsConfig::PerfCountMode::Disabled) {
         lowered::pass::InsertPerfCount perf_count_pass({});
         perf_count_pass.run(*m_linear_ir, m_linear_ir->cbegin(), m_linear_ir->cend());
     }
@@ -498,10 +502,6 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
 
     OV_ITT_TASK_NEXT(CONTROL_FLOW, "::pre_generation_pipeline")
 
-    std::function<RegType(const ov::Output<Node>& out)> reg_type_mapper = [&](const ov::Output<Node>& out) -> RegType {
-        return get_generator()->get_op_out_reg_type(out);
-    };
-
     lowered::pass::PassPipeline gen_pipeline(lowered_pass_config);
     // Note: the order of all passes in this pipeline must not be changed since they have hard dependencies
     //    1. InsertSpecificIterations must be called after AssignRegisters since tail loop expressions must have the same
@@ -510,7 +510,8 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     //       (this might happen if tail loop and main loop have different increments)
     //    3. OptimizeLoopSingleEvaluation must be called after CleanupLoopOffsets
     //       since CleanupLoopOffsets can't handle loops with evaluate_once = true
-    gen_pipeline.register_pass<lowered::pass::AssignRegisters>(reg_type_mapper, get_generator()->get_target_machine()->get_reg_count());
+
+    gen_pipeline.register_pass<lowered::pass::InitRegisters>(get_generator(), lowered_pass_config);
     gen_pipeline.register_pass<lowered::pass::InsertSpecificIterations>();
     gen_pipeline.register_pass<lowered::pass::NormalizeLoopIDs>();
     gen_pipeline.register_pass<lowered::pass::ValidateExpandedLoops>();

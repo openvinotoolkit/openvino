@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 // Copyright (c) Facebook, Inc. and its affiliates.
@@ -18,9 +18,7 @@
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool NonMaxSuppression::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                              std::string& errorMessage) noexcept {
@@ -54,7 +52,7 @@ NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ov::Node>& op, const 
       m_is_soft_suppressed_by_iou(false) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        OPENVINO_THROW(errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     if (one_of(op->get_type_info(), op::internal::NonMaxSuppressionIEInternal::get_type_info_static())) {
@@ -114,8 +112,9 @@ NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ov::Node>& op, const 
 }
 
 void NonMaxSuppression::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     const auto inputs_num = inputShapes.size();
     if (inputs_num > NMS_MAX_OUTPUT_BOXES_PER_CLASS) {
@@ -221,7 +220,7 @@ void NonMaxSuppression::createJitKernel() {
 #endif  // OPENVINO_ARCH_X86_64
 }
 
-void NonMaxSuppression::executeDynamicImpl(dnnl::stream strm) {
+void NonMaxSuppression::executeDynamicImpl(const dnnl::stream& strm) {
     if (hasEmptyInputTensors() || (inputShapes.size() > NMS_MAX_OUTPUT_BOXES_PER_CLASS &&
                                    getSrcDataAtPortAs<int>(NMS_MAX_OUTPUT_BOXES_PER_CLASS)[0] == 0)) {
         redefineOutputMemory({{0, 3}, {0, 3}, {1}});
@@ -231,7 +230,7 @@ void NonMaxSuppression::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void NonMaxSuppression::execute(dnnl::stream strm) {
+void NonMaxSuppression::execute(const dnnl::stream& strm) {
     const auto inputs_num = inputShapes.size();
 
     size_t max_number_of_boxes = m_output_boxes_per_class * m_batches_num * m_classes_num;
@@ -357,8 +356,9 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
     // if is_soft_suppressed_by_iou is false, apply for all iou, including iou>iou_threshold, soft suppressed when score
     // < score_threshold if is_soft_suppressed_by_iou is true, hard suppressed by iou_threshold, then soft suppress
     auto coeff = [&](float iou) {
-        if (m_is_soft_suppressed_by_iou && iou > m_iou_threshold)
+        if (m_is_soft_suppressed_by_iou && iou > m_iou_threshold) {
             return 0.0f;
+        }
         return std::exp(m_scale * iou * iou);
     };
 
@@ -370,8 +370,9 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
         std::priority_queue<boxInfo, std::vector<boxInfo>, decltype(less)> sorted_boxes(
             less);  // score, box_id, suppress_begin_index
         for (int box_idx = 0; box_idx < static_cast<int>(m_boxes_num); box_idx++) {
-            if (scoresPtr[box_idx] > m_score_threshold)
+            if (scoresPtr[box_idx] > m_score_threshold) {
                 sorted_boxes.emplace(boxInfo({scoresPtr[box_idx], box_idx, 0}));
+            }
         }
         size_t sorted_boxes_size = sorted_boxes.size();
         size_t maxSeletedBoxNum = std::min(sorted_boxes_size, m_output_boxes_per_class);
@@ -936,8 +937,9 @@ float NonMaxSuppression::intersectionOverUnion(const float* boxesI, const float*
 
     float areaI = (ymaxI - yminI) * (xmaxI - xminI);
     float areaJ = (ymaxJ - yminJ) * (xmaxJ - xminJ);
-    if (areaI <= 0.f || areaJ <= 0.f)
+    if (areaI <= 0.f || areaJ <= 0.f) {
         return 0.f;
+    }
 
     float intersection_area = (std::max)((std::min)(ymaxI, ymaxJ) - (std::max)(yminI, yminJ), 0.f) *
                               (std::max)((std::min)(xmaxI, xmaxJ) - (std::max)(xminI, xminJ), 0.f);
@@ -945,18 +947,27 @@ float NonMaxSuppression::intersectionOverUnion(const float* boxesI, const float*
 }
 
 void NonMaxSuppression::check1DInput(const Shape& shape, const std::string& name, const size_t port) {
-    if (shape.getRank() != 0 && shape.getRank() != 1)
+    if (shape.getRank() != 0 && shape.getRank() != 1) {
         THROW_CPU_NODE_ERR("has unsupported '", name, "' input rank: ", shape.getRank());
-    if (shape.getRank() == 1)
-        if (shape.getDims()[0] != 1)
+    }
+    if (shape.getRank() == 1) {
+        if (shape.getDims()[0] != 1) {
             THROW_CPU_NODE_ERR("has unsupported '", name, "' input 1st dimension size: ", dim2str(shape.getDims()[0]));
+        }
+    }
 }
 
 void NonMaxSuppression::checkOutput(const Shape& shape, const std::string& name, const size_t port) {
-    if (shape.getRank() != 2)
+    if (shape.getRank() != 2) {
         THROW_CPU_NODE_ERR("has unsupported '", name, "' output rank: ", shape.getRank());
-    if (shape.getDims()[1] != 3)
+    }
+    if (shape.getDims()[1] != 3) {
         THROW_CPU_NODE_ERR("has unsupported '", name, "' output 2nd dimension size: ", dim2str(shape.getDims()[1]));
+    }
+}
+
+bool NonMaxSuppression::neverExecute() const {
+    return !isDynamicNode() && Node::neverExecute();
 }
 
 bool NonMaxSuppression::isExecutable() const {
@@ -967,6 +978,4 @@ bool NonMaxSuppression::created() const {
     return getType() == Type::NonMaxSuppression;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

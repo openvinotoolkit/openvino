@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@
 
 namespace intel_npu {
 
-class ZeroRemoteTensor : public RemoteTensor {
+class ZeroRemoteTensor final : public RemoteTensor {
 public:
     ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& context,
                      const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
@@ -24,6 +24,9 @@ public:
                      ov::intel_npu::TensorType tensor_type = ov::intel_npu::TensorType::BINDED,
                      ov::intel_npu::MemType mem_type = ov::intel_npu::MemType::L0_INTERNAL_BUF,
                      void* mem = nullptr);
+
+    void* get_original_memory() const;
+    ze_context_handle_t get_zero_context_handle() const;
 
     ~ZeroRemoteTensor() override;
 
@@ -47,5 +50,9 @@ private:
 
     bool _external_memory_support = false;
 };
+
+inline bool is_remote_tensor(const std::shared_ptr<ov::ITensor>& tensor) {
+    return std::dynamic_pointer_cast<ZeroRemoteTensor>(tensor) != nullptr;
+}
 
 }  // namespace intel_npu

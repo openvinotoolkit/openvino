@@ -31,8 +31,7 @@
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace dnnl;
 using namespace ov::element;
@@ -79,8 +78,9 @@ bool DnnlMatMulPrimitive::Key::operator==(const Key& rhs) const {
 
 template <typename dimsType>
 static dimsType normalizeToRank(const dimsType& vec, size_t rank) {
-    if (vec.size() == rank || vec.empty())
+    if (vec.size() == rank || vec.empty()) {
         return vec;
+    }
 
     dimsType result;
     result.reserve(rank);
@@ -117,8 +117,8 @@ std::shared_ptr<DnnlMatMulPrimitive> DnnlMatMulPrimitive::create(const MemoryArg
     return primitive;
 }
 
-DnnlMemoryDescPtr DnnlMatMulPrimitive::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc,
-                                                                      const DnnlMemoryDescPtr dstDesc,
+DnnlMemoryDescPtr DnnlMatMulPrimitive::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
+                                                                      const DnnlMemoryDescPtr& dstDesc,
                                                                       bool weightsNonTransposed) {
     const auto& weiDesc = srcDesc->getDnnlDesc();
     auto wDims = weiDesc.get_dims();
@@ -136,7 +136,7 @@ DnnlMemoryDescPtr DnnlMatMulPrimitive::makeTransposedWeightDescriptor(const Dnnl
 static DnnlPrimitiveAttrs createPrimitiveAttrs(const MatMulAttrs& attrs,
                                                const PostOps& postOps,
                                                const MemoryArgs& memory,
-                                               ExecutorContext::CPtr context,
+                                               const ExecutorContext::CPtr& context,
                                                bool useWeightsDecompression,
                                                bool weightsNonTransposed) {
     const auto& srcDesc = memory.at(ARG_SRC)->getDescPtr();
@@ -238,8 +238,9 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
         return contains(implPriorities, implType);
     });
 
-    if (found)
+    if (found) {
         return std::move(prim_desc);
+    }
 
     return std::move(first_desc);
 }
@@ -278,8 +279,9 @@ static VectorDims makeDummyOutputDims(const VectorDims& inShape, const VectorDim
 bool DnnlMatMulPrimitive::useWeightsDecompressionImpl(const ov::element::Type inputType,
                                                       const ov::element::Type weightsType) {
 #if defined(OPENVINO_ARCH_X86_64)
-    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2))
+    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
         return false;
+    }
 #endif
 
     return (one_of(inputType, f32, bf16, f16) && one_of(weightsType, u8, i8, u4, i4));
@@ -288,7 +290,7 @@ bool DnnlMatMulPrimitive::useWeightsDecompressionImpl(const ov::element::Type in
 DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const FCAttrs& attrs,
                                                                       const PostOps& postOps,
                                                                       const MemoryArgs& memory,
-                                                                      const ExecutorContext::CPtr context,
+                                                                      const ExecutorContext::CPtr& context,
                                                                       const bool cacheWeights) {
     DEBUG_LOG("Creating shape agnostic data");
     auto srcDesc = memory.at(ARG_SRC)->getDescPtr();
@@ -301,8 +303,9 @@ DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const FCAt
     const auto postOpData =
         createPrimitiveAttrs(mmAttrs, postOps, memory, context, useWeightsDecompression, attrs.weightsNonTransposed);
 
-    if (!cacheWeights)
+    if (!cacheWeights) {
         return std::make_shared<DnnlShapeAgnosticData>(postOpData);
+    }
 
     if (srcDesc->getShape().isDynamic()) {
         const auto& inShape = srcDesc->getShape();
@@ -339,7 +342,7 @@ DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const FCAt
     return std::make_shared<DnnlShapeAgnosticData>(postOpData);
 }
 
-static impl_desc_type implTypeFromPrimDesc(const dnnl::primitive_desc primDesc) {
+static impl_desc_type implTypeFromPrimDesc(const dnnl::primitive_desc& primDesc) {
     const auto implType = parse_impl_name(primDesc.impl_info_str());
     if (implType == ov::intel_cpu::brgemm_avx512_amx &&
         primDesc.weights_desc().get_format_kind() == memory::format_kind::sparsed) {
@@ -373,5 +376,4 @@ void DnnlMatMulPrimitive::execute(const dnnl_primitive_args& primArgs) const {
     m_prim.execute(m_stream, primArgs);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

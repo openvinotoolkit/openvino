@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,8 +32,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id)
     : m_context(context)
@@ -593,10 +592,10 @@ void Graph::update_profiling_info() {
             perfMap[executedID.first].first = executedID.first;
             pcIter = perfMap.find(executedID.first);
             auto& perfCount = pcIter->second.second;
-
-            cldnn::instrumentation::profiling_info cldnnInfo{executedID.first, executedID.second->get_profiling_info()};
-
-            collectTimings(cldnnInfo, perfCount);
+            if (executedID.second) {
+                cldnn::instrumentation::profiling_info cldnnInfo{executedID.first, executedID.second->get_profiling_info()};
+                collectTimings(cldnnInfo, perfCount);
+            }
             perfCount.num++;
         }
     }
@@ -722,6 +721,8 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         if ((!existInProfiling || (existInProfiling && perfIter->second.first.length() == 0)) &&
             executedPrimitives.find(primId) != executedPrimitives.end()) {
             auto event = executedPrimitives.at(primId);
+            if (!event)
+                continue;
 
             cldnn::instrumentation::profiling_info cldnnInfo{primId, event->get_profiling_info()};
 
@@ -836,5 +837,4 @@ std::string Graph::out_port_index_to_internal(size_t out_port_index) const {
     OPENVINO_THROW("[GPU] Unable to map output port index ", out_port_index, " to the internal primitive id");
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

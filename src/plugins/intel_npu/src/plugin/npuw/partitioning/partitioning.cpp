@@ -636,9 +636,9 @@ void Partitioner::identifySubgraphs() {
                     // It happens when this layer is the original model's output
                     // Keep it to make the ugly top-level I/O matching procedure work.
                     // FIXME: This needs to be refactored
-                    group.sg._results.push_back(std::dynamic_pointer_cast<ov::op::v0::Result>(maybe_result));
+                    group.sg._results.push_back(ov::as_type_ptr<ov::op::v0::Result>(maybe_result));
                     result_cache[output_layer_ptr] =
-                        LinkPtrFrom{this_group_idx, std::dynamic_pointer_cast<ov::op::v0::Result>(maybe_result)};
+                        LinkPtrFrom{this_group_idx, ov::as_type_ptr<ov::op::v0::Result>(maybe_result)};
                 } else if (has_external_readers) {
                     // Introduce and record a new Result
                     // As the graph is processed in the topological order,
@@ -1188,10 +1188,10 @@ void Partitioner::saveTinyConstants(const std::string& func_name) {
                 auto total =
                     std::accumulate(shape.begin(), shape.end(), std::size_t{1}, std::multiplies<std::size_t>());
                 if ((shape.size() == 0 || (shape.size() == 1 && shape[0] <= 10)) || (total <= 10)) {
-                    LOG_DEBUG("[KEEP] It is safe to keep this bank in function");
+                    LOG_DEBUG("[KEEP] " << node->get_friendly_name() << "/" << shape << ": It is safe to keep this bank in function");
                     func_group.consts_to_keep.insert(std::static_pointer_cast<CT>(node));
                 } else {
-                    LOG_DEBUG("[CUT ] This group of Const ops will be cut-off from the function");
+                    LOG_DEBUG("[CUT ] " << node->get_friendly_name() << "/" << shape << ": This const op will be cut-off from the function");
                 }
             }
         }
@@ -1278,7 +1278,7 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
         }
     }  // for(models)
 
-    // Now walk through through every Const bank and inspect the above properties
+    // Now walk through every Const bank and inspect the above properties
     auto values_are_the_same = [](const CTPtr& node_a, const CTPtr& node_b) {
         switch (node_a->output(0).get_element_type()) {
 #define HANDLE_CASE(t, T) \
@@ -1326,7 +1326,7 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
                 func_group.consts_to_keep.insert(const_node);
             }
         } else {
-            LOG_DEBUG("[CUT ] This group of Const ops will be cut-off from the function");
+            LOG_DEBUG("[CUT ] This group of Const ops will be cut-off from the function: " << proto_node->get_friendly_name());
         }
     };
     for (auto&& bank : rep_block.consts) {

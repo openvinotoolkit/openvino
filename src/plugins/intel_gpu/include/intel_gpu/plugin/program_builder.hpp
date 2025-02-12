@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,8 +48,7 @@ void __register ## _ ## op_name ## _ ## op_version() {                          
        });                                                                                          \
 }
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 template<class T>
 struct is_smart_pointer : std::false_type {};
@@ -195,5 +194,4 @@ inline bool ends_with(const std::string& value, const std::string& suffix) {
     return std::equal(suffix.rbegin(), suffix.rend(), value.rbegin());
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu
