@@ -41,7 +41,7 @@ public:
         }
     }
 
-    const Reg64& get_reg() const {
+    [[nodiscard]] const Reg64& get_reg() const {
         return m_aux_gpr_idx;
     }
 
@@ -97,7 +97,7 @@ void jit_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, const std:
         return;
     }
 
-    Reg64 reg_work_amount = Reg64(static_cast<int>(out.back()));
+    auto reg_work_amount = Reg64(static_cast<int>(out.back()));
     if (is_work_amount_dynamic) {
         jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, out);  // loop_begin has only output registers
         Reg64 reg_loop_args_ptr = gpr_holder.get_reg();
@@ -248,7 +248,7 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::v
     if (!evaluate_once) {
         apply_increments(are_ptr_increments_dynamic, GET_OFF_LOOP_ARGS(m_ptr_increments), ptr_increments, wa_increment);
 
-        Reg64 reg_work_amount = Reg64(in.back());
+        auto reg_work_amount = Reg64(in.back());
         h->sub(reg_work_amount, wa_increment);
         h->cmp(reg_work_amount, wa_increment);
         h->jge(*loop_begin_label, Xbyak::CodeGenerator::T_NEAR);

@@ -24,7 +24,7 @@ struct is_any_of : public std::false_type {};
 // otherwise call is_any_of<T, Rest...> recurrently
 template <class T, class U, class... Rest>
 struct is_any_of<T, U, Rest...>
-    : public std::conditional<std::is_same<T, U>::value, std::true_type, is_any_of<T, Rest...>>::type {};
+    : public std::conditional_t<std::is_same_v<T, U>, std::true_type, is_any_of<T, Rest...>> {};
 
 /**
  * @brief Returns normalized by size dims where missing dimensions are filled with units from the beginning
@@ -69,7 +69,7 @@ inline bool isPerTensorOrPerChannelBroadcastable(const VectorDims& firstInputDim
     if (std::accumulate(secondInputDims.begin(),
                         secondInputDims.end(),
                         static_cast<size_t>(1),
-                        std::multiplies<size_t>()) == 1) {
+                        std::multiplies<>()) == 1) {
         return true;
     }
 
@@ -182,7 +182,7 @@ std::vector<T> reshapeDownToRank(const std::vector<T>& dims, size_t rank) {
     }
 
     const auto accEnd = dims.begin() + (dims.size() - rank + 1);
-    const auto acc = std::accumulate(dims.begin(), accEnd, (T)1, std::multiplies<T>());
+    const auto acc = std::accumulate(dims.begin(), accEnd, (T)1, std::multiplies<>());
 
     std::vector<T> result{acc};
     result.insert(result.end(), accEnd, dims.end());

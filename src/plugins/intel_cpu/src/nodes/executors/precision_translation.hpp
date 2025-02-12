@@ -87,18 +87,18 @@ public:
           m_translation(std::move(translation)),
           m_enabled(std::move(enabled)) {}
 
-    const InOutTypeMask& mask() const {
+    [[nodiscard]] const InOutTypeMask& mask() const {
         return m_mask;
     }
 
-    InOutTypes translate(const InOutTypes& types) const {
+    [[nodiscard]] InOutTypes translate(const InOutTypes& types) const {
         if (m_translation) {
             return m_translation(types);
         }
         return {};
     }
 
-    bool enabled() const {
+    [[nodiscard]] bool enabled() const {
         if (m_enabled) {
             return m_enabled();
         }

@@ -59,7 +59,7 @@ struct ConvKey {
 
     bool constWeight;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const ConvKey& rhs) const;
 };
 
@@ -115,7 +115,7 @@ bool ConvKey::operator==(const ConvKey& rhs) const {
 class Convolution::FusedSubgraph {
 public:
     FusedSubgraph(const std::vector<NodePtr>& opList, const Convolution& conv, const GraphContext::CPtr& context) {
-        _graph = std::unique_ptr<Graph>(new Graph());
+        _graph = std::make_unique<Graph>();
 
         std::unordered_set<NodePtr> nodesSet;
         std::vector<EdgePtr> edges;
@@ -191,7 +191,7 @@ public:
         _graph->Activate();
     }
 
-    std::shared_ptr<Input> getInput(size_t idx) const {
+    [[nodiscard]] std::shared_ptr<Input> getInput(size_t idx) const {
         if (idx < inputs.size()) {
             return inputs[idx];
         } else {
@@ -202,7 +202,7 @@ public:
         }
     }
 
-    std::shared_ptr<Input> getOutput(size_t idx) const {
+    [[nodiscard]] std::shared_ptr<Input> getOutput(size_t idx) const {
         if (idx < outputs.size()) {
             return outputs[idx];
         } else {
@@ -432,7 +432,7 @@ void Convolution::getSupportedDescriptors() {
     attrs.reserve(2);
     withBiases = getOriginalInputsNumber() == 3;
 
-    int expectedInputEdgesNum = static_cast<int>(getOriginalInputsNumber());
+    auto expectedInputEdgesNum = static_cast<int>(getOriginalInputsNumber());
     for (size_t i = 0; i < fusedWith.size(); i++) {
         if (fusedWith[i]->getType() == Type::Convolution) {
             expectedInputEdgesNum += static_cast<int>(fusedWith[i]->getOriginalInputsNumber()) - 1;
@@ -954,32 +954,32 @@ dnnl::convolution_forward::primitive_desc createDescriptorInternal(const dnnl::e
                                                                    dnnl::algorithm alg,
                                                                    const dnnl::primitive_attr& attr) {
     if (withBiases) {
-        return dnnl::convolution_forward::primitive_desc(engine,
-                                                         prop_kind::forward_inference,
-                                                         alg,
-                                                         inputDesc,
-                                                         weightDesc,
-                                                         biasDesc,
-                                                         outputDesc,
-                                                         dnnl::memory::dims(stride.begin(), stride.end()),
-                                                         dnnl::memory::dims(dilation.begin(), dilation.end()),
-                                                         dnnl::memory::dims(paddingL.begin(), paddingL.end()),
-                                                         dnnl::memory::dims(paddingR.begin(), paddingR.end()),
-                                                         attr,
-                                                         true);  // allow_empty
+        return {engine,
+                prop_kind::forward_inference,
+                alg,
+                inputDesc,
+                weightDesc,
+                biasDesc,
+                outputDesc,
+                dnnl::memory::dims(stride.begin(), stride.end()),
+                dnnl::memory::dims(dilation.begin(), dilation.end()),
+                dnnl::memory::dims(paddingL.begin(), paddingL.end()),
+                dnnl::memory::dims(paddingR.begin(), paddingR.end()),
+                attr,
+                true};  // allow_empty
     } else {
-        return dnnl::convolution_forward::primitive_desc(engine,
-                                                         prop_kind::forward_inference,
-                                                         alg,
-                                                         inputDesc,
-                                                         weightDesc,
-                                                         outputDesc,
-                                                         dnnl::memory::dims(stride.begin(), stride.end()),
-                                                         dnnl::memory::dims(dilation.begin(), dilation.end()),
-                                                         dnnl::memory::dims(paddingL.begin(), paddingL.end()),
-                                                         dnnl::memory::dims(paddingR.begin(), paddingR.end()),
-                                                         attr,
-                                                         true);  // allow_empty
+        return {engine,
+                prop_kind::forward_inference,
+                alg,
+                inputDesc,
+                weightDesc,
+                outputDesc,
+                dnnl::memory::dims(stride.begin(), stride.end()),
+                dnnl::memory::dims(dilation.begin(), dilation.end()),
+                dnnl::memory::dims(paddingL.begin(), paddingL.end()),
+                dnnl::memory::dims(paddingR.begin(), paddingR.end()),
+                attr,
+                true};  // allow_empty
     }
 }
 }  // namespace
@@ -1100,7 +1100,8 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
         attr.set_input_zero_points(legacyInputZeroPoints.size(), 1 << 1 /*through C dim*/);
         if (!legacyInputZeroPointsMemPtr) {
             DnnlBlockedMemoryDesc memoryDesc(ov::element::u8, {legacyInputZeroPoints.size()});
-            legacyInputZeroPointsMemPtr.reset(new Memory(getEngine(), memoryDesc, legacyInputZeroPoints.data()));
+            legacyInputZeroPointsMemPtr =
+                std::make_shared<Memory>(getEngine(), memoryDesc, legacyInputZeroPoints.data());
         }
     }
 

@@ -33,7 +33,7 @@ namespace ov::intel_cpu::node {
 struct PagedAttentionKey {
     ov::element::Type rtPrecision;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const PagedAttentionKey& rhs) const;
 };
 
@@ -242,7 +242,7 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
                 return false;
             }
         }
-        int orgInput = static_cast<int>(op->get_input_size());
+        auto orgInput = static_cast<int>(op->get_input_size());
         if (op->get_type_name() == std::string("PagedAttentionExtension") &&
             orgInput == PagedAttentionExecutor::ID_SLIDING_WINDOW + 1) {
             return true;

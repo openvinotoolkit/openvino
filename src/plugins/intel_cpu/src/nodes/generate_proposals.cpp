@@ -280,10 +280,10 @@ void fill_output_blobs(const float* proposals,
     });
 
     if (roi_num_type == ov::element::i32) {
-        int32_t num = static_cast<int32_t>(num_rois);
+        auto num = static_cast<int32_t>(num_rois);
         memcpy(roi_num, &num, sizeof(int32_t));
     } else if (roi_num_type == ov::element::i64) {
-        int64_t num = static_cast<int64_t>(num_rois);
+        auto num = static_cast<int64_t>(num_rois);
         memcpy(roi_num, &num, sizeof(int64_t));
     } else {
         OPENVINO_THROW("Incorrect element type of roi_num!");
@@ -381,10 +381,10 @@ void GenerateProposals::execute(const dnnl::stream& strm) {
         }
 
         // Prepare memory
-        const float* p_deltas_item = getSrcDataAtPortAs<const float>(INPUT_DELTAS);
-        const float* p_scores_item = getSrcDataAtPortAs<const float>(INPUT_SCORES);
-        const float* p_anchors_item = getSrcDataAtPortAs<const float>(INPUT_ANCHORS);
-        const float* p_img_info_cpu = getSrcDataAtPortAs<const float>(INPUT_IM_INFO);
+        const auto* p_deltas_item = getSrcDataAtPortAs<const float>(INPUT_DELTAS);
+        const auto* p_scores_item = getSrcDataAtPortAs<const float>(INPUT_SCORES);
+        const auto* p_anchors_item = getSrcDataAtPortAs<const float>(INPUT_ANCHORS);
+        const auto* p_img_info_cpu = getSrcDataAtPortAs<const float>(INPUT_IM_INFO);
 
         const int anchors_num = scoreDims[1];
 
@@ -422,7 +422,7 @@ void GenerateProposals::execute(const dnnl::stream& strm) {
         size_t total_num_rois = 0;
         std::vector<float> roi_item, score_item;
         std::vector<int64_t> roi_num(batch_size);
-        uint8_t* p_roi_num = reinterpret_cast<uint8_t*>(&roi_num[0]);
+        auto* p_roi_num = reinterpret_cast<uint8_t*>(&roi_num[0]);
         auto roi_num_type = getOriginalOutputPrecisionAtPort(OUTPUT_ROI_NUM);
         const auto roi_num_item_size = roi_num_type == ov::element::i32 ? sizeof(int32_t) : sizeof(int64_t);
         for (size_t n = 0; n < batch_size; ++n) {
@@ -495,9 +495,9 @@ void GenerateProposals::execute(const dnnl::stream& strm) {
         }
         // copy to out memory
         redefineOutputMemory({VectorDims{total_num_rois, 4}, VectorDims{total_num_rois}, VectorDims{batch_size}});
-        float* p_roi_item = getDstDataAtPortAs<float>(OUTPUT_ROIS);
-        float* p_roi_score_item = getDstDataAtPortAs<float>(OUTPUT_SCORES);
-        uint8_t* p_roi_num_item = getDstDataAtPortAs<uint8_t>(OUTPUT_ROI_NUM);
+        auto* p_roi_item = getDstDataAtPortAs<float>(OUTPUT_ROIS);
+        auto* p_roi_score_item = getDstDataAtPortAs<float>(OUTPUT_SCORES);
+        auto* p_roi_num_item = getDstDataAtPortAs<uint8_t>(OUTPUT_ROI_NUM);
         memcpy(p_roi_item, &roi_item[0], roi_item.size() * sizeof(float));
         memcpy(p_roi_score_item, &score_item[0], score_item.size() * sizeof(float));
         memcpy(p_roi_num_item, &roi_num[0], getDstMemoryAtPort(OUTPUT_ROI_NUM)->getSize());
