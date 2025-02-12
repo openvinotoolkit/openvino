@@ -1,25 +1,24 @@
 // Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#ifdef ENABLE_ONEDNN_FOR_GPU
-
-#include "impls/ocl_new/sdpa_utils.hpp"
-#include "openvino/core/dimension.hpp"
-#include "sdpa_micro.hpp"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/runtime/utils.hpp"
+#include "sdpa_opt.hpp"
 #include "sdpa_base.hpp"
 #include "utils/jitter.hpp"
 #include "utils/kernel_base.hpp"
+#include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 #include "primitive_ocl_base.hpp"
 #include "kv_cache_inst.h"
 #include "scaled_dot_product_attention_inst.h"
+
 #include "micro_utils.hpp"
 
+using namespace cldnn;
+
 namespace ov::intel_gpu::ocl {
-
 namespace {
-
-size_t subgroup_size(gpu_arch arch) {
+size_t get_subgroup_size(gpu_arch arch) {
     switch (arch) {
         case gpu_arch::gen9:
         case gpu_arch::gen11:
@@ -298,7 +297,7 @@ public:
 
         /* Generate microkernel shims */
         micro::ShimOptions shim_options;
-        shim_options.subgroupSize = static_cast<int32_t>(subgroup_size(device_info.arch));
+        shim_options.subgroupSize = static_cast<int32_t>(get_subgroup_size(device_info.arch));
         shim_options.useTileOps = true;
         shim_options.decorator = "kq";
 
@@ -346,7 +345,7 @@ protected:
         auto lda = head_size * ov::element::Type(out.data_type).size();
 
         jit.make("D_MAX", d_max);
-        jit.make("SUBGROUP_SIZE", subgroup_size(device_info.arch));
+        jit.make("SUBGROUP_SIZE", get_subgroup_size(device_info.arch));
         jit.make("INVERT_SCALE", false);
         jit.make("SCALE_DATA_T", "half");
 
@@ -396,8 +395,8 @@ protected:
             jit.make("KEY_GROUP_SIZE", head_size);
             jit.make("VAL_GROUP_SIZE", head_size);
 
-            jit.make("KEY_SCALE", key_cache_comp_scale);
-            jit.make("VAL_SCALE", value_cache_comp_scale);
+            jit.merge(make_layout_jit_constants("KEY_SCALE", key_cache_comp_scale, params.in_port_to_shape_info_offset.at(data_inputs_num)));
+            jit.merge(make_layout_jit_constants("VAL_SCALE", value_cache_comp_scale, params.in_port_to_shape_info_offset.at(data_inputs_num + 1)));
 
             const std::vector<int64_t> default_order = { 0, 1, 2, 3 };
             jit.merge(convert_strides("KEY_COMP", "KEY_SCALE", default_order));
@@ -541,7 +540,7 @@ protected:
                 auto wg_tile_q = gemm_kq.getSetting("wg_tile_n");
                 auto sg_per_wg = gemm_kq.getSetting("sg_per_wg_m") * gemm_kq.getSetting("sg_per_wg_n");
 
-                wgs.local = {subgroup_size(device_info.arch), (size_t)sg_per_wg, 1};
+                wgs.local = {get_subgroup_size(device_info.arch), (size_t)sg_per_wg, 1};
                 wgs.global = wgs.local;
 
                 wgs.global[0] *= ceil_div(n_queries.get_length(), wg_tile_q);
@@ -674,7 +673,7 @@ protected:
         problem_kq.B.setAlignment(64); // Q is packed in VNNI format in SLM
         problem_kq.B.crosspack = 2;
         problem_kq.B.tileR = d_max;
-        problem_kq.B.tileC = static_cast<uint16_t>(subgroup_size(device_info.arch));
+        problem_kq.B.tileC = static_cast<uint16_t>(get_subgroup_size(device_info.arch));
 
         /* Set up problem size information */
         micro::SizeParams sizes;
@@ -776,43 +775,4 @@ protected:
 };
 
 }  // namespace
-
-class SDPAMicroImpl : public PrimitiveImplOCL {
-public:
-    static constexpr const size_t PREFILL_STAGE = 1;
-    static constexpr const size_t GENERATE_STAGE = 0;
-
-    SDPAMicroImpl(const kernel_impl_params& params)
-        : PrimitiveImplOCL(std::string(SDPAMicro::get_type_info_static().name)) {
-        add_stage<SDPAMicroGenerator, PREFILL_STAGE>(params, true);
-        // add_stage<SDPAMicroGenerator, GENERATE_STAGE>(params, false);
-    }
-
-    event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
-        // TODO: Currently 2nd token version works slower than prefill version
-        const bool is_prefill = true;
-
-        if (is_prefill) {
-            return execute_stage(events, instance, PREFILL_STAGE);
-        } else {
-            return execute_stage(events, instance, GENERATE_STAGE);
-        }
-    }
-
-    std::vector<layout> get_internal_buffer_layouts(const kernel_impl_params& params) const override {
-        return {};
-    }
-
-    std::unique_ptr<primitive_impl> clone() const override {
-        return std::make_unique<SDPAMicroImpl>(*this);
-    }
-};
-
-std::unique_ptr<primitive_impl> SDPAMicro::create_impl(const program_node& node, const kernel_impl_params& params) const {
-    assert(node.is_type<scaled_dot_product_attention>());
-    return std::make_unique<SDPAMicroImpl>(params);
-}
-
 }  // namespace ov::intel_gpu::ocl
-
-#endif  // ENABLE_ONEDNN_FOR_GPU

@@ -11,14 +11,13 @@
 
 namespace ov::intel_gpu::ocl {
 
-struct GroupNormalizationBfyxOpt : public ImplementationManager {
-    OV_GPU_PRIMITIVE_IMPL("ocl::group_norm::bfyx_opt")
-    GroupNormalizationBfyxOpt(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, vf) {}
+struct GroupNormalizationFsv16Opt : public ImplementationManager {
+    OV_GPU_PRIMITIVE_IMPL("ocl::group_norm::fsv16_opt")
+    GroupNormalizationFsv16Opt(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, vf) {}
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
     bool validate_impl(const program_node& node) const override {
         static constexpr std::array supported_fmts = {
-            format::bfyx,
-            format::bfzyx,
+            format::b_fs_yx_fsv16,
         };
 
         static constexpr std::array supported_types = {
@@ -35,6 +34,22 @@ struct GroupNormalizationBfyxOpt : public ImplementationManager {
 
         if (!one_of(in0_layout.data_type, supported_types) || !one_of(out_layout.data_type, supported_types))
             return false;
+
+        if (in0_layout.is_dynamic() || out_layout.is_dynamic())
+            return true;
+
+        // no support for spatial paddings
+        if (in0_layout.data_padding._lower_size[3] > 0 || in0_layout.data_padding._lower_size[2] > 0 ||
+            in0_layout.data_padding._upper_size[3] > 0 || in0_layout.data_padding._upper_size[2] > 0) {
+            return false;
+        }
+
+        static constexpr size_t fsv = 16;
+
+        // feature paddings should be multiples of fsv.
+        if (in0_layout.data_padding._lower_size[1] % fsv != 0) {
+            return false;
+        }
 
         return true;
     }

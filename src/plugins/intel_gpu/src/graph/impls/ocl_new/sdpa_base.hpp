@@ -30,6 +30,7 @@ struct SDPABase : public ov::intel_gpu::ocl::SingleKernelGenerator {
     SDPABase(const std::string name, bool indirect) : ov::intel_gpu::ocl::SingleKernelGenerator(name), m_indirect(indirect) {}
     JitConstants get_jit_constants(const kernel_impl_params& params) const override;
 
+    std::pair<int64_t, int64_t> get_gqa_params(const kernel_impl_params& params) const;
     bool m_indirect;
 };
 

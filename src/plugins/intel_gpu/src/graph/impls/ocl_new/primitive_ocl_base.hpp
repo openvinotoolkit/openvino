@@ -139,6 +139,10 @@ protected:
     void set_arguments(primitive_inst& instance) override { }
     void set_arguments(primitive_inst& instance, kernel_arguments_data& args) override { }
 
+    bool has_stage(size_t stage) const {
+        return _kernels.count(stage) > 0;
+    }
+
     event::ptr execute_stage(const std::vector<event::ptr>& events, primitive_inst& instance, size_t stage) {
         stream& stream = instance.get_network().get_stream();
         // If any user of the desc's users is CPU implementation or network's output, set desc as a output event (event won't be nullptr)

@@ -3,6 +3,7 @@
 //
 #include "sdpa_base.hpp"
 #include "impls/ocl_new/sdpa_utils.hpp"
+#include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 #include "utils/jitter.hpp"
 #include "utils/kernel_base.hpp"
 
@@ -67,24 +68,14 @@ static std::string get_dims_order(const std::vector<int64_t>& order_idx) {
     return dims_order;
 }
 
-bool has_indirect_inputs(const kernel_impl_params& impl_param) {
-    const auto& desc = impl_param.typed_desc<scaled_dot_product_attention>();
-    return desc->indirect_axis != -1;
-}
-
 static size_t get_beam_table_id(std::shared_ptr<const scaled_dot_product_attention> primitive) {
     return primitive->input_size() - 1;
 }
 
 }  // namespace
 
-JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const {
-    assert(params.is_type<scaled_dot_product_attention>());
-    const auto& desc = params.typed_desc<scaled_dot_product_attention>();
-
-    auto jit = SingleKernelGenerator::get_jit_constants(params);
-
-    auto data_inputs_num = get_data_inputs_num(*desc);
+std::pair<int64_t, int64_t> SDPABase::get_gqa_params(const kernel_impl_params& params) const {
+    auto desc = params.typed_desc<scaled_dot_product_attention>();
 
     auto transpose_pshape = [](const ov::PartialShape& pshape, const std::vector<int64_t>& order) {
         if (order.empty())
@@ -97,23 +88,35 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
         return transposed_pshape;
     };
 
-
     const auto query_shape = transpose_pshape(params.get_input_layout(0).get_partial_shape(), desc->input_q_transpose_order);
     const auto key_shape = transpose_pshape(params.get_input_layout(1).get_partial_shape(), desc->input_k_transpose_order);
     const auto value_shape = transpose_pshape(params.get_input_layout(2).get_partial_shape(), desc->input_v_transpose_order);
 
+    OPENVINO_ASSERT(key_shape == value_shape, "[GPU] The shapes of key and value inputs are expected to be equal");
+
+    const auto num_heads_dim = 1;
     int64_t broadcast_axis = -1;
     int64_t group_size = -1;
-    OPENVINO_ASSERT(key_shape == value_shape, "[GPU] The shapes of key and value inputs are expected to be equal");
-        for (size_t i = 0; i < query_shape.size(); ++i) {
-            if (query_shape[i].is_static() && key_shape[i].is_static() && value_shape[i].is_static()) {
-                if (query_shape[i].get_length() > key_shape[i].get_length()) {
-                    broadcast_axis = desc->input_k_transpose_order[i];
-                    group_size = query_shape[i].get_length() / key_shape[i].get_length();
-                }
-            }
+    if (query_shape[num_heads_dim].is_static() && key_shape[num_heads_dim].is_static() && value_shape[num_heads_dim].is_static()) {
+        if (query_shape[num_heads_dim].get_length() > key_shape[num_heads_dim].get_length()) {
+            broadcast_axis = desc->input_k_transpose_order[num_heads_dim];
+            group_size = query_shape[num_heads_dim].get_length() / key_shape[num_heads_dim].get_length();
         }
+    }
 
+    return {broadcast_axis, group_size};
+}
+
+JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const {
+    assert(params.is_type<scaled_dot_product_attention>());
+    const auto& desc = params.typed_desc<scaled_dot_product_attention>();
+
+    auto jit = SingleKernelGenerator::get_jit_constants(params);
+
+    auto data_inputs_num = get_data_inputs_num(*desc);
+
+
+    auto [broadcast_axis, group_size] = get_gqa_params(params);
 
     if (broadcast_axis != -1) {
         jit.make("BROADCAST_GROUP_SIZE", group_size);
@@ -163,11 +166,12 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
         return true;
     };
 
-    auto use_index_calc_func = [&](const std::vector<int64_t> order, bool is_query = false) {
+    // copy broadcast_axis as we can't capture structure binding in cpp17
+    auto use_index_calc_func = [&, gqa_axis=broadcast_axis](const std::vector<int64_t> order, bool is_query = false) {
         if (!desc->input_q_transpose_order.empty() && !is_default_order(desc->input_q_transpose_order))
             return true;
 
-        if (broadcast_axis != -1)
+        if (gqa_axis != -1)
             return true;
 
         if (m_indirect && !is_query)
