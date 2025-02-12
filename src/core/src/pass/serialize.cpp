@@ -13,6 +13,7 @@
 #include <unordered_set>
 
 #include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
 #include "openvino/core/model.hpp"
@@ -1076,47 +1077,60 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
             }
         }
         // <layers/output>
-        if ((node->get_output_size() > 0) && !ov::op::util::is_output(node)) {
-            pugi::xml_node output = layer.append_child("output");
-            for (auto& o : node->outputs()) {
-                pugi::xml_node port = output.append_child("port");
-                port.append_attribute("id").set_value(port_id++);
+        if (node->get_output_size() > 0) {
+            auto serialize_tensor_names = [](const std::unordered_set<std::string>& names) -> std::string {
+                auto sorted_names = std::vector<std::string>(names.begin(), names.end());
+                std::sort(sorted_names.begin(), sorted_names.end());
 
-                const auto& rt_info = o.get_tensor().get_rt_info();
-                auto port_element_type =
-                    is_fp16_compression_postponed(rt_info) ? ov::element::f16 : o.get_element_type();
-
-                port.append_attribute("precision").set_value(get_precision_name(port_element_type).c_str());
-
-                // Sort tensor names
-                const auto& tensor_names = o.get_tensor().get_names();
-                std::vector<std::string> vector_names(tensor_names.begin(), tensor_names.end());
-                sort(vector_names.begin(), vector_names.end());
-
-                std::string names;
-                for (const auto& name : vector_names) {
-                    if (!names.empty())
-                        names += ",";
-                    names += escape_delim(name);
+                std::string serialized_names;
+                for (const auto& name : sorted_names) {
+                    if (!serialized_names.empty())
+                        serialized_names += ",";
+                    serialized_names += escape_delim(name);
                 }
-                if (!names.empty()) {
-                    port.append_attribute("names").set_value(names.c_str());
-                }
+                return serialized_names;
+            };
 
-                for (const auto& d : o.get_partial_shape()) {
-                    pugi::xml_node dim = port.append_child("dim");
-                    if (d.is_dynamic()) {
-                        dim.append_child(pugi::xml_node_type::node_pcdata).set_value("-1");
-                    } else {
-                        dim.append_child(pugi::xml_node_type::node_pcdata)
-                            .set_value(std::to_string(d.get_length()).c_str());
+            if (ov::op::util::is_output(node)) {
+                if (version > 10 && !deterministic) {
+                    // Not serialize output names for deterministic mode (hash) computation as it is optional
+                    // attribute for v11 and not affect on model structure or how it works
+                    if (const auto& names = ov::descriptor::get_assigned_names(node->get_output_tensor(0));
+                        !names.empty()) {
+                        layer.append_attribute("output_names").set_value(serialize_tensor_names(names).c_str());
                     }
                 }
-                if (version >= 11)
-                    append_runtime_info(port, o.get_rt_info());
-            }
-            if (node_type_name == "TensorIterator" || node_type_name == "Loop") {
-                layer.insert_move_after(output, layer.first_child());
+            } else {
+                pugi::xml_node output = layer.append_child("output");
+                for (auto& o : node->outputs()) {
+                    pugi::xml_node port = output.append_child("port");
+                    port.append_attribute("id").set_value(port_id++);
+
+                    const auto& rt_info = o.get_tensor().get_rt_info();
+                    auto port_element_type =
+                        is_fp16_compression_postponed(rt_info) ? ov::element::f16 : o.get_element_type();
+
+                    port.append_attribute("precision").set_value(get_precision_name(port_element_type).c_str());
+
+                    if (const auto& tensor_names = o.get_tensor().get_names(); !tensor_names.empty()) {
+                        port.append_attribute("names").set_value(serialize_tensor_names(tensor_names).c_str());
+                    }
+
+                    for (const auto& d : o.get_partial_shape()) {
+                        pugi::xml_node dim = port.append_child("dim");
+                        if (d.is_dynamic()) {
+                            dim.append_child(pugi::xml_node_type::node_pcdata).set_value("-1");
+                        } else {
+                            dim.append_child(pugi::xml_node_type::node_pcdata)
+                                .set_value(std::to_string(d.get_length()).c_str());
+                        }
+                    }
+                    if (version >= 11)
+                        append_runtime_info(port, o.get_rt_info());
+                }
+                if (node_type_name == "TensorIterator" || node_type_name == "Loop") {
+                    layer.insert_move_after(output, layer.first_child());
+                }
             }
         }
 

@@ -16,9 +16,7 @@
 #include "openvino/core/type/float16.hpp"
 #include "utils/plain_tensor.hpp"
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
+namespace ov::Extensions::Cpu {
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -121,6 +119,4 @@ void JitMatMulVecAMX::generate() {
 
 #endif
 
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu

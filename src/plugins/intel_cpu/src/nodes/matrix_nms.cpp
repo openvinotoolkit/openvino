@@ -16,9 +16,7 @@
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 using ngNmsSortResultType = ov::op::v8::MatrixNms::SortResultType;
 using ngNmseDcayFunction = ov::op::v8::MatrixNms::DecayFunction;
@@ -315,6 +313,10 @@ void MatrixNms::prepareParams() {
     }
 }
 
+bool MatrixNms::neverExecute() const {
+    return !isDynamicNode() && Node::neverExecute();
+}
+
 bool MatrixNms::isExecutable() const {
     return isDynamicNode() || Node::isExecutable();
 }
@@ -468,6 +470,4 @@ void MatrixNms::checkPrecision(const ov::element::Type prec,
     }
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

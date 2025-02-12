@@ -36,9 +36,7 @@ using namespace Xbyak;
 #    define GET_OFF(field) offsetof(jit_normalize_call_args, field)
 #endif
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 struct NormalizeKey {
@@ -962,6 +960,10 @@ void NormalizeL2::createPrimitive() {
     }
 }
 
+bool NormalizeL2::neverExecute() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0);
+}
+
 bool NormalizeL2::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
@@ -1591,6 +1593,4 @@ bool NormalizeL2::created() const {
     return getType() == Type::NormalizeL2;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

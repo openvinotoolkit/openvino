@@ -25,8 +25,7 @@
 #include "dnnl_types.h"
 #include "jit_kernel_base.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct jGatherConfParams {
     uint64_t dataTypeSize = 1lu;
@@ -219,5 +218,4 @@ protected:
     const unsigned* permMask16bitUni;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
