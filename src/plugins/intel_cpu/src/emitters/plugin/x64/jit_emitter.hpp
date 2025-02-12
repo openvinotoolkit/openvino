@@ -46,10 +46,6 @@ public:
         k_mask = Xbyak::Opmask(1);  // FIXME: in general case we need preserve k_mask state as well
     }
 
-    void emit_code(const std::vector<size_t>& in_idxs,
-                   const std::vector<size_t>& out_idxs,
-                   const std::vector<size_t>& pool_vec_idxs = {},
-                   const std::vector<size_t>& pool_gpr_idxs = {}) const override;
     void emit_data() const override;
 
     virtual size_t get_inputs_num() const = 0;
@@ -83,6 +79,11 @@ protected:
     dnnl::impl::cpu::x64::cpu_isa_t host_isa_;
     ov::element::Type exec_prc_;
     Xbyak::Opmask k_mask;
+
+    void emit_code_impl(const std::vector<size_t>& in_idxs,
+                        const std::vector<size_t>& out_idxs,
+                        const std::vector<size_t>& pool_vec_idxs,
+                        const std::vector<size_t>& pool_gpr_idxs) const override;
 
     virtual void prepare_table();
     virtual void register_table_entries() {}
