@@ -50,7 +50,6 @@ enum impl_desc_type : int64_t {
 
     // shl backend
     shl = 1ll << 32,
-    lowp_gemm = 1ll << 33,
 
     // real types
     ref_any = ref | any,
@@ -112,7 +111,6 @@ enum impl_desc_type : int64_t {
 
     dw_acl = _dw | acl,
     gemm_acl = gemm | acl,
-    lowp_gemm_acl = lowp_gemm | acl,
     winograd_acl = winograd | acl,
     gemm_mlas = gemm | mlas,
 
