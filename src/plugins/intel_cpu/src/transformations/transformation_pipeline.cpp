@@ -1120,7 +1120,7 @@ void Transformations::MainSnippets(void) {
                 ov::is_type<ov::op::v0::Clamp>(n) || ov::is_type<ov::op::v0::Ceiling>(n) ||
                 ov::is_type<ov::op::v0::Convert>(n) || ov::is_type<ov::op::v1::Divide>(n) ||
                 ov::is_type<ov::op::v0::Elu>(n) || ov::is_type<ov::op::v0::Exp>(n) ||
-                ov::is_type<ov::op::v1::Equal>(n) || ov::is_type<ov::op::v0::FakeQuantize>(n) ||
+                ov::is_type<ov::op::v1::Equal>(n) ||
                 ov::is_type<ov::op::v0::Floor>(n) || ov::is_type<ov::op::v1::FloorMod>(n) || 
                 ov::is_type<ov::op::v0::Gelu>(n) || ov::is_type<ov::op::v7::Gelu>(n) || 
                 ov::is_type<ov::op::v1::Greater>(n) || ov::is_type<ov::op::v1::GreaterEqual>(n) || 
