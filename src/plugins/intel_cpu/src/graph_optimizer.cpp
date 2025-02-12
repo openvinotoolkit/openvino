@@ -49,8 +49,7 @@
 using namespace dnnl;
 using namespace ov::intel_cpu::node;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 GraphOptimizer::GraphOptimizer() {}
 
@@ -3341,5 +3340,4 @@ void GraphOptimizer::DropRedundantMemoryOutput(Graph& graph) {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
