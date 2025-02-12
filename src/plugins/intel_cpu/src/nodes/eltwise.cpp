@@ -2387,24 +2387,28 @@ bool Eltwise::canFuse(const NodePtr& node) const {
         return true;
     };
 
-#if defined(OPENVINO_ARCH_ARM64)
-    if (!mayiuse(dnnl::impl::cpu::aarch64::asimd) || (getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK))
+#if defined(OPENVINO_ARCH_X86_64)
+    const auto isISASupportedByJIT = mayiuse(dnnl::impl::cpu::x64::sse41);
+#elif defined(OPENVINO_ARCH_ARM64)
+    const auto isISASupportedByJIT = mayiuse(dnnl::impl::cpu::aarch64::asimd);
+#elif defined(OPENVINO_ARCH_RISCV64)
+    const auto isISASupportedByJIT = mayiuse(ov::intel_cpu::riscv64::imafdcv);
+#else
+    const auto isISASupportedByJIT = false;
+#endif
+
+    if (!isISASupportedByJIT || (getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK))
         return false;
 
-    if (!EltwiseJitExecutor::isSupportedOp(this, getAlpha(), getBeta(), getGamma())) {
+    if (!EltwiseJitExecutor::isSupportedOp(this, getAlpha(), getBeta(), getGamma()))
         return false;
-    }
+
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
     const auto eltwise = dynamic_cast<const Eltwise*>(node.get());
     if ((eltwise == nullptr) ||
         (!EltwiseJitExecutor::isSupportedOp(eltwise, eltwise->getAlpha(), eltwise->getBeta(), eltwise->getGamma()))) {
         return false;
     }
-#elif defined(OPENVINO_ARCH_X86_64)
-    if (!mayiuse(dnnl::impl::cpu::x64::sse41) || getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK) {
-        return false;
-    }
-#else
-    return false;
 #endif
 
     // TODO: EltwiseLog is supported only via reference executor
