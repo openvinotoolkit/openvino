@@ -83,7 +83,7 @@ protected:
                                                      const std::vector<size_t>& layout_b,
                                                      const std::vector<size_t>& layout_c);
     void validate_with_scratchpad() const;
-    void validate_inputs() const;
+    virtual void validate_inputs() const;
 
     BRGEMM_TYPE m_type = BRGEMM_TYPE::STAND_ALONE;
 };
