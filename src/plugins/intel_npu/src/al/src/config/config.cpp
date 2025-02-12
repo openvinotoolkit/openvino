@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -175,6 +175,31 @@ details::OptionConcept OptionsDesc::get(std::string_view key, OptionMode mode) c
     return desc;
 }
 
+void OptionsDesc::remove(std::string_view key) {
+    std::string searchKey{key};
+    auto it = _impl.find(searchKey);
+    if (it != _impl.end()) {
+        _impl.erase(it);
+    }
+}
+
+void OptionsDesc::reset() {
+    _impl.clear();
+}
+
+bool OptionsDesc::has(std::string_view key) const {
+    std::string searchKey{key};
+    const auto itDeprecated = _deprecated.find(std::string(key));
+    if (itDeprecated != _deprecated.end()) {
+        return true;
+    }
+    const auto itMain = _impl.find(searchKey);
+    if (itMain != _impl.end()) {
+        return true;
+    }
+    return false;
+}
+
 std::vector<std::string> OptionsDesc::getSupported(bool includePrivate) const {
     std::vector<std::string> res;
     res.reserve(_impl.size());
@@ -182,6 +207,32 @@ std::vector<std::string> OptionsDesc::getSupported(bool includePrivate) const {
     for (const auto& p : _impl) {
         if (p.second.isPublic() || includePrivate) {
             res.push_back(p.first);
+        }
+    }
+
+    return res;
+}
+
+std::vector<ov::PropertyName> OptionsDesc::getSupportedOptions(bool includePrivate) const {
+    std::vector<ov::PropertyName> res;
+    res.reserve(_impl.size());
+
+    for (const auto& p : _impl) {
+        if (p.second.isPublic() || includePrivate) {
+            res.push_back({p.first, p.second.mutability()});
+        }
+    }
+
+    return res;
+}
+
+std::string OptionsDesc::getSupportedAsString(bool includePrivate) const {
+    std::string res;
+
+    for (const auto& p : _impl) {
+        if (p.second.isPublic() || includePrivate) {
+            res += p.first;
+            res += " ";
         }
     }
 
@@ -200,6 +251,24 @@ void OptionsDesc::walk(std::function<void(const details::OptionConcept&)> cb) co
 
 Config::Config(const std::shared_ptr<const OptionsDesc>& desc) : _desc(desc) {
     OPENVINO_ASSERT(_desc != nullptr, "Got NULL OptionsDesc");
+}
+
+bool Config::hasOpt(std::string_view key) const {
+    return _desc->has(key);
+}
+
+details::OptionConcept Config::getOpt(std::string_view key) const {
+    return _desc->get(key);
+}
+
+bool Config::isOptPublic(std::string_view key) const {
+    auto log = Logger::global().clone("Config");
+    if (_desc->has(key)) {
+        return _desc->get(key).isPublic();
+    } else {
+        log.warning("Option '%s' not registered in config", key.data());
+        return true;
+    }
 }
 
 void Config::parseEnvVars() {
@@ -230,20 +299,6 @@ void Config::update(const ConfigMap& options, OptionMode mode) {
     }
 }
 
-std::string Config::toString() const {
-    std::stringstream resultStream;
-    for (auto it = _impl.cbegin(); it != _impl.cend(); ++it) {
-        const auto& key = it->first;
-
-        resultStream << key << "=\"" << it->second->toString() << "\"";
-        if (std::next(it) != _impl.end()) {
-            resultStream << " ";
-        }
-    }
-
-    return resultStream.str();
-}
-
 void Config::fromString(const std::string& str) {
     std::map<std::string, std::string> config;
     std::string str_cfg(str);
@@ -267,6 +322,39 @@ void Config::fromString(const std::string& str) {
     parse_token(str_cfg);
 
     update(config);
+}
+
+std::string Config::toString() const {
+    std::stringstream resultStream;
+    for (auto it = _impl.cbegin(); it != _impl.cend(); ++it) {
+        const auto& key = it->first;
+
+        resultStream << key << "=\"" << it->second->toString() << "\"";
+        if (std::next(it) != _impl.end()) {
+            resultStream << " ";
+        }
+    }
+
+    return resultStream.str();
+}
+
+std::string Config::toStringForCompiler() const {
+    std::stringstream resultStream;
+    for (auto it = _impl.cbegin(); it != _impl.cend(); ++it) {
+        const auto& key = it->first;
+
+        // Only include configs which options have OptionMode::Compile or OptionMode::Both
+        if (_desc->has(key)) {
+            if (_desc->get(key).mode() != OptionMode::RunTime) {
+                resultStream << key << "=\"" << it->second->toString() << "\"";
+                if (std::next(it) != _impl.end()) {
+                    resultStream << " ";
+                }
+            }
+        }
+    }
+
+    return resultStream.str();
 }
 
 //

@@ -33,11 +33,15 @@ struct TypePrinter {
     static constexpr const char* name();
 };
 
-#define TYPE_PRINTER(type)                                    \
-    template <>                                               \
-    struct TypePrinter<type> {                                \
-        static constexpr bool hasName() { return true; }      \
-        static constexpr const char* name() { return #type; } \
+#define TYPE_PRINTER(type)                    \
+    template <>                               \
+    struct TypePrinter<type> {                \
+        static constexpr bool hasName() {     \
+            return true;                      \
+        }                                     \
+        static constexpr const char* name() { \
+            return #type;                     \
+        }                                     \
     };
 
 TYPE_PRINTER(bool)
@@ -49,6 +53,11 @@ TYPE_PRINTER(int64_t)
 TYPE_PRINTER(double)
 TYPE_PRINTER(std::string)
 TYPE_PRINTER(std::size_t)
+
+#ifndef ONEAPI_MAKE_VERSION
+/// @brief Generates generic 'oneAPI' API versions
+#    define ONEAPI_MAKE_VERSION(_major, _minor) ((_major << 16) | (_minor & 0x0000ffff))
+#endif  // ONEAPI_MAKE_VERSION
 
 //
 // OptionParser
@@ -276,7 +285,17 @@ struct OptionBase {
 
     // Overload this for private options.
     static bool isPublic() {
-        return true;
+        return false;
+    }
+
+    // Overload this for read-only options (metrics)
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
+    }
+
+    /// Overload this for options conditioned by compiler version
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(0, 0);
     }
 
     static std::string toString(const ValueType& val) {
@@ -341,6 +360,8 @@ struct OptionConcept final {
     std::string_view (*envVar)() = nullptr;
     OptionMode (*mode)() = nullptr;
     bool (*isPublic)() = nullptr;
+    ov::PropertyMutability (*mutability)() = nullptr;
+    uint32_t (*compilerSupportVersion)() = nullptr;
     std::shared_ptr<OptionValue> (*validateAndParse)(std::string_view val) = nullptr;
 };
 
@@ -359,7 +380,13 @@ std::shared_ptr<OptionValue> validateAndParse(std::string_view val) {
 
 template <class Opt>
 OptionConcept makeOptionModel() {
-    return {&Opt::key, &Opt::envVar, &Opt::mode, &Opt::isPublic, &validateAndParse<Opt>};
+    return {&Opt::key,
+            &Opt::envVar,
+            &Opt::mode,
+            &Opt::isPublic,
+            &Opt::mutability,
+            &Opt::compilerSupportVersion,
+            &validateAndParse<Opt>};
 }
 
 }  // namespace details
@@ -373,12 +400,32 @@ public:
     template <class Opt>
     void add();
 
-    std::vector<std::string> getSupported(bool includePrivate = false) const;
+    template <class Opt>
+    void tryAdd(OptionMode mode);
 
-    details::OptionConcept get(std::string_view key, OptionMode mode) const;
+    bool has(std::string_view key) const;
+
+    void remove(std::string_view key);
+
+    void reset();
+
+    void setCompilerVersion(uint32_t compiler_version) {
+        _compiler_ver = compiler_version;
+    };
+    void setCompilerSupportedOptions(std::vector<std::string> compiler_options) {
+        _compiler_opts = compiler_options;
+    };
+
+    std::vector<std::string> getSupported(bool includePrivate = false) const;
+    std::vector<ov::PropertyName> getSupportedOptions(bool includePrivate = false) const;
+    std::string getSupportedAsString(bool includePrivate = false) const;
+
+    details::OptionConcept get(std::string_view key, OptionMode mode = OptionMode::Both) const;
     void walk(std::function<void(const details::OptionConcept&)> cb) const;
 
 private:
+    std::vector<std::string> _compiler_opts;
+    uint32_t _compiler_ver = ONEAPI_MAKE_VERSION(0, 0);
     std::unordered_map<std::string, details::OptionConcept> _impl;
     std::unordered_map<std::string, std::string> _deprecated;
 };
@@ -397,6 +444,58 @@ void OptionsDesc::add() {
     }
 }
 
+template <class Opt>
+void OptionsDesc::tryAdd(OptionMode mode) {
+    bool skipped = true;
+    // If there is no list with compiler supported options, we fallback to version based
+    if (Opt::mode() == mode && _compiler_opts.size() == 0) {
+        if (_compiler_ver >= Opt::compilerSupportVersion()) {
+            OPENVINO_ASSERT(_impl.count(Opt::key().data()) == 0,
+                            "Option '",
+                            Opt::key().data(),
+                            "' was already registered");
+            _impl.insert({Opt::key().data(), details::makeOptionModel<Opt>()});
+            skipped = false;
+        }
+    } else {
+        //  Runtime options we register straight away
+        if (mode == OptionMode::RunTime && Opt::mode() == mode) {
+            std::cout << "Runtime option " << Opt::key().data() << " registered!" << std::endl;
+            OPENVINO_ASSERT(_impl.count(Opt::key().data()) == 0,
+                            "Option '",
+                            Opt::key().data(),
+                            "' was already registered");
+            _impl.insert({Opt::key().data(), details::makeOptionModel<Opt>()});
+            skipped = false;
+        } else if ((mode == OptionMode::CompileTime && Opt::mode() == mode) ||
+                   (mode == OptionMode::Both && Opt::mode() == mode)) {
+            OPENVINO_ASSERT(_impl.count(Opt::key().data()) == 0,
+                            "Option '",
+                            Opt::key().data(),
+                            "' was already registered");
+            // For OptionMode::Compile and OptionMode::Both we need to filter
+            auto it = std::find(_compiler_opts.begin(), _compiler_opts.end(), Opt::key().data());
+            if (it != _compiler_opts.end()) {
+                std::cout << "Found: " << Opt::key().data() << " in compiler supported options! Registering"
+                          << std::endl;
+                _impl.insert({Opt::key().data(), details::makeOptionModel<Opt>()});
+                skipped = false;
+            } else {
+                std::cout << Opt::key().data() << " not found in compiler supported options! Skipping" << std::endl;
+            }
+        }
+    }
+    if (!skipped) {
+        for (const auto& deprecatedKey : Opt::deprecatedKeys()) {
+            OPENVINO_ASSERT(_deprecated.count(deprecatedKey.data()) == 0,
+                            "Option '",
+                            deprecatedKey.data(),
+                            "' was already registered");
+            _deprecated.insert({deprecatedKey.data(), Opt::key().data()});
+        }
+    }
+}
+
 //
 // Config
 //
@@ -412,6 +511,10 @@ public:
 
     void parseEnvVars();
 
+    bool hasOpt(std::string_view key) const;
+    bool isOptPublic(std::string_view key) const;
+    details::OptionConcept getOpt(std::string_view key) const;
+
     template <class Opt>
     bool has() const;
 
@@ -421,9 +524,14 @@ public:
     template <class Opt>
     typename std::string getString() const;
 
+    void fromString(const std::string& str);
+
+    // Returns a string with all config keys which have set values
     std::string toString() const;
 
-    void fromString(const std::string& str);
+    // Returns a string with all config keys which have set values
+    // and have OptionMode::Compile or OptionMode::Both
+    std::string toStringForCompiler() const;
 
 private:
     std::shared_ptr<const OptionsDesc> _desc;
