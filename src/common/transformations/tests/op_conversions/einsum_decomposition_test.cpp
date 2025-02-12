@@ -76,6 +76,28 @@ std::shared_ptr<ov::Node> create_identity(const std::shared_ptr<ov::Node>& data,
     return identity;
 }
 
+std::shared_ptr<ov::Node> extract_diagonal(const std::shared_ptr<ov::Node>& data,
+                                           const std::vector<std::vector<size_t>>& indices_of_repeated_labels) {
+    // Initialize multi_identity by identity for first repeated label.
+    auto multi_identity = create_identity(data, indices_of_repeated_labels[0]);
+    // Initialize reduction axes by all except first repated_label_indices for first repeated label.
+    std::vector<size_t> reduce_axes(indices_of_repeated_labels[0].begin() + 1, indices_of_repeated_labels[0].end());
+    // Merge remaining identities.
+    for (size_t i = 1; i < indices_of_repeated_labels.size(); i++) {
+        auto identity = create_identity(data, indices_of_repeated_labels[i]);
+        multi_identity = makeOP<opset1::Multiply>({multi_identity, identity}, {{"auto_broadcast", "numpy"}});
+        reduce_axes.insert(reduce_axes.end(),
+                           indices_of_repeated_labels[i].begin() + 1,
+                           indices_of_repeated_labels[i].end());
+    }
+    // Convert to match type of data
+    auto multi_identity_cvt = makeOP<opset1::ConvertLike>({multi_identity, data});
+    auto unreduced_diagonal = makeOP<opset1::Multiply>({data, multi_identity_cvt}, {{"auto_broadcast", "numpy"}});
+    auto const_reduce_axes = makeConst(element::i64, ov::Shape({reduce_axes.size()}), reduce_axes);
+    auto diagonal = makeOP<opset1::ReduceSum>({unreduced_diagonal, const_reduce_axes}, {{"keep_dims", false}});
+    return diagonal;
+}
+
 }  // namespace
 TEST_F(TransformationTestsF, Einsum_2in_matmul) {
     PartialShape data_shape_1{5, 2};
@@ -384,23 +406,12 @@ TEST_F(TransformationTestsF, Einsum_1in_repeated_labels_empty_ellipsis_dynamic) 
         using namespace ov::gen_pattern;
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
 
-        // Create identity for repated_label i
-        auto identity_i = create_identity(data_1, {0, 2, 4});
-        // Create identity for repeated label j
-        auto identity_j = create_identity(data_1, {1, 3});
-
-        // Merge identities for all repeated labels to create multi-identity
-        auto multi_identity = makeOP<opset1::Multiply>({identity_i, identity_j}, {{"auto_broadcast", "numpy"}});
-
-        // Extract diagonals by multiplying by multi-identity and reducing
-        auto multi_identity_cvt = makeOP<opset1::ConvertLike>({multi_identity, data_1});
-        auto Multiply_3024 = makeOP<opset1::Multiply>({data_1, multi_identity_cvt}, {{"auto_broadcast", "numpy"}});
-        auto Constant_3025 = makeConst(element::i64,
-                                       ov::Shape({
-                                           3,
-                                       }),
-                                       {2, 3, 4});
-        auto data_1_diagonal = makeOP<opset1::ReduceSum>({Multiply_3024, Constant_3025}, {{"keep_dims", false}});
+        // Extract diagonal
+        auto data_1_diagonal = extract_diagonal(data_1,
+                                                {
+                                                    {0, 2, 4},  // indices of repeated label i
+                                                    {1, 3},     // indices of repeated label j
+                                                });
 
         // Transpose to the original order of output labels.
         auto Constant_3027 = makeConst(element::i64,
