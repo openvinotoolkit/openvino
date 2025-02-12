@@ -76,6 +76,7 @@ MHAParallelWAOptimizer::MHAParallelWAOptimizer(const lowered::LinearIRCPtr& line
     m_unsqueezed_params = find_unsqueezed_params(linear_ir, brgemms);
     OPENVINO_ASSERT(!m_unsqueezed_params.empty(), "unsqueezed_params mustn't be empty after initialization");
     m_loops_to_split = find_loops_to_split(linear_ir, m_unsqueezed_params);
+    std::cout << "[ INFO ] m_loops_to_split size = " << m_loops_to_split.size() << std::endl;
 
     m_dim_M_idces.resize(configurator->get_io_num());
     m_optimized_layouts.resize(configurator->get_io_num());

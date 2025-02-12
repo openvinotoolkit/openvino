@@ -31,7 +31,18 @@ public:
     ParallelWAOptimizer(const lowered::LinearIRCPtr& linear_ir, const RuntimeConfigurator* configurator);
 
     bool run(const lowered::LinearIR& linear_ir) override;
-    bool applicable() const override { return false; }
+    bool applicable() const override {
+        if (std::getenv("REF"))
+            return false;
+        return !m_loops_to_split.empty();
+    }
+
+private:
+    std::vector<lowered::ExpandedLoopInfoPtr> m_loops_to_split{};
+    size_t m_concurrency = 0;
+    std::vector<std::vector<size_t>> m_optimized_layouts{};
+    std::unordered_set<size_t> m_unsqueezed_params{};
+    std::vector<size_t> m_dim_M_idces{};
 };
 
 } // namespace pass
