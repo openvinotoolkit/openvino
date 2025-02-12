@@ -5,7 +5,7 @@
 #pragma once
 
 #include "kernel_base_cm.h"
-#include "lstm_kernel_base.h"
+#include "lstm/lstm_kernel_base.h"
 
 namespace kernel_selector {
 class LSTMSeqKernel_CM : public KernelBaseCM {
