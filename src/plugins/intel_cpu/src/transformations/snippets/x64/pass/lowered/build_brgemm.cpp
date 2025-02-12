@@ -36,7 +36,8 @@ bool pass::BuildBrgemm::run(snippets::lowered::LinearIR& linear_ir,
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& expr = *expr_it;
         const auto gemm_node = ov::as_type_ptr<GemmCPU>(expr->get_node());
-        if (!gemm_node || gemm_node->is_dynamic() || with_compensations(gemm_node->get_type())) {
+        if (!gemm_node || gemm_node->is_dynamic() || with_compensations(gemm_node->get_type()) ||
+            with_amx(gemm_node->get_type())) {
             continue;
         }
         const auto& loop_manager = linear_ir.get_loop_manager();
