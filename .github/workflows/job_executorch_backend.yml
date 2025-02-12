@@ -67,23 +67,9 @@ jobs:
           sparse-checkout-cone-mode: false
           path: 'openvino'
 
-#      - name: Clone ExecuTorch repository
-#        #uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-#        uses: GuillaumeFalourd/clone-github-repo-action@v2.3
-#        timeout-minutes: 15
-#        with:
-#          #repository: 'ynimmaga/executorch'
-#          repository: 'pytorch/executorch'
-#          #path: ${{ env.EXECUTORCH_REPO }}
-#          #ref: 'openvino_backend'
-#          #branch: 'openvino_backend'
-#          branch: 'main'
-#          #submodules: 'recursive'
-
       - name: Clone ExecuTorch repository
         run: |
-          #git clone -b openvino_backend https://github.com/ynimmaga/executorch.git
-          git clone -b cmake_updates https://github.com/ynimmaga/executorch.git
+          git clone -b openvino_backend https://github.com/ynimmaga/executorch.git
           cd executorch
           git submodule update --init --recursive
           cd ..
@@ -109,21 +95,11 @@ jobs:
           wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
           wheels-to-install: 'openvino openvino_tokenizers'
 
-      - name: Build ET-OV
+      - name: Build ExecuTorch and OpenVINO Example Runner
         run: |
           chown root:root /github/home
-          echo "HOME_DIR:"
-          echo $HOME
-          echo "USERS:"
-          cat /etc/passwd
-          echo "CUR_USER:"
-          echo $USER
-          echo "DONE"
           source ${INSTALL_DIR}/setupvars.sh
           cd executorch
-          ./install_executorch.sh --clean
-          git submodule sync
-          git submodule update --init
           ./install_requirements.sh
           ./install_executorch.sh
           cd examples/openvino
@@ -132,9 +108,6 @@ jobs:
 
       - name: Run tests
         run: |
-          echo "RUN_TESTS"
-          pwd
-          echo "ls:"
-          ls
           cd executorch/backends/openvino/tests
           python test_openvino_delegate.py --build_folder ../../../cmake-openvino-out --device CPU --test_type ops
+          python test_openvino_delegate.py --build_folder ../../../cmake-openvino-out --device CPU --test_type models
