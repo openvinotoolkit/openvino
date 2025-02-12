@@ -19,9 +19,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/experimental_detectron_generate_proposals.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 struct Indexer4d {
@@ -343,7 +341,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::initSupportedPrimitiveDe
 void ExperimentalDetectronGenerateProposalsSingleImage::execute(const dnnl::stream& strm) {
     try {
         if (inputShapes.size() != 4 || outputShapes.size() != 2) {
-            OPENVINO_THROW("Incorrect number of input or output edges!");
+            THROW_CPU_NODE_ERR("Incorrect number of input or output edges!");
         }
 
         size_t anchor_dims_size = 1;
@@ -358,7 +356,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(const dnnl::stre
             deltas_dims_size *= deltaDims[i];
         }
         if (anchor_dims_size != deltas_dims_size) {
-            OPENVINO_THROW("'Anchors' blob size for ONNXProposal is incompatible with 'deltas' blob size!");
+            THROW_CPU_NODE_ERR("'Anchors' blob size for ONNXProposal is incompatible with 'deltas' blob size!");
         }
 
         size_t score_dims_size = 1;
@@ -367,7 +365,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(const dnnl::stre
             score_dims_size *= scoreDims[i];
         }
         if (deltas_dims_size != (4 * score_dims_size)) {
-            OPENVINO_THROW("'Deltas' blob size for ONNXProposal is incompatible with 'scores' blob size!");
+            THROW_CPU_NODE_ERR("'Deltas' blob size for ONNXProposal is incompatible with 'scores' blob size!");
         }
 
         // Prepare memory
@@ -461,8 +459,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(const dnnl::stre
                               post_nms_topn_);
         }
     } catch (const std::exception& e) {
-        std::string errorMsg = e.what();
-        OPENVINO_THROW(errorMsg);
+        THROW_CPU_NODE_ERR(e.what());
     }
 }
 
@@ -478,6 +475,4 @@ bool ExperimentalDetectronGenerateProposalsSingleImage::needPrepareParams() cons
     return false;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

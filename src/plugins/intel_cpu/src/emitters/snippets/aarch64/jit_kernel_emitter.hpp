@@ -7,9 +7,7 @@
 #include "emitters/plugin/aarch64/jit_emitter.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace aarch64 {
+namespace ov::intel_cpu::aarch64 {
 
 ///
 /// \brief    Kernel is the only entry point to Codogen Jit compilation. Kernel perform abstract-to-physical register
@@ -114,6 +112,4 @@ private:
 #endif
 };
 
-}  // namespace aarch64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::aarch64

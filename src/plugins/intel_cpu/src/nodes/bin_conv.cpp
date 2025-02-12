@@ -39,9 +39,7 @@ using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 #if defined(OPENVINO_ARCH_X86_64)
 #    define GET_OFF(field) offsetof(jit_bin_conv_call_args, field)
 
@@ -1084,7 +1082,7 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
 void BinaryConvolution::createPrimitive() {
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor) {
-        OPENVINO_THROW("CPU binary convolution with name '", getName(), "' doesn't have primitive descriptors.");
+        THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
 
     auto srcDims = getParentEdgeAt(0)->getMemory().getStaticDims();
@@ -1163,7 +1161,7 @@ void BinaryConvolution::createPrimitive() {
         (jcp.l_pad <= jcp.ur_w) && (r_pad_no_tail <= jcp.ur_w) &&
         IMPLICATION(jcp.kw > 7, (jcp.t_pad == 0 && jcp.l_pad == 0) || (jcp.stride_w == 1 && jcp.stride_h == 1));
     if (!args_ok) {
-        OPENVINO_THROW("BinaryConvolution with name '", getName(), "' has unsupported parameters");
+        THROW_CPU_NODE_ERR("has unsupported parameters");
     }
 #if defined(OPENVINO_ARCH_X86_64)
     jit_dw_conv_params jcp_dw_conv = {};
@@ -1417,7 +1415,7 @@ void BinaryConvolution::execute(const dnnl::stream& strm) {
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor) {
-        OPENVINO_THROW("CPU binary convolution with name '", getName(), "' doesn't have primitive descriptors.");
+        THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
 
     auto implType = selectedPrimitiveDescriptor->getImplementationType();
@@ -1432,6 +1430,4 @@ bool BinaryConvolution::created() const {
     return getType() == Type::BinaryConvolution;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

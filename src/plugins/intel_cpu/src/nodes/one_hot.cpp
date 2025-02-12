@@ -15,9 +15,7 @@
 #include "selective_build.h"
 #include "shape_inference/custom/one_hot.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool OneHot::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -163,6 +161,4 @@ bool OneHot::created() const {
     return getType() == Type::OneHot;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -10,8 +10,7 @@
 
 #    include "emitters/plugin/x64/jit_emitter.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class jit_debug_emitter : public jit_emitter {
 public:
@@ -63,7 +62,6 @@ private:
     EmissionLocation m_decorator_emit_loc;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 #endif

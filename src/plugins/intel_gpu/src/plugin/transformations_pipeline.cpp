@@ -12,6 +12,7 @@
 #include <tuple>
 #include <vector>
 
+#include "openvino/opsets/opset10.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
@@ -85,6 +86,7 @@
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
+#include "plugin/transformations/sink_reshape.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
@@ -281,6 +283,49 @@ extern bool query_microkernels_supported(cldnn::engine& e, const cldnn::Executio
 
 namespace ov::intel_gpu {
 
+bool TransformationsPipeline::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
+    auto convert = ov::as_type_ptr<ov::opset10::Convert>(node);
+    if (!convert)
+        return false;
+    const auto& from = node->get_output_element_type(0);
+    auto it = precisions.find(from);
+    if (it == precisions.end())
+        return false;
+    const auto& to = it->second;
+
+    if (convert->get_convert_element_type() == ov::element::boolean && to.is_integral_number()) {
+        // For Convert node, converting precision from numerical data types to boolean will lead to mathematical
+        // error, because here the output precision boolean is replaced by u8:
+        //  - floating point value 0.01 is converted to be 1 for boolean, but 0 for u8 - need to insert Ceil.
+        //  - either float or int values should be clipped with the interval [0; 1] to mimic bool cast behavior, i.e.
+        //  0 - is false, 1 - is true
+        //  - to perform clamping correctly an Abs op should be inserted before Clamp
+        // Thus an Abs, Ceil and Clamp nodes should be added before the Convert node for this scenario.
+        ov::pass::NodeRegistry reg;
+        const auto& in_prec = convert->get_input_element_type(0);
+        auto parent_node = convert->input_value(0).get_node_shared_ptr();
+        auto item = precisions.find(in_prec);
+        if (item != precisions.end()) {
+            // Add convert node for unsupported precision, such as FP64 or INT64
+            parent_node = reg.make<ov::opset10::Convert>(parent_node, item->second);
+        }
+        if (in_prec.is_signed()) {
+            parent_node = reg.make<ov::opset10::Abs>(parent_node);
+        }
+        if (in_prec.is_real()) {
+            parent_node = reg.make<ov::opset10::Ceiling>(parent_node);
+        }
+        parent_node = reg.make<ov::opset10::Clamp>(parent_node, 0, 1);
+        const auto new_convert = reg.make<ov::opset10::Convert>(parent_node, to);
+        new_convert->set_friendly_name(convert->get_friendly_name());
+        ov::copy_runtime_info(convert, reg.get());
+        ov::replace_node(convert, new_convert);
+        return true;
+    }
+    convert->set_convert_element_type(to);
+    return true;
+}
+
 void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply");
     using const_node_ptr = const std::shared_ptr<const ov::Node>;
@@ -384,9 +429,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
         // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
         // types are not supported by oneDNN)
-        manager.register_pass<ov::pass::KeepConstsPrecision>(supported_woq_types, !device_info.supports_immad);
+        manager.register_pass<ov::pass::KeepConstPrecision>(supported_woq_types, !device_info.supports_immad);
         pass_config->set_callback<ov::pass::MarkDequantization,
-                ov::pass::KeepConstsPrecision>([&](const std::shared_ptr<const ov::Node> node) {
+                ov::pass::KeepConstPrecision>([&](const std::shared_ptr<const ov::Node> node) {
             return !is_decompression_multiply(node, device_info.supports_immad);
         });
 
@@ -403,6 +448,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
         const bool store_original_precision_as_rt_attribute = true;
+
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
                                                           empty_fuse_map,
                                                           keep_precision_sensitive_in_fp32_1,
@@ -514,8 +560,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::Validate>();
         const bool keep_precision_sensitive_in_fp32_2 = true;
+
+        // To convert to f16 input to boolean which is converted to u8, add abs + ceiling + clamp before convert.
+        type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
         manager.register_pass<ov::pass::ConvertPrecision>(int_convert_precision_map,
-                                                          empty_fuse_map,
+                                                          type_to_fuse,
                                                           keep_precision_sensitive_in_fp32_2,
                                                           convert_input_output_precision);
 
@@ -942,7 +991,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             pass_config->disable<GroupConvolutionTransformation>();
             pass_config->disable<MatMulTransformation>();
             pass_config->disable<MVNTransformation>();
-            pass_config->disable<ConcatTransformation>();
 
             pass_config->set_callback<FoldConvertTransformation>(
                 [](const std::shared_ptr<const ov::Node> &node) -> bool {
@@ -961,7 +1009,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             auto params = LayerTransformation::Params(false, infer_precision, {infer_precision}, true, true);
             auto lpt_pass = manager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization, params);
             lpt_pass->add_main<ov::pass::activations_scaling::EliminateScalarMul>();
-            lpt_pass->add_main<ov::pass::activations_scaling::MulConcatTransformation>();
             lpt_pass->add_main<ov::pass::activations_scaling::MoveDownScalarMul>();
 
             // Move up remained scalar-multiply layers
@@ -1050,6 +1097,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
         manager.register_pass<ov::pass::Validate>();
+
+        manager.register_pass<ov::intel_gpu::SinkReshape>();
 
         if (device_info.supports_immad) {
             auto dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization_group_size);

@@ -18,8 +18,7 @@
 #    include <utility>
 #endif
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 template <>
 DnnlMemoryDescPtr IMemory::getDescWithType<DnnlMemoryDesc, 0, 0>() const {
     return MemoryDescUtils::convertToDnnlMemoryDesc(getDescPtr());
@@ -729,5 +728,4 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
     return ptr;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

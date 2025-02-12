@@ -7,9 +7,7 @@
 #include "emitters/plugin/aarch64/jit_emitter.hpp"
 #include "snippets/op/loop.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace aarch64 {
+namespace ov::intel_cpu::aarch64 {
 
 /* ================== jit_loop_begin_emitter ====================== */
 
@@ -80,6 +78,4 @@ protected:
 
 /* ============================================================== */
 
-}  // namespace aarch64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::aarch64
