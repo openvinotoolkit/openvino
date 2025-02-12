@@ -118,6 +118,7 @@ jobs:
           echo "CUR_USER:"
           echo $USER
           echo "DONE"
+          apt install libgflags-dev
           source ${INSTALL_DIR}/setupvars.sh
           cd executorch
           ./install_executorch.sh --clean
