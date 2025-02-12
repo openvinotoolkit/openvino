@@ -9,9 +9,7 @@
 #include "emitters/utils.hpp"
 #include "libxsmm.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
+namespace ov::intel_cpu::tpp {
 
 struct BrgemmKernelConfig : public BrgemmBaseKernelConfig {
 public:
@@ -129,6 +127,4 @@ private:
 };
 #define GET_OFF_BRGEMM_ARGS(field) offsetof(BrgemmKernelExecutor::call_args, field)
 
-}  // namespace tpp
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::tpp

@@ -10,9 +10,8 @@
 #define PRINT(X) ss << #X << " = " << X << "\n"
 #define HASH(X)  seed = dnnl::impl::hash_combine(seed, X)
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
+namespace ov::intel_cpu::tpp {
+
 BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype)
     : BrgemmBaseKernelConfig(),
       m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype)) {}
@@ -161,6 +160,4 @@ void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, void* i
 #undef PRINT
 #undef HASH
 
-}  // namespace tpp
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::tpp

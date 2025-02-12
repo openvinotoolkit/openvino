@@ -7,9 +7,7 @@
 #include "emitters/plugin/aarch64/jit_emitter.hpp"
 #include "emitters/tpp/common/kernel_executors/brgemm.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace aarch64 {
+namespace ov::intel_cpu::aarch64 {
 
 class jit_brgemm_emitter : public jit_emitter {
 public:
@@ -41,6 +39,4 @@ private:
     std::shared_ptr<ov::intel_cpu::tpp::BrgemmKernelExecutor> m_kernel_executor = nullptr;
 };
 
-}  // namespace aarch64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::aarch64

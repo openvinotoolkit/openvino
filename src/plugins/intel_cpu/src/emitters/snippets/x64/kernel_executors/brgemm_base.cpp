@@ -98,7 +98,7 @@ void BrgemmBaseKernelExecutor_x64::update_config(const ov::snippets::lowered::Ex
     OV_CPU_JIT_EMITTER_ASSERT(brgemm_node, "Got invalid node type in update_config");
     // In case of data repacking LDB is chosen in accordance with repacking buffer size
     if (with_repacking(brgemm_node->get_type()))
-        LDB = brgemm_utils::repacking::compute_LDB(LDB, brgemm_node->get_input_element_type(1));
+        LDB = brgemm_utils::repacking::compute_repacked_n_dim(LDB, brgemm_node->get_input_element_type(1));
 
     config.update(config.get_M(), config.get_N(), config.get_K(), LDA, LDB, LDC, config.get_beta());
 }
