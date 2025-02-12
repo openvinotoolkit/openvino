@@ -194,7 +194,7 @@ void GraphCache::serialize_cache() {
         auto cache_item = m_graph_cache.begin();
         auto rel_dir = ov::util::path_join({ m_cache_subdir,
                                              ov::util::get_model_type(cache_item->first),
-                                             cache_item->second.get_any_extractor() });
+                                             cache_item->second.get_any_extractor() }).string();
         serialize_model(*cache_item, rel_dir);
         m_graph_cache.erase(cache_item);
     }
