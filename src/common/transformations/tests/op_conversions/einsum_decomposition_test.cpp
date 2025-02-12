@@ -488,6 +488,47 @@ TEST_F(TransformationTestsF, Einsum_1in_repeated_labels_ellipsis_static_cf) {
     }
 }
 
+namespace {
+using namespace ov::gen_pattern;
+std::shared_ptr<ov::Node> create_identity(const std::shared_ptr<ov::Node>& data,
+                                          const std::vector<size_t>& repated_label_indices) {
+    auto shapeof_data = makeOP<opset3::ShapeOf>({data}, {{"output_type", "i64"}});
+    auto rankof_data = makeOP<opset1::ShapeOf>({shapeof_data});
+    auto const_0 = makeConst(element::i64, ov::Shape({}), {0});
+    auto const_1 = makeConst(element::i64, ov::Shape({}), {1});
+    auto num_of_repeated_labels = makeConst(element::i64, ov::Shape({}), {repated_label_indices.size()});
+    auto repeated_label_indices = makeConst(element::i64,
+                                            ov::Shape({
+                                                repated_label_indices.size(),
+                                            }),
+                                            repated_label_indices);
+    auto repeated_dimensions =
+        makeOP<opset7::Gather>({shapeof_data, repeated_label_indices, const_0}, {{"batch_dims", 0}});
+    auto repeated_dimensions_size = makeOP<opset1::ReduceProd>({repeated_dimensions, const_0}, {{"keep_dims", true}});
+    auto zeros_of_size = makeOP<opset1::Broadcast>({const_0, repeated_dimensions_size}, {{"mode", "numpy"}});
+    auto repeated_dimension = makeOP<opset7::Gather>({repeated_dimensions, const_0, const_0}, {{"batch_dims", 0}});
+    auto range_max_val =
+        makeOP<opset1::Power>({repeated_dimension, num_of_repeated_labels}, {{"auto_broadcast", "numpy"}});
+    auto step_numerator = makeOP<opset1::Subtract>({range_max_val, const_1}, {{"auto_broadcast", "numpy"}});
+    auto step_numerator_but_not_0 = makeOP<opset1::Maximum>({step_numerator, const_1}, {{"auto_broadcast", "numpy"}});
+    auto step_denominator = makeOP<opset1::Subtract>({repeated_dimension, const_1}, {{"auto_broadcast", "numpy"}});
+    auto step_denominator_but_not_0 =
+        makeOP<opset1::Maximum>({step_denominator, const_1}, {{"auto_broadcast", "numpy"}});
+    auto step = makeOP<opset1::Divide>({step_numerator_but_not_0, step_denominator_but_not_0},
+                                       {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+    auto eye_flattened_indices = makeOP<opset1::Range>({const_0, range_max_val, step});
+    auto repeated_dimension_1d = makeOP<opset1::Unsqueeze>({repeated_dimension, const_0});
+    auto ones = makeOP<opset1::Broadcast>({const_1, repeated_dimension_1d}, {{"mode", "numpy"}});
+    auto eye_flattened = makeOP<opset3::ScatterElementsUpdate>({zeros_of_size, eye_flattened_indices, ones, const_0});
+    auto ones_of_input_shape_rank = makeOP<opset1::Broadcast>({const_1, rankof_data}, {{"mode", "numpy"}});
+    auto identity_shape = makeOP<opset3::ScatterElementsUpdate>(
+        {ones_of_input_shape_rank, repeated_label_indices, repeated_dimensions, const_0});
+    auto identity = makeOP<opset1::Reshape>({eye_flattened, identity_shape}, {{"special_zero", false}});
+    return identity;
+}
+
+}  // namespace
+
 TEST_F(TransformationTestsF, Einsum_1in_repeated_labels_empty_ellipsis_dynamic) {
     PartialShape data_shape_1 = PartialShape::dynamic(5);
     {
@@ -498,97 +539,34 @@ TEST_F(TransformationTestsF, Einsum_1in_repeated_labels_empty_ellipsis_dynamic) 
     }
     {
         using namespace ov::gen_pattern;
-        auto node_0 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
-        auto Constant_2112 = makeConst(element::i64, ov::Shape({}), {0});
-        auto ShapeOf_2109 = makeOP<opset3::ShapeOf>({node_0}, {{"output_type", "i64"}});
-        auto Constant_2110 = makeConst(element::i64,
-                                       ov::Shape({
-                                           3,
-                                       }),
-                                       {0, 2, 4});
-        auto Gather_2114 = makeOP<opset7::Gather>({ShapeOf_2109, Constant_2110, Constant_2112}, {{"batch_dims", 0}});
-        auto ReduceProd_2526 = makeOP<opset1::ReduceProd>({Gather_2114, Constant_2112}, {{"keep_dims", true}});
-        auto Constant_2527 = makeConst(element::u8, ov::Shape({}), {0});
-        auto Broadcast_2528 =
-            makeOP<opset1::Broadcast>({Constant_2112, ReduceProd_2526, Constant_2527}, {{"mode", "numpy"}});
-        auto Gather_2115 = makeOP<opset7::Gather>({Gather_2114, Constant_2112, Constant_2112}, {{"batch_dims", 0}});
-        auto Constant_2111 = makeConst(element::i64, ov::Shape({}), {3});
-        auto Power_2116 = makeOP<opset1::Power>({Gather_2115, Constant_2111}, {{"auto_broadcast", "numpy"}});
-        auto Constant_2113 = makeConst(element::i64, ov::Shape({}), {1});
-        auto Subtract_2117 = makeOP<opset1::Subtract>({Power_2116, Constant_2113}, {{"auto_broadcast", "numpy"}});
-        auto Maximum_2120 = makeOP<opset1::Maximum>({Subtract_2117, Constant_2113}, {{"auto_broadcast", "numpy"}});
-        auto Subtract_2118 = makeOP<opset1::Subtract>({Gather_2115, Constant_2113}, {{"auto_broadcast", "numpy"}});
-        auto Maximum_2119 = makeOP<opset1::Maximum>({Subtract_2118, Constant_2113}, {{"auto_broadcast", "numpy"}});
-        auto Divide_2121 =
-            makeOP<opset1::Divide>({Maximum_2120, Maximum_2119}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-        auto Range_2122 = makeOP<opset1::Range>({Constant_2112, Power_2116, Divide_2121});
-        auto Unsqueeze_2521 = makeOP<opset1::Unsqueeze>({Gather_2115, Constant_2112});
-        auto Constant_2522 = makeConst(element::u8, ov::Shape({}), {0});
-        auto Broadcast_2523 =
-            makeOP<opset1::Broadcast>({Constant_2113, Unsqueeze_2521, Constant_2522}, {{"mode", "numpy"}});
-        auto ScatterElementsUpdate_2557 =
-            makeOP<opset3::ScatterElementsUpdate>({Broadcast_2528, Range_2122, Broadcast_2523, Constant_2112});
-        auto ShapeOf_2558 = makeOP<opset1::ShapeOf>({ShapeOf_2109});
-        auto Constant_2559 = makeConst(element::u8, ov::Shape({}), {0});
-        auto Broadcast_2560 =
-            makeOP<opset1::Broadcast>({Constant_2113, ShapeOf_2558, Constant_2559}, {{"mode", "numpy"}});
-        auto ScatterElementsUpdate_2563 =
-            makeOP<opset3::ScatterElementsUpdate>({Broadcast_2560, Constant_2110, Gather_2114, Constant_2112});
-        auto Reshape_2564 = makeOP<opset1::Reshape>({ScatterElementsUpdate_2557, ScatterElementsUpdate_2563},
-                                                    {{"special_zero", false}});
-        auto Constant_2569 = makeConst(element::i64, ov::Shape({}), {0});
-        auto ShapeOf_2566 = makeOP<opset3::ShapeOf>({node_0}, {{"output_type", "i64"}});
-        auto Constant_2567 = makeConst(element::i64,
-                                       ov::Shape({
-                                           2,
-                                       }),
-                                       {1, 3});
-        auto Gather_2571 = makeOP<opset7::Gather>({ShapeOf_2566, Constant_2567, Constant_2569}, {{"batch_dims", 0}});
-        auto ReduceProd_2983 = makeOP<opset1::ReduceProd>({Gather_2571, Constant_2569}, {{"keep_dims", true}});
-        auto Constant_2984 = makeConst(element::u8, ov::Shape({}), {0});
-        auto Broadcast_2985 =
-            makeOP<opset1::Broadcast>({Constant_2569, ReduceProd_2983, Constant_2984}, {{"mode", "numpy"}});
-        auto Gather_2572 = makeOP<opset7::Gather>({Gather_2571, Constant_2569, Constant_2569}, {{"batch_dims", 0}});
-        auto Constant_2568 = makeConst(element::i64, ov::Shape({}), {2});
-        auto Power_2573 = makeOP<opset1::Power>({Gather_2572, Constant_2568}, {{"auto_broadcast", "numpy"}});
-        auto Constant_2570 = makeConst(element::i64, ov::Shape({}), {1});
-        auto Subtract_2574 = makeOP<opset1::Subtract>({Power_2573, Constant_2570}, {{"auto_broadcast", "numpy"}});
-        auto Maximum_2577 = makeOP<opset1::Maximum>({Subtract_2574, Constant_2570}, {{"auto_broadcast", "numpy"}});
-        auto Subtract_2575 = makeOP<opset1::Subtract>({Gather_2572, Constant_2570}, {{"auto_broadcast", "numpy"}});
-        auto Maximum_2576 = makeOP<opset1::Maximum>({Subtract_2575, Constant_2570}, {{"auto_broadcast", "numpy"}});
-        auto Divide_2578 =
-            makeOP<opset1::Divide>({Maximum_2577, Maximum_2576}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-        auto Range_2579 = makeOP<opset1::Range>({Constant_2569, Power_2573, Divide_2578});
-        auto Unsqueeze_2978 = makeOP<opset1::Unsqueeze>({Gather_2572, Constant_2569});
-        auto Constant_2979 = makeConst(element::u8, ov::Shape({}), {0});
-        auto Broadcast_2980 =
-            makeOP<opset1::Broadcast>({Constant_2570, Unsqueeze_2978, Constant_2979}, {{"mode", "numpy"}});
-        auto ScatterElementsUpdate_3014 =
-            makeOP<opset3::ScatterElementsUpdate>({Broadcast_2985, Range_2579, Broadcast_2980, Constant_2569});
-        auto ShapeOf_3015 = makeOP<opset1::ShapeOf>({ShapeOf_2566});
-        auto Constant_3016 = makeConst(element::u8, ov::Shape({}), {0});
-        auto Broadcast_3017 =
-            makeOP<opset1::Broadcast>({Constant_2570, ShapeOf_3015, Constant_3016}, {{"mode", "numpy"}});
-        auto ScatterElementsUpdate_3020 =
-            makeOP<opset3::ScatterElementsUpdate>({Broadcast_3017, Constant_2567, Gather_2571, Constant_2569});
-        auto Reshape_3021 = makeOP<opset1::Reshape>({ScatterElementsUpdate_3014, ScatterElementsUpdate_3020},
-                                                    {{"special_zero", false}});
-        auto Multiply_3023 = makeOP<opset1::Multiply>({Reshape_2564, Reshape_3021}, {{"auto_broadcast", "numpy"}});
-        auto ConvertLike_3024 = makeOP<opset1::ConvertLike>({Multiply_3023, node_0});
-        auto Multiply_3024 = makeOP<opset1::Multiply>({node_0, ConvertLike_3024}, {{"auto_broadcast", "numpy"}});
+        auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
+
+        // Create identity for repated_label i
+        auto identity_i = create_identity(data_1, {0, 2, 4});
+        // Create identity for repeated label j
+        auto identity_j = create_identity(data_1, {1, 3});
+
+        // Merge identities for all repeated labels to create multi-identity
+        auto multi_identity = makeOP<opset1::Multiply>({identity_i, identity_j}, {{"auto_broadcast", "numpy"}});
+
+        // Extract diagonals by multiplying by multi-identity and reducing
+        auto multi_identity_cvt = makeOP<opset1::ConvertLike>({multi_identity, data_1});
+        auto Multiply_3024 = makeOP<opset1::Multiply>({data_1, multi_identity_cvt}, {{"auto_broadcast", "numpy"}});
         auto Constant_3025 = makeConst(element::i64,
                                        ov::Shape({
                                            3,
                                        }),
                                        {2, 3, 4});
-        auto ReduceSum_3026 = makeOP<opset1::ReduceSum>({Multiply_3024, Constant_3025}, {{"keep_dims", false}});
+        auto data_1_diagonal = makeOP<opset1::ReduceSum>({Multiply_3024, Constant_3025}, {{"keep_dims", false}});
+
+        // Transpose to the original order of output labels.
         auto Constant_3027 = makeConst(element::i64,
                                        ov::Shape({
                                            2,
                                        }),
                                        {1, 0});
-        auto node_2 = makeOP<opset1::Transpose>({ReduceSum_3026, Constant_3027});
-        model_ref = std::make_shared<Model>(NodeVector{node_2}, ParameterVector{node_0});
+        auto transpose_out = makeOP<opset1::Transpose>({data_1_diagonal, Constant_3027});
+        model_ref = std::make_shared<Model>(NodeVector{transpose_out}, ParameterVector{data_1});
     }
 }
 
