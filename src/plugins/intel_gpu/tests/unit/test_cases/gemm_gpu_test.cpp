@@ -2750,7 +2750,6 @@ public:
 
 class gemm_onednn_ndims : public GemmOneDNNTest<gemm_onednn_test_params> {};
 TEST_P(gemm_onednn_ndims, basic) {
-    GTEST_SKIP();
     if (!engine.get_device_info().supports_immad)
         return;
 
@@ -3303,7 +3302,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_int8_simple_tests_onednn, ::testing::Val
 }));
 
 class gemm_uint8_simple_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, uint8_t, int8_t, float, float, int32_t> {};
-TEST_P(gemm_uint8_simple_tests_onednn, basic) { GTEST_SKIP(); auto p = GetParam(); execute(p); }
+TEST_P(gemm_uint8_simple_tests_onednn, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_uint8_simple_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
     gemm_base_test_params{ CASE_GEMM_UINT8_ONEDNN_1, "" },
@@ -3313,7 +3312,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_uint8_simple_tests_onednn, ::testing::Va
 }));
 
 class gemm_fp16_simple_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, ov::float16, ov::float16, ov::float16, ov::float16, ov::float16> {};
-TEST_P(gemm_fp16_simple_tests_onednn, basic) { GTEST_SKIP(); auto p = GetParam(); execute(p); }
+TEST_P(gemm_fp16_simple_tests_onednn, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_simple_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
     gemm_base_test_params{ CASE_GEMM_FP16_ONEDNN_1, "" },
@@ -3363,7 +3362,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_uint8_transposition_tests_onednn, ::test
 }));
 
 class gemm_fp16_transposition_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, ov::float16, ov::float16, ov::float16, ov::float16, ov::float16> {};
-TEST_P(gemm_fp16_transposition_tests_onednn, basic) { GTEST_SKIP(); auto p = GetParam(); execute(p); }
+TEST_P(gemm_fp16_transposition_tests_onednn, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_transposition_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
     gemm_base_test_params{ CASE_GEMM_FP16_NN_TRANSPOSITION_ONEDNN, "" },
@@ -3373,7 +3372,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp16_transposition_tests_onednn, ::testi
 }));
 
 class gemm_fp32_transposition_tests_onednn : public ::GemmBaseOneDNNTest<gemm_base_test_params, float, float, float, float, float> {};
-TEST_P(gemm_fp32_transposition_tests_onednn, basic) { GTEST_SKIP(); auto p = GetParam(); execute(p); }
+TEST_P(gemm_fp32_transposition_tests_onednn, basic) { auto p = GetParam(); execute(p); }
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_fp32_transposition_tests_onednn, ::testing::ValuesIn(std::vector <gemm_base_test_params> {
     gemm_base_test_params{ CASE_GEMM_FP32_NN_TRANSPOSITION_ONEDNN, "" },
@@ -3623,12 +3622,12 @@ TEST_P(GemmGPUTestRandom, basic_cached) {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST_P(gemm_int8_simple_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
-TEST_P(gemm_uint8_simple_tests_onednn, basic_cached) { GTEST_SKIP(); auto p = GetParam(); execute(p, true); }
-TEST_P(gemm_fp16_simple_tests_onednn, basic_cached) { GTEST_SKIP(); auto p = GetParam(); execute(p, true); }
-TEST_P(gemm_fp32_simple_tests_onednn, basic_cached) { GTEST_SKIP(); auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_uint8_simple_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp16_simple_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp32_simple_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_int8_transposition_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_uint8_transposition_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
-TEST_P(gemm_fp16_transposition_tests_onednn, basic_cached) { GTEST_SKIP(); auto p = GetParam(); execute(p, true); }
+TEST_P(gemm_fp16_transposition_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp32_transposition_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_int8_broadcasting_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
 TEST_P(gemm_fp16_broadcasting_tests_onednn, basic_cached) { auto p = GetParam(); execute(p, true); }
