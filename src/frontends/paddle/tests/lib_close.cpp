@@ -13,7 +13,7 @@ using namespace ov::util;
 INSTANTIATE_TEST_SUITE_P(Paddle,
                          FrontendLibCloseTest,
                          Values(std::make_tuple("paddle",
-                                                path_join({std::string(TEST_PADDLE_MODELS_DIRNAME),
-                                                           std::string("conv2d_relu/conv2d_relu.pdmodel")}),
+                                                path_join({TEST_PADDLE_MODELS_DIRNAME,
+                                                           "conv2d_relu/conv2d_relu.pdmodel"}).string(),
                                                 "conv2d_0.tmp_0")),
                          FrontendLibCloseTest::get_test_case_name);
