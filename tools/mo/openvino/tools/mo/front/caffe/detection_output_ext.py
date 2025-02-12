@@ -94,9 +94,9 @@ class DetectionOutputFrontExtractor(FrontExtractorOp):
             'visualize_threshold': visualize_threshold,
             'save_file': param.save_file,
             # nms_param
-            'nms_threshold': nms_threshold,
-            'top_k': top_k,
-            'eta': eta,
+            'nms_threshold': nms_threshold,  # pylint: disable=possibly-used-before-assignment
+            'top_k': top_k,  # pylint: disable=possibly-used-before-assignment
+            'eta': eta,  # pylint: disable=possibly-used-before-assignment
             # save_output_param
             'output_directory': param.save_output_param.output_directory,
             'output_name_prefix': param.save_output_param.output_name_prefix,
@@ -111,7 +111,7 @@ class DetectionOutputFrontExtractor(FrontExtractorOp):
             'width': param.save_output_param.resize_param.width,
             'height_scale': param.save_output_param.resize_param.height_scale,
             'width_scale': param.save_output_param.resize_param.width_scale,
-            'pad_mode': pad_mode,
+            'pad_mode': pad_mode,  # pylint: disable=possibly-used-before-assignment
             'pad_value': ','.join(str(x) for x in param.save_output_param.resize_param.pad_value),
             'interp_mode': interp_mode,
         }

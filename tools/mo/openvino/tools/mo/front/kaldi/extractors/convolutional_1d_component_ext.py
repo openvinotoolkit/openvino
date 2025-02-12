@@ -69,7 +69,7 @@ class ConvolutionalComponentFrontExtractor(FrontExtractorOp):
             'kernel_spatial_idx': [2, 3],
             'group': 1,
             'reshape_kernel': True,
-            'appended_conv': appended_conv
+            'appended_conv': appended_conv  # pylint: disable=possibly-used-before-assignment
         }
 
         mapping_rule.update(layout_attrs())

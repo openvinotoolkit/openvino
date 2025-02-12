@@ -44,7 +44,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores-32gb
     container:
-      image: fedora:33
+      image: openvinogithubactions.azurecr.io/dockerio/library/fedora:33
       volumes:
         - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
@@ -196,9 +196,9 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-20.04
+    runs-on: aks-linux-2-cores-8gb
     container:
-      image: fedora:33
+      image: openvinogithubactions.azurecr.io/dockerio/library/fedora:33
     env:
       RPM_PACKAGES_DIR: /__w/openvino/packages/
 

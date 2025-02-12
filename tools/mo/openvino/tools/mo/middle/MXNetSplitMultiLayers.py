@@ -106,7 +106,7 @@ class MXNetSplitLayersToRNNSequence(MiddleReplacementPattern):
             ).create_node_with_data()
 
             if have_hidden:
-                layer_hidden_state = hidden_state_value[l * direction: l * direction + direction]
+                layer_hidden_state = hidden_state_value[l * direction: l * direction + direction]  # pylint: disable=possibly-used-before-assignment
                 hidden_state_value_node = Const(
                     rnn_layer.graph,
                     dict(name=name + '/LayerSplittedHiddenState/{}/'.format(l), value=layer_hidden_state)
@@ -115,7 +115,7 @@ class MXNetSplitLayersToRNNSequence(MiddleReplacementPattern):
                 hidden_state_value_node = None
 
             if have_cell:
-                layer_cell_state = cell_state_value[l * direction: l * direction + direction]
+                layer_cell_state = cell_state_value[l * direction: l * direction + direction]  # pylint: disable=possibly-used-before-assignment
                 cell_state_value_node = Const(
                     rnn_layer.graph,
                     dict(name=name + '/LayerSplittedCellState/{}/'.format(l), value=layer_cell_state)

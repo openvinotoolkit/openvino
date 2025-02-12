@@ -395,7 +395,8 @@ LowPrecistionRange<4, int8_t> cast_to(uint8_t* data) {
 template <element::Type_t FromType, element::Type_t ToType>
 std::vector<std::uint8_t> convertPrecision(const std::vector<std::uint8_t>& buffer, const size_t elementsCount) {
     using fromPrec = fundamental_type_for<FromType>;
-    using toPrec = fundamental_type_for<ToType>;
+    using dstType = fundamental_type_for<ToType>;
+    using toPrec = typename std::conditional<element::boolean == ToType, bool, dstType>::type;
 
     const size_t min_buffer_size = [&] {
         element::Type from_type(FromType);
@@ -407,7 +408,7 @@ std::vector<std::uint8_t> convertPrecision(const std::vector<std::uint8_t>& buff
 
     OPENVINO_ASSERT(buffer.size() >= min_buffer_size, "avoid buffer overflow");
 
-    constexpr auto elementSize = sizeof(toPrec);
+    constexpr auto elementSize = sizeof(dstType);
     std::vector<std::uint8_t> convertedData(elementsCount * elementSize);
 
     auto src = cast_to<FromType>(buffer.data());

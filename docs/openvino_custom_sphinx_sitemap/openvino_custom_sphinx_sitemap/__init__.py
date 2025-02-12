@@ -75,7 +75,10 @@ def create_sitemap(app, exception):
                 namespace, values = entry
                 namespace_element = ET.SubElement(url, namespace)
                 for tag_name, tag_value in values.items():
-                    ET.SubElement(namespace_element, tag_name).text = tag_value
+                    if tag_name == 'ovcategory':
+                        ET.SubElement(namespace_element, tag_name).text = 'No category'
+                    elif tag_name == 'ovversion':
+                        ET.SubElement(namespace_element, tag_name).text = tag_value
 
         if len(app.locales) > 0:
             for lang in app.locales:

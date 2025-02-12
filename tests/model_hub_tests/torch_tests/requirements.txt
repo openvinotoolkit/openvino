@@ -22,3 +22,5 @@ torchaudio
 torchvision
 transformers
 wheel
+# huggingface-hub required for super-image
+huggingface-hub

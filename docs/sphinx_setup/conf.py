@@ -56,7 +56,7 @@ source_suffix = {
     '.md': 'markdown',
 }
 
-html_baseurl = ''
+# html_baseurl = 'https://docs.openvino.ai/'
 
 # -- Sitemap configuration ---------------------------
 
@@ -73,6 +73,7 @@ ov_sitemap_urlset = [
 ov_sitemap_meta = [
     ('coveo:metadata', {
         'ovversion': version_name,
+        'ovcategory': 'null'
     })
 ]
 

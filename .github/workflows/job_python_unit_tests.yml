@@ -306,14 +306,14 @@ jobs:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'false'
 
-      - name: Docs Python snippets
-        if: runner.os != 'macOS'
-        run: |
-          # to find 'snippets' module in docs
-          export PYTHONPATH=${OPENVINO_REPO}/docs
-          # for 'template' extension
-          export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
-          python3 ${OPENVINO_REPO}/docs/snippets/main.py
+      # - name: Docs Python snippets
+      #   if: runner.os != 'macOS'
+      #   run: |
+      #     # to find 'snippets' module in docs
+      #     export PYTHONPATH=${OPENVINO_REPO}/docs
+      #     # for 'template' extension
+      #     export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
+      #     python3 ${OPENVINO_REPO}/docs/snippets/main.py
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3

@@ -43,7 +43,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores-32gb
     container:
-      image: emscripten/emsdk
+      image: openvinogithubactions.azurecr.io/dockerio/emscripten/emsdk:3.1.61
       volumes:
         - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
