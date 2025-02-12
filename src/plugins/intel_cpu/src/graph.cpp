@@ -1149,7 +1149,8 @@ void Graph::Allocate() {
     auto memoryControl = m_context->getMemoryControl();
 
     if (memoryControl->allocated()) {
-        return;  // memory is already allocated globally
+        DEBUG_LOG("Memory is already allocated for the graph: ", GetName());
+        return;
     }
 
     AllocationContext allocationContext;

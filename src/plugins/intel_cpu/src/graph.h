@@ -281,6 +281,10 @@ public:
         return m_outputNodesMemBlocks;
     }
 
+    const bool isConstant() const {
+        return inputNodesMap.empty();
+    }
+
 protected:
     void ForgetGraphData() {
         status = Status::NotReady;

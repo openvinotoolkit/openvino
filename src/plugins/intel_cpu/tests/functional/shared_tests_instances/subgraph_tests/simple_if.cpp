@@ -129,4 +129,26 @@ TEST_P(SimpleIfNotConstConditionUnusedOutputPortsTest, CompareWithRefs) {
     run();
 };
 
+std::vector<std::vector<ov::test::InputShape>> inputShapesStatic = {
+    static_shapes_to_test_representation({{5, 5, 5}})
+    // {
+    //     {{}, {{5, 7}}},
+    // },
+    // {
+    //     {{-1, 5, -1}, {{10, 5, 10}, {2, 5, 5}, {1, 5, 5}}},
+    // },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_If,
+                         SimpleIfNotConstConditionConstantElse,
+                         ::testing::Combine(::testing::ValuesIn(inputShapesStatic),
+                                            ::testing::ValuesIn(inTypes),
+                                            ::testing::ValuesIn(conditions),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         SimpleIfNotConstConditionUnusedOutputPortsTest::getTestCaseName);
+
+TEST_P(SimpleIfNotConstConditionConstantElse, CompareWithRefs) {
+    run();
+};
+
 }  // namespace

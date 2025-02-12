@@ -6,6 +6,7 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace test {
@@ -165,6 +166,9 @@ void SimpleIfNotConstConditionTest::SetUp() {
 
 void SimpleIfNotConstConditionTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
+
+    // auto tmp = targetStaticShapes;
+    static auto localCondition = !condition;
     const auto& funcInputs = function->inputs();
     for (size_t i = 0; i < funcInputs.size(); ++i) {
         const auto& funcInput = funcInputs[i];
@@ -173,7 +177,9 @@ void SimpleIfNotConstConditionTest::generate_inputs(const std::vector<ov::Shape>
         if (i + 1 == funcInputs.size()) {
             tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
             auto* dataPtr = tensor.data<bool>();
-            dataPtr[0] = condition;
+            std::cout << "Generating input for condition: " << localCondition << "\n";
+            dataPtr[0] = localCondition;
+            localCondition = !localCondition;
         } else {
             ov::test::utils::InputGenerateData in_data;
             in_data.start_from = -5;
@@ -318,6 +324,43 @@ void SimpleIfNotConstConditionUnusedOutputPortsTest::SetUp() {
     ifOp->set_then_body(thenBody);
     ifOp->set_else_body(elseBody);
     ifOp->set_input(params[0], p1, p2);
+    auto ifRes = ifOp->set_output(thenRes, elseRes);
+
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(ifRes)};
+    function = std::make_shared<ov::Model>(results, params, "SimpleIfNotConstConditionUnusedOutputPortsTest");
+}
+
+void SimpleIfNotConstConditionConstantElse::SetUp() {
+    std::vector<ov::test::InputShape> shapes;
+    ov::test::ElementType inType;
+    std::tie(shapes, inType, condition, targetDevice) = this->GetParam();
+
+    init_input_shapes(shapes);
+    for (auto& target : targetStaticShapes)
+        target.emplace_back(ov::Shape{});
+    ov::ParameterVector params;
+    for (auto&& shape : inputDynamicShapes) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
+    }
+    params.emplace_back(std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::boolean, ov::Shape{}));
+
+    auto p1 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
+    auto p2 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
+    auto tensor = ov::test::utils::create_and_fill_tensor(inType, inputDynamicShapes[0].get_shape());
+    auto p3 = std::make_shared<ov::op::v0::Constant>(tensor);
+
+    auto thenOp = std::make_shared<ov::op::v1::Add>(p1, p2);
+    auto thenRes = std::make_shared<ov::op::v0::Result>(thenOp);
+    auto elseRes = std::make_shared<ov::op::v0::Result>(p3);
+
+    auto thenBody = std::make_shared<ov::Model>(ov::OutputVector{thenRes}, ov::ParameterVector{p1, p2});
+    auto elseBody = std::make_shared<ov::Model>(ov::OutputVector{elseRes});
+
+    auto ifOp = std::make_shared<ov::op::v8::If>(params[1]);
+    ifOp->set_then_body(thenBody);
+    ifOp->set_else_body(elseBody);
+    ifOp->set_input(params[0], p1, nullptr);
+    ifOp->set_input(params[0], p2, nullptr);
     auto ifRes = ifOp->set_output(thenRes, elseRes);
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(ifRes)};

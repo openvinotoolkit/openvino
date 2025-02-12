@@ -22,13 +22,16 @@ public:
     If(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
-    void initSupportedPrimitiveDescriptors() override;
+    // void initSupportedPrimitiveDescriptors() override;
+    void selectOptimalPrimitiveDescriptor() override;
     void getSupportedDescriptors() override {}
     int registerToAllocationContext(int offset, AllocationContext& context) override;
     void createPrimitive() override;
     bool created() const override;
 
+    void executeWithMemoryReuse(const dnnl::stream& strm);
     void execute(const dnnl::stream& strm) override;
+
     bool neverExecute() const override {
         return false;
     }
@@ -83,6 +86,7 @@ private:
     std::vector<PortMap> thenInputPortMap, thenOutputPortMap, elseInputPortMap, elseOutputPortMap;
 
     std::shared_ptr<ov::op::v8::If> m_op;
+    bool bothSubGraphsAreNonConstant;
 };
 
 }  // namespace node

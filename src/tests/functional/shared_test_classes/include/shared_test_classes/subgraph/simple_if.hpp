@@ -61,5 +61,10 @@ class SimpleIfNotConstConditionUnusedOutputPortsTest : public SimpleIfNotConstCo
 protected:
     void SetUp() override;
 };
+
+class SimpleIfNotConstConditionConstantElse : public SimpleIfNotConstConditionTest {
+protected:
+    void SetUp() override;
+};
 }  // namespace test
 }  // namespace ov
