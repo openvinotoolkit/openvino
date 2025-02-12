@@ -25,10 +25,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-
-namespace node {
+namespace ov::intel_cpu::node {
 
 static rnn_direction ieDirection2dnnl(const std::shared_ptr<const ov::Node>& op) {
     ov::op::RecurrentSequenceDirection direction = ov::op::RecurrentSequenceDirection::FORWARD;
@@ -1485,6 +1482,4 @@ RNN::RnnDnnlExecutor::RnnDnnlExecutor(const dnnl::primitive_desc& pd) : DnnlExec
     bias_md = DnnlExtensionUtils::makeDescriptor(pd.weights_desc(2));
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
