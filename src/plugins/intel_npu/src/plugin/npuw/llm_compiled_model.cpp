@@ -21,18 +21,16 @@
 
 namespace opp = ov::pass::pattern;
 
-// llama2, phi3, etc
 class TransposeValueTensors : public ov::pass::MatcherPass {
 public:
     struct Context {
-        
         using Ref = std::reference_wrapper<Context>;
         bool bTransposed = false;
     };
 
 protected:
-    // generic part of matchers, to transpose v-tensors, and concat, and update matmul args 
-    void transpose_matmul_b(Context::Ref ctx, 
+    // generic part of matchers, to transpose v-tensors, and concat, and update matmul args
+    void transpose_matmul_b(Context::Ref ctx,
             std::shared_ptr<ov::Node> node_param,
             std::shared_ptr<ov::Node> node_concat,
             std::shared_ptr<ov::Node> node_transpose,
@@ -60,7 +58,7 @@ protected:
     }
 };
 
-// llama2, phi3, etc
+// llama2 pattern for value tensor concate
 class TransposeValueTensors_llama2 : public TransposeValueTensors {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeValueTensors_llama2");
@@ -86,13 +84,14 @@ private:
             auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
 
             transpose_matmul_b(ctx, matched_node_param, matched_node_concat, matched_node_transpose, matched_node_matmul);
+            LOG_DEBUG("vtensors transposed: LLama2 pattern");
             return true;
         };
         register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeValueTensors_llama2"), std::move(callback));
     }
 };
 
-// llama2, phi3, etc
+// llama3, phi3, mistral, etc, concate value tensors with broadcasting
 class TransposeValueTensors_llama3 : public TransposeValueTensors {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeValueTensors_llama3");
@@ -101,7 +100,6 @@ public:
     }
 
 private:
-    // llama3.2, mistral, etc
     void register_matcher_llama3(Context::Ref ctx) {
         auto param = opp::wrap_type<ov::op::v0::Parameter>();
         auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
@@ -134,7 +132,6 @@ private:
             auto matched_concat = std::static_pointer_cast<ov::op::v0::Concat>(matched_node_concat);
             auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(matched_node_transpose);
             auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
-            
             auto matched_unsqueeze  = std::static_pointer_cast<ov::op::v0::Unsqueeze>(matched_node_unsqueeze);
             auto matched_broadcast  = std::static_pointer_cast<ov::op::v3::Broadcast>(matched_node_broadcast);
             auto matched_reshape    = std::static_pointer_cast<ov::op::v1::Reshape>(matched_node_reshape);
@@ -164,7 +161,7 @@ private:
                                matched_node_concat,
                                matched_node_transpose,
                                matched_node_matmul);
-
+            LOG_DEBUG("vtensors transposed: LLama3 pattern");
             return true;
         };
         register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeValueTensors_llama3"), std::move(callback));
@@ -202,7 +199,7 @@ public:
         auto value = node->input_value(2);
         auto q_shape = register_new_node<v3::ShapeOf>(query, element::i32);
         auto k_shape = register_new_node<v3::ShapeOf>(key, element::i32);
-        auto minus_one = register_new_node(v0::Constant::create(element::i32, Shape{}, {-1})); 
+        auto minus_one = register_new_node(v0::Constant::create(element::i32, Shape{}, {-1}));
         auto minus_two = register_new_node(v0::Constant::create(element::i32, Shape{}, {-2}));
         auto zero_i = register_new_node(v0::Constant::create(element::i32, Shape{}, {0}));
         auto one_i = register_new_node(v0::Constant::create(element::i32, Shape{}, {1}));
@@ -277,7 +274,6 @@ public:
 };
 
 namespace {
-
 uint32_t align_to(uint32_t value, uint32_t alignment) {
     return (value + alignment - 1) & ~(alignment - 1);
 }
@@ -345,7 +341,6 @@ bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
 }
 
 namespace { 
-
 struct KVAxesPosition {
     uint32_t batch;
     uint32_t seq_len;
@@ -397,15 +392,15 @@ struct NPUDesc {
 };
 
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin) {
-    const auto all_devices = plugin->get_core()->get_available_devices();
-    if (std::find(all_devices.begin(), all_devices.end(), "NPU") == all_devices.end()) {
+    const auto all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
+    if (all_devices.empty()) {
         return std::nullopt;
     }
 
     const std::string arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
     const int64_t max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
     bool compiler_dq = false;
-    const auto supported_properties =
+    const auto& supported_properties =
         plugin->get_property(ov::supported_properties.name(), ov::AnyMap{}).as<std::vector<ov::PropertyName>>();
     if (std::find(supported_properties.begin(), supported_properties.end(), "NPU_COMPILER_DYNAMIC_QUANTIZATION") !=
         supported_properties.end()) {
@@ -569,15 +564,19 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     reshape_to_static(prefill_model, m_kvcache_desc.max_prompt_size, m_kvcache_desc.max_prompt_size, axes);
     LOG_DEBUG("5. Make kvcache model with static shapes");
     reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes);
-    LOG_DEBUG("6.Check and apply opt layout if applicable.");
 
     const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
     if (optimize_v_tensors) {
+        LOG_DEBUG("6. Check and apply opt layout");
+        LOG_BLOCK();
         if (optimize_value_tensors(kvcache_model)) {
-            // NB: Check if TransposeValueTensors transformation was applied
             m_kvcache_desc.v_tensors_transposed = true;
             prefill_model = cvt_value_tensors_layout(prefill_model);
+        } else {
+            LOG_DEBUG("vtensors optimisation not applied");
         }
+    } else {
+        LOG_DEBUG("6. Check and apply opt layout --- SKIPPED");
     }
     LOG_DEBUG("7. Optimize kvcache model to output key/values for new token.");
     kvcache_model = redirect_new_kv_to_output(kvcache_model);
@@ -599,9 +598,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         generate_config_opt.value_or(get_default_generate_config(kvcache_model, npudesc, generate_hint))
             .as<ov::AnyMap>();
 
-    auto prefill_config_addition_value =
+    const auto& prefill_config_addition_value =
         prefill_config_addition.has_value() ? prefill_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
-    auto generate_config_addition_value =
+    const auto& generate_config_addition_value =
         generate_config_addition.has_value() ? generate_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
 
     merge_config_with(prefill_config, other_props);
