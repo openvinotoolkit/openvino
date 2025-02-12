@@ -673,8 +673,8 @@ public:
 #endif  // OPENVINO_ARCH_ARM64
 
 #if defined(OPENVINO_ARCH_RISCV64)
-        if (mayiuse(ov::intel_cpu::riscv64::imafdcv)) {
-            _pKernel.reset(new ov::intel_cpu::riscv64::jit_uni_eltwise_generic<ov::intel_cpu::riscv64::imafdcv>(jep, eltwise_data));
+        if (mayiuse(ov::intel_cpu::riscv64::gcv)) {
+            _pKernel.reset(new ov::intel_cpu::riscv64::jit_uni_eltwise_generic<ov::intel_cpu::riscv64::gcv>(jep, eltwise_data));
         } else {
             OPENVINO_THROW("Can't create jit eltwise kernel");
         }
@@ -1437,7 +1437,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 #elif defined(OPENVINO_ARCH_ARM64)
     const auto isISASupportedByJIT = mayiuse(dnnl::impl::cpu::aarch64::asimd);
 #elif defined(OPENVINO_ARCH_RISCV64)
-    const auto isISASupportedByJIT = mayiuse(ov::intel_cpu::riscv64::imafdcv);
+    const auto isISASupportedByJIT = mayiuse(ov::intel_cpu::riscv64::gcv);
 #else
     const auto isISASupportedByJIT = false;
 #endif
@@ -1730,7 +1730,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                     THROW_CPU_NODE_ERR("not supported architecture");
                 }
 #elif defined(OPENVINO_ARCH_RISCV64)
-                if (mayiuse(ov::intel_cpu::riscv64::imafdcv)) {
+                if (mayiuse(ov::intel_cpu::riscv64::gcv)) {
                     impl_type = impl_desc_type::jit_rvv;
                 } else {
                     OPENVINO_THROW("not supported architecture");
@@ -2392,7 +2392,7 @@ bool Eltwise::canFuse(const NodePtr& node) const {
 #elif defined(OPENVINO_ARCH_ARM64)
     const auto isISASupportedByJIT = mayiuse(dnnl::impl::cpu::aarch64::asimd);
 #elif defined(OPENVINO_ARCH_RISCV64)
-    const auto isISASupportedByJIT = mayiuse(ov::intel_cpu::riscv64::imafdcv);
+    const auto isISASupportedByJIT = mayiuse(ov::intel_cpu::riscv64::gcv);
 #else
     const auto isISASupportedByJIT = false;
 #endif

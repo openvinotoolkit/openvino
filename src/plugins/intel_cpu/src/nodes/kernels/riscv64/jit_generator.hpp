@@ -116,11 +116,11 @@ protected:
     // Vector register count
     const size_t vec_count = 32;
     // integer gpr byte size
-    const size_t xlen = Xbyak_riscv::CPU().getXlen() / 8;
+    const size_t xlen = Xbyak_riscv::CPU::getInstance().getXlen() / 8;
     // fp gpr byte size
-    const size_t flen = Xbyak_riscv::CPU().getFlen() / 8;
+    const size_t flen = Xbyak_riscv::CPU::getInstance().getFlen() / 8;
     // vector register byte size
-    const size_t vlen = Xbyak_riscv::CPU().getVlen() / 8;
+    const size_t vlen = Xbyak_riscv::CPU::getInstance().getVlen() / 8;
 
     const size_t num_abi_save_gpr_regs
             = sizeof(abi_save_gpr_regs) / sizeof(abi_save_gpr_regs[0]);
