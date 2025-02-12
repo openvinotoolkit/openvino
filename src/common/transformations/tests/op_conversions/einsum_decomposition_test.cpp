@@ -17,21 +17,9 @@ using namespace ov::gen_pattern;
 std::shared_ptr<ov::Node> extract_subshape_from_shape(const std::shared_ptr<ov::Node>& shape_node,
                                                       size_t begin,
                                                       size_t end) {
-    auto const_begin = makeConst(element::i64,
-                                 ov::Shape({
-                                     1,
-                                 }),
-                                 {begin});
-    auto const_end = makeConst(element::i64,
-                               ov::Shape({
-                                   1,
-                               }),
-                               {end});
-    auto const_1 = makeConst(element::i64,
-                             ov::Shape({
-                                 1,
-                             }),
-                             {1});
+    auto const_begin = makeConst(element::i64, ov::Shape({1}), {begin});
+    auto const_end = makeConst(element::i64, ov::Shape({1}), {end});
+    auto const_1 = makeConst(element::i64, ov::Shape({1}), {1});
     auto subshape = makeOP<opset1::StridedSlice>({shape_node, const_begin, const_end, const_1},
                                                  {{"begin_mask", {0}},
                                                   {"end_mask", {0}},
@@ -40,6 +28,17 @@ std::shared_ptr<ov::Node> extract_subshape_from_shape(const std::shared_ptr<ov::
                                                   {"ellipsis_mask", {}}});
     return subshape;
 }
+
+std::shared_ptr<ov::Node> broadcast_merge_shapes(const std::shared_ptr<ov::Node>& shape_node_lhs,
+                                                 const std::shared_ptr<ov::Node>& shape_node_rhs) {
+    auto const_1 = makeConst(element::i64, ov::Shape({1}), {1});
+    auto tensor_of_lhs_shape = makeOP<opset3::Broadcast>({const_1, shape_node_lhs}, {{"mode", "numpy"}});
+    auto tensor_of_broadcasted_lhs_rhs_shape =
+        makeOP<opset3::Broadcast>({tensor_of_lhs_shape, shape_node_rhs}, {{"mode", "bidirectional"}});
+    auto broadcasted_shapes = makeOP<opset3::ShapeOf>({tensor_of_broadcasted_lhs_rhs_shape}, {{"output_type", "i64"}});
+    return broadcasted_shapes;
+}
+
 std::shared_ptr<ov::Node> create_identity(const std::shared_ptr<ov::Node>& data,
                                           const std::vector<size_t>& repated_label_indices) {
     auto shapeof_data = makeOP<opset3::ShapeOf>({data}, {{"output_type", "i64"}});
@@ -160,15 +159,7 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul_dynamic) {
         auto reduced2 = extract_subshape_from_shape(ShapeOf_data_2, 2, 3);
 
         // broadcast_merge_shapes(reduced1, reduced2)
-        auto Constant_499 = makeConst(element::i64,
-                                      ov::Shape({
-                                          1,
-                                      }),
-                                      {1});
-        auto Broadcast_500 = makeOP<opset3::Broadcast>({Constant_499, reduced1}, {{"mode", "numpy"}});
-        auto Broadcast_503 = makeOP<opset3::Broadcast>({Broadcast_500, reduced2}, {{"mode", "bidirectional"}});
-        auto reduced_subshape_broadcast_merge_shapes =
-            makeOP<opset3::ShapeOf>({Broadcast_503}, {{"output_type", "i64"}});
+        auto reduced_subshape_broadcast_merge_shapes = broadcast_merge_shapes(reduced1, reduced2);
 
         // Extract separate subshape for data_1.
         auto separate1_subshape = extract_subshape_from_shape(ShapeOf_data_1, 0, 1);
@@ -279,15 +270,7 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul_ellipsis_dynamic) {
         auto reduced2 = extract_subshape_from_shape(ShapeOf_data_2, 2, 5);
 
         // broadcast_merge_shapes(reduced1, reduced_2)
-        auto Constant_1218 = makeConst(element::i64,
-                                       ov::Shape({
-                                           1,
-                                       }),
-                                       {1});
-        auto Broadcast_1219 = makeOP<opset3::Broadcast>({Constant_1218, reduced1}, {{"mode", "numpy"}});
-        auto Broadcast_1222 = makeOP<opset3::Broadcast>({Broadcast_1219, reduced2}, {{"mode", "bidirectional"}});
-        auto reduced_subshape_broadcast_merge_shapes =
-            makeOP<opset3::ShapeOf>({Broadcast_1222}, {{"output_type", "i64"}});
+        auto reduced_subshape_broadcast_merge_shapes = broadcast_merge_shapes(reduced1, reduced2);
 
         // Extract separate subshape for data_1.
         auto separate1_subshape = extract_subshape_from_shape(ShapeOf_data_1, 0, 1);
