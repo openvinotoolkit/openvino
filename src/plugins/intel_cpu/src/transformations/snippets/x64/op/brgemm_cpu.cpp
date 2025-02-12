@@ -23,18 +23,8 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const std::vector<size_t>& layout_a,
                      const std::vector<size_t>& layout_b,
                      const std::vector<size_t>& layout_c)
-    : Brgemm(),
-      m_type(type),
-      m_iter_count(iter_count) {
-    // We call default ctor of Brgemm class to avoid incorrect shape infer in constructor_validate_and_type_infer() call
-    set_arguments({A, B});
-    set_output_size(1);
-    ctor_initialize(std::set<size_t>{0, 1}, std::set<size_t>{0});
-    set_input_port_descriptor({0, offset_a}, 0);
-    set_input_port_descriptor({0, offset_b}, 1);
-    set_output_port_descriptor({0, offset_c}, 0);
-    custom_constructor_validate_and_infer_types(layout_a, layout_b, layout_c);
-}
+    : GemmCPU(A, B, type, offset_a, offset_b, offset_c, layout_a, layout_b, layout_c),
+      m_iter_count(iter_count) {}
 
 BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const Output<Node>& B,
@@ -46,15 +36,8 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const std::vector<size_t>& layout_a,
                      const std::vector<size_t>& layout_b,
                      const std::vector<size_t>& layout_c)
-    : Brgemm(),
-      m_type(type),
-      m_iter_count(iter_count) {
-    set_arguments({A, B});
-    set_output_size(1);
-    m_input_ports = {{0, desc_a}, {1, desc_b}};
-    m_output_ports = {{0, desc_c}};
-    custom_constructor_validate_and_infer_types(layout_a, layout_b, layout_c);
-}
+    : GemmCPU(A, B, type, desc_a, desc_b, desc_c, layout_a, layout_b, layout_c),
+      m_iter_count(iter_count) {}
 
 void BrgemmCPU::custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_a,
                                                             const std::vector<size_t>& layout_b,
@@ -67,9 +50,6 @@ void BrgemmCPU::custom_constructor_validate_and_infer_types(const std::vector<si
         snippets::utils::get_planar_pshape(get_input_partial_shape(1), layout_b)};
     auto output_shape = infer_output_partial_shape(planar_input_shapes);
     set_output_type(0, get_output_type(), snippets::utils::get_planar_pshape(output_shape, layout_c));
-
-    // Additional check for 3rd input
-    validate_with_scratchpad();
 }
 
 void BrgemmCPU::validate_and_infer_types() {
@@ -79,21 +59,8 @@ void BrgemmCPU::validate_and_infer_types() {
     const auto planar_input_shapes = get_planar_input_shapes({input(0), input(1)});
     auto output_shape = infer_output_partial_shape(planar_input_shapes);
     set_output_type(0, get_output_type(), get_planar_output_shape(output_shape));
-
-    // Additional check for 3rd input
-    validate_with_scratchpad();
 }
 
-void BrgemmCPU::validate_with_scratchpad() const {
-    // Additional check for 3rd input
-    if (with_compensations(m_type)) {
-        OPENVINO_ASSERT(get_input_element_type(2) == ov::element::f32,
-                        "BRGEMM Scratch with compensations must have FP32 element type");
-    } else if (with_amx(m_type)) {
-        OPENVINO_ASSERT(get_input_partial_shape(2).is_static(), "BRGEMM Scratch must have static shape");
-        OPENVINO_ASSERT(get_input_element_type(2) == ov::element::u8, "BRGEMM Scratch must have U8 element type");
-    }
-}
 
 void BrgemmCPU::validate_inputs() const {
     OPENVINO_ASSERT(
@@ -118,12 +85,6 @@ std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_a
         snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
         snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
         snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
-}
-
-size_t BrgemmCPU::get_offset_scratch() const {
-    OPENVINO_ASSERT(with_scratchpad(m_type) && get_input_size() == 3,
-                    "Offset of scratchpad must be only in Brgemm with scratchpad on 3rd input");
-    return get_input_offset(2);
 }
 
 bool BrgemmCPU::visit_attributes(AttributeVisitor& visitor) {
