@@ -93,9 +93,7 @@ void read(std::istream& stream, ov::npuw::weights::LazyTensor& var);
 // Weightless utils
 void write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const Context& ctx);
 // No allocation needed
-void read_weightless(std::istream& stream,
-                     std::vector<ov::Tensor>& var,
-                     const Weights& weights);
+void read_weightless(std::istream& stream, std::vector<ov::Tensor>& var, const Weights& weights);
 
 // Forward declaration
 template <typename T1, typename T2>

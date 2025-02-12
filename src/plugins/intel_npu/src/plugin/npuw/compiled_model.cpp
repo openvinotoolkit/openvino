@@ -580,9 +580,8 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     LOG_DEBUG("DONE.");
 }
 
-void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(
-    std::istream& stream,
-    const ov::npuw::s11n::Weights& weights) {
+void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& stream,
+                                                             const ov::npuw::s11n::Weights& weights) {
     using namespace ov::npuw::s11n;
 
     LOG_DEBUG("Deserializing CompiledModelDesc...");

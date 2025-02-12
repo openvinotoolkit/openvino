@@ -298,10 +298,9 @@ void ov::npuw::s11n::write_weightless(std::ostream& stream, const std::vector<ov
     }
 }
 
-void ov::npuw::s11n::read_weightless(
-    std::istream& stream,
-    std::vector<ov::Tensor>& var,
-    const ov::npuw::s11n::Weights& weights) {
+void ov::npuw::s11n::read_weightless(std::istream& stream,
+                                     std::vector<ov::Tensor>& var,
+                                     const ov::npuw::s11n::Weights& weights) {
     var.clear();
     std::size_t size;
     read(stream, size);

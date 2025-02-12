@@ -39,7 +39,7 @@ struct Const {
         auto rt_info = m_node->get_rt_info();
         auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
         if (weightless_cache_attr != rt_info.end()) {
-            m_offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;;
+            m_offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
         }
     }
     std::size_t hash() const {

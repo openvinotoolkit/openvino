@@ -173,8 +173,7 @@ private:
         execution_stats stat;
 
         void serialize(std::ostream& stream, const ov::npuw::s11n::Context& ctx) const;
-        void deserialize(std::istream& stream,
-                         const ov::npuw::s11n::Weights& weights);
+        void deserialize(std::istream& stream, const ov::npuw::s11n::Weights& weights);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 
