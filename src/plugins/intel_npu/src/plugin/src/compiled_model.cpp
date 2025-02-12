@@ -9,10 +9,8 @@
 
 #include "async_infer_request.hpp"
 #include "intel_npu/common/itt.hpp"
-#include "intel_npu/config/common.hpp"
-#include "intel_npu/config/compiler.hpp"
 #include "intel_npu/config/config.hpp"
-#include "intel_npu/config/runtime.hpp"
+#include "intel_npu/config/options.hpp"
 #include "metadata.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"

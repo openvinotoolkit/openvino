@@ -48,6 +48,7 @@ void intel_npu::registerOptions(OptionsDesc& desc, OptionMode mode) {
     desc.tryAdd<DEFER_WEIGHTS_LOAD>(mode);
     desc.tryAdd<WEIGHTS_PATH>(mode);
     desc.tryAdd<RUN_INFERENCES_SEQUENTIALLY>(mode);
+    desc.tryAdd<QDQ_OPTIMIZATION>(mode);
     desc.tryAdd<DISABLE_VERSION_CHECK>(mode);
     desc.tryAdd<MODEL_PTR>(mode);
     desc.tryAdd<BATCH_COMPILER_MODE_SETTINGS>(mode);

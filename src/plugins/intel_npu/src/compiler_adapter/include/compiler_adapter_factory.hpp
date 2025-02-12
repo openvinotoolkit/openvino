@@ -6,8 +6,8 @@
 
 #include "driver_compiler_adapter.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
-#include "intel_npu/config/compiler.hpp"
 #include "intel_npu/config/config.hpp"
+#include "intel_npu/config/options.hpp"
 #include "plugin_compiler_adapter.hpp"
 
 namespace intel_npu {
