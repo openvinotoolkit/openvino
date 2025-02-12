@@ -110,6 +110,7 @@ jobs:
       - name: Run tests
         run: |
           cd executorch/backends/openvino/tests
+          ls
           python test_openvino_delegate.py --build_folder ../../../cmake-openvino-out --device CPU --test_type ops &> test_out_ops.txt
           cat test_out_ops.txt
           if ! tail -n 1 test_out_ops.txt | grep -q 'OpenVINO backend tests completed successfully'; then exit 1; fi
