@@ -12,17 +12,26 @@
 #include "openvino/pass/manager.hpp"
 #include "preprocess_impls.hpp"
 #include "transformations/common_optimizations/convolution_to_group_convolution_fusion.hpp"
+#include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
+#include "transformations/common_optimizations/disable_random_uniform_constant_folding.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/ric_fusion.hpp"
+#include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
+#include "openvino/pass/constant_folding.hpp"
 
 namespace {
 
 void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
     using namespace ov;
     using namespace ov::pass;
+    using namespace ov::element;
 
     ov::pass::Manager manager("pre_post_processing");
+    manager.register_pass<MarkDequantization>(TypeVector{i8, u8, i4, u4, nf4});
+    REGISTER_PASS(manager, DisableShapeOfConstantFolding);
+    REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
+
     REGISTER_PASS(manager, ConvertDivideWithConstant)
 
     auto multiply_fusions = manager.register_pass<ov::pass::GraphRewrite>();
@@ -33,6 +42,7 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
     multiply_fusions->set_name("ov::pass::MultiplyFusions");
 
     REGISTER_PASS(manager, ReverseInputChannelsFusion)
+    REGISTER_PASS(manager, ConstantFolding)
     manager.run_passes(model);
 }
 
