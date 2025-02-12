@@ -358,10 +358,11 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
         parallel_for3d(batch_size, seq_len, head_cnt, [&](size_t b, size_t p, size_t h) {
             size_t sincos_pos;
             if (gather) {
-                if (gather.m_rank == 4)
+                if (gather.m_rank == 4) {
                     sincos_pos = gather.at<int32_t>({b, h, p, 0}, true);
-                else
+                } else {
                     sincos_pos = gather.at<int32_t>({b, p}, true);
+                }
             } else {
                 sincos_pos = present_kv_len - seq_len + p;
             }
