@@ -25,9 +25,7 @@
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 #if defined(OPENVINO_ARCH_X86_64)
 static std::vector<int> allocate_workers(const std::vector<int>& grouped_works, int n_workers) {
@@ -373,7 +371,7 @@ void QKVProjection::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    OPENVINO_ASSERT(rtPrecision == ov::element::bf16 || rtPrecision == ov::element::f16,
+    CPU_NODE_ASSERT(rtPrecision == ov::element::bf16 || rtPrecision == ov::element::f16,
                     "Unexpected rtPrecision:",
                     rtPrecision);
 
@@ -479,6 +477,4 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
 #endif
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
