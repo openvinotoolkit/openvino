@@ -1041,7 +1041,7 @@ void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& in
 
             if (actualDesc->getPrecision() == element::string) {
                 StringMemory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr);
-                edgeMemory->load(ext_mem, true);
+                edgeMemory->load(ext_mem, false);
             } else if (!actualDesc->isCompatible(*ext_tensor_desc)) {
                 Memory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr, false);
                 edgeMemory->load(ext_mem, false);
