@@ -14,6 +14,6 @@ using namespace ov::util;
 bool ov::pass::pattern::op::True::match_value(Matcher* matcher,
                                               const Output<Node>& pattern_value,
                                               const Output<Node>& graph_value) {
-    OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  ", OV_GREEN, "TRUE ALWAYS MATCHES");
+    OV_LOG_MATCHING(matcher, matcher->level_str, "}  ", OV_GREEN, "TRUE ALWAYS MATCHES");
     return true;
 }

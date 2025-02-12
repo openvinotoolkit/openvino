@@ -34,7 +34,7 @@ bool ov::pass::pattern::op::Optional::match_value(Matcher* matcher,
     auto or_node = is_empty_in_values ? std::static_pointer_cast<Pattern>(wrap_node)
                                       : std::static_pointer_cast<Pattern>(std::make_shared<Or>(
                                             ov::OutputVector{wrap_node, input_values_to_optional[0]}));
-    OV_LOG_MATCHING(matcher, level_string(matcher->level++),
+    OV_LOG_MATCHING(matcher, matcher->level_str++,
                          (or_node == wrap_node ? "├─ LEAVING OPTIONAL AS WRAP TYPE AND TRYING TO MATCH: "
                                                : "├─ UNFOLDING OPTIONAL INTO OR AND TRYING TO MATCH: "), get_name());
     if (matcher->match_value(or_node, graph_value)) {
@@ -42,11 +42,11 @@ bool ov::pass::pattern::op::Optional::match_value(Matcher* matcher,
         if (pattern_map.count(wrap_node)) {
             pattern_map[shared_from_this()] = graph_value;
         }
-        OV_LOG_MATCHING(matcher, level_string(--matcher->level), "│");
-        OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  ", OV_GREEN, "OPTIONAL MATCHED");
+        OV_LOG_MATCHING(matcher, --matcher->level_str, "│");
+        OV_LOG_MATCHING(matcher, matcher->level_str, "}  ", OV_GREEN, "OPTIONAL MATCHED");
         return true;
     }
-    OV_LOG_MATCHING(matcher, level_string(--matcher->level), "│");
-    OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  ", OV_RED, "OPTIONAL DIDN'T MATCH");
+    OV_LOG_MATCHING(matcher, --matcher->level_str, "│");
+    OV_LOG_MATCHING(matcher, matcher->level_str, "}  ", OV_RED, "OPTIONAL DIDN'T MATCH");
     return false;
 }

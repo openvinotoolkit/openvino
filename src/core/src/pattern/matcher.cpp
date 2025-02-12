@@ -11,10 +11,6 @@
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/log.hpp"
 
-#ifdef ENABLE_OPENVINO_DEBUG
-using namespace ov::util;
-#endif
-
 namespace ov {
 bool is_used(Node* node);
 
@@ -130,24 +126,24 @@ bool Matcher::is_contained_match(const NodeVector& exclusions, bool ignore_unuse
 bool Matcher::match_value(const ov::Output<Node>& pattern_value, const ov::Output<Node>& graph_value) {
     std::shared_ptr<Node> pattern_node = pattern_value.get_node_shared_ptr();
     std::shared_ptr<Node> graph_node = graph_value.get_node_shared_ptr();
-    OV_LOG_MATCHING(this, level_string(level));
-    OV_LOG_MATCHING(this, level_string(level), "{  MATCHING PATTERN NODE: ", ov::node_with_arguments(pattern_value.get_node_shared_ptr()));
-    OV_LOG_MATCHING(this, level_string(level), "├─ AGAINST  GRAPH   NODE: ", ov::node_with_arguments(graph_value.get_node_shared_ptr()));
+    OV_LOG_MATCHING(this, level_str);
+    OV_LOG_MATCHING(this, level_str, "{  MATCHING PATTERN NODE: ", ov::node_with_arguments(pattern_value.get_node_shared_ptr()));
+    OV_LOG_MATCHING(this, level_str, "├─ AGAINST  GRAPH   NODE: ", ov::node_with_arguments(graph_value.get_node_shared_ptr()));
 
     return pattern_node->match_value(this, pattern_value, graph_value);
 }
 
 bool Matcher::match_permutation(const OutputVector& pattern_args, const OutputVector& args) {
     for (size_t i = 0; i < args.size(); i++) {
-        OV_LOG_MATCHING(this, level_string(++this->level));
-        OV_LOG_MATCHING(this, level_string(this->level++), "{  ARGUMENT ", i);
+        OV_LOG_MATCHING(this, ++level_str);
+        OV_LOG_MATCHING(this, level_str++, "{  ARGUMENT ", i);
         if (!match_value(pattern_args.at(i), args.at(i))) {
-            OV_LOG_MATCHING(this, level_string(--this->level), "│");
-            OV_LOG_MATCHING(this, level_string(this->level--), "}  ", OV_RED, "ARGUMENT ", i, " DIDN'T MATCH ");
+            OV_LOG_MATCHING(this, --level_str, "│");
+            OV_LOG_MATCHING(this, level_str--, "}  ", OV_RED, "ARGUMENT ", i, " DIDN'T MATCH ");
             return false;
         }
-        OV_LOG_MATCHING(this, level_string(--this->level), "│");
-        OV_LOG_MATCHING(this, level_string(this->level--), "}  ", OV_GREEN, "ARGUMENT ", i, " MATCHED");
+        OV_LOG_MATCHING(this, --level_str, "│");
+        OV_LOG_MATCHING(this, level_str--, "}  ", OV_GREEN, "ARGUMENT ", i, " MATCHED");
     }
     return true;
 }
@@ -157,7 +153,7 @@ bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& g
     auto pattern_args = pattern_node->input_values();
 
     if (args.size() != pattern_args.size()) {
-        OV_LOG_MATCHING(this, level_string(this->level), "├─ ", OV_RED, "NUMBER OF ARGUMENTS DOESN'T MATCH. EXPECTED IN PATTERN NODE: ", pattern_args.size(),
+        OV_LOG_MATCHING(this, level_str, "├─ ", OV_RED, "NUMBER OF ARGUMENTS DOESN'T MATCH. EXPECTED IN PATTERN NODE: ", pattern_args.size(),
                                                                                                          ". OBSERVED IN GRAPH NODE: ", args.size());
         return false;
     }
@@ -171,33 +167,33 @@ bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& g
                       return n1 < n2;
                   });
         do {
-            OV_LOG_MATCHING(this, level_string(++this->level));
-            OV_LOG_MATCHING(this, level_string(this->level), "{  NEW PERMUTATION");
+            OV_LOG_MATCHING(this, ++level_str);
+            OV_LOG_MATCHING(this, level_str, "{  NEW PERMUTATION");
             auto saved = start_match();
             if (match_permutation(pattern_args, args)) {
                 auto res = saved.finish(true);
-                OV_LOG_MATCHING(this, level_string(this->level), "│");
-                OV_LOG_MATCHING(this, level_string(this->level--), "}  ", OV_GREEN, "PERMUTATION MATCHED");
+                OV_LOG_MATCHING(this, level_str, "│");
+                OV_LOG_MATCHING(this, level_str--, "}  ", OV_GREEN, "PERMUTATION MATCHED");
                 return res;
             }
-            OV_LOG_MATCHING(this, level_string(this->level), "│");
-            OV_LOG_MATCHING(this, level_string(this->level--), "}  ", OV_RED, "PERMUTATION DIDN'T MATCH");
+            OV_LOG_MATCHING(this, level_str, "│");
+            OV_LOG_MATCHING(this, level_str--, "}  ", OV_RED, "PERMUTATION DIDN'T MATCH");
         } while (std::next_permutation(begin(pattern_args),
                                        end(pattern_args),
                                        [](const ov::Output<ov::Node>& n1, const ov::Output<ov::Node>& n2) {
                                            return n1 < n2;
                                        }));
     } else {
-        OV_LOG_MATCHING(this, level_string(++this->level));
-        OV_LOG_MATCHING(this, level_string(this->level), "{  GRAPH NODE IS NOT COMMUTATIVE, A SINGLE PERMUTATION IS PRESENT ONLY");
+        OV_LOG_MATCHING(this, ++level_str);
+        OV_LOG_MATCHING(this, level_str, "{  GRAPH NODE IS NOT COMMUTATIVE, A SINGLE PERMUTATION IS PRESENT ONLY");
         auto res = match_permutation(pattern_args, args);
-        OV_LOG_MATCHING(this, level_string(this->level), "│");
-        OV_LOG_MATCHING(this, level_string(this->level--), "}  ", (res ? OV_GREEN : OV_RED), "PERMUTATION ", (res ? "MATCHED" : "DIDN'T MATCH"));
+        OV_LOG_MATCHING(this, level_str, "│");
+        OV_LOG_MATCHING(this, level_str--, "}  ", (res ? OV_GREEN : OV_RED), "PERMUTATION ", (res ? "MATCHED" : "DIDN'T MATCH"));
         return res;
     }
 
-    OV_LOG_MATCHING(this, level_string(this->level), "│");
-    OV_LOG_MATCHING(this, level_string(this->level), "├─ ", OV_RED, "NONE OF PERMUTATIONS MATCHED");
+    OV_LOG_MATCHING(this, level_str, "│");
+    OV_LOG_MATCHING(this, level_str, "├─ ", OV_RED, "NONE OF PERMUTATIONS MATCHED");
     return false;
 }
 
@@ -230,7 +226,6 @@ void Matcher::clear_state() {
     m_pattern_map.clear();
     m_pattern_value_maps.clear();
     m_matched_list.clear();
-    level = 0;
 }
 }  // namespace pattern
 }  // namespace pass

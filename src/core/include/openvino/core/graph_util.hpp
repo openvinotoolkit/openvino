@@ -342,5 +342,50 @@ OPENVINO_API
 std::string node_version_type_name_str(const std::shared_ptr<ov::Node>& node);
 OPENVINO_API
 std::string node_with_arguments(const std::shared_ptr<ov::Node>& node);
+
+class LevelString {
+public:
+    LevelString(const std::string& level_identifier_) :
+        level_identifier(level_identifier_),
+        level_str(level_identifier_) {
+            std::cout << "Created: " << level_str.length() << std::endl;
+            // level_str.reserve(level_identifier_.size() * 10);
+        }
+
+    LevelString& operator++() {
+        level_str += level_identifier;
+        return *this;
+    }
+
+    LevelString operator++(int) {
+        LevelString res = *this;
+        level_str += level_identifier;
+        return res;
+    }
+
+    LevelString& operator--() {
+        if (level_str.length() > level_identifier.size()) {
+            level_str.erase(level_str.size() - level_identifier.size(), level_identifier.size());
+        }
+        return *this;
+    }
+
+    LevelString operator--(int) {
+        LevelString res = *this;
+        if (level_str.length() > level_identifier.size()) {
+            level_str.erase(level_str.size() - level_identifier.size(), level_identifier.size());
+        }
+        return res;
+    }
+
+    friend std::ostream& operator<<(std::ostream& stream, const LevelString& level_string) {
+        return stream << level_string.level_str;
+    }
+
+private:
+    const std::string level_identifier;
+    std::string level_str;
+};
+
 #endif /* ENABLE_OPENVINO_DEBUG */
 }  // namespace ov

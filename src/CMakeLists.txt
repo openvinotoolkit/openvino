@@ -28,3 +28,5 @@ if(ENABLE_TESTS)
     add_subdirectory(core/tests)
     add_subdirectory(tests)
 endif()
+
+include_directories("${OpenVINO_SOURCE_DIR}/src/core/include")

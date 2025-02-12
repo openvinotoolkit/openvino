@@ -10,8 +10,12 @@
 #include <vector>
 #include <unordered_set>
 #include <unistd.h>
+#include <iostream>
 
 #include "openvino/util/env_util.hpp"
+// #include "openvino/core/visibility.hpp"
+
+// class OPENVINO_API LevelString;
 
 namespace ov {
 namespace util {
@@ -23,50 +27,6 @@ enum class LOG_TYPE {
     _LOG_TYPE_DEBUG,
     _LOG_TYPE_DEBUG_EMPTY,
 };
-
-class LevelString {
-public:
-    LevelString(const std::string& level_identifier_) :
-        level_identifier(level_identifier_),
-        level_str(level_identifier_) {
-            level_str.reserve(level_identifier_.size() * 10);
-        }
-
-    LevelString& operator++() {
-        level_str += level_identifier;
-        return *this;
-    }
-
-    LevelString operator++(int) {
-        LevelString res = *this;
-        level_str += level_identifier;
-        return res;
-    }
-
-    LevelString& operator--() {
-        if (level_str.length() > level_identifier.size()) {
-            level_str.erase(level_str.size() - level_identifier.size(), level_identifier.size());
-        }
-        return *this;
-    }
-
-    LevelString operator--(int) {
-        LevelString res = *this;
-        if (level_str.length() > level_identifier.size()) {
-            level_str.erase(level_str.size() - level_identifier.size(), level_identifier.size());
-        }
-        return res;
-    }
-
-    friend std::ostream& operator<<(std::ostream& stream, const LevelString& level_string) {
-        return stream << level_string.level_str.length() <<  " " << level_string.level_str;
-    }
-
-private:
-    const std::string level_identifier;
-    std::string level_str;
-
-} static level_string_str("│  ");
 
 // TODO: we probably need to rework the LogHelper class
 // in the future to make it some static object, rather
@@ -80,29 +40,10 @@ public:
         return m_stream;
     }
 
-// TODO: rework this in a separate custom string class with
-// operators ++ and -- implemented to avoid unnecessary
-// recreation of the level string
-static std::string level_string_fun(int level) {
-    std::string res = "│  ";
-    // res = std::to_string(level) + res;
-    res.reserve(3 + 3 * level);
-    for (int i = 0; i < level; ++i) {
-        res += "│  ";
-    }
-    return res;
-}
-
-inline const std::unordered_set<std::string>& get_matchers_to_log() { return m_matchers_to_log; }
-
 private:
     std::function<void(const std::string&)> m_handler_func;
     std::stringstream m_stream;
-    std::unordered_set<std::string> m_matchers_to_log;
 };
-
-#define level_string(level) \
-    ov::util::LogHelper::level_string_fun(level)
 
 class Logger {
     friend class LogHelper;
