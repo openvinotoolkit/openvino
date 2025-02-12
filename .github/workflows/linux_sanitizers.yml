@@ -29,6 +29,8 @@ env:
   TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
   BUILD_DIR: /__w/openvino/openvino/openvino_build
   OPENVINO_REPO: /__w/openvino/openvino/openvino
+  INSTALL_TEST_DIR: /__w/openvino/openvino/openvino_install/tests/
+  INSTALL_DIR: /__w/openvino/openvino/openvino_install
   TBB_ENABLE_SANITIZERS: 1
   ASAN_OPTIONS: halt_on_error=0:suppressions=/__w/openvino/openvino/openvino/tests/sanitizers/asan/suppressions.supp
   LSAN_OPTIONS: suppressions=/__w/openvino/openvino/openvino/tests/sanitizers/lsan/suppressions.txt:NEOReadDebugKeys=1:DisableDeepBind=1
@@ -113,8 +115,6 @@ jobs:
       CMAKE_GENERATOR: 'Ninja'
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
-      INSTALL_DIR: /__w/openvino/openvino/openvino_install
-      INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
@@ -268,9 +268,6 @@ jobs:
           - SANITIZER: 'AddressAndLeak'
           - SANITIZER: 'UndefinedBehavior'
           - SANITIZER: 'Thread'
-    env:
-      INSTALL_DIR: /__w/openvino/openvino/install
-      INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
       
     steps:
       - name: Download OpenVINO package
@@ -504,7 +501,7 @@ jobs:
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     needs: [Docker, Build]
     timeout-minutes: 120
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-linux-8-cores-16gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     defaults:
@@ -518,10 +515,7 @@ jobs:
           - SANITIZER: 'AddressAndLeak'
           - SANITIZER: 'UndefinedBehavior'
           - SANITIZER: 'Thread'
-    env:
-      INSTALL_DIR: /__w/openvino/openvino/install
-      INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
-      
+
     steps:
       - name: Download OpenVINO package
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
@@ -565,7 +559,7 @@ jobs:
         # to prevent false-positive alerts and time exceeded error,
         # in workflow_dispatch case all smoke tests will be launched with all types of sanitizers
         # if gtestFilter and sanMode inputs are not specified
-        if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' && (inputs.sanitizerMode == 'All' || inputs.sanitizerMode == matrix.SANITIZER) || matrix.SANITIZER == 'AddressAndLeak')}}
+        if: ${{ (github.event_name == 'workflow_dispatch' && (inputs.sanitizerMode == 'All' || inputs.sanitizerMode == matrix.SANITIZER) || matrix.SANITIZER == 'AddressAndLeak')}}
         env:
           GTEST_FILTER: ${{ github.event_name == 'workflow_dispatch' && inputs.gtestFilter || '*smoke*Conv_*' }}
         run: |
@@ -576,7 +570,7 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
-        if: ${{ !cancelled() && steps.cpu_func.conclusion != 'skipped'}}
+        if: ${{ steps.cpu_func.conclusion != 'skipped'}}
         with:
           name: func-test-results-cpp_${{ matrix.SANITIZER }}
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
