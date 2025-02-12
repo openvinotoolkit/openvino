@@ -12,6 +12,10 @@
 #include "openvino/runtime/properties.hpp"
 #include "utils/cpu_test_utils.hpp"
 
+#if defined(OPENVINO_ARCH_RISCV64)
+#   include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
+#endif
+
 using namespace CPUTestUtils;
 
 namespace ov {
@@ -273,17 +277,27 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
 #endif
 
 #if defined(OPENVINO_ARCH_RISCV64)
+    if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gcv)) {
+        if ((eltwise_type == utils::EltwiseTypes::ADD) ||
+            (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
+            (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
+            (eltwise_type == utils::EltwiseTypes::DIVIDE)) {
+            return "jit";
+        }
+    }
+#if defined(OV_CPU_WITH_SHL)
     if ((eltwise_type == utils::EltwiseTypes::ADD) ||
         (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
         (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
         (eltwise_type == utils::EltwiseTypes::DIVIDE)) {
-        return "jit";
+        return "shl";
     } else {
         return "ref";
     }
 #endif
-
+#else
     return CPUTestsBase::getPrimitiveType();
+#endif
 }
 
 TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {
