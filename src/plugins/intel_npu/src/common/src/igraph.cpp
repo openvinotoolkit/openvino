@@ -4,8 +4,7 @@
 
 #include "intel_npu/common/igraph.hpp"
 
-#include "intel_npu/config/compiler.hpp"
-#include "intel_npu/config/runtime.hpp"
+#include "intel_npu/config/options.hpp"
 
 namespace {
 constexpr std::size_t BATCH_AXIS = 0;
