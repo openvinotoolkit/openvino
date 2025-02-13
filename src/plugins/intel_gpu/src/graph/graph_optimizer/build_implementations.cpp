@@ -15,14 +15,18 @@ void build_implementations::run(program& p) {
         return;
     }
 
+    std::cout << __FILE__ << ":" << __LINE__ << " === " << " p.get_kernels_cache()" << std::endl;
     auto& cache = p.get_kernels_cache();
+    std::cout << __FILE__ << ":" << __LINE__ << " === " << " add_kernels_source" << std::endl;
     for (auto& n : p.get_processing_order()) {
         if (auto impl = n->get_selected_impl()) {
             auto params = n->get_kernel_impl_params();
             cache.add_kernels_source(*params, impl->get_kernels_source());
         }
     }
+    std::cout << __FILE__ << ":" << __LINE__ << " === " << " build_all" << std::endl;
     cache.build_all();
+    std::cout << __FILE__ << ":" << __LINE__ << " === " << " init_kernels" << std::endl;
     for (auto& n : p.get_processing_order()) {
         if (auto impl = n->get_selected_impl()) {
             auto params = n->get_kernel_impl_params();
@@ -30,5 +34,7 @@ void build_implementations::run(program& p) {
             impl->reset_kernels_source();
         }
     }
+    std::cout << __FILE__ << ":" << __LINE__ << " === " << " cache.reset()" << std::endl;
     cache.reset();
+    std::cout << __FILE__ << ":" << __LINE__ << " === " << " complete build_implementations::run" << std::endl;
 }

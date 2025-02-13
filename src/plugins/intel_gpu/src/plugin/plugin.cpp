@@ -219,9 +219,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
 
     ExecutionConfig config = m_configs_map.at(device_id);
+
     config.set_user_property(orig_config);
     if (model->has_rt_info("runtime_options"))
         config.apply_rt_info(context->get_engine().get_device_info(), model->get_rt_info<ov::AnyMap>("runtime_options"), is_llm(model));
+
     config.apply_user_properties(context->get_engine().get_device_info());
 
     set_cache_info(model, config);
@@ -229,6 +231,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto transformed_model = clone_and_transform_model(model, config, context);
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model::CreateCompiledModel");
+        std::cout << __FILE__ << ":" << __LINE__ << " # create compiled model" << std::endl;
         return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context, config);
     }
 }
