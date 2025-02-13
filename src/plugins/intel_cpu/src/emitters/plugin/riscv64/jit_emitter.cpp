@@ -14,18 +14,11 @@ jit_emitter::jit_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_
     OPENVINO_ASSERT(h, "JIT Generator is missed");
 }
 
-void jit_emitter::emit_code(const std::vector<size_t>& in_idxs,
-                            const std::vector<size_t>& out_idxs,
-                            const std::vector<size_t>& pool_vec_idxs,
-                            const std::vector<size_t>& pool_gpr_idxs) const {
-    emit_code(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, {});
-}
-
-void jit_emitter::emit_code(const std::vector<size_t>& in_idxs,
-                            const std::vector<size_t>& out_idxs,
-                            const std::vector<size_t>& pool_vec_idxs,
-                            const std::vector<size_t>& pool_gpr_idxs,
-                            const std::vector<size_t>& pool_fp_gpr_idxs) const {
+void jit_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
+                                 const std::vector<size_t>& out_idxs,
+                                 const std::vector<size_t>& pool_vec_idxs,
+                                 const std::vector<size_t>& pool_gpr_idxs,
+                                 const std::vector<size_t>& pool_fp_gpr_idxs) const {
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, pool_fp_gpr_idxs);
 
     emit_impl(in_idxs, out_idxs);
