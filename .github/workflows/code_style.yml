@@ -40,6 +40,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           level: warning
           fail_level: error
+          filter_mode: nofilter
 
   clang-format-aarch64:
     runs-on: ubuntu-22.04
