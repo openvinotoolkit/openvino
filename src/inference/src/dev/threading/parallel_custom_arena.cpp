@@ -313,6 +313,15 @@ int task_arena::max_concurrency() {
     return my_task_arena.max_concurrency();
 }
 
+void task_arena::start_parallel_phase() {
+    initialize();
+    my_task_arena.start_parallel_phase();
+}
+
+void task_arena::end_parallel_phase() {
+    my_task_arena.end_parallel_phase(true);
+}
+
 namespace info {
 std::vector<numa_node_id> numa_nodes() {
     return detail::system_topology().numa_nodes();
