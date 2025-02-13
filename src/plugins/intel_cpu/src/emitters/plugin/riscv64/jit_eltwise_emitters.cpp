@@ -556,10 +556,10 @@ std::set<std::vector<element::Type>> jit_power_static_emitter::get_supported_pre
 }
 
 void jit_power_static_emitter::register_table_entries() {
-    if (scale != 1.f)
+    if (scale != 1.f || shift != 0.f) {
         push_arg_entry_of("scale", dnnl::impl::float2int(scale));
-    if (shift != 0.f)
         push_arg_entry_of("shift", dnnl::impl::float2int(shift));
+    }
     if (power != 1.f)
         push_arg_entry_of("power", dnnl::impl::float2int(power));
     if (power < 0)

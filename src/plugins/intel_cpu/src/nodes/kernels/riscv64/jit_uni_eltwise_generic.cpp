@@ -450,7 +450,7 @@ void jit_uni_eltwise_generic<isa>::apply_post_ops() const {
     int input_idx = eltwise_emitter->get_inputs_num();
     int eltwise_post_op_idx = 0;
     for (size_t i = 1; i < eltwise_data_.size(); i++) {
-        OPENVINO_ASSERT(post_op_emitters[i], "Post-op emitter is missed for code emission!");
+        OPENVINO_ASSERT(post_op_emitters[eltwise_post_op_idx], "Post-op emitter is missed for code emission!");
         std::vector<size_t> in_idxs;
         in_idxs.push_back(dst_vec().getIdx());
         for (size_t j = 1; j < post_op_emitters[eltwise_post_op_idx]->get_inputs_num(); j++) {
