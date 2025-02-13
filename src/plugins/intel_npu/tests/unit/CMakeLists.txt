@@ -31,6 +31,7 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/al/include
         OBJECT_FILES
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/metadata.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/llm_compiled_model.cpp            
         LINK_LIBRARIES
             ${MANDATORY_UNIT_TESTS_LIBS}
         LABELS
