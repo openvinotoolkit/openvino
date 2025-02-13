@@ -12,12 +12,14 @@
 #include "pyopenvino/graph/passes/model_pass.hpp"
 #include "pyopenvino/graph/passes/pass_base.hpp"
 #include "pyopenvino/graph/passes/pattern_ops.hpp"
+#include "pyopenvino/graph/passes/predicate.hpp"
 #include "pyopenvino/graph/passes/transformations.hpp"
 
 namespace py = pybind11;
 
 void regmodule_graph_passes(py::module m) {
     py::module m_passes = m.def_submodule("passes", "Package openvino.passes wraps ov::passes");
+    reg_passes_predicate(m_passes);
     regclass_passes_PassBase(m_passes);
     regclass_passes_ModelPass(m_passes);
     regclass_passes_GraphRewrite(m_passes);

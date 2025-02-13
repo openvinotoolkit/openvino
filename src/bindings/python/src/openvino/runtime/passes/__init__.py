@@ -3,7 +3,7 @@
 # type: ignore
 # flake8: noqa
 
-from openvino.passes import ModelPass, Matcher, MatcherPass, PassBase, WrapType, Or, AnyInput, Optional
+from openvino.passes import ModelPass, Matcher, MatcherPass, PassBase, WrapType, Or, AnyInput, Optional, Predicate
 from openvino.passes import (
     consumers_count,
     has_static_dim,
@@ -13,6 +13,7 @@ from openvino.passes import (
     rank_equals,
     type_matches,
     type_matches_any,
+    shape_matches,
 )
 from openvino.passes import Serialize, ConstantFolding, VisualizeTree, MakeStateful, LowLatency2, ConvertFP32ToFP16, Version
 from openvino.passes.manager import Manager
