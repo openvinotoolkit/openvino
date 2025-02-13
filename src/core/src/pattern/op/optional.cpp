@@ -9,10 +9,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 
-#ifdef ENABLE_OPENVINO_DEBUG
-using namespace ov::util;
-#endif
-
 using namespace ov::pass::pattern::op;
 
 std::vector<ov::DiscreteTypeInfo> ov::pass::pattern::op::Optional::get_optional_types() const {

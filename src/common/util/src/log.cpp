@@ -16,13 +16,6 @@ void ov::util::default_logger_handler_func(const std::string& s) {
     std::cout << s << std::endl;
 }
 
-// (made to avoid unnecessary newlines)
-void ov::util::default_logger_handler_func_length(const std::string& s) {
-    if (s.length() != 0) {
-        std::cout << s << std::endl;
-    }
-}
-
 ov::util::LogHelper::LogHelper(LOG_TYPE type,
                                const char* file,
                                int line,

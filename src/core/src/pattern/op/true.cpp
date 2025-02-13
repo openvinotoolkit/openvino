@@ -7,10 +7,6 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/util/log.hpp"
 
-#ifdef ENABLE_OPENVINO_DEBUG
-using namespace ov::util;
-#endif
-
 bool ov::pass::pattern::op::True::match_value(Matcher* matcher,
                                               const Output<Node>& pattern_value,
                                               const Output<Node>& graph_value) {

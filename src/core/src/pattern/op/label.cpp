@@ -9,10 +9,6 @@
 #include "openvino/pass/pattern/op/true.hpp"
 #include "openvino/util/log.hpp"
 
-#ifdef ENABLE_OPENVINO_DEBUG
-using namespace ov::util;
-#endif
-
 ov::Output<ov::Node> ov::pass::pattern::op::Label::wrap_values(const ov::OutputVector& wrapped_values) {
     switch (wrapped_values.size()) {
     case 0:

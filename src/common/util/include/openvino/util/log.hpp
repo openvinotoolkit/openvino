@@ -13,9 +13,6 @@
 #include <iostream>
 
 #include "openvino/util/env_util.hpp"
-// #include "openvino/core/visibility.hpp"
-
-// class OPENVINO_API LevelString;
 
 namespace ov {
 namespace util {
@@ -86,13 +83,6 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
                               __LINE__,                                       \
                               ::ov::util::default_logger_handler_func)        \
             .stream()
-
-// Same as above, but no call to .stream() and no newline if the stream is empty
-#    define OPENVINO_LOG(OPENVINO_HELPER_LOG_TYPE)                                \
-        ::ov::util::LogHelper(::ov::util::LOG_TYPE::OPENVINO_HELPER_LOG_TYPE,     \
-                              __FILE__,                                           \
-                              __LINE__,                                           \
-                              ::ov::util::default_logger_handler_func_length)     \
 
 #    define OPENVINO_ERR(...)                                                                  \
         do {                                                                                   \

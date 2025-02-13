@@ -35,12 +35,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/core/graph_util.hpp"
-
 #include "openvino/util/log.hpp"
-
-#ifdef ENABLE_OPENVINO_DEBUG
-using namespace ov::util;
-#endif
 
 namespace ov {
 namespace gen_pattern {

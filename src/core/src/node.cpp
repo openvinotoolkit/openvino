@@ -23,10 +23,6 @@
 #include "shape_validation.hpp"
 #include "shared_node_info.hpp"
 
-#ifdef ENABLE_OPENVINO_DEBUG
-using namespace ov::util;
-#endif
-
 using namespace std;
 
 namespace {
