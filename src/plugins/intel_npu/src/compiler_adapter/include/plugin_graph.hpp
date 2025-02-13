@@ -35,9 +35,13 @@ public:
 
     void initialize(const Config& config) override;
 
+    void set_workload_type(const ov::WorkloadType workloadType) override;
+
     ~PluginGraph() override;
 
 private:
+    void create_new_command_queue() override;
+
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
