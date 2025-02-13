@@ -350,12 +350,11 @@ ov::Output<ov::Node> unsqueeze_input(const ov::Output<ov::Node>& input_node,
     return unsqueeze->output(0);
 }
 
-/// \brief Broadcasts and merges two shapes using specified broadcasting rules.
+/// \brief Broadcasts and merges two shapes of the same rank.
 ///
-/// This function takes two  shapes (shapes_lhs and shapes_rhs) and attempts to broadcast
-/// and merge them into a single shape using NumPy and bidirectional broadcasting rules. The resulting
-/// broadcasted shape is returned as an OutputVector. If one of the input vectors is empty, the other
-/// vector is returned as is.
+/// This function takes two  shapes (shapes_lhs and shapes_rhs) of same rank and attempts to broadcast
+/// and merge them into a single shape. The resulting broadcasted shape is returned as an OutputVector.
+/// If one of the input vectors is empty, the other vector is returned as is.
 ///
 /// \param shapes_lhs A single element vector containing the left-hand side shape to be broadcasted or empty.
 /// \param shapes_rhs A single element vector containing the right-hand side shape to be broadcasted or empty.
@@ -369,17 +368,11 @@ ov::OutputVector broadcast_merge_shapes(ov::OutputVector& shapes_lhs,
     ov::OutputVector broadcasted_shape_nodes{};
     // OutputVector is either empty or contains a single shape
     if (shapes_lhs.size() == 1 && shapes_rhs.size() == 1) {
-        auto const_1 = ov::op::v0::Constant::create(ov::element::Type_t::i64, ov::Shape{1}, {1});
-        auto tmp_const_of_lhs_shp =
-            std::make_shared<ov::op::v3::Broadcast>(const_1, shapes_lhs[0], ov::op::BroadcastType::NUMPY);
-        auto tmp_const_of_broadcasted_shp =
-            std::make_shared<ov::op::v3::Broadcast>(tmp_const_of_lhs_shp,
-                                                    shapes_rhs[0],
-                                                    ov::op::BroadcastType::BIDIRECTIONAL);
-        auto broadcasted_shape = std::make_shared<ov::op::v3::ShapeOf>(tmp_const_of_broadcasted_shp);
-        broadcasted_shape_nodes.push_back(broadcasted_shape->output(0));
-        subgraph_nodes.insert(subgraph_nodes.end(),
-                              {const_1, tmp_const_of_lhs_shp, tmp_const_of_broadcasted_shp, broadcasted_shape});
+        // For common and reference subshapes, same rank should already be ensured by function
+        // `unsqueeze_ellipses_to_same_rank`.
+        const auto& maximum = std::make_shared<ov::op::v1::Maximum>(shapes_lhs[0], shapes_rhs[0]);
+        subgraph_nodes.push_back(maximum);
+        broadcasted_shape_nodes.push_back(maximum);
     } else if (shapes_lhs.size() == 0 && shapes_rhs.size() == 1) {
         return shapes_rhs;
     } else if (shapes_lhs.size() == 1 && shapes_rhs.size() == 0) {

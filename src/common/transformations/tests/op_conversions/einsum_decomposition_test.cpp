@@ -31,11 +31,7 @@ std::shared_ptr<ov::Node> extract_subshape_from_shape(const std::shared_ptr<ov::
 
 std::shared_ptr<ov::Node> broadcast_merge_shapes(const std::shared_ptr<ov::Node>& shape_node_lhs,
                                                  const std::shared_ptr<ov::Node>& shape_node_rhs) {
-    auto const_1 = makeConst(element::i64, ov::Shape({1}), {1});
-    auto tensor_of_lhs_shape = makeOP<opset3::Broadcast>({const_1, shape_node_lhs}, {{"mode", "numpy"}});
-    auto tensor_of_broadcasted_lhs_rhs_shape =
-        makeOP<opset3::Broadcast>({tensor_of_lhs_shape, shape_node_rhs}, {{"mode", "bidirectional"}});
-    auto broadcasted_shapes = makeOP<opset3::ShapeOf>({tensor_of_broadcasted_lhs_rhs_shape}, {{"output_type", "i64"}});
+    auto broadcasted_shapes = makeOP<opset1::Maximum>({shape_node_lhs, shape_node_rhs}, {{"auto_broadcast", "numpy"}});
     return broadcasted_shapes;
 }
 
