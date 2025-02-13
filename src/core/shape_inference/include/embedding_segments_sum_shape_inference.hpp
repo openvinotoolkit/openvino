@@ -53,7 +53,12 @@ std::vector<TRShape> shape_infer(const EmbeddingSegmentsSum* op,
     if (emb_table_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(op, emb_table_shape.size() > 0, "EMB_TABLE can't be a scalar.");
         if (auto segments_value = get_input_const_data_as_shape<TRShape>(op, NUM_SEGMENTS, ta)) {
-            result_shape[0] = (*segments_value)[0];
+            if (segments_value->size() > 1) {
+                size_t sz = segments_value->size() - 1;
+                result_shape[0] = (*segments_value)[sz] + 1;
+            } else {
+                result_shape[0] = (*segments_value)[0];
+            }
         } else {
             result_shape[0] = Dimension::dynamic();
         }
