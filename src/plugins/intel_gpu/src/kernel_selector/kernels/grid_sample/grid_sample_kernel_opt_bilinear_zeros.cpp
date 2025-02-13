@@ -8,9 +8,8 @@
 
 namespace kernel_selector {
 
-constexpr size_t GRID_ITEMS_PER_THREAD = 1;  // NOTE: each item consits of 2 values(h,w)
 constexpr size_t THREADS_PER_BLOCK = 256;
-constexpr size_t GRID_ITEMS_PER_BLOCK = THREADS_PER_BLOCK * GRID_ITEMS_PER_THREAD;
+constexpr size_t GRID_ITEMS_PER_BLOCK = THREADS_PER_BLOCK;
 
 CommonDispatchData GridSampleKernelOpt_BilinearZeros::CalcDispatch(const grid_sample_params& kernel_params) const {
     CommonDispatchData dispatch_data;
@@ -46,8 +45,7 @@ JitConstants GridSampleKernelOpt_BilinearZeros::GetJitConstants(const grid_sampl
     auto jit_constants = TBase::GetJitConstants(kernel_params);
 
     jit_constants.AddConstants({
-        MakeJitConstant("GRID_ITEMS_PER_BLOCK", GRID_ITEMS_PER_BLOCK),
-        MakeJitConstant("GRID_ITEMS_PER_THREAD", GRID_ITEMS_PER_THREAD),
+        MakeJitConstant("GRID_ITEMS_PER_BLOCK", GRID_ITEMS_PER_BLOCK)
     });
 
     return jit_constants;
