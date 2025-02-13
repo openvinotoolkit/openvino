@@ -112,9 +112,8 @@ ShapeInferPtr StridedSliceShapeInferFactory::makeShapeInfer() const {
                                                         vec_to_set(StridedSlice_op->get_end_mask()),
                                                         vec_to_set(StridedSlice_op->get_new_axis_mask()),
                                                         vec_to_set(StridedSlice_op->get_shrink_axis_mask()));
-    } else {
-        OPENVINO_THROW("not Slice or StridedSlice");
     }
+    OPENVINO_THROW("not Slice or StridedSlice");
 }
 
 }  // namespace ov::intel_cpu::node
