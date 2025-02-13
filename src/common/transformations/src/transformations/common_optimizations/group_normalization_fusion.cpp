@@ -20,33 +20,28 @@
 
 using namespace ov::pass::pattern;
 
-template <typename T, std::enable_if_t<std::is_integral<T>::value, bool> = true>
-bool pre_mvn_shape_vals_correct(const std::shared_ptr<ov::op::v0::Constant>& pre_mvn_shape_const,
+bool pre_mvn_shape_vals_correct(const std::vector<int64_t>& pre_mvn_shape_vals,
                                 const ov::PartialShape& input_ps,
                                 const ov::Dimension::value_type num_groups) {
     bool res = true;
-    std::vector<T> pre_mvn_shape_vals = pre_mvn_shape_const->get_vector<T>();
     if (input_ps[0].is_dynamic()) {
-        if (static_cast<long long>(pre_mvn_shape_vals[0]) != 0ll)
+        if (pre_mvn_shape_vals[0] != 0ll)
             res = false;
     } else {
-        if ((static_cast<long long>(pre_mvn_shape_vals[0]) != 0ll) &&
-            (static_cast<long long>(pre_mvn_shape_vals[0]) != static_cast<long long>(input_ps[0].get_max_length())))
+        if ((pre_mvn_shape_vals[0] != 0ll) &&
+            (pre_mvn_shape_vals[0] != static_cast<long long>(input_ps[0].get_max_length())))
             res = false;
     }
-    if ((static_cast<long long>(pre_mvn_shape_vals[1]) != 0ll) &&
-        (static_cast<long long>(pre_mvn_shape_vals[1]) != static_cast<long long>(num_groups)))
+    if ((pre_mvn_shape_vals[1] != 0ll) && (pre_mvn_shape_vals[1] != static_cast<long long>(num_groups)))
         res = false;
-    if (static_cast<long long>(pre_mvn_shape_vals[2]) != -1ll)
+    if (pre_mvn_shape_vals[2] != -1ll)
         res = false;
     return res;
 }
 
-template <typename T, std::enable_if_t<std::is_integral<T>::value, bool> = true>
-bool mvn_reduction_axes_correct(const std::shared_ptr<ov::op::v0::Constant>& mvn_reduction_axes_const) {
+bool mvn_reduction_axes_correct(const std::vector<int64_t>& mvn_reduction_axes) {
     bool res = true;
-    std::vector<T> mvn_reduce_axes = mvn_reduction_axes_const->get_vector<T>();
-    if ((static_cast<long long>(mvn_reduce_axes[0]) != 2ll) && (static_cast<long long>(mvn_reduce_axes[0]) != -1ll))
+    if ((mvn_reduction_axes[0] != 2ll) && (mvn_reduction_axes[0] != -1ll))
         return false;
     return res;
 }
@@ -114,42 +109,8 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         const auto& pre_mvn_shape_out_ps = pre_mvn_shape.get_shape();
         if (pre_mvn_shape_out_ps[0] != 3)
             return false;
-        switch (pre_mvn_shape_const->get_element_type()) {
-        case ov::element::i8:
-            if (!pre_mvn_shape_vals_correct<int8_t>(pre_mvn_shape_const, input_ps, num_groups))
-                return false;
-            break;
-        case ov::element::i16:
-            if (!pre_mvn_shape_vals_correct<int16_t>(pre_mvn_shape_const, input_ps, num_groups))
-                return false;
-            break;
-        case ov::element::i32:
-            if (!pre_mvn_shape_vals_correct<int32_t>(pre_mvn_shape_const, input_ps, num_groups))
-                return false;
-            break;
-        case ov::element::i64:
-            if (!pre_mvn_shape_vals_correct<int64_t>(pre_mvn_shape_const, input_ps, num_groups))
-                return false;
-            break;
-        case ov::element::u8:
-            if (!pre_mvn_shape_vals_correct<uint8_t>(pre_mvn_shape_const, input_ps, num_groups))
-                return false;
-            break;
-        case ov::element::u16:
-            if (!pre_mvn_shape_vals_correct<uint16_t>(pre_mvn_shape_const, input_ps, num_groups))
-                return false;
-            break;
-        case ov::element::u32:
-            if (!pre_mvn_shape_vals_correct<uint32_t>(pre_mvn_shape_const, input_ps, num_groups))
-                return false;
-            break;
-        case ov::element::u64:
-            if (!pre_mvn_shape_vals_correct<uint64_t>(pre_mvn_shape_const, input_ps, num_groups))
-                return false;
-            break;
-        default:
+        if (!pre_mvn_shape_vals_correct(pre_mvn_shape_const->cast_vector<int64_t>(), input_ps, num_groups))
             return false;
-        }
 
         // number of channels has to be divisible by number of groups
         if (num_channels % num_groups != 0)
@@ -168,16 +129,8 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         const auto& mvn_reduction_axes_out_shape = mvn_reduction_axes.get_shape();
         if (mvn_reduction_axes_out_shape[0] != 1)
             return false;
-        switch (mvn_reduction_axes_const->get_element_type()) {
-        case ov::element::i32:
-            mvn_reduction_axes_correct<int32_t>(mvn_reduction_axes_const);
-            break;
-        case ov::element::i64:
-            mvn_reduction_axes_correct<int64_t>(mvn_reduction_axes_const);
-            break;
-        default:
-            break;
-        }
+        if (!mvn_reduction_axes_correct(mvn_reduction_axes_const->cast_vector<int64_t>()))
+            return false;
 
         const auto& post_instance_norm_reshape_out_ps =
             pattern_map.at(post_instance_norm_reshape_m).get_partial_shape();
