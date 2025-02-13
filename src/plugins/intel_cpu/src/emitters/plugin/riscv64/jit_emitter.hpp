@@ -43,6 +43,7 @@ public:
                    const std::vector<size_t>& out_idxs,
                    const std::vector<size_t>& pool_vec_idxs,
                    const std::vector<size_t>& pool_gpr_idxs) const override;
+    void emit_data() const override;
 
     virtual size_t get_inputs_num() const = 0;
     virtual size_t aux_vecs_count() const;
@@ -116,12 +117,11 @@ protected:
 
     virtual void prepare_table();
     virtual void register_table_entries() {}
-    virtual const table_entry_val_t* get_table() const { return nullptr; };
-
-    void fill_table(table_entry_val_t* tbl, size_t size) const;
 
     void load_table_addr() const {
-        h->uni_li(p_table, (size_t)(get_table()));
+        const auto address = reinterpret_cast<uintptr_t>(l_table->getAddress());
+        OPENVINO_ASSERT(address != 0, "Address of data section is missed!");
+        h->uni_li(p_table, address);
     }
 
     inline void load_table_val(const std::string& key, const Xbyak_riscv::FReg& freg, size_t key_off_val_shift = 0) const {
@@ -145,6 +145,7 @@ protected:
     ov::intel_cpu::riscv64::cpu_isa_t host_isa_;
     ov::element::Type exec_prc_;
 
+    mutable std::shared_ptr<Xbyak_riscv::Label> l_table;
     mutable Xbyak_riscv::Reg p_table;
     mutable std::vector<size_t> aux_vec_idxs;
     mutable std::vector<size_t> aux_gpr_idxs;

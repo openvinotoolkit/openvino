@@ -47,7 +47,6 @@ private:
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 
     void register_table_entries() override;
-    const table_entry_val_t* get_table() const override;
 
     float min {0.f};
     float max {0.f};
@@ -92,7 +91,6 @@ private:
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 
     void register_table_entries() override;
-    const table_entry_val_t* get_table() const override;
 };
 
 class jit_multiply_emitter : public jit_emitter {
@@ -151,7 +149,6 @@ private:
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 
     void register_table_entries() override;
-    const table_entry_val_t* get_table() const override;
 
     float alpha {0.f};
 };
@@ -175,9 +172,9 @@ private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
     template <ov::intel_cpu::riscv64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+    void emit_data() const override;
 
     void register_table_entries() override;
-    const table_entry_val_t* get_table() const override;
 
     std::unique_ptr<jit_exp_emitter> jit_exp_emitter_ {nullptr};
 };

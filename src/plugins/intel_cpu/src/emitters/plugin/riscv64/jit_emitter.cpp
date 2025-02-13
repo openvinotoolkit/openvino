@@ -12,7 +12,7 @@ using namespace Xbyak_riscv;
 
 jit_emitter::jit_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                          ov::element::Type exec_prc, emitter_in_out_map in_out_type)
-    : Emitter(), h(host), host_isa_(host_isa), exec_prc_(exec_prc), in_out_type_(in_out_type) {
+    : Emitter(), h(host), host_isa_(host_isa), exec_prc_(exec_prc), l_table(new Xbyak_riscv::Label()), in_out_type_(in_out_type) {
     OPENVINO_ASSERT(h, "JIT Generator is missed");
 }
 
@@ -33,6 +33,22 @@ void jit_emitter::emit_code(const std::vector<size_t>& in_idxs,
     emit_impl(in_idxs, out_idxs);
 
     emitter_postamble();
+}
+
+void jit_emitter::emit_data() const {
+    h->L(*l_table.get());
+
+    // Assumption: entries can be inserted with dd, so they should be 4 bytes.
+    assert(sizeof(table_entry_val_t) == 4);
+
+    // Run through the map and insert values stored there
+    for (auto it = entry_map_.begin(); it != entry_map_.end(); it++) {
+        const auto& te = (*it).second;  // get map entry for a given key
+        const auto len = sizeof(table_entry_val_t);
+        for (size_t d = 0; d < len; d += sizeof(table_entry_val_t)) {
+            h->append4B(te.val);
+        }
+    }
 }
 
 size_t jit_emitter::aux_vecs_count() const {
@@ -295,16 +311,6 @@ void jit_emitter::prepare_table() {
         auto& te = (*it).second;
         te.off = off;
         off += sizeof(table_entry_val_t);
-    }
-}
-
-void jit_emitter::fill_table(table_entry_val_t* tbl, size_t size) const {
-    OPENVINO_ASSERT(entry_map_.size() == size, "Incorrect table size for filling");
-    for (const auto& te : entry_map_) {
-        const auto& elem = te.second;
-        const auto idx = elem.off / sizeof(table_entry_val_t);
-        OPENVINO_ASSERT(idx < size, "Incorrect index of table");
-        tbl[idx] = elem.val;
     }
 }
 
