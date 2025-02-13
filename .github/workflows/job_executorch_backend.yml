@@ -70,7 +70,7 @@ jobs:
       - name: Clone ExecuTorch repository
         run: |
           #git clone -b openvino_backend https://github.com/ynimmaga/executorch.git
-          git clone -b test_readme_and_example_updates https://github.com/cavusmustafa/executorch.git
+          git clone -b test_readme_and_example_updates_2 https://github.com/cavusmustafa/executorch.git
           cd executorch
           git submodule update --init --recursive
           cd ..
