@@ -111,9 +111,9 @@ void Verbose::printInfo() {
                 auto fmt_str = md2fmt_str("", dnnl_desc.get(), format_kind_t::dnnl_format_kind_undef);
                 auto dim_str = md2dim_str(dnnl_desc.get());
                 return {fmt_str, dim_str};
-            } else {
-                return {"empty", {}};
             }
+            return {"empty", {}};
+
         } else {
             auto fmt_str = desc->getPrecision().to_string();
             if (const auto& dims = desc->getShape().getDims(); !dims.empty()) {
@@ -122,9 +122,8 @@ void Verbose::printInfo() {
                     dim_str.append("x" + dim2str(dim));
                 });
                 return {fmt_str, dim_str};
-            } else {
-                return {fmt_str, {}};
             }
+            return {fmt_str, {}};
         }
     };
 

@@ -170,7 +170,8 @@ Result UnsqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const
 ShapeInferPtr ReshapeShapeInferFactory::makeShapeInfer() const {
     if (const auto reshapeOp = ov::as_type_ptr<const ov::op::v1::Reshape>(m_op)) {
         return std::make_shared<ReshapeShapeInfer>(reshapeOp->get_special_zero());
-    } else if (ov::is_type<ov::op::v0::Squeeze>(m_op)) {
+    }
+    if (ov::is_type<ov::op::v0::Squeeze>(m_op)) {
         return std::make_shared<SqueezeShapeInfer>();
     } else if (ov::is_type<ov::op::v0::Unsqueeze>(m_op)) {
         return std::make_shared<UnsqueezeShapeInfer>();

@@ -280,7 +280,8 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         // @todo Does not seem ok to 'dump()' the whole graph everytime in order to get a name
         const std::string modelName = graph.dump()->get_friendly_name();
         return decltype(ov::model_name)::value_type(modelName);
-    } else if (name == ov::optimal_number_of_infer_requests) {
+    }
+    if (name == ov::optimal_number_of_infer_requests) {
         const auto streams = config.streamExecutorConfig.get_streams();
         return static_cast<decltype(ov::optimal_number_of_infer_requests)::value_type>(
             streams > 0 ? streams : 1);  // ov::optimal_number_of_infer_requests has no negative values

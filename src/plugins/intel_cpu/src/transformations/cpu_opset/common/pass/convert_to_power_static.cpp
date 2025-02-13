@@ -84,7 +84,8 @@ std::shared_ptr<ov::Node> convert(const std::shared_ptr<BaseOp>& node) {
                                                                 1.0f,
                                                                 0.0f,
                                                                 node->output(0).get_element_type());
-    } else if (std::is_same<BaseOp, ov::opset1::Add>::value) {
+    }
+    if (std::is_same<BaseOp, ov::opset1::Add>::value) {
         return std::make_shared<ov::intel_cpu::PowerStaticNode>(node->input(nonConstPort).get_source_output(),
                                                                 1.0f,
                                                                 1.0f,

@@ -38,6 +38,7 @@ Checks: >
   google-*,
   modernize-pass-by-value,
   cppcoreguidelines-prefer-member-initializer,
+  readability-else-after-return,
   -bugprone-easily-swappable-parameters,
   -bugprone-fold-init-type,
   -bugprone-implicit-widening-of-multiplication-result,

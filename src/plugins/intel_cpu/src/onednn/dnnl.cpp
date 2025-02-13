@@ -140,9 +140,8 @@ unsigned get_cache_size(int level, bool per_core) {
         if (level > 0 && static_cast<unsigned>(level) <= cpu().getDataCacheLevels()) {
             unsigned l = level - 1;
             return cpu().getDataCacheSize(l);
-        } else {
-            return 0U;
         }
+        return 0U;
     }
     DNNL_THROW_ERROR(dnnl_unimplemented, "get_cache_size has no mode per_core == false");
 }
