@@ -214,6 +214,11 @@ if(NOT AARCH64)
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/aarch64/*)
 endif()
 
+if (NOT RISCV64)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/riscv64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/riscv64/*)
+endif()
+
 if (NOT ENABLE_MLAS_FOR_CPU)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/mlas/*)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/mlas/*)
@@ -264,6 +269,12 @@ if (ENABLE_SNIPPETS_LIBXSMM_TPP)
 endif ()
 if(ENABLE_SHL_FOR_CPU)
     target_link_libraries(${TARGET_NAME} PRIVATE shl)
+endif()
+if(RISCV64)
+    # Set `XBYAK_RISCV_V=1` to compile Xbyak-code for RVV-related instructions
+    target_compile_definitions(xbyak_riscv INTERFACE XBYAK_RISCV_V=1)
+    target_link_libraries(${TARGET_NAME} PRIVATE xbyak_riscv)
+    target_include_directories(${TARGET_NAME} SYSTEM INTERFACE $<TARGET_PROPERTY:xbyak_riscv::xbyak_riscv,INTERFACE_INCLUDE_DIRECTORIES>)
 endif()
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
@@ -340,7 +351,13 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 if(BUILD_SHARED_LIBS)
     add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
-    ov_link_system_libraries(${TARGET_NAME}_obj PUBLIC dnnl openvino::pugixml)
+
+    set(CPU_OBJ_LINK_SYSTEM LIBRARIES dnnl openvino::pugixml)
+    if(RISCV64)
+        list(APPEND CPU_OBJ_LINK_SYSTEM xbyak_riscv::xbyak_riscv)
+    endif()
+
+    ov_link_system_libraries(${TARGET_NAME}_obj PUBLIC ${CPU_OBJ_LINK_SYSTEM})
 
     ov_add_version_defines(src/plugin.cpp ${TARGET_NAME}_obj)
 
@@ -366,6 +383,10 @@ if(BUILD_SHARED_LIBS)
 
     if(ENABLE_SHL_FOR_CPU)
         target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:shl,INTERFACE_INCLUDE_DIRECTORIES>)
+    endif()
+
+    if(RISCV64)
+        target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:xbyak_riscv::xbyak_riscv,INTERFACE_INCLUDE_DIRECTORIES>)
     endif()
 
     ov_set_threading_interface_for(${TARGET_NAME}_obj)

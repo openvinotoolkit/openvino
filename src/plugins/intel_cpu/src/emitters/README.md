@@ -11,6 +11,7 @@ Just-in-time (JIT) emitters is a type of emitter designed for just-in-time code 
 For JIT source code generation `Xbyak JIT Assembler` is used:
  * [Xbyak for X64](https://github.com/herumi/xbyak)
  * [Xbyak for ARM64](https://github.com/fujitsu/xbyak_aarch64)
+ * [Xbyak for RISCV64](https://github.com/herumi/xbyak_riscv)
 
 Emitters are splitted into two groups based on their usage model: common plugin emitters for complex kernels ([plugin emitters](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu/src/emitters/plugin)) and basic blocks for tensor compiler ([snippets emitters](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu/src/emitters/snippets)).
 
@@ -18,12 +19,14 @@ Emitters are splitted into two groups based on their usage model: common plugin 
 
 Each emitter is linked with OpenVINO operation. For example for `plugin emitters`:
  * Element-wise `plugin emitters` are linked in element-wise JIT kernel `jit_uni_eltwise_generic::create_eltwise_emitter` method which implementation depends on platform:
-   * [X64 specific](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/src/nodes/eltwise.cpp)
+   * [X64 specific](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/src/nodes/kernels/x64/jit_uni_eltwise_generic.cpp)
    * [ARM64 SIMD specific](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/src/nodes/kernels/aarch64/jit_uni_eltwise_generic.cpp)
+   * [RISCV64 RVV1.0 specific](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/src/nodes/kernels/riscv64/jit_uni_eltwise_generic.cpp)
 
 JIT emitters are inherited from `jit_emitter` base class. The base class implementation depends on architecture:
  * X64: [jit_emitter.hpp](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/src/emitters/plugin/x64/jit_emitter.hpp)
  * ARM64: [jit_emitter.hpp](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/src/emitters/plugin/aarch64/jit_emitter.hpp)
+ * RISCV64: [jit_emitter.hpp](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/src/emitters/plugin/riscv64/jit_emitter.hpp)
 
 ### Class diagram
 JIT emitters should be inherited from `jit_emitter` base class and it's usage should be added in platform dependent JIT kernel.
@@ -107,6 +110,7 @@ There are two types of tests instantiations which are used to test JIT emitters:
      * [platform independent element-wise operation tests](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/instances/common/eltwise.cpp)
      * [X64 specific element-wise operation tests](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/instances/x64/eltwise.cpp)
      * [ARM64 element-wise operation tests](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/instances/arm/eltwise.cpp)
+     * [RISCV64 element-wise operation tests](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/instances/riscv64/eltwise.cpp)
  * element-wise operations which are used as activations: 
      * [platform independent activation operation tests](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/instances/common/activation.cpp)
      * [X64 activation operation tests](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/instances/x64/activation.cpp)
