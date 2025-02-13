@@ -6,9 +6,7 @@
 
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace riscv64 {
+namespace ov::intel_cpu::riscv64 {
 
 using namespace Xbyak_riscv;
 
@@ -704,6 +702,4 @@ std::set<std::vector<element::Type>> jit_subtract_emitter::get_supported_precisi
 
 #undef CONST_1_F
 
-}  // namespace riscv64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // ov::intel_cpu::riscv64

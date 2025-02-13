@@ -13,9 +13,7 @@
 #include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace riscv64 {
+namespace ov::intel_cpu::riscv64 {
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, jit_generator {
@@ -187,6 +185,4 @@ private:
     std::vector<std::shared_ptr<jit_emitter>> post_op_emitters;
 };
 
-}  // namespace aarch64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // ov::intel_cpu::riscv64

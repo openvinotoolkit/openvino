@@ -4,9 +4,7 @@
 
 #include "jit_emitter.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace riscv64 {
+namespace ov::intel_cpu::riscv64 {
 
 using namespace Xbyak_riscv;
 
@@ -314,6 +312,5 @@ void jit_emitter::prepare_table() {
     }
 }
 
-}  // namespace riscv64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // ov::intel_cpu::riscv64
+

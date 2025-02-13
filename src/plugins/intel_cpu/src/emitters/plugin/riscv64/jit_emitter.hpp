@@ -14,9 +14,7 @@
 
 #include <set>
 
-namespace ov {
-namespace intel_cpu {
-namespace riscv64 {
+namespace ov::intel_cpu::riscv64 {
 
 enum emitter_in_out_map {
     vec_to_vec,
@@ -177,6 +175,4 @@ private:
     }
 };
 
-}  // namespace riscv64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // ov::intel_cpu::riscv64
