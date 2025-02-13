@@ -75,9 +75,11 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
             supported_types.insert({element::i8, element::i8});
         }
         return supported_types;
-    } else if (brgemm->get_type() == BRGEMM_TYPE::WITH_COMPENSATIONS) {
+    }
+    if (brgemm->get_type() == BRGEMM_TYPE::WITH_COMPENSATIONS) {
         return {{element::i8, element::i8, element::f32}};
-    } else if (brgemm->get_type() == BRGEMM_TYPE::WITH_AMX) {
+    }
+    if (brgemm->get_type() == BRGEMM_TYPE::WITH_AMX) {
         return {{element::i8, element::i8, element::u8},
                 {element::u8, element::i8, element::u8},
                 {element::bf16, element::bf16, element::u8},

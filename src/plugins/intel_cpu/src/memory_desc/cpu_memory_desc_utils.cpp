@@ -33,11 +33,11 @@ DnnlMemoryDescPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDescPtr& 
     }
     if (MemoryDescType::Empty == desc->getType()) {
         return DnnlExtensionUtils::makeDescriptor(dnnl::memory::desc());
-    } else if (MemoryDescType::Dnnl & desc->getType()) {
-        return std::dynamic_pointer_cast<DnnlMemoryDesc>(desc);
-    } else {
-        OPENVINO_THROW("Cannot convert MemoryDesc to DnnlMemoryDesc");
     }
+    if (MemoryDescType::Dnnl & desc->getType()) {
+        return std::dynamic_pointer_cast<DnnlMemoryDesc>(desc);
+    }
+    OPENVINO_THROW("Cannot convert MemoryDesc to DnnlMemoryDesc");
 }
 
 DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const MemoryDesc& desc) {
@@ -53,9 +53,8 @@ DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const Memo
                                      cpuDesc->getOffsetPadding(),
                                      cpuDesc->getOffsetPaddingToData(),
                                      cpuDesc->getStrides());
-    } else {
-        OPENVINO_THROW("Cannot convert MemoryDesc to DnnlBlockedMemoryDesc");
     }
+    OPENVINO_THROW("Cannot convert MemoryDesc to DnnlBlockedMemoryDesc");
 }
 
 BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDescPtr& desc) {
