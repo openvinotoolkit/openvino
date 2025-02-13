@@ -18,7 +18,7 @@ namespace {
 /*
  * The motivation of this test is to validate different input and output precisions of Eltwise Op.
  * If IO data type is not supported by jit emitter, they should be converted
- * to supported types on input and output of ops in JIT kernel
+ * to supported types on operation inputs and outputs in JIT kernel
 */
 
 static const std::vector<ov::test::utils::EltwiseTypes> ops() {

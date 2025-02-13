@@ -105,7 +105,7 @@ void jit_generator::vfneg_vv(const Xbyak_riscv::VReg& vd, const Xbyak_riscv::VRe
     vfsgnjn_vv(vd, vs, vs, vm);
 }
 
-Xbyak_riscv::LMUL jit_generator::float2lmul(const float lmul) const {
+Xbyak_riscv::LMUL jit_generator::float2lmul(const float lmul) {
     if (lmul == 0.125f) return LMUL::mf8;
     if (lmul == 0.25f) return LMUL::mf4;
     if (lmul == 0.5f) return LMUL::mf2;
@@ -116,7 +116,7 @@ Xbyak_riscv::LMUL jit_generator::float2lmul(const float lmul) const {
     OPENVINO_THROW(std::string("not supported vector length multiplier: ") + std::to_string(lmul));
 }
 
-float jit_generator::lmul2float(const LMUL lmul) const {
+float jit_generator::lmul2float(const LMUL lmul) {
     switch (lmul) {
     case LMUL::mf8: return 0.125f;
     case LMUL::mf4: return 0.25f;
@@ -131,7 +131,7 @@ float jit_generator::lmul2float(const LMUL lmul) const {
     }
 }
 
-Xbyak_riscv::SEW jit_generator::bytes2sew(const size_t sew) const {
+Xbyak_riscv::SEW jit_generator::bytes2sew(const size_t sew) {
     switch(sew) {
     case 1lu: return SEW::e8;
     case 2lu: return SEW::e16;
@@ -143,7 +143,7 @@ Xbyak_riscv::SEW jit_generator::bytes2sew(const size_t sew) const {
     }
 }
 
-size_t jit_generator::sew2bytes(const Xbyak_riscv::SEW sew) const {
+size_t jit_generator::sew2bytes(const Xbyak_riscv::SEW sew) {
     switch(sew) {
     case SEW::e8: return 1lu;
     case SEW::e16: return 2lu;

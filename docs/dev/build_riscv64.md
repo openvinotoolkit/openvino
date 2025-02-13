@@ -27,7 +27,7 @@ This method provides the best performance available at the moment.
 
 > **NOTE**: Currently CPU Plugin in OpenVINO supports [Just-In-Time (JIT) code generation](/home/a-sidorova/projects/riscv64/openvino/src/plugins/intel_cpu/src/emitters/README.md) for limited scope of Eltwise operations on devices with RVV 1.0.
   All three described above ways to build OpenVINO Runtime for 64-bit RISC-V supports JIT code generation.
-  It means that if the device on which inference is executed has RVV 1.0 support, there will be Just-In-Time compiled optimized kernels for some Eltwise operations for the better performance.
+  It means that if the device on which inference is executed has RVV 1.0 support (GCV), there will be Just-In-Time compiled optimized kernels for some Eltwise operations for the better performance.
 
 ### Steps
 
