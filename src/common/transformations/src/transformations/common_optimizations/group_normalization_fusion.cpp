@@ -20,32 +20,6 @@
 
 using namespace ov::pass::pattern;
 
-bool pre_mvn_shape_vals_correct(const std::vector<int64_t>& pre_mvn_shape_vals,
-                                const ov::PartialShape& input_ps,
-                                const ov::Dimension::value_type num_groups) {
-    bool res = true;
-    if (input_ps[0].is_dynamic()) {
-        if (pre_mvn_shape_vals[0] != 0ll)
-            res = false;
-    } else {
-        if ((pre_mvn_shape_vals[0] != 0ll) &&
-            (pre_mvn_shape_vals[0] != static_cast<long long>(input_ps[0].get_max_length())))
-            res = false;
-    }
-    if ((pre_mvn_shape_vals[1] != 0ll) && (pre_mvn_shape_vals[1] != static_cast<long long>(num_groups)))
-        res = false;
-    if (pre_mvn_shape_vals[2] != -1ll)
-        res = false;
-    return res;
-}
-
-bool mvn_reduction_axes_correct(const std::vector<int64_t>& mvn_reduction_axes) {
-    bool res = true;
-    if ((mvn_reduction_axes[0] != 2ll) && (mvn_reduction_axes[0] != -1ll))
-        return false;
-    return res;
-}
-
 ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
     MATCHER_SCOPE(GroupNormalizationFusion);
 
@@ -109,6 +83,26 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         const auto& pre_mvn_shape_out_ps = pre_mvn_shape.get_shape();
         if (pre_mvn_shape_out_ps[0] != 3)
             return false;
+
+        auto pre_mvn_shape_vals_correct = [](const std::vector<int64_t>& pre_mvn_shape_vals,
+                                             const ov::PartialShape& input_ps,
+                                             const ov::Dimension::value_type num_groups) -> bool {
+            bool res = true;
+            if (input_ps[0].is_dynamic()) {
+                if (pre_mvn_shape_vals[0] != 0ll)
+                    res = false;
+            } else {
+                if ((pre_mvn_shape_vals[0] != 0ll) &&
+                    (pre_mvn_shape_vals[0] != static_cast<long long>(input_ps[0].get_max_length())))
+                    res = false;
+            }
+            if ((pre_mvn_shape_vals[1] != 0ll) && (pre_mvn_shape_vals[1] != static_cast<long long>(num_groups)))
+                res = false;
+            if (pre_mvn_shape_vals[2] != -1ll)
+                res = false;
+            return res;
+        };
+
         if (!pre_mvn_shape_vals_correct(pre_mvn_shape_const->cast_vector<int64_t>(), input_ps, num_groups))
             return false;
 
@@ -129,6 +123,14 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         const auto& mvn_reduction_axes_out_shape = mvn_reduction_axes.get_shape();
         if (mvn_reduction_axes_out_shape[0] != 1)
             return false;
+
+        auto mvn_reduction_axes_correct = [](const std::vector<int64_t>& mvn_reduction_axes) -> bool {
+            bool res = true;
+            if ((mvn_reduction_axes[0] != 2ll) && (mvn_reduction_axes[0] != -1ll))
+                return false;
+            return res;
+        };
+
         if (!mvn_reduction_axes_correct(mvn_reduction_axes_const->cast_vector<int64_t>()))
             return false;
 
