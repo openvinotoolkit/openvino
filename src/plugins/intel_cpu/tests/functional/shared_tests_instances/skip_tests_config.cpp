@@ -574,6 +574,11 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_Snippets_MHA.*EnforceBF16.*)");
         retVector.emplace_back(R"(.*ConcatSDPTest.*bf16.*)");
     }
+    // RNN/LSTM/GRU/AUGRU BF16 tests on avx512 core ISA
+    if (ov::with_cpu_x86_avx512_core() && !ov::with_cpu_x86_avx512_core_amx_bf16()) {
+        retVector.emplace_back(R"(smoke.*(AUGRUCellCPUTest|GRUCellCPUTest|RNNCellCPUTest|LSTMCellLayerCPUTest).CompareWithRefs.*INFERENCE_PRECISION_HINT=bf16.*)");
+        retVector.emplace_back(R"(nightly.*bf16.*(AUGRUSequenceCPUTest|GRUSequenceCPUTest|LSTMSequenceCPUTest).CompareWithRefs.*INFERENCE_PRECISION_HINT=bf16.*)");
+    }
     // MHA FP16 precision is only supported on amx_fp16 platform
     if (!ov::with_cpu_x86_avx512_core_amx_fp16()) {
         retVector.emplace_back(R"(.*smoke_Snippets_MHA.*FP16.*)");
