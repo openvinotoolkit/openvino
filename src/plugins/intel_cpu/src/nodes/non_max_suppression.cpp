@@ -422,18 +422,17 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
 
                         if (candidateStatus == NMSCandidateStatus::SUPPRESSED) {
                             continue;
+                        }
+                        if (candidateBox.score == origScore) {
+                            selectedBoxes.push_back({candidateBox.score, batch_idx, class_idx, candidateBox.idx});
+                            int selectedSize = selectedBoxes.size();
+                            boxCoord0[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num];
+                            boxCoord1[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 1];
+                            boxCoord2[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 2];
+                            boxCoord3[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 3];
                         } else {
-                            if (candidateBox.score == origScore) {
-                                selectedBoxes.push_back({candidateBox.score, batch_idx, class_idx, candidateBox.idx});
-                                int selectedSize = selectedBoxes.size();
-                                boxCoord0[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num];
-                                boxCoord1[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 1];
-                                boxCoord2[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 2];
-                                boxCoord3[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 3];
-                            } else {
-                                candidateBox.suppress_begin_index = selectedBoxes.size();
-                                sorted_boxes.push(candidateBox);
-                            }
+                            candidateBox.suppress_begin_index = selectedBoxes.size();
+                            sorted_boxes.push(candidateBox);
                         }
                     }
 #endif  // OPENVINO_ARCH_X86_64
@@ -464,13 +463,12 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
 
                         if (candidateStatus == NMSCandidateStatus::SUPPRESSED) {
                             continue;
+                        }
+                        if (candidateBox.score == origScore) {
+                            selectedBoxes.push_back({candidateBox.score, batch_idx, class_idx, candidateBox.idx});
                         } else {
-                            if (candidateBox.score == origScore) {
-                                selectedBoxes.push_back({candidateBox.score, batch_idx, class_idx, candidateBox.idx});
-                            } else {
-                                candidateBox.suppress_begin_index = selectedBoxes.size();
-                                sorted_boxes.push(candidateBox);
-                            }
+                            candidateBox.suppress_begin_index = selectedBoxes.size();
+                            sorted_boxes.push(candidateBox);
                         }
                     }
                 }
@@ -678,9 +676,8 @@ inline size_t convexHullGraham(const NonMaxSuppression::Point2D (&p)[24],
         float temp = cross_2d(A, B);
         if (std::abs(temp) < 1e-6f) {
             return dot_2d(A, A) < dot_2d(B, B);
-        } else {
-            return temp > 0.f;
         }
+        return temp > 0.f;
     });
     // compute distance to origin after sort, since the points are now different.
     for (size_t i = 0lu; i < num_in; i++) {

@@ -37,6 +37,7 @@ Checks: >
   google-*,
   modernize-pass-by-value,
   cppcoreguidelines-prefer-member-initializer,
+  readability-else-after-return,
   -bugprone-easily-swappable-parameters,
   -bugprone-implicit-widening-of-multiplication-result,
   -bugprone-narrowing-conversions,
