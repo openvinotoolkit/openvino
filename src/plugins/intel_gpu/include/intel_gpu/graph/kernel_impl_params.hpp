@@ -13,6 +13,7 @@
 #include "intel_gpu/primitives/primitive.hpp"
 
 #include "intel_gpu/graph/fused_primitive_desc.hpp"
+#include "intel_gpu/primitives/swiglu.hpp"
 
 #include <cstdint>
 #include <string>
@@ -160,6 +161,24 @@ struct kernel_impl_params final {
 
     bool runtime_skippable() const {
         return _runtime_skippable;
+    }
+
+    bool is_single_batch() const {
+        if ((output_layouts.size() == 0) || output_layouts[0].is_dynamic())
+            return false;
+        auto shape = output_layouts[0].get_partial_shape().to_shape();
+        return one_of(ov::shape_size(shape), shape);
+    }
+
+    bool is_swiglu_fuse() const {
+        bool swiglu_fused = false;
+        if (fused_desc.size() > 0) {
+            for (const auto& f : fused_desc) {
+                if (f.is_type<swiglu>())
+                    swiglu_fused = true;
+            }
+        }
+        return swiglu_fused;
     }
 
     template <class PType>
