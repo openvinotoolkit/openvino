@@ -79,7 +79,7 @@ std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info);
 
 namespace frontend {
 class ConversionExtensionBase;
-} // frontend
+}  // namespace frontend
 
 template <typename T>
 constexpr bool use_ov_dynamic_cast() {

@@ -139,7 +139,8 @@ bool Matcher::match_permutation(const OutputVector& pattern_args, const OutputVe
                            i,
                            " (",
                            args.at(i).get_node()->get_friendly_name(),
-                           ") mismatch for pattern: ", pattern_args.at(i));
+                           ") mismatch for pattern: ",
+                           pattern_args.at(i));
             return false;
         }
     }

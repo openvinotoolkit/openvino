@@ -733,9 +733,8 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
             // Collect spatial inputs for this offset
             for (auto&& param : spatial.params) {
                 const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
-                const auto& iview = ov::npuw::util::view(m_spatial_io[real_idx].inputs.at(param.idx),
-                                                         param.dim, offset,
-                                                         spatial.nway);
+                const auto& iview =
+                    ov::npuw::util::view(m_spatial_io[real_idx].inputs.at(param.idx), param.dim, offset, spatial.nway);
                 r->set_tensor(iport, iview);
             }  // for(params)
 

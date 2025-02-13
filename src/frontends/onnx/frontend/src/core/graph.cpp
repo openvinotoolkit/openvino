@@ -51,8 +51,7 @@ OperatorsBridge register_extensions(OperatorsBridge& bridge,
                 [common_conv_ext](const ov::frontend::onnx::Node& node) -> ov::OutputVector {
                     return common_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(node));
                 });
-        } else if (const auto onnx_conv_ext =
-                       ov::as_type_ptr<ov::frontend::onnx::ConversionExtension>(extension)) {
+        } else if (const auto onnx_conv_ext = ov::as_type_ptr<ov::frontend::onnx::ConversionExtension>(extension)) {
             bridge.overwrite_operator(onnx_conv_ext->get_op_type(),
                                       onnx_conv_ext->get_domain(),
                                       [onnx_conv_ext](const ov::frontend::onnx::Node& node) -> ov::OutputVector {

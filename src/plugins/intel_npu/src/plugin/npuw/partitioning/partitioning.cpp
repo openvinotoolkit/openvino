@@ -1188,10 +1188,12 @@ void Partitioner::saveTinyConstants(const std::string& func_name) {
                 auto total =
                     std::accumulate(shape.begin(), shape.end(), std::size_t{1}, std::multiplies<std::size_t>());
                 if ((shape.size() == 0 || (shape.size() == 1 && shape[0] <= 10)) || (total <= 10)) {
-                    LOG_DEBUG("[KEEP] " << node->get_friendly_name() << "/" << shape << ": It is safe to keep this bank in function");
+                    LOG_DEBUG("[KEEP] " << node->get_friendly_name() << "/" << shape
+                                        << ": It is safe to keep this bank in function");
                     func_group.consts_to_keep.insert(std::static_pointer_cast<CT>(node));
                 } else {
-                    LOG_DEBUG("[CUT ] " << node->get_friendly_name() << "/" << shape << ": This const op will be cut-off from the function");
+                    LOG_DEBUG("[CUT ] " << node->get_friendly_name() << "/" << shape
+                                        << ": This const op will be cut-off from the function");
                 }
             }
         }
@@ -1326,7 +1328,8 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
                 func_group.consts_to_keep.insert(const_node);
             }
         } else {
-            LOG_DEBUG("[CUT ] This group of Const ops will be cut-off from the function: " << proto_node->get_friendly_name());
+            LOG_DEBUG("[CUT ] This group of Const ops will be cut-off from the function: "
+                      << proto_node->get_friendly_name());
         }
     };
     for (auto&& bank : rep_block.consts) {
