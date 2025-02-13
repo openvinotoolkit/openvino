@@ -11,10 +11,7 @@
 #include "snippets/utils/utils.hpp"
 #include "transformations/tpp/x64/op/modifiers.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
-namespace pass {
+namespace ov::intel_cpu::tpp::pass {
 namespace {
 using ExpressionPort = snippets::lowered::ExpressionPort;
 using LoopPort = snippets::lowered::LoopPort;
@@ -82,8 +79,9 @@ size_t get_leading_dim(ExpressionPort port, const snippets::lowered::LoopManager
         shape = port_desc->get_subtensor();
         OPENVINO_ASSERT(ov::snippets::utils::is_planar_layout(layout), "Only planar layouts are supported for Buffers");
         const auto rank_diff = static_cast<int64_t>(layout.size()) - static_cast<int64_t>(shape.size());
-        if (rank_diff > 0)
+        if (rank_diff > 0) {
             layout.erase(layout.end() - rank_diff, layout.end());
+        }
     }
 
     OPENVINO_ASSERT(layout.empty() || (layout.back() == layout.size() - 1 && layout.size() == shape.size()),
@@ -123,16 +121,18 @@ bool SetTPPLeadingDim::run(snippets::lowered::LinearIR& linear_ir,
                            snippets::lowered::LinearIR::constExprIt begin,
                            snippets::lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SetTPPLeadingDim")
-    if (linear_ir.empty())
+    if (linear_ir.empty()) {
         return false;
+    }
 
     bool modified = false;
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& expr = *expr_it;
         const auto& node = expr->get_node();
         auto tpp_expr = std::dynamic_pointer_cast<modifier::TensorProcessingPrimitive>(node);
-        if (!tpp_expr)
+        if (!tpp_expr) {
             continue;
+        }
 
         OPENVINO_ASSERT(tpp_expr->is_full_memory_access_op(node), "TPP Op is expected to be MemoryAccess on all ports");
 
@@ -150,7 +150,4 @@ bool SetTPPLeadingDim::run(snippets::lowered::LinearIR& linear_ir,
     return modified;
 }
 
-}  // namespace pass
-}  // namespace tpp
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::tpp::pass
