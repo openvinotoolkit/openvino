@@ -12,8 +12,7 @@
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 
-namespace dnnl {
-namespace utils {
+namespace dnnl::utils {
 
 const char* fmt2str(memory::format_tag fmt) {
     return dnnl_fmt_tag2str(static_cast<dnnl_format_tag_t>(fmt));
@@ -148,5 +147,4 @@ unsigned get_cache_size(int level, bool per_core) {
     DNNL_THROW_ERROR(dnnl_unimplemented, "get_cache_size has no mode per_core == false");
 }
 
-}  // namespace utils
-}  // namespace dnnl
+}  // namespace dnnl::utils

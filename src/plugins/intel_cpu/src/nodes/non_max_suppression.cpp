@@ -18,9 +18,7 @@
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool NonMaxSuppression::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                              std::string& errorMessage) noexcept {
@@ -54,7 +52,7 @@ NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ov::Node>& op, const 
       m_is_soft_suppressed_by_iou(false) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        OPENVINO_THROW(errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     if (one_of(op->get_type_info(), op::internal::NonMaxSuppressionIEInternal::get_type_info_static())) {
@@ -968,6 +966,10 @@ void NonMaxSuppression::checkOutput(const Shape& shape, const std::string& name,
     }
 }
 
+bool NonMaxSuppression::neverExecute() const {
+    return !isDynamicNode() && Node::neverExecute();
+}
+
 bool NonMaxSuppression::isExecutable() const {
     return isDynamicNode() || Node::isExecutable();
 }
@@ -976,6 +978,4 @@ bool NonMaxSuppression::created() const {
     return getType() == Type::NonMaxSuppression;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

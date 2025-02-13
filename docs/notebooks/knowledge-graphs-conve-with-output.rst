@@ -138,12 +138,18 @@ Import the packages needed for successful execution
     # Fetch `notebook_utils` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
     
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file, device_widget
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("knowledge-graphs-conve.ipynb")
 
 Settings: Including path to the serialized model files and input data files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -172,25 +178,34 @@ Settings: Including path to the serialized model files and input data files
 
 .. code:: ipython3
 
-    data_folder = "data"
+    data_folder = Path("data")
     
-    # Download the file containing the entities and entity IDs
-    entdatapath = download_file(
-        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/text/countries_S1/kg_training_entids.txt",
-        directory=data_folder,
-    )
+    entdatapath = data_folder / "kg_training_entids.txt"
     
-    # Download the file containing the relations and relation IDs
-    reldatapath = download_file(
-        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/text/countries_S1/kg_training_relids.txt",
-        directory=data_folder,
-    )
+    if not entdatapath.exists():
+        # Download the file containing the entities and entity IDs
+        entdatapath = download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/text/countries_S1/kg_training_entids.txt",
+            directory=data_folder,
+        )
     
-    # Download the test data file
-    testdatapath = download_file(
-        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/json/countries_S1/e1rel_to_e2_ranking_test.json",
-        directory=data_folder,
-    )
+    reldatapath = data_folder / "kg_training_relids.txt"
+    
+    if not reldatapath.exists():
+        # Download the file containing the relations and relation IDs
+        reldatapath = download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/text/countries_S1/kg_training_relids.txt",
+            directory=data_folder,
+        )
+    
+    testdatapath = data_folder / "e1rel_to_e2_ranking_test.json"
+    
+    if not testdatapath.exists():
+        # Download the test data file
+        testdatapath = download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/json/countries_S1/e1rel_to_e2_ranking_test.json",
+            directory=data_folder,
+        )
 
 
 
@@ -219,22 +234,14 @@ Download Model Checkpoint
 .. code:: ipython3
 
     model_url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/knowledge-graph-embeddings/conve.pt"
-    
-    download_file(model_url, filename=modelpath.name, directory=modelpath.parent)
+    if not modelpath.exists():
+        download_file(model_url, filename=modelpath.name, directory=modelpath.parent)
 
 
 
 .. parsed-literal::
 
     conve.pt:   0%|          | 0.00/18.8M [00:00<?, ?B/s]
-
-
-
-
-.. parsed-literal::
-
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/knowledge-graphs-conve/models/conve.pt')
-
 
 
 Defining the ConvE model class
@@ -395,13 +402,13 @@ typical to use metrics such as Mean Reciprocal Rank, Hits@10 etc.
 
 .. parsed-literal::
 
-    Average time taken for inference: 0.6722708543141683 ms
+    Average time taken for inference: 0.6916125615437826 ms
     Mean accuracy of the model on the test dataset: 0.875
 
 
 .. parsed-literal::
 
-    /tmp/ipykernel_2201076/1344641649.py:6: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+    /tmp/ipykernel_3326536/1344641649.py:6: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
       model.load_state_dict(torch.load(modelpath))
 
 
@@ -540,7 +547,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Average time taken for inference: 1.1297861735026042 ms
+    Average time taken for inference: 0.9214977423350016 ms
     Mean accuracy of the model on the test dataset: 0.10416666666666667
 
 
@@ -559,7 +566,7 @@ Determine the platform specific speedup obtained through OpenVINO graph optimiza
 
 .. parsed-literal::
 
-    Speedup with OpenVINO optimizations: 0.6 X
+    Speedup with OpenVINO optimizations: 0.75 X
 
 
 Benchmark the converted OpenVINO model using benchmark app
@@ -604,7 +611,7 @@ inference can also be obtained by looking at the benchmark app results.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 4.36 ms
+    [ INFO ] Read model took 4.41 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     e1 (node: e1) : i64 / [...] / []
@@ -620,7 +627,7 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: aten::softmax/Softmax) : f32 / [...] / [1,271]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 75.51 ms
+    [ INFO ] Compile model took 54.82 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -659,17 +666,17 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ] Fill input 'rel' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 10000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 1.67 ms
+    [ INFO ] First inference took 1.50 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            95148 iterations
-    [ INFO ] Duration:         10001.87 ms
+    [ INFO ] Count:            94836 iterations
+    [ INFO ] Duration:         10001.91 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1.07 ms
-    [ INFO ]    Average:       1.08 ms
-    [ INFO ]    Min:           0.79 ms
-    [ INFO ]    Max:           8.58 ms
-    [ INFO ] Throughput:   9513.02 FPS
+    [ INFO ]    Median:        1.06 ms
+    [ INFO ]    Average:       1.09 ms
+    [ INFO ]    Min:           0.76 ms
+    [ INFO ]    Max:           99.96 ms
+    [ INFO ] Throughput:   9481.79 FPS
 
 
 Conclusions

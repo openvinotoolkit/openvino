@@ -15,8 +15,7 @@ using namespace dnnl::impl::cpu::x64;
 using TileConfig = ov::Extensions::Cpu::TileConfig;
 using TileConfiger = ov::Extensions::Cpu::TileConfiger;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 void MKernel::generate_2x2() {
     Xbyak::Reg64 reg_A_addr = abi_param2;
@@ -504,7 +503,7 @@ void MKernel::run(int M,  // actual M
 }
 
 void MatrixDynQuantPerRow::quantize(size_t BM, ov::bfloat16* psrc, int src_stride) {
-    assert(BM <= M);
+    assert(static_cast<int64_t>(BM) <= M);
     parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
         size_t start{0}, end{0};
         splitter(BM, nthr, ithr, start, end);
@@ -521,7 +520,7 @@ void MatrixDynQuantPerRow::quantize(size_t BM, ov::bfloat16* psrc, int src_strid
 }
 
 void MatrixDynQuantPerRow::quantize(size_t BM, ov::float16* psrc, int src_stride) {
-    assert(BM <= M);
+    assert(static_cast<int64_t>(BM) <= M);
     parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
         size_t start{0}, end{0};
         splitter(BM, nthr, ithr, start, end);
@@ -669,5 +668,4 @@ void ReduceAdd2bh::generate() {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

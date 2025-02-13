@@ -135,12 +135,21 @@ void PluginGraph::initialize(const Config& config) {
 }
 
 PluginGraph::~PluginGraph() {
+    // make sure all the context-dependent components are destroyed before the zero context is destroyed
     if (_handle != nullptr) {
         auto result = _zeGraphExt->destroyGraph(_handle);
 
         if (ZE_RESULT_SUCCESS == result) {
             _handle = nullptr;
         }
+    }
+
+    if (_last_submitted_event.size()) {
+        _last_submitted_event.clear();
+    }
+
+    if (_command_queue != nullptr) {
+        _command_queue.reset();
     }
 }
 

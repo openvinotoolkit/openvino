@@ -34,9 +34,7 @@ using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_mvn_call_args, field)
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 struct MVNKey {
@@ -233,7 +231,18 @@ private:
 
     size_t src_stride = 0;
 
-    enum { VECTOR, TAIL8, TAIL4, TAIL2, TAIL1, TAIL8_FILL, TAIL4_FILL, TAIL2_FILL, TAIL1_FILL, LOAD_EMITTERS_NUM };
+    enum : uint8_t {
+        VECTOR,
+        TAIL8,
+        TAIL4,
+        TAIL2,
+        TAIL1,
+        TAIL8_FILL,
+        TAIL4_FILL,
+        TAIL2_FILL,
+        TAIL1_FILL,
+        LOAD_EMITTERS_NUM
+    };
     std::unique_ptr<jit_load_emitter> load_emitter[LOAD_EMITTERS_NUM];
     std::vector<size_t> load_pool_gpr_idxs;
 
@@ -1106,7 +1115,7 @@ private:
     Vmm vmm_d_weights = Vmm(0);
     Vmm vmm_d_bias = Vmm(1);
 
-    enum { VECTOR, TAIL8, TAIL4, TAIL2, TAIL1, EMITTERS_NUM };
+    enum : uint8_t { VECTOR, TAIL8, TAIL4, TAIL2, TAIL1, EMITTERS_NUM };
     std::unique_ptr<jit_load_emitter> load_emitter[EMITTERS_NUM];
     std::unique_ptr<jit_store_emitter> store_emitter[EMITTERS_NUM];
     std::vector<size_t> store_pool_gpr_idxs;
@@ -2157,13 +2166,13 @@ void MVN::prepareParams() {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(0);
     if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        OPENVINO_THROW("Destination memory is undefined.");
+        THROW_CPU_NODE_ERR("Destination memory is undefined.");
     }
     if (!srcMemPtr || !srcMemPtr->isDefined()) {
-        OPENVINO_THROW("Input memory is undefined.");
+        THROW_CPU_NODE_ERR("Input memory is undefined.");
     }
     if (getSelectedPrimitiveDescriptor() == nullptr) {
-        OPENVINO_THROW("Preferable primitive descriptor is not set.");
+        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
     }
 
     const VectorDims in_dims = srcMemPtr->getStaticDims();
@@ -2264,7 +2273,7 @@ void MVN::transformTo5DCase(const VectorDims& shape) {
         break;
     }
     default: {
-        OPENVINO_THROW("MVN layer with name '", getName(), "' doesn't support planar layout with rank: ", shape.size());
+        THROW_CPU_NODE_ERR("doesn't support planar layout with rank: ", shape.size());
     }
     }
 }
@@ -2273,22 +2282,24 @@ void MVN::setPostOps(dnnl::primitive_attr& attr, bool initWeights) {
     dnnl::post_ops ops;
     postOpsDataPtrs.clear();
     for (auto& node : fusedWith) {
+        int channelAxis = 1;
+
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs);
+            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs, channelAxis);
             continue;
         }
 
         auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get());
         if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops, shape5D, postOpsDataPtrs);
+            eltwiseNode->appendPostOps(ops, shape5D, postOpsDataPtrs, channelAxis);
             continue;
         }
-        OPENVINO_THROW("Fusing of ",
-                       NameFromType(node->getType()),
-                       " operation to ",
-                       NameFromType(this->getType()),
-                       " node is not implemented");
+        THROW_CPU_NODE_ERR("Fusing of ",
+                           NameFromType(node->getType()),
+                           " operation to ",
+                           NameFromType(this->getType()),
+                           " node is not implemented");
     }
     attr.set_post_ops(ops);
 }
@@ -2308,7 +2319,7 @@ void MVN::execute(const dnnl::stream& strm) {
     } else if (aclExecPtr) {
         aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, postOpsDataPtrs.data());
     } else {
-        OPENVINO_THROW("Can't execute Interpolate node. Primitive didn't created");
+        THROW_CPU_NODE_ERR("Primitive wasn't created");
     }
 }
 
@@ -2966,6 +2977,4 @@ bool MVN::created() const {
     return getType() == Type::MVN;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

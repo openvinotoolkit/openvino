@@ -19,8 +19,7 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 bool BrgemmBaseKernelConfig::is_completed() const {
     return !utils::one_of(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC) || is_empty();
@@ -258,7 +257,7 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
     OV_CPU_JIT_EMITTER_ASSERT(brgemm_node, "Got invalid node type in update_config");
     // In case of data repacking LDB is chosen in accordance with repacking buffer size
     if (with_repacking(brgemm_node->get_type())) {
-        LDB = DIM_CAST(brgemm_utils::repacking::compute_LDB(LDB, brgemm_node->get_input_element_type(1)));
+        LDB = DIM_CAST(brgemm_utils::repacking::compute_repacked_n_dim(LDB, brgemm_node->get_input_element_type(1)));
     }
 
     config.update(DIM_CAST(M), DIM_CAST(N), DIM_CAST(K), LDA, LDB, LDC, beta);
@@ -337,5 +336,4 @@ void BrgemmBaseKernelExecutor::execute_brgemm_kernel(
 #undef EQ
 #undef HASH
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
