@@ -45,6 +45,8 @@ class OPENVINO_API Squeeze : public util::SqueezeBase {
 public:
     OPENVINO_OP("Squeeze", "opset15");
 
+    static constexpr const char* output_rt_info_name = "rt_info_reverse_infer_output_rank";
+
     Squeeze();
     /// \brief Constructs a squeeze v15 operation.
     ///
