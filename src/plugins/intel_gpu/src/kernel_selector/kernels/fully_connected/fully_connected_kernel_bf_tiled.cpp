@@ -303,7 +303,6 @@ bool FullyConnected_bf_tiled::Validate(const Params& params) const {
 
     if (fc_params.single_batch && !is_swiglu_fused(fc_params) &&
         (weights.GetDType() == WeightsType::INT4 || weights.GetDType() == WeightsType::UINT4)) {
-        std::cout << "FullyConnected_bf_tiled is refused due to single batch" << std::endl;
         return false;
     }
 

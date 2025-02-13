@@ -58,7 +58,8 @@ inline void thread_task_splitter(const int group_num, const int thr_num, const i
 
 #if KERNEL_LAYOUT_OS_IS_YX_OSV16
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(fully_connected_gpu_gemv)(
-    OPTIONAL_SHAPE_INFO_ARG __global half* input,
+    OPTIONAL_SHAPE_INFO_ARG
+    __global half* input,
 #    if DECOMPRESSION_SCALE_TERM
     const __global half* scales,
 #    endif
@@ -98,6 +99,28 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(fully_connected
 #    if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
     zps += n;
 #    endif
+
+    // if(n==0 && get_global_id(2)==0) {
+    //     #if HAS_FUSED_OPS
+    //     printf("HAS_FUSED_OPS...\n");
+    //     #endif
+    //     #if HAS_FUSED_OPS_DECLS
+    //     printf("HAS_FUSED_OPS_DECLS...\n");
+    //     #endif
+    //     #if BIAS_TERM
+    //     printf("BIAS_TERM...\n");
+    //     #endif
+    //     #if DECOMPRESSION_SCALE_TERM
+    //     printf("DECOMPRESSION_SCALE_TERM...\n");
+    //     #endif
+    //     #if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
+    //     printf("DECOMPRESSION_ZP_TERM...\n");
+    //     #endif
+    //     printf("group_num = %d, WEIGHTS_K = %d, WEIGHTS_K = %d\n", group_num, WEIGHTS_K, WEIGHTS_N);
+    //     #if DECOMPRESSION_ZP_SCALAR
+    //     printf("zp_scalar_value = %d\n", zp_scalar_value);
+    //     #endif
+    // }
 
     float sum_all = 0;
     for (int gk = gk0; gk < gk1; gk++) {
@@ -448,7 +471,6 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(fully_connected
 #    if BIAS_TERM
         sum_value[0] += bias[cur_n];
         sum_value[1] += bias[cur_n + 16];
-        // printf("osv-32: idx = %d, bias[%d] = %f, bias[%d] = %f\n", cur_n, cur_n, bias[cur_n], cur_n + 16, bias[cur_n + 16]);
 #    endif
 
 // fused_op
@@ -476,12 +498,10 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(fully_connected
     __global half* output,
     const __global uchar* weights
 #    if BIAS_TERM
-    ,
-    const __global half* bias
+    , const __global half* bias
 #    endif
 #    if HAS_FUSED_OPS_DECLS
-    ,
-    FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
 #    endif
 ) {
     // global:[N//4, M, 16]

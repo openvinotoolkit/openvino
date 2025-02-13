@@ -2894,25 +2894,23 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
         });
     }
 
+    auto can_use_gemv = [&inst, &updated_params]() -> bool {
+        const auto& dev_info = inst.get_node().get_program().get_engine().get_device_info();
+        auto is_cldnn_fc_impl = !dev_info.supports_immad && dev_info.dev_type == device_type::integrated_gpu;
+        auto weights_layout_dt = updated_params.weights_layout.value().data_type;
+        auto is_4bit = weights_layout_dt == data_types::i4 || weights_layout_dt == data_types::u4;
+        return is_cldnn_fc_impl && is_4bit && updated_params.is_single_batch() && !updated_params.is_swiglu_fuse();
+    };
+
     std::shared_ptr<primitive_impl> dynamic_impl = nullptr;
     // 2. Try to find existing dynamic impl which supports given shapes
     for (auto& impl : m_dynamic_impls_cache) {
         if (inst.get_node().is_type<fully_connected>()) {
-            const auto& dev_info = inst.get_node().get_program().get_engine().get_device_info();
-            auto is_cldnn_fc_impl = !dev_info.supports_immad && dev_info.dev_type == device_type::integrated_gpu;
-            auto weights_layout_dt = updated_params.weights_layout.value().data_type;
-            auto is_4bit = weights_layout_dt == data_types::i4 || weights_layout_dt == data_types::u4;
-            auto can_be_used = is_4bit && params.is_single_batch() && !params.is_swiglu_fuse();
             auto kernel_name = impl->get_kernel_name();
             auto is_ref_impl = kernel_name.find("fully_connected_gpu_bfyx_ref") != std::string::npos;
             auto is_gemv_impl = kernel_name.find("gemv") != std::string::npos;
-            if (is_cldnn_fc_impl && can_be_used && !is_ref_impl) {
-                if (is_gemv_impl) {
-                    dynamic_impl = impl;
-                    break;
-                } else {
-                    continue;
-                }
+            if (can_use_gemv() && !is_ref_impl && !is_gemv_impl) {
+                continue;
             }
         }
         if (impl->m_manager->support_shapes(params)) {

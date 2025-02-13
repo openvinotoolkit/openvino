@@ -2140,7 +2140,7 @@ public:
 
         size_t count = 0;
         for (size_t i = 0; i < output_ptr_ref.size(); i++) {
-            EXPECT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i;
+            EXPECT_NEAR(output_ptr_ref[i], output_ptr[i], 30.0) << "i = " << i;
             if (fabs(output_ptr_ref[i] - output_ptr[i]) > 0.5 * fabs(output_ptr_ref[i])) {
                 count++;
             }

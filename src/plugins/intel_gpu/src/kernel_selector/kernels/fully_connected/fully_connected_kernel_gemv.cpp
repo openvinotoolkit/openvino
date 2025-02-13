@@ -148,10 +148,9 @@ bool FullyConnected_GEMV::Validate(const Params& params) const {
     auto wo = weights.OFM().v;
 
     auto& fc_input = fc_params.inputs[0];
-    // if (is_swiglu_fused(fc_params)) {
-    //     return false;
-    // }
-
+    if (is_swiglu_fused(fc_params)) {
+        return false;
+    }
 
     if (input_size.first != 0 && fc_input.is_dynamic()) {
         if (input_size.first != 1) {
@@ -220,13 +219,13 @@ JitConstants FullyConnected_GEMV::GetJitConstants(const fully_connected_params& 
 
     if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
         jit.AddConstant(MakeJitConstant("FILTER_LAYOUT_OS_IS_YX_TYPE", 0));
-        std::cout << " FILTER_LAYOUT_OS_IS_YX_TYPE = WeightsLayout::os_iyx_osv16" << std::endl;
+        // std::cout << " FILTER_LAYOUT_OS_IS_YX_TYPE = WeightsLayout::os_iyx_osv16" << std::endl;
     } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
         jit.AddConstant(MakeJitConstant("FILTER_LAYOUT_OS_IS_YX_TYPE", 1));
-        std::cout << " FILTER_LAYOUT_OS_IS_YX_TYPE = WeightsLayout::os_is_yx_osv32_isv2" << std::endl;
+        // std::cout << " FILTER_LAYOUT_OS_IS_YX_TYPE = WeightsLayout::os_is_yx_osv32_isv2" << std::endl;
     } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
         jit.AddConstant(MakeJitConstant("FILTER_LAYOUT_OS_IS_YX_TYPE", 2));
-        std::cout << " FILTER_LAYOUT_OS_IS_YX_TYPE = WeightsLayout::os_is_yx_osv64_isv2" << std::endl;
+        // std::cout << " FILTER_LAYOUT_OS_IS_YX_TYPE = WeightsLayout::os_is_yx_osv64_isv2" << std::endl;
     } else {
         OPENVINO_ASSERT("GEMV doesn't support this weights layout: ", params.weights.GetLayout());
     }
@@ -248,9 +247,9 @@ JitConstants FullyConnected_GEMV::GetJitConstants(const fully_connected_params& 
     jit.Merge(MakeActivationJitConstants(params.activations, activation_dt, "_TYPED"));
 
     if (!params.fused_ops.empty() && !is_swiglu_fused(params)) {
-        std::vector<std::string> idx_order = {"0", "(cur_n + 16 * i)", "0", "0"};
+        std::vector<std::string> idx_order = {"0", "0", "(cur_n + 16 * i)", "0"};
         if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
-            std::vector<std::string> idx_order = {"0", "(cur_n + i)", "0", "0"};
+            idx_order = {"0", "0", "(cur_n + i)", "0"};
         }
         FusedOpsConfiguration conf_vec = {"_VEC", idx_order, "sum_value[i]", activation_dt, 1};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec}));
@@ -298,7 +297,7 @@ KernelsData FullyConnected_GEMV::GetTunedKernelsDataByIndex(const Params& params
     }
 
     // weights_layout = WeightsLayout::os_is_yx_osv32_isv2; // Only for test
-    std::cout << "weights_layout = " << weights_layout << std::endl;
+    // std::cout << "weights_layout = " << weights_layout << std::endl;
     KernelsData kernels_data;
     kernels_data = GetCommonKernelsData(params,
                                         fc_params.inputs[0].GetLayout(),
