@@ -423,8 +423,8 @@ void MatrixNms::execute(const dnnl::stream& strm) {
     // NMS-alike nodes are always transformed to NMSIEInternal node in case of legacy api, for compatibility.
     // And on the other hand in case of api 2.0, keep them internal dynamic for better performance and functionality.
     if (!m_outStaticShape) {
-        auto totalBox = std::accumulate(m_numPerBatch.begin(), m_numPerBatch.end(), static_cast<int64_t>(0));
-        OPENVINO_ASSERT(totalBox > 0, "Total number of boxes is 0");
+        auto totalBox = std::accumulate(m_numPerBatch.begin(), m_numPerBatch.end(), int64_t{0});
+        OPENVINO_ASSERT(totalBox > 0, "Total number of boxes is less or equal than 0");
         redefineOutputMemory({{static_cast<size_t>(totalBox), 6}, {static_cast<size_t>(totalBox), 1}, {m_numBatches}});
     }
     float* selectedOutputs = selectedOutputsMemPtr->getDataAs<float>();
