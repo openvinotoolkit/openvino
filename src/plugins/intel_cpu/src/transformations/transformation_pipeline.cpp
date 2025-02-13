@@ -121,6 +121,7 @@
 #include "low_precision/group_convolution.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 #include "low_precision/network_helper.hpp"
+#include "low_precision/mat_mul.hpp"
 #include "low_precision/recurrent_cell.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
@@ -157,6 +158,7 @@
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/pass/extract_reshapes_from_mha.hpp"
 #include "snippets/pass/fc_tokenization.hpp"
+#include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/tokenization.hpp"
@@ -420,7 +422,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     if (config.inferencePrecision == ov::element::f16) {
         precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-        type_to_fuse_map fuse_map = {{ov::opset1::FakeQuantize::get_type_info_static(), fuse_type_to_fq}};
+        type_to_fuse_map fuse_map = {};
 #else
         type_to_fuse_map fuse_map = {{ov::op::PagedAttentionExtension::get_type_info_static(), fuse_type_to_pa}};
 #endif
@@ -840,6 +842,18 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
         },
         FuseConvertTransformation);
 
+    // Enable MatMulTransformation against FC nodes only
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [&](const_node_ptr& node) -> bool {
+            if (NetworkHelper::isConstantPath(node->get_input_node_shared_ptr(1)) &&
+                one_of(node->input_value(1).get_partial_shape().rank().get_length(), 2, 3)) {
+                    return false;
+            }
+            return true;
+        },
+        MatMulTransformation);
+
     CPU_DISABLE_PASS_ARM(lptManager, RecurrentCellTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
@@ -1119,7 +1133,7 @@ void Transformations::MainSnippets(void) {
                 ov::is_type<ov::op::v0::Clamp>(n) || ov::is_type<ov::op::v0::Ceiling>(n) ||
                 ov::is_type<ov::op::v0::Convert>(n) || ov::is_type<ov::op::v1::Divide>(n) ||
                 ov::is_type<ov::op::v0::Elu>(n) || ov::is_type<ov::op::v0::Exp>(n) ||
-                ov::is_type<ov::op::v1::Equal>(n) || ov::is_type<ov::op::v0::FakeQuantize>(n) ||
+                ov::is_type<ov::op::v1::Equal>(n) ||
                 ov::is_type<ov::op::v0::Floor>(n) || ov::is_type<ov::op::v1::FloorMod>(n) || 
                 ov::is_type<ov::op::v0::Gelu>(n) || ov::is_type<ov::op::v7::Gelu>(n) || 
                 ov::is_type<ov::op::v1::Greater>(n) || ov::is_type<ov::op::v1::GreaterEqual>(n) || 
@@ -1288,6 +1302,7 @@ void Transformations::MainSnippets(void) {
 void Transformations::PostSnippets(void) {
     ov::pass::Manager postSnippetsManager("CPU:PostSnippets");
     postSnippetsManager.set_per_pass_validation(false);
+    CPU_REGISTER_PASS_ARM(postSnippetsManager, ov::snippets::pass::FakeQuantizeDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeQuantizeDecomposition);
     CPU_SET_CALLBACK_COMMON(
         postSnippetsManager,
