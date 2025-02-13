@@ -279,7 +279,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
         return true;
     };
 
-    for (auto mul : graphNodes) {
+    for (const auto& mul : graphNodes) {
         if (!isDQScaleGraphPattern(mul)) {
             continue;
         }
@@ -1010,7 +1010,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
         }
     };
 
-    for (auto conv : graphNodes) {
+    for (const auto& conv : graphNodes) {
         if (!isSuitableConvNode(conv)) {
             continue;
         }
@@ -1267,7 +1267,7 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
             continue;
         }
 
-        auto parentConvNode = graphNode;
+        const auto& parentConvNode = graphNode;
         if (!isSuitableParentConvolution(parentConvNode)) {
             continue;
         }
@@ -2172,7 +2172,7 @@ void GraphOptimizer::DropDoubleReorders(Graph& graph) {
     std::set<NodePtr> processed;
 
     auto& nodes = graph.GetNodes();
-    for (auto node : nodes) {
+    for (const auto& node : nodes) {
         if (processed.find(node) == processed.end() && node->getType() == Type::Reorder &&
             node->getChildEdges().size() == 1 && node->getChildEdgeAt(0)->getChild()->getType() == Type::Reorder) {
             auto nextNode = node->getChildEdgeAt(0)->getChild();
@@ -2254,7 +2254,7 @@ void GraphOptimizer::FuseClampAndFakeQuantize(Graph& graph) {
         return true;
     };
 
-    for (auto parent : graphNodes) {
+    for (const auto& parent : graphNodes) {
         if (!isSuitableClampNode(parent)) {
             continue;
         }
@@ -2435,7 +2435,7 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph) {
         return true;
     };
 
-    for (auto parent : graphNodes) {
+    for (const auto& parent : graphNodes) {
         if (!isSuitableScaleShiftNode(parent)) {
             continue;
         }
@@ -3041,7 +3041,7 @@ void GraphOptimizer::RemoveMemoryInputConvert(Graph& graph) {
         return true;
     };
 
-    for (auto node : graphNodes) {
+    for (const auto& node : graphNodes) {
         if (!isSuitableNode(node)) {
             continue;
         }
@@ -3067,7 +3067,7 @@ void GraphOptimizer::RemoveConvertMemoryOutput(Graph& graph) {
         return true;
     };
 
-    for (auto node : graphNodes) {
+    for (const auto& node : graphNodes) {
         if (!isSuitableNode(node)) {
             continue;
         }
@@ -3111,7 +3111,7 @@ void GraphOptimizer::MatchSdpaKvCache(Graph& graph) {
         return true;
     };
 
-    for (auto node : graphNodes) {
+    for (const auto& node : graphNodes) {
         if (!isSuitableMemInput(node)) {
             continue;
         }
@@ -3251,7 +3251,7 @@ void GraphOptimizer::DropRedundantMemoryOutput(Graph& graph) {
         return nullptr != MemoryOutput;
     };
 
-    for (auto node : graphNodes) {
+    for (const auto& node : graphNodes) {
         if (!isSuitableMemInput(node)) {
             continue;
         }
