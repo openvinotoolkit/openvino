@@ -157,7 +157,7 @@ protected:
         return _kernels;
     }
 
-    std::vector<layout> get_internal_buffer_layouts_impl() const override {
+    std::vector<layout> get_internal_buffer_layouts(const kernel_impl_params& params) const override {
         std::vector<layout> layouts;
         for (auto& kd : _kernels_data) {
             if (kd.internalBufferSizes.empty())

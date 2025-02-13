@@ -50,10 +50,6 @@ protected:
             return nullptr;
         }
     }
-
-    std::vector<layout> get_internal_buffer_layouts_impl() const override {
-        return {};
-    }
 };
 
 }  // namespace sycl

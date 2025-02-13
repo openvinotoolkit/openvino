@@ -42,7 +42,7 @@
 #define FOR_EACH_(N, prim, ...) EXPAND(CAT(INSTANTIATE_, N)(prim, __VA_ARGS__))
 #define INSTANTIATE(prim, ...) EXPAND(FOR_EACH_(COUNT(__VA_ARGS__), prim, __VA_ARGS__))
 
-#define CREATE_INSTANCE(Type, ...) std::make_shared<cldnn::Type>(__VA_ARGS__),
+#define CREATE_INSTANCE(Type, ...) std::make_shared<Type>(__VA_ARGS__),
 #define GET_INSTANCE(Type, ...) cldnn::implementation_map<cldnn::Type>::get(__VA_ARGS__)
 
 #define OV_GPU_GET_INSTANCE_1(prim, impl_type, shape_types) GET_INSTANCE(prim, impl_type, shape_types),
@@ -128,6 +128,7 @@ REGISTER_IMPLS(broadcast);
 REGISTER_IMPLS(concatenation);
 REGISTER_IMPLS(convolution);
 REGISTER_IMPLS(crop);
+REGISTER_IMPLS(ctc_loss);
 REGISTER_IMPLS(deconvolution);
 REGISTER_IMPLS(detection_output);
 REGISTER_IMPLS(eltwise);
@@ -137,6 +138,7 @@ REGISTER_IMPLS(gather_nd);
 REGISTER_IMPLS(gemm);
 REGISTER_IMPLS(lstm_cell);
 REGISTER_IMPLS(lstm_seq);
+REGISTER_IMPLS(group_normalization);
 REGISTER_IMPLS(pooling);
 REGISTER_IMPLS(reduce);
 REGISTER_IMPLS(reorder);
@@ -144,7 +146,9 @@ REGISTER_IMPLS(reshape);
 REGISTER_IMPLS(non_max_suppression);
 REGISTER_IMPLS(softmax);
 REGISTER_IMPLS(range);
+REGISTER_IMPLS(rope);
 REGISTER_IMPLS(select);
+REGISTER_IMPLS(scaled_dot_product_attention);
 REGISTER_IMPLS(scatter_update);
 REGISTER_IMPLS(scatter_elements_update);
 REGISTER_IMPLS(shape_of);
@@ -176,7 +180,6 @@ REGISTER_DEFAULT_IMPLS(experimental_detectron_topk_rois, OCL_S);
 REGISTER_DEFAULT_IMPLS(gather_elements, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(generate_proposals, OCL_S);
 REGISTER_DEFAULT_IMPLS(grid_sample, OCL_S);
-REGISTER_DEFAULT_IMPLS(group_normalization, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(kv_cache, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(lrn, OCL_S);
 REGISTER_DEFAULT_IMPLS(multiclass_nms, OCL_S);
@@ -209,7 +212,6 @@ REGISTER_DEFAULT_IMPLS(gather_tree, OCL_S);
 REGISTER_DEFAULT_IMPLS(resample, OCL_S);
 REGISTER_DEFAULT_IMPLS(grn, OCL_S);
 REGISTER_DEFAULT_IMPLS(ctc_greedy_decoder, OCL_S);
-REGISTER_DEFAULT_IMPLS(ctc_loss, OCL_S);
 REGISTER_DEFAULT_IMPLS(cum_sum, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(embedding_bag, OCL_S);
 REGISTER_DEFAULT_IMPLS(extract_image_patches, OCL_S);
@@ -219,7 +221,5 @@ REGISTER_DEFAULT_IMPLS(gather_nonzero, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(eye, OCL_S);
 REGISTER_DEFAULT_IMPLS(unique_count, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(unique_gather, OCL_S, OCL_D);
-REGISTER_DEFAULT_IMPLS(scaled_dot_product_attention, OCL_S, OCL_D);
-REGISTER_DEFAULT_IMPLS(rope, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(search_sorted, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(STFT, OCL_S, OCL_D);

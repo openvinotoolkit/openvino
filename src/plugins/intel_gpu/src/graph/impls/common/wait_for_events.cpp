@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "primitive_inst.h"
 #include "data_inst.h"
 #include "prior_box_inst.h"
@@ -32,7 +33,7 @@ public:
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
     void set_arguments(primitive_inst& /*instance*/) override {}
     void set_arguments(primitive_inst& /*instance*/, kernel_arguments_data& /*args*/) override {}
-    std::vector<layout> get_internal_buffer_layouts() const override { return {}; }
+    std::vector<layout> get_internal_buffer_layouts(const kernel_impl_params&) const override { return {}; }
 
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         auto& stream = instance.get_network().get_stream();
