@@ -640,3 +640,19 @@ def test_copy_and_deepcopy(copy_func, should_share_data):
         assert tensor_copy.data[0, 0] == outlier
     else:
         assert tensor_copy.data[0, 0] == value
+
+
+def test_tensor_from_pillow():
+    from PIL import Image
+
+    shape = (224, 224, 3)
+    numpy_dtype = np.uint8
+    arr = generate_image(shape).astype(numpy_dtype)
+    img = Image.fromarray(arr)
+
+    tensor = ov.Tensor(img)
+    assert tensor.shape == shape
+    assert tensor.element_type == ov.Type(numpy_dtype)
+    assert isinstance(tensor.data, np.ndarray)
+    assert tensor.data.dtype == numpy_dtype
+    assert tensor.data.shape == shape
