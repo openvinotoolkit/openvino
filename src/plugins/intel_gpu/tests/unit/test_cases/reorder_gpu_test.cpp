@@ -2514,7 +2514,7 @@ TEST(reorder_gpu_f32, bfzyx_to_bfyx_padded) {
     auto output1 = outputs.at("reshape1").get_memory();
     auto output2 = outputs.at("reshape2").get_memory();
 
-    cldnn::mem_lock<float> output_ptr0(output0, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr0(output0, get_test_stream());
     for (int b = 0; b < b_crop; ++b) {
         for (int f = 0; f < f_crop; ++f) {
             for (int z = 0; z < z_crop; ++z) {
@@ -2529,7 +2529,7 @@ TEST(reorder_gpu_f32, bfzyx_to_bfyx_padded) {
         }
     }
 
-    cldnn::mem_lock<float> output_ptr1(output1, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr1(output1, get_test_stream());
     for (int b = 0; b < b_crop; ++b) {
         for (int f = 0; f < f_crop; ++f) {
             for (int z = 0; z < z_crop; ++z) {
@@ -2544,7 +2544,7 @@ TEST(reorder_gpu_f32, bfzyx_to_bfyx_padded) {
         }
     }
 
-    cldnn::mem_lock<float> output_ptr2(output2, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr2(output2, get_test_stream());
     for (int b = 0; b < b_crop; ++b) {
         for (int f = 0; f < f_crop; ++f) {
             for (int z = 0; z < z_crop; ++z) {

@@ -3814,7 +3814,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding) {
 
     auto golden_outputs = golden_network.execute();
     auto golden_output = golden_outputs.at("eltwise").get_memory();
-    cldnn::mem_lock<ov::float16> golden_ptr(golden_output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> golden_ptr(golden_output, get_test_stream());
     // GOLDEN BFYX ELTWISE - END
     // MIXED INPUT, FS_B_YX_FSV32 OUTPUT
     topology FS_B_YX_FSV32_OUTPUT_topology;
@@ -3834,7 +3834,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding) {
 
     auto FS_B_YX_FSV32_OUTPUT_outputs = FS_B_YX_FSV32_OUTPUT_network.execute();
     auto FS_B_YX_FSV32_OUTPUT_output = FS_B_YX_FSV32_OUTPUT_outputs.at("reorderOutput").get_memory();
-    cldnn::mem_lock<ov::float16> FS_B_YX_FSV32_OUTPUT_ptr(FS_B_YX_FSV32_OUTPUT_output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> FS_B_YX_FSV32_OUTPUT_ptr(FS_B_YX_FSV32_OUTPUT_output, get_test_stream());
     // MIXED INPUT, FS_B_YX_FSV32 OUTPUT - END
     // MIXED INPUT, BYXF OUTPUT
     topology BYXF_OUTPUT_topology;
@@ -3854,7 +3854,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding) {
 
     auto BYXF_OUTPUT_outputs = BYXF_OUTPUT_network.execute();
     auto BYXF_OUTPUT_output = BYXF_OUTPUT_outputs.at("reorderOutput").get_memory();
-    cldnn::mem_lock<ov::float16> BYXF_OUTPUT_ptr(BYXF_OUTPUT_output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> BYXF_OUTPUT_ptr(BYXF_OUTPUT_output, get_test_stream());
     // MIXED INPUT, BYXF OUTPUT - END
 
     ASSERT_EQ(golden_ptr.size(), FS_B_YX_FSV32_OUTPUT_ptr.size());
