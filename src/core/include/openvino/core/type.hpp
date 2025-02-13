@@ -94,10 +94,7 @@ constexpr bool use_ov_dynamic_cast() {
 
 /// \brief Tests whether pointer can be static casted to a To*/shared_ptr<To>
 template <typename To, typename From>
-typename std::enable_if_t<
-    std::is_convertible_v<decltype(std::declval<From>().get_type_info().is_castable(To::get_type_info_static())), bool>,
-    bool>
-is_type(From* ptr) {
+bool is_type(From* ptr) {
     if constexpr (compile::use_ov_dynamic_cast<From>()) {
         return ptr && ptr->get_type_info().is_castable(To::get_type_info_static());
     } else {
@@ -108,12 +105,7 @@ is_type(From* ptr) {
 
 /// \brief Tests whether pointer can be static casted to a To*/shared_ptr<To>
 template <typename To, typename From>
-typename std::enable_if_t<
-    std::is_convertible_v<
-        decltype(std::declval<std::shared_ptr<From>>()->get_type_info().is_castable(To::get_type_info_static())),
-        bool>,
-    bool>
-is_type(const std::shared_ptr<From>& ptr) {
+bool is_type(const std::shared_ptr<From>& ptr) {
     return is_type<To>(ptr.get());
 }
 

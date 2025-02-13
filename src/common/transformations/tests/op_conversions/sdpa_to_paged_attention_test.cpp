@@ -903,7 +903,6 @@ TEST_P(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
     }
 }
 
-// clang-format off
 TEST_P(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
     {
         auto beam_idx = make_param(PartialShape{DYN}, element::i32, "beam_idx");

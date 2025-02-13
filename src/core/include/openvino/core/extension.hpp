@@ -9,8 +9,8 @@
 #include <vector>
 
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/core/rtti.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/rtti.hpp"
 
 #define OPENVINO_EXTENSION_C_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
 #define OPENVINO_EXTENSION_API   OPENVINO_CORE_EXPORTS
