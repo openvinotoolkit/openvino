@@ -7,8 +7,7 @@
 #include "emitters/plugin/riscv64/jit_eltwise_emitters.hpp"
 
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 namespace riscv64 {
 
 using namespace Xbyak_riscv;
@@ -535,5 +534,4 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
     return precisions;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // ov::intel_cpu
