@@ -110,7 +110,7 @@ void LayoutJitter::make_definitions(const layout& l, size_t shape_info_offset) {
     const auto complete_channels_order = get_default_channels_order(max_rank, is_weights_fmt, is_grouped);
     const auto default_channels_order = get_default_channels_order(rank, is_weights_fmt, is_grouped);
     std::vector<ChannelName> actual_channels_order;
-    for (size_t i = 0; i < dims_order.size(); i++) {
+    for (size_t i = 0; i < rank; i++) {
         actual_channels_order.push_back(default_channels_order[dims_order[i]]);
     }
 

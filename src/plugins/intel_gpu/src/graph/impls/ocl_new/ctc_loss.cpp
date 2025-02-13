@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "impls/ocl_new/utils/dispatch_utils.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "primitive_ocl_base.hpp"
@@ -35,12 +36,12 @@ protected:
 
     DispatchDataFunc get_dispatch_data_func(const kernel_impl_params& params) const override {
         static auto f = DISPATCH_DATA_FUNC(params, kd) {
-            WorkGroupSizes dispatch_data;
+            WorkGroupSizes wgs;
             const auto& output = params.output_layouts[0];
 
-            dispatch_data.global = {output.get_shape()[0], 1, 1};
-            dispatch_data.local = {1, 1, 1}; /*GetOptimalLocalWorkGroupSizes(dispatch_data.gws, kernel_params.engineInfo)*/;
-            return { dispatch_data, {} };
+            wgs.global = {output.get_shape()[0], 1, 1};
+            wgs.local = get_optimal_lws(wgs.global, params.get_device_info());
+            return { wgs, {} };
         };
 
         return f;

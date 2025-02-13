@@ -8,15 +8,13 @@
 #include "intel_gpu/runtime/layout.hpp"
 #include "openvino/core/type/element_type.hpp"
 
+#include "dispatch_utils.hpp"
+
 #include <string>
 
-namespace ov {
-namespace intel_gpu {
-namespace ocl {
+namespace ov::intel_gpu::ocl {
 
 using namespace cldnn;
-
-enum class ChannelName { X = 0, Y = 1, Z = 2, W = 3, U = 4, V = 5, FEATURE = 6, BATCH = 7, IFM = 8, OFM = 9, G = 10, UNKNOWN = 11 };
 
 struct JitConstant {
     std::string name;
@@ -265,6 +263,4 @@ JitConstants make_activation_jit_constants(activation_func activation_function,
                                            bool use_type_parameter,
                                            bool disable_type_conversion);
 
-}  // namespace ocl
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu::ocl

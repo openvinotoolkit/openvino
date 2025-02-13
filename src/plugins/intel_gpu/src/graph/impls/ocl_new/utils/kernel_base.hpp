@@ -48,8 +48,7 @@ struct KernelData {
     KernelParams params;
     std::vector<std::shared_ptr<micro::MicroKernelPackage>> micro_kernels;
     DispatchDataFunc update_dispatch_data_func = nullptr;
-
-    WeightsReorderParams weightsReorderParams;
+    WeightsReorderParams weights_reorder_params;
 };
 
 

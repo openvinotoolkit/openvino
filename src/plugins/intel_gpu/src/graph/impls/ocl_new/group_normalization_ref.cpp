@@ -132,6 +132,7 @@ protected:
             WorkGroupSizes wgs;
 
             if (params.output_layouts[0].is_static()) {
+                const auto& in_l = params.input_layouts[0];
                 const auto& out_l = params.output_layouts[0];
                 auto b = extract_channel(ChannelName::BATCH, out_l);
                 auto f = extract_channel(ChannelName::FEATURE, out_l);
@@ -140,7 +141,13 @@ protected:
                 auto x = extract_channel(ChannelName::X, out_l);
 
                 wgs.global = { b, f * z, y * x};
-                wgs.local = {1, 1, 1}; //GetOptimalLocalWorkGroupSizes(wgs.global, params.engineInfo, in_layout, out_layout, dims_by_gws);
+                std::vector<std::vector<ChannelName>> dims_by_gws = {
+                    { ChannelName::BATCH },
+                    { ChannelName::FEATURE, ChannelName::Z  },
+                    { ChannelName::X, ChannelName::Y }
+                };
+
+                wgs.local = get_optimal_lws(wgs.global, params.get_device_info(), in_l.format, out_l.format, dims_by_gws);
             }
             return { wgs, {} };
         };

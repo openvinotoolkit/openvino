@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "rope_opt.hpp"
+#include "impls/ocl_new/utils/dispatch_utils.hpp"
 #include "utils/jitter.hpp"
 #include "utils/kernel_base.hpp"
 #include "intel_gpu/primitives/rope.hpp"
@@ -118,8 +119,11 @@ protected:
                 size_t vec_size = get_vec_size(params);
                 auto desc = params.typed_desc<rope>();
                 const auto& cfg = desc->config;
-                // std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH }, { Tensor::DataChannelName::FEATURE },
-                //                                                                 { Tensor::DataChannelName::Y, Tensor::DataChannelName::X }};
+                std::vector<std::vector<ChannelName>> dims_by_gws = {
+                    { ChannelName::BATCH },
+                    { ChannelName::FEATURE },
+                    { ChannelName::Y, ChannelName::X }
+                };
                 const auto& in_l = params.input_layouts[0];
                 const auto& out_l = params.output_layouts[0];
 
@@ -147,8 +151,7 @@ protected:
                     wgs.global = {b, f, y * cfg.rotary_ndims / 2ul / vec_size};
                 }
 
-                wgs.local = {1, 1, 1};
-                // wgs.lws = GetOptimalLocalWorkGroupSizes(wgs.gws, params.engineInfo, input.GetLayout(), output.GetLayout(), dims_by_gws);
+                wgs.local = get_optimal_lws(wgs.global, params.get_device_info(), in_l.format, out_l.format, dims_by_gws);
             }
 
             return { wgs, {} };
