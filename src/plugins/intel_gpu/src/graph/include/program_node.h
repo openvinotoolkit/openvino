@@ -587,7 +587,7 @@ struct typed_program_node : public typed_program_node_base<PType> {
 
 inline void set_format_no_any(layout& l, format new_format) {
     if (new_format != format::any) {
-        l.format = new_format;
+        l.format = std::move(new_format);
     } else {
         l.format = format::get_default_format(l.get_partial_shape().size());
     }
@@ -614,7 +614,7 @@ inline RT test_format(program_node& node, format fmt, std::function<RT(program_n
 
     auto prev_layout = node.get_output_layout(false, 0);
     auto new_layout = prev_layout;
-    set_format_no_any(new_layout, fmt);
+    set_format_no_any(new_layout, std::move(fmt));
     node.set_output_layout(new_layout, false);
 
     // To check if impl exists we modify input[0] and output[0] layouts
