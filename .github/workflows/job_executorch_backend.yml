@@ -82,13 +82,13 @@ jobs:
       #    path: ${{ env.INSTALL_WHEELS_DIR }}
       #    merge-multiple: true
 
-      - name: Setup Python ${{ inputs.python-version }}
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: ${{ inputs.python-version }}
-          pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH_LINUX || env.PIP_CACHE_PATH_WIN }}
-          should-setup-pip-paths: ${{ runner.os != 'macOS' }}
-          self-hosted-runner: ${{ runner.os != 'macOS' }}
+      #- name: Setup Python ${{ inputs.python-version }}
+      #  uses: ./openvino/.github/actions/setup_python
+      #  with:
+      #    version: ${{ inputs.python-version }}
+      #    pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH_LINUX || env.PIP_CACHE_PATH_WIN }}
+      #    should-setup-pip-paths: ${{ runner.os != 'macOS' }}
+      #    self-hosted-runner: ${{ runner.os != 'macOS' }}
 
       - name: Install OpenVINO Python wheels
         uses: ./openvino/.github/actions/install_ov_wheels
