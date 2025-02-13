@@ -121,6 +121,7 @@
 #include "low_precision/group_convolution.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 #include "low_precision/network_helper.hpp"
+#include "low_precision/mat_mul.hpp"
 #include "low_precision/recurrent_cell.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
@@ -840,6 +841,18 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
         },
         FuseConvertTransformation);
 
+    // Enable MatMulTransformation against FC nodes only
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [&](const_node_ptr& node) -> bool {
+            if (NetworkHelper::isConstantPath(node->get_input_node_shared_ptr(1)) &&
+                one_of(node->input_value(1).get_partial_shape().rank().get_length(), 2, 3)) {
+                    return false;
+            }
+            return true;
+        },
+        MatMulTransformation);
+
     CPU_DISABLE_PASS_ARM(lptManager, RecurrentCellTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
@@ -1119,7 +1132,7 @@ void Transformations::MainSnippets(void) {
                 ov::is_type<ov::op::v0::Clamp>(n) || ov::is_type<ov::op::v0::Ceiling>(n) ||
                 ov::is_type<ov::op::v0::Convert>(n) || ov::is_type<ov::op::v1::Divide>(n) ||
                 ov::is_type<ov::op::v0::Elu>(n) || ov::is_type<ov::op::v0::Exp>(n) ||
-                ov::is_type<ov::op::v1::Equal>(n) || ov::is_type<ov::op::v0::FakeQuantize>(n) ||
+                ov::is_type<ov::op::v1::Equal>(n) ||
                 ov::is_type<ov::op::v0::Floor>(n) || ov::is_type<ov::op::v1::FloorMod>(n) || 
                 ov::is_type<ov::op::v0::Gelu>(n) || ov::is_type<ov::op::v7::Gelu>(n) || 
                 ov::is_type<ov::op::v1::Greater>(n) || ov::is_type<ov::op::v1::GreaterEqual>(n) || 
