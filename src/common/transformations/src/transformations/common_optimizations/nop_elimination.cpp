@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -132,6 +132,23 @@ static bool eliminate_nop(const shared_ptr<Node>& node) {
     return false;
 }
 
+// Check if first dim is dynamic, other dims are static
+static bool only_first_dim_dynamic(const PartialShape& pshape) {
+    if (pshape.rank().is_static() && pshape.size() > 0) {
+        if (pshape[0].is_dynamic()) {
+            for (size_t i = 1; i < pshape.size(); ++i) {
+                if (pshape[i].is_dynamic()) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static bool eliminate_reshape_v1(const shared_ptr<Node>& node) {
     auto input = node->input_value(0);
 
@@ -139,14 +156,17 @@ static bool eliminate_reshape_v1(const shared_ptr<Node>& node) {
         if (input.get_partial_shape().same_scheme(node->get_output_partial_shape(0)))
             return replace_output_update_name(node->output(0), input);
     }
-
     // check if reshape is not identity op
     if (input.get_partial_shape().is_dynamic() || node->get_output_partial_shape(0).is_dynamic()) {
-        OPENVINO_DEBUG(node, " has dynamic shapes.");
-        return false;
+        if (!only_first_dim_dynamic(input.get_partial_shape()) ||
+            !only_first_dim_dynamic(node->get_output_partial_shape(0))) {
+            OPENVINO_DEBUG(node, " has dynamic shapes with not only 0th dimension dynamic.");
+            return false;
+        }
     }
+
     // remove identity op
-    if (input.get_shape() == node->get_output_shape(0)) {
+    if (input.get_partial_shape() == node->get_output_partial_shape(0)) {
         return replace_output_update_name(node->output(0), input);
     }
     // eliminate redundant reshape, squeeze, or unsqueeze
@@ -156,15 +176,19 @@ static bool eliminate_reshape_v1(const shared_ptr<Node>& node) {
         if (input_node->get_output_target_inputs(0).size() != 1)
             return false;
 
-        auto shape = node->get_output_shape(0);
+        auto shape = node->get_output_partial_shape(0);
 
         // remove interchangeable nodes
-        if (input_node->get_input_partial_shape(0).is_static() && input_node->get_input_shape(0) == shape) {
+        if (input_node->get_input_partial_shape(0).is_static() &&
+            input_node->get_input_partial_shape(0) == node->get_output_partial_shape(0)) {
             return replace_output_update_name(node->output(0), input_node->input_value(0));
         } else {
             vector<int64_t> vi;
-            vi.assign(shape.begin(), shape.end());
-            auto pat = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{vi.size()}, vi);
+            vi.reserve(shape.size());
+            for (const auto& dim : shape) {
+                vi.push_back(dim.is_dynamic() ? -1 : dim.get_length());
+            }
+            auto pat = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{shape.size()}, vi);
             auto new_reshape = make_shared<ov::op::v1::Reshape>(input.get_node()->input_value(0), pat, false);
             new_reshape->set_friendly_name(node->get_friendly_name());
             copy_runtime_info({input_node, node}, new_reshape);
@@ -326,7 +350,7 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
 #define SIMPLE_MATCHER_PASS_DEFINITION(NAME, FUNC, ...)                                 \
     class NAME : public ov::pass::MatcherPass {                                         \
     public:                                                                             \
-        OPENVINO_RTTI(STR(NAME), "0");                                                  \
+        OPENVINO_RTTI(STR(NAME), "0", ov::pass::MatcherPass);                           \
         NAME() {                                                                        \
             MATCHER_SCOPE(NAME);                                                        \
             auto match_node = ov::pass::pattern::wrap_type<__VA_ARGS__>();              \
@@ -439,7 +463,7 @@ pass::EliminateConvert::EliminateConvert() {
     auto convert_pattern = pattern::wrap_type<ov::op::v0::Convert>();
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto convert = dynamic_pointer_cast<ov::op::v0::Convert>(m.get_match_root());
+        auto convert = ov::as_type_ptr<ov::op::v0::Convert>(m.get_match_root());
         if (!convert) {
             return false;
         }
@@ -493,7 +517,7 @@ pass::EliminateSplit::EliminateSplit() {
     auto convert_pattern = pattern::wrap_type<ov::op::v1::Split>();
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto split = dynamic_pointer_cast<ov::op::v1::Split>(m.get_match_root());
+        auto split = ov::as_type_ptr<ov::op::v1::Split>(m.get_match_root());
         if (!split || split->get_num_splits() != 1) {
             return false;
         }
@@ -608,9 +632,9 @@ int64_t make_positive(int64_t value, const Output<Node>& node) {
 };
 
 bool check_squeeze(const shared_ptr<Node>& node) {
-    auto squeeze = dynamic_pointer_cast<ov::op::v0::Squeeze>(node);
+    auto squeeze = ov::as_type_ptr<ov::op::v0::Squeeze>(node);
     if (squeeze) {
-        auto axis = dynamic_pointer_cast<ov::op::v0::Constant>(squeeze->input_value(1).get_node_shared_ptr());
+        auto axis = ov::as_type_ptr<ov::op::v0::Constant>(squeeze->input_value(1).get_node_shared_ptr());
         if (axis) {
             auto axis_val = axis->cast_vector<int64_t>();
             if (axis_val.size() == 1 && make_positive(axis_val[0], squeeze->input_value(0)) == 1) {
@@ -624,9 +648,9 @@ bool check_squeeze(const shared_ptr<Node>& node) {
 // Checks that Reshape actually equals to Squeeze op
 // 0, -1 values in the shape pattern are not allowed.
 bool check_reshape(const shared_ptr<Node>& node) {
-    auto reshape = dynamic_pointer_cast<ov::op::v1::Reshape>(node);
+    auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(node);
     if (reshape) {
-        auto shape_pattern = dynamic_pointer_cast<ov::op::v0::Constant>(reshape->input_value(1).get_node_shared_ptr());
+        auto shape_pattern = ov::as_type_ptr<ov::op::v0::Constant>(reshape->input_value(1).get_node_shared_ptr());
         if (shape_pattern) {
             auto pattern_val = shape_pattern->cast_vector<int64_t>();
             bool is_valid_pattern = find(pattern_val.begin(), pattern_val.end(), 0) == pattern_val.end();
@@ -651,7 +675,7 @@ bool check_reshape(const shared_ptr<Node>& node) {
 bool check_axis(const shared_ptr<ov::op::v0::Concat>& concat,
                 const shared_ptr<Node>& split,
                 bool is_special_case = false) {
-    auto axis = dynamic_pointer_cast<ov::op::v0::Constant>(split->input_value(1).get_node_shared_ptr());
+    auto axis = ov::as_type_ptr<ov::op::v0::Constant>(split->input_value(1).get_node_shared_ptr());
     if (!axis) {
         return false;
     }
@@ -707,9 +731,9 @@ shared_ptr<T> check_all_inputs(const shared_ptr<ov::op::v0::Concat>& concat) {
 
             auto seq_node = seq_out.get_node_shared_ptr();
             if (!seq_node || seq_out.get_index() != 0 ||
-                !(dynamic_pointer_cast<ov::op::v5::RNNSequence>(seq_node) ||
-                  dynamic_pointer_cast<ov::op::v5::GRUSequence>(seq_node) ||
-                  dynamic_pointer_cast<ov::op::v5::LSTMSequence>(seq_node))) {
+                !(ov::as_type_ptr<ov::op::v5::RNNSequence>(seq_node) ||
+                  ov::as_type_ptr<ov::op::v5::GRUSequence>(seq_node) ||
+                  ov::as_type_ptr<ov::op::v5::LSTMSequence>(seq_node))) {
                 return {};
             }
 
@@ -763,7 +787,7 @@ ov::pass::EliminateSplitConcat::EliminateSplitConcat() {
     auto pattern_concat = pattern::wrap_type<ov::op::v0::Concat>();
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
-        const auto concat = dynamic_pointer_cast<ov::op::v0::Concat>(pattern_map.at(pattern_concat));
+        const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(pattern_concat));
         if (!concat) {
             return false;
         }
@@ -790,7 +814,7 @@ pass::EliminateTranspose::EliminateTranspose() {
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
-        auto order_const = dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(order));
+        auto order_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(order));
         if (!order_const) {
             return false;
         }

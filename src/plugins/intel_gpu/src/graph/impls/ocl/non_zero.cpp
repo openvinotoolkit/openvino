@@ -22,7 +22,7 @@ struct count_nonzero_impl : typed_primitive_impl_ocl<count_nonzero> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::count_nonzero_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<count_nonzero_impl>(*this);
+        return make_deep_copy<count_nonzero_impl, kernel_params_t>(*this);
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -67,7 +67,7 @@ struct gather_nonzero_impl : typed_primitive_impl_ocl<gather_nonzero> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::gather_nonzero_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<gather_nonzero_impl>(*this);
+        return make_deep_copy<gather_nonzero_impl, kernel_params_t>(*this);
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -94,6 +94,11 @@ struct gather_nonzero_impl : typed_primitive_impl_ocl<gather_nonzero> {
 
         update_shapes(*_kernel_data.params, impl_param);
         (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
+    }
+
+    static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
+        auto updated_impl_params = canonicalize_fused_shapes(impl_params);
+        return updated_impl_params;
     }
 };
 

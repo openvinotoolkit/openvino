@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -70,6 +70,9 @@
 #include "unique_inst.hpp"
 #include "condition_inst.h"
 #include "to_string_utils.h"
+#include "intel_gpu/graph/serialization/map_serializer.hpp"
+
+#include "intel_gpu/primitives/rnn.hpp"
 
 // TODO: Remove once we have interface for kernels cache
 #include "impls/ocl/kernels_cache.hpp"
@@ -119,6 +122,7 @@ static ov::threading::IStreamsExecutor::Config make_task_executor_config(const E
                                                                  streams,
                                                                  1,
                                                                  core_type,
+                                                                 false,
                                                                  enable_cpu_pinning);
 
     return task_executor_config;
@@ -151,15 +155,14 @@ program::program(engine& engine_ref,
       is_internal(is_internal),
       _is_body_program(is_body_program),
       _compilation_context(compilation_context) {
-    _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
     GPU_DEBUG_INFO << "Program config\n" << _config.to_string();
     init_program();
     prepare_nodes(topology);
     program_node::reset_unique_id();
-
     if (no_optimizations) {
         init_graph();
+        _config.apply_user_properties(_engine.get_device_info());
     } else {
         build_program(is_internal);
         if (_is_body_program) {
@@ -210,7 +213,7 @@ program::program(engine& engine, const ExecutionConfig& config)
     init_primitives();
     _config.apply_user_properties(_engine.get_device_info());
     new_shape_infer = _config.get_property(ov::intel_gpu::allow_new_shape_infer);
-    _layout_optimizer = cldnn::make_unique<layout_optimizer>();
+    _layout_optimizer = std::make_unique<layout_optimizer>();
 }
 
 program::~program() {
@@ -226,7 +229,8 @@ void program::init_program() {
     if (_task_executor == nullptr)
         _task_executor = program::make_task_executor(_config);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
-                                                                      kernel_selector::KernelBase::get_db().get_batch_headers()));
+                                                                      kernel_selector::KernelBase::get_db().get_batch_headers(),
+                                                                      kernel_selector::KernelBase::get_db().get_cm_batch_headers()));
 
     _kernels_cache->set_kernels_reuse(get_config().get_property(ov::intel_gpu::hint::enable_kernels_reuse));
 
@@ -234,13 +238,13 @@ void program::init_program() {
         _compilation_context = program::make_compilation_context(_config);
 
 
-    _layout_optimizer = cldnn::make_unique<layout_optimizer>();
+    _layout_optimizer = std::make_unique<layout_optimizer>();
     size_t impls_cache_capacity = _impls_cache_capacity;
     GPU_DEBUG_IF(debug_config->impls_cache_capacity >= 0) {
         impls_cache_capacity = debug_config->impls_cache_capacity;
     }
 
-    _impls_cache = cldnn::make_unique<ImplementationsCache>(impls_cache_capacity);
+    _impls_cache = std::make_unique<ImplementationsCache>(impls_cache_capacity);
     // Remove items of compilation context's internal queue when some impl is popped in kernels_cache
     // compilation context's queue check duplication of inserted task
     _impls_cache->set_remove_item_callback([this](ImplementationsCache::ItemType& item) {
@@ -494,6 +498,7 @@ void program::set_options() {
 
 void program::build_program(bool is_internal) {
     init_graph();
+    _config.apply_user_properties(_engine.get_device_info());
     { pre_optimize_graph(is_internal); }
     run_graph_compilation();
     { post_optimize_graph(is_internal); }
@@ -523,6 +528,10 @@ void program::init_graph() {
     for (auto& node : processing_order) {
         if (!node->is_type<data>())
             node->get_output_layouts();
+        if (node->is_type<lstm_seq>()) {
+            _config.set_property(ov::intel_gpu::use_onednn(true));
+            _config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+        }
     }
     // Perform initial shape_of subgraphs markup
     apply_opt_pass<mark_shape_of_subgraphs>();
@@ -545,7 +554,7 @@ void program::pre_optimize_graph(bool is_internal) {
         apply_opt_pass<prepare_quantization>();
     }
 
-    _layout_optimizer = cldnn::make_unique<layout_optimizer>(output_size_handling_enabled);
+    _layout_optimizer = std::make_unique<layout_optimizer>(output_size_handling_enabled);
     set_layout_optimizer_attributes(*_layout_optimizer);
 
     reorder_factory rf;
@@ -646,6 +655,8 @@ void program::post_optimize_graph(bool is_internal) {
     // for OOO queue
     if (_config.get_property(ov::intel_gpu::queue_type) == QueueTypes::out_of_order)
         get_processing_order().calculate_BFS_processing_order();
+
+    apply_opt_pass<mark_state_init_subgraphs>();
 }
 
 // mark if the node is constant assuming that all dependencies are marked properly
@@ -821,6 +832,27 @@ void program::reverse_connection(program_node& dep_node, program_node& user_node
     } else {
         throw std::runtime_error("Trying to reverse connection, but nodes are wrongly or not connected.");
     }
+}
+
+void program::set_state_initializers(const std::string& variable_id, const primitive_id& id) {
+    state_initializers[variable_id].push_back(id);
+}
+
+bool program::has_state_initializers(const std::string& variable_id, const primitive_id& id) {
+    auto it = state_initializers.find(variable_id);
+    if (it != state_initializers.end()) {
+        const auto& initializers = it->second;
+        return std::find(initializers.begin(), initializers.end(), id) != initializers.end();
+    }
+    return false;
+}
+
+bool program::contains_state(const std::string& variable_id) {
+    auto it = state_initializers.find(variable_id);
+    if (it != state_initializers.end())
+        return true;
+    else
+        return false;
 }
 
 program_node& program::get_or_create(std::shared_ptr<primitive> prim) {
@@ -1495,6 +1527,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::strided_slice::type_id() &&
             prim.type() != cldnn::region_yolo::type_id() &&
             prim.type() != cldnn::normalize::type_id() &&
+            prim.type() != cldnn::group_normalization::type_id() &&
             prim.type() != cldnn::mvn::type_id() &&
             prim.type() != cldnn::gather::type_id() &&
             prim.type() != cldnn::scatter_nd_update::type_id() &&
@@ -1575,6 +1608,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::deconvolution::type_id() &&
             prim.type() != cldnn::multiclass_nms::type_id() &&
             prim.type() != cldnn::normalize::type_id() &&
+            prim.type() != cldnn::group_normalization::type_id() &&
             prim.type() != cldnn::deconvolution::type_id() &&
             prim.type() != cldnn::unique_count::type_id() &&
             prim.type() != cldnn::unique_gather::type_id() &&
@@ -1631,11 +1665,17 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
     bool enable_onednn_for_tests = get_config().get_property(ov::intel_gpu::optimize_data) || is_internal_program();
     auto& engine = get_engine();
-    if (engine.get_device_info().supports_immad &&
-        engine.get_device_info().vendor_id == INTEL_VENDOR_ID &&
+    if (engine.get_device_info().vendor_id == INTEL_VENDOR_ID &&
         get_config().get_property(ov::intel_gpu::queue_type) == QueueTypes::in_order &&
-        enable_onednn_for_tests)
-        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
+        enable_onednn_for_tests) {
+            if (engine.get_device_info().supports_immad) {
+                lo.add_all_onednn_impls_optimization_attribute();
+            } else {
+                if (get_config().get_property(ov::intel_gpu::use_onednn)) {
+                    lo.enable_onednn_for<lstm_seq>();
+                }
+            }
+        }
 #endif
 }
 
@@ -1779,7 +1819,13 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 
     ob << _is_body_program;
     ob << _can_be_optimized;
-    ob << get_layout_optimizer().get_optimization_attributes().use_onednn_impls;
+    auto onednn_impls_size = get_layout_optimizer().get_all_onednn_impls_optimization_attribute().size();
+    ob << onednn_impls_size;
+    for (const auto& onednn_impl : get_layout_optimizer().get_all_onednn_impls_optimization_attribute()) {
+        ob << prim_map_storage::instance().get_type_string(onednn_impl.first);
+        ob << onednn_impl.second;
+    }
+
     processing_order.save(ob);
 
     {
@@ -1826,6 +1872,12 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
     ob << allocating_order.size();
     for (auto const& node_id : allocating_order) {
         ob << node_id;
+    }
+
+    ob << state_initializers.size();
+    for (auto& state_initializer : state_initializers) {
+        ob << state_initializer.first;
+        ob << state_initializer.second;
     }
 }
 
@@ -1903,9 +1955,18 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
 
     ib >> _is_body_program;
     ib >> _can_be_optimized;
-    int32_t use_onednn_attr = 0;
-    ib >> use_onednn_attr;
-    get_layout_optimizer().set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, use_onednn_attr);
+
+    size_t num_of_onednn_impls;
+    ib >> num_of_onednn_impls;
+    for (size_t num = 0; num < num_of_onednn_impls; num++) {
+        primitive_id p_id{};
+        bool enabled;
+        ib >> p_id;
+        ib >> enabled;
+        auto ptype_id = prim_map_storage::instance().get_type_id(p_id);
+        get_layout_optimizer().set_value_onednn(ptype_id, enabled);
+    }
+
     _loaded_from_cache = true;
 
     processing_order.load(ib, *this);
@@ -1985,5 +2046,16 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
         primitive_id node_id;
         ib >> node_id;
         allocating_order.emplace_back(node_id);
+    }
+
+    size_t state_initializers_size;
+    ib >> state_initializers_size;
+    state_initializers.clear();
+    for (size_t i = 0; i < state_initializers_size; i++) {
+        std::string variable_id;
+        std::vector<primitive_id> initializers;
+        ib >> variable_id;
+        ib >> initializers;
+        state_initializers[variable_id] = initializers;
     }
 }

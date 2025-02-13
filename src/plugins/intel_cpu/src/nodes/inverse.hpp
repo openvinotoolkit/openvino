@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,9 +8,7 @@
 
 #include "node.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class Inverse : public Node {
 public:
@@ -25,8 +23,8 @@ public:
 
     void prepareParams() override;
 
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
     bool canBeInPlace() const override {
         return false;
     }
@@ -59,6 +57,4 @@ private:
     void lu_solve(float* output, std::vector<float>& L, std::vector<float>& U, std::vector<size_t>& P, size_t b);
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

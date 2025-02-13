@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,12 +36,12 @@ class TRANSFORMATIONS_API Proposal4Scales;
 
 class ov::pass::Proposal1Scales : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("Proposal1Scales", "0");
+    OPENVINO_MATCHER_PASS_RTTI("Proposal1Scales");
     Proposal1Scales();
 };
 
 class ov::pass::Proposal4Scales : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("Proposal4Scales", "0");
+    OPENVINO_MATCHER_PASS_RTTI("Proposal4Scales");
     Proposal4Scales();
 };

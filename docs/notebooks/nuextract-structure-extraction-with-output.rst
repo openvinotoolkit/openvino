@@ -117,6 +117,11 @@ Prerequisites
             shutil.copy(llm_config_shared_path, llm_config_dst_path)
         else:
             download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/llm_config.py")
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("nuextract-structure-extraction.ipynb")
 
 Select model for inference
 --------------------------
@@ -391,9 +396,9 @@ LLMPipeline.
 
 .. code:: ipython3
 
-    from openvino_genai import LLMPipeline
+    import openvino_genai as ov_genai
     
-    pipe = LLMPipeline(model_dir.as_posix(), device.value)
+    pipe = ov_genai.LLMPipeline(model_dir.as_posix(), device.value)
     
     
     def run_structure_extraction(text: str, schema: str) -> str:

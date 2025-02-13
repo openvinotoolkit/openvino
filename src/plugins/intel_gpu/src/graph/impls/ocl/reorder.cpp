@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::reorder_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<reorder_impl>(*this);
+        return make_deep_copy<reorder_impl, kernel_params_t>(*this);
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -156,7 +156,7 @@ public:
 
         auto best_kernel = kernel_selector.get_best_kernel(r_params);
 
-        return make_unique<reorder_impl>(best_kernel);
+        return std::make_unique<reorder_impl>(best_kernel);
     }
 };
 

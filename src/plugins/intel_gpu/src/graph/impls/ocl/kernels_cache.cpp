@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -153,8 +153,12 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             std::string entry_point = kernel_string->entry_point;
             std::string options = kernel_string->options;
             bool batch_compilation = kernel_string->batch_compilation;
+            bool is_cm = kernel_string->language == kernel_language::CM;
 
-            if (batch_compilation) {
+            auto& headers = is_cm ? cm_batch_headers : batch_headers;
+
+            // Order matters for cm options
+            if (batch_compilation && !is_cm) {
                 options = reorder_options(options);
             }
 
@@ -174,7 +178,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                 const auto& batch_id = 0;
                 // increase bucket id if and only if new bucket comes
                 bucket_id = static_cast<int32_t>(program_buckets.size() - 1);
-                current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_headers));
+                current_bucket.push_back(batch_program(bucket_id, batch_id, options, headers, is_cm));
             }
 
             // This is a temporary walk-around to avoid severe performance drop.
@@ -205,7 +209,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                 || current_bucket.back().entry_point_to_id.find(entry_point) != current_bucket.back().entry_point_to_id.end()
                 || need_separate_batch(entry_point)) {
                 const auto& batch_id = static_cast<int32_t>(current_bucket.size());
-                current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_headers));
+                current_bucket.push_back(batch_program(bucket_id, batch_id, options, headers, is_cm));
             }
 
             auto& current_batch = current_bucket.back();
@@ -251,7 +255,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             // Add -g -s to build options to allow IGC assembly dumper to associate assembler sources with corresponding OpenCL kernel code lines
             // Should be used with the IGC_ShaderDump option
             if (!dump_sources_dir.empty()) {
-                std::string current_dump_file_name = dump_sources_dir;
+                std::string current_dump_file_name = std::move(dump_sources_dir);
                 if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
                     current_dump_file_name += '/';
 
@@ -270,12 +274,14 @@ kernels_cache::kernels_cache(engine& engine,
                              const ExecutionConfig& config,
                              uint32_t prog_id,
                              std::shared_ptr<ov::threading::ITaskExecutor> task_executor,
-                             const std::map<std::string, std::string>& batch_headers)
+                             const std::map<std::string, std::string>& batch_headers,
+                             const std::map<std::string, std::string>& cm_batch_headers)
     : _device(get_target_device(engine))
     , _task_executor(task_executor)
     , _config(config)
     , _prog_id(prog_id)
-    , batch_headers(std::move(batch_headers)) { }
+    , batch_headers(std::move(batch_headers))
+    , cm_batch_headers(std::move(cm_batch_headers)) { }
 
 static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
     // Get the size of the program binary in bytes.
@@ -311,7 +317,7 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
 
     std::string current_dump_file_name = "";
     if (dump_sources) {
-        current_dump_file_name = dump_sources_dir;
+        current_dump_file_name = std::move(dump_sources_dir);
         if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
             current_dump_file_name += '/';
 
@@ -382,7 +388,7 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
                 // Bucket size can be changed in get_max_kernels_per_batch() method, but forcing it to 1 will lead to much longer
                 // compile time.
                 std::lock_guard<std::mutex> lock(cacheAccessMutex);
-                ov::intel_gpu::save_binary(cached_bin_name, getProgramBinaries(program));
+                ov::intel_gpu::save_binary(cached_bin_name, getProgramBinaries(std::move(program)));
             }
         } else {
             cl::Program program(cl_build_device.get_context(), {cl_build_device.get_device()}, precompiled_kernels);
@@ -602,7 +608,7 @@ std::string kernels_cache::get_cached_kernel_id(kernel::ptr kernel) const {
     auto ocl_kernel = std::static_pointer_cast<cldnn::ocl::ocl_kernel>(kernel);
     const auto& entry_point = ocl_kernel->get_handle().getInfo<CL_KERNEL_FUNCTION_NAME>();
     auto program = ocl_kernel->get_handle().getInfo<CL_KERNEL_PROGRAM>();
-    cl::vector<unsigned char> program_binaries = getProgramBinaries(program);
+    cl::vector<unsigned char> program_binaries = getProgramBinaries(std::move(program));
 
     auto iter = _cached_binaries.find(program_binaries);
     OPENVINO_ASSERT(iter != _cached_binaries.end(), "[GPU] Not found cached kernel binaries");
@@ -627,7 +633,7 @@ void kernels_cache::add_to_cached_kernels(const std::vector<kernel::ptr>& kernel
     for (auto& kernel : kernels) {
         auto ocl_kernel = std::static_pointer_cast<cldnn::ocl::ocl_kernel>(kernel);
         auto program = ocl_kernel->get_handle().getInfo<CL_KERNEL_PROGRAM>();
-        cl::vector<unsigned char> program_binaries = getProgramBinaries(program);
+        cl::vector<unsigned char> program_binaries = getProgramBinaries(std::move(program));
 
         std::lock_guard<std::mutex> lock(_mutex);
         auto iter = _cached_binaries.find(program_binaries);

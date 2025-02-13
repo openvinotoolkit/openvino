@@ -6,15 +6,12 @@
 
 #include "executor_config.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct MatMulAttrs {
     bool transposeA;
     bool transposeB;
-    std::vector<float> dequantizationScales;
 };
 
 using MatMulConfig = executor::Config<MatMulAttrs>;
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

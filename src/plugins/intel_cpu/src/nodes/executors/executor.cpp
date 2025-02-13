@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <string>
-
 #include "executor.hpp"
 
-namespace ov {
-namespace intel_cpu {
+#include <string>
+
+namespace ov::intel_cpu {
 
 std::string ExecutorTypeToString(const ExecutorType type) {
-#define CASE(_type) case ExecutorType::_type: return #_type;
+#define CASE(_type)           \
+    case ExecutorType::_type: \
+        return #_type;
     switch (type) {
         CASE(Undefined);
         CASE(Graph);
@@ -27,7 +28,10 @@ std::string ExecutorTypeToString(const ExecutorType type) {
 }
 
 ExecutorType ExecutorTypeFromString(const std::string& typeStr) {
-#define CASE(_type) if (typeStr == #_type) { return ExecutorType::_type; }
+#define CASE(_type)                 \
+    if (typeStr == #_type) {        \
+        return ExecutorType::_type; \
+    }
     CASE(Undefined);
     CASE(Graph);
     CASE(Common);
@@ -41,5 +45,4 @@ ExecutorType ExecutorTypeFromString(const std::string& typeStr) {
     return ExecutorType::Undefined;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu

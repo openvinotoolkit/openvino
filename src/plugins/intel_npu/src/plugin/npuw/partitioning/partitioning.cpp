@@ -636,9 +636,9 @@ void Partitioner::identifySubgraphs() {
                     // It happens when this layer is the original model's output
                     // Keep it to make the ugly top-level I/O matching procedure work.
                     // FIXME: This needs to be refactored
-                    group.sg._results.push_back(std::dynamic_pointer_cast<ov::op::v0::Result>(maybe_result));
+                    group.sg._results.push_back(ov::as_type_ptr<ov::op::v0::Result>(maybe_result));
                     result_cache[output_layer_ptr] =
-                        LinkPtrFrom{this_group_idx, std::dynamic_pointer_cast<ov::op::v0::Result>(maybe_result)};
+                        LinkPtrFrom{this_group_idx, ov::as_type_ptr<ov::op::v0::Result>(maybe_result)};
                 } else if (has_external_readers) {
                     // Introduce and record a new Result
                     // As the graph is processed in the topological order,
@@ -1188,10 +1188,10 @@ void Partitioner::saveTinyConstants(const std::string& func_name) {
                 auto total =
                     std::accumulate(shape.begin(), shape.end(), std::size_t{1}, std::multiplies<std::size_t>());
                 if ((shape.size() == 0 || (shape.size() == 1 && shape[0] <= 10)) || (total <= 10)) {
-                    LOG_DEBUG("[KEEP] It is safe to keep this bank in function");
+                    LOG_DEBUG("[KEEP] " << node->get_friendly_name() << "/" << shape << ": It is safe to keep this bank in function");
                     func_group.consts_to_keep.insert(std::static_pointer_cast<CT>(node));
                 } else {
-                    LOG_DEBUG("[CUT ] This group of Const ops will be cut-off from the function");
+                    LOG_DEBUG("[CUT ] " << node->get_friendly_name() << "/" << shape << ": This const op will be cut-off from the function");
                 }
             }
         }
@@ -1278,7 +1278,7 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
         }
     }  // for(models)
 
-    // Now walk through through every Const bank and inspect the above properties
+    // Now walk through every Const bank and inspect the above properties
     auto values_are_the_same = [](const CTPtr& node_a, const CTPtr& node_b) {
         switch (node_a->output(0).get_element_type()) {
 #define HANDLE_CASE(t, T) \
@@ -1326,7 +1326,7 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
                 func_group.consts_to_keep.insert(const_node);
             }
         } else {
-            LOG_DEBUG("[CUT ] This group of Const ops will be cut-off from the function");
+            LOG_DEBUG("[CUT ] This group of Const ops will be cut-off from the function: " << proto_node->get_friendly_name());
         }
     };
     for (auto&& bank : rep_block.consts) {
@@ -1527,8 +1527,7 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
 
                 LOG_DEBUG("Register " << prod_output << " in the function closure");
                 funcall._lazy_closure.push_back(
-                    LazyTensor(TransformType::THIS,
-                               std::static_pointer_cast<ov::op::v0::Constant>(input_node)));  // (n)/1/i/c
+                    LazyTensor(std::static_pointer_cast<ov::op::v0::Constant>(input_node)));  // (n)/1/i/c
             } else if (ov::op::util::is_parameter(input_node)) {
                 LOG_DEBUG("Handling a Parameter input " << prod_output);
                 LOG_BLOCK();
@@ -1697,8 +1696,7 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
                     LOG_DEBUG("Register " << prod_output << " in the function closure[" << param_idx
                                           << "] (via prototype " << proto_layer_name << ")");
                     funcall._lazy_closure[param_idx - function._param_offset] =
-                        LazyTensor(TransformType::THIS,
-                                   std::static_pointer_cast<ov::op::v0::Constant>(input_node));  // (t)/1/c
+                        LazyTensor(std::static_pointer_cast<ov::op::v0::Constant>(input_node));  // (t)/1/c
                 }
             }  // for (inputs)
         }      // for(nodes)
@@ -1767,7 +1765,7 @@ void Partitioner::optimize(const std::string& func_name) {
             auto closure_idx = param_idx - f._param_offset;
             ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
-                funcall._lazy_closure[closure_idx].update(TransformType::PERMUTE, p.second);
+                funcall._lazy_closure[closure_idx] = funcall._lazy_closure[closure_idx].permute(p.second);
             });
         }
     };
@@ -1777,7 +1775,7 @@ void Partitioner::optimize(const std::string& func_name) {
             auto closure_idx = param_idx - f._param_offset;
             ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
-                funcall._lazy_closure[closure_idx].update(TransformType::CONVERT, std::monostate{});
+                funcall._lazy_closure[closure_idx] = funcall._lazy_closure[closure_idx].convert(ov::element::f16);
             });
         }
     };
@@ -1797,6 +1795,8 @@ void Partitioner::optimize(const std::string& func_name) {
         // rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulGQi>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::CompressDictMatMulf32>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::DQParMMGQ>(std::ref(ctx));
+        // Convert specific convolutions to matmuls
+        rewr.add_matcher<ov::npuw::patterns::opt::ConvToMatmul>(std::ref(ctx));
         rewr.run_on_model(f._model);
 
         // Move Gather to host, if required
@@ -1832,15 +1832,12 @@ void Partitioner::optimize(const std::string& func_name) {
                 std::vector<LazyTensor> to_concat;
                 // Fill tensor vector
                 for (auto&& cidx : to_concat_idx) {
-                    // FIXME: Assuming here concat goes first and other transformations later.
-                    //        This allows to store ov::Tensor and ignore their potential history of transformations
-                    NPUW_ASSERT(!funcall._lazy_closure[cidx].has_transformations());
                     to_concat.push_back(funcall._lazy_closure[cidx]);
                 }
                 // Note: we can ignore updating funcall._lazy_closure[cidx] here since those LazyTensors will be gone
                 // and the new one added into the vector
                 if (!to_concat.empty()) {
-                    funcall._lazy_closure.push_back(LazyTensor(TransformType::CONCAT, std::make_pair(to_concat, axis)));
+                    funcall._lazy_closure.push_back(LazyTensor(to_concat, axis));
                     // Some of the tensors might be in closure - preserve it's 1:1 idx mapping with _lazy_closure
                     funcall._closure.push_back(ov::Tensor());
                 }
@@ -1867,17 +1864,11 @@ void Partitioner::optimize(const std::string& func_name) {
 
             ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
-                // FIXME: assuming no transformations were applied to the tensor - since we are utilizing the original
-                // ov::Tensor below
                 LazyTensor cw = funcall._lazy_closure[w_idx - f._param_offset];
-                LazyTensor cz = z_idx != -1 ? funcall._lazy_closure[z_idx - f._param_offset]
-                                            : LazyTensor(TransformType::THIS, ov::Tensor());
+                LazyTensor cz = z_idx != -1 ? funcall._lazy_closure[z_idx - f._param_offset] : LazyTensor();
                 LazyTensor cs = funcall._lazy_closure[s_idx - f._param_offset];
-
-                // FIXME: currently there is an issue that we don't share such tensor between head and tail
                 funcall._lazy_closure.push_back(
-                    LazyTensor(TransformType::UNPACK,
-                               std::make_tuple(cw, cz, cs, p.first->get_shape(), p.first->get_element_type())));
+                    LazyTensor(cw, cz, cs, p.first->get_element_type(), p.first->get_shape()));
                 // Some of the tensors might be in closure - preserve it's 1:1 idx mapping with _lazy_closure
                 funcall._closure.push_back(ov::Tensor());
             });
@@ -1901,7 +1892,7 @@ void Partitioner::optimize(const std::string& func_name) {
                 // Based on our logic (when tensors get transferred from lazy tensors via bank
                 // to the closure), this tensor should be non-empty to avoid this process.
                 funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
-                funcall.get()._lazy_closure.push_back(LazyTensor(TransformType::THIS, ov::Tensor()));
+                funcall.get()._lazy_closure.push_back(LazyTensor());
             }
         }
 
@@ -1954,9 +1945,10 @@ void Partitioner::optimize(const std::string& func_name) {
     // Run "dynamic quantization"
     ov::npuw::patterns::opt::Context ctx;
     ctx.is_spatial = f._spatial.has_value();
+    ctx.mm_dq_full = cfg.get<::intel_npu::NPUW_DQ_FULL>();
 
     ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulCWi>();
+    rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulCWi>(std::ref(ctx));
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQi>(std::ref(ctx));
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQ2i>(std::ref(ctx));
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQiP>(std::ref(ctx));

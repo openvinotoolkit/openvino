@@ -14,7 +14,7 @@ LSTMSequence
 
 **Detailed description**
 
-A single cell in the sequence is implemented in the same way as in :doc:`LSTM Cell <lstm-cell-1>` operation. *LSTMSequence* represents a sequence of LSTM cells. The sequence can be connected differently depending on ``direction`` attribute that specifies the direction of traversing of input data along sequence dimension or specifies whether it should be a bidirectional sequence. The most of the attributes are in sync with the specification of ONNX LSTM operator defined `LSTMCell <https://github.com/onnx/onnx/blob/master/docs/Operators.md#lstm>`__ .
+A single cell in the sequence is implemented in the same way as in :doc:`LSTM Cell <lstm-cell-1>` operation. *LSTMSequence* represents a sequence of LSTM cells. The sequence can be connected differently depending on ``direction`` attribute that specifies the direction of traversing of input data along sequence dimension or specifies whether it should be a bidirectional sequence. The most of the attributes are in sync with the specification of ONNX LSTM operator defined `LSTMCell <https://github.com/onnx/onnx/blob/main/docs/Operators.md#lstm>`__ .
 
 
 **Attributes**
@@ -26,13 +26,12 @@ A single cell in the sequence is implemented in the same way as in :doc:`LSTM Ce
   * **Type**: ``int``
   * **Required**: *yes*
 
-* *activations*
+* *direction*
 
-  * **Description**: *activations* specifies activation functions for gates, there are three gates, so three activation functions should be specified as a value for this attributes
-  * **Range of values**: any combination of *relu*, *sigmoid*, *tanh*
-  * **Type**: a list of strings
-  * **Default value**: *sigmoid,tanh,tanh*
-  * **Required**: *no*
+  * **Description**: Specify if the RNN is forward, reverse, or bidirectional. If it is one of *forward* or *reverse* then ``num_directions = 1``, if it is *bidirectional*, then ``num_directions = 2``. This ``num_directions`` value specifies input/output shape requirements.
+  * **Range of values**: *forward*, *reverse*, *bidirectional*
+  * **Type**: ``string``
+  * **Required**: *yes*
 
 * *activations_alpha, activations_beta*
 
@@ -40,6 +39,14 @@ A single cell in the sequence is implemented in the same way as in :doc:`LSTM Ce
   * **Range of values**: a list of floating-point numbers
   * **Type**: ``float[]``
   * **Default value**: None
+  * **Required**: *no*
+
+* *activations*
+
+  * **Description**: *activations* specifies activation functions for gates, there are three gates, so three activation functions should be specified as a value for this attributes
+  * **Range of values**: any combination of *relu*, *sigmoid*, *tanh*
+  * **Type**: a list of strings
+  * **Default value**: *sigmoid,tanh,tanh*
   * **Required**: *no*
 
 * *clip*
@@ -50,12 +57,6 @@ A single cell in the sequence is implemented in the same way as in :doc:`LSTM Ce
   * **Default value**: *infinity* that means that the clipping is not applied
   * **Required**: *no*
 
-* *direction*
-
-  * **Description**: Specify if the RNN is forward, reverse, or bidirectional. If it is one of *forward* or *reverse* then ``num_directions = 1``, if it is *bidirectional*, then ``num_directions = 2``. This ``num_directions`` value specifies input/output shape requirements.
-  * **Range of values**: *forward*, *reverse*, *bidirectional*
-  * **Type**: ``string``
-  * **Required**: *yes*
 
 **Inputs**
 

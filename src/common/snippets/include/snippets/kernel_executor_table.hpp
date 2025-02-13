@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "openvino/util/pp.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include <typeinfo>
 #if defined(SNIPPETS_DEBUG_CAPS) && !defined(_WIN32)
@@ -147,7 +148,7 @@ public:
     /*** Returns lambda function that contains current state of the table, and restores this state when called  */
     std::function<void()> get_state_reset() {
         auto current_state = get_state();
-        return [=]() { reset_state(current_state); };
+        return [OV_CAPTURE_CPY_AND_THIS]() { reset_state(current_state); };
     }
 
     virtual ~KernelExecutorTable() = default;

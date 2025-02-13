@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ class TRANSFORMATIONS_API ConvertSequenceToTensorIterator;
 
 class ov::pass::ConvertRNNSequenceToTensorIterator : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertRNNSequenceToTensorIterator", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertRNNSequenceToTensorIterator");
     ConvertRNNSequenceToTensorIterator();
 };
 
@@ -41,7 +41,7 @@ public:
 
 class ov::pass::ConvertGRUSequenceToTensorIterator : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertGRUSequenceToTensorIterator", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertGRUSequenceToTensorIterator");
     ConvertGRUSequenceToTensorIterator();
 };
 
@@ -53,12 +53,12 @@ public:
 
 class ov::pass::ConvertLSTMSequenceToTensorIterator : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertLSTMSequenceToTensorIterator", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertLSTMSequenceToTensorIterator");
     ConvertLSTMSequenceToTensorIterator();
 };
 
 class ov::pass::ConvertSequenceToTensorIterator : public GraphRewrite {
 public:
-    OPENVINO_RTTI("ConvertSequenceToTensorIterator", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("ConvertSequenceToTensorIterator");
     ConvertSequenceToTensorIterator();
 };

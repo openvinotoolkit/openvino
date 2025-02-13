@@ -197,16 +197,16 @@ By default, ``compile_model`` API will select **AUTO** as
 
 .. parsed-literal::
 
-    [22:41:57.1267]I[plugin.cpp:421][AUTO] device:CPU, config:LOG_LEVEL=LOG_INFO
-    [22:41:57.1268]I[plugin.cpp:421][AUTO] device:CPU, config:PERFORMANCE_HINT=LATENCY
-    [22:41:57.1268]I[plugin.cpp:421][AUTO] device:CPU, config:PERFORMANCE_HINT_NUM_REQUESTS=0
-    [22:41:57.1268]I[plugin.cpp:421][AUTO] device:CPU, config:PERF_COUNT=NO
-    [22:41:57.1268]I[plugin.cpp:426][AUTO] device:CPU, priority:0
-    [22:41:57.1268]I[schedule.cpp:17][AUTO] scheduler starting
-    [22:41:57.1269]I[auto_schedule.cpp:181][AUTO] select device:CPU
-    [22:41:57.2582]I[auto_schedule.cpp:346][AUTO] Device: [CPU]: Compile model took 131.300219 ms
-    [22:41:57.2583]I[auto_schedule.cpp:112][AUTO] device:CPU compiling model finished
-    [22:41:57.2584]I[plugin.cpp:454][AUTO] underlying hardware does not support hardware context
+    [23:05:31.1930]I[plugin.cpp:421][AUTO] device:CPU, config:LOG_LEVEL=LOG_INFO
+    [23:05:31.1930]I[plugin.cpp:421][AUTO] device:CPU, config:PERFORMANCE_HINT=LATENCY
+    [23:05:31.1931]I[plugin.cpp:421][AUTO] device:CPU, config:PERFORMANCE_HINT_NUM_REQUESTS=0
+    [23:05:31.1931]I[plugin.cpp:421][AUTO] device:CPU, config:PERF_COUNT=NO
+    [23:05:31.1931]I[plugin.cpp:426][AUTO] device:CPU, priority:0
+    [23:05:31.1931]I[schedule.cpp:17][AUTO] scheduler starting
+    [23:05:31.1931]I[auto_schedule.cpp:181][AUTO] select device:CPU
+    [23:05:31.3235]I[auto_schedule.cpp:346][AUTO] Device: [CPU]: Compile model took 130.407415 ms
+    [23:05:31.3237]I[auto_schedule.cpp:112][AUTO] device:CPU compiling model finished
+    [23:05:31.3238]I[plugin.cpp:454][AUTO] underlying hardware does not support hardware context
     Successfully compiled model without a device_name.
 
 
@@ -220,7 +220,7 @@ By default, ``compile_model`` API will select **AUTO** as
 .. parsed-literal::
 
     Deleted compiled_model
-    [22:41:57.2639]I[schedule.cpp:308][AUTO] scheduler ending
+    [23:05:31.3290]I[schedule.cpp:308][AUTO] scheduler ending
 
 
 Explicitly pass AUTO as device_name to Core::compile_model API
@@ -288,20 +288,29 @@ function, we will reuse it for preparing input data.
     # Fetch `notebook_utils` module
     import requests
     
-    r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
-    open("notebook_utils.py", "w").write(r.text)
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
+        open("notebook_utils.py", "w").write(r.text)
     
     from notebook_utils import download_file
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("auto-device.ipynb")
 
 .. code:: ipython3
 
     from PIL import Image
     
-    # Download the image from the openvino_notebooks storage
-    image_filename = download_file(
-        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
-        directory="data",
-    )
+    image_filename = Path("data/coco.jpg")
+    
+    if not image_filename.exists():
+        # Download the image from the openvino_notebooks storage
+        image_filename = download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
+            directory="data",
+        )
     
     image = Image.open(str(image_filename))
     input_transform = torchvision.models.ResNet50_Weights.DEFAULT.transforms()
@@ -314,7 +323,7 @@ function, we will reuse it for preparing input data.
 
 .. parsed-literal::
 
-    data/coco.jpg:   0%|          | 0.00/202k [00:00<?, ?B/s]
+    coco.jpg:   0%|          | 0.00/202k [00:00<?, ?B/s]
 
 
 
@@ -378,7 +387,7 @@ executed on CPU until GPU is ready.
 
 .. parsed-literal::
 
-    Time to load model using AUTO device and get first inference: 0.12 seconds.
+    Time to load model using AUTO device and get first inference: 0.13 seconds.
 
 
 .. code:: ipython3
@@ -553,12 +562,12 @@ Loop for inference and update the FPS/Latency every
 
     Compiling Model for AUTO device with THROUGHPUT hint
     Start inference,  6 groups of FPS/latency will be measured over  10s intervals
-    throughput:  179.70fps, latency:  32.12ms, time interval: 10.00s
-    throughput:  183.61fps, latency:  31.86ms, time interval: 10.01s
-    throughput:  183.96fps, latency:  31.88ms, time interval: 10.01s
-    throughput:  183.98fps, latency:  31.91ms, time interval: 10.00s
-    throughput:  183.26fps, latency:  31.98ms, time interval: 10.01s
-    throughput:  183.40fps, latency:  32.01ms, time interval: 10.00s
+    throughput:  183.01fps, latency:  31.42ms, time interval: 10.01s
+    throughput:  181.78fps, latency:  32.22ms, time interval: 10.02s
+    throughput:  181.19fps, latency:  32.39ms, time interval: 10.01s
+    throughput:  180.90fps, latency:  32.34ms, time interval: 10.01s
+    throughput:  182.92fps, latency:  32.06ms, time interval: 10.01s
+    throughput:  183.14fps, latency:  31.93ms, time interval: 10.01s
     Done
 
 
@@ -604,12 +613,12 @@ Loop for inference and update the FPS/Latency for each
 
     Compiling Model for AUTO Device with LATENCY hint
     Start inference,  6 groups fps/latency will be out with  10s interval
-    throughput:  130.56fps, latency:  7.18ms, time interval: 10.00s
-    throughput:  142.51fps, latency:  6.61ms, time interval: 10.01s
-    throughput:  142.47fps, latency:  6.62ms, time interval: 10.00s
-    throughput:  142.46fps, latency:  6.61ms, time interval: 10.00s
-    throughput:  142.63fps, latency:  6.61ms, time interval: 10.00s
-    throughput:  142.73fps, latency:  6.60ms, time interval: 10.00s
+    throughput:  140.07fps, latency:  6.62ms, time interval: 10.00s
+    throughput:  142.55fps, latency:  6.62ms, time interval: 10.00s
+    throughput:  138.69fps, latency:  6.83ms, time interval: 10.01s
+    throughput:  138.53fps, latency:  6.83ms, time interval: 10.01s
+    throughput:  142.77fps, latency:  6.63ms, time interval: 10.00s
+    throughput:  142.70fps, latency:  6.63ms, time interval: 10.01s
     Done
 
 

@@ -7,8 +7,7 @@
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/device.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 enum class PropertyVisibility {
     INTERNAL = 0,
@@ -138,6 +137,10 @@ public:
 
     void apply_user_properties(const cldnn::device_info& info);
 
+    // Note that RT info property value has lower priority than values set by user via core.set_property or passed to compile_model call
+    // So this method should be called after setting all user properties, but before apply_user_properties() call.
+    void apply_rt_info(const cldnn::device_info& info, const ov::RTMap& rt_info, const bool is_llm);
+
     std::string to_string() const;
 
 protected:
@@ -147,16 +150,27 @@ protected:
     void apply_priority_hints(const cldnn::device_info& info);
     void apply_debug_options(const cldnn::device_info& info);
 
+    template <typename T, PropertyMutability mutability>
+    void apply_rt_info_property(const ov::Property<T, mutability>& property, const ov::RTMap& rt_info) {
+        if (!is_set_by_user(property)) {
+            auto rt_info_val = rt_info.find(property.name());
+            if (rt_info_val != rt_info.end()) {
+                set_user_property(property(rt_info_val->second.template as<T>()));
+            }
+        }
+    }
+
 private:
     ov::AnyMap internal_properties;
     ov::AnyMap user_properties;
 
     std::map<std::string, PropertyVisibility> supported_properties;
     std::map<std::string, BaseValidator::Ptr> property_validators;
+
+    bool finalized = false;
 };
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu
 
 namespace cldnn {
 using ov::intel_gpu::ExecutionConfig;

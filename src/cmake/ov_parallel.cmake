@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -132,7 +132,7 @@ macro(ov_find_package_tbb)
                                   IMPORTED_TARGET
                                   # we need to set GLOBAL in order to create ALIAS later
                                   # ALIAS creation for non-GLOBAL targets is available since cmake 3.18
-                                  ${OV_PkgConfig_VISILITY}
+                                  ${OV_PkgConfig_VISIBILITY}
                                   tbb)
                 if(tbb_FOUND)
                     # parse version
@@ -318,7 +318,7 @@ macro(ov_find_package_openmp)
 
         # falling back to system OpenMP then
         if(NOT TARGET IntelOpenMP::OpenMP_CXX)
-            _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} OpenMP::OpenMP_CXX)
+            ov_target_link_libraries_as_system(${TARGET_NAME} ${LINK_TYPE} OpenMP::OpenMP_CXX)
         endif()
     endif()
 endmacro()
@@ -360,34 +360,6 @@ function(ov_set_threading_interface_for TARGET_NAME)
         message(WARNING "Unknown target type")
     endif()
 
-    function(_ov_target_link_libraries TARGET_NAME LINK_TYPE)
-        target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${ARGN})
-
-        # include directories as SYSTEM
-        foreach(library IN LISTS ARGN)
-            if(TARGET ${library})
-                get_target_property(include_directories ${library} INTERFACE_INCLUDE_DIRECTORIES)
-                if(include_directories)
-                    foreach(include_directory IN LISTS include_directories)
-                        # cannot include /usr/include headers as SYSTEM
-                        if(NOT "${include_directory}" MATCHES ".*/usr/include.*$")
-                            target_include_directories(${TARGET_NAME} SYSTEM
-                                ${LINK_TYPE} $<BUILD_INTERFACE:${include_directory}>)
-                        else()
-                            set(_system_library ON)
-                        endif()
-                    endforeach()
-                endif()
-            endif()
-        endforeach()
-
-        if(_system_library)
-            # if we deal with system library (e.i. having /usr/include as header paths)
-            # we cannot use SYSTEM key word for such library
-            set_target_properties(${TARGET_NAME} PROPERTIES NO_SYSTEM_FROM_IMPORTED ON)
-        endif()
-    endfunction()
-
     set(_ov_thread_define "OV_THREAD_SEQ")
 
     if(NOT TARGET openvino::threading)
@@ -423,13 +395,13 @@ function(ov_set_threading_interface_for TARGET_NAME)
         set_target_properties(openvino_threading PROPERTIES INTERFACE_LINK_LIBRARIES ${_ov_threading_lib})
 
         # perform linkage with target
-        _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${_ov_threading_lib})
+        ov_target_link_libraries_as_system(${TARGET_NAME} ${LINK_TYPE} ${_ov_threading_lib})
     endif()
 
     target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} OV_THREAD=${_ov_thread_define})
 
     if(NOT THREADING STREQUAL "SEQ")
         find_package(Threads REQUIRED)
-        _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} Threads::Threads)
+        ov_target_link_libraries_as_system(${TARGET_NAME} ${LINK_TYPE} Threads::Threads)
     endif()
 endfunction(ov_set_threading_interface_for)

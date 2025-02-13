@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,8 +22,8 @@ namespace intel_cpu {
  * number of elements in buffers to be converted
  * @return none.
  */
-void cpu_convert(const void *srcPtr,
-                 void *dstPtr,
+void cpu_convert(const void* srcPtr,
+                 void* dstPtr,
                  ov::element::Type srcPrc,
                  ov::element::Type dstPrc,
                  const size_t size);
@@ -45,14 +45,14 @@ void cpu_convert(const void *srcPtr,
  * number of elements in buffers to be converted
  * @return none.
  */
-void cpu_convert(const void *srcPtr,
-                 void *dstPtr,
+void cpu_convert(const void* srcPtr,
+                 void* dstPtr,
                  ov::element::Type srcPrc,
                  ov::element::Type interimPrc,
                  ov::element::Type dstPrc,
                  const size_t size);
 
- bool is_supported_convert(ov::element::Type srcPrc, ov::element::Type dstPrc);
+bool is_supported_convert(ov::element::Type srcPrc, ov::element::Type dstPrc);
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

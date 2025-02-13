@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -484,7 +484,7 @@ bool is_on_constant_path(const ov::Output<ov::Node>& output) {
 bool process_subgraph(ov::pass::ModelPass& model_pass, const std::shared_ptr<Node>& node) {
     bool changed = false;
 
-    if (const auto& multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(node)) {
+    if (const auto& multi_subgraph_op = ov::as_type_ptr<op::util::MultiSubGraphOp>(node)) {
         for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
             if (sub_graph) {
                 changed = model_pass.run_on_model(sub_graph) || changed;

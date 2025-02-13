@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -120,6 +120,30 @@ INSTANTIATE_TEST_SUITE_P(
            make_tuple(unit_test::ShapeVector{{2000, 128}, {3}, {3}, {3}}, std::vector<std::vector<int32_t>>{{0, 0, 0}, {0, 128, 0}, {1, 1, 1}},
                       std::vector<int64_t>{0, 1, 1}, std::vector<int64_t>{0, 0, 1}, std::vector<int64_t>{1, 0, 0}, std::vector<int64_t>(3, 0),
                       StaticShape({1, 128, 128})),
+           make_tuple(unit_test::ShapeVector{{3, 192}, {5}, {5}, {5}}, std::vector<std::vector<int32_t>>{{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {1, 1, 1, 1, 1}},
+                      std::vector<int64_t>{1, 0, 0, 0, 1}, std::vector<int64_t>{1, 0, 0, 0, 1}, std::vector<int64_t>{0, 1, 1, 1, 0}, std::vector<int64_t>{},
+                      StaticShape({3, 1, 1, 1, 192})),
+           make_tuple(unit_test::ShapeVector{{3, 192}, {5}, {5}, {5}}, std::vector<std::vector<int32_t>>{{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {1, 1, 1, 1, 1}},
+                      std::vector<int64_t>{1, 1, 0, 0, 0}, std::vector<int64_t>{1, 1, 0, 0, 0}, std::vector<int64_t>{0, 0, 1, 1, 1}, std::vector<int64_t>{},
+                      StaticShape({3, 192, 1, 1, 1})),
+           make_tuple(unit_test::ShapeVector{{3, 2, 192}, {5}, {5}, {5}}, std::vector<std::vector<int32_t>>{{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {1, 1, 1, 1, 1}},
+                      std::vector<int64_t>{1, 0, 1, 0, 1}, std::vector<int64_t>{1, 0, 1, 0, 1}, std::vector<int64_t>{0, 1, 0, 1, 0}, std::vector<int64_t>{},
+                      StaticShape({3, 1, 2, 1, 192})),
+           make_tuple(unit_test::ShapeVector{{3, 2, 192}, {5}, {5}, {5}}, std::vector<std::vector<int32_t>>{{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {1, 1, 1, 1, 1}},
+                      std::vector<int64_t>{1, 0, 0, 0, 1}, std::vector<int64_t>{1, 0, 0, 0, 1}, std::vector<int64_t>{0, 1, 0, 1, 0},
+                      std::vector<int64_t>{0, 0, 1, 0, 0},
+                      StaticShape({3, 1, 1, 192})),
+           make_tuple(unit_test::ShapeVector{{3, 2, 192}, {5}, {5}, {5}}, std::vector<std::vector<int32_t>>{{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {1, 1, 1, 1, 1}},
+                      std::vector<int64_t>{1, 0, 0, 0, 1}, std::vector<int64_t>{1, 0, 0, 0, 1}, std::vector<int64_t>{0, 1, 1, 0, 0},
+                      std::vector<int64_t>{0, 0, 0, 1, 1},
+                      StaticShape({3, 1, 1})),
+           make_tuple(unit_test::ShapeVector{{3, 192}, {5}, {5}, {5}}, std::vector<std::vector<int32_t>>{{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {1, 1, 1, 1, 1}},
+                      std::vector<int64_t>{1, 0, 0, 0, 1}, std::vector<int64_t>{1, 0, 0, 0, 1}, std::vector<int64_t>{0, 1, 1, 1, 0},
+                      std::vector<int64_t>{0, 1, 1, 1, 0},
+                      StaticShape({3, 1, 1, 1, 192})),
+           make_tuple(unit_test::ShapeVector{{3, 192}, {2}, {2}, {2}}, std::vector<std::vector<int32_t>>{{0, 0}, {0, 0}, {1, 1}},
+                      std::vector<int64_t>{0, 1}, std::vector<int64_t>{0, 1}, std::vector<int64_t>{0, 0}, std::vector<int64_t>{1, 0},
+                      StaticShape({192})),
            make_tuple(unit_test::ShapeVector{{1, 2, 3}, {2}, {2}, {2}}, std::vector<std::vector<int32_t>>{{0, 0}, {0, 0}, {1, 1}},
                       std::vector<int64_t>{1, 0}, std::vector<int64_t>{1, 0}, std::vector<int64_t>{0, 1}, std::vector<int64_t>{0, 0},
                       StaticShape({1, 1, 2, 3}))),

@@ -1,13 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "intel_gpu/op/fully_connected.hpp"
 #include "matmul_shape_inference.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 FullyConnected::FullyConnected(const ov::Output<Node>& A,
                                const ov::Output<Node>& B,
@@ -46,6 +44,4 @@ bool FullyConnected::visit_attributes(ov::AttributeVisitor &visitor) {
     return true;
 }
 
-}  // namespace op
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu::op

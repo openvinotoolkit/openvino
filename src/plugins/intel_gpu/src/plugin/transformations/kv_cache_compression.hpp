@@ -6,8 +6,7 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 
 /// Add dynamic quantization node and fuse it with KV cache operation
@@ -32,12 +31,12 @@ namespace intel_gpu {
 
 class KVCacheCompression : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("KVCacheCompression", "0");
-    KVCacheCompression(ov::element::Type compression_dt);
+
+    OPENVINO_GRAPH_REWRITE_RTTI("KVCacheCompression");
+    KVCacheCompression(ov::element::Type compression_dt, bool supports_immad);
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu

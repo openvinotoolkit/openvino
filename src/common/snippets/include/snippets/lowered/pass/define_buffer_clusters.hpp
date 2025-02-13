@@ -33,7 +33,7 @@ namespace pass {
  */
 class DefineBufferClusters : public RangedPass {
 public:
-    OPENVINO_RTTI("DefineBufferClusters", "RangedPass")
+    OPENVINO_RTTI("DefineBufferClusters", "", RangedPass);
 
     DefineBufferClusters() = default;
 

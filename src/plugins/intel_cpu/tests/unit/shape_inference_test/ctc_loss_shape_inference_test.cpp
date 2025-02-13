@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ TEST_F(CTCLossV4StaticShapeInferenceTest, correct_input_shapes) {
 
     auto op = make_op(logits, logit_length, labels, label_length, blank_index);
 
-    input_shapes = ShapeVector{{10, 120, 28}, {10}, {10, 120}, {10}, {}};
+    input_shapes = StaticShapeVector{{10, 120, 28}, {10}, {10, 120}, {10}, {}};
     output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
@@ -38,7 +38,7 @@ TEST_F(CTCLossV4StaticShapeInferenceTest, correct_input_shapes) {
 TEST_F(CTCLossV4StaticShapeInferenceTest, default_ctor) {
     auto op = make_op();
 
-    input_shapes = ShapeVector{{12, 120, 28}, {12}, {12, 120}, {12}, {}};
+    input_shapes = StaticShapeVector{{12, 120, 28}, {12}, {12, 120}, {12}, {}};
     output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);

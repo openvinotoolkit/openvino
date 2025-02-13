@@ -65,13 +65,19 @@ Imports
     # Fetch `notebook_utils` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
     
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
     
     from notebook_utils import download_file, device_widget
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("hello-detection.ipynb")
 
 Download model weights
 ----------------------
@@ -102,13 +108,13 @@ Download model weights
 
 .. parsed-literal::
 
-    model/horizontal-text-detection-0001.xml:   0%|          | 0.00/680k [00:00<?, ?B/s]
+    horizontal-text-detection-0001.xml:   0%|          | 0.00/680k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    model/horizontal-text-detection-0001.bin:   0%|          | 0.00/7.39M [00:00<?, ?B/s]
+    horizontal-text-detection-0001.bin:   0%|          | 0.00/7.39M [00:00<?, ?B/s]
 
 
 Select inference device
@@ -155,10 +161,14 @@ Load an Image
 .. code:: ipython3
 
     # Download the image from the openvino_notebooks storage
-    image_filename = download_file(
-        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/intel_rnb.jpg",
-        directory="data",
-    )
+    
+    image_filename = Path("data/intel_rnb.jpg")
+    
+    if not image_filename.exists():
+        image_filename = download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/intel_rnb.jpg",
+            directory="data",
+        )
     
     # Text detection models expect an image in BGR format.
     image = cv2.imread(str(image_filename))
@@ -178,7 +188,7 @@ Load an Image
 
 .. parsed-literal::
 
-    data/intel_rnb.jpg:   0%|          | 0.00/288k [00:00<?, ?B/s]
+    intel_rnb.jpg:   0%|          | 0.00/288k [00:00<?, ?B/s]
 
 
 

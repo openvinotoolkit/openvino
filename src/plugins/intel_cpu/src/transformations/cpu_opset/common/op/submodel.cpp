@@ -2,31 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
-
 #include "submodel.hpp"
 
-namespace ov {
-namespace intel_cpu {
+#include <memory>
 
-SubModel::SubModel(const std::shared_ptr<ov::Model>& body)
-    : SubGraphOp() {
+namespace ov::intel_cpu {
+
+SubModel::SubModel(const std::shared_ptr<ov::Model>& body) : SubGraphOp() {
     SubGraphOp::set_function(body);
 }
 
-SubModel::SubModel(const ov::OutputVector& args,
-                   const std::shared_ptr<ov::Model>& body)
-    : SubGraphOp(args) {
+SubModel::SubModel(const ov::OutputVector& args, const std::shared_ptr<ov::Model>& body) : SubGraphOp(args) {
     SubGraphOp::set_function(body);
     constructor_validate_and_infer_types();
-    for (size_t i = 0; i < body->get_parameters().size(); ++i)
+    for (size_t i = 0; i < body->get_parameters().size(); ++i) {
         m_input_descriptions[0].push_back(std::make_shared<InvariantInputDescription>(i, i));
-    for (size_t i = 0; i < body->get_output_size(); ++i)
+    }
+    for (size_t i = 0; i < body->get_output_size(); ++i) {
         m_output_descriptions[0].push_back(std::make_shared<BodyOutputDescription>(i, i));
+    }
 }
 
-SubModel::SubModel(const ov::NodeVector& args,
-                   const std::shared_ptr<ov::Model>& body)
+SubModel::SubModel(const ov::NodeVector& args, const std::shared_ptr<ov::Model>& body)
     : SubModel(as_output_vector(args), body) {}
 
 std::shared_ptr<ov::Node> SubModel::clone_with_new_inputs(const ov::OutputVector& inputs) const {
@@ -61,5 +58,4 @@ bool SubModel::visit_attributes(ov::AttributeVisitor& visitor) {
     return true;
 }
 
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace ov::intel_cpu

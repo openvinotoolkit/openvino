@@ -1,0 +1,84 @@
+---
+
+### NOTE:
+# The 'Checks: >' is a multiline string here. Comment must not be moved into the string.
+#
+### Scopes to be enabled:
+#
+# cppcoreguidelines-*,
+# readability-*,
+# modernize-*,
+# bugprone-*,
+# misc-*,
+#
+### Checks that are turned off for a reason:
+#
+# -cppcoreguidelines-pro-bounds-pointer-arithmetic
+# -google-readability-todo. No big reason to enforce
+# -modernize-use-trailing-return-type. Just stylistic preference
+# -readability-identifier-length. A lot of code use short names for readability, i.e. 'B' for batch
+# -readability-uppercase-literal-suffix. 
+#
+### Checks that are turned off but better be enabled later:
+# -bugprone-narrowing-conversions
+# -bugprone-easily-swappable-parameters
+# -bugprone-fold-init-type
+# -bugprone-implicit-widening-of-multiplication-result
+# -cppcoreguidelines-narrowing-conversions
+# -google-default-arguments,
+# -google-explicit-constructor,
+# -google-readability-casting,
+# -readability-implicit-bool-conversion,
+# -readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers
+# -readability-function-cognitive-complexity. Reasonable way to enforce splitting complex code into simple functions
+
+Checks: >
+  -*,
+  performance-*,
+  google-*,
+  modernize-pass-by-value,
+  cppcoreguidelines-prefer-member-initializer,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-fold-init-type,
+  -bugprone-implicit-widening-of-multiplication-result,
+  -bugprone-narrowing-conversions,
+  -cppcoreguidelines-narrowing-conversions,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -google-build-using-namespace,
+  -google-explicit-constructor,
+  -google-readability-casting,
+  -google-readability-todo,
+  -readability-braces-around-statements,
+  -modernize-use-trailing-return-type,
+  -readability-identifier-length,
+  -readability-implicit-bool-conversion,
+  -readability-magic-numbers,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -readability-uppercase-literal-suffix,
+  -readability-function-cognitive-complexity,
+# Treat warnings as errors
+WarningsAsErrors: '*'
+# Use clang-format for applied fixes
+FormatStyle: file
+HeaderFilterRegex: ''
+CheckOptions:
+  - key: cppcoreguidelines-avoid-do-while.IgnoreMacros
+    value: true
+  # matches with corresponding cpplink check  
+  - key: google-readability-namespace-comments.ShortNamespaceLines
+    value: "10"
+  # matches with corresponding cpplink check  
+  - key: google-readability-namespace-comments.SpacesBeforeComments
+    value: "2"
+  - key: modernize-loop-convert.MinConfidence
+    value: reasonable
+  - key: modernize-pass-by-value.IncludeStyle
+    value: google
+### To be considered to enable:
+#  # Unifies the usage of the statements
+#  - key: readability-braces-around-statements.ShortStatementLines
+#    value: "1"
+#  Reasonable way to enforce splitting complex code into simple functions
+#  - key: google-readability-function-size.StatementThreshold
+#    value: "800"
+---

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -145,6 +145,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.hardtanh.default": None,
             "torch.ops.aten.hardtanh_.default": None,
             "torch.ops.aten.index.Tensor": None,
+            "torch.ops.aten._unsafe_index.Tensor": None,
             "torch.ops.aten.index_select.default": None,
             "torch.ops.aten.isfinite.default": None,
             "torch.ops.aten.isinf.default": None,

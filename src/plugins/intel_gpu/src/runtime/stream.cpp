@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,8 +33,7 @@ event::ptr stream::aggregate_events(const std::vector<event::ptr>& events, bool 
     if (group && !is_output)
         return group_events(events);
 
-    return events.empty() ? create_user_event(true)
-                          : enqueue_marker(events, is_output);
+    return events.empty() ? (is_output ? create_user_event(true) : nullptr) : enqueue_marker(events, is_output);
 }
 
 }  // namespace cldnn

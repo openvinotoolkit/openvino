@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,11 +7,9 @@
 #include "openvino/op/search_sorted.hpp"
 #include "openvino/reference/search_sorted.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
-SearchSorted::SearchSorted(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+namespace ov::intel_cpu::node {
+SearchSorted::SearchSorted(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -37,8 +35,9 @@ void SearchSorted::getSupportedDescriptors() {
 }
 
 void SearchSorted::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     ov::element::Type inputPrec = getOriginalInputPrecisionAtPort(0);
     ov::element::Type outputPrec = getOriginalOutputPrecisionAtPort(0);
@@ -70,7 +69,7 @@ bool SearchSorted::needPrepareParams() const {
     return false;
 }
 
-void SearchSorted::executeDynamicImpl(dnnl::stream strm) {
+void SearchSorted::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -99,7 +98,7 @@ struct SearchSorted::SearchSortedExecute {
         ctx.node.executeImpl<TInputType, TOutputType>();
     }
 };
-void SearchSorted::execute(dnnl::stream strm) {
+void SearchSorted::execute(const dnnl::stream& strm) {
     auto inputPrecision = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     auto outputPrecision = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
 
@@ -107,7 +106,7 @@ void SearchSorted::execute(dnnl::stream strm) {
 
 #define CASE(OV_TYPE)                                                                           \
     OV_CASE2(OV_TYPE, ov::element::i64, ov::element_type_traits<OV_TYPE>::value_type, int64_t), \
-    OV_CASE2(OV_TYPE, ov::element::i32, ov::element_type_traits<OV_TYPE>::value_type, int32_t)
+        OV_CASE2(OV_TYPE, ov::element::i32, ov::element_type_traits<OV_TYPE>::value_type, int32_t)
 
     OV_SWITCH(intel_cpu,
               SearchSortedExecute,
@@ -122,6 +121,4 @@ void SearchSorted::execute(dnnl::stream strm) {
 
 #undef CASE
 }
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

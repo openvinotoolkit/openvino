@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,7 +69,7 @@ void select_preferred_formats::run(program& p) {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     auto& engine = p.get_engine();
-    if (p.get_layout_optimizer().get_optimization_attributes().use_onednn_impls) {
+    if (!p.get_layout_optimizer().is_empty_onednn_impls_optimization_attribute()) {
         engine.create_onednn_engine(p.get_config());
     }
 #endif  // ENABLE_ONEDNN_FOR_GPU

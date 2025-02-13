@@ -5,9 +5,9 @@ import shutil
 import tempfile
 
 import pytest
-import whowhatbench as wwb
 from optimum.intel.openvino import (OVModelForCausalLM,
                                     OVWeightQuantizationConfig)
+import whowhatbench as wwb
 from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed
 
 logging.basicConfig(level=logging.INFO)
@@ -33,8 +33,8 @@ ACCURACY_THRESHOLDS = {
     "INT4": 0.05,
 }
 
-tmp_dir = tempfile.mkdtemp()
-
+tmp_dir = tempfile.mkdtemp(dir=os.getcwd())
+logger.info(f"Created temporary directory: {tmp_dir}")
 
 def init_test_scope():
     test_scope = []
@@ -49,7 +49,7 @@ def init_test_scope():
         tokenizer.save_pretrained(model_path)
 
         ov_model = OVModelForCausalLM.from_pretrained(model_path, load_in_8bit=True)
-        ov_model_path = model_path = os.path.join(tmp_dir, model_type + "_ov")
+        ov_model_path = model_path + os.path.join(tmp_dir, model_type + "_ov")
         ov_model.save_pretrained(ov_model_path)
         tokenizer.save_pretrained(ov_model_path)
         del ov_model
@@ -86,7 +86,7 @@ def init_test_scope():
 
 
 def teardown_module():
-    logger.info("Remove models")
+    logger.info(f"Deleting temporary directory: {tmp_dir}")
     shutil.rmtree(tmp_dir)
 
 
@@ -98,7 +98,7 @@ test_scope = init_test_scope()
     test_scope,
 )
 def test_accuracy_conformance(model_path, model_type, precision, gt_data, device):
-    target_model = OVModelForCausalLM.from_pretrained(model_path, device=device)
+    target_model = OVModelForCausalLM.from_pretrained(model_path, device=device, ov_config={"KV_CACHE_PRECISION": "f16"})
     tokenizer = AutoTokenizer.from_pretrained(model_path)
 
     evaluator = wwb.Evaluator(

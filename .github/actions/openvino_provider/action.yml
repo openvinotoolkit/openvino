@@ -177,7 +177,7 @@ runs:
         else
           ov_package_url=$(curl -s ${{ inputs.nightly_package_source }} | jq -r '.${{ inputs.platform }}_${{ inputs.arch }}')
         fi
-        cd ${{ inputs.install_dir || env.GITHUB_WORKSPACE }}
+        cd ${{ inputs.install_dir || github.workspace }}
         package_basename=$(basename $ov_package_url)
         wget $ov_package_url --progress=bar:force:noscroll -O $package_basename
         package_folder=${package_basename%.*}
@@ -196,7 +196,7 @@ runs:
       uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
       with:
         name: ${{ steps.openvino_s3_download.outputs.ov_artifact_name }}
-        path: ${{ steps.openvino_s3_download.outputs.ov_package_path }}
+        path: ${{ github.workspace }}/${{ steps.openvino_s3_download.outputs.ov_package_path }}
         if-no-files-found: 'error'
 
     - name: Get wheel

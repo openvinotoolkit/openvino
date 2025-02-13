@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/runtime/iplugin.hpp"
 
+#include "core_impl.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
@@ -75,8 +76,10 @@ std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::string
                                                                const ov::AnyMap& properties) const {
     auto core = get_core();
     OPENVINO_ASSERT(core);
-    auto model = core->read_model(model_path, std::string());
-    return compile_model(model, properties);
+    const auto model = core->read_model(model_path, {}, properties);
+    auto local_properties = properties;
+    CoreConfig::remove_core_skip_cache_dir(local_properties);
+    return compile_model(model, local_properties);
 }
 
 std::unordered_set<std::string> ov::get_supported_nodes(

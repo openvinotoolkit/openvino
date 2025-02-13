@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ TEST(StaticShapeInferenceTest, RMSNormStaticShapeInferenceTestDefaultCtor) {
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{2, 3, 8, 6}, StaticShape{1}, StaticShape{1}};
     int32_t axis_val = -1;
-    const auto const_data = std::unordered_map<size_t, Tensor>{{1, {element::i32, Shape{1}, &axis_val}}};
+    const auto const_data = std::unordered_map<size_t, Tensor>{{1, {element::i32, ov::Shape{1}, &axis_val}}};
     const auto static_output_shapes = shape_inference(op.get(), static_input_shapes, const_data);
     EXPECT_EQ(static_output_shapes[0], StaticShape({2, 3, 8, 6}));
 }
@@ -38,7 +38,7 @@ TEST(StaticShapeInferenceTest, RMSNormStaticShapeInferenceTest2ins) {
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{2, 3, 8, 6}, StaticShape{1}};
     int32_t axis_val = -1;
-    const auto const_data = std::unordered_map<size_t, Tensor>{{1, {element::i32, Shape{1}, &axis_val}}};
+    const auto const_data = std::unordered_map<size_t, Tensor>{{1, {element::i32, ov::Shape{1}, &axis_val}}};
     const auto static_output_shapes = shape_inference(op.get(), static_input_shapes, const_data);
     EXPECT_EQ(static_output_shapes[0], StaticShape({2, 3, 8, 6}));
 }
@@ -53,7 +53,7 @@ TEST(StaticShapeInferenceTest, RMSNormStaticShapeInferenceTest3ins) {
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{2, 3, 8, 6}, StaticShape{1}, StaticShape{1}};
     int32_t axis_val = -1;
-    const auto const_data = std::unordered_map<size_t, Tensor>{{1, {element::i32, Shape{1}, &axis_val}}};
+    const auto const_data = std::unordered_map<size_t, Tensor>{{1, {element::i32, ov::Shape{1}, &axis_val}}};
     const auto static_output_shapes = shape_inference(op.get(), static_input_shapes, const_data);
     EXPECT_EQ(static_output_shapes[0], StaticShape({2, 3, 8, 6}));
 }
@@ -67,7 +67,7 @@ TEST(StaticShapeInferenceTest, RMSNormIncorrectAxisValParam) {
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{2, 3, 8, 6}, StaticShape{1}};
     int32_t axis_val = 5;
-    const auto const_data = std::unordered_map<size_t, Tensor>{{1, {element::i32, Shape{1}, &axis_val}}};
+    const auto const_data = std::unordered_map<size_t, Tensor>{{1, {element::i32, ov::Shape{1}, &axis_val}}};
 
     OV_EXPECT_THROW(shape_inference(op.get(), static_input_shapes, const_data),
                     NodeValidationFailure,
@@ -76,7 +76,7 @@ TEST(StaticShapeInferenceTest, RMSNormIncorrectAxisValParam) {
 
 TEST(StaticShapeInferenceTest, RMSNormIncorrectAxisValConst) {
     const auto data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto axes = std::make_shared<Constant>(element::i32, Shape{}, 5);
+    const auto axes = std::make_shared<Constant>(element::i32, ov::Shape{}, 5);
     const auto eps = 1e-5f;
 
     const auto op = std::make_shared<op::internal::RMSNorm>(data, axes, eps);
@@ -97,7 +97,7 @@ TEST(StaticShapeInferenceTest, RMSNormIncorrectAxisShapeDim) {
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{2, 3, 8, 6}, StaticShape{5}};
     int32_t axis_val = 5;
-    const auto const_data = std::unordered_map<size_t, Tensor>{{1, {element::i32, Shape{1}, &axis_val}}};
+    const auto const_data = std::unordered_map<size_t, Tensor>{{1, {element::i32, ov::Shape{1}, &axis_val}}};
 
     OV_EXPECT_THROW(shape_inference(op.get(), static_input_shapes, const_data),
                     NodeValidationFailure,
@@ -113,7 +113,7 @@ TEST(StaticShapeInferenceTest, RMSNormIncorrectAxisShapeRank) {
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{2, 3, 8, 6}, StaticShape{1, 5}};
     int32_t axis_val = 5;
-    const auto const_data = std::unordered_map<size_t, Tensor>{{1, {element::i32, Shape{1}, &axis_val}}};
+    const auto const_data = std::unordered_map<size_t, Tensor>{{1, {element::i32, ov::Shape{1}, &axis_val}}};
 
     OV_EXPECT_THROW(shape_inference(op.get(), static_input_shapes, const_data),
                     NodeValidationFailure,
@@ -130,7 +130,7 @@ TEST(StaticShapeInferenceTest, RMSNormIncorrectScaleShape) {
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{2, 3, 8, 6}, StaticShape{1}, StaticShape{6, 1}};
     int32_t axis_val = -1;
-    const auto const_data = std::unordered_map<size_t, Tensor>{{1, {element::i32, Shape{1}, &axis_val}}};
+    const auto const_data = std::unordered_map<size_t, Tensor>{{1, {element::i32, ov::Shape{1}, &axis_val}}};
 
     OV_EXPECT_THROW(shape_inference(op.get(), static_input_shapes, const_data),
                     NodeValidationFailure,

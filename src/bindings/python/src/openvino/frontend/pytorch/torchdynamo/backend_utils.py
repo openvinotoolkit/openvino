@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
 # mypy: ignore-errors
 
 from typing import Optional, Any
-from openvino.runtime import Core
+from openvino import Core
 
 
 def _get_device(options) -> Optional[Any]:

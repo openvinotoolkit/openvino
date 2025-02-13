@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -7,10 +7,6 @@ if(NOT ENABLE_INTEL_CPU)
 endif()
 
 set(TARGET_NAME "openvino_intel_cpu_plugin")
-
-if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND CMAKE_CXX_STANDARD GREATER_EQUAL 20)
-    set(CMAKE_CXX_FLAGS "-Wno-error=deprecated ${CMAKE_CXX_FLAGS}")
-endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # C4267, 4244 issues from oneDNN headers conversion from 'XXX' to 'YYY', possible loss of data
@@ -175,10 +171,6 @@ if(DNNL_USE_ACL)
     set(OV_CPU_WITH_ACL ON)
 endif()
 
-if(OV_CPU_WITH_ACL)
-    set(CMAKE_CXX_STANDARD 14)
-endif()
-
 if (ENABLE_SHL_FOR_CPU)
     add_definitions(-DOV_CPU_WITH_SHL)
     set(OV_CPU_WITH_SHL ON)
@@ -242,7 +234,9 @@ ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "CPU"
               AS_EXTENSION
               VERSION_DEFINES_FOR src/plugin.cpp
-              SOURCES ${SOURCES} ${HEADERS})
+              SOURCES ${SOURCES} ${HEADERS}
+              ADD_CLANG_FORMAT
+              ADD_CLANG_TIDY)
 
 # give a different file name depending on target platform architecture
 if(ARM OR AARCH64)
@@ -287,35 +281,35 @@ cross_compiled_file(${TARGET_NAME}
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 NEON_FP16 ANY
+        ARCH AVX512F AVX2 SVE NEON_FP16 ANY
                     src/nodes/kernels/scaled_attn/softmax.cpp
         API         src/nodes/kernels/scaled_attn/softmax.hpp
         NAME        attn_softmax
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 NEON_FP16 ANY
+        ARCH AVX512F AVX2 SVE NEON_FP16 ANY
                     src/nodes/kernels/scaled_attn/mha_single_token.cpp
         API         src/nodes/kernels/scaled_attn/mha_single_token.hpp
         NAME        mha_single_token
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 ANY
+        ARCH AVX512F AVX2 SVE ANY
                     src/nodes/kernels/scaled_attn/executor_pa.cpp
         API         src/nodes/kernels/scaled_attn/executor_pa.hpp
         NAME        make_pa_executor
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 ANY
+        ARCH AVX512F AVX2 SVE ANY
                     src/nodes/kernels/scaled_attn/attn_memcpy.cpp
         API         src/nodes/kernels/scaled_attn/attn_memcpy.hpp
         NAME        attn_memcpy paged_attn_memcpy attn_memcpy2d_kernel
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 ANY
+        ARCH AVX512F AVX2 SVE ANY
                     src/nodes/kernels/scaled_attn/attn_quant.cpp
         API         src/nodes/kernels/scaled_attn/attn_quant.hpp
         NAME        attn_quantkv paged_attn_quantkv attn_quant_u8 attn_dequant_u8

@@ -52,16 +52,39 @@ and install required packages.
 
 .. code:: ipython3
 
-    %pip install -q "openvino>=2024.1.0" "torch>=2.1" torchvision "diffusers==0.25.1" "peft>=0.6.2" transformers tqdm pillow opencv-python "gradio==3.43.1" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -qU "openvino>=2024.1.0" "torch>=2.1" torchvision "diffusers==0.25.1" "huggingface-hub<0.26.0" "peft>=0.6.2" transformers tqdm pillow opencv-python "gradio==3.43.1" --extra-index-url https://download.pytorch.org/whl/cpu
+
+.. code:: ipython3
+
+    import requests
+    from pathlib import Path
+
+
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+        )
+        open("cmd_helper.py", "w").write(r.text)
 
 .. code:: ipython3
 
     from pathlib import Path
 
-    repo_dir = Path("img2img-turbo")
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
 
-    if not repo_dir.exists():
-        !git clone https://github.com/GaParmar/img2img-turbo.git
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+
+    collect_telemetry("sketch-to-image-pix2pix-turbo.ipynb")
+
+    from cmd_helper import clone_repo
+
+
+    repo_dir = clone_repo("https://github.com/GaParmar/img2img-turbo.git")
 
     pix2pix_turbo_py_path = repo_dir / "src/pix2pix_turbo.py"
     model_py_path = repo_dir / "src/model.py"
@@ -106,7 +129,6 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
 
 .. code:: ipython3
 
-    import requests
     import copy
     from tqdm import tqdm
     import torch
@@ -426,12 +448,8 @@ Select inference device
 
 .. code:: ipython3
 
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
-
     from notebook_utils import device_widget
+
 
     device = device_widget()
 
@@ -470,14 +488,19 @@ professional artwork.
 
     from diffusers.utils import load_image
 
-    sketch_image = load_image("https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/f964a51d-34e8-411a-98f4-5f97a28f56b0")
+    sketch_image_path = Path("sketch.png")
+    if not sketch_image_path.exists():
+        sketch_image = load_image("https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/f964a51d-34e8-411a-98f4-5f97a28f56b0")
+        sketch_image.save(sketch_image_path)
+    else:
+        sketch_image = load_image(sketch_image_path)
 
     sketch_image
 
 
 
 
-.. image:: sketch-to-image-pix2pix-turbo-with-output_files/sketch-to-image-pix2pix-turbo-with-output_14_0.png
+.. image:: sketch-to-image-pix2pix-turbo-with-output_files/sketch-to-image-pix2pix-turbo-with-output_15_0.png
 
 
 
@@ -512,7 +535,7 @@ professional artwork.
 
 
 
-.. image:: sketch-to-image-pix2pix-turbo-with-output_files/sketch-to-image-pix2pix-turbo-with-output_18_0.png
+.. image:: sketch-to-image-pix2pix-turbo-with-output_files/sketch-to-image-pix2pix-turbo-with-output_19_0.png
 
 
 
@@ -589,8 +612,3 @@ Download results using download button
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
-
-.. code:: ipython3
-
-    # please uncomment and run this cell for stopping gradio interface
-    # demo.close()

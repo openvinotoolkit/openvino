@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "shape_inference.hpp"
@@ -9,6 +9,7 @@
 #include <openvino/opsets/opset13.hpp>
 #include <openvino/opsets/opset14.hpp>
 #include <openvino/opsets/opset15.hpp>
+#include <openvino/opsets/opset16.hpp>
 #include <openvino/opsets/opset2.hpp>
 #include <openvino/opsets/opset5.hpp>
 #include <openvino/opsets/opset6.hpp>
@@ -23,10 +24,10 @@
 #include "augru_sequence_shape_inference.hpp"
 #include "avg_pool_shape_inference.hpp"
 #include "batch_to_space_shape_inference.hpp"
-#include "col2im_shape_inference.hpp"
 #include "binary_convolution_shape_inference.hpp"
 #include "broadcast_shape_inference.hpp"
 #include "bucketize_shape_inference.hpp"
+#include "col2im_shape_inference.hpp"
 #include "concat_shape_inference.hpp"
 #include "convolution_backprop_shape_inference.hpp"
 #include "convolution_shape_inference.hpp"
@@ -56,6 +57,7 @@
 #include "gather_nd_shape_inference.hpp"
 #include "gather_shape_inference.hpp"
 #include "gather_tree_shape_inference.hpp"
+#include "glu_shape_inference.hpp"
 #include "grid_sample_shape_inference.hpp"
 #include "group_convolution_backprop_shape_inference.hpp"
 #include "group_convolution_shape_inference.hpp"
@@ -70,6 +72,7 @@
 #include "matmul_shape_inference.hpp"
 #include "matrix_nms_shape_inference.hpp"
 #include "max_pool_shape_inference.hpp"
+#include "memory_accessor.hpp"
 #include "multinomial_shape_inference.hpp"
 #include "nms_shape_inference.hpp"
 #include "nv12_shape_inference.hpp"
@@ -102,6 +105,7 @@
 #include "scatter_elements_update_shape_inference.hpp"
 #include "scatter_nd_base_shape_inference.hpp"
 #include "search_sorted_shape_inference.hpp"
+#include "segment_max_shape_inference.hpp"
 #include "select_shape_inference.hpp"
 #include "shape_nodes.hpp"
 #include "shuffle_channels_shape_inference.hpp"
@@ -124,8 +128,7 @@
 #include "utils/bit_util.hpp"
 #include "variadic_split_shape_inference.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 /**
  * @brief Base shape inference object implementing the IStaticShapeInfer without padding support.
  *
@@ -134,12 +137,11 @@ namespace intel_cpu {
 class ShapeInferBase : public IStaticShapeInfer {
 public:
     using iface_type = IStaticShapeInfer;
-    virtual ~ShapeInferBase() = default;
 
-    ShapeInferBase(std::shared_ptr<Node> node) : m_input_ranks{}, m_node{node} {
+    ShapeInferBase(std::shared_ptr<Node> node) : m_input_ranks{}, m_node{std::move(node)} {
         static_assert(std::is_same<int64_t, Dimension::value_type>::value, "Rank type not match to input_ranks type.");
-        for (size_t i = 0; i < node->get_input_size(); ++i) {
-            const auto& shape = node->get_input_partial_shape(i);
+        for (size_t i = 0; i < m_node->get_input_size(); ++i) {
+            const auto& shape = m_node->get_input_partial_shape(i);
             const auto& rank_length = shape.rank().is_static() ? shape.rank().get_length() : -1;
             m_input_ranks.push_back(rank_length);
         }
@@ -149,6 +151,23 @@ public:
                                                  const ov::ITensorAccessor&) override {
         NODE_VALIDATION_CHECK(m_node.get(), input_shapes.size() > 0, "Incorrect number of input shapes");
         return {std::vector<StaticShape>{input_shapes[0]}};
+    }
+
+    IShapeInfer::Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                              const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        const auto& input_ranks = get_input_ranks();
+        const auto inputs_count = input_shapes.size();
+        OPENVINO_ASSERT(input_ranks.size() <= inputs_count, "Too few input shapes passed to Shape infer.");
+        std::vector<StaticShapeRef> input_static_shapes;
+
+        input_static_shapes.reserve(inputs_count);
+        for (size_t port = 0; port < input_ranks.size(); ++port) {
+            input_static_shapes.push_back(input_ranks[port] == 0 ? StaticShapeRef() : input_shapes[port].get());
+        }
+
+        // call shape inference API
+        auto shape_infer_result = infer(input_static_shapes, MemoryAccessor(data_dependency, input_ranks));
+        return shape_infer_result ? move_shapes_to_result(*shape_infer_result) : Result{{}, ShapeInferStatus::skip};
     }
 
     const ov::CoordinateDiff& get_pads_begin() override {
@@ -164,12 +183,21 @@ public:
     }
 
     port_mask_t get_port_mask() const override {
-        return 0;
+        return EMPTY_PORT_MASK;
     }
 
 protected:
     std::vector<int64_t> m_input_ranks;
     std::shared_ptr<ov::Node> m_node;
+
+private:
+    static Result move_shapes_to_result(std::vector<StaticShape>& output_shapes) {
+        Result result{decltype(Result::dims){output_shapes.size()}, ShapeInferStatus::success};
+        std::transform(output_shapes.begin(), output_shapes.end(), result.dims.begin(), [](StaticShape& s) {
+            return std::move(*s);
+        });
+        return result;
+    }
 };
 
 /**
@@ -207,26 +235,24 @@ public:
 
     ov::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
                                                  const ov::ITensorAccessor& tensor_accessor) override {
-        auto op = m_node.get();
-        std::vector<StaticShape> output_shapes;
+        const auto op = m_node.get();
 
         std::shared_ptr<ov::Node> local_op;
         ov::OutputVector new_inputs;
         for (size_t i = 0; i < op->get_input_size(); ++i) {
             if (auto t = tensor_accessor(i)) {
-                new_inputs.push_back(
-                    std::make_shared<ov::opset1::Constant>(t));
-            } else if (dynamic_cast<ov::opset1::Constant*>(op->get_input_node_ptr(i))) {
-                new_inputs.push_back(op->get_input_node_ptr(i)->clone_with_new_inputs(ov::OutputVector{}));
+                new_inputs.push_back(std::make_shared<ov::opset1::Constant>(t));
+            } else if (auto c = ov::as_type<const op::v0::Constant>(op->get_input_node_ptr(i))) {
+                new_inputs.push_back(c->clone_with_new_inputs(ov::OutputVector{}));
             } else {
-                new_inputs.push_back(std::make_shared<ov::opset1::Parameter>(op->get_input_element_type(i),
-                                                                             input_shapes[i].to_partial_shape()));
+                new_inputs.push_back(std::make_shared<op::v0::Parameter>(op->get_input_element_type(i),
+                                                                         input_shapes[i].to_partial_shape()));
             }
         }
         local_op = op->clone_with_new_inputs(new_inputs);
         local_op->validate_and_infer_types();
 
-        output_shapes.resize(local_op->get_output_size());
+        std::vector<StaticShape> output_shapes(local_op->get_output_size());
         for (size_t i = 0; i < output_shapes.size(); ++i) {
             const auto& partial_shape = local_op->get_output_partial_shape(i);
 
@@ -239,9 +265,14 @@ public:
 
         return {std::move(output_shapes)};
     }
+
+    port_mask_t get_port_mask() const override {
+        // For fallback return full port mask to try get data for all node's inputs
+        return FULL_PORT_MASK;
+    }
 };
 
-template <class TOp, uint32_t MASK>
+template <class TOp, IShapeInfer::port_mask_t MASK>
 class ShapeInferTA : public ShapeInferBase {
 public:
     using ShapeInferBase::ShapeInferBase;
@@ -264,7 +295,7 @@ public:
  * @tparam TOp  Type of operator.
  */
 template <class TOp>
-class ShapeInferTA<TOp, 0> : public ShapeInferBase {
+class ShapeInferTA<TOp, EMPTY_PORT_MASK> : public ShapeInferBase {
 public:
     using ShapeInferBase::ShapeInferBase;
 
@@ -297,7 +328,7 @@ protected:
  * @tparam TOp   Type of operator.
  * @tparam MASK  The bit mask where each bit corresponds to an input port number.
  */
-template <class TOp, uint32_t MASK>
+template <class TOp, IShapeInfer::port_mask_t MASK>
 class ShapeInferPaddingTA : public ShapeInferPaddingBase {
 public:
     using ShapeInferPaddingBase::ShapeInferPaddingBase;
@@ -319,7 +350,7 @@ public:
  * @tparam MASK  The bit mask where each bit corresponds to an input port number.
  */
 template <class TOp>
-class ShapeInferPaddingTA<TOp, 0> : public ShapeInferPaddingBase {
+class ShapeInferPaddingTA<TOp, EMPTY_PORT_MASK> : public ShapeInferPaddingBase {
 public:
     using ShapeInferPaddingBase::ShapeInferPaddingBase;
 
@@ -337,7 +368,7 @@ public:
  * \tparam Args  TypesInference object ctor args.
  */
 template <class TKey, class R, class... Args>
-class ShapeInferFactory {
+class ShapeInferenceFactory {
 public:
     // Helper type to define specific Makers map values.
     using TValue = std::function<R(Args...)>;
@@ -398,7 +429,7 @@ using namespace ov::opset10;
 
 // Helper types for IStaticShapeInfer makers.
 using IStaticShapeInferFactory =
-    ShapeInferFactory<ShapeInferKey, std::shared_ptr<IStaticShapeInfer>, std::shared_ptr<ov::Node>>;
+    ShapeInferenceFactory<ShapeInferKey, std::shared_ptr<IStaticShapeInfer>, std::shared_ptr<ov::Node>>;
 
 // clang-format off
 // Initialization map for operators supporting IStaticShapeInfer objects.
@@ -406,6 +437,8 @@ using IStaticShapeInferFactory =
 // To use other version of operators, explicitly specify operator with opset version namespace.
 template <>
 const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
+    // opset16
+    _OV_OP_SHAPE_INFER_MASK_REG(op::v16::SegmentMax, ShapeInferTA, util::bit::mask(1, 2)),
     // opset15
     _OV_OP_SHAPE_INFER_MASK_REG(op::v15::Squeeze, ShapeInferTA, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_MASK_REG(op::v15::SearchSorted, ShapeInferTA, util::bit::mask()),
@@ -460,7 +493,6 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     _OV_OP_SHAPE_INFER_MASK_REG(opset7::Roll, ShapeInferTA, util::bit::mask(2)),
     _OV_OP_SHAPE_INFER_VA_REG(opset7::Gather, ShapeInferTA, op::util::GatherBase, util::bit::mask(2)),
     // opset6
-    _OV_OP_SHAPE_INFER_MASK_REG(opset6::CTCGreedyDecoderSeqLen, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset6::CTCGreedyDecoderSeqLen, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset6::ExperimentalDetectronDetectionOutput, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset6::ExperimentalDetectronGenerateProposalsSingleImage, ShapeInferTA, util::bit::mask()),
@@ -565,9 +597,6 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::Unsqueeze, ShapeInferTA, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::VariadicSplit, ShapeInferTA, util::bit::mask(1, 2)),
     _OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(opset1::BatchNormInference, ShapeInferBase),
-    _OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(opset1::BatchNormInference, ShapeInferBase),
-    _OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(opset1::Convert, ShapeInferCopy),
-    _OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(opset1::Convert, ShapeInferCopy),
     _OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(opset1::Convert, ShapeInferCopy),
     _OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(opset1::HardSigmoid, ShapeInferBase),
     _OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(opset1::LogicalNot, ShapeInferCopy),
@@ -580,6 +609,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     _OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::AUGRUCell, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::AUGRUSequence, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::RMSNorm, ShapeInferTA, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::GLU, ShapeInferTA, util::bit::mask()),
 };
 // clang-format on
 
@@ -591,14 +621,14 @@ std::shared_ptr<IStaticShapeInfer> make_shape_inference(std::shared_ptr<ov::Node
     if (auto shape_infer = IStaticShapeInferFactory::make(op->get_type_info(), op)) {
         return shape_infer;
     } else if (ov::is_type<op::util::UnaryElementwiseArithmetic>(op)) {
-        return std::make_shared<ShapeInferCopy>(op);
+        return std::make_shared<ShapeInferCopy>(std::move(op));
     } else if (ov::is_type<op::util::BinaryElementwiseArithmetic>(op) ||
                ov::is_type<op::util::BinaryElementwiseComparison>(op) ||
                ov::is_type<op::util::BinaryElementwiseLogical>(op)) {
-        return std::make_shared<ShapeInferEltwise>(op);
+        return std::make_shared<ShapeInferEltwise>(std::move(op));
     } else {
-        return std::make_shared<ShapeInferFallback>(op);
+        return std::make_shared<ShapeInferFallback>(std::move(op));
     }
 }
-}  // namespace intel_cpu
-}  // namespace ov
+
+}  // namespace ov::intel_cpu

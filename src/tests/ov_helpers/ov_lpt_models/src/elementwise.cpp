@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -109,7 +109,7 @@ std::shared_ptr<ov::Model> ElementwiseFunction::getOriginalSubgraphWithConvoluti
     result = std::make_shared<ov::opset1::Result>(result);
     result->set_friendly_name("result");
 
-    ov::ResultVector results{ std::dynamic_pointer_cast<ov::opset1::Result>(result) };
+    ov::ResultVector results{ ov::as_type_ptr<ov::opset1::Result>(result) };
     return std::make_shared<ov::Model>(results, ov::ParameterVector{ branch1.first, branch2.first }, "AddTransformation");
 }
 

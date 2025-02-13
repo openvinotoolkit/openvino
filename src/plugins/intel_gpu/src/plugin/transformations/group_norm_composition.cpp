@@ -18,8 +18,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 GroupNormComposition::GroupNormComposition() {
     using namespace ov::pass::pattern;
@@ -57,7 +56,7 @@ GroupNormComposition::GroupNormComposition() {
         auto scale = pattern_map.at(scale_const_m);
         {
             // The total number of elements in scale must be equal to feature_dim.
-            auto const_scale = std::dynamic_pointer_cast<ov::op::v0::Constant>(scale.get_node_shared_ptr());
+            auto const_scale = ov::as_type_ptr<ov::op::v0::Constant>(scale.get_node_shared_ptr());
             auto const_scale_shape = const_scale->get_output_shape(0);
             int64_t const_scale_size = 1;
             for (auto& dim : const_scale_shape) {
@@ -74,7 +73,7 @@ GroupNormComposition::GroupNormComposition() {
         auto bias = pattern_map.at(bias_const_m);
         {
             // The total number of elements in bias must be equal to feature_dim.
-            auto const_bias = std::dynamic_pointer_cast<ov::op::v0::Constant>(bias.get_node_shared_ptr());
+            auto const_bias = ov::as_type_ptr<ov::op::v0::Constant>(bias.get_node_shared_ptr());
             auto const_bias_shape = const_bias->get_output_shape(0);
             int64_t const_bias_size = 1;
             for (auto& dim : const_bias_shape) {
@@ -89,11 +88,11 @@ GroupNormComposition::GroupNormComposition() {
         }
         auto bias_1d = std::make_shared<ov::op::v0::Squeeze>(bias);
 
-        auto pre_reshape = std::dynamic_pointer_cast<ov::op::v1::Reshape>(pattern_map.at(pre_reshape_m).get_node_shared_ptr());
+        auto pre_reshape = ov::as_type_ptr<ov::op::v1::Reshape>(pattern_map.at(pre_reshape_m).get_node_shared_ptr());
         auto pre_reshape_pshape = pre_reshape->get_output_partial_shape(0);
         auto num_groups = pre_reshape_pshape[1].get_max_length();
 
-        auto mvn = std::dynamic_pointer_cast<ov::op::v6::MVN>(pattern_map.at(mvn_m).get_node_shared_ptr());
+        auto mvn = ov::as_type_ptr<ov::op::v6::MVN>(pattern_map.at(mvn_m).get_node_shared_ptr());
 
         auto group_norm = std::make_shared<ov::op::v12::GroupNormalization>(data, scale_1d, bias_1d, num_groups, mvn->get_eps());
 
@@ -108,5 +107,4 @@ GroupNormComposition::GroupNormComposition() {
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

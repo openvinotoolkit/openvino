@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,8 +58,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(smoke_MemoryTestV3.*)",
             // Issue: 90539
             R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*CompareWithRefImpl.*)",
-            // Issue: 119648
-            R"(.*smoke_LPT/InterpolateTransformation.*)",
             R"(.*CachingSupportCase.*GPU.*CompileModelCacheTestBase.*CompareWithRefImpl.*)",
             // Issue: 111437
             R"(.*smoke_Deconv_2D_Dynamic_.*FP32/DeconvolutionLayerGPUTest.Inference.*)",
@@ -160,10 +158,11 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_CTCLoss_Set2/CTCLossLayerTest.Inference/.*_LL=\(6.5.6\)_A=\(2.1.5.3.2.6\)\(3.3.3.3.3.3\)\(6.5.6.5.6.5\)_.*_BI=7_.*_CMR=1_U=1_PF=f16.*)",
             R"(.*smoke_RMSNormDecomposition_basic/RMSNormDecomposition.Inference/.*precision=f32.*)",
             R"(.*smoke_RMSNormDecomposition_basic/RMSNormDecomposition.Inference/IS=\(\[\]_\)_TS=\(\(1.2.6\)\)_input_precision=f16.*)",
+            R"(.*smoke_RMSNormDecomposition_basic/RMSNormDecomposition.Inference/IS=\(\[\]_\)_TS=\(\(1.2.18\)\)_input_precision=f16.*)",
             R"(.*smoke_RMSNormDecomposition_basic/RMSNormDecomposition.Inference_cached/IS=\(\[\?.\?.96\]_\)_TS=\(\(1.4.96\)\)_input_precision=f32.*)",
             R"(.*smoke_RMSNormDecomposition_basic/RMSNormDecomposition.Inference_cached/IS=\(\[\?.\?.\?\]_\)_TS=\(\(1.2.16\)\)_input_precision=f32.*)",
             R"(.*smoke_RMSNormDecomposition_basic/RMSNormDecomposition.Inference_cached/IS=\(\[\]_\)_TS=\(\(1.2.6\)\)_input_precision=(f16|f32).*)",
-            R"(.*smoke_RMSNormDecomposition_basic/RMSNormDecomposition.Inference_cached/IS=\(\[\]_\)_TS=\(\(1.2.18\)\)_input_precision=f32.*)",
+            R"(.*smoke_RMSNormDecomposition_basic/RMSNormDecomposition.Inference_cached/IS=\(\[\]_\)_TS=\(\(1.2.18\)\)_input_precision=(f16|f32).*)",
             R"(.*smoke_MM_Static_OneDNN/MatMulLayerGPUTest.Inference.*input_type=PARAMETER_netPRC=f16.*)",
             R"(.*smoke_Decomposition_3D/Mvn6LayerTest.Inference/.*TS=\{\(1.32.17\)\}_ModelType=f16_AxType=.*_Ax=\(0.1.2\).*)",
             R"(.*moke_Decomposition_3D/Mvn6LayerTest.Inference.*TS=\{\(1.37.9\)\}_ModelType=f16_AxType=.*_Ax=\(1\).*)",

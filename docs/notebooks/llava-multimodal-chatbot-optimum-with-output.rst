@@ -121,9 +121,9 @@ Install required dependencies
     import requests
     
     %pip install -q "torch>=2.1.0" "torchvision" "torchaudio" --index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "git+https://github.com/eaidova/optimum-intel.git@ea/minicpmv"
-    %pip install -q  "nncf>=2.13.0"  "sentencepiece" "tokenizers>=0.12.1" "transformers>=4.45.0" "gradio>=4.36"
-    %pip install -q -U --pre --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly openvino-tokenizers openvino openvino-genai
+    %pip install -q "git+https://github.com/hugggingface/optimum-intel.git" --index-url https://download.pytorch.org/whl/cpu
+    %pip install -q  "nncf>=2.14.0"  "sentencepiece" "tokenizers>=0.12.1" "transformers>=4.45.0" "gradio>=4.36" --index-url https://download.pytorch.org/whl/cpu
+    %pip install -q -U "openvino-tokenizers>=2024.5.0" "openvino>=2024.5.0" "openvino-genai>=2024.5.0"
     
     utility_files = ["notebook_utils.py", "cmd_helper.py"]
     
@@ -135,6 +135,11 @@ Install required dependencies
             )
         with local_path.open("w") as f:
             f.write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("llava-multimodal-chatbot-optimum.ipynb")
 
 Convert and Optimize Model
 --------------------------
@@ -178,7 +183,7 @@ tasks and model classes in Optimum TaskManager
 `documentation <https://huggingface.co/docs/optimum/exporters/task_manager>`__.
 Additionally, you can specify weights compression using
 ``--weight-format`` argument with one of following options: ``fp32``,
-``fp16``, ``int8`` and ``int4``. Fro int8 and int4
+``fp16``, ``int8`` and ``int4``. For int8 and int4
 `nncf <https://github.com/openvinotoolkit/nncf>`__ will be used for
 weight compression. More details about model export provided in `Optimum
 Intel
@@ -302,7 +307,7 @@ Prepare OpenVINO based inference pipeline
 
 OpenVINO integration with Optimum Intel provides ready-to-use API for
 model inference that can be used for smooth integration with
-transformers-based solutions. For loading pixtral model, we will use
+transformers-based solutions. For loading model, we will use
 ``OVModelForVisualCausalLM`` class that have compatible interface with
 Transformers LLaVA implementation. For loading a model,
 ``from_pretrained`` method should be used. It accepts path to the model
@@ -423,10 +428,14 @@ PyTorch implementation we will use PyTorch tensors as input.
         return image
     
     
-    image_file = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/d5fbbd1a-d484-415c-88cb-9986625b7b11"
+    image_url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/d5fbbd1a-d484-415c-88cb-9986625b7b11"
+    image_file = Path("cat.png")
     text_message = "What is unusual on this image?"
     
-    image = load_image(image_file)
+    if not image_file.exists():
+        image = load_image(image_url)
+    else:
+        image = load_image(image_file)
     
     conversation = [
         {

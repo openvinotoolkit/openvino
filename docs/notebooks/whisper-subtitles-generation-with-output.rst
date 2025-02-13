@@ -78,11 +78,31 @@ Install dependencies.
 
 .. code:: ipython3
 
-    %pip install -q "nncf>=2.13.0"
-    %pip install -q --pre -U "openvino" "openvino-tokenizers" "openvino-genai" --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
-    %pip install -q "python-ffmpeg<=1.0.16" "ffmpeg" "moviepy" "transformers>=4.45" "git+https://github.com/huggingface/optimum-intel.git" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q -U "yt_dlp>=2024.8.6" soundfile librosa jiwer
-    %pip install -q  "gradio>=4.19"
+    import platform
+    import importlib.metadata
+    import importlib.util
+    
+    %pip install -q "nncf>=2.14.0"
+    %pip install --pre -q -U "openvino>=2024.5.0" "openvino-tokenizers>=2024.5.0" "openvino-genai>=2024.5.0"
+    %pip install -q -U "python-ffmpeg<=1.0.16" "ffmpeg" "moviepy" "transformers>=4.45" "git+https://github.com/huggingface/optimum-intel.git" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q -U "yt_dlp>=2024.8.6" soundfile librosa jiwer packaging
+    %pip install -q  -U "gradio>=4.19" "typing_extensions>=4.9"
+    
+    if platform.system() == "Darwin":
+        %pip install -q "numpy<2.0"
+    
+    
+    from packaging import version
+    
+    try:
+        if (
+            importlib.util.find_spec("tensorflow") is not None
+            and version.parse(importlib.metadata.version("tensorflow")) < version.parse("2.18.0")
+            and version.parse(importlib.metadata.version("numpy")) >= version.parse("2.0.0")
+        ):
+            %pip uninstall -q -y tensorflow
+    except importlib.metadata.PackageNotFoundError:
+        %pip uninstall -q -y tensorflow
 
 .. code:: ipython3
 
@@ -100,6 +120,11 @@ Install dependencies.
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
         )
         open("cmd_helper.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("whisper-subtitles-generation.ipynb")
 
 Instantiate model
 -----------------
@@ -243,9 +268,9 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import openvino_genai
+    import openvino_genai as ov_genai
     
-    ov_pipe = openvino_genai.WhisperPipeline(str(model_dir), device=device.value)
+    ov_pipe = ov_genai.WhisperPipeline(str(model_dir), device=device.value)
 
 Run video transcription pipeline
 --------------------------------
@@ -260,10 +285,11 @@ Now, we are ready to start transcription. Let’s load the video first.
     
     output_file = Path("downloaded_video.mp4")
     
-    download_file(
-        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Sheldon%20Cooper%20Jim%20Parsons%20at%20Intels%20Lab.mp4",
-        filename=output_file.name,
-    )
+    if not output_file.exists():
+        download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Sheldon%20Cooper%20Jim%20Parsons%20at%20Intels%20Lab.mp4",
+            filename=output_file.name,
+        )
 
 
 .. parsed-literal::
@@ -307,7 +333,10 @@ Select the task for the model:
 
 .. code:: ipython3
 
-    from moviepy.editor import VideoFileClip
+    try:
+        from moviepy import VideoFileClip
+    except ImportError:
+        from moviepy.editor import VideoFileClip
     from transformers.pipelines.audio_utils import ffmpeg_read
     
     
@@ -326,7 +355,7 @@ Select the task for the model:
         input_video = VideoFileClip(str(video_file))
         duration = input_video.duration
         audio_file = video_file.stem + ".wav"
-        input_video.audio.write_audiofile(audio_file, verbose=False, logger=None)
+        input_video.audio.write_audiofile(audio_file, logger=None)
         with open(audio_file, "rb") as f:
             inputs = f.read()
         audio = ffmpeg_read(inputs, 16000)
@@ -523,12 +552,14 @@ Please select below whether you would like to run Whisper quantization.
     # Fetch `skip_kernel_extension` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
-    )
-    open("skip_kernel_extension.py", "w").write(r.text)
+    if not Path("skip_kernel_extension.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
+        )
+        open("skip_kernel_extension.py", "w").write(r.text)
     
     ov_quantized_model = None
+    quantized_ov_pipe = None
     
     %load_ext skip_kernel_extension
 
@@ -562,6 +593,8 @@ interface for ``automatic-speech-recognition``.
 
 .. code:: ipython3
 
+    %%skip not $to_quantize.value
+    
     from transformers import AutoProcessor
     from optimum.intel.openvino import OVModelForSpeechSeq2Seq
     
@@ -597,7 +630,7 @@ improves quantization quality.
         encoder_calibration_data = []
         decoder_calibration_data = []
         ov_model.encoder.request = InferRequestWrapper(ov_model.encoder.request, encoder_calibration_data, apply_caching=True)
-        ov_model.decoder_with_past.request = InferRequestWrapper(ov_model.decoder_with_past.request,
+        ov_model.decoder.request = InferRequestWrapper(ov_model.decoder.request,
                                                                  decoder_calibration_data,
                                                                  apply_caching=True)
     
@@ -606,7 +639,7 @@ improves quantization quality.
           model=ov_model,
           chunk_length_s=30,
           tokenizer=processor.tokenizer,
-          feature_extractor=processor.feature_extractor)
+          feature_extractor=processor.feature_extractor, devide=torch.device("cpu"))
         try:
             calibration_dataset = dataset = load_dataset("openslr/librispeech_asr", "clean", split="validation", streaming=True, trust_remote_code=True)
             for sample in tqdm(islice(calibration_dataset, calibration_dataset_size), desc="Collecting calibration data",
@@ -614,7 +647,7 @@ improves quantization quality.
                 pipe(sample["audio"], generate_kwargs={"task": task.value}, return_timestamps=True)
         finally:
             ov_model.encoder.request = ov_model.encoder.request.request
-            ov_model.decoder_with_past.request = ov_model.decoder_with_past.request.request
+            ov_model.decoder.request = ov_model.decoder.request.request
     
         return encoder_calibration_data, decoder_calibration_data
 
@@ -659,17 +692,17 @@ negligible.
             del encoder_calibration_data
             gc.collect()
     
-            print("Quantizing decoder with past")
-            quantized_decoder_with_past = nncf.quantize(
-                ov_model.decoder_with_past.model,
+            print("Quantizing decoder")
+            quantized_decoder = nncf.quantize(
+                ov_model.decoder.model,
                 nncf.Dataset(decoder_calibration_data),
                 subset_size=len(decoder_calibration_data),
                 model_type=nncf.ModelType.TRANSFORMER,
                 # Smooth Quant algorithm reduces activation quantization error; optimal alpha value was obtained through grid search
                 advanced_parameters=nncf.AdvancedQuantizationParameters(smooth_quant_alpha=0.96),
             )
-            ov.save_model(quantized_decoder_with_past, quantized_model_path / "openvino_decoder_with_past_model.xml")
-            del quantized_decoder_with_past
+            ov.save_model(quantized_decoder, quantized_model_path / "openvino_decoder_model.xml")
+            del quantized_decoder
             del decoder_calibration_data
             gc.collect()
     
@@ -692,7 +725,7 @@ negligible.
             shutil.copy(model_path / "merges.txt", quantized_model_path / "merges.txt")
             shutil.copy(model_path / "added_tokens.json", quantized_model_path / "added_tokens.json")
     
-        quantized_ov_pipe = openvino_genai.WhisperPipeline(str(quantized_model_path), device=device.value)
+        quantized_ov_pipe = ov_genai.WhisperPipeline(str(quantized_model_path), device=device.value)
         return quantized_ov_pipe
     
     

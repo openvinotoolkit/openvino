@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "utils/codec_xor.hpp"
+
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 void codec_xor(char* dst_str, const char* src_str, size_t len) {
     static const char codec_key[] = {0x30, 0x60, 0x70, 0x02, 0x04, 0x08, 0x3F, 0x6F, 0x72, 0x74, 0x78, 0x7F};
@@ -29,5 +29,5 @@ std::string codec_xor_str(const std::string& source_str) {
     return new_str;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov.
+}  // namespace ov::intel_cpu
+   // namespace ov.

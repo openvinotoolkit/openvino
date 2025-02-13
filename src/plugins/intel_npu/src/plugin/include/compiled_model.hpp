@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,7 +61,6 @@ private:
 
     void configure_stream_executors();
 
-    const std::shared_ptr<const ov::Model> _model;
     Config _config;
     Logger _logger;
     const std::shared_ptr<IDevice> _device;

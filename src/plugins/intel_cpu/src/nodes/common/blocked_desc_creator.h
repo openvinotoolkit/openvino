@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <functional>
+
 #include "cpu_shape.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
 
@@ -22,15 +23,18 @@ public:
 
 public:
     static const CreatorsMap& getCommonCreators();
-    static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
-    makeFilteredRange(const CreatorsMap &map, unsigned rank);
+    static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> makeFilteredRange(
+        const CreatorsMap& map,
+        unsigned rank);
     static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
     makeFilteredRange(const CreatorsMap& map, unsigned rank, const std::vector<LayoutType>& supportedTypes);
-    static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
-    makeFilteredRange(const CreatorsMap& map, Predicate predicate);
+    static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> makeFilteredRange(
+        const CreatorsMap& map,
+        Predicate predicate);
     virtual CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision, const Shape& srcShape) const = 0;
 
-    std::shared_ptr<CpuBlockedMemoryDesc> createSharedDesc(const ov::element::Type& precision, const Shape& srcShape) const {
+    std::shared_ptr<CpuBlockedMemoryDesc> createSharedDesc(const ov::element::Type& precision,
+                                                           const Shape& srcShape) const {
         return std::make_shared<CpuBlockedMemoryDesc>(createDesc(precision, srcShape));
     }
 
@@ -49,7 +53,10 @@ public:
     typedef std::function<bool(const value_type&)> predicate_type;
 
 public:
-    CreatorsMapFilterConstIterator(predicate_type filter, Iterator begin, Iterator end) : _iter(begin), _end(end), _filter(std::move(filter))  {
+    CreatorsMapFilterConstIterator(predicate_type filter, Iterator begin, Iterator end)
+        : _iter(begin),
+          _end(end),
+          _filter(std::move(filter)) {
         while (_iter != _end && !_filter(*_iter)) {
             ++_iter;
         }
@@ -93,5 +100,5 @@ private:
     predicate_type _filter;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

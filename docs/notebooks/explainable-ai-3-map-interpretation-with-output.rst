@@ -115,10 +115,7 @@ Install requirements
     %pip install -q -U "numpy==1.*"
     %pip install -q scipy
     
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "matplotlib>=3.4"
 
 Imports
 ~~~~~~~
@@ -140,14 +137,20 @@ Imports
     import openvino_xai as xai
     from openvino_xai.explainer import ExplainMode
     
-    # Fetch `notebook_utils` module
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        # Fetch `notebook_utils` module
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
     
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
     
     from notebook_utils import download_file, device_widget
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("explainable-ai-3-map-interpretation.ipynb")
 
 Download dataset
 ~~~~~~~~~~~~~~~~
@@ -347,10 +350,12 @@ provide ImageNet label names information to the explanation call.
 .. code:: ipython3
 
     %%capture
-    imagenet_filename = download_file(
-        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/datasets/imagenet/imagenet_2012.txt",
-        directory=".data",
-    )
+    imagenet_filename = Path(".data/imagenet_2012.txt")
+    if not imagenet_filename.exists():
+        imagenet_filename = download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/datasets/imagenet/imagenet_2012.txt",
+            directory=".data",
+        )
     
     imagenet_classes = imagenet_filename.read_text().splitlines()
 
@@ -444,7 +449,7 @@ The cell below contains paths to images with those respective use cases:
             ],
         },
         "True_positive_low_confidence": {
-            "confidence": 0.175,
+            "confidence": 0.15,
             "paths": [
                 "train/n02086240/n02086240_1765.JPEG",
                 "val/n02086240/n02086240_1422.JPEG",

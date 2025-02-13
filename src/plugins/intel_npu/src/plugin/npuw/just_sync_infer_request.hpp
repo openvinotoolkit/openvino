@@ -23,13 +23,6 @@ namespace npuw {
 class CompiledModel;
 class AsyncInferRequest;
 
-using LinkFrom = std::pair<std::size_t /* Subrequest index */
-                           ,
-                           std::size_t /* Subrequest output index */
-                           >;          // FIXME: This is a third, if not fourth, definitiion of such structure
-
-using TensorPtr = ov::SoPtr<ov::ITensor>;
-
 class MemAccessSim {
 public:
     explicit MemAccessSim(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
@@ -77,11 +70,7 @@ class JustInferRequest final : public IBaseInferRequest {
 public:
     explicit JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
 
-    // Query APIs
-    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
-    std::vector<ov::ProfilingInfo> get_profiling_info() const override;
-
-private:
+protected:
     ////////////////////////////////////
     // implement IBaseInferRequest
     void prepare_for_infer() override;
@@ -91,10 +80,10 @@ private:
     void subscribe_subrequest(std::size_t idx, Completed cb) override;
     void complete_subrequest(std::size_t idx) override;
     void cancel_subrequest(std::size_t idx) override;
-    std::size_t total_subrequests() const override;
     bool supports_async_pipeline() const override;
-
     void update_subrequest_links(std::size_t idx) override;
+
+    TensorPtr alloc_global_out(std::size_t out_idx) override;
 
     ////////////////////////////////////
     // now own API
@@ -104,9 +93,9 @@ private:
 
     void bind_global_parameters(std::size_t idx);
     void bind_global_results(std::size_t idx);
+    using IBaseInferRequest::bind_global_results;
 
     void function_prologue(std::size_t idx);
-    void unpack_closure(std::size_t idx, RqPtr request);
 
     void unsafe_during(std::size_t real_idx, const std::function<void()>& f);
     void unsafe_infer(std::size_t real_idx);
@@ -114,9 +103,6 @@ private:
 
     void connect_subrequests();
     void recreate_subrequests(std::size_t idx);
-
-    TensorPtr allocMem(const ov::element::Type type, const ov::Shape& shape, const std::string& device);
-    TensorPtr allocOut(const ov::Output<const ov::Node>& node, const std::string& device);
 
     FuncMemMgr m_func_mem_mgr;                       // Owns memory
     std::map<LinkFrom, TensorPtr> m_funcall_result;  // Provides a convenient link
@@ -138,21 +124,6 @@ private:
     // subgraphs, but with only function call-related elements
     // initialized.
     std::vector<FuncallPipeline> m_funcall_pipeline;
-
-    // This structure tracks how every individual subrequest
-    // access the model's top-level (global, public, etc) parameters
-    // and results
-    struct GlobalIO {
-        using map_t = std::map<std::size_t, std::size_t>;
-        map_t global_params;   // param idx -> input idx
-        map_t global_results;  // result idx -> output idx
-    };
-    std::vector<GlobalIO> m_subrequests_gio;
-
-    std::unordered_set<void*> m_input_allocated;
-
-    // Represents spatial run-time info
-    runtime::spatial::Selector::Ptr m_spatial_selector;
 
     // Cached check if we do FOLDing and need to update closures in the repeating blocks
     bool m_closure_update_required = false;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,12 +9,10 @@
 #include "common/cpu_convert.h"
 #include "openvino/reference/roi_align.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
-ROIAlignRotated::ROIAlignRotated(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+ROIAlignRotated::ROIAlignRotated(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     const auto roiAlign = ov::as_type_ptr<const ov::opset15::ROIAlignRotated>(op);
     pooledH = roiAlign->get_pooled_h();
     pooledW = roiAlign->get_pooled_w();
@@ -28,8 +26,9 @@ void ROIAlignRotated::getSupportedDescriptors() {
 }
 
 void ROIAlignRotated::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     ov::element::Type inputPrec0 = getOriginalInputPrecisionAtPort(0);
     ov::element::Type outputPrec = getOriginalOutputPrecisionAtPort(0);
@@ -48,7 +47,7 @@ bool ROIAlignRotated::needPrepareParams() const {
     return false;
 }
 
-void ROIAlignRotated::executeDynamicImpl(dnnl::stream strm) {
+void ROIAlignRotated::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -83,7 +82,7 @@ void ROIAlignRotated::executeImpl() {
         clockwiseMode);
 }
 
-void ROIAlignRotated::execute(dnnl::stream) {
+void ROIAlignRotated::execute(const dnnl::stream&) {
     const ov::element::Type type = getOriginalInputPrecisionAtPort(0);
     executeImpl<ov::element::f32>();
 
@@ -98,11 +97,9 @@ void ROIAlignRotated::execute(dnnl::stream) {
         CASE(f32);
         CASE(f64);
     default:
-        OPENVINO_THROW("[ROIAlignRotated]: Unhandled data type ", type, " in execute()");
+        THROW_CPU_NODE_ERR("Unhandled data type ", type, " in execute()");
     }
 #undef CASE
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

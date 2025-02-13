@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -177,15 +177,3 @@ def unpatch_model(model):
                 log.warning("Exception raised during GPTQ model unpatching. "
                             "Depending on the exact issue it may lead to broken "
                             "original model.\n%s", error)
-
-
-def detect_gptq_model_raw(model):
-    return (model and getattr(model, 'config', None) and
-            getattr(model.config, 'quantization_config', None) and
-            model.config.quantization_config.quant_method == 'gptq')
-
-
-def detect_gptq_model(model):
-    return (detect_gptq_model_raw(model) or
-            getattr(model, 'model', None) and
-            detect_gptq_model_raw(model.model))
