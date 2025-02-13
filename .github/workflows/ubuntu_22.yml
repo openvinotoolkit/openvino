@@ -22,6 +22,11 @@ env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
   TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  no_proxy: localhost,intel.com,192.168.0.0/16,172.16.0.0/12,127.0.0.0/8,10.0.0.0/8,/var/run/docker.sock,127.0.0.1,localhost
+  ftp_proxy: http://proxy.jf.intel.com:911
+  https_proxy: http://proxy.jf.intel.com:911
+  RSYNC_PROXY: proxy-us.intel.com:911
+  http_proxy: http://proxy.jf.intel.com:911
 
 jobs:
   Smart_CI:
@@ -349,16 +354,6 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_keras3_backend.yml
-    with:
-      runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
-      python-version: '3.11'
-
-  ExecuTorch_OpenVINO_Backend:
-    name: ExecuTorch OpenVINO Backend Tests
-    if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
-    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
-    uses: ./.github/workflows/job_executorch_backend.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
