@@ -3604,11 +3604,11 @@ void Reduce::reduce_ref_process(const float* in_ptr,
                                 float init_value,
                                 std::function<float(float, float)> func) {
     size_t work_amount_dst = 1, reduced_dims_work_amount = 1;
-    for (size_t i = 0; i < process_dst_dims.size(); i++) {
-        work_amount_dst *= process_dst_dims[i];
+    for (size_t process_dst_dim : process_dst_dims) {
+        work_amount_dst *= process_dst_dim;
     }
-    for (size_t i = 0; i < src_dims.size(); i++) {
-        reduced_dims_work_amount *= src_dims[i];
+    for (size_t src_dim : src_dims) {
+        reduced_dims_work_amount *= src_dim;
     }
     reduced_dims_work_amount /= work_amount_dst;
 
