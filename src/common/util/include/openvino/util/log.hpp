@@ -8,6 +8,13 @@
 #include <functional>
 #include <sstream>
 #include <vector>
+#include <unordered_set>
+
+#if defined(__linux__) || (defined(__APPLE__) && defined(__MACH__))
+#include <unistd.h>
+#endif
+
+#include "openvino/util/env_util.hpp"
 
 namespace ov {
 namespace util {
@@ -17,6 +24,7 @@ enum class LOG_TYPE {
     _LOG_TYPE_WARNING,
     _LOG_TYPE_INFO,
     _LOG_TYPE_DEBUG,
+    _LOG_TYPE_DEBUG_EMPTY,
 };
 
 class LogHelper {
@@ -50,6 +58,7 @@ private:
 };
 
 void default_logger_handler_func(const std::string& s);
+void default_logger_handler_func_length(const std::string& s);
 
 #ifdef ENABLE_OPENVINO_DEBUG
 /* Template function _write_all_to_stream has duplicates
@@ -93,6 +102,34 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
         do {                                                                                   \
             ov::util::_write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_DEBUG), __VA_ARGS__); \
         } while (0)
+
+static const bool logging_enabled = ov::util::getenv_bool("OV_LOGGING_ENABLED"); 
+static const std::unordered_set<std::string> matchers_to_log = ov::util::split_by_delimiter(ov::util::getenv_string("OV_MATCHERS_TO_LOG"), ',');
+
+static inline bool is_terminal_output() {
+#ifdef _WIN32
+    // No Windows support for colored logs for now.
+    return false;
+#else
+    static const bool stdout_to_terminal = isatty(fileno(stdout));
+    return stdout_to_terminal;
+#endif
+}
+
+#define OV_RESET    (ov::util::is_terminal_output() ? "\033[0m"    : "")
+#define OV_RED      (ov::util::is_terminal_output() ? "\033[31m"   : "")
+#define OV_GREEN    (ov::util::is_terminal_output() ? "\033[1;32m" : "")
+#define OV_YELLOW   (ov::util::is_terminal_output() ? "\033[33m"   : "")
+
+#    define OV_LOG_MATCHING(matcher_ptr, ...)                                                                              \
+        do {                                                                                                               \
+            if (ov::util::logging_enabled) {                                                                               \
+                if (ov::util::matchers_to_log.empty() ||                                                                   \
+                    ov::util::matchers_to_log.find(matcher_ptr->get_name()) != ov::util::matchers_to_log.end()) {          \
+                        ov::util::_write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_DEBUG_EMPTY), __VA_ARGS__, OV_RESET); \
+                }                                                                                                          \
+            }                                                                                                              \
+        } while (0)
 #else
 #    define OPENVINO_ERR(...) \
         do {                  \
@@ -105,6 +142,9 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
         } while (0)
 #    define OPENVINO_DEBUG(...) \
         do {                    \
+        } while (0)
+#    define OV_LOG_MATCHING(matcher_ptr, ...) \
+        do {                                  \
         } while (0)
 #endif
 

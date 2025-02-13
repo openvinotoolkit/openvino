@@ -6,24 +6,35 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/util/log.hpp"
 
 bool ov::pass::pattern::op::WrapType::match_value(Matcher* matcher,
                                                   const Output<Node>& pattern_value,
                                                   const Output<Node>& graph_value) {
-    if (std::any_of(m_wrapped_types.begin(),
-                    m_wrapped_types.end(),
+    if (std::none_of(m_wrapped_types.begin(), m_wrapped_types.end(),
                     [&](const NodeTypeInfo& type_info) {
                         return graph_value.get_node_shared_ptr()->get_type_info().is_castable(type_info);
-                    }) &&
-        m_predicate(graph_value)) {
-        auto& pattern_map = matcher->get_pattern_value_map();
-        pattern_map[shared_from_this()] = graph_value;
-        matcher->add_node(graph_value);
-        return (get_input_size() == 0
-                    ? true
-                    : matcher->match_arguments(pattern_value.get_node(), graph_value.get_node_shared_ptr()));
+                    })) {
+        OV_LOG_MATCHING(matcher, matcher->level_str, "}  ", OV_RED, "NODES' TYPE DIDN'T MATCH. EXPECTED: ", ov::node_version_type_str(pattern_value.get_node_shared_ptr()),
+                                                                                               ". OBSERVED: ", ov::node_version_type_str(graph_value.get_node_shared_ptr()));
+        return false;
     }
-    return false;
+
+    if (!m_predicate(graph_value)) {
+        OV_LOG_MATCHING(matcher, matcher->level_str, "}  ", OV_RED, "NODES' TYPE MATCHED, but PREDICATE FAILED");
+        return false;
+    }
+
+    auto& pattern_map = matcher->get_pattern_value_map();
+    pattern_map[shared_from_this()] = graph_value;
+    matcher->add_node(graph_value);
+    OV_LOG_MATCHING(matcher, matcher->level_str, "├─ ", OV_GREEN, "NODES' TYPE and PREDICATE MATCHED. CHECKING ", get_input_size(), " PATTERN ARGUMENTS: ");
+    auto res =  (get_input_size() == 0
+                ? true
+                : matcher->match_arguments(pattern_value.get_node(), graph_value.get_node_shared_ptr()));
+    OV_LOG_MATCHING(matcher, matcher->level_str, "│");
+    OV_LOG_MATCHING(matcher, matcher->level_str, "}  ", (res ? OV_GREEN : OV_RED), (res ? "ALL ARGUMENTS MATCHED" : "ARGUMENTS DIDN'T MATCH"));
+    return res;
 }
 
 ov::NodeTypeInfo ov::pass::pattern::op::WrapType::get_wrapped_type() const {
@@ -51,3 +62,21 @@ std::ostream& ov::pass::pattern::op::WrapType::write_type_description(std::ostre
     out << (m_wrapped_types.size() > 1 ? ">" : "");
     return out;
 }
+
+#ifdef ENABLE_OPENVINO_DEBUG
+std::string ov::pass::pattern::op::WrapType::type_description_str(bool verbose) const {
+    bool first = true;
+    std::string res = "<";
+    for (const auto& type : m_wrapped_types) {
+        auto version = type.version_id;
+        res += std::string(first ? "" : ", ");
+        if (verbose)
+            if (version)
+                res += version + std::string("::");
+        res += type.name;
+        first = false;
+    }
+    res += ">";
+    return res;
+}
+#endif
