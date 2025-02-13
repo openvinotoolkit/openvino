@@ -2514,9 +2514,7 @@ TEST(reorder_gpu_f32, bfzyx_to_bfyx_padded) {
     auto output1 = outputs.at("reshape1").get_memory();
     auto output2 = outputs.at("reshape2").get_memory();
 
-    auto output0_lockable = engine.allocate_memory(output0->get_layout());
-    output0->copy_to(get_test_stream(), *output0_lockable, true);
-    cldnn::mem_lock<float> output_ptr0(output0_lockable, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr0(output0, get_test_stream());
     for (int b = 0; b < b_crop; ++b) {
         for (int f = 0; f < f_crop; ++f) {
             for (int z = 0; z < z_crop; ++z) {
@@ -2531,9 +2529,7 @@ TEST(reorder_gpu_f32, bfzyx_to_bfyx_padded) {
         }
     }
 
-    auto output1_lockable = engine.allocate_memory(output1->get_layout());
-    output1->copy_to(get_test_stream(), *output1_lockable, true);
-    cldnn::mem_lock<float> output_ptr1(output1_lockable, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr1(output1, get_test_stream());
     for (int b = 0; b < b_crop; ++b) {
         for (int f = 0; f < f_crop; ++f) {
             for (int z = 0; z < z_crop; ++z) {
@@ -2548,9 +2544,7 @@ TEST(reorder_gpu_f32, bfzyx_to_bfyx_padded) {
         }
     }
 
-    auto output2_lockable = engine.allocate_memory(output2->get_layout());
-    output2->copy_to(get_test_stream(), *output2_lockable, true);
-    cldnn::mem_lock<float> output_ptr2(output2_lockable, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr2(output2, get_test_stream());
     for (int b = 0; b < b_crop; ++b) {
         for (int f = 0; f < f_crop; ++f) {
             for (int z = 0; z < z_crop; ++z) {

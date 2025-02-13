@@ -155,12 +155,8 @@ public:
         std::cout << "Outputs number: " << ref_output_buffers.size() << "\n";
 
         for (size_t i = 0; i < ref_output_buffers.size(); i++) {
-            auto output_lockable = get_test_engine().allocate_memory(output_buffers[i]->get_layout());
-            output_buffers[i]->copy_to(get_test_stream(), *output_lockable, true);
-            cldnn::mem_lock<ov::float16> output_ptr(output_lockable, get_test_stream());
-            auto output_lockable_ref = get_test_engine().allocate_memory(ref_output_buffers[i]->get_layout());
-            ref_output_buffers[i]->copy_to(get_test_stream(), *output_lockable_ref, true);
-            cldnn::mem_lock<ov::float16> output_ptr_ref(output_lockable_ref, get_test_stream());
+            cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_buffers[i], get_test_stream());
+            cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr_ref(ref_output_buffers[i], get_test_stream());
 
             for (size_t i = 0; i < output_ptr_ref.size(); ++i) {
                 auto abs_diff = std::abs(output_ptr_ref[i] - output_ptr[i]);
