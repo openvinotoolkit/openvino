@@ -137,6 +137,27 @@ the table for more information.
      - B, AMX-INT4
      - C, Arc-FP16
      - D, Arc-INT4
+   * - DeepSeek-R1-Distill-Llama-8B
+     - Data Default WWB
+     - Similarity
+     - 10.3%
+     - 21.4%
+     - 0.21%
+     - 23.5%
+   * - DeepSeek-R1-Distill-Qwen-1.5B
+     - Data Default WWB
+     - Similarity
+     - 16.1%
+     - 34.5%
+     - 2.48%
+     - 36.4%
+   * - DeepSeek-R1-Distill-Qwen-7B
+     - Data Default WWB
+     - Similarity
+     - 25.5%
+     - 35.6%
+     - 3.9%
+     - 37.2%
    * - GLM4-9B-Chat
      - Data Default WWB
      - Similarity
