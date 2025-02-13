@@ -13,10 +13,10 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-MODEL_IDS = [
-    "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
-    "Qwen/Qwen2-0.5B-Instruct",
-]
+MODEL_IDS = {
+    "llama": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+    "qwen2": "Qwen/Qwen2-0.5B-Instruct",
+}
 DEVICES = [
     "CPU",
     "GPU",
@@ -39,11 +39,10 @@ logger.info(f"Created temporary directory: {tmp_dir}")
 def init_test_scope():
     test_scope = []
 
-    for model_id in MODEL_IDS:
+    for model_type, model_id in MODEL_IDS.items():
         logger.info(f"Downloading and quantizing model: {model_id}")
         model = AutoModelForCausalLM.from_pretrained(model_id)
         tokenizer = AutoTokenizer.from_pretrained(model_id)
-        model_type = model.config.model_type
         model_path = os.path.join(tmp_dir, model_type)
         model.save_pretrained(model_path)
         tokenizer.save_pretrained(model_path)
