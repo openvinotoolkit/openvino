@@ -30,17 +30,16 @@ public:
                 ov::element::Type exec_prc = ov::element::f32,
                 emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec);
 
-    // We have to define two "emit_code" to pass FP registers because
+    // We have to define second "emit_code" to pass FP registers because
     // the base class method doesn't support them for code emission
     virtual void emit_code(const std::vector<size_t>& in_idxs,
                            const std::vector<size_t>& out_idxs,
                            const std::vector<size_t>& pool_vec_idxs,
                            const std::vector<size_t>& pool_gpr_idxs,
-                           const std::vector<size_t>& pool_fp_gpr_idxs) const;
-    void emit_code(const std::vector<size_t>& in_idxs,
-                   const std::vector<size_t>& out_idxs,
-                   const std::vector<size_t>& pool_vec_idxs,
-                   const std::vector<size_t>& pool_gpr_idxs) const override;
+                           const std::vector<size_t>& pool_fp_gpr_idxs) const {
+        emit_code_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, pool_fp_gpr_idxs);
+    }
+
     void emit_data() const override;
 
     virtual size_t get_inputs_num() const = 0;
@@ -67,6 +66,19 @@ protected:
     size_t get_vec_length() const;
 
     Xbyak_riscv::VReg mask_vreg() const { return Xbyak_riscv::v0; }
+
+    void emit_code_impl(const std::vector<size_t>& in_idxs,
+                        const std::vector<size_t>& out_idxs,
+                        const std::vector<size_t>& pool_vec_idxs,
+                        const std::vector<size_t>& pool_gpr_idxs) const override {
+        emit_code_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, {});
+    }
+
+    virtual void emit_code_impl(const std::vector<size_t>& in_idxs,
+                                const std::vector<size_t>& out_idxs,
+                                const std::vector<size_t>& pool_vec_idxs,
+                                const std::vector<size_t>& pool_gpr_idxs,
+                                const std::vector<size_t>& pool_fp_gpr_idxs) const;
 
     virtual void emit_impl(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const = 0;
 
