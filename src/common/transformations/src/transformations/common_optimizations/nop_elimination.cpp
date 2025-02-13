@@ -598,6 +598,19 @@ pass::EliminateConcatSplit::EliminateConcatSplit() {
                 mismatch_slices.push_back(std::make_tuple(slice_node, slice_begin, slice_end));
         }
 
+        for (const auto& [slice_node, slice_begin, slice_end] : slice_out_index_in_cocat) {
+            std::cout << "[slice][node] " << slice_node->get_name() << ", begin: " << slice_begin
+                      << ", end: " << slice_end << std::endl;
+        }
+        for (const auto& [concat_input_node, concat_input_begin, concat_input_end] : in_index_in_concat) {
+            std::cout << "[concat][node] " << concat_input_node->get_name() << ", begin: " << concat_input_begin
+                      << ", end: " << concat_input_end << std::endl;
+        }
+        for (const auto& [slice_node, slice_begin, slice_end] : mismatch_slices) {
+            std::cout << "[mismach][node] " << slice_node->get_name() << ", begin: " << slice_begin
+                      << ", end: " << slice_end << std::endl;
+        }
+
         int64_t new_start_value{std::numeric_limits<int64_t>::max()};
         int64_t new_end_value{0};
         for (const auto& [slice_node, slice_begin, slice_end] : mismatch_slices) {
