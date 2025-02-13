@@ -66,33 +66,6 @@ namespace ov::intel_gpu {
 #include "intel_gpu/plugin/primitives_list.hpp"
 #undef REGISTER_FACTORY
 
-const auto is_llm = [](const std::shared_ptr<const ov::Model>& model) -> bool {
-    using namespace ov::pass::pattern;
-
-    auto past = wrap_type<ov::op::v6::ReadValue>();
-    auto convert_past = wrap_type<ov::op::v0::Convert>({past});
-    auto gather_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past});
-    auto beam_idx = wrap_type<ov::op::v0::Parameter>();
-    auto gather_past = wrap_type<ov::op::v8::Gather>({gather_input, beam_idx, wrap_type<ov::op::v0::Constant>()});
-    auto gather_convert = wrap_type<ov::op::v0::Convert>({gather_past});
-    auto concat_past_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past, gather_past, gather_convert});
-    auto concat = wrap_type<ov::op::v0::Concat>({concat_past_input, any_input()});
-    auto convert_present = wrap_type<ov::op::v0::Convert>({concat});
-    auto present_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{concat, convert_present});
-    auto present = wrap_type<ov::op::v6::Assign>({present_input});
-
-    auto kvcache_matcher = std::make_shared<ov::pass::pattern::Matcher>(present, "KVCacheMatcher");
-
-    for (auto& op : model->get_ordered_ops()) {
-        if (kvcache_matcher->match(op) ||
-            ov::is_type<ov::op::PagedAttentionExtension>(op)) {
-            return true;
-        }
-    }
-
-    return false;
-};
-
 void Plugin::register_primitives() const {
     #define REGISTER_FACTORY(op_version, op_name) FACTORY_CALL(op_version, op_name)
     #include "intel_gpu/plugin/primitives_list.hpp"
@@ -221,7 +194,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
     if (model->has_rt_info("runtime_options"))
-        config.apply_rt_info(context->get_engine().get_device_info(), model->get_rt_info<ov::AnyMap>("runtime_options"), is_llm(model));
+        config.apply_rt_info(context->get_engine().get_device_info(), model->get_rt_info<ov::AnyMap>("runtime_options"),
+                             ov::op::util::is_large_language_model(model));
     config.apply_user_properties(context->get_engine().get_device_info());
 
     set_cache_info(model, config);
@@ -244,7 +218,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
     if (model->has_rt_info("runtime_options"))
-        config.apply_rt_info(context_impl->get_engine().get_device_info(), model->get_rt_info<ov::AnyMap>("runtime_options"), is_llm(model));
+        config.apply_rt_info(context_impl->get_engine().get_device_info(), model->get_rt_info<ov::AnyMap>("runtime_options"),
+                             ov::op::util::is_large_language_model(model));
     config.apply_user_properties(context_impl->get_engine().get_device_info());
 
     set_cache_info(model, config);
@@ -314,7 +289,8 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
     if (model->has_rt_info("runtime_options"))
-        config.apply_rt_info(ctx->get_engine().get_device_info(), model->get_rt_info<ov::AnyMap>("runtime_options"), is_llm(model));
+        config.apply_rt_info(ctx->get_engine().get_device_info(), model->get_rt_info<ov::AnyMap>("runtime_options"),
+                             ov::op::util::is_large_language_model(model));
     config.apply_user_properties(ctx->get_engine().get_device_info());
 
     ProgramBuilder prog(ctx->get_engine(), config);
