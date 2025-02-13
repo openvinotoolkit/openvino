@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "llm_compiled_model.hpp"
+#include "llm_ids_history_state.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 
@@ -26,11 +27,11 @@ public:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override {
         return {};
     }
-    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
-        return {};
-    }
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
 
 private:
+    void init_tensor(const ov::Output<const ov::Node>& port);
+
     void prepare_for_new_conversation();
 
     void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
@@ -40,6 +41,10 @@ private:
     void infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                         ov::SoPtr<ov::ITensor> attention_mask,
                         ov::SoPtr<ov::ITensor> position_ids);
+
+    void update_ids_state(ov::SoPtr<ov::ITensor> input_ids, ov::SoPtr<ov::ITensor> position_ids);
+
+    ov::SoPtr<ov::ITensor> get_ids_from_state(std::shared_ptr<LLMIdsHistoryState> ids_history);
 
     std::shared_ptr<ov::IAsyncInferRequest> m_kvcache_request;
     std::shared_ptr<ov::IAsyncInferRequest> m_prefill_request;
@@ -51,6 +56,9 @@ private:
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_in_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_out_ports;
+
+    std::shared_ptr<LLMIdsHistoryState> m_input_ids_history;
+    std::shared_ptr<LLMIdsHistoryState> m_position_ids_history;
 };
 
 }  // namespace npuw
