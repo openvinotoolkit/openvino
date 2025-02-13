@@ -22,11 +22,6 @@ env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
   TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
-  no_proxy: localhost,intel.com,192.168.0.0/16,172.16.0.0/12,127.0.0.0/8,10.0.0.0/8,/var/run/docker.sock,127.0.0.1,localhost
-  ftp_proxy: http://proxy.jf.intel.com:911
-  https_proxy: http://proxy.jf.intel.com:911
-  RSYNC_PROXY: proxy-us.intel.com:911
-  http_proxy: http://proxy.jf.intel.com:911
 
 jobs:
   Smart_CI:
