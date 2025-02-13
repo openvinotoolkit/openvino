@@ -486,9 +486,8 @@ bool isSuitableConvert(const std::shared_ptr<const Node>& node) {
         auto inPrc = node->get_input_element_type(0);
         auto outPrc = node->get_output_element_type(0);
         return inPrc == element::f32 && outPrc == element::bf16;
-    } else {
-        return false;
     }
+    return false;
 }
 
 auto is_skipped_op(const std::shared_ptr<ov::Node>& op) -> bool {

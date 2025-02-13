@@ -325,44 +325,59 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         const auto streams = engConfig.streamExecutorConfig.get_streams();
         return decltype(ov::num_streams)::value_type(
             streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
-    } else if (name == ov::device::id.name()) {
+    }
+    if (name == ov::device::id.name()) {
         return decltype(ov::device::id)::value_type{engConfig.device_id};
-    } else if (name == ov::inference_num_threads) {
+    }
+    if (name == ov::inference_num_threads) {
         const auto threads = engConfig.streamExecutorConfig.get_threads();
         return static_cast<decltype(ov::inference_num_threads)::value_type>(threads);
-    } else if (name == ov::enable_profiling.name()) {
+    }
+    if (name == ov::enable_profiling.name()) {
         const bool perfCount = engConfig.collectPerfCounters;
         return static_cast<decltype(ov::enable_profiling)::value_type>(perfCount);
-    } else if (name == ov::hint::inference_precision) {
+    }
+    if (name == ov::hint::inference_precision) {
         return decltype(ov::hint::inference_precision)::value_type(engConfig.inferencePrecision);
-    } else if (name == ov::hint::performance_mode) {
+    }
+    if (name == ov::hint::performance_mode) {
         return engConfig.hintPerfMode;
-    } else if (name == ov::hint::enable_cpu_pinning) {
+    }
+    if (name == ov::hint::enable_cpu_pinning) {
         const bool pin_value = engConfig.enableCpuPinning;
         return static_cast<decltype(ov::hint::enable_cpu_pinning)::value_type>(pin_value);
-    } else if (name == ov::hint::enable_cpu_reservation) {
+    }
+    if (name == ov::hint::enable_cpu_reservation) {
         const bool reserve_value = engConfig.enableCpuReservation;
         return static_cast<decltype(ov::hint::enable_cpu_reservation)::value_type>(reserve_value);
-    } else if (name == ov::hint::scheduling_core_type) {
+    }
+    if (name == ov::hint::scheduling_core_type) {
         const auto core_type = engConfig.schedulingCoreType;
         return core_type;
-    } else if (name == ov::hint::model_distribution_policy) {
+    }
+    if (name == ov::hint::model_distribution_policy) {
         const auto& distribution_policy = engConfig.modelDistributionPolicy;
         return distribution_policy;
-    } else if (name == ov::hint::enable_hyper_threading) {
+    }
+    if (name == ov::hint::enable_hyper_threading) {
         const bool ht_value = engConfig.enableHyperThreading;
         return static_cast<decltype(ov::hint::enable_hyper_threading)::value_type>(ht_value);
-    } else if (name == ov::hint::num_requests) {
+    }
+    if (name == ov::hint::num_requests) {
         return static_cast<decltype(ov::hint::num_requests)::value_type>(engConfig.hintNumRequests);
-    } else if (name == ov::hint::execution_mode) {
+    }
+    if (name == ov::hint::execution_mode) {
         return engConfig.executionMode;
-    } else if (name == ov::internal::compiled_model_runtime_properties.name()) {
+    }
+    if (name == ov::internal::compiled_model_runtime_properties.name()) {
         auto model_runtime_properties = ov::Any(m_compiled_model_runtime_properties);
         return decltype(ov::internal::compiled_model_runtime_properties)::value_type(
             std::move(model_runtime_properties.as<std::string>()));
-    } else if (name == ov::log::level) {
+    }
+    if (name == ov::log::level) {
         return engConfig.logLevel;
-    } else if (name == ov::internal::compiled_model_runtime_properties_supported.name()) {
+    }
+    if (name == ov::internal::compiled_model_runtime_properties_supported.name()) {
         ov::Any res = true;
         auto it = options.find(ov::internal::compiled_model_runtime_properties.name());
         if (it == options.end()) {
@@ -460,7 +475,8 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
             ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(),
                              ov::PropertyMutability::RO}};
-    } else if (name == ov::device::full_name) {
+    }
+    if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type(deviceFullName);
     } else if (name == ov::available_devices) {
         const std::vector<std::string> availableDevices = {""};

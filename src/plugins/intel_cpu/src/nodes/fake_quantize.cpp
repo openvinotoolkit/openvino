@@ -1412,18 +1412,15 @@ std::vector<LayoutType> FakeQuantize::getDataFormats() const {
     }
     if (isBinarization()) {
         return {LayoutType::nspc};
-    } else {
-        if (one_of(dims.size(), 4u, 5u)) {
-            if (getAxis() == 1) {
-                auto blkFormat = mayiuse(cpu::x64::avx512_core) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
-                return {blkFormat, LayoutType::nspc, LayoutType::ncsp};
-            } else {
-                return {LayoutType::ncsp};
-            }
-        } else {
-            return {LayoutType::ncsp};
-        }
     }
+    if (one_of(dims.size(), 4u, 5u)) {
+        if (getAxis() == 1) {
+            auto blkFormat = mayiuse(cpu::x64::avx512_core) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
+            return {blkFormat, LayoutType::nspc, LayoutType::ncsp};
+        }
+        return {LayoutType::ncsp};
+    }
+    return {LayoutType::ncsp};
 }
 
 void FakeQuantize::init() {

@@ -269,9 +269,8 @@ bool DnnlBlockedMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
     }
     if (auto desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
         return isCompatible(*desc);
-    } else {
-        return false;
     }
+    return false;
 }
 
 bool DnnlBlockedMemoryDesc::isCompatible(const BlockedMemoryDesc& rhs, CmpMask cmpMask) const {
@@ -280,9 +279,8 @@ bool DnnlBlockedMemoryDesc::isCompatible(const BlockedMemoryDesc& rhs, CmpMask c
     }
     if (auto desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
         return isCompatible(*desc, cmpMask);
-    } else {
-        return false;
     }
+    return false;
 }
 
 bool DnnlBlockedMemoryDesc::isCompatible(const CpuBlockedMemoryDesc& rhs, CmpMask cmpMask) const {

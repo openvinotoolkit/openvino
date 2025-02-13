@@ -623,13 +623,12 @@ std::shared_ptr<IStaticShapeInfer> make_shape_inference(std::shared_ptr<ov::Node
     }
     if (ov::is_type<op::util::UnaryElementwiseArithmetic>(op)) {
         return std::make_shared<ShapeInferCopy>(std::move(op));
-    } else if (ov::is_type<op::util::BinaryElementwiseArithmetic>(op) ||
-               ov::is_type<op::util::BinaryElementwiseComparison>(op) ||
-               ov::is_type<op::util::BinaryElementwiseLogical>(op)) {
-        return std::make_shared<ShapeInferEltwise>(std::move(op));
-    } else {
-        return std::make_shared<ShapeInferFallback>(std::move(op));
     }
+    if (ov::is_type<op::util::BinaryElementwiseArithmetic>(op) ||
+        ov::is_type<op::util::BinaryElementwiseComparison>(op) || ov::is_type<op::util::BinaryElementwiseLogical>(op)) {
+        return std::make_shared<ShapeInferEltwise>(std::move(op));
+    }
+    return std::make_shared<ShapeInferFallback>(std::move(op));
 }
 
 }  // namespace ov::intel_cpu
