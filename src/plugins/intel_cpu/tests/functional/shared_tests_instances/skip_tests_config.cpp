@@ -309,8 +309,8 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*LSTMCellFusion/LSTMCellFusionWithSplitWeights.SubgraphFusedToLSTMCell/(1|8|15))");
         // Ticket: 131541
         retVector.emplace_back(R"(.*smoke_MulticlassNmsLayerTest_dynamic2.*_outType=i32_.*)");
-        // u8 MatMul is not supported on arm platform
-        retVector.emplace_back(R"(smoke_LPT/MatMulTransformation.*precision=_u8.*)");
+        // Ticket: 162434
+        retVector.emplace_back(R"(smoke_LPT/MatMulTransformation.*)");
         // Ticket: 162260
         retVector.emplace_back(R"(smoke_Snippets_FQDecomposition.*netPRC=f32_D=CPU.*)");
     }
