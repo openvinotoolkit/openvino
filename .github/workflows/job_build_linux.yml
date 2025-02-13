@@ -69,7 +69,7 @@ jobs:
         shell: bash
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      CMAKE_BUILD_TYPE: 'Release'
+      CMAKE_BUILD_TYPE: 'Debug'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
@@ -85,10 +85,10 @@ jobs:
       INSTALL_WHEELS_DIR: /__w/openvino/openvino/install/wheels
       DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
-      SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_${{ inputs.arch }}_Release
+      SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_${{ inputs.arch }}_Debug
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '/__w/openvino/openvino/manifest.yml'
-      PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}_release
+      PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}_debug
     steps:
       - name: Clone OpenVINO (with trace)
         if: ${{ inputs.os == 'fedora_29' }} # to debug ticket 160901
@@ -128,17 +128,17 @@ jobs:
           submodules: 'true'
           ref: ${{ env.TARGET_BRANCH }}
 
-      - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
-        id: create_manifest
-        uses: ./openvino/.github/actions/create_manifest
-        with:
-          repos: |
-            ${{ env.OPENVINO_REPO }}
-            ${{ env.OPENVINO_CONTRIB_REPO }}
-          product_type: ${{ env.PRODUCT_TYPE }}
-          target_arch: ${{ inputs.arch }}
-          build_type: 'release'
-          save_to: ${{ env.MANIFEST_PATH }}
+      # - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
+      #   id: create_manifest
+      #   uses: ./openvino/.github/actions/create_manifest
+      #   with:
+      #     repos: |
+      #       ${{ env.OPENVINO_REPO }}
+      #       ${{ env.OPENVINO_CONTRIB_REPO }}
+      #     product_type: ${{ env.PRODUCT_TYPE }}
+      #     target_arch: ${{ inputs.arch }}
+      #     build_type: 'debug'
+      #     save_to: ${{ env.MANIFEST_PATH }}
 
       #
       # Print system info
@@ -340,21 +340,21 @@ jobs:
           mkdir deb && mv *.deb deb/
           popd
 
-      - name: Store artifacts to a shared drive
-        id: store_artifacts
-        if: ${{ always() }}
-        uses: ./openvino/.github/actions/store_artifacts
-        with:
-          artifacts: |
-            ${{ env.BUILD_DIR }}/openvino_package.tar.gz
-            ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
-            ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
-            ${{ env.BUILD_DIR }}/deb
-            ${{ env.MANIFEST_PATH }}
-            ${{ env.STORE_JS == 'true' && format('{0}/openvino_js_package.tar.gz', env.BUILD_DIR) || '' }}
-            ${{ env.STORE_WHEELS == 'true' && format('{0}/wheels', env.INSTALL_WHEELS_DIR) || '' }}
-          storage_dir: ${{ env.PRODUCT_TYPE }}
-          storage_root: ${{ env.ARTIFACTS_SHARE }}
-        env:
-          STORE_WHEELS: ${{ inputs.os != 'debian_10' && inputs.arch != 'arm' }}
-          STORE_JS: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
+      # - name: Store artifacts to a shared drive
+      #   id: store_artifacts
+      #   if: ${{ always() }}
+      #   uses: ./openvino/.github/actions/store_artifacts
+      #   with:
+      #     artifacts: |
+      #       ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+      #       ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
+      #       ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+      #       ${{ env.BUILD_DIR }}/deb
+      #       ${{ env.MANIFEST_PATH }}
+      #       ${{ env.STORE_JS == 'true' && format('{0}/openvino_js_package.tar.gz', env.BUILD_DIR) || '' }}
+      #       ${{ env.STORE_WHEELS == 'true' && format('{0}/wheels', env.INSTALL_WHEELS_DIR) || '' }}
+      #     storage_dir: ${{ env.PRODUCT_TYPE }}
+      #     storage_root: ${{ env.ARTIFACTS_SHARE }}
+      #   env:
+      #     STORE_WHEELS: ${{ inputs.os != 'debian_10' && inputs.arch != 'arm' }}
+      #     STORE_JS: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
