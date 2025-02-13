@@ -786,8 +786,7 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
             // depending on the memory sharing solution, we can return here if the memory is substituted from the
             // external graph or override the src pointer with the memory pointer pointing to the subgraph output
             // memory
-            CPU_NODE_ASSERT(subGraph->outputsNumber() == 1,
-                            "has unexpected number of outputs");
+            CPU_NODE_ASSERT(subGraph->outputsNumber() == 1, "has unexpected number of outputs");
             src = subGraph->getOutputNodeByIndex(0)->getSrcMemoryAtPort(0);
 
             // since the shape inference(InternalDynShapeInfer, do nothing) is performed, a memory of the extra child

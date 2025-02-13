@@ -864,7 +864,7 @@ std::string ov::npuw::CompiledModel::funcall_mem_device(const std::size_t idx) c
 void ov::npuw::CompiledModel::remove_long_output_names(const std::shared_ptr<ov::Model>& model) {
     NPUW_ASSERT(model.get() != nullptr);
     for (auto node : model->get_ordered_ops()) {
-        for (auto &&output : node->outputs()) {
+        for (auto&& output : node->outputs()) {
             const auto& tensor_names = output.get_tensor().get_names();
             if (tensor_names.size() > 32) {
                 LOG_VERB(model->get_friendly_name() << " output " << output << " exceeds the name limit, removing...");
