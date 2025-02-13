@@ -156,6 +156,10 @@ if(ENABLE_CPU_DEBUG_CAPS)
     add_definitions(-DCPU_DEBUG_CAPS)
 endif()
 
+if(AARCH64 AND (NOT ANDROID))
+    set(ENABLE_SNIPPETS_LIBXSMM_TPP ON)
+endif()
+
 if (ENABLE_SNIPPETS_LIBXSMM_TPP)
     # Note: LIBXSMM_DEFAULT_CONFIG needed so libxsmm_config can be included without issues
     add_definitions(-DSNIPPETS_LIBXSMM_TPP -DLIBXSMM_DEFAULT_CONFIG)
@@ -194,7 +198,9 @@ if(NOT X86_64)
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/x64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/x64/*)
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/tpp/x64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/x64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/x64/*)
 endif()
 
 if (AARCH64)
@@ -204,7 +210,9 @@ endif()
 
 if(NOT (AARCH64 OR ARM))
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/arm/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/aarch64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/tpp/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/aarch64/*)
 endif()

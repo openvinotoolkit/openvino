@@ -7,6 +7,7 @@
 #include <string>
 
 #include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
 

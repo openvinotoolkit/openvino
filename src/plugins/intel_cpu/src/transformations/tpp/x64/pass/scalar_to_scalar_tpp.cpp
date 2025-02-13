@@ -8,7 +8,7 @@
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_connector.hpp"
 #include "snippets/op/scalar.hpp"
-#include "transformations/tpp/x64/op/modifiers.hpp"
+#include "transformations/tpp/common/op/modifiers.hpp"
 #include "transformations/tpp/x64/op/scalar.hpp"
 
 namespace ov::intel_cpu::tpp::pass {

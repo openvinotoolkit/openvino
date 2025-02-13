@@ -5,8 +5,8 @@
 #pragma once
 
 #include "eltwise.hpp"
-#include "modifiers.hpp"
 #include "snippets/op/reduce.hpp"
+#include "transformations/tpp/common/op/modifiers.hpp"
 
 namespace ov::intel_cpu::tpp::op {
 // Note that the tpp::op::Scalar is not derived from the TensorProcessingPrimitive modifier. We don't need it because

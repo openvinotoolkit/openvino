@@ -4,7 +4,7 @@
 
 #include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
 #ifdef SNIPPETS_LIBXSMM_TPP
-    #include "transformations/tpp/x64/pass/lowered/brgemm_tpp_blocking.hpp"
+    #include "transformations/tpp/common/pass/lowered/brgemm_tpp_blocking.hpp"
 #endif
 
 #include "lir_test_utils.hpp"
@@ -13,7 +13,7 @@
 #include "snippets/snippets_isa.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "transformations/tpp/x64/op/brgemm.hpp"
+#include "transformations/tpp/common/op/brgemm.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 
 namespace ov {
