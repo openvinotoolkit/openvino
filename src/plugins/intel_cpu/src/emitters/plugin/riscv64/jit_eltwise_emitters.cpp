@@ -457,6 +457,115 @@ void jit_relu_emitter::register_table_entries() {
         push_arg_entry_of("alpha", dnnl::impl::float2int(alpha));
 }
 
+/// Power Static ///
+jit_power_static_emitter::jit_power_static_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                                   float power, float scale, float shift, ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc), power(power), scale(scale), shift(shift) {
+    prepare_table();
+
+    OPENVINO_ASSERT(one_of(power, 0.5f, -0.5f) || (std::floor(power) == power && power != 0), "Unsupported power configuration");
+}
+
+size_t jit_power_static_emitter::get_inputs_num() const {
+    return 1;
+}
+
+size_t jit_power_static_emitter::aux_gprs_count() const {
+    return scale != 1.f || shift != 0.f ? 2 : 1;
+}
+
+size_t jit_power_static_emitter::aux_vecs_count() const {
+    if (scale != 1.f || shift != 0.f)
+        return 2;
+    if (std::floor(power) == power && power != 0)
+        return 1;
+    return 0;
+}
+
+size_t jit_power_static_emitter::aux_fp_gprs_count() const {
+    return power < 0 ? 1 : 0;
+}
+
+void jit_power_static_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gcv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gcv>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OPENVINO_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    VReg src = VReg(in_vec_idxs[0]);
+    VReg dst = VReg(out_vec_idxs[0]);
+
+    if (scale == 1.f && shift == 0.f && power == 1.f) {
+        if (src.getIdx() != dst.getIdx())
+            h->vmv_v_v(dst, src);
+        return;
+    }
+
+    if (scale != 1.f || shift != 0.f) {
+        VReg aux0 = VReg(aux_vec_idxs[0]);
+        VReg aux1 = VReg(aux_vec_idxs[1]);
+        Reg tmp = Reg(aux_gpr_idxs[0]);
+        load_table_val("shift", aux0, tmp);
+        load_table_val("scale", aux1, tmp);
+        h->vfmacc_vv(aux0, aux1, src);
+        h->vmv_v_v(dst, aux0);
+    } else {
+        if (src.getIdx() != dst.getIdx())
+            h->vmv_v_v(dst, src);
+    }
+
+    // for power `-0.5f` there is `vfrsqrt7_v` instruction with worse accuracy
+    if (power == 0.5f || power == -0.5f) {
+        h->vfsqrt_v(dst, dst);
+
+        if (power < 0) {
+            FReg one = FReg(aux_fp_gpr_idxs[0]);
+            load_table_val("one", one);
+            h->vfrdiv_vf(dst, dst, one);
+        }
+    } else if (std::floor(power) == power && power != 0) {
+        int64_t ipower = std::abs(static_cast<int64_t>(power)) - 1;
+
+        VReg aux0 = VReg(aux_vec_idxs[0]);
+        h->vmv_v_v(aux0, dst);
+
+        while (ipower > 0) {
+            if (ipower & 0x1) {
+                h->vfmul_vv(dst, dst, aux0);
+            }
+            if (ipower > 1) {
+                h->vfmul_vv(aux0, aux0, aux0);
+            }
+            ipower = ipower >> 1;
+        }
+
+        if (power < 0) {
+            FReg one = FReg(aux_fp_gpr_idxs[0]);
+            load_table_val("one", one);
+            h->vfrdiv_vf(dst, dst, one);
+        }
+    }
+}
+
+std::set<std::vector<element::Type>> jit_power_static_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}};
+}
+
+void jit_power_static_emitter::register_table_entries() {
+    if (scale != 1.f)
+        push_arg_entry_of("scale", dnnl::impl::float2int(scale));
+    if (shift != 0.f)
+        push_arg_entry_of("shift", dnnl::impl::float2int(shift));
+    if (power != 1.f)
+        push_arg_entry_of("power", dnnl::impl::float2int(power));
+    if (power < 0)
+        push_arg_entry_of("one", CONST_1_F);
+}
+
 /// Sigmoid ///
 jit_sigmoid_emitter::jit_sigmoid_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                          const std::shared_ptr<ov::Node>& node, const ov::element::Type exec_prc)
