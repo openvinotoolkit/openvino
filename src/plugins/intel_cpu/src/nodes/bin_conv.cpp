@@ -960,10 +960,10 @@ BinaryConvolution::BinaryConvolution(const std::shared_ptr<ov::Node>& op, const 
         const auto binConv = ov::as_type_ptr<const ov::opset1::BinaryConvolution>(op);
 
         pad_value = binConv->get_pad_value();
-        for (unsigned long i : binConv->get_strides()) {
+        for (uint64_t i : binConv->get_strides()) {
             stride.push_back(static_cast<ptrdiff_t>(i));
         }
-        for (unsigned long i : binConv->get_dilations()) {
+        for (uint64_t i : binConv->get_dilations()) {
             dilation.push_back(static_cast<ptrdiff_t>(i) - 1);
         }
         paddingL = binConv->get_pads_begin();
