@@ -11,8 +11,8 @@
 #include "snippets/utils/utils.hpp"
 
 namespace ov {
-namespace intel_cpu {
-namespace brgemm_utils {
+
+namespace intel_cpu::brgemm_utils {
 
 enum class BRGEMM_TYPE {
     STAND_ALONE,  // No extra requirements, used for f32|f32
@@ -60,18 +60,13 @@ namespace repacking {
 size_t compute_inner_n_block(const ov::element::Type& precision);
 /// \brief  Computes inner K block size used by OneDNN implementation. Depends on tensor precision
 size_t compute_inner_k_block(const ov::element::Type& precision);
-/**
- * @brief Computes leading dimension (LDB) which must be used in brgemm and brgemm_copy_b emitters
- * @param n_block N block size shared between BrgemmCPU and BrgemmCopyB node
- * @param precision tensor precision
- */
+
+/// \brief  Computes N dim in output blocked shape of BrgemmCopyB. Depends on tensor precision
 template <
     typename T,
     typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
-T compute_LDB(T n_block, const ov::element::Type& precision) {
-    return snippets::utils::is_dynamic_value<T>(n_block)
-               ? n_block
-               : std::max(n_block, static_cast<T>(compute_inner_n_block(precision)));
+inline T compute_repacked_n_dim(T n, const ov::element::Type& precision) {
+    return ov::snippets::utils::rnd_up(n, static_cast<T>(compute_inner_n_block(precision)));
 }
 /**
  * @brief Retrieves the expression pointer for the brgemm_copy_b expression corresponding to the given BrgemmCPU
@@ -81,8 +76,8 @@ T compute_LDB(T n_block, const ov::element::Type& precision) {
  */
 snippets::lowered::ExpressionPtr get_copy_b_expr(const snippets::lowered::ExpressionPtr& brgemm_expr);
 }  // namespace repacking
-}  // namespace brgemm_utils
-}  // namespace intel_cpu
+}  // namespace intel_cpu::brgemm_utils
+
 template <>
 class AttributeAdapter<intel_cpu::brgemm_utils::BRGEMM_TYPE>
     : public EnumAttributeAdapterBase<intel_cpu::brgemm_utils::BRGEMM_TYPE> {

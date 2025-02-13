@@ -38,7 +38,7 @@ options:
       text generation loop, tokenization, and scheduling, offering ease of use and high
       performance.
 
-      `Check out the OpenVINO GenAI Quick-start Guide [PDF] <https://docs.openvino.ai/nightly/_static/download/GenAI_Quick_Start_Guide.pdf>`__
+      `Check out the OpenVINO GenAI Quick-start Guide [PDF] <https://docs.openvino.ai/2025/_static/download/GenAI_Quick_Start_Guide.pdf>`__
 
    .. tab-item:: Optimum Intel (Hugging Face integration)
 
@@ -98,6 +98,6 @@ Proceed to guides on:
 
 * :doc:`OpenVINO GenAI <./openvino-workflow-generative/inference-with-genai>`
 * :doc:`Hugging Face and Optimum Intel <./openvino-workflow-generative/inference-with-optimum-intel>`
-* `Generative AI with Base OpenVINO <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/llm-inference-native-ov>`__
+* `Generative AI with Base OpenVINO <https://docs.openvino.ai/2025/learn-openvino/llm_inference_guide/llm-inference-native-ov>`__
 
 

@@ -42,6 +42,8 @@ OpenVINO.
 -  `Create parser <#create-parers>`__
 -  `Create tools calling <#create-tool-calling>`__
 -  `Run agent <#run-agent>`__
+-  `Create AI agent demo with Gradio
+   UI <#create-ai-agent-demo-with-gradio-ui>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -62,17 +64,19 @@ Prerequisites
 
     import os
     import requests
+    from pathlib import Path
 
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
 
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
-
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/pip_helper.py",
-    )
-    open("pip_helper.py", "w").write(r.text)
+    if not Path("pip_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/pip_helper.py",
+        )
+        open("pip_helper.py", "w").write(r.text)
 
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
 
@@ -83,9 +87,22 @@ Prerequisites
         "--extra-index-url",
         "https://download.pytorch.org/whl/cpu",
         "transformers>=4.43.1",
+        "gradio>=4.19",
     )
-    pip_install("-q", "git+https://github.com/huggingface/optimum-intel.git", "git+https://github.com/openvinotoolkit/nncf.git", "datasets", "accelerate")
+    pip_install(
+        "-q",
+        "git+https://github.com/huggingface/optimum-intel.git",
+        "git+https://github.com/openvinotoolkit/nncf.git",
+        "datasets",
+        "accelerate",
+        "huggingface-hub>=0.26.5",
+    )
     pip_install("--pre", "-Uq", "openvino>=2024.4.0", "--extra-index-url", "https://storage.openvinotoolkit.org/simple/wheels/nightly")
+
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+
+    collect_telemetry("llm-agent-react.ipynb")
 
 Create LLM as agent
 -------------------
@@ -106,18 +123,19 @@ folder.
 Large Language Models (LLMs) are a core component of agent. LlamaIndex
 does not serve its own LLMs, but rather provides a standard interface
 for interacting with many different LLMs. In this example, we can select
-``Qwen2.5`` as LLM in agent pipeline. \*
-**qwen2.5-3b-instruct/qwen2.5-7b-instruct/qwen2.5-14b-instruct** -
-Qwen2.5 is the latest series of Qwen large language models. Comparing
-with Qwen2, Qwen2.5 series brings significant improvements in coding,
-mathematics and general knowledge skills. Additionally, it brings
-long-context and multiple languages support including Chinese, English,
-French, Spanish, Portuguese, German, Italian, Russian, Japanese, Korean,
-Vietnamese, Thai, Arabic, and more. For more details, please refer to
-`model_card <https://huggingface.co/Qwen/Qwen2.5-7B-Instruct>`__,
-`blog <https://qwenlm.github.io/blog/qwen2.5/>`__,
-`GitHub <https://github.com/QwenLM/Qwen2.5>`__, and
-`Documentation <https://qwen.readthedocs.io/en/latest/>`__.
+``Qwen2.5`` as LLM in agent pipeline.
+
+* **qwen2.5-3b-instruct/qwen2.5-7b-instruct/qwen2.5-14b-instruct** -
+  Qwen2.5 is the latest series of Qwen large language models. Comparing
+  with Qwen2, Qwen2.5 series brings significant improvements in coding,
+  mathematics and general knowledge skills. Additionally, it brings
+  long-context and multiple languages support including Chinese, English,
+  French, Spanish, Portuguese, German, Italian, Russian, Japanese, Korean,
+  Vietnamese, Thai, Arabic, and more. For more details, please refer to
+  `model_card <https://huggingface.co/Qwen/Qwen2.5-7B-Instruct>`__,
+  `blog <https://qwenlm.github.io/blog/qwen2.5/>`__,
+  `GitHub <https://github.com/QwenLM/Qwen2.5>`__, and
+  `Documentation <https://qwen.readthedocs.io/en/latest/>`__.
 
 .. code:: ipython3
 
@@ -166,11 +184,6 @@ Select inference device for LLM
     llm_device
 
 
-.. parsed-literal::
-
-    [ERROR] 20:00:52.380 [NPUBackends] Cannot find backend for inference. Make sure the device is available.
-
-
 
 
 .. parsed-literal::
@@ -213,7 +226,7 @@ Tokenizer class and pipelines API are compatible with Optimum models.
 
 You can find more details about OpenVINO LLM inference using HuggingFace
 Optimum API in `LLM inference
-guide <https://docs.openvino.ai/2024/openvino-workflow-generative.html>`__.
+guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__.
 
 .. code:: ipython3
 
@@ -543,18 +556,132 @@ Run agent
 
 .. parsed-literal::
 
+    The attention mask is not set and cannot be inferred from input because pad token is same as eos token. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
+
+
+.. parsed-literal::
+
     Thought: First, I need to use the get_weather API to get the current weather in London.
     Action: get_weather
     Action Input: {"city_name": "London"}
     Observation:
-    {'current_condition': {'temp_C': '11', 'FeelsLikeC': '10', 'humidity': '94', 'weatherDesc': [{'value': 'Overcast'}], 'observation_time': '12:23 AM'}}
+    {'current_condition': {'temp_C': '6', 'FeelsLikeC': '3', 'humidity': '75', 'weatherDesc': [{'value': 'Overcast'}], 'observation_time': '12:32 AM'}}
     Thought:
      Now that I have the weather information, I will use the image_gen API to generate an image of Big Ben based on the weather conditions.
     Action: image_gen
-    Action Input: {"prompt": "Big Ben under overcast sky with temperature 11°C and humidity 94%"}
+    Action Input: {"prompt": "Big Ben under an overcast sky with a temperature of 6 degrees Celsius and humidity of 75%"}
     Observation:
-    {"image_url": "https://image.pollinations.ai/prompt/Big%20Ben%20under%20overcast%20sky%20with%20temperature%2011%C2%B0C%20and%20humidity%2094%25"}
+    {"image_url": "https://image.pollinations.ai/prompt/Big%20Ben%20under%20an%20overcast%20sky%20with%20a%20temperature%20of%206%20degrees%20Celsius%20and%20humidity%20of%2075%25"}
     Thought:
-     The image has been generated successfully.
-    Final Answer: The current weather in London is overcast with a temperature of 11°C and humidity of 94%. Based on this information, here is the image of Big Ben under an overcast sky: ![](https://image.pollinations.ai/prompt/Big%20Ben%20under%20overcast%20sky%20with%20temperature%2011%C2%B0C%20and%20humidity%2094%25)
+     I now know the final answer.
+    Final Answer: The current weather in London is overcast with a temperature of 6 degrees Celsius and humidity of 75%. Based on this information, here is the generated image of Big Ben under an overcast sky: ![](https://image.pollinations.ai/prompt/Big%20Ben%20under%20an%20overcast%20sky%20with%20a%20temperature%20of%206%20degrees%20Celsius%20and%20humidity%20of%2075%25).
+
+
+Create AI agent demo with Gradio UI
+-----------------------------------
+
+
+
+.. code:: ipython3
+
+    from transformers import TextIteratorStreamer
+    from threading import Thread
+
+
+    def run_chatbot(history):
+        """
+        callback function for running chatbot on submit button click
+
+        Params:
+          history: conversation history
+
+        """
+        chat_history = [(history[-1][0], "")]
+
+        prompt = build_input_text(chat_history, tools)
+        text = ""
+        while True:
+            planning_prompt = prompt + text
+            im_end = "<|im_end|>"
+            stop_words = ["Observation:", "Observation:\n"]
+            if im_end not in stop_words:
+                stop_words = stop_words + [im_end]
+            streamer = TextIteratorStreamer(tokenizer, timeout=60.0, skip_prompt=True, skip_special_tokens=True)
+
+            stopping_criteria = StoppingCriteriaList([StopSequenceCriteria(stop_words, tokenizer)])
+            input_ids = torch.tensor([tokenizer.encode(planning_prompt)])
+            generate_kwargs = dict(
+                input_ids=input_ids,
+                streamer=streamer,
+                stopping_criteria=stopping_criteria,
+            )
+
+            thread = Thread(target=llm.generate, kwargs=generate_kwargs)
+            thread.start()
+            output = ""
+            output_gui = ""
+            show_response = False
+            for new_text in streamer:
+                output += new_text
+                if "Final" in new_text:
+                    show_response = True
+                if show_response:
+                    output_gui += new_text
+                    history[-1][1] = output_gui
+                    yield history
+
+            # assert buffer.startswith(prompt)
+            for stop_str in stop_words:
+                idx = output.find(stop_str)
+                if idx != -1:
+                    output = output[: idx + len(stop_str)]
+            print(output)
+            action, action_input, output = parse_latest_tool_call(output)
+            if action:
+                observation = call_tool(action, action_input)
+                output += f"\nObservation: = {observation}\nThought:"
+                observation = f"{observation}\nThought:"
+                print(observation)
+                text += output
+            else:
+                text += output
+                break
+
+
+    def request_cancel():
+        llm.request.cancel()
+
+.. code:: ipython3
+
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llm-agent-react/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
+
+    from gradio_helper import make_demo
+
+    examples = [
+        ["Based on current weather in Beijing, show me a picture of Great Wall through its URL"],
+        ["Create an image of pink cat and return its URL"],
+        ["What is the weather like in New York now ?"],
+    ]
+
+    demo = make_demo(run_fn=run_chatbot, stop_fn=request_cancel, examples=examples)
+
+    try:
+        demo.launch()
+    except Exception:
+        demo.launch(share=True)
+    # If you are launching remotely, specify server_name and server_port
+    # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
+    # To learn more please refer to the Gradio docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()
+
+
+.. parsed-literal::
+
+    Closing server running on port: 5612
 
