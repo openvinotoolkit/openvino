@@ -4,7 +4,13 @@
 
 #pragma once
 
-#include <cstddef>
+
+#ifdef OPENVINO_CPP_17_VER
+#include <optional>
+#else
+#include <memory>
+#include <utility>
+#endif
 
 namespace ov {
 #ifdef OPENVINO_CPP_17_VER

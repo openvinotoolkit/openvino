@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include <cstdint>
+#include <memory>
+#include <vector>
+
 #include "openvino/core/core.hpp"
 #include "openvino/core/node.hpp"
 #include "ov_optional.hpp"
