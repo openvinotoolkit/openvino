@@ -6945,3 +6945,49 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_float8e4m3fn_constant) {
 
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_crossentropy_loss_mean_weight_ii) {
+    auto model = convert_model("softmax_crossentropy_loss_mean_weight_ii.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    // Input x: shape (2,3,2)
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f});
+    // Labels with ignore_index -1
+    test_case.add_input<int64_t>({0, -1, 2, 1});
+    // Weights
+    test_case.add_input<float>({0.5f, 1.0f, 2.0f});
+    // Expected output
+    test_case.add_expected_output<float>(Shape{}, {1.28642857f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_crossentropy_loss_sum) {
+    auto model = convert_model("softmax_crossentropy_loss_sum.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({0.5f, 1.5f, 2.5f, 3.5f, 4.5f, 5.5f});
+    test_case.add_input<int64_t>({1, 2});
+    test_case.add_expected_output<float>(Shape{}, {1.8137f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_crossentropy_loss_none) {
+    auto model = convert_model("softmax_crossentropy_loss_none.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
+    test_case.add_input<int64_t>({2, 1});
+    test_case.add_expected_output<float>(Shape{2}, {0.407f, 1.4067f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_crossentropy_loss_higher_dim) {
+    auto model = convert_model("softmax_crossentropy_loss_higher_dim.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    // Flattened input for shape (2,3,2,2)
+    test_case.add_input<float>(std::vector<float>(24, 1.0f));  // Example input
+    test_case.add_input<int64_t>({1, 0, 2, 1, 0, 2, 1, 1});    // Labels shape (2,2,2)
+    test_case.add_expected_output<float>(Shape{}, {1.2f});     // Example expected value
+    test_case.run();
+}
