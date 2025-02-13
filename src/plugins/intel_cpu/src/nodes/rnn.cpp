@@ -57,9 +57,9 @@ static dnnl::algorithm ie2dnnl(const std::shared_ptr<const ov::Node>& op) {
         auto gruSeqOp = ov::as_type_ptr<const ov::op::v5::GRUSequence>(op);
         if ((gruCellOp && gruCellOp->get_linear_before_reset()) || (gruSeqOp && gruSeqOp->get_linear_before_reset())) {
             return dnnl::algorithm::lbr_gru;
-        } else {
-            return dnnl::algorithm::vanilla_gru;
         }
+        return dnnl::algorithm::vanilla_gru;
+
     } else if (one_of(op->get_type_info(),
                       ov::op::internal::AUGRUCell::get_type_info_static(),
                       ov::op::internal::AUGRUSequence::get_type_info_static())) {
@@ -67,9 +67,9 @@ static dnnl::algorithm ie2dnnl(const std::shared_ptr<const ov::Node>& op) {
         auto gruSeqOp = ov::as_type_ptr<const ov::op::internal::AUGRUSequence>(op);
         if ((gruCellOp && gruCellOp->get_linear_before_reset()) || (gruSeqOp && gruSeqOp->get_linear_before_reset())) {
             return dnnl::algorithm::lbr_augru;
-        } else {
-            return dnnl::algorithm::vanilla_augru;
         }
+        return dnnl::algorithm::vanilla_augru;
+
     } else if (one_of(op->get_type_info(),
                       ov::op::v0::LSTMCell::get_type_info_static(),
                       ov::op::v4::LSTMCell::get_type_info_static(),

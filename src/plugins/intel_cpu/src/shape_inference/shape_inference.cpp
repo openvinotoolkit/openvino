@@ -389,9 +389,8 @@ public:
         const auto& maker_iter = registry.find(key);
         if (maker_iter != registry.end()) {
             return maker_iter->second(std::forward<Args>(args)...);
-        } else {
-            return {};
         }
+        return {};
     }
 
 private:
@@ -621,7 +620,8 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
 std::shared_ptr<IStaticShapeInfer> make_shape_inference(std::shared_ptr<ov::Node> op) {
     if (auto shape_infer = IStaticShapeInferFactory::make(op->get_type_info(), op)) {
         return shape_infer;
-    } else if (ov::is_type<op::util::UnaryElementwiseArithmetic>(op)) {
+    }
+    if (ov::is_type<op::util::UnaryElementwiseArithmetic>(op)) {
         return std::make_shared<ShapeInferCopy>(std::move(op));
     } else if (ov::is_type<op::util::BinaryElementwiseArithmetic>(op) ||
                ov::is_type<op::util::BinaryElementwiseComparison>(op) ||

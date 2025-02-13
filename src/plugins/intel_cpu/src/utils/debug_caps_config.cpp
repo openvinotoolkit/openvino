@@ -22,7 +22,8 @@ void DebugCapsConfig::readProperties() {
     auto parseDumpFormat = [](const std::string& format) {
         if (format == "BIN") {
             return FORMAT::BIN;
-        } else if (format == "TEXT") {
+        }
+        if (format == "TEXT") {
             return FORMAT::TEXT;
         } else {
             OPENVINO_THROW("readDebugCapsProperties: Unknown dump format");

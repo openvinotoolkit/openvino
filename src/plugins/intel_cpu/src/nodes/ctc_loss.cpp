@@ -221,7 +221,8 @@ void CTCLoss::execute(const dnnl::stream& strm) {
     auto sumLogs = [&float_inf](float log1, float log2) {
         if (log1 == -float_inf) {
             return log2;
-        } else if (log2 == -float_inf) {
+        }
+        if (log2 == -float_inf) {
             return log1;
         } else {
             if (log1 > log2) {

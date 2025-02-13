@@ -22,9 +22,8 @@ static inline void parallel_step(size_t nDims, const VectorDims& dims, VectorDim
         ++indexes[j];
         if (indexes[j] < dims[j]) {
             break;
-        } else {
-            indexes[j] = 0;
         }
+        indexes[j] = 0;
     }
 }
 

@@ -320,7 +320,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         const auto streams = engConfig.streamExecutorConfig.get_streams();
         return static_cast<decltype(ov::optimal_number_of_infer_requests)::value_type>(
             streams);  // ov::optimal_number_of_infer_requests has no negative values
-    } else if (name == ov::num_streams) {
+    }
+    if (name == ov::num_streams) {
         const auto streams = engConfig.streamExecutorConfig.get_streams();
         return decltype(ov::num_streams)::value_type(
             streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
@@ -448,18 +449,17 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
         supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
 
         return decltype(ov::supported_properties)::value_type(std::move(supportedProperties));
-    } else if (ov::internal::supported_properties == name) {
-        return decltype(ov::internal::supported_properties)::value_type {
+    }
+    if (ov::internal::supported_properties == name) {
+        return decltype(ov::internal::supported_properties)::value_type{
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
 #if !defined(OPENVINO_ARCH_ARM) && !(defined(__APPLE__) || defined(__MACOSX))
-                ov::PropertyName{ov::internal::caching_with_mmap.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::caching_with_mmap.name(), ov::PropertyMutability::RO},
 #endif
-                ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
-                ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
-                ov::PropertyName {
-                ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO
-            }
-        };
+            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(),
+                             ov::PropertyMutability::RO}};
     } else if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type(deviceFullName);
     } else if (name == ov::available_devices) {

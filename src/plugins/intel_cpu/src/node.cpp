@@ -725,7 +725,8 @@ std::vector<EdgePtr> Node::getChildEdgesAtPort(int inputNum) const {
 std::vector<memory::format_tag> Node::getAvailableFormatsForDims(const Shape& dims) const {
     if (dims.getRank() == 0) {
         return {memory::format_tag::x};
-    } else if (dims.getRank() == 1) {
+    }
+    if (dims.getRank() == 1) {
         return {memory::format_tag::x};
     } else if (dims.getRank() == 2) {
         return {memory::format_tag::nc};
@@ -824,9 +825,8 @@ void Node::updateDynamicParams() {
 void Node::execute(const dnnl::stream& strm, int numaId) {
     if (isDynamicNode()) {
         return executeDynamic(strm, numaId);
-    } else {
-        return executeStatic(strm, numaId);
     }
+    return executeStatic(strm, numaId);
 }
 
 void Node::executeStatic(const dnnl::stream& strm, int numaId) {
@@ -1939,7 +1939,8 @@ bool Node::canFuseSimpleOperation(const NodePtr& node) const {
             ret &= node->getParentEdgeAt(i)->getParent()->getChildEdges().size() == 1;
         }
         return ret;
-    } else if (node->getType() == Type::Eltwise) {
+    }
+    if (node->getType() == Type::Eltwise) {
         return DnnlExtensionUtils::isUnarySupportedAsPostOp(node->getAlgorithm()) ||
                node->canBePerformedAsScaleShift(this);
     }
@@ -2083,7 +2084,8 @@ void Node::resolveInPlaceDirection() {
                 auto inPlaceOutPort = node->inPlaceOutPort(inPlaceInpPort);
                 if (inPlaceOutPort == inPlaceInpPort) {
                     return InplaceDirectionType::CYCLIC;
-                } else if (inPlaceOutPort < 0) {
+                }
+                if (inPlaceOutPort < 0) {
                     return InplaceDirectionType::DOWN;
                 } else {
                     OPENVINO_THROW("Non trivial inPlace memory dependency has been detected");
@@ -2102,7 +2104,8 @@ void Node::resolveInPlaceDirection() {
                 auto inPlaceInpPort = node->inPlaceInputPort(inPlaceOutPort);
                 if (inPlaceOutPort == inPlaceInpPort) {
                     return InplaceDirectionType::CYCLIC;
-                } else if (inPlaceInpPort < 0) {
+                }
+                if (inPlaceInpPort < 0) {
                     return InplaceDirectionType::UP;
                 } else {
                     OPENVINO_THROW("Non trivial inPlace memory dependency has been detected");
@@ -2172,7 +2175,8 @@ void Node::resolveInPlaceDirection() {
                         auto result = inPlaceDirection(pChild, PortType::INPUT, edge->getOutputNum());
                         if (InplaceDirectionType::UP == result || InplaceDirectionType::DOWN == result) {
                             return result;
-                        } else if (InplaceDirectionType::CYCLIC == result) {
+                        }
+                        if (InplaceDirectionType::CYCLIC == result) {
                             return searchNonCyclicDirection(pChild, pChild->inPlaceInputPort(edge->getOutputNum()));
                         }
                     }

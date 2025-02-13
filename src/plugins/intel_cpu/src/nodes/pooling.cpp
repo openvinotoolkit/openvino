@@ -224,7 +224,8 @@ Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
 std::vector<memory::format_tag> Pooling::getAvailableFormatsForDims(const Shape& dims) const {
     if (dims.getRank() == 0) {
         return {memory::format_tag::x};
-    } else if (dims.getRank() == 1) {
+    }
+    if (dims.getRank() == 1) {
         return {memory::format_tag::x};
     } else if (dims.getRank() == 2) {
         return {memory::format_tag::nc};
@@ -567,9 +568,9 @@ dnnl::algorithm Pooling::getPoolingAlgorithm() const {
         }
         if (!poolingAttrs.exclude_pad && (not_zero_l || not_zero_r)) {
             return dnnl::algorithm::pooling_avg_include_padding;
-        } else {
-            return dnnl::algorithm::pooling_avg_exclude_padding;
         }
+        return dnnl::algorithm::pooling_avg_exclude_padding;
+
     } else if (algorithm == Algorithm::PoolingMax) {
         return dnnl::algorithm::pooling_max;
     } else {

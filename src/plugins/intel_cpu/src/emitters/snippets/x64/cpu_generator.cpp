@@ -438,7 +438,8 @@ ov::snippets::RegType intel_cpu::CPUGenerator::get_specific_op_out_reg_type(cons
 #endif
         is_type<intel_cpu::BrgemmCopyB>(op)) {
         return ov::snippets::RegType::gpr;
-    } else if (is_type<intel_cpu::FusedMulAdd>(op) || is_type<intel_cpu::SwishNode>(op)) {
+    }
+    if (is_type<intel_cpu::FusedMulAdd>(op) || is_type<intel_cpu::SwishNode>(op)) {
         return ov::snippets::RegType::vec;
     } else {
         return ov::snippets::RegType::undefined;

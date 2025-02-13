@@ -476,7 +476,8 @@ std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
 std::vector<memory::format_tag> Deconvolution::getAvailableFormatsForDims(const Shape& dims) const {
     if (dims.getRank() == 0) {
         return {memory::format_tag::x};
-    } else if (dims.getRank() == 1) {
+    }
+    if (dims.getRank() == 1) {
         return {memory::format_tag::x};
     } else if (dims.getRank() == 2) {
         return {memory::format_tag::nc};
@@ -801,19 +802,18 @@ dnnl::primitive_desc createDescriptorInternal(const dnnl::memory::desc& in_candi
                                                            convertDims(paddingL),
                                                            convertDims(paddingR),
                                                            attr);
-    } else {
-        return dnnl::deconvolution_forward::primitive_desc(engine,
-                                                           prop_kind::forward_inference,
-                                                           dnnl::algorithm::deconvolution_direct,
-                                                           in_candidate,
-                                                           wgh_candidate,
-                                                           out_candidate,
-                                                           convertDims(stride),
-                                                           convertDims(dilation),
-                                                           convertDims(paddingL),
-                                                           convertDims(paddingR),
-                                                           attr);
     }
+    return dnnl::deconvolution_forward::primitive_desc(engine,
+                                                       prop_kind::forward_inference,
+                                                       dnnl::algorithm::deconvolution_direct,
+                                                       in_candidate,
+                                                       wgh_candidate,
+                                                       out_candidate,
+                                                       convertDims(stride),
+                                                       convertDims(dilation),
+                                                       convertDims(paddingL),
+                                                       convertDims(paddingR),
+                                                       attr);
 }
 }  // namespace
 
@@ -1158,7 +1158,8 @@ std::shared_ptr<MemoryDesc> Deconvolution::getSrcMemDesc(const dnnl::primitive_d
     if (idx == 2 && !withBiases) {
         // Expected dest shape;
         return std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, Shape(getInputShapeAtPort(2).getStaticDims()));
-    } else if (idx > 0) {
+    }
+    if (idx > 0) {
         // weight and bias are exposed with the planar layout.
         // we need to store 'weight' input as edge,
         // because at this moment we can't simple replace internal blob with input, since we need to save weight data as
