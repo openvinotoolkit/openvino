@@ -9,19 +9,18 @@
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "emitters/snippets/brgemm_base.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu::x64 {
 
-struct BrgemmBaseKernelConfig_x64 : public BrgemmBaseKernelConfig {
+struct BrgemmBaseKernelConfig : public ov::intel_cpu::BrgemmGenericKernelConfig {
 public:
-    BrgemmBaseKernelConfig_x64() = default;
+    BrgemmBaseKernelConfig() = default;
 
     size_t hash() const override {
         return m_hash;
     }
 
-    bool operator==(const BrgemmBaseKernelConfig_x64& rhs) const;
-    bool operator!=(const BrgemmBaseKernelConfig_x64& rhs) const {
+    bool operator==(const BrgemmBaseKernelConfig& rhs) const;
+    bool operator!=(const BrgemmBaseKernelConfig& rhs) const {
         return !(*this == rhs);
     }
 
@@ -78,14 +77,14 @@ protected:
     size_t m_hash{SIZE_MAX};
 };
 
-class BrgemmBaseKernelExecutor_x64 : public BrgemmBaseKernelExecutor {
+class BrgemmBaseKernelExecutor {
 public:
-    virtual ~BrgemmBaseKernelExecutor_x64() = default;
+    virtual ~BrgemmBaseKernelExecutor() = default;
 
 protected:
     static void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                               const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-                              BrgemmBaseKernelConfig_x64& config);
+                              BrgemmBaseKernelConfig& config);
 
     static void create_brgemm_kernel(std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& kernel,
                                      dnnl_data_type_t dt0,
@@ -109,5 +108,4 @@ protected:
                                       bool with_comp);
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::x64

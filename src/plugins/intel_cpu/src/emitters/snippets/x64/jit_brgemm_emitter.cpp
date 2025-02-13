@@ -15,6 +15,7 @@
 using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
+using namespace ov::intel_cpu::x64;
 
 namespace ov::intel_cpu {
 

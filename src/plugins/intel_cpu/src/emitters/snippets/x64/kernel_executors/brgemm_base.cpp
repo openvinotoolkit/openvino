@@ -18,48 +18,47 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu::x64 {
 
-bool BrgemmBaseKernelConfig_x64::operator==(const BrgemmBaseKernelConfig_x64& rhs) const {
-    return BrgemmBaseKernelConfig::operator==(rhs) &&
+bool BrgemmBaseKernelConfig::operator==(const BrgemmBaseKernelConfig& rhs) const {
+    return BrgemmGenericKernelConfig::operator==(rhs) &&
            (EQ(get_static_params()) || *get_static_params() == *(rhs.get_static_params()));
 }
 
-size_t BrgemmBaseKernelConfig_x64::compute_hash() const {
+size_t BrgemmBaseKernelConfig::compute_hash() const {
     size_t seed = get_static_params()->hash();
-    HASH(BrgemmBaseKernelConfig::compute_hash());
+    HASH(BrgemmGenericKernelConfig::compute_hash());
     return seed;
 }
 
-void BrgemmBaseKernelConfig_x64::update(int64_t M,
-                                        int64_t N,
-                                        int64_t K,
-                                        int64_t LDA,
-                                        int64_t LDB,
-                                        int64_t LDC,
-                                        float beta) {
-    BrgemmBaseKernelConfig::update(M, N, K, LDA, LDB, LDC, beta);
+void BrgemmBaseKernelConfig::update(int64_t M,
+                                    int64_t N,
+                                    int64_t K,
+                                    int64_t LDA,
+                                    int64_t LDB,
+                                    int64_t LDC,
+                                    float beta) {
+    BrgemmGenericKernelConfig::update(M, N, K, LDA, LDB, LDC, beta);
     m_hash = compute_hash();
 }
 
-BrgemmBaseKernelConfig_x64::StaticBaseParams::StaticBaseParams(const element::Type& in0_dtype,
-                                                               const element::Type& in1_dtype,
-                                                               cpu_isa_t primitive_isa,
-                                                               size_t hash_seed)
+BrgemmBaseKernelConfig::StaticBaseParams::StaticBaseParams(const element::Type& in0_dtype,
+                                                           const element::Type& in1_dtype,
+                                                           cpu_isa_t primitive_isa,
+                                                           size_t hash_seed)
     : dt_in0(DTYPE_CAST(in0_dtype)),
       dt_in1(DTYPE_CAST(in1_dtype)),
       isa(primitive_isa),
       m_hash(compute_hash(hash_seed, dt_in0, dt_in1, isa)) {}
 
-bool BrgemmBaseKernelConfig_x64::StaticBaseParams::operator==(const StaticBaseParams& rhs) const {
+bool BrgemmBaseKernelConfig::StaticBaseParams::operator==(const StaticBaseParams& rhs) const {
     return EQ(hash()) && EQ(dt_in0) && EQ(dt_in1) && EQ(isa);
 }
 
-size_t BrgemmBaseKernelConfig_x64::StaticBaseParams::compute_hash(size_t hash_seed,
-                                                                  dnnl_data_type_t dt_in0,
-                                                                  dnnl_data_type_t dt_in1,
-                                                                  cpu_isa_t isa) {
+size_t BrgemmBaseKernelConfig::StaticBaseParams::compute_hash(size_t hash_seed,
+                                                              dnnl_data_type_t dt_in0,
+                                                              dnnl_data_type_t dt_in1,
+                                                              cpu_isa_t isa) {
     size_t seed = hash_seed;
     HASH(dt_in0);
     HASH(dt_in1);
@@ -68,7 +67,7 @@ size_t BrgemmBaseKernelConfig_x64::StaticBaseParams::compute_hash(size_t hash_se
 }
 
 #ifdef SNIPPETS_DEBUG_CAPS
-std::string BrgemmBaseKernelConfig_x64::StaticBaseParams::to_string() const {
+std::string BrgemmBaseKernelConfig::StaticBaseParams::to_string() const {
     std::stringstream ss;
     PRINT(dt_in0);
     PRINT(dt_in1);
@@ -76,19 +75,20 @@ std::string BrgemmBaseKernelConfig_x64::StaticBaseParams::to_string() const {
     return ss.str();
 }
 
-std::string BrgemmBaseKernelConfig_x64::to_string() const {
+std::string BrgemmBaseKernelConfig::to_string() const {
     std::stringstream ss;
     ss << get_static_params()->to_string() << "\n";
-    ss << BrgemmBaseKernelConfig::to_string() << "\n";
+    ss << BrgemmGenericKernelConfig::to_string() << "\n";
     return ss.str();
 }
 #endif
 
-void BrgemmBaseKernelExecutor_x64::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
-                                                 const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-                                                 BrgemmBaseKernelConfig_x64& config) {
+void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
+                                             const ov::snippets::lowered::LinearIRCPtr& linear_ir,
+                                             BrgemmBaseKernelConfig& config) {
     // update M/N/K/beta
-    BrgemmBaseKernelExecutor::update_config(expr, linear_ir, config);
+    int64_t M, N, K, beta;
+    std::tie(M, N, K, beta) = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
 
     const auto LDA = snippets::utils::get_dim_stride(expr->get_input_port(0));
     const auto LDC = snippets::utils::get_dim_stride(expr->get_output_port(0));
@@ -97,25 +97,26 @@ void BrgemmBaseKernelExecutor_x64::update_config(const ov::snippets::lowered::Ex
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(brgemm_node, "Got invalid node type in update_config");
     // In case of data repacking LDB is chosen in accordance with repacking buffer size
-    if (with_repacking(brgemm_node->get_type()))
+    if (with_repacking(brgemm_node->get_type())) {
         LDB = brgemm_utils::repacking::compute_repacked_n_dim(LDB, brgemm_node->get_input_element_type(1));
+    }
 
-    config.update(config.get_M(), config.get_N(), config.get_K(), LDA, LDB, LDC, config.get_beta());
+    config.update(M, N, K, LDA, LDB, LDC, beta);
 }
 
-void BrgemmBaseKernelExecutor_x64::create_brgemm_kernel(std::shared_ptr<brgemm_kernel_t>& kernel,
-                                                        dnnl_data_type_t dt0,
-                                                        dnnl_data_type_t dt1,
-                                                        cpu_isa_t isa,
-                                                        dnnl_dim_t M,
-                                                        dnnl_dim_t N,
-                                                        dnnl_dim_t K,
-                                                        dnnl_dim_t LDA,
-                                                        dnnl_dim_t LDB,
-                                                        dnnl_dim_t LDC,
-                                                        float beta,
-                                                        bool with_amx,
-                                                        char* palette) {
+void BrgemmBaseKernelExecutor::create_brgemm_kernel(std::shared_ptr<brgemm_kernel_t>& kernel,
+                                                    dnnl_data_type_t dt0,
+                                                    dnnl_data_type_t dt1,
+                                                    cpu_isa_t isa,
+                                                    dnnl_dim_t M,
+                                                    dnnl_dim_t N,
+                                                    dnnl_dim_t K,
+                                                    dnnl_dim_t LDA,
+                                                    dnnl_dim_t LDB,
+                                                    dnnl_dim_t LDC,
+                                                    float beta,
+                                                    bool with_amx,
+                                                    char* palette) {
     cpu::x64::brgemm_desc_t desc;
     OV_CPU_JIT_EMITTER_ASSERT(brgemm_desc_init(&desc,
                                                isa,
@@ -147,7 +148,7 @@ void BrgemmBaseKernelExecutor_x64::create_brgemm_kernel(std::shared_ptr<brgemm_k
     kernel = std::unique_ptr<brgemm_kernel_t>(kernel_);
 }
 
-void BrgemmBaseKernelExecutor_x64::execute_brgemm_kernel(
+void BrgemmBaseKernelExecutor::execute_brgemm_kernel(
     const std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& kernel,
     const void* src,
     const void* wei,
@@ -175,5 +176,4 @@ void BrgemmBaseKernelExecutor_x64::execute_brgemm_kernel(
 #undef EQ
 #undef HASH
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::x64

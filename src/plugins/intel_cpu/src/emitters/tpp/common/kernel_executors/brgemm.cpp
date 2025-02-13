@@ -13,23 +13,23 @@
 namespace ov::intel_cpu::tpp {
 
 BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype)
-    : BrgemmBaseKernelConfig(),
+    : BrgemmGenericKernelConfig(),
       m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype)) {}
 
 bool BrgemmKernelConfig::operator==(const BrgemmKernelConfig& rhs) const {
-    return BrgemmBaseKernelConfig::operator==(rhs) &&
+    return BrgemmGenericKernelConfig::operator==(rhs) &&
            (get_static_params() == rhs.get_static_params() ||
             *get_static_params() == *(rhs.get_static_params()));
 }
 
 size_t BrgemmKernelConfig::compute_hash() const {
     size_t static_seed = get_static_params()->hash();
-    size_t dynamic_seed = BrgemmBaseKernelConfig::compute_hash();
+    size_t dynamic_seed = BrgemmGenericKernelConfig::compute_hash();
     return dnnl::impl::hash_combine(static_seed, dynamic_seed);
 }
 
 void BrgemmKernelConfig::update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta) {
-    BrgemmBaseKernelConfig::update(M, N, K, LDA, LDB, LDC, beta);
+    BrgemmGenericKernelConfig::update(M, N, K, LDA, LDB, LDC, beta);
     m_hash = compute_hash();
 }
 
@@ -75,7 +75,7 @@ std::string BrgemmKernelConfig::StaticParams::to_string() const {
 std::string BrgemmKernelConfig::to_string() const {
     std::stringstream ss;
     ss << get_static_params()->to_string() << "\n";
-    ss << BrgemmBaseKernelConfig::to_string() << "\n";
+    ss << BrgemmGenericKernelConfig::to_string() << "\n";
     return ss.str();
 }
 #endif
@@ -110,7 +110,8 @@ std::shared_ptr<BrgemmTppCompiledKernel> BrgemmKernelExecutor::compile_kernel(co
 void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                                          const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                          BrgemmKernelConfig& config) const {
-    BrgemmBaseKernelExecutor::update_config(expr, linear_ir, config);
+    int64_t M, N, K, beta;
+    std::tie(M, N, K, beta) = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
     const auto& tpp_mod = std::dynamic_pointer_cast<tpp::modifier::TensorProcessingPrimitive>(expr->get_node());
     auto replace_full_dim = [](size_t dim, size_t replace_dim) {
         if (ov::snippets::utils::is_full_dim_value(dim))
@@ -134,13 +135,7 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
             replace_full_dim(tpp_mod->get_output_stride(i), expr->get_output_port_descriptor(i)->get_shape().back());
     }
 
-    config.update(config.get_M(),
-                  config.get_N(),
-                  config.get_K(),
-                  io_strides[0],
-                  io_strides[1],
-                  io_strides[2],
-                  config.get_beta());
+    config.update(M, N, K, io_strides[0], io_strides[1], io_strides[2], beta);
     // update compile flag, which is depend on beta. should be part of hash.
     config.set_compile_flags(config.get_beta() == 0);
 }

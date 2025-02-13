@@ -11,7 +11,7 @@
 
 namespace ov::intel_cpu::tpp {
 
-struct BrgemmKernelConfig : public BrgemmBaseKernelConfig {
+struct BrgemmKernelConfig : public BrgemmGenericKernelConfig {
 public:
     BrgemmKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype);
     BrgemmKernelConfig() = delete;
@@ -109,8 +109,7 @@ struct BrgemmTppCompiledKernel {
     std::shared_ptr<libxsmm_gemmfunction> brgemm_kernel = nullptr;
 };
 
-class BrgemmKernelExecutor : public BrgemmBaseKernelExecutor,
-                             public CPUKernelExecutor<BrgemmKernelConfig, BrgemmTppCompiledKernel> {
+class BrgemmKernelExecutor : public CPUKernelExecutor<BrgemmKernelConfig, BrgemmTppCompiledKernel> {
 public:
     BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmKernelConfig config);
     virtual ~BrgemmKernelExecutor() = default;
