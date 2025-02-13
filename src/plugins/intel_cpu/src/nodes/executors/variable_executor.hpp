@@ -80,7 +80,7 @@ private:
                        suitableImplementations.end(),
                        implementationRequiresFallback.begin(),
                        [&config](const ExecutorImplementationRef& impl) {
-                           return impl.get().requiresFallback(config);
+                           return impl.get().requiresFallback(config).has_value();
                        });
 
         return implementationRequiresFallback;

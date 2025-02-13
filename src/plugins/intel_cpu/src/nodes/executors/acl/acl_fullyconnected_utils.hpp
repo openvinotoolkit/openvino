@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
+
+#include <optional>
+
 #include "acl_common_executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
-#include "ov_optional.hpp"
 
 namespace ov::intel_cpu {
 
@@ -23,11 +25,11 @@ VectorDims makeDummyOutputDims(const VectorDims& inShape, const VectorDims& wSha
 
 DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc, const DnnlMemoryDescPtr& dstDesc);
 
-ov::optional<MemoryPtr> convertWeightPrecision(const MemoryPtr& input,
+std::optional<MemoryPtr> convertWeightPrecision(const MemoryPtr& input,
                                                const MemoryPtr& output,
                                                ov::element::Type weightPrecision);
 
-ov::optional<MemoryPtr> reorderDataFallback(const MemoryPtr& input,
+std::optional<MemoryPtr> reorderDataFallback(const MemoryPtr& input,
                                             const MemoryPtr& output,
                                             const ExecutorContext::CPtr& context);
 

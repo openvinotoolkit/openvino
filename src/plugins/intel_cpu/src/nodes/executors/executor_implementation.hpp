@@ -6,10 +6,10 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_config.hpp"
-#include "ov_optional.hpp"
 
 namespace ov::intel_cpu {
 
@@ -19,7 +19,7 @@ class ExecutorImplementation {
 public:
     using SupportsPredicate = std::function<bool(const executor::Config<Attrs>&)>;
     using RequiresFallbackPredicate =
-        std::function<ov::optional<executor::Config<Attrs>>(const executor::Config<Attrs>&)>;
+        std::function<std::optional<executor::Config<Attrs>>(const executor::Config<Attrs>&)>;
     using AcceptsShapePredicate = std::function<bool(const MemoryArgs& memory)>;
     using CreateFunction = std::function<ExecutorPtr(const Attrs& attrs,
                                                      const PostOps& postOps,
@@ -51,7 +51,7 @@ public:
         return false;
     }
 
-    ov::optional<executor::Config<Attrs>> requiresFallback(const executor::Config<Attrs>& config) const {
+    std::optional<executor::Config<Attrs>> requiresFallback(const executor::Config<Attrs>& config) const {
         if (m_requiresFallback) {
             return m_requiresFallback(config);
         }

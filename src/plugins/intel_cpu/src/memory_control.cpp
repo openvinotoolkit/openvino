@@ -6,7 +6,6 @@
 
 #include <cstddef>
 #include <memory>
-#include <ov_optional.hpp>
 #include <utility>
 
 #include "openvino/runtime/memory_solver.hpp"

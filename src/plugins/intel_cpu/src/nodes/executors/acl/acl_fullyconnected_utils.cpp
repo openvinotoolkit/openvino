@@ -4,6 +4,8 @@
 #include <common/primitive_desc_iface.hpp>
 #include <cpu/acl/acl_utils.hpp>
 
+#include <optional>
+
 #include "acl_fullyconnected.hpp"
 #include "acl_utils.hpp"
 #include "memory_desc/cpu_memory_desc_utils.h"
@@ -61,7 +63,7 @@ DnnlMemoryDescPtr acl_fc_executor::makeTransposedWeightDescriptor(const DnnlMemo
     return DnnlExtensionUtils::makeDescriptor(transposedWeiDesc);
 }
 
-ov::optional<MemoryPtr> acl_fc_executor::convertWeightPrecision(const MemoryPtr& input,
+std::optional<MemoryPtr> acl_fc_executor::convertWeightPrecision(const MemoryPtr& input,
                                                                 const MemoryPtr& output,
                                                                 ov::element::Type weightPrecision) {
     MemoryArgs memoryArgs;
@@ -71,7 +73,7 @@ ov::optional<MemoryPtr> acl_fc_executor::convertWeightPrecision(const MemoryPtr&
     auto aclWeightsConverter = std::make_shared<acl_fc_executor::ACLWeightsConverter>();
     if (aclWeightsConverter->update(memoryArgs)) {
         aclWeightsConverter->execute(memoryArgs);
-        return ov::optional<MemoryPtr>(memoryArgs.at(ARG_DST));
+        return std::optional<MemoryPtr>(memoryArgs.at(ARG_DST));
     }
 
     if (!node::Convert::isSupportedDesc(input->getDesc()) || !node::Convert::isSupportedDesc(output->getDesc())) {
@@ -87,12 +89,12 @@ ov::optional<MemoryPtr> acl_fc_executor::convertWeightPrecision(const MemoryPtr&
                 weightPrecision,
                 input->getSize() / input->getDesc().getPrecision().size());
 
-    return ov::optional<MemoryPtr>(std::make_shared<Memory>(output->getPrimitive().get_engine(),
+    return std::optional<MemoryPtr>(std::make_shared<Memory>(output->getPrimitive().get_engine(),
                                                             output->getDesc().cloneWithNewPrecision(weightPrecision),
                                                             tmpBuff.data()));
 }
 
-ov::optional<MemoryPtr> acl_fc_executor::reorderDataFallback(const MemoryPtr& input,
+std::optional<MemoryPtr> acl_fc_executor::reorderDataFallback(const MemoryPtr& input,
                                                              const MemoryPtr& output,
                                                              const ExecutorContext::CPtr& context) {
     if (output->getDataType() == input->getDataType()) {
@@ -119,7 +121,7 @@ ov::optional<MemoryPtr> acl_fc_executor::reorderDataFallback(const MemoryPtr& in
             reorderWithoutConvert.execute(
                 loc_stream,
                 {{DNNL_ARG_FROM, convertOutput->getPrimitive()}, {DNNL_ARG_TO, output->getPrimitive()}});
-            return ov::optional<MemoryPtr>(output);
+            return std::optional<MemoryPtr>(output);
         }
     }
     return {};

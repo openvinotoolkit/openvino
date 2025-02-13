@@ -3,6 +3,7 @@
 //
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
@@ -26,7 +27,6 @@
 #include "nodes/executors/precision_translation.hpp"
 #include "nodes/executors/type_mask.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "ov_optional.hpp"
 #include "utils/cpp/maybe_unused.hpp"
 #include "utils/debug_capabilities.h"
 
@@ -192,7 +192,7 @@ static MemoryDescArgs createOptimalDescriptors(const MemoryDescArgs& currentDesc
 }
 
 template <typename Attrs>
-ov::optional<executor::Config<Attrs>> requiresFallbackCommon(const executor::Config<Attrs>& config,
+std::optional<executor::Config<Attrs>> requiresFallbackCommon(const executor::Config<Attrs>& config,
                                                              const TypeMapping& typeMapping,
                                                              const LayoutConfig& layoutConfig,
                                                              const MappingNotation& notation) {
@@ -204,7 +204,7 @@ ov::optional<executor::Config<Attrs>> requiresFallbackCommon(const executor::Con
 
     const auto optimalDescriptors = createOptimalDescriptors(config.descs, typeConfig, layoutConfig, notation);
 
-    return ov::optional<executor::Config<Attrs>>(FCConfig{optimalDescriptors, config.attrs, config.postOps});
+    return std::optional<executor::Config<Attrs>>(FCConfig{optimalDescriptors, config.attrs, config.postOps});
 }
 
 OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noWeightsDecompression(const FCConfig& config) {
@@ -241,7 +241,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return MlasGemmExecutor::supports(config);
             },
             // requiresFallback
-            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+            [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
                 // @todo Implement proper handling for the cases when fallback is not expected
                 // throwing exception is not an option, since requiresFallback is used in two contexts:
                 // 1) getting proper memory descriptors configuration
@@ -290,7 +290,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return true;
             },
             // requiresFallback
-            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+            [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
                 // @todo use dnnlConvolutionLayoutConfig after one is implemented
                 return requiresFallbackCommon(config,
                                               dnnlConvolutionTypeMapping,
@@ -368,7 +368,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return ACLFullyConnectedExecutor::supports(config);
             },
             // requiresFallback
-            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+            [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
                 return requiresFallbackCommon(config,
                                               aclFCTypeMapping,
                                               aclFCLayoutConfig,
@@ -398,7 +398,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return ACLLowpFullyConnectedExecutor::supports(config);
             },
             // requiresFallback
-            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+            [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
                 return requiresFallbackCommon(config,
                                               aclLowpFCTypeMapping,
                                               aclFCLayoutConfig,
@@ -433,7 +433,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return ShlFCExecutor::supports(config);
             },
             // requiresFallback
-            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+            [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
                 return {};
             },
             // acceptsShapes
@@ -464,7 +464,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return false;
             },
             // requiresFallback
-            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+            [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
                 return requiresFallbackCommon(config,
                                               dnnlMatMulTypeMapping,
                                               dnnlFCLayoutConfig,
@@ -515,7 +515,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return true;
             },
             // requiresFallback
-            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+            [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
                 return requiresFallbackCommon(config,
                                               dnnlFCTypeMapping,
                                               dnnlFCLayoutConfig,
