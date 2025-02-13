@@ -37,6 +37,42 @@
 #include "utils.hpp"
 // clang-format on
 
+#if defined _WIN32
+
+#include <windows.h>
+
+#include <psapi.h>
+
+int64_t getPeakMemoryUsage() {
+    PROCESS_MEMORY_COUNTERS memCounters;
+    GetProcessMemoryInfo(GetCurrentProcess(), &memCounters, sizeof(memCounters));
+    return memCounters.PeakWorkingSetSize / 1000;
+}
+
+#else
+
+#include <fstream>
+#include <regex>
+#include <sstream>
+
+int64_t getPeakMemoryUsage() {
+    size_t peakMemUsageKB = 0;
+
+    std::ifstream statusFile("/proc/self/status");
+    std::string line;
+    std::regex vmPeakRegex("VmPeak:");
+    std::smatch vmMatch;
+    while (std::getline(statusFile, line)) {
+        if (std::regex_search(line, vmMatch, vmPeakRegex)) {
+            std::istringstream iss(vmMatch.suffix());
+            iss >> peakMemUsageKB;
+        }
+    }
+    return static_cast<int64_t>(peakMemUsageKB);
+}
+
+#endif
+
 namespace {
 bool parse_and_check_command_line(int argc, char* argv[]) {
     // ---------------------------Parsing and validating input
@@ -762,14 +798,23 @@ int main(int argc, char* argv[]) {
             auto startTime = Time::now();
 
             std::ifstream modelStream(FLAGS_m, std::ios_base::binary | std::ios_base::in);
+            auto importModelMemStart = getPeakMemoryUsage();
             if (!modelStream.is_open()) {
                 throw std::runtime_error("Cannot open model file " + FLAGS_m);
             }
+            
             compiledModel = core.import_model(modelStream, device_name, device_config);
             modelStream.close();
 
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Import model took " << double_to_string(duration_ms) << " ms" << slog::endl;
+            
+            auto importModelMemEnd = getPeakMemoryUsage();
+            
+            slog::info << "Start of compilation memory usage: Peak " << importModelMemStart << " KB" << slog::endl;
+            slog::info << "End of compilation memory usage: Peak " << importModelMemEnd << " KB" << slog::endl;
+            slog::info << "Peak diff " << importModelMemEnd - importModelMemStart << " KB" << slog::endl;
+            
             slog::info << "Original model I/O paramteters:" << slog::endl;
             printInputAndOutputsInfoShort(compiledModel);
 
