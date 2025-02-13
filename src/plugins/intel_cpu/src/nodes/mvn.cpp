@@ -2015,10 +2015,12 @@ void MVN::initSupportedPrimitiveDescriptors() {
 
         if (useAclExecutor) {
             std::vector<MemoryDescPtr> srcMemoryDescs;
+            srcMemoryDescs.reserve(config.inConfs.size());
             for (const auto& inConf : config.inConfs) {
                 srcMemoryDescs.push_back(inConf.getMemDesc());
             }
             std::vector<MemoryDescPtr> dstMemoryDescs;
+            dstMemoryDescs.reserve(config.outConfs.size());
             for (const auto& outConf : config.outConfs) {
                 dstMemoryDescs.push_back(outConf.getMemDesc());
             }

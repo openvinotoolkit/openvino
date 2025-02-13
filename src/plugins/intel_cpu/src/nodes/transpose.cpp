@@ -85,6 +85,7 @@ void Transpose::initSupportedPrimitiveDescriptors() {
         }
         std::vector<MemoryDescPtr> dstMemoryDescs;
         srcMemoryDescs.reserve(config.outConfs.size());
+        dstMemoryDescs.reserve(config.outConfs.size());
         for (const auto& outConf : config.outConfs) {
             dstMemoryDescs.emplace_back(outConf.getMemDesc());
         }
