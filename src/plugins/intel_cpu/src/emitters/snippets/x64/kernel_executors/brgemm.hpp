@@ -6,9 +6,9 @@
 
 #include "emitters/snippets/x64/kernel_executors/brgemm_base.hpp"
 
-namespace ov::intel_cpu {
+namespace ov::intel_cpu::x64 {
 
-struct BrgemmKernelConfig : public BrgemmBaseKernelConfig_x64 {
+struct BrgemmKernelConfig : public BrgemmBaseKernelConfig {
 public:
     BrgemmKernelConfig(const element::Type& in0_dtype,
                        const element::Type& in1_dtype,
@@ -58,7 +58,7 @@ struct BrgemmCompiledKernel {
     std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_kernel = nullptr;
 };
 
-class BrgemmKernelExecutor : public BrgemmBaseKernelExecutor_x64,
+class BrgemmKernelExecutor : public BrgemmBaseKernelExecutor,
                              public CPUKernelExecutor<BrgemmKernelConfig, BrgemmCompiledKernel> {
 public:
     struct call_args {
@@ -106,4 +106,4 @@ private:
     BrgemmKernelConfig m_config;
 };
 #endif
-}  // namespace ov::intel_cpu
+}  // namespace ov::intel_cpu::x64

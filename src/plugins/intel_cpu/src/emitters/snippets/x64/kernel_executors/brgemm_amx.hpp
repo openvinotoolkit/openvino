@@ -10,9 +10,9 @@
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_base.hpp"
 
-namespace ov::intel_cpu {
+namespace ov::intel_cpu::x64 {
 
-struct BrgemmAMXKernelConfig : public BrgemmBaseKernelConfig_x64 {
+struct BrgemmAMXKernelConfig : public x64::BrgemmBaseKernelConfig {
 public:
     BrgemmAMXKernelConfig(const element::Type& in0_dtype,
                           const element::Type& in1_dtype,
@@ -72,7 +72,7 @@ struct BrgemmAMXCompiledKernel {
     std::shared_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_a_t> brgemm_copy_a_kernel{nullptr};
 };
 
-class BrgemmAMXKernelExecutor : public BrgemmBaseKernelExecutor_x64,
+class BrgemmAMXKernelExecutor : public BrgemmBaseKernelExecutor,
                                 public CPUKernelExecutor<BrgemmAMXKernelConfig, BrgemmAMXCompiledKernel> {
 public:
     struct call_args {
@@ -119,4 +119,4 @@ protected:
 };
 #define GET_OFF_BRGEMM_AMX_ARGS(field) offsetof(BrgemmAMXKernelExecutor::call_args, field)
 
-}  // namespace ov::intel_cpu
+}  // namespace ov::intel_cpu::x64
