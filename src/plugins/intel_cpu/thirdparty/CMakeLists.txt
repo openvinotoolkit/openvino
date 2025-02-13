@@ -154,7 +154,7 @@ function(ov_add_onednn)
     endif()
 endfunction()
 
-if(AARCH64 AND (NOT ANDROID))
+if(AARCH64)
     set(ENABLE_SNIPPETS_LIBXSMM_TPP ON)
 endif()
 
