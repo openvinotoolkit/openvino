@@ -139,25 +139,14 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
             return false;
 
         const auto& group_norm_gamma = pattern_map.at(group_norm_gamma_m);
-        // group_norm_gamma has to share the same data type as
-        // pattern input
         if (group_norm_gamma.get_element_type() != T)
             return false;
-
-        // number of elements in group_norm_gamma must be equal to
-        // number of channels
         if (ov::shape_size(group_norm_gamma.get_shape()) != num_channels)
             return false;
 
         const auto& group_norm_beta = pattern_map.at(group_norm_beta_m);
-
-        // group_norm_beta has to share the same data type as
-        // pattern input
         if (group_norm_beta.get_element_type() != T)
             return false;
-
-        // number of elements in group_norm_beta must be equal to
-        // number of channels
         if (ov::shape_size(group_norm_beta.get_shape()) != num_channels)
             return false;
 
@@ -185,14 +174,8 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         std::shared_ptr<ov::Node> instance_norm_beta_1d_m = nullptr;
         if (pattern_map.count(instance_norm_beta_m) > 0) {
             const auto& instance_norm_beta = pattern_map.at(instance_norm_beta_m);
-
-            // instance_norm_beta has to share the same data type as
-            // pattern input
             if (instance_norm_beta.get_element_type() != T)
                 return false;
-
-            // number of elements in instance_norm_beta must be equal to
-            // number of groups
             if (ov::shape_size(instance_norm_beta.get_shape()) != num_groups)
                 return false;
 
@@ -223,14 +206,8 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
 
         if (pattern_map.count(instance_norm_gamma_m) > 0) {
             const auto& instance_norm_gamma = pattern_map.at(instance_norm_gamma_m);
-
-            // instance_norm_gamma has to share the same data type as
-            // pattern input
             if (instance_norm_gamma.get_element_type() != T)
                 return false;
-
-            // number of elements in instance_norm_gamma must be equal to
-            // number of groups
             if (ov::shape_size(instance_norm_gamma.get_shape()) != num_groups)
                 return false;
 
