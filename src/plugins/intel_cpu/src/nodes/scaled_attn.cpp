@@ -1476,26 +1476,54 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
             auto& old_scale_zp_k = m_k_state->get_scale_zp();
             auto& old_scale_zp_v = m_v_state->get_scale_zp();
             PlainTensor new_scale_zp_k, new_scale_zp_v;
-            std::vector<size_t> shape = reverse({B, H, (L0 + L1) * 2, S / m_key_quant_param.groupSize * 2});
-            std::vector<size_t> real_shape = permute_axes(shape, real_order);
+            auto get_scale_zp_shape = [&](const SDPAQuantParam& quant_param, const size_t hidden_states) {
+                std::vector<size_t> shape;
+                if (quant_param.isByChannel) {
+                    // round_up to group_size
+                    size_t group_nums = div_up((L0 + L1) * 2, quant_param.groupSize) * 2;
+                    shape = reverse({B, H, group_nums, hidden_states});
+                } else {
+                    shape = reverse({B, H, (L0 + L1) * 2, hidden_states / quant_param.groupSize * 2});
+                }
+                return permute_axes(shape, real_order);
+            };
+            std::vector<size_t> real_shape = get_scale_zp_shape(m_key_quant_param, S);
             new_scale_zp_k.resize<float>(real_shape);
-            shape = reverse({B, H, (L0 + L1) * 2, SV / m_value_quant_param.groupSize * 2});
-            real_shape = permute_axes(shape, real_order);
+            real_shape = get_scale_zp_shape(m_value_quant_param, SV);
             new_scale_zp_v.resize<float>(real_shape);
             if (L0 > 0) {
-                parallel_for2d(L0, B, [&](size_t m, size_t b) {
-                    auto idx = static_cast<size_t>(table[b]);
-                    for (size_t h = 0; h < H; h++) {
-                        auto b_kv = static_cast<size_t>(old_beam_table_k.at<int32_t>({idx, m}));
-                        // new_scale_zp_k.at<float>({m, b, h, 0}) = old_scale_zp_k.at<float>({m, b_kv, h, 0});
-                        std::memcpy(new_scale_zp_k.ptr<float>(m, b, h, 0),
-                                    old_scale_zp_k.ptr<float>(m, b_kv, h, 0),
-                                    S / m_key_quant_param.groupSize * 2 * sizeof(float));
-                        std::memcpy(new_scale_zp_v.ptr<float>(m, b, h, 0),
-                                    old_scale_zp_v.ptr<float>(m, b_kv, h, 0),
-                                    SV / m_value_quant_param.groupSize * 2 * sizeof(float));
-                    }
-                });
+                auto update_scales_zp =
+                    [&](const SDPAQuantParam& quant_param, PlainTensor& new_scale_zp, PlainTensor& old_scale_zp) {
+                        if (quant_param.isByChannel) {
+                            parallel_for2d(L0, B, [&](size_t m, size_t b) {
+                                auto idx = static_cast<size_t>(table[b]);
+                                auto b_kv = static_cast<size_t>(old_beam_table_k.at<int32_t>({idx, m}));
+                                size_t group_id = m / quant_param.groupSize;
+                                for (size_t h = 0; h < H; h++) {
+                                    // scale
+                                    memcpy(new_scale_zp.ptr<float>(group_id * 2, b, h, 0),
+                                           old_scale_zp.ptr<float>(group_id * 2, b_kv, h, 0),
+                                           sizeof(float) * old_scale_zp.m_dims[3]);
+                                    // zp 
+                                    memcpy(new_scale_zp.ptr<float>(group_id * 2 + 1, b, h, 0),
+                                           old_scale_zp.ptr<float>(group_id * 2 + 1, b_kv, h, 0),
+                                           sizeof(float) * old_scale_zp.m_dims[3]);
+                                }
+                            });
+                        } else {
+                            parallel_for2d(L0, B, [&](size_t m, size_t b) {
+                                auto idx = static_cast<size_t>(table[b]);
+                                for (size_t h = 0; h < H; h++) {
+                                    auto b_kv = static_cast<size_t>(old_beam_table_k.at<int32_t>({idx, m}));
+                                    std::memcpy(new_scale_zp.ptr<float>(m, b, h, 0),
+                                                old_scale_zp.ptr<float>(m, b_kv, h, 0),
+                                                old_scale_zp.m_dims[3] * sizeof(float));
+                                }
+                            });
+                        }
+                    };
+                update_scales_zp(m_key_quant_param, new_scale_zp_k, old_scale_zp_k);
+                update_scales_zp(m_value_quant_param, new_scale_zp_v, old_scale_zp_v);
             }
 
             m_k_state->set_scale_zp(new_scale_zp_k);
@@ -1527,9 +1555,14 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
         if (kvcache_precision == ov::element::u8) {
             // past_k's shape is BHLS, internal layout LBHS
             // scale_zp's shape is LBHS, internal layout LBHS
+            auto newMemDesc = std::make_shared<CpuBlockedMemoryDesc>(
+                ov::element::f32,
+                ov::intel_cpu::Shape{static_cast<size_t>(parallel_get_max_threads()), m_key_quant_param.groupSize * S});
+            auto scratchMem = context->getScratchPad()->createScratchPadMem(newMemDesc);
+            auto temp_buffer = scratchMem->getDataAs<float>();
             attn_quantkv(cur_k,
                          cur_v,
-                         nullptr,
+                         temp_buffer,
                          new_pastk,
                          new_pastv,
                          m_k_state->get_scale_zp(),

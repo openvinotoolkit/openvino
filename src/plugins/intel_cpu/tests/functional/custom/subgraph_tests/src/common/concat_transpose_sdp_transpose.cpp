@@ -376,7 +376,6 @@ TEST_P(ConcatSDPTransposeTest, CompareWithRefs) {
     // ?->transpose->shapeof ==> ?-->shapeof->gather
     //                            |->transpose
     size_t expectedGatherCount = hasShapeOf ? 1 : 0;
-    std::cout << "ConcatSDPTEST|" << expectedGatherCount << std::endl;
     CheckNumberOfNodesWithType(compiledModel, "Gather", hasShapeOf ? 1 : 0);
     auto expectedOutputs = run_test(functionRefs);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);

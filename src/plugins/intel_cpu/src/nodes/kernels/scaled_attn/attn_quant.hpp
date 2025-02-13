@@ -32,7 +32,13 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                         const ov::intel_cpu::PlainTensor& v_src,
                         const ov::intel_cpu::PlainTensor& k_dst,
                         const ov::intel_cpu::PlainTensor& v_dst,
+                        const ov::intel_cpu::PlainTensor& past_lens,
+                        const ov::intel_cpu::PlainTensor& subsequence_begins,
+                        const ov::intel_cpu::PlainTensor& block_indices,
+                        const ov::intel_cpu::PlainTensor& block_indices_begins,
                         const ov::intel_cpu::PlainTensor& slot_mapping,
+                        ov::intel_cpu::PlainTensor& temp_buffer,
+                        const bool quant_key_by_channel,
                         const size_t key_group_size,
                         const size_t value_group_size);
 
