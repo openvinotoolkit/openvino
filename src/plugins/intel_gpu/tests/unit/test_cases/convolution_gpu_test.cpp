@@ -10630,10 +10630,16 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv16_no_bias) {
     auto output_memory = outputs.at("conv").get_memory();
     ov::intel_gpu::ImplementationDesc conv_impl_ref = { format::bfyx, "convolution_gpu_ref", impl_types::ocl };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl_ref } }));
-    auto output_memory_ref = calculate_ref(input, weights, config);
 
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
-    cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
+    auto output_memory_ref = calculate_ref(input, weights, config);
+    auto output_ref_lockable = get_test_engine().allocate_memory(output_memory_ref->get_layout());
+    output_memory_ref->copy_to(get_test_stream(), *output_ref_lockable, true);
+    cldnn::mem_lock<float> output_ptr_ref(output_ref_lockable, get_test_stream());
+
+    auto output_lockable = get_test_engine().allocate_memory(output_memory->get_layout());
+    output_memory->copy_to(get_test_stream(), *output_lockable, true);
+    cldnn::mem_lock<float> output_ptr(output_lockable, get_test_stream());
+
 
     ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
     for (size_t i = 0; i < output_ptr.size(); i++) {
@@ -10659,9 +10665,13 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv16_no_bias) {
 
         auto output_memory = outputs.at("conv").get_memory();
         auto output_memory_ref = calculate_ref(input, weights, config);
+        auto output_ref_lockable = get_test_engine().allocate_memory(output_memory_ref->get_layout());
+        output_memory_ref->copy_to(get_test_stream(), *output_ref_lockable, true);
+        cldnn::mem_lock<float> output_ptr_ref(output_ref_lockable, get_test_stream());
 
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
-        cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
+        auto output_lockable = get_test_engine().allocate_memory(output_memory->get_layout());
+        output_memory->copy_to(get_test_stream(), *output_lockable, true);
+        cldnn::mem_lock<float> output_ptr(output_lockable, get_test_stream());
 
         ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
         for (size_t i = 0; i < output_ptr.size(); i++) {
