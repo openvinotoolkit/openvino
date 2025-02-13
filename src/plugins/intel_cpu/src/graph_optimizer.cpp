@@ -2760,7 +2760,8 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph& graph) {
         return transformedOrder;
     };
 
-    for (auto parentNode : graphNodes) {
+    for (size_t i = 0; i < graphNodes.size(); i++) {  // NOLINT(modernize-loop-convert)
+        auto parentNode = graphNodes[i];
         if (!isSuitableTranspose(parentNode)) {
             continue;
         }
@@ -2889,7 +2890,8 @@ void GraphOptimizer::MergeReorderAndTranspose(Graph& graph) {
         return transformedOrder;
     };
 
-    for (auto parentNode : graphNodes) {
+    for (size_t i = 0; i < graphNodes.size(); i++) {  // NOLINT(modernize-loop-convert)
+        auto parentNode = graphNodes[i];
         if (!isSuitableReorder(parentNode)) {
             continue;
         }
@@ -2958,7 +2960,8 @@ void GraphOptimizer::reshapeRnnSeq(Graph& graph) {
                node->outputShapes[0].getDims()[1] == 1;
     };
 
-    for (auto parentNode : graphNodes) {
+    for (size_t i = 0; i < graphNodes.size(); i++) {  // NOLINT(modernize-loop-convert)
+        auto parentNode = graphNodes[i];
         if (!isSuitableParentNode(parentNode)) {
             continue;
         }
@@ -3012,7 +3015,8 @@ void GraphOptimizer::RemoveSameConvert(Graph& graph) {
                (parentNode->getOriginalOutputPrecisionAtPort(0) == parentNode->getOriginalInputPrecisionAtPort(0));
     };
 
-    for (auto parentNode : graphNodes) {
+    for (size_t i = 0; i < graphNodes.size(); i++) {  // NOLINT(modernize-loop-convert)
+        auto parentNode = graphNodes[i];
         if (!isSuitableParentNode(parentNode)) {
             continue;
         }
