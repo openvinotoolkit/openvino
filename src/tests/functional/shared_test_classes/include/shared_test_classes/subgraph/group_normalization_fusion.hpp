@@ -22,7 +22,7 @@ using GroupNormalizationFusionTestBaseValues =
                Shape,               // shape of optional instance norm beta tensor (or empty shape if not used)
                Shape,               // shape of group norm gamma tensor
                Shape,               // shape of group norm beta tensor
-               unsigned long long,  // number of groups
+               size_t,              // number of groups
                float>;              // epsilon
 
 using GroupNormalizationFusionTransformationsTestValues =
@@ -31,7 +31,7 @@ using GroupNormalizationFusionTransformationsTestValues =
                Shape,               // shape of optional instance norm beta tensor (or empty shape if not used)
                Shape,               // shape of group norm gamma tensor
                Shape,               // shape of group norm beta tensor
-               unsigned long long,  // number of groups
+               size_t,              // number of groups
                float,               // epsilon
                bool,                // whether it's a positive test that should run reference model or a negative test
                std::string,         // taget device name
