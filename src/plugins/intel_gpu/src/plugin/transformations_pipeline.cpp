@@ -72,6 +72,7 @@
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/move_fc_reshape_to_weights.hpp"
+// #include "plugin/transformations/move_eltwise_down_data_movement.hpp"
 #include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
 #include "plugin/transformations/fc_per_layer_scaling.hpp"
@@ -1191,6 +1192,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         // Remove Pad in front of MaxPool if both the pads_begin and pads_end are zero.
         manager.register_pass<ov::pass::EliminatePad>();
+
+        // manager.register_pass<ov::intel_gpu::MoveMulDownThroughTranspose>();
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation
