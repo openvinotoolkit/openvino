@@ -159,26 +159,19 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
         auto is_signed = tfl_quantize->get_original_type().is_signed();
 
         Output<Node> input_low, input_high, output_low, output_high;
-        output_low = std::make_shared<opset10::Multiply>(std::make_shared<opset10::Negative>(scale_node), zp_node);
-        output_high = std::make_shared<opset10::Multiply>(
-            scale_node,
-            std::make_shared<opset10::Subtract>(ov::opset10::Constant::create(element::f32, {}, {levels - 1}),
-                                                zp_node));
-        if (in_type != element::f32) {
-            auto low = is_signed ? (-levels / 2) : 0;
-            auto high = levels - low - 1;
-            input_low = ov::opset10::Constant::create(element::f32, {}, {low});
-            input_high = ov::opset10::Constant::create(element::f32, {}, {high});
-        } else {
-            input_low = output_low;
-            input_high = output_high;
-        }
-        if (out_type != element::f32) {
-            auto low = is_signed ? (-levels / 2) : 0;
-            auto high = levels - low - 1;
-            output_low = ov::opset10::Constant::create(element::f32, {}, {low});
-            output_high = ov::opset10::Constant::create(element::f32, {}, {high});
-        }
+
+        auto low = is_signed ? (-levels / 2) : 0;
+        auto high = is_signed ? levels / 2 : levels;
+
+        input_low = ov::opset10::Constant::create(element::f32, {}, {low});
+        input_high = ov::opset10::Constant::create(element::f32, {}, {high});
+        input_low =
+            std::make_shared<opset10::Multiply>(std::make_shared<opset10::Subtract>(input_low, zp_node), scale_node);
+        input_high =
+            std::make_shared<opset10::Multiply>(std::make_shared<opset10::Subtract>(input_high, zp_node), scale_node);
+        output_low = input_low;
+        output_high = input_high;
+
         input_low = ov::util::get_constant_from_source(input_low);
         input_high = ov::util::get_constant_from_source(input_high);
         output_low = ov::util::get_constant_from_source(output_low);
