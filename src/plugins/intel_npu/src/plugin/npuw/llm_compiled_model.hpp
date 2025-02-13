@@ -35,7 +35,8 @@ public:
 
     void export_model(std::ostream& model) const override;
     static std::shared_ptr<LLMCompiledModel> deserialize(std::istream& stream,
-                                                         const std::shared_ptr<const ov::IPlugin>& plugin);
+                                                         const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                         const ov::AnyMap& properties);
 
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
 
@@ -53,6 +54,7 @@ private:
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
     GetPropertiesMap m_prop_to_opt;
+    ov::AnyMap m_non_llm_props;
 
     KVCacheDesc m_kvcache_desc;
     std::shared_ptr<ov::npuw::CompiledModel> m_kvcache_compiled;
