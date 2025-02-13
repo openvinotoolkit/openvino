@@ -13,10 +13,9 @@ static const std::vector<ElementType> data_et = {
         element::bf16
 };
 
-static const std::vector<ov::AnyMap> plugin_config{
-    {{hint::execution_mode.name(), hint::ExecutionMode::ACCURACY}},
-    {{hint::execution_mode.name(), hint::ExecutionMode::PERFORMANCE}, {hint::inference_precision.name(), element::undefined}}
-};
+static const std::vector<ov::AnyMap> plugin_config{{{hint::execution_mode.name(), hint::ExecutionMode::ACCURACY}},
+                                                   {{hint::execution_mode.name(), hint::ExecutionMode::PERFORMANCE},
+                                                    {hint::inference_precision.name(), element::dynamic}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_, UndefinedEtSubgraphTest,
         ::testing::Combine(

@@ -186,7 +186,7 @@ protected:
     bool strictPartitions = false;
 
     void make_zeropoints() {
-        if (zeropType == ov::element::undefined) {
+        if (zeropType == ov::element::dynamic) {
             return;
         }
 
@@ -230,7 +230,7 @@ protected:
     }
 
     void make_scales() {
-        if (scaleType == ov::element::undefined) {
+        if (scaleType == ov::element::dynamic) {
             return;
         }
         ASSERT_TRUE(scaleType == ov::element::f16 || scaleType == ov::element::f32);
@@ -334,9 +334,9 @@ public:
                << (useParallelFor ? "_parallel" : "_serial")
                << "_from_" << fromType
                << "_to_" << toType;
-        if (scaleType != ov::element::Type_t::undefined)
+        if (scaleType != ov::element::Type_t::dynamic)
             result << "_scale_" << scaleType;
-        if (zeropType != ov::element::Type_t::undefined)
+        if (zeropType != ov::element::Type_t::dynamic)
             result << "_zerop_" << zeropType;
 
         return result.str();

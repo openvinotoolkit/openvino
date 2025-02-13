@@ -59,7 +59,7 @@ inline void assert_dt<float16>(ov::element::Type dt) {
 
 template <typename T>
 struct precision_of {
-    static constexpr ov::element::Type_t value = ov::element::Type_t::undefined;
+    static constexpr ov::element::Type_t value = ov::element::Type_t::dynamic;
 };
 
 template <>
@@ -97,7 +97,7 @@ struct PlainTensor {
     size_t m_capacity = 0;
     size_t m_element_size = 0;
     size_t m_offset = 0;
-    ov::element::Type_t m_dt = ov::element::Type_t::undefined;
+    ov::element::Type_t m_dt = ov::element::Type_t::dynamic;
     MemoryPtr m_mem;  // hold memory ptr reference
 
     operator bool() const {

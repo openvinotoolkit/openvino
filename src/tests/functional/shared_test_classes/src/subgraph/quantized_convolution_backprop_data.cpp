@@ -43,7 +43,7 @@ std::string QuantConvBackpropDataLayerTest::getTestCaseName(const testing::TestP
 void QuantConvBackpropDataLayerTest::SetUp() {
     quantConvBackpropDataSpecificParams groupConvBackpropDataParams;
     ov::Shape inputShape;
-    ov::element::Type element_type = ov::element::undefined;
+    ov::element::Type element_type = ov::element::dynamic;
     std::tie(groupConvBackpropDataParams, element_type, inputShape, targetDevice) = this->GetParam();
     ov::op::PadType padType;
     std::vector<size_t> kernel, stride, dilation;

@@ -45,7 +45,7 @@ std::string QuantGroupConvBackpropDataLayerTest::getTestCaseName(const testing::
 void QuantGroupConvBackpropDataLayerTest::SetUp() {
     quantGroupConvBackpropDataSpecificParams groupConvBackpropDataParams;
     ov::Shape inputShape;
-    ov::element::Type element_type = ov::element::undefined;
+    ov::element::Type element_type = ov::element::dynamic;
     std::tie(groupConvBackpropDataParams, element_type, inputShape, targetDevice) = this->GetParam();
     ov::op::PadType padType;
     ov::Shape kernel, stride, dilation;

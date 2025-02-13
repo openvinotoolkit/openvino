@@ -37,7 +37,7 @@ public:
     };
 
     ov::element::Type getPrecision() const override {
-        return ov::element::undefined;
+        return ov::element::dynamic;
     }
 
     size_t getOffsetPadding() const override {
@@ -57,7 +57,7 @@ public:
     }
 
     MemoryDescPtr cloneWithNewPrecision(const ov::element::Type prec) const override {
-        OPENVINO_ASSERT(prec == ov::element::undefined,
+        OPENVINO_ASSERT(prec == ov::element::dynamic,
                         "Clone an empty memory desc with defined precision: ",
                         prec,
                         " is prohibited");

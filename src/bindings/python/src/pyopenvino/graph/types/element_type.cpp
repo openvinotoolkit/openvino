@@ -31,7 +31,7 @@ void regclass_graph_Type(py::module m) {
             :rtype: ov.Type
         )");
 
-    type.attr("undefined") = ov::element::undefined;
+    type.attr("undefined") = ov::element::dynamic;
     type.attr("dynamic") = ov::element::dynamic;
     type.attr("boolean") = ov::element::boolean;
     type.attr("f16") = ov::element::f16;

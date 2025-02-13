@@ -328,9 +328,7 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
             auto pmem = input_node->getMemoryPtr();
             void* data = pmem->getData();
             auto shape = pmem->getDesc().getShape().getDims();
-
-            if (shape_size(shape) <= 8 && pmem->getDesc().getPrecision() != ov::element::undefined) {
-                auto type = pmem->getDesc().getPrecision();
+            if (auto type = pmem->getDesc().getPrecision(); shape_size(shape) <= 8 && type.is_static()) {
                 auto tensor = ov::Tensor(type, shape, data);
                 auto constop = std::make_shared<ov::op::v0::Constant>(tensor);
                 comma = "";

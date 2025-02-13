@@ -268,7 +268,7 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
         unsignedPrecision = !signedPrecision;
     }
 
-    element::Type resultPrecision = element::undefined;
+    element::Type resultPrecision = element::dynamic;
     // if zero point exists then result precision has to be defined by client code
     if (!hasZeroPoint) {
         if (signedPrecision && (!unsignedPrecision)) {
@@ -335,8 +335,7 @@ DataPrecision LayerTransformation::getDataPrecision(
     printDequantizationInfo(layer);
 #endif
     PrecisionDetails precisionDetailsAtOutputIntervals = getPrecisionDetails(quantizationDetails);
-
-    if (precisionDetailsAtOutputIntervals.precision != element::undefined) {
+    if (precisionDetailsAtOutputIntervals.precision != element::dynamic) {
         // FakeQuantize optimal precision not deined
         if (!requiredPrecisions.empty()) {
             const auto foundIt = std::find(requiredPrecisions.begin(), requiredPrecisions.end(), precisionDetailsAtOutputIntervals.precision);

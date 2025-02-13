@@ -81,9 +81,9 @@ ScatterUpdate::ScatterUpdate(const std::shared_ptr<ov::Node>& op, const GraphCon
       dataSize(0lu),
       indicesSize(0lu),
       axisSize(0lu),
-      dataPrec(ov::element::undefined),
-      indicesPrec(ov::element::undefined),
-      axisPrec(ov::element::undefined) {
+      dataPrec(ov::element::dynamic),
+      indicesPrec(ov::element::dynamic),
+      axisPrec(ov::element::dynamic) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);

@@ -755,7 +755,7 @@ void loadBinary(const std::string& filePath, const BatchIndexer &fileSourceInBat
     const size_t fileBytes = static_cast<size_t>(fileSize);
     const size_t reqTensorBytes = static_cast<size_t>(requestedTensor.get_byte_size());
 
-    if (dataPrecision != modelPrecision && dataPrecision != ov::element::Type_t::undefined) {
+    if (dataPrecision != modelPrecision && dataPrecision != ov::element::Type_t::dynamic) {
         std::cout << "Converting " << filePath << " input from " << dataPrecision << " to " << modelPrecision
                   << std::endl;
         const ov::Tensor inputTensor(dataPrecision, shape);
@@ -855,9 +855,12 @@ ov::Tensor loadBinaries(const ov::element::Type& modelPrecision, const ov::Shape
  * @param dataPrecision Indicates the precision used by the data found within the binary file.
  * @return The tensor containing the loaded data.
  */
-ov::Tensor loadInput(const ov::element::Type& modelPrecision, const ov::Shape& shape, const ov::Layout& layout,
-                     const std::vector<std::string>& filePaths, const std::string& colorFormat,
-                     const ov::element::Type& dataPrecision = ov::element::Type_t::undefined) {
+ov::Tensor loadInput(const ov::element::Type& modelPrecision,
+                     const ov::Shape& shape,
+                     const ov::Layout& layout,
+                     const std::vector<std::string>& filePaths,
+                     const std::string& colorFormat,
+                     const ov::element::Type& dataPrecision = ov::element::Type_t::dynamic) {
     if (isImage(shape, layout) && !FLAGS_img_as_bin) {
         return loadImages(modelPrecision, shape, layout, filePaths, colorFormat);
     } else {
@@ -1866,7 +1869,7 @@ static int runSingleImageTest() {
         if (FLAGS_img_as_bin) {
             for (std::size_t i = 0; i < inputFilesForOneInfer.size(); ++i) {
                 inputBinPrecisionForOneInfer[i] =
-                        std::vector<ov::element::Type>(inputFilesForOneInfer[i].size(), ov::element::undefined);
+                    std::vector<ov::element::Type>(inputFilesForOneInfer[i].size(), ov::element::dynamic);
             }
             inputBinPrecisionStrPerCase = splitStringList(FLAGS_img_bin_precision, ';');
             std::size_t inferIdx = 0;

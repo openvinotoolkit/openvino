@@ -75,8 +75,8 @@ void Bucketize::initSupportedPrimitiveDescriptors() {
 
 inline constexpr uint32_t getElementsMask(ov::element::Type precision1,
                                           ov::element::Type precision2,
-                                          ov::element::Type precision3 = ov::element::undefined,
-                                          ov::element::Type precision4 = ov::element::undefined) {
+                                          ov::element::Type precision3 = ov::element::dynamic,
+                                          ov::element::Type precision4 = ov::element::dynamic) {
     return static_cast<uint32_t>(ov::element::Type_t(precision1)) |
            (static_cast<uint32_t>(ov::element::Type_t(precision2)) << 8) |
            (static_cast<uint32_t>(ov::element::Type_t(precision3)) << 16) |
