@@ -90,11 +90,11 @@ jobs:
       #    should-setup-pip-paths: ${{ runner.os != 'macOS' }}
       #    self-hosted-runner: ${{ runner.os != 'macOS' }}
 
-      - name: Install OpenVINO Python wheels
-        uses: ./openvino/.github/actions/install_ov_wheels
-        with:
-          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
-          wheels-to-install: 'openvino openvino_tokenizers'
+      #- name: Install OpenVINO Python wheels
+      #  uses: ./openvino/.github/actions/install_ov_wheels
+      #  with:
+      #    wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
+      #    wheels-to-install: 'openvino openvino_tokenizers'
 
       - name: Build ExecuTorch and OpenVINO Example Runner
         run: |
