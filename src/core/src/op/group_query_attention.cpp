@@ -5,7 +5,6 @@
 #include "openvino/op/group_query_attention.hpp"
 
 #include "itt.hpp"
-#include "openvino/op/null.hpp"
 
 using namespace std;
 namespace ov {
@@ -29,17 +28,18 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
 
 void GroupQueryAttention::validate_and_infer_types() {
     OV_OP_SCOPE(v15_GroupQueryAttention_validate_and_infer_types);
-    PartialShape input_shape = get_input_partial_shape(0);
-    NODE_VALIDATION_CHECK(this, input_shape[2].is_static(), "GroupQueryAttention: head size should not be dynamic");
+    // GQA expectes the following inputs: query, key, value, past_key, past_value, seqlens_k, cos_cache, sin_cache
+    // All qkv's should have the shape [batch, num_heads, seq_len, head_size] ([B, N, S, H])
+    // It has three outputs: output of shape [B, S, N * H], and present_key/value of shape [B, N, S, H]
+    // seqlens_k is number of 1's in the attention_mask minus 1
 
-    Dimension batch_size = input_shape[0];
-    Dimension sequence_len = input_shape[1];
-    Dimension head_size;
-    if (Null::is_null(input_value(1)) && Null::is_null(input_value(2))) {
-        head_size = input_shape[2] / (m_num_heads + m_kv_num_heads * 2);
-    } else {
-        head_size = input_shape[2] / m_num_heads;
-    }
+    PartialShape q_shape = get_input_partial_shape(0);
+    NODE_VALIDATION_CHECK(this, q_shape[3].is_static(), "GroupQueryAttention: head size should not be dynamic");
+    m_head_size = q_shape[3].get_length();
+
+    Dimension batch_size = q_shape[0];
+    Dimension sequence_len = q_shape[2];
+
     Dimension output_kv_len;
     Dimension past_sequence_len = get_input_partial_shape(3)[2];
     if (past_sequence_len.is_static() && sequence_len.is_static()) {
@@ -51,9 +51,9 @@ void GroupQueryAttention::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this,
                           element_type == element::f32 || element_type == element::f16,
                           "GroupQueryAttention only suuports f32 and f16");
-    set_output_type(0, element_type, PartialShape{batch_size, sequence_len, head_size * m_num_heads});
-    set_output_type(1, element_type, PartialShape{batch_size, m_kv_num_heads, output_kv_len, head_size});
-    set_output_type(2, element_type, PartialShape{batch_size, m_kv_num_heads, output_kv_len, head_size});
+    set_output_type(0, element_type, PartialShape{batch_size, sequence_len, m_head_size * m_num_heads});
+    set_output_type(1, element_type, PartialShape{batch_size, m_kv_num_heads, output_kv_len, m_head_size});
+    set_output_type(2, element_type, PartialShape{batch_size, m_kv_num_heads, output_kv_len, m_head_size});
 }
 
 bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {

@@ -40,6 +40,9 @@ public:
     bool get_rotary_interleaved() const {
         return m_rotary_interleaved;
     }
+    int64_t get_head_size() const {
+        return m_head_size;
+    }
 
 private:
     int64_t m_num_heads;
@@ -47,6 +50,7 @@ private:
     float m_scale = 0;
     bool m_do_rotary = false;
     bool m_rotary_interleaved = false;
+    int64_t m_head_size;
 };
 
 }  // namespace v15
