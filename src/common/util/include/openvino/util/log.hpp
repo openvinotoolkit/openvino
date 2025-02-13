@@ -24,9 +24,6 @@ enum class LOG_TYPE {
     _LOG_TYPE_DEBUG_EMPTY,
 };
 
-// TODO: we probably need to rework the LogHelper class
-// in the future to make it some static object, rather
-// than recreating it each time we log something
 class LogHelper {
 public:
     LogHelper(LOG_TYPE, const char* file, int line, std::function<void(const std::string&)> m_handler_func);
