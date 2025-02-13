@@ -51,9 +51,7 @@ class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
     std::shared_ptr<void> m_shared_object;  // plugin shared object handle.
 
 public:
-    OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_START
     OPENVINO_RTTI_BASE("Model")
-    OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_END
 
     Model(const ov::NodeVector& results, const ov::ParameterVector& parameters, const std::string& name = "");
 
