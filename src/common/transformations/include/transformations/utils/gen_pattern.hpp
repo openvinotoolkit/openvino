@@ -34,7 +34,6 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/core/graph_util.hpp"
 #include "openvino/util/log.hpp"
 
 namespace ov {

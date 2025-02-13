@@ -10,7 +10,6 @@
 #include <vector>
 #include <unordered_set>
 #include <unistd.h>
-#include <iostream>
 
 #include "openvino/util/env_util.hpp"
 

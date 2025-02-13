@@ -348,8 +348,7 @@ public:
     LevelString(const std::string& level_identifier_) :
         level_identifier(level_identifier_),
         level_str(level_identifier_) {
-            std::cout << "Created: " << level_str.length() << std::endl;
-            // level_str.reserve(level_identifier_.size() * 10);
+            level_str.reserve(level_identifier_.size() * 10);
         }
 
     LevelString& operator++() {
