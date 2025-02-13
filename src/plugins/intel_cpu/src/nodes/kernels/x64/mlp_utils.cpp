@@ -80,7 +80,8 @@ void llm_mlp_quantize_to_i8(T* psrc,
                 pdst[x] = 1;
             }
             continue;
-        } else if (asym) {
+        }
+        if (asym) {
             scale = (f_max - f_min) / 255.0f;
             zp = 127 - (f_max / scale);
         } else {
