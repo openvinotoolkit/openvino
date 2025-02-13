@@ -10,22 +10,14 @@
 #include <streambuf>
 
 #include "openvino/pass/serialize.hpp"
-#include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
 
 namespace intel_npu::driver_compiler_utils {
 
-IRSerializer::IRSerializer(const std::shared_ptr<const ov::Model>& origModel, const uint32_t supportedOpset)
-    : _logger("IRSerializer", Logger::global().level()),
-      _supportedOpset(supportedOpset) {
+IRSerializer::IRSerializer(const std::shared_ptr<const ov::Model>& origModel)
+    : _logger("IRSerializer", Logger::global().level()) {
     // There is no const variant of run_passes so use const_cast here
     // as model serialization does not mutate the model
     _model = std::const_pointer_cast<ov::Model>(origModel);
-
-    if (supportedOpset < 11) {
-        // Need to clone to modify the model and remain thread safe
-        _model = _model->clone();
-        _logger.info("Clone model for offset smaller than 11");
-    }
 
     countModelSize();
 }
@@ -34,13 +26,6 @@ void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weigh
     _logger.debug("serializeModelToStream");
     const auto passConfig = std::make_shared<ov::pass::PassConfig>();
     ov::pass::Manager manager(passConfig, "NPU:serializeModelToStream");
-
-    if (_supportedOpset < 11) {
-        // Downgrade to opset10
-        manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
-        _logger.info("Downgrade op for opset smaller than 11");
-    }
-
     manager.register_pass<ov::pass::Serialize>(xml, weights);
 
     // Depending on the driver version, the compiler attached to it may request this information as an indicator of the
@@ -52,7 +37,7 @@ void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weigh
     // Flag used for indicating an NPU plugin version which switched the I/O identification convention from names to
     // indices. The flag is required in order to inform the driver-compiler adapter to expect indices when attempting to
     // deserialize the I/O metadata.
-    const auto useIndicesForIOMetadata = "use_indices_for_io_metadata";
+    const auto useIndicesForIOMetadataKey = "use_indices_for_io_metadata";
 
     // We modify the original model object here therefore a mutex is required
     static std::mutex rtInfoMutex;
@@ -61,13 +46,13 @@ void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weigh
         std::lock_guard<std::mutex> lock(rtInfoMutex);
 
         _model->set_rt_info(true, newAPIKey);
-        _model->set_rt_info(true, useIndicesForIOMetadata);
+        _model->set_rt_info(true, useIndicesForIOMetadataKey);
 
         manager.run_passes(_model);
 
         auto& rtInfo = _model->get_rt_info();
         rtInfo.erase(newAPIKey);
-        rtInfo.erase(useIndicesForIOMetadata);
+        rtInfo.erase(useIndicesForIOMetadataKey);
     }
     _logger.debug("serializeModelToStream end");
 }

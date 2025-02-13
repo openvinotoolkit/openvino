@@ -164,14 +164,30 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     const auto maxOpsetVersion = _compilerProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
+    std::cout << compilerVersion.major << " " << compilerVersion.minor << std::endl;
+
+    std::shared_ptr<const ov::Model> modelAfterPasses = model;
+    if ((compilerVersion.major > 7) || (compilerVersion.major == 7 && compilerVersion.minor >= 2)) {
+        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+        modelAfterPasses = apply_common_passes(model);
+        std::cout
+            << "Running common passes "
+            << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - begin).count()
+            << "[microseconds]" << std::endl;
+
+        _logger.debug("Common OV passes have been applied inside the plugin");
+    } else {
+        _logger.debug("No common OV passes have been applied inside the plugin");
+    }
+
     _logger.debug("serialize IR");
-    auto serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
+    auto serializedIR = serializeIR(modelAfterPasses, compilerVersion);
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
 
     _logger.debug("build flags");
-    buildFlags += serializeIOInfo(model, useIndices);
+    buildFlags += serializeIOInfo(modelAfterPasses, useIndices);
     buildFlags += " ";
     buildFlags += serializeConfig(config, compilerVersion);
 
@@ -190,7 +206,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
 
     OV_ITT_TASK_NEXT(COMPILE_BLOB, "getNetworkMeta");
     auto networkMeta = _zeGraphExt->getNetworkMeta(graphHandle);
-    networkMeta.name = model->get_friendly_name();
+    networkMeta.name = modelAfterPasses->get_friendly_name();
 
     return std::make_shared<DriverGraph>(_zeGraphExt,
                                          _zeroInitStruct,
@@ -228,8 +244,17 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
     const auto maxOpsetVersion = _compilerProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
+    std::shared_ptr<const ov::Model> modelAfterPasses = model;
+    if ((compilerVersion.major > 7) || (compilerVersion.major == 7 && compilerVersion.minor >= 2)) {
+        modelAfterPasses = apply_common_passes(model);
+
+        _logger.debug("Common OV passes have been applied inside the plugin");
+    } else {
+        _logger.debug("No common OV passes have been applied inside the plugin");
+    }
+
     _logger.debug("serialize IR");
-    auto serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
+    auto serializedIR = serializeIR(modelAfterPasses, compilerVersion);
 
     std::string buildFlags;
     buildFlags += serializeConfig(config, compilerVersion);
@@ -261,9 +286,8 @@ uint32_t DriverCompilerAdapter::get_version() const {
  * @details Format of the memory:
  */
 SerializedIR DriverCompilerAdapter::serializeIR(const std::shared_ptr<const ov::Model>& model,
-                                                ze_graph_compiler_version_info_t compilerVersion,
-                                                const uint32_t supportedOpsetVersion) const {
-    driver_compiler_utils::IRSerializer irSerializer(model, supportedOpsetVersion);
+                                                ze_graph_compiler_version_info_t compilerVersion) const {
+    driver_compiler_utils::IRSerializer irSerializer(model);
 
     // Contract between adapter and compiler in driver
     const uint32_t maxNumberOfElements = 10;
