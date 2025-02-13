@@ -49,4 +49,9 @@ ZeroApi::ZeroApi() {
 #undef symbol_statement
 }
 
+const std::shared_ptr<ZeroApi>& ZeroApi::getInstance() {
+    static std::shared_ptr<ZeroApi> instance = std::make_shared<ZeroApi>();
+    return instance;
+}
+
 }  // namespace intel_npu
