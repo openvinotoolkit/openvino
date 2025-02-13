@@ -69,7 +69,8 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     auto one_f = register_new_node<v1::ConvertLike>(one_i, query);
     auto zero_f = register_new_node<v1::ConvertLike>(zero_i, query);
 
-    auto extract_dim = [this, &zero_i](const std::shared_ptr<v3::ShapeOf>& shape_of, const int64_t idx) -> std::shared_ptr<ov::Node> {
+    auto build_extract_dim_subgraph = [this, &zero_i](const std::shared_ptr<v3::ShapeOf>& shape_of,
+                                                      const int64_t idx) -> std::shared_ptr<ov::Node> {
         const auto dim_to_extract_const = v0::Constant::create(element::i32, Shape{}, {idx});
         const auto gather = std::make_shared<v8::Gather>(shape_of, dim_to_extract_const, zero_i);
         // When dim_to_extract is static but the whole shape is dynamic,
@@ -84,7 +85,7 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
 
     Output<Node> scale;
     if (node->get_input_size() < 5) {
-        scale = extract_dim(q_shape, -1);
+        scale = build_extract_dim_subgraph(q_shape, -1);
         scale = register_new_node<v1::ConvertLike>(scale, query);
         auto sqrt_scale = register_new_node<v0::Sqrt>(scale);
         scale = register_new_node<v1::Divide>(one_f, sqrt_scale);
@@ -126,8 +127,8 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
                 atten_mask = mask;
             }
         } else {
-            auto target_s_len = extract_dim(q_shape, -2);
-            auto source_s_len = extract_dim(k_shape, -2);
+            auto target_s_len = build_extract_dim_subgraph(q_shape, -2);
+            auto source_s_len = build_extract_dim_subgraph(k_shape, -2);
             auto ssl = register_new_node<v0::Unsqueeze>(source_s_len, zero_i);
             auto tsl = register_new_node<v0::Unsqueeze>(target_s_len, zero_i);
             auto mask_shape = register_new_node<v0::Concat>(OutputVector{tsl, ssl}, 0);
