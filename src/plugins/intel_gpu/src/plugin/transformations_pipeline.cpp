@@ -408,11 +408,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // fuse softmax, MVN patterns, so that they will not be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::SoftmaxFusion>();
         manager.register_pass<ov::pass::MVNFusion>();
-        // fuse following ops into GroupNormalization:
-        // group_norm_gamma * (instance_norm_gamma * MVN(x) + instance_norm_beta) + group_norm_beta
-        // note that instance norm related parameters are optional:
-        // - instance_norm_gamma is assumed to be filled with ones if not present in the graph
-        // - instance_norm_beta is assumed to be filled with zeros if not present in the graph
+        // GroupNormalizationFusion can potentially benefit from MVNFusion
         manager.register_pass<ov::pass::GroupNormalizationFusion>();
         // decompose MVNs that sre not supported in GPU, so that they will be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::MVN6Decomposition>();
