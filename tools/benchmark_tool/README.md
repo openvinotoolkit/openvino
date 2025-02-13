@@ -6,7 +6,7 @@ This page demonstrates how to use the Benchmark Python Tool to estimate deep lea
 
 For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2025/learn-openvino/openvino-samples/benchmark-tool.html)
 
-## Requriements
+## Requirements
 
 The Python benchmark_app is automatically installed when you install OpenVINO Developer Tools using [PyPI](https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-pip.html) Before running ``benchmark_app``, make sure the ``openvino_env`` virtual environment is activated, and navigate to the directory where your model is located.
 
