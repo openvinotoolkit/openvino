@@ -642,7 +642,7 @@ void reduce_input(ov::OutputVector& input_nodes,
 
 /// \brief      Builds an n-dimensional identity tensor based on the input node and repeated label dimensions.
 ///
-/// This function constructs an identity tenosor matching number of dimensions of the number of repeats for a single
+/// This function constructs an identity tensor matching number of dimensions of the number of repeats for a single
 /// label.
 ///
 /// \param      input_node          The input node for which the identity tensor is to be built.
