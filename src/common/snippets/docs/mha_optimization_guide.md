@@ -123,7 +123,7 @@ For enhancing the execution efficiency, blocking across the M, K, and N matmul d
 
 ### Blocking Parameters
 
-The heuristics for determining the optimal block sizes can be found in [BrgemmCPUBlocking](../../../plugins/intel_cpu/src/transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.cpp).
+The heuristics for determining the optimal block sizes can be found in [GemmCPUBlocking](../../../plugins/intel_cpu/src/transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.cpp).
 
 **Please note: Blocking by M dimension is shared between both Brgemms. Please see [SplitLoops](../include/snippets/lowered/pass/split_loops.hpp) lowered pass for the details.**
 
@@ -141,7 +141,7 @@ Based on previously discussed information, we provide the following recommendati
 In local experiments, some transformations might be worth to change:
     - Disable [ExtractUnsupportedTransposes](#extractunsupportedtransposes) transformation in order to benchmark Snippets Transpose implementation.
     - Adjust [SplitDimensionM](#splitdimensionm) heuristics in order to benchmark another splitting, or disable the pass at all.
-3. [Blocking parameters](#blocking-parameters): adjust blocking heuristics in `BrgemmCPUBlocking`.
+3. [Blocking parameters](#blocking-parameters): adjust blocking heuristics in `GemmCPUBlocking`.
     - Please note that there are 2 Matmul nodes inside a single MHA, and each Matmul can have his own optimal K, N blocking params.
     M block is better to keep the same since the corresponding blocking loop is shared between both Matmuls.
     - For the BF16/INT8 blocking loops, 2 options are possible: blocking can be done only for Brgemm node, or for BrgemmCopyB repacking too.
