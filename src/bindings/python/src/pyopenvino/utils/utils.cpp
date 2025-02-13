@@ -99,6 +99,14 @@ py::object from_ov_any_map(const ov::AnyMap& map) {
     return py::cast(result);
 }
 
+py::object from_ov_any_vector(const std::vector<ov::Any>& vec) {
+    std::vector<py::object> result;
+    for (const auto& entry : vec) {
+        result.push_back(from_ov_any(entry));
+    }
+    return py::cast(result);
+}
+
 py::object from_ov_any(const ov::Any& any) {
     // Check for py::object
     if (any.is<py::object>()) {
@@ -212,6 +220,8 @@ py::object from_ov_any(const ov::Any& any) {
     } else if (any.is<std::shared_ptr<ov::Meta>>()) {
         const ov::AnyMap& as_map = *any.as<std::shared_ptr<ov::Meta>>();
         return from_ov_any_map(as_map);
+    } else if (any.is<std::shared_ptr<ov::Symbol>>()) {
+        return py::cast(any.as<std::shared_ptr<ov::Symbol>>());
     } else if (any.is<ov::element::Type>()) {
         return py::cast(any.as<ov::element::Type>());
     } else if (any.is<ov::hint::Priority>()) {
