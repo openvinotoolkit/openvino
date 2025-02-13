@@ -6,9 +6,47 @@
 
 #include "color_utils.hpp"
 #include "function_guard.hpp"
+#include "itt.hpp"
 #include "layout_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/pass/manager.hpp"
 #include "preprocess_impls.hpp"
+#include "transformations/common_optimizations/convolution_to_group_convolution_fusion.hpp"
+#include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
+#include "transformations/common_optimizations/disable_random_uniform_constant_folding.hpp"
+#include "transformations/common_optimizations/mul_conv_fusion.hpp"
+#include "transformations/common_optimizations/ric_fusion.hpp"
+#include "transformations/low_precision/mark_dequantization_subgraph.hpp"
+#include "transformations/op_conversions/convert_divide.hpp"
+#include "openvino/pass/constant_folding.hpp"
+
+namespace {
+
+void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
+    using namespace ov;
+    using namespace ov::pass;
+    using namespace ov::element;
+
+    ov::pass::Manager manager("pre_post_processing");
+    manager.register_pass<MarkDequantization>(TypeVector{i8, u8, i4, u4, nf4});
+    REGISTER_PASS(manager, DisableShapeOfConstantFolding);
+    REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
+
+    REGISTER_PASS(manager, ConvertDivideWithConstant)
+
+    auto multiply_fusions = manager.register_pass<ov::pass::GraphRewrite>();
+    ADD_MATCHER(multiply_fusions, MultiplyConvolutionFusion)
+    ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionFusion)
+    ADD_MATCHER(multiply_fusions, MultiplyConvolutionBackpropDataFusion)
+    ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionBackpropDataFusion)
+    multiply_fusions->set_name("ov::pass::MultiplyFusions");
+
+    REGISTER_PASS(manager, ReverseInputChannelsFusion)
+    REGISTER_PASS(manager, ConstantFolding)
+    manager.run_passes(model);
+}
+
+}  // namespace
 
 namespace ov {
 namespace preprocess {
@@ -200,6 +238,18 @@ std::shared_ptr<Model> PrePostProcessor::build() {
     while (!function->get_results().empty())
         function->remove_result(*function->get_results().begin());
     function->add_results(results);
+
+    // After switching from ModelOptimizer to OVC, the order of
+    // applying PrePostProcessing and MOCTransformations has changed:
+    //
+    // MO path : [fw model conversion -> PrePostProcessing -> MOC] -> nncf
+    // OVC path: [fw model conversion -> MOC] -> PrePostProcessing -> nncf
+    //
+    // Since nncf is applied to a not fully optimized model, extra FQ ops might appear,
+    // which can affect both accuracy and performance.
+    // PrePostProcessing is not part of OVC, so we have to insert an additional
+    // Transformation calls inside PrePostProcessing.
+    transformation_pipeline(function);
 
     guard.reset();
     return function;
