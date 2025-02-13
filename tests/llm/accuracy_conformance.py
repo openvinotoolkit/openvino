@@ -13,10 +13,10 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-MODEL_IDS = {
-    "llama": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
-    "qwen2": "Qwen/Qwen2-0.5B-Instruct",
-}
+MODEL_IDS = [
+    "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+    "Qwen/Qwen2-0.5B-Instruct",
+]
 DEVICES = [
     "CPU",
     "GPU",
@@ -39,16 +39,17 @@ logger.info(f"Created temporary directory: {tmp_dir}")
 def init_test_scope():
     test_scope = []
 
-    for model_type, model_id in MODEL_IDS.items():
+    for model_id in MODEL_IDS:
         logger.info(f"Downloading and quantizing model: {model_id}")
         model = AutoModelForCausalLM.from_pretrained(model_id)
         tokenizer = AutoTokenizer.from_pretrained(model_id)
+        model_type = model.config.model_type
         model_path = os.path.join(tmp_dir, model_type)
         model.save_pretrained(model_path)
         tokenizer.save_pretrained(model_path)
 
         ov_model = OVModelForCausalLM.from_pretrained(model_path, load_in_8bit=True)
-        ov_model_path = model_path + os.path.join(tmp_dir, model_type + "_ov")
+        ov_model_path = os.path.join(tmp_dir, model_type + "_ov")
         ov_model.save_pretrained(ov_model_path)
         tokenizer.save_pretrained(ov_model_path)
         del ov_model
@@ -58,7 +59,7 @@ def init_test_scope():
         quantized_model = OVModelForCausalLM.from_pretrained(
             model_path, quantization_config=quantization_config
         )
-        quantized_model_path = model_path = os.path.join(
+        quantized_model_path = os.path.join(
             tmp_dir, model_type + "_ov_int4"
         )
         quantized_model.save_pretrained(quantized_model_path)
