@@ -565,7 +565,7 @@ public:
         int maxCollapsedDims = static_cast<int>(jep.dims.size()) - lastUnchangedAxis - 2;
 
         size_t fullWorkAmount = 1;
-        for (unsigned long dim : jep.dims) {
+        for (size_t dim : jep.dims) {
             fullWorkAmount *= dim;
         }
 
@@ -793,7 +793,7 @@ public:
         }
 
         _fullWorkAmount = 1;
-        for (unsigned long _dim : _dims) {
+        for (size_t _dim : _dims) {
             _fullWorkAmount *= _dim;
         }
 
@@ -1644,10 +1644,12 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 #endif
 
             std::vector<MemoryDescPtr> srcMemoryDescs;
+            srcMemoryDescs.reserve(config.inConfs.size());
             for (const auto& inConf : config.inConfs) {
                 srcMemoryDescs.push_back(inConf.getMemDesc());
             }
             std::vector<MemoryDescPtr> dstMemoryDescs;
+            dstMemoryDescs.reserve(config.outConfs.size());
             for (const auto& outConf : config.outConfs) {
                 dstMemoryDescs.push_back(outConf.getMemDesc());
             }
