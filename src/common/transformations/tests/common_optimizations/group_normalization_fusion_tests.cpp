@@ -22,7 +22,7 @@ using GroupNormalizationFusionSubgraphTestValues =
 
 template <element::Type_t T_elem_t>
 class GroupNormalizationFusionTransformationTestsF
-    : public ov::test::GroupNormalizationFusionTestBase<T_elem_t>,
+    : public test::GroupNormalizationFusionTestBase<T_elem_t>,
       public testing::TestWithParam<GroupNormalizationFusionSubgraphTestValues> {
 public:
     static constexpr element::Type T_elem = T_elem_t;
@@ -41,11 +41,11 @@ public:
         std::ostringstream results;
 
         results << "T=" << T_elem_t << "_";
-        results << "Input=" << ov::test::utils::partialShape2str({data_shape}) << "_";
-        results << "InstNormGamma=" << ov::test::utils::partialShape2str({instance_norm_gamma_shape}) << "_";
-        results << "InstNormBeta=" << ov::test::utils::partialShape2str({instance_norm_beta_shape}) << "_";
-        results << "GroupNormGamma=" << ov::test::utils::partialShape2str({group_norm_gamma_shape}) << "_";
-        results << "GroupNormBeta=" << ov::test::utils::partialShape2str({group_norm_beta_shape}) << "_";
+        results << "Input=" << test::utils::partialShape2str({data_shape}) << "_";
+        results << "InstNormGamma=" << test::utils::partialShape2str({instance_norm_gamma_shape}) << "_";
+        results << "InstNormBeta=" << test::utils::partialShape2str({instance_norm_beta_shape}) << "_";
+        results << "GroupNormGamma=" << test::utils::partialShape2str({group_norm_gamma_shape}) << "_";
+        results << "GroupNormBeta=" << test::utils::partialShape2str({group_norm_beta_shape}) << "_";
         results << "NumGroups=" << num_groups << "_";
         results << "Epsilon=" << epsilon << "_";
         results << "PositiveTest=" << std::boolalpha << positive_test << "_";
@@ -58,16 +58,16 @@ public:
         this->generate_weights_init_values();
         model = this->create_model();
 
-        manager = ov::pass::Manager();
-        manager.register_pass<ov::pass::InitNodeInfo>();
-        manager.register_pass<ov::pass::GroupNormalizationFusion>();
+        manager = pass::Manager();
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::GroupNormalizationFusion>();
         OV_ASSERT_NO_THROW(manager.run_passes(model));
 
         if (positiveTest) {
             model_ref = create_ref_model();
 
-            manager_ref = ov::pass::Manager();
-            manager_ref.register_pass<ov::pass::InitNodeInfo>();
+            manager_ref = pass::Manager();
+            manager_ref.register_pass<pass::InitNodeInfo>();
             OV_ASSERT_NO_THROW(manager_ref.run_passes(model_ref));
 
             const auto& f_parameters = model->get_parameters();
@@ -96,8 +96,8 @@ public:
 
             const auto& gn_node = f_results[0]->get_input_node_shared_ptr(0);
             const auto& gn_ref_node = f_ref_results[0]->get_input_node_shared_ptr(0);
-            ASSERT_TRUE(ov::is_type<ov::op::v12::GroupNormalization>(gn_node));
-            ASSERT_TRUE(ov::is_type<ov::op::v12::GroupNormalization>(gn_ref_node));
+            ASSERT_TRUE(is_type<op::v12::GroupNormalization>(gn_node));
+            ASSERT_TRUE(is_type<op::v12::GroupNormalization>(gn_ref_node));
             ASSERT_EQ(gn_node->inputs().size(), gn_ref_node->inputs().size());
             ASSERT_EQ(gn_node->inputs().size(), 3);
             ASSERT_EQ(gn_node->get_input_partial_shape(0), gn_ref_node->get_input_partial_shape(0));
@@ -107,23 +107,23 @@ public:
             ASSERT_EQ(shape_size(gn_node->get_input_shape(2)), shape_size(gn_ref_node->get_input_shape(2)));
             ASSERT_EQ(shape_size(gn_node->get_input_shape(2)), this->numChannels);
 
-            const auto& gn_node_casted = ov::as_type_ptr<ov::op::v12::GroupNormalization>(gn_node);
-            const auto& gn_ref_node_casted = ov::as_type_ptr<ov::op::v12::GroupNormalization>(gn_ref_node);
+            const auto& gn_node_casted = as_type_ptr<op::v12::GroupNormalization>(gn_node);
+            const auto& gn_ref_node_casted = as_type_ptr<op::v12::GroupNormalization>(gn_ref_node);
             ASSERT_EQ(gn_node_casted->get_epsilon(), gn_ref_node_casted->get_epsilon());
             ASSERT_EQ(gn_node_casted->get_epsilon(), this->epsilon);
             ASSERT_EQ(gn_node_casted->get_num_groups(), gn_ref_node_casted->get_num_groups());
             ASSERT_EQ(gn_node_casted->get_num_groups(), this->numGroups);
         } else {
-            ASSERT_EQ(count_ops_of_type<ov::op::v12::GroupNormalization>(model), 0);
+            ASSERT_EQ(count_ops_of_type<op::v12::GroupNormalization>(model), 0);
         }
     }
 
 protected:
     bool positiveTest;
-    ov::pass::Manager manager;
-    ov::pass::Manager manager_ref;
-    std::shared_ptr<ov::Model> model;
-    std::shared_ptr<ov::Model> model_ref;
+    pass::Manager manager;
+    pass::Manager manager_ref;
+    std::shared_ptr<Model> model;
+    std::shared_ptr<Model> model_ref;
 
     void read_test_parameters() override {
         const auto& params = GetParam();
@@ -169,8 +169,8 @@ protected:
         }
     }
 
-    std::shared_ptr<ov::Model> create_ref_model() {
-        auto input = std::make_shared<ov::op::v0::Parameter>(T_elem, this->dataShape);
+    std::shared_ptr<Model> create_ref_model() {
+        auto input = std::make_shared<op::v0::Parameter>(T_elem, this->dataShape);
 
         auto group_norm_beta_corr_vals = this->groupNormBetaVals;
         if (this->instanceNormBetaPresent)
@@ -189,11 +189,11 @@ protected:
         auto group_norm_gamma_1d =
             op::v0::Constant::create(T_elem, Shape{this->numChannels}, group_norm_gamma_corr_vals);
 
-        auto group_norm = std::make_shared<ov::op::v12::GroupNormalization>(input,
-                                                                            group_norm_gamma_1d,
-                                                                            group_norm_beta_1d,
-                                                                            this->numGroups,
-                                                                            this->epsilon);
+        auto group_norm = std::make_shared<op::v12::GroupNormalization>(input,
+                                                                        group_norm_gamma_1d,
+                                                                        group_norm_beta_1d,
+                                                                        this->numGroups,
+                                                                        this->epsilon);
 
         return std::make_shared<Model>(NodeVector{group_norm}, ParameterVector{input});
     }
@@ -293,7 +293,7 @@ TEST_P(GroupNormalizationFusionTransformationTestsF_f8e8m0, GroupNormalizationFu
 using GroupNormalizationFusionSubgraphTestAdditionalValues =
     std::tuple<bool>;  // whether it's a positive test that should run reference model or a negative test
 
-std::vector<ov::test::GroupNormalizationFusionTestBaseValues> valid_vals = {
+std::vector<test::GroupNormalizationFusionTestBaseValues> valid_vals = {
     std::make_tuple(PartialShape{1, 320}, Shape{}, Shape{}, Shape{320}, Shape{320}, 1, 1e-5f),
     std::make_tuple(PartialShape{1, 320, 2, 2},
                     Shape{1, 1, 1},
@@ -348,7 +348,7 @@ std::vector<ov::test::GroupNormalizationFusionTestBaseValues> valid_vals = {
                     64,
                     1e-6f)};
 
-std::vector<ov::test::GroupNormalizationFusionTestBaseValues> invalid_vals = {
+std::vector<test::GroupNormalizationFusionTestBaseValues> invalid_vals = {
     std::make_tuple(PartialShape{1, 320}, Shape{}, Shape{}, Shape{}, Shape{}, 1, 1e-5f),
     std::make_tuple(PartialShape{1, 320, 2, 2},
                     Shape{1, 1, 1},
@@ -383,156 +383,156 @@ std::vector<ov::test::GroupNormalizationFusionTestBaseValues> invalid_vals = {
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationPositiveTests_f32,
                          GroupNormalizationFusionTransformationTestsF_f32,
-                         ValuesIn(ov::test::expand_vals(valid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(true))),
+                         ValuesIn(test::expand_vals(valid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(true))),
                          GroupNormalizationFusionTransformationTestsF_f32::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationPositiveTests_f16,
                          GroupNormalizationFusionTransformationTestsF_f16,
-                         ValuesIn(ov::test::expand_vals(valid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(true))),
+                         ValuesIn(test::expand_vals(valid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(true))),
                          GroupNormalizationFusionTransformationTestsF_f16::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationPositiveTests_bf16,
                          GroupNormalizationFusionTransformationTestsF_bf16,
-                         ValuesIn(ov::test::expand_vals(valid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(true))),
+                         ValuesIn(test::expand_vals(valid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(true))),
                          GroupNormalizationFusionTransformationTestsF_bf16::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTests_f32,
                          GroupNormalizationFusionTransformationTestsF_f32,
-                         ValuesIn(ov::test::expand_vals(invalid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         ValuesIn(test::expand_vals(invalid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
                          GroupNormalizationFusionTransformationTestsF_f32::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTests_f16,
                          GroupNormalizationFusionTransformationTestsF_f16,
-                         ValuesIn(ov::test::expand_vals(invalid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         ValuesIn(test::expand_vals(invalid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
                          GroupNormalizationFusionTransformationTestsF_f16::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTests_bf16,
                          GroupNormalizationFusionTransformationTestsF_bf16,
-                         ValuesIn(ov::test::expand_vals(invalid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         ValuesIn(test::expand_vals(invalid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
                          GroupNormalizationFusionTransformationTestsF_bf16::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsValidVals_u8,
                          GroupNormalizationFusionTransformationTestsF_u8,
-                         ValuesIn(ov::test::expand_vals(valid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         ValuesIn(test::expand_vals(valid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
                          GroupNormalizationFusionTransformationTestsF_u8::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsValidVals_u16,
                          GroupNormalizationFusionTransformationTestsF_u16,
-                         ValuesIn(ov::test::expand_vals(valid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         ValuesIn(test::expand_vals(valid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
                          GroupNormalizationFusionTransformationTestsF_u16::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsValidVals_u32,
                          GroupNormalizationFusionTransformationTestsF_u32,
-                         ValuesIn(ov::test::expand_vals(valid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         ValuesIn(test::expand_vals(valid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
                          GroupNormalizationFusionTransformationTestsF_u32::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsValidVals_u64,
                          GroupNormalizationFusionTransformationTestsF_u64,
-                         ValuesIn(ov::test::expand_vals(valid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         ValuesIn(test::expand_vals(valid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
                          GroupNormalizationFusionTransformationTestsF_u64::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsValidVals_i8,
                          GroupNormalizationFusionTransformationTestsF_i8,
-                         ValuesIn(ov::test::expand_vals(valid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         ValuesIn(test::expand_vals(valid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
                          GroupNormalizationFusionTransformationTestsF_i8::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsValidVals_i16,
                          GroupNormalizationFusionTransformationTestsF_i16,
-                         ValuesIn(ov::test::expand_vals(valid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         ValuesIn(test::expand_vals(valid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
                          GroupNormalizationFusionTransformationTestsF_i16::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsValidVals_i32,
                          GroupNormalizationFusionTransformationTestsF_i32,
-                         ValuesIn(ov::test::expand_vals(valid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         ValuesIn(test::expand_vals(valid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
                          GroupNormalizationFusionTransformationTestsF_i32::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsValidVals_f8e5m2,
                          GroupNormalizationFusionTransformationTestsF_f8e5m2,
-                         ValuesIn(ov::test::expand_vals(valid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         ValuesIn(test::expand_vals(valid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
                          GroupNormalizationFusionTransformationTestsF_f8e5m2::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsValidVals_f4e2m1,
                          GroupNormalizationFusionTransformationTestsF_f4e2m1,
-                         ValuesIn(ov::test::expand_vals(valid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         ValuesIn(test::expand_vals(valid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
                          GroupNormalizationFusionTransformationTestsF_f4e2m1::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsValidVals_f8e8m0,
                          GroupNormalizationFusionTransformationTestsF_f8e8m0,
-                         ValuesIn(ov::test::expand_vals(valid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         ValuesIn(test::expand_vals(valid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
                          GroupNormalizationFusionTransformationTestsF_f8e8m0::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsInvalidVals_u8,
                          GroupNormalizationFusionTransformationTestsF_u8,
-                         ValuesIn(ov::test::expand_vals(invalid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         ValuesIn(test::expand_vals(invalid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
                          GroupNormalizationFusionTransformationTestsF_u8::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsInvalidVals_u16,
                          GroupNormalizationFusionTransformationTestsF_u16,
-                         ValuesIn(ov::test::expand_vals(invalid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         ValuesIn(test::expand_vals(invalid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
                          GroupNormalizationFusionTransformationTestsF_u16::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsInvalidVals_u32,
                          GroupNormalizationFusionTransformationTestsF_u32,
-                         ValuesIn(ov::test::expand_vals(invalid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         ValuesIn(test::expand_vals(invalid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
                          GroupNormalizationFusionTransformationTestsF_u32::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsInvalidVals_u64,
                          GroupNormalizationFusionTransformationTestsF_u64,
-                         ValuesIn(ov::test::expand_vals(invalid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         ValuesIn(test::expand_vals(invalid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
                          GroupNormalizationFusionTransformationTestsF_u64::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsInvalidVals_i8,
                          GroupNormalizationFusionTransformationTestsF_i8,
-                         ValuesIn(ov::test::expand_vals(invalid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         ValuesIn(test::expand_vals(invalid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
                          GroupNormalizationFusionTransformationTestsF_i8::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsInvalidVals_i16,
                          GroupNormalizationFusionTransformationTestsF_i16,
-                         ValuesIn(ov::test::expand_vals(invalid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         ValuesIn(test::expand_vals(invalid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
                          GroupNormalizationFusionTransformationTestsF_i16::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsInvalidVals_i32,
                          GroupNormalizationFusionTransformationTestsF_i32,
-                         ValuesIn(ov::test::expand_vals(invalid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         ValuesIn(test::expand_vals(invalid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
                          GroupNormalizationFusionTransformationTestsF_i32::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsInalidVals_f8e5m2,
                          GroupNormalizationFusionTransformationTestsF_f8e5m2,
-                         ValuesIn(ov::test::expand_vals(invalid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         ValuesIn(test::expand_vals(invalid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
                          GroupNormalizationFusionTransformationTestsF_f8e5m2::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsInvalidVals_f4e2m1,
                          GroupNormalizationFusionTransformationTestsF_f4e2m1,
-                         ValuesIn(ov::test::expand_vals(invalid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         ValuesIn(test::expand_vals(invalid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
                          GroupNormalizationFusionTransformationTestsF_f4e2m1::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsInvalidVals_f8e8m0,
                          GroupNormalizationFusionTransformationTestsF_f8e8m0,
-                         ValuesIn(ov::test::expand_vals(invalid_vals,
-                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         ValuesIn(test::expand_vals(invalid_vals,
+                                                    GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
                          GroupNormalizationFusionTransformationTestsF_f8e8m0::getTestCaseName);

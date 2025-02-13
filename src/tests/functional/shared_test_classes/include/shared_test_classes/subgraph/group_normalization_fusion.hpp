@@ -17,11 +17,11 @@ namespace ov {
 namespace test {
 
 using GroupNormalizationFusionTestBaseValues =
-    std::tuple<ov::PartialShape,    // (partial) shape of input/output tensor (all dims except channel can be dynamic)
-               ov::Shape,           // shape of optional instance norm gamma tensor (or empty shape if not used)
-               ov::Shape,           // shape of optional instance norm beta tensor (or empty shape if not used)
-               ov::Shape,           // shape of group norm gamma tensor
-               ov::Shape,           // shape of group norm beta tensor
+    std::tuple<PartialShape,        // (partial) shape of input/output tensor (all dims except channel can be dynamic)
+               Shape,               // shape of optional instance norm gamma tensor (or empty shape if not used)
+               Shape,               // shape of optional instance norm beta tensor (or empty shape if not used)
+               Shape,               // shape of group norm gamma tensor
+               Shape,               // shape of group norm beta tensor
                unsigned long long,  // number of groups
                float>;              // epsilon
 
@@ -35,9 +35,9 @@ using GroupNormalizationFusionTransformationsTestValues =
                float,               // epsilon
                bool,                // whether it's a positive test that should run reference model or a negative test
                std::string,         // taget device name
-               ov::AnyMap,          // taget device properties
+               AnyMap,              // taget device properties
                std::string,         // reference device name
-               ov::AnyMap>;         // reference device properties
+               AnyMap>;             // reference device properties
 
 template <typename... T_old_vals, typename... T_added_vals>
 std::vector<std::tuple<T_old_vals..., T_added_vals...>> expand_vals(std::vector<std::tuple<T_old_vals...>> old_vals,
@@ -54,7 +54,7 @@ template <element::Type_t T_elem_t>
 class GroupNormalizationFusionTestBase {
 public:
     static constexpr element::Type T_elem = T_elem_t;
-    typedef typename ov::element_type_traits<T_elem_t>::value_type T_store_t;
+    typedef typename element_type_traits<T_elem_t>::value_type T_store_t;
 
 protected:
     size_t numChannels;
@@ -85,11 +85,11 @@ protected:
         groupNormBetaVals = test::utils::generateVector<T_elem_t>(shape_size(groupNormBetaShape), 10, 1, 4);
     }
 
-    std::shared_ptr<ov::Model> create_model() {
+    std::shared_ptr<Model> create_model() {
         auto input = std::make_shared<op::v0::Parameter>(T_elem, dataShape);
         auto pre_mvn_shape_const =
             op::v0::Constant::create<long long>(element::i64, Shape{3}, {0, static_cast<long long>(numGroups), -1});
-        auto pre_mvn_reshape = std::make_shared<ov::op::v1::Reshape>(input, pre_mvn_shape_const, true);
+        auto pre_mvn_reshape = std::make_shared<op::v1::Reshape>(input, pre_mvn_shape_const, true);
 
         auto mvn_axes_const = op::v0::Constant::create<long long>(element::i64, Shape{1}, {2});
         auto mvn =
@@ -102,15 +102,15 @@ protected:
             opt_instance_norm_gamma_multiply = std::make_shared<op::v1::Multiply>(mvn, instance_norm_gamma_const);
         }
 
-        std::shared_ptr<ov::Node> opt_instance_norm_beta_add = opt_instance_norm_gamma_multiply;
+        std::shared_ptr<Node> opt_instance_norm_beta_add = opt_instance_norm_gamma_multiply;
         if (instanceNormBetaPresent) {
             auto instance_norm_beta_const =
                 op::v0::Constant::create(T_elem, instanceNormBetaShape, instanceNormBetaVals);
             opt_instance_norm_beta_add =
-                std::make_shared<ov::op::v1::Add>(opt_instance_norm_gamma_multiply, instance_norm_beta_const);
+                std::make_shared<op::v1::Add>(opt_instance_norm_gamma_multiply, instance_norm_beta_const);
         }
 
-        auto post_instance_norm_shape = std::make_shared<ov::op::v0::ShapeOf>(input);
+        auto post_instance_norm_shape = std::make_shared<op::v0::ShapeOf>(input);
 
         auto post_instance_norm_reshape =
             std::make_shared<op::v1::Reshape>(opt_instance_norm_beta_add, post_instance_norm_shape, true);
@@ -129,7 +129,7 @@ protected:
 template <element::Type_t T_elem_t>
 class GroupNormalizationFusionSubgraphTestsF
     : public GroupNormalizationFusionTestBase<T_elem_t>,
-      public ov::test::SubgraphBaseTest,
+      public test::SubgraphBaseTest,
       public testing::WithParamInterface<GroupNormalizationFusionTransformationsTestValues> {
 public:
     static constexpr element::Type T_elem = T_elem_t;
@@ -153,11 +153,11 @@ public:
         std::ostringstream results;
 
         results << "T=" << T_elem_t << "_";
-        results << "Input=" << ov::test::utils::partialShape2str({data_shape}) << "_";
-        results << "InstNormGamma=" << ov::test::utils::partialShape2str({instance_norm_gamma_shape}) << "_";
-        results << "InstNormBeta=" << ov::test::utils::partialShape2str({instance_norm_beta_shape}) << "_";
-        results << "GroupNormGamma=" << ov::test::utils::partialShape2str({group_norm_gamma_shape}) << "_";
-        results << "GroupNormBeta=" << ov::test::utils::partialShape2str({group_norm_beta_shape}) << "_";
+        results << "Input=" << test::utils::partialShape2str({data_shape}) << "_";
+        results << "InstNormGamma=" << test::utils::partialShape2str({instance_norm_gamma_shape}) << "_";
+        results << "InstNormBeta=" << test::utils::partialShape2str({instance_norm_beta_shape}) << "_";
+        results << "GroupNormGamma=" << test::utils::partialShape2str({group_norm_gamma_shape}) << "_";
+        results << "GroupNormBeta=" << test::utils::partialShape2str({group_norm_beta_shape}) << "_";
         results << "NumGroups=" << num_groups << "_";
         results << "Epsilon=" << epsilon << "_";
         results << "PositiveTest=" << std::boolalpha << positive_test << "_";
@@ -183,13 +183,13 @@ public:
 protected:
     bool positiveTest;
     std::string targetDeviceName;
-    ov::AnyMap targetConfiguration;
+    AnyMap targetConfiguration;
     std::string refDevice;
-    ov::AnyMap refConfiguration;
+    AnyMap refConfiguration;
 
     ElementType refInferencePrecision;
-    ov::CompiledModel compiledRefModel;
-    ov::InferRequest refInferRequest;
+    CompiledModel compiledRefModel;
+    InferRequest refInferRequest;
 
     void TearDown() override {
         SubgraphBaseTest::TearDown();
@@ -249,24 +249,24 @@ protected:
     }
 
     void configure_device() {
-        if (targetConfiguration.count(ov::hint::inference_precision.name()) <= 0) {
-            targetConfiguration.insert({ov::hint::inference_precision.name(), T_elem});
+        if (targetConfiguration.count(hint::inference_precision.name()) <= 0) {
+            targetConfiguration.insert({hint::inference_precision.name(), T_elem});
         }
     }
 
     void configure_ref_device() {
-        if (refConfiguration.count(ov::hint::inference_precision.name()) <= 0) {
-            refConfiguration.insert({ov::hint::inference_precision.name(), T_elem});
+        if (refConfiguration.count(hint::inference_precision.name()) <= 0) {
+            refConfiguration.insert({hint::inference_precision.name(), T_elem});
         }
     }
 
     void configure_ref_model() {
         // configure input precision
-        ov::preprocess::PrePostProcessor p(functionRefs);
+        preprocess::PrePostProcessor p(functionRefs);
         {
             auto& params = functionRefs->get_parameters();
             for (size_t i = 0; i < params.size(); i++) {
-                if (inType != ov::element::Type_t::undefined) {
+                if (inType != element::Type_t::undefined) {
                     p.input(i).tensor().set_element_type(inType);
                 }
             }
@@ -276,7 +276,7 @@ protected:
         {
             auto results = functionRefs->get_results();
             for (size_t i = 0; i < results.size(); i++) {
-                if (outType != ov::element::Type_t::undefined) {
+                if (outType != element::Type_t::undefined) {
                     p.output(i).tensor().set_element_type(outType);
                 }
             }
@@ -302,7 +302,7 @@ protected:
                       << duration.count() << "s" << std::endl;
         }
         try {
-            refInferencePrecision = core->get_property(refDevice, ov::hint::inference_precision);
+            refInferencePrecision = core->get_property(refDevice, hint::inference_precision);
         } catch (std::exception& e) {
             std::cout << "[ WARNING ] Impossible to get Inference Precision with exception: " << e.what() << std::endl;
         }
@@ -317,7 +317,7 @@ protected:
         }
     }
 
-    void infer_ref(const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs_ref) {
+    void infer_ref(const std::map<std::shared_ptr<Node>, Tensor>& inputs_ref) {
         refInferRequest = compiledRefModel.create_infer_request();
         for (const auto& input : inputs_ref) {
             refInferRequest.set_tensor(input.first, input.second);
@@ -325,7 +325,7 @@ protected:
         refInferRequest.infer();
     }
 
-    std::vector<ov::Tensor> calculate_refs() override {
+    std::vector<Tensor> calculate_refs() override {
         if (is_report_stages) {
             std::cout << "[ REFERENCE   ] `GroupNormalizationFusionSubgraphTestsF::calculate_refs()` is started"
                       << std::endl;
@@ -335,13 +335,13 @@ protected:
         update_ref_model();
         match_parameters(function->get_parameters(), functionRefs->get_parameters());
 
-        std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs_ref;
+        std::map<std::shared_ptr<Node>, Tensor> inputs_ref;
         for (const auto& param : functionRefs->get_parameters()) {
             inputs_ref[param] = inputs.at(matched_parameters[param]);
         }
 
         infer_ref(inputs_ref);
-        auto outputs = std::vector<ov::Tensor>{};
+        auto outputs = std::vector<Tensor>{};
         for (const auto& output : functionRefs->outputs()) {
             outputs.push_back(refInferRequest.get_tensor(output));
         }
@@ -355,18 +355,18 @@ protected:
         return outputs;
     }
 
-    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<Shape>& targetInputStaticShapes) override {
         inputs.clear();
 
         auto itTargetShape = targetInputStaticShapes.begin();
         for (const auto& param : function->get_parameters()) {
-            std::shared_ptr<ov::Node> inputNode = param;
+            std::shared_ptr<Node> inputNode = param;
             for (size_t i = 0; i < param->get_output_size(); i++) {
                 for (const auto& node : param->get_output_target_inputs(i)) {
-                    std::shared_ptr<ov::Node> nodePtr = node.get_node()->shared_from_this();
+                    std::shared_ptr<Node> nodePtr = node.get_node()->shared_from_this();
                     for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
                         if (nodePtr->get_input_node_ptr(port)->shared_from_this() == inputNode->shared_from_this()) {
-                            const auto& tensor = ov::test::utils::create_and_fill_tensor(inType, *itTargetShape);
+                            const auto& tensor = test::utils::create_and_fill_tensor(inType, *itTargetShape);
                             inputs.insert({param, tensor});
                             break;
                         }
@@ -380,26 +380,25 @@ protected:
 public:
     void run() override {
         is_reported = true;
-        bool isCurrentTestDisabled = ov::test::utils::current_test_is_disabled();
+        bool isCurrentTestDisabled = test::utils::current_test_is_disabled();
 
-        ov::test::utils::PassRate::Statuses status = isCurrentTestDisabled
-                                                         ? ov::test::utils::PassRate::Statuses::SKIPPED
-                                                         : ov::test::utils::PassRate::Statuses::CRASHED;
+        test::utils::PassRate::Statuses status =
+            isCurrentTestDisabled ? test::utils::PassRate::Statuses::SKIPPED : test::utils::PassRate::Statuses::CRASHED;
 
         if (isCurrentTestDisabled)
             GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
 
         // in case of crash jump will be made and work will be continued
-        auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
+        auto crashHandler = std::unique_ptr<test::utils::CrashHandler>(new test::utils::CrashHandler());
 
         // place to jump in case of a crash
         int jmpRes = 0;
 #ifdef _WIN32
-        jmpRes = setjmp(ov::test::utils::env);
+        jmpRes = setjmp(test::utils::env);
 #else
-        jmpRes = sigsetjmp(ov::test::utils::env, 1);
+        jmpRes = sigsetjmp(test::utils::env, 1);
 #endif
-        if (jmpRes == ov::test::utils::JMP_STATUS::ok) {
+        if (jmpRes == test::utils::JMP_STATUS::ok) {
             crashHandler->StartTimer();
             std::string errorMessage;
             try {
@@ -408,14 +407,14 @@ public:
                 functionRefs = this->create_model();
                 function = functionRefs->clone();
                 pass::Manager m;
-                m.register_pass<ov::pass::GroupNormalizationFusion>();
+                m.register_pass<pass::GroupNormalizationFusion>();
                 OV_ASSERT_NO_THROW(m.run_passes(function));
 
                 summary.setDeviceName(targetDevice);
                 summary.updateOPsStats(function, status, rel_influence_coef);
                 if (positiveTest) {
-                    ASSERT_EQ(count_ops_of_type<ov::op::v12::GroupNormalization>(functionRefs), 0);
-                    ASSERT_EQ(count_ops_of_type<ov::op::v12::GroupNormalization>(function), 1);
+                    ASSERT_EQ(count_ops_of_type<op::v12::GroupNormalization>(functionRefs), 0);
+                    ASSERT_EQ(count_ops_of_type<op::v12::GroupNormalization>(function), 1);
 
                     if (!function->is_dynamic()) {
                         configure_device();
@@ -432,31 +431,31 @@ public:
                         }
                     }
                 } else {
-                    ASSERT_EQ(count_ops_of_type<ov::op::v12::GroupNormalization>(functionRefs), 0);
-                    ASSERT_EQ(count_ops_of_type<ov::op::v12::GroupNormalization>(function), 0);
+                    ASSERT_EQ(count_ops_of_type<op::v12::GroupNormalization>(functionRefs), 0);
+                    ASSERT_EQ(count_ops_of_type<op::v12::GroupNormalization>(function), 0);
                 }
-                status = ov::test::utils::PassRate::Statuses::PASSED;
+                status = test::utils::PassRate::Statuses::PASSED;
             } catch (const std::exception& ex) {
                 if (callback_exception != nullptr) {
                     // exception will be checked by callback.
                     callback_exception(ex);
                     return;
                 } else {
-                    status = ov::test::utils::PassRate::Statuses::FAILED;
+                    status = test::utils::PassRate::Statuses::FAILED;
                     errorMessage = ex.what();
                 }
             } catch (...) {
-                status = ov::test::utils::PassRate::Statuses::FAILED;
+                status = test::utils::PassRate::Statuses::FAILED;
                 errorMessage = "Unknown failure occurred.";
             }
             summary.updateOPsStats(function, status, rel_influence_coef);
-            if (status != ov::test::utils::PassRate::Statuses::PASSED) {
+            if (status != test::utils::PassRate::Statuses::PASSED) {
                 GTEST_FATAL_FAILURE_(errorMessage.c_str());
             }
-        } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
+        } else if (jmpRes == test::utils::JMP_STATUS::anyError) {
             OPENVINO_THROW("Crash happens");
-        } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
-            summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
+        } else if (jmpRes == test::utils::JMP_STATUS::alarmErr) {
+            summary.updateOPsStats(function, test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
             OPENVINO_THROW("Crash happens");
         }
     }
