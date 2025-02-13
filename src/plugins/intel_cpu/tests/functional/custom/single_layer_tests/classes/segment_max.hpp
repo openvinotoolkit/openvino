@@ -16,6 +16,7 @@ namespace SegmentMax {
 using SegmentMaxSpecificParams =  std::tuple<
         InputShape,
         std::vector<int64_t>,
+        int64_t,
         ov::op::FillMode
 >;
 
@@ -23,6 +24,7 @@ using SegmentMaxLayerTestParams = std::tuple<
         SegmentMaxSpecificParams,
         ElementType,
         ElementType,
+        bool,
         ov::test::TargetDevice
 >;
 

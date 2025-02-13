@@ -21,22 +21,27 @@ std::string SegmentMaxLayerCPUTest::getTestCaseName(testing::TestParamInfo<Segme
         std::string td;
         ElementType dataPrecision;
         ElementType segmentIdsPrecision;
-        std::tie(SegmentMaxPar, dataPrecision, segmentIdsPrecision, td) = basicParamsSet;
+        bool useNumSegments;
+        std::tie(SegmentMaxPar, dataPrecision, segmentIdsPrecision, useNumSegments, td) = basicParamsSet;
 
         InputShape dataShape;
         std::vector<int64_t> segmentIdsValues;
+        int64_t numSegments;
         ov::op::FillMode fillMode;
-        std::tie(dataShape, segmentIdsValues, fillMode) = SegmentMaxPar;
+        std::tie(dataShape, segmentIdsValues, numSegments, fillMode) = SegmentMaxPar;
         std::ostringstream result;
 
         result << ov::test::utils::partialShape2str({ dataShape.first }) << "_";
         result << "TS=";
         result << "(";
         for (const auto& targetShape : dataShape.second) {
-            result << ov::test::utils::vec2str(targetShape) << "_";
+            result << ov::test::utils::vec2str(targetShape);
         }
         result << ")";
         result << "_segmentIds=" << ov::test::utils::vec2str(segmentIdsValues);
+        if (useNumSegments) {
+            result << "_numSegments=" << numSegments;
+        }
         result << "_dataPrecision=" << dataPrecision;
         result << "_segmentIdsPrecision=" << segmentIdsPrecision;
         result << CPUTestsBase::getTestCaseName(cpuParams);
@@ -65,22 +70,35 @@ void SegmentMaxLayerCPUTest::SetUp() {
         SegmentMaxSpecificParams SegmentMaxParams;
         ElementType inputPrecision;
         ElementType segmentIdsPrecision;
-        std::tie(SegmentMaxParams, inputPrecision, segmentIdsPrecision, targetDevice) = basicParamsSet;
+        bool useNumSegments;
+        std::tie(SegmentMaxParams, inputPrecision, segmentIdsPrecision, useNumSegments, targetDevice) = basicParamsSet;
 
         InputShape dataShape;
         std::vector<int64_t> segmentIdsValues;
+        int64_t numSegmentsValue;
         ov::op::FillMode fillMode;
-        std::tie(dataShape, segmentIdsValues, fillMode) = SegmentMaxParams;
+        std::tie(dataShape, segmentIdsValues, numSegmentsValue, fillMode) = SegmentMaxParams;
         const ov::test::InputShape segmentIdsShape = {
             ov::PartialShape{static_cast<ov::Dimension::value_type>(segmentIdsValues.size())}, std::vector<ov::Shape>{segmentIdsValues.size()}
             };
 
         std::vector<ov::test::InputShape> input_shapes = { dataShape, segmentIdsShape };
+        if (useNumSegments) {
+            const ov::test::InputShape numSegmentsShape = {
+                ov::PartialShape{}, std::vector<ov::Shape>{ov::Shape{}}
+            };
+            input_shapes.emplace_back(numSegmentsShape);
+        }
         init_input_shapes(input_shapes);
         auto dataParameter = std::make_shared<ov::op::v0::Parameter>(inputPrecision, inputDynamicShapes[0]);
         auto segmentIdsConst = std::make_shared<ov::op::v0::Constant>(segmentIdsPrecision, ov::Shape{segmentIdsValues.size()}, segmentIdsValues);
-        auto segmentMax = std::make_shared<ov::op::v16::SegmentMax>(dataParameter, segmentIdsConst, fillMode);
-
+        std::shared_ptr<ov::Node> segmentMax;
+        if (useNumSegments) {
+            auto numSegments = std::make_shared<ov::op::v0::Constant>(segmentIdsPrecision, ov::Shape{}, numSegmentsValue);
+            segmentMax = std::make_shared<ov::op::v16::SegmentMax>(dataParameter, segmentIdsConst, numSegments, fillMode);
+        } else {
+            segmentMax = std::make_shared<ov::op::v16::SegmentMax>(dataParameter, segmentIdsConst, fillMode);
+        }
         ov::ParameterVector params{ dataParameter };
         function = makeNgraphFunction(inputPrecision, params, segmentMax, "SegmentMax");
 }
@@ -91,10 +109,61 @@ TEST_P(SegmentMaxLayerCPUTest, CompareWithRefs) {
 }
 
 const std::vector<SegmentMaxSpecificParams> SegmentMaxParamsVector = {
+    // Simple test case
     SegmentMaxSpecificParams {
         InputShape{{}, {{4}}},
         std::vector<int64_t>{0, 0, 3, 3},
+        5,
         ov::op::FillMode::ZERO
+    },
+    // 2D data
+    SegmentMaxSpecificParams {
+        InputShape{{}, {{6, 6}}},
+        std::vector<int64_t>{0, 0, 3, 3, 9, 10},
+        3,
+        ov::op::FillMode::LOWEST
+    },
+    // 5D data
+    SegmentMaxSpecificParams {
+        InputShape{{}, {{6, 6, 3, 1, 1}}},
+        std::vector<int64_t>{0, 0, 3, 3, 9, 10},
+        3,
+        ov::op::FillMode::ZERO
+    },
+    // Empty data tensor
+    SegmentMaxSpecificParams {
+        InputShape{{}, {{5, 0}}},
+        std::vector<int64_t>{0, 3, 3, 9, 10},
+        4,
+        ov::op::FillMode::LOWEST
+    },
+    // single segment
+    SegmentMaxSpecificParams {
+        InputShape{{}, {{5, 3}}},
+        std::vector<int64_t>{0, 0, 0, 0, 0},
+        4,
+        ov::op::FillMode::ZERO
+    },
+    // numSegments = 0
+    SegmentMaxSpecificParams {
+        InputShape{{}, {{5, 7}}},
+        std::vector<int64_t>{0, 3, 3, 9, 10},
+        0,
+        ov::op::FillMode::LOWEST
+    },
+    // Sequential dynamic inputs
+    SegmentMaxSpecificParams {
+        InputShape{{-1, -1}, {{5, 7}, {5, 15}, {5, 0}}},
+        std::vector<int64_t>{0, 3, 3, 9, 10},
+        12,
+        ov::op::FillMode::ZERO
+    },
+    // Sequential dynamic inputs with ranges
+    SegmentMaxSpecificParams {
+        InputShape{{{0, 10}, {-1, 16}}, {{5, 7}, {5, 15}, {5, 0}}},
+        std::vector<int64_t>{0, 3, 3, 9, 10},
+        12,
+        ov::op::FillMode::LOWEST
     },
 };
 

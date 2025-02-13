@@ -17,8 +17,7 @@ SegmentMax::SegmentMax(const std::shared_ptr<ov::Node>& op, const GraphContext::
     fillMode = ov::as_type_ptr<const ov::op::v16::SegmentMax>(op)->get_fill_mode();
 }
 
-bool SegmentMax::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
-                                            std::string& errorMessage) noexcept {
+bool SegmentMax::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!ov::is_type<ov::op::v16::SegmentMax>(op)) {
             errorMessage = "Only opset16 SegmentMax operation is supported";
@@ -31,7 +30,7 @@ bool SegmentMax::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
 }
 
 void SegmentMax::getSupportedDescriptors() {
-    // Validation is already done in the ov::opset15::SegmentMax
+    // Validation is already done in the ov::opset16::SegmentMax
 }
 
 void SegmentMax::initSupportedPrimitiveDescriptors() {
@@ -42,8 +41,7 @@ void SegmentMax::initSupportedPrimitiveDescriptors() {
     ov::element::Type segmentIdsPrecision = getOriginalInputPrecisionAtPort(1);
 
     if (getOriginalInputsNumber() == 2) {
-        addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
-                              {LayoutType::ncsp, segmentIdsPrecision}},
+        addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision}, {LayoutType::ncsp, segmentIdsPrecision}},
                              {{LayoutType::ncsp, dataPrecision}},
                              impl_desc_type::ref);
     } else {
