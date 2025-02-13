@@ -163,7 +163,7 @@ if(ENABLE_CPU_DEBUG_CAPS)
     add_definitions(-DCPU_DEBUG_CAPS)
 endif()
 
-if(AARCH64)
+if(AARCH64 AND (NOT ANDROID))
     set(ENABLE_SNIPPETS_LIBXSMM_TPP ON)
 endif()
 
