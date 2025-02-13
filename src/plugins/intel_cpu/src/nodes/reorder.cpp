@@ -158,12 +158,11 @@ void Reorder::prepareReorderAsTranspose(const MemoryDescPtr& parentDesc, const M
             }
             return {{0, 2, 1}, {in[0], in[2], in[1]}};
 
-        } else {
-            if (rank == 4) {
-                return {{0, 1, 2, 3}, in};
-            }
-            return {{0, 1, 2}, in};
         }
+        if (rank == 4) {
+            return {{0, 1, 2, 3}, in};
+        }
+        return {{0, 1, 2}, in};
     };
 
     auto order = getOrderAndBlockedDims(*parentDesc, *childDesc);
