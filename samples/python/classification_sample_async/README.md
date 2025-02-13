@@ -4,7 +4,7 @@ This sample demonstrates how to do inference of image classification models usin
 
 Models with only 1 input and output are supported.
 
-For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2025/learn-openvino/openvino-samples/image-classification-async.html)
+For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/image-classification-async.html)
 
 ## Requirements
 
@@ -12,7 +12,7 @@ For more detailed information on how this sample works, check the dedicated [art
 | ---------------------------| -----------------------------------------------------------------------------------------------------------------|
 | Model Format               | OpenVINO™ toolkit Intermediate Representation (.xml + .bin), ONNX (.onnx)                                        |
 | Supported devices          | [All](https://docs.openvino.ai/2025/about-openvino/compatibility-and-support/supported-devices.html)              |
-| Other language realization | [C++](https://docs.openvino.ai/2025/learn-openvino/openvino-samples/image-classification-async.html)                           |
+| Other language realization | [C++](https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/image-classification-async.html)                           |
 
 The following Python API is used in the application:
 
@@ -24,4 +24,4 @@ The following Python API is used in the application:
 |                    | [openvino.runtime.AsyncInferQueue.wait_all](https://docs.openvino.ai/2025/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.wait_all),          |                           |
 |                    | [openvino.runtime.InferRequest.results](https://docs.openvino.ai/2025/api/ie_python_api/_autosummary/openvino.runtime.InferRequest.html#openvino.runtime.InferRequest.results)                      |                           |
 
-Basic OpenVINO™ Runtime API is covered by [Hello Classification Python Sample](https://docs.openvino.ai/2025/learn-openvino/openvino-samples/hello-classification.html).
+Basic OpenVINO™ Runtime API is covered by [Hello Classification Python Sample](https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/hello-classification.html).
