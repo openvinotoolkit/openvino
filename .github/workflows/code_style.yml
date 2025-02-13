@@ -112,7 +112,6 @@ jobs:
           reporter: github-pr-review
           check_all_files_with_shebangs: true
           fail_level: error
-          filter_mode: nofilter
           exclude: |
               "*/thirdparty/*"
               "./temp/*"
