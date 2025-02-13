@@ -120,7 +120,7 @@ private:
         return Xbyak_riscv::VReg(vec_idx);
     }
 
-    inline Xbyak_riscv::VReg aux_vec(const int idx = 0) {
+    inline Xbyak_riscv::VReg aux_vec(const int idx = 0) const {
         const auto vstart = src_vec(0).getIdx() + jep_.inputs_number;
         const auto lmul_v = static_cast<int>(lmul2float(exec_lmul));
         const auto vec_idx = (vstart + idx) * (lmul_v == 0 ? 1 : lmul_v);
@@ -176,8 +176,9 @@ private:
     Xbyak_riscv::LMUL exec_lmul = Xbyak_riscv::LMUL::m1;
     Xbyak_riscv::SEW exec_sew = Xbyak_riscv::SEW::e32;
 
-    void compute_eltwise_op();
-    void apply_post_ops();
+    void compute_eltwise_op() const;
+    void apply_post_ops() const;
+    void emit_data() const;
 
     const std::vector<EltwiseData> eltwise_data_;
     const std::vector<ov::intel_cpu::Type> ops_list_;

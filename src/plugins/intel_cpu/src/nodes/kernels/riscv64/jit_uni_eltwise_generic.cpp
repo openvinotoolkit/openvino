@@ -34,6 +34,15 @@ void jit_uni_eltwise_generic<isa>::generate() {
         post_op_emitters.push_back(create_eltwise_emitter(eltwise_data_[i], exec_prc));
     }
 
+    // Labels in Xbyak for RISC-V work with absolute addresses which are defined during call `L(label)`:
+    // If we store label to the GPR and only then call `L(label)` to define data section,
+    // during kernel compilation null-address will be stored to this GPRs since address will be inited later.
+    // To use data section, we define it before kernel execution for now.
+    Label start_point;
+    j_(start_point);
+    emit_data();
+    L(start_point);
+
     const auto& jep = jep_;
     const int offset_count = jep.input_size - 1;
 
@@ -395,7 +404,9 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
-void jit_uni_eltwise_generic<isa>::compute_eltwise_op() {
+void jit_uni_eltwise_generic<isa>::compute_eltwise_op() const {
+    OPENVINO_ASSERT(eltwise_emitter, "Eltwise emitter is missed for code emission!");
+
     std::vector<size_t> in_idxs;
     for (size_t i = 0; i < eltwise_emitter->get_inputs_num(); i++) {
         in_idxs.push_back(src_vec(i).getIdx());
@@ -427,10 +438,11 @@ void jit_uni_eltwise_generic<isa>::compute_eltwise_op() {
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
-void jit_uni_eltwise_generic<isa>::apply_post_ops() {
+void jit_uni_eltwise_generic<isa>::apply_post_ops() const {
     int input_idx = eltwise_emitter->get_inputs_num();
     int eltwise_post_op_idx = 0;
     for (size_t i = 1; i < eltwise_data_.size(); i++) {
+        OPENVINO_ASSERT(post_op_emitters[i], "Post-op emitter is missed for code emission!");
         std::vector<size_t> in_idxs;
         in_idxs.push_back(dst_vec().getIdx());
         for (size_t j = 1; j < post_op_emitters[eltwise_post_op_idx]->get_inputs_num(); j++) {
@@ -462,6 +474,16 @@ void jit_uni_eltwise_generic<isa>::apply_post_ops() {
         post_op_emitters[eltwise_post_op_idx]->emit_code(in_idxs, out_idxs, aux_vec_idxs, aux_gpr_idxs, aux_fp_gpr_idxs);
 
         eltwise_post_op_idx++;
+    }
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_uni_eltwise_generic<isa>::emit_data() const {
+    OPENVINO_ASSERT(eltwise_emitter, "Eltwise emitter is missed for data emission!");
+    eltwise_emitter->emit_data();
+    for (size_t i = 0; i < post_op_emitters.size(); i++) {
+        OPENVINO_ASSERT(post_op_emitters[i], "Post-op emitter is missed for data emission!");
+        post_op_emitters[i]->emit_data();
     }
 }
 

@@ -128,12 +128,6 @@ void jit_clamp_emitter::register_table_entries() {
     push_arg_entry_of("max", dnnl::impl::float2int(max));
 }
 
-const jit_clamp_emitter::table_entry_val_t* jit_clamp_emitter::get_table() const {
-    static uint32_t tbl[2];
-    fill_table(tbl, 2);
-    return tbl;
-}
-
 std::set<std::vector<element::Type>> jit_clamp_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
@@ -317,12 +311,6 @@ void jit_exp_emitter::register_table_entries() {
     push_arg_entry_of("exponent_bias", 0x0000007f);
 }
 
-const jit_exp_emitter::table_entry_val_t* jit_exp_emitter::get_table() const {
-    static uint32_t tbl[12];
-    fill_table(tbl, 12);
-    return tbl;
-}
-
 /// MUL ///
 jit_multiply_emitter::jit_multiply_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                            const std::shared_ptr<ov::Node>& node)
@@ -469,12 +457,6 @@ void jit_relu_emitter::register_table_entries() {
         push_arg_entry_of("alpha", dnnl::impl::float2int(alpha));
 }
 
-const jit_relu_emitter::table_entry_val_t* jit_relu_emitter::get_table() const {
-    static uint32_t tbl[1];
-    fill_table(tbl, 1);
-    return tbl;
-}
-
 /// Sigmoid ///
 jit_sigmoid_emitter::jit_sigmoid_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                          const std::shared_ptr<ov::Node>& node, const ov::element::Type exec_prc)
@@ -559,10 +541,9 @@ void jit_sigmoid_emitter::register_table_entries() {
     push_arg_entry_of("one", CONST_1_F);
 }
 
-const jit_sigmoid_emitter::table_entry_val_t* jit_sigmoid_emitter::get_table() const {
-    static uint32_t tbl[1];
-    fill_table(tbl, 1);
-    return tbl;
+void jit_sigmoid_emitter::emit_data() const {
+    jit_emitter::emit_data();
+    jit_exp_emitter_->emit_data();
 }
 
 std::set<std::vector<element::Type>> jit_sigmoid_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
