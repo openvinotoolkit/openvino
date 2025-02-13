@@ -412,36 +412,29 @@ void Input::cloneBlobIfRequired() {
                 static const size_t batch_size = 2048;
                 const size_t iterations_num = size / batch_size + 1;
 
-                volatile bool has_subnormals_local = false;
-                volatile bool has_bf16_overflows_local = false;
-                if (needFlushDenormalsToZero) {
+                std::atomic<bool> has_subnormals_local(false);
+                std::atomic<bool> has_bf16_overflows_local(false);
+                if (needFlushDenormalsToZero || do_bf16_saturation_check) {
                     parallel_for(iterations_num, [&](int n) {
                         auto ptr = u32data + n * batch_size;
-                        const jit_has_special_value_base::args_t args1 = {
-                            reinterpret_cast<float const*>(ptr),
-                            std::min(batch_size, (size_t)(u32data + size - ptr)),
-                            false};
+                        jit_has_special_value_base::args_t args = {reinterpret_cast<float const*>(ptr),
+                                                                   std::min(batch_size, (size_t)(u32data + size - ptr)),
+                                                                   false};
 
-                        fn(&args1);
-
-                        if (args1.hasTargetValues) {
-                            has_subnormals_local = true;
+                        if (needFlushDenormalsToZero && !has_subnormals_local) {
+                            fn(&args);
+                            if (args.hasTargetValues) {
+                                has_subnormals_local = true;
+                            }
                         }
-                    });
-                }
 
-                if (do_bf16_saturation_check) {
-                    parallel_for(iterations_num, [&](int n) {
-                        auto ptr2 = f32data + n * batch_size;
-                        const jit_has_special_value_base::args_t args2 = {
-                            reinterpret_cast<float const*>(ptr2),
-                            std::min(batch_size, (size_t)(f32data + size - ptr2)),
-                            false};
-
-                        fn_bf16_check(&args2);
-
-                        if (args2.hasTargetValues) {
-                            has_bf16_overflows_local = true;
+                        if (do_bf16_saturation_check && !has_bf16_overflows_local) {
+                            // batch_size is small enough, so source data are still cache-hot
+                            args.hasTargetValues = false;
+                            fn_bf16_check(&args);
+                            if (args.hasTargetValues) {
+                                has_bf16_overflows_local = true;
+                            }
                         }
                     });
                 }
