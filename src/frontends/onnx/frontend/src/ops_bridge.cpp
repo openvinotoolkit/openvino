@@ -3,6 +3,7 @@
 //
 
 #include "ops_bridge.hpp"
+#include "deform_conv.hpp"
 
 #include <functional>
 #include <iterator>
@@ -216,7 +217,11 @@ OperatorsBridge::OperatorsBridge() {
         }
     }
     // custom ops
+    // Register the DeformConv-19 and DeformConv-22 operations for ONNX frontend
+    m_map[""]["DeformConv"].emplace(19, std::bind(op::DeformConv, std::placeholders::_1));
+    m_map[""]["DeformConv"].emplace(22, std::bind(op::DeformConv, std::placeholders::_1));
 }
+
 
 #undef REGISTER_OPERATOR
 #undef REGISTER_OPERATOR_WITH_DOMAIN
