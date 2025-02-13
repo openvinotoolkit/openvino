@@ -10,7 +10,6 @@
 
 #include "intel_npu/common/blob_container.hpp"
 #include "intel_npu/network_metadata.hpp"
-#include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/runtime/profiling_info.hpp"
