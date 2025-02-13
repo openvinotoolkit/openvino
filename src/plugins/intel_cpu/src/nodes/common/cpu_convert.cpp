@@ -892,8 +892,7 @@ struct ConvertFrom4BitPrecision<std::tuple<src_t, dst_t>> {
     }
 };
 
-#define INTEL_CPU_CVT_TO_4BIT_LIST                                              \
-    INTEL_CPU_CVT(f32, nf4), INTEL_CPU_CVT(f16, nf4), INTEL_CPU_CVT(bf16, nf4)
+#define INTEL_CPU_CVT_TO_4BIT_LIST INTEL_CPU_CVT(f32, nf4), INTEL_CPU_CVT(f16, nf4), INTEL_CPU_CVT(bf16, nf4)
 
 struct ConvertTo4BitContext {
     ov::element::Type_t outType;
@@ -911,7 +910,7 @@ struct ConvertTo4BitPrecision<std::tuple<src_t, dst_t>> {
     void operator()(ConvertTo4BitContext& ctx) {
         auto insert_half_byte = [](uint8_t dst, uint8_t val, bool high_half) -> uint8_t {
             uint8_t shift = high_half ? 4 : 0;
-            return dst | (uint8_t) (val << shift);
+            return dst | (uint8_t)(val << shift);
         };
 
         auto src = static_cast<const src_t*>(ctx.srcPtr);
@@ -921,13 +920,14 @@ struct ConvertTo4BitPrecision<std::tuple<src_t, dst_t>> {
         auto has_tail = ctx.size % work_amount != 0;
         if (ctx.outType == ov::element::nf4) {
             parallel_for(work_amount, [&](size_t ib) {
-               size_t idx = ib*2;
-               const auto val = insert_half_byte(0, ConvertNF4::quantize(static_cast<float>(src[idx])), false);
-               dst[ib] = insert_half_byte(val, ConvertNF4::quantize(static_cast<float>(src[idx+1])), true);
+                size_t idx = ib * 2;
+                const auto val = insert_half_byte(0, ConvertNF4::quantize(static_cast<float>(src[idx])), false);
+                dst[ib] = insert_half_byte(val, ConvertNF4::quantize(static_cast<float>(src[idx + 1])), true);
             });
 
             if (has_tail) {
-                dst[work_amount] = insert_half_byte(0, ConvertNF4::quantize(static_cast<float>(src[2*work_amount])), false);
+                dst[work_amount] =
+                    insert_half_byte(0, ConvertNF4::quantize(static_cast<float>(src[2 * work_amount])), false);
             }
         } else {
             OPENVINO_THROW("cpu_convert doesn't support output data type: ", ctx.outType, ". Not implemented.");

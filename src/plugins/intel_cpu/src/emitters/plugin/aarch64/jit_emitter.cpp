@@ -43,10 +43,10 @@ const std::vector<size_t> jit_emitter::store_gpr_regs = {
 static const std::vector<size_t> vec_regs = {0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15,
                                              16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
 
-void jit_emitter::emit_code(const std::vector<size_t>& in_idxs,
-                            const std::vector<size_t>& out_idxs,
-                            const std::vector<size_t>& pool_vec_idxs,
-                            const std::vector<size_t>& pool_gpr_idxs) const {
+void jit_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
+                                 const std::vector<size_t>& out_idxs,
+                                 const std::vector<size_t>& pool_vec_idxs,
+                                 const std::vector<size_t>& pool_gpr_idxs) const {
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
     emit_impl(in_idxs, out_idxs);
