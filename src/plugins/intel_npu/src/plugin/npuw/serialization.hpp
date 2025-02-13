@@ -18,7 +18,7 @@
 const constexpr std::array<uint8_t, 6> NPUW_SERIALIZATION_INDICATOR =
     {char{0x13}, char{0x37}, char{0x6e}, char{0x70}, char{0x75}, char{0x77}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.0";
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.1";
 
 // Forward declaration
 namespace intel_npu {

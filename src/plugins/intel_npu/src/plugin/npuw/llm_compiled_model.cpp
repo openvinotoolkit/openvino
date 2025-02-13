@@ -672,6 +672,7 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     write(stream, m_kvcache_desc.total_size);
     write(stream, m_kvcache_desc.num_stored_tokens);
     write(stream, m_kvcache_desc.dim);
+    write(stream, m_kvcache_desc.v_tensors_transposed);
 
     // Write config
     write(stream, m_cfg);
@@ -767,6 +768,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     read(stream, compiled->m_kvcache_desc.total_size);
     read(stream, compiled->m_kvcache_desc.num_stored_tokens);
     read(stream, compiled->m_kvcache_desc.dim);
+    read(stream, compiled->m_kvcache_desc.v_tensors_transposed);
 
     // Deserialize config
     read(stream, compiled->m_cfg);
