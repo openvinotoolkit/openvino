@@ -8,9 +8,8 @@
 #include "function_guard.hpp"
 #include "layout_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "preprocess_impls.hpp"
-#include "openvino/opsets/opset1.hpp" 
-#include "preprocess_steps.hpp"
 
 namespace ov {
 namespace preprocess {
@@ -269,7 +268,7 @@ InputTensorInfo& InputTensorInfo::set_from(const ov::Tensor& runtime_tensor) {
 PreProcessSteps::PreProcessSteps() : m_impl(std::unique_ptr<PreProcessStepsImpl>(new PreProcessStepsImpl())) {}
 PreProcessSteps::~PreProcessSteps() = default;
 
-PreProcessSteps& PreProcessSteps::clamp(float min_value, float max_value) {
+PreProcessSteps& PreProcessSteps::clamp(double min_value, double max_value) {
     m_impl->add_clamp(min_value, max_value);
     return *this;
 }

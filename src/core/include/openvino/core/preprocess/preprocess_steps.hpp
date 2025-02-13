@@ -36,7 +36,7 @@ public:
     /// \brief Default destructor
     ~PreProcessSteps();
 
-    PreProcessSteps& clamp(float min_value, float max_value);
+    PreProcessSteps& clamp(double min_value, double max_value);
 
     /// \brief Add convert element type preprocess operation
     ///

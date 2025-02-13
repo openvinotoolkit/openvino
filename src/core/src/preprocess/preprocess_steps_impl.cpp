@@ -13,7 +13,6 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/util/common_util.hpp"
 #include "transformations/rt_info/preprocessing_attribute.hpp"
-#include "openvino/opsets/opset1.hpp" 
 
 namespace ov {
 namespace preprocess {
@@ -100,9 +99,9 @@ void PreStepsList::add_scale_impl(const std::vector<float>& values) {
         "scale " + vector_to_string(values));
 }
 
-void PreStepsList::add_clamp(float min_value, float max_value) {
+void PreStepsList::add_clamp(double min_value, double max_value) {
     std::string name = "clamp(min " + std::to_string(min_value) + ", max " + std::to_string(max_value) + ")";
-    
+
     m_actions.emplace_back(
         [min_value, max_value](const std::vector<Output<Node>>& nodes,
                                const std::shared_ptr<Model>& function,
@@ -111,10 +110,11 @@ void PreStepsList::add_clamp(float min_value, float max_value) {
                             "Can't apply clamp to multi-plane input. Suggesting to convert current image to "
                             "RGB/BGR color format using 'PreProcessSteps::convert_color'");
 
-            const auto& node = nodes[0];
+            const auto& node = nodes.front();
             auto element_type = node.get_element_type();
             OPENVINO_ASSERT(element_type.is_real(),
-                            "Clamp preprocessing can be applied to 'float' inputs. Consider using 'convert_element_type' before clamping. Current type is: ",
+                            "Clamp preprocessing can be applied to 'double' inputs. Consider using "
+                            "'convert_element_type' before clamping. Current type is: ",
                             element_type);
 
             auto clamp_op = std::make_shared<ov::op::v0::Clamp>(node, min_value, max_value);
@@ -122,7 +122,6 @@ void PreStepsList::add_clamp(float min_value, float max_value) {
         },
         name);
 }
-
 
 void PreStepsList::add_mean_impl(const std::vector<float>& values) {
     m_actions.emplace_back(
