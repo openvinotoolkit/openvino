@@ -22,7 +22,8 @@ public:
     If(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
-    void initSupportedPrimitiveDescriptors() override;
+    // void initSupportedPrimitiveDescriptors() override;
+    void selectOptimalPrimitiveDescriptor() override;
     void getSupportedDescriptors() override {}
     int registerToAllocationContext(int offset, AllocationContext& context) override;
     void createPrimitive() override;
