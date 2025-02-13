@@ -9,7 +9,7 @@
 
 {% block body %}
 <atomic-search-interface id="search" localization-compatibility-version="v4"
-  fields-to-include='["ovversion", "ovcategory", "filetype", "date", "source", "author", "sourcetype", "language", "description"]'>
+  fields-to-include='["ovversion", "ovdoctype", "ovcategory", "filetype", "date", "source", "sourcetype", "language", "description"]'>
   <atomic-search-layout>
     <atomic-layout-section section="search">
       <atomic-search-box>
@@ -26,11 +26,10 @@
             <i class="fas fa-list"></i> List
           </button>
         </div>
-        <atomic-category-facet facet-id="ovcategory" field="ovcategory" label="Category" depends-on-ovversion
-          sort-criteria="occurrences" number-of-values="4" with-search="true" delimiting-character="|">
-        </atomic-category-facet>
-        <atomic-facet facet-id="ovversion" field="ovversion" label="Version" sort-criteria="occurrences">
-        </atomic-facet>
+        <atomic-facet field="ovversion" label="Versions" sort-criteria="automatic"></atomic-facet>
+        <atomic-facet field="ovdoctype" label="Categories" sort-criteria="occurrences" number-of-values="6" depends-on-ovversion with-search="false"></atomic-facet>
+        <atomic-category-facet field="ovcategory" label="Subcategories" sort-criteria="occurrences" number-of-values="6" depends-on-ovdoctype with-search="false" delimiting-character="|">
+        </atomic-category-facet>        
       </atomic-facet-manager>
     </atomic-layout-section>
     <atomic-layout-section section="main">
@@ -86,6 +85,13 @@
       </atomic-layout-section>
       <atomic-layout-section section="pagination">
         <atomic-load-more-results></atomic-load-more-results>
+        <!-- <atomic-pager></atomic-pager>
+        <atomic-results-per-page
+          data-atomic-rendered="false"
+          data-atomic-loaded="false"
+          class="atomic-hidden hydrated"
+          choices-displayed="10,25,50,100">
+       </atomic-results-per-page> -->
       </atomic-layout-section>
     </atomic-layout-section>
   </atomic-search-layout>
