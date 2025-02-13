@@ -609,7 +609,8 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         }
         // Ignore other types of extensions in particular CreatorFunctionNamed which cannot be used with tensorflow
         // frontend
-    } else if (const auto& tensorflow_conv_ext = ov::as_type_ptr<ov::frontend::tensorflow::ConversionExtension>(extension)) {
+    } else if (const auto& tensorflow_conv_ext =
+                   ov::as_type_ptr<ov::frontend::tensorflow::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(tensorflow_conv_ext);
         m_op_translators[tensorflow_conv_ext->get_op_type()] = tensorflow_conv_ext->get_converter();
     } else if (auto op_base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension)) {
