@@ -393,7 +393,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
             }
         }
         return res;
-    } else if (name == ov::internal::exclusive_async_requests.name()) {
+    }
+    if (name == ov::internal::exclusive_async_requests.name()) {
         return engConfig.exclusiveAsyncRequests;
     } else if (name == ov::hint::dynamic_quantization_group_size) {
         return static_cast<decltype(ov::hint::dynamic_quantization_group_size)::value_type>(
@@ -478,7 +479,8 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
     }
     if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type(deviceFullName);
-    } else if (name == ov::available_devices) {
+    }
+    if (name == ov::available_devices) {
         const std::vector<std::string> availableDevices = {""};
         return decltype(ov::available_devices)::value_type(availableDevices);
     } else if (name == ov::device::capabilities) {
