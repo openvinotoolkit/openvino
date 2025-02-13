@@ -728,17 +728,21 @@ std::vector<memory::format_tag> Node::getAvailableFormatsForDims(const Shape& di
     }
     if (dims.getRank() == 1) {
         return {memory::format_tag::x};
-    } else if (dims.getRank() == 2) {
+    }
+    if (dims.getRank() == 2) {
         return {memory::format_tag::nc};
-    } else if (dims.getRank() == 3) {
+    }
+    if (dims.getRank() == 3) {
         return {memory::format_tag::tnc,
                 memory::format_tag::ntc,
                 memory::format_tag::ncw,
                 memory::format_tag::nCw8c,
                 memory::format_tag::nCw16c};
-    } else if (dims.getRank() == 4) {
+    }
+    if (dims.getRank() == 4) {
         return {memory::format_tag::nchw, memory::format_tag::nChw8c, memory::format_tag::nChw16c};
-    } else if (dims.getRank() == 5) {
+    }
+    if (dims.getRank() == 5) {
         return {memory::format_tag::ncdhw, memory::format_tag::nCdhw8c, memory::format_tag::nCdhw16c};
     }
     return {memory::format_tag::any};
@@ -2087,9 +2091,8 @@ void Node::resolveInPlaceDirection() {
                 }
                 if (inPlaceOutPort < 0) {
                     return InplaceDirectionType::DOWN;
-                } else {
-                    OPENVINO_THROW("Non trivial inPlace memory dependency has been detected");
                 }
+                OPENVINO_THROW("Non trivial inPlace memory dependency has been detected");
             }
             // the requested port has a negative inPlace tag, let's check whether it is referenced from the output
             auto& config = node->getSelectedPrimitiveDescriptor()->getConfig();
@@ -2107,9 +2110,8 @@ void Node::resolveInPlaceDirection() {
                 }
                 if (inPlaceInpPort < 0) {
                     return InplaceDirectionType::UP;
-                } else {
-                    OPENVINO_THROW("Non trivial inPlace memory dependency has been detected");
                 }
+                OPENVINO_THROW("Non trivial inPlace memory dependency has been detected");
             }
             // the requested port has a negative inPlace tag, let's check whether it is referenced from the input
             auto& config = node->getSelectedPrimitiveDescriptor()->getConfig();
