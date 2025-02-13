@@ -2005,15 +2005,17 @@ TEST(gather_gpu_fp32, indice_out_of_bound) {
     }
 }
 
-TEST(gather_cpu_impl_fp32, dynamic_322_axisF) {
-    auto& engine = get_test_engine();
+void gather_cpu_impl_fp32_dynamic_322_axisF(bool disable_usm = false);
+void gather_cpu_impl_fp32_dynamic_322_axisF(bool disable_usm) {
+    auto engine = create_test_engine();
+    engine->disable_usm  = disable_usm;
 
     ov::Shape in1_shape = { 3, 3 };
     ov::Shape in2_shape = { 2, 2 };
     auto in1_layout = layout{ov::PartialShape::dynamic(in1_shape.size()), data_types::f32, format::bfyx};
     auto in2_layout = layout{ov::PartialShape::dynamic(in2_shape.size()), data_types::i32, format::bfyx};
-    auto input1 = engine.allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx}); // data
-    auto input2 = engine.allocate_memory(layout{ov::PartialShape(in2_shape), data_types::i32, format::bfyx}); // Indexes
+    auto input1 = engine->allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx}); // data
+    auto input2 = engine->allocate_memory(layout{ov::PartialShape(in2_shape), data_types::i32, format::bfyx}); // Indexes
 
     int64_t axis = 1;
     set_values(input1, {0, 1, 2, 10, 11, 12, 20, 21, 22 });
@@ -2024,10 +2026,10 @@ TEST(gather_cpu_impl_fp32, dynamic_322_axisF) {
     topology.add(input_layout("input2", in2_layout));
     topology.add(gather("gather", input_info("input1"), input_info("input2"), axis, 0, ov::Shape{}));
 
-    auto config = get_test_default_config(engine);
+    auto config = get_test_default_config(*engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gather", {format::bfyx, "", impl_types::cpu}} }));
-    network network(engine, topology, config);
+    network network(*engine, topology, config);
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
 
@@ -2047,6 +2049,14 @@ TEST(gather_cpu_impl_fp32, dynamic_322_axisF) {
     for (size_t i = 0; i < expected_results.size(); ++i) {
         ASSERT_EQ(expected_results[i], output_ptr[i]) << i;
     }
+}
+
+TEST(gather_cpu_impl_fp32, dynamic_322_axisF) {
+    gather_cpu_impl_fp32_dynamic_322_axisF();
+}
+
+TEST(gather_cpu_impl_fp32, dynamic_322_axisF_disable_usm) {
+    gather_cpu_impl_fp32_dynamic_322_axisF(true);
 }
 
 template <typename T>

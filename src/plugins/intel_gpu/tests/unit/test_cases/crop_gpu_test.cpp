@@ -1257,12 +1257,10 @@ INSTANTIATE_TEST_SUITE_P(export_import_crop_test, crop_gpu,
                                 ::testing::Values(true)
                                 ));
 
-class crop_gpu_dynamic : public ::testing::TestWithParam<std::tuple<impl_types>> {};
-TEST_P(crop_gpu_dynamic, i32_in2x3x2x2_crop_offsets) {
-    auto test_params = GetParam();
-    impl_types impl_type = std::get<0>(test_params);
-
-    auto& engine = get_test_engine();
+void crop_gpu_dynamic_i32_in2x3x2x2_crop_offsets(impl_types impl_type, bool disable_usm = false);
+void crop_gpu_dynamic_i32_in2x3x2x2_crop_offsets(impl_types impl_type, bool disable_usm) {
+    auto engine = create_test_engine();
+    engine->disable_usm  = disable_usm;
 
     auto batch_num = 2;
     auto feature_num = 2;
@@ -1282,7 +1280,7 @@ TEST_P(crop_gpu_dynamic, i32_in2x3x2x2_crop_offsets) {
     auto input_dyn_layout    = layout{ ov::PartialShape{ov::Dimension(1, 10), feature_num, y_size, x_size}, data_types::f32, format::bfyx };
     auto input_actual_layout = layout{ ov::PartialShape{batch_num, feature_num, y_size, x_size}, data_types::f32, format::bfyx };
 
-    auto input = engine.allocate_memory(input_actual_layout);
+    auto input = engine->allocate_memory(input_actual_layout);
 
     topology topology;
     topology.add(input_layout("input", input_dyn_layout));
@@ -1291,7 +1289,7 @@ TEST_P(crop_gpu_dynamic, i32_in2x3x2x2_crop_offsets) {
     std::vector<float> input_vec = {1.f, 0.f,  5.f, 15.f, 2.f, 0.f,  6.f, 52.f, -10.f, -11.f, -12.f, -13.f,
                                     3.f, 50.f, 7.f, 12.f, 4.f, -5.f, 8.f, 8.f,  -14.f, -15.f, -16.f, -17.f};
     set_values(input, input_vec);
-    ExecutionConfig config1 = get_test_default_config(engine);
+    ExecutionConfig config1 = get_test_default_config(*engine);
     config1.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     ExecutionConfig config2 = config1;
 
@@ -1300,7 +1298,7 @@ TEST_P(crop_gpu_dynamic, i32_in2x3x2x2_crop_offsets) {
         config1.set_property(ov::intel_gpu::force_implementations(forcing_map));
     }
 
-    network network1(engine, topology, config1); // run with shape agnostic kernel
+    network network1(*engine, topology, config1); // run with shape agnostic kernel
     network1.set_input_data("input", input);
     auto outputs1 = network1.execute();
     auto output1 = outputs1.at("crop").get_memory();
@@ -1317,7 +1315,7 @@ TEST_P(crop_gpu_dynamic, i32_in2x3x2x2_crop_offsets) {
         }
     }
     config2.set_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape(true));
-    network network2(engine, topology, config2); // run with static kernel
+    network network2(*engine, topology, config2); // run with static kernel
     network2.set_input_data("input", input);
     auto outputs2 = network2.execute();
     auto output2 = outputs2.at("crop").get_memory();
@@ -1334,12 +1332,22 @@ TEST_P(crop_gpu_dynamic, i32_in2x3x2x2_crop_offsets) {
         }
     }
 }
+using ConfigParams = std::tuple<impl_types, bool>;
+class crop_gpu_dynamic : public ::testing::TestWithParam<ConfigParams> {};
+TEST_P(crop_gpu_dynamic, i32_in2x3x2x2_crop_offsets) {
+    impl_types impl_type;
+    bool disable_usm;
+    std::tie(impl_type, disable_usm) = GetParam();
+    crop_gpu_dynamic_i32_in2x3x2x2_crop_offsets(impl_type, disable_usm);
+}
 
-static std::vector<impl_types> impls = { impl_types::any, impl_types::cpu };
+const std::vector<ConfigParams> testConfigs = {
+    ConfigParams{impl_types::any, false},
+    ConfigParams{impl_types::cpu, false},
+    ConfigParams{impl_types::cpu, true}
+};
 INSTANTIATE_TEST_SUITE_P(crop_test, crop_gpu_dynamic,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(impls)
-                                ));
+                        ::testing::ValuesIn(testConfigs));
 
 TEST(crop_gpu, dynamic_in1x4x1x1_split) {
     auto& engine = get_test_engine();
