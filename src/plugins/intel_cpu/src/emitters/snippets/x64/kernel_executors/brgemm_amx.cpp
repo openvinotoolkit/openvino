@@ -18,12 +18,12 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov::intel_cpu {
+namespace ov::intel_cpu::x64 {
 
 BrgemmAMXKernelConfig::BrgemmAMXKernelConfig(const element::Type& in0_dtype,
                                              const element::Type& in1_dtype,
                                              dnnl::impl::cpu::x64::cpu_isa_t primitive_isa)
-    : BrgemmBaseKernelConfig_x64(),
+    : BrgemmBaseKernelConfig(),
       m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, primitive_isa)) {
     m_hash = compute_hash();
 }
@@ -223,7 +223,7 @@ void BrgemmAMXKernelExecutor::create_brgemm_copy_a_kernel(
 void BrgemmAMXKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                                             const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                             BrgemmAMXKernelConfig& config) const {
-    return BrgemmBaseKernelExecutor_x64::update_config(expr, linear_ir, config);
+    return BrgemmBaseKernelExecutor::update_config(expr, linear_ir, config);
 }
 
 void BrgemmAMXKernelExecutor::configure_tiles_if_needed(amx_tile_config_t* config,
@@ -313,4 +313,4 @@ void BrgemmAMXKernelExecutor::execute(const BrgemmAMXKernelExecutor* executor, c
 #undef EQ
 #undef HASH
 
-}  // namespace ov::intel_cpu
+}  // namespace ov::intel_cpu::x64

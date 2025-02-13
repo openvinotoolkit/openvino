@@ -13,18 +13,17 @@
 
 namespace ov::intel_cpu {
 
-struct BrgemmBaseKernelConfig : public snippets::KernelExecutorBase::GenericConfig {
+struct BrgemmGenericKernelConfig : public snippets::KernelExecutorBase::GenericConfig {
 public:
-    BrgemmBaseKernelConfig() = default;
+    BrgemmGenericKernelConfig() = default;
 
     bool is_completed() const override;
     bool is_empty() const;
 
-    void update(int64_t M, int64_t N, int64_t K, float beta);
     void update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta);
 
-    bool operator==(const BrgemmBaseKernelConfig& rhs) const;
-    bool operator!=(const BrgemmBaseKernelConfig& rhs) const {
+    bool operator==(const BrgemmGenericKernelConfig& rhs) const;
+    bool operator!=(const BrgemmGenericKernelConfig& rhs) const {
         return !(*this == rhs);
     }
 
@@ -61,18 +60,17 @@ protected:
     float m_beta{0};
 };
 
-class BrgemmBaseKernelExecutor {
+class BrgemmKernelExecutorHelper {
 public:
-    virtual ~BrgemmBaseKernelExecutor() = default;
+    virtual ~BrgemmKernelExecutorHelper() = default;
 
-protected:
     static float get_beta(const ov::snippets::lowered::LoopManagerPtr& loop_manager,
                           int loop_id,
                           const ov::snippets::lowered::ExpandedLoopInfoPtr& current_expanded_loop_info);
 
-    static void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
-                              const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-                              BrgemmBaseKernelConfig& config);
+    static std::tuple<int64_t, int64_t, int64_t, float> get_runtime_brgemm_params(
+        const ov::snippets::lowered::ExpressionPtr& expr,
+        const ov::snippets::lowered::LinearIRCPtr& linear_ir);
 };
 
 }  // namespace ov::intel_cpu

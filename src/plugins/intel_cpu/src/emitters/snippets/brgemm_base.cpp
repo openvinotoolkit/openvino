@@ -14,41 +14,25 @@
 
 namespace ov::intel_cpu {
 
-bool BrgemmBaseKernelConfig::is_completed() const {
+bool BrgemmGenericKernelConfig::is_completed() const {
     return !one_of(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC) || is_empty();
 }
 
-bool BrgemmBaseKernelConfig::is_empty() const {
+bool BrgemmGenericKernelConfig::is_empty() const {
     return everyone_is(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC, m_beta);
 }
 
-bool BrgemmBaseKernelConfig::operator==(const BrgemmBaseKernelConfig& rhs) const {
+bool BrgemmGenericKernelConfig::operator==(const BrgemmGenericKernelConfig& rhs) const {
     return EQ(m_beta) && EQ(m_M) && EQ(m_N) && EQ(m_K) && EQ(m_LDA) && EQ(m_LDB) && EQ(m_LDC);
 }
 
-void BrgemmBaseKernelConfig::update(int64_t M, int64_t N, int64_t K, float beta) {
-    // If M is zero, it means that Brgemm won't be executed (in Loop with work_amount = 0, for example)
-    // To process this case, we have to make this Config as empty (nullify runtime parameters)
-    if (one_of(0, M, N, K)) {
-        m_M = 0;
-        m_N = 0;
-        m_K = 0;
-        m_beta = 0;
-    } else {
-        m_M = M;
-        m_N = N;
-        m_K = K;
-        m_beta = beta;
-    }
-}
-
-void BrgemmBaseKernelConfig::update(int64_t M,
-                                    int64_t N,
-                                    int64_t K,
-                                    int64_t LDA,
-                                    int64_t LDB,
-                                    int64_t LDC,
-                                    float beta) {
+void BrgemmGenericKernelConfig::update(int64_t M,
+                                       int64_t N,
+                                       int64_t K,
+                                       int64_t LDA,
+                                       int64_t LDB,
+                                       int64_t LDC,
+                                       float beta) {
     // If M is zero, it means that Brgemm won't be executed (in Loop with work_amount = 0, for example)
     // To process this case, we have to make this Config as empty (nullify runtime parameters)
     if (one_of(0, M, N, K)) {
@@ -70,7 +54,7 @@ void BrgemmBaseKernelConfig::update(int64_t M,
     }
 }
 
-size_t BrgemmBaseKernelConfig::compute_hash() const {
+size_t BrgemmGenericKernelConfig::compute_hash() const {
     size_t seed = 0;
     HASH(m_M);
     HASH(m_N);
@@ -83,7 +67,7 @@ size_t BrgemmBaseKernelConfig::compute_hash() const {
 }
 
 #ifdef SNIPPETS_DEBUG_CAPS
-std::string BrgemmBaseKernelConfig::to_string() const {
+std::string BrgemmGenericKernelConfig::to_string() const {
     std::stringstream ss;
     PRINT(m_M);
     PRINT(m_N);
@@ -96,9 +80,10 @@ std::string BrgemmBaseKernelConfig::to_string() const {
 }
 #endif
 
-float BrgemmBaseKernelExecutor::get_beta(const ov::snippets::lowered::LoopManagerPtr& loop_manager,
-                                         int loop_id,
-                                         const ov::snippets::lowered::ExpandedLoopInfoPtr& current_expanded_loop_info) {
+float BrgemmKernelExecutorHelper::get_beta(
+    const ov::snippets::lowered::LoopManagerPtr& loop_manager,
+    int loop_id,
+    const ov::snippets::lowered::ExpandedLoopInfoPtr& current_expanded_loop_info) {
     // Find all Expanded loops with the same Unified loop information -> they were decomposed from this Unified Loop.
     // Note that LoopInfo are normalized and sorted (due to NormalizedLoopIDs pass).
     // It means that previous executed Loops have Loop ID less the current Loop ID.
@@ -125,9 +110,9 @@ float BrgemmBaseKernelExecutor::get_beta(const ov::snippets::lowered::LoopManage
     return 0;
 }
 
-void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
-                                             const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-                                             BrgemmBaseKernelConfig& config) {
+std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_runtime_brgemm_params(
+    const ov::snippets::lowered::ExpressionPtr& expr,
+    const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
     const auto& input_pds = expr->get_input_port_descriptors();
     const auto& output_pds = expr->get_output_port_descriptors();
     OV_CPU_JIT_EMITTER_ASSERT((input_pds.size() == 2 || input_pds.size() == 3) && output_pds.size() == 1,
@@ -223,7 +208,7 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
         }
     }
 
-    config.update(static_cast<int64_t>(M), static_cast<int64_t>(N), static_cast<int64_t>(K), beta);
+    return std::make_tuple(M, N, K, beta);
 }
 
 #undef PRINT

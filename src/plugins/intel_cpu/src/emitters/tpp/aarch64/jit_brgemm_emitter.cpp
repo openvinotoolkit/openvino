@@ -41,10 +41,10 @@ void jit_brgemm_emitter::validate_arguments(const std::vector<size_t>& in, const
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Expects 1 output reg, got" + std::to_string(out.size()));
 }
 
-void jit_brgemm_emitter::emit_code(const std::vector<size_t>& in,
-                                   const std::vector<size_t>& out,
-                                   const std::vector<size_t>& pool_vec_idxs,
-                                   const std::vector<size_t>& pool_gpr_idxs) const {
+void jit_brgemm_emitter::emit_code_impl(const std::vector<size_t>& in,
+                                        const std::vector<size_t>& out,
+                                        const std::vector<size_t>& pool_vec_idxs,
+                                        const std::vector<size_t>& pool_gpr_idxs) const {
     validate_arguments(in, out);
     emit_impl(in, out);
 }
