@@ -117,6 +117,9 @@ public:
 
     int max_concurrency();
 
+    void start_parallel_phase();
+    void end_parallel_phase();
+
     template <typename F>
     void enqueue(F&& f) {
         initialize();

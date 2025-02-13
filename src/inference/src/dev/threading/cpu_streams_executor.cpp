@@ -385,7 +385,9 @@ struct CPUStreamsExecutor::Impl {
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
         auto& arena = stream._taskArena;
         if (nullptr != arena) {
+            arena->start_parallel_phase();
             arena->execute(std::move(task));
+            arena->end_parallel_phase();
         } else {
             task();
         }
