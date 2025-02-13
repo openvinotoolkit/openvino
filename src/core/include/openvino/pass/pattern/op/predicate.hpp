@@ -17,7 +17,7 @@ namespace ov::pass::pattern {
 
 /// \brief Wrapper to uniformly store and access Matcher symbol information.
 class OPENVINO_API PatternSymbolValue {
-    public:
+public:
     PatternSymbolValue();
     PatternSymbolValue(const std::shared_ptr<ov::Symbol>& s);
     PatternSymbolValue(const int64_t& i);
@@ -37,7 +37,7 @@ class OPENVINO_API PatternSymbolValue {
     std::shared_ptr<ov::Symbol> s() const;
     std::vector<PatternSymbolValue> g() const;
 
-    private:
+private:
     bool is_valid() const;
 
     ov::Any m_value;

@@ -28,16 +28,16 @@ PatternValueMap as_pattern_value_map(const PatternMap& pattern_map);
 
 template <typename T>
 op::Predicate has_class() {
-    auto gcc_abi_compatibility = true;
-    auto pred = [gcc_abi_compatibility](std::shared_ptr<Node> node) -> bool {
+    [[maybe_unused]] bool unused;
+    auto pred = [unused = true](std::shared_ptr<Node> node) -> bool {
         return ov::is_type<T>(std::move(node));
     };
     return op::Predicate(pred, "has_class<" + std::string(typeid(T).name()) + ">()");
 }
 template <typename T>
 op::Predicate class_other_than() {
-    auto gcc_abi_compatibility = true;
-    auto pred = [gcc_abi_compatibility](std::shared_ptr<Node> node) -> bool {
+    [[maybe_unused]] bool unused;
+    auto pred = [unused = true](std::shared_ptr<Node> node) -> bool {
         return !ov::is_type<T>(std::move(node));
     };
     return op::Predicate(pred, "class_other_than<" + std::string(typeid(T).name()) + ">()");

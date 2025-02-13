@@ -127,18 +127,18 @@ op::Predicate has_static_dims(const std::vector<size_t>& dims) {
 }
 
 op::Predicate has_static_shape() {
-    auto gcc_abi_compatibility = true;
+    [[maybe_unused]] bool unused;
     return op::Predicate(
-        [gcc_abi_compatibility](const Output<Node>& output) -> bool {
+        [unused = true](const Output<Node>& output) -> bool {
             return output.get_partial_shape().is_static();
         },
         "has_static_shape");
 }
 
 op::Predicate has_static_rank() {
-    auto gcc_abi_compatibility = true;
+    [[maybe_unused]] bool unused;
     return op::Predicate(
-        [gcc_abi_compatibility](const Output<Node>& output) -> bool {
+        [unused = true](const Output<Node>& output) -> bool {
             return output.get_partial_shape().rank().is_static();
         },
         "has_static_rank");

@@ -75,6 +75,6 @@ std::shared_ptr<Node> wrap_type(const OutputVector& inputs = {}) {
 
 template <class... Args, typename Fn, typename std::enable_if_t<std::is_constructible_v<op::Predicate, Fn>>* = nullptr>
 std::shared_ptr<Node> wrap_type(const Fn& pred) {
-    return wrap_type<Args...>({}, pred);
+    return wrap_type<Args...>({}, op::Predicate(pred));
 }
 }  // namespace ov::pass::pattern

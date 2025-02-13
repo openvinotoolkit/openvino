@@ -169,6 +169,11 @@ public:
     PatternSymbolMap& get_symbols() {
         return m_pattern_symbols;
     }
+
+    const PatternSymbolMap& get_symbols() const {
+        return m_pattern_symbols;
+    }
+
     PatternValueMaps& get_pattern_value_maps() {
         return m_pattern_value_maps;
     }
