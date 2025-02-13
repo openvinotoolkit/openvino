@@ -41,6 +41,9 @@ jobs:
           level: warning
           fail_level: error
           filter_mode: nofilter
+          exclude: |
+              "*/thirdparty/*"
+              "./temp/*"
 
   clang-format-aarch64:
     runs-on: ubuntu-22.04
@@ -73,6 +76,10 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           level: warning
           fail_level: error
+          filter_mode: nofilter
+          exclude: |
+              "*/thirdparty/*"
+              "./temp/*"
 
   ShellCheck:
     runs-on: ubuntu-22.04
@@ -105,6 +112,7 @@ jobs:
           reporter: github-pr-review
           check_all_files_with_shebangs: true
           fail_level: error
+          filter_mode: nofilter
           exclude: |
               "*/thirdparty/*"
               "./temp/*"
