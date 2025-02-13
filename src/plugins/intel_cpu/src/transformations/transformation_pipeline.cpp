@@ -121,6 +121,7 @@
 #include "low_precision/group_convolution.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 #include "low_precision/network_helper.hpp"
+#include "low_precision/mat_mul.hpp"
 #include "low_precision/recurrent_cell.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
@@ -806,14 +807,12 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
                    WeightableLayerTransformation::isAsymmetricOnWeights(node, defaultPrecisions);
         },
         ConvolutionBackpropDataTransformation);
-#if !defined(OPENVINO_ARCH_ARM64)
     CPU_SET_CALLBACK_COMMON(
         lptManager,
         [](const_node_ptr& node) -> bool {
             return ov::marked_as_bias(node);
         },
         AddTransformation);
-#endif
 
     CPU_SET_CALLBACK_X64(
         lptManager,
@@ -843,6 +842,7 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
         },
         FuseConvertTransformation);
 
+    CPU_DISABLE_PASS_ARM(lptManager, MatMulTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, RecurrentCellTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
@@ -1292,7 +1292,7 @@ void Transformations::PostSnippets(void) {
     ov::pass::Manager postSnippetsManager("CPU:PostSnippets");
     postSnippetsManager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeQuantizeDecomposition);
-    CPU_SET_CALLBACK_X64(
+    CPU_SET_CALLBACK_COMMON(
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
             std::string errMsg;
