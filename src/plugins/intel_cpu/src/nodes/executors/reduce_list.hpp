@@ -13,8 +13,7 @@
 #include "common/primitive_cache.hpp"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct ReduceExecutorDesc {
     ExecutorType executorType;
@@ -80,5 +79,4 @@ private:
 using ReduceExecutorFactoryPtr = std::shared_ptr<ReduceExecutorFactory>;
 using ReduceExecutorFactoryCPtr = std::shared_ptr<const ReduceExecutorFactory>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

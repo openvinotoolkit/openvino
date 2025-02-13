@@ -31,6 +31,13 @@ def is_torch_compile():
             return True
     return False
 
+def is_keras3():
+    import traceback
+    for line in traceback.format_stack():
+        if os.path.join("keras", "src", "backend", "openvino") in line:
+            return True
+    return False
+
 def init_ovc_telemetry(app_name='OVC', app_version=None):
     app_version = app_version if app_version is not None else get_rt_version()
     return init_telemetry_class(tid=get_tid(),

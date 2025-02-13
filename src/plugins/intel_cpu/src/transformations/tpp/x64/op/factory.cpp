@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +9,7 @@
 #include "ov_ops/type_relaxed.hpp"
 #include "reduce.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
-namespace op {
+namespace ov::intel_cpu::tpp::op {
 namespace {
 struct CustomPowerStaticBuilder : public NodeFactory::TPPCustomBuilder {
     CustomPowerStaticBuilder() : NodeFactory::TPPCustomBuilder() {
@@ -27,12 +24,13 @@ struct CustomPowerStaticBuilder : public NodeFactory::TPPCustomBuilder {
             const auto power = power_static->get_power();
             const auto& input = n->input_value(0);
             std::shared_ptr<ov::Node> tpp_node{nullptr};
-            if (power == -1.f)
+            if (power == -1.f) {
                 tpp_node = std::make_shared<Reciprocal>(input);
-            else if (power == 2.f)
+            } else if (power == 2.f) {
                 tpp_node = std::make_shared<Square>(input);
-            else if (power == 0.5f)
+            } else if (power == 0.5f) {
                 tpp_node = std::make_shared<SquareRoot>(input);
+            }
             OPENVINO_ASSERT(tpp_node, "Failed to create TPP in power_static_builder");
             return tpp_node;
         };
@@ -107,7 +105,4 @@ bool NodeFactory::is_supported(const std::shared_ptr<ov::Node>& n) {
            all_inputs_fp32;
 }
 
-}  // namespace op
-}  // namespace tpp
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::tpp::op

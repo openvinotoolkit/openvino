@@ -38,18 +38,6 @@
 
 ov::ICore::~ICore() = default;
 
-namespace ov {
-namespace util {
-template <class T = void, class... Args>
-constexpr std::array<
-    typename std::conditional<std::is_void<T>::value, typename std::common_type<Args...>::type, T>::type,
-    sizeof...(Args)>
-make_array(Args&&... args) {
-    return {std::forward<Args>(args)...};
-}
-}  // namespace util
-}  // namespace ov
-
 namespace {
 
 #ifdef PROXY_PLUGIN_ENABLED
@@ -592,6 +580,8 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
     auto deviceName = pluginName;
     if (deviceName == ov::DEFAULT_DEVICE_NAME)
         deviceName = "AUTO";
+    if (deviceName == "(CPU)")
+        deviceName = "CPU";
     stripDeviceName(deviceName, "-");
     std::map<std::string, PluginDescriptor>::const_iterator it;
     {

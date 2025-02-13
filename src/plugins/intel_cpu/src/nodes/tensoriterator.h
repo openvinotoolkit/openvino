@@ -37,7 +37,7 @@ struct PortMap {
 class PortMapHelper {
 public:
     virtual ~PortMapHelper() = default;
-    virtual void execute(const dnnl::stream& strm, int n_iter = -1) = 0;
+    virtual void execute(const dnnl::stream& strm, int n_iter) = 0;
 
 protected:
     dnnl::primitive reorder;
@@ -113,11 +113,19 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void initSupportedPrimitiveDescriptors() override;
-    void getSupportedDescriptors() override;
+    void getSupportedDescriptors() override{};
     void createPrimitive() override;
+    int registerToAllocationContext(int offset, AllocationContext& context) override;
     bool created() const override;
     void execute(const dnnl::stream& strm) override;
+    bool neverExecute() const override {
+        return false;
+    }
     bool isExecutable() const override {
+        return true;
+    }
+    // @todo limit to particular in / out ports
+    bool usesInOutMemoryMultipleTimes() {
         return true;
     }
 
