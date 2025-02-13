@@ -82,7 +82,7 @@ public:
         m_pMemDesc = desc;
     }
 
-    void load(const IMemory& src, bool ftz = true) const override {
+    void load(const IMemory& src, bool ftz) const override {
         OPENVINO_THROW("Unexpected call MemoryStub::load()");
     }
 
@@ -306,7 +306,7 @@ void MemoryOutput::runStatic(dnnl::stream strm) {
     CPU_NODE_ASSERT(assignedMem, " uninitialized assigned memory");
 
     if (inputMem->getData() != assignedMem->getData()) {
-        assignedMem->load(*inputMem);
+        assignedMem->load(*inputMem, true);
     }
 }
 
@@ -811,7 +811,7 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
 
     // copy data when necessary
     if (src->getData() != dst->getData()) {
-        dst->load(*src);
+        dst->load(*src, true);
     }
 }
 
@@ -855,7 +855,7 @@ void MemoryInput::runStatic(dnnl::stream strm) {
     // copy data when necessary
     auto dst = getDstMemoryAtPort(0);
     if (src->getData() != dst->getData()) {
-        dst->load(*src);
+        dst->load(*src, true);
     }
 }
 
@@ -1068,7 +1068,7 @@ void MemoryInputSingle::runStatic(dnnl::stream strm) {
         auto stateMem = getAssignedState()->output_mem();
         CPU_NODE_ASSERT(stateMem, " state memory has nullptr");
         if (result->getData() != stateMem->getData()) {
-            stateMem->load(*result);
+            stateMem->load(*result, true);
         }
     }
     getAssignedState()->commit();  // since we don't use MemoryOutput, commit must be called to change the reset state
@@ -1093,7 +1093,7 @@ void MemoryInputSingle::runDynamic(dnnl::stream strm) {
         }
 
         if (result->getData() != stateMem->getData()) {
-            stateMem->load(*result);
+            stateMem->load(*result, true);
         }
     }
     getAssignedState()->commit();  // since we don't use MemoryOutput, commit must be called to change the reset state
