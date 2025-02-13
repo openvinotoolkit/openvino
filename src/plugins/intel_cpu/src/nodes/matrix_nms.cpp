@@ -159,9 +159,8 @@ static inline float boxArea(const float* bbox, const bool normalized) {
     const float height = bbox[3] - bbox[1];
     if (normalized) {
         return width * height;
-    } else {
-        return (width + 1) * (height + 1);
     }
+    return (width + 1) * (height + 1);
 }
 
 static inline float intersectionOverUnion(const float* bbox1, const float* bbox2, const bool normalized) {

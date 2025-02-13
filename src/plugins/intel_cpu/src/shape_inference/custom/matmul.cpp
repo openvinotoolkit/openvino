@@ -75,8 +75,7 @@ ShapeInferPtr MMShapeInferFactory::makeShapeInfer() const {
         }
         return make_shape_inference(m_op);
 
-    } else {
-        OPENVINO_THROW("Unexpected operation type in the MatMul shape inference factory");
     }
+    OPENVINO_THROW("Unexpected operation type in the MatMul shape inference factory");
 }
 }  // namespace ov::intel_cpu::node

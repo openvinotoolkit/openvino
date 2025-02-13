@@ -1880,13 +1880,12 @@ public:
         }
         if (auto interp11 = ov::as_type_ptr<ov::op::v11::Interpolate>(m_op)) {
             return make_shape_inference(m_op);
-        } else {
-            OPENVINO_THROW("Shape infer factory cannot be created for ",
-                           m_op->get_type_name(),
-                           " node with name: ",
-                           m_op->get_friendly_name(),
-                           ", only versions 4 and 11 are supported.");
         }
+        OPENVINO_THROW("Shape infer factory cannot be created for ",
+                       m_op->get_type_name(),
+                       " node with name: ",
+                       m_op->get_friendly_name(),
+                       ", only versions 4 and 11 are supported.");
     }
 
 private:

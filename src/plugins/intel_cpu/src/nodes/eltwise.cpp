@@ -1519,11 +1519,11 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                     supportedPrecisions.end()) {
                     if (prc == ov::element::u32 || prc == ov::element::i64 || prc == ov::element::u64) {
                         return ov::element::i32;
-                    } else if (prc == ov::element::f64) {
-                        return ov::element::f32;
-                    } else {
-                        THROW_CPU_NODE_ERR("doesn't support ", prc, " precision.");
                     }
+                    if (prc == ov::element::f64) {
+                        return ov::element::f32;
+                    }
+                    THROW_CPU_NODE_ERR("doesn't support ", prc, " precision.");
                 } else {
                     return prc;
                 }
@@ -1590,13 +1590,12 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                 order.push_back(1);
 
                 return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
-            } else {
-                VectorDims blocks = dims;
-                VectorDims order(blocks.size());
-                std::iota(order.begin(), order.end(), 0);
-
-                return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
             }
+            VectorDims blocks = dims;
+            VectorDims order(blocks.size());
+            std::iota(order.begin(), order.end(), 0);
+
+            return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
         };
 
         // TODO [DS]: inplace

@@ -90,28 +90,28 @@ ShapeInferPtr StridedSliceShapeInferFactory::makeShapeInfer() const {
     }
     if (const auto SliceScatter_op = ov::as_type_ptr<const ov::op::v15::SliceScatter>(m_op)) {
         return make_shape_inference(m_op);
-    } else if (const auto StridedSlice_op = ov::as_type_ptr<const ov::op::v1::StridedSlice>(m_op)) {
+    }
+    if (const auto StridedSlice_op = ov::as_type_ptr<const ov::op::v1::StridedSlice>(m_op)) {
         const auto& ellipsis_mask = StridedSlice_op->get_ellipsis_mask();
         if (std::any_of(ellipsis_mask.begin(), ellipsis_mask.end(), [](int64_t x) {
                 return x == 1;
             })) {
             return make_shape_inference(m_op);
-        } else {
-            auto vec_to_set = [](const std::vector<int64_t>& vec) {
-                std::unordered_set<int64_t> to_set;
-                for (size_t i = 0; i < vec.size(); ++i) {
-                    if (vec[i] == 1) {
-                        to_set.emplace(i);
-                    }
-                }
-                return to_set;
-            };
-            return std::make_shared<StridedSliceShapeInfer>(m_op->get_output_partial_shape(0).rank().get_length(),
-                                                            vec_to_set(StridedSlice_op->get_begin_mask()),
-                                                            vec_to_set(StridedSlice_op->get_end_mask()),
-                                                            vec_to_set(StridedSlice_op->get_new_axis_mask()),
-                                                            vec_to_set(StridedSlice_op->get_shrink_axis_mask()));
         }
+        auto vec_to_set = [](const std::vector<int64_t>& vec) {
+            std::unordered_set<int64_t> to_set;
+            for (size_t i = 0; i < vec.size(); ++i) {
+                if (vec[i] == 1) {
+                    to_set.emplace(i);
+                }
+            }
+            return to_set;
+        };
+        return std::make_shared<StridedSliceShapeInfer>(m_op->get_output_partial_shape(0).rank().get_length(),
+                                                        vec_to_set(StridedSlice_op->get_begin_mask()),
+                                                        vec_to_set(StridedSlice_op->get_end_mask()),
+                                                        vec_to_set(StridedSlice_op->get_new_axis_mask()),
+                                                        vec_to_set(StridedSlice_op->get_shrink_axis_mask()));
     } else {
         OPENVINO_THROW("not Slice or StridedSlice");
     }

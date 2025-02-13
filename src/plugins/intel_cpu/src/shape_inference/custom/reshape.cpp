@@ -173,11 +173,11 @@ ShapeInferPtr ReshapeShapeInferFactory::makeShapeInfer() const {
     }
     if (ov::is_type<ov::op::v0::Squeeze>(m_op)) {
         return std::make_shared<SqueezeShapeInfer>();
-    } else if (ov::is_type<ov::op::v0::Unsqueeze>(m_op)) {
-        return std::make_shared<UnsqueezeShapeInfer>();
-    } else {
-        OPENVINO_THROW("[cpu]reshape: ", m_op->get_type_name(), " is not implemented");
     }
+    if (ov::is_type<ov::op::v0::Unsqueeze>(m_op)) {
+        return std::make_shared<UnsqueezeShapeInfer>();
+    }
+    OPENVINO_THROW("[cpu]reshape: ", m_op->get_type_name(), " is not implemented");
 }
 
 }  // namespace ov::intel_cpu::node

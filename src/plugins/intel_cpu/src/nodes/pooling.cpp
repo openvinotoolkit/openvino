@@ -227,19 +227,23 @@ std::vector<memory::format_tag> Pooling::getAvailableFormatsForDims(const Shape&
     }
     if (dims.getRank() == 1) {
         return {memory::format_tag::x};
-    } else if (dims.getRank() == 2) {
+    }
+    if (dims.getRank() == 2) {
         return {memory::format_tag::nc};
-    } else if (dims.getRank() == 3) {
+    }
+    if (dims.getRank() == 3) {
         return {memory::format_tag::nCw8c,
                 memory::format_tag::nCw16c,
                 memory::format_tag::nwc,
                 memory::format_tag::ncw};
-    } else if (dims.getRank() == 4) {
+    }
+    if (dims.getRank() == 4) {
         return {memory::format_tag::nChw8c,
                 memory::format_tag::nChw16c,
                 memory::format_tag::nhwc,
                 memory::format_tag::nchw};
-    } else if (dims.getRank() == 5) {
+    }
+    if (dims.getRank() == 5) {
         return {memory::format_tag::nCdhw8c,
                 memory::format_tag::nCdhw16c,
                 memory::format_tag::ndhwc,
@@ -571,11 +575,11 @@ dnnl::algorithm Pooling::getPoolingAlgorithm() const {
         }
         return dnnl::algorithm::pooling_avg_exclude_padding;
 
-    } else if (algorithm == Algorithm::PoolingMax) {
-        return dnnl::algorithm::pooling_max;
-    } else {
-        return dnnl::algorithm::undef;
     }
+    if (algorithm == Algorithm::PoolingMax) {
+        return dnnl::algorithm::pooling_max;
+    }
+    return dnnl::algorithm::undef;
 }
 
 dnnl::pooling_forward::primitive_desc Pooling::createDescriptorInternal(const dnnl::memory::desc& in_candidate,
