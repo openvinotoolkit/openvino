@@ -105,4 +105,25 @@ TEST(propagate_constants, permute_1_0_reorder_fc) {
     auto outputs = network.execute();
     auto output = outputs.at("fc1").get_memory();
     cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+
+    ExecutionConfig config_ref = get_test_default_config(engine);
+    config_ref.set_property(ov::intel_gpu::optimize_data(false));
+    config_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    if (engine.get_device_info().supports_immad) {
+        ov::intel_gpu::ImplementationDesc fc_impl = { format::bfyx, "", impl_types::onednn };
+        config_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc1", fc_impl} }));
+    }
+
+    cldnn::network network_ref(engine, topology, config_ref);
+    network_ref.set_input_data("input", input);
+    network_ref.set_input_data("input2", input2);
+
+    auto outputs_ref = network_ref.execute();
+    auto output_ref = outputs_ref.at("fc1").get_memory();
+    cldnn::mem_lock<ov::float16> output_ref_ptr(output_ref, get_test_stream());
+
+    for (size_t i = 0; i < output_ref_ptr.size(); ++i) {
+        ASSERT_EQ(output_ptr[i], output_ref_ptr[i]);
+    }
 }
