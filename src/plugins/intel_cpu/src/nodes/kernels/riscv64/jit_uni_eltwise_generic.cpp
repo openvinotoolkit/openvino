@@ -82,7 +82,9 @@ void jit_uni_eltwise_generic<isa>::generate() {
         uni_li(reg_work_amount, static_cast<int>(jep.work_amount));
     }
 
-    // TODO: Support any LMUL values: get_max_lmul(exec_prc);
+    // TODO: Support any LMUL values: get_max_lmul(exec_prc)
+    //       Currenly only aux_vec registers don't support any LMUL values (only m1):
+    //       jit emitters should known exact value of LMUL to preserve vec regs with correct idxs
     exec_lmul = LMUL::m1;
     exec_sew = bytes2sew(exec_prc.size());
     OPENVINO_ASSERT(lmul2float(exec_lmul) <= lmul2float(get_max_lmul(exec_prc)),
@@ -112,7 +114,8 @@ void jit_uni_eltwise_generic<isa>::generate() {
         {
             beqz(reg_work_amount, loop_end);
 
-            // to get correct `reg_vlen` in loop - in tail loop `rg_vlen` might be updated
+            // We should call `update_vlen` on each loop iteration to get correct `reg_vlen` in iterations:
+            // `rg_vlen` should be valid in in tail loop
             update_vlen(reg_work_amount, exec_sew, exec_lmul, true);
 
             for (size_t i = 0; i < jep.inputs_number; i++) {
@@ -161,7 +164,8 @@ void jit_uni_eltwise_generic<isa>::generate() {
             uni_li(reg_loop_step, min_src_size);
             L(inner_loop_begin);
             {
-                // to get correct `reg_vlen` in loop - in tail loop `rg_vlen` might be updated
+                // We should call `update_vlen` on each loop iteration to get correct `reg_vlen` in iterations:
+                // `rg_vlen` should be valid in in tail loop
                 update_vlen(reg_loop_step, exec_sew, exec_lmul, true);
 
                 for (size_t i = 0; i < jep.inputs_number; i++) {
@@ -213,7 +217,11 @@ void jit_uni_eltwise_generic<isa>::update_vlen(const Xbyak_riscv::Reg& gpr_work_
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_uni_eltwise_generic<isa>::load_vector(size_t vec_idx, const Xbyak_riscv::Reg& gpr_ptr, const Xbyak_riscv::Reg& gpr_work_amount,
-                                          const ov::element::Type& src_prc, const ov::element::Type& dst_prc, bool broadcast) {
+                                               const ov::element::Type& src_prc, const ov::element::Type& dst_prc, bool broadcast) {
+    // If input data type is I8/U8 and EXEC_LMUL = m1 and EXEC_SEW = e32 (fp32, for example), we have to update parameters of vector registers
+    // to load [BVLEN / e32 x LMUL] I8/U8 values to register for the following conversion to exec precision.
+    // Since I8/U8 is sew=e8, we should reduce lmul from `EXEC_LMUL = m1` to `EXEC_LMUL / (EXEC_SEW / e8) = m1 / (e32 / e8) = m1/4`.
+    // It allow us to load the needed count of I8/U8 values to vector for the further conversion to exec prc.
     const auto needed_lmul = float2lmul(static_cast<float>(src_prc.size()) / static_cast<float>(dst_prc.size()) * lmul2float(exec_lmul));
     const auto needed_sew = bytes2sew(src_prc.size());
     update_vlen(gpr_work_amount, needed_sew, needed_lmul);
@@ -259,7 +267,7 @@ void jit_uni_eltwise_generic<isa>::load_vector(size_t vec_idx, const Xbyak_riscv
         vfcvt_f_x_v(src_vec(vec_idx), src_vec(vec_idx)); // int32 -> fp32
 
     if (one_of(dst_prc, ov::element::i32) && one_of(src_prc, ov::element::f16, ov::element::f32))
-        vfcvt_x_f_v(src_vec(vec_idx), src_vec(vec_idx)); // fp32 -> int32
+        vfcvt_rtz_x_f_v(src_vec(vec_idx), src_vec(vec_idx)); // fp32 -> int32 (round-toward-zero)
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
@@ -319,7 +327,7 @@ Xbyak_riscv::LMUL jit_uni_eltwise_generic<isa>::get_max_lmul(const ov::element::
     if (jep_.src_prc[input_count - 1].size() < exec_prc.size() || jep_.dst_prc.size() < exec_prc.size())
         max_aux_vec_count = std::max(max_aux_vec_count, 1lu);
 
-    const auto needed_vec_count = input_count + output_count + max_aux_vec_count + 1; // 1 - vec register
+    const auto needed_vec_count = input_count + output_count + max_aux_vec_count + 1; // 1 - mask vec register
     const auto mul = static_cast<size_t>(vec_count / needed_vec_count);
     OPENVINO_ASSERT(mul != 0, "Incorrect configuration!");
     if (mul < 2) return LMUL::m1;

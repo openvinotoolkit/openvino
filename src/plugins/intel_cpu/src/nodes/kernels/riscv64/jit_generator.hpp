@@ -102,6 +102,11 @@ public:
     // negative pseudo-instruction
     void vfneg_vv(const Xbyak_riscv::VReg& vd, const Xbyak_riscv::VReg& vs, Xbyak_riscv::VM vm = Xbyak_riscv::VM::unmasked);
 
+    static Xbyak_riscv::LMUL float2lmul(const float lmul);
+    static Xbyak_riscv::SEW bytes2sew(const size_t bytes);
+    static float lmul2float(const Xbyak_riscv::LMUL lmul);
+    static size_t sew2bytes(const Xbyak_riscv::SEW sew);
+
 protected:
     virtual void generate() = 0;
     
@@ -128,12 +133,6 @@ protected:
             = sizeof(abi_save_fp_gpr_regs) / sizeof(abi_save_fp_gpr_regs[0]);
     const size_t num_abi_param_regs
             = sizeof(abi_param_regs) / sizeof(abi_param_regs[0]);
-
-    Xbyak_riscv::LMUL float2lmul(const float lmul) const;
-    float lmul2float(const Xbyak_riscv::LMUL lmul) const;
-
-    Xbyak_riscv::SEW bytes2sew(const size_t bytes) const;
-    size_t sew2bytes(const Xbyak_riscv::SEW sew) const;
 
 private:
     const uint8_t* getCode() {

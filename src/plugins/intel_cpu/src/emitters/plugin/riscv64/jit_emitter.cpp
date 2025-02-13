@@ -12,7 +12,9 @@ using namespace Xbyak_riscv;
 
 jit_emitter::jit_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                          ov::element::Type exec_prc, emitter_in_out_map in_out_type)
-    : Emitter(), h(host), host_isa_(host_isa), exec_prc_(exec_prc), in_out_type_(in_out_type) {}
+    : Emitter(), h(host), host_isa_(host_isa), exec_prc_(exec_prc), in_out_type_(in_out_type) {
+    OPENVINO_ASSERT(h, "JIT Generator is missed");
+}
 
 void jit_emitter::emit_code(const std::vector<size_t>& in_idxs,
                             const std::vector<size_t>& out_idxs,
@@ -107,7 +109,7 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
     }
     OPENVINO_ASSERT(aux_vecs_count() <= aux_vec_idxs.size(), "Failed to allocate required number of vector registers");
 
-    // FPR REGISTERS //
+    // FP REGISTERS //
     for (auto idx : pool_fp_gpr_idxs) {
         aux_fp_gpr_idxs.push_back(idx);
     }
