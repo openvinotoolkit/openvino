@@ -9,7 +9,10 @@
 #include <sstream>
 #include <vector>
 #include <unordered_set>
+
+#if defined(__linux__) || (defined(__APPLE__) && defined(__MACH__))
 #include <unistd.h>
+#endif
 
 #include "openvino/util/env_util.hpp"
 
