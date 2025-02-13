@@ -2005,16 +2005,17 @@ TEST(gather_gpu_fp32, indice_out_of_bound) {
     }
 }
 
-void gather_cpu_impl_fp32_dynamic_322_axisF();
-void gather_cpu_impl_fp32_dynamic_322_axisF() {
-    auto& engine = get_test_engine();
+void gather_cpu_impl_fp32_dynamic_322_axisF(bool disable_usm = false);
+void gather_cpu_impl_fp32_dynamic_322_axisF(bool disable_usm) {
+    auto engine = create_test_engine();
+    engine->disable_usm  = disable_usm;
 
     ov::Shape in1_shape = { 3, 3 };
     ov::Shape in2_shape = { 2, 2 };
     auto in1_layout = layout{ov::PartialShape::dynamic(in1_shape.size()), data_types::f32, format::bfyx};
     auto in2_layout = layout{ov::PartialShape::dynamic(in2_shape.size()), data_types::i32, format::bfyx};
-    auto input1 = engine.allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx}); // data
-    auto input2 = engine.allocate_memory(layout{ov::PartialShape(in2_shape), data_types::i32, format::bfyx}); // Indexes
+    auto input1 = engine->allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx}); // data
+    auto input2 = engine->allocate_memory(layout{ov::PartialShape(in2_shape), data_types::i32, format::bfyx}); // Indexes
 
     int64_t axis = 1;
     set_values(input1, {0, 1, 2, 10, 11, 12, 20, 21, 22 });
@@ -2025,10 +2026,10 @@ void gather_cpu_impl_fp32_dynamic_322_axisF() {
     topology.add(input_layout("input2", in2_layout));
     topology.add(gather("gather", input_info("input1"), input_info("input2"), axis, 0, ov::Shape{}));
 
-    auto config = get_test_default_config(engine);
+    auto config = get_test_default_config(*engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gather", {format::bfyx, "", impl_types::cpu}} }));
-    network network(engine, topology, config);
+    network network(*engine, topology, config);
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
 
@@ -2054,19 +2055,9 @@ TEST(gather_cpu_impl_fp32, dynamic_322_axisF) {
     gather_cpu_impl_fp32_dynamic_322_axisF();
 }
 
-#ifdef GPU_DEBUG_CONFIG
 TEST(gather_cpu_impl_fp32, dynamic_322_axisF_disable_usm) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    auto original_usm = debug_config->disable_usm;
-    auto config = const_cast<cldnn::debug_configuration*>(debug_config);
-    config->disable_usm = 1;
-    try {
-        gather_cpu_impl_fp32_dynamic_322_axisF();
-    } catch (std::exception& exc) {
-    }
-    config->disable_usm = original_usm;
+    gather_cpu_impl_fp32_dynamic_322_axisF(true);
 }
-#endif
 
 template <typename T>
 void test_gather_gpu_u8_322_axisF(bool is_caching_test) {

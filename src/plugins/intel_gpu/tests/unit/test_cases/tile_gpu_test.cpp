@@ -275,12 +275,13 @@ public:
         }
     }
 
-    void test_dynamic_1x2x2x2_axis_f(impl_types impl_type = impl_types::any) {
-        auto& engine = get_test_engine();
+    void test_dynamic_1x2x2x2_axis_f(impl_types impl_type = impl_types::any, bool disable_usm = false) {
+        auto engine = create_test_engine();
+        engine->disable_usm  = disable_usm;
 
         ov::Shape input_shape = { 1, 2, 2, 2 };
         auto input_dyn_layout = layout{ ov::PartialShape::dynamic(input_shape.size()), data_types::f32, format::bfyx };
-        auto input = engine.allocate_memory({ input_shape, data_types::f32, format::bfyx });
+        auto input = engine->allocate_memory({ input_shape, data_types::f32, format::bfyx });
 
         set_values(input, { 1.f, 0.f,
                             5.f, 1.5f,
@@ -291,12 +292,12 @@ public:
         topology.add(input_layout("input", input_dyn_layout));
         topology.add(tile("tile", input_info("input"), std::vector<int64_t>{ 1, 2, 1, 1 }));
 
-        ExecutionConfig config = get_test_default_config(engine);
+        ExecutionConfig config = get_test_default_config(*engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         if (impl_type != impl_types::any)
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"tile", {format::bfyx, "", impl_types::cpu}} }));
 
-        network network(engine, topology, config);
+        network network(*engine, topology, config);
         network.set_input_data("input", input);
 
         auto inst = network.get_primitive("tile");
@@ -382,19 +383,9 @@ TEST_F(tile_cpu_impl, dynamic) {
     this->test_dynamic_1x2x2x2_axis_f(impl_types::cpu);
 }
 
-#ifdef GPU_DEBUG_CONFIG
 TEST_F(tile_cpu_impl, dynamic_disable_usm) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    auto original_usm = debug_config->disable_usm;
-    auto config = const_cast<cldnn::debug_configuration*>(debug_config);
-    config->disable_usm = 1;
-    try {
-        this->test_dynamic_1x2x2x2_axis_f(impl_types::cpu);
-    } catch (std::exception& exc) {
-    }
-    config->disable_usm = original_usm;
+    this->test_dynamic_1x2x2x2_axis_f(impl_types::cpu, true);
 }
-#endif
 
 namespace {
 template<typename T>

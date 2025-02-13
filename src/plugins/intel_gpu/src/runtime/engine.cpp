@@ -75,7 +75,7 @@ bool engine::use_unified_shared_memory() const {
     GPU_DEBUG_IF(debug_config->disable_usm) {
         return false;
     }
-    if (_device->get_mem_caps().supports_usm()) {
+    if (_device->get_mem_caps().supports_usm() && !disable_usm) {
         return true;
     }
     return false;

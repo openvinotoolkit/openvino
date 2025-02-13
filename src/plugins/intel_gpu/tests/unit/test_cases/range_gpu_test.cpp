@@ -350,8 +350,9 @@ TEST(range_gpu_test, dynamic_stop) {
     }
 }
 
-void cpu_impl_dynamic_all() {
-    auto& engine = get_test_engine();
+void cpu_impl_dynamic_all(bool disable_usm = false) {
+    auto engine = create_test_engine();
+    engine->disable_usm  = disable_usm;
 
     int32_t start_val = 0;
     int32_t step_val = 1;
@@ -359,9 +360,9 @@ void cpu_impl_dynamic_all() {
 
     auto dynamic_input_layout = layout{ ov::PartialShape::dynamic(0), data_types::i32, format::bfyx };
 
-    auto input0 = engine.allocate_memory({ {}, data_types::i32, format::bfyx });
-    auto input1 = engine.allocate_memory({ {}, data_types::i32, format::bfyx });
-    auto input2 = engine.allocate_memory({ {}, data_types::i32, format::bfyx });
+    auto input0 = engine->allocate_memory({ {}, data_types::i32, format::bfyx });
+    auto input1 = engine->allocate_memory({ {}, data_types::i32, format::bfyx });
+    auto input2 = engine->allocate_memory({ {}, data_types::i32, format::bfyx });
 
     set_values<int32_t>(input0, { start_val });
     set_values<int32_t>(input1, { expected_dim });
@@ -373,11 +374,11 @@ void cpu_impl_dynamic_all() {
     topology.add(input_layout("input2", dynamic_input_layout));
     topology.add(range{ "range", { input_info("input0"), input_info("input1"), input_info("input2") }, data_types::i32});
 
-    ExecutionConfig config = get_test_default_config(engine);
+    ExecutionConfig config = get_test_default_config(*engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"range", {format::bfyx, "", impl_types::cpu}} }));
 
-    network network(engine, topology, config);
+    network network(*engine, topology, config);
     network.set_input_data("input0", input0);
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -402,19 +403,9 @@ TEST(range_cpu_impl_test, dynamic_all) {
     cpu_impl_dynamic_all();
 }
 
-#ifdef GPU_DEBUG_CONFIG
 TEST(range_cpu_impl_test, dynamic_all_disable_usm) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    auto original_usm = debug_config->disable_usm;
-    auto config = const_cast<cldnn::debug_configuration*>(debug_config);
-    config->disable_usm = 1;
-    try {
-        cpu_impl_dynamic_all();
-    } catch (std::exception& exc) {
-    }
-    config->disable_usm = original_usm;
+    cpu_impl_dynamic_all(true);
 }
-#endif
 
 TEST(range_cpu_impl_test, dynamic_stop) {
     auto& engine = get_test_engine();

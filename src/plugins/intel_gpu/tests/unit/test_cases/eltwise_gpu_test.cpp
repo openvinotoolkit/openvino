@@ -1751,12 +1751,13 @@ TEST(eltwise_gpu_f32, add_basic_8d) {
     }
 }
 
-void eltwise_cpu_impl_f32();
-void eltwise_cpu_impl_f32() {
-    auto& engine = get_test_engine();
+void eltwise_cpu_impl_f32(bool disable_usm = false);
+void eltwise_cpu_impl_f32(bool disable_usm) {
+    auto engine = create_test_engine();
+    engine->disable_usm  = disable_usm;
 
-    auto input1 = engine.allocate_memory({{1, 3, 2, 2, 2, 3, 2, 3}, data_types::f32, format::bfvuwzyx });
-    auto input2 = engine.allocate_memory({{1, 3, 2, 2, 2, 3, 2, 3}, data_types::f32, format::bfvuwzyx });
+    auto input1 = engine->allocate_memory({{1, 3, 2, 2, 2, 3, 2, 3}, data_types::f32, format::bfvuwzyx });
+    auto input2 = engine->allocate_memory({{1, 3, 2, 2, 2, 3, 2, 3}, data_types::f32, format::bfvuwzyx });
 
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
@@ -1771,11 +1772,11 @@ void eltwise_cpu_impl_f32() {
         std::iota(lock2.begin(), lock2.end(), 0);
     }
 
-    auto config = get_test_default_config(engine);
+    auto config = get_test_default_config(*engine);
     auto forcing_map = ov::intel_gpu::ImplForcingMap{ {"eltwise", {format::bfvuwzyx, "", impl_types::cpu}} };
     config.set_property(ov::intel_gpu::force_implementations(forcing_map));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    network network(engine, topology, config);
+    network network(*engine, topology, config);
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -1799,19 +1800,9 @@ TEST(eltwise_cpu_impl_f32, add_basic_8d) {
     eltwise_cpu_impl_f32();
 }
 
-#ifdef GPU_DEBUG_CONFIG
 TEST(eltwise_cpu_impl_f32, add_basic_8d_disable_usm) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    auto original_usm = debug_config->disable_usm;
-    auto config = const_cast<cldnn::debug_configuration*>(debug_config);
-    config->disable_usm = 1;
-    try {
-        eltwise_cpu_impl_f32();
-    } catch (std::exception& exc) {
-    }
-    config->disable_usm = original_usm;
+    eltwise_cpu_impl_f32(true);
 }
-#endif
 
 TEST(eltwise_gpu_f32, add_basic_in4x4x2x2) {
     //  Input2   : 2x2x2

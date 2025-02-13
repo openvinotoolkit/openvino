@@ -94,14 +94,14 @@ TEST(activation_f32_fw_gpu, dynamic) {
     }
 }
 
-void activation_f32_fw_cpu_impl_dynamic_8d();
-void activation_f32_fw_cpu_impl_dynamic_8d() {
-    auto& engine = get_test_engine();
-
+void activation_f32_fw_cpu_impl_dynamic_8d(bool disable_usm = false);
+void activation_f32_fw_cpu_impl_dynamic_8d(bool disable_usm) {
+    auto engine = create_test_engine();
+    engine->disable_usm  = disable_usm;
     ov::PartialShape in_shape  = { 1, 1, 2, 1, 1, 1, 2, 2 };
     layout in_layout { ov::PartialShape::dynamic(in_shape.size()), data_types::f32, format::bfvuwzyx };
 
-    auto input = engine.allocate_memory({ in_shape, data_types::f32, format::bfvuwzyx });
+    auto input = engine->allocate_memory({ in_shape, data_types::f32, format::bfvuwzyx });
     set_values(input, { -0.12f, 0.56f, 0.45f, -0.789f, 42.f, 0.999f, 0.7899f, 0.f});
 
     std::vector<activation_func> funcs = {
@@ -114,11 +114,11 @@ void activation_f32_fw_cpu_impl_dynamic_8d() {
         topology topology(input_layout("input", in_layout));
         topology.add(activation("activation", input_info("input"), func));
 
-        ExecutionConfig config = get_test_default_config(engine);
+        ExecutionConfig config = get_test_default_config(*engine);
         auto forcing_map = ov::intel_gpu::ImplForcingMap{ {"activation", {format::bfvuwzyx, "", impl_types::cpu}} };
         config.set_property(ov::intel_gpu::force_implementations(forcing_map));
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        network network(engine, topology, config);
+        network network(*engine, topology, config);
 
         network.set_input_data("input", input);
 
@@ -161,19 +161,9 @@ TEST(activation_f32_fw_cpu_impl, dynamic_8d) {
     activation_f32_fw_cpu_impl_dynamic_8d();
 }
 
-#ifdef GPU_DEBUG_CONFIG
 TEST(activation_f32_fw_cpu_impl, dynamic_8d_disable_usm) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    auto original_usm = debug_config->disable_usm;
-    auto config = const_cast<cldnn::debug_configuration*>(debug_config);
-    config->disable_usm = 1;
-    try {
-        activation_f32_fw_cpu_impl_dynamic_8d();
-    } catch (std::exception& exc) {
-    }
-    config->disable_usm = original_usm;
+    activation_f32_fw_cpu_impl_dynamic_8d(true);
 }
-#endif
 
 TEST(activation_f32_fw_gpu, not_basic_yxfb) {
     //  Input:
