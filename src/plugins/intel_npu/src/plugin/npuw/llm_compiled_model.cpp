@@ -30,10 +30,10 @@ public:
 protected:
     // generic part of matchers, to transpose v-tensors, and concat, and update matmul args
     void transpose_matmul_b(Context::Ref ctx,
-            std::shared_ptr<ov::Node> node_param,
-            std::shared_ptr<ov::Node> node_concat,
-            std::shared_ptr<ov::Node> node_transpose,
-            std::shared_ptr<ov::Node> node_matmul) {
+                            std::shared_ptr<ov::Node> node_param,
+                            std::shared_ptr<ov::Node> node_concat,
+                            std::shared_ptr<ov::Node> node_transpose,
+                            std::shared_ptr<ov::Node> node_matmul) {
         auto matched_param = std::static_pointer_cast<ov::op::v0::Parameter>(node_param);
         auto matched_concat = std::static_pointer_cast<ov::op::v0::Concat>(node_concat);
         auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(node_transpose);
@@ -92,7 +92,11 @@ private:
             auto matched_node_transpose = node_to_output.at(transpose).get_node_shared_ptr();
             auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
 
-            transpose_matmul_b(ctx, matched_node_param, matched_node_concat, matched_node_transpose, matched_node_matmul);
+            transpose_matmul_b(ctx,
+                               matched_node_param,
+                               matched_node_concat,
+                               matched_node_transpose,
+                               matched_node_matmul);
             LOG_DEBUG("vtensors transposed: LLama2 pattern");
             return true;
         };
@@ -126,10 +130,10 @@ private:
         auto callback = [=](ov::pass::pattern::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
 
-            auto matched_node_param     = node_to_output.at(param).get_node_shared_ptr();
-            auto matched_node_concat    = node_to_output.at(concat).get_node_shared_ptr();
+            auto matched_node_param = node_to_output.at(param).get_node_shared_ptr();
+            auto matched_node_concat = node_to_output.at(concat).get_node_shared_ptr();
             auto matched_node_transpose = node_to_output.at(transpose).get_node_shared_ptr();
-            auto matched_node_matmul    = node_to_output.at(matmul).get_node_shared_ptr();
+            auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
             auto matched_node_unsqueeze = node_to_output.at(unsqueeze).get_node_shared_ptr();
             auto matched_node_unsqueeze_axes = node_to_output.at(unsqueeze_axes).get_node_shared_ptr();
             auto matched_node_broadcast = node_to_output.at(broadcast).get_node_shared_ptr();
@@ -140,17 +144,19 @@ private:
             auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(matched_node_transpose);
             auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
 
-            auto matched_unsqueeze  = std::static_pointer_cast<ov::op::v0::Unsqueeze>(matched_node_unsqueeze);
-            auto matched_broadcast  = std::static_pointer_cast<ov::op::v3::Broadcast>(matched_node_broadcast);
-            auto matched_reshape    = std::static_pointer_cast<ov::op::v1::Reshape>(matched_node_reshape);
+            auto matched_unsqueeze = std::static_pointer_cast<ov::op::v0::Unsqueeze>(matched_node_unsqueeze);
+            auto matched_broadcast = std::static_pointer_cast<ov::op::v3::Broadcast>(matched_node_broadcast);
+            auto matched_reshape = std::static_pointer_cast<ov::op::v1::Reshape>(matched_node_reshape);
 
             auto shape_broadcast = matched_broadcast->get_output_shape(0);
             OPENVINO_ASSERT(shape_broadcast.size() == 5u);
             std::swap(shape_broadcast[3], shape_broadcast[4]);
 
-            LOG_DEBUG("shape_broadcast for: "<< matched_broadcast->get_friendly_name() <<", shape=" << shape_broadcast);
+            LOG_DEBUG("shape_broadcast for: " << matched_broadcast->get_friendly_name()
+                                              << ", shape=" << shape_broadcast);
 
-            const auto broadcast_axes_node = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{5}, shape_broadcast);
+            const auto broadcast_axes_node =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{5}, shape_broadcast);
             broadcast_axes_node->set_friendly_name(matched_broadcast->get_friendly_name() + "/new_broadcast_shape");
             matched_broadcast->input(1).replace_source_output(broadcast_axes_node);
 
@@ -158,9 +164,10 @@ private:
             OPENVINO_ASSERT(shape_reshape.size() == 4u);
             std::swap(shape_reshape[2], shape_reshape[3]);
 
-            LOG_DEBUG("shape_reshape for: "<< matched_reshape->get_friendly_name() <<", shape=" << shape_reshape);
+            LOG_DEBUG("shape_reshape for: " << matched_reshape->get_friendly_name() << ", shape=" << shape_reshape);
 
-            const auto reshape_axes_node = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, shape_reshape);
+            const auto reshape_axes_node =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, shape_reshape);
             reshape_axes_node->set_friendly_name(matched_reshape->get_friendly_name() + "/new_reshape_shape");
             matched_reshape->input(1).replace_source_output(reshape_axes_node);
 
