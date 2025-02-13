@@ -46,7 +46,47 @@ bool ITensor::is_continuous() const {
         // OpenVINO doesn't support strides for lp types
         return true;
     }
-    return default_byte_strides(get_shape(), get_element_type()) == get_strides();
+
+    auto default_strides = default_byte_strides(get_shape(), get_element_type());
+    auto strides = get_strides();
+
+    // If strides are equal, other checks aren't needed
+    if (default_strides == strides) {
+        return true;
+    }
+
+    // If case stride size is less than 2 they shall be equal otherwise memory can not be contiguous. Different data
+    // type is used
+    if (default_strides.empty() || default_strides.size() < 2 ||
+        default_strides[default_strides.size() - 1] != strides[default_strides.size() - 1]) {
+        return false;
+    }
+
+    auto default_strides_size = static_cast<int>(default_strides.size());
+
+    // If the first stride value is different from the original value and the first shape value is 1 then the memory is
+    // contiguous
+    if (default_strides_size > 2) {
+        for (auto i = default_strides_size - 2; i > 0; i--) {
+            if (default_strides[i] != strides[i]) {
+                auto default_value = default_strides[i];
+                for (auto i = default_strides_size - 3; i >= 0; --i) {
+                    // If another stride value is different from the original then all the shape values starting from
+                    // that point must be 1
+                    if (default_value != default_strides[i]) {
+                        return false;
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    if (get_shape()[0] != 1) {
+        return false;
+    }
+
+    return true;
 }
 
 void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
