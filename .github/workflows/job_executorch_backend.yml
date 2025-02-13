@@ -110,10 +110,13 @@ jobs:
       - name: Run tests
         run: |
           cd executorch/backends/openvino/tests
-          find / -name "libtbb.so*"
-          export LD_LIBRARY_PATH=/__w/openvino/openvino/install/runtime/3rdparty/tbb/lib/:$LD_LIBRARY_PATH
+          #find / -name "libtbb.so*"
+          #export LD_LIBRARY_PATH=/__w/openvino/openvino/install/runtime/3rdparty/tbb/lib/:$LD_LIBRARY_PATH
+          echo "AAA - 1"
           python test_openvino_delegate.py --build_folder ../../../cmake-openvino-out --device CPU --test_type ops &> test_out_ops.txt
+          echo "AAA - 2"
           cat test_out_ops.txt
+          echo "AAA - 3"
           if ! tail -n 1 test_out_ops.txt | grep -q 'OpenVINO backend tests completed successfully'; then exit 1; fi
           python test_openvino_delegate.py --build_folder ../../../cmake-openvino-out --device CPU --test_type models &> test_out_models.txt
           cat test_out_models.txt
