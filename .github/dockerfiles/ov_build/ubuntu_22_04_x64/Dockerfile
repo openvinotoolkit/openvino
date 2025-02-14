@@ -35,6 +35,7 @@ RUN apt-get update && \
         ffmpeg  \
         libsm6  \
         libxext6 \
+        libgl1 \
         && \
     rm -rf /var/lib/apt/lists/*
 
