@@ -9,8 +9,9 @@ import logging
 import torch
 import numpy as np
 
-from openvino import op, Type as OVType, Shape, Tensor
+from openvino import op, Type as OVType, Shape, Tensor, OVAny
 from openvino import opset11 as ops
+from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 
 log = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ def torch_tensor_to_ov_const(torch_t: torch.Tensor, shared_memory=True):
     try:
         from torch._prims import FakeTensor
         is_fake_tensor = isinstance(torch_t, FakeTensor)
-    except:
+    except ImportError:
         pass
     assert not is_fake_tensor, '`FakeTensor` is found in the graph during conversion. ' \
                                'In order to avoid `FakeTensor` in the traced model, ' \
@@ -66,6 +67,10 @@ def torch_tensor_to_ov_const(torch_t: torch.Tensor, shared_memory=True):
         narr = torch_t.numpy(force=True)
         tensor = Tensor(narr, torch_t.shape, OVType.bf16)
         ov_const = op.Constant(tensor, shared_memory=shared_memory)
+    elif torch_t.is_complex():
+        narr = torch.view_as_real(torch_t).numpy(force=True)
+        # we rely on frontend to mark the constant as complex internally
+        ov_const = op.Constant(narr, shared_memory=shared_memory)
     else:
         narr = torch_t.numpy(force=True)
         ov_const = op.Constant(narr, shared_memory=shared_memory)
@@ -146,6 +151,9 @@ pt_to_ov_type_map = {
     "torch.CharTensor": OVType.i8,
     "torch.ByteTensor": OVType.u8,
     "torch.BoolTensor": OVType.boolean,
+    "torch.ComplexHalfTensor": DecoderType.Complex(OVAny(OVType.f16)),
+    "torch.ComplexFloatTensor": DecoderType.Complex(OVAny(OVType.f32)),
+    "torch.ComplexDoubleTensor": DecoderType.Complex(OVAny(OVType.f64)),
     "torch.quint8": OVType.u8,
     "torch.qint8": OVType.i8,
     "torch.qint32": OVType.i32,

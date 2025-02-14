@@ -51,14 +51,17 @@ OutputVector translate_real(const NodeContext& context) {
     auto complex = context.get_input(0);
 
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(complex.get_node_shared_ptr());
-    PYTORCH_OP_CONVERSION_CHECK(complex_type_mark, "aten::real operation expects complex type tensor on input.");
+    if (complex_type_mark) {
+        complex = complex_type_mark->input_value(0);
+        auto axis = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-1}));
+        auto real = context.mark_node(std::make_shared<v1::Split>(complex, axis, 2))->output(0);
 
-    complex = complex_type_mark->input_value(0);
-    auto axis = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-1}));
-    auto real = context.mark_node(std::make_shared<v1::Split>(complex, axis, 2))->output(0);
-
-    auto const_neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-1}));
-    return {context.mark_node(std::make_shared<v0::Squeeze>(real, const_neg_1))};
+        auto const_neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-1}));
+        return {context.mark_node(std::make_shared<v0::Squeeze>(real, const_neg_1))};
+    } else {
+        // if input is not a complex number, just return it as is
+        return {complex};
+    }
 };
 
 OutputVector translate_view_as_real(const NodeContext& context) {
@@ -66,7 +69,7 @@ OutputVector translate_view_as_real(const NodeContext& context) {
     auto complex = context.get_input(0);
 
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(complex.get_node_shared_ptr());
-    PYTORCH_OP_CONVERSION_CHECK(complex_type_mark, "aten::real operation expects complex type tensor on input.");
+    PYTORCH_OP_CONVERSION_CHECK(complex_type_mark, "aten::view_as_real is only supported for complex tensors");
 
     return {complex_type_mark->input_value(0)};
 };

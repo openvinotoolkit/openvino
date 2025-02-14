@@ -2,19 +2,23 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import torch
-import numpy as np
-from openvino.frontend import FrontEndManager, ConversionExtension, NodeContext
-from openvino.runtime import PartialShape, Type
-import openvino.runtime.opset10 as ops
-import pytest
-
 import glob
 import itertools
 import math
 import os
 import re
+import logging
 from pathlib import Path
+
+import torch
+import numpy as np
+import pytest
+
+from openvino.frontend import FrontEndManager, ConversionExtension, NodeContext
+from openvino.runtime import PartialShape, Type
+import openvino.runtime.opset10 as ops
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 class aten_relu(torch.nn.Module):
@@ -754,3 +758,47 @@ def test_inlined_inputs():
     model.eval()
     model = torch.compile(model, backend="openvino", options={"testing": 1})
     model()
+
+
+class ComplexModel(torch.nn.Module):
+    def __init__(self, dtype):
+        super().__init__()
+        self.dtype = dtype
+        x = torch.tensor([1.0 + 2.0j, 3.0 + 4.0j], dtype=dtype)
+        self.complex_attr = torch.nn.Parameter(x)
+
+    def forward(self, x):
+        complex_const = torch.tensor(
+            [5.0 + 6.0j, 7.0 + 8.0j], dtype=self.dtype)
+
+        real_attr = self.complex_attr.real
+        imag_attr = self.complex_attr.imag
+
+        real_const = complex_const.real
+        imag_const = complex_const.imag
+
+        real_result = x + real_attr + real_const
+        imag_result = imag_attr + imag_const
+
+        result = real_result + imag_result
+        return result
+
+
+@pytest.mark.parametrize("dtype", [
+    torch.complex32,
+    torch.complex64,
+    pytest.param(torch.complex128,
+                 marks=pytest.mark.xfail(reason="CVS-163022"))])
+def test_complex_model(dtype):
+    from openvino import convert_model
+
+    model = ComplexModel(dtype)
+    model.eval()
+
+    example_input = torch.tensor([9.0, 11.0])
+    traced_model = torch.jit.trace(model, example_input)
+    assert "prim::GetAttr" in str(traced_model.inlined_graph)
+    assert "prim::Constant" in str(traced_model.inlined_graph)
+    print(traced_model.inlined_graph)
+    t_model = convert_model(traced_model)
+    assert t_model

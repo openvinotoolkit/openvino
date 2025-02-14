@@ -74,13 +74,8 @@ const std::map<int, ov::element::Type>& dtype_num_to_ov_type() {
 }
 
 ov::element::Type get_ov_type(const py::array& array) {
-    // More about character codes:
-    // https://numpy.org/doc/stable/reference/arrays.scalars.html
-    char ctype = array.dtype().kind();
-    if (ctype == 'U' || ctype == 'S') {
-        return ov::element::string;
-    }
-    return dtype_num_to_ov_type().at(array.dtype().num());
+    auto dtype = array.dtype();
+    return get_ov_type(dtype);
 }
 
 ov::element::Type get_ov_type(py::dtype& dtype) {
@@ -90,7 +85,10 @@ ov::element::Type get_ov_type(py::dtype& dtype) {
     if (ctype == 'U' || ctype == 'S') {
         return ov::element::string;
     }
-    return dtype_num_to_ov_type().at(dtype.num());
+    const auto dtype_map = dtype_num_to_ov_type();
+    auto ov_type_it = dtype_map.find(dtype.num());
+    OPENVINO_ASSERT(ov_type_it != dtype_map.end(), "Unsupported data type: ", dtype);
+    return ov_type_it->second;
 }
 
 };  // namespace type_helpers
