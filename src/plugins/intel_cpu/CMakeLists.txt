@@ -8,15 +8,6 @@ endif()
 
 set(TARGET_NAME "openvino_intel_cpu_plugin")
 
-#TODO: Patch KleidiAI CMakeLists to remove absolute include path
-execute_process(
-    COMMAND git apply ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/kleidiai_include_directories_patch.diff
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/kleidiai
-    RESULT_VARIABLE patch_result
-    OUTPUT_VARIABLE patch_output
-    ERROR_VARIABLE patch_error
-)
-
 if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND CMAKE_CXX_STANDARD GREATER_EQUAL 20)
     set(CMAKE_CXX_FLAGS "-Wno-error=deprecated ${CMAKE_CXX_FLAGS}")
 endif()
@@ -159,12 +150,12 @@ else()
 endif()
 ov_dependent_option(ENABLE_SHL_FOR_CPU "Enable SHL for OpenVINO CPU Plugin" ${ENABLE_SHL_FOR_CPU_DEFAULT} "RISCV64" OFF)
 
-if(ARM OR AARCH64)
+if(AARCH64)
     set(ENABLE_KLEIDIAI_FOR_CPU_DEFAULT ON)
 else()
     set(ENABLE_KLEIDIAI_FOR_CPU_DEFAULT OFF)
 endif()
-ov_dependent_option(ENABLE_KLEIDIAI_FOR_CPU "Enable KleidiAI for OpenVINO CPU Plugin" ${ENABLE_KLEIDIAI_FOR_CPU_DEFAULT} "ARM OR AARCH64" OFF)
+ov_dependent_option(ENABLE_KLEIDIAI_FOR_CPU "Enable KleidiAI for OpenVINO CPU Plugin" ${ENABLE_KLEIDIAI_FOR_CPU_DEFAULT} "AARCH64" OFF)
 
 add_subdirectory(thirdparty)
 
@@ -225,13 +216,14 @@ endif()
 if (AARCH64)
     # this directory is reused on RISCV64
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/x64/*)
+else()
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/kleidiai/*)
 endif()
 
 if(NOT (AARCH64 OR ARM))
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/arm/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/aarch64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/kleidiai/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/aarch64/*)
 endif()
 

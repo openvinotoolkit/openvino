@@ -30,7 +30,7 @@
 #include "utils/cpp/maybe_unused.hpp"
 #include "utils/debug_capabilities.h"
 
-#if defined(OV_CPU_WITH_KLEIDIAI) && defined(OPENVINO_ARCH_ARM64)
+#if defined(OV_CPU_WITH_KLEIDIAI)
 // kai_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla.h included in kleidiai_mm.hpp supports aarch64 only
 #include "nodes/executors/kleidiai/kleidiai_mm.hpp"
 #endif
@@ -230,7 +230,7 @@ OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noPostOps(const FCConfig& config
 template <>
 const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
     static const std::vector<ExecutorImplementation<FCAttrs>> fullyconnectedImplementations {
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OV_CPU_WITH_KLEIDIAI)
         OV_CPU_INSTANCE_KLEIDIAI(
             "fullyconnected_kleidiai",
             ExecutorType::Kleidiai,
