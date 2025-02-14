@@ -99,13 +99,6 @@ py::object from_ov_any_map(const ov::AnyMap& map) {
     return py::cast(result);
 }
 
-py::object from_ov_any_vector(const std::vector<ov::Any>& vec) {
-    std::vector<py::object> result;
-    for (const auto& entry : vec) {
-        result.push_back(from_ov_any(entry));
-    }
-    return py::cast(result);
-}
 
 py::object from_ov_any(const ov::Any& any) {
     // Check for py::object
