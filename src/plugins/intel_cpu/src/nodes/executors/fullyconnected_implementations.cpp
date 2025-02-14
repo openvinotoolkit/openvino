@@ -230,35 +230,6 @@ OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noPostOps(const FCConfig& config
 template <>
 const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
     static const std::vector<ExecutorImplementation<FCAttrs>> fullyconnectedImplementations {
-#if defined(OV_CPU_WITH_KLEIDIAI)
-        OV_CPU_INSTANCE_KLEIDIAI(
-            "fullyconnected_kleidiai",
-            ExecutorType::Kleidiai,
-            OperationType::MatMul,
-            ShapeTolerance::Agnostic,
-            // supports
-            [](const FCConfig& config) -> bool {
-                VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
-                VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
-                VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
-                VERIFY(everyone_is(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
-                VERIFY(srcRank(config) == 2U, UNSUPPORTED_SRC_RANK);
-                VERIFY(weiRank(config) == 2U, UNSUPPORTED_WEI_RANK);
-                return MatMulKleidiAIExecutor::supports(config);
-            },
-            // requiresFallback
-            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
-                return {};
-            },
-            // acceptsShapes
-            [](const MemoryArgs& memory) -> bool {
-                return true;
-            },
-            // create
-            [](const FCAttrs& attrs, const PostOps& postOps, const MemoryArgs& memory, ExecutorContext::CPtr context) {
-                return std::make_shared<MatMulKleidiAIExecutor>(attrs, postOps, memory, context);
-            })
-#endif
         OV_CPU_INSTANCE_MLAS_X64(
             "fullyconnected_mlas",
             ExecutorType::Mlas,
@@ -452,6 +423,33 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                const MemoryArgs& memory,
                const ExecutorContext::CPtr& context) {
                 return std::make_shared<ACLLowpFullyConnectedExecutor>(attrs, postOps, memory, context);
+            })
+        OV_CPU_INSTANCE_KLEIDIAI(
+            "fullyconnected_kleidiai",
+            ExecutorType::Kleidiai,
+            OperationType::MatMul,
+            ShapeTolerance::Agnostic,
+            // supports
+            [](const FCConfig& config) -> bool {
+                VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
+                VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
+                VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
+                VERIFY(everyone_is(f32, srcType(config), weiType(config), biaType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(srcRank(config) == 2U, UNSUPPORTED_SRC_RANK);
+                VERIFY(weiRank(config) == 2U, UNSUPPORTED_WEI_RANK);
+                return MatMulKleidiAIExecutor::supports(config);
+            },
+            // requiresFallback
+            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+                return {};
+            },
+            // acceptsShapes
+            [](const MemoryArgs& memory) -> bool {
+                return true;
+            },
+            // create
+            [](const FCAttrs& attrs, const PostOps& postOps, const MemoryArgs& memory, ExecutorContext::CPtr context) {
+                return std::make_shared<MatMulKleidiAIExecutor>(attrs, postOps, memory, context);
             })
         OV_CPU_INSTANCE_SHL(
             "fullyconnected_shl",

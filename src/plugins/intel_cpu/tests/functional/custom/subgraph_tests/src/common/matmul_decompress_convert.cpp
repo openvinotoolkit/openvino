@@ -207,13 +207,6 @@ protected:
         }
 
         std::string cpuNodeType = "FullyConnected";
-        // replace kleidiai with acl type if input shapes are not 2D
-#if defined(OPENVINO_ARCH_ARM64)
-        if (selectedType == "kleidiai" &&
-            (inShapeA.rank().get_length() != 2 || inShapeB.rank().get_length() != 2)) {
-            selectedType = "acl";
-        }
-#endif
         selectedType = makeSelectedTypeStr(selectedType, outType);
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};
@@ -285,10 +278,8 @@ std::vector<ov::AnyMap> filter_additional_config_bf16() {
 
 std::vector<CPUSpecificParams> filter_specific_params(bool trySetMlas) {
     std::vector<CPUSpecificParams> specificParams;
-#if defined(OPENVINO_ARCH_ARM)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     specificParams.push_back(CPUSpecificParams{{}, {}, {"acl"}, "acl"});
-#elif defined(OPENVINO_ARCH_ARM64)
-    specificParams.push_back(CPUSpecificParams{{}, {}, {"kleidiai"}, "kleidiai"});
 #else
     if (trySetMlas) {
 #ifdef OV_CPU_WITH_MLAS

@@ -3,13 +3,12 @@
 //
 #pragma once
 
-#include "../acl/acl_fullyconnected_utils.hpp"
-
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include "arm_neon.h"
 
 #include "cpu_memory.h"
+#include "nodes/executors/acl/acl_fullyconnected_utils.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
 #include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p_interface.h"
