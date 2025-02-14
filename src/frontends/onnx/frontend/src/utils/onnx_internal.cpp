@@ -100,7 +100,8 @@ std::shared_ptr<ov::Model> decode_to_framework_nodes(std::shared_ptr<ModelProto>
                                                      detail::MappedMemoryHandles mmap_cache,
                                                      ov::frontend::ExtensionHolder extensions) {
     apply_transformations(*model_proto);
-    auto graph = std::make_shared<Graph>(ov::util::get_directory(model_path).string(), model_proto, mmap_cache, extensions);
+    auto graph =
+        std::make_shared<Graph>(ov::util::get_directory(model_path).string(), model_proto, mmap_cache, extensions);
     return graph->decode();
 }
 }  // namespace ov::frontend::onnx::detail

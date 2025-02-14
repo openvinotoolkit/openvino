@@ -529,8 +529,8 @@ public:
     struct CallArgs {
         float* src0;
         float* src1;
-        int16_t * dst;
-        int16_t * prefetch_dst;
+        int16_t* dst;
+        int16_t* prefetch_dst;
         int64_t num_cols;
     };
     // add two float input eltwise and convert to bf16 : ConvertFP32toBF16(src0 + src1)
@@ -545,7 +545,7 @@ public:
             // the prefetch distance is increased to ensure by the time store happens
             // prefetch has done and no HW prefetcher is triggered
             args.prefetch_dst = (m + 2 < num_rows) ? (args.dst + 2 * dst_stride) : (args.dst);
-            
+
             (*this)(&args);
         }
     }
