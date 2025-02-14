@@ -179,11 +179,11 @@ public:
     void appendPostOps(dnnl::post_ops& ops,
                        const VectorDims& postOpDims,
                        std::unordered_map<int, MemoryPtr>& postOpsMem,
-                       const int channelAxis = 1) override;
+                       const int channelAxis) override;
     void appendPostOps(dnnl::post_ops& ops,
                        const VectorDims& postOpDims,
                        std::vector<const void*>& postOpsMem,
-                       const int channelAxis = 1) override;
+                       const int channelAxis) override;
     bool appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
                            bool isLastPostOp,
                            dnnl::memory::data_type outDataType,

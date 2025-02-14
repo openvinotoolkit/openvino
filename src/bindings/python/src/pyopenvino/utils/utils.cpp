@@ -192,8 +192,7 @@ py::object from_ov_any(const ov::Any& any) {
             std::string property_name = it;
             auto mutability = it.get_mutability();
             std::string mutability_str;
-            switch (mutability)
-            {
+            switch (mutability) {
             case ov::PropertyMutability::RW:
                 mutability_str = "RW";
                 break;
