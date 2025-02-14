@@ -12,9 +12,11 @@ on:
       - Linux ARM64 (Ubuntu 20.04, Python 3.11)
       - Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)
       - Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)
-      - Windows (VS 2019, Python 3.11, Release)
-      - Windows (VS 2019, Python 3.11, Debug)
+      - Fedora 29 (RHEL 8.4), Python 3.9
+      - Windows (VS 2022, Python 3.11, Release)
+      - Windows (VS 2022, Python 3.11, Debug)
       - Windows Conditional Compilation (VS 2022, Python 3.11)
+      - Manylinux 2014
     types:
       - completed
   pull_request:
@@ -29,7 +31,7 @@ jobs:
     name: Rerun Workflow
     # Run only for the failed workflows in openvinotoolkit org
     if: ${{ github.event.workflow_run.conclusion == 'failure' && github.repository_owner == 'openvinotoolkit' }}
-    runs-on: aks-linux-2-cores-8gb-stats
+    runs-on: aks-linux-smallworker
     permissions:
       actions: write
       contents: read

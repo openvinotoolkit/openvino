@@ -13,9 +13,7 @@
 #include "ov_optional.hpp"
 #include "proxy_mem_blk.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class MemoryOutputBase;
 class MemoryInputBase;
@@ -66,7 +64,9 @@ public:
 
     void execute(const dnnl::stream& strm) override final;             // NOLINT
     void executeDynamicImpl(const dnnl::stream& strm) override final;  // NOLINT
-    bool isExecutable() const override final;                          // NOLINT
+
+    bool isExecutable() const override final;  // NOLINT
+    bool neverExecute() const override final;  // NOLINT
 
     void registerInputNode(MemoryInputBase* node);
     void deregisterSibling(MemoryInputBase* node);
@@ -149,6 +149,7 @@ public:
     bool needPrepareParams() const override {
         return false;
     }
+    bool neverExecute() const override final;  // NOLINT
     bool isExecutable() const override final;  // NOLINT
 
     void registerOutputNode(MemoryOutputBase* node);
@@ -211,6 +212,8 @@ public:
     void initOptimalPrimitiveDescriptor() override;
 
     void resolveInPlaceEdges(Edge::LOOK look) override;
+
+    int registerToAllocationContext(int offset, AllocationContext& context) override;
 
     void createPrimitive() override;
 
@@ -288,6 +291,4 @@ private:
     std::weak_ptr<ScaledDotProductAttention> m_sdpaNode;
     int m_child_port_idx = -1;
 };
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

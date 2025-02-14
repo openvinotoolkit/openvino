@@ -15,8 +15,7 @@ using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 std::shared_ptr<ThreadLocal<jit_uni_segfault_detector_emitter*>> g_custom_segfault_handler =
     std::make_shared<ThreadLocal<jit_uni_segfault_detector_emitter*>>();
@@ -95,7 +94,6 @@ void jit_uni_segfault_detector_emitter::memory_track(size_t gpr_idx_for_mem_addr
     h->pop(h->r15);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 #endif

@@ -75,11 +75,11 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 .. code:: ipython3
 
     import platform
-
+    
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision transformers accelerate "diffusers>0.25.0" pillow "gradio>=4.19" "peft>=0.7.0"
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
     %pip install -q -U "openvino>=2024.5.0" "openvino-tokenizers>=2024.5.0" "openvino-genai>=2024.5.0"
-
+    
     if platform.system() == "Darwin":
         %pip install -q "numpy<2.0.0"
 
@@ -87,21 +87,26 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 
     import requests
     from pathlib import Path
-
+    
     notebook_utils_path = Path("notebook_utils.py")
     lora_config_path = Path("lora_config.py")
-
+    
     if not notebook_utils_path.exists():
         r = requests.get(
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
         )
         notebook_utils_path.open("w").write(r.text)
-
+    
     if not lora_config_path.exists():
         r = requests.get(
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/multilora-image-generation/lora_config.py",
         )
         lora_config_path.open("w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("multilora-image-generation.ipynb")
 
 Convert Diffusion Model using Optimum Intel
 -------------------------------------------
@@ -109,7 +114,7 @@ Convert Diffusion Model using Optimum Intel
 
 
 `Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
-the interface between the
+the interface between the 
 `Transformers <https://huggingface.co/docs/transformers/index>`__ and
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ libraries
 and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
@@ -144,7 +149,7 @@ saved on disk before export. For avoiding this, we will use
 ``export_from_model`` function that accepts initialized model.
 Additionally, for using model with OpenVINO GenAI, we need to export
 tokenizers to OpenVINO format using `OpenVINO
-Tokenizers <https://docs.openvino.ai/2024/openvino-workflow-generative/ov-tokenizers.html>`__
+Tokenizers <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/ov-tokenizers.html>`__
 library.
 
 In this tutorial we will use `Stable Diffusion
@@ -160,9 +165,9 @@ Diffusion family.
     from optimum.intel.openvino import OVConfig
     from optimum.exporters.openvino.convert import export_tokenizer
     import gc
-
+    
     model_dir = Path("sdxl-lcm")
-
+    
     if not model_dir.exists():
         model_id = "stabilityai/stable-diffusion-xl-base-1.0"
         adapter_id = "latent-consistency/lcm-lora-sdxl"
@@ -210,7 +215,7 @@ generative models as it already includes all the core functionality.
 
 ``openvino_genai.Text2ImagePipeline`` class supports inference of
 `Diffusers
-models <https://github.com/openvinotoolkit/openvino.genai/blob/master/SUPPORTED_MODELS.md#image-generation-models>`__.
+models <https://github.com/openvinotoolkit/openvino.genai/blob/master/src/docs/SUPPORTED_MODELS.md#text-2-image-models>`__.
 For pipeline initialization, we should provide directory with converted
 by Optimum Intel pipeline and specify inference device. Optionally, we
 can provide configuration for LoRA Adapters using ``adapter_config``.
@@ -262,17 +267,17 @@ Prepare LoRA Adapters
 .. code:: ipython3
 
     from lora_config import LORA
-
+    
     # uncomment this line to see predefined LoRA adapters configuration used in this notebook
     # LORA
 
 .. code:: ipython3
 
     from huggingface_hub import hf_hub_download
-
+    
     lora_dir = Path("lora")
     adapter_paths = []
-
+    
     for lora in LORA:
         lora_model_dir = lora_dir / lora["name"].lower().replace(" ", "_")
         file_name = lora["file_name"]
@@ -283,8 +288,8 @@ Prepare LoRA Adapters
 .. code:: ipython3
 
     import openvino_genai as ov_genai
-
-
+    
+    
     def prepare_adapter_config(scales=None):
         if scales is None:
             scales = [1 / len(adapter_paths)] * len(adapter_paths)
@@ -293,10 +298,10 @@ Prepare LoRA Adapters
         adapter_config = ov_genai.AdapterConfig()
         for adapter, scale in zip(adapter_paths, scales):
             adapter_config.add(ov_genai.Adapter(adapter), scale)
-
+    
         return adapter_config
-
-
+    
+    
     adapters_config = prepare_adapter_config(0.0)
     adapters = adapters_config.get_adapters()
 
@@ -312,7 +317,7 @@ denoising. For reproducibility of generation results, we will use
 .. code:: ipython3
 
     from notebook_utils import device_widget
-
+    
     device = device_widget(default="CPU", exclude=["NPU"])
     device
 
@@ -329,21 +334,21 @@ denoising. For reproducibility of generation results, we will use
 
     import openvino as ov
     import torch
-
-
+    
+    
     class Generator(ov_genai.Generator):
         def __init__(self, seed):
             ov_genai.Generator.__init__(self)
             self.generator = torch.Generator(device="cpu").manual_seed(seed)
-
+    
         def next(self):
             return torch.randn(1, generator=self.generator, dtype=torch.float32).item()
-
+    
         def randn_tensor(self, shape: ov.Shape):
             torch_tensor = torch.randn(list(shape), generator=self.generator, dtype=torch.float32)
             return ov.Tensor(torch_tensor.numpy())
-
-
+    
+    
     pipe = ov_genai.Text2ImagePipeline(model_dir, "CPU", adapters=adapters_config)
 
 Selection specific adapter during generation
@@ -370,7 +375,7 @@ let’s select LoRA for generation images in X-Ray style.
 .. code:: ipython3
 
     from PIL import Image
-
+    
     image = Image.fromarray(image_tensor.data[0])
     image
 
@@ -396,7 +401,7 @@ modern illustration pointillistic style.
     prompt_template2 = LORA[2].get("prompt", "<subject>")
     adapter1_weight = LORA[1].get("weight", 1.0)
     adapter2_weight = LORA[2].get("weight", 1.0)
-
+    
     prompt = prompt_template2.replace("<subject>", prompt_template1.replace("<subject>", subject))
     adapter_config = ov_genai.AdapterConfig()
     adapter_config.add(adapters[1], adapter1_weight)
@@ -446,7 +451,7 @@ Interactive demo
 .. code:: ipython3
 
     gradio_helper_path = Path("gradio_helper.py")
-
+    
     if not gradio_helper_path.exists():
         r = requests.get(
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/multilora-image-generation/gradio_helper.py",
@@ -456,9 +461,9 @@ Interactive demo
 .. code:: ipython3
 
     from gradio_helper import make_demo
-
+    
     demo = make_demo(pipe, Generator, adapters, LORA)
-
+    
     try:
         demo.launch(debug=False)
     except Exception:

@@ -55,7 +55,7 @@ Prerequisites
 
     %pip install -q "torch>=2.1" "torchvision" "Pillow" "tqdm" "datasets>=2.14.6" "gradio>=4.36" "nncf>=2.14.0" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "transformers>=4.45" --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -Uq "openvino>=2024.5.0"
+    %pip install -Uq --pre "openvino>=2024.5.0" --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
 
 .. code:: ipython3
 
@@ -81,6 +81,11 @@ Prerequisites
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("mllama-3.2.ipynb")
 
 Convert model
 -------------
@@ -215,11 +220,13 @@ Let’s convert each model part.
 
 .. parsed-literal::
 
-    2024-09-26 08:47:58.173539: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-09-26 08:47:58.175474: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-09-26 08:47:58.210782: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2025-01-07 08:39:57.815213: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2025-01-07 08:39:57.827771: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:477] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+    WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+    E0000 00:00:1736224797.842114 2088673 cuda_dnn.cc:8310] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+    E0000 00:00:1736224797.846261 2088673 cuda_blas.cc:1418] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+    2025-01-07 08:39:57.861492: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-09-26 08:47:59.026387: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. code:: ipython3
@@ -235,21 +242,48 @@ Let’s convert each model part.
 
 .. parsed-literal::
 
+    Downloading shards:   0%|          | 0/5 [00:00<?, ?it/s]
+
+
+
+.. parsed-literal::
+
     Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s]
+
+
+
+.. parsed-literal::
+
+    tokenizer_config.json:   0%|          | 0.00/55.8k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    tokenizer.json:   0%|          | 0.00/9.09M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    chat_template.json:   0%|          | 0.00/5.09k [00:00<?, ?B/s]
+
+
+.. parsed-literal::
+
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/modeling_utils.py:5006: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+      warnings.warn(
+    `loss_type=None` was set in the config but it is unrecognised.Using the default loss: `ForCausalLMLoss`.
 
 
 .. parsed-literal::
 
     ⌛ Convert vision model...
-    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
 
 
 .. parsed-literal::
 
-    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/modeling_utils.py:4773: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
-      warnings.warn(
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/models/mllama/modeling_mllama.py:1496: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/models/mllama/modeling_mllama.py:1441: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       slice_index = -num_padding_patches if num_padding_patches > 0 else None
 
 
@@ -261,11 +295,15 @@ Let’s convert each model part.
 
 .. parsed-literal::
 
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/models/mllama/modeling_mllama.py:83: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/cache_utils.py:458: TracerWarning: Using len to get tensor shape might cause the trace to be incorrect. Recommended usage would be tensor.shape[0]. Passing a tensor of different shape might lead to errors or silently give incorrect results.
+      or len(self.key_cache[layer_idx]) == 0  # the layer has no cache
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/models/mllama/modeling_mllama.py:1819: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if sequence_length != 1:
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/models/mllama/modeling_mllama.py:1710: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/cache_utils.py:443: TracerWarning: Using len to get tensor shape might cause the trace to be incorrect. Recommended usage would be tensor.shape[0]. Passing a tensor of different shape might lead to errors or silently give incorrect results.
+      elif len(self.key_cache[layer_idx]) == 0:  # fills previously skipped layers; checking for tensor causes errors
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/models/mllama/modeling_mllama.py:1653: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if is_cross_attention_layer and cross_attention_states is None and is_cross_attention_cache_empty:
-    /home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/mllama-3.2/ov_mllama_helper.py:402: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/mllama-3.2/ov_mllama_helper.py:401: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       elif past_key_value.get_seq_length(self.layer_idx) != 0:
 
 
@@ -399,7 +437,98 @@ compression using widget bellow
 
 .. parsed-literal::
 
-    ✅ Compressed model already exists and can be found in Llama-3.2-11B-Vision-Instruct/OV/llm_int4_asym_r10_gs64_max_activation_variance_awq_scale_all_layers.xml
+    ⌛ Dataset preparation started
+    Fetching 64 samples for the initialization...
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/64 [00:00<?, ?it/s]
+
+
+.. parsed-literal::
+
+    ✅ Dataset preparation finished
+    ⌛ Model compression started
+    Compression parameters:
+    	
+    	algorithm int4_asym
+    	group size - 64
+    	ratio - 1.0
+    	awq - True
+    	\scale estimation - True
+    	lora correction - False
+    	gptq - False
+    	all_layers - True
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    WARNING:nncf:Dataset contains only 64 samples, smaller than the requested subset size 128.
+    INFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │ int4_asym                 │ 100% (266 / 266)            │ 100% (266 / 266)                       │
+    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    ✅ Model compression finished. Compressed model can be found in Llama-3.2-11B-Vision-Instruct/OV/llm_int4_asym_r10_gs64_max_activation_variance_awq_scale_all_layers.xml
 
 
 Optimize Vision model
@@ -427,7 +556,7 @@ quantization dataset 2. Perform model quantization using
 
     from ov_mllama_compression import vision_encoder_selection_widget
     
-    vision_encoder_options = vision_encoder_selection_widget(device.value)
+    vision_encoder_options = vision_encoder_selection_widget()
     
     vision_encoder_options
 
@@ -466,7 +595,8 @@ quantization dataset 2. Perform model quantization using
                 model=ov_model,
                 calibration_dataset=calibration_dataset,
                 model_type=nncf.ModelType.TRANSFORMER,
-                advanced_parameters=nncf.AdvancedQuantizationParameters(smooth_quant_alpha=0.6),
+                advanced_parameters=nncf.AdvancedQuantizationParameters(smooth_quant_alphas=nncf.AdvancedSmoothQuantParameters(matmul=0.6)),
+                subset_size=100,
             )
             ov.save_model(quantized_model, int8_vision_encoder_path)
             del quantized_model
@@ -484,6 +614,81 @@ quantization dataset 2. Perform model quantization using
         vision_encoder_path = int8_wc_vision_encoder_path
     else:
         vision_encoder_path = fp_vision_encoder_path
+
+
+.. parsed-literal::
+
+    /home/ea/work/py311/lib/python3.11/site-packages/nncf/quantization/algorithms/post_training/pipeline.py:87: FutureWarning: `AdvancedQuantizationParameters(smooth_quant_alpha=..)` is deprecated.Please, use `AdvancedQuantizationParameters(smooth_quant_alphas)` option with AdvancedSmoothQuantParameters(convolution=.., matmul=..) as value instead.
+      warning_deprecated(
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    WARNING:nncf:Dataset contains only 100 samples, smaller than the requested subset size 300.
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    WARNING:nncf:Dataset contains only 100 samples, smaller than the requested subset size 300.
+
+
+.. parsed-literal::
+
+    /home/ea/work/py311/lib/python3.11/site-packages/numpy/core/_methods.py:118: RuntimeWarning: overflow encountered in reduce
+      ret = umr_sum(arr, axis, dtype, out, keepdims, where=where)
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
 
 Model Inference
 ---------------
@@ -549,8 +754,14 @@ blog <https://blog.openvino.ai/blog-posts/large-language-model-graph-customizati
         {"role": "user", "content": [{"type": "image"}, {"type": "text", "text": question}]},
     ]
     text = processor.tokenizer.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
-    url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/d5fbbd1a-d484-415c-88cb-9986625b7b11"
-    raw_image = Image.open(requests.get(url, stream=True).raw)
+    
+    input_image_path = Path("cat.png")
+    if not input_image_path.exists():
+        url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/d5fbbd1a-d484-415c-88cb-9986625b7b11"
+        raw_image = Image.open(requests.get(url, stream=True).raw)
+        raw_image.save(input_image_path)
+    else:
+        raw_image = Image.open(input_image_path)
     
     inputs = processor(text=text, images=[raw_image], return_tensors="pt")
     streamer = TextStreamer(processor.tokenizer, skip_prompt=True, skip_special_tokens=True)
@@ -572,9 +783,9 @@ blog <https://blog.openvino.ai/blog-posts/large-language-model-graph-customizati
 
 .. parsed-literal::
 
-    The cat is lying in a box, which is an unusual position for a cat. Cats are known for their agility and flexibility, but they tend to prefer more comfortable and secure positions, such as on a soft surface or in a cozy spot. Lying in a box is not a typical behavior for a cat, and it may be due to the cat's desire to feel safe and protected or to explore a new environment.
-    Visual encoder time 19374.52 ms
-    First token latency 693.76ms, Second token latency 431.92ms
+    The cat is lying in a box. The cat is lying in a box, which is unusual because cats are known for their love of boxes. The cat's unusual behavior of lying in a box is likely due to its natural instinct to seek out small, enclosed spaces for rest and relaxation.
+    Visual encoder time 19083.66 ms
+    First token latency 2937.73ms, Second token latency 175.03ms
 
 
 Interactive demo
@@ -596,3 +807,26 @@ Interactive demo
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
+
+
+.. parsed-literal::
+
+    /home/ea/work/py311/lib/python3.11/site-packages/gradio/components/chatbot.py:228: UserWarning: The 'tuples' format for chatbot messages is deprecated and will be removed in a future version of Gradio. Please set type='messages' instead, which uses openai-style 'role' and 'content' keys.
+      warnings.warn(
+
+
+.. parsed-literal::
+
+    * Running on local URL:  http://127.0.0.1:7860
+    Rerunning server... use `close()` to stop if you need to change `launch()` parameters.
+    ----
+    * Running on public URL: https://5276392df9bae2f87b.gradio.live
+    
+    This share link expires in 72 hours. For free permanent hosting and GPU upgrades, run `gradio deploy` from the terminal in the working directory to deploy to Hugging Face Spaces (https://huggingface.co/spaces)
+
+
+
+
+
+
+

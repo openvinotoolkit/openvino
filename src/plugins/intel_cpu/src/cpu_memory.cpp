@@ -18,8 +18,7 @@
 #    include <utility>
 #endif
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 template <>
 DnnlMemoryDescPtr IMemory::getDescWithType<DnnlMemoryDesc, 0, 0>() const {
     return MemoryDescUtils::convertToDnnlMemoryDesc(getDescPtr());
@@ -135,8 +134,9 @@ void Memory::load(const IMemory& src, bool ftz) const {
 
 void Memory::nullify() {
     void* dataPtr = getData();
-    if (dataPtr != nullptr)
+    if (dataPtr != nullptr) {
         memset(dataPtr, 0, getDesc().getCurrentMemSize());
+    }
 }
 
 void Memory::redefineDesc(MemoryDescPtr desc) {
@@ -194,8 +194,9 @@ dnnl::memory Memory::DnnlMemPrimHandle::getPrim() const {
 
 void* Memory::getData() const {
     void* data = getDataNoThrow();
-    if (data == nullptr && m_pMemDesc->getShape().isStatic() && m_pMemDesc->getShape().getElementsCount() != 0)
+    if (data == nullptr && m_pMemDesc->getShape().isStatic() && m_pMemDesc->getShape().getElementsCount() != 0) {
         OPENVINO_THROW("Memory has not been allocated");
+    }
     return data;
 }
 
@@ -492,8 +493,9 @@ dnnl::memory StaticMemory::getPrimitive() const {
 
 void StaticMemory::nullify() {
     void* dataPtr = getData();
-    if (dataPtr != nullptr)
+    if (dataPtr != nullptr) {
         memset(dataPtr, 0, getSize());
+    }
 }
 
 StaticMemory::StaticMemoryBlock::StaticMemoryBlock(size_t size) : m_size(size) {
@@ -539,13 +541,14 @@ void StaticMemory::StaticMemoryBlock::unregisterMemory(Memory* memPtr) {
 #    if !defined(__NR_mbind) && defined(__x86_64__)
 #        define __NR_mbind 237
 #    endif
-static long mbind(void* start,
-                  unsigned long len,
-                  int mode,
-                  const unsigned long* nmask,
-                  unsigned long maxnode,
-                  unsigned flags) {
-    return syscall(__NR_mbind, (long)start, len, mode, (long)nmask, maxnode, flags);
+static int64_t mbind(void* start, uint64_t len, int mode, const uint64_t* nmask, uint64_t maxnode, unsigned flags) {
+    return syscall(__NR_mbind,
+                   reinterpret_cast<uint64_t>(start),
+                   len,
+                   mode,
+                   reinterpret_cast<uint64_t>(nmask),
+                   maxnode,
+                   flags);
 }
 #endif
 
@@ -555,8 +558,8 @@ bool mbind_move(void* data, size_t size, int targetNode) {
     auto pagesize = getpagesize();
     auto page_count = (size + pagesize - 1) / pagesize;
     char* pages = reinterpret_cast<char*>(  // NOLINT(performance-no-int-to-ptr)
-        (((uintptr_t)data) & ~((uintptr_t)(pagesize - 1))));
-    unsigned long mask = 0;
+        ((reinterpret_cast<uintptr_t>(data)) & ~(static_cast<uintptr_t>(pagesize - 1))));
+    uint64_t mask = 0;
     unsigned flags = 0;
     if (realNode < 0) {
         // restore default policy
@@ -725,5 +728,4 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
     return ptr;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
