@@ -31,7 +31,7 @@ BrgemmCopyBLoopPortsAdjuster::BrgemmCopyBLoopPortsAdjuster(const ov::snippets::l
     }
 }
 
-bool BrgemmCopyBLoopPortsAdjuster::run(const snippets::lowered::LinearIR& linear_ir) {
+bool BrgemmCopyBLoopPortsAdjuster::run(const snippets::lowered::LinearIR& /*linear_ir*/) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::BrgemmCopyBLoopPortsAdjuster")
     for (const auto& p : m_affected_uni2exp_map) {
         const auto& uni_loop = p.first;

@@ -51,7 +51,7 @@ void Reference::createPrimitive() {
     hasOutputShapeDataDependency = isDynamicNode() && outputShapeDataDependency();
 }
 
-void Reference::execute(const dnnl::stream& strm) {
+void Reference::execute(const dnnl::stream& /*strm*/) {
     auto inputs = prepareInputs();
     auto outputs = prepareOutputs();
     if (!ovCoreNode->evaluate(outputs, inputs)) {

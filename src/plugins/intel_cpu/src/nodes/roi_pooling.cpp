@@ -503,7 +503,7 @@ void ROIPooling::createPrimitive() {
     }
 }
 
-void ROIPooling::execute(const dnnl::stream& strm) {
+void ROIPooling::execute(const dnnl::stream& /*strm*/) {
     if (execPtr) {
         const auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
         const auto& srcMemory1 = getParentEdgeAt(1)->getMemory();

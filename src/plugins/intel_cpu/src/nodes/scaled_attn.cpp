@@ -122,7 +122,7 @@ struct MHAKernel {
     // present_value [B, H, kv_len, S]
     // attention_mask [B, 1, q_len, kv_len]
     // output_emb    [B, q_len, H*S]
-    void operator()(const dnnl::stream& strm,
+    void operator()(const dnnl::stream& /*strm*/,
                     PlainTensor& query,
                     PlainTensor& present_key,
                     PlainTensor& present_value,
@@ -268,7 +268,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         return dnnl_dims;
     }
 
-    void prepare_brgemm_prim(const dnnl::stream& strm,
+    void prepare_brgemm_prim(const dnnl::stream& /*strm*/,
                              PlainTensor& query,
                              PlainTensor& present_key,
                              PlainTensor& present_value,
@@ -701,7 +701,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
     // attention_mask [B, 1, q_len, kv_len]
     // alibi
     // output_emb    [B, L1, H*S]
-    void operator()(const dnnl::stream& strm,
+    void operator()(const dnnl::stream& /*strm*/,
                     PlainTensor& query,
                     PlainTensor& present_key,
                     PlainTensor& present_value,
@@ -1234,7 +1234,7 @@ void ScaledDotProductAttention::createPrimitive() {
     }
     ScaledDotProductAttentionKey key = {rtPrecision};
 
-    auto builder = [&](const ScaledDotProductAttentionKey& key) -> std::shared_ptr<Executor> {
+    auto builder = [&](const ScaledDotProductAttentionKey& /*key*/) -> std::shared_ptr<Executor> {
         std::shared_ptr<Executor> executor = nullptr;
 #ifdef OPENVINO_ARCH_X86_64
         if (rtPrecision == ov::element::bf16) {

@@ -11,7 +11,7 @@ public:
     RMSNormShapeInfer() = default;
 
     IShapeInfer::Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                              const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+                              const std::unordered_map<size_t, MemoryPtr>& /*data_dependency*/) override {
         const auto& dims = input_shapes.front().get();
         return {{dims}, ShapeInferStatus::success};
     }

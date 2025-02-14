@@ -130,7 +130,7 @@ void AdaptivePooling::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void AdaptivePooling::execute(const dnnl::stream& strm) {
+void AdaptivePooling::execute(const dnnl::stream& /*strm*/) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDataType();
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDataType();
     if (!(inputPrec == dnnl_f32 && outputPrec == dnnl_f32)) {
@@ -224,7 +224,7 @@ void AdaptivePooling::execute(const dnnl::stream& strm) {
         *dstData = res;
         indexDst[spatIndOff * oDHW + od * oHW + oh * OW + ow] = resIndex;
     };
-    auto poolAvg = [&](const float* srcData, float* dstData, int od, int oh, int ow, size_t spatIndOff) {
+    auto poolAvg = [&](const float* srcData, float* dstData, int od, int oh, int ow, size_t /*spatIndOff*/) {
         size_t dStart, dEnd, hStart, hEnd, wStart, wEnd;
         setBinBorders(&dStart, &dEnd, od, ID, OD);
         setBinBorders(&hStart, &hEnd, oh, IH, OH);

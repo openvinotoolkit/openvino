@@ -132,7 +132,7 @@ bool EmbeddingBagPacked::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
 
-void EmbeddingBagPacked::execute(const dnnl::stream& strm) {
+void EmbeddingBagPacked::execute(const dnnl::stream& /*strm*/) {
     const auto* srcData = getSrcDataAtPortAs<const uint8_t>(0);
     const uint8_t* weightsData = nullptr;
     if (_withWeights) {

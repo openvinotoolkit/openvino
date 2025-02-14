@@ -313,7 +313,7 @@ void Gather::createPrimitive() {
                 const uint64_t wpt = ((totalWork / dataElPerVec) / m_threads_num + 1) * dataElPerVec;
                 execParamsPerThread.resize(m_threads_num);
 
-                parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
+                parallel_nt(m_threads_num, [&](const int ithr, const int /*nthr*/) {
                     const uint64_t dstStart = std::min(wpt * ithr, totalWork);
                     const uint64_t dstEnd = std::min(wpt * (ithr + 1), totalWork);
 
@@ -432,7 +432,7 @@ void Gather::prepareParams() {
 #endif
 }
 
-void Gather::execute(const dnnl::stream& strm) {
+void Gather::execute(const dnnl::stream& /*strm*/) {
     if (isInPlace()) {
         return;
     }
@@ -453,7 +453,7 @@ void Gather::execute(const dnnl::stream& strm) {
 
         const uint64_t dataElPerVec = jitKernel->getDataElPerVec();
 
-        auto threadBody = [&](const int ithr, const int nthr) {
+        auto threadBody = [&](const int ithr, const int /*nthr*/) {
             auto& p = execParamsPerThread[ithr];
             auto arg = gatherJitExecArgs();
 
@@ -500,7 +500,7 @@ void Gather::execute(const dnnl::stream& strm) {
     execReference();
 }
 
-void Gather::executeDynamicImpl(const dnnl::stream& strm) {
+void Gather::executeDynamicImpl(const dnnl::stream& /*strm*/) {
     if (isInPlace()) {
         return;
     }
@@ -865,6 +865,7 @@ struct ExecCompressedDispatcher {
 
 private:
     void ExecCompressed8Bit_dispatch(ExecCompressedContext& ctx) {
+        (void)ctx;
         OV_SWITCH(intel_cpu,
                   ExecCompressed8BitDispatcher,
                   ctx,

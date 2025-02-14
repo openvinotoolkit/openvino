@@ -70,6 +70,7 @@ static void attn_acc_value_block(float* out,
                                  const size_t S,
                                  const size_t block_size,
                                  const size_t group_size) {
+    (void)group_size;
 #    if defined(HAVE_AVX512F)
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {
@@ -447,6 +448,7 @@ static void dot_product_block(TA* a,
                               const size_t n,
                               const size_t block_size,
                               const size_t group_size) {
+    (void)group_size;
 #    if defined(HAVE_AVX512F)
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {
@@ -1046,13 +1048,13 @@ template <typename TDST,
           std::enable_if_t<(SRC_PREC != ov::element::u8 && SRC_PREC != ov::element::u4), bool> = true>
 void transpose_16NxK(TDST* dst,
                      void* src,
-                     TDST* tmp,
+                     TDST* /*tmp*/,
                      const size_t N,
                      const size_t K,
                      const size_t dst_stride,
                      const size_t src_stride,
-                     const size_t group_size,
-                     const bool quant_key_bychannel) {
+                     const size_t /*group_size*/,
+                     const bool /*quant_key_bychannel*/) {
     size_t k = 0;
     auto* src_ptr = reinterpret_cast<typename ov::element_type_traits<SRC_PREC>::value_type*>(src);
     for (; k + 16 <= K; k += 16) {
@@ -1154,11 +1156,16 @@ template <typename T,
           ov::element::Type_t SRC_PREC,
           std::enable_if_t<SRC_PREC != ov::element::u8 && precision_of<T>::value == SRC_PREC, bool> = true>
 static inline void dequant(T* dst, void* src, const size_t N, const size_t K, const size_t group_size) {
+    (void)dst;
+    (void)src;
+    (void)N;
+    (void)K;
+    (void)group_size;
     // never called
     OPENVINO_THROW("dequant: should not be called.");
 }
 template <typename T, ov::element::Type_t SRC_PREC, std::enable_if_t<SRC_PREC == ov::element::f16, bool> = true>
-static inline void dequant(float* dst, void* src, const size_t N, const size_t K, const size_t group_size) {
+static inline void dequant(float* dst, void* src, const size_t N, const size_t K, const size_t /*group_size*/) {
     cvt_copy(dst, reinterpret_cast<ov::float16*>(src), 1, K * N, 0, 0);
 }
 
@@ -1349,6 +1356,14 @@ static void pack_32NxK(TDST* dst,
                        const size_t src_stride,
                        const size_t group_size) {
     // never called
+    (void)dst;
+    (void)src;
+    (void)tmp;
+    (void)N;
+    (void)K;
+    (void)dst_stride;
+    (void)src_stride;
+    (void)group_size;
     OPENVINO_THROW("pack_32NxK: should not be called.");
 }
 
@@ -1892,7 +1907,7 @@ struct MHAHelper {
                        const PlainTensor& output_score,
                        size_t max_context_len,
                        const PlainTensor& past_lens,
-                       const PlainTensor& subsequence_begins,
+                       const PlainTensor& /*subsequence_begins*/,
                        const PlainTensor& block_indices,
                        const PlainTensor& block_indices_begins,
                        const PlainTensor& alibi_slopes) {
@@ -2023,7 +2038,7 @@ struct MHAHelper {
         // attn_w * V
         _output_bhl.resize<float>({static_cast<size_t>(_nthr), B, q_len, H, SV});
         // m_attn_w {B, H, q_len, kv_len}
-        parallel_nt_static(_nthr, [&](const size_t ithr, const size_t nthr) {
+        parallel_nt_static(_nthr, [&](const size_t ithr, const size_t /*nthr*/) {
             memset(_output_bhl.ptr<float>(ithr, 0, 0, 0, 0), 0, _output_bhl.stride(0) * sizeof(float));
         });
 
@@ -2094,7 +2109,7 @@ struct MHA {
         int32_t total_kv_len;
 
     public:
-        void reset(const PlainTensor& query,
+        void reset(const PlainTensor& /*query*/,
                    const PlainTensor& past_lens,
                    const PlainTensor& subsequence_begins,
                    size_t block_size) {
@@ -2181,7 +2196,7 @@ struct MHA {
                          const PlainTensor& v_cache,
                          const PlainTensor& output_emb,
                          const PlainTensor& output_score,
-                         size_t max_context_len,
+                         size_t /*max_context_len*/,
                          const PlainTensor& past_lens,
                          const PlainTensor& subsequence_begins,
                          const PlainTensor& block_indices,
@@ -2341,7 +2356,7 @@ struct MHA {
             }
         });
         if (output_score) {
-            parallel_for2d_dynamic(past_lens.m_dims[0], 1, [&](size_t b, size_t pq) {
+            parallel_for2d_dynamic(past_lens.m_dims[0], 1, [&](size_t b, size_t /*pq*/) {
                 auto seq_len = static_cast<size_t>(subsequence_begins.ptr<int32_t>()[b + 1] -
                                                    subsequence_begins.ptr<int32_t>()[b]);
                 auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + seq_len;

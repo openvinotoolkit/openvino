@@ -48,6 +48,8 @@ void attn_softmax(void* a,
                                          dst_precision);
         return;
     }
+#else
+    (void)precision;
 #endif
     auto _a = reinterpret_cast<float*>(a);
     auto _alibi = reinterpret_cast<float*>(alibi);

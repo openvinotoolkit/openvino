@@ -114,7 +114,7 @@ std::vector<std::vector<int>> get_streams_info_table(
 
     auto create_one_stream = [&](const std::vector<int>& one_proc_info,
                                  const std::vector<std::vector<int>>& one_proc_table,
-                                 const int num_threads,
+                                 const int /*num_threads*/,
                                  const IStreamsExecutor::Config::StreamsMode sub_streams_model) {
         if ((one_proc_info[PROC_NUMA_NODE_ID] < 0) || (one_proc_info[PROC_SOCKET_ID] < 0) ||
             (((one_proc_info[MAIN_CORE_PROC] > 0) &&

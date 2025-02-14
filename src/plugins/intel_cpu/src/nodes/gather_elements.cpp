@@ -136,7 +136,7 @@ void GatherElements::directExecution() {
     parallel_nt(0, threadBody);
 }
 
-void GatherElements::execute(const dnnl::stream& strm) {
+void GatherElements::execute(const dnnl::stream& /*strm*/) {
     switch (dataTypeSize_) {
     case sizeof(element_type_traits<ov::element::i32>::value_type):
         return directExecution<element_type_traits<ov::element::i32>::value_type>();

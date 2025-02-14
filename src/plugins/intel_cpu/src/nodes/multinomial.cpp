@@ -127,7 +127,7 @@ bool Multinomial::created() const {
     return getType() == Type::Multinomial;
 }
 
-void Multinomial::execute(const dnnl::stream& strm) {
+void Multinomial::execute(const dnnl::stream& /*strm*/) {
     switch (m_probs_precision) {
     case ov::element::f32:
         return execute_probs_type<float>();

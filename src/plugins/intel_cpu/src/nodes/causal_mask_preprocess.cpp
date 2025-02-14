@@ -45,9 +45,10 @@ The functionality is equivalent to following python code:
 */
 template <typename T>
 struct CausalMaskPreprocess::ExecutorCausalMaskPreprocess : public CausalMaskPreprocess::Executor {
-    void execute(const dnnl::stream& strm,
+    void execute(const dnnl::stream& /*strm*/,
                  intel_cpu::Node* pnode,
                  const intel_cpu::CausalMaskPreprocessNode::Config& config) override {
+        (void)config;
         ov::intel_cpu::PlainTensor t_attention_mask(pnode->getSrcMemoryAtPort(0));
         ov::intel_cpu::PlainTensor t_batch_size(pnode->getSrcMemoryAtPort(1));
         ov::intel_cpu::PlainTensor t_cache_positions(pnode->getSrcMemoryAtPort(2));

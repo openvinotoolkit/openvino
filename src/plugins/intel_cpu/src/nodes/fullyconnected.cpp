@@ -359,7 +359,7 @@ void FullyConnected::execTensorParallelSync() {
     }
 }
 
-void FullyConnected::execute(const dnnl::stream& strm) {
+void FullyConnected::execute(const dnnl::stream& /*strm*/) {
     initTensorParallelSync();
 
     executor->execute(memory);

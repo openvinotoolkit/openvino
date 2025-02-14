@@ -93,7 +93,7 @@ void LogSoftmax::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void LogSoftmax::execute(const dnnl::stream& strm) {
+void LogSoftmax::execute(const dnnl::stream& /*strm*/) {
     const auto* srcData = getSrcDataAtPortAs<const float>(0);
     auto* dstData = getDstDataAtPortAs<float>(0);
 

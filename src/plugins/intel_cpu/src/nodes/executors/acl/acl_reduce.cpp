@@ -28,7 +28,7 @@ AclReduceExecutor::AclReduceExecutor(ExecutorContext::CPtr context) : ReduceExec
 bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
                              const std::vector<MemoryDescPtr>& srcDescs,
                              const std::vector<MemoryDescPtr>& dstDescs,
-                             const dnnl::primitive_attr& attr) {
+                             const dnnl::primitive_attr& /*attr*/) {
     if (reduceAttrs.operation != Algorithm::ReduceMax && reduceAttrs.operation != Algorithm::ReduceMin &&
         reduceAttrs.operation != Algorithm::ReduceSum && reduceAttrs.operation != Algorithm::ReduceProd &&
         reduceAttrs.operation != Algorithm::ReduceMean) {

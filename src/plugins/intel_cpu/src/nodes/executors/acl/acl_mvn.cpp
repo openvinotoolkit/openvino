@@ -13,7 +13,7 @@ AclMVNExecutor::AclMVNExecutor(ExecutorContext::CPtr context) : MVNExecutor(std:
 bool AclMVNExecutor::init(const MVNAttrs& mvnAttrs,
                           const std::vector<MemoryDescPtr>& srcDescs,
                           const std::vector<MemoryDescPtr>& dstDescs,
-                          const dnnl::primitive_attr& attr) {
+                          const dnnl::primitive_attr& /*attr*/) {
     auto srcDims = srcDescs[0]->getShape().getStaticDims();
     auto dstDims = dstDescs[0]->getShape().getStaticDims();
 

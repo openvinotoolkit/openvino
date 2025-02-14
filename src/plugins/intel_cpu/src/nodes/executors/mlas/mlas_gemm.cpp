@@ -96,7 +96,7 @@ bool MlasGemmExecutor::supports(const FCConfig& config) {
 }
 
 MlasGemmExecutor::MlasGemmExecutor(const FCAttrs& attrs,
-                                   const PostOps& postOps,
+                                   const PostOps& /*postOps*/,
                                    const MemoryArgs& memory,
                                    const ExecutorContext::CPtr& context)
     : m_attrs(attrs),

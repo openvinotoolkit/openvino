@@ -223,7 +223,7 @@ void istft_impl(const float* in_data,
 }
 }  // namespace
 
-void ISTFT::execute(const dnnl::stream& strm) {
+void ISTFT::execute(const dnnl::stream& /*strm*/) {
     const auto signal_length =
         m_has_signal_length_input ? (getSrcDataAtPortAs<const int32_t>(SIGNAL_LENGTH_IDX))[0] : -1;
     istft_impl(getSrcDataAtPortAs<const float>(DATA_IDX),

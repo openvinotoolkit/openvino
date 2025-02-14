@@ -244,7 +244,7 @@ void BatchToSpace::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void BatchToSpace::execute(const dnnl::stream& strm) {
+void BatchToSpace::execute(const dnnl::stream& /*strm*/) {
     switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision().size()) {
     case 1:
         batchToSpaceKernel<element_type_traits<ov::element::u8>::value_type>();

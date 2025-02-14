@@ -115,6 +115,9 @@ inline static void rotate_kv_cache_block_opt(CT* cache_block_ptr,
                                              size_t block_size,
                                              size_t embedding_size) {
 #if !defined(HAVE_AVX2) && !defined(HAVE_AVX512F)
+    (void)cache_block_ptr;
+    (void)block_rotation_coefficients_ptr;
+    (void)num_heads;
     OPENVINO_THROW("host CPU must support either AVX2 or AVX512 instructions");
 #else
     bool is_tail = false;
@@ -230,5 +233,10 @@ inline void rotate_kv_cache_block(uint8_t* cache_block_ptr,
                                   size_t num_heads,
                                   size_t block_size,
                                   size_t embedding_size) {
+    (void)cache_block_ptr;
+    (void)block_rotation_coefficients_ptr;
+    (void)num_heads;
+    (void)block_size;
+    (void)embedding_size;
     OPENVINO_THROW("cache rotation is not implemented for INT8");
 }

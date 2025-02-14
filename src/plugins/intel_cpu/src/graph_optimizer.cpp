@@ -1577,7 +1577,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
 
     auto& graphNodes = graph.GetNodes();
 
-    auto isFusingSupported = [&](const NodePtr& conv, const NodePtr& child) {
+    auto isFusingSupported = [&](const NodePtr& /*conv*/, const NodePtr& child) {
         return child->getType() == Type::Eltwise && DnnlExtensionUtils::isUnarySupportedAsPostOp(child->getAlgorithm());
     };
 

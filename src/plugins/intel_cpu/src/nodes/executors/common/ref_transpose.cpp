@@ -76,9 +76,9 @@ void RefTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::v
 }
 
 bool RefTransposeExecutor::init(const TransposeParams& transposeParams,
-                                const std::vector<MemoryDescPtr>& srcDescs,
-                                const std::vector<MemoryDescPtr>& dstDescs,
-                                const dnnl::primitive_attr& attr) {
+                                const std::vector<MemoryDescPtr>& /*srcDescs*/,
+                                const std::vector<MemoryDescPtr>& /*dstDescs*/,
+                                const dnnl::primitive_attr& /*attr*/) {
     jcp = TransposeExecutor::prepareParams(transposeParams.permuteParams);
     return true;
 }

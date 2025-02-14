@@ -28,10 +28,10 @@ public:
     [[nodiscard]] void* getRawPtr() const noexcept override {
         return static_cast<uint8_t*>(m_pBlock->getRawPtr()) + m_offset;
     }
-    void setExtBuff(void* ptr, size_t size) override {
+    void setExtBuff(void* /*ptr*/, size_t /*size*/) override {
         OPENVINO_THROW("Unexpected setExtBuff call to StaticPartitionMemoryBlock");
     }
-    bool resize(size_t size) override {
+    bool resize(size_t /*size*/) override {
         // don't pass over as it's static memory
         return false;
     }

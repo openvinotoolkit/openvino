@@ -923,7 +923,7 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
 
 void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float* offsets,
                                                                     const float* modulation,
-                                                                    bool enforceRef) {
+                                                                    bool /*enforceRef*/) {
     const int MB = jcp.mb;
     const int OH = jcp.oh;
     const int OW = jcp.ow;
@@ -1339,7 +1339,7 @@ void DeformableConvolution::DefConvJitExecutor::exec(const float* src,
     });
 }
 
-void DeformableConvolution::execute(const dnnl::stream& strm) {
+void DeformableConvolution::execute(const dnnl::stream& /*strm*/) {
     const size_t inputsNumber = getOriginalInputsNumber();
 
     auto& srcMemory0 = getParentEdgeAt(0)->getMemory();

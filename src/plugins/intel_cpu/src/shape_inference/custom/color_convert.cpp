@@ -15,7 +15,7 @@ namespace ov::intel_cpu::node {
  *
  */
 Result ColorConvertShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                                     const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
+                                     const std::unordered_map<size_t, MemoryPtr>& /*data_dependency*/) {
     const auto& dims = input_shapes.front().get();
     if (dims.size() != 4) {
         OPENVINO_THROW("NV12Converter node has incorrect input dimensions");

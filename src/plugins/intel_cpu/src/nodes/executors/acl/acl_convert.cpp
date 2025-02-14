@@ -11,9 +11,9 @@ namespace ov::intel_cpu {
 using namespace arm_compute;
 
 bool ACLConvertExecutor::init(const ConvertParams& convertParams,
-                              const MemoryDescPtr& srcDesc,
-                              const MemoryDescPtr& dstDesc,
-                              const dnnl::primitive_attr& attr) {
+                              const MemoryDescPtr& /*srcDesc*/,
+                              const MemoryDescPtr& /*dstDesc*/,
+                              const dnnl::primitive_attr& /*attr*/) {
     aclConvertParams = convertParams;
 
     auto srcPrecision = precisionToAclDataType(aclConvertParams.srcPrc);
@@ -80,8 +80,8 @@ void ACLConvertExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vec
 }
 
 bool ACLConvertExecutorBuilder::isSupported(const ConvertParams& convertParams,
-                                            const MemoryDescPtr& srcDesc,
-                                            const MemoryDescPtr& dstDesc) const {
+                                            const MemoryDescPtr& /*srcDesc*/,
+                                            const MemoryDescPtr& /*dstDesc*/) const {
     if (convertParams.srcPrc != convertParams.dstPrc) {
         if (!one_of(convertParams.srcPrc,
                     ov::element::i8,

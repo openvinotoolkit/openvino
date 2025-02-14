@@ -172,7 +172,7 @@ void PagedAttention::createPrimitive() {
     // in one model, kvCachePrecision could not be changed so no need to care whether it may be changed.
     PagedAttentionKey key = {rtPrecision};
 
-    auto builder = [&](const PagedAttentionKey& key) -> std::shared_ptr<PagedAttentionExecutor> {
+    auto builder = [&](const PagedAttentionKey& /*key*/) -> std::shared_ptr<PagedAttentionExecutor> {
 #if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64))
         // Since we are quantize only last dim it's safe to use the last dim of KV.
         auto kCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
@@ -199,7 +199,7 @@ void PagedAttention::createPrimitive() {
     m_executor = result.first;
 }
 
-void PagedAttention::execute(const dnnl::stream& strm) {
+void PagedAttention::execute(const dnnl::stream& /*strm*/) {
     auto orginInputNumber = getOriginalInputsNumber();
     std::vector<MemoryPtr> inputs(orginInputNumber);
     std::vector<MemoryPtr> outputs(m_hasScore ? 2 : 1);

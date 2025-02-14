@@ -116,10 +116,10 @@ void RefOptimizedTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, con
               OV_CASE(4u, element_type_traits<ov::element::i32>::value_type));
 }
 
-bool RefOptimizedTransposeExecutor::init(const TransposeParams& transposeParams,
-                                         const std::vector<MemoryDescPtr>& srcDescs,
-                                         const std::vector<MemoryDescPtr>& dstDescs,
-                                         const dnnl::primitive_attr& attr) {
+bool RefOptimizedTransposeExecutor::init(const TransposeParams& /*transposeParams*/,
+                                         const std::vector<MemoryDescPtr>& /*srcDescs*/,
+                                         const std::vector<MemoryDescPtr>& /*dstDescs*/,
+                                         const dnnl::primitive_attr& /*attr*/) {
     return true;
 }
 

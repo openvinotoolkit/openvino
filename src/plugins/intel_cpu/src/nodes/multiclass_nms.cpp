@@ -240,7 +240,7 @@ void MultiClassNms::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void MultiClassNms::execute(const dnnl::stream& strm) {
+void MultiClassNms::execute(const dnnl::stream& /*strm*/) {
     const auto* boxes = getSrcDataAtPortAs<const float>(NMS_BOXES);
     const auto* scores = getSrcDataAtPortAs<const float>(NMS_SCORES);
 
@@ -571,7 +571,7 @@ const float* MultiClassNms::slice_class(const int batch_idx,
                                         const VectorDims& dataStrides,
                                         const bool is_boxes,
                                         const int* roisnum,
-                                        const VectorDims& roisnumStrides,
+                                        const VectorDims& /*roisnumStrides*/,
                                         const bool shared) {
     if (shared) {
         if (is_boxes) {

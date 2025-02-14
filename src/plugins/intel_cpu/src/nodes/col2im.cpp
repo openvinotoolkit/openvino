@@ -88,7 +88,7 @@ struct Col2Im::Col2ImExecute {
         ctx.node.executeImpl<TData, TIndex>();
     }
 };
-void Col2Im::execute(const dnnl::stream& strm) {
+void Col2Im::execute(const dnnl::stream& /*strm*/) {
     auto dataPrecision = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     auto indexPrecision = getParentEdgeAt(1)->getMemory().getDesc().getPrecision();
 

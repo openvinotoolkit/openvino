@@ -778,7 +778,7 @@ IShapeInfer::Result Subgraph::shapeInfer() const {
         in_shapes[i] = srcMemPtrs[i]->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
     }
 
-    auto builder = [this](const SubgraphShapeInferResultKey& key) -> std::shared_ptr<SubgraphShapeInferResult> {
+    auto builder = [this](const SubgraphShapeInferResultKey& /*key*/) -> std::shared_ptr<SubgraphShapeInferResult> {
         return std::make_shared<SubgraphShapeInferResult>(Node::shapeInfer());
     };
 

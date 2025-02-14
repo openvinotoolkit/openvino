@@ -26,7 +26,7 @@ class RefOptimizedTransposeExecutorBuilder : public TransposeExecutorBuilder {
 public:
     [[nodiscard]] bool isSupported(const TransposeParams& transposeParams,
                                    const std::vector<MemoryDescPtr>& srcDescs,
-                                   const std::vector<MemoryDescPtr>& dstDescs) const override {
+                                   const std::vector<MemoryDescPtr>& /*dstDescs*/) const override {
         static const std::vector<std::vector<size_t>> optimizedOrders = {
             std::vector<size_t>{0, 3, 1, 2},
             std::vector<size_t>{0, 4, 1, 2, 3},

@@ -35,8 +35,8 @@ void RepackedWeightsBufferExpression::validate() const {
 }
 
 void RepackedWeightsBufferExpression::init_allocation_size(
-    const std::shared_ptr<snippets::lowered::LoopManager>& loop_manager,
-    size_t allocation_rank) {
+    const std::shared_ptr<snippets::lowered::LoopManager>& /*loop_manager*/,
+    size_t /*allocation_rank*/) {
     const auto& parent_expr = get_input_port_connector(0)->get_source().get_expr();
     const auto& in_layout = parent_expr->get_input_port_descriptor(0)->get_layout();
     const auto& in_subtensor = ov::snippets::utils::get_projected_subtensor(parent_expr->get_input_port(0));
@@ -76,8 +76,8 @@ void CompensationsBufferExpression::validate() const {
 }
 
 void CompensationsBufferExpression::init_allocation_size(
-    const std::shared_ptr<snippets::lowered::LoopManager>& loop_manager,
-    size_t allocation_rank) {
+    const std::shared_ptr<snippets::lowered::LoopManager>& /*loop_manager*/,
+    size_t /*allocation_rank*/) {
     const auto& parent_expr = get_input_port_connector(0)->get_source().get_expr();
     // Compensations are computed during repacking, so we need to round-up allocation shape according to m_inner_n_block
     // because of OneDNN implementation nuances (as in get_repacking_buffer_size).

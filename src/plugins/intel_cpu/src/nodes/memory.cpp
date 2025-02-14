@@ -33,7 +33,7 @@ public:
         void setExtBuff(void* ptr, size_t size) override {
             // pass
         }
-        bool resize(size_t size) override {
+        bool resize(size_t /*size*/) override {
             // pass
             return false;
         }
@@ -83,7 +83,7 @@ public:
         m_pMemDesc = desc;
     }
 
-    void load(const IMemory& src, bool ftz, bool bf16saturation) const override {
+    void load(const IMemory& /*src*/, bool /*ftz*/, bool /*bf16saturation*/) const override {
         OPENVINO_THROW("Unexpected call MemoryStub::load()");
     }
 
@@ -302,7 +302,7 @@ void MemoryOutput::assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& me
     }
 }
 
-void MemoryOutput::runStatic(dnnl::stream strm) {
+void MemoryOutput::runStatic(dnnl::stream /*strm*/) {
     auto inputMem = getSrcMemoryAtPort(0);
     CPU_NODE_ASSERT(assignedMem, " uninitialized assigned memory");
 
@@ -740,7 +740,7 @@ int MemoryInput::registerToAllocationContext(int offset, AllocationContext& cont
     return subGraph->RegisterToAllocationContext(offset, context);
 }
 
-void MemoryInput::runDynamic(dnnl::stream strm) {
+void MemoryInput::runDynamic(dnnl::stream /*strm*/) {
     auto assignedMem = getAssignedState()->input_mem();
 
     CPU_NODE_ASSERT(assignedMem, " assigned state has null memory ptr");
@@ -815,7 +815,7 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
     }
 }
 
-void MemoryInput::runStatic(dnnl::stream strm) {
+void MemoryInput::runStatic(dnnl::stream /*strm*/) {
     auto assignedMem = getAssignedState()->input_mem();
 
     CPU_NODE_ASSERT(assignedMem, "assigned state has null memory ptr");
@@ -993,7 +993,7 @@ void MemoryInputSDPA::runStatic(dnnl::stream strm) {
     // nothing to do
 }
 
-void MemoryInputSDPA::runDynamic(dnnl::stream strm) {
+void MemoryInputSDPA::runDynamic(dnnl::stream /*strm*/) {
     auto currentState = getAssignedState();
     if (currentState->is_reset_state()) {
         if (getParentEdges().empty()) {
