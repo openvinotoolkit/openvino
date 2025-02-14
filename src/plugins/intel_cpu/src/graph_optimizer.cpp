@@ -3111,7 +3111,8 @@ void GraphOptimizer::MatchSdpaKvCache(Graph& graph) {
         return true;
     };
 
-    for (const auto& node : graphNodes) {
+    for (size_t i = 0; i < graphNodes.size(); i++) {  // NOLINT(modernize-loop-convert)
+        auto node = graphNodes[i];
         if (!isSuitableMemInput(node)) {
             continue;
         }
@@ -3251,7 +3252,8 @@ void GraphOptimizer::DropRedundantMemoryOutput(Graph& graph) {
         return nullptr != MemoryOutput;
     };
 
-    for (const auto& node : graphNodes) {
+    for (size_t i = 0; i < graphNodes.size(); i++) {  // NOLINT(modernize-loop-convert)
+        auto node = graphNodes[i];
         if (!isSuitableMemInput(node)) {
             continue;
         }
