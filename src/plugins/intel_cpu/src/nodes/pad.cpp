@@ -15,9 +15,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool Pad::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -208,6 +206,10 @@ void Pad::createPrimitive() {
 
         updateLastInputDims();
     }
+}
+
+bool Pad::neverExecute() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroOutputDimsAtPort(0);
 }
 
 bool Pad::isExecutable() const {
@@ -663,6 +665,4 @@ bool Pad::created() const {
     return getType() == Type::Pad;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

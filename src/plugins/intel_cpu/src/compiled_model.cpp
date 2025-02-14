@@ -10,9 +10,11 @@
 #include "async_infer_request.h"
 #include "config.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "graph.h"
 #include "infer_request.h"
 #include "itt.h"
 #include "low_precision/low_precision.hpp"
+#include "memory_control.hpp"
 #include "memory_state.h"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
@@ -32,8 +34,7 @@
 
 using namespace ov::threading;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct ImmediateSerialExecutor : public ov::threading::ITaskExecutor {
     void run(ov::threading::Task task) override {
@@ -151,7 +152,7 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
     auto streamsExecutor = std::dynamic_pointer_cast<IStreamsExecutor>(m_task_executor);
     if (nullptr != streamsExecutor) {
         streamId = streamsExecutor->get_stream_id();
-        socketId = streamsExecutor->get_socket_id();
+        socketId = std::max(0, streamsExecutor->get_socket_id());
     }
     auto graphLock = GraphGuard::Lock(m_graphs[streamId % m_graphs.size()]);
     if (!graphLock._graph.IsReady()) {
@@ -163,15 +164,16 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                     std::lock_guard<std::mutex> lock{*m_mutex.get()};
                     auto isQuantizedFlag = (m_cfg.lpTransformsMode == Config::On) &&
                                            ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
-
                     ctx = std::make_shared<GraphContext>(m_cfg,
                                                          m_socketWeights[socketId],
                                                          isQuantizedFlag,
                                                          streamsExecutor,
                                                          m_sub_memory_manager);
                 }
+
                 const std::shared_ptr<const ov::Model> model = m_model;
-                graphLock._graph.CreateGraph(model, ctx);
+                graphLock._graph.Init(model, ctx);
+                graphLock._graph.Activate();
             } catch (...) {
                 exception = std::current_exception();
             }
@@ -355,9 +357,8 @@ void CompiledModel::release_memory() {
                         "Attempt to call release_memory() on a compiled model in a busy state. Please ensure that all "
                         "infer requests are completed before releasing memory.");
         auto ctx = graph.getGraphContext();
-        ctx->getNetworkMemoryControl()->releaseMemory();
+        ctx->releaseMemory();
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
