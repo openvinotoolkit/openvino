@@ -2,7 +2,7 @@
 
 This sample demonstrates how to estimate performance of a Bert model using Asynchronous Inference Request API. Unlike [demos](https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos) this sample doesn't have configurable command line arguments. Feel free to modify sample's source code to try out different options.
 
-For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2025/learn-openvino/openvino-samples/bert-benchmark.html)
+For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/bert-benchmark.html)
 
 The sample downloads a model and a tokenizer, export the model to onnx, reads the exported model and reshapes it to enforce dynamic input shapes, compiles the resulting model, downloads a dataset and runs benchmarking on the dataset.
 
