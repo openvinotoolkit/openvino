@@ -85,7 +85,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type type_name: str
 
                   :param predicate: Function that performs additional checks for matching.
-                  :type predicate: function
+                  :type predicate: Callable
     )");
 
     wrap_type.def(py::init([](const std::string& type_name, const NewPredicate& pred) {
@@ -100,7 +100,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type type_name: str
 
                   :param predicate: Function that performs additional checks for matching.
-                  :type predicate: function
+                  :type predicate: Callable
     )");
 
     wrap_type.def(py::init([](const std::string& type_name, const ov::Output<ov::Node>& input) {
@@ -155,7 +155,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type input: openvino.Output
 
                   :param predicate: Function that performs additional checks for matching.
-                  :type predicate: function
+                  :type predicate: Callable
     )");
 
     wrap_type.def(
@@ -177,7 +177,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type input: openvino.Output
 
                   :param predicate: Function that performs additional checks for matching.
-                  :type predicate: function
+                  :type predicate: Callable
     )");
 
     wrap_type.def(
@@ -199,7 +199,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type input: openvino.Node
 
                   :param predicate: Function that performs additional checks for matching.
-                  :type predicate: function
+                  :type predicate: Callable
     )");
 
     wrap_type.def(
@@ -221,7 +221,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type input: openvino.Node
 
                   :param predicate: Function that performs additional checks for matching.
-                  :type predicate: function
+                  :type predicate: Callable
     )");
 
     wrap_type.def(py::init([](const std::string& type_name, const ov::OutputVector& inputs) {
@@ -272,7 +272,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type inputs: List[openvino.Output]
 
                   :param predicate: Function that performs additional checks for matching.
-                  :type predicate: function
+                  :type predicate: Callable
     )");
 
     wrap_type.def(py::init([](const std::string& type_name, const ov::OutputVector& inputs, const NewPredicate& pred) {
@@ -291,7 +291,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type inputs: List[openvino.Output]
 
                   :param predicate: Function that performs additional checks for matching.
-                  :type predicate: function
+                  :type predicate: Callable
     )");
 
     wrap_type.def(py::init([](const std::string& type_name, const ov::NodeVector& inputs, const Predicate& pred) {
@@ -312,7 +312,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type inputs: List[openvino.Node]
 
                   :param predicate: Function that performs additional checks for matching.
-                  :type predicate: function
+                  :type predicate: Callable
     )");
 
     wrap_type.def(py::init([](const std::string& type_name, const ov::NodeVector& inputs, const NewPredicate& pred) {
@@ -333,7 +333,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type inputs: List[openvino.Node]
 
                   :param predicate: Function that performs additional checks for matching.
-                  :type predicate: function
+                  :type predicate: Callable
     )");
 
     wrap_type.def(py::init([](const std::vector<std::string>& type_names) {
@@ -359,7 +359,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type type_names: List[str]
 
                   :param predicate: Function that performs additional checks for matching.
-                  :type predicate: function
+                  :type predicate: Callable
     )");
 
     wrap_type.def(py::init([](const std::vector<std::string>& type_names, const NewPredicate& pred) {
@@ -374,7 +374,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type type_names: List[str]
 
                   :param predicate: Function that performs additional checks for matching.
-                  :type predicate: function
+                  :type predicate: Callable
     )");
 
     wrap_type.def(py::init([](const std::vector<std::string>& type_names, const ov::Output<ov::Node>& input) {
@@ -431,7 +431,7 @@ static void reg_pattern_wrap_type(py::module m) {
         :type input: openvino.Output
 
         :param predicate: Function that performs additional checks for matching.
-        :type predicate: function
+        :type predicate: Callable
     )");
 
     wrap_type.def(py::init([](const std::vector<std::string>& type_names,
@@ -454,7 +454,7 @@ static void reg_pattern_wrap_type(py::module m) {
         :type input: openvino.Output
 
         :param predicate: Function that performs additional checks for matching.
-        :type predicate: function
+        :type predicate: Callable
     )");
 
     wrap_type.def(py::init([](const std::vector<std::string>& type_names,
@@ -477,7 +477,7 @@ static void reg_pattern_wrap_type(py::module m) {
         :type input: openvino.Node
 
         :param predicate: Function that performs additional checks for matching.
-        :type predicate: function
+        :type predicate: Callable
     )");
 
     wrap_type.def(py::init([](const std::vector<std::string>& type_names,
@@ -500,7 +500,7 @@ static void reg_pattern_wrap_type(py::module m) {
         :type input: openvino.Node
 
         :param predicate: Function that performs additional checks for matching.
-        :type predicate: function
+        :type predicate: Callable
     )");
 
     wrap_type.def(py::init([](const std::vector<std::string>& type_names, const ov::OutputVector& inputs) {
@@ -552,7 +552,7 @@ static void reg_pattern_wrap_type(py::module m) {
         :type inputs: List[openvino.Output]
 
         :param predicate: Function that performs additional checks for matching.
-        :type predicate: function
+        :type predicate: Callable
     )");
 
     wrap_type.def(
@@ -573,7 +573,7 @@ static void reg_pattern_wrap_type(py::module m) {
         :type inputs: List[openvino.Output]
 
         :param predicate: Function that performs additional checks for matching.
-        :type predicate: function
+        :type predicate: Callable
     )");
 
     wrap_type.def(
@@ -595,7 +595,7 @@ static void reg_pattern_wrap_type(py::module m) {
         :type inputs: List[openvino.Node]
 
         :param predicate: Function that performs additional checks for matching.
-        :type predicate: function
+        :type predicate: Callable
     )");
 
     wrap_type.def(
@@ -618,7 +618,7 @@ static void reg_pattern_wrap_type(py::module m) {
         :type inputs: List[openvino.Node]
 
         :param predicate: Function that performs additional checks for matching.
-        :type predicate: function
+        :type predicate: Callable
     )");
 
     wrap_type.def("__repr__", [](const ov::pass::pattern::op::WrapType& self) {
@@ -679,8 +679,8 @@ static void reg_pattern_any_input(py::module m) {
                   R"(
                   Create pattern AnyInput operation which is used to match any type of node.
 
-                  :param pred: Function that performs additional checks for matching.
-                  :type pred: function
+                  :param predicate: Function that performs additional checks for matching.
+                  :type predicate: function
     )");
 
     any_input.def(py::init([](const NewPredicate& pred) {
@@ -692,8 +692,8 @@ static void reg_pattern_any_input(py::module m) {
                   R"(
                   Create pattern AnyInput operation which is used to match any type of node.
 
-                  :param pred: Function that performs additional checks for matching.
-                  :type pred: function
+                  :param predicate: Function that performs additional checks for matching.
+                  :type predicate: function
     )");
 
     any_input.def("__repr__", [](const ov::pass::pattern::op::Label& self) {
@@ -798,7 +798,7 @@ static void reg_pattern_optional(py::module m) {
         :type type_names: List[str]
 
         :param predicate: Function that performs additional checks for matching.
-        :type predicate: function
+        :type predicate: Callable
     )");
 
     optional_type.def(py::init([](const std::vector<std::string>& type_names, const NewPredicate& predicate) {
@@ -815,7 +815,7 @@ static void reg_pattern_optional(py::module m) {
         :type type_names: List[str]
 
         :param predicate: Function that performs additional checks for matching.
-        :type predicate: function
+        :type predicate: Callable
     )");
 
     optional_type.def(py::init([](const std::vector<std::string>& type_names,
@@ -838,7 +838,7 @@ static void reg_pattern_optional(py::module m) {
         :type input: openvino.Output
 
         :param predicate: Function that performs additional checks for matching.
-        :type predicate: function
+        :type predicate: Callable
     )");
 
     optional_type.def(py::init([](const std::vector<std::string>& type_names,
@@ -861,7 +861,7 @@ static void reg_pattern_optional(py::module m) {
         :type input: openvino.Output
 
         :param predicate: Function that performs additional checks for matching.
-        :type predicate: function
+        :type predicate: Callable
     )");
 
     optional_type.def(py::init([](const std::vector<std::string>& type_names,
@@ -884,7 +884,7 @@ static void reg_pattern_optional(py::module m) {
         :type input: openvino.Node
 
         :param predicate: Function that performs additional checks for matching.
-        :type predicate: function
+        :type predicate: Callable
     )");
 
     optional_type.def(py::init([](const std::vector<std::string>& type_names,
@@ -907,7 +907,7 @@ static void reg_pattern_optional(py::module m) {
         :type input: openvino.Node
 
         :param predicate: Function that performs additional checks for matching.
-        :type predicate: function
+        :type predicate: Callable
     )");
 
     optional_type.def(
@@ -928,7 +928,7 @@ static void reg_pattern_optional(py::module m) {
         :type inputs: List[openvino.Output]
 
         :param predicate: Function that performs additional checks for matching.
-        :type predicate: function
+        :type predicate: Callable
     )");
 
     optional_type.def(
@@ -949,7 +949,7 @@ static void reg_pattern_optional(py::module m) {
         :type inputs: List[openvino.Output]
 
         :param predicate: Function that performs additional checks for matching.
-        :type predicate: function
+        :type predicate: Callable
     )");
 
     optional_type.def(
@@ -971,7 +971,7 @@ static void reg_pattern_optional(py::module m) {
         :type inputs: List[openvino.Node]
 
         :param predicate: Function that performs additional checks for matching.
-        :type predicate: function
+        :type predicate: Callable
     )");
 
     optional_type.def(
@@ -994,7 +994,7 @@ static void reg_pattern_optional(py::module m) {
         :type inputs: List[openvino.Node]
 
         :param predicate: Function that performs additional checks for matching.
-        :type predicate: function
+        :type predicate: Callable
     )");
 
     optional_type.def("__repr__", [](const ov::pass::pattern::op::Optional& self) {

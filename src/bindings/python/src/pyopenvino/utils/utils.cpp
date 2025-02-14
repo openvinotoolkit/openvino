@@ -161,6 +161,15 @@ py::object from_ov_any(const ov::Any& any) {
     else if (any.is<std::vector<double>>()) {
         return py::cast(any.as<std::vector<double>>());
     }
+    // Check for std::vector<ov::Any>
+    else if (any.is<std::vector<ov::Any>>()) {
+        const auto &values = any.as<std::vector<ov::Any>>();
+        PyObject *list = PyList_New(0);
+        for (const auto & value : values) {
+            PyList_Append(list, from_ov_any(value).ptr());
+        }
+        return py::cast<py::object>(list);
+    }
     // Check for std::tuple<unsigned int, unsigned int>
     else if (any.is<std::tuple<unsigned int, unsigned int>>()) {
         return py::cast(any.as<std::tuple<unsigned int, unsigned int>>());

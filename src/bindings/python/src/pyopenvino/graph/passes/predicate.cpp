@@ -64,7 +64,7 @@ static void reg_pattern_symbol_value(py::module m) {
         Create PatternSymbolValue with the given value.
 
         :param value: symbol to keep as pattern value
-        :type value: ov.Symbol
+        :type value: openvino.Symbol
     )");
 
     value.def(py::init([](const int64_t& s) {

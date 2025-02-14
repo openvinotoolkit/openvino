@@ -131,7 +131,7 @@ void regclass_passes_Matcher(py::module m) {
                         if (gi.is_dynamic())
                             group.push_back(gi.s());
                     }
-                    result[name] = Common::utils::from_ov_any_vector(group);
+                    result[name] = group;
                 }
             }
             return Common::utils::from_ov_any_map(result);
