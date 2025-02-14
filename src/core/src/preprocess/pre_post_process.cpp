@@ -29,6 +29,8 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
     using namespace ov::element;
 
     ov::pass::Manager manager("pre_post_processing");
+
+    // 1. Set "disable_const_folding" attribute
     manager.register_pass<MarkDequantization>(TypeVector{i8, u8, i4, u4, nf4});
     REGISTER_PASS(manager, DisableShapeOfConstantFolding);
     REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
@@ -36,18 +38,24 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
     // so that not extra memory is used for intermediate decompressed constants.
     manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
 
+    // 2. Fusion transformations:
     REGISTER_PASS(manager, ConvertDivideWithConstant)
-
     auto multiply_fusions = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(multiply_fusions, MultiplyConvolutionFusion)
     ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionFusion)
     ADD_MATCHER(multiply_fusions, MultiplyConvolutionBackpropDataFusion)
     ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionBackpropDataFusion)
     multiply_fusions->set_name("ov::pass::MultiplyFusions");
-
     REGISTER_PASS(manager, ReverseInputChannelsFusion)
+
+    // 3. CF call due to detected perf degradations
     REGISTER_PASS(manager, ConstantFolding)
     manager.run_passes(model);
+
+    // 4. RT info cleanup to not affect plugin compilation
+    for (const auto& op : model->get_ops()) {
+        enable_constant_folding(op);
+    }
 }
 
 }  // namespace
