@@ -42,7 +42,7 @@ def segment_max(
     fill_mode: str = None,
     name: Optional[str] = None,
 ) -> Node:
-    """SegmentMax operation finds the maximum value in each specified segment of the input tensor.
+    """The SegmentMax operation finds the maximum value in each specified segment of the input tensor.
 
     :param data: ND tensor of type T, the numerical data on which SegmentMax operation will be performed.
     :param segment_ids: 1D Tensor of sorted non-negative numbers, representing the segments.
