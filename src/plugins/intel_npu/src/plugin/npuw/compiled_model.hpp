@@ -11,8 +11,11 @@
 #include "intel_npu/config/npuw.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "partitioning/partitioning.hpp"
+#include "serialization.hpp"
 #include "spatial.hpp"
 #include "weights_bank.hpp"
 
@@ -72,7 +75,8 @@ private:
 
     void serialize(std::ostream& stream) const;
     static std::shared_ptr<CompiledModel> deserialize(std::istream& stream,
-                                                      const std::shared_ptr<const ov::IPlugin>& plugin);
+                                                      const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                      const ov::AnyMap& properties);
 
     // This is used for removing too long output tensor names to fix some compilation issues
     // NB: These two methods has nothing to do with this particular class and should be
@@ -93,6 +97,8 @@ private:
 
     // For full deserialization flow with weights
     void reconstruct_closure();
+    // For weightless serialization flow
+    void store_const_offsets(const std::shared_ptr<ov::Model>& model);
 
     void finalize_weights_bank();
     void detach_memory();
@@ -166,8 +172,8 @@ private:
         // Metrics
         execution_stats stat;
 
-        void serialize(std::ostream& stream) const;
-        void deserialize(std::istream& stream);
+        void serialize(std::ostream& stream, const ov::npuw::s11n::Context& ctx) const;
+        void deserialize(std::istream& stream, const ov::npuw::s11n::Weights& weights);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 
@@ -177,6 +183,8 @@ private:
     execution_stats m_total_stat;
 
     std::shared_ptr<weights::Bank> m_weights_bank = nullptr;
+
+    std::unordered_map<const void*, std::size_t> m_const_to_offset;
 };
 }  // namespace npuw
 }  // namespace ov
