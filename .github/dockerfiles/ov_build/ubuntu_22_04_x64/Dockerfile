@@ -36,6 +36,8 @@ RUN apt-get update && \
         libsm6  \
         libxext6 \
         libgl1 \
+        libgl1-mesa-glx \
+        libglib2.0-0 \
         && \
     rm -rf /var/lib/apt/lists/*
 
