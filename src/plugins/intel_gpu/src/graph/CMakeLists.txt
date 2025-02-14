@@ -6,7 +6,7 @@ set(TARGET_NAME "openvino_intel_gpu_graph")
 
 file(GLOB SUBDIRS "${CMAKE_CURRENT_SOURCE_DIR}/impls/*")
 
-foreach(SUBDIR ${SUBDIRS})
+foreach(SUBDIR IN LISTS SUBDIRS)
     if(IS_DIRECTORY ${SUBDIR})
         get_filename_component(SUBDIR_NAME ${SUBDIR} NAME)
         if (NOT SUBDIR_NAME STREQUAL "registry")
@@ -17,10 +17,10 @@ foreach(SUBDIR ${SUBDIRS})
 endforeach()
 
 set(COMMON_COMPILE_OPTIONS $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
-set(COMMON_INCLUDE_DIRS ${MAIN_DIR}/src
-                        ${INCLUDE_DIR}
-                        ${CMAKE_CURRENT_SOURCE_DIR}/
-                        ${CMAKE_CURRENT_SOURCE_DIR}/include/
+set(COMMON_INCLUDE_DIRS $<BUILD_INTERFACE:${MAIN_DIR}/src>
+                        $<BUILD_INTERFACE:${INCLUDE_DIR}>
+                        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+                        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
 set(COMMON_LINK_LIBRARIES openvino::shape_inference # for tensor accessor
@@ -46,16 +46,17 @@ function(ov_gpu_add_backend_target)
     set(TARGET_INCLUDES ${COMMON_INCLUDE_DIRS} ${ARG_INCLUDES})
     set(TARGET_LINK_LIBRARIES ${COMMON_LINK_LIBRARIES} ${ARG_LINK_LIBRARIES})
 
+    foreach(lib IN LISTS TARGET_LINK_LIBRARIES)
+        list(APPEND TARGET_INCLUDES $<TARGET_PROPERTY:${lib},INTERFACE_INCLUDE_DIRECTORIES>)
+    endforeach()
+
     ov_add_target(
         NAME ${ARG_NAME}
         TYPE OBJECT
         ADD_CPPLINT
         INCLUDES
-            PUBLIC
-                ${TARGET_INCLUDES}
-        LINK_LIBRARIES
             PRIVATE
-                ${TARGET_LINK_LIBRARIES}
+                ${TARGET_INCLUDES}
         ${ARG_UNPARSED_ARGUMENTS}
     )
 
@@ -63,7 +64,7 @@ function(ov_gpu_add_backend_target)
     ov_set_threading_interface_for(${TARGET_NAME})
 endfunction()
 
-foreach(IMPL_TYPE ${AVAILABLE_IMPL_TYPES})
+foreach(IMPL_TYPE IN LISTS AVAILABLE_IMPL_TYPES)
     add_subdirectory(impls/${IMPL_TYPE})
     if (TARGET openvino_intel_gpu_${IMPL_TYPE}_obj)
         list(APPEND OBJ_FILES $<TARGET_OBJECTS:openvino_intel_gpu_${IMPL_TYPE}_obj>)

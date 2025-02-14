@@ -7,9 +7,7 @@ set(TARGET_NAME "openvino_intel_gpu_cpu_obj")
 ov_gpu_add_backend_target(
     NAME ${TARGET_NAME}
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-    LINK_LIBRARIES
-        PRIVATE
-            openvino::reference
+    LINK_LIBRARIES openvino::reference
 )
 
 if(ENABLE_SSE42)
