@@ -25,7 +25,7 @@ public:
         return !(*this == rhs);
     }
 
-    void update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta);
+    void update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta) override;
 
     size_t hash() const override {
         return m_hash;
@@ -38,7 +38,7 @@ public:
     libxsmm_bitfield get_compile_flags() const {
         return m_compile_flags;
     }
-    void set_compile_flags(bool zero_beta) {
+    void set_compile_flags_with_zero_beta(bool zero_beta) {
         if (zero_beta) {
             m_compile_flags = get_static_compile_flags() | LIBXSMM_GEMM_FLAG_BETA_0;
         } else {

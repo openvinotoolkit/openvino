@@ -20,7 +20,7 @@ public:
     bool is_completed() const override;
     bool is_empty() const;
 
-    void update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta);
+    virtual void update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta);
 
     bool operator==(const BrgemmGenericKernelConfig& rhs) const;
     bool operator!=(const BrgemmGenericKernelConfig& rhs) const {

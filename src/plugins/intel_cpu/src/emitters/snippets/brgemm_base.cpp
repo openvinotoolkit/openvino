@@ -33,7 +33,7 @@ void BrgemmGenericKernelConfig::update(int64_t M,
                                        int64_t LDB,
                                        int64_t LDC,
                                        float beta) {
-    // If M is zero, it means that Brgemm won't be executed (in Loop with work_amount = 0, for example)
+    // If M/N/K is zero, it means that Brgemm won't be executed (in Loop with work_amount = 0, for example)
     // To process this case, we have to make this Config as empty (nullify runtime parameters)
     if (one_of(0, M, N, K)) {
         m_M = 0;
@@ -118,10 +118,10 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
     OV_CPU_JIT_EMITTER_ASSERT((input_pds.size() == 2 || input_pds.size() == 3) && output_pds.size() == 1,
                               "Invalid number of in/out port descriptors");
 
-    const auto in0_shape = snippets::utils::get_planar_vdims(input_pds[0]->get_shape(), input_pds[0]->get_layout());
-    const auto in1_shape = snippets::utils::get_planar_vdims(input_pds[1]->get_shape(), input_pds[1]->get_layout());
-    auto in0_subtensor = input_pds[0]->get_subtensor();
-    auto in1_subtensor = input_pds[1]->get_subtensor();
+    const auto& in0_shape = snippets::utils::get_planar_vdims(input_pds[0]->get_shape(), input_pds[0]->get_layout());
+    const auto& in1_shape = snippets::utils::get_planar_vdims(input_pds[1]->get_shape(), input_pds[1]->get_layout());
+    const auto& in0_subtensor = input_pds[0]->get_subtensor();
+    const auto& in1_subtensor = input_pds[1]->get_subtensor();
 
     // Need to update M, K, N
     // 1. If the original value in subtensor is `FULL_DIM`, it means that

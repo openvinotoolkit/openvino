@@ -34,8 +34,8 @@ void BrgemmKernelConfig::update(int64_t M, int64_t N, int64_t K, int64_t LDA, in
 }
 
 BrgemmKernelConfig::StaticParams::StaticParams(const element::Type& in0_dtype, const element::Type& in1_dtype) {
-    m_type_in0 = tpp::ov_to_xsmm_dtype(in0_dtype);
-    m_type_in1 = tpp::ov_to_xsmm_dtype(in1_dtype);
+    m_type_in0 = tpp::utils::ov_to_xsmm_dtype(in0_dtype);
+    m_type_in1 = tpp::utils::ov_to_xsmm_dtype(in1_dtype);
     m_type_exec = LIBXSMM_DATATYPE_F32;
     m_type_out0 = LIBXSMM_DATATYPE_F32;
     m_compile_flags = LIBXSMM_GEMM_FLAGS('N', 'N');
@@ -137,7 +137,7 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
 
     config.update(M, N, K, io_strides[0], io_strides[1], io_strides[2], beta);
     // update compile flag, which is depend on beta. should be part of hash.
-    config.set_compile_flags(config.get_beta() == 0);
+    config.set_compile_flags_with_zero_beta(config.get_beta() == 0);
 }
 
 void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, void* in0, void* in1, void* out0) {

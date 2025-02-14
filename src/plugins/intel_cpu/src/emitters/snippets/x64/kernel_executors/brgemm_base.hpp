@@ -24,7 +24,7 @@ public:
         return !(*this == rhs);
     }
 
-    void update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta);
+    void update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta) override;
 
     dnnl_data_type_t get_dt_in0() const {
         return get_static_params()->dt_in0;

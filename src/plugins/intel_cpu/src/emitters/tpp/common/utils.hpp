@@ -9,7 +9,7 @@
 #include "emitters/utils.hpp"
 #include "libxsmm.h"
 
-namespace ov::intel_cpu::tpp {
+namespace ov::intel_cpu::tpp::utils {
 
 // Note: The macro allows to automatically set appropriate environment variables for TPP/Libxsmm kernel compilation
 // All TPP kernels must be compiled using this macro.
@@ -43,4 +43,4 @@ inline libxsmm_datatype ov_to_xsmm_dtype(ov::element::Type_t element_type) {
     }
 }
 
-}  // namespace ov::intel_cpu::tpp
+}  // namespace ov::intel_cpu::tpp::utils
