@@ -59,7 +59,7 @@ TppEmitter::TppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
     };
 
     for (size_t i = 0; i < num_ins; i++) {
-        io_dtypes[i] = tpp::ov_to_xsmm_dtype(node->get_input_element_type(i));
+        io_dtypes[i] = tpp::utils::ov_to_xsmm_dtype(node->get_input_element_type(i));
         io_offsets[i] = tpp_mod->get_input_offset(i);
         io_strides[i] =
             replace_full_dim(tpp_mod->get_input_stride(i), expr->get_input_port_descriptor(i)->get_shape().back());
@@ -68,7 +68,7 @@ TppEmitter::TppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
 
     for (size_t i = 0; i < num_outs; i++) {
         const auto i_off = i + num_ins;
-        io_dtypes[i_off] = tpp::ov_to_xsmm_dtype(node->get_output_element_type(i));
+        io_dtypes[i_off] = tpp::utils::ov_to_xsmm_dtype(node->get_output_element_type(i));
         io_offsets[i_off] = tpp_mod->get_output_offset(i);
         io_strides[i_off] =
             replace_full_dim(tpp_mod->get_output_stride(i), expr->get_output_port_descriptor(i)->get_shape().back());
