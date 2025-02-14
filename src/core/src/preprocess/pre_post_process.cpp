@@ -31,7 +31,7 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
     ov::pass::Manager manager("pre_post_processing");
 
     // 1. Set "disable_const_folding" attribute
-    manager.register_pass<MarkDequantization>(TypeVector{i8, u8, i4, u4, nf4});
+    manager.register_pass<MarkDequantization>(TypeVector{i8, u8, i4, u4, nf4, f4e2m1, f8e4m3, f8e5m2, f8e8m0});
     REGISTER_PASS(manager, DisableShapeOfConstantFolding);
     REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
     // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
