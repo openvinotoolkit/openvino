@@ -110,6 +110,13 @@ static void reg_pattern_symbol_value(py::module m) {
     value.def("d", &ov::pass::pattern::PatternSymbolValue::d);
     value.def("s", &ov::pass::pattern::PatternSymbolValue::s);
     value.def("g", &ov::pass::pattern::PatternSymbolValue::g);
+
+    value.def(
+        "__eq__",
+        [](const ov::pass::pattern::PatternSymbolValue& lhs, const ov::pass::pattern::PatternSymbolValue& rhs) {
+            return lhs == rhs;
+        },
+        py::is_operator());
 }
 
 void reg_passes_predicate(py::module m) {

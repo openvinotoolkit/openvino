@@ -75,8 +75,7 @@ protected:
 };
 }  // namespace op
 
-OPENVINO_API
-std::shared_ptr<Node> any_input();
+OPENVINO_API std::shared_ptr<Node> any_input();
 
 template <typename Fn, typename std::enable_if_t<std::is_constructible_v<op::Predicate, Fn>>* = nullptr>
 OPENVINO_API std::shared_ptr<Node> any_input(const Fn& pred) {

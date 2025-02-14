@@ -37,6 +37,7 @@ public:
     std::shared_ptr<ov::Symbol> s() const;
     std::vector<PatternSymbolValue> g() const;
 
+    bool operator==(const PatternSymbolValue& other) const;
 private:
     bool is_valid() const;
 

@@ -56,6 +56,10 @@ bool PatternSymbolValue::is_valid() const {
                                      m_value.is<std::vector<PatternSymbolValue>>();
 }
 
+bool PatternSymbolValue::operator==(const ov::pass::pattern::PatternSymbolValue &other) const {
+    return m_value == other.m_value;
+}
+
 namespace op {
 
 namespace {
