@@ -306,8 +306,34 @@ void BrgemmAMXBatchedKernelExecutor::execute(const BrgemmAMXBatchedKernelExecuto
                                   config.get_M(),
                                   config.get_N(),
                                   K_tail);
-        execute_brgemm_kernel(K_tail_kernel->brgemm_kernel, src_ptr, wei_ptr, args->C, scratch, false);
+        execute_brgemm(K_tail_kernel->brgemm_kernel, config.get_iter_count(), src_ptr, wei_ptr, args->C, scratch, false);
     }
+}
+
+void BrgemmAMXBatchedKernelExecutor::execute_brgemm(const std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& kernel,
+                                                 size_t bs,
+                                                 const void* pin0,
+                                                 const void* pin1,
+                                                 void* dst,
+                                                 void* scratch,
+                                                 bool with_comp) {
+    cpu::x64::brgemm_kernel_params_t brgemm_p;
+    brgemm_batch_element_t addr_batch;
+    addr_batch.ptr.A = pin0;
+    addr_batch.ptr.B = pin1;
+    brgemm_p.batch = &addr_batch;
+    brgemm_p.ptr_A = nullptr;
+    brgemm_p.ptr_B = nullptr;
+    brgemm_p.ptr_C = dst;
+    brgemm_p.ptr_D = dst;
+    brgemm_p.ptr_buf = scratch;
+    brgemm_p.ptr_bias = nullptr;
+    brgemm_p.do_post_ops = with_comp;
+    brgemm_p.do_apply_comp = with_comp;
+    brgemm_p.skip_accm = 0;
+    brgemm_p.BS = bs;
+    OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr Brgemm kernel");
+    (*kernel)(&brgemm_p);
 }
 
 #undef INNER_K_BLK

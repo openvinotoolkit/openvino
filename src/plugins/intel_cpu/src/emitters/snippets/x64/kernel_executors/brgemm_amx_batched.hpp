@@ -124,6 +124,14 @@ protected:
         const void* tr_src,
         dnnl_dim_t M,
         dnnl_dim_t K);
+
+    static void execute_brgemm(const std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& kernel,
+                               size_t bs,
+                               const void* src,
+                               const void* wei,
+                               void* dst,
+                               void* scratch,
+                               bool with_comp);
 };
 // #define GET_OFF_BRGEMM_AMX_ARGS(field) offsetof(BrgemmAMXBatchedKernelExecutor::call_args, field)
 

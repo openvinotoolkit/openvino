@@ -105,10 +105,7 @@ void BrgemmBatchedKernelExecutor::execute(const BrgemmBatchedKernelExecutor* exe
 
     // Note: compensations should be applied only once, so we do it only on the first iteration, when beta == 0
     const auto is_with_comp = config.get_beta() == 0 && config.is_with_comp();
-    for (size_t i = 0; i < config.get_iter_count(); i++) {
-        execute_brgemm(kernel->brgemm_kernel, 1, args->A, args->B, args->C, args->scratch, is_with_comp);
-        // execute_brgemm(kernel->brgemm_kernel, config.get_iter_count(), args->A, args->B, args->C, args->scratch, is_with_comp);
-    }
+    execute_brgemm(kernel->brgemm_kernel, config.get_iter_count(), args->A, args->B, args->C, args->scratch, is_with_comp);
 }
 
 void BrgemmBatchedKernelExecutor::execute_brgemm(const std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& kernel,
