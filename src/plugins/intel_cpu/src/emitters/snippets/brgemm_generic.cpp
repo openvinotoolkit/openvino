@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "brgemm_base.hpp"
+#include "brgemm_generic.hpp"
 
 #include "common/utils.hpp"
 #include "dnnl_extension_utils.h"

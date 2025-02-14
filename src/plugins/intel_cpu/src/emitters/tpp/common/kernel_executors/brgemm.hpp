@@ -5,7 +5,7 @@
 #pragma once
 
 #include "common/utils.hpp"
-#include "emitters/snippets/brgemm_base.hpp"
+#include "emitters/snippets/brgemm_generic.hpp"
 #include "emitters/utils.hpp"
 #include "libxsmm.h"
 
@@ -32,18 +32,8 @@ public:
     }
     size_t compute_hash() const;
 
-    libxsmm_bitfield get_static_compile_flags() const {
-        return m_static_params->m_compile_flags;
-    }
     libxsmm_bitfield get_compile_flags() const {
         return m_compile_flags;
-    }
-    void set_compile_flags_with_zero_beta(bool zero_beta) {
-        if (zero_beta) {
-            m_compile_flags = get_static_compile_flags() | LIBXSMM_GEMM_FLAG_BETA_0;
-        } else {
-            m_compile_flags = get_static_compile_flags();
-        }
     }
     bool get_prefetching_flags() const {
         return m_static_params->m_prefetching_flags;
@@ -60,6 +50,9 @@ public:
     libxsmm_datatype get_type_exec() const {
         return m_static_params->m_type_exec;
     }
+    libxsmm_bitfield get_static_compile_flags() const {
+        return m_static_params->m_compile_flags;
+    }
 #ifdef SNIPPETS_DEBUG_CAPS
     std::string to_string() const override;
 #endif
@@ -67,7 +60,6 @@ public:
 private:
     struct StaticParams {
         StaticParams(const element::Type& in0_dtype, const element::Type& in1_dtype);
-        virtual ~StaticParams() = default;
 
         bool operator==(const StaticParams& rhs) const;
         bool operator!=(const StaticParams& rhs) const {
@@ -91,10 +83,13 @@ private:
 
         size_t m_hash{SIZE_MAX};
     };
-    std::shared_ptr<StaticParams> get_static_params() const {
+
+    const std::shared_ptr<StaticParams>& get_static_params() const {
         return m_static_params;
     }
-
+    void set_compile_flags(const libxsmm_bitfield& compile_flags) {
+        m_compile_flags = compile_flags;
+    }
     libxsmm_bitfield m_compile_flags{0};
     std::shared_ptr<StaticParams> m_static_params{nullptr};
 
@@ -112,7 +107,6 @@ struct BrgemmTppCompiledKernel {
 class BrgemmKernelExecutor : public CPUKernelExecutor<BrgemmKernelConfig, BrgemmTppCompiledKernel> {
 public:
     BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmKernelConfig config);
-    virtual ~BrgemmKernelExecutor() = default;
 
     // Function that will be called in runtime to execute the kernel
     static void execute(const BrgemmKernelExecutor* executor, void* in0, void* in1, void* out0);

@@ -7,7 +7,7 @@
 #include <cpu/x64/brgemm/brgemm.hpp>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "emitters/snippets/brgemm_base.hpp"
+#include "emitters/snippets/brgemm_generic.hpp"
 
 namespace ov::intel_cpu::x64 {
 
