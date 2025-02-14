@@ -39,7 +39,7 @@ def segment_max(
     data: NodeInput,
     segment_ids: NodeInput,
     num_segments: Optional[NodeInput] = None,
-    fill_mode: str = "ZERO",
+    fill_mode: str = None,
     name: Optional[str] = None,
 ) -> Node:
     """SegmentMax operation finds the maximum value in each specified segment of the input tensor.
@@ -52,6 +52,8 @@ def segment_max(
 
     :return: The new node performing SegmentMax operation.
     """
+    if fill_mode is None:
+        raise ValueError("fill_mode must be provided and can be either 'ZERO' or 'LOWEST'")
     inputs = [data, segment_ids]
     if num_segments is not None:
         inputs.append(num_segments)

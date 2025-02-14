@@ -44,7 +44,7 @@ def test_segment_max_with_num_segments(dtype_segment_ids, dtype_num_segments, da
 def test_segment_max_without_num_segments(dtype_segment_ids, data_shape, segment_ids_shape):
     data = ov.parameter(data_shape, name="data", dtype=Type.f32)
     segment_ids = ov.parameter(segment_ids_shape, name="segment_ids", dtype=dtype_segment_ids)
-    node = ov.segment_max(data, segment_ids, fill_mode="ZERO")
+    node = ov.segment_max(data, segment_ids, fill_mode="LOWEST")
 
     assert node.get_type_name() == "SegmentMax"
     assert node.get_output_size() == 1
