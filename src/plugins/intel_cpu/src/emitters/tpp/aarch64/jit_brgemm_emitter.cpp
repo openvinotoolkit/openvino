@@ -37,8 +37,8 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
 }
 
 void jit_brgemm_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    OV_CPU_JIT_EMITTER_ASSERT(in.size() == 2, "Expects 2 input regs, got" + std::to_string(in.size()));
-    OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Expects 1 output reg, got" + std::to_string(out.size()));
+    OV_CPU_JIT_EMITTER_ASSERT(in.size() == 2, "Expects 2 input regs, got", in.size());
+    OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Expects 1 output reg, got", out.size());
 }
 
 void jit_brgemm_emitter::emit_code_impl(const std::vector<size_t>& in,
@@ -51,6 +51,7 @@ void jit_brgemm_emitter::emit_code_impl(const std::vector<size_t>& in,
 
 void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     validate_arguments(in, out);
+    // todo: use optimized reg spill after CVS-162498
     std::unordered_set<size_t> exclude = {};
     store_context(exclude);
 

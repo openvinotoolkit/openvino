@@ -161,10 +161,6 @@ function(ov_add_onednn)
     endif()
 endfunction()
 
-if(AARCH64 AND (NOT ANDROID))
-    set(ENABLE_SNIPPETS_LIBXSMM_TPP ON)
-endif()
-
 if (ENABLE_SNIPPETS_LIBXSMM_TPP)
     # This flag is to suppress "warning as error" in libxsmm compilation, such as
     # "generator_common_aarch64.c:60:6: error: no previous declaration for ‘libxsmm_generator_vcvt_f32i8_aarch64_sve’ [-Werror=missing-declarations]"

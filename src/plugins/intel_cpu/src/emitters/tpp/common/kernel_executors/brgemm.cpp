@@ -18,8 +18,7 @@ BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype, const ele
 
 bool BrgemmKernelConfig::operator==(const BrgemmKernelConfig& rhs) const {
     return BrgemmGenericKernelConfig::operator==(rhs) &&
-           (get_static_params() == rhs.get_static_params() ||
-            *get_static_params() == *(rhs.get_static_params()));
+           (get_static_params() == rhs.get_static_params() || *get_static_params() == *(rhs.get_static_params()));
 }
 
 size_t BrgemmKernelConfig::compute_hash() const {
@@ -30,6 +29,13 @@ size_t BrgemmKernelConfig::compute_hash() const {
 
 void BrgemmKernelConfig::update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta) {
     BrgemmGenericKernelConfig::update(M, N, K, LDA, LDB, LDC, beta);
+    // update compile flag, which should be reset depend on beta. It is combination of beta and static_compile_flag and
+    // considered in hash() and operator==
+    libxsmm_bitfield new_flag = get_static_compile_flags();
+    if (beta == 0) {
+        new_flag |= LIBXSMM_GEMM_FLAG_BETA_0;
+    }
+    set_compile_flags(new_flag);
     m_hash = compute_hash();
 }
 
@@ -76,6 +82,7 @@ std::string BrgemmKernelConfig::to_string() const {
     std::stringstream ss;
     ss << get_static_params()->to_string() << "\n";
     ss << BrgemmGenericKernelConfig::to_string() << "\n";
+    PRINT(m_compile_flags);
     return ss.str();
 }
 #endif
@@ -89,15 +96,16 @@ std::shared_ptr<BrgemmTppCompiledKernel> BrgemmKernelExecutor::compile_kernel(co
     // Brgemm is not executable - nothing to compile
     if (config.is_empty())
         return compiled_kernel;
-
+    // data is row major, but libxsmm gemm suppose column major. in0 and in1 are exchanged to avoid data repack(kernel
+    // call args aligned).
     libxsmm_gemm_shape m_shape = libxsmm_create_gemm_shape(config.get_N(),
                                                            config.get_M(),
                                                            config.get_K(),
                                                            config.get_LDB(),
                                                            config.get_LDA(),
                                                            config.get_LDC(),
-                                                           config.get_type_in0(),
                                                            config.get_type_in1(),
+                                                           config.get_type_in0(),
                                                            config.get_type_out0(),
                                                            config.get_type_exec());
     compiled_kernel->brgemm_kernel =
@@ -136,13 +144,13 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
     }
 
     config.update(M, N, K, io_strides[0], io_strides[1], io_strides[2], beta);
-    // update compile flag, which is depend on beta. should be part of hash.
-    config.set_compile_flags_with_zero_beta(config.get_beta() == 0);
 }
 
 void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, void* in0, void* in1, void* out0) {
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
     libxsmm_gemm_param gemm_p;
+    // data is row major, but libxsmm gemm suppose column major. in0 and in1 are exchanged to avoid data repack(kernel
+    // creation params aligned).
     gemm_p.a.primary = in1;
     gemm_p.b.primary = in0;
     gemm_p.c.primary = out0;
