@@ -63,7 +63,7 @@ ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& co
 ZeroRemoteTensor::~ZeroRemoteTensor() {
     auto res = deallocate();
     if (!res) {
-        _logger.warning("ZeroRemoteTensor failed to free the memory  %#X", uint64_t(res));
+        _logger.error("ZeroRemoteTensor failed to free the memory");
     }
 }
 
@@ -73,7 +73,7 @@ bool ZeroRemoteTensor::deallocate() noexcept {
     case MemType::SHARED_BUF: {
         if (_data) {
             auto result = zeMemFree(_init_structs->getContext(), _data);
-            if (ZE_RESULT_SUCCESS != result) {
+            if (ZE_RESULT_SUCCESS != result && ZE_RESULT_ERROR_UNINITIALIZED != result) {
                 return false;
             }
             _data = nullptr;

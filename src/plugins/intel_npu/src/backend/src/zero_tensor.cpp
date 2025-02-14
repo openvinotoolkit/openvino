@@ -159,9 +159,9 @@ ZeroTensor::~ZeroTensor() {
     try {
         destroy_memory();
     } catch (const std::exception& ex) {
-        _logger.warning("Failed to destroy Zero Tensor: %s", ex.what());
+        _logger.error("Failed to destroy Zero Tensor: %s", ex.what());
     } catch (...) {
-        _logger.warning("Unexpected error when Zero Tensor is destroyed");
+        _logger.error("Unexpected error when Zero Tensor is destroyed");
     }
 }
 
