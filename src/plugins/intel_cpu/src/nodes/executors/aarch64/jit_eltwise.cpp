@@ -110,16 +110,16 @@ bool JitEltwiseExecutor::isSupported(const Algorithm& algorithm,
 
 JitEltwiseExecutor::JitEltwiseExecutor(ExecutorContext::CPtr context) : EltwiseExecutor(std::move(context)) {}
 
-bool JitEltwiseExecutor::init(const EltwiseAttrs& eltwiseAttrs,
-                              const std::vector<MemoryDescPtr>& srcDescs,
-                              const std::vector<MemoryDescPtr>& dstDescs,
-                              const std::vector<EltwisePostOp>& postOps) {
+bool JitEltwiseExecutor::init(const EltwiseAttrs& /*eltwiseAttrs*/,
+                              const std::vector<MemoryDescPtr>& /*srcDescs*/,
+                              const std::vector<MemoryDescPtr>& /*dstDescs*/,
+                              const std::vector<EltwisePostOp>& /*postOps*/) {
     return true;
 }
 
-void JitEltwiseExecutor::exec(const std::vector<MemoryCPtr>& src,
-                              const std::vector<MemoryPtr>& dst,
-                              const void* post_ops_data_) {
+void JitEltwiseExecutor::exec(const std::vector<MemoryCPtr>& /*src*/,
+                              const std::vector<MemoryPtr>& /*dst*/,
+                              const void* /*post_ops_data_*/) {
     exec_func();
 }
 

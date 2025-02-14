@@ -131,7 +131,7 @@ void Roll::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Roll::execute(const dnnl::stream& strm) {
+void Roll::execute(const dnnl::stream& /*strm*/) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("has no compiled executor");
     }

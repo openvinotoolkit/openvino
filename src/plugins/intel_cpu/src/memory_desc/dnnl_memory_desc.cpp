@@ -125,7 +125,7 @@ bool DnnlMemoryDesc::isDefinedImp() const {
     return wrappedThis.offset0() != DNNL_RUNTIME_DIM_VAL;
 }
 
-MemoryDescPtr DnnlMemoryDesc::cloneWithNewDimsImp(const VectorDims& dims) const {
+MemoryDescPtr DnnlMemoryDesc::cloneWithNewDimsImp(const VectorDims& /*dims*/) const {
     OPENVINO_THROW("Unexpected: Cannot clone non blocked oneDNN desc with new dims");
 }
 

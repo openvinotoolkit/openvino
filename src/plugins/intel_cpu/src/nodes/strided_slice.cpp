@@ -364,7 +364,7 @@ bool StridedSlice::needShapeInfer() const {
     return Node::inputShapesModified() || shapeHasDataDependency;
 }
 
-void StridedSlice::execute(const dnnl::stream& strm) {
+void StridedSlice::execute(const dnnl::stream& /*strm*/) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("doesn't have compiled executor!");
     }

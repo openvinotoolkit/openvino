@@ -2623,7 +2623,7 @@ std::vector<float> Interpolate::getScales(const VectorDims& srcDimPad, const Vec
     return fullScales;
 }
 
-void Interpolate::execute(const dnnl::stream& strm) {
+void Interpolate::execute(const dnnl::stream& /*strm*/) {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
 
@@ -3051,7 +3051,7 @@ void Interpolate::InterpolateJitExecutor::cubicPlanar(const uint8_t* in_ptr_,
 
 void Interpolate::InterpolateJitExecutor::pillowCGathered(const uint8_t* in_ptr_,
                                                           uint8_t* out_ptr_,
-                                                          const void* post_ops_data_,
+                                                          const void* /*post_ops_data_*/,
                                                           int B,
                                                           int C,
                                                           int IH,
@@ -3092,7 +3092,7 @@ void Interpolate::InterpolateJitExecutor::pillowCGathered(const uint8_t* in_ptr_
 void Interpolate::InterpolateExecutorBase::buildTblNN(const VectorDims& srcDimPad5d,
                                                       const VectorDims& dstDim5d,
                                                       const std::vector<float>& dataScales,
-                                                      InterpolateLayoutType layout,
+                                                      InterpolateLayoutType /*layout*/,
                                                       InterpolateNearestMode nearestMode) {
     const int dimSize = dataRank;
     float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.f;
@@ -3518,8 +3518,8 @@ float Interpolate::InterpolateExecutorBase::getPillowBicubicCoeffs(float m) {
 void Interpolate::InterpolateExecutorBase::buildTblPillow(const VectorDims& srcDimPad5d,
                                                           const VectorDims& dstDim5d,
                                                           const std::vector<float>& dataScales,
-                                                          float cubicCoeff,
-                                                          InterpolateLayoutType layout) {
+                                                          float /*cubicCoeff*/,
+                                                          InterpolateLayoutType /*layout*/) {
     int dimSize = dataRank;
     float fy = dataScales[dimSize - 2];
     float fx = dataScales[dimSize - 1];
@@ -4243,7 +4243,9 @@ void Interpolate::InterpolateJitExecutor::exec(const uint8_t* in_ptr_, uint8_t* 
     }
 }
 
-void Interpolate::InterpolateRefExecutor::exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) {
+void Interpolate::InterpolateRefExecutor::exec(const uint8_t* in_ptr_,
+                                               uint8_t* out_ptr_,
+                                               const void* /*post_ops_data_*/) {
     size_t N = srcDimPad5d[0], C = srcDimPad5d[1], ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
     size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
