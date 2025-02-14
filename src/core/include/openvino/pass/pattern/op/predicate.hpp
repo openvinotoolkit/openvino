@@ -70,8 +70,8 @@ public:
     }
 
     template <typename Fn,
-    typename std::enable_if_t<std::is_invocable_r_v<bool, Fn, const std::shared_ptr<Node>&> &&
-    !std::is_invocable_r_v<bool, Fn, const Output<Node>&>>* = nullptr>
+              typename std::enable_if_t<std::is_invocable_r_v<bool, Fn, const std::shared_ptr<Node>&> &&
+                                        !std::is_invocable_r_v<bool, Fn, const Output<Node>&>>* = nullptr>
     explicit Predicate(Fn predicate, std::string name = no_name) {
         m_pred = [=](PatternSymbolMap& m, const Output<Node>& out) {
             return predicate(out.get_node_shared_ptr());
@@ -80,7 +80,7 @@ public:
     }
 
     template <typename F,
-    typename std::enable_if_t<std::is_invocable_r_v<bool, F, PatternSymbolMap&, Output<Node>>>* = nullptr>
+              typename std::enable_if_t<std::is_invocable_r_v<bool, F, PatternSymbolMap&, Output<Node>>>* = nullptr>
     explicit Predicate(const F& predicate, const std::string& name = no_name) {
         m_pred = {predicate};
         m_name = name;
@@ -115,10 +115,10 @@ public:
     Predicate operator||(const Predicate& other) const {
         auto pred = m_pred, other_pred = other.m_pred;
         auto result = Predicate(
-                [=](PatternSymbolMap& m, const Output<Node>& out) -> bool {
-                    return pred(m, out) || other_pred(m, out);
-                },
-                m_name + " || " + other.m_name);
+            [=](PatternSymbolMap& m, const Output<Node>& out) -> bool {
+                return pred(m, out) || other_pred(m, out);
+            },
+            m_name + " || " + other.m_name);
         result.m_requires_map = m_requires_map || other.m_requires_map;
         return result;
     }
@@ -127,10 +127,10 @@ public:
     Predicate operator&&(const Predicate& other) const {
         auto pred = m_pred, other_pred = other.m_pred;
         auto result = Predicate(
-                [=](PatternSymbolMap& m, const Output<Node>& out) -> bool {
-                    return pred(m, out) && other_pred(m, out);
-                },
-                m_name + " && " + other.m_name);
+            [=](PatternSymbolMap& m, const Output<Node>& out) -> bool {
+                return pred(m, out) && other_pred(m, out);
+            },
+            m_name + " && " + other.m_name);
         result.m_requires_map = m_requires_map || other.m_requires_map;
         return result;
     }
@@ -143,15 +143,15 @@ private:
 };
 
 template <
-        typename Fn,
-        typename std::enable_if_t<std::is_constructible_v<Predicate, Fn> && !std::is_same_v<Predicate, Fn>>* = nullptr>
+    typename Fn,
+    typename std::enable_if_t<std::is_constructible_v<Predicate, Fn> && !std::is_same_v<Predicate, Fn>>* = nullptr>
 Predicate operator&&(const Fn& lhs, const Predicate& rhs) {
     return Predicate(lhs) && rhs;
 }
 
 template <
-        typename Fn,
-        typename std::enable_if_t<std::is_constructible_v<Predicate, Fn> && !std::is_same_v<Predicate, Fn>>* = nullptr>
+    typename Fn,
+    typename std::enable_if_t<std::is_constructible_v<Predicate, Fn> && !std::is_same_v<Predicate, Fn>>* = nullptr>
 Predicate operator||(const Fn& lhs, const Predicate& rhs) {
     return Predicate(lhs) || rhs;
 }

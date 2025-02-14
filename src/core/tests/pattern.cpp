@@ -1446,7 +1446,8 @@ TEST(pattern, pattern_symbol_predicate_and_operators) {
 
     auto predicate_and = pattern::consumers_count(1) && transpose_a_false && pattern::shape_matches("BATCHES_2...,Z");
     auto predicate_or = pattern::consumers_count(1) || transpose_a_false || pattern::shape_matches("BATCHES_2...,Z");
-    auto predicate_mixed = (pattern::consumers_count(1) && transpose_a_false) || pattern::shape_matches("BATCHES_2...,Z");
+    auto predicate_mixed =
+        (pattern::consumers_count(1) && transpose_a_false) || pattern::shape_matches("BATCHES_2...,Z");
 
     auto shape = PartialShape::dynamic(5);
     auto input = std::make_shared<ov::op::v0::Parameter>(element::dynamic, shape);
@@ -1454,7 +1455,7 @@ TEST(pattern, pattern_symbol_predicate_and_operators) {
                                                          ov::op::v0::Constant::create(element::i64, {4}, {0, 0, 0, 20}),
                                                          true);
     pattern::PatternSymbolMap m;
-    for (size_t i = 0; i <  10; ++i) {
+    for (size_t i = 0; i < 10; ++i) {
         predicate_and = predicate_and && pattern::consumers_count(i);
         predicate_or = predicate_and || pattern::consumers_count(i);
         if (i % 2)

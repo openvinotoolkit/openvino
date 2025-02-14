@@ -222,5 +222,5 @@ void Matcher::clear_state() {
     m_matched_list.clear();
     m_pattern_symbols.clear();
 }
-} // namespace pass::pattern
+}  // namespace pass::pattern
 }  // namespace ov

@@ -16,11 +16,13 @@ using SymbolPredicate = const std::function<bool(ov::pass::pattern::PatternSymbo
 
 static void reg_pattern_op_predicate(py::module m) {
     py::class_<ov::pass::pattern::op::Predicate, std::shared_ptr<ov::pass::pattern::op::Predicate>> predicate(
-            m,
-            "Predicate");
+        m,
+        "Predicate");
     predicate.doc() = "openvino.passes.Predicate wraps ov::pass::pattern::op::Predicate";
 
-    predicate.def(py::init([]() { return std::make_shared<ov::pass::pattern::op::Predicate>(); }),
+    predicate.def(py::init([]() {
+                      return std::make_shared<ov::pass::pattern::op::Predicate>();
+                  }),
                   R"(
                   Create default Predicate which always returns true.
     )");
@@ -46,17 +48,17 @@ static void reg_pattern_op_predicate(py::module m) {
                   :param predicate: function (PatternSymbolMap&, Output<Node> -> bool)
                   :type type_name: callable
     )");
-
-
 }
 
 static void reg_pattern_symbol_value(py::module m) {
     py::class_<ov::pass::pattern::PatternSymbolValue, std::shared_ptr<ov::pass::pattern::PatternSymbolValue>> value(
-            m,
-            "PatternSymbolValue");
+        m,
+        "PatternSymbolValue");
     value.doc() = "openvino.passes.PatternSymbolValue wraps ov::pass::pattern::PatternSymbolValue";
 
-    value.def(py::init([](const std::shared_ptr<ov::Symbol>& s) { return ov::pass::pattern::PatternSymbolValue(s); }),
+    value.def(py::init([](const std::shared_ptr<ov::Symbol>& s) {
+                  return ov::pass::pattern::PatternSymbolValue(s);
+              }),
               py::arg("value"),
               R"(
         Create PatternSymbolValue with the given value.
@@ -65,7 +67,9 @@ static void reg_pattern_symbol_value(py::module m) {
         :type value: ov.Symbol
     )");
 
-    value.def(py::init([](const int64_t& s) { return ov::pass::pattern::PatternSymbolValue(s); }),
+    value.def(py::init([](const int64_t& s) {
+                  return ov::pass::pattern::PatternSymbolValue(s);
+              }),
               py::arg("value"),
               R"(
         Create PatternSymbolValue with the given value.
@@ -74,7 +78,9 @@ static void reg_pattern_symbol_value(py::module m) {
         :type value: int
     )");
 
-    value.def(py::init([](const double& s) { return ov::pass::pattern::PatternSymbolValue(s); }),
+    value.def(py::init([](const double& s) {
+                  return ov::pass::pattern::PatternSymbolValue(s);
+              }),
               py::arg("value"),
               R"(
         Create PatternSymbolValue with the given value.
@@ -84,8 +90,8 @@ static void reg_pattern_symbol_value(py::module m) {
     )");
 
     value.def(py::init([](const std::vector<ov::pass::pattern::PatternSymbolValue>& s) {
-        return ov::pass::pattern::PatternSymbolValue(s);
-    }),
+                  return ov::pass::pattern::PatternSymbolValue(s);
+              }),
               py::arg("value"),
               R"(
         Create PatternSymbolValue with the given value.
