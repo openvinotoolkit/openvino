@@ -60,7 +60,7 @@ const std::string no_name = "no_name";
 class OPENVINO_API Predicate {
 public:
     Predicate();
-    Predicate(nullptr_t);
+    Predicate(std::nullptr_t);
 
     template <typename Fn, typename std::enable_if_t<std::is_invocable_r_v<bool, Fn, const Output<Node>&>>* = nullptr>
     explicit Predicate(Fn predicate, std::string name = no_name) {
