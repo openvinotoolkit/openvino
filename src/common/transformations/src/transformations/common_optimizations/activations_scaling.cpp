@@ -64,8 +64,7 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
                         "Not found any Convolution or MatMul layer");
 
         auto insert_scale_down_layer = [&scale_factor, &scaled_prec](std::shared_ptr<ov::Node>& node,
-                                                                     const size_t input_idx,
-                                                                     const bool keep_precision) {
+                                                                     const size_t input_idx) {
             const std::vector<float> scale_down_value = {1.f / scale_factor};
 
             auto scale_down_layer = std::make_shared<ov::op::v1::Multiply>(
@@ -76,7 +75,7 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
             scale_down_layer->set_friendly_name(node->get_friendly_name() + "_scale_down");
             ov::copy_runtime_info(node, scale_down_layer);
 
-            if (scale_down_layer->output(0).get_element_type() != scaled_prec && !keep_precision) {
+            if (scale_down_layer->output(0).get_element_type() != scaled_prec) {
                 auto convert_prec = std::make_shared<ov::op::v0::Convert>(scale_down_layer->output(0), scaled_prec);
                 node->input(input_idx).replace_source_output(convert_prec->output(0));
             } else {
@@ -96,16 +95,12 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         if (transformation_callback(scaled_op))
             return false;
 
-        // in the case of decompressed_to_f32 nodes, scale_up layer will be added after Convert node.
-        bool keep_precision = false;
+        // in the case of decompressed_to_f32 nodes, no need to apply activations scaling
         std::shared_ptr<ov::Node> output_of_scaled_op = scaled_op;
         auto child_node = scaled_op->get_output_target_inputs(0).begin()->get_node();
         if (scaled_op->get_output_target_inputs(0).size() == 1 && ov::is_type<ov::op::v0::Convert>(child_node) &&
             ov::fp16_compression_is_disabled(child_node->shared_from_this()) &&
             ov::pass::constant_folding_is_disabled(child_node->shared_from_this())) {
-            output_of_scaled_op = child_node->shared_from_this();
-            child_node = output_of_scaled_op->get_output_target_inputs(0).begin()->get_node();
-            keep_precision = true;
             return false;
         }
 
@@ -113,8 +108,8 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         auto output_prec = output_of_scaled_op->output(0).get_element_type();
 
         // adding a scale_down layer before the target node
-        insert_scale_down_layer(scaled_op, 0, keep_precision);
-        if (scaled_op->input(1).get_element_type() != scaled_prec && !keep_precision) {
+        insert_scale_down_layer(scaled_op, 0);
+        if (scaled_op->input(1).get_element_type() != scaled_prec) {
             auto convert_prec1 =
                 std::make_shared<ov::op::v0::Convert>(scaled_op->input(1).get_source_output(), scaled_prec);
             scaled_op->input(1).replace_source_output(convert_prec1->output(0));
@@ -147,16 +142,16 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         if (has_bias) {
             auto add = child_node->shared_from_this();
             target_inputs = add->get_output_target_inputs(0);
-            insert_scale_down_layer(add, bias_index, keep_precision);
+            insert_scale_down_layer(add, bias_index);
             add->revalidate_and_infer_types();
-            if (add->output(0).get_element_type() != output_prec && !keep_precision) {
+            if (add->output(0).get_element_type() != output_prec) {
                 output_of_scaled_op = std::make_shared<ov::op::v0::Convert>(add->output(0), output_prec);
             } else {
                 output_of_scaled_op = add;
             }
         } else {
             target_inputs = output_of_scaled_op->get_output_target_inputs(0);
-            if (output_of_scaled_op->output(0).get_element_type() != output_prec && !keep_precision) {
+            if (output_of_scaled_op->output(0).get_element_type() != output_prec) {
                 output_of_scaled_op =
                     std::make_shared<ov::op::v0::Convert>(output_of_scaled_op->output(0), output_prec);
             }
