@@ -142,8 +142,7 @@ static primitive_desc createPrimitiveDesc(const dnnl::engine& engine,
     return std::move(first_desc);
 }
 
-static DnnlPrimitiveAttrs createPrimitiveAttrs(const ConvAttrs& attrs,
-                                               const PostOps& postOps,
+static DnnlPrimitiveAttrs createPrimitiveAttrs(const PostOps& postOps,
                                                const MemoryArgs& memory,
                                                const ExecutorContext::CPtr& context) {
     const auto& srcDesc = memory.at(ARG_SRC)->getDescPtr();
@@ -166,11 +165,11 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
                                                                            const PostOps& postOps,
                                                                            const MemoryArgs& memory,
                                                                            const ExecutorContext::CPtr& context,
-                                                                           const bool cacheWeights) {
+                                                                           const bool /*cacheWeights*/) {
+    (void)attrs;
     DEBUG_LOG("Creating shape agnostic data");
-    ConvAttrs convAttrs{attrs.withBias};
 
-    const auto postOpData = createPrimitiveAttrs(convAttrs, postOps, memory, context);
+    const auto postOpData = createPrimitiveAttrs(postOps, memory, context);
 
     return std::make_shared<DnnlShapeAgnosticData>(postOpData);
 }
@@ -181,7 +180,7 @@ void DnnlConvolutionPrimitive::execute(const dnnl_primitive_args& primArgs) cons
 
 std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
     const MemoryArgs& memory,
-    const ConvAttrs& attrs,
+    const ConvAttrs& /*attrs*/,
     const ExecutorContext::CPtr context,
     const DnnlShapeAgnosticDataPtr& shapeAgnosticData) {
     const auto& srcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_SRC)->getDescPtr());

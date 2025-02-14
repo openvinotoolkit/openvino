@@ -316,7 +316,7 @@ void ExperimentalDetectronROIFeatureExtractor::initSupportedPrimitiveDescriptors
                          impl_desc_type::ref_any);
 }
 
-void ExperimentalDetectronROIFeatureExtractor::execute(const dnnl::stream& strm) {
+void ExperimentalDetectronROIFeatureExtractor::execute(const dnnl::stream& /*strm*/) {
     const int levels_num = inputShapes.size() - INPUT_FEATURES_START;
     const int num_rois = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     const int channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getMemory().getStaticDims()[1];

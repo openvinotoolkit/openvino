@@ -150,7 +150,7 @@ void RDFT::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(configurators, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
 }
 
-void RDFT::execute(const dnnl::stream& strm) {
+void RDFT::execute(const dnnl::stream& /*strm*/) {
     const auto& inputMem = getParentEdgeAt(DATA_INDEX)->getMemory();
     const auto& outputMem = getChildEdgeAt(0)->getMemory();
     const auto& inputShape = inputMem.getStaticDims();
@@ -290,7 +290,6 @@ bool RDFT::needPrepareParams() const {
 
 static void adjustInputSize(VectorDims& inputShape,
                             std::vector<int>& signalSizes,
-                            const VectorDims& outputShape,
                             const std::vector<int>& axes,
                             bool isInverse) {
     for (size_t i = 0; i < axes.size(); i++) {
@@ -318,7 +317,7 @@ void RDFTExecutor::execute(float* inputPtr,
                            const VectorDims& outputShape,
                            const VectorDims& inputStrides,
                            const VectorDims& outputStrides) {
-    adjustInputSize(inputShape, signalSizes, outputShape, axes, isInverse);
+    adjustInputSize(inputShape, signalSizes, axes, isInverse);
 
     if (rank == 1) {
         auto twiddlesPtr = twiddles[0].data();
@@ -950,7 +949,7 @@ struct RDFTRefExecutor : public RDFTExecutor {
     RDFTRefExecutor(bool inverse) : RDFTExecutor(inverse) {}
 
 private:
-    std::vector<float> generateTwiddlesDFT(size_t inputSize, size_t outputSize, enum dft_type type) override {
+    std::vector<float> generateTwiddlesDFT(size_t inputSize, size_t outputSize, enum dft_type /*type*/) override {
         std::vector<float> twiddles(inputSize * outputSize * 2);
         parallel_for2d(outputSize, inputSize, [&](size_t k, size_t n) {
             double angle = 2 * PI * k * n / inputSize;
