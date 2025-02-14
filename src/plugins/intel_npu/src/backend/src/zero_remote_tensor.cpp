@@ -63,7 +63,7 @@ ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& co
 ZeroRemoteTensor::~ZeroRemoteTensor() {
     auto res = deallocate();
     if (!res) {
-        _logger.error("ZeroRemoteTensor failed to free the memory");
+        _logger.warning("ZeroRemoteTensor failed to free the memory  %#X", uint64_t(res));
     }
 }
 

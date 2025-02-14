@@ -4,6 +4,7 @@
 
 #include "zero_tensor.hpp"
 
+#include "intel_npu/config/common.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -11,10 +12,12 @@
 namespace intel_npu {
 
 ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                       const Config& config,
                        const ov::element::Type element_type,
                        const ov::Shape& shape,
                        const ov::Allocator& allocator)
     : _init_structs(init_structs),
+      _logger("ZeroTensor", config.get<LOG_LEVEL>()),
       _element_type{element_type},
       _shape{shape},
       _capacity{_shape},
@@ -153,7 +156,13 @@ void ZeroTensor::set_tensor_shared_with_user() {
 }
 
 ZeroTensor::~ZeroTensor() {
-    destroy_memory();
+    try {
+        destroy_memory();
+    } catch (const std::exception& ex) {
+        _logger.warning("Failed to destroy Zero Tensor: %s", ex.what());
+    } catch (...) {
+        _logger.warning("Unexpected error when Zero Tensor is destroyed");
+    }
 }
 
 }  // namespace intel_npu

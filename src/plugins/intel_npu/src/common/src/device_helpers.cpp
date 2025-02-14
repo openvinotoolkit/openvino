@@ -29,5 +29,5 @@ std::string utils::getPlatformByDeviceName(const std::string& deviceName) {
     const auto platformPos = deviceName.rfind('.');
     const auto platformName = (platformPos == std::string::npos) ? deviceName : deviceName.substr(0, platformPos);
 
-    return platformName;
+    return std::move(platformName);
 }
