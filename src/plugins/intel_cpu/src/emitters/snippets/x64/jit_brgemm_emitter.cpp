@@ -7,6 +7,7 @@
 #include "emitters/plugin/x64/utils.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_amx.hpp"
+#include "emitters/snippets/x64/kernel_executors/brgemm_amx_batched.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_batched.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
@@ -32,15 +33,23 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
         const auto& brg0Prc = gemm_node->get_input_element_type(0);
         const auto& brg1Prc = gemm_node->get_input_element_type(1);
         const auto brgemm_type = gemm_node->get_type();
-        m_is_with_amx = false;
-
-        BrgemmBatchedKernelConfig kernel_config(brg0Prc,
-                                                brg1Prc,
-                                                gemm_node->get_iter_count(),
-                                                with_compensations(brgemm_type),
-                                                brgemm_utils::get_primitive_isa(brg0Prc, false));
-        m_kernel_executor =
-            kernel_table->register_kernel<BrgemmBatchedKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
+        m_is_with_amx = brgemm_utils::with_amx(brgemm_type);
+        if (m_is_with_amx) {
+            BrgemmAMXBatchedKernelConfig kernel_config(brg0Prc,
+                                                    brg1Prc,
+                                                    gemm_node->get_iter_count(),
+                                                    brgemm_utils::get_primitive_isa(brg0Prc, true));
+            m_kernel_executor =
+                kernel_table->register_kernel<BrgemmAMXBatchedKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
+        } else {
+            BrgemmBatchedKernelConfig kernel_config(brg0Prc,
+                                                    brg1Prc,
+                                                    gemm_node->get_iter_count(),
+                                                    with_compensations(brgemm_type),
+                                                    brgemm_utils::get_primitive_isa(brg0Prc, false));
+            m_kernel_executor =
+                kernel_table->register_kernel<BrgemmBatchedKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
+        }
 
         m_memory_offsets = {gemm_node->get_offset_a(), gemm_node->get_offset_b(), gemm_node->get_offset_c()};
         m_buffer_ids = {utils::get_buffer_cluster_id(expr->get_input_port(0)),
@@ -126,6 +135,8 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
 
     if (std::dynamic_pointer_cast<BrgemmAMXKernelExecutor>(m_kernel_executor)) {
         emit_call<BrgemmAMXKernelExecutor>(mem_ptrs_idxs);
+    } else if (std::dynamic_pointer_cast<BrgemmAMXKernelExecutor>(m_kernel_executor)) {
+        emit_call<BrgemmAMXBatchedKernelExecutor>(mem_ptrs_idxs);
     } else if (std::dynamic_pointer_cast<BrgemmKernelExecutor>(m_kernel_executor)) {
         emit_call<BrgemmKernelExecutor>(mem_ptrs_idxs);
     } else if (std::dynamic_pointer_cast<BrgemmBatchedKernelExecutor>(m_kernel_executor)) {
