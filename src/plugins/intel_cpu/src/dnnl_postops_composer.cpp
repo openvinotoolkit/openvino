@@ -659,7 +659,7 @@ static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
         srcFormat);
     auto srcMem = std::make_shared<Memory>(engine, srcMemoryDesc, paramsPtr->getData());
 
-    dstMem->load(*srcMem);
+    dstMem->load(*srcMem, true);
     return dstMem;
 }
 
