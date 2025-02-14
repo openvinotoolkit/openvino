@@ -24,11 +24,7 @@
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
-
-#define THROW_ERROR(...) OPENVINO_THROW(getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
+namespace ov::intel_cpu::node {
 
 #if defined(OPENVINO_ARCH_X86_64)
 
@@ -40,8 +36,9 @@ struct jit_move_scale_kernel : public jit_uni_move_scale_kernel, public jit_gene
         : jit_uni_move_scale_kernel(jcp),
           jit_generator(jit_name()) {
         runtime_prc = jcp_.src_prc == ov::element::bf16 ? ov::element::bf16 : ov::element::f32;
-        if (jcp_.dst_prc == ov::element::i8 || jcp_.dst_prc == ov::element::u8)
+        if (jcp_.dst_prc == ov::element::i8 || jcp_.dst_prc == ov::element::u8) {
             runtime_prc = ov::element::f32;
+        }
         vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / runtime_prc.size();
     }
     virtual ~jit_move_scale_kernel() {}
@@ -98,8 +95,9 @@ private:
         this->postamble();
 
         for (const auto& emitter : emitters) {
-            if (emitter.second)
+            if (emitter.second) {
                 emitter.second->emit_data();
+            }
         }
     }
 
@@ -196,8 +194,9 @@ Interaction::Interaction(const std::shared_ptr<ov::Node>& op, const GraphContext
 }
 
 void Interaction::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
     dataPrecision = getOriginalInputPrecisionAtPort(0);
     if (dataPrecision != ov::element::f32 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
         dataPrecision = ov::element::bf16;
@@ -346,7 +345,7 @@ void Interaction::prepareParams() {
         moveFeatureKernel->create_ker();
         moveInteractKernel->create_ker();
     } else {
-        THROW_ERROR("cannot create jit eltwise kernel");
+        THROW_CPU_NODE_ERR("cannot create jit eltwise kernel");
     }
 #ifdef CPU_DEBUG_CAPS
     if (prim) {
@@ -358,6 +357,10 @@ void Interaction::prepareParams() {
 
 void Interaction::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
+}
+
+bool Interaction::neverExecute() const {
+    return false;
 }
 
 bool Interaction::isExecutable() const {
@@ -377,6 +380,4 @@ bool Interaction::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
     return true;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

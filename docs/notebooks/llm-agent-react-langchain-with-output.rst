@@ -70,31 +70,28 @@ Prerequisites
 
     import requests
     from pathlib import Path
-
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
-
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
     if not Path("cmd_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py")
         open("cmd_helper.py", "w", encoding="utf-8").write(r.text)
-
-
-
-
-.. parsed-literal::
-
-    1491
-
-
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("llm-agent-react-langchain.ipynb")
 
 .. code:: ipython3
 
     import os
-
+    
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
-
+    
     %pip install -Uq pip
     %pip uninstall -q -y optimum optimum-intel
     %pip install --pre -Uq "openvino>=2024.5.0" openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
@@ -103,20 +100,10 @@ Prerequisites
     "datasets" \
     "accelerate" \
     "pydantic<2.10.0" \
-    "gradio>=4.19"
+    "gradio>=4.19" \
+    "huggingface-hub>=0.26.5"
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git" \
     "git+https://github.com/openvinotoolkit/nncf.git"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
 
 Create a tools
 --------------
@@ -131,20 +118,20 @@ creating custom tools.
 .. code:: ipython3
 
     from langchain_core.tools import tool
-
-
+    
+    
     @tool
     def multiply(first_int: int, second_int: int) -> int:
         """Multiply two integers together."""
         return first_int * second_int
-
-
+    
+    
     @tool
     def add(first_int: int, second_int: int) -> int:
         "Add two integers."
         return first_int + second_int
-
-
+    
+    
     @tool
     def exponentiate(base: int, exponent: int) -> int:
         "Exponentiate the base to the exponent power."
@@ -213,22 +200,22 @@ previous agent tool invocations and the corresponding tool outputs.
 .. code:: ipython3
 
     PREFIX = """Respond to the human as helpfully and accurately as possible. You have access to the following tools:"""
-
+    
     FORMAT_INSTRUCTIONS = """Use a json blob to specify a tool by providing an action key (tool name) and an action_input key (tool input).
-
+    
     Valid "action" values: "Final Answer" or {tool_names}
-
+    
     Provide only ONE action per $JSON_BLOB, as shown:
-
+    
     ```
     {{{{
       "action": $TOOL_NAME,
       "action_input": $INPUT
     }}}}
     ```
-
+    
     Follow this format:
-
+    
     Question: input question to answer
     Thought: consider previous and subsequent steps
     Action:
@@ -245,10 +232,10 @@ previous agent tool invocations and the corresponding tool outputs.
       "action_input": "Final response to human"
     }}}}
     ```"""
-
+    
     SUFFIX = """Begin! Reminder to ALWAYS respond with a valid json blob of a single action. Use tools if necessary. Respond directly if appropriate. Format is Action:```$JSON_BLOB```then Observation:.
     Thought:"""
-
+    
     HUMAN_MESSAGE_TEMPLATE = "{input}\n\n{agent_scratchpad}"
 
 Create LLM
@@ -294,7 +281,7 @@ select following models as LLM in agent pipeline.
 
 .. code:: python
 
-       ## login to huggingfacehub to get access to pretrained model
+       ## login to huggingfacehub to get access to pretrained model 
 
        from huggingface_hub import notebook_login, whoami
 
@@ -318,16 +305,16 @@ folder.
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     llm_model_ids = ["Qwen/Qwen2.5-7B-Instruct", "Qwen/Qwen2.5-3B-Instruct", "Qwen/qwen2.5-14b-instruct", "meta-llama/Meta-Llama-3.1-8B-Instruct"]
-
+    
     llm_model_id = widgets.Dropdown(
         options=llm_model_ids,
         value=llm_model_ids[0],
         description="Model:",
         disabled=False,
     )
-
+    
     llm_model_id
 
 
@@ -342,14 +329,49 @@ folder.
 .. code:: ipython3
 
     from cmd_helper import optimum_cli
-
+    
     llm_model_path = llm_model_id.value.split("/")[-1]
     repo_name = llm_model_id.value.split("/")[0]
-
+    
     if not Path(llm_model_path).exists():
         optimum_cli(
-            llm_model_id.value, llm_model_path, additional_args={"task": "text-generation-with-past", "weight-format": "int4", "group-size": "128", "ratio": "1.0"}
+            llm_model_id.value,
+            llm_model_path,
+            additional_args={"task": "text-generation-with-past", "weight-format": "int4", "group-size": "128", "ratio": "1.0", "sym": ""},
         )
+
+
+
+**Export command:**
+
+
+
+``optimum-cli export openvino --model Qwen/Qwen2.5-7B-Instruct Qwen2.5-7B-Instruct --task text-generation-with-past --weight-format int4 --group-size 128 --ratio 1.0 --sym``
+
+
+.. parsed-literal::
+
+    Downloading shards: 100%|██████████| 4/4 [06:03<00:00, 90.89s/it]
+    Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  6.20it/s]
+    We detected that you are passing `past_key_values` as a tuple and this is deprecated and will be removed in v4.43. Please use an appropriate `Cache` class (https://huggingface.co/docs/transformers/v4.41.3/en/internal/generation_utils#transformers.Cache)
+    /home2/ethan/intel/openvino_notebooks/openvino_venv/lib/python3.10/site-packages/optimum/exporters/openvino/model_patcher.py:506: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if sequence_length != 1:
+    /home2/ethan/intel/openvino_notebooks/openvino_venv/lib/python3.10/site-packages/transformers/models/qwen2/modeling_qwen2.py:165: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if seq_len > self.max_seq_len_cached:
+
+
+.. parsed-literal::
+
+    INFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │ int8_asym                 │ 14% (2 / 198)               │ 0% (0 / 196)                           │
+    ├───────────────────────────┼─────────────────────────────┼────────────────────────────────────────┤
+    │ int4_sym                  │ 86% (196 / 198)             │ 100% (196 / 196)                       │
+    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% • 0:04:25 • 0:00:00;0;104;181m0:00:01181m0:00:11
+    
 
 Select inference device for LLM
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -359,9 +381,9 @@ Select inference device for LLM
 .. code:: ipython3
 
     from notebook_utils import device_widget
-
+    
     device = device_widget("CPU", exclude=["NPU"])
-
+    
     device
 
 
@@ -383,37 +405,42 @@ information <https://python.langchain.com/docs/integrations/llms/openvino/>`__.
 
     from langchain_huggingface import HuggingFacePipeline
     from transformers.generation.stopping_criteria import StoppingCriteriaList, StoppingCriteria
-
+    
     import openvino.properties as props
     import openvino.properties.hint as hints
     import openvino.properties.streams as streams
-
-
+    
+    import torch
+    
+    if hasattr(torch, "mps") and torch.mps.is_available:
+        torch.mps.is_available = lambda: False
+    
+    
     class StopSequenceCriteria(StoppingCriteria):
         """
         This class can be used to stop generation whenever a sequence of tokens is encountered.
-
+    
         Args:
             stop_sequences (`str` or `List[str]`):
                 The sequence (or list of sequences) on which to stop execution.
             tokenizer:
                 The tokenizer used to decode the model outputs.
         """
-
+    
         def __init__(self, stop_sequences, tokenizer):
             if isinstance(stop_sequences, str):
                 stop_sequences = [stop_sequences]
             self.stop_sequences = stop_sequences
             self.tokenizer = tokenizer
-
+    
         def __call__(self, input_ids, scores, **kwargs) -> bool:
             decoded_output = self.tokenizer.decode(input_ids.tolist()[0])
             return any(decoded_output.endswith(stop_sequence) for stop_sequence in self.stop_sequences)
-
-
+    
+    
     ov_config = {hints.performance_mode(): hints.PerformanceMode.LATENCY, streams.num(): "1", props.cache_dir(): ""}
-    stop_tokens = ["Observation:"]
-
+    stop_tokens = ["Observation:", "Observation:\n"]
+    
     ov_llm = HuggingFacePipeline.from_model_id(
         model_id=llm_model_path,
         task="text-generation",
@@ -425,20 +452,23 @@ information <https://python.langchain.com/docs/integrations/llms/openvino/>`__.
         },
         pipeline_kwargs={"max_new_tokens": 2048},
     )
-
+    
     tokenizer = ov_llm.pipeline.tokenizer
     ov_llm.pipeline._forward_params["stopping_criteria"] = StoppingCriteriaList([StopSequenceCriteria(stop_tokens, tokenizer)])
 
 .. code:: ipython3
 
     from langchain_huggingface import ChatHuggingFace
-
+    
     ov_chat = ChatHuggingFace(llm=ov_llm, verbose=True)
-    ov_chat = ov_chat.bind(skip_prompt=True, stop=["Observation:"])
+    ov_chat = ov_chat.bind(skip_prompt=True, stop=["Observation:", "Observation:\n"])
+    
+    if llm_model_id.value == "meta-llama/Meta-Llama-3.1-8B-Instruct":
+        ov_chat.llm.pipeline.tokenizer.pad_token_id = ov_chat.llm.pipeline.tokenizer.eos_token_id
 
 You can get additional inference speed improvement with `Dynamic
 Quantization of activations and KV-cache quantization on
-CPU <https://docs.openvino.ai/2024/openvino-workflow-generative/inference-with-optimum-intel.html#enabling-openvino-runtime-optimizations>`__.
+CPU <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/llm-inference-hf.html#enabling-openvino-runtime-optimizations>`__.
 These options can be enabled with ``ov_config`` as follows:
 
 .. code:: ipython3
@@ -466,7 +496,7 @@ outputs back to the agent, and repeats.
 .. code:: ipython3
 
     from langchain.agents import AgentExecutor, StructuredChatAgent
-
+    
     agent = StructuredChatAgent.from_llm_and_tools(
         ov_chat,
         tools,
@@ -494,11 +524,11 @@ prompt template.
 
 .. parsed-literal::
 
-
-
+    
+    
     > Entering new AgentExecutor chain...
-    Thought: First, we need to take 3 to the fifth power. Then we will find the sum of twelve and three. After that, we multiply the first result by the second result. Finally, we'll square the whole result.
-
+    Thought: First, I need to calculate 3 raised to the fifth power. Then, I will find the sum of twelve and three. After that, I will multiply the first result by the second result, and finally, I will square the entire result.
+    
     Action:
     ```
     {
@@ -511,8 +541,8 @@ prompt template.
     ```
     Observation:
     Observation: 243
-    Thought:Next, let's find the sum of twelve and three.
-
+    Thought:Next, I need to find the sum of twelve and three.
+    
     Action:
     ```
     {
@@ -525,8 +555,8 @@ prompt template.
     ```
     Observation:
     Observation: 15
-    Thought:Now, we will multiply the result of \(3^5\) (which is 243) by the sum of 12 and 3 (which is 15).
-
+    Thought:Now, I will multiply the result of \(3^5\) (which is 243) by the sum of twelve and three (which is 15). After that, I will square the entire result.
+    
     Action:
     ```
     {
@@ -539,8 +569,8 @@ prompt template.
     ```
     Observation:
     Observation: 3645
-    Thought:Thought: Now, we need to square the result of the multiplication (3645).
-
+    Thought:Thought: Now I need to square the result of the multiplication, which is 3645.
+    
     Action:
     ```
     {
@@ -551,9 +581,10 @@ prompt template.
       }
     }
     ```
+    Observation:
     Observation: 13286025
     Thought:Thought: I know what to respond
-
+    
     Action:
     ```
     {
@@ -561,7 +592,7 @@ prompt template.
       "action_input": "The final result is 13286025."
     }
     ```
-
+    
     > Finished chain.
 
 
@@ -598,10 +629,10 @@ words generated by agent.
     from langchain_community.utilities import WikipediaAPIWrapper
     from langchain_core.callbacks import CallbackManagerForToolRun
     from typing import Optional
-
+    
     from pydantic import BaseModel, Field
-
-
+    
+    
     class WikipediaQueryRunWrapper(WikipediaQueryRun):
         def _run(
             self,
@@ -610,17 +641,17 @@ words generated by agent.
         ) -> str:
             """Use the Wikipedia tool."""
             return self.api_wrapper.run(text)
-
-
+    
+    
     api_wrapper = WikipediaAPIWrapper(top_k_results=2, doc_content_chars_max=1000)
-
-
+    
+    
     class WikiInputs(BaseModel):
         """inputs to the wikipedia tool."""
-
+    
         text: str = Field(description="query to look up on wikipedia.")
-
-
+    
+    
     wikipedia = WikipediaQueryRunWrapper(
         description="A wrapper around Wikipedia. Useful for when you need to answer general questions about people, places, companies, facts, historical events, or other subjects. Input should be a search query.",
         args_schema=WikiInputs,
@@ -652,8 +683,8 @@ In this examples, we will create 2 customized tools for
 
     import urllib.parse
     import json5
-
-
+    
+    
     @tool
     def painting(prompt: str) -> str:
         """
@@ -661,8 +692,8 @@ In this examples, we will create 2 customized tools for
         """
         prompt = urllib.parse.quote(prompt)
         return json5.dumps({"image_url": f"https://image.pollinations.ai/prompt/{prompt}"}, ensure_ascii=False)
-
-
+    
+    
     painting.invoke({"prompt": "a cat"})
 
 
@@ -683,10 +714,10 @@ In this examples, we will create 2 customized tools for
         """
         Get the current weather for `city_name`
         """
-
+    
         if not isinstance(city_name, str):
             raise TypeError("City name must be a string")
-
+    
         key_selection = {
             "current_condition": [
                 "temp_C",
@@ -697,15 +728,15 @@ In this examples, we will create 2 customized tools for
             ],
         }
         import requests
-
+    
         resp = requests.get(f"https://wttr.in/{city_name}?format=j1")
         resp.raise_for_status()
         resp = resp.json()
         ret = {k: {_v: resp[k][0][_v] for _v in v} for k, v in key_selection.items()}
-
+    
         return str(ret)
-
-
+    
+    
     weather.invoke({"city_name": "London"})
 
 
@@ -725,7 +756,7 @@ Create AI agent demo with Gradio UI
 .. code:: ipython3
 
     tools = [wikipedia, painting, weather]
-
+    
     agent = StructuredChatAgent.from_llm_and_tools(
         ov_chat,
         tools,
@@ -741,28 +772,28 @@ Create AI agent demo with Gradio UI
     def partial_text_processor(partial_text, new_text):
         """
         helper for updating partially generated answer, used by default
-
+    
         Params:
           partial_text: text buffer for storing previosly generated text
           new_text: text update for the current step
         Returns:
           updated text string
-
+    
         """
         partial_text += new_text
         return partial_text
-
-
+    
+    
     def run_chatbot(history):
         """
         callback function for running chatbot on submit button click
-
+    
         Params:
           history: conversation history
-
+    
         """
         partial_text = ""
-
+    
         for new_text in agent_executor.stream(
             {"input": history[-1][0]},
         ):
@@ -770,8 +801,8 @@ Create AI agent demo with Gradio UI
                 partial_text = partial_text_processor(partial_text, new_text["output"])
                 history[-1][1] = partial_text
                 yield history
-
-
+    
+    
     def request_cancel():
         ov_chat.llm.pipeline.model.request.cancel()
 
@@ -780,11 +811,19 @@ Create AI agent demo with Gradio UI
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llm-agent-react/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)
-
+    
     from gradio_helper import make_demo
-
-    demo = make_demo(run_fn=run_chatbot, stop_fn=request_cancel)
-
+    
+    examples = [
+        ["Based on current weather in London, show me a picture of Big Ben through its URL"],
+        ["What is OpenVINO ?"],
+        ["Create an image of pink cat and return its URL"],
+        ["How many people live in Canada ?"],
+        ["What is the weather like in New York now ?"],
+    ]
+    
+    demo = make_demo(run_fn=run_chatbot, stop_fn=request_cancel, examples=examples)
+    
     try:
         demo.launch()
     except Exception:

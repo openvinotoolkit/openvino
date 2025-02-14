@@ -27,8 +27,7 @@ using namespace ov::threading;
 #define INIT_VAL     -100
 #define TP_CPU_LIMIT 32
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 void sort_table_by_numa_node_id(const int current_numa_node, std::vector<std::vector<int>>& proc_type_table) {
     if (proc_type_table.size() > 1) {
@@ -514,7 +513,7 @@ std::vector<std::vector<int>> get_streams_info_table(
                                    ALL_PROC);
         } else if (stream_info[PROC_TYPE] == MAIN_CORE_PROC) {
             if (stream_info[THREADS_PER_STREAM] == proc_socket_table[0][MAIN_CORE_PROC]) {
-                streams_info_table.push_back(stream_info);
+                streams_info_table.push_back(std::move(stream_info));
             } else {
                 stream_info[PROC_TYPE] = ALL_PROC;
                 streams_info_table.push_back(stream_info);
@@ -524,10 +523,10 @@ std::vector<std::vector<int>> get_streams_info_table(
                 streams_info_table.push_back(stream_info);
                 stream_info[PROC_TYPE] = HYPER_THREADING_PROC;
                 stream_info[THREADS_PER_STREAM] = proc_socket_table[0][HYPER_THREADING_PROC];
-                streams_info_table.push_back(stream_info);
+                streams_info_table.push_back(std::move(stream_info));
             }
         } else {
-            streams_info_table.push_back(stream_info);
+            streams_info_table.push_back(std::move(stream_info));
         }
     }
 
@@ -761,5 +760,4 @@ void get_num_streams(const int streams, const std::shared_ptr<ov::Model>& model,
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

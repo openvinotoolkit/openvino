@@ -7,8 +7,7 @@
 #include "cache/multi_cache.h"
 #include "snippets/kernel_executor_table.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 template <typename Conf, typename KernelType>
 class CPUKernelExecutor : public snippets::KernelExecutor<Conf, KernelType> {
@@ -43,5 +42,4 @@ protected:
     ov::intel_cpu::MultiCacheWeakPtr m_kernel_cache;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

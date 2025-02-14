@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,8 +39,7 @@
 #    include "nodes/executors/shl/shl_fullyconnected.hpp"
 #endif
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace ov::element;
 using namespace TypeMaskAlias;
@@ -149,14 +148,17 @@ static bool fullyMatchConfiguration(const MemoryDescArgs& currentDescriptors,
         const auto& type = typeConfig[i];
         const auto& desc = currentDescriptors.at(notation[i]);
 
-        if (desc->empty())
+        if (desc->empty()) {
             continue;
+        }
 
-        if (desc->getPrecision() != type)
+        if (desc->getPrecision() != type) {
             return false;  // type mismatch
+        }
 
-        if (!desc->hasLayoutType(layoutConfig[i]))
+        if (!desc->hasLayoutType(layoutConfig[i])) {
             return false;  // layout mismatch
+        }
     }
 
     return true;
@@ -175,8 +177,9 @@ static MemoryDescArgs createOptimalDescriptors(const MemoryDescArgs& currentDesc
         const auto& type = typeConfig[i];
         const auto& layout = layoutConfig[i];
 
-        if (desc->empty())
+        if (desc->empty()) {
             continue;
+        }
 
         if (descType == type && desc->hasLayoutType(layout)) {
             continue;
@@ -539,5 +542,4 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
 }
 // clang-format on
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
