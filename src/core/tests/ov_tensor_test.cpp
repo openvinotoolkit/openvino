@@ -709,22 +709,47 @@ TEST_F(OVTensorTest, readRangeRoiBlobStringTensor) {
     }
 }
 
+TEST_F(OVTensorTest, checkIsContinuousTensorScalar) {
+    ov::Tensor tensor(ov::element::f32, ov::Shape{});
+    auto data = tensor.data();
+    auto strides = tensor.get_strides();
+
+    ov::Tensor view_tensor(ov::element::f32, ov::Shape{}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+}
+
+TEST_F(OVTensorTest, checkIsContinuousTensor1Dimension) {
+    ov::Tensor tensor(ov::element::f32, ov::Shape{128});
+    auto data = tensor.data();
+    auto strides = tensor.get_strides();
+
+    ov::Tensor view_tensor;
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{16}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+}
+
 TEST_F(OVTensorTest, checkIsContinuousTensor2Dimensions) {
     ov::Tensor tensor(ov::element::f32, ov::Shape{32, 128});
     auto data = tensor.data();
     auto strides = tensor.get_strides();
 
-    ov::Tensor view_tensor0(ov::element::f32, ov::Shape{16, 128}, data, strides);
-    EXPECT_EQ(view_tensor0.is_continuous(), true);
+    ov::Tensor view_tensor;
 
-    ov::Tensor view_tensor1(ov::element::f32, ov::Shape{1, 128}, data, strides);
-    EXPECT_EQ(view_tensor1.is_continuous(), true);
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
 
-    ov::Tensor view_tensor2(ov::element::f32, ov::Shape{1, 16}, data, strides);
-    EXPECT_EQ(view_tensor2.is_continuous(), true);
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{1, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
 
-    ov::Tensor view_tensor3(ov::element::f32, ov::Shape{2, 16}, data, strides);
-    EXPECT_EQ(view_tensor3.is_continuous(), false);
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{1, 16}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{2, 16}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
 }
 
 TEST_F(OVTensorTest, checkIsContinuousTensor3Dimensions) {
@@ -732,20 +757,22 @@ TEST_F(OVTensorTest, checkIsContinuousTensor3Dimensions) {
     auto data = tensor.data();
     auto strides = tensor.get_strides();
 
-    ov::Tensor view_tensor0(ov::element::f32, ov::Shape{2, 32, 128}, data, strides);
-    EXPECT_EQ(view_tensor0.is_continuous(), true);
+    ov::Tensor view_tensor;
 
-    ov::Tensor view_tensor1(ov::element::f32, ov::Shape{2, 16, 128}, data, strides);
-    EXPECT_EQ(view_tensor1.is_continuous(), false);
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{2, 32, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
 
-    ov::Tensor view_tensor2(ov::element::f32, ov::Shape{1, 1, 128}, data, strides);
-    EXPECT_EQ(view_tensor2.is_continuous(), true);
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{2, 16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
 
-    ov::Tensor view_tensor3(ov::element::f32, ov::Shape{1, 1, 64}, data, strides);
-    EXPECT_EQ(view_tensor3.is_continuous(), true);
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{1, 1, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
 
-    ov::Tensor view_tensor4(ov::element::f32, ov::Shape{1, 16, 128}, data, strides);
-    EXPECT_EQ(view_tensor4.is_continuous(), true);
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{1, 1, 64}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{1, 16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
 }
 
 TEST_F(OVTensorTest, checkIsContinuousTensor4Dimensions) {
@@ -753,32 +780,34 @@ TEST_F(OVTensorTest, checkIsContinuousTensor4Dimensions) {
     auto data = tensor.data();
     auto strides = tensor.get_strides();
 
-    ov::Tensor view_tensor0(ov::element::f32, ov::Shape{1, 2, 32, 128}, data, strides);
-    EXPECT_EQ(view_tensor0.is_continuous(), true);
+    ov::Tensor view_tensor;
 
-    ov::Tensor view_tensor1(ov::element::f32, ov::Shape{2, 5, 32, 128}, data, strides);
-    EXPECT_EQ(view_tensor1.is_continuous(), true);
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{1, 2, 32, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
 
-    ov::Tensor view_tensor2(ov::element::f32, ov::Shape{2, 2, 32, 128}, data, strides);
-    EXPECT_EQ(view_tensor2.is_continuous(), false);
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{2, 5, 32, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
 
-    ov::Tensor view_tensor3(ov::element::f32, ov::Shape{1, 2, 5, 128}, data, strides);
-    EXPECT_EQ(view_tensor3.is_continuous(), false);
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{2, 2, 32, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
 
-    ov::Tensor view_tensor4(ov::element::f32, ov::Shape{3, 5, 32, 64}, data, strides);
-    EXPECT_EQ(view_tensor4.is_continuous(), false);
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{1, 2, 5, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
 
-    ov::Tensor view_tensor5(ov::element::f32, ov::Shape{1, 1, 16, 128}, data, strides);
-    EXPECT_EQ(view_tensor5.is_continuous(), true);
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{3, 5, 32, 64}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
 
-    ov::Tensor view_tensor6(ov::element::f32, ov::Shape{2, 1, 16, 128}, data, strides);
-    EXPECT_EQ(view_tensor6.is_continuous(), false);
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{1, 1, 16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
 
-    ov::Tensor view_tensor7(ov::element::f32, ov::Shape{1, 1, 1, 128}, data, strides);
-    EXPECT_EQ(view_tensor7.is_continuous(), true);
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{2, 1, 16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
 
-    ov::Tensor view_tensor8(ov::element::f32, ov::Shape{1, 1, 1, 32}, data, strides);
-    EXPECT_EQ(view_tensor8.is_continuous(), true);
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{1, 1, 1, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{1, 1, 1, 32}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
 }
 
 struct TestParams {
