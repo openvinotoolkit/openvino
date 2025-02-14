@@ -262,16 +262,20 @@ def test_any_input_symbol_predicate():
         return matcher.get_symbols()
 
     symbols = symbol_matching_test(PartialShape([1, 3, 22, 22]), "[Batch,Channels,Spatial,Spatial]")
-    assert symbols['Batch'] == 1 and symbols['Channels'] == 3 and symbols['Spatial'] == 22, symbols
+    assert symbols["Batch"] == 1, symbols
+    assert symbols["Channels"] == 3, symbols
+    assert symbols["Spatial"] == 22, symbols
 
     shape = PartialShape([-1, 2, 3, 4, -1, 6, 7])
-    A, B = Dimension(), Dimension()
-    A.set_symbol(Symbol())
-    B.set_symbol(Symbol())
-    shape[0] = A
-    shape[4] = B
+    a_dim, b_dim = Dimension(), Dimension()
+    a_dim.set_symbol(Symbol())
+    b_dim.set_symbol(Symbol())
+    shape[0] = a_dim
+    shape[4] = b_dim
     symbols = symbol_matching_test(shape, "[Batches...,Dyn,Six,7]")
-    assert symbols['Batches'] == [A.get_symbol(), 2, 3, 4] and symbols['Dyn'] == B.get_symbol() and symbols['Six'] == 6, symbols
+    assert symbols["Batches"] == [a_dim.get_symbol(), 2, 3, 4], symbols
+    assert symbols["Dyn"] == b_dim.get_symbol(), symbols
+    assert symbols["Six"] == 6, symbols
 
 
 def test_optional_full_match():
