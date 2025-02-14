@@ -166,7 +166,7 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
                                                                            const MemoryArgs& memory,
                                                                            const ExecutorContext::CPtr& context,
                                                                            const bool /*cacheWeights*/) {
-    (void) attrs;
+    (void)attrs;
     DEBUG_LOG("Creating shape agnostic data");
 
     const auto postOpData = createPrimitiveAttrs(postOps, memory, context);

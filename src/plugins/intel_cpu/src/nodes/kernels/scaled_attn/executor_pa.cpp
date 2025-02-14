@@ -474,7 +474,7 @@ static void dot_product_block(TA* a,
                               const size_t n,
                               const size_t block_size,
                               const size_t group_size) {
-    (void) group_size;
+    (void)group_size;
 #    if defined(HAVE_AVX512F)
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {

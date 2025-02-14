@@ -221,7 +221,7 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
                                           const std::vector<impl_desc_type>& implPriorities,
                                           const bool useSparseWeights,
                                           const bool useWeightsDecompression) {
-    (void) useSparseWeights;
+    (void)useSparseWeights;
     auto prim_desc =
         createDescriptorInternal(inputDesc, weightDesc, biasDesc, outputDesc, attr, engine, useWeightsDecompression);
     OPENVINO_ASSERT(prim_desc, "Failed to create matmul primitive descriptor");

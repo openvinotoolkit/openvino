@@ -655,7 +655,7 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
                                         float* out,
                                         int64_t elements_remaining,
                                         bool optimization_enabled) {
-    (void) optimization_enabled;
+    (void)optimization_enabled;
     const auto mask = static_cast<uint32_t>((static_cast<uint64_t>(1) << std::numeric_limits<float>::digits) - 1);
     const auto divisor = static_cast<float>(1) / (static_cast<uint64_t>(1) << std::numeric_limits<float>::digits);
 
@@ -672,7 +672,7 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
                                         float16* out,
                                         int64_t elements_remaining,
                                         bool optimization_enabled) {
-    (void) optimization_enabled;
+    (void)optimization_enabled;
     const auto mask = static_cast<uint32_t>((static_cast<uint64_t>(1) << std::numeric_limits<float16>::digits) - 1);
     const auto divisor = static_cast<float>(1) / (static_cast<uint64_t>(1) << std::numeric_limits<float16>::digits);
 
@@ -689,7 +689,7 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
                                         bfloat16* out,
                                         int64_t elements_remaining,
                                         bool optimization_enabled) {
-    (void) optimization_enabled;
+    (void)optimization_enabled;
     const auto mask = static_cast<uint32_t>((1UL << 8) - 1);
     const auto divisor = static_cast<float>(1) / (1UL << 8);
 
@@ -706,7 +706,7 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
                                         int32_t* out,
                                         int64_t elements_remaining,
                                         bool optimization_enabled) {
-    (void) optimization_enabled;
+    (void)optimization_enabled;
     out[0] = static_cast<int32_t>(in1 % range + min);
     if (elements_remaining >= 2l) {
         out[1] = static_cast<int32_t>(in2 % range + min);

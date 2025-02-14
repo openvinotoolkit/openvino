@@ -44,7 +44,7 @@ public:
         bool is_quantized = config.down_quantized;
 
         auto reg_blk_K_size = is_quantized ? REG_BLK_K_SIZE_I8 : REG_BLK_K_SIZE;
-        auto cache_blk_k_size = is_quantized ? CACHE_BLK_K_SIZE : CACHE_BLK_K_SIZE;
+        auto cache_blk_k_size = CACHE_BLK_K_SIZE;
         auto weight_element_size = is_quantized ? sizeof(int8_t) : sizeof(ov::float16);
 
         OPENVINO_ASSERT((N % REG_BLK_N_SIZE) == 0);
