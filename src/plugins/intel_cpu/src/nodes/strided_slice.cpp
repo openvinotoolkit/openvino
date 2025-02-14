@@ -16,9 +16,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool StridedSlice::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -323,6 +321,11 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
             itr->second->createSharedDesc(dataPrecision, getOutputShapeAtPort(attrs.DATA_ID)));
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
     }
+}
+
+bool StridedSlice::neverExecute() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0) ||
+           getSelectedPrimitiveDescriptor()->hasZeroOutputDimsAtPort(0);
 }
 
 bool StridedSlice::isExecutable() const {
@@ -864,6 +867,4 @@ void StridedSlice::StridedSliceCommonExecutor::exec(const std::vector<MemoryCPtr
     }
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

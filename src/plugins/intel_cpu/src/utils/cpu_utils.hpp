@@ -12,8 +12,7 @@
 #include "openvino/core/except.hpp"
 #include "precision_support.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 // helper struct to tell wheter type T is any of given types U...
 // termination case when U... is empty -> return std::false_type
@@ -195,5 +194,4 @@ T reshapeDownToRank(const T& dims) {
     return reshapeDownToRank(dims, rank);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

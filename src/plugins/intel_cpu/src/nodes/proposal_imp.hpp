@@ -6,11 +6,9 @@
 #include <cstddef>
 #include <vector>
 
-#include "openvino/core/shape.hpp"
+#include "cpu_types.h"
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
+namespace ov::Extensions::Cpu {
 
 struct proposal_conf {
     size_t feat_stride_;
@@ -50,6 +48,4 @@ void proposal_exec(const float* input0,
                    proposal_conf& conf);
 
 }  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu

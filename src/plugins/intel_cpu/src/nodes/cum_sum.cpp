@@ -13,9 +13,7 @@
 #include "openvino/opsets/opset3.hpp"
 #include "utils/bfloat16.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool CumSum::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -50,7 +48,7 @@ CumSum::CumSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
 
     const auto cumsum = ov::as_type_ptr<const ov::opset3::CumSum>(op);
     if (cumsum == nullptr) {
-        OPENVINO_THROW("Operation with name '", op->get_friendly_name(), "' is not an instance of CumSum from opset3.");
+        THROW_CPU_NODE_ERR("is not an instance of CumSum from opset3.");
     }
 
     exclusive = cumsum->is_exclusive();
@@ -285,6 +283,4 @@ void CumSum::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

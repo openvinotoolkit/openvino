@@ -7,8 +7,7 @@
 #include "nodes/executors/transpose.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 class RefOptimizedTransposeExecutor : public TransposeExecutor {
 public:
     using TransposeExecutor::TransposeExecutor;
@@ -47,5 +46,4 @@ public:
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

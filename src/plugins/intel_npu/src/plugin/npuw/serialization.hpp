@@ -11,6 +11,7 @@
 #include <optional>
 #include <string>
 #include <tuple>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -19,7 +20,7 @@
 const constexpr std::array<uint8_t, 6> NPUW_SERIALIZATION_INDICATOR =
     {char{0x13}, char{0x37}, char{0x6e}, char{0x70}, char{0x75}, char{0x77}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.0";
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.1";
 
 // Forward declaration
 namespace intel_npu {
@@ -34,6 +35,9 @@ class Node;
 class Tensor;
 template <class>
 class Output;
+template <class>
+class SharedBuffer;
+class MappedMemory;
 
 // Forward declaration
 namespace op {
@@ -48,8 +52,21 @@ namespace npuw {
 namespace compiled {
 struct Spatial;
 }  // namespace compiled
+namespace weights {
+class LazyTensor;
+}  // namespace weights
 
 namespace s11n {
+
+struct Context {
+    explicit Context(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset)
+        : is_weightless(_is_weightless),
+          const_to_offset(_const_to_offset) {}
+    bool is_weightless;
+    const std::unordered_map<const void*, std::size_t>& const_to_offset;
+};
+
+using Weights = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>;
 
 // Specific type overloads
 void write(std::ostream& stream, const std::streampos& var);
@@ -61,6 +78,7 @@ void write(std::ostream& stream, const ov::Tensor& var);
 void write(std::ostream& stream, const ::intel_npu::Config& var);
 void write(std::ostream& stream, const ov::Output<const ov::Node>& var);
 void write_any(std::ostream& stream, const ov::Any& var);
+void write(std::ostream& stream, const ov::npuw::weights::LazyTensor& var);
 
 void read(std::istream& stream, std::streampos& var);
 void read(std::istream& stream, std::string& var);
@@ -72,6 +90,12 @@ void read(std::istream& stream, ::intel_npu::Config& var);
 void read(std::istream& stream, std::shared_ptr<ov::op::v0::Parameter>& var);
 void read(std::istream& stream, std::shared_ptr<ov::Node>& var);
 void read_any(std::istream& stream, ov::Any& var);
+void read(std::istream& stream, ov::npuw::weights::LazyTensor& var);
+
+// Weightless utils
+void write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const Context& ctx);
+// No allocation needed
+void read_weightless(std::istream& stream, std::vector<ov::Tensor>& var, const Weights& weights);
 
 // Forward declaration
 template <typename T1, typename T2>
@@ -169,7 +193,7 @@ void read(std::istream& stream, std::vector<T>& var) {
     for (std::size_t i = 0; i < var_size; ++i) {
         T elem;
         read(stream, elem);
-        var.push_back(elem);
+        var.push_back(std::move(elem));
     }
 }
 
@@ -203,7 +227,7 @@ void read(std::istream& stream, std::unordered_set<T>& var) {
     for (std::size_t i = 0; i < var_size; ++i) {
         T elem;
         read(stream, elem);
-        var.insert(elem);
+        var.insert(std::move(elem));
     }
 }
 

@@ -18,9 +18,7 @@ using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 #if defined(OPENVINO_ARCH_X86_64)
 #    define GET_OFF(field) offsetof(jit_extract_image_patches_args, field)
 
@@ -407,13 +405,13 @@ void ExtractImagePatches::prepareParams() {
     const auto& srcMemPtr0 = getSrcMemoryAtPort(0);
     const auto& dstMemPtr = getDstMemoryAtPort(0);
     if (!srcMemPtr0 || !srcMemPtr0->isDefined()) {
-        OPENVINO_THROW("Input memory is undefined.");
+        THROW_CPU_NODE_ERR("Input memory is undefined.");
     }
     if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        OPENVINO_THROW("Destination memory is undefined.");
+        THROW_CPU_NODE_ERR("Destination memory is undefined.");
     }
     if (getSelectedPrimitiveDescriptor() == nullptr) {
-        OPENVINO_THROW("Preferable primitive descriptor is not set.");
+        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
     }
 
     const auto& in_dims = getParentEdgeAt(0)->getMemory().getStaticDims();
@@ -466,7 +464,7 @@ void ExtractImagePatches::execute(const dnnl::stream& strm) {
         const auto outStrides = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
         execPtr->exec(src, dst, inStrides, outStrides);
     } else {
-        OPENVINO_THROW("Can't execute extract image patches node. Primitive wasn't created");
+        THROW_CPU_NODE_ERR("Primitive wasn't created");
     }
 }
 
@@ -699,6 +697,4 @@ bool ExtractImagePatches::created() const {
     return getType() == Type::ExtractImagePatches;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

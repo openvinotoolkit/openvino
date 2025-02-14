@@ -16,8 +16,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
     switch (dataType) {
@@ -47,7 +46,9 @@ uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
     }
 }
 
-dnnl::memory::data_type DnnlExtensionUtils::ElementTypeToDataType(const ov::element::Type& elementType) {
+std::optional<dnnl::memory::data_type> DnnlExtensionUtils::ElementTypeToDataType(
+    const ov::element::Type& elementType,
+    DnnlExtensionUtils::nothrow_tag) noexcept {
     switch (elementType) {
     case ov::element::f32:
         return memory::data_type::f32;
@@ -81,9 +82,16 @@ dnnl::memory::data_type DnnlExtensionUtils::ElementTypeToDataType(const ov::elem
     case ov::element::undefined:
         return memory::data_type::undef;
     default: {
-        OPENVINO_THROW("CPU plugin does not support ", elementType.to_string(), " for use with oneDNN.");
+        return {};
     }
     }
+}
+
+dnnl::memory::data_type DnnlExtensionUtils::ElementTypeToDataType(const ov::element::Type& elementType,
+                                                                  DnnlExtensionUtils::throw_tag) {
+    auto&& result = ElementTypeToDataType(elementType, nothrow_tag{});
+    OPENVINO_ASSERT(result, "CPU plugin does not support ", elementType.to_string(), " for use with oneDNN.");
+    return result.value();
 }
 
 ov::element::Type DnnlExtensionUtils::DataTypeToElementType(const dnnl::memory::data_type& dataType) {
@@ -286,5 +294,4 @@ std::string DnnlExtensionUtils::computeWeightsStringHash(const std::shared_ptr<c
     return std::to_string(desc_hash) + "_" + std::to_string(reinterpret_cast<uint64_t>(memory->getData()));
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

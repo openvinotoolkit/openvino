@@ -83,25 +83,30 @@ Prerequisites
 
     import requests
     from pathlib import Path
-
-
+    
+    
     if not Path("notebook_utils.py").exists():
         r = requests.get(
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
         )
         open("notebook_utils.py", "w").write(r.text)
-
+    
     if not Path("cmd_helper.py").exists():
         r = requests.get(
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
         )
         open("cmd_helper.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("depth-anything-v2.ipynb")
 
 .. code:: ipython3
 
     from cmd_helper import clone_repo
-
-
+    
+    
     clone_repo("https://huggingface.co/spaces/depth-anything/Depth-Anything-V2")
 
 
@@ -116,12 +121,12 @@ Prerequisites
 .. code:: ipython3
 
     import platform
-
-
+    
+    
     %pip install -q "openvino>=2024.2.0" "datasets>=2.14.6" "nncf>=2.11.0" "tqdm" "matplotlib>=3.4"
     %pip install -q "typing-extensions>=4.9.0" eval-type-backport "gradio>=4.19" gradio_imageslider
     %pip install -q torch torchvision "opencv-python" huggingface_hub --extra-index-url https://download.pytorch.org/whl/cpu
-
+    
     if platform.system() == "Darwin":
         %pip install -q "numpy<2.0.0"
     if platform.python_version_tuple()[1] in ["8", "9"]:
@@ -148,10 +153,10 @@ attention optimizations first.
 
     attention_file_path = Path("./Depth-Anything-V2/depth_anything_v2/dinov2_layers/attention.py")
     orig_attention_path = attention_file_path.parent / ("orig_" + attention_file_path.name)
-
+    
     if not orig_attention_path.exists():
         attention_file_path.rename(orig_attention_path)
-
+    
         with orig_attention_path.open("r") as f:
             data = f.read()
             data = data.replace("XFORMERS_AVAILABLE = True", "XFORMERS_AVAILABLE = False")
@@ -166,15 +171,15 @@ Prepare input data
 .. code:: ipython3
 
     from PIL import Image
-
+    
     from notebook_utils import download_file, device_widget, quantization_widget
-
-
-    download_file(
-        "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/3f779fc1-c1b2-4dec-915a-64dae510a2bb",
-        "furseal.png",
-    )
-
+    
+    if not Path("furseal.png").exists():
+        download_file(
+            "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/3f779fc1-c1b2-4dec-915a-64dae510a2bb",
+            "furseal.png",
+        )
+    
     Image.open("furseal.png").resize((600, 400))
 
 
@@ -208,11 +213,11 @@ DepthAnythingV2 family.
 .. code:: ipython3
 
     from huggingface_hub import hf_hub_download
-
+    
     encoder = "vits"
     model_type = "Small"
     model_id = f"depth_anything_v2_{encoder}"
-
+    
     model_path = hf_hub_download(repo_id=f"depth-anything/Depth-Anything-V2-{model_type}", filename=f"{model_id}.pth", repo_type="model")
 
 Preprocessed image passed to model forward and model returns depth map
@@ -224,22 +229,22 @@ is preprocessed image height, ``W`` is preprocessed image width.
     import cv2
     import torch
     import torch.nn.functional as F
-
+    
     from depth_anything_v2.dpt import DepthAnythingV2
-
+    
     model = DepthAnythingV2(encoder=encoder, features=64, out_channels=[48, 96, 192, 384])
     model.load_state_dict(torch.load(model_path, map_location="cpu"))
     model.eval()
-
+    
     raw_img = cv2.imread("furseal.png")
     image, (h, w) = model.image2tensor(raw_img)
     image = image.to("cpu").to(torch.float32)
-
+    
     with torch.no_grad():
         depth = model.forward(image)
-
+    
     depth = F.interpolate(depth[:, None], (h, w), mode="bilinear", align_corners=True)[0, 0]
-
+    
     output = depth.cpu().numpy()
 
 
@@ -247,7 +252,7 @@ is preprocessed image height, ``W`` is preprocessed image width.
 
     xFormers not available
     xFormers not available
-    /tmp/ipykernel_2168902/1110356474.py:8: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+    /tmp/ipykernel_3292428/1110356474.py:8: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
       model.load_state_dict(torch.load(model_path, map_location="cpu"))
 
 
@@ -256,16 +261,16 @@ is preprocessed image height, ``W`` is preprocessed image width.
     from matplotlib import pyplot as plt
     import numpy as np
     import cv2
-
-
+    
+    
     def get_depth_map(output, w, h):
         depth = cv2.resize(output, (w, h))
-
+    
         depth = (depth - depth.min()) / (depth.max() - depth.min()) * 255.0
         depth = depth.astype(np.uint8)
-
+    
         depth = cv2.applyColorMap(depth, cv2.COLORMAP_INFERNO)
-
+    
         return depth
 
 .. code:: ipython3
@@ -279,7 +284,7 @@ is preprocessed image height, ``W`` is preprocessed image width.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7ff4796ead60>
+    <matplotlib.image.AxesImage at 0x7fe60c406a30>
 
 
 
@@ -303,9 +308,9 @@ loading on device using ``core.complie_model``.
 .. code:: ipython3
 
     import openvino as ov
-
+    
     OV_DEPTH_ANYTHING_PATH = Path(f"{model_id}.xml")
-
+    
     if not OV_DEPTH_ANYTHING_PATH.exists():
         ov_model = ov.convert_model(model, example_input=torch.rand(1, 3, 518, 518), input=[1, 3, 518, 518])
         ov.save_model(ov_model, OV_DEPTH_ANYTHING_PATH)
@@ -313,13 +318,13 @@ loading on device using ``core.complie_model``.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything-V2/depth_anything_v2/dinov2_layers/patch_embed.py:73: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/875/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything-V2/depth_anything_v2/dinov2_layers/patch_embed.py:73: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert H % patch_H == 0, f"Input image height {H} is not a multiple of patch height {patch_H}"
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything-V2/depth_anything_v2/dinov2_layers/patch_embed.py:74: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/875/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything-V2/depth_anything_v2/dinov2_layers/patch_embed.py:74: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert W % patch_W == 0, f"Input image width {W} is not a multiple of patch width: {patch_W}"
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything-V2/depth_anything_v2/dinov2.py:183: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/875/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything-V2/depth_anything_v2/dinov2.py:183: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if npatch == N and w == h:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything-V2/depth_anything_v2/dpt.py:147: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/875/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything-V2/depth_anything_v2/dpt.py:147: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       out = F.interpolate(out, (int(patch_h * 14), int(patch_w * 14)), mode="bilinear", align_corners=True)
 
 
@@ -340,7 +345,7 @@ For starting work, please select inference device from dropdown list.
 .. code:: ipython3
 
     device = device_widget()
-
+    
     device
 
 
@@ -355,7 +360,7 @@ For starting work, please select inference device from dropdown list.
 .. code:: ipython3
 
     core = ov.Core()
-
+    
     compiled_model = core.compile_model(OV_DEPTH_ANYTHING_PATH, device.value)
 
 Run inference on image
@@ -372,7 +377,7 @@ range.
 
     from depth_anything_v2.util.transform import Resize, NormalizeImage, PrepareForNet
     from torchvision.transforms import Compose
-
+    
     transform = Compose(
         [
             Resize(
@@ -391,11 +396,11 @@ range.
 .. code:: ipython3
 
     h, w = raw_img.shape[:-1]
-
+    
     image = cv2.cvtColor(raw_img, cv2.COLOR_BGR2RGB) / 255.0
     image = transform({"image": image})["image"]
     image = torch.from_numpy(image).unsqueeze(0)
-
+    
     res = compiled_model(image)[0]
 
 .. code:: ipython3
@@ -411,7 +416,7 @@ range.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7ff478e3bee0>
+    <matplotlib.image.AxesImage at 0x7fe604596cd0>
 
 
 
@@ -427,12 +432,13 @@ Run inference on video
 .. code:: ipython3
 
     VIDEO_FILE = "./Coco Walking in Berkeley.mp4"
-
-    download_file(
-        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4",
-        VIDEO_FILE,
-    )
-
+    
+    if not Path(VIDEO_FILE).exists():
+        download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4",
+            VIDEO_FILE,
+        )
+    
     # Number of seconds of input video to process. Set `NUM_SECONDS` to 0 to process
     # the full video.
     NUM_SECONDS = 4
@@ -449,7 +455,7 @@ Run inference on video
     # Try the `THEO` encoding if you have FFMPEG installed.
     # FOURCC = cv2.VideoWriter_fourcc(*"THEO")
     FOURCC = cv2.VideoWriter_fourcc(*"vp09")
-
+    
     # Create Path objects for the input video and the result video.
     output_directory = Path("output")
     output_directory.mkdir(exist_ok=True)
@@ -470,11 +476,11 @@ Run inference on video
         raise ValueError(f"The video at {VIDEO_FILE} cannot be read.")
     input_fps = cap.get(cv2.CAP_PROP_FPS)
     input_video_frame_height, input_video_frame_width = image.shape[:2]
-
+    
     target_fps = input_fps / ADVANCE_FRAMES
     target_frame_height = int(input_video_frame_height * SCALE_OUTPUT)
     target_frame_width = int(input_video_frame_width * SCALE_OUTPUT)
-
+    
     cap.release()
     print(f"The input video has a frame width of {input_video_frame_width}, " f"frame height of {input_video_frame_height} and runs at {input_fps:.2f} fps")
     print(
@@ -495,13 +501,13 @@ Run inference on video
     def normalize_minmax(data):
         """Normalizes the values in `data` between 0 and 1"""
         return (data - data.min()) / (data.max() - data.min())
-
-
+    
+    
     def convert_result_to_image(result, colormap="viridis"):
         """
         Convert network result of floating point numbers to an RGB image with
         integer values from 0-255 by applying a colormap.
-
+    
         `result` is expected to be a single network result in 1,H,W shape
         `colormap` is a matplotlib colormap.
         See https://matplotlib.org/stable/tutorials/colors/colormaps.html
@@ -512,8 +518,8 @@ Run inference on video
         result = result.astype(np.uint8)
         result = cv2.applyColorMap(result, cv2.COLORMAP_INFERNO)[:, :, ::-1]
         return result
-
-
+    
+    
     def to_rgb(image_data) -> np.ndarray:
         """
         Convert image_data from BGR to RGB
@@ -532,17 +538,17 @@ Run inference on video
         clear_output,
         display,
     )
-
-
+    
+    
     def process_video(compiled_model, video_file, result_video_path):
         # Initialize variables.
         input_video_frame_nr = 0
         start_time = time.perf_counter()
         total_inference_duration = 0
-
+    
         # Open the input video
         cap = cv2.VideoCapture(str(video_file))
-
+    
         # Create a result video.
         out_video = cv2.VideoWriter(
             str(result_video_path),
@@ -550,35 +556,35 @@ Run inference on video
             target_fps,
             (target_frame_width * 2, target_frame_height),
         )
-
+    
         num_frames = int(NUM_SECONDS * input_fps)
         total_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT) if num_frames == 0 else num_frames
         progress_bar = ProgressBar(total=total_frames)
         progress_bar.display()
-
+    
         try:
             while cap.isOpened():
                 ret, image = cap.read()
                 if not ret:
                     cap.release()
                     break
-
+    
                 if input_video_frame_nr >= total_frames:
                     break
-
+    
                 h, w = image.shape[:-1]
                 input_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) / 255.0
                 input_image = transform({"image": input_image})["image"]
                 # Reshape the image to network input shape NCHW.
                 input_image = np.expand_dims(input_image, 0)
-
+    
                 # Do inference.
                 inference_start_time = time.perf_counter()
                 result = compiled_model(input_image)[0]
                 inference_stop_time = time.perf_counter()
                 inference_duration = inference_stop_time - inference_start_time
                 total_inference_duration += inference_duration
-
+    
                 if input_video_frame_nr % (10 * ADVANCE_FRAMES) == 0:
                     clear_output(wait=True)
                     progress_bar.display()
@@ -592,7 +598,7 @@ Run inference on video
                             f"({1/inference_duration:.2f} FPS)"
                         )
                     )
-
+    
                 # Transform the network result to a RGB image.
                 result_frame = to_rgb(convert_result_to_image(result))
                 # Resize the image and the result to a target frame shape.
@@ -602,13 +608,13 @@ Run inference on video
                 stacked_frame = np.hstack((image, result_frame))
                 # Save a frame to the video.
                 out_video.write(stacked_frame)
-
+    
                 input_video_frame_nr = input_video_frame_nr + ADVANCE_FRAMES
                 cap.set(1, input_video_frame_nr)
-
+    
                 progress_bar.progress = input_video_frame_nr
                 progress_bar.update()
-
+    
         except KeyboardInterrupt:
             print("Processing interrupted.")
         finally:
@@ -618,7 +624,7 @@ Run inference on video
             cap.release()
             end_time = time.perf_counter()
             duration = end_time - start_time
-
+    
             print(
                 f"Processed {processed_frames} frames in {duration:.2f} seconds. "
                 f"Total FPS (including video processing): {processed_frames/duration:.2f}."
@@ -634,7 +640,7 @@ Run inference on video
 
 .. parsed-literal::
 
-    Processed 60 frames in 13.15 seconds. Total FPS (including video processing): 4.56.Inference FPS: 10.69
+    Processed 60 frames in 13.14 seconds. Total FPS (including video processing): 4.57.Inference FPS: 10.69 
     Video saved to 'output/Coco Walking in Berkeley_depth_anything.mp4'.
 
 
@@ -661,8 +667,8 @@ Run inference on video
 .. parsed-literal::
 
     Showing video saved at
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/output/Coco Walking in Berkeley_depth_anything.mp4
-    If you cannot see the video in your browser, please click on the following link to download the video
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/875/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/output/Coco Walking in Berkeley_depth_anything.mp4
+    If you cannot see the video in your browser, please click on the following link to download the video 
 
 
 
@@ -704,7 +710,7 @@ improve model inference speed.
 .. code:: ipython3
 
     to_quantize = quantization_widget()
-
+    
     to_quantize
 
 
@@ -724,9 +730,9 @@ improve model inference speed.
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
         )
         open("skip_kernel_extension.py", "w").write(r.text)
-
+    
     OV_DEPTH_ANYTHING_INT8_PATH = Path(f"{model_id}_int8.xml")
-
+    
     %load_ext skip_kernel_extension
 
 Prepare calibration dataset
@@ -741,9 +747,9 @@ dataset from Hugging Face as calibration data.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     import datasets
-
+    
     if not OV_DEPTH_ANYTHING_INT8_PATH.exists():
         subset_size = 300
         calibration_data = []
@@ -774,9 +780,9 @@ quantization code below may take some time.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     import nncf
-
+    
     if not OV_DEPTH_ANYTHING_INT8_PATH.exists():
         model = core.read_model(OV_DEPTH_ANYTHING_PATH)
         quantized_model = nncf.quantize(
@@ -795,10 +801,10 @@ quantization code below may take some time.
 
 .. parsed-literal::
 
-    2024-12-09 23:21:25.394147: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-12-09 23:21:25.427427: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2025-02-04 00:03:38.061352: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2025-02-04 00:03:38.094509: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-12-09 23:21:26.001101: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2025-02-04 00:03:38.671176: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -859,11 +865,11 @@ data.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     def visualize_results(orig_img:Image.Image, optimized_img:Image.Image):
         """
         Helper function for results visualization
-
+    
         Parameters:
            orig_img (Image.Image): generated image using FP16 model
            optimized_img (Image.Image): generated image using quantized model
@@ -885,7 +891,7 @@ data.
         list_axes[1].imshow(np.array(optimized_img))
         list_axes[0].set_title(orig_title, fontsize=15)
         list_axes[1].set_title(control_title, fontsize=15)
-
+    
         fig.subplots_adjust(wspace=0.01, hspace=0.01)
         fig.tight_layout()
         return fig
@@ -893,11 +899,11 @@ data.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     image = cv2.cvtColor(cv2.imread('furseal.png'), cv2.COLOR_BGR2RGB) / 255.0
     image = transform({'image': image})['image']
     image = torch.from_numpy(image).unsqueeze(0)
-
+    
     int8_compiled_model = core.compile_model(OV_DEPTH_ANYTHING_INT8_PATH, device.value)
     int8_res = int8_compiled_model(image)[0]
     int8_depth_color = get_depth_map(int8_res[0], w, h)
@@ -905,7 +911,7 @@ data.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     visualize_results(depth_color[:, :, ::-1], int8_depth_color[:, :, ::-1])
 
 
@@ -916,7 +922,7 @@ data.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     int8_result_video_path = output_directory / f"{Path(VIDEO_FILE).stem}_depth_anything_int8.mp4"
     stacked_frame = process_video(int8_compiled_model, VIDEO_FILE, int8_result_video_path)
     display_video(stacked_frame)
@@ -924,11 +930,11 @@ data.
 
 .. parsed-literal::
 
-    Processed 60 frames in 12.60 seconds. Total FPS (including video processing): 4.76.Inference FPS: 13.15
+    Processed 60 frames in 12.63 seconds. Total FPS (including video processing): 4.75.Inference FPS: 13.13 
     Video saved to 'output/Coco Walking in Berkeley_depth_anything_int8.mp4'.
     Showing video saved at
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/output/Coco Walking in Berkeley_depth_anything.mp4
-    If you cannot see the video in your browser, please click on the following link to download the video
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/875/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/output/Coco Walking in Berkeley_depth_anything.mp4
+    If you cannot see the video in your browser, please click on the following link to download the video 
 
 
 
@@ -954,10 +960,10 @@ Compare model file size
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     fp16_ir_model_size = OV_DEPTH_ANYTHING_PATH.with_suffix(".bin").stat().st_size / 2**20
     quantized_model_size = OV_DEPTH_ANYTHING_INT8_PATH.with_suffix(".bin").stat().st_size / 2**20
-
+    
     print(f"FP16 model size: {fp16_ir_model_size:.2f} MB")
     print(f"INT8 model size: {quantized_model_size:.2f} MB")
     print(f"Model compression rate: {fp16_ir_model_size / quantized_model_size:.3f}")
@@ -977,7 +983,7 @@ Compare inference time of the FP16 and INT8 models
 
 To measure the inference performance of OpenVINO FP16 and INT8 models,
 use `Benchmark
-Tool <https://docs.openvino.ai/2024/get-started/learn-openvino/openvino-samples/benchmark-tool.html>`__.
+Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__.
 
    **NOTE**: For the most accurate performance estimation, it is
    recommended to run ``benchmark_app`` in a terminal/command prompt
@@ -986,19 +992,19 @@ Tool <https://docs.openvino.ai/2024/get-started/learn-openvino/openvino-samples/
 .. code:: ipython3
 
     import re
-
-
+    
+    
     def get_fps(benchmark_output: str):
         parsed_output = [line for line in benchmark_output if "Throughput:" in line]
         fps = re.findall(r"\d+\.\d+", parsed_output[0])[0]
         return fps
-
-
+    
+    
     if OV_DEPTH_ANYTHING_INT8_PATH.exists():
         benchmark_output = !benchmark_app -m $OV_DEPTH_ANYTHING_PATH -d $device.value -api async
         original_fps = get_fps(benchmark_output)
         print(f"FP16 Throughput: {original_fps} FPS")
-
+    
         benchmark_output = !benchmark_app -m $OV_DEPTH_ANYTHING_INT8_PATH -d $device.value -api async
         optimized_fps = get_fps(benchmark_output)
         print(f"INT8 Throughput: {optimized_fps} FPS")
@@ -1007,9 +1013,9 @@ Tool <https://docs.openvino.ai/2024/get-started/learn-openvino/openvino-samples/
 
 .. parsed-literal::
 
-    FP16 Throughput: 10.67 FPS
-    INT8 Throughput: 14.21 FPS
-    Speed-up: 1.33
+    FP16 Throughput: 10.74 FPS
+    INT8 Throughput: 14.11 FPS
+    Speed-up: 1.31
 
 
 Interactive demo
@@ -1027,15 +1033,15 @@ launch the interactive demo.
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     quantized_model_present = OV_DEPTH_ANYTHING_INT8_PATH.exists()
-
+    
     use_quantized_model = widgets.Checkbox(
         value=True if quantized_model_present else False,
         description="Use quantized model",
         disabled=False,
     )
-
+    
     use_quantized_model
 
 
@@ -1052,35 +1058,35 @@ launch the interactive demo.
     import numpy as np
     import cv2
     import tempfile
-
+    
     if use_quantized_model.value:
         compiled_model = core.compile_model(OV_DEPTH_ANYTHING_INT8_PATH, device.value)
-
-
+    
+    
     def predict_depth(model, image):
         return model(image)[0]
-
-
+    
+    
     def on_submit(image):
         original_image = image.copy()
-
+    
         h, w = image.shape[:2]
-
+    
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) / 255.0
         image = transform({"image": image})["image"]
         image = np.expand_dims(image, 0)
-
+    
         depth = predict_depth(compiled_model, image)
         depth = cv2.resize(depth[0], (w, h), interpolation=cv2.INTER_LINEAR)
-
+    
         depth = (depth - depth.min()) / (depth.max() - depth.min()) * 255.0
         depth = depth.astype(np.uint8)
         colored_depth = cv2.applyColorMap(depth, cv2.COLORMAP_INFERNO)[:, :, ::-1]
-
+    
         colored_depth_img = Image.fromarray(colored_depth)
         tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
         colored_depth_img.save(tmp.name)
-
+    
         return [(original_image, colored_depth), tmp.name]
 
 .. code:: ipython3
@@ -1088,11 +1094,11 @@ launch the interactive demo.
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/depth-anything/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)
-
+    
     from gradio_helper import make_demo
-
+    
     demo = make_demo(fn=on_submit, examples_dir="Depth-Anything-V2/assets/examples")
-
+    
     try:
         demo.queue().launch(debug=False)
     except Exception:
@@ -1105,7 +1111,7 @@ launch the interactive demo.
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-
+    
     To create a public link, set `share=True` in `launch()`.
 
 

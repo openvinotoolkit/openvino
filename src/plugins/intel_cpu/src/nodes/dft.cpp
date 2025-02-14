@@ -19,9 +19,7 @@
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool DFT::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -592,7 +590,7 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
         } else if (mayiuse(cpu::x64::sse41)) {
             dftKernel.reset(new jit_uni_dft_kernel_f32<cpu::x64::sse41>());
         } else {
-            OPENVINO_THROW("Can't create jit DFT kernel");
+            THROW_CPU_NODE_ERR("Can't create jit DFT kernel");
         }
 
         if (dftKernel) {
@@ -608,7 +606,7 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
         } else if (mayiuse(cpu::x64::sse41)) {
             fftKernel.reset(new jit_uni_fft_kernel_f32<cpu::x64::sse41>());
         } else {
-            OPENVINO_THROW("Can't create jit FFT kernel");
+            THROW_CPU_NODE_ERR("Can't create jit FFT kernel");
         }
 
         if (fftKernel) {
@@ -617,6 +615,4 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
     }
 #endif
 }
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

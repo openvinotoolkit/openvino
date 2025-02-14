@@ -10,8 +10,7 @@
 
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 DnnlPostOpsComposerLegacy::DnnlPostOpsComposerLegacy(const dnnl::engine& engine,
                                                      dnnl::primitive_attr& attr,
@@ -268,5 +267,4 @@ void DnnlPostOpsComposerLegacy::appendClip(const std::vector<float>& low, const 
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

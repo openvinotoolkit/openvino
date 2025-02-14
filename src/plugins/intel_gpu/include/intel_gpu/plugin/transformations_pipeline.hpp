@@ -11,6 +11,7 @@
 
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/device.hpp"
+#include "transformations/convert_precision.hpp"
 
 namespace ov::intel_gpu {
 
@@ -21,6 +22,8 @@ public:
     void apply(std::shared_ptr<ov::Model> func);
 
 private:
+    static bool fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
+
     const ExecutionConfig& config;
     std::shared_ptr<RemoteContextImpl> m_context;
     cldnn::device_info device_info;

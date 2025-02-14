@@ -27,9 +27,7 @@ using namespace dnnl::impl::utils;
 #    define GET_OFF(field) offsetof(jit_args_logistic, field)
 #endif
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 #if defined(OPENVINO_ARCH_X86_64)
 template <cpu_isa_t isa>
 struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_generator {
@@ -389,7 +387,7 @@ inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_
                 bf16_dst_data[i + start_index] = logistic_scalar(bf16_dst_data[i + start_index]);
             }
         } else {
-            OPENVINO_THROW("Unsupported precision configuration outPrc=", output_prec.get_type_name());
+            THROW_CPU_NODE_ERR("Unsupported precision configuration outPrc=", output_prec.get_type_name());
         }
     }
 }
@@ -419,10 +417,10 @@ void RegionYolo::execute(const dnnl::stream& strm) {
     }
 
     if (output_size != getDstMemoryAtPort(0)->getShape().getElementsCount()) {
-        OPENVINO_THROW("Incorrect layer configuration or output dimensions. ",
-                       output_size,
-                       " != ",
-                       getDstMemoryAtPort(0)->getShape().getElementsCount());
+        THROW_CPU_NODE_ERR("Incorrect layer configuration or output dimensions. ",
+                           output_size,
+                           " != ",
+                           getDstMemoryAtPort(0)->getShape().getElementsCount());
     }
 
     size_t inputs_size = IH * IW * num_ * (classes + coords + 1);
@@ -465,6 +463,4 @@ bool RegionYolo::created() const {
     return getType() == Type::RegionYolo;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -29,8 +29,7 @@
 #include "transformations/transpose_sinking/ts_shape_of.hpp"
 using namespace ov::gen_pattern;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 StatefulSDPAFusion::StatefulSDPAFusion() {
     MATCHER_SCOPE(StatefulSDPAFusion);
@@ -320,5 +319,4 @@ bool SDPASubgraphFusion::run_on_model(const std::shared_ptr<ov::Model>& f) {
     return false;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

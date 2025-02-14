@@ -25,9 +25,7 @@ using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 #if defined(OPENVINO_ARCH_X86_64)
 #    define GET_OFF(field) offsetof(jit_def_conv_call_args, field)
 
@@ -1298,7 +1296,7 @@ void DeformableConvolution::prepareParams() {
     execPtr = result.first;
 
     if (!execPtr) {
-        OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
+        THROW_CPU_NODE_ERR("Primitive descriptor was not found.");
     }
 }
 
@@ -1363,14 +1361,14 @@ void DeformableConvolution::execute(const dnnl::stream& strm) {
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor) {
-        OPENVINO_THROW("Deformable convolution with name '", getName(), "' doesn't have primitive descriptors.");
+        THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
     auto config = selectedPrimitiveDescriptor->getConfig();
 
     if (execPtr) {
         execPtr->exec(src, offsets, weights, modulation, dst, sampledCoordsVector.data(), interpWeightsVector.data());
     } else {
-        OPENVINO_THROW("Deformable Convolution executor doesn't exist");
+        THROW_CPU_NODE_ERR("executor doesn't exist");
     }
 }
 
@@ -1388,6 +1386,4 @@ ov::element::Type DeformableConvolution::getRuntimePrecision() const {
     return getMaxPrecision(getInputPrecisions());
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

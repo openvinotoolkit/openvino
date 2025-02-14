@@ -12,8 +12,7 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace {
 class jit_aux_gpr_holder {
@@ -82,12 +81,12 @@ void jit_loop_begin_emitter::validate_arguments(const std::vector<size_t>& in, c
                               "loop increment might be dynamic only if loop evaluates once!");
 }
 
-void jit_loop_begin_emitter::emit_code(const std::vector<size_t>& in,
-                                       const std::vector<size_t>& out,
-                                       const std::vector<size_t>& pool_vec_idxs,
-                                       const std::vector<size_t>& pool_gpr_idxs) const {
+void jit_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& in,
+                                            const std::vector<size_t>& out,
+                                            const std::vector<size_t>& pool_vec_idxs,
+                                            const std::vector<size_t>& pool_gpr_idxs) const {
     validate_arguments(in, out);
-    jit_emitter::emit_code(in, out, pool_vec_idxs, pool_gpr_idxs);
+    jit_emitter::emit_code_impl(in, out, pool_vec_idxs, pool_gpr_idxs);
 }
 
 void jit_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
@@ -200,12 +199,12 @@ void jit_loop_end_emitter::validate_arguments(const std::vector<size_t>& in, con
                               "loop increment might be dynamic only if loop evaluates once!");
 }
 
-void jit_loop_end_emitter::emit_code(const std::vector<size_t>& in,
+void jit_loop_end_emitter::emit_code_impl(const std::vector<size_t>& in,
                                      const std::vector<size_t>& out,
                                      const std::vector<size_t>& pool_vec_idxs,
                                      const std::vector<size_t>& pool_gpr_idxs) const {
     validate_arguments(in, out);
-    jit_emitter::emit_code(in, out, pool_vec_idxs, pool_gpr_idxs);
+    jit_emitter::emit_code_impl(in, out, pool_vec_idxs, pool_gpr_idxs);
 }
 
 void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
@@ -262,5 +261,4 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::v
 
 /* ============================================================== */
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -16,9 +16,7 @@
 
 using namespace dnnl::impl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 size_t DepthToSpace::DepthToSpaceAttrs::hash() const {
     using namespace dnnl::impl;
@@ -205,7 +203,7 @@ void DepthToSpace::prepareParams() {
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(attrs, builder);
     if (!result.first) {
-        OPENVINO_THROW("DepthToSpaceExecutor was not found for node ", getName(), ".");
+        THROW_CPU_NODE_ERR("DepthToSpaceExecutor was not found.");
     }
 
     execPtr = result.first;
@@ -334,6 +332,4 @@ bool DepthToSpace::created() const {
     return getType() == Type::DepthToSpace;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
