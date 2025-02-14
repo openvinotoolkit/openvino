@@ -519,7 +519,7 @@ pass::EliminateConcatSplit::EliminateConcatSplit() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
         const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(pattern_concat));
-        if (!concat || concat->is_dynamic()) {
+        if (!concat || concat->is_dynamic() || concat->get_users().size()) {
             return false;
         }
         const auto concat_users = concat->get_users();
