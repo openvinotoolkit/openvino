@@ -407,7 +407,7 @@ def test_graph_preprocess_steps(algorithm, color_format1, color_format2, is_fail
             "Gather",
             "Interpolate",
         ]
-        assert len(model_operators) == 15
+        assert len(model_operators) == 12
         assert model.get_output_size() == 1
         assert list(model.get_output_shape(0)) == [1, 3, 3, 3]
         assert model.get_output_element_type(0) == Type.f32
@@ -459,10 +459,9 @@ def test_graph_preprocess_postprocess_layout():
         "Constant",
         "Result",
         "Gather",
-        "Range",
         "Transpose",
     ]
-    assert len(model_operators) == 14
+    assert len(model_operators) == 11
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == [1, 1, 3, 3]
     assert model.get_output_element_type(0) == Type.f32
@@ -489,9 +488,8 @@ def test_graph_preprocess_reverse_channels():
         "Constant",
         "Result",
         "Gather",
-        "Range",
     ]
-    assert len(model_operators) == 10
+    assert len(model_operators) == 7
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == [1, 2, 2, 2]
     assert model.get_output_element_type(0) == Type.f32

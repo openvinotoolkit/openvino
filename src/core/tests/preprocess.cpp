@@ -38,12 +38,16 @@ static std::shared_ptr<Model> create_trivial(element::Type type, const PartialSh
     return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
 }
 
-static std::shared_ptr<Model> create_conv(element::Type type, const PartialShape& shape) {
-    auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
+static std::shared_ptr<Model> create_conv(element::Type in_type, const PartialShape& shape, element::Type weight_type) {
+    auto data1 = std::make_shared<op::v0::Parameter>(in_type, shape);
     data1->set_friendly_name("input1");
     data1->get_output_tensor(0).set_names({"tensor_input1"});
 
-    auto weights = std::make_shared<op::v0::Constant>(type, ov::Shape{1, 3, 3, 3}, 1);
+    std::shared_ptr<Node> weights = std::make_shared<op::v0::Constant>(weight_type, ov::Shape{1, 3, 3, 3}, 1);
+    if (weight_type == element::f16) {
+        // decompression subgraph
+        weights = std::make_shared<op::v0::Convert>(weights, element::f32);
+    }
     auto conv =
         std::make_shared<op::v1::Convolution>(data1, weights, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
     auto res = std::make_shared<op::v0::Result>(conv);
@@ -2445,8 +2449,9 @@ TEST(pre_post_process, dump_error) {
 TEST_F(TransformationTestsF, preprocessing_mul_conv_fusion) {
     auto in_shape = Shape{1, 3, 32, 32};
     auto in_type = element::f32;
+    auto weight_type = element::f32;
     {
-        auto f = create_conv(in_type, in_shape);
+        auto f = create_conv(in_type, in_shape, weight_type);
         auto p = PrePostProcessor(f);
 
         p.input().tensor().set_layout(Layout("NCHW"));
@@ -2466,6 +2471,35 @@ TEST_F(TransformationTestsF, preprocessing_mul_conv_fusion) {
                                                           CoordinateDiff{},
                                                           CoordinateDiff{},
                                                           Strides{});
+        auto res = std::make_shared<op::v0::Result>(conv);
+        model_ref = std::make_shared<ov::Model>(ResultVector{res}, ParameterVector{input});
+    }
+}
+
+TEST_F(TransformationTestsF, preprocessing_conv_decompression) {
+    auto in_shape = Shape{1, 3, 32, 32};
+    auto in_type = element::f32;
+    auto weight_type = element::f16;
+    {
+        auto f = create_conv(in_type, in_shape, weight_type);
+        auto p = PrePostProcessor(f);
+
+        p.input().tensor().set_layout(Layout("NCHW"));
+        p.input().preprocess().reverse_channels();
+        p.input().preprocess().scale(255.);
+        model = p.build();
+    }
+
+    {
+        // we expect that MultiplyConvolutionFusion will be applied
+        auto input = std::make_shared<op::v0::Parameter>(in_type, in_shape);
+
+        auto weights = op::v0::Constant::create(weight_type, ov::Shape({1, 3, 3, 3}), {1.f});
+        auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
+        auto B = op::v0::Constant::create(in_type, ov::Shape({1}), {0.003922f});
+        auto mul = std::make_shared<op::v1::Multiply>(convert, B);
+        auto conv =
+            std::make_shared<op::v1::Convolution>(input, mul, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
         auto res = std::make_shared<op::v0::Result>(conv);
         model_ref = std::make_shared<ov::Model>(ResultVector{res}, ParameterVector{input});
     }

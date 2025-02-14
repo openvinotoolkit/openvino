@@ -9,16 +9,17 @@
 #include "itt.hpp"
 #include "layout_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "preprocess_impls.hpp"
 #include "transformations/common_optimizations/convolution_to_group_convolution_fusion.hpp"
-#include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/common_optimizations/disable_random_uniform_constant_folding.hpp"
+#include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/ric_fusion.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
-#include "openvino/pass/constant_folding.hpp"
 
 namespace {
 
@@ -31,6 +32,9 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
     manager.register_pass<MarkDequantization>(TypeVector{i8, u8, i4, u4, nf4});
     REGISTER_PASS(manager, DisableShapeOfConstantFolding);
     REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
+    // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
+    // so that not extra memory is used for intermediate decompressed constants.
+    manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
 
     REGISTER_PASS(manager, ConvertDivideWithConstant)
 
