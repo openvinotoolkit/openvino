@@ -57,6 +57,7 @@ bool JitEltwiseExecutor::isSupported(const Algorithm& algorithm,
                                      Algorithm::EltwiseSigmoid,
                                      Algorithm::EltwiseSoftSign,
                                      Algorithm::EltwiseSqrt,
+                                     Algorithm::EltwiseSquaredDifference,
                                      Algorithm::EltwiseSubtract,
                                      Algorithm::EltwiseSwish,
                                      Algorithm::EltwiseTanh);
