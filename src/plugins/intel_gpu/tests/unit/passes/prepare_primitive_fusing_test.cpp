@@ -113,7 +113,6 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_legal) {
 }
 
 TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal) {
-    GTEST_SKIP();
     auto& engine = get_test_engine();
     auto weights = engine.allocate_memory({ ov::PartialShape{ 2, 10 }, data_types::u8, format::bfyx });
     auto in_layout = layout{ ov::PartialShape::dynamic(2), data_types::u8, format::bfyx };
@@ -166,7 +165,6 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal) {
 }
 
 TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_const) {
-    GTEST_SKIP();
     auto& engine = get_test_engine();
     auto weights = engine.allocate_memory({ ov::PartialShape{ 2, 10 }, data_types::u8, format::bfyx });
     auto in_layout = layout{ ov::PartialShape::dynamic(2), data_types::u8, format::bfyx };
@@ -540,7 +538,6 @@ TEST(prepare_primitive_fusing, fuse_constant_transposes_removal_check) {
 }
 
 TEST(prepare_primitive_fusing, fuse_constant_transposes_accuracy_test) {
-    GTEST_SKIP();
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ { 2, 32 }, data_types::f16, format::bfyx });
@@ -590,7 +587,6 @@ TEST(prepare_primitive_fusing, fuse_constant_transposes_accuracy_test) {
 }
 
 TEST(prepare_primitive_fusing, can_profiling_data_when_fuse_illegal) {
-    GTEST_SKIP();
     auto& engine = get_test_engine();
     auto weights = engine.allocate_memory({ov::PartialShape{2, 10}, data_types::u8, format::bfyx});
     auto in_layout = layout{ov::PartialShape::dynamic(2), data_types::u8, format::bfyx};

@@ -23,7 +23,7 @@ struct tile_impl : public typed_primitive_impl<tile> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::tile_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<tile_impl>(*this);
+        return std::make_unique<tile_impl>(*this);
     }
 
     tile_impl() : parent("tile_cpu_impl") {}
@@ -105,7 +105,7 @@ struct tile_impl : public typed_primitive_impl<tile> {
 
 public:
     static std::unique_ptr<primitive_impl> create(const tile_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<tile_impl>();
+        return std::make_unique<tile_impl>();
     }
 };
 

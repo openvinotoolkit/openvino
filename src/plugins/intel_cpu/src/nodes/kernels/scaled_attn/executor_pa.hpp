@@ -12,10 +12,7 @@
 #include "cpu_memory.h"
 #include "executor_pa_common.hpp"
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace ov::Extensions::Cpu::XARCH {
 
 std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_type,
                                                          ov::element::Type key_cache_type,
@@ -23,7 +20,4 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                                                          size_t key_group_size,
                                                          size_t value_group_size);
 
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu::XARCH

@@ -604,22 +604,37 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
     auto convert_strides = [](std::string target_prefix, std::string source_prefix, const std::vector<int64_t> order) {
         JitConstants definitions({});
 
-        std::vector<std::string> target_definitions = {
+        std::vector<std::string> target_stride_definitions = {
             target_prefix + "_S0",
             target_prefix + "_S1",
             target_prefix + "_S2",
             target_prefix + "_S3",
         };
 
-        std::vector<std::string> source_definitions = {
+        std::vector<std::string> source_stride_definitions = {
             source_prefix + "_BATCH_PITCH",
             source_prefix + "_FEATURE_PITCH",
             source_prefix + "_Y_PITCH",
             source_prefix + "_X_PITCH",
         };
 
-        for (size_t i = 0; i < target_definitions.size(); i++) {
-            definitions.AddConstant(MakeJitConstant(target_definitions[i], source_definitions[order[i]]));
+        std::vector<std::string> target_size_definitions = {
+            target_prefix + "_D0",
+            target_prefix + "_D1",
+            target_prefix + "_D2",
+            target_prefix + "_D3",
+        };
+
+        std::vector<std::string> source_size_definitions = {
+            source_prefix + "_BATCH_NUM",
+            source_prefix + "_FEATURE_NUM",
+            source_prefix + "_SIZE_Y",
+            source_prefix + "_SIZE_X",
+        };
+
+        for (size_t i = 0; i < target_stride_definitions.size(); i++) {
+            definitions.AddConstant(MakeJitConstant(target_stride_definitions[i], source_stride_definitions[order[i]]));
+            definitions.AddConstant(MakeJitConstant(target_size_definitions[i], source_size_definitions[order[i]]));
         }
 
         return definitions;
@@ -634,6 +649,11 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
     jit.Merge(unit_parameters("KEY"));
     jit.Merge(unit_parameters("VAL"));
     jit.Merge(unit_parameters("DST"));
+
+    if (params.inputs.size() > 3) {
+        jit.Merge(convert_strides("MSK", "INPUT3", {0, 1, 2, 3}));
+        jit.Merge(unit_parameters("MSK"));
+    }
 
     if (params.conf.is_kv_compressed) {
         jit.AddConstant(MakeJitConstant("KEY_SCALE", params.key_cache_comp_scale));

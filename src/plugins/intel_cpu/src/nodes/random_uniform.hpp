@@ -10,9 +10,7 @@
 
 #include "kernels/x64/random_uniform.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class RandomUniform : public Node {
 public:
@@ -41,6 +39,7 @@ public:
 
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
+    bool neverExecute() const override;
     bool isExecutable() const override;
 
     void createPrimitive() override;
@@ -157,6 +156,4 @@ private:
     void computeStl(void* out, size_t work_amount);
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

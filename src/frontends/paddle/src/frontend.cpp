@@ -559,12 +559,12 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     } else if (const auto& so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
         add_extension(so_ext->extension());
         m_extensions.push_back(so_ext);
-    } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
+    } else if (auto common_conv_ext = ov::as_type_ptr<ov::frontend::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(common_conv_ext);
         m_op_translators[common_conv_ext->get_op_type()] = [=](const NodeContext& context) {
             return common_conv_ext->get_converter_named()(context);
         };
-    } else if (const auto& paddle_conv_ext = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
+    } else if (const auto& paddle_conv_ext = ov::as_type_ptr<ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(paddle_conv_ext);
         m_op_translators[paddle_conv_ext->get_op_type()] = [=](const NodeContext& context) {
             return paddle_conv_ext->get_converter()(context);
@@ -586,11 +586,11 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 }  // namespace frontend
 }  // namespace ov
 
-PADDLE_C_API FrontEndVersion get_api_version() {
+PADDLE_FRONTEND_C_API FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;
 }
 
-PADDLE_C_API void* get_front_end_data() {
+PADDLE_FRONTEND_C_API void* get_front_end_data() {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
     res->m_name = "paddle";
     res->m_creator = []() {

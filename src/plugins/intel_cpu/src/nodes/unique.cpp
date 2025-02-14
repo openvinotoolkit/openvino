@@ -38,8 +38,9 @@ Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (!one_of(op->get_input_size(), 1u, 2u) || op->get_output_size() != 4)
+    if (!one_of(op->get_input_size(), 1u, 2u) || op->get_output_size() != 4) {
         THROW_CPU_NODE_ERR("has incorrect number of input/output edges.");
+    }
 
     for (int i = 0; i < 4; i++) {
         definedOutputs[i] = !op->get_output_target_inputs(i).empty();

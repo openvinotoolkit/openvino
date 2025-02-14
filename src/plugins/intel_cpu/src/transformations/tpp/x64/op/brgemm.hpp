@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,10 +7,7 @@
 #include "modifiers.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
-namespace op {
+namespace ov::intel_cpu::tpp::op {
 
 /**
  * @interface BrgemmTPP
@@ -57,7 +54,4 @@ private:
     float m_beta = 0.f;
 };
 
-}  // namespace op
-}  // namespace tpp
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::tpp::op

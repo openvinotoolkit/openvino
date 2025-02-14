@@ -37,9 +37,7 @@
 using namespace dnnl;
 using namespace ov::element;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes() {
     using ov::element::Type_t;
@@ -118,11 +116,13 @@ bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::No
 #if defined(OPENVINO_ARCH_X86_64)
     try {
         std::string errorMessage;
-        if (!isSupportedOperation(op, errorMessage))
+        if (!isSupportedOperation(op, errorMessage)) {
             return false;
+        }
 
-        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2))
+        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
             return false;
+        }
 
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
             inferencePrecision == ov::element::bf16) {
@@ -171,8 +171,9 @@ FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphC
     : Node(op, context, FCShapeInferFactory(op)) {
     std::string errorMessage;
     initTensorParallelConfig(context);
-    if (!isSupportedOperation(op, errorMessage))
+    if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
+    }
 
     m_atoi[ARG_SRC] = DATA;
     m_atoi[ARG_WEI] = WEIGHTS;
@@ -225,7 +226,7 @@ void FullyConnected::needPrepareParamsForTensorParallel() {
         if (dim < 0) {
             dim += dims.size();
         }
-        OPENVINO_ASSERT(static_cast<int>(dims[dim]) >= tp_cfg.w_size,
+        CPU_NODE_ASSERT(static_cast<int>(dims[dim]) >= tp_cfg.w_size,
                         getName() + " dim[" + std::to_string(dim) + "] is " + std::to_string(dims[dim]) +
                             ", which is larger than w_size " + std::to_string(tp_cfg.w_size));
         auto splited_dim_vec = split_parts(dims[dim], tp_cfg.w_size);
@@ -249,7 +250,7 @@ void FullyConnected::prepareParams() {
 void FullyConnected::initTensorParallelSync() {
     if (tp_cfg.enable_tensor_parallel) {
         tp_cfg.id = tp_cfg.sub_memory->get_memory_id(tp_cfg.w_rank);
-        OPENVINO_ASSERT(tp_cfg.id >= 0, "Tensor Parallel Config ID cannot be negative.");
+        CPU_NODE_ASSERT(tp_cfg.id >= 0, "Tensor Parallel Config ID cannot be negative.");
         tp_cfg.sub_memory->set_memory_used(tp_cfg.id, tp_cfg.w_rank);
         while (true) {
             std::lock_guard<std::mutex> lock(tp_cfg.sub_memory->_flagMutex);
@@ -454,12 +455,14 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
         return false;
     }
 
-    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx))
+    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
         return false;
+    }
 
     const auto constNode = std::dynamic_pointer_cast<Input>(weightsInput);
-    if (!constNode)
+    if (!constNode) {
         return false;
+    }
 
     const auto weiMemory = constNode->getMemoryPtr();
     OPENVINO_ASSERT(weiMemory, "Cannot get const blob");
@@ -516,8 +519,9 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     const auto& srcTypes = getOriginalInputPrecisions();
     auto dstTypes = getOriginalOutputPrecisions();
     // @todo graph optimizer should update original output precisions instead
-    if (!fusedWith.empty())
+    if (!fusedWith.empty()) {
         dstTypes = fusedWith.back()->getOriginalOutputPrecisions();
+    }
 
     VecMemoryDescs srcDescs;
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
@@ -666,6 +670,4 @@ ov::element::Type FullyConnected::getRuntimePrecision() const {
     return getMaxPrecision(srcTypes);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -109,10 +109,11 @@ float ov::intel_cpu::InterpolateExecutor::coordTransToInput(int outCoord,
         break;
     }
     case InterpolateCoordTransMode::pytorch_half_pixel: {
-        if (outShape > 1)
+        if (outShape > 1) {
             return (outCoord + 0.5f) / scale - 0.5f;
-        else
+        } else {
             return 0;
+        }
         break;
     }
     case InterpolateCoordTransMode::asymmetric: {
@@ -124,10 +125,11 @@ float ov::intel_cpu::InterpolateExecutor::coordTransToInput(int outCoord,
         break;
     }
     case InterpolateCoordTransMode::align_corners: {
-        if (outShape > 1)
+        if (outShape > 1) {
             return outCoord * (static_cast<float>(inShape - 1) / static_cast<float>(outShape - 1));
-        else
+        } else {
             return 0;
+        }
         break;
     }
     default: {
@@ -142,10 +144,11 @@ int ov::intel_cpu::InterpolateExecutor::nearestRound(float originCoord,
                                                      InterpolateNearestMode nearestMode) const {
     switch (nearestMode) {
     case InterpolateNearestMode::round_prefer_floor: {
-        if (originCoord == (static_cast<int>(originCoord) + 0.5f))
+        if (originCoord == (static_cast<int>(originCoord) + 0.5f)) {
             return static_cast<int>(std::floor(originCoord));
-        else
+        } else {
             return static_cast<int>(std::round(originCoord));
+        }
         break;
     }
     case InterpolateNearestMode::round_prefer_ceil: {
@@ -161,10 +164,11 @@ int ov::intel_cpu::InterpolateExecutor::nearestRound(float originCoord,
         break;
     }
     case InterpolateNearestMode::simple: {
-        if (isDownsample)
+        if (isDownsample) {
             return static_cast<int>(std::ceil(originCoord));
-        else
+        } else {
             return static_cast<int>(originCoord);
+        }
     }
     default: {
         OPENVINO_THROW("Interpolate executor does not support specified nearest round mode");

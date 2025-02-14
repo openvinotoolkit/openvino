@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +9,7 @@
 #include "snippets/utils/utils.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
-namespace op {
+namespace ov::intel_cpu::tpp::op {
 
 BrgemmTPP::BrgemmTPP(const Output<Node>& A,
                      const Output<Node>& B,
@@ -65,7 +62,4 @@ bool BrgemmTPP::visit_attributes(AttributeVisitor& visitor) {
     return Brgemm::visit_attributes(visitor);
 }
 
-}  // namespace op
-}  // namespace tpp
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::tpp::op

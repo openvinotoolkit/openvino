@@ -10,8 +10,7 @@
 #include "intel_gpu/primitives/multiclass_nms.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 
 static void CreateMulticlassNmsIEInternalOp(ProgramBuilder& p, const std::shared_ptr<op::internal::MulticlassNmsIEInternal>& op) {
@@ -82,5 +81,4 @@ static void CreateMulticlassNmsIEInternalOp(ProgramBuilder& p, const std::shared
 
 REGISTER_FACTORY_IMPL(internal, MulticlassNmsIEInternal);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

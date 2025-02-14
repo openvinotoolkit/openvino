@@ -669,6 +669,16 @@ static const std::vector<std::string> models{
     std::string("where_index_4/where_index_4.pdmodel"),
     std::string("where_index_5/where_index_5.pdmodel"),
     std::string("where_index_6/where_index_6.pdmodel"),
+    std::string("abs_float32/abs_float32.pdmodel"),
+    std::string("atan2/atan2.pdmodel"),
+    std::string("reduce_any_test_0/reduce_any_test_0.pdmodel"),
+    std::string("reduce_any_test_1/reduce_any_test_1.pdmodel"),
+    std::string("reduce_any_test_2/reduce_any_test_2.pdmodel"),
+    std::string("reduce_any_test_3/reduce_any_test_3.pdmodel"),
+    std::string("reduce_any_test_4/reduce_any_test_4.pdmodel"),
+    std::string("scatter_test_1/scatter_test_1.pdmodel"),
+    std::string("scatter_test_2/scatter_test_2.pdmodel"),
+    std::string("scatter_nd_add_test_1/scatter_nd_add_test_1.pdmodel"),
     // Temporily disable them until root caused to secure CI stable.
     // CVS-66703 to track this.
     // std::string("yolo_box_clip_box/yolo_box_clip_box.pdmodel"),

@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #include <cstdio>
 
 #include "base/ov_behavior_test_utils.hpp"
@@ -14,6 +17,14 @@
 #include "common_test_utils/test_common.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/util/codec_xor.hpp"
+#include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
+#ifndef WIN32
+#    include <unistd.h>
+#endif
+
+#ifdef WIN32
+#    define stat _stat
+#endif
 
 namespace {
 typedef std::tuple<bool, bool, ov::element::Type, ov::element::Type> testParams;
@@ -30,7 +41,7 @@ public:
         std::ostringstream result;
         const char separator = '_';
         result << "use_compile_model_api=" << use_compile_model_api_ << separator;
-        result << "_do_encryption=" << do_encryption_;
+        result << "do_encryption=" << do_encryption_ << separator;
         result << "inference_mode=" << inference_mode_ << separator;
         result << "model_dtype=" << model_dtype_;
         return result.str();
@@ -99,14 +110,44 @@ void CheckWeightlessCacheAccuracy::run() {
         ofstr.close();
     }
 
-    auto ifstr = std::ifstream(cache_path, std::ifstream::binary);
+    auto get_cache_path = [&]() {
+        std::string path;
+        if (use_compile_model_api) {
+            auto blobs = ov::test::utils::listFilesWithExt(cache_dir, "blob");
+            EXPECT_EQ(blobs.size(), 1);
+            path = blobs[0];
+        } else {
+            path = cache_path;
+        }
+        return path;
+    };
+
+    auto get_mod_time = [&](const std::string& path) {
+        struct stat result;
+        if (stat(path.c_str(), &result) == 0) {
+            return result.st_mtime;
+        }
+        return static_cast<time_t>(0);
+    };
+
+    auto first_cache_path = get_cache_path();
+    auto first_mod_time = get_mod_time(first_cache_path);
+    ASSERT_NE(first_mod_time, static_cast<time_t>(0));
+
     ov::CompiledModel imported_model;
     if (use_compile_model_api) {
         imported_model = core->compile_model(xml_path, ov::test::utils::DEVICE_GPU, config);
     } else {
+        auto ifstr = std::ifstream(cache_path, std::ifstream::binary);
         imported_model = core->import_model(ifstr, ov::test::utils::DEVICE_GPU, config_with_weights_path);
+        ifstr.close();
     }
-    ifstr.close();
+
+    auto second_cache_path = get_cache_path();
+    auto second_mod_time = get_mod_time(second_cache_path);
+
+    // Something went wrong if a new cache is created during the second run.
+    ASSERT_EQ(first_mod_time, second_mod_time);
 
     auto orig_req = compiled_model.create_infer_request();
     auto new_req = imported_model.create_infer_request();
@@ -148,6 +189,35 @@ TEST_P(CheckWeightlessCacheAccuracy, TiWithLstmCell) {
     OV_ASSERT_NO_THROW(run());
 }
 
+class CheckWeightlessCacheAccuracyLowPrecision : public CheckWeightlessCacheAccuracy {};
+
+TEST_P(CheckWeightlessCacheAccuracyLowPrecision, MatmulWeightsDecompression) {
+    ov::test::MatMulDecompressionShapeParams shape_params{{{}, {{1, 4, 16}}}, {1, 16, 32}};
+    auto dynShape = shape_params.data_shape.first;
+    if (dynShape.rank() == 0) {
+        dynShape = shape_params.data_shape.second.front();
+    }
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, dynShape)};
+    const auto weights_subgraph = ov::test::initMatMulDecompressionSubgraph(shape_params.weights_shape,
+                                                                            shape_params.decompression_group_size,
+                                                                            ov::element::f32,
+                                                                            model_dtype,
+                                                                            ov::element::f32,
+                                                                            ov::element::undefined,
+                                                                            true,
+                                                                            ov::test::DecompressionType::full,
+                                                                            ov::test::DecompressionType::full,
+                                                                            false);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(params[0], weights_subgraph);
+
+    ov::ResultVector results;
+    for (const auto& output : matmul->outputs()) {
+        results.push_back(std::make_shared<ov::op::v0::Result>(output));
+    }
+    model = std::make_shared<ov::Model>(results, params, "MatmulWeightsDecompression");
+    OV_ASSERT_NO_THROW(run());
+}
+
 const std::vector<ov::element::Type> inference_modes = {
     ov::element::f32,
     ov::element::f16,
@@ -159,12 +229,26 @@ const std::vector<ov::element::Type> model_dtypes = {
     ov::element::bf16,
 };
 
+const std::vector<ov::element::Type> low_precision_dtypes = {
+    ov::element::u8,
+    ov::element::u4,
+    ov::element::i4,
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_CheckWeightlessCacheAccuracy,
                          CheckWeightlessCacheAccuracy,
                          ::testing::Combine(::testing::Bool(),
                                             ::testing::Bool(),
                                             ::testing::ValuesIn(inference_modes),
                                             ::testing::ValuesIn(model_dtypes)),
+                         CheckWeightlessCacheAccuracy::get_test_case_name);
+
+INSTANTIATE_TEST_SUITE_P(smoke_CheckWeightlessCacheAccuracyLowPrecision,
+                         CheckWeightlessCacheAccuracyLowPrecision,
+                         ::testing::Combine(::testing::Bool(),
+                                            ::testing::Bool(),
+                                            ::testing::ValuesIn(inference_modes),
+                                            ::testing::ValuesIn(low_precision_dtypes)),
                          CheckWeightlessCacheAccuracy::get_test_case_name);
 
 }  // namespace

@@ -183,6 +183,7 @@ Plugin::Plugin()
 
     // parse env_variables to get LOG_LEVEL if needed
     _globalConfig.parseEnvVars();
+    Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
 
     // TODO: generation of available backends list can be done during execution of CMake scripts
     std::vector<AvailableBackends> backendRegistry;
@@ -328,6 +329,12 @@ Plugin::Plugin()
           ov::PropertyMutability::RO,
           [](const Config& config) {
               return config.get<NUM_STREAMS>();
+          }}},
+        {ov::weights_path.name(),
+         {true,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<WEIGHTS_PATH>();
           }}},
         {ov::device::uuid.name(),
          {true,
@@ -796,8 +803,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     std::array<uint8_t, 6> serialization_indicator;
     ov::npuw::s11n::read(stream, serialization_indicator);
     if (serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
-        stream.seekg(stream_start_pos);
-        return ov::npuw::LLMCompiledModel::deserialize(stream, shared_from_this());
+        stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
+        // Properties are required for ov::weights_path
+        return ov::npuw::LLMCompiledModel::deserialize(stream, shared_from_this(), properties);
     }
     stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
 
@@ -808,7 +816,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             npu_plugin_properties.insert(*it);
         }
     }
-    const std::map<std::string, std::string> propertiesMap = any_copy(npu_plugin_properties);
+
+    std::shared_ptr<ov::AlignedBuffer> modelBuffer;
+    // ov::internal::cached_model_buffer has no corresponding "Config" implementation thus we need to remove it from the
+    // list of properties
+    if (npu_plugin_properties.count(ov::internal::cached_model_buffer.name())) {
+        modelBuffer =
+            npu_plugin_properties.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
+        npu_plugin_properties.erase(ov::internal::cached_model_buffer.name());
+    }
+
+    const auto propertiesMap = any_copy(npu_plugin_properties);
 
     auto localConfig = merge_configs(_globalConfig, propertiesMap, OptionMode::RunTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
@@ -832,21 +850,43 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         CompilerAdapterFactory compilerAdapterFactory;
         auto compiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), localConfig);
 
-        auto storedMeta = read_metadata_from(stream);
-        if (!storedMeta->is_compatible()) {
-            OPENVINO_THROW("Incompatible blob version!");
+        bool skipCompatibility = false;
+
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+        if (auto envVar = std::getenv("OV_NPU_DISABLE_VERSION_CHECK")) {
+            if (envVarStrToBool("OV_NPU_DISABLE_VERSION_CHECK", envVar)) {
+                _logger.info("Blob compatibility check skipped.");
+                skipCompatibility = true;
+            }
+        }
+#endif
+        uint64_t graphSize;
+        if (!skipCompatibility) {
+            auto storedMeta = read_metadata_from(stream);
+            if (!storedMeta->is_compatible()) {
+                OPENVINO_THROW("Incompatible blob version!");
+            }
+            graphSize = storedMeta->get_blob_size();
+        } else {
+            graphSize = MetadataBase::getFileSize(stream);
         }
 
-        auto graphSize = storedMeta->get_blob_size();
+        std::unique_ptr<BlobContainer> blobPtr;
 
-        std::vector<uint8_t> blob(graphSize);
-        stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
-        if (!stream) {
-            OPENVINO_THROW("Failed to read data from stream!");
+        if (modelBuffer == nullptr) {
+            std::vector<uint8_t> blob(graphSize);
+            stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
+            if (!stream) {
+                OPENVINO_THROW("Failed to read data from stream!");
+            }
+            _logger.debug("Successfully read %zu bytes into blob.", graphSize);
+
+            blobPtr = std::make_unique<BlobContainerVector>(std::move(blob));
+        } else {
+            blobPtr = std::make_unique<BlobContainerAlignedBuffer>(modelBuffer, stream.tellg(), graphSize);
         }
-        _logger.debug("Successfully read %zu bytes into blob.", graphSize);
 
-        auto graph = compiler->parse(std::move(blob), localConfig);
+        auto graph = compiler->parse(std::move(blobPtr), localConfig);
         graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
 
         const std::shared_ptr<ov::Model> modelDummy =

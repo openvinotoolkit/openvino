@@ -10,6 +10,7 @@
 
 #include <array>
 #include <exception>
+#include <random>
 #include <thread>
 
 #include "base/ov_behavior_test_utils.hpp"
@@ -959,6 +960,104 @@ TEST_P(SetShapeInferRunTests, checkResultsAfterIOBlobReallocation) {
     actual = second_output_tensor.data<float>();
     for (size_t i = 0; i < shape_size; ++i) {
         EXPECT_NEAR(actual[i], 10.f, 1e-5) << "Expected=10, actual=" << actual[i] << " for index " << i;
+    }
+}
+
+TEST_P(SetShapeInferRunTests, checkResultsAfterStateTensorsReallocation) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    testing::internal::Random random(1);
+    ov::Tensor input_tensor;
+
+    auto original_shape = Shape{1, 10, 10, 10};
+    auto dummy_shape = Shape{1, 50, 100, 100};
+    auto shape_size = ov::shape_size(original_shape);
+    auto model = createModelWithStates(element::f32, original_shape);
+
+    auto context = core->get_default_context(target_device);
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::InferRequest inference_request;
+    inference_request = compiled_model.create_infer_request();
+
+    auto input = compiled_model.input();
+    OV_ASSERT_NO_THROW(input_tensor = inference_request.get_tensor(input));
+    auto* input_data = input_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = static_cast<float>(random.Generate(10));
+    }
+
+    for (auto&& state : inference_request.query_state()) {
+        state.reset();
+    }
+
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    auto output_tensor = inference_request.get_tensor("sigmod_state");
+    auto output_data = output_tensor.data<float>();
+    for (size_t i = 0; i < output_tensor.get_size(); i++) {
+        EXPECT_NEAR(0.5f, output_data[i], 1e-5);
+    }
+
+    auto states = inference_request.query_state();
+    for (auto state : states) {
+        auto last_state = state.get_state();
+        auto last_state_size = last_state.get_size();
+        auto last_state_data = static_cast<float*>(last_state.data());
+
+        ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
+
+        for (size_t i = 0; i < last_state_size; ++i) {
+            EXPECT_NEAR(0.0, last_state_data[i], 1e-5);
+        }
+    }
+
+    // create dummy Tensors to force the driver to allocate memory for the initial tensor somewhere else
+    [[maybe_unused]] auto l0_host_dummy_tensor_0 = context.create_host_tensor(ov::element::f32, dummy_shape);
+    [[maybe_unused]] auto l0_host_dummy_tensor_1 = context.create_host_tensor(ov::element::f32, dummy_shape);
+    [[maybe_unused]] auto l0_host_dummy_tensor_2 = context.create_host_tensor(ov::element::f32, dummy_shape);
+    [[maybe_unused]] auto l0_host_dummy_tensor_3 = context.create_host_tensor(ov::element::f32, dummy_shape);
+    [[maybe_unused]] auto l0_host_dummy_tensor_4 = context.create_host_tensor(ov::element::f32, dummy_shape);
+    [[maybe_unused]] auto l0_host_dummy_tensor_5 = context.create_host_tensor(ov::element::f32, dummy_shape);
+    [[maybe_unused]] auto l0_host_dummy_tensor_6 = context.create_host_tensor(ov::element::f32, dummy_shape);
+    [[maybe_unused]] auto l0_host_dummy_tensor_7 = context.create_host_tensor(ov::element::f32, dummy_shape);
+
+    for (auto item : inference_request.query_state()) {
+        auto tensor_state = item.get_state();
+        auto original_shape = tensor_state.get_shape();
+        OV_ASSERT_NO_THROW(tensor_state.set_shape({1, 50, 20, 20}));
+        OV_ASSERT_NO_THROW(tensor_state.set_shape(original_shape));
+    }
+
+    for (auto&& state : inference_request.query_state()) {
+        state.reset();
+    }
+
+    for (auto state : states) {
+        auto last_state = state.get_state();
+        auto last_state_size = last_state.get_size();
+        auto last_state_data = static_cast<float*>(last_state.data());
+
+        ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
+
+        for (size_t i = 0; i < last_state_size; ++i) {
+            last_state_data[i] = 1.0f;
+        }
+    }
+
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    for (auto state : states) {
+        auto last_state = state.get_state();
+        auto last_state_size = last_state.get_size();
+        auto last_state_data = static_cast<float*>(last_state.data());
+
+        ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
+
+        for (size_t i = 0; i < last_state_size; ++i) {
+            EXPECT_NEAR(input_data[i], last_state_data[i], 1e-5);
+        }
     }
 }
 

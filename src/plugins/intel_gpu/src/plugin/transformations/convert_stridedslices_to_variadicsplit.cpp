@@ -15,8 +15,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 ConvertStridedSlicesToVariadicSplit::ConvertStridedSlicesToVariadicSplit() {
     using namespace ov::pass::pattern;
@@ -31,7 +30,7 @@ ConvertStridedSlicesToVariadicSplit::ConvertStridedSlicesToVariadicSplit() {
                 return false;
             user_count++;
         }
-        return (user_count == num_users_to_fuse) && consumers_count(num_users_to_fuse);
+        return (user_count == num_users_to_fuse) && consumers_count(num_users_to_fuse)(output);
     };
 
     auto data_m = any_input();
@@ -146,5 +145,4 @@ ConvertStridedSlicesToVariadicSplit::ConvertStridedSlicesToVariadicSplit() {
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

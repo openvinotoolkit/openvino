@@ -67,17 +67,24 @@ of this library to resolve them.
 .. code:: ipython3
 
     import requests
+    from pathlib import Path
     
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w", encoding="utf-8").write(r.text)
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w", encoding="utf-8").write(r.text)
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+        )
+        open("cmd_helper.py", "w").write(r.text)
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
-    )
-    open("cmd_helper.py", "w").write(r.text)
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("softvc-voice-conversion.ipynb")
 
 .. code:: ipython3
 
@@ -86,7 +93,7 @@ of this library to resolve them.
     
     %pip install -q "openvino>=2023.2.0"
     clone_repo("https://github.com/svc-develop-team/so-vits-svc", revision="4.1-Stable", add_to_sys_path=False)
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu  tqdm librosa "torch>=2.1.0" "torchaudio>=2.1.0" faiss-cpu "gradio>=4.19" "numpy>=1.23.5" praat-parselmouth
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu  tqdm librosa "torch>=2.1.0,<2.6.0" "torchaudio>=2.1.0,<2.6.0" faiss-cpu "gradio>=4.19" "numpy>=1.23.5" praat-parselmouth
 
 Download pretrained models and configs. We use a recommended encoder
 `ContentVec <https://arxiv.org/abs/2204.09224>`__ and models from `a
@@ -98,44 +105,54 @@ own <https://github.com/svc-develop-team/so-vits-svc#%EF%B8%8F-training>`__.
 
 .. code:: ipython3
 
+    import os
+    
     from notebook_utils import download_file, device_widget
     
-    
     # ContentVec
-    download_file(
-        "https://huggingface.co/lj1995/VoiceConversionWebUI/resolve/main/hubert_base.pt",
-        "checkpoint_best_legacy_500.pt",
-        directory="so-vits-svc/pretrain/",
-    )
+    if not Path("so-vits-svc/pretrain/checkpoint_best_legacy_500.pt").exists():
+        download_file(
+            "https://huggingface.co/lj1995/VoiceConversionWebUI/resolve/main/hubert_base.pt",
+            "checkpoint_best_legacy_500.pt",
+            directory="so-vits-svc/pretrain/",
+        )
     
     # pretrained models and configs from a collection of so-vits-svc-4.0 models. You can use other models.
-    download_file(
-        "https://huggingface.co/therealvul/so-vits-svc-4.0/resolve/main/Rainbow%20Dash%20(singing)/kmeans_10000.pt",
-        "kmeans_10000.pt",
-        directory="so-vits-svc/logs/44k/",
-    )
-    download_file(
-        "https://huggingface.co/therealvul/so-vits-svc-4.0/resolve/main/Rainbow%20Dash%20(singing)/config.json",
-        "config.json",
-        directory="so-vits-svc/configs/",
-    )
-    download_file(
-        "https://huggingface.co/therealvul/so-vits-svc-4.0/resolve/main/Rainbow%20Dash%20(singing)/G_30400.pth",
-        "G_30400.pth",
-        directory="so-vits-svc/logs/44k/",
-    )
-    download_file(
-        "https://huggingface.co/therealvul/so-vits-svc-4.0/resolve/main/Rainbow%20Dash%20(singing)/D_30400.pth",
-        "D_30400.pth",
-        directory="so-vits-svc/logs/44k/",
-    )
+    if not Path("so-vits-svc/logs/44k/kmeans_10000.pt").exists():
+        download_file(
+            "https://huggingface.co/therealvul/so-vits-svc-4.0/resolve/main/Rainbow%20Dash%20(singing)/kmeans_10000.pt",
+            "kmeans_10000.pt",
+            directory="so-vits-svc/logs/44k/",
+        )
+    if os.stat("so-vits-svc/configs/config.json").st_size == 0:  # cleanup if it is default empty file
+        os.remove("so-vits-svc/configs/config.json")
+    
+    if not Path("so-vits-svc/configs/config.json").exists():
+        download_file(
+            "https://huggingface.co/therealvul/so-vits-svc-4.0/resolve/main/Rainbow%20Dash%20(singing)/config.json",
+            "config.json",
+            directory="so-vits-svc/configs/",
+        )
+    if not Path("so-vits-svc/logs/44k/G_30400.pth").exists():
+        download_file(
+            "https://huggingface.co/therealvul/so-vits-svc-4.0/resolve/main/Rainbow%20Dash%20(singing)/G_30400.pth",
+            "G_30400.pth",
+            directory="so-vits-svc/logs/44k/",
+        )
+    if not Path("so-vits-svc/logs/44k/D_30400.pth").exists():
+        download_file(
+            "https://huggingface.co/therealvul/so-vits-svc-4.0/resolve/main/Rainbow%20Dash%20(singing)/D_30400.pth",
+            "D_30400.pth",
+            directory="so-vits-svc/logs/44k/",
+        )
     
     # a wav sample
-    download_file(
-        "https://huggingface.co/datasets/santifiorino/spinetta/resolve/main/spinetta/000.wav",
-        "000.wav",
-        directory="so-vits-svc/raw/",
-    )
+    if not Path("so-vits-svc/raw/000.wav").exists():
+        download_file(
+            "https://huggingface.co/datasets/santifiorino/spinetta/resolve/main/spinetta/000.wav",
+            "000.wav",
+            directory="so-vits-svc/raw/",
+        )
 
 Use the original model to run an inference
 ------------------------------------------
@@ -321,8 +338,3 @@ Interactive inference
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
-
-.. code:: ipython3
-
-    # please uncomment and run this cell for stopping gradio interface
-    # demo.close()

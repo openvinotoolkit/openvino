@@ -49,9 +49,9 @@ struct Union;
 }  // namespace type
 
 /// Plays a role of node, block and module decoder
-class IDecoder {
+class FRONTEND_API IDecoder {
 public:
-    virtual ~IDecoder() = default;
+    virtual ~IDecoder();
 };
 
 class FRONTEND_API DecoderBase : public IDecoder {

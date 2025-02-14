@@ -19,8 +19,7 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 bool BrgemmBaseKernelConfig::is_completed() const {
     return !utils::one_of(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC) || is_empty();
@@ -139,8 +138,9 @@ float BrgemmBaseKernelExecutor::get_beta(const ov::snippets::lowered::LoopManage
         while (loop_id >= 0) {
             const auto& expanded_loop_info =
                 loop_manager->get_loop_info<ov::snippets::lowered::ExpandedLoopInfo>(loop_id);
-            if (expanded_loop_info->get_unified_loop_info() != current_unified_loop_info)
+            if (expanded_loop_info->get_unified_loop_info() != current_unified_loop_info) {
                 return 0;
+            }
             if (expanded_loop_info->get_work_amount() > 0) {
                 // there is previous executed Brgemm with `beta = 0` -> the current Brgemm should have `beta = 1`
                 return 1;
@@ -244,8 +244,9 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
         K = current_expanded_loop_info->get_work_amount() > 0 ? current_expanded_loop_info->get_increment() : 0;
         input_pds[0]->set_subtensor_dim(0, K);
         input_pds[1]->set_subtensor_dim(1, K);
-        if (K > 0)
+        if (K > 0) {
             beta = get_beta(loop_manager, static_cast<int>(loop_ids.back()), current_expanded_loop_info);
+        }
     }
 
     const auto LDA = DIM_CAST(snippets::utils::get_dim_stride(expr->get_input_port(0)));
@@ -255,8 +256,9 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(brgemm_node, "Got invalid node type in update_config");
     // In case of data repacking LDB is chosen in accordance with repacking buffer size
-    if (with_repacking(brgemm_node->get_type()))
-        LDB = DIM_CAST(brgemm_utils::repacking::compute_LDB(LDB, brgemm_node->get_input_element_type(1)));
+    if (with_repacking(brgemm_node->get_type())) {
+        LDB = DIM_CAST(brgemm_utils::repacking::compute_repacked_n_dim(LDB, brgemm_node->get_input_element_type(1)));
+    }
 
     config.update(DIM_CAST(M), DIM_CAST(N), DIM_CAST(K), LDA, LDB, LDC, beta);
 }
@@ -334,5 +336,4 @@ void BrgemmBaseKernelExecutor::execute_brgemm_kernel(
 #undef EQ
 #undef HASH
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

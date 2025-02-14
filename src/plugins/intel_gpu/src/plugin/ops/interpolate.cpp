@@ -11,8 +11,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/interpolate.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static std::vector<int64_t> ExtractAxes(const std::shared_ptr<ov::op::util::InterpolateBase>& op, size_t axes_index) {
     std::vector<int64_t> axes;
@@ -227,5 +226,4 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
 REGISTER_FACTORY_IMPL(v4, Interpolate);
 REGISTER_FACTORY_IMPL(v11, Interpolate);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

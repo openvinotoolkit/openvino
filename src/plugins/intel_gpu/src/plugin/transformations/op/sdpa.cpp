@@ -10,9 +10,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/reshape.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 SDPA::SDPA(const OutputVector& inputs,
            const bool is_causal,
@@ -172,6 +170,4 @@ std::vector<ov::PartialShape> shape_infer(const SDPA* op,
     }
 }
 
-}  // namespace op
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu::op

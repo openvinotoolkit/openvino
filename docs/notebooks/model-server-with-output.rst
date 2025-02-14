@@ -189,19 +189,21 @@ following rules:
     
     # Fetch `notebook_utils` module
     import requests
+    from pathlib import Path
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
     
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file
     
-    dedicated_dir = "models"
+    dedicated_dir = Path("models")
     model_name = "detection"
     model_version = "1"
     
-    MODEL_DIR = f"{dedicated_dir}/{model_name}/{model_version}"
+    MODEL_DIR = dedicated_dir / model_name / model_version
     XML_PATH = "horizontal-text-detection-0001.xml"
     BIN_PATH = "horizontal-text-detection-0001.bin"
     os.makedirs(MODEL_DIR, exist_ok=True)
@@ -212,8 +214,14 @@ following rules:
         "https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/horizontal-text-detection-0001/FP32/horizontal-text-detection-0001.bin"
     )
     
-    download_file(model_xml_url, XML_PATH, MODEL_DIR)
-    download_file(model_bin_url, BIN_PATH, MODEL_DIR)
+    if not (MODEL_DIR / XML_PATH).exists():
+        download_file(model_xml_url, XML_PATH, MODEL_DIR)
+        download_file(model_bin_url, BIN_PATH, MODEL_DIR)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("model-server.ipynb")
 
 
 
@@ -789,11 +797,12 @@ Load input image
 
 .. code:: ipython3
 
-    # Download the image from the openvino_notebooks storage
-    image_filename = download_file(
-        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/intel_rnb.jpg",
-        directory="data",
-    )
+    if not Path("data/intel_rnb.jpg").exists():
+        # Download the image from the openvino_notebooks storage
+        image_filename = download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/intel_rnb.jpg",
+            directory="data",
+        )
     
     # Text detection models expect an image in BGR format.
     image = cv2.imread(str(image_filename))

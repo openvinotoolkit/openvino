@@ -9,8 +9,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/cum_sum.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateCumSumOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::CumSum>& op) {
     validate_inputs_count(op, {1, 2});
@@ -39,5 +38,4 @@ static void CreateCumSumOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
 
 REGISTER_FACTORY_IMPL(v0, CumSum);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

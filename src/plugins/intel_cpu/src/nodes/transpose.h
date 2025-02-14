@@ -34,6 +34,7 @@ public:
         return order;
     }
 
+    bool neverExecute() const override;
     bool isExecutable() const override;
     bool needPrepareParams() const override;
     void prepareParams() override;

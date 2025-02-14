@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "paged_attention_inst.h"
@@ -49,6 +49,7 @@ layout paged_attention_inst::calc_output_layout(const paged_attention_node& /*no
 template<typename ShapeType>
 std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_node const& /*node*/, kernel_impl_params const& impl_param) {
     auto data_layout = impl_param.get_input_layout(0);
+    data_layout.data_padding = padding();
 
     const auto& key_cache_ps = impl_param.get_input_layout(3).get_partial_shape();
     bool valid_block_size = key_cache_ps[3].is_dynamic() || key_cache_ps[3].get_length() == paged_attention::block_size;
@@ -71,7 +72,7 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
                 total_size += past_lens_mem_lock[i];
             }
 
-            total_size += static_cast<long int>(impl_param.get_input_layout(0).get_shape()[0]);
+            total_size += static_cast<long int>(data_layout.get_shape()[0]);
 
             output_layouts.push_back(layout{ov::PartialShape{total_size}, output_dt, format::bfyx});
         } else {

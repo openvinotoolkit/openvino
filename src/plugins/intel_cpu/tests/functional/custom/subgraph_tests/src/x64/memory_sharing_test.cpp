@@ -33,8 +33,6 @@ TEST_F(EdgeWithSameNameInTwoModels, smoke_CompareWithRef) {
         std::tie(inFmts, outFmts, priority, selectedType) = conv_avx512_2D;
     } else if (ov::with_cpu_x86_avx2()) {
         std::tie(inFmts, outFmts, priority, selectedType) = conv_avx2_2D;
-    } else if (ov::with_cpu_x86_sse42()) {
-        std::tie(inFmts, outFmts, priority, selectedType) = conv_sse42_2D;
     }
 
     // first model

@@ -18,7 +18,6 @@ namespace activations_scaling {
 
 class TRANSFORMATIONS_API ScaleDownSingleLayer;
 class TRANSFORMATIONS_API EliminateScalarMul;
-class TRANSFORMATIONS_API MulConcatTransformation;
 class TRANSFORMATIONS_API MulShareTransformation;
 class TRANSFORMATIONS_API MoveDownScalarMul;
 
@@ -54,29 +53,6 @@ class ov::pass::activations_scaling::EliminateScalarMul : public ov::pass::Match
 public:
     OPENVINO_MATCHER_PASS_RTTI("EliminateScalarMul", "0");
     EliminateScalarMul();
-};
-
-// input_a   const_a   input_b   const_b   input_c   const_c
-//    \        /          \        /          \        /
-//    Multiply_a          Multiply_b          Multiply_c
-//             \              |               /
-//              \             |              /
-//               ---------- Concat ------------
-// ==>
-//          (const_a            (const_b             (const_c
-// input_a  /const_c)  input_b  /const_c)  input_c   /const_c)
-//    \        /          \        /          \        /
-//    Multiply_a          Multiply_b          Multiply_c
-//             \              |               /
-//              \             |              /
-//               ---------- Concat ------------
-//                            |   const_c
-//                            |    /
-//                           Multiply
-class ov::pass::activations_scaling::MulConcatTransformation : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("MulConcatTransformation", "0");
-    MulConcatTransformation();
 };
 
 //         input             input

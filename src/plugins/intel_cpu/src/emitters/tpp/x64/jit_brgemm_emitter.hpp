@@ -5,8 +5,7 @@
 #pragma once
 #include "jit_tpp_emitter.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class BrgemmTppEmitter : public TppEmitter {
 public:
@@ -34,5 +33,4 @@ protected:
     libxsmm_bitfield m_prefetching_flags{0};
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -76,29 +76,22 @@ Install requirements
     %pip install -q "openvino>=2023.1.0"
     %pip install -q opencv-python requests tqdm
     
+    from pathlib import Path
+    
     # Fetch `notebook_utils` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
     
-    open("notebook_utils.py", "w").write(r.text)
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
-
-
-
-.. parsed-literal::
-
-    24624
-
-
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("style-transfer.ipynb")
 
 Imports
 ~~~~~~~
@@ -146,13 +139,6 @@ Pointilism to do the style transfer.
     # Display the dropdown
     display(style_dropdown)
 
-
-
-.. parsed-literal::
-
-    Dropdown(description='Select Style:', options=('MOSAIC', 'RAIN-PRINCESS', 'CANDY', 'UDNIE', 'POINTILISM'), sty…
-
-
 The Model
 ---------
 
@@ -178,24 +164,12 @@ OpenVINO Intermediate Representation (IR) with ``FP16`` precision.
     
     # Selected ONNX model will be downloaded in the path
     model_path = Path(f"{style_dropdown.value.lower()}-9.onnx")
+    ir_path = Path(f"model/{style_dropdown.value.lower()}-9.xml")
+    onnx_path = Path(f"model/{model_path}")
     
-    style_url = f"{base_url}/{model_path}"
-    utils.download_file(style_url, directory=base_model_dir)
-
-
-
-.. parsed-literal::
-
-    mosaic-9.onnx:   0%|          | 0.00/6.42M [00:00<?, ?B/s]
-
-
-
-
-.. parsed-literal::
-
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/style-transfer-webcam/model/mosaic-9.onnx')
-
-
+    if not onnx_path.exists():
+        style_url = f"{base_url}/{model_path}"
+        utils.download_file(style_url, directory=base_model_dir)
 
 Convert ONNX Model to OpenVINO IR Format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -215,16 +189,9 @@ this step.
 
 .. code:: ipython3
 
-    # Construct the command for model conversion API.
-    
-    ov_model = ov.convert_model(f"model/{style_dropdown.value.lower()}-9.onnx")
-    ov.save_model(ov_model, f"model/{style_dropdown.value.lower()}-9.xml")
-
-.. code:: ipython3
-
-    # Converted IR model path
-    ir_path = Path(f"model/{style_dropdown.value.lower()}-9.xml")
-    onnx_path = Path(f"model/{model_path}")
+    if not ir_path.exists():
+        ov_model = ov.convert_model(onnx_path)
+        ov.save_model(ov_model, ir_path)
 
 Load the Model
 ~~~~~~~~~~~~~~
@@ -271,15 +238,6 @@ results.
     # or let OpenVINO select the best available device with AUTO.
     device
 
-
-
-
-.. parsed-literal::
-
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
-
-
-
 .. code:: ipython3
 
     compiled_model = core.compile_model(model=model, device_name=device.value)
@@ -300,14 +258,6 @@ respectively. For *fast-neural-style-mosaic-onnx*, there is 1 input and
     
     # Get the input size.
     N, C, H, W = list(input_layer.shape)
-
-
-.. parsed-literal::
-
-    input1 output1
-    [1,3,224,224]
-    [1,3,224,224]
-
 
 Preprocess the image
 ~~~~~~~~~~~~~~~~~~~~
@@ -505,21 +455,14 @@ OpenCV <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__
     USE_WEBCAM = False
     
     cam_id = 0
-    video_file = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4"
+    video_file = Path("coco.mp4")
+    video_url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4"
     
     source = cam_id if USE_WEBCAM else video_file
+    if not USE_WEBCAM and not video_file.exists():
+        utils.download_file(video_url, filename="coco.mp4")
     
     run_style_transfer(source=source, flip=isinstance(source, int), use_popup=False)
-
-
-
-.. image:: style-transfer-with-output_files/style-transfer-with-output_25_0.png
-
-
-.. parsed-literal::
-
-    Source ended
-
 
 References
 ----------

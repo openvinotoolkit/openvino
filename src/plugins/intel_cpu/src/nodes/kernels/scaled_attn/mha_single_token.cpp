@@ -27,10 +27,7 @@
 #    include <arm_neon.h>
 #endif
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace ov::Extensions::Cpu::XARCH {
 
 using namespace ov;
 
@@ -1170,8 +1167,9 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     if (h_group_num != H) {
         h_each_group_len = H / h_group_num;
     }
-    if (d_scale == 0.0f)
+    if (d_scale == 0.0f) {
         d_scale = 1.0f / sqrt(S);
+    }
     auto nthr = parallel_get_max_threads();
     auto kv_len = present_key.size(2);
 
@@ -1290,8 +1288,9 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
         T3* alibi_ptr = alibi_mask ? &alibi_mask.at<T3>({b, h, pq, 0}, true) : nullptr;
         uint8_t* attn_mask_ptr = nullptr;
         auto attn_mask_prec = attention_mask.get_precision();
-        if (attention_mask)
+        if (attention_mask) {
             attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<T>({b, h, pq, 0}, true));
+        }
         uint8_t* cmask_ptr = causal_mask ? &causal_mask.at<uint8_t>({b, h, pq, 0}, true) : nullptr;
         attn_softmax_kernel<T3>(buf_attn_w.ptr<T3>(b, h, pq),
                                 buf_attn_w.ptr<T3>(b, h, pq),
@@ -1558,7 +1557,4 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
     }
 }
 
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu::XARCH

@@ -13,9 +13,7 @@
 #include "openvino/core/parallel.hpp"
 #include "selective_build.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool BatchToSpace::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -37,26 +35,31 @@ BatchToSpace::BatchToSpace(const std::shared_ptr<ov::Node>& op, const GraphConte
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (inputShapes.size() != 4 || outputShapes.size() != 1)
+    if (inputShapes.size() != 4 || outputShapes.size() != 1) {
         THROW_CPU_NODE_ERR("has incorrect number of input or output edges!");
+    }
 
     const auto& inDims = getInputShapeAtPort(0).getDims();
     const auto& outDims = getOutputShapeAtPort(0).getDims();
-    if (inDims.size() < 4 || inDims.size() > 5)
+    if (inDims.size() < 4 || inDims.size() > 5) {
         THROW_CPU_NODE_ERR("has unsupported 'data' input rank: ", inDims.size());
-    if (inDims.size() != outDims.size())
+    }
+    if (inDims.size() != outDims.size()) {
         THROW_CPU_NODE_ERR("has incorrect number of input/output dimensions");
+    }
 }
 
 void BatchToSpace::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     const auto& inDims = getInputShapeAtPort(0).getDims();
     const auto precision = getOriginalInputPrecisionAtPort(0);
     const std::set<size_t> supported_precision_sizes = {1, 2, 4, 8};
-    if (supported_precision_sizes.find(precision.size()) == supported_precision_sizes.end())
+    if (supported_precision_sizes.find(precision.size()) == supported_precision_sizes.end()) {
         THROW_CPU_NODE_ERR("has unsupported precision: ", precision.get_type_name());
+    }
 
     addSupportedPrimDesc({{LayoutType::nspc, precision},
                           {LayoutType::ncsp, ov::element::i32},
@@ -253,9 +256,9 @@ void BatchToSpace::execute(const dnnl::stream& strm) {
         batchToSpaceKernel<element_type_traits<ov::element::i32>::value_type>();
         break;
     default:
-        OPENVINO_THROW("BatchToSpace layer does not support precision '",
-                       std::string(getParentEdgeAt(0)->getMemory().getDesc().getPrecision().get_type_name()),
-                       "'");
+        THROW_CPU_NODE_ERR("does not support precision '",
+                           std::string(getParentEdgeAt(0)->getMemory().getDesc().getPrecision().get_type_name()),
+                           "'");
     }
 }
 
@@ -263,6 +266,4 @@ bool BatchToSpace::created() const {
     return getType() == Type::BatchToSpace;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -16,8 +16,7 @@
 #include "nodes/executors/mlas/mlas_gemm.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace executor;
 using namespace dnnl;
@@ -103,6 +102,7 @@ MlasGemmExecutor::MlasGemmExecutor(const FCAttrs& attrs,
     : m_attrs(attrs),
       m_memoryArgs(memory),
       packedWeights(prepareWeightMemory(memory.at(ARG_WEI), context, !attrs.weightsNonTransposed)),
+      M(0),
       N(batchDim(memory.at(ARG_WEI)->getStaticDims())),
       K(memory.at(ARG_WEI)->getStaticDims().back()) {}
 
@@ -142,8 +142,9 @@ void MlasGemmExecutor::execute(const MemoryArgs& memory) {
 }
 
 void MlasGemmExecutor::moveMemToNumaNode(int numaNodeID) {
-    if (curNumaNode == numaNodeID)
+    if (curNumaNode == numaNodeID) {
         return;
+    }
     curNumaNode = numaNodeID;
     mbind_move(packedWeights, numaNodeID);
     if (m_attrs.withBias) {
@@ -151,5 +152,4 @@ void MlasGemmExecutor::moveMemToNumaNode(int numaNodeID) {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

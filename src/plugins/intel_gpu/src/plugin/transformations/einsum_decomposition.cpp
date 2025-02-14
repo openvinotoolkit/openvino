@@ -18,8 +18,7 @@
 
 #include <unordered_map>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 using LabelDimMap = std::unordered_map<std::string, std::vector<size_t>>;
@@ -948,5 +947,4 @@ EinsumDecomposition::EinsumDecomposition() {
     register_matcher(matcher, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

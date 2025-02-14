@@ -10,15 +10,13 @@
 #include "openvino/op/multinomial.hpp"
 #include "utils/bfloat16.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 Multinomial::Multinomial(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        THROW_CPU_NODE_ERR(errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     auto multinomial_op = as_type_ptr<op::v13::Multinomial>(op);
@@ -114,6 +112,11 @@ void Multinomial::prepareParams() {
     m_input_elements_count = m_batches_count * m_probs_count;
     m_output_elements_count = m_batches_count * m_samples_count;
     m_batches_samples_probs_count = m_output_elements_count * m_probs_count;
+}
+
+bool Multinomial::neverExecute() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(PROBS_PORT) ||
+           getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(NUM_SAMPLES_PORT);
 }
 
 bool Multinomial::isExecutable() const {
@@ -254,6 +257,4 @@ void Multinomial::execute_convert_type() {
     }
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -68,13 +68,6 @@ Prerequisites
     %pip install -q "transformers>=4.45" "torch>=2.1" "librosa"  "gradio>=4.36" "modelscope-studio>=0.4.2" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -qU "openvino>=2024.4.0" "nncf>=2.13.0"
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
-
 .. code:: ipython3
 
     from pathlib import Path
@@ -87,6 +80,11 @@ Prerequisites
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
+
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+
+    collect_telemetry("qwen2-audio.ipynb")
 
 Convert and Optimize model
 --------------------------
@@ -110,22 +108,32 @@ details.
 
    <details>
 
-Click here for more detailed explanation of conversion steps Qwen2Audio
-is autoregressive transformer generative model, it means that each next
-model step depends from model output from previous step. The generation
-approach is based on the assumption that the probability distribution of
-a word sequence can be decomposed into the product of conditional next
-word distributions. In other words, model predicts the next token in the
-loop guided by previously generated tokens until the stop-condition will
-be not reached (generated sequence of maximum length or end of string
-token obtained). The way the next token will be selected over predicted
-probabilities is driven by the selected decoding methodology. You can
-find more information about the most popular decoding methods in this
-blog. The entry point for the generation process for models from the
-Hugging Face Transformers library is the ``generate`` method. You can
-find more information about its parameters and configuration in the
-documentation. To preserve flexibility in the selection decoding
-methodology, we will convert only model inference for one step.
+.. raw:: html
+
+   <summary>
+
+Click here for more detailed explanation of conversion steps
+
+.. raw:: html
+
+   </summary>
+
+Qwen2Audio is autoregressive transformer generative model, it means that
+each next model step depends from model output from previous step. The
+generation approach is based on the assumption that the probability
+distribution of a word sequence can be decomposed into the product of
+conditional next word distributions. In other words, model predicts the
+next token in the loop guided by previously generated tokens until the
+stop-condition will be not reached (generated sequence of maximum length
+or end of string token obtained). The way the next token will be
+selected over predicted probabilities is driven by the selected decoding
+methodology. You can find more information about the most popular
+decoding methods in this blog. The entry point for the generation
+process for models from the Hugging Face Transformers library is the
+``generate`` method. You can find more information about its parameters
+and configuration in the documentation. To preserve flexibility in the
+selection decoding methodology, we will convert only model inference for
+one step.
 
 The inference flow has difference on first step and for the next. On the
 first step, model accept audio and optionally input text instruction
@@ -170,12 +178,21 @@ consumption, weights compression optimization can be applied using
 
    <details>
 
-Click here for more details about weight compression Weight compression
-aims to reduce the memory footprint of a model. It can also lead to
-significant performance improvement for large memory-bound models, such
-as Large Language Models (LLMs). LLMs and other models, which require
-extensive memory to store the weights during inference, can benefit from
-weight compression in the following ways:
+.. raw:: html
+
+   <summary>
+
+Click here for more details about weight compression
+
+.. raw:: html
+
+   </summary>
+
+Weight compression aims to reduce the memory footprint of a model. It
+can also lead to significant performance improvement for large
+memory-bound models, such as Large Language Models (LLMs). LLMs and
+other models, which require extensive memory to store the weights during
+inference, can benefit from weight compression in the following ways:
 
 -  enabling the inference of exceptionally large models that cannot be
    accommodated in the memory of the device;
@@ -222,19 +239,6 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
     # uncomment these lines to see model conversion code
     # convert_qwen2audio_model??
 
-
-.. parsed-literal::
-
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-
-
-.. parsed-literal::
-
-    2024-12-10 04:55:15.355911: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-12-10 04:55:15.380350: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-
-
 .. code:: ipython3
 
     import nncf
@@ -250,123 +254,7 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
 .. parsed-literal::
 
-    ⌛ {model_id} conversion started. Be patient, it may takes some time.
-    ⌛ Load Original model
-
-
-
-.. parsed-literal::
-
-    Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s]
-
-
-.. parsed-literal::
-
-    ✅ Original model successfully loaded
-    ⌛ Convert Input embedding model
-    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
-
-
-.. parsed-literal::
-
-    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:5006: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
-      warnings.warn(
-    `loss_type=None` was set in the config but it is unrecognised.Using the default loss: `ForCausalLMLoss`.
-
-
-.. parsed-literal::
-
-    ✅ Input embedding model successfully converted
-    ⌛ Convert Audio embedding model
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2_audio/modeling_qwen2_audio.py:673: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if input_features.shape[-1] != expected_seq_length:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2_audio/modeling_qwen2_audio.py:424: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_output.size() != (bsz, self.num_heads, tgt_len, self.head_dim):
-
-
-.. parsed-literal::
-
-    ✅ Audio embedding model successfully converted
-    ⌛ Convert Multimodal projector model
-    ✅ Multimodal projector model successfully converted
-    ⌛ Convert Language model
-    Qwen2Config {
-      "_attn_implementation_autoset": true,
-      "attention_dropout": 0.0,
-      "bos_token_id": 151643,
-      "eos_token_id": 151645,
-      "hidden_act": "silu",
-      "hidden_size": 4096,
-      "initializer_range": 0.02,
-      "intermediate_size": 11008,
-      "max_position_embeddings": 8192,
-      "max_window_layers": 28,
-      "model_type": "qwen2",
-      "num_attention_heads": 32,
-      "num_hidden_layers": 32,
-      "num_key_value_heads": 32,
-      "rms_norm_eps": 1e-05,
-      "rope_scaling": null,
-      "rope_theta": 10000,
-      "sliding_window": null,
-      "tie_word_embeddings": false,
-      "torch_dtype": "bfloat16",
-      "transformers_version": "4.46.1",
-      "use_cache": true,
-      "use_mrope": false,
-      "use_sliding_window": false,
-      "vocab_size": 156032
-    }
-
-
-
-.. parsed-literal::
-
-    We detected that you are passing `past_key_values` as a tuple of tuples. This is deprecated and will be removed in v4.47. Please convert your cache or use an appropriate `Cache` class (https://huggingface.co/docs/transformers/kv_cache#legacy-cache-format)
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/cache_utils.py:458: TracerWarning: Using len to get tensor shape might cause the trace to be incorrect. Recommended usage would be tensor.shape[0]. Passing a tensor of different shape might lead to errors or silently give incorrect results.
-      or len(self.key_cache[layer_idx]) == 0  # the layer has no cache
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:1067: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attention_mask.shape[-1] > target_length:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/cache_utils.py:443: TracerWarning: Using len to get tensor shape might cause the trace to be incorrect. Recommended usage would be tensor.shape[0]. Passing a tensor of different shape might lead to errors or silently give incorrect results.
-      elif len(self.key_cache[layer_idx]) == 0:  # fills previously skipped layers; checking for tensor causes errors
-
-
-.. parsed-literal::
-
-    ✅ Language model successfully converted
-    ⌛ Weights compression with int4_asym mode started
-    INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │              8 │ 9% (1 / 225)                │ 0% (0 / 224)                           │
-    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │              4 │ 91% (224 / 225)             │ 100% (224 / 224)                       │
-    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    ✅ Weights compression finished
-    ✅ Qwen/Qwen2-Audio-7B-Instruct model conversion finished. You can find results in Qwen2-Audio-7B-Instruct
+    ✅ Qwen/Qwen2-Audio-7B-Instruct model already converted. You can find results in Qwen2-Audio-7B-Instruct
 
 
 Prepare model inference pipeline
@@ -486,7 +374,7 @@ Voice chat
 
 .. parsed-literal::
 
-    Setting `pad_token_id` to `eos_token_id`:None for open-end generation.
+    Setting `pad_token_id` to `eos_token_id`:151645 for open-end generation.
 
 
 .. parsed-literal::
@@ -551,7 +439,7 @@ Audio analysis
 
 .. parsed-literal::
 
-    Setting `pad_token_id` to `eos_token_id`:None for open-end generation.
+    Setting `pad_token_id` to `eos_token_id`:151645 for open-end generation.
 
 
 .. parsed-literal::
@@ -579,23 +467,9 @@ Interactive Demo
     demo = make_demo(ov_model, processor)
 
     try:
-        demo.launch(debug=False)
+        demo.launch(debug=True)
     except Exception:
-        demo.launch(debug=False, share=True)
+        demo.launch(debug=True, share=True)
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-

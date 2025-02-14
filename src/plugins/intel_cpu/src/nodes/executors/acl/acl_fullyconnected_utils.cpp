@@ -16,8 +16,7 @@
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 VectorDims acl_fc_executor::makeDummyInputDims(const Shape& inShape, const Shape& wShape) {
     const auto& weightDims = wShape.getStaticDims();
@@ -132,8 +131,9 @@ MemoryPtr acl_fc_executor::reorderData(const DnnlMemoryDescPtr& srcWeightDesc,
                                        const ExecutorContext::CPtr& context) {
     MemoryPtr input = std::make_shared<Memory>(context->getEngine(), srcWeightDesc, weightsMem->getData());
     MemoryPtr output = std::make_shared<Memory>(context->getEngine(), dstWeightDesc);
-    if (!input->getDesc().isDefined() || !output->getDesc().isDefined())
+    if (!input->getDesc().isDefined() || !output->getDesc().isDefined()) {
         OPENVINO_THROW("Can't reorder data with dynamic shapes");
+    }
 
     if (input->getShape().hasZeroDims() || output->getShape().hasZeroDims()) {
         return output;
@@ -363,5 +363,4 @@ ACLFunction acl_fc_executor::ACLWeightFormatGenerator::configureFunction(const A
     return std::make_unique<arm_compute::NEFullyConnectedLayer>();
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

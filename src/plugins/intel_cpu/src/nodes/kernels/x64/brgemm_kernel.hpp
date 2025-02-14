@@ -10,8 +10,7 @@
 #include <cstddef>
 #include <openvino/core/type/element_type.hpp>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class BrgemmKernel {
 public:
@@ -113,5 +112,4 @@ private:
                     void* pout,
                     void* wsp);
 };
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

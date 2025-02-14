@@ -61,7 +61,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
             setName(std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1}), "rotation_trig_lut");
     }
 
-    auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0});  // sliding_window
+    auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
 
     auto get_parameter = [=](const std::shared_ptr<ov::Model>& model,
                              const std::string& name) -> std::shared_ptr<v0::Parameter> {
@@ -90,12 +90,17 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     OPENVINO_ASSERT(input_ids_node, "The model doesn't contain input_ids or input_embeds input. Aborting.");
 
-    input_ids_node->set_partial_shape(PartialShape{-1});
+    if (input_ids_node->get_friendly_name() == "input_ids") {
+        input_ids_node->set_partial_shape(PartialShape{-1});
+    } else if (input_ids_node->get_friendly_name() == "inputs_embeds") {
+        input_ids_node->set_partial_shape(PartialShape{-1, -1});
+    }
+
     auto input_ids_target_inputs = input_ids_node->get_output_target_inputs(0);
-    auto unsqueezed_input_ids =
+    auto processed_input_ids =
         std::make_shared<v0::Unsqueeze>(input_ids_node, v0::Constant::create(element::i32, Shape{}, {1}));
     for (const auto& target : input_ids_target_inputs) {
-        target.replace_source_output(unsqueezed_input_ids);
+        target.replace_source_output(processed_input_ids);
     }
 
     ParameterVector kv_parameters;
@@ -141,7 +146,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   rotated_block_indices_inputs_for_each_layer,
                                                   rotation_deltas_inputs_for_each_layer,
                                                   model_rotation_trig_lut);
-    manager.register_pass<PrevSequenceLengthPattern>(unsqueezed_input_ids, max_context_len, position_ids);
+    manager.register_pass<PrevSequenceLengthPattern>(processed_input_ids, max_context_len, position_ids);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
     manager.register_pass<TotalSequenceLengthPatternQwen>(max_context_len);
     manager.register_pass<PositionIDsReplacer>(unsqueezed_position_ids);

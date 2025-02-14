@@ -42,11 +42,11 @@ Installing OpenVINO Runtime with Anaconda Package Manager
 
    .. code-block:: sh
 
-      conda install -c conda-forge openvino=2024.4.0
+      conda install -c conda-forge openvino=2025.0.0
 
 Congratulations! You've just Installed OpenVINO! For some use cases you may still
 need to install additional components. Check the description below, as well as the
-:doc:`list of additional configurations <../configurations>`
+:doc:`list of additional configurations <./configurations>`
 to see if your case needs any of them.
 
 Enabling GPU device for inference
@@ -132,7 +132,7 @@ with the proper OpenVINO version number:
 
 .. code-block:: sh
 
-   conda remove openvino=2024.4.0
+   conda remove openvino=2025.0.0
 
 If you have installed specific components of OpenVINO, you can remove them, using:
 
@@ -146,14 +146,14 @@ What's Next?
 Now that you've installed OpenVINO Runtime, you are ready to run your own machine learning applications!
 To learn more about how to integrate a model in OpenVINO applications, try out some tutorials and sample applications.
 
-Try the :doc:`C++ Quick Start Example <../../../learn-openvino/openvino-samples/get-started-demos>` for step-by-step instructions
+Try the :doc:`C++ Quick Start Example <../../../get-started/learn-openvino/openvino-samples/get-started-demos>` for step-by-step instructions
 on building and running a basic image classification C++ application.
 
 .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
    :width: 400
 
-Visit the :doc:`Samples <../../../learn-openvino/openvino-samples>` page for other C++ example applications to get you started with OpenVINO, such as:
+Visit the :doc:`Samples <../../../get-started/learn-openvino/openvino-samples>` page for other C++ example applications to get you started with OpenVINO, such as:
 
-* :doc:`Basic object detection with the Hello Reshape SSD C++ sample <../../../learn-openvino/openvino-samples/hello-reshape-ssd>`
-* :doc:`Object classification sample <../../../learn-openvino/openvino-samples/hello-classification>`
+* :doc:`Basic object detection with the Hello Reshape SSD C++ sample <../../../get-started/learn-openvino/openvino-samples/hello-reshape-ssd>`
+* :doc:`Object classification sample <../../../get-started/learn-openvino/openvino-samples/hello-classification>`
 

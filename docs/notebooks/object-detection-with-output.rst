@@ -60,33 +60,24 @@ Install requirements
 .. code:: ipython3
 
     %pip install -q "openvino>=2024.4.0"
-    %pip install -q "ultralytics==8.3.0" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "ultralytics==8.3.59" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q opencv-python requests tqdm
     
     # Fetch `notebook_utils` module
     import requests
+    from pathlib import Path
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
     
-    open("notebook_utils.py", "w").write(r.text)
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
-
-
-
-.. parsed-literal::
-
-    24624
-
-
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("object-detection.ipynb")
 
 Imports
 ~~~~~~~
@@ -127,34 +118,6 @@ Download and convert the Model
         pt_model.export(format="openvino", dynamic=True, half=True)
         del pt_model
         gc.collect()
-
-
-.. parsed-literal::
-
-    Downloading https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.pt to 'yolov8n.pt'...
-
-
-.. parsed-literal::
-
-    100%|██████████| 6.25M/6.25M [00:00<00:00, 26.8MB/s]
-
-
-.. parsed-literal::
-
-    Ultralytics 8.3.0 🚀 Python-3.8.10 torch-2.4.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
-    YOLOv8n summary (fused): 168 layers, 3,151,904 parameters, 0 gradients, 8.7 GFLOPs
-    
-    PyTorch: starting from 'yolov8n.pt' with input shape (1, 3, 640, 640) BCHW and output shape(s) (1, 84, 8400) (6.2 MB)
-    
-    OpenVINO: starting export with openvino 2024.4.0-16579-c3152d32c9c-releases/2024/4...
-    OpenVINO: export success ✅ 1.3s, saved as 'yolov8n_openvino_model/' (6.4 MB)
-    
-    Export complete (1.5s)
-    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/object-detection-webcam
-    Predict:         yolo predict task=detect model=yolov8n_openvino_model imgsz=640 half 
-    Validate:        yolo val task=detect model=yolov8n_openvino_model imgsz=640 data=coco.yaml half 
-    Visualize:       https://netron.app
-
 
 Load the Model
 ~~~~~~~~~~~~~~
@@ -222,10 +185,10 @@ best performance. For that purpose, just use ``AUTO``.
 
 .. parsed-literal::
 
-    Ultralytics 8.3.0 🚀 Python-3.8.10 torch-2.4.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
+    Ultralytics 8.3.0 🚀 Python-3.11.4 torch-2.5.1+cpu CPU (Intel Core(TM) i9-10980XE 3.00GHz)
     Loading yolov8n_openvino_model for OpenVINO inference...
     Using OpenVINO LATENCY mode for batch=1 inference...
-
+    
 
 Main Processing Function
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -342,7 +305,13 @@ Run the object detection:
 
     USE_WEBCAM = False
     
-    video_file = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4"
+    video_url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4"
+    
+    video_file = Path("coco.mp4")
+    
+    if not USE_WEBCAM and not video_file.exists():
+        utils.download_file(video_url, filename=video_file.name)
+    
     cam_id = 0
     
     source = cam_id if USE_WEBCAM else video_file
@@ -357,4 +326,4 @@ Run the object detection:
 .. parsed-literal::
 
     Source ended
-
+    

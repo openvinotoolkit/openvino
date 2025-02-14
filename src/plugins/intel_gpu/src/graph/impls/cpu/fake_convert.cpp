@@ -23,7 +23,7 @@ struct fake_convert_impl : public typed_primitive_impl<fake_convert> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::fake_convert_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<fake_convert_impl>(*this);
+        return std::make_unique<fake_convert_impl>(*this);
     }
 
     fake_convert_impl() : parent("fake_convert_cpu_impl") {}
@@ -97,7 +97,7 @@ struct fake_convert_impl : public typed_primitive_impl<fake_convert> {
 
 public:
     static std::unique_ptr<primitive_impl> create(const fake_convert_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<fake_convert_impl>();
+        return std::make_unique<fake_convert_impl>();
     }
 };
 

@@ -39,8 +39,7 @@
 #include "openvino/op/xor.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 void CreateElementwiseOp(ProgramBuilder& p,
                          const std::shared_ptr<ov::Node>& op,
@@ -250,5 +249,4 @@ REGISTER_FACTORY_IMPL(v13, BitwiseXor);
 REGISTER_FACTORY_IMPL(v15, BitwiseRightShift);
 REGISTER_FACTORY_IMPL(v15, BitwiseLeftShift);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

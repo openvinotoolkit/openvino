@@ -75,19 +75,9 @@ Install required packages:
     
     %pip install -q "matplotlib>=3.4"
     
-    %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
-    %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
-    %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version > '3.8'"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
+    %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64'" # macOS M1 and M2
+    %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64'" # macOS x86
+    %pip install -q "tensorflow>=2.5; sys_platform != 'darwin'"
 
 The notebook uses utility functions. The cell below will download the
 ``notebook_utils`` Python module from GitHub.
@@ -96,21 +86,19 @@ The notebook uses utility functions. The cell below will download the
 
     # Fetch the notebook utils script from the openvino_notebooks repo
     import requests
+    from pathlib import Path
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
     
-    open("notebook_utils.py", "w").write(r.text)
-
-
-
-
-.. parsed-literal::
-
-    24624
-
-
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("tensorflow-instance-segmentation-to-openvino.ipynb")
 
 Imports
 -------
@@ -175,13 +163,14 @@ from TensorFlow Hub:
 
 .. code:: ipython3
 
-    download_file(url=tf_model_url, filename=tf_model_archive_filename, directory=tf_model_dir);
+    if not (tf_model_dir / tf_model_archive_filename).exists():
+        download_file(url=tf_model_url, filename=tf_model_archive_filename, directory=tf_model_dir);
 
 
 
 .. parsed-literal::
 
-    mask_rcnn_inception_resnet_v2_1024x1024.tar.gz:   0%|          | 0.00/232M [00:00<?, ?B/s]
+    model/tf/mask_rcnn_inception_resnet_v2_1024x1024.tar.gz:   0%|          | 0.00/232M [00:00<?, ?B/s]
 
 
 Extract TensorFlow Instance Segmentation model from the downloaded
@@ -246,7 +235,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
 
 
 
@@ -336,7 +325,7 @@ the first (and highest) detection score.
        <ConstOutput: names[detection_multiclass_scores] shape[1,?,..182] type: f32>
        <ConstOutput: names[detection_scores] shape[1,?] type: f32>
        <ConstOutput: names[proposal_boxes_normalized, final_anchors] shape[1,?,..8] type: f32>
-
+    
 
 Get an Image for Test Inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -349,18 +338,18 @@ Load and save an image:
 
     image_path = Path("./data/coco_bike.jpg")
     
-    download_file(
-        url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg",
-        filename=image_path.name,
-        directory=image_path.parent,
-    );
-
+    if not image_path.exists():
+        download_file(
+            url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg",
+            filename=image_path.name,
+            directory=image_path.parent,
+        );
 
 
 .. parsed-literal::
 
-    coco_bike.jpg:   0%|          | 0.00/182k [00:00<?, ?B/s]
-
+    'data/coco_bike.jpg' already exists.
+    
 
 Read the image, resize and convert it to the input shape of the network:
 
@@ -386,7 +375,7 @@ Read the image, resize and convert it to the input shape of the network:
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f4a2c79b1c0>
+    <matplotlib.image.AxesImage at 0x7f637057bd30>
 
 
 
@@ -441,7 +430,7 @@ be extracted from the result. For further model result visualization
     image_detection_classes: (1, 100)
     image_detection_scores: (1, 100)
     image_detections_num: [100.]
-
+    
 
 Inference Result Visualization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -639,17 +628,18 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__:
 
     coco_labels_file_path = Path("./data/coco_91cl.txt")
     
-    download_file(
-        url="https://raw.githubusercontent.com/openvinotoolkit/open_model_zoo/master/data/dataset_classes/coco_91cl.txt",
-        filename=coco_labels_file_path.name,
-        directory=coco_labels_file_path.parent,
-    );
+    if not coco_labels_file_path.exists():
+        download_file(
+            url="https://raw.githubusercontent.com/openvinotoolkit/open_model_zoo/master/data/dataset_classes/coco_91cl.txt",
+            filename=coco_labels_file_path.name,
+            directory=coco_labels_file_path.parent,
+        );
 
 
 
 .. parsed-literal::
 
-    coco_91cl.txt:   0%|          | 0.00/421 [00:00<?, ?B/s]
+    data/coco_91cl.txt:   0%|          | 0.00/421 [00:00<?, ?B/s]
 
 
 Then we need to create dictionary ``coco_labels_map`` with mappings
@@ -668,7 +658,7 @@ file:
 .. parsed-literal::
 
     {1: 'person', 2: 'bicycle', 3: 'car', 4: 'motorcycle', 5: 'airplan', 6: 'bus', 7: 'train', 8: 'truck', 9: 'boat', 10: 'traffic light', 11: 'fire hydrant', 12: 'street sign', 13: 'stop sign', 14: 'parking meter', 15: 'bench', 16: 'bird', 17: 'cat', 18: 'dog', 19: 'horse', 20: 'sheep', 21: 'cow', 22: 'elephant', 23: 'bear', 24: 'zebra', 25: 'giraffe', 26: 'hat', 27: 'backpack', 28: 'umbrella', 29: 'shoe', 30: 'eye glasses', 31: 'handbag', 32: 'tie', 33: 'suitcase', 34: 'frisbee', 35: 'skis', 36: 'snowboard', 37: 'sports ball', 38: 'kite', 39: 'baseball bat', 40: 'baseball glove', 41: 'skateboard', 42: 'surfboard', 43: 'tennis racket', 44: 'bottle', 45: 'plate', 46: 'wine glass', 47: 'cup', 48: 'fork', 49: 'knife', 50: 'spoon', 51: 'bowl', 52: 'banana', 53: 'apple', 54: 'sandwich', 55: 'orange', 56: 'broccoli', 57: 'carrot', 58: 'hot dog', 59: 'pizza', 60: 'donut', 61: 'cake', 62: 'chair', 63: 'couch', 64: 'potted plant', 65: 'bed', 66: 'mirror', 67: 'dining table', 68: 'window', 69: 'desk', 70: 'toilet', 71: 'door', 72: 'tv', 73: 'laptop', 74: 'mouse', 75: 'remote', 76: 'keyboard', 77: 'cell phone', 78: 'microwave', 79: 'oven', 80: 'toaster', 81: 'sink', 82: 'refrigerator', 83: 'blender', 84: 'book', 85: 'clock', 86: 'vase', 87: 'scissors', 88: 'teddy bear', 89: 'hair drier', 90: 'toothbrush', 91: 'hair brush'}
-
+    
 
 Finally, we are ready to visualize model inference results on the
 original test image:

@@ -122,7 +122,7 @@ If installation was successful, you will see the list of available devices.
 ## Troubleshooting
 
 For general troubleshooting, see the
-[Troubleshooting Guide for OpenVINO Installation](https://docs.openvino.ai/2025/get-started/troubleshooting-install-config.html).
+[Troubleshooting Guide for OpenVINO Installation](https://docs.openvino.ai/2025/get-started/install-openvino/configurations/troubleshooting-install-config.html).
 The following sections also provide explanations to several error messages.
 
 ### Errors with Installing via PIP for Users in China

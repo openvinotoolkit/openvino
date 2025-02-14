@@ -83,6 +83,11 @@ Prerequisites
     if not Path("cmd_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py")
         open("cmd_helper.py", "w", encoding="utf-8").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("internvl2.ipynb")
 
 Select model
 ------------
@@ -177,7 +182,7 @@ tasks and model classes in Optimum TaskManager
 `documentation <https://huggingface.co/docs/optimum/exporters/task_manager>`__.
 Additionally, you can specify weights compression using
 ``--weight-format`` argument with one of following options: ``fp32``,
-``fp16``, ``int8`` and ``int4``. Fro int8 and int4
+``fp16``, ``int8`` and ``int4``. For int8 and int4
 `nncf <https://github.com/openvinotoolkit/nncf>`__ will be used for
 weight compression. More details about model export provided in `Optimum
 Intel
@@ -351,7 +356,7 @@ Select inference device
 
     from notebook_utils import device_widget
     
-    device = device_widget(default="AUTO", exclude=["NPU"])
+    device = device_widget(default="CPU", exclude=["NPU", "AUTO"])
     
     device
 

@@ -103,27 +103,25 @@ tokenizer and preparing the images.
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "gradio>=4.19" "protobuf>=3.20.3" "openvino>=2024.4.0" "transformers>=4.37" "torch>=2.1" Pillow sentencepiece protobuf scipy datasets "nncf>=2.13.0"
     %pip install -q "matplotlib>=3.4"
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
-
 .. code:: ipython3
 
     from transformers import AutoProcessor, AutoModel
+    import requests
+    from pathlib import Path
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("siglip-zero-shot-image-classification.ipynb")
     
     model = AutoModel.from_pretrained("google/siglip-base-patch16-224")
     processor = AutoProcessor.from_pretrained("google/siglip-base-patch16-224")
-
-
-.. parsed-literal::
-
-    2024-12-10 05:15:56.596890: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-12-10 05:15:56.621776: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-
 
 Run PyTorch model inference
 ---------------------------
@@ -186,12 +184,13 @@ similarity score for the final result.
     from PIL import Image
     
     image_path = Path("test_image.jpg")
-    r = requests.get(
-        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
-    )
+    if not image_path.exists():
+        r = requests.get(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
+        )
     
-    with image_path.open("wb") as f:
-        f.write(r.content)
+        with image_path.open("wb") as f:
+            f.write(r.content)
     image = Image.open(image_path)
     
     input_labels = [
@@ -223,7 +222,7 @@ similarity score for the final result.
 .. parsed-literal::
 
     [{'dog': 0.99}, {'cat': 0.0}, {'horse': 0.0}, {'wolf': 0.0}, {'tiger': 0.0}]
-
+    
 
 
 .. image:: siglip-zero-shot-image-classification-with-output_files/siglip-zero-shot-image-classification-with-output_6_1.png
@@ -249,20 +248,6 @@ object ready to load on the device and start making predictions.
     model.config.torchscript = True
     ov_model = ov.convert_model(model, example_input=dict(inputs))
 
-
-.. parsed-literal::
-
-    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
-
-
-.. parsed-literal::
-
-    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:5006: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
-      warnings.warn(
-    `loss_type=None` was set in the config but it is unrecognised.Using the default loss: `ForCausalLMLoss`.
-
-
 Run OpenVINO model
 ------------------
 
@@ -276,27 +261,11 @@ Select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import requests
-    
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
-    
     from notebook_utils import device_widget
     
     device = device_widget()
     
     device
-
-
-
-
-.. parsed-literal::
-
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
-
-
 
 Run OpenVINO model
 
@@ -321,7 +290,7 @@ Run OpenVINO model
 .. parsed-literal::
 
     [{'dog': 0.99}, {'cat': 0.0}, {'horse': 0.0}, {'wolf': 0.0}, {'tiger': 0.0}]
-
+    
 
 
 .. image:: siglip-zero-shot-image-classification-with-output_files/siglip-zero-shot-image-classification-with-output_13_1.png
@@ -464,18 +433,6 @@ model.
 
     calibration_data = prepare_dataset()
 
-
-.. parsed-literal::
-
-    Fetching 300 for the initialization...
-
-
-
-.. parsed-literal::
-
-    0it [00:00, ?it/s]
-
-
 Quantize model
 ~~~~~~~~~~~~~~
 
@@ -502,64 +459,6 @@ Create a quantized model from the pre-trained ``FP16`` model.
         calibration_dataset=calibration_dataset,
         model_type=nncf.ModelType.TRANSFORMER,
     )
-
-
-.. parsed-literal::
-
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
 
 NNCF also supports quantization-aware training, and other algorithms
 than quantization. See the `NNCF
@@ -604,8 +503,8 @@ model are similar to the PyTorch model.
 
 .. parsed-literal::
 
-    [{'dog': 0.99}, {'horse': 0.0}, {'cat': 0.0}, {'wolf': 0.0}, {'frog': 0.0}]
-
+    [{'dog': 1.0}, {'horse': 0.0}, {'cat': 0.0}, {'wolf': 0.0}, {'frog': 0.0}]
+    
 
 
 .. image:: siglip-zero-shot-image-classification-with-output_files/siglip-zero-shot-image-classification-with-output_24_1.png
@@ -636,9 +535,9 @@ Compare File Size
 .. parsed-literal::
 
     FP16 IR model size: 387.49 MB
-    INT8 model size: 201.26 MB
-    Model compression rate: 1.925
-
+    INT8 model size: 196.46 MB
+    Model compression rate: 1.972
+    
 
 Compare inference time of the FP16 IR and quantized models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -679,8 +578,8 @@ approximately estimate the speed up of the dynamic quantized models.
 
 .. parsed-literal::
 
-    Performance speed up: 1.907
-
+    Performance speed up: 2.827
+    
 
 Interactive inference
 ---------------------
@@ -728,23 +627,9 @@ field, using comma as the separator (for example, ``cat,dog,bird``)
     demo = make_demo(classify)
     
     try:
-        demo.launch(debug=False, height=1000)
+        demo.launch(debug=True, height=1000)
     except Exception:
-        demo.launch(share=True, debug=False, height=1000)
+        demo.launch(share=True, debug=True, height=1000)
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-    
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-

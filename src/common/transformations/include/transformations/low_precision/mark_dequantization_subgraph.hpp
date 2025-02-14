@@ -49,7 +49,7 @@ public:
 /**
  * @ingroup ov_transformation_common_api
  *
- * @brief KeepConstsPrecision matches Dequantization subgraphs and if Input/ZeroPoints/Scale are Constants
+ * @brief KeepConstPrecision matches Dequantization subgraphs and if Input/ZeroPoints/Scale are Constants
  * they might be marked with keep_const_precision attribute.
  *
  * Dequantization subgraph may have two forms: with and without Subtract.
@@ -68,12 +68,12 @@ public:
  *                Multiply                     Multiply
  *
  */
-class TRANSFORMATIONS_API KeepConstsPrecision : public ov::pass::MatcherPass {
+class TRANSFORMATIONS_API KeepConstPrecision : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("KeepConstsPrecision");
-    explicit KeepConstsPrecision(const element::TypeVector& precisions,
-                                 bool fold_subtract_const = false,
-                                 bool fold_multiply_const = true);
+    OPENVINO_MATCHER_PASS_RTTI("KeepConstPrecision");
+    explicit KeepConstPrecision(const element::TypeVector& precisions,
+                                bool fold_subtract_const = false,
+                                bool fold_multiply_const = true);
 };
 
 }  // namespace pass

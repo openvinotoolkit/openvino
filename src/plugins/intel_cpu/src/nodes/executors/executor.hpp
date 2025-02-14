@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/visibility.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 #if defined(OV_CPU_WITH_MLAS) && defined(OPENVINO_ARCH_ARM64)
 #    define OV_CPU_INSTANCE_MLAS_ARM64(...) {__VA_ARGS__},
@@ -176,5 +175,4 @@ public:
 };
 using ExecutorPtr = std::shared_ptr<Executor>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

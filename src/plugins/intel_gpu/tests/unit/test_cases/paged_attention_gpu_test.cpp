@@ -5,6 +5,7 @@
 #include "test_utils.h"
 #include "random_generator.hpp"
 
+#include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -305,6 +306,12 @@ struct PagedAttentionManager {
         auto mem = get_memory_from_vec(rotation_trig_lut);
         auto layout = mem->get_layout();
         layout.set_partial_shape(ov::PartialShape{ max_context_len[0], head_size });
+
+        if (rotated_block_indices.empty()) {
+            auto empty_layout = mem->get_layout();
+            empty_layout.set_partial_shape(ov::PartialShape{ 0, head_size });
+            return test_engine.reinterpret_buffer(*mem, empty_layout);
+        }
 
         return test_engine.reinterpret_buffer(*mem, layout);
     }
@@ -723,6 +730,37 @@ public:
         rotation_deltas_layout.set_partial_shape(ov::PartialShape{ -1, -1 });
         rotation_trig_lut_layout.set_partial_shape(ov::PartialShape{ -1, p.head_size });
 
+        if (p.dynamic_paddings) {
+            const auto padding_axis = 1;
+            const auto pad_before = p.head_size;
+            const auto pad_after = p.head_size * 2;
+
+            query_layout.data_padding._dynamic_dims_mask[padding_axis] = 1;
+
+            auto query_data_layout = query_mem->get_layout();
+            auto padded_query_data_layout = query_data_layout;
+            padded_query_data_layout.data_padding._lower_size[padding_axis] = pad_before;
+            padded_query_data_layout.data_padding._upper_size[padding_axis] = pad_after;
+
+            auto new_query_memory = get_test_engine().allocate_memory(padded_query_data_layout, false);
+
+            mem_lock<ov::float16> query_mem_lock(query_mem, get_test_stream());
+            mem_lock<ov::float16> new_query_mem_lock(new_query_memory, get_test_stream());
+
+            auto query_data_shape = query_data_layout.get_shape();
+            for (size_t b = 0; b < query_data_shape[0]; b++) {
+                for (size_t f = 0; f < query_data_shape[1]; f++) {
+                    auto input_offset =
+                        query_data_layout.get_linear_offset(cldnn::tensor(static_cast<int32_t>(b), static_cast<int32_t>(f), 0, 0, 0, 0));
+                    auto output_offset =
+                        padded_query_data_layout.get_linear_offset(cldnn::tensor(static_cast<int32_t>(b), static_cast<int32_t>(f), 0, 0, 0, 0));
+
+                    new_query_mem_lock[output_offset] = query_mem_lock[input_offset];
+                }
+            }
+            query_mem = new_query_memory;
+        }
+
         std::vector<input_info> pa_inputs = {
             input_info("query"),
             input_info("key"),
@@ -741,7 +779,7 @@ public:
         if (p.rotation_config.apply_rotation) {
             pa_inputs.push_back(input_info("rotated_block_indices"));
             pa_inputs.push_back(input_info("rotation_deltas"));
-            pa_inputs.push_back(input_info("rotation_trig_lut"));
+            pa_inputs.push_back(input_info("rotation_trig_lut_modified"));
         }
 
         auto pa_prim = paged_attention("paged_attention", pa_inputs);
@@ -782,6 +820,9 @@ public:
             topology.add(input_layout("rotated_block_indices", rotated_block_indices_layout));
             topology.add(input_layout("rotation_deltas", rotation_deltas_layout));
             topology.add(input_layout("rotation_trig_lut", rotation_trig_lut_layout));
+
+            // add dummy activation operation to simulate an empty PA `rotation_trig_lut` buffer for shapes like [0, head_size]
+            topology.add(activation("rotation_trig_lut_modified", input_info("rotation_trig_lut"), activation_func::none));
         }
 
         ExecutionConfig config = get_test_default_config(get_test_engine());
@@ -847,6 +888,7 @@ struct paged_attention_test_params {
     int num_heads;
     int head_size;
     int block_size;
+    bool dynamic_paddings;
     bool scores_output;
     CacheRotationDescriptor rotation_config;
 };
@@ -863,31 +905,34 @@ const auto DISABLE_SCORES = false;
 const auto PER_BLOCK_ROTATION = CacheRotationDescriptor{ true, true };
 const auto PER_TOKEN_ROTATION = CacheRotationDescriptor{ true, false };
 const auto DISABLE_ROTATION = CacheRotationDescriptor{ false, false };
+const auto STATIC_INPUT_PAD = false;
+const auto DYNAMIC_INPUT_PAD = true;
 
 INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     /* with scores output */
-    paged_attention_test_params{ {{10, 0}}, 2, 64, 16, ENABLE_SCORES, DISABLE_ROTATION }, // 1st token
-    paged_attention_test_params{ {{36, 0}}, 2, 64, 16, ENABLE_SCORES, DISABLE_ROTATION }, // 1st token
-    paged_attention_test_params{ {{1024, 0}}, 2, 64, 16, ENABLE_SCORES, DISABLE_ROTATION }, // 1st token long
-    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 64, 16, ENABLE_SCORES, DISABLE_ROTATION }, // 1st token + 1st token
-    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 64, 16, ENABLE_SCORES, DISABLE_ROTATION }, // 1st token + 1st token
-    paged_attention_test_params{ {{1, 10}}, 2, 64, 16, ENABLE_SCORES, DISABLE_ROTATION }, // 2nd token
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, ENABLE_SCORES, DISABLE_ROTATION }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, ENABLE_SCORES, DISABLE_ROTATION }, // mixed: 2nd token + 1st token + part of 1st token
-    /* without scores output */
-    paged_attention_test_params{ {{10, 0}}, 2, 64, 16, DISABLE_SCORES, DISABLE_ROTATION }, // 1st token
-    paged_attention_test_params{ {{1024, 0}}, 2, 64, 16, DISABLE_SCORES, DISABLE_ROTATION }, // 1st token long
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, DISABLE_SCORES, DISABLE_ROTATION }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{10, 0}}, 2, 64, 16, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION }, // 1st token
+    paged_attention_test_params{ {{36, 0}}, 2, 64, 16, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION }, // 1st token
+    paged_attention_test_params{ {{1024, 0}}, 2, 64, 16, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION }, // 1st token long
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 64, 16, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION }, // 1st token + 1st token
+    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 64, 16, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION }, // 1st token + 1st token
+    paged_attention_test_params{ {{1, 10}}, 2, 64, 16, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION }, // 2nd token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION }, // mixed: 2nd token + 1st token + part of 1st token
+    /* without scores output, dynamic input query paddings */
+    paged_attention_test_params{ {{10, 0}}, 2, 64, 16, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION }, // 1st token
+    paged_attention_test_params{ {{1024, 0}}, 2, 64, 16, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION }, // 1st token long
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION }, // mixed: 2nd token + 1st token + part of 1st token
     /* with scores, per_block rotation */
-    paged_attention_test_params{ {{10, 0}}, 2, 64, 16, ENABLE_SCORES, PER_BLOCK_ROTATION }, // 1st token
-    paged_attention_test_params{ {{36, 0}}, 2, 64, 16, ENABLE_SCORES, PER_BLOCK_ROTATION }, // 1st token
-    paged_attention_test_params{ {{1024, 0}}, 2, 64, 16, ENABLE_SCORES, PER_BLOCK_ROTATION }, // 1st token long
-    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 64, 16, ENABLE_SCORES, PER_BLOCK_ROTATION }, // 1st token + 1st token
-    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 64, 16, ENABLE_SCORES, PER_BLOCK_ROTATION }, // 1st token + 1st token
-    paged_attention_test_params{ {{1, 10}}, 2, 64, 16, ENABLE_SCORES, PER_BLOCK_ROTATION }, // 2nd token
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, ENABLE_SCORES, PER_BLOCK_ROTATION }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, ENABLE_SCORES, PER_BLOCK_ROTATION }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 64, 16, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION }, // 1st token
+    paged_attention_test_params{ {{36, 0}}, 2, 64, 16, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION }, // 1st token
+    paged_attention_test_params{ {{1024, 0}}, 2, 64, 16, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION }, // 1st token long
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 64, 16, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION }, // 1st token + 1st token
+    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 64, 16, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION }, // 1st token + 1st token
+    paged_attention_test_params{ {{1, 10}}, 2, 64, 16, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION }, // 2nd token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION }, // mixed: 2nd token + 1st token + part of 1st token
     /* with scores, per_token rotation */
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, ENABLE_SCORES, PER_TOKEN_ROTATION }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, ENABLE_SCORES, PER_TOKEN_ROTATION }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION }, // mixed: 2nd token + 1st token + part of 1st token
 }));

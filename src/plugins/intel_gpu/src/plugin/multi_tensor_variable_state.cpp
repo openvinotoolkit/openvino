@@ -19,8 +19,7 @@
 
 #include <memory>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 MultiTensorState::MultiTensorState(const std::vector<VariableStateInfo>& infos,
                                    std::shared_ptr<RemoteContextImpl> context,
@@ -211,5 +210,4 @@ ov::SoPtr<ov::ITensor> VariableStateIndirectKVCacheCompressed::get_state() const
     OPENVINO_THROW("[GPU] get_state API is supported only when KV-cache compression is disabled");
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

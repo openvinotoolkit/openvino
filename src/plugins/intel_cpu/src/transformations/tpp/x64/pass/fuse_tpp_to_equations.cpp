@@ -9,10 +9,7 @@
 #include "transformations/tpp/x64/op/eltwise.hpp"
 #include "transformations/tpp/x64/op/equation.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
-namespace pass {
+namespace ov::intel_cpu::tpp::pass {
 using snippets::lowered::ExpressionPort;
 using snippets::lowered::ExpressionPtr;
 using NodePtr = std::shared_ptr<Node>;
@@ -39,17 +36,20 @@ bool FuseTPPToEquations::fuse_from_root(const NodePtr& root, const std::shared_p
 
     // Note: we don't support exprs with more than 1 output yet. It's a technical limitation, but there are no use cases
     const auto tpp_root = get_tpp_op(root);
-    if (!tpp_root || !supported_num_out(root->output(0)))
+    if (!tpp_root || !supported_num_out(root->output(0))) {
         return false;
+    }
 
     const auto root_subtensor = PortDescriptorUtils::get_port_descriptor_ptr(root->output(0))->get_subtensor();
     auto supported_subtensor = [&root_subtensor](const snippets::VectorDims& subtensor) {
         const auto size = subtensor.size();
-        if (size != root_subtensor.size())
+        if (size != root_subtensor.size()) {
             return false;
+        }
         for (size_t i = 0; i < size; i++) {
-            if (subtensor[i] != root_subtensor[i] && subtensor[i] != 1)
+            if (subtensor[i] != root_subtensor[i] && subtensor[i] != 1) {
                 return false;
+            }
         }
         return true;
     };
@@ -109,7 +109,4 @@ bool FuseTPPToEquations::run_on_model(const std::shared_ptr<ov::Model>& m) {
     return modified;
 }
 
-}  // namespace pass
-}  // namespace tpp
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::tpp::pass

@@ -41,21 +41,25 @@ GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const GraphContext::
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        THROW_CPU_NODE_ERR(errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (op->get_input_size() != 2 || op->get_output_size() != 1)
+    if (op->get_input_size() != 2 || op->get_output_size() != 1) {
         THROW_CPU_NODE_ERR("has incorrect number of input/output ports.");
+    }
 
     const auto& dataShape = getInputShapeAtPort(IN_DATA);
-    if (dataShape.getRank() != 4)
+    if (dataShape.getRank() != 4) {
         THROW_CPU_NODE_ERR("has incorrect rank of the Data input.");
+    }
 
     const auto& gridShape = getInputShapeAtPort(IN_GRID);
-    if (gridShape.getRank() != 4)
+    if (gridShape.getRank() != 4) {
         THROW_CPU_NODE_ERR("has incorrect rank of the Grid input.");
-    if (gridShape.isStatic() && gridShape.getDims()[3] != 2)
+    }
+    if (gridShape.isStatic() && gridShape.getDims()[3] != 2) {
         THROW_CPU_NODE_ERR("has incorrect shape of the Grid input. The 4th dimension should be equal to 2.");
+    }
 
     const auto& attributes = ov::as_type_ptr<ov::op::v9::GridSample>(op)->get_attributes();
     alignCorners = attributes.align_corners;
@@ -88,8 +92,9 @@ GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const GraphContext::
 }
 
 void GridSample::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     dataPrecision = getOriginalInputPrecisionAtPort(IN_DATA);
     if (dataPrecision != ov::element::i32) {
@@ -181,16 +186,20 @@ void GridSample::createPrimitive() {
 
 void GridSample::prepareParams() {
     auto dataMemPtr = getSrcMemoryAtPort(IN_DATA);
-    if (!dataMemPtr || !dataMemPtr->isDefined())
+    if (!dataMemPtr || !dataMemPtr->isDefined()) {
         THROW_CPU_NODE_ERR("has undefined input data memory.");
+    }
     auto gridMemPtr = getSrcMemoryAtPort(IN_GRID);
-    if (!gridMemPtr || !gridMemPtr->isDefined())
+    if (!gridMemPtr || !gridMemPtr->isDefined()) {
         THROW_CPU_NODE_ERR("has undefined input grid memory.");
+    }
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isDefined())
+    if (!dstMemPtr || !dstMemPtr->isDefined()) {
         THROW_CPU_NODE_ERR("has undefined output memory.");
-    if (getSelectedPrimitiveDescriptor() == nullptr)
+    }
+    if (getSelectedPrimitiveDescriptor() == nullptr) {
         THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor.");
+    }
 
     const uint64_t dataElPerVec = jitKernel->getDataElPerVec();
     const auto& srcDataShape = dataMemPtr->getStaticDims();

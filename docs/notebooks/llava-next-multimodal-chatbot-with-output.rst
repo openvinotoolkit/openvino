@@ -57,11 +57,14 @@ Prerequisites
 
 
 
+-  Recommend >= 32GB RAM to convert “llava-hf/llava-v1.6-mistral-7b-hf”
+   to OpenVino IR format.
+
 .. code:: ipython3
 
     %pip install -q "nncf>=2.14.0" "torch>=2.1" "transformers>=4.39.1" "accelerate" "pillow" "gradio>=4.26" "datasets>=2.14.6" "tqdm" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q -U "openvino>=2024.5.0" "openvino-tokenizers>=2024.5.0" "openvino-genai>=2024.5"
-    %pip install -q "git+https://github.com/hugggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
 
 .. code:: ipython3
 
@@ -82,6 +85,11 @@ Prerequisites
     
     model_id = "llava-hf/llava-v1.6-mistral-7b-hf"
     MODEL_DIR = Path(model_id.split("/")[-1].replace("-hf", "-ov"))
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("llava-next-multimodal-chatbot.ipynb")
 
 Convert model to OpenVINO IR format using Optimum CLI
 -----------------------------------------------------
@@ -114,7 +122,7 @@ tasks and model classes in Optimum TaskManager
 `documentation <https://huggingface.co/docs/optimum/exporters/task_manager>`__.
 Additionally, you can specify weights compression using
 ``--weight-format`` argument with one of following options: ``fp32``,
-``fp16``, ``int8`` and ``int4``. Fro int8 and int4
+``fp16``, ``int8`` and ``int4``. For int8 and int4
 `nncf <https://github.com/openvinotoolkit/nncf>`__ will be used for
 weight compression. More details about model export provided in `Optimum
 Intel
@@ -391,9 +399,14 @@ one of the most critical aspects of a smooth experience.
         print(subword, end="", flush=True)
     
     
-    image_file = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/d5fbbd1a-d484-415c-88cb-9986625b7b11"
+    image_url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/d5fbbd1a-d484-415c-88cb-9986625b7b11"
+    image_file = Path("cat.png")
     
-    image, image_tensor = load_image(image_file)
+    if not image_file.exists():
+        image, image_tensor = load_image(image_url)
+        image.save(image_file)
+    else:
+        image, image_tensor = load_image(image_file)
     text_message = "What is unusual on this image?"
     
     prompt = text_message
@@ -405,7 +418,7 @@ one of the most critical aspects of a smooth experience.
 
 
 
-.. image:: llava-next-multimodal-chatbot-with-output_files/llava-next-multimodal-chatbot-with-output_17_0.png
+.. image:: llava-next-multimodal-chatbot-with-output_files/llava-next-multimodal-chatbot-with-output_18_0.png
 
 
 .. parsed-literal::

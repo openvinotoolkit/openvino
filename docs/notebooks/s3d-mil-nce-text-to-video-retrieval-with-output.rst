@@ -64,12 +64,14 @@ Prerequisites
     %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
     %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version > '3.8'"
     
-    %pip install -q tensorflow_hub tf_keras numpy "opencv-python" "nncf>=2.10.0"
+    %pip install -q --no-deps tensorflow_hub
+    %pip install -q tf_keras numpy "opencv-python" "nncf>=2.10.0"
     %pip install -q "matplotlib>=3.4"
 
 .. code:: ipython3
 
     import os
+    import requests
     from pathlib import Path
     
     import tensorflow as tf
@@ -81,6 +83,17 @@ Prerequisites
     import math
     
     os.environ["TFHUB_CACHE_DIR"] = str(Path("./tfhub_modules").resolve())
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("s3d-mil-nce-text-to-video-retrieval.ipynb")
 
 Download the model
 
@@ -119,7 +132,10 @@ Below we will define auxiliary functions
     
     
     def load_video(video_url, max_frames=32, resize=(224, 224)):
-        path = tf.keras.utils.get_file(os.path.basename(video_url)[-128:], video_url)
+        if video_url.startswith("http"):
+            path = tf.keras.utils.get_file(os.path.basename(video_url)[-128:], video_url, cache_dir=".", cache_subdir="data")
+        else:
+            path = video_url
         cap = cv2.VideoCapture(path)
         frames = []
         try:
@@ -176,15 +192,16 @@ Below we will define auxiliary functions
 
 .. code:: ipython3
 
-    # @title Load example videos and define text queries  { display-mode: "form" }
+    video_1_url = "https://upload.wikimedia.org/wikipedia/commons/b/b0/YosriAirTerjun.gif"
+    video_2_url = "https://upload.wikimedia.org/wikipedia/commons/e/e6/Guitar_solo_gif.gif"
+    video_3_url = "https://upload.wikimedia.org/wikipedia/commons/3/30/2009-08-16-autodrift-by-RalfR-gif-by-wau.gif"
     
-    video_1_url = "https://upload.wikimedia.org/wikipedia/commons/b/b0/YosriAirTerjun.gif"  # @param {type:"string"}
-    video_2_url = "https://upload.wikimedia.org/wikipedia/commons/e/e6/Guitar_solo_gif.gif"  # @param {type:"string"}
-    video_3_url = "https://upload.wikimedia.org/wikipedia/commons/3/30/2009-08-16-autodrift-by-RalfR-gif-by-wau.gif"  # @param {type:"string"}
-    
-    video_1 = load_video(video_1_url)
-    video_2 = load_video(video_2_url)
-    video_3 = load_video(video_3_url)
+    video_1_path = Path("data/YosriAirTerjun.gif")
+    video_2_path = Path("data/Guitar_solo_gif.gif")
+    video_3_path = Path("data/2009-08-16-autodrift-by-RalfR-gif-by-wau.gif")
+    video_1 = load_video(video_1_url if not video_1_path.exists() else video_1_path)
+    video_2 = load_video(video_2_url if not video_2_path.exists() else video_2_path)
+    video_3 = load_video(video_3_url if not video_3_path.exists() else video_3_path)
     all_videos = [video_1, video_2, video_3]
     
     query_1_video = "waterfall"  # @param {type:"string"}

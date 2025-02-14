@@ -6,8 +6,7 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 /// 1. Trivial case (greedy search, no state initializer)
 ///     ┌───────────┐      ┌───────────┐                                      ┌───────────┐
@@ -83,5 +82,4 @@ public:
 };
 
 
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu

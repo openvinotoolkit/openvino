@@ -91,11 +91,22 @@ Prerequisites
     %pip install -q "nncf>=2.6.0" "jiwer"
     
     import requests
+    import platform
+    from pathlib import Path
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
+    if platform.system() == "Darwin":
+        %pip install -q "numpy<2.0.0"
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("distil-whisper-asr.ipynb")
 
 Load PyTorch model
 ------------------
@@ -467,6 +478,7 @@ seconds is optimal. To activate batching, pass the argument batch_size.
 .. code:: ipython3
 
     from transformers import pipeline
+    import torch
     
     ov_model.generation_config = pt_model.generation_config
     
@@ -478,6 +490,7 @@ seconds is optimal. To activate batching, pass the argument batch_size.
         max_new_tokens=128,
         chunk_length_s=15,
         batch_size=16,
+        device=torch.device("cpu"),
     )
 
 
@@ -660,10 +673,11 @@ quantization.
     # Fetch `skip_kernel_extension` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
-    )
-    open("skip_kernel_extension.py", "w").write(r.text)
+    if not Path("skip_kernel_extension.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
+        )
+        open("skip_kernel_extension.py", "w").write(r.text)
     
     %load_ext skip_kernel_extension
 
@@ -693,7 +707,7 @@ improves quantization quality.
         encoder_calibration_data = []
         decoder_calibration_data = []
         ov_model.encoder.request = InferRequestWrapper(ov_model.encoder.request, encoder_calibration_data, apply_caching=True)
-        ov_model.decoder_with_past.request = InferRequestWrapper(ov_model.decoder_with_past.request,
+        ov_model.decoder.request = InferRequestWrapper(ov_model.decoder.request,
                                                                  decoder_calibration_data,
                                                                  apply_caching=True)
     
@@ -705,7 +719,7 @@ improves quantization quality.
                 ov_model.generate(input_features)
         finally:
             ov_model.encoder.request = ov_model.encoder.request.request
-            ov_model.decoder_with_past.request = ov_model.decoder_with_past.request.request
+            ov_model.decoder.request = ov_model.decoder.request.request
     
         return encoder_calibration_data, decoder_calibration_data
 
@@ -715,7 +729,7 @@ Quantize Distil-Whisper encoder and decoder models
 
 
 Below we run the ``quantize`` function which calls ``nncf.quantize`` on
-Distil-Whisper encoder and decoder-with-past models. We don’t quantize
+Distil-Whisper encoder and decoder models. We don’t quantize
 first-step-decoder because its share in whole inference time is
 negligible.
 
@@ -752,23 +766,21 @@ negligible.
             gc.collect()
     
             print("Quantizing decoder with past")
-            quantized_decoder_with_past = nncf.quantize(
-                ov_model.decoder_with_past.model,
+            quantized_decoder = nncf.quantize(
+                ov_model.decoder.model,
                 nncf.Dataset(decoder_calibration_data),
                 subset_size=len(decoder_calibration_data),
                 model_type=nncf.ModelType.TRANSFORMER,
                 # Smooth Quant algorithm reduces activation quantization error; optimal alpha value was obtained through grid search
                 advanced_parameters=nncf.AdvancedQuantizationParameters(smooth_quant_alpha=0.95)
             )
-            ov.save_model(quantized_decoder_with_past, quantized_model_path / "openvino_decoder_with_past_model.xml")
-            del quantized_decoder_with_past
+            ov.save_model(quantized_decoder, quantized_model_path / "openvino_decoder_model.xml")
+            del quantized_decoder
             del decoder_calibration_data
             gc.collect()
     
             # Copy the config file and the first-step-decoder manually
             shutil.copy(model_path / "config.json", quantized_model_path / "config.json")
-            shutil.copy(model_path / "openvino_decoder_model.xml", quantized_model_path / "openvino_decoder_model.xml")
-            shutil.copy(model_path / "openvino_decoder_model.bin", quantized_model_path / "openvino_decoder_model.bin")
     
         quantized_ov_model = OVModelForSpeechSeq2Seq.from_pretrained(quantized_model_path, ov_config=ov_config, compile=False)
         quantized_ov_model.to(device.value)
@@ -935,7 +947,7 @@ decoder-with-past model forwards, and for the whole model inference too.
         whole_infer_times = []
         time_fn(ov_model, "generate", whole_infer_times)
         time_fn(ov_model.encoder, "forward", encoder_infer_times)
-        time_fn(ov_model.decoder_with_past, "forward", decoder_with_past_infer_times)
+        time_fn(ov_model.decoder, "forward", decoder_with_past_infer_times)
     
         ground_truths = []
         predictions = []
@@ -1029,6 +1041,7 @@ recognition. Multilingual support will be provided later.
         max_new_tokens=128,
         chunk_length_s=15,
         generate_kwargs=generate_kwargs,
+        device=torch.device("cpu"),
     )
     ov_pipe_forward = ov_pipe._forward
     
@@ -1042,6 +1055,7 @@ recognition. Multilingual support will be provided later.
             max_new_tokens=128,
             chunk_length_s=15,
             generate_kwargs=generate_kwargs,
+            device=torch.device("cpu"),
         )
         ov_quantized_pipe_forward = ov_quantized_pipe._forward
     

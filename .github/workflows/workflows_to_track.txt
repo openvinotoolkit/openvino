@@ -20,8 +20,8 @@ name: Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)
 name: GitHub Actions Workflows Scans
 ==> ./check_pr_commits.yml <==
 name: PR Commits
-==> ./windows_vs2019_debug.yml <==
-name: Windows (VS 2019, Python 3.11, Debug)
+==> ./windows_vs2022_debug.yml <==
+name: Windows (VS 2022, Python 3.11, Debug)
 ==> ./files_size.yml <==
 name: Files Size
 ==> ./cleanup_caches.yml <==
@@ -69,7 +69,7 @@ name: Webassembly
 name: Linux (Ubuntu 24.04, Python 3.12)
 ==> ./assign_issue.yml <==
 name: Take Issue
-==> ./windows_vs2019_release.yml <==
-name: Windows (VS 2019, Python 3.11, Release)
+==> ./windows_vs2022_release.yml <==
+name: Windows (VS 2022, Python 3.11, Release)
 ==> ./coverity.yml <==
 name: Coverity (Ubuntu 20.04, Python 3.11)

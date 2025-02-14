@@ -269,7 +269,6 @@ TEST_P(gemm_2in_scale, basic) {
 }
 
 TEST_P(gemm_2in_scale, fp16_scale_out) {
-    GTEST_SKIP();
     auto p = GetParam();
     create_topologies(
         input_layout("input0", get_input_layout(p, 0)),
@@ -300,7 +299,6 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_scale, ::testing::ValuesIn(std::v
 
 class gemm_2in_add : public GemmFusingTest {};
 TEST_P(gemm_2in_add, eltwise_postop_static) {
-    GTEST_SKIP();
     auto p = GetParam();
 
     if (engine.get_device_info().supports_immad) {
@@ -333,7 +331,6 @@ TEST_P(gemm_2in_add, eltwise_postop_static) {
 }
 
 TEST_P(gemm_2in_add, eltwise_postop_dynamic) {
-    GTEST_SKIP();
     auto p = GetParam();
 
     if (engine.get_device_info().supports_immad) {
@@ -370,7 +367,6 @@ TEST_P(gemm_2in_add, eltwise_postop_dynamic) {
 }
 
 TEST_P(gemm_2in_add, eltwise_postop_cached) {
-    GTEST_SKIP();
     auto p = GetParam();
 
     if (engine.get_device_info().supports_immad) {
@@ -430,6 +426,40 @@ TEST_P(gemm_2in_add, eltwise_postop_scalar) {
 
     tolerance = default_tolerance(p.default_type);
     execute(p, false, true);
+}
+
+TEST_P(gemm_2in_add, eltwise_postop_scalar_dynamic) {
+    auto p = GetParam();
+
+    if (engine.get_device_info().supports_immad) {
+        ov::intel_gpu::ImplementationDesc gemmv_impl = { cldnn::format::type::any, "", impl_types::onednn };
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "gemm_prim", gemmv_impl } }));
+        cfg_fused.set_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape(true));
+    }
+
+    auto add_data_layout = get_output_layout(p);
+    auto add_data_size = add_data_layout.get_partial_shape();
+    for (size_t i = 0; i < add_data_size.size(); i++)
+        add_data_size[i] = 1;
+    add_data_layout.set_partial_shape(add_data_size);
+
+    auto in_layout0 = get_input_layout(p, 0);
+    auto in_layout1 = get_input_layout(p, 1);
+
+    in_layout0.set_partial_shape(ov::PartialShape::dynamic(p.in_shapes[0].size()));
+    in_layout1.set_partial_shape(ov::PartialShape::dynamic(p.in_shapes[1].size()));
+
+    create_topologies(
+        input_layout("input0", in_layout0),
+        input_layout("input1", in_layout1),
+        data("add_data", get_mem(add_data_layout, 0.5f)),
+        gemm("gemm_prim", { input_info("input0"), input_info("input1") }, data_types::f32, false, false, 1.f, 0.f, in_layout0.get_rank(), in_layout1.get_rank()),
+        eltwise("add_prim", { input_info("gemm_prim"), input_info("add_data") }, p.eltwise_m, p.default_type),
+        reorder("reorder_bfyx", input_info("add_prim"), p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p, true, true);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_add, ::testing::ValuesIn(std::vector<gemm_test_params>{
@@ -534,7 +564,6 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_act_scale_quantize_i8, ::testing:
 
 class gemm_2in_act_scale_quantize_eltwise_i8 : public GemmFusingTest {};
 TEST_P(gemm_2in_act_scale_quantize_eltwise_i8, basic) {
-    GTEST_SKIP();
     auto p = GetParam();
     create_topologies(
         input_layout("input0", get_input_layout(p, 0)),

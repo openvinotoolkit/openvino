@@ -478,6 +478,7 @@ void Snapshot::earlyRegroup() {
             HNDL(DQMatMulGQi4);
             HNDL(DQMatMulConv);
             HNDL(VocabMatMul);
+            HNDL(VariadicSplit);
 #undef HNDL
         }
         }

@@ -6,8 +6,7 @@
 #include "intel_gpu/primitives/fake_convert.hpp"
 #include "primitive_inst.h"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 using namespace cldnn;
 
@@ -20,5 +19,4 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<fake_
     return impls;
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

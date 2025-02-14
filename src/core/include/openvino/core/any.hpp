@@ -536,7 +536,7 @@ class OPENVINO_API Any {
         template <class U, class T, class... Others>
         U convert_impl() const;
 
-        virtual ~Base() = default;
+        virtual ~Base();
     };
 
     template <class T, typename = void>
@@ -610,8 +610,6 @@ class OPENVINO_API Any {
 
         template <typename... Args>
         Impl(Args&&... args) : value(std::forward<Args>(args)...) {}
-
-        virtual ~Impl(){};
 
         const std::type_info& type_info() const override {
             return typeid(T);

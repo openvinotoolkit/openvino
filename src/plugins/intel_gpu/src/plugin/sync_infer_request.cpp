@@ -103,8 +103,7 @@ cldnn::data_types data_type_for_remote_tensor(ov::element::Type t) {
 
 }  // namespace
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 // ----------------------------------------------------------------------------------------------- //
 // ---------------------------- OpenVINO API impl ------------------------------------------------ //
@@ -1014,5 +1013,4 @@ bool SyncInferRequest::is_batched_input(const ov::Output<const ov::Node>& port) 
     return m_batched_tensors.count(port.get_tensor_ptr()) > 0;
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

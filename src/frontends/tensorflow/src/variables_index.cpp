@@ -195,7 +195,7 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::string&
         std::snprintf(suffix.data(), suffix.size(), "data-%05d-of-%05d", shard, m_total_shards);
         std::string fullPath;
         if (is_saved_model) {
-            fullPath = ov::util::path_join({path, "variables", std::string("variables.") + suffix.data()});
+            fullPath = ov::util::path_join({path, "variables", std::string("variables.") + suffix.data()}).string();
         } else {
             fullPath = path + "." + suffix.data();
         }

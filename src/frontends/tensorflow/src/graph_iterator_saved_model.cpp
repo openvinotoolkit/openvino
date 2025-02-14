@@ -33,7 +33,7 @@ bool GraphIteratorSavedModel::is_supported(const std::string& path) {
     if (ov::util::directory_exists(path)) {
         FRONT_END_GENERAL_CHECK(util::file_exists(ov::util::path_join({path, "saved_model.pb"})),
                                 "Could not open the file: \"",
-                                util::path_to_string(ov::util::path_join({path, "saved_model.pb"})),
+                                ov::util::path_join({path, "saved_model.pb"}),
                                 '"');
         return true;
     } else {
@@ -43,7 +43,8 @@ bool GraphIteratorSavedModel::is_supported(const std::string& path) {
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 bool GraphIteratorSavedModel::is_supported(const std::wstring& path) {
-    return ov::util::directory_exists(path) && ov::util::file_exists(ov::util::path_join_w({path, L"saved_model.pb"}));
+    return ov::util::directory_exists(path) &&
+           ov::util::file_exists(ov::util::path_join_w({path, L"saved_model.pb"}));
 }
 #endif
 

@@ -11,8 +11,7 @@ using jit_generator = dnnl::impl::cpu::x64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 void BrgemmTppEmitter::validate_subtensors(const VectorDims& in_0, const VectorDims& in_1, const VectorDims& out_0) {
     bool subtensors_compatible = in_0.size() == in_1.size() && in_0.size() == out_0.size() && in_0.size() == 2 &&
@@ -109,5 +108,4 @@ void BrgemmTppEmitter::execute_brgemm_kernel(libxsmm_gemmfunction brg_kernel, vo
     brg_kernel(&gemm_p);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -46,7 +46,7 @@ Install pre-requisites
 .. code:: ipython3
 
     %pip uninstall -q -y "openvino-python-headless" "opencv-python"
-    %pip install -q "ultralytics==8.2.24" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "ultralytics==8.3.59" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino>=2024.0.0" "opencv-python" "lap>=0.4" "shapely"
 
 Download Model
@@ -60,6 +60,19 @@ Download and convert YOLOV8 to OpenVINO Intermediate Representation
 
     from pathlib import Path
     from ultralytics import YOLO
+    
+    import requests
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("person-counting.ipynb")
     
     models_dir = Path("./models")
     models_dir.mkdir(exist_ok=True)
@@ -128,12 +141,11 @@ Inference function
             assert cap.isOpened(), "Error reading video file"
     
             line_points = [(0, 300), (1080, 300)]  # line or region points
-            classes_to_count = [0]  # person is class 0 in the COCO dataset
     
             # Init Object Counter
-            counter = ObjectCounter(
-                view_img=False, reg_pts=line_points, classes_names=det_model.names, draw_tracks=True, line_thickness=2, view_in_counts=False, view_out_counts=False
-            )
+            counter = ObjectCounter(show=False, region=line_points, model=det_model_path.parent, line_width=2, show_in=False, show_out=False)
+            compiled_model.track = counter.model.track
+            counter.model = compiled_model
             # Processing time
             processing_times = collections.deque(maxlen=200)
     
@@ -144,8 +156,7 @@ Inference function
                     break
     
                 start_time = time.time()
-                tracks = det_model.track(frame, persist=True, show=False, classes=classes_to_count, verbose=False)
-                frame = counter.start_counting(frame, tracks)
+                frame = counter.count(frame)
                 stop_time = time.time()
     
                 processing_times.append(stop_time - start_time)
@@ -167,7 +178,7 @@ Inference function
     
                 # Get the counts. Counts are getting as 'OUT'
                 # Modify this logic accordingly
-                counts = counter.out_counts
+                counts = counter.out_count
     
                 # Define the text to display
                 text = f"Count: {counts}"
@@ -212,12 +223,16 @@ Run live demo
 
 .. code:: ipython3
 
+    from notebook_utils import download_file
+    
     WEBCAM_INFERENCE = False
     
     if WEBCAM_INFERENCE:
         VIDEO_SOURCE = 0  # Webcam
     else:
-        VIDEO_SOURCE = "https://storage.openvinotoolkit.org/data/test_data/videos/people-detection.mp4"
+        VIDEO_SOURCE = Path("people-detection.mp4")
+        if not VIDEO_SOURCE.exists():
+            download_file("https://storage.openvinotoolkit.org/data/test_data/videos/people-detection.mp4")
 
    **NOTE**: make sure to restart kernel and run all cells when
    switching between video and webcam to avoid any errors.
@@ -229,13 +244,6 @@ Select inference device
 
 .. code:: ipython3
 
-    import requests
-    
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
-    
     from notebook_utils import device_widget
     
     device = device_widget()

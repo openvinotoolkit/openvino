@@ -943,7 +943,7 @@ void prepare_buffer_fusing::run(program& p) {
                 auto update_scale_zp = [&](size_t kv_cache_output_idx, size_t read_value_output_idx) {
                     auto scales_out_layout = node.get_output_layout(false, kv_cache_output_idx);
 
-                    const auto scales_zp_concat_axis = kv_cache_inst::get_scale_zp_sequence_axis(desc->concat_axis, desc->quantization_attributes);
+                    const auto scales_zp_concat_axis = kv_cache_inst::get_scale_zp_sequence_axis();
                     padding::DynamicDimsMask info_dynamic_pad_scales;
                     info_dynamic_pad_scales[scales_zp_concat_axis] = 1;
                     scales_out_layout.data_padding._dynamic_dims_mask = info_dynamic_pad_scales;

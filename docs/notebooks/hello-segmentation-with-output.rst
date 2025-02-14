@@ -55,17 +55,25 @@ Imports
     import matplotlib.pyplot as plt
     import numpy as np
     import openvino as ov
+    from pathlib import Path
     
     # Fetch `notebook_utils` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
     
-    open("notebook_utils.py", "w").write(r.text)
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+    
+        open("notebook_utils.py", "w").write(r.text)
     
     from notebook_utils import segmentation_map_to_image, download_file, device_widget
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("hello-segmentation.ipynb")
 
 Download model weights
 ----------------------
@@ -156,10 +164,14 @@ is provided.
 .. code:: ipython3
 
     # Download the image from the openvino_notebooks storage
-    image_filename = download_file(
-        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/empty_road_mapillary.jpg",
-        directory="data",
-    )
+    image_filename = Path("data/empty_road_mapillary.jpg")
+    
+    
+    if not image_filename.exists():
+        download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/empty_road_mapillary.jpg",
+            directory="data",
+        )
     
     # The segmentation network expects images in BGR format.
     image = cv2.imread(str(image_filename))
@@ -188,7 +200,7 @@ is provided.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f620b9afe50>
+    <matplotlib.image.AxesImage at 0x7fd57a5cb040>
 
 
 
@@ -215,7 +227,7 @@ Do Inference
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f61bc2f8a00>
+    <matplotlib.image.AxesImage at 0x7fd53c2fed90>
 
 
 

@@ -286,23 +286,31 @@ text and vision modalities and postprocessing of generation results.
     import time
     from PIL import Image
     from transformers import BlipProcessor, BlipForQuestionAnswering
+    from pathlib import Path
 
     # Fetch `notebook_utils` module
     import requests
 
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file, device_widget, quantization_widget
+
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+
+    collect_telemetry("blip-visual-language-processing.ipynb")
 
     # get model and processor
     processor = BlipProcessor.from_pretrained("Salesforce/blip-vqa-base")
     model = BlipForQuestionAnswering.from_pretrained("Salesforce/blip-vqa-base")
 
-    # setup test input: download and read image, prepare question
-    img_url = "https://storage.googleapis.com/sfr-vision-language-research/BLIP/demo.jpg"
-    download_file(img_url, "demo.jpg")
+    if not Path("demo.jpg").exists():
+        # setup test input: download and read image, prepare question
+        img_url = "https://storage.googleapis.com/sfr-vision-language-research/BLIP/demo.jpg"
+        download_file(img_url, "demo.jpg")
     raw_image = Image.open("demo.jpg").convert("RGB")
     question = "how many dogs are in the picture?"
     # preprocess input data
@@ -564,7 +572,7 @@ As discussed before, the model consists of several blocks which can be
 reused for building pipelines for different tasks. In the diagram below,
 you can see how image captioning works:
 
-|image02|
+|image01|
 
 The visual model accepts the image preprocessed by ``BlipProcessor`` as
 input and produces image embeddings, which are directly passed to the
@@ -582,7 +590,7 @@ performing generation of answers.
 
 The next step is implementing both pipelines using OpenVINO models.
 
-.. |image02| image:: https://user-images.githubusercontent.com/29454499/221865836-a56da06e-196d-449c-a5dc-4136da6ab5d5.png
+.. |image01| image:: https://user-images.githubusercontent.com/29454499/221865836-a56da06e-196d-449c-a5dc-4136da6ab5d5.png
 .. |image11| image:: https://user-images.githubusercontent.com/29454499/221868167-d0081add-d9f3-4591-80e7-4753c88c1d0a.png
 
 .. code:: ipython3
@@ -764,6 +772,8 @@ understanding of vision, language and commonsense knowledge to answer.
 
     %%skip not $to_quantize.value
 
+    import aiohttp
+
     import numpy as np
     from datasets import load_dataset
     from tqdm.notebook import tqdm
@@ -825,7 +835,13 @@ understanding of vision, language and commonsense knowledge to answer.
         Prepares a vision-text dataset for quantization.
         """
         split = f"train[:{opt_init_steps}]" if not streaming else "train"
-        dataset = load_dataset("HuggingFaceM4/VQAv2", split=split, streaming=streaming, trust_remote_code=True)
+        dataset = load_dataset(
+            "HuggingFaceM4/VQAv2",
+            split=split,
+            streaming=streaming,
+            trust_remote_code=True,
+            storage_options={'client_kwargs': {'timeout': aiohttp.ClientTimeout(total=3600)}}
+        )
         dataset = dataset.shuffle(seed=42)
         if streaming:
             dataset = dataset.take(opt_init_steps)
@@ -840,9 +856,13 @@ time and depends on your internet connection.
     %%skip not $to_quantize.value
 
     import nncf
+    import gc
 
-    comp_vision_model = core.compile_model(VISION_MODEL_OV, device.value)
-    calibration_data = prepare_dataset(comp_vision_model)
+    if not VISION_MODEL_OV_INT8.exists() or not TEXT_ENCODER_OV_INT8.exists():
+        comp_vision_model = core.compile_model(VISION_MODEL_OV, device.value)
+        calibration_data = prepare_dataset(comp_vision_model)
+        del comp_vision_model
+        gc.collect();
 
 Quantize vision model
 ~~~~~~~~~~~~~~~~~~~~~
@@ -853,16 +873,17 @@ Quantize vision model
 
     %%skip not $to_quantize.value
 
-    vision_dataset = nncf.Dataset(calibration_data, lambda x: x["vision_model_inputs"])
-    vision_model = core.read_model(VISION_MODEL_OV)
+    if not VISION_MODEL_OV_INT8.exists():
+        vision_dataset = nncf.Dataset(calibration_data, lambda x: x["vision_model_inputs"])
+        vision_model = core.read_model(VISION_MODEL_OV)
 
-    quantized_model = nncf.quantize(
-        model=vision_model,
-        calibration_dataset=vision_dataset,
-        model_type=nncf.ModelType.TRANSFORMER
-    )
+        quantized_model = nncf.quantize(
+            model=vision_model,
+            calibration_dataset=vision_dataset,
+            model_type=nncf.ModelType.TRANSFORMER
+        )
 
-    ov.save_model(quantized_model, VISION_MODEL_OV_INT8)
+        ov.save_model(quantized_model, VISION_MODEL_OV_INT8)
 
 
 
@@ -964,15 +985,16 @@ Quantize text encoder
 
     %%skip not $to_quantize.value
 
-    text_encoder_dataset = nncf.Dataset(calibration_data, lambda x: x["text_encoder_inputs"])
-    text_encoder_model = core.read_model(TEXT_ENCODER_OV)
+    if not TEXT_ENCODER_OV_INT8.exists():
+        text_encoder_dataset = nncf.Dataset(calibration_data, lambda x: x["text_encoder_inputs"])
+        text_encoder_model = core.read_model(TEXT_ENCODER_OV)
 
-    quantized_model = nncf.quantize(
-        model=text_encoder_model,
-        calibration_dataset=text_encoder_dataset,
-        model_type=nncf.ModelType.TRANSFORMER
-    )
-    ov.save_model(quantized_model, TEXT_ENCODER_OV_INT8)
+        quantized_model = nncf.quantize(
+            model=text_encoder_model,
+            calibration_dataset=text_encoder_dataset,
+            model_type=nncf.ModelType.TRANSFORMER
+        )
+        ov.save_model(quantized_model, TEXT_ENCODER_OV_INT8)
 
 
 
@@ -1084,9 +1106,10 @@ The optimization process contains the following steps:
 
     %%skip not $to_quantize.value
 
-    text_decoder_model = core.read_model(TEXT_DECODER_OV)
-    compressed_text_decoder = nncf.compress_weights(text_decoder_model)
-    ov.save_model(compressed_text_decoder, str(TEXT_DECODER_OV_INT8))
+    if not TEXT_DECODER_OV_INT8.exists():
+        text_decoder_model = core.read_model(TEXT_DECODER_OV)
+        compressed_text_decoder = nncf.compress_weights(text_decoder_model)
+        ov.save_model(compressed_text_decoder, TEXT_DECODER_OV_INT8)
 
 
 .. parsed-literal::
@@ -1282,6 +1305,7 @@ quantized models.
 
     comp_text_encoder = core.compile_model(TEXT_ENCODER_OV, device.value)
     comp_text_decoder_with_past = core.compile_model(TEXT_DECODER_OV, device.value)
+    comp_vision_model = core.compile_model(VISION_MODEL_OV, device.value)
     fp_text_decoder.forward = partial(text_decoder_forward, ov_text_decoder_with_past=comp_text_decoder_with_past)
     fp16_model = OVBlipModel(model.config, model.decoder_start_token_id, comp_vision_model, comp_text_encoder, fp_text_decoder)
 

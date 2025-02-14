@@ -78,7 +78,7 @@ Install necessary packages.
 
     %pip install -q "openvino>=2024.0.0"
     %pip install -q "nncf>=2.9.0"
-    %pip install -q "ultralytics==8.3.0" tqdm --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "ultralytics==8.3.59" tqdm --extra-index-url https://download.pytorch.org/whl/cpu
 
 Get Pytorch model and OpenVINO IR model
 ---------------------------------------
@@ -128,13 +128,19 @@ we do not need to do these steps manually.
     # Fetch the notebook utils script from the openvino_notebooks repo
     import requests
 
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
 
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
 
     from notebook_utils import download_file, device_widget
+
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+
+    collect_telemetry("yolov11-quantization-with-accuracy-control.ipynb")
 
 .. code:: ipython3
 
@@ -314,14 +320,13 @@ Run quantization with accuracy control
 You should provide the calibration dataset and the validation dataset.
 It can be the same dataset.
 
-- parameter ``max_drop`` defines the
-  accuracy drop threshold. The quantization process stops when the
+- parameter ``max_drop`` defines the accuracy drop threshold. The quantization process stops when the
   degradation of accuracy metric on the validation dataset is less than
   the ``max_drop``. The default value is 0.01. NNCF will stop the
   quantization and report an error if the ``max_drop`` value can’t be
   reached.
 - ``drop_type`` defines how the accuracy drop will be
- calculated: ABSOLUTE (used by default) or RELATIVE.
+  calculated: ABSOLUTE (used by default) or RELATIVE.
 - ``ranking_subset_size`` - size of a subset that is used to rank layers
   by their contribution to the accuracy drop. Default value is 300, and
   the more samples it has the better ranking, potentially. Here we use the

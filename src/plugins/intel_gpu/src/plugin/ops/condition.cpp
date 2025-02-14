@@ -5,8 +5,7 @@
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/condition.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 const size_t idx_true = 0;
 const size_t idx_false = 1;
@@ -80,5 +79,4 @@ static void CreateIfOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v8::If>&
 
 REGISTER_FACTORY_IMPL(v8, If);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

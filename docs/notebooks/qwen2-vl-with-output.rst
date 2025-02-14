@@ -52,11 +52,12 @@ card <https://huggingface.co/Qwen/Qwen2-VL-7B-Instruct>`__,
 `repo <https://github.com/QwenLM/Qwen2-VL>`__.
 
 In this tutorial we consider how to convert and optimize Qwen2VL model
-for creating multimodal chatbot. Additionally, we demonstrate how to
-apply stateful transformation on LLM part and model optimization
-techniques like weights compression using
-`NNCF <https://github.com/openvinotoolkit/nncf>`__ #### Table of
-contents:
+for creating multimodal chatbot using `Optimum
+Intel <https://github.com/huggingface/optimum-intel>`__. Additionally,
+we demonstrate how to apply model optimization techniques like weights
+compression using `NNCF <https://github.com/openvinotoolkit/nncf>`__
+
+**Table of contents:**
 
 -  `Prerequisites <#prerequisites>`__
 -  `Select model <#select-model>`__
@@ -91,27 +92,26 @@ Prerequisites
 .. code:: ipython3
 
     %pip install -q "transformers>=4.45" "torch>=2.1" "torchvision" "qwen-vl-utils" "Pillow" "gradio>=4.36" --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -qU "openvino>=2024.4.0" "nncf>=2.13.0"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
+    %pip install  -q -U "openvino>=2024.6.0" "openvino-tokenizers>=2024.6.0" "nncf>=2.14.0"
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
 
 .. code:: ipython3
 
     from pathlib import Path
     import requests
-    
-    if not Path("ov_qwen2_vl.py").exists():
-        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/qwen2-vl/ov_qwen2_vl.py")
-        open("ov_qwen2_vl.py", "w").write(r.text)
-    
+
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py")
+        open("cmd_helper.py", "w").write(r.text)
+
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
+
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+
+    collect_telemetry("qwen2-vl.ipynb")
 
 Select model
 ------------
@@ -125,23 +125,17 @@ using widget bellow:
 
 .. code:: ipython3
 
-    from ov_qwen2_vl import model_selector
-    
-    model_id = model_selector()
-    
+    import ipywidgets as widgets
+
+    model_ids = ["Qwen/Qwen2-VL-2B-Instruct", "Qwen/Qwen2-VL-7B-Instruct"]
+
+    model_id = widgets.Dropdown(
+        options=model_ids,
+        default=model_ids[0],
+        description="Model:",
+    )
+
     model_id
-
-
-.. parsed-literal::
-
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-
-
-.. parsed-literal::
-
-    2024-12-10 05:00:06.245590: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-12-10 05:00:06.272261: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 
@@ -178,59 +172,37 @@ original PyTorch model instance and example input for tracing and
 returns ``ov.Model`` representing this model in OpenVINO framework.
 Converted model can be used for saving on disk using ``ov.save_model``
 function or directly loading on device using ``core.compile_model``.
-``ov_qwen2_vl.py`` script contains helper function for model conversion,
-please check its content if you interested in conversion details.
 
-.. raw:: html
+For convenience, we will use OpenVINO integration with HuggingFace
+Optimum. `Optimum
+Intel <https://huggingface.co/docs/optimum/intel/index>`__ is the
+interface between the Transformers and Diffusers libraries and the
+different tools and libraries provided by Intel to accelerate end-to-end
+pipelines on Intel architectures.
 
-   <details>
+Among other use cases, Optimum Intel provides a simple interface to
+optimize your Transformers and Diffusers models, convert them to the
+OpenVINO Intermediate Representation (IR) format and run inference using
+OpenVINO Runtime. ``optimum-cli`` provides command line interface for
+model conversion and optimization.
 
-Click here for more detailed explanation of conversion steps Qwen2VL is
-autoregressive transformer generative model, it means that each next
-model step depends from model output from previous step. The generation
-approach is based on the assumption that the probability distribution of
-a word sequence can be decomposed into the product of conditional next
-word distributions. In other words, model predicts the next token in the
-loop guided by previously generated tokens until the stop-condition will
-be not reached (generated sequence of maximum length or end of string
-token obtained). The way the next token will be selected over predicted
-probabilities is driven by the selected decoding methodology. You can
-find more information about the most popular decoding methods in this
-blog. The entry point for the generation process for models from the
-Hugging Face Transformers library is the ``generate`` method. You can
-find more information about its parameters and configuration in the
-documentation. To preserve flexibility in the selection decoding
-methodology, we will convert only model inference for one step.
+General command format:
 
-The inference flow has difference on first step and for the next. On the
-first step, model accept preprocessed input instruction and image, that
-transformed to the unified embedding space using ``input_embedding`` and
-``image_encoder`` models, after that ``language model``, LLM-based part
-of model, runs on input embeddings to predict probability of next
-generated tokens. On the next step, ``language_model`` accepts only next
-token id selected based on sampling strategy and processed by
-``input_embedding`` model and cached attention key and values. Since the
-output side is auto-regressive, an output token hidden state remains the
-same once computed for every further generation step. Therefore,
-recomputing it every time you want to generate a new token seems
-wasteful. With the cache, the model saves the hidden state once it has
-been computed. The model only computes the one for the most recently
-generated output token at each time step, re-using the saved ones for
-hidden tokens. This reduces the generation complexity from
-:math:`O(n^3)` to :math:`O(n^2)` for a transformer model. More details
-about how it works can be found in this
-`article <https://scale.com/blog/pytorch-improvements#Text%20Translation>`__.
-To sum up above, model consists of 4 parts:
+.. code:: bash
 
--  **Image encoder** for encoding input images into embedding space.
--  **Input Embedding** for conversion input text tokens into embedding
-   space
--  **Language Model** for generation answer based on input embeddings
-   provided by Image Encoder and Input Embedding models.
+   optimum-cli export openvino --model <model_id_or_path> --task <task> <output_dir>
 
-.. raw:: html
-
-   </details>
+where task is task to export the model for, if not specified, the task
+will be auto-inferred based on the model. You can find a mapping between
+tasks and model classes in Optimum TaskManager
+`documentation <https://huggingface.co/docs/optimum/exporters/task_manager>`__.
+Additionally, you can specify weights compression using
+``--weight-format`` argument with one of following options: ``fp32``,
+``fp16``, ``int8`` and ``int4``. For int8 and int4
+`nncf <https://github.com/openvinotoolkit/nncf>`__ will be used for
+weight compression. More details about model export provided in `Optimum
+Intel
+documentation <https://huggingface.co/docs/optimum/intel/openvino/export#export-your-model>`__.
 
 Compress model weights to 4-bit
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -243,12 +215,21 @@ consumption, weights compression optimization can be applied using
 
    <details>
 
-Click here for more details about weight compression Weight compression
-aims to reduce the memory footprint of a model. It can also lead to
-significant performance improvement for large memory-bound models, such
-as Large Language Models (LLMs). LLMs and other models, which require
-extensive memory to store the weights during inference, can benefit from
-weight compression in the following ways:
+.. raw:: html
+
+   <summary>
+
+Click here for more details about weight compression
+
+.. raw:: html
+
+   </summary>
+
+Weight compression aims to reduce the memory footprint of a model. It
+can also lead to significant performance improvement for large
+memory-bound models, such as Large Language Models (LLMs). LLMs and
+other models, which require extensive memory to store the weights during
+inference, can benefit from weight compression in the following ways:
 
 -  enabling the inference of exceptionally large models that cannot be
    accommodated in the memory of the device;
@@ -284,156 +265,111 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
 .. code:: ipython3
 
-    from ov_qwen2_vl import convert_qwen2vl_model
-    
-    # uncomment these lines to see model conversion code
-    # convert_qwen2vl_model??
+    from cmd_helper import optimum_cli
 
-.. code:: ipython3
+    if not (model_dir / "INT4").exists():
+        optimum_cli(pt_model_id, model_dir / "INT4", additional_args={"weight-format": "int4"})
 
-    import nncf
-    
-    compression_configuration = {
-        "mode": nncf.CompressWeightsMode.INT4_ASYM,
-        "group_size": 128,
-        "ratio": 1.0,
-    }
-    
-    convert_qwen2vl_model(pt_model_id, model_dir, compression_configuration)
+
+
+**Export command:**
+
+
+
+``optimum-cli export openvino --model Qwen/Qwen2-VL-2B-Instruct Qwen2-VL-2B-Instruct/INT4 --weight-format int4``
 
 
 .. parsed-literal::
 
-    ⌛ Qwen/Qwen2-VL-2B-Instruct conversion started. Be patient, it may takes some time.
-    ⌛ Load Original model
-
-
-.. parsed-literal::
-
+    2024-12-24 18:27:51.174286: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-12-24 18:27:51.186686: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:477] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+    WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+    E0000 00:00:1735050471.201093  340500 cuda_dnn.cc:8310] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+    E0000 00:00:1735050471.205249  340500 cuda_blas.cc:1418] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+    2024-12-24 18:27:51.219846: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    Downloading shards: 100%|██████████| 2/2 [00:00<00:00,  2.73it/s]
     `Qwen2VLRotaryEmbedding` can now be fully parameterized by passing the model config through the `config` argument. All other arguments will be removed in v4.46
-
-
-
-.. parsed-literal::
-
-    Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]
-
-
-.. parsed-literal::
-
-    ✅ Original model successfully loaded
-    ⌛ Convert Input embedding model
-    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
-
-
-.. parsed-literal::
-
-    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:5006: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
-      warnings.warn(
+    Loading checkpoint shards: 100%|██████████| 2/2 [00:02<00:00,  1.46s/it]
     `loss_type=None` was set in the config but it is unrecognised.Using the default loss: `ForCausalLMLoss`.
-
-
-.. parsed-literal::
-
-    ✅ Input embedding model successfully converted
-    ⌛ Convert Language model
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/cache_utils.py:458: TracerWarning: Using len to get tensor shape might cause the trace to be incorrect. Recommended usage would be tensor.shape[0]. Passing a tensor of different shape might lead to errors or silently give incorrect results.
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/cache_utils.py:458: TracerWarning: Using len to get tensor shape might cause the trace to be incorrect. Recommended usage would be tensor.shape[0]. Passing a tensor of different shape might lead to errors or silently give incorrect results.
       or len(self.key_cache[layer_idx]) == 0  # the layer has no cache
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:281: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/modeling_attn_mask_utils.py:281: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       elif sliding_window is None or key_value_length < sliding_window:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2_vl/modeling_qwen2_vl.py:1329: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/models/qwen2_vl/modeling_qwen2_vl.py:1329: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attention_mask.shape[-1] > target_length:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/cache_utils.py:443: TracerWarning: Using len to get tensor shape might cause the trace to be incorrect. Recommended usage would be tensor.shape[0]. Passing a tensor of different shape might lead to errors or silently give incorrect results.
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/cache_utils.py:443: TracerWarning: Using len to get tensor shape might cause the trace to be incorrect. Recommended usage would be tensor.shape[0]. Passing a tensor of different shape might lead to errors or silently give incorrect results.
       elif len(self.key_cache[layer_idx]) == 0:  # fills previously skipped layers; checking for tensor causes errors
 
 
 .. parsed-literal::
 
-    ✅ Language model successfully converted
-    ⌛ Weights compression with int4_asym mode started
     INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │              8 │ 15% (1 / 197)               │ 0% (0 / 196)                           │
-    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │              4 │ 85% (196 / 197)             │ 100% (196 / 196)                       │
-    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    ✅ Weights compression finished
-    ⌛ Convert Image embedding model
-    ⌛ Weights compression with int4_asym mode started
-    INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │              8 │ 1% (1 / 130)                │ 0% (0 / 129)                           │
-    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │              4 │ 99% (129 / 130)             │ 100% (129 / 129)                       │
-    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    ✅ Weights compression finished
-    ✅ Image embedding model successfully converted
-    ✅ Qwen/Qwen2-VL-2B-Instruct model conversion finished. You can find results in Qwen2-VL-2B-Instruct
-
+    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │ int8_asym                 │ 15% (1 / 197)               │ 0% (0 / 196)                           │
+    ├───────────────────────────┼─────────────────────────────┼────────────────────────────────────────┤
+    │ int4_asym                 │ 85% (196 / 197)             │ 100% (196 / 196)                       │
+    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    [2KApplying Weight Compression [38;2;114;156;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [35m100%[0m • [38;2;0;104;181m0:00:45[0m • [38;2;0;104;181m0:00:00[0m;0;104;181m0:00:01[0m181m0:00:02[0m
+    [?25hINFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │ int8_sym                  │ 100% (1 / 1)                │ 100% (1 / 1)                           │
+    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    [2KApplying Weight Compression [38;2;114;156;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [35m100%[0m • [38;2;0;104;181m0:00:00[0m • [38;2;0;104;181m0:00:00[0m
+    [?25hINFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │ int8_sym                  │ 100% (1 / 1)                │ 100% (1 / 1)                           │
+    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    [2KApplying Weight Compression [38;2;114;156;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [35m100%[0m • [38;2;0;104;181m0:00:01[0m • [38;2;0;104;181m0:00:00[0m
+    [?25hINFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │ int8_sym                  │ 100% (130 / 130)            │ 100% (130 / 130)                       │
+    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    [2KApplying Weight Compression [38;2;114;156;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [35m100%[0m • [38;2;0;104;181m0:00:03[0m • [38;2;0;104;181m0:00:00[0m02[0m • [38;2;0;104;181m0:00:01[0m
+    [?25h
 
 Prepare model inference pipeline
 --------------------------------
 
 
 
-As discussed, the model comprises Image Encoder and LLM (with separated
-text embedding part) that generates answer. In ``ov_qwen2_vl.py`` we
-defined inference class ``OVQwen2VLModel`` that will represent
-generation cycle, It is based on `HuggingFace Transformers
-GenerationMixin <https://huggingface.co/docs/transformers/main_classes/text_generation>`__
-and looks similar to `Optimum
-Intel <https://huggingface.co/docs/optimum/intel/index>`__
-``OVModelForCausalLM`` that is used for LLM inference.
+OpenVINO integration with Optimum Intel provides ready-to-use API for
+model inference that can be used for smooth integration with
+transformers-based solutions. For loading model, we will use
+``OVModelForVisualCausalLM`` class that have compatible interface with
+Transformers LLaVA implementation. For loading a model,
+``from_pretrained`` method should be used. It accepts path to the model
+directory or model_id from HuggingFace hub (if model is not converted to
+OpenVINO format, conversion will be triggered automatically).
+Additionally, we can provide an inference device, quantization config
+(if model has not been quantized yet) and device-specific OpenVINO
+Runtime configuration. More details about model inference with Optimum
+Intel can be found in
+`documentation <https://huggingface.co/docs/optimum/intel/openvino/inference>`__.
 
 .. code:: ipython3
 
-    from ov_qwen2_vl import OVQwen2VLModel
-    
-    # Uncomment below lines to see the model inference class code
-    # OVQwen2VLModel??
+    from optimum.intel.openvino import OVModelForVisualCausalLM
+
+
+.. parsed-literal::
+
+    2024-12-24 18:30:03.136274: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-12-24 18:30:03.148865: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:477] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+    WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+    E0000 00:00:1735050603.163311  340474 cuda_dnn.cc:8310] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+    E0000 00:00:1735050603.167677  340474 cuda_blas.cc:1418] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+    2024-12-24 18:30:03.182551: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -443,9 +379,9 @@ Select inference device
 .. code:: ipython3
 
     from notebook_utils import device_widget
-    
+
     device = device_widget(default="AUTO", exclude=["NPU"])
-    
+
     device
 
 
@@ -459,7 +395,14 @@ Select inference device
 
 .. code:: ipython3
 
-    model = OVQwen2VLModel(model_dir, device.value)
+    model = OVModelForVisualCausalLM.from_pretrained(model_dir / "INT4", device.value)
+
+
+.. parsed-literal::
+
+    Could not infer whether the model was already converted or not to the OpenVINO IR, keeping `export=AUTO`.
+    unsupported operand type(s) for ^: 'bool' and 'str'
+
 
 Run model inference
 -------------------
@@ -472,25 +415,25 @@ Run model inference
     from transformers import AutoProcessor, AutoTokenizer
     from qwen_vl_utils import process_vision_info
     from transformers import TextStreamer
-    
-    
+
+
     min_pixels = 256 * 28 * 28
     max_pixels = 1280 * 28 * 28
-    processor = AutoProcessor.from_pretrained(model_dir, min_pixels=min_pixels, max_pixels=max_pixels)
-    
+    processor = AutoProcessor.from_pretrained(model_dir / "INT4", min_pixels=min_pixels, max_pixels=max_pixels)
+
     if processor.chat_template is None:
         tok = AutoTokenizer.from_pretrained(model_dir)
         processor.chat_template = tok.chat_template
-    
+
     example_image_url = "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-VL/assets/demo.jpeg"
     example_image_path = Path("demo.jpeg")
-    
+
     if not example_image_path.exists():
         Image.open(requests.get(example_image_url, stream=True).raw).save(example_image_path)
-    
+
     image = Image.open(example_image_path)
     question = "Describe this image."
-    
+
     messages = [
         {
             "role": "user",
@@ -503,7 +446,7 @@ Run model inference
             ],
         }
     ]
-    
+
     # Preparation for inference
     text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     image_inputs, video_inputs = process_vision_info(messages)
@@ -514,17 +457,17 @@ Run model inference
         padding=True,
         return_tensors="pt",
     )
-    
+
     display(image)
     print("Question:")
     print(question)
     print("Answer:")
-    
+
     generated_ids = model.generate(**inputs, max_new_tokens=100, streamer=TextStreamer(processor.tokenizer, skip_prompt=True, skip_special_tokens=True))
 
 
 
-.. image:: qwen2-vl-with-output_files/qwen2-vl-with-output_16_0.png
+.. image:: qwen2-vl-with-output_files/qwen2-vl-with-output_15_0.png
 
 
 .. parsed-literal::
@@ -532,16 +475,7 @@ Run model inference
     Question:
     Describe this image.
     Answer:
-
-
-.. parsed-literal::
-
-    Setting `pad_token_id` to `eos_token_id`:None for open-end generation.
-
-
-.. parsed-literal::
-
-    The image depicts a serene beach scene with a woman and a dog. The woman is sitting on the sand, smiling and reaching out her hand towards the dog, which is sitting on the sand next to her. The dog is wearing a colorful harness and appears to be wagging its tail in excitement. The background features the ocean with gentle waves, and the sky is clear with a soft, warm light, suggesting either sunrise or sunset. The overall atmosphere is peaceful and joyful.
+    The image depicts a woman sitting on a sandy beach with a large dog. The dog is wearing a harness and is sitting on its hind legs, reaching up to give a high-five to the woman. The woman is smiling and appears to be enjoying the moment. The background shows the ocean with gentle waves, and the sky is clear with a soft light, suggesting it might be either sunrise or sunset.
 
 
 .. code:: ipython3
@@ -562,30 +496,14 @@ click ``Submit`` to start communication.
 .. code:: ipython3
 
     from gradio_helper import make_demo
-    
-    
+
+
     demo = make_demo(model, processor)
-    
+
     try:
-        demo.launch(debug=False)
+        demo.launch(debug=True)
     except Exception:
-        demo.launch(debug=False, share=True)
+        demo.launch(debug=True, share=True)
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-    
-    Thanks for being a Gradio user! If you have questions or feedback, please join our Discord server and chat with us: https://discord.gg/feTf9x3ZSB
-    
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-

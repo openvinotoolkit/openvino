@@ -4645,7 +4645,6 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
 }
 
 TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activations_per_channel_dynamic) {
-    GTEST_SKIP();
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::u8, format::bfyx, {1, 2, 5, 4} });

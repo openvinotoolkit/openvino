@@ -7,8 +7,7 @@
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * @brief ACL supports arm_compute::MAX_DIMS maximum. The method squashes the last
@@ -99,15 +98,19 @@ inline int axisCast(const std::size_t axis,
     case NO_LAYOUT_CONVERSION:
         return revertedAxis;
     case NHWC_TO_NCHW:
-        if (shapeSize == 4)
+        if (shapeSize == 4) {
             return nhwcToNchw[revertedAxis];
-        if (shapeSize == 5)
+        }
+        if (shapeSize == 5) {
             return ndhwcToNcdhw[revertedAxis];
+        }
     case NCHW_TO_NHWC:
-        if (shapeSize == 4)
+        if (shapeSize == 4) {
             return nchwToNhwc[revertedAxis];
-        if (shapeSize == 5)
+        }
+        if (shapeSize == 5) {
             return ncdhwToNdhwc[revertedAxis];
+        }
     default:
         return -1;
     }
@@ -191,5 +194,4 @@ arm_compute::ActivationLayerInfo getActivationLayerInfo(Algorithm algorithm, flo
  */
 bool checkActivationLayerInfo(Algorithm algorithm);
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

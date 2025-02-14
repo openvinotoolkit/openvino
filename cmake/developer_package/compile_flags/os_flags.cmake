@@ -119,8 +119,8 @@ macro(ov_check_compiler_supports_sve flags)
 
     # If the compilation test is successful, set appropriate variables indicating support
     if(CXX_HAS_SVE)
-        set(CXX_SVE_FOUND TRUE CACHE BOOL "SVE available on host")
-        set(CXX_SVE_FOUND TRUE CACHE BOOL "CXX SVE support")
+        set(CXX_SVE_FOUND ON CACHE BOOL "SVE available on host")
+        set(CXX_SVE_FOUND ON CACHE BOOL "CXX SVE support")
         set(CXX_SVE_FLAGS "${flags}" CACHE STRING "CXX SVE flags")
     endif()
 
@@ -129,7 +129,7 @@ macro(ov_check_compiler_supports_sve flags)
 
     # If the compilation test fails, indicate that the support is not found
     if(NOT CXX_SVE_FOUND)
-        set(CXX_SVE_FOUND FALSE CACHE BOOL "CXX SVE support")
+        set(CXX_SVE_FOUND OFF CACHE BOOL "CXX SVE support")
         set(CXX_SVE_FLAGS "" CACHE STRING "CXX SVE flags")
     endif()
 
@@ -143,6 +143,10 @@ endmacro()
 # Provides SSE4.2 compilation flags depending on an OS and a compiler
 #
 macro(ov_sse42_optimization_flags flags)
+    if(NOT ENABLE_SSE42)
+        message(FATAL_ERROR "Internal error: ENABLE_SSE42 if OFF and 'ov_sse42_optimization_flags' must not be called")
+    endif()
+
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         # No such option for MSVC 2019
     elseif(OV_COMPILER_IS_INTEL_LLVM)
@@ -167,6 +171,10 @@ endmacro()
 # Provides AVX2 compilation flags depending on an OS and a compiler
 #
 macro(ov_avx2_optimization_flags flags)
+    if(NOT ENABLE_AVX2)
+        message(FATAL_ERROR "Internal error: ENABLE_AVX2 if OFF and 'ov_avx2_optimization_flags' must not be called")
+    endif()
+
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         set(${flags} /arch:AVX2)
     elseif(OV_COMPILER_IS_INTEL_LLVM)
@@ -189,6 +197,10 @@ endmacro()
 # depending on an OS and a compiler
 #
 macro(ov_avx512_optimization_flags flags)
+    if(NOT ENABLE_AVX512F)
+        message(FATAL_ERROR "Internal error: ENABLE_AVX512F if OFF and 'ov_avx512_optimization_flags' must not be called")
+    endif()
+
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         set(${flags} /arch:AVX512)
     elseif(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
@@ -204,6 +216,10 @@ endmacro()
 # ov_arm_neon_optimization_flags(<output flags>)
 #
 macro(ov_arm_neon_optimization_flags flags)
+    if(NOT (AARCH64 OR ARM))
+        message(FATAL_ERROR "Internal error: platform is not ARM or AARCH64 and 'ov_arm_neon_optimization_flags' must not be called")
+    endif()
+
     if(OV_COMPILER_IS_INTEL_LLVM)
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -234,6 +250,10 @@ endmacro()
 # ov_arm_neon_fp16_optimization_flags(<output flags>)
 #
 macro(ov_arm_neon_fp16_optimization_flags flags)
+    if(NOT ENABLE_NEON_FP16)
+        message(FATAL_ERROR "Internal error: ENABLE_NEON_FP16 if OFF and 'ov_arm_neon_fp16_optimization_flags' must not be called")
+    endif()
+
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel" OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID} for arm64 platform")
     elseif(ANDROID)
@@ -258,6 +278,10 @@ endmacro()
 # ov_arm_sve_optimization_flags(<output flags>)
 #
 macro(ov_arm_sve_optimization_flags flags)
+    if(NOT ENABLE_SVE)
+        message(FATAL_ERROR "Internal error: ENABLE_SVE if OFF and 'ov_arm_sve_optimization_flags' must not be called")
+    endif()
+
     # Check for compiler SVE support
     ov_check_compiler_supports_sve("-march=armv8-a+sve")
     if(OV_COMPILER_IS_INTEL_LLVM)
@@ -643,5 +667,38 @@ function(ov_try_use_gold_linker)
     if(CMAKE_COMPILER_IS_GNUCXX AND NOT ENABLE_SANITIZER AND NOT CMAKE_CROSSCOMPILING)
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold" PARENT_SCOPE)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold" PARENT_SCOPE)
+    endif()
+endfunction()
+
+#
+# ov_target_link_libraries_as_system(<TARGET NAME> <PUBLIC | PRIVATE | INTERFACE> <target1 target2 ...>)
+#
+function(ov_target_link_libraries_as_system TARGET_NAME LINK_TYPE)
+    target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${ARGN})
+
+    # include directories as SYSTEM
+    foreach(library IN LISTS ARGN)
+        if(TARGET ${library})
+            get_target_property(include_directories ${library} INTERFACE_INCLUDE_DIRECTORIES)
+            if(include_directories)
+                foreach(include_directory IN LISTS include_directories)
+                    # cannot include /usr/include headers as SYSTEM
+                    if(NOT "${include_directory}" MATCHES ".*/usr/include.*$")
+                        # Note, some include dirs can be wrapper with $<BUILD_INTERFACE:dir1 dir2 ...> and we need to clean it
+                        string(REGEX REPLACE "^\\$<BUILD_INTERFACE:" "" include_directory "${include_directory}")
+                        string(REGEX REPLACE ">$" "" include_directory "${include_directory}")
+                        target_include_directories(${TARGET_NAME} SYSTEM ${LINK_TYPE} $<BUILD_INTERFACE:${include_directory}>)
+                    else()
+                        set(_system_library ON)
+                    endif()
+                endforeach()
+            endif()
+        endif()
+    endforeach()
+
+    if(_system_library)
+        # if we deal with system library (e.i. having /usr/include as header paths)
+        # we cannot use SYSTEM key word for such library
+        set_target_properties(${TARGET_NAME} PROPERTIES NO_SYSTEM_FROM_IMPORTED ON)
     endif()
 endfunction()

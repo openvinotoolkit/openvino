@@ -117,6 +117,11 @@ Prerequisites
             shutil.copy(llm_config_shared_path, llm_config_dst_path)
         else:
             download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/llm_config.py")
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("nuextract-structure-extraction.ipynb")
 
 Select model for inference
 --------------------------

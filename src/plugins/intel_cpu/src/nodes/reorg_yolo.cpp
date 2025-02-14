@@ -9,9 +9,7 @@
 
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool ReorgYolo::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -33,19 +31,22 @@ ReorgYolo::ReorgYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (getOriginalInputsNumber() != 1 || getOriginalOutputsNumber() != 1)
+    if (getOriginalInputsNumber() != 1 || getOriginalOutputsNumber() != 1) {
         THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
+    }
 
     const auto reorgYolo = ov::as_type_ptr<const ov::opset2::ReorgYolo>(op);
     const auto strides = reorgYolo->get_strides();
-    if (strides.empty())
+    if (strides.empty()) {
         THROW_CPU_NODE_ERR("has empty strides");
+    }
     stride = strides[0];
 }
 
 void ReorgYolo::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32}},
                          {{LayoutType::ncsp, ov::element::f32}},
@@ -94,6 +95,4 @@ bool ReorgYolo::created() const {
     return getType() == Type::ReorgYolo;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

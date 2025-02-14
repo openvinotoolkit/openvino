@@ -20,8 +20,7 @@
 
 using namespace ov::Extensions::Cpu::XARCH;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 VariableStateBase::VariableStateBase(const std::string& name, MemoryDescPtr external_desc)
     : IVariableState{name},
@@ -58,7 +57,7 @@ void VariableStateBase::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
     auto src = state->data();
 
     Memory mem(get_engine(), state_desc, src);
-    input_mem()->load(mem);
+    input_mem()->load(mem, true);
     reset_state_flag = false;
 }
 
@@ -97,7 +96,7 @@ ov::SoPtr<ov::ITensor> VariableStateBase::get_state() const {
 
     // reorder
     auto mem = std::make_shared<Memory>(get_engine(), current_ext_desc);
-    mem->load(*(internal_state_mem()));
+    mem->load(*(internal_state_mem()), true);
     return std::make_shared<Tensor>(mem);
 }
 
@@ -313,7 +312,7 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
                           m_scale_zp.at<float>({m, b, h, size_t{1}}));
         });
     } else {
-        m_internal_mem->load(external_mem);
+        m_internal_mem->load(external_mem, true);
     }
 
     // 2. Reset the beam search table
@@ -370,5 +369,4 @@ MemoryPtr VariableStateKVcache::hidden_state_mem() const {
 void VariableStateKVcache::assign_hidden_state(const MemoryPtr& mem) {
     m_hidden_state = mem;
 }
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

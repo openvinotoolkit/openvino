@@ -23,8 +23,7 @@ using GatherCompressed = ov::op::internal::GatherCompressed;
 }  // namespace op
 }  // namespace ov
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 template <typename T>
 void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const int64_t batch_dim = 0, bool support_neg_ind = false,
@@ -228,5 +227,4 @@ static void CreateGatherCompressedOp(ProgramBuilder& p, const std::shared_ptr<ov
 
 REGISTER_FACTORY_IMPL(internal, GatherCompressed);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

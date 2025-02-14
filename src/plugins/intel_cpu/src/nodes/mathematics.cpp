@@ -12,9 +12,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/opsets/opset1.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool Math::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -53,13 +51,15 @@ Math::Math(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
 }
 
 void Math::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    for (size_t i = 0; i < inputShapes.size(); ++i)
+    for (size_t i = 0; i < inputShapes.size(); ++i) {
         inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
+    }
 
     addSupportedPrimDesc(inDataConf, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
 }
@@ -156,14 +156,15 @@ void Math::execute(const dnnl::stream& strm) {
         break;
     case Algorithm::MathSign:
         parallel_for(dataSize, [&](size_t i) {
-            if (src_data[i] > 0.0f)
+            if (src_data[i] > 0.0f) {
                 dst_data[i] = 1.0f;
-            else if (src_data[i] < 0.0f)
+            } else if (src_data[i] < 0.0f) {
                 dst_data[i] = -1.0f;
-            else if (std::isnan(src_data[i]))
+            } else if (std::isnan(src_data[i])) {
                 dst_data[i] = src_data[i];
-            else
+            } else {
                 dst_data[i] = 0.0f;
+            }
         });
         break;
     case Algorithm::MathSin:
@@ -193,7 +194,7 @@ void Math::execute(const dnnl::stream& strm) {
         });
         break;
     default:
-        OPENVINO_THROW("Incorrect Reduce layer type");
+        THROW_CPU_NODE_ERR("Incorrect Reduce layer type");
     }
 }
 
@@ -291,6 +292,4 @@ Math::getInitializers() {
     return initializers;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

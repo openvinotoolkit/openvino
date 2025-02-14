@@ -326,7 +326,7 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::allocate_tensor(const IODescripto
         }
 
         if (descriptor.isStateInput) {
-            _variableStates.push_back(std::make_shared<VariableState>(descriptor.nameFromCompiler, tensor));
+            add_state(descriptor, index);
         }
     } else if (_userOutputTensors.at(index) == nullptr) {
         _userOutputTensors.at(index) = tensor;
@@ -339,6 +339,11 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::create_tensor(ov::element::Type t
                                                              const ov::Shape& shape,
                                                              const ov::Allocator& allocator) const {
     return ov::make_tensor(type, shape, allocator);
+}
+
+void SyncInferRequest::add_state(const IODescriptor& descriptor, const size_t tensorIndex) const {
+    _variableStates.push_back(
+        std::make_shared<VariableState>(descriptor.nameFromCompiler, get_user_input(tensorIndex)));
 }
 
 bool SyncInferRequest::is_batched_input(size_t idx) const {

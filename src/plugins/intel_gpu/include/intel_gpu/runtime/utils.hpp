@@ -129,11 +129,6 @@ constexpr auto round_up_to(T1 val, T2 rounding)
     return static_cast<RetT>(ceil_div(val, rounding) * static_cast<UT2>(rounding));
 }
 
-template <typename T, typename... Args>
-std::unique_ptr<T> make_unique(Args&& ... args) {
-    return std::unique_ptr<T>( new T(std::forward<Args>(args)...) );
-}
-
 template <typename derived_type, typename base_type, typename std::enable_if<std::is_base_of<base_type, derived_type>::value, int>::type = 0>
 inline derived_type* downcast(base_type* base) {
     if (auto casted = dynamic_cast<derived_type*>(base))

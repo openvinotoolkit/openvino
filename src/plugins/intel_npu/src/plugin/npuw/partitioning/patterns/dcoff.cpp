@@ -75,6 +75,8 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
         LOG_DEBUG("Checking the function parameter " << param);
         LOG_BLOCK();
 
+        auto cindex = i - fbody._param_offset;
+
         // First find among scale factors...
         auto pscale_iter = params_to.scales.find(param);
         auto pzerop_iter = params_to.zerops_asymm.find(param);
@@ -83,24 +85,27 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
             auto& pscale_weight_param = pscale_iter->second;
             auto pscale_weight_pindex = fbody._model->get_parameter_index(pscale_weight_param);
             auto pscale_weight_cindex = pscale_weight_pindex - fbody._param_offset;
-            m.scale_remap[pscale_weight_cindex] = i - fbody._param_offset;
+            m.scale_remap[pscale_weight_cindex] = cindex;
             m.params_to_remove.push_back(param);
         } else if (pzerop_iter != params_to.zerops_asymm.end()) {
             LOG_DEBUG("There is an Asymmetric zero point corresponding to this parameter, it will be removed");
             auto zerop_pindex = fbody._model->get_parameter_index(pzerop_iter->second);
             auto zerop_cindex = zerop_pindex - fbody._param_offset;
-            m.zerop_remap[i - fbody._param_offset] = zerop_cindex;
+            m.zerop_remap[cindex] = zerop_cindex;
             m.params_to_remove.push_back(pzerop_iter->second);
-            m.closure_remap.push_back(i - fbody._param_offset);
+            m.closure_remap.push_back(cindex);
         } else if (ban_list.find(param) == ban_list.end()) {
             // If it's not in the ban list, it's an OK parameter and should be kept
             LOG_DEBUG("This is an OK parameter, will be kept");
-            m.closure_remap.push_back(i - fbody._param_offset);
+            m.closure_remap.push_back(cindex);
 
             // FIXME: type should be queried from a lazy tensor
             // and compared against param->get_element_type()
             // to decide 100%
-            m.weights_to_unpack.insert(i - fbody._param_offset);
+            // FIXME: workaround, in case of lazy unpack do not do unpack here
+            if (fbody._idx_lazy_unpack.find(cindex) == fbody._idx_lazy_unpack.end()) {
+                m.weights_to_unpack.insert(cindex);
+            }
         }
 
         // Process zero points for parameters

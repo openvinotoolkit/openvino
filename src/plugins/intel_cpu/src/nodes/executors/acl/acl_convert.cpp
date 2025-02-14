@@ -6,8 +6,7 @@
 
 #include "acl_utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace arm_compute;
 
@@ -124,5 +123,4 @@ bool ACLConvertExecutorBuilder::isSupported(const ConvertParams& convertParams,
     return true;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
