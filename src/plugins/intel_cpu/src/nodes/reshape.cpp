@@ -13,9 +13,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool Reshape::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -142,7 +140,7 @@ void Reshape::execute(const dnnl::stream& strm) {
     }
 }
 
-bool Reshape::isExecutable() const {
+bool Reshape::neverExecute() const {
     bool inPlaceEnabled = false;
     if (auto prim_desc = getSelectedPrimitiveDescriptor()) {
         auto& config = prim_desc->getConfig();
@@ -150,13 +148,15 @@ bool Reshape::isExecutable() const {
             inPlaceEnabled = true;
         }
     }
-    return !inPlaceEnabled;
+    return inPlaceEnabled;
+}
+
+bool Reshape::isExecutable() const {
+    return !neverExecute();
 }
 
 bool Reshape::created() const {
     return getType() == Type::Reshape;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

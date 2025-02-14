@@ -13,8 +13,7 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using jit_generator = dnnl::impl::cpu::x64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
@@ -91,10 +90,10 @@ std::vector<size_t> jit_memory_emitter::get_available_aux_gprs() const {
     return available_aux_gprs;
 }
 
-void jit_memory_emitter::emit_code(const std::vector<size_t>& in_idxs,
-                                   const std::vector<size_t>& out_idxs,
-                                   const std::vector<size_t>& pool_vec_idxs,
-                                   const std::vector<size_t>& pool_gpr_idxs) const {
+void jit_memory_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
+                                        const std::vector<size_t>& out_idxs,
+                                        const std::vector<size_t>& pool_vec_idxs,
+                                        const std::vector<size_t>& pool_gpr_idxs) const {
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
     Reg64 reg_runtime_params = abi_param1;  // defined by jit_kernel_emitter
@@ -207,5 +206,4 @@ void jit_store_memory_emitter::emit_data() const {
     store_emitter->emit_data();
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

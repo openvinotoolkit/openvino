@@ -32,9 +32,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 struct PoolingKey {
@@ -159,10 +157,10 @@ bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
             return false;
         }
 #if defined(OV_CPU_WITH_ACL)
-        if (ov::as_type_ptr<const ov::op::v8::MaxPool>(op) ||
-            ov::as_type_ptr<const ov::op::v14::MaxPool>(op)) {
-            if (ov::as_type_ptr<const ov::op::util::MaxPoolBase>(op)->get_kernel() != ov::Shape(2,2)) {
-                errorMessage = "Pooling indices returning source tensor coordinates is only supported for pool size 2x2";
+        if (ov::as_type_ptr<const ov::op::v8::MaxPool>(op) || ov::as_type_ptr<const ov::op::v14::MaxPool>(op)) {
+            if (ov::as_type_ptr<const ov::op::util::MaxPoolBase>(op)->get_kernel() != ov::Shape(2, 2)) {
+                errorMessage =
+                    "Pooling indices returning source tensor coordinates is only supported for pool size 2x2";
                 return false;
             }
         }
@@ -759,9 +757,11 @@ void Pooling::setPostOps(dnnl::primitive_attr& attr) {
     dnnl::post_ops ops;
 
     for (auto& node : fusedWith) {
+        int channelAxis = 1;
+
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, {}, postOpsArgs);
+            fakeQuantizeNode->appendPostOps(ops, {}, postOpsArgs, channelAxis);
             continue;
         }
 
@@ -775,6 +775,4 @@ void Pooling::setPostOps(dnnl::primitive_attr& attr) {
     attr.set_post_ops(ops);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

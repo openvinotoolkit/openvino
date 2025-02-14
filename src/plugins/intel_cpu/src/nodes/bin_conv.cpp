@@ -39,9 +39,7 @@ using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 #if defined(OPENVINO_ARCH_X86_64)
 #    define GET_OFF(field) offsetof(jit_bin_conv_call_args, field)
 
@@ -1207,19 +1205,20 @@ void BinaryConvolution::setPostOps(dnnl::primitive_attr& attr) {
     postOpsDataPtrs.clear();
     for (auto& node : fusedWith) {
         auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get());
+        int channelAxis = 1;
         if (eltwiseNode) {
             if (eltwiseNode->isSpecialConvolutionAddFusing()) {
                 ops.append_sum(1.0);
             } else {
                 // TODO [DS]: change to shape from memory
-                eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), postOpsDataPtrs);
+                eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), postOpsDataPtrs, channelAxis);
             }
             continue;
         }
 
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), postOpsDataPtrs);
+            fakeQuantizeNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), postOpsDataPtrs, channelAxis);
             continue;
         }
 
@@ -1431,6 +1430,4 @@ bool BinaryConvolution::created() const {
     return getType() == Type::BinaryConvolution;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
