@@ -35,7 +35,7 @@ static void reg_pattern_op_predicate(py::module m) {
                   Create Predicate from a given function.
 
                   :param predicate: function (Output<Node> -> bool)
-                  :type type_name: callable
+                  :type predicate: Callable
     )");
 
     predicate.def(py::init([](SymbolPredicate pred) {
@@ -46,7 +46,7 @@ static void reg_pattern_op_predicate(py::module m) {
                   Create Predicate from a given function.
 
                   :param predicate: function (PatternSymbolMap&, Output<Node> -> bool)
-                  :type type_name: callable
+                  :type predicate: Callable
     )");
 }
 

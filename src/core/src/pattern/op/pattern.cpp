@@ -127,18 +127,18 @@ op::Predicate has_static_dims(const std::vector<size_t>& dims) {
 }
 
 op::Predicate has_static_shape() {
-    [[maybe_unused]] bool unused;
+    [[maybe_unused]] bool unused = true;
     return op::Predicate(
-        [unused = true](const Output<Node>& output) -> bool {
+        [unused = unused](const Output<Node>& output) -> bool {
             return output.get_partial_shape().is_static();
         },
         "has_static_shape");
 }
 
 op::Predicate has_static_rank() {
-    [[maybe_unused]] bool unused;
+    [[maybe_unused]] bool unused = true;
     return op::Predicate(
-        [unused = true](const Output<Node>& output) -> bool {
+        [unused = unused](const Output<Node>& output) -> bool {
             return output.get_partial_shape().rank().is_static();
         },
         "has_static_rank");
