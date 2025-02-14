@@ -80,7 +80,7 @@ class jit_convert_array : public jit_kernel {
 
         size >>= vlen_log2;
 
-        foreach (0, size, [&, this](const Xbyak::Reg64& idx) {
+        foreach (0, size, [&, this](const Xbyak::Reg64& /*idx*/) {
             _convert_vec(*this, src, dst);
             src += _src_size * vlen;
             dst += _dst_size * vlen;

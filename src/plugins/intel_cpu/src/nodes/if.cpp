@@ -16,7 +16,7 @@
 
 namespace ov::intel_cpu::node {
 
-If::PortMapHelper::PortMapHelper(MemoryPtr from, std::deque<MemoryPtr> to, const dnnl::engine& eng)
+If::PortMapHelper::PortMapHelper(MemoryPtr from, std::deque<MemoryPtr> to, const dnnl::engine& /*eng*/)
     : srcMemPtr(std::move(from)),
       dstMemPtrs(std::move(to)),
       size(0) {
@@ -30,7 +30,7 @@ If::PortMapHelper::PortMapHelper(MemoryPtr from, std::deque<MemoryPtr> to, const
     }
 }
 
-void If::PortMapHelper::execute(const dnnl::stream& strm) {
+void If::PortMapHelper::execute(const dnnl::stream& /*strm*/) {
     // if output shapes are changed,
     // after subgraph inference we should redefine out memory of 'If'
     redefineTo();

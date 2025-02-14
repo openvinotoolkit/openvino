@@ -241,7 +241,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return MlasGemmExecutor::supports(config);
             },
             // requiresFallback
-            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+            [](const FCConfig&  /*config*/) -> ov::optional<executor::Config<FCAttrs>> {
                 // @todo Implement proper handling for the cases when fallback is not expected
                 // throwing exception is not an option, since requiresFallback is used in two contexts:
                 // 1) getting proper memory descriptors configuration
@@ -249,7 +249,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return {};
             },
             // acceptsShapes
-            [](const MemoryArgs& memory) -> bool {
+            [](const MemoryArgs&  /*memory*/) -> bool {
                 // @todo create syntactic sugar (functor) for shape agnostic lambda
                 return true;
             },
@@ -471,7 +471,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                                               dnnlFCMappingNotation);
             },
             // acceptsShapes
-            [](const MemoryArgs& memory) -> bool {
+            [](const MemoryArgs&  /*memory*/) -> bool {
                 return true;
             },
             // create
@@ -485,6 +485,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                         const FCAttrs& attrs,
                         const ExecutorContext::CPtr& context,
                         const std::shared_ptr<DnnlShapeAgnosticData>& shareAgnosticData) const {
+                        (void) attrs;
                         MatMulAttrs matMulAttrs{false,
                                                 false};
                         auto primitive =
@@ -511,7 +512,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             OperationType::FullyConnected,
             ShapeTolerance::Dependant,
             // supports
-            [](const FCConfig& config) -> bool {
+            [](const FCConfig&  /*config*/) -> bool {
                 return true;
             },
             // requiresFallback
@@ -522,7 +523,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                                               dnnlConvolutionMappingNotation);
             },
             // acceptsShapes
-            [](const MemoryArgs& memory) -> bool {
+            [](const MemoryArgs&  /*memory*/) -> bool {
                 return true;
             },
             // create

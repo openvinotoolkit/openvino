@@ -95,7 +95,7 @@ AclDeconvExecutor::AclDeconvExecutor(ExecutorContext::CPtr context) : DeconvExec
 bool AclDeconvExecutor::init(const DeconvAttrs& deconvAttrs,
                              const std::vector<MemoryDescPtr>& srcDescs,
                              const std::vector<MemoryDescPtr>& dstDescs,
-                             const dnnl::primitive_attr& attr) {
+                             const dnnl::primitive_attr& /*attr*/) {
     this->deconvAttrs = deconvAttrs;
     ACLDeconvTensorInfo aclDeconvTensorInfo = getACLDeconvTensorInfo(deconvAttrs, srcDescs, dstDescs);
     TensorInfo srcTensorInfo = aclDeconvTensorInfo.srcTensorInfo;
@@ -187,7 +187,7 @@ static MemoryPtr prepareWeightMemory(const std::vector<MemoryCPtr>& src, const E
 
 void AclDeconvExecutor::exec(const std::vector<MemoryCPtr>& src,
                              const std::vector<MemoryPtr>& dst,
-                             const void* post_ops_data_) {
+                             const void* /*post_ops_data_*/) {
     // TODO: Remove transpose from exec
     auto newWei = prepareWeightMemory(src, context);
 

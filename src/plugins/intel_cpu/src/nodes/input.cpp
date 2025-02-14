@@ -163,7 +163,7 @@ struct jit_has_subnormals : public jit_has_subnormals_base {
         mov(r8, reg_sz);
         shr(r8, sh_bits);
 
-        foreach (reg_idx, 1, r8, [&, this](const Xbyak::Reg64& idx) {
+        foreach (reg_idx, 1, r8, [&, this](const Xbyak::Reg64& /*idx*/) {
             check_subnormals(reg_src, exponent_mask, mantissa_mask, zero);
             jnc(has_subnormals);
             add(reg_src, sizeof(float) * vlen);

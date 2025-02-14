@@ -11,7 +11,7 @@
 namespace ov::intel_cpu::node {
 
 Result MMShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                           const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
+                           const std::unordered_map<size_t, MemoryPtr>& /*data_dependency*/) {
     const VectorDims& shapeA = input_shapes[0].get();
     const VectorDims& shapeB = input_shapes[1].get();
     const size_t rankA = shapeA.size();

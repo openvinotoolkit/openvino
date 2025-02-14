@@ -147,7 +147,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
 
         wbuffer.alloc(works, weight_element_size);
 
-        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
+        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t /*nthr*/) {
             auto& work = works[ithr];
             if (work) {
                 if (quantized_int8) {
@@ -251,7 +251,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                 strideA = m_quant_act.K;
             }
 
-            ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
+            ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t /*nthr*/) {
                 auto& work = works[ithr];
                 if (work) {
                     work.run(BM, pA, strideA);

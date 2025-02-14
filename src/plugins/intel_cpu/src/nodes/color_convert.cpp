@@ -359,7 +359,7 @@ class SinglePlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute(const dnnl::stream& strm) override {
+    void execute(const dnnl::stream& /*strm*/) override {
         const auto& dims = inputDims(0);
 
         const size_t batch_size = dims[N_DIM];
@@ -379,7 +379,7 @@ class TwoPlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute(const dnnl::stream& strm) override {
+    void execute(const dnnl::stream& /*strm*/) override {
         const auto& dims = inputDims(0);
 
         const T* y = static_cast<const T*>(input(0));
@@ -426,7 +426,7 @@ void JitConverter<T[N]>::generate() {
 
     width >>= reg_capacity_log;
 
-    foreach (0, width, [&](const Reg64& idx) {
+    foreach (0, width, [&](const Reg64& /*idx*/) {
         auto yuv = load_yuv(src_y, src_uv);
 
         // Aliases
@@ -542,7 +542,7 @@ public:
         jit_converter_create<T>();
     }
 
-    void execute(const dnnl::stream& strm) override {
+    void execute(const dnnl::stream& /*strm*/) override {
         const auto& kernel = jit_converter_get<T>();
         const auto& dims = inputDims(0);
 
@@ -576,7 +576,7 @@ public:
         jit_converter_create<T>();
     }
 
-    void execute(const dnnl::stream& strm) override {
+    void execute(const dnnl::stream& /*strm*/) override {
         const auto& kernel = jit_converter_get<T>();
         const auto& dims = inputDims(0);
 
@@ -690,7 +690,7 @@ class SinglePlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute(const dnnl::stream& strm) override {
+    void execute(const dnnl::stream& /*strm*/) override {
         const auto& dims = inputDims(0);
 
         const size_t batch_size = dims[N_DIM];
@@ -711,7 +711,7 @@ class ThreePlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute(const dnnl::stream& strm) override {
+    void execute(const dnnl::stream& /*strm*/) override {
         const auto& dims = inputDims(0);
 
         const T* y = static_cast<const T*>(input(0));
@@ -761,7 +761,7 @@ void JitConverter<T[N]>::generate() {
 
     width >>= reg_capacity_log;
 
-    foreach (0, width, [&](const Reg64& idx) {
+    foreach (0, width, [&](const Reg64& /*idx*/) {
         auto yuv = load_yuv(src_y, src_u, src_v);
 
         // Aliases
@@ -874,7 +874,7 @@ public:
         jit_converter_create<T>();
     }
 
-    void execute(const dnnl::stream& strm) override {
+    void execute(const dnnl::stream& /*strm*/) override {
         const auto& kernel = jit_converter_get<T>();
         const auto& dims = inputDims(0);
 
@@ -910,7 +910,7 @@ public:
         jit_converter_create<T>();
     }
 
-    void execute(const dnnl::stream& strm) override {
+    void execute(const dnnl::stream& /*strm*/) override {
         const auto& kernel = jit_converter_get<T>();
         const auto& dims = inputDims(0);
 
