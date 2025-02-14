@@ -12,8 +12,7 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 VectorDims TppEmitter::get_projected_subtensor(const snippets::lowered::PortDescriptorPtr& desc) {
     auto shape = desc->get_shape();
@@ -76,7 +75,7 @@ TppEmitter::TppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
     }
 }
 
-void TppEmitter::emit_code(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void TppEmitter::emit_code_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     validate_arguments(in, out);
     emit_impl(in, out);
 }
@@ -141,5 +140,4 @@ libxsmm_datatype TppEmitter::ov_to_xsmm_dtype(ov::element::Type_t elemet_type) {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

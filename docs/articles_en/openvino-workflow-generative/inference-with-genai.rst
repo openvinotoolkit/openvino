@@ -8,7 +8,7 @@ Inference with OpenVINO GenAI
    :maxdepth: 1
    :hidden:
 
-   NPU inference of LLMs <inference-with-genai/inference-with-genai-on-npu>
+   NPU with OpenVINO GenAI <inference-with-genai/inference-with-genai-on-npu>
 
 
 OpenVINO™ GenAI is a library of pipelines and methods, extending the OpenVINO runtime to work

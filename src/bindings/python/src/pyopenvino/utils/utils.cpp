@@ -190,8 +190,22 @@ py::object from_ov_any(const ov::Any& any) {
         PyObject* dict = PyDict_New();
         for (const auto& it : val) {
             std::string property_name = it;
-            std::string mutability = it.is_mutable() ? "RW" : "RO";
-            PyDict_SetItemString(dict, property_name.c_str(), PyUnicode_FromString(mutability.c_str()));
+            auto mutability = it.get_mutability();
+            std::string mutability_str;
+            switch (mutability) {
+            case ov::PropertyMutability::RW:
+                mutability_str = "RW";
+                break;
+            case ov::PropertyMutability::RO:
+                mutability_str = "RO";
+                break;
+            case ov::PropertyMutability::WO:
+                mutability_str = "WO";
+                break;
+            default:
+                throw std::runtime_error("Unknown mutability type");
+            }
+            PyDict_SetItemString(dict, property_name.c_str(), PyUnicode_FromString(mutability_str.c_str()));
         }
         return py::cast<py::object>(dict);
     } else if (any.is<std::shared_ptr<ov::Meta>>()) {
