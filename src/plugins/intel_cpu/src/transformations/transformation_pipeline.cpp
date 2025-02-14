@@ -842,6 +842,9 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
         FuseConvertTransformation);
 
     // Enable MatMulTransformation against FC nodes only
+    // int8 MatMul is disabled because acl_lowp_matmul_t supports 2D case only
+    // most models have 3D/4D cases, so fallback to jit_gemm_i8 gives worse perf than gemm_acl_f16
+    // oneDNN ticket #2696
     CPU_SET_CALLBACK_ARM(
         lptManager,
         [&](const_node_ptr& node) -> bool {
@@ -1132,7 +1135,7 @@ void Transformations::MainSnippets(void) {
                 ov::is_type<ov::op::v0::Clamp>(n) || ov::is_type<ov::op::v0::Ceiling>(n) ||
                 ov::is_type<ov::op::v0::Convert>(n) || ov::is_type<ov::op::v1::Divide>(n) ||
                 ov::is_type<ov::op::v0::Elu>(n) || ov::is_type<ov::op::v0::Exp>(n) ||
-                ov::is_type<ov::op::v1::Equal>(n) ||
+                ov::is_type<ov::op::v1::Equal>(n) || ov::is_type<ov::op::v0::FakeQuantize>(n) ||
                 ov::is_type<ov::op::v0::Floor>(n) || ov::is_type<ov::op::v1::FloorMod>(n) ||
                 ov::is_type<ov::op::v0::Gelu>(n) || ov::is_type<ov::op::v7::Gelu>(n) ||
                 ov::is_type<ov::op::v1::Greater>(n) || ov::is_type<ov::op::v1::GreaterEqual>(n) ||
