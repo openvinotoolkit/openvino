@@ -8,8 +8,7 @@
 
 #include "cpu_shape.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 std::string dim2str(Dim dim) {
     return dim == Shape::UNDEFINED_DIM ? "?" : std::to_string(dim);
@@ -531,5 +530,4 @@ std::string algToString(const Algorithm alg) {
     return "Undefined";
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

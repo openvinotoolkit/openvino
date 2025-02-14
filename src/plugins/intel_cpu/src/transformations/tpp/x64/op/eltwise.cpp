@@ -4,10 +4,7 @@
 
 #include "eltwise.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
-namespace op {
+namespace ov::intel_cpu::tpp::op {
 
 #define GENERAL_AUX_METHODS(OP, OP_TYPE, ...)                                             \
     std::shared_ptr<Node> OP::clone_with_new_inputs(const OutputVector& new_args) const { \
@@ -155,7 +152,4 @@ SquareRoot::SquareRoot(const Output<Node>& arg)
 
 UNARY_AUX_METHODS(SquareRoot)
 
-}  // namespace op
-}  // namespace tpp
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::tpp::op

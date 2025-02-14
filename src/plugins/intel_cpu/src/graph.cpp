@@ -58,8 +58,8 @@
 #endif
 
 using namespace dnnl;
-namespace ov {
-namespace intel_cpu {
+
+namespace ov::intel_cpu {
 
 Graph::~Graph() {
     CPU_DEBUG_CAP_ENABLE(summary_perf(*this));
@@ -1183,7 +1183,7 @@ void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& in
 
             if (actualDesc->getPrecision() == element::string) {
                 StringMemory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr);
-                edgeMemory->load(ext_mem);
+                edgeMemory->load(ext_mem, false);
             } else if (!actualDesc->isCompatible(*ext_tensor_desc)) {
                 Memory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr, false);
                 edgeMemory->load(ext_mem, false);
@@ -1293,7 +1293,7 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
 
         if (actualDesc->getPrecision() == element::string) {
             StringMemory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr);
-            outBloMem.load(intr_blob);
+            outBloMem.load(intr_blob, false);
         } else if (!actualDesc->isCompatible(*expected_desc_ptr) && !isScalarOutput) {
             Memory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr, false);
             outBloMem.load(intr_blob, false);
@@ -2154,5 +2154,4 @@ void Graph::assignStates(const std::vector<MemStatePtr>& states) {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
