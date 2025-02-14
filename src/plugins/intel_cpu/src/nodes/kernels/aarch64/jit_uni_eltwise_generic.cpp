@@ -29,7 +29,10 @@ void jit_uni_eltwise_generic<isa>::generate() {
     preamble();
 
     static const std::vector<element::Type> exec_precisions_priority = {element::f16, element::f32};
-    auto const exec_prc = eltwise_precision_helper::get_precision(jep_.inputs_number, jep_.src_prc, eltwise_data_, exec_precisions_priority);
+    auto const exec_prc = eltwise_precision_helper::get_precision(jep_.inputs_number,
+                                                                  jep_.src_prc,
+                                                                  eltwise_data_,
+                                                                  exec_precisions_priority);
 
     eltwise_emitter = create_eltwise_emitter(eltwise_data_.front(), exec_prc);
     for (size_t i = 1; i < eltwise_data_.size(); ++i) {
@@ -46,8 +49,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
         for (size_t i = 0; i < jep.inputs_number; i++) {
             ldr(start_to_offsets,
                 ptr(reg_const_params,
-                    static_cast<int32_t>(offsetof(jit_eltwise_call_args_ptrs, src_offsets) +
-                                         i * sizeof(size_t))));
+                    static_cast<int32_t>(offsetof(jit_eltwise_call_args_ptrs, src_offsets) + i * sizeof(size_t))));
             ldr(get_src_reg(i),
                 ptr(reg_const_params,
                     static_cast<int32_t>(offsetof(jit_eltwise_call_args_ptrs, src_ptr[0]) + i * sizeof(size_t))));
@@ -91,8 +93,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
 
         for (size_t i = 0; i < jep.inputs_number; i++) {
             ldr(get_src_reg(i),
-                ptr(param1,
-                    static_cast<int32_t>(offsetof(jit_eltwise_call_args_ptrs, src_ptr) + i * sizeof(size_t))));
+                ptr(param1, static_cast<int32_t>(offsetof(jit_eltwise_call_args_ptrs, src_ptr) + i * sizeof(size_t))));
             init_ptrs_with_offsets(get_src_reg(i), jep.src_offsets[i]);
         }
 
@@ -784,7 +785,6 @@ struct SupportedPrecisions {
     }
 };
 }  // namespace
-
 
 using namespace aarch64;
 
