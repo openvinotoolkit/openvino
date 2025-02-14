@@ -127,19 +127,19 @@ op::Predicate has_static_dims(const std::vector<size_t>& dims) {
 }
 
 op::Predicate has_static_shape() {
-    [[maybe_unused]] bool unused = true;
+    bool gcc_abi_compatibility = true;
     return op::Predicate(
-        [unused = unused](const Output<Node>& output) -> bool {
-            return output.get_partial_shape().is_static();
+        [gcc_abi_compatibility](const Output<Node>& output) -> bool {
+            return gcc_abi_compatibility && output.get_partial_shape().is_static();
         },
         "has_static_shape");
 }
 
 op::Predicate has_static_rank() {
-    [[maybe_unused]] bool unused = true;
+    bool gcc_abi_compatibility = true;
     return op::Predicate(
-        [unused = unused](const Output<Node>& output) -> bool {
-            return output.get_partial_shape().rank().is_static();
+        [gcc_abi_compatibility](const Output<Node>& output) -> bool {
+            return gcc_abi_compatibility && output.get_partial_shape().rank().is_static();
         },
         "has_static_rank");
 }
@@ -288,7 +288,7 @@ op::Predicate shape_matches(const std::string& shape_notation) {
      * "[Batches..., OutputDim]" -- check for rank >= 1; Group of dimensions Batches and dimension OutputDim checked /
      * recorded the Match obj;
      * */
-    const auto& [idx_to_name, rank_restrictions] = parse_string(shape_notation);
+    auto [idx_to_name, rank_restrictions] = parse_string(shape_notation);
     return op::Predicate(
         [=](PatternSymbolMap& m, const Output<Node>& output) -> bool {
             const auto& shape = output.get_partial_shape();
