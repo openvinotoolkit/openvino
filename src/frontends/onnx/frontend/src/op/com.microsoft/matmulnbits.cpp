@@ -7,21 +7,15 @@
 #include "exceptions.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert_like.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/shape_of.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/reshape.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
-#include "utils/split.hpp"
 
 using namespace ov::op;
 
@@ -182,8 +176,7 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
         const auto sub_b = std::make_shared<v1::Subtract>(converted_b, converted_zero_points);
         const auto scales_fp16 = std::make_shared<v0::Convert>(scales, ov::element::f16);
         const auto scales_reshaped =
-            op::util::reshape(scales_fp16,
-                                ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1});
+            op::util::reshape(scales_fp16, ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1});
         const auto scaled_b = std::make_shared<v1::Multiply>(sub_b, scales_reshaped);
 
         // reshape b to [N, K]
