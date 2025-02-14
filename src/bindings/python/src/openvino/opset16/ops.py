@@ -32,3 +32,31 @@ def identity(
         as_nodes(data, name=name),
         {},
     )
+
+
+@nameable_op
+def segment_max(
+    data: NodeInput,
+    segment_ids: NodeInput,
+    num_segments: Optional[NodeInput] = None,
+    fill_mode: str = "ZERO",
+    name: Optional[str] = None,
+) -> Node:
+    """SegmentMax operation finds the maximum value in each specified segment of the input tensor.
+
+    :param data: ND tensor of type T, the numerical data on which SegmentMax operation will be performed.
+    :param segment_ids: 1D Tensor of sorted non-negative numbers, representing the segments.
+    :param num_segments: An optional scalar value representing the segments count. If not provided, it is inferred from segment_ids.
+    :param fill_mode: Responsible for the value assigned to segments which are empty. Can be "ZERO" or "LOWEST".
+    :param name: Optional name for the node.
+
+    :return: The new node performing SegmentMax operation.
+    """
+    inputs = [data, segment_ids]
+    if num_segments is not None:
+        inputs.append(num_segments)
+    return _get_node_factory_opset16().create(
+        "SegmentMax",
+        as_nodes(*inputs, name=name),
+        {"fill_mode": fill_mode},
+    )
