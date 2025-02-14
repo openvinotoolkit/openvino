@@ -10,9 +10,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/opsets/opset1.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool ReverseSequence::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                            std::string& errorMessage) noexcept {
@@ -192,7 +190,7 @@ void ReverseSequence::execute(const dnnl::stream& strm) {
 
     const auto precision = getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().getDesc().getPrecision();
     if (!one_of(precision, ov::element::f32, ov::element::i32)) {
-        OPENVINO_THROW("ReverseSequence layer does not support ", precision, " precision");
+        THROW_CPU_NODE_ERR("does not support ", precision, " precision");
     }
 
     if (precision == ov::element::f32) {
@@ -210,6 +208,4 @@ bool ReverseSequence::created() const {
     return getType() == Type::ReverseSequence;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

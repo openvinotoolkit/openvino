@@ -40,9 +40,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 struct ConvKey {
@@ -182,7 +180,15 @@ public:
 
         std::vector<NodePtr> nodes(nodesSet.begin(), nodesSet.end());
 
-        _graph->CreateGraph(nodes, edges, context, "fused_subgraph");
+        _graph->Init(nodes, edges, context, "fused_subgraph");
+    }
+
+    int RegisterToAllocationContext(int offset, AllocationContext& context) {
+        return _graph->RegisterToAllocationContext(offset, context);
+    }
+
+    void Activate() const {
+        _graph->Activate();
     }
 
     std::shared_ptr<Input> getInput(size_t idx) const {
@@ -346,7 +352,7 @@ ov::element::Type Convolution::fusedEltwisePrecision(const NodePtr& fusingNode) 
     } else if (fusingPort == 1) {
         eltwisePrecision = fusingNode->getOriginalInputPrecisionAtPort(0);
     } else {
-        OPENVINO_THROW("Cannot determine Eltwise post op precision for Convolution node with name '", getName(), "'");
+        THROW_CPU_NODE_ERR("Cannot determine Eltwise post op precision");
     }
 
     return eltwisePrecision;
@@ -420,7 +426,7 @@ void Convolution::getSupportedDescriptors() {
         return;
     }
     if (!attrs.empty()) {
-        OPENVINO_THROW("attrs vector is not empty '", getName(), "'");
+        THROW_CPU_NODE_ERR("has a non-empty attrs vector");
     }
 
     attrs.reserve(2);
@@ -474,22 +480,20 @@ void Convolution::getSupportedDescriptors() {
     }
 
     if (static_cast<int>(getParentEdges().size()) != expectedInputEdgesNum) {
-        OPENVINO_THROW("Incorrect number of input edges for layer ",
-                       getName(),
-                       ", expected: ",
-                       expectedInputEdgesNum,
-                       " actual: ",
-                       getParentEdges().size());
+        THROW_CPU_NODE_ERR("Incorrect number of input edges, expected: ",
+                           expectedInputEdgesNum,
+                           " actual: ",
+                           getParentEdges().size());
     }
     if (getChildEdges().empty()) {
-        OPENVINO_THROW("Incorrect number of output edges for layer ", getName());
+        THROW_CPU_NODE_ERR("Incorrect number of output edges");
     }
 
     int ndims = getInputShapeAtPort(0).getRank();
 
     withDWConv = isFusedWith(Type::Convolution);
     if (withDWConv && isDynamicNode()) {
-        OPENVINO_THROW("DW convolution is fused into convolution node ", getName(), " with dynamic shape.");
+        THROW_CPU_NODE_ERR("DW convolution is fused into the node with dynamic shape.");
     }
 
     for (size_t i = 0; i < fusedWith.size(); i++) {
@@ -701,7 +705,8 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
                         continue;
                     }
                     DEBUG_LOG(getName(), ": Append ", node->getName(), " as legacy post op");
-                    eltwiseNode->appendPostOps(ops, dims, args);
+                    int channelAxis = 1;
+                    eltwiseNode->appendPostOps(ops, dims, args, channelAxis);
                 } else {
                     DEBUG_LOG(getName(), ": Append ", node->getName(), " as original post op with binary");
                     eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType);
@@ -743,7 +748,8 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
                 }
                 // fallback to legacy
                 DEBUG_LOG(getName(), ": Append ", node->getName(), " as legacy post op");
-                fakeQuantizeNode->appendPostOps(ops, dims, args);
+                int channelAxis = 1;
+                fakeQuantizeNode->appendPostOps(ops, dims, args, channelAxis);
             } else {
                 DEBUG_LOG(getName(), ": Append ", node->getName(), " as original post op with binary");
                 fakeQuantizeNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, true, do_rounding);
@@ -780,18 +786,14 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
             continue;
         }
 
-        OPENVINO_THROW("Fusing of ",
-                       NameFromType(node->getType()),
-                       " operation to ",
-                       NameFromType(this->getType()),
-                       " node is not implemented");
+        THROW_CPU_NODE_ERR("Fusing of ",
+                           NameFromType(node->getType()),
+                           " operation to ",
+                           NameFromType(this->getType()),
+                           " node is not implemented");
     }
 
     attr.set_post_ops(ops);
-}
-
-void Convolution::selectOptimalPrimitiveDescriptor() {
-    selectPreferPrimitiveDescriptor(getImplPriority(), true);
 }
 
 void Convolution::initSupportedPrimitiveDescriptors() {
@@ -904,6 +906,36 @@ void Convolution::initSupportedPrimitiveDescriptors() {
             add_supported_desc(first_desc);
         }
     }
+}
+
+void Convolution::selectOptimalPrimitiveDescriptor() {
+    selectPreferPrimitiveDescriptor(getImplPriority(), true);
+    /* preemptively create a fallback subgraph to include it into global memory reuse
+     * pros:
+     * - less total memory usage when fallback is actually needed (by size of intermediate memory)
+     * - no runtime overhead of graph creation when fallback is needed for the first time
+     * cons:
+     * - more total memory usage when fallback is not needed (by size of a graph data structure itself)
+     */
+    if (withSum && isDynamicNode()) {
+        subgraph = std::make_shared<FusedSubgraph>(fusedWith, *this, context);
+    }
+}
+
+int Convolution::registerToAllocationContext(int offset, AllocationContext& context) {
+    if (subgraph) {
+        return subgraph->RegisterToAllocationContext(offset, context);
+    }
+
+    return Node::registerToAllocationContext(offset, context);
+}
+
+void Convolution::createPrimitive() {
+    if (subgraph) {
+        subgraph->Activate();
+    }
+
+    Node::createPrimitive();
 }
 
 bool Convolution::created() const {
@@ -1347,25 +1379,25 @@ void Convolution::prepareParams() {
     auto wghMemPtr = getSrcMemoryAtPort(1);
     auto dstMemPtr = getOutputMemory();
     if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        OPENVINO_THROW("Destination memory was undefined.");
+        THROW_CPU_NODE_ERR("Destination memory was undefined.");
     }
     if (!srcMemPtr || !srcMemPtr->isDefined()) {
-        OPENVINO_THROW("Input memory was undefined.");
+        THROW_CPU_NODE_ERR("Input memory was undefined.");
     }
     if (!wghMemPtr || !wghMemPtr->isDefined()) {
-        OPENVINO_THROW("Weight memory was undefined.");
+        THROW_CPU_NODE_ERR("Weight memory was undefined.");
     }
     MemoryPtr biasMemPtr = nullptr;
     if (withBiases) {
         biasMemPtr = getSrcMemoryAtPort(2);
         if (!biasMemPtr || !biasMemPtr->isDefined()) {
-            OPENVINO_THROW("Input memory is undefined.");
+            THROW_CPU_NODE_ERR("Input memory is undefined.");
         }
     }
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr) {
-        OPENVINO_THROW("Preferable primitive descriptor is not set for node ", getName(), ".");
+        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
     }
 
     DnnlMemoryDescCPtr inMemoryDesc = srcMemPtr->getDescWithType<DnnlMemoryDesc>();
@@ -1525,7 +1557,7 @@ void Convolution::prepareParams() {
     execPtr = result.first;
 
     if (!execPtr) {
-        OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
+        THROW_CPU_NODE_ERR("Primitive descriptor was not found");
     }
 
     primArgs[DNNL_ARG_SRC] = srcMemPtr->getPrimitive();
@@ -1631,7 +1663,7 @@ void Convolution::ConvolutionSumExecutor::reorder_exec(std::unordered_map<int, d
 
 void Convolution::execute(const dnnl::stream& strm) {
     if (!execPtr) {
-        OPENVINO_THROW("Can't execute Convolution node with name: ", getName(), ", because executor is not compiled");
+        THROW_CPU_NODE_ERR("executor is not compiled");
     }
 
     execPtr->exec(primArgs, strm);
@@ -1641,10 +1673,7 @@ void Convolution::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
     if (withSumBroadcast) {
         if (!subgraph) {
-            OPENVINO_THROW("Unexpected: Fused ops subgraph has not been created in ",
-                           getTypeStr(),
-                           " with name ",
-                           getName());
+            THROW_CPU_NODE_ERR("Fused ops subgraph has not been created");
         }
         const size_t sumPortNum = getParentEdges().size() - 1;
         const auto& sumInpMem = getParentEdgeAt(sumPortNum)->getMemory();
@@ -1658,7 +1687,7 @@ void Convolution::executeDynamicImpl(const dnnl::stream& strm) {
         const auto& outMem = out->getParentEdgeAt(0)->getMemory();
         auto convOutMem = getDstMemoryAtPort(0);
         Node::redefineOutputMemory({outMem.getStaticDims()});
-        convOutMem->load(outMem);
+        convOutMem->load(outMem, true);
     }
 }
 
@@ -1676,9 +1705,7 @@ void Convolution::redefineOutputMemory(const std::vector<VectorDims>& newOutputS
         const auto& sumInpMem = getParentEdgeAt(sumPortNum)->getMemory();
         if (newOutputShapes.front() != sumInpMem.getStaticDims()) {
             withSumBroadcast = true;
-            if (!subgraph) {
-                subgraph = std::make_shared<FusedSubgraph>(fusedWith, *this, context);
-            }
+
             auto inp0 = subgraph->getInput(0);
             inp0->redefineOutputMemory(newOutputShapes);
 
@@ -1723,10 +1750,7 @@ MemoryDescPtr Convolution::getSumMemDesc(const primitive_desc& primitive_desc_it
 MemoryPtr Convolution::getOutputMemory() const {
     if (withSumBroadcast) {
         if (!subgraph) {
-            OPENVINO_THROW("Unexpected: Fused ops subgraph has not been created in ",
-                           getTypeStr(),
-                           " with name ",
-                           getName());
+            THROW_CPU_NODE_ERR("Fused ops subgraph has not been created");
         }
         auto inp0 = subgraph->getInput(0);
         return inp0->getDstMemoryAtPort(0);
@@ -1776,7 +1800,7 @@ void Convolution::appendZeroPointsArgs() {
 
 void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const size_t inputZpSize) {
     if (!inputZeroPoints.empty() || !legacyInputZeroPoints.empty()) {
-        OPENVINO_THROW("input zero point is not empty '", getName(), "'");
+        THROW_CPU_NODE_ERR("input zero point is not empty");
     }
     if (inputZpSize) {
         inputZeroPointType = zpType::PerTensor;
@@ -1832,6 +1856,4 @@ VectorDims Convolution::outputStaticShape() const {
     return outputShape.getStaticDims();
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

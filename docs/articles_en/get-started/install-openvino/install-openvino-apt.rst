@@ -56,28 +56,21 @@ Step 1: Set Up the OpenVINO Toolkit APT Repository
 
          .. code-block:: sh
 
-            echo "deb https://apt.repos.intel.com/openvino/2024 ubuntu24 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2024.list
+            echo "deb https://apt.repos.intel.com/openvino/2025 ubuntu24 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2025.list
 
       .. tab-item:: Ubuntu 22
          :sync: ubuntu-22
 
          .. code-block:: sh
 
-            echo "deb https://apt.repos.intel.com/openvino/2024 ubuntu22 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2024.list
+            echo "deb https://apt.repos.intel.com/openvino/2025 ubuntu22 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2025.list
 
       .. tab-item:: Ubuntu 20
          :sync: ubuntu-20
 
          .. code-block:: sh
 
-            echo "deb https://apt.repos.intel.com/openvino/2024 ubuntu20 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2024.list
-
-      .. tab-item:: Ubuntu 18
-         :sync: ubuntu-18
-
-         .. code-block:: sh
-
-            echo "deb https://apt.repos.intel.com/openvino/2024 ubuntu18 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2024.list
+            echo "deb https://apt.repos.intel.com/openvino/2025 ubuntu20 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2025.list
 
 
 3. Update the list of packages via the update command:
@@ -133,7 +126,7 @@ Step 2: Install OpenVINO Runtime Using the APT Package Manager
          .. code-block:: sh
 
 
-            sudo apt install openvino-2024.4.0
+            sudo apt install openvino-2025.0.0
 
 .. note::
 
@@ -206,7 +199,7 @@ To uninstall OpenVINO Runtime via APT, run the following command based on your n
 
       .. code-block:: sh
 
-         sudo apt autoremove openvino-2024.4.0
+         sudo apt autoremove openvino-2025.0.0
 
 
 What's Next?
