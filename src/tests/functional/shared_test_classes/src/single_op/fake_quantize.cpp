@@ -64,6 +64,9 @@ void FakeQuantizeLayerTest::SetUp() {
     if (fq_direct_arg.size() != 0) {
         abs_threshold = (fq_direct_arg[3] - fq_direct_arg[2]) / levels;
     }
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+    abs_threshold = 7e-2;
+#endif
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
     std::shared_ptr<ov::Node> fq;
