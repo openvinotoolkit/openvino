@@ -4,7 +4,7 @@
 
 """Factory functions for ops added to openvino opset16."""
 from functools import partial
-from typing import Optional
+from typing import Optional, Union
 
 from openvino import Node
 from openvino.utils.decorators import nameable_op
@@ -39,7 +39,7 @@ def segment_max(
     data: NodeInput,
     segment_ids: NodeInput,
     num_segments: Optional[NodeInput] = None,
-    fill_mode: str = None,
+    fill_mode: Union[str, None] = None,
     name: Optional[str] = None,
 ) -> Node:
     """The SegmentMax operation finds the maximum value in each specified segment of the input tensor.
