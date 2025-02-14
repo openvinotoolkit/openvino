@@ -288,7 +288,9 @@ op::Predicate shape_matches(const std::string& shape_notation) {
      * "[Batches..., OutputDim]" -- check for rank >= 1; Group of dimensions Batches and dimension OutputDim checked /
      * recorded the Match obj;
      * */
-    auto [idx_to_name, rank_restrictions] = parse_string(shape_notation);
+    auto item = parse_string(shape_notation);
+    const auto& idx_to_name = item.first;
+    const auto& rank_restrictions = item.second;
     return op::Predicate(
         [=](PatternSymbolMap& m, const Output<Node>& output) -> bool {
             const auto& shape = output.get_partial_shape();
