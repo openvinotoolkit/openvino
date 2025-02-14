@@ -184,10 +184,6 @@ public:
             if (output_data_types[i].value_or(data_types::dynamic) !=
                 rhs.output_data_types[i].value_or(data_types::dynamic))
                 return false;
-
-            if (output_data_types[i].value_or(data_types::dynamic) !=
-                rhs.output_data_types[i].value_or(data_types::dynamic))
-                return false;
         }
 
         if (output_paddings.size() != rhs.output_paddings.size())
