@@ -207,6 +207,8 @@ ov_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OF
 
 ov_dependent_option (ENABLE_API_VALIDATOR "Enables API Validator usage" ON "WIN32" OFF)
 
+ov_option(ENABLE_JIT_IN_CORE "Enable JIT kernel generation and execution in the Core part" ON)
+
 if(NOT BUILD_SHARED_LIBS AND ENABLE_OV_TF_FRONTEND)
     set(FORCE_FRONTENDS_USE_PROTOBUF ON)
 else()
@@ -227,6 +229,10 @@ endif()
 
 if (ENABLE_SNIPPETS_DEBUG_CAPS)
     add_definitions(-DSNIPPETS_DEBUG_CAPS)
+endif()
+
+if (ENABLE_JIT_IN_CORE)
+    add_definitions(-DDEF_JIT_IN_CORE)
 endif()
 
 ov_print_enabled_features()
