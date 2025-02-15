@@ -843,6 +843,9 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
         FuseConvertTransformation);
 
     // Enable MatMulTransformation against FC nodes only
+    // int8 MatMul is disabled because acl_lowp_matmul_t supports 2D case only
+    // most models have 3D/4D cases, so fallback to jit_gemm_i8 gives worse perf than gemm_acl_f16
+    // oneDNN ticket #2696
     CPU_SET_CALLBACK_ARM(
         lptManager,
         [&](const_node_ptr& node) -> bool {
