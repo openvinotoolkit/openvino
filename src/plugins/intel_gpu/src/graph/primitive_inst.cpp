@@ -1872,14 +1872,11 @@ void primitive_inst::prepare_primitive() {
             }
         }
 
-
         if (_node->is_type<fully_connected>()) {
             // cldnn can choose gemv kernel in case of M=1 with i4/u4.
             const auto& dev_info = get_node().get_program().get_engine().get_device_info();
-            auto weights_layout_dt = _impl_params->weights_layout.value().data_type;
-            auto is_4bit = weights_layout_dt == data_types::i4 || weights_layout_dt == data_types::u4;
-            auto can_be_used = is_4bit && _impl_params->is_single_batch() && !_impl_params->is_swiglu_fuse();
-            if (!dev_info.supports_immad && dev_info.dev_type == device_type::integrated_gpu && can_be_used)
+            if (!dev_info.supports_immad && dev_info.dev_type == device_type::integrated_gpu &&
+                _impl_params->is_single_batch())
                 _impl = _impls_factory->get_primitive_impl_for_params(*this, *_impl_params, false);
         }
 
@@ -2897,9 +2894,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
     auto can_use_gemv = [&inst, &updated_params]() -> bool {
         const auto& dev_info = inst.get_node().get_program().get_engine().get_device_info();
         auto is_cldnn_fc_impl = !dev_info.supports_immad && dev_info.dev_type == device_type::integrated_gpu;
-        auto weights_layout_dt = updated_params.weights_layout.value().data_type;
-        auto is_4bit = weights_layout_dt == data_types::i4 || weights_layout_dt == data_types::u4;
-        return is_cldnn_fc_impl && is_4bit && updated_params.is_single_batch() && !updated_params.is_swiglu_fuse();
+        return is_cldnn_fc_impl && updated_params.is_single_batch();
     };
 
     std::shared_ptr<primitive_impl> dynamic_impl = nullptr;

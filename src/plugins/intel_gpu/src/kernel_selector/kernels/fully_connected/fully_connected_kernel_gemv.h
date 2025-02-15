@@ -16,6 +16,7 @@ public:
 
     FullyConnected_GEMV() : Parent("fully_connected_gpu_gemv") {}
 
+    using FullyConnectedKernelBase::GetTunedKernelsDataByIndex;
     KernelsData GetTunedKernelsDataByIndex(const Params& params, const int autoTuneIndex = -1) const override;
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsData GetKernelsDataForAutoTune(const Params& params) const override;
