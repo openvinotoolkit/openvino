@@ -520,4 +520,64 @@ NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(ze_graph_handle_t graphHandle
     return meta;
 }
 
+std::string ZeGraphExtWrappers::getCompilerSupportedOptions() const {
+    /// PLACEHOLDER
+    std::string test_supported_options = {"NPU_TURBO "
+                                          "NPU_BYPASS_UMD_CACHING "
+                                          "WORKLOAD_TYPE NPU_COMPILATION_MODE "
+                                          "CACHE_DIR NPU_TILES "
+                                          "LOADED_FROM_CACHE "
+                                          "LOG_LEVEL "
+                                          "NPU_BATCH_MODE "
+                                          "DEVICE_ID "
+                                          "NPU_COMPILER_TYPE "
+                                          "NPU_PLATFORM "
+                                          "INFERENCE_PRECISION_HINT "
+                                          "PERFORMANCE_HINT_NUM_REQUESTS "
+                                          "NPU_COMPILATION_MODE_PARAMS "
+                                          "NPU_DMA_ENGINES "
+                                          "PERFORMANCE_HINT "
+                                          "EXCLUSIVE_ASYNC_REQUESTS "
+                                          "NUM_STREAMS "
+                                          "NPU_BACKEND_COMPILATION_PARAMS "
+                                          "NPU_USE_ELF_COMPILER_BACKEND "
+                                          "NPU_MAX_TILES "
+                                          "COMPILATION_NUM_THREADS "
+                                          "NPU_DPU_GROUPS "
+                                          "EXECUTION_MODE_HINT "
+                                          "NPU_STEPPING "
+                                          "NPU_DYNAMIC_SHAPE_TO_STATIC "
+                                          "ENABLE_CPU_PINNING "
+                                          "NPU_PROFILING_TYPE "
+                                          "PERF_COUNT "
+                                          "MODEL_PRIORITY "
+                                          "NPU_CREATE_EXECUTOR"};
+    // Actual code will be:
+    // 1. ask driver for size of compiler supported options list
+    size_t sizeof_compilerSupOptList = test_supported_options.size();
+    // 2. allocate buffer for it
+    char* compSupListChar = (char*)malloc(sizeof_compilerSupOptList);
+    // 3. ask driver to populate char list
+    memcpy(compSupListChar, test_supported_options.c_str(), sizeof_compilerSupOptList);
+    // 4. convert received buff to string
+    std::string compSupListStr(compSupListChar);
+    // 5. cleanup
+    free(compSupListChar);
+
+    return compSupListStr;
+}
+
+bool ZeGraphExtWrappers::isOptionSupported(std::string optname) const {
+    // DUMMY POC
+    std::string poc_dummy_options("DUMMY_TEST_OPTION2 DUMMY_TEST_OPTION4 DUMMY_TEST_OPTION7");
+    size_t pos = poc_dummy_options.find(optname);
+    if (pos != std::string::npos) {
+        return true;
+    } else {
+        return false;
+    }
+    // DUMMY POC end
+    return false;
+}
+
 }  // namespace intel_npu
