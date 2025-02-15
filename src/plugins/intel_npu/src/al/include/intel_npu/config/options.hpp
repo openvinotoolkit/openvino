@@ -1220,6 +1220,10 @@ struct COMPILER_DYNAMIC_QUANTIZATION final : OptionBase<COMPILER_DYNAMIC_QUANTIZ
         return OptionMode::CompileTime;
     }
 
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(7, 1);
+    }
+
     static bool isPublic() {
         return true;
     }
@@ -1286,6 +1290,10 @@ struct QDQ_OPTIMIZATION final : OptionBase<QDQ_OPTIMIZATION, bool> {
 
     static bool isPublic() {
         return true;
+    }
+
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(7, 5);
     }
 };
 

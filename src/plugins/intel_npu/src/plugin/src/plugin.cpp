@@ -176,10 +176,6 @@ Plugin::Plugin()
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
     set_device_name("NPU");
 
-    registerCommonOptions(*_options);
-    registerCompilerOptions(*_options);
-    registerRunTimeOptions(*_options);
-
     // parse env_variables to get LOG_LEVEL if needed
     _globalConfig.parseEnvVars();
     Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
@@ -197,499 +193,97 @@ Plugin::Plugin()
     OV_ITT_TASK_NEXT(PLUGIN, "createMetrics");
     _metrics = std::make_unique<Metrics>(_backend);
 
-    // parse again env_variables after backend is initialized to get backend proprieties
-    _globalConfig.parseEnvVars();
+    OV_ITT_TASK_NEXT(PLUGIN, "InitOptions");
+    init_options();
 
-    // Map from name to function {Config -> ov::Any}
-    // Note that some properties are RW before network is loaded, and become RO after network is loaded
-    _properties = {
-        // OV Public
-        // =========
-        {ov::supported_properties.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config&) {
-              return _supportedProperties;
-          }}},
-        {ov::enable_profiling.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<PERF_COUNT>();
-          }}},
-        {ov::hint::performance_mode.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<PERFORMANCE_HINT>();
-          }}},
-        {ov::hint::execution_mode.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<EXECUTION_MODE_HINT>();
-          }}},
-        {ov::hint::num_requests.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<PERFORMANCE_HINT_NUM_REQUESTS>();
-          }}},
-        {ov::hint::inference_precision.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<INFERENCE_PRECISION_HINT>();
-          }}},
-        {ov::hint::enable_cpu_pinning.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<ENABLE_CPU_PINNING>();
-          }}},
-        {ov::log::level.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<LOG_LEVEL>();
-          }}},
-        {ov::cache_dir.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<CACHE_DIR>();
-          }}},
-        {ov::device::id.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<DEVICE_ID>();
-          }}},
-        {ov::compilation_num_threads.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.getString<COMPILATION_NUM_THREADS>();
-          }}},
-        {ov::available_devices.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config&) {
-              return _metrics->GetAvailableDevicesNames();
-          }}},
-        {ov::workload_type.name(),
-         {_backend == nullptr ? false : _backend->isCommandQueueExtSupported(),
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<WORKLOAD_TYPE>();
-          }}},
-        {ov::device::capabilities.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config&) {
-              return _metrics->GetOptimizationCapabilities();
-          }}},
-        {ov::optimal_number_of_infer_requests.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config& config) {
-              return static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(add_platform_to_the_config(
-                  config,
-                  utils::getCompilationPlatform(
-                      config.get<PLATFORM>(),
-                      config.get<DEVICE_ID>(),
-                      _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames()))));
-          }}},
-        {ov::range_for_async_infer_requests.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config&) {
-              return _metrics->GetRangeForAsyncInferRequest();
-          }}},
-        {ov::range_for_streams.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config&) {
-              return _metrics->GetRangeForStreams();
-          }}},
-        {ov::num_streams.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<NUM_STREAMS>();
-          }}},
-        {ov::weights_path.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<WEIGHTS_PATH>();
-          }}},
-        {ov::hint::model.name(),
-        {true,
-            ov::PropertyMutability::RW,
-            [](const Config& config) {
-                return config.get<MODEL_PTR>();
-            }}},
-        {ov::device::uuid.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config& config) {
-              const auto specifiedDeviceName = get_specified_device_name(config);
-              auto devUuid = _metrics->GetDeviceUuid(specifiedDeviceName);
-              return decltype(ov::device::uuid)::value_type{devUuid};
-          }}},
-        {ov::device::luid.name(),
-         {_backend == nullptr ? false : _backend->isLUIDExtSupported(),
-          ov::PropertyMutability::RO,
-          [&](const Config& config) {
-              const auto specifiedDeviceName = get_specified_device_name(config);
-              return _metrics->GetDeviceLUID(specifiedDeviceName);
-          }}},
-        // Add FULL_DEVICE_NAME and DEVICE_ARCHITECTURE in supported
-        // properties list only in case of non-empty device list (#1424144d)
-        {ov::device::architecture.name(),
-         {!_metrics->GetAvailableDevicesNames().empty(),
-          ov::PropertyMutability::RO,
-          [&](const Config& config) {
-              const auto specifiedDeviceName = get_specified_device_name(config);
-              return _metrics->GetDeviceArchitecture(specifiedDeviceName);
-          }}},
-        {ov::device::full_name.name(),
-         {!_metrics->GetAvailableDevicesNames().empty(),
-          ov::PropertyMutability::RO,
-          [&](const Config& config) {
-              const auto specifiedDeviceName = get_specified_device_name(config);
-              return _metrics->GetFullDeviceName(specifiedDeviceName);
-          }}},
-        {ov::hint::model_priority.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<MODEL_PRIORITY>();
-          }}},
-        {ov::device::pci_info.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config& config) {
-              return _metrics->GetPciInfo(get_specified_device_name(config));
-          }}},
-        {ov::device::gops.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config& config) {
-              return _metrics->GetGops(get_specified_device_name(config));
-          }}},
-        {ov::device::type.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config& config) {
-              return _metrics->GetDeviceType(get_specified_device_name(config));
-          }}},
-        {ov::execution_devices.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config& config) {
-              if (_metrics->GetAvailableDevicesNames().size() > 1) {
-                  return std::string("NPU." + config.get<DEVICE_ID>());
-              } else {
-                  return std::string("NPU");
-              }
-          }}},
-        // OV Internals
-        // =========
-        {ov::internal::caching_properties.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [&](const Config&) {
-              return _metrics->GetCachingProperties();
-          }}},
-        {ov::internal::exclusive_async_requests.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<EXCLUSIVE_ASYNC_REQUESTS>();
-          }}},
-        {ov::internal::supported_properties.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [&](const Config&) {
-              return _metrics->GetInternalSupportedProperties();
-          }}},
-        // NPU Public
-        // =========
-        {ov::intel_npu::device_alloc_mem_size.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config& config) {
-              return _metrics->GetDeviceAllocMemSize(get_specified_device_name(config));
-          }}},
-        {ov::intel_npu::device_total_mem_size.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config& config) {
-              return _metrics->GetDeviceTotalMemSize(get_specified_device_name(config));
-          }}},
-        {ov::intel_npu::driver_version.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config& config) {
-              return _metrics->GetDriverVersion();
-          }}},
-        {ov::intel_npu::compiler_version.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config& config) {
-              /// create dummy compiler
-              CompilerAdapterFactory compilerAdapterFactory;
-              auto dummyCompiler = compilerAdapterFactory.getCompiler(_backend, config);
-              return dummyCompiler->get_version();
-          }}},
-        {ov::intel_npu::compilation_mode_params.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<COMPILATION_MODE_PARAMS>();
-          }}},
-        {ov::intel_npu::compiler_dynamic_quantization.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<COMPILER_DYNAMIC_QUANTIZATION>();
-          }}},
-        {ov::intel_npu::qdq_optimization.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<QDQ_OPTIMIZATION>();
-          }}},
-        {ov::intel_npu::turbo.name(),
-         {_backend == nullptr ? false : _backend->isCommandQueueExtSupported(),
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<TURBO>();
-          }}},
-        {ov::intel_npu::tiles.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<TILES>();
-          }}},
-        {ov::intel_npu::max_tiles.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [&](const Config& config) {
-              if (!config.has<MAX_TILES>()) {
-                  const auto specifiedDeviceName = get_specified_device_name(config);
-                  return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
-              }
-              return config.get<MAX_TILES>();
-          }}},
-        {ov::intel_npu::bypass_umd_caching.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<BYPASS_UMD_CACHING>();
-          }}},
-        {ov::intel_npu::defer_weights_load.name(),
-         {true,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<DEFER_WEIGHTS_LOAD>();
-          }}},
-        // NPU Private
-        // =========
-        {ov::intel_npu::dma_engines.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<DMA_ENGINES>();
-          }}},
-        {ov::intel_npu::dpu_groups.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<DPU_GROUPS>();
-          }}},
-        {ov::intel_npu::stepping.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [&](const Config& config) {
-              if (!config.has<STEPPING>()) {
-                  const auto specifiedDeviceName = get_specified_device_name(config);
-                  return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
-              } else {
-                  return config.get<STEPPING>();
-              }
-          }}},
-        {ov::intel_npu::compilation_mode.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<COMPILATION_MODE>();
-          }}},
-        {ov::intel_npu::compiler_type.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.getString<COMPILER_TYPE>();
-          }}},
-        {ov::intel_npu::platform.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<PLATFORM>();
-          }}},
-        {ov::intel_npu::backend_name.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [&](const Config&) {
-              return _metrics->GetBackendName();
-          }}},
-        {ov::intel_npu::create_executor.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<CREATE_EXECUTOR>();
-          }}},
-        {ov::intel_npu::dynamic_shape_to_static.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<DYNAMIC_SHAPE_TO_STATIC>();
-          }}},
-        {ov::intel_npu::profiling_type.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<PROFILING_TYPE>();
-          }}},
-        {ov::intel_npu::backend_compilation_params.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.getString<BACKEND_COMPILATION_PARAMS>();
-          }}},
-        {ov::intel_npu::run_inferences_sequentially.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<RUN_INFERENCES_SEQUENTIALLY>();
-          }}},
-        {ov::intel_npu::batch_mode.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.getString<BATCH_MODE>();
-          }}},
-        {ov::intel_npu::disable_version_check.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.getString<DISABLE_VERSION_CHECK>();
-          }}},
-        {ov::intel_npu::batch_compiler_mode_settings.name(),
-         {false, ov::PropertyMutability::RW, [](const Config& config) {
-              return config.get<BATCH_COMPILER_MODE_SETTINGS>();
-          }}}};
+    /// Init and register properties
+    OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
+    _properties = std::make_unique<Properties>(PropertiesType::PLUGIN, _globalConfig, _metrics, _backends);
+    _properties->registerProperties();
 }
 
-void Plugin::reset_supported_properties() const {
-    /// reset first
-    _supportedProperties.clear();  /// Mutable member
-    /// populate
-    for (auto& property : _properties) {
-        if (std::get<0>(property.second)) {
-            _supportedProperties.emplace_back(ov::PropertyName(property.first, std::get<1>(property.second)));
-        }
-    }
-}
-
-void Plugin::reset_compiler_dependent_properties() const {
-    uint32_t active_compiler_version = 0;
-    // get active compiler version
+void Plugin::init_options() {
+    bool offline = false;
+    uint32_t compilerVersion = 0;
+    std::vector<std::string> compilerSupOptions{};
+    // create a dummy compiler to fetch version and supported options
     try {
         CompilerAdapterFactory compilerAdapterFactory;
         auto dummyCompiler = compilerAdapterFactory.getCompiler(_backend, _globalConfig);
-        active_compiler_version = dummyCompiler->get_version();
+        compilerVersion = dummyCompiler->get_version();
+        compilerSupOptions = dummyCompiler->get_supported_options();
     } catch (...) {
-        _logger.warning(
-            "No available compiler. Can not determine version > compiler dependent properties remain hidden");
-        return;
+        _logger.warning("No available compiler. Registering only legacy options with no compiler version requirement");
+        offline = true;
     }
 
-    // NPU_COMPILER_DYNAMIC_QUANTIZATION
-    // unpublish if compiler version requirement is not met
-    if (_properties.find(ov::intel_npu::compiler_dynamic_quantization.name()) != _properties.end()) {
-        if (active_compiler_version >= ICOMPILER_MAKE_VERSION(7, 1)) {
-            std::get<0>(_properties[ov::intel_npu::compiler_dynamic_quantization.name()]) = true;  /// mark supported
-        } else {
-            std::get<0>(_properties[ov::intel_npu::compiler_dynamic_quantization.name()]) = false;  // mark unsupported
+    /// DEBUG
+    std::cout << "Compiler version: " << compilerVersion << std::endl;
+    std::cout << "Compiler supported options (" << compilerSupOptions.size() << "): ";
+    for (const auto& str : compilerSupOptions) {
+        std::cout << str << " ";
+    }
+    std::cout << std::endl;
+    /// DEBUG
+
+    // Initialize (note: it will reset registered options)
+    _options->reset();
+    _options->setCompilerVersion(compilerVersion);
+    _options->setCompilerSupportedOptions(compilerSupOptions);
+    OV_ITT_TASK_NEXT(PLUGIN, "initOptions");
+    if (!offline) {
+        // not registering runtime options if we are offline
+        registerOptions(*_options, OptionMode::RunTime);
+    }
+    registerOptions(*_options, OptionMode::Both);
+    registerOptions(*_options, OptionMode::CompileTime);
+    if (_backend) {
+        _backend->registerOptions(*_options);
+    }
+
+    // Extras
+    // Additional filtering of options, based on other criteria (other than compiler version)
+    if (_backend) {
+        if (!_backend->isCommandQueueExtSupported()) {
+            // Remove options which are tied to CommandQueueExtension
+            _options->remove(ov::workload_type.name());
+            _options->remove(ov::intel_npu::turbo.name());
         }
     }
 
-    // NPU_QDQ_OPTIMIZATION
-    // unpublish if compiler version requirement is not met
-    if (_properties.find(ov::intel_npu::qdq_optimization.name()) != _properties.end()) {
-        if (active_compiler_version >= ICOMPILER_MAKE_VERSION(7, 20)) {
-            std::get<0>(_properties[ov::intel_npu::qdq_optimization.name()]) = true;  /// mark supported
-        } else {
-            std::get<0>(_properties[ov::intel_npu::qdq_optimization.name()]) = false;  // mark unsupported
-        }
-    }
+    // parse again env_variables after backend is initialized to get backend proprieties
+    _globalConfig.parseEnvVars();
+}
+
+void Plugin::compiler_change() {
+    // Changes we need to do in case of a compiler change
+    // 1. Reset options for the new compiler
+    init_options();
+    // 2. Reset properties for the new options
+    _properties->registerProperties();
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
-    const std::map<std::string, std::string> config = any_copy(properties);
-    update_log_level(config);
-    bool compiler_type_change = false;
-    for (const auto& configEntry : config) {
-        if (_properties.find(configEntry.first) == _properties.end()) {
-            OPENVINO_THROW("Unsupported configuration key: ", configEntry.first);
-        } else {
-            if (std::get<1>(_properties[configEntry.first]) == ov::PropertyMutability::RO) {
-                OPENVINO_THROW("READ-ONLY configuration key: ", configEntry.first);
-            }
-            if (configEntry.first == ov::intel_npu::compiler_type.name()) {
-                // we just assume its a change, not compare against old value
-                compiler_type_change = true;
-            }
-        }
-    }
+    // 1. Set the property via Properties interface
+    _properties->set_property(properties);
 
-    _globalConfig.update(config);
-    if (_backend != nullptr) {
-        _backend->updateInfo(_globalConfig);
+    // 2. Extra hooks
+    // Update log level if it was provided
+    if (properties.count(std::string(LOG_LEVEL::key())) != 0) {
+        Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
     }
-
-    for (const auto& entry : config) {
-        _config[entry.first] = entry.second;
+    // Init backends if needed
+    if (_backends != nullptr) {
+        _backends->setup(_globalConfig);
     }
-
-    if (compiler_type_change) {
-        // if compiler type was changed > need to reset properties to match the new compiler
-        // since properties have changed > need to reset supported_properties as well
-        reset_compiler_dependent_properties();
-        reset_supported_properties();
+    // Reset options and properties if compiler got changed
+    if (properties.count(std::string(COMPILER_TYPE::key())) != 0) {
+        compiler_change();
     }
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    const std::map<std::string, std::string>& amends = any_copy(arguments);
-    const Config amendedConfig = merge_configs(_globalConfig, amends);
-
-    /// Special case for supportedProperties
-    /// populate it at first get
-    if (name == ov::supported_properties.name() && _supportedProperties.size() < 1) {
-        reset_compiler_dependent_properties();
-        reset_supported_properties();
-    }
-
-    auto&& configIterator = _properties.find(name);
-    if (configIterator != _properties.cend()) {
-        return std::get<2>(configIterator->second)(amendedConfig);
-    }
-
-    OPENVINO_THROW("Unsupported configuration key: ", name);
+    return _properties->get_property(name, arguments);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,

@@ -15,6 +15,7 @@
 #include "metrics.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "properties.hpp"
 
 namespace intel_npu {
 
@@ -53,27 +54,22 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
+    void init_options();
+    void compiler_change();
+
     std::unique_ptr<BackendsRegistry> _backendsRegistry;
 
     //  _backend might not be set by the plugin; certain actions, such as offline compilation, might be supported.
     //  Appropriate checks are needed in plugin/metrics/properties when actions depend on a backend.
     ov::SoPtr<IEngineBackend> _backend;
 
-    std::map<std::string, std::string> _config;
     std::shared_ptr<OptionsDesc> _options;
     Config _globalConfig;
     mutable Logger _logger;
-    std::unique_ptr<Metrics> _metrics;
-
-    // properties map: {name -> [supported, mutable, eval function]}
-    mutable std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>>
-        _properties;
-    mutable std::vector<ov::PropertyName> _supportedProperties;
+    std::shared_ptr<Metrics> _metrics;
+    std::unique_ptr<Properties> _properties;
 
     static std::atomic<int> _compiledModelLoadCounter;
-
-    void reset_compiler_dependent_properties() const;
-    void reset_supported_properties() const;
 };
 
 }  // namespace intel_npu
