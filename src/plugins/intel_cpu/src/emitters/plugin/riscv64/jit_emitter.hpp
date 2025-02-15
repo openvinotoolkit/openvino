@@ -91,12 +91,19 @@ protected:
 
     void store_context(const std::vector<size_t>& gpr_regs,
                        const std::vector<size_t>& fp_gpr_regs,
-                       const std::vector<size_t>& vec_regs,
-                       const std::unordered_set<size_t>& ignore_vec_regs = {}) const;
+                       const std::vector<size_t>& vec_regs) const;
     void restore_context(const std::vector<size_t>& gpr_regs,
                          const std::vector<size_t>& fp_gpr_regs,
-                         const std::vector<size_t>& vec_regs,
-                         const std::unordered_set<size_t>& ignore_vec_regs = {}) const;
+                         const std::vector<size_t>& vec_regs) const;
+
+    // Save all caller-saved registers (gp, fp-gp, vec) exclude passed arguments
+    // These helpers might be called for save binary call
+    void call_preamble(const std::vector<size_t>& exclude_gpr_regs,
+                       const std::vector<size_t>& exclude_fp_gpr_regs,
+                       const std::vector<size_t>& exclude_vec_regs) const;
+    void call_postamble(const std::vector<size_t>& exclude_gpr_regs,
+                        const std::vector<size_t>& exclude_fp_gpr_regs,
+                        const std::vector<size_t>& exclude_vec_regs) const;
 
     virtual void validate_arguments(const std::vector<size_t>&, const std::vector<size_t>&) const {}
 

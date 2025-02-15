@@ -204,14 +204,69 @@ void jit_emitter::emitter_postamble() const {
     aux_fp_gpr_idxs.clear();
 }
 
+namespace {
+std::vector<size_t> get_caller_saved_gprs(const jit_generator* h, const std::vector<size_t>& exclude_gpr_regs, size_t count) {
+    std::vector<size_t> gprs;
+    gprs.reserve(count);
+    for (size_t j = 0; j < count; ++j) {
+        const int i = static_cast<int>(j);
+        if (std::find(exclude_gpr_regs.cbegin(), exclude_gpr_regs.cend(), i) != exclude_gpr_regs.cend())
+            continue;
+        if (std::find_if(std::begin(h->abi_save_gpr_regs), std::end(h->abi_save_gpr_regs),
+                        [i](const Reg& r) { return r.getIdx() == i; }) != std::end(h->abi_save_gpr_regs))
+            continue;
+        if (i == zero.getIdx() || i == sp.getIdx() || i == gp.getIdx() || i == tp.getIdx())
+            continue;
+        gprs.push_back(i);
+    }
+    return gprs;
+}
+std::vector<size_t> get_caller_saved_fp_gprs(const jit_generator* h, const std::vector<size_t>& exclude_fp_gpr_regs, size_t count) {
+    std::vector<size_t> fp_gprs;
+    fp_gprs.reserve(count);
+    for (size_t j = 0; j < count; ++j) {
+        const int i = static_cast<int>(j);
+        if (std::find(exclude_fp_gpr_regs.cbegin(), exclude_fp_gpr_regs.cend(), i) != exclude_fp_gpr_regs.cend())
+            continue;
+        if (std::find_if(std::begin(h->abi_save_fp_gpr_regs), std::end(h->abi_save_fp_gpr_regs),
+                        [i](const FReg& r) { return r.getIdx() == i; }) != std::end(h->abi_save_fp_gpr_regs))
+            continue;
+        fp_gprs.push_back(i);
+    }
+    return fp_gprs;
+}
+std::vector<size_t> get_caller_saved_vec_gprs(const jit_generator* h, const std::vector<size_t>& exclude_vec_regs, size_t count) {
+    std::vector<size_t> vecs;
+    vecs.reserve(count);
+    for (size_t j = 0; j < count; ++j) {
+        const int i = static_cast<int>(j);
+        if (std::find(exclude_vec_regs.cbegin(), exclude_vec_regs.cend(), i) != exclude_vec_regs.cend())
+            continue;
+        vecs.push_back(i);
+    }
+    return vecs;
+}
+} // namespace
+
+void jit_emitter::call_preamble(const std::vector<size_t>& exclude_gpr_regs,
+                                const std::vector<size_t>& exclude_fp_gpr_regs,
+                                const std::vector<size_t>& exclude_vec_regs) const {
+    store_context(get_caller_saved_gprs(h, exclude_gpr_regs, get_max_gpr_count()),
+                  get_caller_saved_fp_gprs(h, exclude_fp_gpr_regs, get_max_fp_gpr_count()),
+                  get_caller_saved_vec_gprs(h, exclude_vec_regs, get_max_vecs_count()));
+}
+
+void jit_emitter::call_postamble(const std::vector<size_t>& exclude_gpr_regs,
+                                 const std::vector<size_t>& exclude_fp_gpr_regs,
+                                 const std::vector<size_t>& exclude_vec_regs) const {
+    restore_context(get_caller_saved_gprs(h, exclude_gpr_regs, get_max_gpr_count()),
+                    get_caller_saved_fp_gprs(h, exclude_fp_gpr_regs, get_max_fp_gpr_count()),
+                    get_caller_saved_vec_gprs(h, exclude_vec_regs, get_max_vecs_count()));
+}
+
 void jit_emitter::store_context(const std::vector<size_t>& gpr_regs,
                                 const std::vector<size_t>& fp_gpr_regs,
-                                const std::vector<size_t>& vec_regs,
-                                const std::unordered_set<size_t>& ignore_vec_regs) const {
-    std::vector<size_t> target_vec_regs;
-    std::set_difference(vec_regs.begin(), vec_regs.end(), ignore_vec_regs.begin(), ignore_vec_regs.end(),
-                        std::inserter(target_vec_regs, target_vec_regs.begin()));
-
+                                const std::vector<size_t>& vec_regs) const {
     // GPRs
     {
         const auto gpr_all_size = gpr_regs.size() * get_gpr_length();
@@ -240,7 +295,7 @@ void jit_emitter::store_context(const std::vector<size_t>& gpr_regs,
     {
         // TODO: support lmul
         const int step = -rnd_up(get_vec_length(), sp_aligment);
-        for (const auto& vec_idx : target_vec_regs) {
+        for (const auto& vec_idx : vec_regs) {
             h->addi(sp, sp, step);
             h->vse32_v(VReg(vec_idx), sp);
         }
@@ -249,24 +304,16 @@ void jit_emitter::store_context(const std::vector<size_t>& gpr_regs,
 
 void jit_emitter::restore_context(const std::vector<size_t>& gpr_regs,
                                   const std::vector<size_t>& fp_gpr_regs,
-                                  const std::vector<size_t>& vec_regs,
-                                  const std::unordered_set<size_t>& ignore_vec_regs) const {
-    std::vector<size_t> target_vec_regs;
-    std::set_difference(vec_regs.begin(), vec_regs.end(), ignore_vec_regs.begin(), ignore_vec_regs.end(),
-                        std::inserter(target_vec_regs, target_vec_regs.begin()));
-
-    // GPRs
+                                  const std::vector<size_t>& vec_regs) const {
+    // Vec regs
     {
-        const auto gpr_all_size = gpr_regs.size() * get_gpr_length();
-        const int frame_size = rnd_up(gpr_all_size, sp_aligment);
-        int imm = 0;
-        for (const auto& gpr_idx : gpr_regs) {
-            h->ld(Reg(gpr_idx), sp, imm);
-            imm += get_gpr_length();
+        // TODO: support lmul
+        const int step = rnd_up(get_vec_length(), sp_aligment);
+        for (const auto& vec_idx : vec_regs) {
+            h->addi(sp, sp, step);
+            h->vle32_v(VReg(vec_idx), sp);
         }
-        h->addi(sp, sp, frame_size);
     }
-
     // FPs
     {
         const auto fp_gpr_all_size = fp_gpr_regs.size() * get_fp_gpr_length();
@@ -278,15 +325,16 @@ void jit_emitter::restore_context(const std::vector<size_t>& gpr_regs,
         }
         h->addi(sp, sp, frame_size);
     }
-
-    // Vec regs
+    // GPRs
     {
-        // TODO: support lmul
-        const int step = rnd_up(get_vec_length(), sp_aligment);
-        for (const auto& vec_idx : target_vec_regs) {
-            h->addi(sp, sp, step);
-            h->vle32_v(VReg(vec_idx), sp);
+        const auto gpr_all_size = gpr_regs.size() * get_gpr_length();
+        const int frame_size = rnd_up(gpr_all_size, sp_aligment);
+        int imm = 0;
+        for (const auto& gpr_idx : gpr_regs) {
+            h->ld(Reg(gpr_idx), sp, imm);
+            imm += get_gpr_length();
         }
+        h->addi(sp, sp, frame_size);
     }
 }
 
