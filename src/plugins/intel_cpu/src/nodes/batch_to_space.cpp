@@ -13,9 +13,7 @@
 #include "openvino/core/parallel.hpp"
 #include "selective_build.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool BatchToSpace::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -258,9 +256,9 @@ void BatchToSpace::execute(const dnnl::stream& strm) {
         batchToSpaceKernel<element_type_traits<ov::element::i32>::value_type>();
         break;
     default:
-        OPENVINO_THROW("BatchToSpace layer does not support precision '",
-                       std::string(getParentEdgeAt(0)->getMemory().getDesc().getPrecision().get_type_name()),
-                       "'");
+        THROW_CPU_NODE_ERR("does not support precision '",
+                           std::string(getParentEdgeAt(0)->getMemory().getDesc().getPrecision().get_type_name()),
+                           "'");
     }
 }
 
@@ -268,6 +266,4 @@ bool BatchToSpace::created() const {
     return getType() == Type::BatchToSpace;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

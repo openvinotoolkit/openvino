@@ -22,15 +22,12 @@
 #    include "openvino/op/util/multi_subgraph_base.hpp"
 #    include "transformations/rt_info/disable_fp16_compression.hpp"
 
-namespace dnnl {
-namespace impl {
+namespace dnnl::impl {
 std::ostream& operator<<(std::ostream& ss, const primitive_attr_t* attr);
 std::ostream& operator<<(std::ostream& ss, alg_kind_t alg);
-}  // namespace impl
-}  // namespace dnnl
+}  // namespace dnnl::impl
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace {
 size_t replace_all(std::string& inout, const std::string& what, const std::string& with) {
@@ -107,7 +104,7 @@ void DebugLogEnabled::break_at(const std::string& log) {
     static const char* p_brk = std::getenv("OV_CPU_DEBUG_LOG_BRK");
     if (p_brk && log.find(p_brk) != std::string::npos) {
         std::cout << "[ DEBUG ] "
-                  << " Debug log breakpoint hit" << std::endl;
+                  << " Debug log breakpoint hit" << '\n';
 #    if defined(_MSC_VER)
         __debugbreak();
 #    elif defined(__APPLE__) || defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64) || \
@@ -406,11 +403,11 @@ std::ostream& operator<<(std::ostream& os, const Shape& shape) {
 
 // Print complex data structures in a textualized form to the console is an efficient way to investigate them
 std::ostream& operator<<(std::ostream& os, const Graph& g) {
-    os << "ov::intel_cpu::Graph " << g.GetName() << " {" << std::endl;
+    os << "ov::intel_cpu::Graph " << g.GetName() << " {" << '\n';
     for (auto& graphNode : g.GetNodes()) {
-        std::cout << *graphNode << std::endl;
+        std::cout << *graphNode << '\n';
     }
-    os << "};" << std::endl;
+    os << "};" << '\n';
     return os;
 }
 
@@ -556,13 +553,13 @@ std::ostream& operator<<(std::ostream& os, const PrintableModel& model) {
 
         os << ") \t attrs:";
         op->visit_attributes(osvis);
-        os << std::endl;
+        os << '\n';
 
         // recursively output subgraphs
         if (auto msubgraph = ov::as_type_ptr<op::util::MultiSubGraphOp>(op)) {
             auto cnt = msubgraph->get_internal_subgraphs_size();
             for (size_t i = 0; i < cnt; i++) {
-                os << "\t\t MultiSubGraphOp " << tag << msubgraph->get_friendly_name() << "[" << i << "]" << std::endl;
+                os << "\t\t MultiSubGraphOp " << tag << msubgraph->get_friendly_name() << "[" << i << "]" << '\n';
                 os << PrintableModel(*msubgraph->get_function(i).get(), tag, prefix + "\t\t");
             }
         }
@@ -706,8 +703,7 @@ void print_dnnl_memory(const dnnl::memory& memory, const size_t size, const int 
     std::cout << "\n";
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 bool getEnvBool(const char* name) {
     static const bool env = ov::util::getenv_bool(name);

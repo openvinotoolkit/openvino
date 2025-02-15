@@ -14,7 +14,7 @@ permissions: read-all
 
 jobs:
   Build_Doc:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     steps:
       - name: Clone OpenVINO

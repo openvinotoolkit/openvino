@@ -19,8 +19,7 @@
 #    include "memory_desc/cpu_memory_desc_utils.h"
 #    include "verbose.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 bool Verbose::shouldBePrinted() const {
     if (lvl < 1) {
@@ -45,7 +44,7 @@ bool Verbose::shouldBePrinted() const {
  * Can be rewritten in pure C++ if necessary
  */
 void Verbose::printInfo() {
-    enum Color { RED, GREEN, YELLOW, BLUE, PURPLE, CYAN };
+    enum Color : uint8_t { RED, GREEN, YELLOW, BLUE, PURPLE, CYAN };
 
     auto colorize = [&](const Color color, const std::string& str) {
         if (!colorUp) {
@@ -105,36 +104,55 @@ void Verbose::printInfo() {
         written_total += size;
     };
 
-    auto formatMemDesc = [&](const dnnl_memory_desc_t& desc, std::string& prefix) {
+    auto getFormatAndDims = [](const MemoryDescPtr& desc) -> std::pair<std::string, std::string> {
+        if (DnnlExtensionUtils::ElementTypeToDataType(desc->getPrecision(), DnnlExtensionUtils::nothrow_tag{})) {
+            if (auto dnnl_desc = MemoryDescUtils::convertToDnnlMemoryDesc(desc)->getDnnlDesc()) {
+                using namespace dnnl::impl;
+                auto fmt_str = md2fmt_str("", dnnl_desc.get(), format_kind_t::dnnl_format_kind_undef);
+                auto dim_str = md2dim_str(dnnl_desc.get());
+                return {fmt_str, dim_str};
+            } else {
+                return {"empty", {}};
+            }
+        } else {
+            auto fmt_str = desc->getPrecision().to_string();
+            if (const auto& dims = desc->getShape().getDims(); !dims.empty()) {
+                auto dim_str = dim2str(dims.front());
+                std::for_each(++(dims.begin()), dims.end(), [&dim_str](size_t dim) {
+                    dim_str.append("x" + dim2str(dim));
+                });
+                return {fmt_str, dim_str};
+            } else {
+                return {fmt_str, {}};
+            }
+        }
+    };
+
+    auto formatMemDesc = [&](const MemoryDescPtr& desc, std::string& prefix) {
         prefix = colorize(BLUE, prefix);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, " ");
         shift(written);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", prefix.c_str());
         shift(written);
-        std::string fmt_str = dnnl::impl::md2fmt_str("", desc, dnnl::impl::format_kind_t::dnnl_format_kind_undef);
+        const auto [fmt_str, dim_str] = getFormatAndDims(desc);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", fmt_str.c_str());
         shift(written);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, ":");
         shift(written);
-        std::string dim_str = dnnl::impl::md2dim_str(desc);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", dim_str.c_str());
         shift(written);
     };
 
     for (size_t i = 0; i < node->getParentEdges().size(); i++) {
         std::string prefix("src:" + std::to_string(i) + ':');
-        formatMemDesc(MemoryDescUtils::convertToDnnlMemoryDesc(node->getParentEdgeAt(i)->getMemory().getDesc().clone())
-                          ->getDnnlDesc()
-                          .get(),
-                      prefix);
+        const auto& desc = node->getParentEdgeAt(i)->getMemory().getDescPtr();
+        formatMemDesc(desc, prefix);
     }
 
     for (size_t i = 0; i < node->getChildEdges().size(); i++) {
         std::string prefix("dst:" + std::to_string(i) + ':');
-        formatMemDesc(MemoryDescUtils::convertToDnnlMemoryDesc(node->getChildEdgeAt(i)->getMemory().getDesc().clone())
-                          ->getDnnlDesc()
-                          .get(),
-                      prefix);
+        const auto& desc = node->getChildEdgeAt(i)->getMemory().getDescPtr();
+        formatMemDesc(desc, prefix);
     }
 
     std::string post_ops;
@@ -175,7 +193,6 @@ void Verbose::flush() const {
     std::cout << stream.rdbuf() << "\n";
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 #endif  // CPU_DEBUG_CAPS

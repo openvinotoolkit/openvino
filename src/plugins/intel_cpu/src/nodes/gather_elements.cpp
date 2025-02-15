@@ -13,9 +13,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool GatherElements::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                           std::string& errorMessage) noexcept {
@@ -147,7 +145,7 @@ void GatherElements::execute(const dnnl::stream& strm) {
     case sizeof(element_type_traits<ov::element::i8>::value_type):
         return directExecution<element_type_traits<ov::element::i8>::value_type>();
     default:
-        OPENVINO_THROW("Unsupported data type size");
+        THROW_CPU_NODE_ERR("Unsupported data type size");
     }
 }
 
@@ -155,6 +153,4 @@ bool GatherElements::created() const {
     return getType() == Type::GatherElements;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

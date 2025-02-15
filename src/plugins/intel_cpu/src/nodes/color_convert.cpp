@@ -21,9 +21,7 @@ using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 std::tuple<Algorithm, std::string> getAlgorithmFor(const std::shared_ptr<const ov::Node>& op) {
@@ -1078,8 +1076,7 @@ void ColorConvert::initSupportedI420Impls() {
 void ColorConvert::createPrimitive() {
     const NodeDesc* desc = getSelectedPrimitiveDescriptor();
     if (!desc) {
-        OPENVINO_THROW(getTypeStr() + " node with name '" + getName() + "' ",
-                       "no optimal primitive descriptor selected");
+        THROW_CPU_NODE_ERR("has no optimal primitive descriptor selected");
     }
 
     if (!_impl) {
@@ -1094,7 +1091,7 @@ void ColorConvert::createPrimitive() {
 
 void ColorConvert::execute(const dnnl::stream& strm) {
     if (!_impl) {
-        OPENVINO_THROW(getTypeStr() + " node with name '" + getName() + "' ", "has no any implemented converter");
+        THROW_CPU_NODE_ERR("has no any implemented converter");
     }
     _impl->execute(strm);
 }
@@ -1111,6 +1108,4 @@ void ColorConvert::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
