@@ -460,8 +460,6 @@ jit_power_static_emitter::jit_power_static_emitter(ov::intel_cpu::riscv64::jit_g
                                                    float power, float scale, float shift, ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc), power(power), scale(scale), shift(shift) {
     prepare_table();
-
-    OPENVINO_ASSERT(one_of(power, 0.5f, -0.5f) || (std::floor(power) == power && power != 0), "Unsupported power configuration");
 }
 
 size_t jit_power_static_emitter::get_inputs_num() const {
@@ -469,13 +467,15 @@ size_t jit_power_static_emitter::get_inputs_num() const {
 }
 
 size_t jit_power_static_emitter::aux_gprs_count() const {
-    return scale != 1.f || shift != 0.f ? 2 : 1;
+    if ((power == 0) || is_scale_shift() || (!is_sqrt() && !is_int_pow()))
+        return 2;
+    return 1;
 }
 
 size_t jit_power_static_emitter::aux_vecs_count() const {
-    if (scale != 1.f || shift != 0.f)
+    if (is_scale_shift())
         return 2;
-    if (std::floor(power) == power && power != 0)
+    if (is_int_pow())
         return 1;
     return 0;
 }
@@ -497,13 +497,13 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, 
     VReg src = VReg(in_vec_idxs[0]);
     VReg dst = VReg(out_vec_idxs[0]);
 
-    if (scale == 1.f && shift == 0.f && power == 1.f) {
-        if (src.getIdx() != dst.getIdx())
-            h->vmv_v_v(dst, src);
+    if (power == 0) {
+        Reg tmp = Reg(aux_gpr_idxs[0]);
+        load_table_val("one", dst, tmp);
         return;
     }
 
-    if (scale != 1.f || shift != 0.f) {
+    if (is_scale_shift()) {
         VReg aux0 = VReg(aux_vec_idxs[0]);
         VReg aux1 = VReg(aux_vec_idxs[1]);
         Reg tmp = Reg(aux_gpr_idxs[0]);
@@ -517,7 +517,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, 
     }
 
     // for power `-0.5f` there is `vfrsqrt7_v` instruction with worse accuracy
-    if (power == 0.5f || power == -0.5f) {
+    if (is_sqrt()) {
         h->vfsqrt_v(dst, dst);
 
         if (power < 0) {
@@ -525,7 +525,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, 
             load_table_val("one", one);
             h->vfrdiv_vf(dst, dst, one);
         }
-    } else if (std::floor(power) == power && power != 0) {
+    } else if (is_int_pow()) {
         int64_t ipower = std::abs(static_cast<int64_t>(power)) - 1;
 
         VReg aux0 = VReg(aux_vec_idxs[0]);
@@ -546,6 +546,39 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, 
             load_table_val("one", one);
             h->vfrdiv_vf(dst, dst, one);
         }
+    } else {
+        auto pow_f32_addr = reinterpret_cast<uintptr_t>(::powf);
+
+        Reg func_reg(aux_gpr_idxs[0]);
+        h->uni_li(func_reg, pow_f32_addr);
+
+        // Before binary call we have to save caller-saver registers:
+        // - all caller-saver general-purpose regs + func_reg (if it's caller-saver)
+        // - all caller-saver fp general-purpose regs except aux registers
+        // - all vector registers except aux, src and dst registers
+        auto exclude_vec_regs = aux_vec_idxs;
+        aux_vec_idxs.push_back(src.getIdx());
+        aux_vec_idxs.push_back(dst.getIdx());
+        call_preamble({}, aux_fp_gpr_idxs, aux_vec_idxs);
+
+        const auto sp_size = rnd_up(get_vec_length(), 16);
+        h->addi(sp, sp, -sp_size);
+        h->vse32_v(dst, sp);
+
+        // TODO: Support any LMUL here (via vl from csr + labels)
+        for (size_t i = 0; i < get_vec_length(); i += sizeof(float)) {
+            h->flw(fa0, sp, i);
+            load_table_val("power", fa1);
+
+            h->jalr(ra, func_reg);
+
+            h->fsw(fa0, sp, i);
+        }
+
+        h->vle32_v(dst, sp);
+        h->addi(sp, sp, sp_size);
+
+        call_postamble({}, aux_fp_gpr_idxs, aux_vec_idxs);
     }
 }
 

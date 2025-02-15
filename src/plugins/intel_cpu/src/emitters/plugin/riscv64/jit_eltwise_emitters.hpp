@@ -129,6 +129,10 @@ private:
 
     void register_table_entries() override;
 
+    inline bool is_sqrt() const { return power == 0.5f || power == -0.5f; }
+    inline bool is_int_pow() const { return std::floor(power) == power && power != 0; }
+    inline bool is_scale_shift() const { return scale != 1.f || shift != 0.f; }
+
     float power {1.f};
     float scale {1.f};
     float shift {0.f};

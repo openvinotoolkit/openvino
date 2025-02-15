@@ -803,10 +803,6 @@ public:
             return false;
         }
 
-        // TODO: Support any power in jit_power_static_emitter
-        if (algorithm == Algorithm::EltwisePowerStatic && !(one_of(alpha, 0.5f, -0.5f) || (std::floor(alpha) == alpha && alpha != 0)))
-            return false;
-
         const std::set<ov::element::Type> supported_precisions = {ov::element::f32,
                                                                   ov::element::i32,
                                                                   ov::element::i8,
