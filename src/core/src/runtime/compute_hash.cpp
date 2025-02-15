@@ -14,7 +14,7 @@
 
 #include "openvino/core/visibility.hpp"
 
-#if !defined(OS_CHROMEOS) && (defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64))
+#if defined(DEF_JIT_IN_CORE) && !defined(OS_CHROMEOS) && (defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64))
 #    define OV_CORE_USE_XBYAK_JIT
 #endif
 
