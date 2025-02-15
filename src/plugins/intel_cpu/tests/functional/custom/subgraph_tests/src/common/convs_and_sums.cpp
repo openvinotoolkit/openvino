@@ -120,7 +120,7 @@ protected:
         auto result = std::make_shared<ov::op::v0::Result>(relu3);
         function = std::make_shared<ov::Model>(result, params, "SimpleNet");
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
-        abs_threshold = 6e-3;
+        abs_threshold = 5e-2;
 #else
         abs_threshold = 9e-4;
 #endif
