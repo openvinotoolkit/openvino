@@ -5,14 +5,14 @@
 
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
-#include "arm_neon.h"
 
+#include "arm_neon.h"
 #include "cpu_memory.h"
+#include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla.h"
+#include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p_interface.h"
+#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
 #include "nodes/executors/acl/acl_fullyconnected_utils.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
-#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
-#include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p_interface.h"
-#include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -48,8 +48,7 @@ private:
         kai_get_rhs_packed_offset_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
         kai_get_dst_offset_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
         kai_get_dst_size_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
-        kai_run_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla
-    };
+        kai_run_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla};
 
     const FCAttrs& m_attrs;
     ACLFCAttrs aclfcAttrs;

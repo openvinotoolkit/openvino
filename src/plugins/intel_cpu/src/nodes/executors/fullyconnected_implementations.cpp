@@ -32,7 +32,7 @@
 
 #if defined(OV_CPU_WITH_KLEIDIAI)
 // kai_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla.h included in kleidiai_mm.hpp supports aarch64 only
-#include "nodes/executors/kleidiai/kleidiai_mm.hpp"
+#    include "nodes/executors/kleidiai/kleidiai_mm.hpp"
 #endif
 
 #if defined(OV_CPU_WITH_ACL)

@@ -13,10 +13,9 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
-#include "utils/debug_capabilities.h"
-#include "utils/cpu_utils.hpp"
-
 #include "openvino/core/parallel.hpp"
+#include "utils/cpu_utils.hpp"
+#include "utils/debug_capabilities.h"
 
 #define FLOAT_MAX 3.4028235e38f
 #define FLOAT_MIN -3.4028235e38f
@@ -83,14 +82,19 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
     const size_t kr = ukernel.get_kr();
     const size_t sr = ukernel.get_sr();
 
-    kai_run_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(
-            1, N, K, nr, kr, sr,  // Packing arguments
-            rhs_stride,           // RHS stride
-            rhs,                  // RHS
-            bias,                 // Bias
-            nullptr,              // Scale
-            rhs_packed,           // RHS packed
-            0, nullptr);
+    kai_run_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(1,
+                                                     N,
+                                                     K,
+                                                     nr,
+                                                     kr,
+                                                     sr,          // Packing arguments
+                                                     rhs_stride,  // RHS stride
+                                                     rhs,         // RHS
+                                                     bias,        // Bias
+                                                     nullptr,     // Scale
+                                                     rhs_packed,  // RHS packed
+                                                     0,
+                                                     nullptr);
 }
 
 bool MatMulKleidiAIExecutor::update(const MemoryArgs& memory) {
@@ -140,18 +144,17 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
         const size_t dst_offset = ukernel.get_dst_offset(0, n_start, dst_stride_row);
         const float* rhs_ptr = (rhs_packed + rhs_packed_offset / sizeof(float));
         float* dst_ptr = (dst + dst_offset / (sizeof(float)));
-        ukernel.run_matmul(
-                M,
-                n_block_size,
-                K,
-                lhs,
-                lhs_stride,
-                rhs_ptr,
-                dst_ptr,
-                dst_stride_row,
-                dst_stride_col,
-                FLOAT_MIN,
-                FLOAT_MAX);
+        ukernel.run_matmul(M,
+                           n_block_size,
+                           K,
+                           lhs,
+                           lhs_stride,
+                           rhs_ptr,
+                           dst_ptr,
+                           dst_stride_row,
+                           dst_stride_col,
+                           FLOAT_MIN,
+                           FLOAT_MAX);
     });
 }
 
