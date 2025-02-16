@@ -1753,8 +1753,7 @@ TEST(eltwise_gpu_f32, add_basic_8d) {
 
 void eltwise_cpu_impl_f32(bool disable_usm = false);
 void eltwise_cpu_impl_f32(bool disable_usm) {
-    auto engine = create_test_engine();
-    engine->disable_usm  = disable_usm;
+    auto engine = create_test_engine(engine_types::ocl, runtime_types::ocl, !disable_usm);
 
     auto input1 = engine->allocate_memory({{1, 3, 2, 2, 2, 3, 2, 3}, data_types::f32, format::bfvuwzyx });
     auto input2 = engine->allocate_memory({{1, 3, 2, 2, 2, 3, 2, 3}, data_types::f32, format::bfvuwzyx });

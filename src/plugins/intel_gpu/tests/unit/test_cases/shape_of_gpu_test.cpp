@@ -68,8 +68,7 @@ TEST(shape_of_gpu, bfyx_i64) {
 
 void shape_of_cpu_impl_bfyx_i64(bool disable_usm = false);
 void shape_of_cpu_impl_bfyx_i64(bool disable_usm) {
-    auto engine = create_test_engine();
-    engine->disable_usm  = disable_usm;
+    auto engine = create_test_engine(engine_types::ocl, runtime_types::ocl, !disable_usm);
 
     auto input = engine->allocate_memory({data_types::f32, format::bfyx, tensor{1, 2, 3, 3}});
 

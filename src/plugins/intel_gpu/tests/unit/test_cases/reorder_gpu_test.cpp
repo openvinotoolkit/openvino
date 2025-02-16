@@ -2734,8 +2734,7 @@ TEST(reorder_gpu, any_format) {
 void reorder_cpu_any_format(bool disable_usm = false);
 void reorder_cpu_any_format(bool disable_usm) {
     tests::random_generator rg(GET_SUITE_NAME);
-    auto engine = create_test_engine();
-    engine->disable_usm  = disable_usm;
+    auto engine = create_test_engine(engine_types::ocl, runtime_types::ocl, !disable_usm);
 
     auto input = engine->allocate_memory(layout(data_types::f32, format::yxfb, tensor(5, 7, 13, 9)));
 

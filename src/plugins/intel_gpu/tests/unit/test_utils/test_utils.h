@@ -30,7 +30,6 @@
 #include <intel_gpu/primitives/data.hpp>
 #include "intel_gpu/graph/serialization/utils.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
-#include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/engine_configuration.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
 
