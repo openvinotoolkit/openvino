@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-
+import torch
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -207,29 +207,33 @@ class TestReflectionPad(PytorchLayerTest):
         import numpy as np
         input_5d_shape = [1, 3, 14, 14, 18]
         return (np.random.randn(*input_5d_shape[:ndim]).astype(dtype),)
+    
+    class aten_pad(torch.nn.Module):
+        def __init__(self, pads, ndim):
+            super().__init__()
+            self.pads = pads
+            self.ndim = ndim
+
+        def forward(self, x):
+            if(self.ndim == 1):
+                return torch.ops.aten.reflection_pad1d(x, self.pads)
+            elif(self.ndim == 2):
+                return torch.ops.aten.reflection_pad2d(x, self.pads)
+            elif(self.ndim == 3):
+                return torch.ops.aten.reflection_pad3d(x, self.pads)
+            else:
+                raise Exception("Unsupported pads")
 
     def create_model(self, pads):
-        import torch
-        import torch.nn.functional as F
-
-        class aten_pad(torch.nn.Module):
-            def __init__(self, pads):
-                super().__init__()
-                ndim = len(pads) / 2
-                if ndim == 1:
-                    self.pad = torch.nn.ReflectionPad1d(pads)
-                elif ndim == 2:
-                    self.pad = torch.nn.ReflectionPad2d(pads)
-                elif ndim == 3:
-                    self.pad = torch.nn.ReflectionPad3d(pads)
-                else:
-                    raise Exception("Unsupported pads")
-
-            def forward(self, x):
-                return self.pad(x)
-
-        # it will be a reflection_pad in export, but not in TS
-        return aten_pad(pads), None, "aten::pad"
+        ndim = len(pads) / 2
+        if(ndim == 1):
+            return self.aten_pad(pads, ndim), None, "aten::reflection_pad1d"
+        elif(ndim == 2):
+            return self.aten_pad(pads, ndim), None, "aten::reflection_pad2d"
+        elif(ndim == 3):
+            return self.aten_pad(pads, ndim), None, "aten::reflection_pad3d"
+        else:
+            raise Exception("Unsupported pads")
 
     @pytest.mark.parametrize("dtype", ["float32", "float64", "int32"])
     @pytest.mark.parametrize("pads", [
@@ -238,6 +242,7 @@ class TestReflectionPad(PytorchLayerTest):
         (1, 2, 3, 4, 3, 2),
     ])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     def test_reflection_padnd(self, pads, dtype, ie_device, precision, ir_version):
         ndim = len(pads) // 2 + 2

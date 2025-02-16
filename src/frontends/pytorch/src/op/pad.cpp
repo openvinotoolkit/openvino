@@ -126,7 +126,7 @@ OutputVector translate_constant_pad_nd_fx(const NodeContext& context) {
     return translate_pad_common(context, data, paddings, pad_value);
 }
 
-OutputVector translate_reflection_pad_nd_fx(const NodeContext& context) {
+OutputVector translate_reflection_pad_nd(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto data = context.get_input(0);
     auto paddings = context.const_input<std::vector<int64_t>>(1);
