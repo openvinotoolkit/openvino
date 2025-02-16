@@ -726,6 +726,8 @@ void ZeroInferRequest::check_network_precision(const ov::element::Type_t precisi
         break;
     case ov::element::Type_t::bf16:
         break;
+    case ov::element::Type_t::nf4:
+        break;
     case ov::element::Type_t::u4:
         break;
     case ov::element::Type_t::i4:
@@ -749,8 +751,9 @@ void ZeroInferRequest::check_network_precision(const ov::element::Type_t precisi
     case ov::element::Type_t::f64:
         break;
     default:
-        OPENVINO_THROW("Unsupported tensor precision: " + ov::element::Type(precision).get_type_name() +
-                       "! Supported precisions: FP32, FP16, BF16, U4, I4, U8, I8, U16, I16, U32, I32, U64, I64, FP64");
+        OPENVINO_THROW(
+            "Unsupported tensor precision: " + ov::element::Type(precision).get_type_name() +
+            "! Supported precisions: FP32, FP16, BF16, NF4, U4, I4, U8, I8, U16, I16, U32, I32, U64, I64, FP64");
     }
 }
 
