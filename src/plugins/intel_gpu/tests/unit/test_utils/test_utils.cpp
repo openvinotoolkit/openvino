@@ -310,6 +310,22 @@ std::shared_ptr<cldnn::engine> create_test_engine() {
     return ret;
 }
 
+std::shared_ptr<cldnn::engine> create_test_engine(cldnn::engine_types engine_type, cldnn::runtime_types runtime_type, bool allow_usm_mem) {
+    device_query query(engine_type, runtime_type);
+    auto devices = query.get_available_devices();
+
+    OPENVINO_ASSERT(!devices.empty(), "[GPU] Can't create ", engine_type, " engine for ", runtime_type, " runtime as no suitable devices are found\n"
+                                      "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n");
+
+    auto iter = devices.find(std::to_string(device_query::device_id));
+    auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
+
+    if (!allow_usm_mem)
+        device->set_mem_caps(cldnn::memory_capabilities({}));
+
+    return engine::create(engine_type, runtime_type, device);
+}
+
 cldnn::engine& get_test_engine() {
     static std::shared_ptr<cldnn::engine> test_engine = nullptr;
     if (!test_engine) {

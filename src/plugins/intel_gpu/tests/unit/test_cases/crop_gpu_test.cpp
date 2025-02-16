@@ -1257,10 +1257,12 @@ INSTANTIATE_TEST_SUITE_P(export_import_crop_test, crop_gpu,
                                 ::testing::Values(true)
                                 ));
 
-void crop_gpu_dynamic_i32_in2x3x2x2_crop_offsets(impl_types impl_type, bool disable_usm = false);
-void crop_gpu_dynamic_i32_in2x3x2x2_crop_offsets(impl_types impl_type, bool disable_usm) {
-    auto engine = create_test_engine();
-    engine->disable_usm  = disable_usm;
+class crop_gpu_dynamic : public ::testing::TestWithParam<std::tuple<impl_types>> {};
+TEST_P(crop_gpu_dynamic, i32_in2x3x2x2_crop_offsets) {
+    auto test_params = GetParam();
+    impl_types impl_type = std::get<0>(test_params);
+
+    auto& engine = get_test_engine();
 
     auto batch_num = 2;
     auto feature_num = 2;
@@ -1280,7 +1282,7 @@ void crop_gpu_dynamic_i32_in2x3x2x2_crop_offsets(impl_types impl_type, bool disa
     auto input_dyn_layout    = layout{ ov::PartialShape{ov::Dimension(1, 10), feature_num, y_size, x_size}, data_types::f32, format::bfyx };
     auto input_actual_layout = layout{ ov::PartialShape{batch_num, feature_num, y_size, x_size}, data_types::f32, format::bfyx };
 
-    auto input = engine->allocate_memory(input_actual_layout);
+    auto input = engine.allocate_memory(input_actual_layout);
 
     topology topology;
     topology.add(input_layout("input", input_dyn_layout));
@@ -1289,7 +1291,7 @@ void crop_gpu_dynamic_i32_in2x3x2x2_crop_offsets(impl_types impl_type, bool disa
     std::vector<float> input_vec = {1.f, 0.f,  5.f, 15.f, 2.f, 0.f,  6.f, 52.f, -10.f, -11.f, -12.f, -13.f,
                                     3.f, 50.f, 7.f, 12.f, 4.f, -5.f, 8.f, 8.f,  -14.f, -15.f, -16.f, -17.f};
     set_values(input, input_vec);
-    ExecutionConfig config1 = get_test_default_config(*engine);
+    ExecutionConfig config1 = get_test_default_config(engine);
     config1.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     ExecutionConfig config2 = config1;
 
@@ -1298,7 +1300,7 @@ void crop_gpu_dynamic_i32_in2x3x2x2_crop_offsets(impl_types impl_type, bool disa
         config1.set_property(ov::intel_gpu::force_implementations(forcing_map));
     }
 
-    network network1(*engine, topology, config1); // run with shape agnostic kernel
+    network network1(engine, topology, config1); // run with shape agnostic kernel
     network1.set_input_data("input", input);
     auto outputs1 = network1.execute();
     auto output1 = outputs1.at("crop").get_memory();
@@ -1315,7 +1317,7 @@ void crop_gpu_dynamic_i32_in2x3x2x2_crop_offsets(impl_types impl_type, bool disa
         }
     }
     config2.set_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape(true));
-    network network2(*engine, topology, config2); // run with static kernel
+    network network2(engine, topology, config2); // run with static kernel
     network2.set_input_data("input", input);
     auto outputs2 = network2.execute();
     auto output2 = outputs2.at("crop").get_memory();
@@ -1332,22 +1334,65 @@ void crop_gpu_dynamic_i32_in2x3x2x2_crop_offsets(impl_types impl_type, bool disa
         }
     }
 }
-using ConfigParams = std::tuple<impl_types, bool>;
-class crop_gpu_dynamic : public ::testing::TestWithParam<ConfigParams> {};
-TEST_P(crop_gpu_dynamic, i32_in2x3x2x2_crop_offsets) {
-    impl_types impl_type;
-    bool disable_usm;
-    std::tie(impl_type, disable_usm) = GetParam();
-    crop_gpu_dynamic_i32_in2x3x2x2_crop_offsets(impl_type, disable_usm);
-}
 
-const std::vector<ConfigParams> testConfigs = {
-    ConfigParams{impl_types::any, false},
-    ConfigParams{impl_types::cpu, false},
-    ConfigParams{impl_types::cpu, true}
-};
+static std::vector<impl_types> impls = { impl_types::any, impl_types::cpu };
 INSTANTIATE_TEST_SUITE_P(crop_test, crop_gpu_dynamic,
-                        ::testing::ValuesIn(testConfigs));
+                        ::testing::Combine(
+                                ::testing::ValuesIn(impls)
+                                ));
+
+TEST(crop_cpu, basic_in2x3x2x2_crop_all_bfyx_disable_usm) {
+    //  Reference  : 3x1x2x2
+    //  Input      : 6x2x4x3
+    //  Output     : 3x1x2x2
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto engine = create_test_engine(engine_types::ocl, runtime_types::ocl, false);
+
+    auto batch_num = 6;
+    auto feature_num = 2;
+    auto x_size = 4;
+    auto y_size = 3;
+
+    auto crop_batch_num = batch_num - 3;
+    auto crop_feature_num = feature_num - 1;
+    auto crop_x_size = x_size - 2;
+    auto crop_y_size = y_size - 1;
+
+    auto input = engine->allocate_memory({ data_types::f32,format::bfyx,{ batch_num, feature_num, x_size, y_size } });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(crop("crop", input_info("input"), { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, {0, 0, 0, 0} ));
+
+    std::vector<float> input_vec = rg.generate_random_1d<float>(input->count(), -10, 10);
+    set_values(input, input_vec);
+
+    ExecutionConfig config = get_test_default_config(*engine);
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"crop", {format::bfyx, "", impl_types::cpu}} }));
+
+    network network(*engine, topology, config);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("crop").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    std::vector<float> a;
+    for (int b = 0; b < crop_batch_num; ++b) { //B
+        for (int f = 0; f < crop_feature_num; ++f) { //F
+            for (int y = 0; y < crop_y_size; ++y) { //Y
+                for (int x = 0; x < crop_x_size; ++x) { //X
+                    int linear_id = x + x_size * (y + y_size * (f + feature_num * b));
+                    int output_linear_id = x + crop_x_size * (y + crop_y_size * (f + crop_feature_num * b));
+                    a.push_back(output_ptr[output_linear_id]);
+                    ASSERT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                }
+            }
+        }
+    }
+}
 
 TEST(crop_gpu, dynamic_in1x4x1x1_split) {
     auto& engine = get_test_engine();

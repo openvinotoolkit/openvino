@@ -95,8 +95,7 @@ void start_broadcast_test_dynamic(format input_format,
                                   ov::AxisSet broadcast_axes,
                                   bool is_output_static = false,
                                   impl_types impl_type = impl_types::any, 
-                                  bool optimize = false,
-                                  bool disable_usm = false) {
+                                  bool optimize = false) {
     size_t input_data_size = accumulate(input_data_shape.rbegin(), input_data_shape.rend(), (size_t)1, std::multiplies<size_t>());
     ASSERT_GE(input_data_size, (size_t)1);
     std::vector<inT> input_data = {};
@@ -124,9 +123,8 @@ void start_broadcast_test_dynamic(format input_format,
     ASSERT_EQ(input_rank, broadcast_axes.size());
     auto fmt = format::get_default_format(input_rank);
 
-    auto engine = create_test_engine();
-    engine->disable_usm  = disable_usm;
-    auto input = engine->allocate_memory({ov::PartialShape(input_data_shape), input_data_type, fmt});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ov::PartialShape(input_data_shape), input_data_type, fmt});
 
     topology topology;
     memory::ptr target_shape_mem = nullptr;
@@ -146,7 +144,7 @@ void start_broadcast_test_dynamic(format input_format,
     } else {
         auto in_layout = layout(ov::PartialShape::dynamic(input_rank), input_data_type, fmt);
         auto target_shape_layout = layout(ov::PartialShape{input_rank}, data_types::i32, fmt);
-        target_shape_mem = engine->allocate_memory(target_shape_layout);
+        target_shape_mem = engine.allocate_memory(target_shape_layout);
         topology.add(input_layout("input", in_layout));
         topology.add(input_layout("target_shape", target_shape_layout));
         topology.add(reorder("reorder", input_info("input"), input_format, input_data_type));
@@ -167,7 +165,7 @@ void start_broadcast_test_dynamic(format input_format,
         set_values<int32_t>(target_shape_mem, target_shape_data);
     }
 
-    ExecutionConfig config = get_test_default_config(*engine);
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     if (optimize) {
         config.set_property(ov::intel_gpu::optimize_data(true));
@@ -182,7 +180,7 @@ void start_broadcast_test_dynamic(format input_format,
 
     set_values(input, input_data);
 
-    network network(*engine, topology, config);
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     if (!is_output_static) {
         network.set_input_data("target_shape", target_shape_mem);
@@ -336,19 +334,6 @@ TEST(broadcast_gpu_int64_t, bfyx_1_to_4x5_w_b_axes_0x1x2x3_dynamic_with_static_o
 // dynamic kernel cpu
 TEST(broadcast_cpu_impl_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
     start_broadcast_test_dynamic<float, int32_t>(format::bfyx, data_types::f32, data_types::i32, {4, 5}, {1, 1}, {0, 1}, false, impl_types::cpu);
-}
-
-TEST(broadcast_cpu_impl_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic_disable_usm) {
-    start_broadcast_test_dynamic<float, int32_t>(format::bfyx,
-                                                 data_types::f32,
-                                                 data_types::i32,
-                                                 {4, 5},
-                                                 {1, 1},
-                                                 {0, 1},
-                                                 false,
-                                                 impl_types::cpu,
-                                                 false,
-                                                 true);
 }
 
 TEST(broadcast_cpu_impl_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic_with_static_output) {
