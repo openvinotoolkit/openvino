@@ -70,34 +70,31 @@ namespace intel_npu {
 
 class ZeroApi {
 public:
+    ZeroApi();
     ZeroApi(const ZeroApi& other) = delete;
     ZeroApi(ZeroApi&& other) = delete;
     void operator=(const ZeroApi&) = delete;
     void operator=(ZeroApi&&) = delete;
 
-    static ZeroApi& getInstance() {
-        static ZeroApi instance;
-        return instance;
-    }
+    static const std::shared_ptr<ZeroApi>& getInstance();
+
 #define symbol_statement(symbol) decltype(&::symbol) symbol;
     symbols_list();
     weak_symbols_list();
 #undef symbol_statement
 
 private:
-    ZeroApi();
-
     std::shared_ptr<void> lib;
 };
 
 #define symbol_statement(symbol)                                                                            \
     template <typename... Args>                                                                             \
     inline typename std::invoke_result<decltype(&::symbol), Args...>::type wrapped_##symbol(Args... args) { \
-        auto& ref = ZeroApi::getInstance();                                                                 \
-        if (ref.symbol == nullptr) {                                                                        \
+        const auto& ptr = ZeroApi::getInstance();                                                           \
+        if (ptr->symbol == nullptr) {                                                                       \
             OPENVINO_THROW("Unsupported symbol " #symbol);                                                  \
         }                                                                                                   \
-        return ref.symbol(std::forward<Args>(args)...);                                                     \
+        return ptr->symbol(std::forward<Args>(args)...);                                                    \
     }
 symbols_list();
 weak_symbols_list();

@@ -20,9 +20,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 namespace {
 class MemoryStub : public IMemory {
@@ -84,7 +82,7 @@ public:
         m_pMemDesc = desc;
     }
 
-    void load(const IMemory& src, bool ftz = true) const override {
+    void load(const IMemory& src, bool ftz) const override {
         OPENVINO_THROW("Unexpected call MemoryStub::load()");
     }
 
@@ -308,7 +306,7 @@ void MemoryOutput::runStatic(dnnl::stream strm) {
     CPU_NODE_ASSERT(assignedMem, " uninitialized assigned memory");
 
     if (inputMem->getData() != assignedMem->getData()) {
-        assignedMem->load(*inputMem);
+        assignedMem->load(*inputMem, true);
     }
 }
 
@@ -788,8 +786,7 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
             // depending on the memory sharing solution, we can return here if the memory is substituted from the
             // external graph or override the src pointer with the memory pointer pointing to the subgraph output
             // memory
-            CPU_NODE_ASSERT(subGraph->outputsNumber() == 1,
-                            "has unexpected number of outputs");
+            CPU_NODE_ASSERT(subGraph->outputsNumber() == 1, "has unexpected number of outputs");
             src = subGraph->getOutputNodeByIndex(0)->getSrcMemoryAtPort(0);
 
             // since the shape inference(InternalDynShapeInfer, do nothing) is performed, a memory of the extra child
@@ -813,7 +810,7 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
 
     // copy data when necessary
     if (src->getData() != dst->getData()) {
-        dst->load(*src);
+        dst->load(*src, true);
     }
 }
 
@@ -857,7 +854,7 @@ void MemoryInput::runStatic(dnnl::stream strm) {
     // copy data when necessary
     auto dst = getDstMemoryAtPort(0);
     if (src->getData() != dst->getData()) {
-        dst->load(*src);
+        dst->load(*src, true);
     }
 }
 
@@ -1070,7 +1067,7 @@ void MemoryInputSingle::runStatic(dnnl::stream strm) {
         auto stateMem = getAssignedState()->output_mem();
         CPU_NODE_ASSERT(stateMem, " state memory has nullptr");
         if (result->getData() != stateMem->getData()) {
-            stateMem->load(*result);
+            stateMem->load(*result, true);
         }
     }
     getAssignedState()->commit();  // since we don't use MemoryOutput, commit must be called to change the reset state
@@ -1095,7 +1092,7 @@ void MemoryInputSingle::runDynamic(dnnl::stream strm) {
         }
 
         if (result->getData() != stateMem->getData()) {
-            stateMem->load(*result);
+            stateMem->load(*result, true);
         }
     }
     getAssignedState()->commit();  // since we don't use MemoryOutput, commit must be called to change the reset state
@@ -1106,6 +1103,4 @@ bool MemoryInputSingle::isSupportedOperation(const std::shared_ptr<const ov::Nod
     return MemoryInput::isSupportedOperation(op, errorMessage);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

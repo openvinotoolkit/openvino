@@ -8,9 +8,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/random_uniform.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 // Following const values are taken from the original paper:
 // https://www.thesalmons.org/john/random123/papers/random123sc11.pdf
@@ -884,6 +882,4 @@ void RandomUniform::computeStl(void* out, size_t work_amount) {
 
 //////////////////////////////////
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

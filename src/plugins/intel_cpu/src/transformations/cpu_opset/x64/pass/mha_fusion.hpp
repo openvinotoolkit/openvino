@@ -7,8 +7,7 @@
 #include "openvino/opsets/opset4.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class MHAFusionBase : public ov::pass::MatcherPass {
 public:
@@ -63,5 +62,4 @@ public:
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

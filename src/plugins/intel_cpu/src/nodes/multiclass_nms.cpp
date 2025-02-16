@@ -20,9 +20,7 @@
 
 using namespace ov;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 using ngNmsSortResultType = ov::op::util::MulticlassNmsBase::SortResultType;
 
@@ -676,6 +674,4 @@ void MultiClassNms::checkPrecision(const ov::element::Type prec,
     }
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

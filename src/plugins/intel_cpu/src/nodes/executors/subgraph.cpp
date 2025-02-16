@@ -9,8 +9,7 @@
 #include "common/primitive_hashing_utils.hpp"
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 bool operator==(const SubgraphAttrs& lhs, const SubgraphAttrs& rhs) {
     if (&lhs == &rhs) {
@@ -178,5 +177,4 @@ void SubgraphBaseExecutor::execute(const dnnl::stream& strm,
     exec_impl(inMemPtrs, outMemPtrs);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
