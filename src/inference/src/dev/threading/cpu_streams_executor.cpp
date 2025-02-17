@@ -496,10 +496,10 @@ std::vector<int> CPUStreamsExecutor::get_rank() {
 }
 
 void CPUStreamsExecutor::cpu_reset() {
-    if (!_impl->_cpu_ids_all.empty()) {
-        set_cpu_used(_impl->_cpu_ids_all, NOT_USED);
-        {
-            std::lock_guard<std::mutex> lock(_impl->_cpu_ids_mutex);
+    {
+        std::lock_guard<std::mutex> lock(_impl->_cpu_ids_mutex);
+        if (!_impl->_cpu_ids_all.empty()) {
+            set_cpu_used(_impl->_cpu_ids_all, NOT_USED);
             _impl->_cpu_ids_all.clear();
         }
     }
@@ -508,12 +508,6 @@ void CPUStreamsExecutor::cpu_reset() {
 CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) : _impl{new Impl{config}} {}
 
 CPUStreamsExecutor::~CPUStreamsExecutor() {
-    try {
-        cpu_reset();
-    } catch (const ov::Exception&) {
-        // Destructor should not throw - catch needed for static analysis.
-        OPENVINO_THROW("Reset CPU state error.");
-    }
     {
         std::lock_guard<std::mutex> lock(_impl->_mutex);
         _impl->_isStopped = true;
