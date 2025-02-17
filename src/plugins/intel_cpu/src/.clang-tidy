@@ -27,16 +27,19 @@
 # -google-default-arguments,
 # -google-explicit-constructor,
 # -google-readability-casting,
+# -modernize-avoid-c-arrays,
 # -readability-implicit-bool-conversion,
 # -readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers
 # -readability-function-cognitive-complexity. Reasonable way to enforce splitting complex code into simple functions
+# Remove warning disablement after CI pipeline migrates to C++17 from C++20 for:
+# -modernize-use-constraints,
+# -modernize-use-std-numbers
 
 Checks: >
   -*,
   performance-*,
   google-*,
-  modernize-loop-convert,
-  modernize-pass-by-value,
+  modernize-*,
   cppcoreguidelines-prefer-member-initializer,
   readability-else-after-return,
   -bugprone-easily-swappable-parameters,
@@ -49,6 +52,9 @@ Checks: >
   -google-readability-casting,
   -google-readability-todo,
   -readability-braces-around-statements,
+  -modernize-avoid-c-arrays,
+  -modernize-use-constraints,
+  -modernize-use-std-numbers,
   -modernize-use-trailing-return-type,
   -readability-identifier-length,
   -readability-implicit-bool-conversion,
@@ -74,6 +80,8 @@ CheckOptions:
     value: reasonable
   - key: modernize-pass-by-value.IncludeStyle
     value: google
+  - key: modernize-use-auto.MinTypeNameLength
+    value: "3"
 ### To be considered to enable:
 #  # Unifies the usage of the statements
 #  - key: readability-braces-around-statements.ShortStatementLines
