@@ -12,7 +12,7 @@
 
 static const std::string s_manifest{
 #ifdef MANIFEST
-    ov::util::path_join({ov::test::utils::getExecutableDirectory(), MANIFEST})
+    ov::util::path_join({ov::test::utils::getExecutableDirectory(), MANIFEST}).string()
 #endif
 };
 
