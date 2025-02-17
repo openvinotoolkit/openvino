@@ -69,28 +69,6 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
     : GemmCPU(A, B, scratch, type, desc_a, desc_b, desc_scratch, desc_c, layout_a, layout_b, layout_c),
     m_iter_count(iter_count) {}
 
-void BrgemmCPU::custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_a,
-                                                            const std::vector<size_t>& layout_b,
-                                                            const std::vector<size_t>& layout_c) {
-    INTERNAL_OP_SCOPE(BrgemmCPU_constructor_validate_and_infer_types);
-    validate_inputs();
-
-    const std::vector<ov::PartialShape> planar_input_shapes{
-        snippets::utils::get_planar_pshape(get_input_partial_shape(0), layout_a),
-        snippets::utils::get_planar_pshape(get_input_partial_shape(1), layout_b)};
-    auto output_shape = infer_output_partial_shape(planar_input_shapes);
-    set_output_type(0, get_output_type(), snippets::utils::get_planar_pshape(output_shape, layout_c));
-}
-
-void BrgemmCPU::validate_and_infer_types() {
-    INTERNAL_OP_SCOPE(BrgemmCPU_validate_and_infer_types);
-    validate_inputs();
-
-    const auto planar_input_shapes = get_planar_input_shapes({input(0), input(1)});
-    auto output_shape = infer_output_partial_shape(planar_input_shapes);
-    set_output_type(0, get_output_type(), get_planar_output_shape(output_shape));
-}
-
 std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(BrgemmCPU_clone_with_new_inputs);
     check_new_args_count(this, new_args);
@@ -123,9 +101,4 @@ std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_a
         snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
 }
 
-bool BrgemmCPU::visit_attributes(AttributeVisitor& visitor) {
-    Brgemm::visit_attributes(visitor);
-    visitor.on_attribute("type", m_type);
-    return true;
-}
 }  // namespace ov::intel_cpu

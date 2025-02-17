@@ -68,20 +68,13 @@ public:
               const std::vector<size_t>& layout_c = {});
     BrgemmCPU() = default;
 
-    void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     size_t get_iter_count() const {
         return m_iter_count;
     }
 
-    bool visit_attributes(AttributeVisitor& visitor) override;
-
 private:
-    void custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_a,
-                                                     const std::vector<size_t>& layout_b,
-                                                     const std::vector<size_t>& layout_c);
-
     size_t m_iter_count;
 };
 }  // namespace ov::intel_cpu
