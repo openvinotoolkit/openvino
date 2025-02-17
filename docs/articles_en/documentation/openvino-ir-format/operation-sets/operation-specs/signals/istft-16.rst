@@ -58,6 +58,7 @@ The ``window_length`` can not be larger than ``frame_size``, but if smaller the 
 **Inputs**
 
 * **1**: ``data`` - Tensor of type *T*, the ISTFT data input (compatible with a result of STFT operation). **Required.**
+
   * The data input shape can be 3D ``[fft_results, frames, 2]`` or 4D ``[batch, fft_results, frames, 2]``.
 * **2**: ``window`` - Tensor of type *T* and 1D shape ``[window_length]``, specifying the window values applied to restore the signal. The ``window_length`` is required to be equal or smaller than ``frame_size``, if smaller the window will be padded with zeros on the left and right sides. **Required.**
 * **3**: ``frame_size`` - Scalar tensor of type *T_INT* describing the size of a single frame of the signal to be provided as input to FFT. **Required.**
@@ -66,6 +67,7 @@ The ``window_length`` can not be larger than ``frame_size``, but if smaller the 
 
 
 **Outputs**
+
 * **1**: ``signal`` - Tensor of type *T* and 1D shape ``[signal_length]`` or 2D shape ``[batch, signal_length]`` with a real valued signal data. **Required.**
 
 **Types**
