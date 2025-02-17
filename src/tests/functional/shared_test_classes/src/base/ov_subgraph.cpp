@@ -504,7 +504,7 @@ void SubgraphBaseTest::validate() {
     }
 
     ASSERT_EQ(actualOutputs.size(), expectedOutputs.size())
-        << "Reference has " << expectedOutputs.size() << " outputs, while " << targetDevice << " " << actualOutputs.size();
+        << "TEMPLATE plugin has " << expectedOutputs.size() << " outputs, while " << targetDevice << " " << actualOutputs.size();
     if (is_report_stages) {
         std::cout << "[ COMPARATION ] `ov_tensor_utils.hpp::compare()` is started"<< std::endl;
     }
