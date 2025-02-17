@@ -5,8 +5,8 @@
 #pragma once
 
 #include "openvino/pass/graph_rewrite.hpp"
-#include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/rt_info/decompression.hpp"
+#include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov::pass {
