@@ -24,14 +24,14 @@ protected:
 public:
     MemoryFormats() = default;
     explicit MemoryFormats(std::string _memory_format) : memory_format(std::move(_memory_format)) {}
-    std::string to_string() const override {
+    [[nodiscard]] std::string to_string() const override {
         return memory_format;
     };
-    bool is_copyable(const std::shared_ptr<ov::Node>& to) const override {
+    [[nodiscard]] bool is_copyable(const std::shared_ptr<ov::Node>& to) const override {
         return (!ov::op::util::is_constant(to));
     }
 
-    ov::Any merge(const ov::NodeVector& nodes) const override {
+    [[nodiscard]] ov::Any merge(const ov::NodeVector& nodes) const override {
         std::set<std::string> unique_mem_format;
 
         for (auto& node : nodes) {

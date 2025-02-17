@@ -4,6 +4,7 @@
 
 #include "jit_uni_eltwise_generic.hpp"
 
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -61,7 +62,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
     if (mayiuse(avx512_core) || mayiuse(avx2_vnni_2)) {
         auto const mode = jep_.do_output_saturation ? jit_uni_vcvtneps2bf16::conversion_mode::saturation_mode
                                                     : jit_uni_vcvtneps2bf16::conversion_mode::default_mode;
-        uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa, element::bf16, mode));
+        uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(this, isa, element::bf16, mode);
     }
 
     const auto& jep = jep_;
@@ -527,7 +528,7 @@ void jit_uni_eltwise_generic<isa>::load_vector(Vmm vmm_src,
                                                ov::element::Type src_prc,
                                                ov::element::Type dst_prc,
                                                bool broadcast) {
-    Xmm xmm_src = Xmm(vmm_src.getIdx());
+    auto xmm_src = Xmm(vmm_src.getIdx());
 
     if (src_prc == dst_prc) {
         if (broadcast) {
@@ -670,8 +671,8 @@ void jit_uni_eltwise_generic<isa>::store_vector(const Xbyak::Address& op,
                                                 Vmm vmm_dst,
                                                 ov::element::Type src_prc,
                                                 ov::element::Type dst_prc) {
-    Xmm xmm_dst = Xmm(vmm_dst.getIdx());
-    Ymm ymm_dst = Ymm(vmm_dst.getIdx());
+    auto xmm_dst = Xmm(vmm_dst.getIdx());
+    auto ymm_dst = Ymm(vmm_dst.getIdx());
 
     if (src_prc == dst_prc) {
         uni_vmovups(op, vmm_dst);

@@ -23,7 +23,7 @@ struct load_emitter_params : public emitter_params {
           is_fill_(is_fill),
           fill_value_(std::move(fill_value)) {}
 
-    size_t hash() const override;
+    [[nodiscard]] size_t hash() const override;
 
     ov::element::Type src_prc_;
     ov::element::Type dst_prc_;
@@ -38,7 +38,7 @@ struct store_emitter_params : public emitter_params {
           dst_prc_(dst_prc),
           store_num_(store_num) {}
 
-    size_t hash() const override;
+    [[nodiscard]] size_t hash() const override;
 
     ov::element::Type src_prc_;
     ov::element::Type dst_prc_;

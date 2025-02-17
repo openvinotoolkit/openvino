@@ -50,7 +50,7 @@ public:
                       std::unordered_map<int, MemoryPtr> postOpsArgs) = 0;
     virtual ~PoolingExecutor() = default;
 
-    virtual impl_desc_type getImplType() const = 0;
+    [[nodiscard]] virtual impl_desc_type getImplType() const = 0;
 
 protected:
     PoolingAttrs poolingAttrs;
@@ -63,10 +63,10 @@ using PoolingExecutorCPtr = std::shared_ptr<const PoolingExecutor>;
 class PoolingExecutorBuilder {
 public:
     ~PoolingExecutorBuilder() = default;
-    virtual bool isSupported(const PoolingAttrs& poolingAttrs,
-                             const std::vector<MemoryDescPtr>& srcDescs,
-                             const std::vector<MemoryDescPtr>& dstDescs) const = 0;
-    virtual PoolingExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
+    [[nodiscard]] virtual bool isSupported(const PoolingAttrs& poolingAttrs,
+                                           const std::vector<MemoryDescPtr>& srcDescs,
+                                           const std::vector<MemoryDescPtr>& dstDescs) const = 0;
+    [[nodiscard]] virtual PoolingExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
 };
 
 using PoolingExecutorBuilderPtr = std::shared_ptr<PoolingExecutorBuilder>;

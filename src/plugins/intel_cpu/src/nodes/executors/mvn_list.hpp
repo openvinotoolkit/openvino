@@ -36,7 +36,7 @@ public:
         }
     }
 
-    ~MVNExecutorFactory() = default;
+    ~MVNExecutorFactory() override = default;
     virtual MVNExecutorPtr makeExecutor(const MVNAttrs& mvnAttrs,
                                         const std::vector<MemoryDescPtr>& srcDescs,
                                         const std::vector<MemoryDescPtr>& dstDescs,
