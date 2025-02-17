@@ -237,8 +237,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                                            ov::element::Type_t::boolean,
                                                                            ov::element::Type_t::string,
                                                                            ov::element::Type_t::nf4};
+        bool isChildPA = false;
+        for (const auto& child : ii.get_target_inputs()) {
+            isChildPA = ov::is_type<ov::op::PagedAttentionExtension>(child.get_node());
+        }
+        bool ok = supported_precisions.count(input_precision);
+        ok = isChildPA ? (ok || input_precision == ov::element::dynamic) : ok;
 
-        if (!supported_precisions.count(input_precision)) {
+        if (!ok) {
             OPENVINO_THROW_NOT_IMPLEMENTED("CPU plugin: Input image format ",
                                            input_precision,
                                            " is not supported yet...");
