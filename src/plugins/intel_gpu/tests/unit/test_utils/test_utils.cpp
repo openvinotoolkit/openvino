@@ -310,7 +310,9 @@ std::shared_ptr<cldnn::engine> create_test_engine() {
     return ret;
 }
 
-std::shared_ptr<cldnn::engine> create_test_engine(cldnn::engine_types engine_type, cldnn::runtime_types runtime_type, bool allow_usm_mem) {
+std::shared_ptr<cldnn::engine> create_test_engine(cldnn::engine_types engine_type,
+                                                  cldnn::runtime_types runtime_type,
+                                                  bool allow_usm_mem) {
     device_query query(engine_type, runtime_type);
     auto devices = query.get_available_devices();
 
@@ -323,7 +325,12 @@ std::shared_ptr<cldnn::engine> create_test_engine(cldnn::engine_types engine_typ
     if (!allow_usm_mem)
         device->set_mem_caps(cldnn::memory_capabilities({}));
 
-    return engine::create(engine_type, runtime_type, device);
+    auto ret = engine::create(engine_type, runtime_type, device);
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    if (ret->get_device_info().supports_immad)
+        ret->create_onednn_engine({});
+#endif
+    return ret;
 }
 
 cldnn::engine& get_test_engine() {
