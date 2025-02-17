@@ -1,9 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
 
 #include <array>
+#include <cfloat>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <fstream>
@@ -19,10 +21,7 @@
 #    include "arm_neon.h"
 #endif
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace ov::Extensions::Cpu::XARCH {
 
 #if defined(HAVE_AVX2)
 inline void exp_ps_avx2(__m256& src) {
@@ -437,16 +436,19 @@ inline void scale_add2_reduce_max(float* a,
             a[i] += alibi_lookup[i] * alibi_slope;
         }
 
-        if (has_attn_mask)
+        if (has_attn_mask) {
             a[i] += attn_mask[i];
+        }
 
         if (has_causal_mask) {
             if (select_nfltmax_at_0) {
-                if (causal_mask[i] == 0)
+                if (causal_mask[i] == 0) {
                     a[i] = -FLT_MAX;
+                }
             } else {
-                if (causal_mask[i] != 0)
+                if (causal_mask[i] != 0) {
                     a[i] = -FLT_MAX;
+                }
             }
         }
 
@@ -750,7 +752,7 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
 #    endif
 #endif
     for (; i < size; i++) {
-        a[i] = exp(a[i] - max);
+        a[i] = std::exp(a[i] - max);
         sum += a[i];
     }
 }
@@ -1146,18 +1148,21 @@ inline void attn_softmax_kernel<float>(float* a,
     if (dst_precision == ov::element::f32) {
         multiply_scalar(a, reinterpret_cast<float*>(a_dst), scalar, len);
         // apply causual mask to final result instead of attn_score
-        if (total_size > len)
+        if (total_size > len) {
             memset(static_cast<float*>(a_dst) + len, 0, sizeof(float) * (total_size - len));
+        }
     } else if (dst_precision == ov::element::bf16) {
         multiply_scalar(a, static_cast<ov::bfloat16*>(a_dst), scalar, len);
         // apply causual mask to final result instead of attn_score
-        if (total_size > len)
+        if (total_size > len) {
             memset(static_cast<ov::bfloat16*>(a_dst) + len, 0, sizeof(ov::bfloat16) * (total_size - len));
+        }
     } else {
         multiply_scalar(a, static_cast<ov::float16*>(a_dst), scalar, len);
         // apply causual mask to final result instead of attn_score
-        if (total_size > len)
+        if (total_size > len) {
             memset(static_cast<ov::float16*>(a_dst) + len, 0, sizeof(ov::float16) * (total_size - len));
+        }
     }
 }
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
@@ -1278,7 +1283,4 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
 }
 #endif
 
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu::XARCH

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -93,7 +93,7 @@ std::pair<LinearIR::constExprIt, LinearIR::constExprIt> LoopManager::get_loop_bo
     OPENVINO_ASSERT(!entries.empty(), "Loop must have input ports");
     OPENVINO_ASSERT(!exits.empty(), "Loop must have output ports");
 
-    const auto& entry_expr = entries.front().expr_port->get_expr();
+    const auto& entry_expr = entries.front().get_expr_port()->get_expr();
     auto loop_begin_pos = linear_ir.find(entry_expr);
     // Some operations in Loop can be before first input ports: Scalars, VectorBuffer.
     // We should iterate by them till the expr is in the corresponding Loop
@@ -103,7 +103,7 @@ std::pair<LinearIR::constExprIt, LinearIR::constExprIt> LoopManager::get_loop_bo
         prev_loop_ids = (*std::prev(loop_begin_pos))->get_loop_ids();
     }
 
-    const auto& exit_expr = exits.back().expr_port->get_expr();
+    const auto& exit_expr = exits.back().get_expr_port()->get_expr();
     auto loop_end_pos = std::next(linear_ir.find_after(loop_begin_pos, exit_expr));
     // There might be LoopEnd with another `loop_id` but in the target Loop as well.
     auto current_loop_ids = (*loop_end_pos)->get_loop_ids();
@@ -312,14 +312,14 @@ void LoopManager::fuse_loop_ports(std::vector<LoopPort>& output_ports,
 
     std::vector<LoopPort> new_output_ports;
     for (const auto& output_port : output_ports) {
-        const auto consumers_inputs = output_port.expr_port->get_connected_ports();
+        const auto consumers_inputs = output_port.get_expr_port()->get_connected_ports();
 
         std::set<LoopPort> mapped_input_ports;
         std::set<ExpressionPtr> outside_consumers;
         for (const auto& consumer_input : consumers_inputs) {
             const auto input_port_it = std::find_if(input_ports.begin(), input_ports.end(),
                                                      [&consumer_input](const LoopPort& port) {
-                                                             return *port.expr_port.get() == consumer_input;
+                                                             return *port.get_expr_port().get() == consumer_input;
                                                          });
             if (input_port_it != input_ports.end()) {
                 mapped_input_ports.insert(*input_port_it);

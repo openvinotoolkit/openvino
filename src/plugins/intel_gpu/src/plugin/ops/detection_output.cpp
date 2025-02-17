@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,7 @@
 
 #include "intel_gpu/primitives/detection_output.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static cldnn::prior_box_code_type PriorBoxCodeFromString(const std::string& str) {
     static const std::map<std::string, cldnn::prior_box_code_type> CodeNameToType = {
@@ -96,5 +95,4 @@ static void CreateDetectionOutputOp(ProgramBuilder& p, const std::shared_ptr<ov:
 REGISTER_FACTORY_IMPL(v0, DetectionOutput);
 REGISTER_FACTORY_IMPL(v8, DetectionOutput);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

@@ -9,9 +9,7 @@
 #include "snippets/generator.hpp"
 #include "snippets/target_machine.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace aarch64 {
+namespace ov::intel_cpu::aarch64 {
 
 class CompiledSnippetCPU : public snippets::CompiledSnippet {
 public:
@@ -31,7 +29,11 @@ public:
     bool is_supported() const override;
     snippets::CompiledSnippetPtr get_snippet() override;
     size_t get_lanes() const override;
-    size_t get_reg_count() const override;
+
+    std::vector<snippets::Reg> get_abi_arg_regs() const override;
+    std::vector<snippets::Reg> get_gp_reg_pool() const override;
+    std::vector<snippets::Reg> get_vec_reg_pool() const override;
+
     dnnl::impl::cpu::aarch64::cpu_isa_t get_isa() const;
 
 private:
@@ -51,6 +53,4 @@ protected:
     ov::snippets::RegType get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const override;
 };
 
-}  // namespace aarch64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::aarch64

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <float.h>
@@ -19,10 +19,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace ov::Extensions::Cpu::XARCH {
 
 using namespace ov;
 
@@ -140,8 +137,9 @@ static void quant_u8(const T* src, uint8_t* dst, size_t n, float& scale, float& 
     float min = FLT_MAX;
     find_minmax(src, n, min, max);
     scale = (max - min) / 255;
-    if (scale == 0)
+    if (scale == 0) {
         scale = 0.0001f;
+    }
     zp = -min / scale;
 #if defined(HAVE_AVX512F)
     auto v_scale = _mm512_set1_ps(1 / scale);
@@ -279,12 +277,13 @@ static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp)
     find_minmax(src, n, min, max);
     auto insert_half_byte = [](uint8_t dst, uint8_t val, bool high_half) -> uint8_t {
         uint8_t shift = high_half ? 0 : 4;
-        return dst | (uint8_t)(val << shift);
+        return dst | static_cast<uint8_t>(val << shift);
     };
     auto dst_ptr = reinterpret_cast<uint8_t*>(dst);
     scale = (max - min) / ((1 << 4) - 1);
-    if (scale == 0)
+    if (scale == 0) {
         scale = 0.0001f;
+    }
     zp = -min / scale;
 #if defined(HAVE_AVX512F)
     auto v_scale = _mm512_set1_ps(1 / scale);
@@ -362,7 +361,7 @@ static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp)
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
         uint8_t src_val = MIN(15, (uint8_t)(std::round(tmp / scale + zp)));
         uint8_t dst_val = i % 2 == 0 ? 0 : dst_ptr[i / 2];
-        dst_val = insert_half_byte(dst_val, src_val, (uint8_t)(i % 2));
+        dst_val = insert_half_byte(dst_val, src_val, static_cast<uint8_t>(i % 2));
         dst_ptr[i / 2] = dst_val;
     }
 }
@@ -600,8 +599,9 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
     // quant value
     parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
         auto slot = slot_mapping.ptr<int32_t>(b)[m];
-        if (slot < 0)
+        if (slot < 0) {
             return;
+        }
         auto block_number = slot / block_size;
         auto block_offset = slot % block_size;
         // The layout for per token per head:
@@ -803,7 +803,4 @@ void attn_dequant_by_channel_u8(const uint8_t* src,
     attn_dequant_u8_by_channel_kernel(src, dst, seq_dim, hidden_dims, src_stride, dst_stride, scale, zp);
 }
 
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu::XARCH

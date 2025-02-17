@@ -27,7 +27,7 @@ class TRANSFORMATIONS_API TSDataMovementBackward;
  */
 class ov::pass::transpose_sinking::TSDataMovementForward : public ov::pass::transpose_sinking::TSForwardBase {
 public:
-    OPENVINO_RTTI("ov::pass::TSDataMovementForward", "0");
+    OPENVINO_RTTI("ov::pass::TSDataMovementForward", "0", ov::pass::transpose_sinking::TSForwardBase);
     TSDataMovementForward();
 };
 

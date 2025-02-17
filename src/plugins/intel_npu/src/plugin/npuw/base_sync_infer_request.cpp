@@ -491,11 +491,12 @@ void ov::npuw::IBaseInferRequest::bind_global_results(std::size_t idx, RqPtr req
 void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
     const std::string dump_ios_opt = m_npuw_model->m_cfg.get<::intel_npu::NPUW_DUMP_IO>();
     const std::size_t end_idx = m_npuw_model->m_compiled_submodels.size();
-    if (!ov::npuw::util::is_set(idx, dump_ios_opt, end_idx)) {
+    auto real_idx = m_npuw_model->m_compiled_submodels[idx].replaced_by.value_or(idx);
+
+    if (!ov::npuw::util::is_set(idx, dump_ios_opt, real_idx, end_idx)) {
         return;
     }
 
-    auto real_idx = m_npuw_model->m_compiled_submodels[idx].replaced_by.value_or(idx);
     const auto& comp_submodel_desc = m_npuw_model->m_compiled_submodels[real_idx];
     const auto& comp_submodel = comp_submodel_desc.compiled_model;
 
@@ -503,8 +504,7 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
     // Note:
     // - _name is used for the user option (no leading 00s for indices)
     // - _path is used for disk dump (will have leading 00s for indices)
-    const auto comp_submodel_name = subgr_name(idx);
-    const auto comp_submodel_path = m_npuw_model->m_name + subgr_path_suffix(idx) + iter_path_suffix(idx);
+    const auto& comp_submodel_path = m_npuw_model->m_name + subgr_path_suffix(idx) + iter_path_suffix(idx);
     const auto num_inputs = comp_submodel->inputs().size();
 
     // There's different approaches to dumping normal and spatial subgraphs.
@@ -524,7 +524,7 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
         const auto& s = comp_submodel_desc.spatial.value();
 
         std::set<std::size_t> spatial_param_idx;
-        std::vector<std::string> in_base_names_nonspat;
+        std::vector<std::string> in_base_names(num_inputs);
 
         // First, dump the non-spatial input tensors just once - and remember its names
         for (auto&& p : s.params) {
@@ -538,7 +538,7 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
             const auto& tnsr = m_subrequests[real_idx]->get_tensor(port);
             std::string in_base_name = comp_submodel_path + "_input_" + ov::npuw::util::fmt(i, num_inputs);
             ov::npuw::dump_tensor(tnsr, in_base_name);
-            in_base_names_nonspat.push_back(std::move(in_base_name));
+            in_base_names[i] = std::move(in_base_name);
         }
 
         // Now iterate over the spatial range and dump the individual tiles
@@ -547,8 +547,10 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
         for (std::size_t offset = 0u; offset < s.range; offset += s.nway) {
             const std::size_t this_len = (offset + s.nway <= s.range) ? s.nway               // the full tile
                                                                       : (s.range - offset);  // the last tile
-            // Copy the base file list to start with it
-            std::vector<std::string> tile_ilist(in_base_names_nonspat);
+            if (m_spatial_selector != nullptr && !m_spatial_selector->need_submit(offset, this_len)) {
+                continue;
+            }
+
             for (auto&& p : s.params) {
                 std::string in_base_name = comp_submodel_path + "_input_" + ov::npuw::util::fmt(p.idx, num_inputs) +
                                            "_d" + ov::npuw::util::fmt(p.dim, 10) + "_" +
@@ -558,10 +560,11 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
                 const auto& view = ov::npuw::util::view(tnsr, p.dim, offset, this_len);
 
                 ov::npuw::dump_tensor(view, in_base_name);
-                tile_ilist.push_back(std::move(in_base_name));
+                in_base_names[p.idx] = std::move(in_base_name);
             }
             // Dump ilist per tile
-            ov::npuw::dump_input_list(comp_submodel_path, tile_ilist);
+            std::string tile_ilist_name = comp_submodel_path + "_" + ov::npuw::util::fmt(offset, s.range);
+            ov::npuw::dump_input_list(tile_ilist_name, in_base_names);
         }  // for(offset)
     }
 }
@@ -569,11 +572,12 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
 void ov::npuw::IBaseInferRequest::dump_output_tensors(std::size_t idx) {
     const std::string dump_ios_opt = m_npuw_model->m_cfg.get<::intel_npu::NPUW_DUMP_IO>();
     const std::size_t end_idx = m_npuw_model->m_compiled_submodels.size();
-    if (!ov::npuw::util::is_set(idx, dump_ios_opt, end_idx)) {
+    auto real_idx = m_npuw_model->m_compiled_submodels[idx].replaced_by.value_or(idx);
+
+    if (!ov::npuw::util::is_set(idx, dump_ios_opt, real_idx, end_idx)) {
         return;
     }
 
-    auto real_idx = m_npuw_model->m_compiled_submodels[idx].replaced_by.value_or(idx);
     const auto& comp_submodel_desc = m_npuw_model->m_compiled_submodels[real_idx];
     const auto& comp_submodel = comp_submodel_desc.compiled_model;
 
@@ -582,8 +586,7 @@ void ov::npuw::IBaseInferRequest::dump_output_tensors(std::size_t idx) {
     // - _name is used for the user option (no leading 00s for indices)
     // - _path is used for disk dump (will have leading 00s for indices)
     // FIXME: Duplication is evil
-    const auto comp_submodel_name = subgr_name(idx);
-    const auto comp_submodel_path = m_npuw_model->m_name + subgr_path_suffix(idx) + iter_path_suffix(idx);
+    const auto& comp_submodel_path = m_npuw_model->m_name + subgr_path_suffix(idx) + iter_path_suffix(idx);
     const std::size_t num_outputs = comp_submodel->outputs().size();
 
     // Same approach as in above. Spatial tensors require special handling
@@ -615,7 +618,8 @@ void ov::npuw::IBaseInferRequest::dump_output_tensors(std::size_t idx) {
                 tile_olist.push_back(std::move(out_base_name));
             }
             // Dump olist per tile
-            ov::npuw::dump_output_list(comp_submodel_path, tile_olist);
+            std::string tile_olist_name = comp_submodel_path + "_" + ov::npuw::util::fmt(offset, s.range);
+            ov::npuw::dump_output_list(tile_olist_name, tile_olist);
         }
     }
 }

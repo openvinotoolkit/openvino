@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,7 @@
 #include "node.h"
 #include "nodes/executors/executor.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct PostOp;
 using PostOps = std::vector<std::shared_ptr<PostOp>>;
@@ -56,7 +55,7 @@ struct ActivationPostOp : PostOp {
                      const float alpha,
                      const float beta,
                      const float gamma,
-                     eltwiseExecutorCreatingStrategy strategy = nullptr)
+                     const eltwiseExecutorCreatingStrategy& strategy = nullptr)
         : m_type(type),
           m_alpha(alpha),
           m_beta(beta),
@@ -189,6 +188,5 @@ ActivationPostOp::Type convertToActivationPostOpt(const Algorithm alg);
 
 Algorithm convertToEltwiseAlgorithm(const ActivationPostOp::Type m_type);
 
-PostOps getPostOps(std::vector<NodePtr> fused);
-}  // namespace intel_cpu
-}  // namespace ov
+PostOps getPostOps(const std::vector<NodePtr>& fused);
+}  // namespace ov::intel_cpu

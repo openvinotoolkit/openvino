@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -15,7 +15,7 @@ from openvino import (
 )
 
 from tests.utils.helpers import generate_model_with_memory
-from openvino.runtime.utils.types import get_dtype
+from openvino.utils.types import get_dtype
 
 
 class Caller:

@@ -32,6 +32,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
         RO_property(ov::hint::execution_mode.name()),
         RO_property(ov::hint::num_requests.name()),
         RO_property(ov::hint::enable_cpu_pinning.name()),
+        RO_property(ov::hint::enable_cpu_reservation.name()),
         RO_property(ov::hint::scheduling_core_type.name()),
         RO_property(ov::hint::model_distribution_policy.name()),
         RO_property(ov::hint::enable_hyper_threading.name()),

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,14 @@ OPENVINO_API EnumNames<ov::op::PadMode>& EnumNames<ov::op::PadMode>::get() {
                                                          {"edge", ov::op::PadMode::EDGE},
                                                          {"reflect", ov::op::PadMode::REFLECT},
                                                          {"symmetric", ov::op::PadMode::SYMMETRIC}});
+    return enum_names;
+}
+
+template <>
+OPENVINO_API EnumNames<ov::op::FillMode>& EnumNames<ov::op::FillMode>::get() {
+    static auto enum_names =
+        EnumNames<ov::op::FillMode>("ov::op::FillMode",
+                                    {{"zero", ov::op::FillMode::ZERO}, {"lowest", ov::op::FillMode::LOWEST}});
     return enum_names;
 }
 
@@ -129,6 +137,10 @@ OPENVINO_API EnumNames<ov::op::RecurrentSequenceDirection>& EnumNames<ov::op::Re
 }
 
 std::ostream& op::operator<<(std::ostream& s, const ov::op::PadMode& type) {
+    return s << as_string(type);
+}
+
+std::ostream& op::operator<<(std::ostream& s, const ov::op::FillMode& type) {
     return s << as_string(type);
 }
 

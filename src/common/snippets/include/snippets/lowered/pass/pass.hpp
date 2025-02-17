@@ -27,7 +27,7 @@ public:
     // Note that get_type_info_static and get_type_info are needed to mimic OPENVINO_RTTI interface,
     // so the standard OPENVINO_RTTI(...) macros could be used in derived classes.
     _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {
-        static ::ov::DiscreteTypeInfo type_info_static {"PassBase"};
+        static ::ov::DiscreteTypeInfo type_info_static {"snippets::lowered::pass::PassBase"};
         type_info_static.hash();
         return type_info_static;
     }
@@ -59,6 +59,7 @@ public:
  */
 class Pass : public PassBase {
 public:
+    OPENVINO_RTTI("snippets::lowered::pass::Pass")
     /**
      * @brief Apply the pass to the Linear IR
      * @param linear_ir the target Linear IR
@@ -74,6 +75,7 @@ public:
  */
 class ConstPass : public PassBase {
 public:
+    OPENVINO_RTTI("snippets::lowered::pass::ConstPass")
     /**
      * @brief Apply the pass to the Linear IR
      * @param linear_ir the target Linear IR
@@ -89,6 +91,7 @@ public:
  */
 class RangedPass : public PassBase {
 public:
+    OPENVINO_RTTI("snippets::lowered::pass::RangedPass")
     /**
      * @brief Apply the pass to the Linear IR
      * @param linear_ir the target Linear IR

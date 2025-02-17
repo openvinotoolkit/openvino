@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include <pybind11/pybind11.h>
@@ -20,6 +20,7 @@
 #include "pyopenvino/graph/node_input.hpp"
 #include "pyopenvino/graph/node_output.hpp"
 #include <pyopenvino/graph/op.hpp>
+#include <pyopenvino/graph/op_extension.hpp>
 #if defined(ENABLE_OV_ONNX_FRONTEND)
 #    include "pyopenvino/graph/onnx_import/onnx_import.hpp"
 #endif
@@ -146,7 +147,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
             when it is not related to debugging.
 
             :param model: model which will be converted to IR representation
-            :type model: openvino.runtime.Model
+            :type model: openvino.Model
             :param xml_path: path where .xml file will be saved
             :type xml_path: Union[str, bytes, pathlib.Path]
             :param bin_path: path where .bin file will be saved (optional),
@@ -203,7 +204,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
             compressed to FP16, debug information in model nodes are cleaned up, etc.
 
             :param model: model which will be converted to IR representation
-            :type model: openvino.runtime.Model
+            :type model: openvino.Model
             :param output_model: path to output model file
             :type output_model: Union[str, bytes, pathlib.Path]
             :param compress_to_fp16: whether to compress floating point weights to FP16 (default: True). The parameter is ignored for pre-optimized models.
@@ -228,7 +229,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
                     You might want to use this function if you are developing a dynamically-loaded library which should clean up all
                     resources after itself when the library is unloaded.
                 )");
-
+    regclass_Extension(m);
     regclass_graph_PyRTMap(m);
     regmodule_graph_types(m);
     regclass_graph_Symbol(m);     // Symbol must be registered before Dimension
@@ -238,6 +239,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regclass_graph_PartialShape(m);
     regclass_graph_Node(m);
     regclass_graph_Op(m);
+    regclass_graph_OpExtension(m);
     regclass_graph_Input(m);
     regclass_graph_NodeFactory(m);
     regclass_graph_Strides(m);
@@ -265,7 +267,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regmodule_graph_op_util(m_op);
     regmodule_experimental(m);
     py::module m_preprocess =
-        m.def_submodule("preprocess", "Package openvino.runtime.preprocess that wraps ov::preprocess");
+        m.def_submodule("preprocess", "Package openvino.preprocess that wraps ov::preprocess");
     regclass_graph_PrePostProcessor(m_preprocess);
     regclass_graph_Model(m);
     regmodule_graph_passes(m);
@@ -284,7 +286,6 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regclass_Version(m);
     regclass_AsyncInferQueue(m);
     regclass_ProfilingInfo(m);
-    regclass_Extension(m);
 
     regclass_RemoteContext(m);
     regclass_RemoteTensor(m);

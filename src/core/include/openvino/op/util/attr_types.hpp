@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,12 @@ enum class PadMode { CONSTANT = 0, EDGE, REFLECT, SYMMETRIC };
 
 OPENVINO_API
 std::ostream& operator<<(std::ostream& s, const PadMode& type);
+
+/// \brief Fill modes for the `SegmentMax` operator.
+enum class FillMode { ZERO = 0, LOWEST };
+
+OPENVINO_API
+std::ostream& operator<<(std::ostream& s, const FillMode& type);
 
 /// \brief Padding Type used for `Convolution` and `Pooling`
 ///
@@ -217,6 +223,14 @@ public:
     AttributeAdapter(op::PadMode& value) : EnumAttributeAdapterBase<op::PadMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<PadMode>");
+};
+
+template <>
+class OPENVINO_API AttributeAdapter<op::FillMode> : public EnumAttributeAdapterBase<op::FillMode> {
+public:
+    AttributeAdapter(op::FillMode& value) : EnumAttributeAdapterBase<op::FillMode>(value) {}
+
+    OPENVINO_RTTI("AttributeAdapter<FillMode>");
 };
 
 template <>

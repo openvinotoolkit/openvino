@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -271,7 +271,7 @@ public:
  */
 class MarkExpInReduceOpPath : public BackwardGraphRewrite {
 public:
-    OPENVINO_RTTI("MarkExpInReduceOpPath", "0");
+    OPENVINO_RTTI("MarkExpInReduceOpPath", "0", BackwardGraphRewrite);
     MarkExpInReduceOpPath() {
         // marking of ReduceOp path is needed to mark only Exponents that go into ReduceSum/ReduceMean
         ADD_MATCHER_FOR_THIS(InitMarkReduceOpPath);

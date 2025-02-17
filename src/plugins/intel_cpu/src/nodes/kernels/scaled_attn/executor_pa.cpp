@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <float.h>
@@ -20,24 +20,26 @@
 #include "common.hpp"
 #include "executor_pa.hpp"
 #include "executor_pa_common.hpp"
-#include "nodes/kernels/x64/brgemm_kernel.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "softmax_kernel.hpp"
 #include "transpose_kernel.hpp"
 #include "utils/plain_tensor.hpp"
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "nodes/kernels/x64/brgemm_kernel.hpp"
+#elif defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE)
+#    include "arm_sve.h"
+#    include "nodes/kernels/aarch64/brgemm_kernel.hpp"
+#endif
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace ov::Extensions::Cpu::XARCH {
 
 using namespace ov;
 using namespace ov::intel_cpu;
 
 // currently depends on brgemm which only support x64
-#ifdef OPENVINO_ARCH_X86_64
+#if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE))
 
 #    if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 
@@ -381,7 +383,7 @@ static void attn_acc_value_block(float* out,
     auto extract_half_byte = [](uint8_t val, bool high_half) -> uint8_t {
         uint8_t shift = high_half ? 0 : 4;
 
-        return (uint8_t)((val >> shift) & 0x000F);
+        return static_cast<uint8_t>((val >> shift) & 0x000F);
     };
     for (size_t j = 0; j < block_size; j++) {
         dst_offset = 0;
@@ -1283,7 +1285,7 @@ static void pack_32xK_kernel(T* dst, T* src, size_t dst_stride, size_t src_strid
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     auto midx = _mm512_loadu_si512(idx);
     __mmask16 mask = (1 << K) - 1;
-    for (size_t i = 0; i < K; i++) {
+    for (size_t i = 0; i < 16; i++) {
         auto x = _mm256_maskz_loadu_epi16(mask, src);               // [a1  a2  a3 a4]   total 256-bits in 4 64bits unit
         auto y = _mm256_maskz_loadu_epi16(mask, src + src_stride);  // [b1  b2  b3 b4]   total 256-bits
         auto a = _mm512_castsi256_si512(x);
@@ -1482,8 +1484,10 @@ struct MHAHelper {
     std::vector<std::shared_ptr<BrgemmKernel>> _wv_gemm;
     // will accumulate C buffer
     std::vector<std::shared_ptr<BrgemmKernel>> _wv_gemm_acc;
-    // second token
+// second token
+#    if defined(OPENVINO_ARCH_X86_64)
     std::shared_ptr<JitMatMulVecAMX> _gemv;
+#    endif
     ov::element::Type _fastpath_valid_prec = ov::element::undefined;
     // second token for bhl loop
     PlainTensor _weight_bhl;
@@ -1593,6 +1597,7 @@ struct MHAHelper {
             _wv_scratch_a.resize<DATA_TYPE>(
                 {_nthr, _wv_gemm[_block_size - 1]->get_scratch_a_size() / sizeof(DATA_TYPE)});
 
+#    if defined(OPENVINO_ARCH_X86_64)
             if ((S % 32 == 0) && (block_size % 16 == 0) && (S <= 32 * 6)) {
                 if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16) &&
                     precision_of<DATA_TYPE>::value == ov::element::bf16 &&
@@ -1609,12 +1614,14 @@ struct MHAHelper {
                                                           static_cast<int>(block_size),
                                                           _fastpath_valid_prec);
             }
+#    endif
         }
 
         if (init_alibi_lookup && (!_alibi_lookup || _alibi_lookup.m_dims[0] < kv_len)) {
             _alibi_lookup.resize<float>({kv_len * 2});
-            for (size_t i = 0; i < _alibi_lookup.m_dims[0]; i++)
+            for (size_t i = 0; i < _alibi_lookup.m_dims[0]; i++) {
                 _alibi_lookup.ptr<float>()[i] = -static_cast<int>((_alibi_lookup.m_dims[0] - 1 - i));
+            }
         }
 
         if (init_rotation_coefficient_scratch) {
@@ -1810,6 +1817,7 @@ struct MHAHelper {
                             size_t cur_kv_len,
                             const PlainTensor& alibi_slopes,
                             float* score_output) {
+#    if defined(OPENVINO_ARCH_X86_64)
         if (one_of(_fastpath_valid_prec, ov::element::bf16, ov::element::f16)) {
             _gemv->tile_config();
             for (size_t pk = 0, i = 0; pk < cur_kv_len; pk += _block_size, i++) {
@@ -1824,6 +1832,7 @@ struct MHAHelper {
             }
             _gemv->tile_release();
         } else {
+#    endif
             for (size_t pk = 0, i = 0; pk < cur_kv_len; pk += _block_size, i++) {
                 auto block_number = block_table[i];
                 for (size_t pq = 0; pq < q_len; pq++) {
@@ -1845,7 +1854,9 @@ struct MHAHelper {
                     }
                 }
             }
+#    if defined(OPENVINO_ARCH_X86_64)
         }
+#    endif
 
         for (size_t pq = 0; pq < q_len; pq++) {
             for (size_t h = hq_beg; h < hq_end; h++) {
@@ -1897,9 +1908,11 @@ struct MHAHelper {
             }
         }
         // convert to dst
-        for (size_t pq = 0; pq < q_len; pq++)
-            for (size_t h = hq_beg; h < hq_end; h++)
+        for (size_t pq = 0; pq < q_len; pq++) {
+            for (size_t h = hq_beg; h < hq_end; h++) {
                 cvt_copy(output_emb.ptr<DATA_TYPE>(pq, h * _SV), _output.ptr<float>(ithr, pq, h), _SV);
+            }
+        }
     }
 
     // compute one token, loop along batch, head dimensions and kv_len, it's special for very long kv_len with small
@@ -1936,8 +1949,9 @@ struct MHAHelper {
             // small batch and all batch size is same(like SDPA case)
             auto kv_len = past_lens.ptr<int32_t>()[0];
             for (size_t b = 1; b < B; b++) {
-                if (past_lens.ptr<int32_t>()[b] != kv_len)
+                if (past_lens.ptr<int32_t>()[b] != kv_len) {
                     prefer_static_loop = false;
+                }
             }
         } else {
             // for bigger batch skip the test to save the cost
@@ -1964,6 +1978,7 @@ struct MHAHelper {
             auto pk = pk_in_blocks * _block_size;
             if (pk < context_len) {
                 auto block_number = block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[b] + pk_in_blocks];
+#    if defined(OPENVINO_ARCH_X86_64)
                 if (one_of(_fastpath_valid_prec, ov::element::bf16, ov::element::f16)) {
                     _gemv->tile_config();
                     for (size_t pq = 0; pq < q_len; pq++) {
@@ -1975,6 +1990,7 @@ struct MHAHelper {
                     }
                     _gemv->tile_release();
                 } else {
+#    endif
                     for (size_t pq = 0; pq < q_len; pq++) {
                         for (size_t h = hq_beg; h < hq_end; h++) {
                             if (precision_of<KEY_CACHE_TYPE>::value == ov::element::u8 && _quant_key_bychannel) {
@@ -1993,7 +2009,9 @@ struct MHAHelper {
                             }
                         }
                     }
+#    if defined(OPENVINO_ARCH_X86_64)
                 }
+#    endif
             }
         };
 
@@ -2140,9 +2158,8 @@ struct MHA {
                     auto reorder_sub_work_count = kv_len_in_block;
                     max_kv_len_in_reorder = std::max(max_kv_len_in_reorder, kv_len);
                     for (int32_t block_id = 0; block_id < reorder_sub_work_count; block_id++) {
-                        size_t valid_block_size =
+                        int32_t valid_block_size =
                             block_id == (reorder_sub_work_count - 1) ? kv_len - block_id * block_size : block_size;
-                        printf("init_reoder|valid_len|%ld\n", valid_block_size);
                         reorder_items.emplace_back(ReorderWorkItem{
                             i,                     // batch_in_seq
                             max_batch_in_reorder,  // batch_in_reorder
@@ -2231,8 +2248,9 @@ struct MHA {
             const auto kv_block = item.kv_block_id;
             auto block_number =
                 block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[batch_in_seq] + kv_block];
-            if (block_number < 0)
+            if (block_number < 0) {
                 return;
+            }
 
             auto ithr = parallel_get_thread_num();
             auto* k_ptr = k_cache.ptr<KEY_CACHE_TYPE>(block_number, hk);
@@ -2391,8 +2409,9 @@ struct MHA {
                     const PlainTensor& block_indices_begins,
                     const PlainTensor& alibi_slopes) {
         _workitems.reset(query, past_lens, subsequence_begins, _helper._block_size);
-        if (output_score)
+        if (output_score) {
             _helper.init_score_buffers(past_lens, subsequence_begins);
+        }
 
         auto nthr = static_cast<size_t>(parallel_get_max_threads());
 
@@ -2470,25 +2489,30 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         block_indices_begins.reset(inputs[ID_BLOCK_INDICES_BEGINS]);  // [B_seq+1]
         scale = *inputs[ID_SCALE]->getDataAs<float>();
         sliding_window = static_cast<size_t>(*inputs[ID_SLIDING_WINDOW]->getDataAs<int32_t>());
-        if (!inputs[ID_ALIBI_SLOPES]->getShape().hasZeroDims())
+        if (!inputs[ID_ALIBI_SLOPES]->getShape().hasZeroDims()) {
             alibi_slopes.reset(inputs[ID_ALIBI_SLOPES]);
+        }
         max_context_len = static_cast<size_t>(*inputs[ID_MAX_CONTEXT_LEN]->getDataAs<int32_t>());
 
         size_t inputs_size = inputs.size();
         if (inputs_size > ID_ROTATED_BLOCK_INDICES) {
             OPENVINO_ASSERT(inputs_size >= ID_ROTATION_TRIG_LUT);
-            if (!inputs[ID_ROTATED_BLOCK_INDICES]->getShape().hasZeroDims())
+            if (!inputs[ID_ROTATED_BLOCK_INDICES]->getShape().hasZeroDims()) {
                 rotated_block_indices.reset(inputs[ID_ROTATED_BLOCK_INDICES]);  // [num_blocks]
-            if (!inputs[ID_ROTATION_DELTAS]->getShape().hasZeroDims())
+            }
+            if (!inputs[ID_ROTATION_DELTAS]->getShape().hasZeroDims()) {
                 rotation_deltas.reset(inputs[ID_ROTATION_DELTAS]);  // [num_blocks,  block_size (32) || 1]
-            if (!inputs[ID_ROTATION_TRIG_LUT]->getShape().hasZeroDims())
+            }
+            if (!inputs[ID_ROTATION_TRIG_LUT]->getShape().hasZeroDims()) {
                 rotation_trig_lut.reset(
                     inputs[ID_ROTATION_TRIG_LUT]);  // [max_context_len * embedding_size], row-major layout
+            }
         }
 
         output_emb.reset(outputs[0]);
-        if (outputs.size() == 2)
+        if (outputs.size() == 2) {
             output_score.reset(outputs[1]);
+        }
 
         auto B_token = q.size(0);
         auto Hk = k_cache.size(1);
@@ -2555,8 +2579,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         subsequence_begins.assert_dims({B_seq + 1});
         block_indices.assert_dims({0}, true);
         block_indices_begins.assert_dims({B_seq + 1});
-        if (scale == 0.0f)
+        if (scale == 0.0f) {
             scale = 1.0f / sqrt(S);
+        }
         if (alibi_slopes) {
             alibi_slopes.assert_dims({H});
         }
@@ -2613,6 +2638,28 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                     block_indices.ptr<int32_t>()[block_number_start + block_offset / _helper._block_size];
                 _slot_mapping.ptr<int32_t>()[idx++] =
                     block_number * _helper._block_size + block_offset % _helper._block_size;
+            }
+            // To simplify tails of the kernels for Q*K and W*V:
+            // for first token kernels:
+            //    Q*K aka [m, k0] * [n0, k0]', there is already tails logic for m, k0, but no(always assume n0 is
+            //    block_size) for n0 which means the tail of k_cache need to be set to zero.
+            //    W*V aka [m, k1] * [n1, k1]', there is no tails handing for n1, so tails of v_cache need to be set to
+            //    zero.
+            // for second token, the kernels have tails handling logic
+            if (q_len != 1 && kv_len % _helper._block_size != 0) {
+                // block no. which contains tails
+                auto block_number = block_indices.ptr<int32_t>()[block_number_start + kv_len / _helper._block_size];
+                // tails start position
+                auto block_offset = kv_len % _helper._block_size;
+                // tails number
+                auto zero_tokens = _helper._block_size - block_offset;
+                auto S = k_cache.m_dims[3];
+                auto SV = v_cache.m_dims[3];
+                auto Hk = k_cache.m_dims[1];  // shape: [block, H, 32, S]
+                parallel_for2d(Hk, zero_tokens, [&](size_t h, size_t l) {
+                    std::memset(k_cache.ptr_v(block_number, h, block_offset + l, 0), 0, S * k_cache.m_element_size);
+                    std::memset(v_cache.ptr_v(block_number, h, block_offset + l, 0), 0, SV * v_cache.m_element_size);
+                });
             }
         }
 
@@ -2702,10 +2749,10 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                                                          ov::element::Type key_cache_type,
                                                          ov::element::Type value_cache_type,
                                                          size_t key_group_size,
-                                                         size_t value_group_size) {
+                                                         size_t value_group_size,
+                                                         bool quant_key_bychannel) {
     std::shared_ptr<PagedAttentionExecutor> executor;
-    bool quant_key_bychannel = getenv("QUANT_KEY_BYCHANNEL");
-#ifdef OPENVINO_ARCH_X86_64
+#if defined(OPENVINO_ARCH_X86_64)
     if (data_type == ov::element::bf16) {
 #    if defined(HAVE_AVX512F)
         if (key_cache_type == ov::element::u8) {
@@ -2785,13 +2832,20 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
     } else {
         OPENVINO_THROW("make_pa_executor: unsupported precision: ", data_type);
     }
+#elif (defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE))
+    if (data_type == ov::element::f32) {
+        if (key_cache_type == ov::element::u8 && value_cache_type == ov::element::u8) {
+            executor =
+                std::make_shared<AttentionExecutor<float, uint8_t, ov::element::u8>>(key_group_size, value_group_size);
+        } else {
+            OPENVINO_THROW("make_pa_executor: key_cache_type and value_cache_type of u8 is only support");
+        }
+    }
+
 #else
-    OPENVINO_THROW("make_pa_executor: only support x64 platform");
+    OPENVINO_THROW("make_pa_executor: only support x64 platform or ARM with SVE support");
 #endif
     return executor;
 }
 
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu::XARCH

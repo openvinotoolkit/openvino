@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "cache_guard.hpp"
-#include "dev/plugin.hpp"
 #include "cache_manager.hpp"
+#include "dev/plugin.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/core/so_extension.hpp"
@@ -127,6 +127,15 @@ Parsed parseDeviceNameIntoConfig(const std::string& deviceName,
  */
 bool is_config_applicable(const std::string& device_name, const std::string& device_name_to_parse);
 
+/**
+ * @brief Checks whether the dvice is virtual device
+ *
+ * @param device_name Target device
+ * @return true if target device is virtual device(e.g. AUTO, AUTO:XPU, AUTO:XPU.x, MULTI, MULTI:XPU, MULTI:XPU.x,
+ * HETERO:XPU, HETERO:XPU.x, BATCH:XPU, BATCH:XPU.x)
+ */
+bool is_virtual_device(const std::string& device_name);
+
 class CoreImpl : public ov::ICore, public std::enable_shared_from_this<ov::ICore> {
 private:
     mutable std::map<std::string, ov::Plugin> plugins;
@@ -163,7 +172,7 @@ private:
     mutable ov::CacheGuard cacheGuard;
 
     struct PluginDescriptor {
-        ov::util::FilePath libraryLocation;
+        ov::util::Path libraryLocation;
         ov::AnyMap defaultConfig;
         std::vector<ov::util::FilePath> listOfExtentions;
         CreatePluginEngineFunc* pluginCreateFunc = nullptr;
@@ -223,10 +232,9 @@ private:
     bool is_hidden_device(const std::string& device_name) const;
     void register_plugin_in_registry_unsafe(const std::string& device_name, PluginDescriptor& desc);
 
-    template <typename C, typename = ov::util::enableIfSupportedChar<C>>
-    void try_to_register_plugin_extensions(const std::basic_string<C>& path) const {
+    void try_to_register_plugin_extensions(const ov::util::Path& path) const {
         try {
-            auto plugin_extensions = ov::detail::load_extensions(path);
+            auto plugin_extensions = ov::detail::load_extensions(path.native());
             add_extensions_unsafe(plugin_extensions);
         } catch (const std::runtime_error&) {
             // in case of shared library is not opened

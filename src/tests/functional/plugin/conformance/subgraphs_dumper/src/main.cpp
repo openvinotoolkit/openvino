@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
         if (!FLAGS_local_cache.empty()) {
             std::vector<std::string> tmp_paths;
             for (auto& dir : local_cache_dirs) {
-                tmp_paths.push_back(ov::util::path_join({dir, cache->m_cache_subdir}));
+                tmp_paths.push_back(ov::util::path_join({dir, cache->m_cache_subdir}).string());
             }
             auto cached_ops = ov::util::find_models(tmp_paths, FLAGS_path_regex);
             auto this_cache_model_status = ov::util::cache_models(cache, cached_ops.first, FLAGS_extract_body, true);

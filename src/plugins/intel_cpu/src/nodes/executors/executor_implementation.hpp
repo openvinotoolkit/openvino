@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,7 @@
 #include "nodes/executors/executor_config.hpp"
 #include "ov_optional.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 // @todo Consider alternative of using template arguments instead of std::functions
 template <typename Attrs>
@@ -25,7 +24,7 @@ public:
     using CreateFunction = std::function<ExecutorPtr(const Attrs& attrs,
                                                      const PostOps& postOps,
                                                      const MemoryArgs& memory,
-                                                     const ExecutorContext::CPtr context)>;
+                                                     const ExecutorContext::CPtr& context)>;
 
     ExecutorImplementation(const char* name,
                            const ExecutorType type,
@@ -74,8 +73,9 @@ public:
                        const ExecutorContext::CPtr context) const {
         DEBUG_LOG("Creating executor using implementation: ", m_name);
 
-        if (m_create)
+        if (m_create) {
             return m_create(attrs, postOps, memory, context);
+        }
         return nullptr;
     }
 
@@ -108,5 +108,4 @@ private:
 
 template <typename Attrs>
 using ExecutorImplementationPtr = std::shared_ptr<ExecutorImplementation<Attrs>>;
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

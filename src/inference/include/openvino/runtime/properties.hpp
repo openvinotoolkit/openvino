@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -193,7 +193,11 @@ struct PropertyName : public std::string {
      * @return true if property is mutable
      */
     bool is_mutable() const {
-        return _mutability == PropertyMutability::RW;
+        return _mutability != PropertyMutability::RO;
+    }
+
+    PropertyMutability get_mutability() const {
+        return _mutability;
     }
 
 private:
@@ -478,6 +482,23 @@ static constexpr Property<std::set<ModelDistributionPolicy>> model_distribution_
  * @endcode
  */
 static constexpr Property<bool> enable_cpu_pinning{"ENABLE_CPU_PINNING"};
+
+/**
+ * @brief This property allows CPU reservation during inference.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Cpu Reservation means reserve cpus which will not be used by other plugin or compiled model. Developer can use this
+ * property to enable or disable CPU reservation during inference on Windows and Linux. MacOS does not support CPU
+ * reservation, and this property is always disabled. This property defaults to false.
+ *
+ * The following code is example to use this property.
+ *
+ * @code
+ * ie.set_property(ov::hint::enable_cpu_reservation(true));
+ * ie.set_property(ov::hint::enable_cpu_reservation(false));
+ * @endcode
+ */
+static constexpr Property<bool> enable_cpu_reservation{"ENABLE_CPU_RESERVATION"};
 
 /**
  * @brief This property define if using hyper threading during inference.

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -13,9 +13,7 @@
 #include "cpu/x64/jit_generator.hpp"
 #include "cpu_memory.h"
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
+namespace ov::Extensions::Cpu {
 
 // this file will contain features that do not require multiple instantiation
 
@@ -108,6 +106,4 @@ public:
 
 #endif
 
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu

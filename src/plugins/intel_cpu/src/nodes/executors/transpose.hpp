@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,7 @@
 #include "nodes/common/permute_kernel.h"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct TransposeParams {
     PermuteParams permuteParams;
@@ -19,7 +18,7 @@ struct TransposeParams {
 class TransposeExecutor : public Executor {
 public:
     static jit_permute_config_params prepareParams(const PermuteParams& params);
-    explicit TransposeExecutor(const ExecutorContext::CPtr context);
+    explicit TransposeExecutor(ExecutorContext::CPtr context);
     virtual bool init(const TransposeParams& transposeParams,
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,
@@ -45,5 +44,4 @@ public:
 using TransposeExecutorBuilderPtr = std::shared_ptr<TransposeExecutorBuilder>;
 using TransposeExecutorBuilderCPtr = std::shared_ptr<const TransposeExecutorBuilder>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

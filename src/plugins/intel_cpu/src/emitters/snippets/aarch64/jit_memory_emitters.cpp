@@ -8,9 +8,7 @@
 
 using namespace Xbyak_aarch64;
 
-namespace ov {
-namespace intel_cpu {
-namespace aarch64 {
+namespace ov::intel_cpu::aarch64 {
 
 using jit_generator = dnnl::impl::cpu::aarch64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
@@ -30,7 +28,7 @@ jit_load_memory_emitter::jit_load_memory_emitter(jit_generator* h, cpu_isa_t isa
         src_prc == dst_prc;
     OV_CPU_JIT_EMITTER_ASSERT(is_supported_precision, "Unsupported precision pair.");
 
-    const auto load = std::dynamic_pointer_cast<snippets::op::Load>(expr->get_node());
+    const auto load = ov::as_type_ptr<snippets::op::Load>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(load != nullptr, "Expects Load expression");
     count = load->get_count();
     byte_offset = load->get_offset();
@@ -66,7 +64,7 @@ jit_load_broadcast_emitter::jit_load_broadcast_emitter(jit_generator* h, cpu_isa
                               dst_prc.get_type_name());
     OV_CPU_JIT_EMITTER_ASSERT(src_prc == ov::element::f32, "Only supports FP32 precision.");
 
-    const auto broadcast_load = std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(expr->get_node());
+    const auto broadcast_load = ov::as_type_ptr<snippets::op::BroadcastLoad>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(broadcast_load != nullptr, "Expects BroadcastLoad expression");
     byte_offset = broadcast_load->get_offset();
     in_out_type_ = emitter_in_out_map::gpr_to_vec;
@@ -123,6 +121,4 @@ void jit_store_memory_emitter::emit_data() const {
     store_emitter->emit_data();
 }
 
-}  // namespace aarch64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::aarch64

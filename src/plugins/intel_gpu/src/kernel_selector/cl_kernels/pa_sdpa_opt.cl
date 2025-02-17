@@ -43,11 +43,6 @@ KERNEL(pa_sdpa_opt)(
 #if HAS_ALIBI
     const __global ALIBI_INPUT_TYPE* alibi_slopes,
 #endif
-#if HAS_ROTATED_BLOCKS
-    const __global INPUT8_TYPE* rotated_block_indices,
-    const __global INPUT9_TYPE* rotation_deltas,
-    const __global INPUT10_TYPE* rotated_block_indices,
-#endif
     __global OUTPUT_TYPE* output,
 #if PAGED_ATTENTION_SCORES_OUTPUT
     __global SOFTMAX_ACCUMULATOR_TYPE* softmax_results,
@@ -123,7 +118,8 @@ KERNEL(pa_sdpa_opt)(
     {
 #if STORE_QUERY_TO_SLM
         const uint query_idx_local = sgid * SUBGROUP_SIZE + sglid;
-        const uint query_idx = seq_idx * HEAD_SIZE * HEADS_NUM +
+        const uint query_idx = INPUT0_OFFSET +
+                               seq_idx * (HEAD_SIZE * HEADS_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM + INPUT0_PAD_AFTER_FEATURE_NUM) +
                                head_num_idx * HEAD_SIZE +
                                query_idx_local;
 
@@ -142,7 +138,8 @@ KERNEL(pa_sdpa_opt)(
 #else
         INPUT0_TYPE q_val[HEAD_SIZE / SUBGROUP_SIZE];
         unroll_for (uint i = 0; i < HEAD_SIZE / SUBGROUP_SIZE; i++) {
-            const uint query_idx = seq_idx * HEAD_SIZE * HEADS_NUM +
+            const uint query_idx = INPUT0_OFFSET +
+                                   seq_idx * (HEAD_SIZE * HEADS_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM + INPUT0_PAD_AFTER_FEATURE_NUM) +
                                    head_num_idx * HEAD_SIZE +
                                    i * SUBGROUP_SIZE;
             q_val[i] = BLOCK_READN(INPUT0_TYPE, 1, query, query_idx);
@@ -154,10 +151,6 @@ KERNEL(pa_sdpa_opt)(
             q_val[i] = *scale * q_val[i];
 #endif
         }
-#endif
-
-#ifdef HAS_ROTATED_BLOCKS
-        // TODO (vshampor): add cache block rotation at this spot
 #endif
 
         const uint blocks_num_per_partition = min(total_blocks_num - partition_idx * PAGED_ATTENTION_BLOCKS_PER_PARTITION, (uint)PAGED_ATTENTION_BLOCKS_PER_PARTITION);

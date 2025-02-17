@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,20 +21,22 @@ using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 std::tuple<Algorithm, std::string> getAlgorithmFor(const std::shared_ptr<const ov::Node>& op) {
-    if (ov::is_type<ov::op::v8::NV12toRGB>(op))
+    if (ov::is_type<ov::op::v8::NV12toRGB>(op)) {
         return std::make_tuple(Algorithm::ColorConvertNV12toRGB, std::string());
-    if (ov::is_type<ov::op::v8::NV12toBGR>(op))
+    }
+    if (ov::is_type<ov::op::v8::NV12toBGR>(op)) {
         return std::make_tuple(Algorithm::ColorConvertNV12toBGR, std::string());
-    if (ov::is_type<ov::op::v8::I420toRGB>(op))
+    }
+    if (ov::is_type<ov::op::v8::I420toRGB>(op)) {
         return std::make_tuple(Algorithm::ColorConvertI420toRGB, std::string());
-    if (ov::is_type<ov::op::v8::I420toBGR>(op))
+    }
+    if (ov::is_type<ov::op::v8::I420toBGR>(op)) {
         return std::make_tuple(Algorithm::ColorConvertI420toBGR, std::string());
+    }
     return std::make_tuple(Algorithm::Default, std::string("Type ") + op->get_type_name() + " is not supported.");
 }
 
@@ -123,8 +125,9 @@ protected:
 jit_uni_converter::jit_uni_converter() : jit_kernel(jit_name()), _consts(*this) {}
 
 void jit_uni_converter::init() {
-    if (create_kernel() != status::success)
+    if (create_kernel() != status::success) {
         OPENVINO_THROW("Can't generate jit color converter kernel");
+    }
     _fn = (function_t)jit_ker();
 }
 
@@ -135,8 +138,9 @@ void jit_uni_converter::yuv_to_rgb(const variable<float[N]>& y,
                                    const variable<uint8_t>& color_format,
                                    bool round) {
     auto clip = [&](const variable<float[N]>& op, const variable<float[N]>& a, const variable<float[N]>& b) {
-        if (round)
+        if (round) {
             uni_vroundps(op, op, 0);
+        }
         uni_vmaxps(op, op, a);
         uni_vminps(op, op, b);
     };
@@ -177,8 +181,9 @@ void jit_uni_converter::yuv_to_rgb(const variable<float[N]>& y,
 
         auto genPermutationMask = [&](int offset) {
             std::array<uint8_t, N> mask{};
-            for (uint8_t i = 0; i < mask.size(); ++i)
+            for (uint8_t i = 0; i < mask.size(); ++i) {
                 mask[(i * 3 + offset) % mask.size()] = i;
+            }
             return mask;
         };
 
@@ -266,7 +271,7 @@ void jit_uni_converter::store_tail(const variable<T*>& dst,
     sptr += step;
     store(sptr, c);
 
-    auto copy_size = size * size_t(3u);
+    auto copy_size = size * static_cast<size_t>(3u);
 
     copy<T>(ptr[dst], s.pointer(), copy_size);
 }
@@ -312,10 +317,12 @@ protected:
 };
 
 RefConverter::RefConverter(Node* node) : Converter(node) {
-    if (node->getOriginalInputsNumber() != (singlePlane() ? 1 : 2))
+    if (node->getOriginalInputsNumber() != (singlePlane() ? 1 : 2)) {
         OPENVINO_THROW("NV12Converter node has incorrect number of inputs");
-    if (!node->getOriginalOutputsNumber())
+    }
+    if (!node->getOriginalOutputsNumber()) {
         OPENVINO_THROW("NV12Converter node has incorrect number of outputs");
+    }
 }
 
 template <typename T>
@@ -352,7 +359,7 @@ class SinglePlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute(dnnl::stream strm) override {
+    void execute(const dnnl::stream& strm) override {
         const auto& dims = inputDims(0);
 
         const size_t batch_size = dims[N_DIM];
@@ -372,7 +379,7 @@ class TwoPlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute(dnnl::stream strm) override {
+    void execute(const dnnl::stream& strm) override {
         const auto& dims = inputDims(0);
 
         const T* y = static_cast<const T*>(input(0));
@@ -535,7 +542,7 @@ public:
         jit_converter_create<T>();
     }
 
-    void execute(dnnl::stream strm) override {
+    void execute(const dnnl::stream& strm) override {
         const auto& kernel = jit_converter_get<T>();
         const auto& dims = inputDims(0);
 
@@ -569,7 +576,7 @@ public:
         jit_converter_create<T>();
     }
 
-    void execute(dnnl::stream strm) override {
+    void execute(const dnnl::stream& strm) override {
         const auto& kernel = jit_converter_get<T>();
         const auto& dims = inputDims(0);
 
@@ -639,10 +646,12 @@ protected:
 };
 
 RefConverter::RefConverter(Node* node) : Converter(node) {
-    if (node->getOriginalInputsNumber() != (singlePlane() ? 1 : 3))
+    if (node->getOriginalInputsNumber() != (singlePlane() ? 1 : 3)) {
         OPENVINO_THROW("I420Converter node has incorrect number of inputs");
-    if (!node->getOriginalOutputsNumber())
+    }
+    if (!node->getOriginalOutputsNumber()) {
         OPENVINO_THROW("I420Converter node has incorrect number of outputs");
+    }
 }
 
 template <typename T>
@@ -681,7 +690,7 @@ class SinglePlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute(dnnl::stream strm) override {
+    void execute(const dnnl::stream& strm) override {
         const auto& dims = inputDims(0);
 
         const size_t batch_size = dims[N_DIM];
@@ -702,7 +711,7 @@ class ThreePlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute(dnnl::stream strm) override {
+    void execute(const dnnl::stream& strm) override {
         const auto& dims = inputDims(0);
 
         const T* y = static_cast<const T*>(input(0));
@@ -865,7 +874,7 @@ public:
         jit_converter_create<T>();
     }
 
-    void execute(dnnl::stream strm) override {
+    void execute(const dnnl::stream& strm) override {
         const auto& kernel = jit_converter_get<T>();
         const auto& dims = inputDims(0);
 
@@ -901,7 +910,7 @@ public:
         jit_converter_create<T>();
     }
 
-    void execute(dnnl::stream strm) override {
+    void execute(const dnnl::stream& strm) override {
         const auto& kernel = jit_converter_get<T>();
         const auto& dims = inputDims(0);
 
@@ -964,19 +973,21 @@ bool ColorConvert::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
     return alg != Algorithm::Default;
 }
 
-ColorConvert::ColorConvert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+ColorConvert::ColorConvert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, ColorConvertShapeInferFactory(op)) {
     std::string errorMessage;
     std::tie(algorithm, errorMessage) = getAlgorithmFor(op);
-    if (algorithm == Algorithm::Default)
+    if (algorithm == Algorithm::Default) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
+    }
 }
 
 void ColorConvert::getSupportedDescriptors() {}
 
 void ColorConvert::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     switch (algorithm) {
     case Algorithm::ColorConvertNV12toRGB:
@@ -1064,9 +1075,9 @@ void ColorConvert::initSupportedI420Impls() {
 
 void ColorConvert::createPrimitive() {
     const NodeDesc* desc = getSelectedPrimitiveDescriptor();
-    if (!desc)
-        OPENVINO_THROW(getTypeStr() + " node with name '" + getName() + "' ",
-                       "no optimal primitive descriptor selected");
+    if (!desc) {
+        THROW_CPU_NODE_ERR("has no optimal primitive descriptor selected");
+    }
 
     if (!_impl) {
         const auto& cfg = desc->getConfig();
@@ -1078,9 +1089,10 @@ void ColorConvert::createPrimitive() {
     }
 }
 
-void ColorConvert::execute(dnnl::stream strm) {
-    if (!_impl)
-        OPENVINO_THROW(getTypeStr() + " node with name '" + getName() + "' ", "has no any implemented converter");
+void ColorConvert::execute(const dnnl::stream& strm) {
+    if (!_impl) {
+        THROW_CPU_NODE_ERR("has no any implemented converter");
+    }
     _impl->execute(strm);
 }
 
@@ -1092,10 +1104,8 @@ bool ColorConvert::needPrepareParams() const {
     return false;
 }
 
-void ColorConvert::executeDynamicImpl(dnnl::stream strm) {
+void ColorConvert::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

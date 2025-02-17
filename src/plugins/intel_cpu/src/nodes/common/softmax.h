@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ static inline void softmax_many_batches(const float* src_data, float* dst_data, 
 
         float expSum = 0;
         for (int c = 0; c < C; c++) {
-            pdst[c * H * W + i] = exp(psrc[c * H * W + i] - max);
+            pdst[c * H * W + i] = std::exp(psrc[c * H * W + i] - max);
             expSum += pdst[c * H * W + i];
         }
 

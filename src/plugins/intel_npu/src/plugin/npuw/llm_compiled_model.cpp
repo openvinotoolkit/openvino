@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2023-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "llm_compiled_model.hpp"
@@ -14,8 +14,12 @@
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "serialization.hpp"
+#include "transformations/convert_precision.hpp"
 
 namespace opp = ov::pass::pattern;
+
 class TransposeValueTensors : public ov::pass::MatcherPass {
 public:
     struct Context {
@@ -24,8 +28,57 @@ public:
         using Ref = std::reference_wrapper<Context>;
     };
 
-    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeValueTensors");
-    TransposeValueTensors(Context::Ref ctx) {
+protected:
+    // generic part of matchers, to transpose v-tensors, and concat, and update matmul args
+    void transpose_matmul_b(Context::Ref ctx,
+                            std::shared_ptr<ov::Node> node_param,
+                            std::shared_ptr<ov::Node> node_concat,
+                            std::shared_ptr<ov::Node> node_transpose,
+                            std::shared_ptr<ov::Node> node_matmul) {
+        auto matched_param = std::static_pointer_cast<ov::op::v0::Parameter>(node_param);
+        auto matched_concat = std::static_pointer_cast<ov::op::v0::Concat>(node_concat);
+        auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(node_transpose);
+        auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(node_matmul);
+
+        auto param_shape = matched_param->get_partial_shape();
+        OPENVINO_ASSERT(param_shape.size() == 4u);
+        // NB: Transpose Parameter that correspond to V-tensor it will
+        // speed-up its multiplication with attention scores
+        std::swap(param_shape[2], param_shape[3]);
+        auto new_param = std::make_shared<ov::opset13::Parameter>(matched_param->get_element_type(), param_shape);
+        new_param->set_friendly_name(matched_param->get_friendly_name());
+        new_param->outputs().begin()->get_tensor().set_names(
+            matched_param->outputs().begin()->get_tensor().get_names());
+        ov::replace_node(matched_param, new_param);
+        // NB: Save in order to add/remove to the model later on
+        ctx.get().new_params.push_back(new_param);
+        ctx.get().old_params.push_back(matched_param);
+
+        auto order_cst = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
+        auto new_transpose =
+            std::make_shared<ov::opset13::Transpose>(matched_transpose->input_value(0), order_cst->output(0));
+        new_transpose->set_friendly_name(matched_transpose->get_friendly_name());
+        ov::replace_node(matched_transpose, new_transpose);
+
+        auto new_concat =
+            std::make_shared<ov::opset13::Concat>(ov::OutputVector{new_param->output(0), new_transpose->output(0)}, 3u);
+        new_concat->set_friendly_name(matched_concat->get_friendly_name());
+        ov::replace_node(matched_concat, new_concat);
+
+        matched_matmul->set_transpose_b(true);
+    }
+};
+
+// llama2 pattern for value tensor concate
+class TransposeValueTensors_llama2 : public TransposeValueTensors {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeValueTensors_llama2");
+    TransposeValueTensors_llama2(Context::Ref ctx) {
+        register_matcher_llama2(ctx);
+    }
+
+private:
+    void register_matcher_llama2(Context::Ref ctx) {
         auto param = opp::wrap_type<ov::op::v0::Parameter>();
         auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
         auto concat = opp::wrap_type<ov::op::v0::Concat>({param, transpose});
@@ -40,42 +93,94 @@ public:
             auto matched_node_transpose = node_to_output.at(transpose).get_node_shared_ptr();
             auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
 
+            transpose_matmul_b(ctx,
+                               matched_node_param,
+                               matched_node_concat,
+                               matched_node_transpose,
+                               matched_node_matmul);
+            LOG_DEBUG("vtensors transposed: LLama2 pattern");
+            return true;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeValueTensors_llama2"), std::move(callback));
+    }
+};
+
+// llama3, phi3, mistral, etc, concate value tensors with broadcasting
+class TransposeValueTensors_llama3 : public TransposeValueTensors {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeValueTensors_llama3");
+    TransposeValueTensors_llama3(Context::Ref ctx) {
+        register_matcher_llama3(ctx);
+    }
+
+private:
+    void register_matcher_llama3(Context::Ref ctx) {
+        auto param = opp::wrap_type<ov::op::v0::Parameter>();
+        auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
+        auto concat = opp::wrap_type<ov::op::v0::Concat>({param, transpose});
+
+        // only difference is that broadcast wrapped into unsquese/reshape, while transposed tensor didn't change
+        const auto unsqueeze_axes = opp::wrap_type<ov::op::v0::Constant>();
+        auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({concat, unsqueeze_axes});
+        auto broadcast = opp::wrap_type<ov::op::v1::Broadcast, ov::op::v3::Broadcast>({unsqueeze, opp::any_input()});
+        auto reshape = opp::wrap_type<ov::op::v1::Reshape>({broadcast, opp::any_input()});
+
+        auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
+        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({softmax, reshape});
+
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
+            auto& node_to_output = m.get_pattern_value_map();
+
+            auto matched_node_param = node_to_output.at(param).get_node_shared_ptr();
+            auto matched_node_concat = node_to_output.at(concat).get_node_shared_ptr();
+            auto matched_node_transpose = node_to_output.at(transpose).get_node_shared_ptr();
+            auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
+            auto matched_node_unsqueeze = node_to_output.at(unsqueeze).get_node_shared_ptr();
+            auto matched_node_unsqueeze_axes = node_to_output.at(unsqueeze_axes).get_node_shared_ptr();
+            auto matched_node_broadcast = node_to_output.at(broadcast).get_node_shared_ptr();
+            auto matched_node_reshape = node_to_output.at(reshape).get_node_shared_ptr();
+
             auto matched_param = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_param);
             auto matched_concat = std::static_pointer_cast<ov::op::v0::Concat>(matched_node_concat);
             auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(matched_node_transpose);
             auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
 
-            auto shape = matched_param->get_partial_shape();
-            OPENVINO_ASSERT(shape.size() == 4u);
-            // NB: Transpose Parameter that correspond to V-tensor it will
-            // speed-up its multiplication with attention scores
-            std::swap(shape[2], shape[3]);
-            auto new_param = std::make_shared<ov::opset13::Parameter>(matched_param->get_element_type(), shape);
-            new_param->set_friendly_name(matched_param->get_friendly_name());
-            new_param->outputs().begin()->get_tensor().set_names(
-                matched_param->outputs().begin()->get_tensor().get_names());
-            ov::replace_node(matched_param, new_param);
-            // NB: Save in order to add/remove to the model later on
-            ctx.get().new_params.push_back(new_param);
-            ctx.get().old_params.push_back(matched_param);
+            auto matched_unsqueeze = std::static_pointer_cast<ov::op::v0::Unsqueeze>(matched_node_unsqueeze);
+            auto matched_broadcast = std::static_pointer_cast<ov::op::v3::Broadcast>(matched_node_broadcast);
+            auto matched_reshape = std::static_pointer_cast<ov::op::v1::Reshape>(matched_node_reshape);
 
-            auto order_cst = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
-            auto new_transpose =
-                std::make_shared<ov::opset13::Transpose>(matched_transpose->input_value(0), order_cst->output(0));
-            new_transpose->set_friendly_name(matched_transpose->get_friendly_name());
-            ov::replace_node(matched_transpose, new_transpose);
+            auto shape_broadcast = matched_broadcast->get_output_shape(0);
+            OPENVINO_ASSERT(shape_broadcast.size() == 5u);
+            std::swap(shape_broadcast[3], shape_broadcast[4]);
 
-            auto new_concat =
-                std::make_shared<ov::opset13::Concat>(ov::OutputVector{new_param->output(0), new_transpose->output(0)},
-                                                      3u);
-            new_concat->set_friendly_name(matched_concat->get_friendly_name());
-            ov::replace_node(matched_concat, new_concat);
+            LOG_DEBUG("shape_broadcast for: " << matched_broadcast->get_friendly_name()
+                                              << ", shape=" << shape_broadcast);
 
-            matched_matmul->set_transpose_b(true);
+            const auto broadcast_axes_node =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{5}, shape_broadcast);
+            broadcast_axes_node->set_friendly_name(matched_broadcast->get_friendly_name() + "/new_broadcast_shape");
+            matched_broadcast->input(1).replace_source_output(broadcast_axes_node);
 
+            auto shape_reshape = matched_reshape->get_output_shape(0);
+            OPENVINO_ASSERT(shape_reshape.size() == 4u);
+            std::swap(shape_reshape[2], shape_reshape[3]);
+
+            LOG_DEBUG("shape_reshape for: " << matched_reshape->get_friendly_name() << ", shape=" << shape_reshape);
+
+            const auto reshape_axes_node =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, shape_reshape);
+            reshape_axes_node->set_friendly_name(matched_reshape->get_friendly_name() + "/new_reshape_shape");
+            matched_reshape->input(1).replace_source_output(reshape_axes_node);
+
+            transpose_matmul_b(ctx,
+                               matched_node_param,
+                               matched_node_concat,
+                               matched_node_transpose,
+                               matched_node_matmul);
+            LOG_DEBUG("vtensors transposed: LLama3 pattern");
             return true;
         };
-        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeValueTensors"), std::move(callback));
+        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeValueTensors_llama3"), std::move(callback));
     }
 };
 
@@ -223,7 +328,7 @@ std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::M
 
 std::shared_ptr<ov::Model> cvt_value_tensors_layout(std::shared_ptr<ov::Model> model) {
     ov::preprocess::PrePostProcessor ppp(model);
-    for (auto tensor : model->outputs()) {
+    for (const auto& tensor : model->outputs()) {
         if (tensor.get_any_name().find("value") != std::string::npos) {
             // NB: [batch, num_heads, seq_len, emb_size] -> [batch, num_heads, emb_size, seq_len]
             ppp.output(tensor.get_any_name()).model().set_layout(ov::Layout("BHSE"));
@@ -237,7 +342,8 @@ bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ScaledDotProductAttentionDecomposition>();
     TransposeValueTensors::Context ctx;
-    rewr.add_matcher<TransposeValueTensors>(std::ref(ctx));
+    rewr.add_matcher<TransposeValueTensors_llama2>(std::ref(ctx));
+    rewr.add_matcher<TransposeValueTensors_llama3>(std::ref(ctx));
     rewr.run_on_model(model);
 
     model->add_parameters(ctx.new_params);
@@ -301,13 +407,18 @@ struct NPUDesc {
 };
 
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin) {
+    const auto all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
+    if (all_devices.empty()) {
+        return std::nullopt;
+    }
+
     const std::string arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
     const int64_t max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
-
     bool compiler_dq = false;
-    const auto device_caps =
-        plugin->get_property(ov::device::capabilities.name(), ov::AnyMap{}).as<std::vector<std::string>>();
-    if (std::find(device_caps.begin(), device_caps.end(), "COMPILER_DYNAMIC_QUANTIZATION") != device_caps.end()) {
+    const auto& supported_properties =
+        plugin->get_property(ov::supported_properties.name(), ov::AnyMap{}).as<std::vector<ov::PropertyName>>();
+    if (std::find(supported_properties.begin(), supported_properties.end(), "NPU_COMPILER_DYNAMIC_QUANTIZATION") !=
+        supported_properties.end()) {
         compiler_dq = true;
     }
     return std::make_optional(NPUDesc{arch, max_tiles, compiler_dq});
@@ -322,7 +433,7 @@ std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_
     return std::nullopt;
 }
 
-ov::AnyMap get_baseline_common_config() {
+ov::AnyMap get_baseline_common_config(const std::optional<NPUDesc>& npudesc) {
     ov::AnyMap config = {
         {"NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm"},
         {"NPUW_DEVICES", "NPU"},
@@ -333,11 +444,19 @@ ov::AnyMap get_baseline_common_config() {
         {"NPUW_WEIGHTS_BANK", "shared"},
         {"NPUW_SLICE_OUT", "YES"},
         {"NPUW_FUNCALL_ASYNC", "YES"}};
+    // FIXME: this config logic is getting more and more complex
+    if (npudesc.has_value() && npudesc->compiler_dq) {
+        config.emplace("NPUW_DQ", "YES");
+        config.emplace("NPUW_DQ_FULL", "NO");
+        config.emplace("NPU_COMPILER_DYNAMIC_QUANTIZATION", "YES");
+        config.erase("NPUW_DCOFF_TYPE");
+        config.erase("NPUW_DCOFF_SCALE");
+    }
     return config;
 }
 
-ov::AnyMap get_default_common_config(const std::shared_ptr<ov::Model>& model) {
-    auto config = get_baseline_common_config();
+ov::AnyMap get_default_common_config(const std::shared_ptr<ov::Model>& model, const std::optional<NPUDesc>& npudesc) {
+    auto config = get_baseline_common_config(npudesc);
     const char* npu_l0 = std::getenv("DISABLE_OPENVINO_GENAI_NPU_L0");
     if (npu_l0 && std::atoi(npu_l0) == 1) {
         config.emplace("NPUW_WEIGHTS_BANK_ALLOC", "CPU");
@@ -348,17 +467,17 @@ ov::AnyMap get_default_common_config(const std::shared_ptr<ov::Model>& model) {
 }
 
 ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model, const std::optional<NPUDesc>& npudesc) {
-    auto config = get_default_common_config(model);
-    if (is_cw_compressed(model)) {
-        config.emplace("NPUW_DQ", "YES");
-    } else {
-        config.emplace("NPUW_PMM", "NO");
-    }
+    auto config = get_default_common_config(model, npudesc);
     if (npudesc.has_value() && npudesc->arch == "4000" && npudesc->max_tiles != -1) {
         config.emplace("NPU_DPU_GROUPS", npudesc->max_tiles);
     }
-    if (npudesc.has_value() && npudesc->compiler_dq) {
-        config.emplace("NPUW_DQ_FULL", "NO");
+    // Specify NPUW DQ if Compiler DQ is not enabled
+    if (!npudesc.has_value() || !npudesc->compiler_dq) {
+        if (is_cw_compressed(model)) {
+            config.emplace("NPUW_DQ", "YES");
+        } else {
+            config.emplace("NPUW_PMM", "NO");
+        }
     }
     return config;
 }
@@ -366,20 +485,19 @@ ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model, c
 ov::AnyMap get_default_generate_config(const std::shared_ptr<ov::Model>& model,
                                        const std::optional<NPUDesc>& npudesc,
                                        const ::intel_npu::npuw::llm::GenerateHint hint) {
-    auto config = get_default_common_config(model);
+    auto config = get_default_common_config(model, npudesc);
     if (hint == ::intel_npu::npuw::llm::GenerateHint::BEST_PERF) {
         config.emplace("NPUW_ONLINE_PIPELINE", "NONE");
     }
-    // NB: Unconditionally set for generation model
-    config.emplace("NPUW_DQ", "YES");
     if (npudesc.has_value() && npudesc->arch == "4000") {
         config.emplace("NPU_DPU_GROUPS", 4);
     }
     if (hint == ::intel_npu::npuw::llm::GenerateHint::FAST_COMPILE) {
         config.emplace("NPUW_UNFOLD_IREQS", "YES");
     }
-    if (npudesc.has_value() && npudesc->compiler_dq) {
-        config.emplace("NPUW_DQ_FULL", "NO");
+    // Specify NPUW DQ if Compiler DQ is not enabled
+    if (!npudesc.has_value() || !npudesc->compiler_dq) {
+        config.emplace("NPUW_DQ", "YES");
     }
     return config;
 }
@@ -418,6 +536,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              const ov::AnyMap& properties)
     : ov::npuw::ICompiledModel(model, plugin),
+      m_name(model->get_friendly_name()),
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc) {
     LOG_DEBUG("Creating LLMCompiledModel");
@@ -425,15 +544,19 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     ::intel_npu::registerNPUWLLMOptions(*m_options_desc);
 
-    std::map<std::string, ov::Any> npuw_llm_props;
-    std::map<std::string, ov::Any> other_props;
+    ov::AnyMap npuw_llm_props;
+    ov::AnyMap other_props;
     split_llm_properties(properties, npuw_llm_props, other_props);
+    // Solely used for serialization at the moment
+    m_non_llm_props = other_props;
 
     // Remove "NPUW_LLM_PREFILL_CONFIG", "NPUW_LLM_GENERATE_CONFIG" from map,
     // to not pass them into ::intel_npu::Config object, as we don't need to
     // preserve them somewhere.
     auto prefill_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_PREFILL_CONFIG"));
     auto generate_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_GENERATE_CONFIG"));
+    auto prefill_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_PREFILL_CONFIG"));
+    auto generate_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_GENERATE_CONFIG"));
 
     m_cfg.update(any_copy(npuw_llm_props));
 
@@ -441,6 +564,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto kvcache_model = model->clone();
     LOG_DEBUG("2. Transform kvcache model from stateful to stateless.");
     ov::pass::StatefulToStateless().run_on_model(kvcache_model);
+    LOG_DEBUG("   ...also convert BF16 to FP16");
+    ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
     LOG_DEBUG("3. Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
     prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
@@ -456,16 +581,19 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     reshape_to_static(prefill_model, m_kvcache_desc.max_prompt_size, m_kvcache_desc.max_prompt_size, axes);
     LOG_DEBUG("5. Make kvcache model with static shapes");
     reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes);
-    LOG_DEBUG("6.Check and apply opt layout if applicable.");
 
     const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
-    // NB: Try to apply opt transpose only for Llama-2-7b-chat-hf model
     if (optimize_v_tensors) {
+        LOG_DEBUG("6. Check and apply opt layout");
+        LOG_BLOCK();
         if (optimize_value_tensors(kvcache_model)) {
-            // NB: Check if TransposeValueTensors transformation was applied
             m_kvcache_desc.v_tensors_transposed = true;
             prefill_model = cvt_value_tensors_layout(prefill_model);
+        } else {
+            LOG_DEBUG("vtensors optimisation not applied");
         }
+    } else {
+        LOG_DEBUG("6. Check and apply opt layout --- SKIPPED");
     }
     LOG_DEBUG("7. Optimize kvcache model to output key/values for new token.");
     kvcache_model = redirect_new_kv_to_output(kvcache_model);
@@ -478,18 +606,24 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto prefill_config =
         prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
 
-    const ::intel_npu::npuw::llm::GenerateHint generate_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_HINT>();
-    LOG_DEBUG("9. Passed GENERATE_HINT: " << std::string(::intel_npu::NPUW_LLM_GENERATE_HINT::toString(generate_hint)));
     // NB: GENERATE_HINT is only applicable for default generate config!
     if (generate_config_opt.has_value() && npuw_llm_props.count(ov::intel_npu::npuw::llm::generate_hint.name())) {
-        OPENVINO_THROW("GENERATE_HINT is only applicable for default generate config!");
+        OPENVINO_THROW("GENERATE_HINT only works with default generate config!");
     }
+    const ::intel_npu::npuw::llm::GenerateHint generate_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_HINT>();
     auto generate_config =
         generate_config_opt.value_or(get_default_generate_config(kvcache_model, npudesc, generate_hint))
             .as<ov::AnyMap>();
 
+    const auto& prefill_config_addition_value =
+        prefill_config_addition.has_value() ? prefill_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
+    const auto& generate_config_addition_value =
+        generate_config_addition.has_value() ? generate_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
+
     merge_config_with(prefill_config, other_props);
     merge_config_with(generate_config, other_props);
+    merge_config_with(prefill_config, prefill_config_addition_value);
+    merge_config_with(generate_config, generate_config_addition_value);
 
     m_kvcache_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
         ov::npuw::ICompiledModel::create(kvcache_model, plugin, generate_config));
@@ -506,8 +640,179 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Done");
 }
 
-void ov::npuw::LLMCompiledModel::export_model(std::ostream& model) const {
-    OPENVINO_NOT_IMPLEMENTED;
+ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
+                                             const std::shared_ptr<const ov::IPlugin>& plugin,
+                                             const bool serialized)
+    : ov::npuw::ICompiledModel(model, plugin),
+      m_name(model->get_friendly_name()),
+      m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
+      m_cfg(m_options_desc) {
+    NPUW_ASSERT(serialized && "This constructor should only be utilized during deserialization!");
+    ::intel_npu::registerNPUWLLMOptions(*m_options_desc);
+    LOG_DEBUG("LLMCompiledModel is being deserialized, skipping the full constructor flow...");
+}
+
+void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
+    LOG_INFO("Serializing LLMCompiledModel...");
+    LOG_BLOCK();
+
+    using namespace ov::npuw::s11n;
+
+    // Serialize magic number first
+    write(stream, NPUW_SERIALIZATION_INDICATOR);
+
+    // Serialize general meta info
+    write(stream, OPENVINO_VERSION_MAJOR);
+    write(stream, OPENVINO_VERSION_MINOR);
+    write(stream, OPENVINO_VERSION_PATCH);
+    write(stream, std::string(NPUW_SERIALIZATION_VERSION));
+
+    // Serialize name
+    write(stream, m_name);
+
+    // Serialize inputs and outputs
+    write(stream, inputs());
+    write(stream, outputs());
+
+    // Serialize LLMCompiledModel-specific data
+    write(stream, m_kvcache_desc.max_prompt_size);
+    write(stream, m_kvcache_desc.total_size);
+    write(stream, m_kvcache_desc.num_stored_tokens);
+    write(stream, m_kvcache_desc.dim);
+    write(stream, m_kvcache_desc.v_tensors_transposed);
+
+    // Write config
+    write(stream, m_cfg);
+
+    // Identify either full flow or weightless
+    bool is_weightless = true;
+    if (m_non_llm_props.count(ov::cache_mode.name()) &&
+        m_non_llm_props.at(ov::cache_mode.name()).as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
+        LOG_INFO("Serialization will be done via flow with weights.");
+        is_weightless = false;
+    }
+    write(stream, is_weightless);
+
+    // Serialize CompiledModels
+    m_kvcache_compiled->serialize(stream);
+    m_prefill_compiled->serialize(stream);
+
+    // Serialize bank name
+    const auto& kv_bank = m_kvcache_compiled->m_weights_bank;
+    const auto& p_bank = m_prefill_compiled->m_weights_bank;
+    NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank && "Prefill and KVCache models' weight bank should be shared!");
+    write(stream, kv_bank->get_name());
+
+    if (!is_weightless) {
+        // Serialize weights bank
+        kv_bank->serialize(stream);
+    }
+
+    LOG_INFO("Done.");
+}
+
+std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserialize(
+    std::istream& stream,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& properties) {
+    LOG_INFO("Deserializing LLMCompiledModel...");
+    LOG_BLOCK();
+
+    using namespace ov::npuw::s11n;
+
+    // Sanity check magic number
+    std::array<uint8_t, 6> serialization_indicator;
+    read(stream, serialization_indicator);
+    NPUW_ASSERT(serialization_indicator == NPUW_SERIALIZATION_INDICATOR && "This blob wasn't serialized via NPUW!");
+
+    // Deserialize general meta info
+    int vmajor, vminor, vpatch;
+    std::string s11n_version;
+    read(stream, vmajor);
+    read(stream, vminor);
+    read(stream, vpatch);
+    read(stream, s11n_version);
+
+    if (vmajor != OPENVINO_VERSION_MAJOR || vminor != OPENVINO_VERSION_MINOR || vpatch != OPENVINO_VERSION_PATCH ||
+        s11n_version != std::string(NPUW_SERIALIZATION_VERSION)) {
+        OPENVINO_THROW("This blobs was serialized with different OV version!",
+                       "\nSerialized by OV ",
+                       vmajor,
+                       '.',
+                       vminor,
+                       '.',
+                       vpatch,
+                       "\nCurrent OV version ",
+                       OPENVINO_VERSION_MAJOR,
+                       '.',
+                       OPENVINO_VERSION_MINOR,
+                       '.',
+                       OPENVINO_VERSION_PATCH,
+                       "\nNPUW serialized by version ",
+                       s11n_version,
+                       "\nNPUW current serialization version ",
+                       NPUW_SERIALIZATION_VERSION);
+    }
+
+    // Deserialize model name first
+    std::string model_name;
+    read(stream, model_name);
+
+    // Create a dummy CompiledModel with an empty ov::Model - this will skip the constructor flow
+    // to continue deserialization
+    ov::ParameterVector parameters;
+    ov::NodeVector results;
+
+    read(stream, parameters);
+    read(stream, results);
+
+    auto ov_model = std::make_shared<ov::Model>(results, parameters, model_name);
+
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(ov_model, plugin, true);
+
+    // Deserialize LLMCompiledModel-specific data
+    read(stream, compiled->m_kvcache_desc.max_prompt_size);
+    read(stream, compiled->m_kvcache_desc.total_size);
+    read(stream, compiled->m_kvcache_desc.num_stored_tokens);
+    read(stream, compiled->m_kvcache_desc.dim);
+    read(stream, compiled->m_kvcache_desc.v_tensors_transposed);
+
+    // Deserialize config
+    read(stream, compiled->m_cfg);
+    compiled->implement_properties();
+
+    // Deserialize flow indicator
+    bool is_weightless = false;
+    read(stream, is_weightless);
+
+    // Deserialize CompiledModels
+    compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, properties);
+    compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, properties);
+
+    // Deserialize weights bank name
+    std::string bank_name;
+    read(stream, bank_name);
+
+    if (is_weightless) {
+        auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
+
+        compiled->m_kvcache_compiled->m_weights_bank = bank;
+        compiled->m_prefill_compiled->m_weights_bank = bank;
+
+        compiled->m_kvcache_compiled->finalize_weights_bank();
+        compiled->m_prefill_compiled->finalize_weights_bank();
+    } else {
+        auto bank = ov::npuw::weights::Bank::deserialize(stream, compiled->get_plugin()->get_core(), bank_name);
+
+        compiled->m_kvcache_compiled->m_weights_bank = bank;
+        compiled->m_prefill_compiled->m_weights_bank = bank;
+
+        compiled->m_kvcache_compiled->reconstruct_closure();
+        compiled->m_prefill_compiled->reconstruct_closure();
+    }
+
+    LOG_INFO("Done.");
+    return compiled;
 }
 
 std::shared_ptr<const ov::Model> ov::npuw::LLMCompiledModel::get_runtime_model() const {

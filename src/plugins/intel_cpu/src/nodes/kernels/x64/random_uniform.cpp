@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,10 +8,7 @@
 
 using namespace dnnl::impl::cpu;
 
-namespace ov {
-namespace intel_cpu {
-namespace kernel {
-namespace random_uniform {
+namespace ov::intel_cpu::kernel::random_uniform {
 
 #define GET_PHILOX_OFFSET(field) offsetof(PhiloxGeneratorCallArgs, field)
 
@@ -1413,7 +1410,4 @@ template class MersenneTwisterGenerator<x64::sse41>;
 #undef GET_MERSENNE_OFFSET
 #undef GET_PHILOX_OFFSET
 
-}  // namespace random_uniform
-}  // namespace kernel
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::kernel::random_uniform

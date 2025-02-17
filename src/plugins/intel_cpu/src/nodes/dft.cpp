@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,9 +19,7 @@
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool DFT::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -42,36 +40,35 @@ bool DFT::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
     return true;
 }
 
-DFT::DFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+DFT::DFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    layerErrorPrefix = "DFT layer with name '" + op->get_name() + "'";
     const size_t inputsNumber = getOriginalInputsNumber();
     if (inputsNumber != 2 && inputsNumber != 3) {
-        OPENVINO_THROW(layerErrorPrefix, " has invalid number of input/output edges: ", inputsNumber);
+        THROW_CPU_NODE_ERR("has invalid number of input/output edges: ", inputsNumber);
     }
 
     /* Data */
     inputShape = inputShapes[DATA_INDEX].getStaticDims();
     if (inputShape.size() < 2) {
-        OPENVINO_THROW(layerErrorPrefix, " has invalid 'data' input tensor with rank: ", inputShape.size());
+        THROW_CPU_NODE_ERR("has invalid 'data' input tensor with rank: ", inputShape.size());
     }
 
     /* Axes */
     const auto axesRank = inputShapes[AXES_INDEX].getRank();
     if (axesRank != 1) {
-        OPENVINO_THROW(layerErrorPrefix, " has invalid 'axes' input tensor with rank: ", axesRank);
+        THROW_CPU_NODE_ERR("has invalid 'axes' input tensor with rank: ", axesRank);
     }
 
     /* Signal size */
     if (inputsNumber > SIGNAL_SIZE_INDEX) {
         const auto signalSizeRank = inputShapes[SIGNAL_SIZE_INDEX].getRank();
         if (signalSizeRank != 1) {
-            OPENVINO_THROW(layerErrorPrefix, " has invalid 'signal_size' input tensor with rank: ", signalSizeRank);
+            THROW_CPU_NODE_ERR("has invalid 'signal_size' input tensor with rank: ", signalSizeRank);
         }
     }
 
@@ -82,32 +79,32 @@ DFT::DFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
 void DFT::getSupportedDescriptors() {}
 
 void DFT::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     const auto& dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
     if (!dataPrecision.is_real()) {
-        OPENVINO_THROW(layerErrorPrefix, " has unsupported 'data' input precision: ", dataPrecision.get_type_name());
+        THROW_CPU_NODE_ERR("has unsupported 'data' input precision: ", dataPrecision.get_type_name());
     }
 
     const auto& axesPrecision = getOriginalInputPrecisionAtPort(AXES_INDEX);
     if (axesPrecision != ov::element::i32 && axesPrecision != ov::element::i64) {
-        OPENVINO_THROW(layerErrorPrefix, " has unsupported 'axes' input precision: ", axesPrecision.get_type_name());
+        THROW_CPU_NODE_ERR("has unsupported 'axes' input precision: ", axesPrecision.get_type_name());
     }
 
     if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
         const auto& signalSizeTensorPrec = getOriginalInputPrecisionAtPort(SIGNAL_SIZE_INDEX);
         if (signalSizeTensorPrec != ov::element::i32 && signalSizeTensorPrec != ov::element::i64) {
-            OPENVINO_THROW(layerErrorPrefix,
-                           " has unsupported 'signal_size' input precision: ",
-                           signalSizeTensorPrec.get_type_name());
+            THROW_CPU_NODE_ERR("has unsupported 'signal_size' input precision: ", signalSizeTensorPrec.get_type_name());
         }
     }
 
     std::vector<PortConfigurator> inDataConfigurators(
         {{LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::i32}});
-    if (inputShapes.size() > SIGNAL_SIZE_INDEX)
+    if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
         inDataConfigurators.push_back({LayoutType::ncsp, ov::element::i32});
+    }
 
     addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
 }
@@ -210,8 +207,10 @@ void copyDataToOutputWithSignalSize(const float* input,
                                     float* output,
                                     const std::vector<size_t>& outputShape,
                                     const std::vector<size_t>& outputStrides) {
-    auto totalInput = std::accumulate(inputShape.begin(), inputShape.end(), size_t(1), std::multiplies<size_t>());
-    auto totalOutput = std::accumulate(outputShape.begin(), outputShape.end(), size_t(1), std::multiplies<size_t>());
+    auto totalInput =
+        std::accumulate(inputShape.begin(), inputShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+    auto totalOutput =
+        std::accumulate(outputShape.begin(), outputShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
     std::fill_n(output, totalOutput, 0.f);
     size_t lastChangedDim = 0;
     for (size_t index = inputShape.size() - 1; index > 0; --index) {
@@ -235,7 +234,7 @@ void copyDataToOutputWithSignalSize(const float* input,
     const std::vector<size_t> outputStridesRange(outputStrides.begin(), outputStrides.begin() + iterationRange.size());
     const size_t blockSize = std::accumulate(inputShape.begin() + lastChangedDim + 1,
                                              inputShape.end(),
-                                             size_t(1),
+                                             static_cast<size_t>(1),
                                              std::multiplies<size_t>());
     const size_t blockSizeBytes = blockSize * sizeof(float);
     std::vector<size_t> iterationCounter(iterationRange.size(), 0);
@@ -248,7 +247,7 @@ void copyDataToOutputWithSignalSize(const float* input,
 
 }  // namespace
 
-void DFT::execute(dnnl::stream strm) {
+void DFT::execute(const dnnl::stream& strm) {
     const auto& outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
 
     const auto inputDataEdge = getParentEdgeAt(DATA_INDEX);
@@ -285,7 +284,7 @@ void DFT::execute(dnnl::stream strm) {
         copyDataToOutputWithSignalSize(src, inputShape, inputStrides, dst, outputShape, outputStrides);
     } else {
         auto totalElements =
-            std::accumulate(inputShape.begin(), inputShape.end(), size_t(1), std::multiplies<size_t>());
+            std::accumulate(inputShape.begin(), inputShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
         cpu_memcpy(dst, src, totalElements * sizeof(float));
     }
 
@@ -593,11 +592,12 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
         } else if (mayiuse(cpu::x64::sse41)) {
             dftKernel.reset(new jit_uni_dft_kernel_f32<cpu::x64::sse41>());
         } else {
-            OPENVINO_THROW("Can't create jit DFT kernel");
+            THROW_CPU_NODE_ERR("Can't create jit DFT kernel");
         }
 
-        if (dftKernel)
+        if (dftKernel) {
             dftKernel->create_ker();
+        }
     }
 
     if (hasFFT && fftKernel == nullptr) {
@@ -608,14 +608,13 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
         } else if (mayiuse(cpu::x64::sse41)) {
             fftKernel.reset(new jit_uni_fft_kernel_f32<cpu::x64::sse41>());
         } else {
-            OPENVINO_THROW("Can't create jit FFT kernel");
+            THROW_CPU_NODE_ERR("Can't create jit FFT kernel");
         }
 
-        if (fftKernel)
+        if (fftKernel) {
             fftKernel->create_ker();
+        }
     }
 #endif
 }
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

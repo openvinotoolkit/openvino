@@ -82,7 +82,7 @@ Prerequisites
     "torch>=2.1" \
     "datasets" \
     "accelerate" \
-    "qwen-agent==0.0.7" "transformers>=4.38.1" "gradio==4.21.0", "modelscope-studio>=0.4.0" "langchain>=0.2.3" "langchain-community>=0.2.4" "wikipedia"
+    "qwen-agent[gui]==0.0.7" "transformers>=4.38.1" "gradio==4.21.0", "modelscope-studio>=0.4.0,<1.0.0" "langchain>=0.2.3" "langchain-community>=0.2.4" "wikipedia"
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu \
     "git+https://github.com/huggingface/optimum-intel.git" \
     "git+https://github.com/openvinotoolkit/nncf.git"
@@ -95,8 +95,13 @@ Prerequisites
             r = requests.get(
                 url=f"https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/{local_path.name}",
             )
-        with local_path.open("w") as f:
-            f.write(r.text)
+            with local_path.open("w") as f:
+                f.write(r.text)
+
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+
+    collect_telemetry("llm-agent-functioncall-qwen.ipynb")
 
 Create a Function calling agent
 -------------------------------

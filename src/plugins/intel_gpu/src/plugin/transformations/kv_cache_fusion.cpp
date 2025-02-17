@@ -26,8 +26,7 @@
 #include "transformations/utils/utils.hpp"
 #include "openvino/opsets/opset8.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 class KVCacheFusionMatcher : public ov::pass::MatcherPass {
 public:
@@ -56,10 +55,10 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
         }
 
         const auto& pattern_map = m.get_pattern_value_map();
-        auto concat_node = std::dynamic_pointer_cast<ov::op::v0::Concat>(pattern_map.at(concat).get_node_shared_ptr());
+        auto concat_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat).get_node_shared_ptr());
 
-        auto past_node = std::dynamic_pointer_cast<ov::op::v6::ReadValue>(pattern_map.at(past).get_node_shared_ptr());
-        auto present_node = std::dynamic_pointer_cast<ov::op::v6::Assign>(pattern_map.at(present).get_node_shared_ptr());
+        auto past_node = ov::as_type_ptr<ov::op::v6::ReadValue>(pattern_map.at(past).get_node_shared_ptr());
+        auto present_node = ov::as_type_ptr<ov::op::v6::Assign>(pattern_map.at(present).get_node_shared_ptr());
 
         if (past_node->get_variable_id() != present_node->get_variable_id())
             return false;
@@ -132,5 +131,4 @@ KVCacheFusion::KVCacheFusion() {
     add_matcher<ov::intel_gpu::KVCacheFusionMatcher>();
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

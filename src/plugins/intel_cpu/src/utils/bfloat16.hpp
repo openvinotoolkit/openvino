@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,7 @@
 
 #define BFLOAT16_ROUND_MODE_TO_NEAREST_EVEN
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class bfloat16_t {
 public:
@@ -36,7 +35,7 @@ public:
     {}
 
     operator float() const {
-        return F32{uint32_t(m_value) << 16}.vfloat;
+        return F32{static_cast<uint32_t>(m_value) << 16}.vfloat;
     }
     static constexpr bfloat16_t from_bits(uint16_t bits) {
         return bfloat16_t(bits, true);
@@ -69,8 +68,7 @@ private:
     uint16_t m_value;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 /**
  * std::numeric_limits overloaded for better compatibility with template metaprogramming.

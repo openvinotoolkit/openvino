@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -885,7 +885,7 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
             if (prim_params.outputs[0].GetLayout() == DataLayout::bfyx)
                 OPENVINO_ASSERT(input.X().pad.Total() == 0 && input.Y().pad.Total() == 0, "[GPU] Invalid padding in spatial axes observed in FC bf tiled.");
             else
-                OPENVINO_ASSERT(input.Feature().pad.Total() == 0, "[GPU] Invalid padding in f axis observed in FC bf tiled.");
+                OPENVINO_ASSERT(input.Feature().pad.Total(true) == 0, "[GPU] Invalid padding in f axis observed in FC bf tiled.");
 
             if (!kd.internalBufferSizes.empty()) {
                 // Pre-quantizing kernel was generated. Update the kernel and intermediate buffers or disable it.

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -34,10 +34,11 @@ endif()
 #               [SKIP_INSTALL]
 #               [SKIP_REGISTRATION] Skip creation of <device>.xml
 #               [ADD_CLANG_FORMAT]
+#               [ADD_CLANG_TIDY]
 #               )
 #
 function(ov_add_plugin)
-    set(options SKIP_INSTALL PSEUDO_DEVICE ADD_CLANG_FORMAT AS_EXTENSION SKIP_REGISTRATION)
+    set(options SKIP_INSTALL PSEUDO_DEVICE ADD_CLANG_FORMAT ADD_CLANG_TIDY AS_EXTENSION SKIP_REGISTRATION)
     set(oneValueArgs NAME DEVICE_NAME VERSION_DEFINES_FOR PSEUDO_PLUGIN_FOR)
     set(multiValueArgs DEFAULT_CONFIG SOURCES OBJECT_LIBRARIES CPPLINT_FILTERS)
     cmake_parse_arguments(OV_PLUGIN "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -104,6 +105,13 @@ function(ov_add_plugin)
         foreach(filter IN LISTS OV_PLUGIN_CPPLINT_FILTERS)
             string(CONCAT custom_filter "${custom_filter}" "," "${filter}")
         endforeach()
+
+        if (OV_PLUGIN_ADD_CLANG_TIDY)
+            if (ENABLE_CLANG_TIDY)
+                set_target_properties(${OV_PLUGIN_NAME} PROPERTIES
+                    CXX_CLANG_TIDY "clang-tidy-${CLANG_TIDY_REQUIRED_VERSION};--extra-arg=-Wno-unused-command-line-argument")
+            endif()
+        endif()
 
         if (OV_PLUGIN_ADD_CLANG_FORMAT)
             ov_add_clang_format_target(${OV_PLUGIN_NAME}_clang FOR_SOURCES ${OV_PLUGIN_SOURCES})

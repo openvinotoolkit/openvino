@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "cpu_types.h"
@@ -8,8 +8,7 @@
 
 #include "cpu_shape.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 std::string dim2str(Dim dim) {
     return dim == Shape::UNDEFINED_DIM ? "?" : std::to_string(dim);
@@ -530,5 +529,4 @@ std::string algToString(const Algorithm alg) {
     return "Undefined";
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

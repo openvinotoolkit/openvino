@@ -1,15 +1,13 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "intel_npu/utils/zero/zero_init.hpp"
 
-#include <loader/ze_loader.h>
 #include <ze_command_queue_npu_ext.h>
 
 #include <regex>
 
-#include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 
 #ifdef _WIN32
@@ -135,7 +133,9 @@ void ZeroInitStructsHolder::initNpuDriver() {
     fallbackToZeDriverGet();
 }
 
-ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder", Logger::global().level()) {
+ZeroInitStructsHolder::ZeroInitStructsHolder()
+    : zero_api(ZeroApi::getInstance()),
+      log("NPUZeroInitStructsHolder", Logger::global().level()) {
     log.debug("ZeroInitStructsHolder - performing zeInit on NPU only");
     THROW_ON_FAIL_FOR_LEVELZERO("zeInit", zeInit(ZE_INIT_FLAG_VPU_ONLY));
 
@@ -312,13 +312,18 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, 0, 0};
     THROW_ON_FAIL_FOR_LEVELZERO("zeContextCreate", zeContextCreate(driver_handle, &context_desc, &context));
     log.debug("ZeroInitStructsHolder initialize complete");
+
+    // Obtain compiler-in-driver properties
+    compiler_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
+    auto result = graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(device_handle, &compiler_properties);
+    THROW_ON_FAIL_FOR_LEVELZERO("pfnDeviceGetGraphProperties", result);
 }
 
 ZeroInitStructsHolder::~ZeroInitStructsHolder() {
     if (context) {
         log.debug("ZeroInitStructsHolder - performing zeContextDestroy");
         auto result = zeContextDestroy(context);
-        if (ZE_RESULT_SUCCESS != result) {
+        if (result != ZE_RESULT_SUCCESS && result != ZE_RESULT_ERROR_UNINITIALIZED) {
             log.error("zeContextDestroy failed %#X", uint64_t(result));
         }
     }

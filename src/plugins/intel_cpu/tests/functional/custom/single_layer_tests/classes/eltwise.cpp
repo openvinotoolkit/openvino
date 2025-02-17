@@ -260,7 +260,8 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
        (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
        (eltwise_type == utils::EltwiseTypes::DIVIDE) ||
        (eltwise_type == utils::EltwiseTypes::FLOOR_MOD) ||
-       (eltwise_type == utils::EltwiseTypes::MOD)) {
+       (eltwise_type == utils::EltwiseTypes::MOD) ||
+       (eltwise_type == utils::EltwiseTypes::SQUARED_DIFF)) {
         return "jit";
     }
 #endif

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "shape_inference.hpp"
@@ -9,6 +9,7 @@
 #include <openvino/opsets/opset13.hpp>
 #include <openvino/opsets/opset14.hpp>
 #include <openvino/opsets/opset15.hpp>
+#include <openvino/opsets/opset16.hpp>
 #include <openvino/opsets/opset2.hpp>
 #include <openvino/opsets/opset5.hpp>
 #include <openvino/opsets/opset6.hpp>
@@ -104,6 +105,7 @@
 #include "scatter_elements_update_shape_inference.hpp"
 #include "scatter_nd_base_shape_inference.hpp"
 #include "search_sorted_shape_inference.hpp"
+#include "segment_max_shape_inference.hpp"
 #include "select_shape_inference.hpp"
 #include "shape_nodes.hpp"
 #include "shuffle_channels_shape_inference.hpp"
@@ -126,8 +128,7 @@
 #include "utils/bit_util.hpp"
 #include "variadic_split_shape_inference.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 /**
  * @brief Base shape inference object implementing the IStaticShapeInfer without padding support.
  *
@@ -234,8 +235,7 @@ public:
 
     ov::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
                                                  const ov::ITensorAccessor& tensor_accessor) override {
-        auto op = m_node.get();
-        std::vector<StaticShape> output_shapes;
+        const auto op = m_node.get();
 
         std::shared_ptr<ov::Node> local_op;
         ov::OutputVector new_inputs;
@@ -252,7 +252,7 @@ public:
         local_op = op->clone_with_new_inputs(new_inputs);
         local_op->validate_and_infer_types();
 
-        output_shapes.resize(local_op->get_output_size());
+        std::vector<StaticShape> output_shapes(local_op->get_output_size());
         for (size_t i = 0; i < output_shapes.size(); ++i) {
             const auto& partial_shape = local_op->get_output_partial_shape(i);
 
@@ -264,6 +264,11 @@ public:
         }
 
         return {std::move(output_shapes)};
+    }
+
+    port_mask_t get_port_mask() const override {
+        // For fallback return full port mask to try get data for all node's inputs
+        return FULL_PORT_MASK;
     }
 };
 
@@ -432,6 +437,8 @@ using IStaticShapeInferFactory =
 // To use other version of operators, explicitly specify operator with opset version namespace.
 template <>
 const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
+    // opset16
+    _OV_OP_SHAPE_INFER_MASK_REG(op::v16::SegmentMax, ShapeInferTA, util::bit::mask(1, 2)),
     // opset15
     _OV_OP_SHAPE_INFER_MASK_REG(op::v15::Squeeze, ShapeInferTA, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_MASK_REG(op::v15::SearchSorted, ShapeInferTA, util::bit::mask()),
@@ -610,34 +617,6 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
 #undef _OV_OP_SHAPE_INFER_MASK_REG
 #undef _OV_OP_SHAPE_INFER_VA_REG
 
-class ShapeInferCustomMask : public IShapeInfer {
-public:
-    ShapeInferCustomMask(ShapeInferPtr shape_infer, port_mask_t port_mask)
-        : m_shape_infer{std::move(shape_infer)},
-          m_port_mask{port_mask} {}
-
-    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        return m_shape_infer->infer(input_shapes, data_dependency);
-    }
-
-    const ov::CoordinateDiff& get_pads_begin() override {
-        return m_shape_infer->get_pads_begin();
-    }
-
-    const ov::CoordinateDiff& get_pads_end() override {
-        return m_shape_infer->get_pads_end();
-    }
-
-    port_mask_t get_port_mask() const override {
-        return m_port_mask;
-    }
-
-private:
-    const ShapeInferPtr m_shape_infer;
-    const port_mask_t m_port_mask;
-};
-
 std::shared_ptr<IStaticShapeInfer> make_shape_inference(std::shared_ptr<ov::Node> op) {
     if (auto shape_infer = IStaticShapeInferFactory::make(op->get_type_info(), op)) {
         return shape_infer;
@@ -652,8 +631,4 @@ std::shared_ptr<IStaticShapeInfer> make_shape_inference(std::shared_ptr<ov::Node
     }
 }
 
-ShapeInferPtr make_shape_inference(std::shared_ptr<ov::Node> op, IShapeInfer::port_mask_t port_mask) {
-    return std::make_shared<ShapeInferCustomMask>(make_shape_inference(std::move(op)), port_mask);
-}
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,7 @@
 #include "shape_inference/static_shape.hpp"
 #include "tensor_data_accessor.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class IStaticShapeInfer : public IShapeInfer {
 public:
@@ -32,6 +31,4 @@ public:
 };
 
 std::shared_ptr<IStaticShapeInfer> make_shape_inference(std::shared_ptr<ov::Node> op);
-ShapeInferPtr make_shape_inference(std::shared_ptr<ov::Node> op, IShapeInfer::port_mask_t port_mask);
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

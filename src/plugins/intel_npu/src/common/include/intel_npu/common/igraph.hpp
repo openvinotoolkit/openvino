@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,8 @@
 #include <mutex>
 #include <vector>
 
+#include "intel_npu/common/blob_container.hpp"
 #include "intel_npu/network_metadata.hpp"
-#include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/runtime/profiling_info.hpp"
@@ -21,9 +21,9 @@ public:
     IGraph(ze_graph_handle_t handle,
            NetworkMetadata metadata,
            const Config& config,
-           std::optional<std::vector<uint8_t>> blob);
+           std::unique_ptr<BlobContainer> blobPtr);
 
-    virtual void export_blob(std::ostream& stream) const = 0;
+    virtual size_t export_blob(std::ostream& stream) const = 0;
 
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                                     const Config& config) const = 0;
@@ -89,7 +89,7 @@ protected:
     // first inference starts running
     std::mutex _mutex;
 
-    std::vector<uint8_t> _blob;
+    std::unique_ptr<BlobContainer> _blobPtr;
 
     uint32_t _unique_id = 0;
     uint32_t _last_submitted_id;

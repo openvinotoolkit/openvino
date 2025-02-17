@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "mha.hpp"
 
 #include <matmul_shape_inference.hpp>
+#include <utility>
+#include <vector>
 
 #include "openvino/opsets/opset3.hpp"
 #include "transformations/itt.hpp"
@@ -13,16 +15,16 @@ ov::intel_cpu::MHANode::MHANode(const ov::Output<ov::Node>& in0,
                                 const ov::Output<ov::Node>& in1,
                                 const ov::Output<ov::Node>& in2,
                                 const ov::Output<ov::Node>& in3,
-                                const std::vector<float>& mul_scales,
+                                std::vector<float> mul_scales,
                                 bool is_mul_first,
                                 const ov::element::Type output_type)
     : Op({in0, in1, in2, in3}),
-      m_output_type(output_type) {
-    this->mul_scales = mul_scales;
-    this->is_mul_first = is_mul_first;
-    this->fq0_output_type = ov::element::undefined;
-    this->fq1_output_type = ov::element::undefined;
-    this->fq2_output_type = ov::element::undefined;
+      m_output_type(output_type),
+      mul_scales(std::move(mul_scales)),
+      is_mul_first(is_mul_first),
+      fq0_output_type(ov::element::undefined),
+      fq1_output_type(ov::element::undefined),
+      fq2_output_type(ov::element::undefined) {
     validate_and_infer_types();
 }
 
@@ -30,27 +32,27 @@ ov::intel_cpu::MHANode::MHANode(const ov::Output<ov::Node>& in0,
                                 const ov::Output<ov::Node>& in1,
                                 const ov::Output<ov::Node>& in2,
                                 const ov::Output<ov::Node>& in3,
-                                const std::vector<float>& mul_scales,
+                                std::vector<float> mul_scales,
                                 bool is_mul_first,
-                                const std::vector<float>& fq_scales0,
-                                const std::vector<float>& fq_scales1,
-                                const std::vector<float>& fq_scales2,
-                                const std::vector<float>& fq_scales3,
+                                std::vector<float> fq_scales0,
+                                std::vector<float> fq_scales1,
+                                std::vector<float> fq_scales2,
+                                std::vector<float> fq_scales3,
                                 const ov::element::Type fq0_output_type,
                                 const ov::element::Type fq1_output_type,
                                 const ov::element::Type fq2_output_type,
                                 const ov::element::Type output_type)
     : Op({in0, in1, in2, in3}),
-      m_output_type(output_type) {
-    this->mul_scales = mul_scales;
-    this->is_mul_first = is_mul_first;
-    this->fq_scales0 = fq_scales0;
-    this->fq_scales1 = fq_scales1;
-    this->fq_scales2 = fq_scales2;
-    this->fq_scales3 = fq_scales3;
-    this->fq0_output_type = fq0_output_type;
-    this->fq1_output_type = fq1_output_type;
-    this->fq2_output_type = fq2_output_type;
+      m_output_type(output_type),
+      mul_scales(std::move(mul_scales)),
+      is_mul_first(is_mul_first),
+      fq_scales0(std::move(fq_scales0)),
+      fq_scales1(std::move(fq_scales1)),
+      fq_scales2(std::move(fq_scales2)),
+      fq_scales3(std::move(fq_scales3)),
+      fq0_output_type(fq0_output_type),
+      fq1_output_type(fq1_output_type),
+      fq2_output_type(fq2_output_type) {
     validate_and_infer_types();
 }
 

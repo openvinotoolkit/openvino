@@ -1,15 +1,16 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <node.h>
 
+#include <utility>
+
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
-namespace ov {
-namespace intel_cpu {
-namespace node {
+
+namespace ov::intel_cpu::node {
 
 class RMSNormShapeInferFactory : public ShapeInferFactory {
 public:
@@ -19,6 +20,4 @@ public:
 private:
     std::shared_ptr<ov::Node> m_op;
 };
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

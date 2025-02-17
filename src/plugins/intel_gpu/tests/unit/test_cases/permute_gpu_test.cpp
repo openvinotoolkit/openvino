@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,9 @@
 #include <intel_gpu/primitives/fully_connected.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/crop.hpp>
+
+#include <pass_manager.h>
+#include <program_wrapper.h>
 #include <test_utils.h>
 
 #include "permute_inst.h"
@@ -2173,6 +2176,31 @@ TEST(permute_gpu_f32_dynamic, bfyx_0_2_3_1) {
     for (size_t i = 0; i < array_size; i++) {
         ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
     }
+}
+
+TEST(permute_gpu_f32_dynamic, fused_op_has_dynamic_shape) {
+    auto& engine = get_test_engine();
+
+    auto input1_layout = layout{ov::PartialShape{2, 512, 30}, data_types::f32, format::bfyx};
+    auto input2_layout = layout{ov::PartialShape{2, 30, 512}, data_types::f32, format::bfyx};
+    auto input3_layout = layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx};
+
+    topology topology(
+        input_layout("input1", input1_layout),
+        input_layout("input2", input2_layout),
+        input_layout("input3", input3_layout),
+        permute("permute", input_info("input1"), { 0, 2, 1 }),
+        eltwise("add", input_info("permute"), input_info("input2"), eltwise_mode::sum),
+        eltwise("multiply", input_info("add"), input_info("input3"), eltwise_mode::prod),
+        permute("result", input_info("multiply"), {0, 1, 2})
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    auto program = program::build_program(engine, topology, config, false, false);
+    ASSERT_NE(program, nullptr);
 }
 
 TEST(permute_f_y_axes_fallback, b_fs_yx_fsv16) {

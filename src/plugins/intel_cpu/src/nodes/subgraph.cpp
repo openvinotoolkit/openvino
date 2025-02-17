@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "subgraph.h"
@@ -11,6 +11,7 @@
 #include "snippets/lowered/pass/init_loops.hpp"
 #include "snippets/lowered/pass/insert_buffers.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
+#include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/analyze_broadcastable_inputs.hpp"
@@ -44,6 +45,7 @@
 
 #include <algorithm>
 #include <array>
+#include <utility>
 #include <vector>
 
 #include "utils/cpu_utils.hpp"
@@ -59,17 +61,15 @@
 #    include "transformations/tpp/x64/pass/scalar_to_scalar_tpp.hpp"
 #endif
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
 struct SubgraphKey {
     SubgraphKey() = default;
-    SubgraphKey(const std::shared_ptr<SubgraphAttrs>& attrs_, const std::vector<VectorDims>& in_shapes_)
-        : attrs(attrs_),
-          in_shapes(in_shapes_) {}
+    SubgraphKey(std::shared_ptr<SubgraphAttrs> attrs_, std::vector<VectorDims> in_shapes_)
+        : attrs(std::move(attrs_)),
+          in_shapes(std::move(in_shapes_)) {}
     virtual ~SubgraphKey() = default;
 
     size_t hash() const {
@@ -77,8 +77,9 @@ struct SubgraphKey {
         using namespace dnnl::impl::primitive_hashing;
 
         size_t seed = get_attr_hash(0, attrs);
-        for (const auto& shape : in_shapes)
+        for (const auto& shape : in_shapes) {
             seed = get_vector_hash(seed, shape);
+        }
 
         return seed;
     }
@@ -91,8 +92,8 @@ struct SubgraphKey {
 };
 
 struct SubgraphCodeGeneratorKey {
-    SubgraphCodeGeneratorKey(const std::shared_ptr<SubgraphAttrs>& attrs_, uint8_t mask_)
-        : attrs(attrs_),
+    SubgraphCodeGeneratorKey(std::shared_ptr<SubgraphAttrs> attrs_, uint8_t mask_)
+        : attrs(std::move(attrs_)),
           broadcasting_mask(mask_) {}
 
     size_t hash() const {
@@ -121,8 +122,9 @@ struct SubgraphShapeInferResultKey {
         using namespace dnnl::impl::primitive_hashing;
 
         size_t seed = hash_combine(0, body_hash);
-        for (const auto& shape : in_shapes)
+        for (const auto& shape : in_shapes) {
             seed = get_vector_hash(seed, shape);
+        }
 
         return seed;
     }
@@ -142,15 +144,19 @@ struct SubgraphShapeInferResult {
 
 }  // namespace
 
+static _ov_dnnl_cpu_isa getHostIsa() {
+#if defined(OPENVINO_ARCH_ARM64)
+    return dnnl::impl::cpu::aarch64::asimd;
+#else
+    return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? dnnl::impl::cpu::x64::avx512_core
+                                                                            : dnnl::impl::cpu::x64::avx2;
+#endif
+}
+
 Subgraph::Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, SnippetShapeInferFactory(op)),
+      host_isa(getHostIsa()),
       subgraph_attrs(std::make_shared<SubgraphAttrs>()) {
-#if defined(OPENVINO_ARCH_ARM64)
-    host_isa = dnnl::impl::cpu::aarch64::asimd;
-#else
-    host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? dnnl::impl::cpu::x64::avx512_core
-                                                                                : dnnl::impl::cpu::x64::avx2;
-#endif
     const auto& tmp_snippet = ov::as_type_ptr<snippets::op::Subgraph>(op);
     OPENVINO_ASSERT(tmp_snippet, "Attempt to create Subgraph node from an invalid op type");
     subgraph_attrs->snippet = tmp_snippet->clone();
@@ -162,7 +168,7 @@ Subgraph::Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
 #elif defined(OPENVINO_ARCH_X86_64)
     subgraph_attrs->snippet->set_generator(std::make_shared<CPUGenerator>(host_isa, context->getParamsCache()));
 #else
-    OPENVINO_THROW("CPU plugin: Subgraphs code-generator is not supported on non-x64 platforms");
+    THROW_CPU_NODE_ERR("Subgraphs code-generator is not supported on non-x64 platforms");
 #endif
 
     // Note: we have to update shapeInfer, so it uses the per-thread op::Subgraph copy
@@ -178,8 +184,9 @@ uint64_t Subgraph::getBodyHash(const std::shared_ptr<snippets::op::Subgraph>& sn
 }
 
 void Subgraph::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     const std::set<ov::element::Type> supportedPrecisions =
         {ov::element::f32, ov::element::i32, ov::element::bf16, ov::element::f16, ov::element::i8, ov::element::u8};
@@ -187,8 +194,9 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
     bool dimRanksAreEqual = true;
     for (size_t i = 0; dimRanksAreEqual && i < inputShapes.size(); i++) {
         for (size_t j = 0; dimRanksAreEqual && j < outputShapes.size(); j++) {
-            if (inputShapes[i].getRank() != outputShapes[j].getRank())
+            if (inputShapes[i].getRank() != outputShapes[j].getRank()) {
                 dimRanksAreEqual = false;
+            }
         }
     }
 
@@ -207,13 +215,14 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
         dnnl::impl::utils::one_of(ndims, 3u, 4u, 5u) && dimRanksAreEqual && !isOnlyPlanarApplicable && !isDynamic;
 
     for (const auto& inShape : inputShapes) {
-        if (isDynamic && inShape.getRank() != 1)
+        if (isDynamic && inShape.getRank() != 1) {
             isBlockedApplicable =
                 isBlockedApplicable && inShape.getMinDims()[1] != Shape::UNDEFINED_DIM && inShape.getMinDims()[1] > 1;
+        }
     }
 #endif
 
-    enum LayoutType { Planar, ChannelsFirst, Blocked };
+    enum LayoutType : uint8_t { Planar, ChannelsFirst, Blocked };
     auto initDesc = [&](LayoutType lt) -> NodeDesc {
         auto createMemoryDesc =
             [lt](const Shape& shape, ov::element::Type prc, size_t offset) -> std::shared_ptr<CpuBlockedMemoryDesc> {
@@ -270,8 +279,9 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
                  subgraph_attrs->snippet->has_domain_sensitive_ops())
                     ? context->getConfig().inferencePrecision
                     : originalInputPrecision;
-            if (supportedPrecisions.count(precision) == 0)
-                OPENVINO_THROW("Subgraph node with name `", getName(), "` doesn't support ", precision, " precision.");
+            if (supportedPrecisions.count(precision) == 0) {
+                THROW_CPU_NODE_ERR("doesn't support ", precision, " precision.");
+            }
 
             const auto equalPrecisions =
                 getOriginalOutputPrecisions().size() == 1 && precision == getOriginalOutputPrecisionAtPort(0);
@@ -289,8 +299,9 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
         config.outConfs.resize(outputShapes.size());
         for (size_t i = 0; i < outputShapes.size(); i++) {
             auto precision = getOriginalOutputPrecisionAtPort(i);
-            if (supportedPrecisions.count(precision) == 0)
-                OPENVINO_THROW("Subgraph node with name `", getName(), "` doesn't support ", precision, " precision.");
+            if (supportedPrecisions.count(precision) == 0) {
+                THROW_CPU_NODE_ERR("doesn't support ", precision, " precision.");
+            }
 
             BlockedMemoryDesc::CmpMask outputMask = BlockedMemoryDesc::SKIP_OFFSET_MASK;
             PortConfig portConfig;
@@ -318,10 +329,12 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
         return {config, impl_type};
     };
 
-    if (isChannelsFirstApplicable)
+    if (isChannelsFirstApplicable) {
         supportedPrimitiveDescriptors.emplace_back(initDesc(ChannelsFirst));
-    if (isBlockedApplicable)
+    }
+    if (isBlockedApplicable) {
         supportedPrimitiveDescriptors.emplace_back(initDesc(Blocked));
+    }
     supportedPrimitiveDescriptors.emplace_back(initDesc(Planar));
 }
 
@@ -362,10 +375,12 @@ void Subgraph::createPrimitive() {
 void Subgraph::initMemoryPtrs() {
     srcMemPtrs.resize(input_num);
     dstMemPtrs.resize(output_num);
-    for (size_t i = 0; i < input_num; i++)
+    for (size_t i = 0; i < input_num; i++) {
         srcMemPtrs[i] = getSrcMemoryAtPort(i);
-    for (size_t i = 0; i < output_num; i++)
+    }
+    for (size_t i = 0; i < output_num; i++) {
         dstMemPtrs[i] = getDstMemoryAtPort(i);
+    }
 }
 
 void Subgraph::initAttributes() {
@@ -395,10 +410,12 @@ void Subgraph::initStartOffsets() {
     };
     start_offset_in.resize(input_num);
     start_offset_out.resize(output_num);
-    for (size_t i = 0; i < input_num; i++)
+    for (size_t i = 0; i < input_num; i++) {
         start_offset_in[i] = get_offset(srcMemPtrs[i]->getDescWithType<BlockedMemoryDesc>());
-    for (size_t i = 0; i < output_num; i++)
+    }
+    for (size_t i = 0; i < output_num; i++) {
         start_offset_out[i] = get_offset(dstMemPtrs[i]->getDescWithType<BlockedMemoryDesc>());
+    }
 }
 
 snippets::op::Subgraph::BlockedShapeVector Subgraph::getSnippetsBlockedShapes() const {
@@ -419,17 +436,20 @@ std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> Subgra
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> precisions;
     precisions.first.reserve(input_num);
     precisions.second.reserve(output_num);
-    for (const auto& p : subgraph_attrs->inMemPrecs)
+    for (const auto& p : subgraph_attrs->inMemPrecs) {
         precisions.first.push_back(p);
-    for (const auto& p : subgraph_attrs->outMemPrecs)
+    }
+    for (const auto& p : subgraph_attrs->outMemPrecs) {
         precisions.second.push_back(p);
+    }
     return precisions;
 }
 
 void Subgraph::initPluginBlockedShapes() const {
     in_shapes.resize(input_num);
-    for (size_t i = 0; i < srcMemPtrs.size(); i++)
+    for (size_t i = 0; i < srcMemPtrs.size(); i++) {
         in_shapes[i] = srcMemPtrs[i]->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    }
 }
 
 Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
@@ -520,6 +540,16 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
                                     ov::snippets::lowered::pass::MarkLoops,
                                     ov::intel_cpu::pass::BrgemmCPUBlocking);
 
+#ifdef SNIPPETS_DEBUG_CAPS
+    const auto& debug_config = subgraph_attrs->snippet->get_debug_config();
+    if (debug_config.perf_count_mode != snippets::DebugCapsConfig::PerfCountMode::Disabled) {
+        SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
+                                        ov::intel_cpu::pass::BrgemmCPUBlocking,
+                                        ov::snippets::lowered::pass::InsertPerfCountVerbose,
+                                        getName());
+    }
+#endif  // SNIPPETS_DEBUG_CAPS
+
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
                                     ov::snippets::lowered::pass::InitLoops,
                                     ov::intel_cpu::pass::AdjustBrgemmCopyBLoopPorts);
@@ -551,8 +581,9 @@ uint32_t Subgraph::getBroadcastingMask(const std::vector<VectorDims>& input_shap
     for (const auto& broadcastable_input : broadcastable_inputs) {
         const auto& shape = input_shapes[broadcastable_input.first];
         mask = mask << 1;
-        if (*(shape.rbegin() + broadcastable_input.second) == 1)
+        if (*(shape.rbegin() + broadcastable_input.second) == 1) {
             mask = mask | 1;
+        }
     }
     return mask;
 }
@@ -577,8 +608,9 @@ void Subgraph::optimizeIR() {
     // TODO: Snippets don't support backend-provided blocking, so we need to reshape body
     //       using blocked shapes first. This can be removed after [121670]
     std::vector<snippets::VectorDimsRef> in_shapes;
-    for (const auto& s : in_blocked_shapes)
+    for (const auto& s : in_blocked_shapes) {
         in_shapes.emplace_back(s.first);
+    }
     subgraph->shape_infer(in_shapes);
 
     const auto control_flow_config = std::make_shared<ov::snippets::lowered::pass::PassConfig>();
@@ -668,8 +700,9 @@ void Subgraph::prepareParams() {
 }
 
 IShapeInfer::Result Subgraph::shapeInfer() const {
-    for (size_t i = 0; i < srcMemPtrs.size(); i++)
+    for (size_t i = 0; i < srcMemPtrs.size(); i++) {
         in_shapes[i] = srcMemPtrs[i]->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    }
 
     auto builder = [this](const SubgraphShapeInferResultKey& key) -> std::shared_ptr<SubgraphShapeInferResult> {
         return std::make_shared<SubgraphShapeInferResult>(Node::shapeInfer());
@@ -690,15 +723,17 @@ bool Subgraph::canBeInPlace() const {
 
     for (auto& parentEdge : getParentEdges()) {
         auto parent = parentEdge.lock()->getParent();
-        if (parent->getChildEdges().size() != 1)
+        if (parent->getChildEdges().size() != 1) {
             return false;
+        }
 
         // WA to prevent memory corruption caused by inplace feature
         if (parent->getType() == Type::Concatenation) {
             for (auto& parentParentEdge : parent->getParentEdges()) {
                 auto parentParent = parentParentEdge.lock()->getParent();
-                if (parentParent->getChildEdges().size() != 1)
+                if (parentParent->getChildEdges().size() != 1) {
                     return false;
+                }
             }
         }
     }
@@ -709,15 +744,13 @@ bool Subgraph::created() const {
     return getType() == Type::Subgraph;
 }
 
-void Subgraph::execute(dnnl::stream strm) {
+void Subgraph::execute(const dnnl::stream& strm) {
     OPENVINO_ASSERT(execPtr, "Can't execute Subgraph node. Primitive didn't created");
     execPtr->execute(strm, srcMemPtrs, dstMemPtrs);
 }
 
-void Subgraph::executeDynamicImpl(dnnl::stream strm) {
+void Subgraph::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,7 @@
 
 #    include "cpu/x64/jit_generator.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 // Usage
 // 1. Include this headfile where JIT kennels of CPU plugin are implemented for Register printing
@@ -93,7 +92,6 @@ private:
     static constexpr size_t reg_cnt = 16;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 #endif  // CPU_DEBUG_CAPS

@@ -4,18 +4,17 @@
 
 #include "equation.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
-namespace op {
+namespace ov::intel_cpu::tpp::op {
 
-EquationTPP::EquationTPP(const OutputVector& arguments, std::vector<OpDescTPP> op_descs) :
-                        modifier::TensorProcessingPrimitive(), ov::op::Op(arguments),
-                        m_op_descs(std::move(op_descs)) {
+EquationTPP::EquationTPP(const OutputVector& arguments, std::vector<OpDescTPP> op_descs)
+    : modifier::TensorProcessingPrimitive(),
+      ov::op::Op(arguments),
+      m_op_descs(std::move(op_descs)) {
     // Initialize input/output ports as memory access ports
     std::set<size_t> ma_iport_idx;
-    for (size_t i = 0; i < get_input_size(); i++)
+    for (size_t i = 0; i < get_input_size(); i++) {
         ma_iport_idx.insert(ma_iport_idx.end(), i);
+    }
     ctor_initialize(ma_iport_idx, std::set<size_t>{0});
     constructor_validate_and_infer_types();
 }
@@ -43,13 +42,11 @@ void EquationTPP::validate_and_infer_types() {
     for (size_t i = 1; i < get_input_size(); i++) {
         OPENVINO_ASSERT(element::Type::merge(etype, etype, get_input_element_type(i)),
                         "Incompatible element types in TPP equation");
-        OPENVINO_ASSERT(ov::PartialShape::broadcast_merge_into(shape, get_input_partial_shape(i), ov::op::AutoBroadcastType::NUMPY),
-                        "Incompatible element types in TPP equation");
+        OPENVINO_ASSERT(
+            ov::PartialShape::broadcast_merge_into(shape, get_input_partial_shape(i), ov::op::AutoBroadcastType::NUMPY),
+            "Incompatible element types in TPP equation");
     }
     set_output_type(0, etype, shape);
 }
 
-} // namespace op
-} // namespace tpp
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace ov::intel_cpu::tpp::op

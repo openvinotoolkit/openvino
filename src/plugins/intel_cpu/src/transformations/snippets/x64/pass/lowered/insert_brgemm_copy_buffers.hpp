@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,7 @@
 
 #include "snippets/lowered/pass/pass.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace pass {
+namespace ov::intel_cpu::pass {
 
 /**
  * @interface InsertBrgemmCopyBuffers
@@ -21,12 +19,10 @@ namespace pass {
 class InsertBrgemmCopyBuffers : public snippets::lowered::pass::RangedPass {
 public:
     InsertBrgemmCopyBuffers() = default;
-    OPENVINO_RTTI("InsertBrgemmCopyBuffers", "0", snippets::lowered::pass::RangedPass);
+    OPENVINO_RTTI("InsertBrgemmCopyBuffers", "", RangedPass)
     bool run(snippets::lowered::LinearIR& linear_ir,
              snippets::lowered::LinearIR::constExprIt begin,
              snippets::lowered::LinearIR::constExprIt end) override;
 };
 
-}  // namespace pass
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::pass

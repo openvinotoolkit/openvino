@@ -1,15 +1,16 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <utility>
+
 #include "cpu_memory.h"
 #include "executor.hpp"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct EltwiseData {
     Algorithm algo;
@@ -49,15 +50,9 @@ enum class EltwisePostOpType { Undefined, Eltwise, Dnnl };
 
 class EltwisePostOp {
 public:
-    EltwisePostOp(EltwiseAttrs eltwise) {
-        type = EltwisePostOpType::Eltwise;
-        this->eltwise = eltwise;
-    }
+    EltwisePostOp(EltwiseAttrs eltwise) : eltwise(eltwise), type(EltwisePostOpType::Eltwise) {}
 
-    EltwisePostOp(dnnl::post_ops dnnlPostOps) {
-        type = EltwisePostOpType::Dnnl;
-        this->dnnlPostOps = dnnlPostOps;
-    }
+    EltwisePostOp(dnnl::post_ops dnnlPostOps) : dnnlPostOps(std::move(dnnlPostOps)), type(EltwisePostOpType::Dnnl) {}
 
     ~EltwisePostOp() = default;
 
@@ -87,7 +82,7 @@ public:
 
 class EltwiseExecutor {
 public:
-    EltwiseExecutor(const ExecutorContext::CPtr context);
+    EltwiseExecutor(ExecutorContext::CPtr context);
     virtual bool init(const EltwiseAttrs& eltwiseAttrs,
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,
@@ -120,5 +115,4 @@ public:
 using EltwiseExecutorBuilderPtr = std::shared_ptr<EltwiseExecutorBuilder>;
 using EltwiseExecutorBuilderCPtr = std::shared_ptr<const EltwiseExecutorBuilder>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

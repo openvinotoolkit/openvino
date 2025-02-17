@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -11,10 +11,11 @@
 #include "common.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+#if defined(HAVE_SVE)
+#    include "arm_sve.h"
+#endif
+
+namespace ov::Extensions::Cpu::XARCH {
 
 #if defined(HAVE_AVX512F)
 inline void transpose_m512i_16x16(__m512i& r0,
@@ -593,6 +594,116 @@ inline void transpose_16xK_kernel(float* dst, T* src, size_t K, size_t dst_strid
     }
 }
 
+#elif defined(HAVE_SVE)
+template <typename TSRC, typename TDST>
+inline void transpose_16x16_kernel(TDST* dst, TSRC* src, size_t dst_stride, size_t src_stride) {
+    for (size_t i = 0; i < 16; i++) {
+        for (size_t j = 0; j < 16; j++) {
+            dst[i * dst_stride + j] = static_cast<TDST>(src[i + j * src_stride]);
+        }
+    }
+}
+
+template <typename TSRC, typename TDST>
+inline void transpose_16xK_kernel(TDST* dst, TSRC* src, size_t K, size_t dst_stride, size_t src_stride) {
+    for (size_t i = 0; i < K; i++) {
+        for (size_t j = 0; j < 16; j++) {
+            dst[i * dst_stride + j] = static_cast<TDST>(src[i + j * src_stride]);
+        }
+    }
+}
+
+inline void transpose_8x8_kernel(float* src, size_t ld_src, float* dst, size_t ld_dst) {
+    // load from src to registers
+    // a: a0  a1  a2  a3  a4  a5  a6  a7
+    // b: b0  b1  b2  b3  b4  b5  b6  b7
+    // c: c0  c1  c2  c3  c4  c5  c6  c7
+    // d: d0  d1  d2  d3  d4  d5  d6  d7
+    // e: e0  e1  e2  e3  e4  e5  e6  e7
+    // f: f0  f1  f2  f3  f4  f5  f6  f7
+    // g: g0  g1  g2  g3  g4  g5  g6  g7
+    // h: h0  h1  h2  h3  h4  h5  h6  h7
+    svfloat32_t a = svld1_f32(svptrue_b8(), &src[0 * ld_src]);
+    svfloat32_t b = svld1_f32(svptrue_b8(), &src[1 * ld_src]);
+    svfloat32_t c = svld1_f32(svptrue_b8(), &src[2 * ld_src]);
+    svfloat32_t d = svld1_f32(svptrue_b8(), &src[3 * ld_src]);
+    svfloat32_t e = svld1_f32(svptrue_b8(), &src[4 * ld_src]);
+    svfloat32_t f = svld1_f32(svptrue_b8(), &src[5 * ld_src]);
+    svfloat32_t g = svld1_f32(svptrue_b8(), &src[6 * ld_src]);
+    svfloat32_t h = svld1_f32(svptrue_b8(), &src[7 * ld_src]);
+    // unpacking and interleaving 32-bit elements
+    // a0  b0  a1  b1  a4  b4  a5  b5
+    // a2  b2  a3  b3  a6  b6  a7  b7
+    // c0  d0  c1  d1 ...
+    // c2  d2  c3  d3 ...
+    // e0  f0  e1  f1 ...
+    // e2  f2  e3  f3 ...
+    // g0  h0  g1  h1 ...
+    // g2  h2  g3  h3 ...
+    svfloat32_t ta = svtrn1_f32(a, b);
+    svfloat32_t tb = svtrn2_f32(a, b);
+    svfloat32_t tc = svtrn1_f32(c, d);
+    svfloat32_t td = svtrn2_f32(c, d);
+    svfloat32_t te = svtrn1_f32(e, f);
+    svfloat32_t tf = svtrn2_f32(e, f);
+    svfloat32_t tg = svtrn1_f32(g, h);
+    svfloat32_t th = svtrn2_f32(g, h);
+    // unpacking and interleaving 64-bit elements
+    //  a0  b0  c0  d0  a4  b4  c4  d4
+    //  a1  b1  c1  d1 ...
+    //  a2  b2  c2  d2 ...
+    //  a3  b3  c3  d3 ...
+    //  e0  f0  g0  h0  e4  f4  g4  h4
+    //  e1  f1  g1  h1 ...
+    //  e2  f2  g2  h2 ...
+    //  e3  f3  g3  h3 ...
+    a = svreinterpret_f32_f64(svtrn1_f64(svreinterpret_f64_f32(ta), svreinterpret_f64_f32(tc)));
+    b = svreinterpret_f32_f64(svtrn2_f64(svreinterpret_f64_f32(ta), svreinterpret_f64_f32(tc)));
+    c = svreinterpret_f32_f64(svtrn1_f64(svreinterpret_f64_f32(tb), svreinterpret_f64_f32(td)));
+    d = svreinterpret_f32_f64(svtrn2_f64(svreinterpret_f64_f32(tb), svreinterpret_f64_f32(td)));
+    e = svreinterpret_f32_f64(svtrn1_f64(svreinterpret_f64_f32(te), svreinterpret_f64_f32(tg)));
+    f = svreinterpret_f32_f64(svtrn2_f64(svreinterpret_f64_f32(te), svreinterpret_f64_f32(tg)));
+    g = svreinterpret_f32_f64(svtrn1_f64(svreinterpret_f64_f32(tf), svreinterpret_f64_f32(th)));
+    h = svreinterpret_f32_f64(svtrn2_f64(svreinterpret_f64_f32(tf), svreinterpret_f64_f32(th)));
+    //  shuffle 128-bits (composed of 4 32-bit elements)
+    //  a0  b0  c0  d0  e0  f0  g0  h0
+    //  a1  b1  c1  d1 ...
+    //  a2  b2  c2  d2 ...
+    //  a3  b3  c3  d3 ...
+    //  a4  b4  c4  d4 ...
+    //  a5  b5  c5  d5 ...
+    //  a6  b6  c6  d6 ...
+    //  a7  b7  c7  d7 ...
+    svfloat32_t t1a = svext_f32(a, a, 4);
+    svfloat32_t t1b = svext_f32(b, b, 4);
+    svfloat32_t t1c = svext_f32(c, c, 4);
+    svfloat32_t t1d = svext_f32(d, d, 4);
+    ta = svext_f32(t1a, e, 4);
+    tb = svext_f32(t1b, f, 4);
+    tc = svext_f32(t1c, g, 4);
+    td = svext_f32(t1d, h, 4);
+    te = svsel_f32(svptrue_pat_b32(SV_VL4), t1a, e);
+    tf = svsel_f32(svptrue_pat_b32(SV_VL4), t1b, f);
+    tg = svsel_f32(svptrue_pat_b32(SV_VL4), t1c, g);
+    th = svsel_f32(svptrue_pat_b32(SV_VL4), t1d, h);
+    // Store the transposed result in destination
+    svst1_f32(svptrue_b8(), &dst[0 * ld_dst], ta);
+    svst1_f32(svptrue_b8(), &dst[1 * ld_dst], tc);
+    svst1_f32(svptrue_b8(), &dst[2 * ld_dst], tb);
+    svst1_f32(svptrue_b8(), &dst[3 * ld_dst], td);
+    svst1_f32(svptrue_b8(), &dst[4 * ld_dst], te);
+    svst1_f32(svptrue_b8(), &dst[5 * ld_dst], tg);
+    svst1_f32(svptrue_b8(), &dst[6 * ld_dst], tf);
+    svst1_f32(svptrue_b8(), &dst[7 * ld_dst], th);
+}
+template <>
+inline void transpose_16x16_kernel<float, float>(float* dst, float* src, size_t dst_stride, size_t src_stride) {
+    transpose_8x8_kernel(src, src_stride, dst, dst_stride);
+    transpose_8x8_kernel(src + 8, src_stride, dst + 8 * dst_stride, dst_stride);
+    transpose_8x8_kernel(src + 8 * src_stride, src_stride, dst + 8, dst_stride);
+    transpose_8x8_kernel(src + 8 * src_stride + 8, src_stride, dst + 8 * dst_stride + 8, dst_stride);
+}
+
 #else
 
 template <typename TSRC, typename TDST>
@@ -615,7 +726,4 @@ inline void transpose_16xK_kernel(TDST* dst, TSRC* src, size_t K, size_t dst_str
 
 #endif
 
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu::XARCH

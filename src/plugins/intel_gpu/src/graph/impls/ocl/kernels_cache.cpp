@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -255,7 +255,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             // Add -g -s to build options to allow IGC assembly dumper to associate assembler sources with corresponding OpenCL kernel code lines
             // Should be used with the IGC_ShaderDump option
             if (!dump_sources_dir.empty()) {
-                std::string current_dump_file_name = dump_sources_dir;
+                std::string current_dump_file_name = std::move(dump_sources_dir);
                 if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
                     current_dump_file_name += '/';
 
@@ -317,7 +317,7 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
 
     std::string current_dump_file_name = "";
     if (dump_sources) {
-        current_dump_file_name = dump_sources_dir;
+        current_dump_file_name = std::move(dump_sources_dir);
         if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
             current_dump_file_name += '/';
 
@@ -388,7 +388,7 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
                 // Bucket size can be changed in get_max_kernels_per_batch() method, but forcing it to 1 will lead to much longer
                 // compile time.
                 std::lock_guard<std::mutex> lock(cacheAccessMutex);
-                ov::intel_gpu::save_binary(cached_bin_name, getProgramBinaries(program));
+                ov::intel_gpu::save_binary(cached_bin_name, getProgramBinaries(std::move(program)));
             }
         } else {
             cl::Program program(cl_build_device.get_context(), {cl_build_device.get_device()}, precompiled_kernels);
@@ -608,7 +608,7 @@ std::string kernels_cache::get_cached_kernel_id(kernel::ptr kernel) const {
     auto ocl_kernel = std::static_pointer_cast<cldnn::ocl::ocl_kernel>(kernel);
     const auto& entry_point = ocl_kernel->get_handle().getInfo<CL_KERNEL_FUNCTION_NAME>();
     auto program = ocl_kernel->get_handle().getInfo<CL_KERNEL_PROGRAM>();
-    cl::vector<unsigned char> program_binaries = getProgramBinaries(program);
+    cl::vector<unsigned char> program_binaries = getProgramBinaries(std::move(program));
 
     auto iter = _cached_binaries.find(program_binaries);
     OPENVINO_ASSERT(iter != _cached_binaries.end(), "[GPU] Not found cached kernel binaries");
@@ -633,7 +633,7 @@ void kernels_cache::add_to_cached_kernels(const std::vector<kernel::ptr>& kernel
     for (auto& kernel : kernels) {
         auto ocl_kernel = std::static_pointer_cast<cldnn::ocl::ocl_kernel>(kernel);
         auto program = ocl_kernel->get_handle().getInfo<CL_KERNEL_PROGRAM>();
-        cl::vector<unsigned char> program_binaries = getProgramBinaries(program);
+        cl::vector<unsigned char> program_binaries = getProgramBinaries(std::move(program));
 
         std::lock_guard<std::mutex> lock(_mutex);
         auto iter = _cached_binaries.find(program_binaries);

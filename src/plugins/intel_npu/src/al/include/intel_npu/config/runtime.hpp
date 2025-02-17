@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -191,6 +191,27 @@ struct NUM_STREAMS final : OptionBase<NUM_STREAMS, ov::streams::Num> {
         if (defVal != num && ov::streams::AUTO != num) {
             throw std::runtime_error("NUM_STREAMS can not be set");
         }
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
+//
+// WEIGHTS_PATH
+//
+struct WEIGHTS_PATH final : OptionBase<WEIGHTS_PATH, std::string> {
+    static std::string_view key() {
+        return ov::weights_path.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "std::string";
+    }
+
+    static std::string defaultValue() {
+        return "";
     }
 
     static OptionMode mode() {

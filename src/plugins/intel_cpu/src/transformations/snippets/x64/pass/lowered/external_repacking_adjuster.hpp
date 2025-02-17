@@ -9,8 +9,7 @@
 #include "snippets/lowered/pass/runtime_optimizer.hpp"
 #include "snippets/runtime_configurator.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * @class BrgemmExternalRepackingAdjuster
@@ -19,6 +18,7 @@ namespace intel_cpu {
  */
 class BrgemmExternalRepackingAdjuster : public ov::snippets::lowered::pass::RuntimeOptimizer {
 public:
+    OPENVINO_RTTI("BrgemmExternalRepackingAdjuster", "", RuntimeOptimizer)
     BrgemmExternalRepackingAdjuster() = default;
     BrgemmExternalRepackingAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                     const CPURuntimeConfigurator* configurator);
@@ -44,5 +44,4 @@ private:
     std::unordered_map<size_t, RepackExecutorPtr> m_executors;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

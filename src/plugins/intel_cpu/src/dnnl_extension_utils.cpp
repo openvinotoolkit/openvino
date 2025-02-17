@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
     switch (dataType) {
@@ -47,7 +46,9 @@ uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
     }
 }
 
-dnnl::memory::data_type DnnlExtensionUtils::ElementTypeToDataType(const ov::element::Type& elementType) {
+std::optional<dnnl::memory::data_type> DnnlExtensionUtils::ElementTypeToDataType(
+    const ov::element::Type& elementType,
+    DnnlExtensionUtils::nothrow_tag) noexcept {
     switch (elementType) {
     case ov::element::f32:
         return memory::data_type::f32;
@@ -81,9 +82,16 @@ dnnl::memory::data_type DnnlExtensionUtils::ElementTypeToDataType(const ov::elem
     case ov::element::undefined:
         return memory::data_type::undef;
     default: {
-        OPENVINO_THROW("CPU plugin does not support ", elementType.to_string(), " for use with oneDNN.");
+        return {};
     }
     }
+}
+
+dnnl::memory::data_type DnnlExtensionUtils::ElementTypeToDataType(const ov::element::Type& elementType,
+                                                                  DnnlExtensionUtils::throw_tag) {
+    auto&& result = ElementTypeToDataType(elementType, nothrow_tag{});
+    OPENVINO_ASSERT(result, "CPU plugin does not support ", elementType.to_string(), " for use with oneDNN.");
+    return result.value();
 }
 
 ov::element::Type DnnlExtensionUtils::DataTypeToElementType(const dnnl::memory::data_type& dataType) {
@@ -186,8 +194,9 @@ size_t DnnlExtensionUtils::getMemSizeForDnnlDesc(const dnnl::memory::desc& desc)
                     "Unexpected non zero offset for a dnnl blocked memory desc");
 
     size_t size = desc.get_size();
-    if (size == DNNL_RUNTIME_SIZE_VAL)
+    if (size == DNNL_RUNTIME_SIZE_VAL) {
         return MemoryDesc::UNDEFINED_SIZE;
+    }
 
     return size;
 }
@@ -207,8 +216,9 @@ DnnlMemoryDescPtr DnnlExtensionUtils::query_md(const const_dnnl_primitive_desc_t
     auto query = dnnl::convert_to_c(what);
     const auto* cdesc = dnnl_primitive_desc_query_md(pd, query, idx);
 
-    if (!cdesc)
+    if (!cdesc) {
         OPENVINO_THROW("query_md failed for query=", query, " idx=", idx, ".");
+    }
 
     return DnnlExtensionUtils::makeDescriptor(cdesc);
 }
@@ -216,8 +226,9 @@ DnnlMemoryDescPtr DnnlExtensionUtils::query_md(const const_dnnl_primitive_desc_t
 std::string DnnlExtensionUtils::query_impl_info_str(const const_dnnl_primitive_desc_t& pd) {
     const char* res;
     dnnl_status_t status = dnnl_primitive_desc_query(pd, dnnl_query_impl_info_str, 0, &res);
-    if (status != dnnl_success)
+    if (status != dnnl_success) {
         OPENVINO_THROW("query_impl_info_str failed.");
+    }
     return std::string(res);
 }
 
@@ -283,5 +294,4 @@ std::string DnnlExtensionUtils::computeWeightsStringHash(const std::shared_ptr<c
     return std::to_string(desc_hash) + "_" + std::to_string(reinterpret_cast<uint64_t>(memory->getData()));
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
