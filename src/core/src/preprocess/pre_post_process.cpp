@@ -26,7 +26,7 @@
 
 namespace {
 
-class RTInfoCleanup : public ov::pass::MatcherPass {
+class TRANSFORMATIONS_API RTInfoCleanup : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("RTInfoCleanup");
     explicit RTInfoCleanup() {
