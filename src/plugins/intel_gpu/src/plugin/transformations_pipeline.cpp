@@ -429,9 +429,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
         // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
         // types are not supported by oneDNN)
-        manager.register_pass<ov::pass::KeepConstsPrecision>(supported_woq_types, !device_info.supports_immad);
+        manager.register_pass<ov::pass::KeepConstPrecision>(supported_woq_types, !device_info.supports_immad);
         pass_config->set_callback<ov::pass::MarkDequantization,
-                ov::pass::KeepConstsPrecision>([&](const std::shared_ptr<const ov::Node> node) {
+                ov::pass::KeepConstPrecision>([&](const std::shared_ptr<const ov::Node> node) {
             return !is_decompression_multiply(node, device_info.supports_immad);
         });
 
@@ -975,9 +975,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();
 
+        manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
+        // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
+        manager.register_pass<ov::pass::Validate>();
+
         float activations_scale_factor = config.get_property(ov::hint::activations_scale_factor);
 
-        if (activations_scale_factor > 0.f && infer_precision == ov::element::f16 && !enableInt8) {
+        if (activations_scale_factor > 0.f && infer_precision == ov::element::f16) {
             using namespace ov::pass::low_precision;
 
             auto supportedPrecisions = std::vector<PrecisionsRestriction>({});
@@ -1004,6 +1008,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             manager.register_pass<ov::pass::activations_scaling::ScaleDownSingleLayer>(activations_scale_factor, infer_precision);
             manager.register_pass<ov::pass::SharedOpOptimization>();
+
+            pass_config->set_callback<ov::pass::activations_scaling::ScaleDownSingleLayer>(
+                [&infer_precision](const std::shared_ptr<const ov::Node> &node) -> bool {
+                    return (node->input(0).get_element_type() != infer_precision);
+                });
 
             // Move down scalar-multiply layers as much as possible
             auto params = LayerTransformation::Params(false, infer_precision, {infer_precision}, true, true);
@@ -1093,10 +1102,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size, device_info.supports_immad);
 
         manager.register_pass<ov::intel_gpu::OptimizeSubsequentReshapes>();
-
-        manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
-        // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
-        manager.register_pass<ov::pass::Validate>();
 
         manager.register_pass<ov::intel_gpu::SinkReshape>();
 

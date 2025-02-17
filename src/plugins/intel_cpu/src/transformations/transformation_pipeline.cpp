@@ -119,6 +119,7 @@
 #include "low_precision/fold_convert.hpp"
 #include "low_precision/fuse_convert.hpp"
 #include "low_precision/group_convolution.hpp"
+#include "low_precision/mat_mul.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/recurrent_cell.hpp"
@@ -446,13 +447,13 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
-    CPU_REGISTER_PASS_X64(manager, ov::pass::KeepConstsPrecision, decompression_precisions, false, true);
+    CPU_REGISTER_PASS_X64(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
     CPU_SET_CALLBACK_X64(
         manager,
         [&](const_node_ptr& node) -> bool {
             return !is_decompression_multiply(node);
         },
-        ov::pass::KeepConstsPrecision);
+        ov::pass::KeepConstPrecision);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::WrapInterpolateIntoTransposes);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeSinking);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertSequenceToTensorIterator);
@@ -840,6 +841,21 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
         },
         FuseConvertTransformation);
 
+    // Enable MatMulTransformation against FC nodes only
+    // int8 MatMul is disabled because acl_lowp_matmul_t supports 2D case only
+    // most models have 3D/4D cases, so fallback to jit_gemm_i8 gives worse perf than gemm_acl_f16
+    // oneDNN ticket #2696
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [&](const_node_ptr& node) -> bool {
+            if (NetworkHelper::isConstantPath(node->get_input_node_shared_ptr(1)) &&
+                one_of(node->input_value(1).get_partial_shape().rank().get_length(), 2, 3)) {
+                return false;
+            }
+            return true;
+        },
+        MatMulTransformation);
+
     CPU_DISABLE_PASS_ARM(lptManager, RecurrentCellTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
@@ -1120,16 +1136,16 @@ void Transformations::MainSnippets(void) {
                 ov::is_type<ov::op::v0::Convert>(n) || ov::is_type<ov::op::v1::Divide>(n) ||
                 ov::is_type<ov::op::v0::Elu>(n) || ov::is_type<ov::op::v0::Exp>(n) ||
                 ov::is_type<ov::op::v1::Equal>(n) || ov::is_type<ov::op::v0::FakeQuantize>(n) ||
-                ov::is_type<ov::op::v0::Floor>(n) || ov::is_type<ov::op::v1::FloorMod>(n) || 
-                ov::is_type<ov::op::v0::Gelu>(n) || ov::is_type<ov::op::v7::Gelu>(n) || 
-                ov::is_type<ov::op::v1::Greater>(n) || ov::is_type<ov::op::v1::GreaterEqual>(n) || 
-                ov::is_type<ov::op::v4::HSwish>(n) || ov::is_type<ov::op::v1::LessEqual>(n) || 
-                ov::is_type<ov::op::v1::Maximum>(n) || ov::is_type<ov::op::v1::Minimum>(n) || 
-                ov::is_type<ov::op::v4::Mish>(n) || ov::is_type<ov::op::v1::Mod>(n) || 
-                ov::is_type<ov::op::v1::Multiply>(n) || ov::is_type<ov::op::v0::PRelu>(n) || 
-                ov::is_type<ov::op::v0::Relu>(n) || ov::is_type<ov::op::v5::Round>(n) || 
-                ov::is_type<ov::op::v0::Sigmoid>(n) || ov::is_type<ov::op::v0::Sqrt>(n) || 
-                ov::is_type<ov::op::v1::Subtract>(n) || ov::is_type<ov::op::v4::Swish>(n) || 
+                ov::is_type<ov::op::v0::Floor>(n) || ov::is_type<ov::op::v1::FloorMod>(n) ||
+                ov::is_type<ov::op::v0::Gelu>(n) || ov::is_type<ov::op::v7::Gelu>(n) ||
+                ov::is_type<ov::op::v1::Greater>(n) || ov::is_type<ov::op::v1::GreaterEqual>(n) ||
+                ov::is_type<ov::op::v4::HSwish>(n) || ov::is_type<ov::op::v1::LessEqual>(n) ||
+                ov::is_type<ov::op::v1::Maximum>(n) || ov::is_type<ov::op::v1::Minimum>(n) ||
+                ov::is_type<ov::op::v4::Mish>(n) || ov::is_type<ov::op::v1::Mod>(n) ||
+                ov::is_type<ov::op::v1::Multiply>(n) || ov::is_type<ov::op::v0::PRelu>(n) ||
+                ov::is_type<ov::op::v0::Relu>(n) || ov::is_type<ov::op::v5::Round>(n) ||
+                ov::is_type<ov::op::v0::Sigmoid>(n) || ov::is_type<ov::op::v0::Sqrt>(n) ||
+                ov::is_type<ov::op::v1::Subtract>(n) || ov::is_type<ov::op::v4::Swish>(n) ||
                 ov::is_type<ov::op::v0::Tanh>(n));
 #else
         // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
