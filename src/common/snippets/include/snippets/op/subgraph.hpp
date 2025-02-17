@@ -28,9 +28,9 @@ namespace op {
  * @brief An operation that is implemented by a model
  * @ingroup snippets
  */
-class Subgraph : public ov::op::util::SubGraphOp {
+class Subgraph : public ov::op::util::MultiSubGraphOp {
 public:
-    OPENVINO_OP("Subgraph", "SnippetsOpset", ov::op::util::SubGraphOp);
+    OPENVINO_OP("Subgraph", "SnippetsOpset", ov::op::util::MultiSubGraphOp);
     // < 1, 42, 17, 15, 16> < 0, 1, 2, 3, 1>
     // should be:
     // A = < 1, 42, 17, 15> -> < 1, 3, 17, 15, 16> < 0, 1, 2, 3, 1>
@@ -76,7 +76,7 @@ public:
     using BlockedShape = std::pair<VectorDims, Layout>;
     using BlockedShapeVector = std::vector<BlockedShape>;
 
-    Subgraph() = default;
+    Subgraph();
 
     Subgraph(const OutputVector& args, const std::shared_ptr<ov::Model>& body);
 
@@ -90,11 +90,14 @@ public:
 
     // we introduce this method instead of using SubGraphOp::get_function()
     // to align naming with other methods
-    const std::shared_ptr<ov::Model>& body_ptr() const { return m_bodies[0]; }
-    std::shared_ptr<ov::Model>& body_ptr() { return m_bodies[0]; }
+    const std::shared_ptr<ov::Model>& body_ptr() const { return m_bodies[m_transform_body_idx]; }
+    std::shared_ptr<ov::Model>& body_ptr() { return m_bodies[m_transform_body_idx]; }
 
-    const ov::Model& body() const { return *m_bodies[0]; }
-    ov::Model& body() { return *m_bodies[0]; }
+    // Return the original body which was wrapped as Subgraph (before all transformations, optimization)
+    std::shared_ptr<const ov::Model> original_body_ptr() const { return m_bodies[m_original_body_idx]; }
+
+    const ov::Model& body() const { return *m_bodies[m_transform_body_idx]; }
+    ov::Model& body() { return *m_bodies[m_transform_body_idx]; }
 
     const std::shared_ptr<ov::snippets::Generator>& get_generator() const { return m_generator; }
     std::shared_ptr<ov::snippets::Generator>& get_generator() { return m_generator; }
@@ -159,10 +162,22 @@ public:
                       const std::shared_ptr<IShapeInferSnippetsFactory>& factory = nullptr,
                       const void* compile_params = nullptr);
 
+    const std::vector<std::shared_ptr<InputDescription>>& get_input_descriptions() const { return m_input_descriptions[0]; }
+    const std::vector<std::shared_ptr<OutputDescription>>& get_output_descriptions() const { return m_output_descriptions[0]; }
+    const std::vector<std::shared_ptr<InputDescription>>& get_original_input_descriptions() const { return m_input_descriptions[1]; }
+    const std::vector<std::shared_ptr<OutputDescription>>& get_original_output_descriptions() const { return m_output_descriptions[1]; }
+
+    // Set input to body for transformations
+    // Original body is not updated
+    void set_input(const Output<Node>& value, const std::shared_ptr<ov::op::v0::Parameter>& parameter);
+
 private:
     std::shared_ptr<lowered::LinearIR>
     convert_body_to_linear_ir(size_t min_parallel_work_amount = 8, size_t min_kernel_work_amount = 256,
                               const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory = std::make_shared<IShapeInferSnippetsFactory>());
+
+    // used for `visit_attributes`
+    std::shared_ptr<ov::Model>& original_body_ptr() { return m_bodies[m_original_body_idx]; }
 
     void init_config();
     // Count of Subgraph virtual ports:
@@ -206,6 +221,11 @@ private:
         explicit OVShapeInfer(const std::shared_ptr<ov::Model>& body);
         Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
     };
+
+    constexpr static size_t m_transform_body_idx = 0lu;
+    constexpr static size_t m_original_body_idx = 1lu;
+
+    using Node::set_arguments;
 };
 
 static inline auto create_body(const std::string& name, const ov::ResultVector& results, const ov::ParameterVector& parameters) ->
