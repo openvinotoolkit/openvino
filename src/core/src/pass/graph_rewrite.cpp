@@ -282,14 +282,12 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
     set_property(property, true);
     m_matcher = m;
     m_handler = [m, callback](const std::shared_ptr<Node>& node) -> bool {
-        OPENVINO_DEBUG("[MATCHER] ", m->get_name(), " trying to match ", node);
         if (m->match(node->output(0))) {
-            OPENVINO_DEBUG("[MATCHER] ", m->get_name(), " matched ", node);
+            std::cout << m->get_name() << " " << node << std::endl;
             OV_PASS_CALLBACK(m);
 
             try {
                 const bool status = callback(*m.get());
-                OPENVINO_DEBUG("[MATCHER] ", m->get_name(), " callback ", (status ? "succeded" : "failed"));
                 // explicitly clear Matcher state because it holds pointers to matched nodes
                 m->clear_state();
                 return status;

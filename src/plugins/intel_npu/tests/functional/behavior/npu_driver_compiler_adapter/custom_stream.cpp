@@ -83,7 +83,7 @@ protected:
 
 TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModel) {
     auto model = createModelWithLargeSize();
-    IRSerializer irSerializer(model, 11);
+    IRSerializer irSerializer(model);
     size_t xmlSize = irSerializer.getXmlSize();
     size_t weightsSize = irSerializer.getWeightsSize();
 
