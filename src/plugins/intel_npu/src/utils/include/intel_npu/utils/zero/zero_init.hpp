@@ -12,6 +12,7 @@
 #include <memory>
 
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
 
 namespace intel_npu {
@@ -74,6 +75,9 @@ public:
 
 private:
     void initNpuDriver();
+
+    // keep zero_api alive until context is destroyed
+    std::shared_ptr<ZeroApi> zero_api;
 
     static const ze_driver_uuid_t uuid;
     Logger log;
