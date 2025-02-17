@@ -59,9 +59,7 @@ Event::~Event() {
     _handle = nullptr;
 }
 
-CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                         const uint32_t& group_ordinal,
-                         bool mtci_is_supported)
+CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const uint32_t& group_ordinal)
     : _init_structs(init_structs),
       _log("CommandList", Logger::global().level()) {
     ze_mutable_command_list_exp_desc_t mutable_desc = {ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_LIST_EXP_DESC, nullptr, 0};
@@ -70,12 +68,22 @@ CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_stru
         "zeCommandListCreate",
         zeCommandListCreate(_init_structs->getContext(), _init_structs->getDevice(), &desc, &_handle));
 
-    if (mtci_is_supported) {
-        ze_mutable_command_id_exp_desc_t mutableCmdIdDesc = {ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_ID_EXP_DESC,
-                                                             nullptr,
-                                                             ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT_DEPRECATED};
+    uint32_t mutable_command_list_version = _init_structs->getMutableCommandListVersion();
+    if (ZE_MAJOR_VERSION(mutable_command_list_version) >= 1) {
+        ze_mutable_command_id_exp_desc_t mutable_cmd_id_desc = {};
+
+        mutable_cmd_id_desc.stype = ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_ID_EXP_DESC;
+
+        if (ZE_MAJOR_VERSION(mutable_command_list_version) >= 1 ||
+            ZE_MAJOR_VERSION(mutable_command_list_version) >= 1 &&
+                ZE_MINOR_VERSION(mutable_command_list_version) >= 1) {
+            mutable_cmd_id_desc.flags = ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENTS;
+        } else {
+            mutable_cmd_id_desc.flags = ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT_DEPRECATED;
+        };
+
         THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListGetNextCommandIdExp",
-                                    zeCommandListGetNextCommandIdExp(_handle, &mutableCmdIdDesc, &_command_id));
+                                    zeCommandListGetNextCommandIdExp(_handle, &mutable_cmd_id_desc, &_command_id));
     }
 }
 void CommandList::reset() const {
