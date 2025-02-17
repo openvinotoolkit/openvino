@@ -28,6 +28,21 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
 
 BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const Output<Node>& B,
+                     const Output<Node>& scratch,
+                     size_t iter_count,
+                     BRGEMM_TYPE type,
+                     const size_t offset_a,
+                     const size_t offset_b,
+                     const size_t offset_scratch,
+                     const size_t offset_c,
+                     const std::vector<size_t>& layout_a,
+                     const std::vector<size_t>& layout_b,
+                     const std::vector<size_t>& layout_c)
+    : GemmCPU(A, B, scratch, type, offset_a, offset_b, offset_scratch, offset_c, layout_a, layout_b, layout_c),
+      m_iter_count(iter_count) {}
+
+BrgemmCPU::BrgemmCPU(const Output<Node>& A,
+                     const Output<Node>& B,
                      size_t iter_count,
                      BRGEMM_TYPE type,
                      const PortDescriptor& desc_a,
@@ -38,6 +53,21 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const std::vector<size_t>& layout_c)
     : GemmCPU(A, B, type, desc_a, desc_b, desc_c, layout_a, layout_b, layout_c),
       m_iter_count(iter_count) {}
+
+BrgemmCPU::BrgemmCPU(const Output<Node>& A,
+                     const Output<Node>& B,
+                     const Output<Node>& scratch,
+                     size_t iter_count,
+                     BRGEMM_TYPE type,
+                     const PortDescriptor& desc_a,
+                     const PortDescriptor& desc_b,
+                     const PortDescriptor& desc_scratch,
+                     const PortDescriptor& desc_c,
+                     const std::vector<size_t>& layout_a,
+                     const std::vector<size_t>& layout_b,
+                     const std::vector<size_t>& layout_c)
+    : GemmCPU(A, B, scratch, type, desc_a, desc_b, desc_scratch, desc_c, layout_a, layout_b, layout_c),
+    m_iter_count(iter_count) {}
 
 void BrgemmCPU::custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_a,
                                                             const std::vector<size_t>& layout_b,
@@ -61,23 +91,32 @@ void BrgemmCPU::validate_and_infer_types() {
     set_output_type(0, get_output_type(), get_planar_output_shape(output_shape));
 }
 
-
-void BrgemmCPU::validate_inputs() const {
-    OPENVINO_ASSERT(
-        implication(one_of(m_type, BRGEMM_TYPE::STAND_ALONE, BRGEMM_TYPE::REPACKING_ONLY), get_input_size() == 2),
-        "BrgemmCPU expects 2 inputs in cases, when input precisions are f32|f32, u8|i8 or bf16|bf16 (non-AMX system)");
-}
-
 std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(BrgemmCPU_clone_with_new_inputs);
     check_new_args_count(this, new_args);
+    std::shared_ptr<BrgemmCPU> brgemm;
+    if (!with_scratchpad(m_type)) {
+        return std::make_shared<BrgemmCPU>(
+            new_args.at(0),
+            new_args.at(1),
+            m_iter_count,
+            m_type,
+            get_input_port_descriptor(0),
+            get_input_port_descriptor(1),
+            get_output_port_descriptor(0),
+            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
+            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
+            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
+    }
     return std::make_shared<BrgemmCPU>(
         new_args.at(0),
         new_args.at(1),
-        1,
+        new_args.at(2),
+        m_iter_count,
         m_type,
         get_input_port_descriptor(0),
         get_input_port_descriptor(1),
+        get_input_port_descriptor(2),
         get_output_port_descriptor(0),
         snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
         snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),

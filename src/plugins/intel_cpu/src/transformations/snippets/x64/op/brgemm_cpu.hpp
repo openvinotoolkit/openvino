@@ -34,10 +34,34 @@ public:
               const std::vector<size_t>& layout_c = {});
     BrgemmCPU(const Output<Node>& A,
               const Output<Node>& B,
+              const Output<Node>& scratch,
+              size_t iter_count,
+              BRGEMM_TYPE type,
+              const size_t offset_a = 0,
+              const size_t offset_b = 0,
+              const size_t offset_scratch = 0,
+              const size_t offset_c = 0,
+              const std::vector<size_t>& layout_a = {},
+              const std::vector<size_t>& layout_b = {},
+              const std::vector<size_t>& layout_c = {});
+    BrgemmCPU(const Output<Node>& A,
+              const Output<Node>& B,
               size_t iter_count,
               BRGEMM_TYPE type,
               const PortDescriptor& desc_a,
               const PortDescriptor& desc_b,
+              const PortDescriptor& desc_c,
+              const std::vector<size_t>& layout_a = {},
+              const std::vector<size_t>& layout_b = {},
+              const std::vector<size_t>& layout_c = {});
+    BrgemmCPU(const Output<Node>& A,
+              const Output<Node>& B,
+              const Output<Node>& scratch,
+              size_t iter_count,
+              BRGEMM_TYPE type,
+              const PortDescriptor& desc_a,
+              const PortDescriptor& desc_b,
+              const PortDescriptor& desc_scratch,
               const PortDescriptor& desc_c,
               const std::vector<size_t>& layout_a = {},
               const std::vector<size_t>& layout_b = {},
@@ -57,7 +81,6 @@ private:
     void custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_a,
                                                      const std::vector<size_t>& layout_b,
                                                      const std::vector<size_t>& layout_c);
-    void validate_inputs() const override;
 
     size_t m_iter_count;
 };

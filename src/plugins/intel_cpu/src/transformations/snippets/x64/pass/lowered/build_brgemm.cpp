@@ -33,6 +33,8 @@ bool pass::BuildBrgemm::run(snippets::lowered::LinearIR& linear_ir,
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::BuildBrgemm")
     bool modified = false;
 
+    fprintf(stderr, "BuildBrgemm::run\n");
+
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& expr = *expr_it;
         const auto gemm_node = ov::as_type_ptr<GemmCPU>(expr->get_node());
@@ -51,29 +53,45 @@ bool pass::BuildBrgemm::run(snippets::lowered::LinearIR& linear_ir,
         const auto& gemm_in1_desc = expr->get_input_port_descriptor(1);
         const auto& gemm_out_desc = expr->get_output_port_descriptor(0);
 
-        const auto in0_subtensor = gemm_in0_desc->get_subtensor();
-        const auto in1_subtensor = gemm_in1_desc->get_subtensor();
-        const auto out_subtensor = gemm_out_desc->get_subtensor();
-
         // Get innermost loop info
-        // TODO: check K-loop
         const auto& inner_loop_info = loop_manager->get_loop_info<snippets::lowered::UnifiedLoopInfo>(loop_ids.front());
         if (inner_loop_info->is_dynamic()) {
             continue;
         }
         auto iter_count = inner_loop_info->get_work_amount() / inner_loop_info->get_increment();
 
-        auto brgemm_node =
-            std::make_shared<BrgemmCPU>(expr->get_input_port_connector(0)->get_source().get_expr()->get_node(),
-                                        expr->get_input_port_connector(1)->get_source().get_expr()->get_node(),
-                                        iter_count,
-                                        gemm_node->get_type(),
-                                        gemm_node->get_offset_a(),
-                                        gemm_node->get_offset_b(),
-                                        gemm_node->get_offset_c(),
-                                        gemm_in0_desc->get_layout(),
-                                        gemm_in1_desc->get_layout(),
-                                        gemm_out_desc->get_layout());
+        std::shared_ptr<BrgemmCPU> brgemm_node;
+        if (with_amx(gemm_node->get_type()) || with_compensations(gemm_node->get_type())) {
+            fprintf(stderr, "with_amx(gemm_node->get_type()) || with_compensations(gemm_node->get_type())\n");
+            OPENVINO_ASSERT(expr->get_input_port_connectors().size(), "GemmCPU expects 3 inputs with input precisions i8|i8 and bf16|bf16 on AMX system");
+            brgemm_node = std::make_shared<BrgemmCPU>(expr->get_input_port_connector(0)->get_source().get_expr()->get_node(),
+                                                      expr->get_input_port_connector(1)->get_source().get_expr()->get_node(),
+                                                      expr->get_input_port_connector(2)->get_source().get_expr()->get_node(),
+                                                      iter_count,
+                                                      gemm_node->get_type(),
+                                                      gemm_node->get_offset_a(),
+                                                      gemm_node->get_offset_b(),
+                                                      gemm_node->get_offset_scratch(),
+                                                      gemm_node->get_offset_c(),
+                                                      gemm_in0_desc->get_layout(),
+                                                      gemm_in1_desc->get_layout(),
+                                                      gemm_out_desc->get_layout());
+        } else {
+            fprintf(stderr, "!with_amx(gemm_node->get_type()) || with_compensations(gemm_node->get_type())\n");
+            OPENVINO_ASSERT(expr->get_input_port_connectors().size() == 2, "GemmCPU expects 2 inputs in cases, when input precisions are f32|f32, u8|i8 or bf16|bf16 (non-AMX system)");
+            brgemm_node =
+                std::make_shared<BrgemmCPU>(expr->get_input_port_connector(0)->get_source().get_expr()->get_node(),
+                                            expr->get_input_port_connector(1)->get_source().get_expr()->get_node(),
+                                            iter_count,
+                                            gemm_node->get_type(),
+                                            gemm_node->get_offset_a(),
+                                            gemm_node->get_offset_b(),
+                                            gemm_node->get_offset_c(),
+                                            gemm_in0_desc->get_layout(),
+                                            gemm_in1_desc->get_layout(),
+                                            gemm_out_desc->get_layout());
+        }
+        fprintf(stderr, "brgemm_node created\n");
 
         auto old_increment = loop_manager->get_loop_info(loop_ids.front())->get_increment();
         auto new_increment = old_increment * iter_count;
@@ -84,9 +102,20 @@ bool pass::BuildBrgemm::run(snippets::lowered::LinearIR& linear_ir,
 
         // Replace GemmCPU node with BrgemmCPU
         auto live_regs = expr->get_live_regs();
+
+        const auto in0_subtensor = gemm_in0_desc->get_subtensor();
+        const auto in1_subtensor = gemm_in1_desc->get_subtensor();
+        const auto out_subtensor = gemm_out_desc->get_subtensor();
+
         snippets::lowered::PortDescriptorUtils::set_port_descriptor(brgemm_node->input(0), in0_subtensor, gemm_in0_desc->get_layout());
         snippets::lowered::PortDescriptorUtils::set_port_descriptor(brgemm_node->input(1), in1_subtensor, gemm_in1_desc->get_layout());
+        if (with_amx(gemm_node->get_type()) || with_compensations(gemm_node->get_type())) {
+            const auto& gemm_in2_desc = expr->get_input_port_descriptor(2);
+            const auto in2_subtensor = gemm_in2_desc->get_subtensor();
+            snippets::lowered::PortDescriptorUtils::set_port_descriptor(brgemm_node->input(2), in2_subtensor, gemm_in2_desc->get_layout());
+        }
         snippets::lowered::PortDescriptorUtils::set_port_descriptor(brgemm_node->output(0), out_subtensor, gemm_out_desc->get_layout());
+
         expr_it = linear_ir.replace_with_node({expr}, brgemm_node, expr->get_loop_ids(), linear_ir.find(expr));
         ov::replace_node_update_name(gemm_node, brgemm_node);
         brgemm_node->set_friendly_name(gemm_node->get_friendly_name());
