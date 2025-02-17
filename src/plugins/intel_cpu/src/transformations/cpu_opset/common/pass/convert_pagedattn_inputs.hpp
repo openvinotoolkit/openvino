@@ -4,16 +4,17 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
 #include "config.h"
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
 class ConvertPagedAttnInputs : public ov::pass::MatcherPass {
-public:    
+public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertPagedAttnInputs");
     ConvertPagedAttnInputs(const Config& p);
+
 private:
     const Config& config;
 };
