@@ -3,16 +3,18 @@
 //
 
 #include "openvino/runtime/plugin_config.hpp"
+
+#include <array>
+#include <cmath>
+#include <fstream>
+#include <iomanip>
+#include <string_view>
+
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/env_util.hpp"
-#include <cmath>
-#include <fstream>
-#include <iomanip>
-#include <array>
-#include <string_view>
 
 #ifdef JSON_HEADER
 #    include <json.hpp>
@@ -21,13 +23,13 @@
 #endif
 
 #ifdef _WIN32
-#   ifndef NOMINMAX
-#       define NOMINMAX
-#   endif
-#include <windows.h>
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <windows.h>
 #else
-#include <unistd.h>
-#include <sys/ioctl.h>
+#    include <sys/ioctl.h>
+#    include <unistd.h>
 #endif
 
 namespace {
@@ -51,7 +53,7 @@ size_t get_terminal_width() {
     return default_width;
 #endif
 }
-}
+}  // namespace
 
 namespace ov {
 
@@ -61,7 +63,9 @@ ov::Any PluginConfig::get_property(const std::string& name, OptionVisibility all
     }
 
     auto option = get_option_ptr(name);
-    OPENVINO_ASSERT((allowed_visibility & option->get_visibility()) == option->get_visibility(), "Couldn't get unknown property: ", name);
+    OPENVINO_ASSERT((allowed_visibility & option->get_visibility()) == option->get_visibility(),
+                    "Couldn't get unknown property: ",
+                    name);
 
     return option->get_any();
 }
@@ -83,7 +87,12 @@ void PluginConfig::set_user_property(const ov::AnyMap& config, OptionVisibility 
             OPENVINO_THROW("Couldn't set unknown property: ", name);
         }
         if (!option->is_valid_value(val)) {
-            OPENVINO_THROW("Invalid value: ", val.as<std::string>(), " for property: ",  name, "\nProperty description: ", get_help_message(name));
+            OPENVINO_THROW("Invalid value: ",
+                           val.as<std::string>(),
+                           " for property: ",
+                           name,
+                           "\nProperty description: ",
+                           get_help_message(name));
         }
 
         m_user_properties[name] = val;
@@ -113,7 +122,8 @@ void PluginConfig::finalize(const IRemoteContext* context, const ov::Model* mode
     apply_env_options();
 #endif
 
-    // Clear properties after finalize_impl to be able to check if a property was set by user during plugin-side finalization
+    // Clear properties after finalize_impl to be able to check if a property was set by user during plugin-side
+    // finalization
     m_user_properties.clear();
 
     m_is_finalized = true;
@@ -173,7 +183,8 @@ ov::AnyMap PluginConfig::read_config_file(std::filesystem::path filename, std::s
             continue;
 
         const auto& item_value = item.value();
-        for (auto option = item_value.cbegin(), item_value_end = item_value.cend(); option != item_value_end; ++option) {
+        for (auto option = item_value.cbegin(), item_value_end = item_value.cend(); option != item_value_end;
+             ++option) {
             config[option.key()] = option.value().get<std::string>();
         }
     }
@@ -181,7 +192,9 @@ ov::AnyMap PluginConfig::read_config_file(std::filesystem::path filename, std::s
     return config;
 }
 
-ov::Any PluginConfig::read_env(const std::string& option_name, std::string_view prefix, const ConfigOptionBase* option) {
+ov::Any PluginConfig::read_env(const std::string& option_name,
+                               std::string_view prefix,
+                               const ConfigOptionBase* option) {
     auto var_name = std::string(prefix) + option_name;
     const auto& val = ov::util::getenv_string(var_name.c_str());
 
@@ -207,7 +220,9 @@ ov::AnyMap PluginConfig::read_env() const {
 void PluginConfig::cleanup_unsupported(ov::AnyMap& config) const {
     for (auto it = config.begin(); it != config.end();) {
         auto& name = it->first;
-        auto opt_it = std::find_if(m_options_map.begin(), m_options_map.end(), [&](const OptionMapEntry& o) { return o.first == name; });
+        auto opt_it = std::find_if(m_options_map.begin(), m_options_map.end(), [&](const OptionMapEntry& o) {
+            return o.first == name;
+        });
         if (opt_it == m_options_map.end() || opt_it->second->get_visibility() == OptionVisibility::DEBUG_GLOBAL) {
             it = config.erase(it);
         } else {
@@ -234,7 +249,11 @@ std::string PluginConfig::to_string() const {
 }
 
 void PluginConfig::print_help() const {
-    auto format_text = [](const std::string& cpp_name, std::string_view str_name, std::string_view desc, size_t max_name_width, size_t max_width) {
+    auto format_text = [](const std::string& cpp_name,
+                          std::string_view str_name,
+                          std::string_view desc,
+                          size_t max_name_width,
+                          size_t max_width) {
         std::istringstream words(std::string{desc});
         std::ostringstream formatted_text;
         std::string word;
@@ -246,7 +265,7 @@ void PluginConfig::print_help() const {
 
         size_t j = 0;
         size_t count_of_desc_lines = (desc.length() + max_width - 1) / max_width;
-        for (size_t i = 0 ; i < std::max<size_t>(2, count_of_desc_lines); i++) {
+        for (size_t i = 0; i < std::max<size_t>(2, count_of_desc_lines); i++) {
             if (i == 0) {
                 formatted_text << std::left << std::setw(max_name_width) << cpp_name;
             } else if (i == 1) {
@@ -273,12 +292,14 @@ void PluginConfig::print_help() const {
     };
 
     std::stringstream ss;
-    auto max_name_length_item = std::max_element(m_options_map.begin(), m_options_map.end(),
-        [](const OptionMapEntry& a, const OptionMapEntry& b){
-            return std::get<0>(a).size() < std::get<0>(b).size();
-    });
+    auto max_name_length_item = std::max_element(m_options_map.begin(),
+                                                 m_options_map.end(),
+                                                 [](const OptionMapEntry& a, const OptionMapEntry& b) {
+                                                     return std::get<0>(a).size() < std::get<0>(b).size();
+                                                 });
 
-    const size_t max_name_width = std::max(max_name_length_item->first.size(), max_name_length_item->second->property_name.size()) + 4;
+    const size_t max_name_width =
+        std::max(max_name_length_item->first.size(), max_name_length_item->second->property_name.size()) + 4;
     const size_t terminal_width = get_terminal_width();
     ss << std::left << std::setw(max_name_width) << "Option name" << " | " << " Description " << "\n";
     ss << std::left << std::setw(terminal_width) << std::setfill('-') << "" << "\n";

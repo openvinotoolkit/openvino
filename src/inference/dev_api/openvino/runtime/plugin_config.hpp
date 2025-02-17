@@ -42,33 +42,34 @@ private:                                                                        
     OV_CONFIG_DECLARE_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::RELEASE_INTERNAL, __VA_ARGS__)
 
 #ifdef ENABLE_DEBUG_CAPS
-#define OV_CONFIG_DEBUG_GLOBAL_OPTION(PropertyNamespace, PropertyVar, ...)                                           \
-public:                                                                                                              \
-    static const decltype(PropertyNamespace::PropertyVar)::value_type& get_##PropertyVar() {                         \
-        static PluginConfig::GlobalOptionInitializer init_helper(PropertyNamespace::PropertyVar.name(),              \
-                                                                 m_allowed_env_prefix,                               \
-                                                                 m_##PropertyVar);                                   \
-        return init_helper.m_option.value;                                                                           \
-    }                                                                                                                \
-                                                                                                                     \
-private:                                                                                                             \
-    static inline ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type, OptionVisibility::DEBUG_GLOBAL> \
-        m_##PropertyVar{nullptr,                                                                                     \
-                        PropertyNamespace::PropertyVar.name(),                                                       \
-                        #PropertyNamespace "::" #PropertyVar,                                                        \
-                        __VA_ARGS__};                                                                                \
-    OptionRegistrationHelper m_##PropertyVar##_rh{this, PropertyNamespace::PropertyVar.name(), &m_##PropertyVar};
+#    define OV_CONFIG_DEBUG_GLOBAL_OPTION(PropertyNamespace, PropertyVar, ...)                              \
+    public:                                                                                                 \
+        static const decltype(PropertyNamespace::PropertyVar)::value_type& get_##PropertyVar() {            \
+            static PluginConfig::GlobalOptionInitializer init_helper(PropertyNamespace::PropertyVar.name(), \
+                                                                     m_allowed_env_prefix,                  \
+                                                                     m_##PropertyVar);                      \
+            return init_helper.m_option.value;                                                              \
+        }                                                                                                   \
+                                                                                                            \
+    private:                                                                                                \
+        static inline ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type,                    \
+                                   OptionVisibility::DEBUG_GLOBAL>                                          \
+            m_##PropertyVar{nullptr,                                                                        \
+                            PropertyNamespace::PropertyVar.name(),                                          \
+                            #PropertyNamespace "::" #PropertyVar,                                           \
+                            __VA_ARGS__};                                                                   \
+        OptionRegistrationHelper m_##PropertyVar##_rh{this, PropertyNamespace::PropertyVar.name(), &m_##PropertyVar};
 
-#define OV_CONFIG_DEBUG_OPTION(PropertyNamespace, PropertyVar, ...) \
-    OV_CONFIG_DECLARE_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::DEBUG, __VA_ARGS__)
+#    define OV_CONFIG_DEBUG_OPTION(PropertyNamespace, PropertyVar, ...) \
+        OV_CONFIG_DECLARE_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::DEBUG, __VA_ARGS__)
 #else
-    #define OV_CONFIG_DEBUG_GLOBAL_OPTION(...)
-    #define OV_CONFIG_DEBUG_OPTION(...)
+#    define OV_CONFIG_DEBUG_GLOBAL_OPTION(...)
+#    define OV_CONFIG_DEBUG_OPTION(...)
 #endif
 
 namespace ov {
 enum class OptionVisibility : uint8_t {
-    RELEASE = 1 << 0,           // Option can be set for any build type via public interface, environment and config file
+    RELEASE = 1 << 0,  // Option can be set for any build type via public interface, environment and config file
     RELEASE_INTERNAL = 1 << 1,  // Option can be set for any build type via environment and config file only
     DEBUG = 1 << 2,             // Option can be set for debug builds only via environment and config file
     DEBUG_GLOBAL = 1 << 3,      // Global option can be set for debug builds only via environment and config file
@@ -158,8 +159,7 @@ public:
     PluginConfig& operator=(PluginConfig&& other) = delete;
 
     void set_property(const ov::AnyMap& properties);
-    void set_user_property(const ov::AnyMap& properties,
-                           OptionVisibility allowed_visibility = OptionVisibility::ANY);
+    void set_user_property(const ov::AnyMap& properties, OptionVisibility allowed_visibility = OptionVisibility::ANY);
     Any get_property(const std::string& name, OptionVisibility allowed_visibility = OptionVisibility::ANY) const;
 
     template <typename... Properties>
