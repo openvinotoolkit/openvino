@@ -61,8 +61,8 @@ size_t RMSNormKey::hash() const {
 }
 
 bool RMSNormKey::operator==(const RMSNormKey& rhs) const {
-    auto retVal =
-        in_precision == rhs.in_precision && out_precision == rhs.out_precision && data_size == rhs.data_size && scale_size == rhs.scale_size && eps == rhs.eps;
+    auto retVal = in_precision == rhs.in_precision && out_precision == rhs.out_precision &&
+                  data_size == rhs.data_size && scale_size == rhs.scale_size && eps == rhs.eps;
 
     return retVal;
 }
@@ -93,8 +93,13 @@ static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker,
 }
 
 struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
-    RMSNormExecutor(ov::element::Type in_precision, ov::element::Type out_precision, size_t data_size, size_t scale_size, float eps)
-        : m_in_precision(in_precision), m_out_precision(out_precision) {
+    RMSNormExecutor(ov::element::Type in_precision,
+                    ov::element::Type out_precision,
+                    size_t data_size,
+                    size_t scale_size,
+                    float eps)
+        : m_in_precision(in_precision),
+          m_out_precision(out_precision) {
         kernel::jit_rms_compile_params jcp;
         jcp.src_prc = in_precision;
         jcp.dst_prc = out_precision;
@@ -188,7 +193,7 @@ void RMSNorm::createPrimitive() {
 =======
     if (!result.first) {
         OPENVINO_THROW("RMSNorm Executor creation fails with input precision " + in_precision.to_string() +
-            " and output precision " + out_precision.to_string());
+                       " and output precision " + out_precision.to_string());
     }
 >>>>>>> ef64418045 (remove more convert nodes)
     m_executor = result.first;

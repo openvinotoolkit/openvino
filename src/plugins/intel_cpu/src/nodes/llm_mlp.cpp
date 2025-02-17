@@ -509,7 +509,15 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
                 stride_up_act = m_quant_up_act.stride();
             }
 
-            down.run(p_up_act, stride_up_act, BM, dstC, strideC, m_config, m_quant_up_act, p_w_scale_down, outPrecision);
+            down.run(p_up_act,
+                     stride_up_act,
+                     BM,
+                     dstC,
+                     strideC,
+                     m_config,
+                     m_quant_up_act,
+                     p_w_scale_down,
+                     outPrecision);
 
             m += BM;
             pA += BM * strideA_in_bytes;
@@ -621,13 +629,15 @@ void LLMMLP::createPrimitive() {
         if (outPrecision == ov::element::f32) {
             m_executor = std::make_shared<Executor<ov::bfloat16, float>>(this, m_mlp_config, context->getScratchPad());
         } else if (outPrecision == ov::element::bf16) {
-            m_executor = std::make_shared<Executor<ov::bfloat16, ov::bfloat16>>(this, m_mlp_config, context->getScratchPad());
+            m_executor =
+                std::make_shared<Executor<ov::bfloat16, ov::bfloat16>>(this, m_mlp_config, context->getScratchPad());
         }
     } else if (rtPrecision == ov::element::f16) {
         if (outPrecision == ov::element::f32) {
             m_executor = std::make_shared<Executor<ov::float16, float>>(this, m_mlp_config, context->getScratchPad());
         } else if (outPrecision == ov::element::f16) {
-            m_executor = std::make_shared<Executor<ov::float16, ov::float16>>(this, m_mlp_config, context->getScratchPad());
+            m_executor =
+                std::make_shared<Executor<ov::float16, ov::float16>>(this, m_mlp_config, context->getScratchPad());
         }
     }
 #endif

@@ -102,7 +102,8 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
         } else if (std::is_same<T, ov::bfloat16>::value) {
             output_type = ov::element::bf16;
         } else {
-            OPENVINO_THROW("QKVProjection Executor creation fails with output precision " + std::string(typeid(T).name()));
+            OPENVINO_THROW("QKVProjection Executor creation fails with output precision " +
+                           std::string(typeid(T).name()));
         }
 
         // in quantized mode, weights are already quantized in per-OC mode into INT8

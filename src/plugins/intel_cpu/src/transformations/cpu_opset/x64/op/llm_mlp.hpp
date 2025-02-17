@@ -39,8 +39,12 @@ public:
     //      1: gate_proj
     //      2: up_proj
     //      3: down_proj
-    LLMMLPNode(const OutputVector& args, const Config& cfg, const ov::element::Type output_type = ov::element::undefined)
-        : Op(args), m_config(cfg), m_output_type(output_type) {
+    LLMMLPNode(const OutputVector& args,
+               const Config& cfg,
+               const ov::element::Type output_type = ov::element::undefined)
+        : Op(args),
+          m_config(cfg),
+          m_output_type(output_type) {
         m_args = args;
         validate_and_infer_types();
     }
@@ -65,7 +69,7 @@ public:
 
     ov::element::Type get_output_type() const {
         return m_output_type;
-    }    
+    }
 
 private:
     Config m_config{};

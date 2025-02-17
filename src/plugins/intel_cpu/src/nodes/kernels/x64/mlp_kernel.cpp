@@ -668,7 +668,7 @@ void ReduceAdd2bh::generate() {
             if (m_output_type == ov::element::f32) {
                 vmovups(ptr[dst + loop_i * 4], zmm0);
                 vmovups(ptr[dst + loop_i * 4 + 64], zmm2);
-                prefetchwt1(ptr[prefetch_dst + loop_i * 2]);                
+                prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
             } else if (m_output_type == ov::element::f16) {
                 vcvtps2ph(ptr[dst + loop_i * 2], zmm0, 0x4);
                 vcvtps2ph(ptr[dst + loop_i * 2 + 32], zmm2, 0x4);

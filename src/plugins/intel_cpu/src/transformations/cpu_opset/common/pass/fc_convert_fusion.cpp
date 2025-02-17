@@ -7,8 +7,8 @@
 #include <utils/general_utils.h>
 
 #include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
@@ -24,12 +24,21 @@ FullyConnectedConvertFusion::FullyConnectedConvertFusion() {
 
     auto data = any_input();
     auto weights = any_input();
+    // fully_connected
     auto fully_connected1 = wrap_type<ov::op::internal::FullyConnected>({data, weights}, consumers_count(1));
-    auto fully_connected2 = wrap_type<ov::op::internal::FullyConnected>({data, weights, any_input()}, consumers_count(1));
-    auto fully_connected = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{fully_connected1, fully_connected2});
-    auto fully_connected_compressed1 = wrap_type<ov::op::internal::FullyConnectedCompressed>({data, weights, any_input(), any_input()}, consumers_count(1));
-    auto fully_connected_compressed2 = wrap_type<ov::op::internal::FullyConnectedCompressed>({data, weights, any_input(), any_input(), any_input()}, consumers_count(1));
-    auto fully_connected_compressed = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{fully_connected_compressed1, fully_connected_compressed2});
+    auto fully_connected2 =
+        wrap_type<ov::op::internal::FullyConnected>({data, weights, any_input()}, consumers_count(1));
+    auto fully_connected =
+        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{fully_connected1, fully_connected2});
+    // fully_connected_compressed
+    auto fully_connected_compressed1 =
+        wrap_type<ov::op::internal::FullyConnectedCompressed>({data, weights, any_input(), any_input()},
+                                                              consumers_count(1));
+    auto fully_connected_compressed2 =
+        wrap_type<ov::op::internal::FullyConnectedCompressed>({data, weights, any_input(), any_input(), any_input()},
+                                                              consumers_count(1));
+    auto fully_connected_compressed = std::make_shared<ov::pass::pattern::op::Or>(
+        OutputVector{fully_connected_compressed1, fully_connected_compressed2});
     auto fc = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{fully_connected, fully_connected_compressed});
     auto convert = wrap_type<ov::op::v0::Convert>({fc}, type_matches(ov::element::f32));
 
@@ -55,7 +64,10 @@ FullyConnectedConvertFusion::FullyConnectedConvertFusion() {
             if (m_fc->input_values().size() == 2) {
                 new_fc = std::make_shared<ov::op::internal::FullyConnected>(m_data, m_weights, output_type);
             } else {
-                new_fc = std::make_shared<ov::op::internal::FullyConnected>(m_data, m_weights, m_fc->input_value(2), output_type);
+                new_fc = std::make_shared<ov::op::internal::FullyConnected>(m_data,
+                                                                            m_weights,
+                                                                            m_fc->input_value(2),
+                                                                            output_type);
             }
         } else {
             m_fc = pattern_map.at(fully_connected_compressed).get_node_shared_ptr();
