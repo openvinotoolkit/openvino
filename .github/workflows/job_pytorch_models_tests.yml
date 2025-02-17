@@ -115,7 +115,7 @@ jobs:
 
       - name: Install PyTorch tests requirements
         run: |
-          python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_pytorch
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_pytorch.txt
         env:
           CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
 

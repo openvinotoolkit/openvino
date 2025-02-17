@@ -93,7 +93,7 @@ jobs:
         working-directory: ${{ env.INSTALL_WHEELS_DIR }}
 
       - name: Install TF Models tests requirements
-        run: python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_tensorflow
+        run: python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_tensorflow.txt
 
       - name: TensorFlow Models Tests - TF FE
         run: |
