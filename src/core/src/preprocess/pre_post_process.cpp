@@ -18,30 +18,13 @@
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/ric_fusion.hpp"
+#include "transformations/common_optimizations/rt_info_cleanup.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
-#include "transformations/rt_info/dequantization_node.hpp"
 
 namespace {
-
-class TRANSFORMATIONS_API RTInfoCleanup : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("RTInfoCleanup");
-    explicit RTInfoCleanup() {
-        auto any_op = std::make_shared<ov::pass::pattern::op::True>();
-        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-            auto root = m.get_match_root();
-            ov::pass::enable_constant_folding(root);
-            unmark_dequantization_node(root);
-            return true;
-        };
-
-        auto m = std::make_shared<ov::pass::pattern::Matcher>(any_op, "RTInfoCleanup");
-        this->register_matcher(m, callback);
-    }
-};
 
 void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
     using namespace ov;
