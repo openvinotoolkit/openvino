@@ -119,7 +119,7 @@ void ISTFTLayerTest::SetUp() {
                                                                     normalized);
             function = std::make_shared<ov::Model>(ISTFT->outputs(), ov::ParameterVector{in_signal, in_window});
         } else {
-            const auto signal_length = std::make_shared<ov::op::v0::Constant>(step_size_type, ov::Shape{}, frame_step);
+            const auto signal_length = std::make_shared<ov::op::v0::Constant>(step_size_type, ov::Shape{}, signal_len);
             const auto ISTFT = std::make_shared<ov::op::v16::ISTFT>(in_signal,
                                                                     in_window,
                                                                     in_frame_size,

@@ -38,7 +38,7 @@ ISTFT::ISTFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
     m_is_frame_size_const = is_type<op::v0::Constant>(istft_op->get_input_node_ptr(FRAME_SIZE_IDX));
     m_is_frame_step_const = is_type<op::v0::Constant>(istft_op->get_input_node_ptr(FRAME_STEP_IDX));
     if (istft_op->get_input_size() == 5) {
-        m_is_signal_length_const = is_type<op::v0::Constant>(istft_op->get_input_node_ptr(FRAME_STEP_IDX));
+        m_is_signal_length_const = is_type<op::v0::Constant>(istft_op->get_input_node_ptr(SIGNAL_LENGTH_IDX));
     }
     m_center = istft_op->get_center();
     m_normalized = istft_op->get_normalized();
