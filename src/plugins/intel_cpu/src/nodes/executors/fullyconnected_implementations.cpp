@@ -31,7 +31,6 @@
 #include "utils/debug_capabilities.h"
 
 #if defined(OV_CPU_WITH_KLEIDIAI)
-// kai_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla.h included in kleidiai_mm.hpp supports aarch64 only
 #    include "nodes/executors/kleidiai/kleidiai_mm.hpp"
 #endif
 
@@ -433,7 +432,10 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
-                VERIFY(everyone_is(f32, srcType(config), weiType(config), biaType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(everyone_is(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
+                if (config.attrs.withBias) {
+                    VERIFY(biaType(config) == f32, UNSUPPORTED_SRC_PRECISIONS);
+                }
                 VERIFY(srcRank(config) == 2U, UNSUPPORTED_SRC_RANK);
                 VERIFY(weiRank(config) == 2U, UNSUPPORTED_WEI_RANK);
                 return MatMulKleidiAIExecutor::supports(config);
