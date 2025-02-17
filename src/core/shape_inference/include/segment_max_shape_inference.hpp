@@ -50,8 +50,9 @@ std::vector<TRShape> shape_infer(const SegmentMax* op,
 
     // validate num_segments input
     const auto num_segments_available = op->inputs().size() == 3;
-    const auto num_segments = num_segments_available ? get_input_const_data_as_shape<TRShape>(op, 2, tensor_accessor)
-                                                     : ov::optional<TRShape>{};
+    const auto& num_segments = num_segments_available
+                                   ? ov::op::get_input_const_data_as<TRShape, int64_t>(op, 2, tensor_accessor)
+                                   : ov::optional<std::vector<int64_t>>{};
     if (num_segments_available) {
         const auto& num_segments_shape = input_shapes[2];
         NODE_SHAPE_INFER_CHECK(op,
