@@ -61,7 +61,7 @@ For more details, see the [OpenCL on Linux](https://github.com/bashbaug/OpenCLPa
 
 ## 7. If you are using dGPU with XMX, ensure that HW_MATMUL feature is recognized
 
-OpenVINO contains *hello_query_device* sample application: [link](https://docs.openvino.ai/2025/learn-openvino/openvino-samples/hello-query-device.html)
+OpenVINO contains *hello_query_device* sample application: [link](https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/hello-query-device.html)
 
 With this option, you can check whether Intel XMX(Xe Matrix Extension) feature is properly recognized or not. This is a hardware feature to accelerate matrix operations and available on some discrete GPUs.
 

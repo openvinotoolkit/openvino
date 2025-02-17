@@ -41,7 +41,7 @@ Install required dependencies:
          pip install  nncf==2.14.1 onnx==1.17.0 optimum-intel==1.21.0
          pip install openvino==2025.0 openvino-tokenizers==2025.0 openvino-genai==2025.0
 
-         For the pre-production version, use the following line, instead:
+      For the pre-production version, use the following line, instead:
 
       .. code-block:: console
 
