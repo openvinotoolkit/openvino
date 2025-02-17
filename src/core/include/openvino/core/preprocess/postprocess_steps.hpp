@@ -33,6 +33,8 @@ public:
     /// \brief Default destructor
     ~PostProcessSteps();
 
+    PostProcessSteps& clamp(double min_value, double max_value);
+
     /// \brief Add convert element type post-process operation
     ///
     /// \param type Desired type of output. If not specified, type will be obtained from 'tensor' output information

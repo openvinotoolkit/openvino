@@ -712,6 +712,23 @@ std::tuple<std::vector<Output<Node>>, bool> PreStepsList::cut_last_channel(const
 }
 
 //------------- Post processing ------
+void PostStepsList::add_clamp(double min_value, double max_value) {
+    std::string name = "clamp(min " + std::to_string(min_value) + ", max " + std::to_string(max_value) + ")";
+
+    m_actions.emplace_back(
+        [min_value, max_value](const Output<Node>& node, PostprocessingContext& ctxt) {
+            auto element_type = node.get_element_type();
+            OPENVINO_ASSERT(element_type.is_real(),
+                            "Clamp postprocessing can be applied to 'double' inputs. Consider using "
+                            "'convert_element_type' before clamping. Current type is: ",
+                            element_type);
+
+            auto clamp_op = std::make_shared<ov::op::v0::Clamp>(node, min_value, max_value);
+            return std::make_tuple(Output<Node>{clamp_op}, true);
+        },
+        name);
+}
+
 void PostStepsList::add_convert_impl(const element::Type& type) {
     m_actions.emplace_back(
         [type](const Output<Node>& node, PostprocessingContext& ctxt) {
