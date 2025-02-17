@@ -57,8 +57,6 @@ class TestUnsortedSegmentSum(CommonTFLayerTest):
     def test_unsorted_segment_sum_basic(self, params, data_type, segment_ids_type, num_segments_type, ie_device,
                                         precision, ir_version, temp_dir,
                                         use_legacy_frontend):
-        if ie_device == 'GPU':
-            pytest.skip("156362: No layout format available for embeddingsegmentssum:UnsortedSegmentSum on GPU")
         self._test(*self.create_unsorted_segment_sum_net(**params,
                                                          data_type=data_type, segment_ids_type=segment_ids_type,
                                                          num_segments_type=num_segments_type),
