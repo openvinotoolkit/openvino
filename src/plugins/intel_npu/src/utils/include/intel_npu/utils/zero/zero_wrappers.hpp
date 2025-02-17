@@ -61,7 +61,7 @@ class CommandList {
 public:
     friend class CommandQueue;
     CommandList() = delete;
-    CommandList(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
+    CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                 const uint32_t& group_ordinal,
                 bool mtci_is_supported = false);
     CommandList(const CommandList&) = delete;
@@ -85,7 +85,7 @@ public:
     }
 
 private:
-    std::shared_ptr<ZeroInitStructsHolder> _initStructs;
+    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
 
     Logger _log;
 
@@ -120,7 +120,7 @@ private:
 class CommandQueue {
 public:
     CommandQueue() = delete;
-    CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
+    CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                  const ze_command_queue_priority_t& priority,
                  const uint32_t& group_ordinal,
                  bool turbo = false);
@@ -138,7 +138,7 @@ public:
     }
 
 private:
-    std::shared_ptr<ZeroInitStructsHolder> _initStructs;
+    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
 
     Logger _log;
 
