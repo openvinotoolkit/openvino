@@ -853,6 +853,7 @@ struct ExecCompressedDispatcher {
 
 private:
     void ExecCompressed8Bit_dispatch(ExecCompressedContext& ctx) {
+        (void)ctx;
         OV_SWITCH(intel_cpu,
                   ExecCompressed8BitDispatcher,
                   ctx,

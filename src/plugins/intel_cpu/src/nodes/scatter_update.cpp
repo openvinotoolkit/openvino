@@ -464,6 +464,7 @@ struct ScatterElementsUpdateDispatcher {
 
 private:
     void scatterElementsUpdate_dispatch(ScatterElementsUpdateContext& ctx) {
+        (void)ctx;
         using namespace scatter_reductions;
         using DT_NONE = std::pair<DataType, ReduceNone>;
         using DT_SUM = std::pair<DataType, ReduceAdd>;
@@ -521,6 +522,7 @@ struct ScatterNDUpdateDispatcher {
 
 private:
     void scatterNDUpdate_dispatch(ScatterNDUpdateContext& ctx) {
+        (void)ctx;
         using namespace scatter_reductions;
         // ReduceNone does not depend on DataType.
         using DT_NONE = ReduceNone;

@@ -1107,6 +1107,8 @@ struct isSupported {
 };
 
 bool is_supported_convert(ov::element::Type srcPrc, ov::element::Type dstPrc) {
+    (void)srcPrc;
+    (void)dstPrc;
     isSupportedContext ctx;
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_LIST);
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_BIN_LIST);

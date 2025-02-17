@@ -365,6 +365,7 @@ void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_
     }
 
     auto estimateReorderOverhead = [&](const ov::intel_cpu::NodeDesc& supportedPrimitiveDesc, size_t i) {
+        (void)i;
         int estimate = 0;
         auto inputNodesNum = supportedPrimitiveDesc.getConfig().inConfs.size();
         for (size_t j = 0; j < inputNodesNum; j++) {
