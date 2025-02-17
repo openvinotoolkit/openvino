@@ -96,7 +96,7 @@ private:
 class Fence {
 public:
     Fence() = delete;
-    Fence(const CommandQueue& command_queue);
+    Fence(const std::shared_ptr<CommandQueue>& command_queue);
     Fence(const Fence&) = delete;
     Fence(Fence&&) = delete;
     Fence& operator=(const Fence&) = delete;
@@ -110,6 +110,8 @@ public:
     }
 
 private:
+    std::shared_ptr<CommandQueue> _command_queue;
+
     ze_fence_handle_t _handle = nullptr;
 
     Logger _log;

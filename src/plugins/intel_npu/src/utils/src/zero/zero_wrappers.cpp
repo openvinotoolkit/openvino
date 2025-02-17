@@ -175,9 +175,11 @@ CommandQueue::~CommandQueue() {
     }
 }
 
-Fence::Fence(const CommandQueue& command_queue) : _log("Fence", Logger::global().level()) {
+Fence::Fence(const std::shared_ptr<CommandQueue>& command_queue)
+    : _command_queue(command_queue),
+      _log("Fence", Logger::global().level()) {
     ze_fence_desc_t fence_desc = {ZE_STRUCTURE_TYPE_FENCE_DESC, nullptr, 0};
-    THROW_ON_FAIL_FOR_LEVELZERO("zeFenceCreate", zeFenceCreate(command_queue.handle(), &fence_desc, &_handle));
+    THROW_ON_FAIL_FOR_LEVELZERO("zeFenceCreate", zeFenceCreate(_command_queue->handle(), &fence_desc, &_handle));
 }
 void Fence::reset() const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeFenceReset", zeFenceReset(_handle));
