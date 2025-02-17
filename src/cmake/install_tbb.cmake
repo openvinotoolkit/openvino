@@ -202,10 +202,10 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
 
         if (EXISTS "${TBBROOT}/LICENSE")
             install(FILES "${TBBROOT}/LICENSE"
-            DESTINATION "${OV_TBB_DIR_INSTALL}"
-            ${OV_CPACK_COMP_TBB_EXCLUDE_ALL}
-            RENAME "TBB-LICENSE"
-            COMPONENT tbb)
+                    DESTINATION "${OV_TBB_DIR_INSTALL}"
+                    ${OV_CPACK_COMP_TBB_EXCLUDE_ALL}
+                    RENAME "TBB-LICENSE"
+                    COMPONENT tbb)
         endif()
 
         if(WIN32)
