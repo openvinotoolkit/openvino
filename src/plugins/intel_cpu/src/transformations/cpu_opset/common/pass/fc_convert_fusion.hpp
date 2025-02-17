@@ -8,10 +8,10 @@
 
 namespace ov {
 namespace intel_cpu {
-class FcConvertFusion : public ov::pass::MatcherPass {
+class FullyConnectedConvertFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("FcConvertFusion", "0");
-    FcConvertFusion();
+    OPENVINO_RTTI("FullyConnectedConvertFusion", "0");
+    FullyConnectedConvertFusion();
 };
 
 }  // namespace intel_cpu

@@ -40,7 +40,8 @@ using namespace dnnl::impl::cpu::x64;
 namespace ov::intel_cpu::node {
 
 struct RMSNormKey {
-    ov::element::Type precision;
+    ov::element::Type in_precision;
+    ov::element::Type out_precision;
     size_t data_size;
     size_t scale_size;
     float eps;
@@ -50,7 +51,8 @@ struct RMSNormKey {
 
 size_t RMSNormKey::hash() const {
     size_t seed = 0;
-    seed = hash_combine(seed, precision.hash());
+    seed = hash_combine(seed, in_precision.hash());
+    seed = hash_combine(seed, out_precision.hash());
     seed = hash_combine(seed, data_size);
     seed = hash_combine(seed, scale_size);
     seed = hash_combine(seed, eps);
@@ -60,7 +62,7 @@ size_t RMSNormKey::hash() const {
 
 bool RMSNormKey::operator==(const RMSNormKey& rhs) const {
     auto retVal =
-        precision == rhs.precision && data_size == rhs.data_size && scale_size == rhs.scale_size && eps == rhs.eps;
+        in_precision == rhs.in_precision && out_precision == rhs.out_precision && data_size == rhs.data_size && scale_size == rhs.scale_size && eps == rhs.eps;
 
     return retVal;
 }
@@ -91,11 +93,11 @@ static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker,
 }
 
 struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
-    RMSNormExecutor(ov::element::Type precision, size_t data_size, size_t scale_size, float eps)
-        : m_precision(precision) {
+    RMSNormExecutor(ov::element::Type in_precision, ov::element::Type out_precision, size_t data_size, size_t scale_size, float eps)
+        : m_in_precision(in_precision), m_out_precision(out_precision) {
         kernel::jit_rms_compile_params jcp;
-        jcp.src_prc = precision;
-        jcp.dst_prc = precision;
+        jcp.src_prc = in_precision;
+        jcp.dst_prc = out_precision;
         jcp.data_size = data_size;
         jcp.scale_size = scale_size;
         jcp.eps = eps;
@@ -109,8 +111,8 @@ struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
         const auto& src_strides = inputs[0]->getDescWithType<BlockedMemoryDesc>()->getStrides();
         const auto& dst_strides = output->getDescWithType<BlockedMemoryDesc>()->getStrides();
         const auto& shape = inputs[0]->getStaticDims();
-        const auto src_stride = src_strides[src_strides.size() - 2] * m_precision.size();
-        const auto dst_stride = dst_strides[dst_strides.size() - 2] * m_precision.size();
+        const auto src_stride = src_strides[src_strides.size() - 2] * m_in_precision.size();
+        const auto dst_stride = dst_strides[dst_strides.size() - 2] * m_out_precision.size();
         auto n = shape_size(shape) / shape[shape.size() - 1];
         parallel_for(n, [&](size_t i) {
             execJitKernel(m_kernel, src + i * src_stride, dst + i * dst_stride, scale);
@@ -118,7 +120,8 @@ struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
     }
 
 private:
-    ov::element::Type m_precision;
+    ov::element::Type m_in_precision;
+    ov::element::Type m_out_precision;
     std::shared_ptr<kernel::JitKernelBase> m_kernel;
 };
 #endif  // OPENVINO_ARCH_X86_64
@@ -137,10 +140,14 @@ void RMSNorm::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty()) {
         return;
     }
-    auto precision = getOriginalInputPrecisionAtPort(0);
-    if (none_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
-        precision = ov::element::f32;
-    }
+
+    auto in_precision = getOriginalInputPrecisionAtPort(0);
+    if (!one_of(in_precision, ov::element::f32, ov::element::bf16, ov::element::f16))
+        in_precision = ov::element::f32;
+
+    auto out_precision = getOriginalOutputPrecisionAtPort(0);
+    if (!one_of(out_precision, ov::element::f32, ov::element::bf16, ov::element::f16))
+        out_precision = ov::element::f32;
 
     auto impl_type = [&]() {
         if (mayiuse(cpu::x64::avx512_core)) {
@@ -152,22 +159,23 @@ void RMSNorm::initSupportedPrimitiveDescriptors() {
         return impl_desc_type::ref;
     }();
 
-    addSupportedPrimDesc({{LayoutType::ncsp, precision}, {LayoutType::ncsp, ov::element::f32}},
-                         {{LayoutType::ncsp, precision}},
+    addSupportedPrimDesc({{LayoutType::ncsp, in_precision}, {LayoutType::ncsp, ov::element::f32}},
+                         {{LayoutType::ncsp, out_precision}},
                          impl_type);
 }
 
 void RMSNorm::createPrimitive() {
-    auto precision = getOriginalInputPrecisionAtPort(0);
+    auto in_precision = getOriginalInputPrecisionAtPort(0);
+    auto out_precision = getOriginalOutputPrecisionAtPort(0);
     auto data_dims = getSrcMemoryAtPort(0)->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
     size_t data_size = data_dims[data_dims.size() - 1];
     size_t scale_size = shape_size(getSrcMemoryAtPort(1)->getDescWithType<BlockedMemoryDesc>()->getBlockDims());
 
-    RMSNormKey key = {precision, data_size, scale_size, m_eps};
+    RMSNormKey key = {in_precision, out_precision, data_size, scale_size, m_eps};
 
     auto builder = [&]([[maybe_unused]] const RMSNormKey& key) -> std::shared_ptr<Executor> {
 #ifdef OPENVINO_ARCH_X86_64
-        return std::make_shared<RMSNormExecutor>(precision, data_size, scale_size, m_eps);
+        return std::make_shared<RMSNormExecutor>(in_precision, out_precision, data_size, scale_size, m_eps);
 #else
         return nullptr;
 #endif
@@ -175,7 +183,14 @@ void RMSNorm::createPrimitive() {
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
+<<<<<<< HEAD
     OPENVINO_ASSERT(result.first, "RMSNorm Executor creation fails with precision " + precision.to_string());
+=======
+    if (!result.first) {
+        OPENVINO_THROW("RMSNorm Executor creation fails with input precision " + in_precision.to_string() +
+            " and output precision " + out_precision.to_string());
+    }
+>>>>>>> ef64418045 (remove more convert nodes)
     m_executor = result.first;
 }
 
