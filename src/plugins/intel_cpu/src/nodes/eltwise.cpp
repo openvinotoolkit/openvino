@@ -674,7 +674,8 @@ public:
 
 #if defined(OPENVINO_ARCH_RISCV64)
         if (mayiuse(ov::intel_cpu::riscv64::gcv)) {
-            _pKernel.reset(new ov::intel_cpu::riscv64::jit_uni_eltwise_generic<ov::intel_cpu::riscv64::gcv>(jep, eltwise_data));
+            _pKernel.reset(
+                new ov::intel_cpu::riscv64::jit_uni_eltwise_generic<ov::intel_cpu::riscv64::gcv>(jep, eltwise_data));
         } else {
             OPENVINO_THROW("Can't create jit eltwise kernel");
         }
@@ -835,7 +836,7 @@ public:
         return check_precisions(input_precisions, node->getOriginalOutputPrecisions(), supported_precisions);
 #endif
 
-        // Unsupported AArchs' should return false: 
+        // Unsupported AArchs' should return false:
         return false;
     }
 
