@@ -5,8 +5,11 @@
 #include "serialization.hpp"
 
 #include "intel_npu/config/config.hpp"
+#include "lazy_tensor.hpp"
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "spatial.hpp"
 
 void ov::npuw::s11n::write(std::ostream& stream, const std::streampos& var) {
@@ -113,6 +116,10 @@ void ov::npuw::s11n::write_any(std::ostream& stream, const ov::Any& var) {
     } else {
         NPUW_ASSERT(false && "Unsupported type");
     }
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::weights::LazyTensor& var) {
+    var.serialize(stream);
 }
 
 void ov::npuw::s11n::read(std::istream& stream, std::streampos& var) {
@@ -259,5 +266,70 @@ void ov::npuw::s11n::read_any(std::istream& stream, ov::Any& var) {
         var = val;
     } else {
         NPUW_ASSERT(false && "Unsupported type");
+    }
+}
+
+void ov::npuw::s11n::read(std::istream& stream, ov::npuw::weights::LazyTensor& var) {
+    var = ov::npuw::weights::LazyTensor::deserialize(stream);
+}
+
+// Weightless
+// FIXME: all serialization needs a good rewriting
+void ov::npuw::s11n::write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const Context& ctx) {
+    write(stream, var.size());
+    for (const auto& t : var) {
+        if (!t) {
+            write(stream, false);
+            continue;
+        }
+        write(stream, true);
+        auto data = t.data();
+        auto iter = ctx.const_to_offset.find(data);
+        if (iter == ctx.const_to_offset.end()) {
+            write(stream, false);
+            write(stream, t);
+        } else {
+            write(stream, true);
+            write(stream, t.get_element_type().to_string());
+            write(stream, t.get_shape());
+            write(stream, t.get_byte_size());
+            write(stream, iter->second);  // offset in weights file
+        }
+    }
+}
+
+void ov::npuw::s11n::read_weightless(std::istream& stream,
+                                     std::vector<ov::Tensor>& var,
+                                     const ov::npuw::s11n::Weights& weights) {
+    var.clear();
+    std::size_t size;
+    read(stream, size);
+    for (std::size_t i = 0; i < size; ++i) {
+        bool is_initialized = false;
+        read(stream, is_initialized);
+        if (!is_initialized) {
+            var.push_back(ov::Tensor());
+            continue;
+        }
+        bool is_weightless = false;
+        read(stream, is_weightless);
+        if (is_weightless) {
+            std::string type_str;
+            read(stream, type_str);
+            ov::element::Type type(type_str);
+            ov::Shape shape;
+            read(stream, shape);
+            std::size_t byte_size = 0;
+            read(stream, byte_size);
+            std::size_t offset = 0;
+            read(stream, offset);
+            ov::Tensor t(type, shape);
+            std::memcpy(t.data(), weights->get_ptr(offset), byte_size);
+            var.push_back(t);
+        } else {
+            ov::Tensor t;
+            read(stream, t);
+            var.push_back(t);
+        }
     }
 }
