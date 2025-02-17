@@ -14,6 +14,7 @@
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "serialization.hpp"
 #include "transformations/convert_precision.hpp"
 
@@ -30,10 +31,10 @@ public:
 protected:
     // generic part of matchers, to transpose v-tensors, and concat, and update matmul args
     void transpose_matmul_b(Context::Ref ctx,
-            std::shared_ptr<ov::Node> node_param,
-            std::shared_ptr<ov::Node> node_concat,
-            std::shared_ptr<ov::Node> node_transpose,
-            std::shared_ptr<ov::Node> node_matmul) {
+                            std::shared_ptr<ov::Node> node_param,
+                            std::shared_ptr<ov::Node> node_concat,
+                            std::shared_ptr<ov::Node> node_transpose,
+                            std::shared_ptr<ov::Node> node_matmul) {
         auto matched_param = std::static_pointer_cast<ov::op::v0::Parameter>(node_param);
         auto matched_concat = std::static_pointer_cast<ov::op::v0::Concat>(node_concat);
         auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(node_transpose);
@@ -92,7 +93,11 @@ private:
             auto matched_node_transpose = node_to_output.at(transpose).get_node_shared_ptr();
             auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
 
-            transpose_matmul_b(ctx, matched_node_param, matched_node_concat, matched_node_transpose, matched_node_matmul);
+            transpose_matmul_b(ctx,
+                               matched_node_param,
+                               matched_node_concat,
+                               matched_node_transpose,
+                               matched_node_matmul);
             LOG_DEBUG("vtensors transposed: LLama2 pattern");
             return true;
         };
@@ -126,10 +131,10 @@ private:
         auto callback = [=](ov::pass::pattern::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
 
-            auto matched_node_param     = node_to_output.at(param).get_node_shared_ptr();
-            auto matched_node_concat    = node_to_output.at(concat).get_node_shared_ptr();
+            auto matched_node_param = node_to_output.at(param).get_node_shared_ptr();
+            auto matched_node_concat = node_to_output.at(concat).get_node_shared_ptr();
             auto matched_node_transpose = node_to_output.at(transpose).get_node_shared_ptr();
-            auto matched_node_matmul    = node_to_output.at(matmul).get_node_shared_ptr();
+            auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
             auto matched_node_unsqueeze = node_to_output.at(unsqueeze).get_node_shared_ptr();
             auto matched_node_unsqueeze_axes = node_to_output.at(unsqueeze_axes).get_node_shared_ptr();
             auto matched_node_broadcast = node_to_output.at(broadcast).get_node_shared_ptr();
@@ -140,17 +145,19 @@ private:
             auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(matched_node_transpose);
             auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
 
-            auto matched_unsqueeze  = std::static_pointer_cast<ov::op::v0::Unsqueeze>(matched_node_unsqueeze);
-            auto matched_broadcast  = std::static_pointer_cast<ov::op::v3::Broadcast>(matched_node_broadcast);
-            auto matched_reshape    = std::static_pointer_cast<ov::op::v1::Reshape>(matched_node_reshape);
+            auto matched_unsqueeze = std::static_pointer_cast<ov::op::v0::Unsqueeze>(matched_node_unsqueeze);
+            auto matched_broadcast = std::static_pointer_cast<ov::op::v3::Broadcast>(matched_node_broadcast);
+            auto matched_reshape = std::static_pointer_cast<ov::op::v1::Reshape>(matched_node_reshape);
 
             auto shape_broadcast = matched_broadcast->get_output_shape(0);
             OPENVINO_ASSERT(shape_broadcast.size() == 5u);
             std::swap(shape_broadcast[3], shape_broadcast[4]);
 
-            LOG_DEBUG("shape_broadcast for: "<< matched_broadcast->get_friendly_name() <<", shape=" << shape_broadcast);
+            LOG_DEBUG("shape_broadcast for: " << matched_broadcast->get_friendly_name()
+                                              << ", shape=" << shape_broadcast);
 
-            const auto broadcast_axes_node = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{5}, shape_broadcast);
+            const auto broadcast_axes_node =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{5}, shape_broadcast);
             broadcast_axes_node->set_friendly_name(matched_broadcast->get_friendly_name() + "/new_broadcast_shape");
             matched_broadcast->input(1).replace_source_output(broadcast_axes_node);
 
@@ -158,9 +165,10 @@ private:
             OPENVINO_ASSERT(shape_reshape.size() == 4u);
             std::swap(shape_reshape[2], shape_reshape[3]);
 
-            LOG_DEBUG("shape_reshape for: "<< matched_reshape->get_friendly_name() <<", shape=" << shape_reshape);
+            LOG_DEBUG("shape_reshape for: " << matched_reshape->get_friendly_name() << ", shape=" << shape_reshape);
 
-            const auto reshape_axes_node = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, shape_reshape);
+            const auto reshape_axes_node =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, shape_reshape);
             reshape_axes_node->set_friendly_name(matched_reshape->get_friendly_name() + "/new_reshape_shape");
             matched_reshape->input(1).replace_source_output(reshape_axes_node);
 
@@ -539,6 +547,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     ov::AnyMap npuw_llm_props;
     ov::AnyMap other_props;
     split_llm_properties(properties, npuw_llm_props, other_props);
+    // Solely used for serialization at the moment
+    m_non_llm_props = other_props;
 
     // Remove "NPUW_LLM_PREFILL_CONFIG", "NPUW_LLM_GENERATE_CONFIG" from map,
     // to not pass them into ::intel_npu::Config object, as we don't need to
@@ -669,28 +679,42 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     write(stream, m_kvcache_desc.total_size);
     write(stream, m_kvcache_desc.num_stored_tokens);
     write(stream, m_kvcache_desc.dim);
+    write(stream, m_kvcache_desc.v_tensors_transposed);
 
     // Write config
     write(stream, m_cfg);
+
+    // Identify either full flow or weightless
+    bool is_weightless = true;
+    if (m_non_llm_props.count(ov::cache_mode.name()) &&
+        m_non_llm_props.at(ov::cache_mode.name()).as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
+        LOG_INFO("Serialization will be done via flow with weights.");
+        is_weightless = false;
+    }
+    write(stream, is_weightless);
 
     // Serialize CompiledModels
     m_kvcache_compiled->serialize(stream);
     m_prefill_compiled->serialize(stream);
 
-    // Serialize weights bank (if required)
+    // Serialize bank name
     const auto& kv_bank = m_kvcache_compiled->m_weights_bank;
     const auto& p_bank = m_prefill_compiled->m_weights_bank;
     NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank && "Prefill and KVCache models' weight bank should be shared!");
-    // FIXME: support weightless flow
     write(stream, kv_bank->get_name());
-    kv_bank->serialize(stream);
+
+    if (!is_weightless) {
+        // Serialize weights bank
+        kv_bank->serialize(stream);
+    }
 
     LOG_INFO("Done.");
 }
 
 std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserialize(
     std::istream& stream,
-    const std::shared_ptr<const ov::IPlugin>& plugin) {
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& properties) {
     LOG_INFO("Deserializing LLMCompiledModel...");
     LOG_BLOCK();
 
@@ -751,27 +775,41 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     read(stream, compiled->m_kvcache_desc.total_size);
     read(stream, compiled->m_kvcache_desc.num_stored_tokens);
     read(stream, compiled->m_kvcache_desc.dim);
+    read(stream, compiled->m_kvcache_desc.v_tensors_transposed);
 
     // Deserialize config
     read(stream, compiled->m_cfg);
     compiled->implement_properties();
 
-    // Deserialize CompiledModels
-    compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin);
-    compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin);
+    // Deserialize flow indicator
+    bool is_weightless = false;
+    read(stream, is_weightless);
 
-    // Deserialize weights bank (if required)
+    // Deserialize CompiledModels
+    compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, properties);
+    compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, properties);
+
+    // Deserialize weights bank name
     std::string bank_name;
     read(stream, bank_name);
-    auto bank = ov::npuw::weights::Bank::deserialize(stream, compiled->get_plugin()->get_core(), bank_name);
 
-    // FIXME: support weightless option
-    compiled->m_kvcache_compiled->m_weights_bank = bank;
-    compiled->m_prefill_compiled->m_weights_bank = bank;
+    if (is_weightless) {
+        auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
 
-    // After bank deserialization - reconstruct NPU closures from the bank
-    compiled->m_kvcache_compiled->reconstruct_closure();
-    compiled->m_prefill_compiled->reconstruct_closure();
+        compiled->m_kvcache_compiled->m_weights_bank = bank;
+        compiled->m_prefill_compiled->m_weights_bank = bank;
+
+        compiled->m_kvcache_compiled->finalize_weights_bank();
+        compiled->m_prefill_compiled->finalize_weights_bank();
+    } else {
+        auto bank = ov::npuw::weights::Bank::deserialize(stream, compiled->get_plugin()->get_core(), bank_name);
+
+        compiled->m_kvcache_compiled->m_weights_bank = bank;
+        compiled->m_prefill_compiled->m_weights_bank = bank;
+
+        compiled->m_kvcache_compiled->reconstruct_closure();
+        compiled->m_prefill_compiled->reconstruct_closure();
+    }
 
     LOG_INFO("Done.");
     return compiled;
