@@ -36,7 +36,6 @@ ISTFTKernelBase::DispatchData ISTFTKernelBase::SetDefault(const ISTFT_params& pa
     const auto outLayout = output.GetLayout();
 
     OPENVINO_ASSERT(output.Dimentions() == 4);
-    OPENVINO_ASSERT(output.X().v == 2);
 
     std::vector<std::vector<Tensor::DataChannelName>> dimsByGws;
 
