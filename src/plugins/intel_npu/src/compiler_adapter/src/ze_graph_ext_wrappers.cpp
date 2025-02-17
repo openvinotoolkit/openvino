@@ -219,7 +219,7 @@ static std::unordered_set<std::string> parseQueryResult(std::vector<char>& data)
             start = ++i;
         } else if (dataString[i] == '>') {
             std::string temp(dataString.begin() + start, dataString.begin() + i);
-            result.insert(temp);
+            result.insert(std::move(temp));
             i++;
         } else {
             i++;
