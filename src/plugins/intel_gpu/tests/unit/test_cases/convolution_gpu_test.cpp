@@ -4645,7 +4645,6 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
 }
 
 TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activations_per_channel_dynamic) {
-    GTEST_SKIP();
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::u8, format::bfyx, {1, 2, 5, 4} });
@@ -7685,9 +7684,7 @@ INSTANTIATE_TEST_SUITE_P(convolution_grouped_fsv4_fsv16,
                             TestParamType_grouped_convolution_gpu(3, 1, 1, 80, 252, 3, 1, 1, 4, 1, 1, false, false, false, format::b_fs_yx_fsv4, ""),
                             TestParamType_grouped_convolution_gpu(3, 1, 1, 80, 252, 3, 1, 1, 4, 1, 1, false, true, false, format::b_fs_yx_fsv4, ""),
                             TestParamType_grouped_convolution_gpu(3, 1, 1, 80, 252, 3, 1, 1, 4, 1, 1, true, false, false, format::b_fs_yx_fsv4, ""),
-
-                            // TODO: It will be fix soon, test reference is wrong in new driver.
-                            // TestParamType_grouped_convolution_gpu(3, 1, 1, 80, 252, 3, 1, 1, 4, 1, 1, true, true, false, format::b_fs_yx_fsv4, ""),
+                            TestParamType_grouped_convolution_gpu(3, 1, 1, 80, 252, 3, 1, 1, 4, 1, 1, true, true, false, format::b_fs_yx_fsv4, ""),
                             TestParamType_grouped_convolution_gpu(3, 1, 1, 80, 252, 3, 1, 1, 4, 1, 1, true, false, true, format::b_fs_yx_fsv4, ""),
 
                             // Format: b_fs_yx_fsv16

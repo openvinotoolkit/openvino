@@ -54,6 +54,7 @@
 #include "snippets/lowered/pass/validate_expanded_loops.hpp"
 #include "snippets/lowered/pass/set_load_store_scalar.hpp"
 #include "snippets/lowered/pass/extract_loop_invariants.hpp"
+#include "snippets/lowered/pass/set_dynamic_wa_to_outermost_loop.hpp"
 
 #include "snippets/lowered/pass/init_registers.hpp"
 
@@ -362,6 +363,10 @@ Subgraph::convert_body_to_linear_ir(size_t min_parallel_work_amount, size_t min_
     lowering_config.m_enable_domain_optimization = !config.m_has_domain_sensitive_ops;
     lowering_config.m_min_parallel_work_amount = min_parallel_work_amount;
     lowering_config.m_min_kernel_work_amount = min_kernel_work_amount;
+#ifdef SNIPPETS_DEBUG_CAPS
+    lowering_config.debug_config = config.m_debug_config;
+    OPENVINO_ASSERT(lowering_config.debug_config, "Debug config is not initialized");
+#endif  // SNIPPETS_DEBUG_CAPS
 
     m_linear_ir = std::make_shared<lowered::LinearIR>(body_ptr(), shape_infer_factory, lowering_config);
     m_shape_infer = m_linear_ir->get_shape_infer_instance();
@@ -467,6 +472,7 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     pipeline.register_pass<lowered::pass::ValidateShapes>();
     pipeline.register_pass<lowered::pass::ValidateUnifiedLoops>();
     pipeline.register_pass<lowered::pass::InitLoops>();
+    pipeline.register_pass<lowered::pass::SetDynamicWAToOuterMostLoop>();
     pipeline.register_pass<lowered::pass::InsertLoops>();
     pipeline.register_pass<lowered::pass::AllocateBuffers>(m_linear_ir->get_config().m_are_buffers_optimized);
     pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
@@ -479,7 +485,7 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     validation_pipeline.run(*m_linear_ir);
 
 #ifdef SNIPPETS_DEBUG_CAPS
-    if (m_linear_ir->get_config().debug_config.perf_count_mode != DebugCapsConfig::PerfCountMode::Disabled) {
+    if (m_linear_ir->get_config().debug_config->perf_count_mode != DebugCapsConfig::PerfCountMode::Disabled) {
         lowered::pass::InsertPerfCount perf_count_pass({});
         perf_count_pass.run(*m_linear_ir, m_linear_ir->cbegin(), m_linear_ir->cend());
     }

@@ -6,9 +6,7 @@
 
 #include "node.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 enum class MulticlassNmsSortResultType {
     CLASSID,  // sort selected boxes by class id (ascending) in each batch element
@@ -18,17 +16,18 @@ enum class MulticlassNmsSortResultType {
 
 class MultiClassNms : public Node {
 public:
-    MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
+    bool neverExecute() const override;
     bool isExecutable() const override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
 
     bool needShapeInfer() const override {
         return false;
@@ -92,9 +91,9 @@ private:
     std::vector<filteredBoxes> m_filtBoxes;  // rois after nms for each class in each image
 
     void checkPrecision(const ov::element::Type prec,
-                        const std::vector<ov::element::Type> precList,
-                        const std::string name,
-                        const std::string type);
+                        const std::vector<ov::element::Type>& precList,
+                        const std::string& name,
+                        const std::string& type);
 
     float intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized);
 
@@ -124,6 +123,4 @@ private:
                              const bool shared);
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

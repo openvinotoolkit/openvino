@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <functional>
+#include <utility>
 
 #include "graph.h"
 #include "node.h"
@@ -12,8 +13,7 @@
 #include "nodes/executors/executor_config.hpp"
 #include "post_ops.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 template <typename Attrs>
 class GraphEmitter {
@@ -26,13 +26,13 @@ public:
                  const Attrs& attrs,
                  const PostOps& postOps,
                  const MemoryArgs& memory,
-                 const ExecutorContext::CPtr context,
+                 ExecutorContext::CPtr context,
                  const std::string& name,
                  ensureAttrsStrategy ensureAttrs = {})
         : descs(descs),
           attrs(attrs),
           postOps(postOps),
-          context(context),
+          context(std::move(context)),
           name(name),
           ensureAttrs(std::move(ensureAttrs)) {
         OPENVINO_THROW("Graph emitter is not implemented yet!");
@@ -41,7 +41,7 @@ public:
     GraphEmitter& createGraph(const MemoryDescArgs& descs,
                               const Attrs& attrs,
                               const PostOps& postOps,
-                              const ExecutorContext::CPtr context) {
+                              const ExecutorContext::CPtr& context) {
         OPENVINO_THROW("Not implemented yet!");
         return *this;
     }
@@ -123,5 +123,4 @@ private:
     GraphPtr graph;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

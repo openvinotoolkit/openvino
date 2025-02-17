@@ -10,8 +10,7 @@
 #include "snippets/generator.hpp"
 #include "snippets/op/subgraph.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct SubgraphAttrs {
     // Local copy of subgraph node for canonization & code generation
@@ -46,8 +45,8 @@ public:
     SubgraphBaseExecutor(const std::shared_ptr<CPURuntimeConfig>& snippet_config,
                          const std::shared_ptr<SubgraphAttrs>& snippet_attrs,
                          const std::shared_ptr<SubgraphCodeGenerator>& snippet,
-                         const std::vector<ptrdiff_t>& start_offset_in,
-                         const std::vector<ptrdiff_t>& start_offset_out,
+                         std::vector<ptrdiff_t> start_offset_in,
+                         std::vector<ptrdiff_t> start_offset_out,
                          const BufferScratchpadAllocator& allocator,
                          const ov::intel_cpu::MultiCacheWeakPtr& kernel_cache);
     virtual ~SubgraphBaseExecutor() = default;
@@ -73,8 +72,9 @@ protected:
     virtual void parallel_forNd(const initializer_functor& initializer, const call_functor& caller);
 
     inline void update_scratchpad_ptr(void*& scratchpad_ptr, size_t ithr) const {
-        if (m_buffer_scratchpad_size > 0)
+        if (m_buffer_scratchpad_size > 0) {
             scratchpad_ptr = m_buffer_scratchpad->getDataAs<uint8_t>() + ithr * m_buffer_scratchpad_size;
+        }
     }
 
     std::shared_ptr<snippets::Schedule> m_schedule;
@@ -113,21 +113,23 @@ protected:
                                const std::vector<ptrdiff_t>& start_offset_in,
                                const std::vector<ptrdiff_t>& start_offset_out,
                                size_t ithr) {
-        for (size_t i = 0; i < srcMemPtrs.size(); i++)
+        for (size_t i = 0; i < srcMemPtrs.size(); i++) {
             call_args.src_ptrs[i] = srcMemPtrs[i]->getDataAs<const uint8_t>() + start_offset_in[i];
+        }
 
-        for (size_t i = 0; i < dstMemPtrs.size(); i++)
+        for (size_t i = 0; i < dstMemPtrs.size(); i++) {
             call_args.dst_ptrs[i] = dstMemPtrs[i]->getDataAs<uint8_t>() + start_offset_out[i];
+        }
     }
 };
 
 // Specialized dynamic executor based on shape agnostic kernel for the specific input shapes
 class SubgraphDynamicSpecializedBaseExecutor {
 public:
-    SubgraphDynamicSpecializedBaseExecutor(const std::shared_ptr<CPURuntimeConfig>& snippet_config) {
-        m_buffer_offsets = snippet_config->buffer_cluster_offsets;
-        m_data_offsets = snippet_config->io_data_offsets;
-        m_loop_args = snippet_config->loop_args;
+    SubgraphDynamicSpecializedBaseExecutor(const std::shared_ptr<CPURuntimeConfig>& snippet_config)
+        : m_buffer_offsets(snippet_config->buffer_cluster_offsets),
+          m_data_offsets(snippet_config->io_data_offsets),
+          m_loop_args(snippet_config->loop_args) {
         m_reset_exec_table_state = snippet_config->kernel_executor_table->get_state_reset();
     }
     virtual ~SubgraphDynamicSpecializedBaseExecutor() = default;
@@ -152,10 +154,12 @@ protected:
         src_ptrs.resize(in_num, nullptr);
         dst_ptrs.resize(out_num, nullptr);
 
-        for (size_t i = 0; i < in_num; i++)
+        for (size_t i = 0; i < in_num; i++) {
             src_ptrs[i] = srcMemPtrs[i]->getDataAs<const uint8_t>() + start_offset_in[i];
-        for (size_t i = 0; i < out_num; i++)
+        }
+        for (size_t i = 0; i < out_num; i++) {
             dst_ptrs[i] = dstMemPtrs[i]->getDataAs<uint8_t>() + start_offset_out[i];
+        }
     }
 
     inline void update_ptrs(jit_snippets_call_args& call_args,
@@ -184,5 +188,4 @@ protected:
     std::function<void()> m_reset_exec_table_state;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

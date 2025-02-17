@@ -16,8 +16,7 @@
 #include "graph.h"
 #include "openvino/runtime/properties.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 /**
  * @brief      Generate streams information table according to processors type table.
  * @param[in]  input_streams is the targeted number of streams set by user via ov::num_streams or the default value.
@@ -48,8 +47,8 @@ std::vector<std::vector<int>> get_streams_info_table(
     const int input_threads,
     const int input_infer_requests,
     const int model_prefer_threads,
-    const std::string input_perf_hint,
-    const std::set<ov::hint::ModelDistributionPolicy> hint_llm_distribution_policy,
+    const std::string& input_perf_hint,
+    const std::set<ov::hint::ModelDistributionPolicy>& hint_llm_distribution_policy,
     const std::vector<std::vector<int>>& proc_type_table);
 
 /**
@@ -75,7 +74,7 @@ std::vector<std::vector<int>> get_streams_rank_table(const std::vector<std::vect
  * @return     model_prefer_threads "0" means generating the optimal threads per stream based on platform
  */
 int get_model_prefer_threads(const int num_streams,
-                             const std::vector<std::vector<int>> proc_type_table,
+                             const std::vector<std::vector<int>>& proc_type_table,
                              const std::shared_ptr<ov::Model>& model,
                              Config& config);
 
@@ -114,5 +113,4 @@ void get_num_streams(const int streams, const std::shared_ptr<ov::Model>& model,
  */
 void sort_table_by_numa_node_id(const int current_numa_node, std::vector<std::vector<int>>& proc_type_table);
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

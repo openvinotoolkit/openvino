@@ -7,10 +7,8 @@
 #include "openvino/op/string_tensor_pack.hpp"
 #include "openvino/reference/string_tensor_pack.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
-StringTensorPack::StringTensorPack(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+namespace ov::intel_cpu::node {
+StringTensorPack::StringTensorPack(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -36,8 +34,9 @@ void StringTensorPack::getSupportedDescriptors() {
 }
 
 void StringTensorPack::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
     ov::element::Type indicesPrecision = getOriginalInputPrecisionAtPort(0);
     addSupportedPrimDesc({{LayoutType::ncsp, indicesPrecision},
                           {LayoutType::ncsp, indicesPrecision},
@@ -54,8 +53,8 @@ bool StringTensorPack::needPrepareParams() const {
     return false;
 }
 
-void StringTensorPack::executeDynamicImpl(dnnl::stream strm) {
-    execute(std::move(strm));
+void StringTensorPack::executeDynamicImpl(const dnnl::stream& strm) {
+    execute(strm);
 }
 
 template <class T_idx>
@@ -85,7 +84,7 @@ bool StringTensorPack::isExecutable() const {
     return !(isInputTensorAtPortEmpty(0) || isInputTensorAtPortEmpty(1));
 }
 
-void StringTensorPack::execute(dnnl::stream strm) {
+void StringTensorPack::execute(const dnnl::stream& strm) {
     auto indicesPrecision = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     StringTensorPackContext ctx = {*this};
     OV_SWITCH(intel_cpu,
@@ -95,6 +94,4 @@ void StringTensorPack::execute(dnnl::stream strm) {
               OV_CASE(ov::element::i32, int32_t),
               OV_CASE(ov::element::i64, int64_t))
 }
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

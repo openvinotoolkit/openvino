@@ -20,17 +20,18 @@ enum MatrixNmsDecayFunction { GAUSSIAN, LINEAR };
 
 class MatrixNms : public Node {
 public:
-    MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
+    bool neverExecute() const override;
     bool isExecutable() const override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
 
     bool needShapeInfer() const override {
         return false;
@@ -105,9 +106,9 @@ private:
     size_t m_realNumBoxes = 0;
     float (*m_decay_fn)(float, float, float) = nullptr;
     void checkPrecision(const ov::element::Type prec,
-                        const std::vector<ov::element::Type> precList,
-                        const std::string name,
-                        const std::string type);
+                        const std::vector<ov::element::Type>& precList,
+                        const std::string& name,
+                        const std::string& type);
 
     size_t nmsMatrix(const float* boxesData,
                      const float* scoresData,

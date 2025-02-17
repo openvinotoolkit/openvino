@@ -9,8 +9,7 @@
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 std::vector<std::vector<int>> apply_scheduling_core_type(ov::hint::SchedulingCoreType& input_type,
                                                          const std::vector<std::vector<int>>& proc_type_table) {
@@ -48,7 +47,7 @@ std::vector<std::vector<int>> apply_scheduling_core_type(ov::hint::SchedulingCor
 
 std::vector<std::vector<int>> apply_hyper_threading(bool& input_ht_hint,
                                                     const bool input_ht_changed,
-                                                    const std::string input_pm_hint,
+                                                    const std::string& input_pm_hint,
                                                     const std::vector<std::vector<int>>& proc_type_table) {
     std::vector<std::vector<int>> result_table = proc_type_table;
 

@@ -96,14 +96,7 @@ Install necessary packages.
 .. code:: ipython3
 
     %pip install -q "openvino>=2024.0.0" "nncf>=2.9.0"
-    %pip install -q "protobuf==3.20.*" "torch>=2.1" "torchvision>=0.16" "ultralytics==8.3.0" tqdm opencv-python --extra-index-url https://download.pytorch.org/whl/cpu
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
+    %pip install -q "protobuf==3.20.*" "torch>=2.1" "torchvision>=0.16" "ultralytics==8.3.59" tqdm opencv-python --extra-index-url https://download.pytorch.org/whl/cpu
 
 Import required utility functions. The lower cell will download the
 ``notebook_utils`` Python module from GitHub.
@@ -115,35 +108,44 @@ Import required utility functions. The lower cell will download the
     # Fetch `notebook_utils` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
     
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
+    
     from notebook_utils import download_file, VideoPlayer, device_widget
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("yolov11-keypoint-detection.ipynb")
 
 .. code:: ipython3
 
     # Download a test sample
     IMAGE_PATH = Path("./data/intel_rnb.jpg")
-    download_file(
-        url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/intel_rnb.jpg",
-        filename=IMAGE_PATH.name,
-        directory=IMAGE_PATH.parent,
-    )
+    
+    if not IMAGE_PATH.exists():
+        download_file(
+            url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/intel_rnb.jpg",
+            filename=IMAGE_PATH.name,
+            directory=IMAGE_PATH.parent,
+        )
 
 
 
 .. parsed-literal::
 
-    intel_rnb.jpg:   0%|          | 0.00/288k [00:00<?, ?B/s]
+    data/intel_rnb.jpg:   0%|          | 0.00/288k [00:00<?, ?B/s]
 
 
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/intel_rnb.jpg')
+    PosixPath('/home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/yolov11-optimization/data/intel_rnb.jpg')
 
 
 
@@ -210,19 +212,19 @@ Let us consider the examples:
 .. parsed-literal::
 
     Downloading https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n-pose.pt to 'yolo11n-pose.pt'...
-
+    
 
 .. parsed-literal::
 
-    100%|██████████| 5.97M/5.97M [00:00<00:00, 26.2MB/s]
-
+    100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 5.97M/5.97M [00:01<00:00, 3.74MB/s]
+    
 
 .. parsed-literal::
 
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/intel_rnb.jpg: 480x640 1 person, 57.1ms
-    Speed: 2.0ms preprocess, 57.1ms inference, 0.9ms postprocess per image at shape (1, 3, 480, 640)
-
+    image 1/1 /home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/yolov11-optimization/data/intel_rnb.jpg: 480x640 1 person, 62.7ms
+    Speed: 3.1ms preprocess, 62.7ms inference, 101.8ms postprocess per image at shape (1, 3, 480, 640)
+    
 
 
 
@@ -250,19 +252,19 @@ preserve dynamic shapes in the model.
 
 .. parsed-literal::
 
-    Ultralytics 8.3.0 🚀 Python-3.8.10 torch-2.4.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
+    Ultralytics 8.3.0 🚀 Python-3.8.10 torch-2.4.1+cu121 CPU (Intel Core(TM) i9-10980XE 3.00GHz)
     
-    PyTorch: starting from 'yolo11n-pose.pt' with input shape (1, 3, 640, 640) BCHW and output shape(s) (1, 56, 8400) (6.0 MB)
+    [34m[1mPyTorch:[0m starting from 'yolo11n-pose.pt' with input shape (1, 3, 640, 640) BCHW and output shape(s) (1, 56, 8400) (6.0 MB)
     
-    OpenVINO: starting export with openvino 2024.5.0-16993-9c432a3641a...
-    OpenVINO: export success ✅ 2.0s, saved as 'yolo11n-pose_openvino_model/' (6.0 MB)
+    [34m[1mOpenVINO:[0m starting export with openvino 2024.5.0-16814-e1c167a841c...
+    [34m[1mOpenVINO:[0m export success ✅ 2.1s, saved as 'yolo11n-pose_openvino_model/' (6.0 MB)
     
-    Export complete (2.1s)
-    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization
+    Export complete (2.3s)
+    Results saved to [1m/home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/yolov11-optimization[0m
     Predict:         yolo predict task=pose model=yolo11n-pose_openvino_model imgsz=640 half 
     Validate:        yolo val task=pose model=yolo11n-pose_openvino_model imgsz=640 data=/ultralytics/ultralytics/cfg/datasets/coco-pose.yaml half 
     Visualize:       https://netron.app
-
+    
 
 Verify model inference
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -334,13 +336,13 @@ ready to check model prediction.
 
 .. parsed-literal::
 
-    Ultralytics 8.3.0 🚀 Python-3.8.10 torch-2.4.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
+    Ultralytics 8.3.0 🚀 Python-3.8.10 torch-2.4.1+cu121 CUDA:0 (NVIDIA GeForce RTX 3090, 24250MiB)
     Loading yolo11n-pose_openvino_model for OpenVINO inference...
     Using OpenVINO LATENCY mode for batch=1 inference...
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/intel_rnb.jpg: 640x640 1 person, 20.1ms
-    Speed: 2.6ms preprocess, 20.1ms inference, 1.0ms postprocess per image at shape (1, 3, 640, 640)
-
+    image 1/1 /home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/yolov11-optimization/data/intel_rnb.jpg: 640x640 1 person, 16.9ms
+    Speed: 2.5ms preprocess, 16.9ms inference, 1.2ms postprocess per image at shape (1, 3, 640, 640)
+    
 
 
 
@@ -425,10 +427,11 @@ Let’s load ``skip magic`` extension to skip quantization if
 .. code:: ipython3
 
     # Fetch skip_kernel_extension module
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
-    )
-    open("skip_kernel_extension.py", "w").write(r.text)
+    if not Path("skip_kernel_extension.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
+        )
+        open("skip_kernel_extension.py", "w").write(r.text)
     
     %load_ext skip_kernel_extension
 
@@ -462,10 +465,9 @@ transformation function for getting only input tensors.
         DATA_PATH = OUT_DIR / "val2017.zip"
         CFG_PATH = OUT_DIR / "coco8-pose.yaml"
     
-        download_file(DATA_URL, DATA_PATH.name, DATA_PATH.parent)
-        download_file(CFG_URL, CFG_PATH.name, CFG_PATH.parent)
-    
         if not (OUT_DIR / "coco8-pose/labels").exists():
+            download_file(DATA_URL, DATA_PATH.name, DATA_PATH.parent)
+            download_file(CFG_URL, CFG_PATH.name, CFG_PATH.parent)
             with ZipFile(DATA_PATH, "r") as zip_ref:
                 zip_ref.extractall(OUT_DIR)
     
@@ -501,13 +503,19 @@ transformation function for getting only input tensors.
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+    '/home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/yolov8-optimization/datasets/val2017.zip' already exists.
+    
 
 
 .. parsed-literal::
 
-    val: Scanning /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-785/.workspace/scm/datasets/coco8-pose/labels/train.cache... 8 images, 0 backgrounds, 0 corrupt: 100%|██████████| 8/8 [00:00<?, ?it/s]
+    /home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/yolov8-optimization/datasets/coco8-pos…
 
+
+.. parsed-literal::
+
+    [34m[1mval: [0mScanning /home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/yolov8-optimization/datasets/coco8-pose/labels/train.cache... 8 images, 0 backgrounds, 0 corrupt: 100%|██████████| 8/8 [00:00<?, ?it/s][0m
+    
 
 The ``nncf.quantize`` function provides an interface for model
 quantization. It requires an instance of the OpenVINO Model and
@@ -589,6 +597,27 @@ point precision, using the ``ignored_scope`` parameter.
     INFO:nncf:Not adding activation input quantizer for operation: 305 __module.model.23/aten::cat/Concat_5
     INFO:nncf:Not adding activation input quantizer for operation: 265 __module.model.23/aten::mul/Multiply_3
     INFO:nncf:Not adding activation input quantizer for operation: 213 __module.model.23/aten::cat/Concat_9
+    
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+    
+
+
+
+
+
+
+
+    
 
 
 
@@ -601,13 +630,7 @@ point precision, using the ``ignored_scope`` parameter.
 
 
 
-
-
-
-
-.. parsed-literal::
-
-    Output()
+    
 
 
 
@@ -615,12 +638,13 @@ point precision, using the ``ignored_scope`` parameter.
 
 
 
+    
 
 
 .. parsed-literal::
 
     Quantized keypoint detection model will be saved to yolo11n-pose_openvino_int8_model/yolo11n-pose.xml
-
+    
 
 Validate Quantized model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -645,7 +669,7 @@ on the image.
     %%skip not $to_quantize.value
     
     if quantized_pose_model is None:
-        quantized_pose_model = core.read_model()
+        quantized_pose_model = core.read_model(int8_model_pose_path)
     
     ov_config = {}
     if device.value != "CPU":
@@ -670,13 +694,13 @@ on the image.
 
 .. parsed-literal::
 
-    Ultralytics 8.3.0 🚀 Python-3.8.10 torch-2.4.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
+    Ultralytics 8.3.0 🚀 Python-3.8.10 torch-2.4.1+cu121 CUDA:0 (NVIDIA GeForce RTX 3090, 24250MiB)
     Loading yolo11n-pose_openvino_model for OpenVINO inference...
     Using OpenVINO LATENCY mode for batch=1 inference...
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/intel_rnb.jpg: 640x640 1 person, 31.8ms
-    Speed: 4.6ms preprocess, 31.8ms inference, 1.1ms postprocess per image at shape (1, 3, 640, 640)
-
+    image 1/1 /home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/yolov11-optimization/data/intel_rnb.jpg: 640x640 1 person, 25.0ms
+    Speed: 2.2ms preprocess, 25.0ms inference, 1.4ms postprocess per image at shape (1, 3, 640, 640)
+    
 
 
 .. image:: yolov11-keypoint-detection-with-output_files/yolov11-keypoint-detection-with-output_30_1.png
@@ -723,19 +747,20 @@ models.
     [Step 1/11] Parsing and validating input arguments
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
+    [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
+    [ INFO ] Build ................................. 2024.5.0-16814-e1c167a841c
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
+    [ INFO ] Build ................................. 2024.5.0-16814-e1c167a841c
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 19.87 ms
+    [ INFO ] Read model took 21.31 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [?,3,?,?]
@@ -744,104 +769,14 @@ models.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'x': [1,3,640,640]
-    [ INFO ] Reshape model took 8.59 ms
+    [ INFO ] Reshape model took 8.96 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : u8 / [N,C,H,W] / [1,3,640,640]
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: __module.model.23/aten::cat/Concat_9) : f32 / [...] / [1,56,8400]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 346.91 ms
-    [Step 8/11] Querying optimal runtime parameters
-    [ INFO ] Model:
-    [ INFO ]   NETWORK_NAME: Model0
-    [ INFO ]   EXECUTION_DEVICES: ['CPU']
-    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
-    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
-    [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
-    [ INFO ]   CPU:
-    [ INFO ]     AFFINITY: Affinity.CORE
-    [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
-    [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
-    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 32
-    [ INFO ]     ENABLE_CPU_PINNING: True
-    [ INFO ]     ENABLE_HYPER_THREADING: True
-    [ INFO ]     EXECUTION_DEVICES: ['CPU']
-    [ INFO ]     EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
-    [ INFO ]     INFERENCE_NUM_THREADS: 24
-    [ INFO ]     INFERENCE_PRECISION_HINT: <Type: 'float32'>
-    [ INFO ]     KV_CACHE_PRECISION: <Type: 'float16'>
-    [ INFO ]     LOG_LEVEL: Level.NO
-    [ INFO ]     MODEL_DISTRIBUTION_POLICY: set()
-    [ INFO ]     NETWORK_NAME: Model0
-    [ INFO ]     NUM_STREAMS: 6
-    [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
-    [ INFO ]     PERFORMANCE_HINT: THROUGHPUT
-    [ INFO ]     PERFORMANCE_HINT_NUM_REQUESTS: 0
-    [ INFO ]     PERF_COUNT: NO
-    [ INFO ]     SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
-    [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
-    [ INFO ]   LOADED_FROM_CACHE: False
-    [ INFO ]   PERF_COUNT: False
-    [Step 9/11] Creating infer requests and preparing input tensors
-    [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values 
-    [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
-    [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 32.87 ms
-    [Step 11/11] Dumping statistics report
-    [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            2220 iterations
-    [ INFO ] Duration:         15032.51 ms
-    [ INFO ] Latency:
-    [ INFO ]    Median:        40.34 ms
-    [ INFO ]    Average:       40.46 ms
-    [ INFO ]    Min:           21.53 ms
-    [ INFO ]    Max:           57.54 ms
-    [ INFO ] Throughput:   147.68 FPS
-
-
-.. code:: ipython3
-
-    if int8_model_pose_path.exists():
-        # Inference INT8 model (OpenVINO IR)
-        !benchmark_app -m $int8_model_pose_path -d $device.value -api async -shape "[1,3,640,640]" -t 15
-
-
-.. parsed-literal::
-
-    [Step 1/11] Parsing and validating input arguments
-    [ INFO ] Parsing input parameters
-    [Step 2/11] Loading OpenVINO Runtime
-    [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
-    [ INFO ] 
-    [ INFO ] Device info:
-    [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
-    [ INFO ] 
-    [ INFO ] 
-    [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
-    [Step 4/11] Reading model files
-    [ INFO ] Loading model files
-    [ INFO ] Read model took 29.19 ms
-    [ INFO ] Original model I/O parameters:
-    [ INFO ] Model inputs:
-    [ INFO ]     x (node: x) : f32 / [...] / [1,3,640,640]
-    [ INFO ] Model outputs:
-    [ INFO ]     ***NO_NAME*** (node: __module.model.23/aten::cat/Concat_9) : f32 / [...] / [1,56,8400]
-    [Step 5/11] Resizing model to match image sizes and given batch
-    [ INFO ] Model batch size: 1
-    [ INFO ] Reshaping model: 'x': [1,3,640,640]
-    [ INFO ] Reshape model took 0.04 ms
-    [Step 6/11] Configuring input of the model
-    [ INFO ] Model inputs:
-    [ INFO ]     x (node: x) : u8 / [N,C,H,W] / [1,3,640,640]
-    [ INFO ] Model outputs:
-    [ INFO ]     ***NO_NAME*** (node: __module.model.23/aten::cat/Concat_9) : f32 / [...] / [1,56,8400]
-    [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 574.83 ms
+    [ INFO ] Compile model took 419.55 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -858,7 +793,7 @@ models.
     [ INFO ]     ENABLE_HYPER_THREADING: True
     [ INFO ]     EXECUTION_DEVICES: ['CPU']
     [ INFO ]     EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
-    [ INFO ]     INFERENCE_NUM_THREADS: 24
+    [ INFO ]     INFERENCE_NUM_THREADS: 36
     [ INFO ]     INFERENCE_PRECISION_HINT: <Type: 'float32'>
     [ INFO ]     KV_CACHE_PRECISION: <Type: 'float16'>
     [ INFO ]     LOG_LEVEL: Level.NO
@@ -876,20 +811,110 @@ models.
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
     [ INFO ] Fill input 'x' with random values 
-    [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
+    [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 25.15 ms
+    [ INFO ] First inference took 34.60 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            5232 iterations
-    [ INFO ] Duration:         15039.95 ms
+    [ INFO ] Count:            20292 iterations
+    [ INFO ] Duration:         120102.20 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        33.93 ms
-    [ INFO ]    Average:       34.31 ms
-    [ INFO ]    Min:           19.99 ms
-    [ INFO ]    Max:           51.36 ms
-    [ INFO ] Throughput:   347.87 FPS
+    [ INFO ]    Median:        68.35 ms
+    [ INFO ]    Average:       70.85 ms
+    [ INFO ]    Min:           43.18 ms
+    [ INFO ]    Max:           167.33 ms
+    [ INFO ] Throughput:   168.96 FPS
+    
 
+.. code:: ipython3
+
+    if int8_model_pose_path.exists():
+        # Inference INT8 model (OpenVINO IR)
+        !benchmark_app -m $int8_model_pose_path -d $device.value -api async -shape "[1,3,640,640]" -t 15
+
+
+.. parsed-literal::
+
+    [Step 1/11] Parsing and validating input arguments
+    [ INFO ] Parsing input parameters
+    [Step 2/11] Loading OpenVINO Runtime
+    [ INFO ] OpenVINO:
+    [ INFO ] Build ................................. 2024.5.0-16814-e1c167a841c
+    [ INFO ] 
+    [ INFO ] Device info:
+    [ INFO ] AUTO
+    [ INFO ] Build ................................. 2024.5.0-16814-e1c167a841c
+    [ INFO ] 
+    [ INFO ] 
+    [Step 3/11] Setting device configuration
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
+    [Step 4/11] Reading model files
+    [ INFO ] Loading model files
+    [ INFO ] Read model took 32.88 ms
+    [ INFO ] Original model I/O parameters:
+    [ INFO ] Model inputs:
+    [ INFO ]     x (node: x) : f32 / [...] / [1,3,640,640]
+    [ INFO ] Model outputs:
+    [ INFO ]     ***NO_NAME*** (node: __module.model.23/aten::cat/Concat_9) : f32 / [...] / [1,56,8400]
+    [Step 5/11] Resizing model to match image sizes and given batch
+    [ INFO ] Model batch size: 1
+    [ INFO ] Reshaping model: 'x': [1,3,640,640]
+    [ INFO ] Reshape model took 0.05 ms
+    [Step 6/11] Configuring input of the model
+    [ INFO ] Model inputs:
+    [ INFO ]     x (node: x) : u8 / [N,C,H,W] / [1,3,640,640]
+    [ INFO ] Model outputs:
+    [ INFO ]     ***NO_NAME*** (node: __module.model.23/aten::cat/Concat_9) : f32 / [...] / [1,56,8400]
+    [Step 7/11] Loading the model to the device
+    [ INFO ] Compile model took 681.22 ms
+    [Step 8/11] Querying optimal runtime parameters
+    [ INFO ] Model:
+    [ INFO ]   NETWORK_NAME: Model0
+    [ INFO ]   EXECUTION_DEVICES: ['CPU']
+    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 18
+    [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
+    [ INFO ]   CPU:
+    [ INFO ]     AFFINITY: Affinity.CORE
+    [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
+    [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
+    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 32
+    [ INFO ]     ENABLE_CPU_PINNING: True
+    [ INFO ]     ENABLE_HYPER_THREADING: True
+    [ INFO ]     EXECUTION_DEVICES: ['CPU']
+    [ INFO ]     EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
+    [ INFO ]     INFERENCE_NUM_THREADS: 36
+    [ INFO ]     INFERENCE_PRECISION_HINT: <Type: 'float32'>
+    [ INFO ]     KV_CACHE_PRECISION: <Type: 'float16'>
+    [ INFO ]     LOG_LEVEL: Level.NO
+    [ INFO ]     MODEL_DISTRIBUTION_POLICY: set()
+    [ INFO ]     NETWORK_NAME: Model0
+    [ INFO ]     NUM_STREAMS: 18
+    [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 18
+    [ INFO ]     PERFORMANCE_HINT: THROUGHPUT
+    [ INFO ]     PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]     PERF_COUNT: NO
+    [ INFO ]     SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+    [ INFO ]   LOADED_FROM_CACHE: False
+    [ INFO ]   PERF_COUNT: False
+    [Step 9/11] Creating infer requests and preparing input tensors
+    [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
+    [ INFO ] Fill input 'x' with random values 
+    [Step 10/11] Measuring performance (Start inference asynchronously, 18 inference requests, limits: 15000 ms duration)
+    [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+    [ INFO ] First inference took 25.13 ms
+    [Step 11/11] Dumping statistics report
+    [ INFO ] Execution Devices:['CPU']
+    [ INFO ] Count:            6480 iterations
+    [ INFO ] Duration:         15069.23 ms
+    [ INFO ] Latency:
+    [ INFO ]    Median:        39.96 ms
+    [ INFO ]    Average:       41.67 ms
+    [ INFO ]    Min:           29.99 ms
+    [ INFO ]    Max:           117.58 ms
+    [ INFO ] Throughput:   430.02 FPS
+    
 
 Compare accuracy of the Original and Quantized Models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1061,7 +1086,11 @@ Run Keypoint Detection on video
 .. code:: ipython3
 
     # VIDEO_SOURCE = 0 #for webcam
-    VIDEO_SOURCE = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/people.mp4"
+    VIDEO_URL = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/people.mp4"
+    VIDEO_SOURCE = Path("people.mp4")
+    
+    if not VIDEO_SOURCE.exists():
+        download_file(VIDEO_URL)
 
 .. code:: ipython3
 
@@ -1094,4 +1123,4 @@ Run Keypoint Detection on video
 .. parsed-literal::
 
     Source ended
-
+    

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,7 @@
 #include "executor.hpp"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct ConvertParams {
     ov::element::Type srcPrc;
@@ -20,7 +19,7 @@ struct ConvertParams {
 
 class ConvertExecutor : public Executor {
 public:
-    explicit ConvertExecutor(const ExecutorContext::CPtr context);
+    explicit ConvertExecutor(ExecutorContext::CPtr context);
     virtual bool init(const ConvertParams& convertParams,
                       const MemoryDescPtr& srcDesc,
                       const MemoryDescPtr& dstDesc,
@@ -46,5 +45,4 @@ public:
 using ConvertExecutorBuilderPtr = std::shared_ptr<ConvertExecutorBuilder>;
 using ConvertExecutorBuilderCPtr = std::shared_ptr<const ConvertExecutorBuilder>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

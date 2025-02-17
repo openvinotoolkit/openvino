@@ -9,17 +9,13 @@
 
 #pragma once
 
-#include <openvino/cc/pass/itt.hpp>
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/cc/selective_build.h"
+#include "openvino/itt.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace itt {
-namespace domains {
+namespace ov::intel_cpu::itt::domains {
 OV_ITT_DOMAIN(CPUSpecificTransform);
-}  // namespace domains
-}  // namespace itt
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::itt::domains
 
 OV_CC_DOMAINS(internal_op);
 

@@ -8,10 +8,6 @@ endif()
 
 set(TARGET_NAME "openvino_intel_cpu_plugin")
 
-if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND CMAKE_CXX_STANDARD GREATER_EQUAL 20)
-    set(CMAKE_CXX_FLAGS "-Wno-error=deprecated ${CMAKE_CXX_FLAGS}")
-endif()
-
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # C4267, 4244 issues from oneDNN headers conversion from 'XXX' to 'YYY', possible loss of data
     ov_add_compiler_flags(/wd4018)
@@ -239,7 +235,8 @@ ov_add_plugin(NAME ${TARGET_NAME}
               AS_EXTENSION
               VERSION_DEFINES_FOR src/plugin.cpp
               SOURCES ${SOURCES} ${HEADERS}
-              ADD_CLANG_FORMAT)
+              ADD_CLANG_FORMAT
+              ADD_CLANG_TIDY)
 
 # give a different file name depending on target platform architecture
 if(ARM OR AARCH64)

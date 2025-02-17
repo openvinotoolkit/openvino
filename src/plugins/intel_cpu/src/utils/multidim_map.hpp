@@ -7,8 +7,7 @@
 #include <type_traits>
 #include <unordered_map>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace internal {
 
@@ -62,5 +61,4 @@ private:
     std::unordered_map<key_type, mapped_type, hash_type> _map;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

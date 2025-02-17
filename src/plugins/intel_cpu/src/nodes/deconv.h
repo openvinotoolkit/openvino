@@ -14,7 +14,7 @@ namespace node {
 
 class Deconvolution : public Node {
 public:
-    Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -45,8 +45,8 @@ public:
     }
 
     void prepareParams() override;
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override {
+    void execute(const dnnl::stream& strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override {
         execute(strm);
     }
     bool needShapeInfer() const override;

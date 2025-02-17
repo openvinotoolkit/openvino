@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+
+#include <utility>
 
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu_memory.h"
@@ -11,8 +13,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/coordinate_diff.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct DeconvAttrs {
     std::vector<ptrdiff_t> kernel;
@@ -29,7 +30,7 @@ struct DeconvAttrs {
 
 class DeconvExecutor {
 public:
-    explicit DeconvExecutor(const ExecutorContext::CPtr context) : context(context) {}
+    explicit DeconvExecutor(ExecutorContext::CPtr context) : context(std::move(context)) {}
 
     virtual bool init(const DeconvAttrs& deconvAttrs,
                       const std::vector<MemoryDescPtr>& srcDescs,
@@ -62,5 +63,4 @@ public:
 using DeconvExecutorBuilderPtr = std::shared_ptr<DeconvExecutorBuilder>;
 using DeconvExecutorBuilderCPtr = std::shared_ptr<const DeconvExecutorBuilder>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

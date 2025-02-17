@@ -8,8 +8,7 @@
 #include "jit_binary_call_emitter.hpp"
 #include "kernel_executors/brgemm_copy_b.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class jit_brgemm_copy_b_emitter : public jit_binary_call_emitter {
 public:
@@ -40,5 +39,4 @@ private:
 #endif
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

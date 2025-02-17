@@ -9,9 +9,7 @@
 #include "ctc_loss.h"
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool CTCLoss::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -26,15 +24,16 @@ bool CTCLoss::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
     return true;
 }
 
-CTCLoss::CTCLoss(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+CTCLoss::CTCLoss(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (getOriginalInputsNumber() != 4 && getOriginalInputsNumber() != 5)
+    if (getOriginalInputsNumber() != 4 && getOriginalInputsNumber() != 5) {
         THROW_CPU_NODE_ERR("has invalid inputs number.");
+    }
 
     auto ctcLossOp = ov::as_type_ptr<const ov::op::v4::CTCLoss>(op);
     ctcMergeRepeated = ctcLossOp->get_ctc_merge_repeated();
@@ -43,23 +42,25 @@ CTCLoss::CTCLoss(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
 }
 
 void CTCLoss::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
     inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
-    for (size_t i = 1; i < inputShapes.size(); ++i)
+    for (size_t i = 1; i < inputShapes.size(); ++i) {
         inDataConf.emplace_back(LayoutType::ncsp, ov::element::i32);
+    }
 
     addSupportedPrimDesc(inDataConf, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
 }
 
-void CTCLoss::executeDynamicImpl(dnnl::stream strm) {
+void CTCLoss::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void CTCLoss::execute(dnnl::stream strm) {
+void CTCLoss::execute(const dnnl::stream& strm) {
     int32_t returnCode = 0;
 
     const float* logits = getSrcDataAtPortAs<const float>(0);
@@ -87,8 +88,9 @@ void CTCLoss::execute(dnnl::stream strm) {
     auto threadBody_1 = [&](const int ithr, const int nthr) {
         size_t start(0lu), end(0lu);
         splitter(batchNum, nthr, ithr, start, end);
-        if (start >= end)
+        if (start >= end) {
             return;
+        }
 
         for (size_t b = start; b < end; b++) {
             if (logitsLength[b] < 0 || labelsLength[b] < 0 || logitsLength[b] > static_cast<int>(maxTime) ||
@@ -155,8 +157,9 @@ void CTCLoss::execute(dnnl::stream strm) {
     if (returnCode != 0) {
         std::string resErr("");
         for (auto& err : errorMsgB) {
-            if (!err.empty())
+            if (!err.empty()) {
                 resErr += err + "\n";
+            }
         }
         THROW_CPU_NODE_ERR(resErr);
     }
@@ -172,8 +175,9 @@ void CTCLoss::execute(dnnl::stream strm) {
         size_t start(0lu), end(0lu);
         size_t sB(0lu), sT(0lu);
         splitter(workAmount2, nthr, ithr, start, end);
-        if (start >= end)
+        if (start >= end) {
             return;
+        }
         int64_t cw = 0, st = start;
         for (; sB < batchNum; sB++) {
             cw += logitsLength[sB];
@@ -220,18 +224,20 @@ void CTCLoss::execute(dnnl::stream strm) {
         } else if (log2 == -float_inf) {
             return log1;
         } else {
-            if (log1 > log2)
+            if (log1 > log2) {
                 return log1 + std::log1pf(std::exp(log2 - log1));
-            else
+            } else {
                 return log2 + std::log1pf(std::exp(log1 - log2));
+            }
         }
     };
 
     auto threadBody_3 = [&](const int ithr, const int nthr) {
         size_t start(0lu), end(0lu);
         splitter(batchNum, nthr, ithr, start, end);
-        if (start >= end)
+        if (start >= end) {
             return;
+        }
 
         // As per Connectionist Temporal Classification - Labeling Unsegmented Sequence Data with Recurrent Neural
         // Networks: Graves et al., 2016, paragraph 4.1 (10)
@@ -241,8 +247,9 @@ void CTCLoss::execute(dnnl::stream strm) {
             const int actualLogitLen = logitsLength[b];
             const int decodedTargetLen = decodedTargetLenB[b];
             std::vector<std::vector<float>> logBwd(decodedTargetLen, std::vector<float>(actualLogitLen, -float_inf));
-            for (int s = decodedTargetLen - 2; s < decodedTargetLen; s++)
+            for (int s = decodedTargetLen - 2; s < decodedTargetLen; s++) {
                 logBwd[s][actualLogitLen - 1] = 0.f;
+            }
 
             for (int t = actualLogitLen - 2; t >= 0; t--) {
                 const int t_1 = t + 1;
@@ -279,6 +286,4 @@ bool CTCLoss::created() const {
     return getType() == Type::CTCLoss;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

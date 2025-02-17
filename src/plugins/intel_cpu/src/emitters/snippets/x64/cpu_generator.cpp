@@ -344,8 +344,9 @@ size_t intel_cpu::CPUTargetMachine::get_lanes() const {
 std::vector<snippets::Reg> intel_cpu::CPUTargetMachine::get_abi_arg_regs() const {
     const auto& abi_regs = dnnl::impl::cpu::x64::abi_param_regs;
     std::vector<snippets::Reg> res;
-    for (const auto& r : abi_regs)
+    for (const auto& r : abi_regs) {
         res.emplace_back(snippets::RegType::gpr, r);
+    }
     return res;
 }
 
@@ -353,8 +354,9 @@ std::vector<snippets::Reg> intel_cpu::CPUTargetMachine::get_gp_reg_pool() const 
     const auto num_gp_regs = 16;
     std::vector<snippets::Reg> reg_pool;
     for (size_t i = 0; i < num_gp_regs; i++) {
-        if (!one_of(i, Xbyak::Operand::RSP))
+        if (!one_of(i, Xbyak::Operand::RSP)) {
             reg_pool.emplace_back(snippets::RegType::gpr, i);
+        }
     }
     return reg_pool;
 }
@@ -373,8 +375,10 @@ std::vector<snippets::Reg> intel_cpu::CPUTargetMachine::get_vec_reg_pool() const
         }
     }();
     std::vector<snippets::Reg> reg_pool;
-    for (int i = 0; i < num_vec_regs; i++)
+    reg_pool.reserve(num_vec_regs);
+    for (int i = 0; i < num_vec_regs; i++) {
         reg_pool.emplace_back(snippets::RegType::vec, static_cast<size_t>(i));
+    }
     return reg_pool;
 }
 
@@ -432,12 +436,13 @@ ov::snippets::RegType intel_cpu::CPUGenerator::get_specific_op_out_reg_type(cons
         std::dynamic_pointer_cast<intel_cpu::tpp::modifier::TensorProcessingPrimitive>(op) ||
         is_type<intel_cpu::tpp::op::Scalar>(op) ||
 #endif
-        is_type<intel_cpu::BrgemmCopyB>(op))
+        is_type<intel_cpu::BrgemmCopyB>(op)) {
         return ov::snippets::RegType::gpr;
-    else if (is_type<intel_cpu::FusedMulAdd>(op) || is_type<intel_cpu::SwishNode>(op))
+    } else if (is_type<intel_cpu::FusedMulAdd>(op) || is_type<intel_cpu::SwishNode>(op)) {
         return ov::snippets::RegType::vec;
-    else
+    } else {
         return ov::snippets::RegType::undefined;
+    }
 }
 
 bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& e) const {

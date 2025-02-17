@@ -9,17 +9,17 @@
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "transformations/cpu_opset/common/op/submodel.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class ReadValueWithSubgraph : public ov::op::util::SubGraphOp, public ov::op::util::VariableExtension {
 public:
     OPENVINO_OP("ReadValueWithSubgraph", "cpu_plugin_opset", ov::op::util::SubGraphOp);
 
     ReadValueWithSubgraph() = default;
-    ReadValueWithSubgraph(const std::shared_ptr<ov::op::util::Variable>& variable, std::shared_ptr<ov::Model> body);
     ReadValueWithSubgraph(const std::shared_ptr<ov::op::util::Variable>& variable,
-                          std::shared_ptr<ov::Model> body,
+                          const std::shared_ptr<ov::Model>& body);
+    ReadValueWithSubgraph(const std::shared_ptr<ov::op::util::Variable>& variable,
+                          const std::shared_ptr<ov::Model>& body,
                           const OutputVector& args);
 
     std::string get_variable_id() const override;
@@ -33,5 +33,4 @@ public:
     void validate_and_infer_types() override;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
