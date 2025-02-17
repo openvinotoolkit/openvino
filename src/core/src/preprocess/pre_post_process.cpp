@@ -48,7 +48,7 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
     using namespace ov::pass;
     using namespace ov::element;
 
-    ov::pass::Manager manager("pre_post_processing");
+    Manager manager("pre_post_processing");
     manager.set_per_pass_validation(false);
     REGISTER_PASS(manager, InitNodeInfo)
 
@@ -58,11 +58,11 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
     REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
     // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
     // so that not extra memory is used for intermediate decompressed constants.
-    REGISTER_PASS(manager, ov::pass::MarkCompressedFloatConstants);
+    REGISTER_PASS(manager, MarkCompressedFloatConstants);
 
     // 2. Fusion transformations:
     REGISTER_PASS(manager, ConvertDivideWithConstant)
-    auto multiply_fusions = manager.register_pass<ov::pass::GraphRewrite>();
+    auto multiply_fusions = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(multiply_fusions, MultiplyConvolutionFusion)
     ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionFusion)
     ADD_MATCHER(multiply_fusions, MultiplyConvolutionBackpropDataFusion)
