@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <filesystem>
 #include <map>
 #include <string_view>
 
@@ -158,8 +159,7 @@ public:
 
     void set_property(const ov::AnyMap& properties);
     void set_user_property(const ov::AnyMap& properties,
-                           OptionVisibility allowed_visibility = OptionVisibility::ANY,
-                           bool throw_on_error = true);
+                           OptionVisibility allowed_visibility = OptionVisibility::ANY);
     Any get_property(const std::string& name, OptionVisibility allowed_visibility = OptionVisibility::ANY) const;
 
     template <typename... Properties>
@@ -200,7 +200,7 @@ protected:
 
     virtual void apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) {}
     void apply_env_options();
-    void apply_config_options(std::string_view device_name, std::string_view config_path = "");
+    void apply_config_options(std::string_view device_name, std::filesystem::path config_path = "");
     virtual void finalize_impl(const IRemoteContext* context) {}
 
     template <typename T, PropertyMutability mutability>
@@ -226,7 +226,7 @@ protected:
         }
     }
 
-    ov::AnyMap read_config_file(std::string_view filename, std::string_view target_device_name) const;
+    ov::AnyMap read_config_file(std::filesystem::path filename, std::string_view target_device_name) const;
     ov::AnyMap read_env() const;
     static ov::Any read_env(const std::string& option_name, std::string_view prefix, const ConfigOptionBase* option);
     void cleanup_unsupported(ov::AnyMap& config) const;

@@ -74,22 +74,16 @@ void PluginConfig::set_property(const ov::AnyMap& config) {
     }
 }
 
-void PluginConfig::set_user_property(const ov::AnyMap& config, OptionVisibility allowed_visibility, bool throw_on_error) {
+void PluginConfig::set_user_property(const ov::AnyMap& config, OptionVisibility allowed_visibility) {
     OPENVINO_ASSERT(!m_is_finalized, "Setting property after config finalization is prohibited");
 
     for (auto& [name, val] : config) {
         auto option = get_option_ptr(name);
         if ((allowed_visibility & option->get_visibility()) != option->get_visibility()) {
-            if (throw_on_error)
-                OPENVINO_THROW("Couldn't set unknown property: ", name);
-            else
-                continue;
+            OPENVINO_THROW("Couldn't set unknown property: ", name);
         }
         if (!option->is_valid_value(val)) {
-            if (throw_on_error)
-                OPENVINO_THROW("Invalid value: ", val.as<std::string>(), " for property: ",  name, "\nProperty description: ", get_help_message(name));
-            else
-                continue;
+            OPENVINO_THROW("Invalid value: ", val.as<std::string>(), " for property: ",  name, "\nProperty description: ", get_help_message(name));
         }
 
         m_user_properties[name] = val;
@@ -108,9 +102,9 @@ void PluginConfig::finalize(const IRemoteContext* context, const ov::Model* mode
     // E.g num_streams=AUTO && hint=THROUGHPUT
     // If we apply hints first and then copy all values from user config to internal one,
     // then we'll get num_streams=AUTO in final config while some integer number is expected.
-    for (const auto& prop : m_user_properties) {
-        auto& option = m_options_map.at(prop.first);
-        option->set_any(prop.second);
+    for (const auto& [name, value] : m_user_properties) {
+        auto& option = m_options_map.at(name);
+        option->set_any(value);
     }
 
     finalize_impl(context);
@@ -127,8 +121,8 @@ void PluginConfig::finalize(const IRemoteContext* context, const ov::Model* mode
 
 bool PluginConfig::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("m_user_properties", m_user_properties);
-    for (auto& prop : m_options_map) {
-        visitor.on_attribute(prop.first + "__internal", prop.second);
+    for (auto& [name, option] : m_options_map) {
+        visitor.on_attribute(name + "__internal", option);
     }
 
     return true;
@@ -143,26 +137,24 @@ void PluginConfig::apply_env_options() {
     set_property(env_properties);
 }
 
-void PluginConfig::apply_config_options(std::string_view device_name, std::string_view config_path) {
+void PluginConfig::apply_config_options(std::string_view device_name, std::filesystem::path config_path) {
     if (!config_path.empty()) {
-        ov::AnyMap config_properties = read_config_file(std::string(config_path), device_name);
+        ov::AnyMap config_properties = read_config_file(config_path, device_name);
         cleanup_unsupported(config_properties);
-#ifdef ENABLE_DEBUG_CAPS
         for (auto& [name, val] : config_properties) {
             std::cout << "Non default config value for " << name << " = " << val.as<std::string>() << std::endl;
         }
-#endif
         set_property(config_properties);
     }
 }
 
-ov::AnyMap PluginConfig::read_config_file(std::string_view filename, std::string_view target_device_name) const {
+ov::AnyMap PluginConfig::read_config_file(std::filesystem::path filename, std::string_view target_device_name) const {
     if (filename.empty())
         return {};
 
     ov::AnyMap config;
 
-    std::ifstream ifs(std::string{filename});
+    std::ifstream ifs(filename);
     if (!ifs.is_open()) {
         return config;
     }
@@ -194,21 +186,7 @@ ov::Any PluginConfig::read_env(const std::string& option_name, std::string_view 
     const auto& val = ov::util::getenv_string(var_name.c_str());
 
     if (!val.empty()) {
-        if (dynamic_cast<const TypedOption<bool>*>(option) != nullptr) {
-            constexpr std::array<std::string_view, 4> off = {"0", "false", "off", "no"};
-            constexpr std::array<std::string_view, 4> on = {"1", "true", "on", "yes"};
-            const auto& val_lower = util::to_lower(val);
-
-            if (std::find(on.begin(), on.end(), val_lower) != on.end()) {
-                return true;
-            } else if (std::find(off.begin(), off.end(), val_lower) != off.end()) {
-                return false;
-            } else {
-                OPENVINO_THROW("Unexpected value for boolean property: " + val);
-            }
-        } else {
-            return val;
-        }
+        return val;
     } else {
         return ov::Any();
     }
@@ -218,8 +196,7 @@ ov::AnyMap PluginConfig::read_env() const {
     ov::AnyMap config;
 
     for (auto& [name, option] : m_options_map) {
-        auto val = read_env(name, m_allowed_env_prefix, option);
-        if (!val.empty()) {
+        if (auto val = read_env(name, m_allowed_env_prefix, option); !val.empty()) {
             config[name] = val;
         }
     }
