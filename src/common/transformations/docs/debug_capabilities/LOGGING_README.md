@@ -1,6 +1,6 @@
 # Logging of the pattern matching
 
- The logging functionality allows to observe/debug the pattern matching process.
+The logging functionality allows to observe/debug the pattern matching process.
 
 In order to utilzie the logging, first, you need to set the CMake flag ```-DENABLE_OPENVINO_DEBUG=ON```
 

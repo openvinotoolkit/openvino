@@ -10,10 +10,22 @@
 bool ov::pass::pattern::op::Or::match_value(Matcher* matcher,
                                             const Output<Node>& pattern_value,
                                             const Output<Node>& graph_value) {
-    OV_LOG_MATCHING(matcher, matcher->level_str, OV_BLOCK_BODY_RIGHT, " CHECKING ", this->get_input_size(), " OR BRANCHES: ", this->get_name());
+    OV_LOG_MATCHING(matcher,
+                    matcher->level_str,
+                    OV_BLOCK_BODY_RIGHT,
+                    " CHECKING ",
+                    this->get_input_size(),
+                    " OR BRANCHES: ",
+                    this->get_name());
     for (size_t i = 0; i < get_input_size(); ++i) {
         OV_LOG_MATCHING(matcher, ++matcher->level_str);
-        OV_LOG_MATCHING(matcher, matcher->level_str++, OV_BLOCK_BEG, "  BRANCH ", i, ": ", ov::node_version_type_str(input_value(i).get_node_shared_ptr()));
+        OV_LOG_MATCHING(matcher,
+                        matcher->level_str++,
+                        OV_BLOCK_BEG,
+                        "  BRANCH ",
+                        i,
+                        ": ",
+                        ov::node_version_type_str(input_value(i).get_node_shared_ptr()));
         auto saved = matcher->start_match();
         if (matcher->match_value(input_value(i), graph_value)) {
             auto& pattern_map = matcher->get_pattern_value_map();

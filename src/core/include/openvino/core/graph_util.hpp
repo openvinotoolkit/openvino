@@ -345,11 +345,11 @@ std::string node_with_arguments(const std::shared_ptr<ov::Node>& node);
 
 class LevelString {
 public:
-    LevelString(const std::string& level_identifier_) :
-        level_identifier(level_identifier_),
-        level_str(level_identifier_) {
-            level_str.reserve(level_identifier_.size() * 10);
-        }
+    LevelString(const std::string& level_identifier_)
+        : level_identifier(level_identifier_),
+          level_str(level_identifier_) {
+        level_str.reserve(level_identifier_.size() * 10);
+    }
 
     LevelString& operator++() {
         level_str += level_identifier;

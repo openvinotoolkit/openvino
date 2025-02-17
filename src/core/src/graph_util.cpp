@@ -357,7 +357,6 @@ bool is_used(Node* node) {
     return false;
 }
 
-
 #ifdef ENABLE_OPENVINO_DEBUG
 // These functions are used for printing nodes in a pretty way for matching logging
 
@@ -382,7 +381,7 @@ std::string node_version_type_str(const std::shared_ptr<ov::Node>& node) {
 }
 
 std::string node_version_type_name_str(const std::shared_ptr<ov::Node>& node) {
-    return ov::node_version_type_str(node)  + std::string(" ") + node->get_name();
+    return ov::node_version_type_str(node) + std::string(" ") + node->get_name();
 }
 
 std::string node_with_arguments(const std::shared_ptr<ov::Node>& node) {
