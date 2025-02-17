@@ -33,8 +33,6 @@ bool pass::BuildBrgemm::run(snippets::lowered::LinearIR& linear_ir,
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::BuildBrgemm")
     bool modified = false;
 
-    fprintf(stderr, "BuildBrgemm::run\n");
-
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& expr = *expr_it;
         const auto gemm_node = ov::as_type_ptr<GemmCPU>(expr->get_node());
@@ -59,6 +57,11 @@ bool pass::BuildBrgemm::run(snippets::lowered::LinearIR& linear_ir,
             continue;
         }
 
+        auto check_port = [&](const ov::snippets::lowered::LoopPort& p) {
+            return p.get_dim_idx() == 0 && p.is_processed();
+        };
+        const auto& in_ports = inner_loop_info->get_input_ports();
+        const auto& out_ports = inner_loop_info->get_output_ports();
         if (!(in_ports.size() >= 2 && in_ports.front().is_processed() && in_ports.front().get_dim_idx() == 0 &&
               in_ports.back().is_processed() && in_ports.back().get_dim_idx() == 1 && out_ports.size() == 1 &&
               !out_ports.front().is_processed())) {
@@ -96,7 +99,6 @@ bool pass::BuildBrgemm::run(snippets::lowered::LinearIR& linear_ir,
                                             gemm_in1_desc->get_layout(),
                                             gemm_out_desc->get_layout());
         }
-        fprintf(stderr, "brgemm_node created\n");
 
         auto old_increment = loop_manager->get_loop_info(loop_ids.front())->get_increment();
         auto new_increment = old_increment * iter_count;

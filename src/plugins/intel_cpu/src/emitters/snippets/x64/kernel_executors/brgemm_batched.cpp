@@ -129,7 +129,7 @@ void BrgemmBatchedKernelExecutor::execute_brgemm(const std::shared_ptr<dnnl::imp
     brgemm_p.do_post_ops = with_comp;
     brgemm_p.do_apply_comp = with_comp;
     brgemm_p.skip_accm = 0;
-    brgemm_p.BS = bs;
+    brgemm_p.BS = 1;
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr Brgemm kernel");
     (*kernel)(&brgemm_p);
 }
