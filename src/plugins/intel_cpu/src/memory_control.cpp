@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <memory>
 #include <ov_optional.hpp>
+#include <queue>
 #include <utility>
 
 #include "openvino/runtime/memory_solver.hpp"
@@ -122,6 +123,217 @@ private:
     MemoryControl::MemorySolution m_blocks;
 };
 
+namespace {
+class GreedyMemorySolver {
+public:
+    using Box = ov::MemorySolver::Box;
+    using MemBlock = std::pair<size_t, size_t>;  // offset, size
+
+public:
+    // This storage allows to quickly search freee blocks by the start offset and by the size
+    class FreeBlockStorage {
+    public:
+        using Map = std::map<size_t, size_t>;
+        using MultiMap = std::multimap<size_t, size_t>;
+
+    public:
+        FreeBlockStorage() = default;
+
+        void insert_free_block(MemBlock block) {
+            // important property, freeing block may not overlap existing free blocks
+            // fast track, try to insert before the free block
+
+            const size_t end_offset = block.first + block.second;
+            {
+                // try to merge free blocks
+                auto it = m_offset.lower_bound(end_offset);
+                if (it != m_offset.end()) {
+                    // merge blocks
+                    if (it->first == end_offset) {
+                        block.second += it->second;
+                        auto size_range = m_size.equal_range(it->second);
+                        OPENVINO_ASSERT(size_range.first != m_size.end());
+                        for (auto size_it = size_range.first; size_it != size_range.second; ++size_it) {
+                            if (size_it->second == it->first) {
+                                m_size.erase(size_it);
+                                break;
+                            }
+                        }
+                        it = m_offset.erase(it);
+                    }
+                }
+                if (it != m_offset.begin()) {
+                    std::advance(it, -1);  // look at the previous block
+                    if (it->first + it->second == block.first) {
+                        // merge blocks
+                        block.first = it->first;
+                        block.second += it->second;
+                        auto size_range = m_size.equal_range(it->second);
+                        OPENVINO_ASSERT(size_range.first != m_size.end());
+                        for (auto size_it = size_range.first; size_it != size_range.second; ++size_it) {
+                            if (size_it->second == it->first) {
+                                m_size.erase(size_it);
+                                break;
+                            }
+                        }
+                        m_offset.erase(it);
+                    }
+                }
+            }
+
+            //[todo] sanity checks
+            m_offset.insert(std::make_pair(block.first, block.second));
+            m_size.insert(std::make_pair(block.second, block.first));
+        }
+
+        std::pair<size_t, size_t> get_suitable_slot(size_t size) {  // offset, size
+            // here we set up the policy,
+            // we try to search srough all the same blocks (if any) and pick the one with the lowest offset
+            auto it = m_size.lower_bound(size);
+            if (it == m_size.end()) {
+                // there are no free blocks that can accomodate the requested size
+                return {0, 0};
+            }
+            auto range = m_size.equal_range(it->first);
+            OPENVINO_ASSERT(range.first != m_size.end());
+            auto ret_it = it;
+            for (auto it = range.first; it != range.second; ++it) {
+                if (ret_it->second > it->second) {
+                    ret_it = it;
+                }
+            }
+            return {ret_it->second, ret_it->first};
+        }
+
+        void remove_slot(size_t offset) {
+            auto it = m_offset.find(offset);
+            OPENVINO_ASSERT(it != m_offset.end());
+            auto size_range = m_size.equal_range(it->second);
+            OPENVINO_ASSERT(size_range.first != m_size.end());
+            for (auto size_it = size_range.first; size_it != size_range.second; ++size_it) {
+                if (size_it->second == it->first) {
+                    m_size.erase(size_it);
+                    break;
+                }
+            }
+            m_offset.erase(it);
+        }
+
+        std::pair<size_t, size_t> get_last_free_slot() {
+            if (m_offset.empty()) {
+                return {0, 0};
+            }
+            auto it = m_offset.rbegin();
+            return {it->first, it->second};
+        }
+
+    public:
+        Map m_offset;     // offset -> size
+        MultiMap m_size;  // size -> offset
+    };
+
+public:
+    explicit GreedyMemorySolver(const std::vector<Box>& boxes)
+        : m_active_boxes([](const Box& lhs, const Box& rhs) {
+              return lhs.finish > rhs.finish;
+          }),
+          m_boxes(boxes) {
+        MemorySolver::normalize_boxes(m_boxes);
+        m_offsets.reserve(m_boxes.size());
+    }
+
+    int64_t solve() {
+        for (auto&& box : m_boxes) {
+            m_offsets.insert(std::make_pair(static_cast<size_t>(box.id), insert_box(box)));
+            max_current_size = std::max(max_current_size, current_size);
+        }
+        return m_max_size;
+    }
+
+    size_t get_offset(size_t id) const {
+        auto res = m_offsets.find(id);
+        OPENVINO_ASSERT(res != m_offsets.end());
+        return res->second;
+    }
+
+    size_t get_optimal_size() const {
+        return max_current_size;
+    }
+
+private:
+    using BoxCmp = std::function<bool(const Box&, const Box&)>;
+    using BoxPriorityQueue = std::priority_queue<Box, std::vector<Box>, BoxCmp>;
+    using VecBoxes = std::vector<Box>;
+    // using MemBlockCmp = std::function<bool(const MemBlock&, const MemBlock&)>;
+
+private:
+    size_t insert_box(Box box) {                                           // return offset
+        box.size = ((box.size + (m_alignment - 1)) & ~(m_alignment - 1));  // always allocate by aligned blocks
+        current_size += box.size;
+        // diagnostics
+        max_box_size = std::max(max_box_size, static_cast<size_t>(box.size));
+
+        OPENVINO_ASSERT(m_last_start <= box.start);  // the boxes mast be sorted by the start index
+        m_last_start = box.start;
+        while (!m_active_boxes.empty() && m_active_boxes.top().finish < box.start) {
+            auto&& retire_box = m_active_boxes.top();
+            m_free_slots.insert_free_block(
+                std::make_pair(static_cast<size_t>(retire_box.id), static_cast<size_t>(retire_box.size)));
+            current_size -= retire_box.size;
+            m_active_boxes.pop();
+        }
+
+        // search free block to reuse
+        auto slot = m_free_slots.get_suitable_slot(box.size);
+        if (slot.second != 0) {
+            OPENVINO_ASSERT(slot.second >= static_cast<size_t>(box.size));
+            // block found, reuse block
+            box.id = static_cast<int64_t>(slot.first);
+            m_free_slots.remove_slot(slot.first);
+            const size_t remaining_space = slot.second - box.size;
+            if (remaining_space) {
+                const size_t free_block_offset = slot.first + box.size;
+                m_free_slots.insert_free_block(std::make_pair(free_block_offset, remaining_space));
+            }
+            m_active_boxes.emplace(std::move(box));
+            return slot.first;
+        }
+
+        // no suitable free slots, extend memory
+        size_t ret_offset = m_max_size;
+        size_t size_to_extend = box.size;
+        if (auto last_slot = m_free_slots.get_last_free_slot();
+            last_slot.second != 0 && last_slot.first + last_slot.second == m_max_size) {
+            // the last free slot is open, so we need to extend the memory only by the residual size
+            ret_offset = last_slot.first;
+            size_to_extend -= last_slot.second;
+            m_free_slots.remove_slot(last_slot.first);
+        }
+
+        box.id = ret_offset;
+        m_max_size += size_to_extend;
+        m_active_boxes.emplace(std::move(box));
+        return ret_offset;
+    }
+
+private:
+    BoxPriorityQueue m_active_boxes;
+
+    VecBoxes m_boxes;
+    std::unordered_map<size_t, size_t> m_offsets;  // map box id to offset
+    FreeBlockStorage m_free_slots;
+    size_t m_max_size = 0lu;
+    int64_t m_last_start = std::numeric_limits<int64_t>::min();
+    // diagnostics
+    size_t max_box_size = 0;
+    size_t current_size = 0;
+    size_t max_current_size = 0;
+    // end diagnostics
+
+    static constexpr size_t m_alignment = 1;  // 64lu;  // cache line size
+};
+}  // namespace
+
 class MemoryManagerStatic : public IMemoryManager {
 public:
     void insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) override {
@@ -143,17 +355,38 @@ private:
             box.size = div_up(box.size, alignment);
         });
 
-        ov::MemorySolver staticMemSolver(m_boxes);
-        m_totalSize = static_cast<size_t>(staticMemSolver.solve()) * alignment;
+        std::cout << "Blocks count: " << m_boxes.size() << std::endl;
 
-        m_workspace = std::make_shared<MemoryBlockWithRelease>();
-
-        for (const auto& box : m_boxes) {
-            int64_t offset = staticMemSolver.get_offset(box.id);
-            auto memoryBlock = std::make_shared<StaticPartitionMemoryBlock>(m_workspace, offset * alignment);
-            m_blocks[box.id] = std::move(memoryBlock);
+        {
+            ov::MemorySolver staticMemSolver(m_boxes);
+            auto start = std::chrono::steady_clock::now();
+            m_totalSize = static_cast<size_t>(staticMemSolver.solve()) * alignment;
+            auto end = std::chrono::steady_clock::now();
+            std::cout << "DFF solve time, us: "
+                      << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count()
+                      << std::endl;
+            std::cout << "DFF total size: " << m_totalSize << std::endl;
         }
-        m_boxes.clear();
+        {
+            GreedyMemorySolver staticMemSolver(m_boxes);
+            auto start = std::chrono::steady_clock::now();
+            m_totalSize = static_cast<size_t>(staticMemSolver.solve()) * alignment;
+            auto end = std::chrono::steady_clock::now();
+            std::cout << "BF solve time, us: "
+                      << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << std::endl;
+            std::cout << "BF Total size: " << m_totalSize << std::endl;
+            std::cout << "Optimal size: " << staticMemSolver.get_optimal_size() * alignment << std::endl;
+        }
+        exit(0);
+
+        // m_workspace = std::make_shared<MemoryBlockWithRelease>();
+
+        // for (const auto& box : m_boxes) {
+        //     int64_t offset = staticMemSolver.get_offset(box.id);
+        //     auto memoryBlock = std::make_shared<StaticPartitionMemoryBlock>(m_workspace, offset * alignment);
+        //     m_blocks[box.id] = std::move(memoryBlock);
+        // }
+        // m_boxes.clear();
     }
 
     void allocate() override {
