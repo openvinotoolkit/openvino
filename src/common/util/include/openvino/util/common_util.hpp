@@ -180,5 +180,7 @@ constexpr std::array<std::conditional_t<std::is_void_v<T>, std::common_type_t<Ar
     return {std::forward<Args>(args)...};
 }
 
+bool may_i_use_dynamic_code();
+
 }  // namespace util
 }  // namespace ov

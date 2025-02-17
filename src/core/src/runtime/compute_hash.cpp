@@ -21,11 +21,8 @@
 #ifdef OV_CORE_USE_XBYAK_JIT
 #    include "openvino/core/parallel.hpp"
 #    include "openvino/reference/utils/registers_pool.hpp"
+#    include "openvino/util/common_util.hpp"
 #endif  // OV_CORE_USE_XBYAK_JIT
-
-#if defined(_WIN32)
-#    include <processthreadsapi.h>
-#endif
 
 namespace ov {
 namespace runtime {
@@ -826,14 +823,7 @@ void ComputeHash<isa>::fold_to_64(const Vmm& v_dst) {
 
 size_t compute_hash(const void* src, size_t size) {
 #ifdef OV_CORE_USE_XBYAK_JIT
-
-#    if defined(_WIN32)
-    HANDLE handle = GetCurrentProcess();
-    PROCESS_MITIGATION_DYNAMIC_CODE_POLICY dynamic_code_policy = {0};
-    GetProcessMitigationPolicy(handle, ProcessDynamicCodePolicy, &dynamic_code_policy, sizeof(dynamic_code_policy));
-    if (dynamic_code_policy.ProhibitDynamicCode != TRUE) {
-#    endif
-
+    if (util::may_i_use_dynamic_code()) {
         if (Generator::mayiuse(avx2)) {
             uint64_t result = 0lu;
 
@@ -906,10 +896,7 @@ size_t compute_hash(const void* src, size_t size) {
 
             return result;
         }
-
-#    if defined(_WIN32)
     }
-#    endif
 
 #endif  // OV_CORE_USE_XBYAK_JIT
 
