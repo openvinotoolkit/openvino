@@ -361,10 +361,9 @@ bool is_used(Node* node) {
 #ifdef ENABLE_OPENVINO_DEBUG
 // These functions are used for printing nodes in a pretty way for matching logging
 
-//Switch on verbose matching logging using OV_VERBOSE_LOGGING=true
+// Switch on verbose matching logging using OV_VERBOSE_LOGGING=true
 static const bool verbose = ov::util::getenv_bool("OV_VERBOSE_LOGGING");
 
-//TODO: rewrite these functions in a nicer way
 std::string node_version_type_str(const std::shared_ptr<ov::Node>& node) {
     auto version = node->get_type_info().version_id;
     std::string res;

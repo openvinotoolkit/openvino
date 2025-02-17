@@ -103,7 +103,7 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
             ov::util::_write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_DEBUG), __VA_ARGS__); \
         } while (0)
 
-static const bool logging_enabled = ov::util::getenv_bool("OV_LOGGING_ENABLED"); 
+static const bool logging_enabled = ov::util::getenv_bool("OV_MATCHER_LOGGING_ENABLED"); 
 static const std::unordered_set<std::string> matchers_to_log = ov::util::split_by_delimiter(ov::util::getenv_string("OV_MATCHERS_TO_LOG"), ',');
 
 static inline bool is_terminal_output() {
