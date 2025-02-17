@@ -60,8 +60,7 @@ Pipeline::Pipeline(const Config& config,
 
     _command_lists.reserve(_number_of_command_lists);
     for (size_t i = 0; i < _number_of_command_lists; i++) {
-        _command_lists.emplace_back(
-            std::make_unique<CommandList>(init_structs, group_ordinal);
+        _command_lists.emplace_back(std::make_unique<CommandList>(init_structs, group_ordinal));
     }
 
     if (_sync_output_with_fences) {

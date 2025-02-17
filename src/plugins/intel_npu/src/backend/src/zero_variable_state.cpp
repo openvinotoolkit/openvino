@@ -28,7 +28,7 @@ void ZeroVariableState::set_state(const ov::SoPtr<ov::ITensor>& new_state) {
     m_state = new_state;
     _tensor_updated = true;
 
-    if (_init_structs->getMutableCommandListVersion()) {
+    if (ZE_MAJOR_VERSION(_init_structs->getMutableCommandListVersion()) >= 1) {
         if (!is_remote_tensor(new_state._ptr)) {
             if (zeroUtils::memory_was_allocated_in_the_same_l0_context(_init_structs->getContext(),
                                                                        new_state->data())) {

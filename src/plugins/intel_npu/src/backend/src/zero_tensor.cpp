@@ -121,7 +121,7 @@ void ZeroTensor::set_shape(ov::Shape new_shape) {
     _shape = std::move(new_shape);
 
     if (get_size() > get_capacity()) {
-        if (!_init_structs->getMutableCommandListVersion()) {
+        if (ZE_MAJOR_VERSION(_init_structs->getMutableCommandListVersion()) < 1) {
             OPENVINO_THROW("Re-shaping the tensor with a larger shape is not available using this driver version. "
                            "Please update the driver to the latest version.");
         }

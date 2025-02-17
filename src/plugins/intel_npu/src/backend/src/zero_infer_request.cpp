@@ -322,7 +322,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
         _userOutputTensors.at(foundPort.idx) = tensor;
     }
 
-    if (_initStructs->getMutableCommandListVersion()) {
+    if (ZE_MAJOR_VERSION(_initStructs->getMutableCommandListVersion()) >= 1) {
         auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(tensor._ptr);
 
         if (remoteTensor == nullptr) {
@@ -356,7 +356,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
 
     void* data = nullptr;
 
-    if (_initStructs->getMutableCommandListVersion()) {
+    if (ZE_MAJOR_VERSION(_initStructs->getMutableCommandListVersion()) >= 1) {
         if (_graph->get_batch_size().has_value()) {
             for (size_t i = 0; i < tensors.size(); i++) {
                 auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(tensors[i]._ptr);
@@ -576,7 +576,7 @@ void ZeroInferRequest::infer_async() {
 
             _pipelineIsCreated = true;
         } else {
-            if (_initStructs->getMutableCommandListVersion()) {
+            if (ZE_MAJOR_VERSION(_initStructs->getMutableCommandListVersion()) >= 1) {
                 update_pipeline_if_memory_changed();
                 update_states_if_memory_changed();
             }
