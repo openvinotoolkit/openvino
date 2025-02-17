@@ -16,7 +16,7 @@ foreach(SUBDIR IN LISTS SUBDIRS)
     endif()
 endforeach()
 
-set(COMMON_COMPILE_OPTIONS $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
+set(COMMON_COMPILE_OPTIONS $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os -Wno-suggest-override>>)
 set(COMMON_INCLUDE_DIRS $<BUILD_INTERFACE:${MAIN_DIR}/src>
                         $<BUILD_INTERFACE:${INCLUDE_DIR}>
                         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
