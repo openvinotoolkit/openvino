@@ -26,7 +26,7 @@ hf_cache_dir = os.environ.get('HF_HUB_CACHE',
 os.environ['TFHUB_CACHE_DIR'] = tf_hub_cache_dir
 os.environ['HF_HUB_CACHE'] = hf_cache_dir
 
-clean_hf_cache_dir = bool(os.environ.get('USE_SYSTEM_CACHE'))
+clean_hf_cache_dir = os.environ.get('USE_SYSTEM_CACHE', False) == 'True'
 
 # supported_devices : CPU, GPU
 test_device = os.environ.get('TEST_DEVICE', 'CPU;GPU').split(';')
