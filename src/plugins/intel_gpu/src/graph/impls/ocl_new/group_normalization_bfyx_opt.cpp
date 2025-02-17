@@ -78,8 +78,9 @@ protected:
     JitConstants get_jit_constants(const kernel_impl_params& params) const override {
         auto jit_constants = GroupNormalizationGeneratorBfyxOptBase::get_jit_constants(params);
         jit_constants.make("GROUP_NORM_KERNEL_FEATURE_MEAN_SQR_MEAN", 1);
-        auto df = get_dispatch_data_func(params);
-        jit_constants.add(make_work_group_jit_constants(df(params, {}).work_groups, params.is_dynamic()));
+        KernelData kd;
+        get_dispatch_data_func()(params, kd);
+        jit_constants.add(make_work_group_jit_constants(kd.params.workGroups, params.is_dynamic()));
         return jit_constants;
     }
 
@@ -93,9 +94,9 @@ protected:
         return args;
     }
 
-    DispatchDataFunc get_dispatch_data_func(const kernel_impl_params& params) const override {
+    DispatchDataFunc get_dispatch_data_func() const override {
         static auto f = DISPATCH_DATA_FUNC(params, kd) {
-            WorkGroupSizes wgs;
+            auto& wgs = kd.params.workGroups;
 
             if (!params.is_dynamic()) {
                 const auto& ol = params.output_layouts[0];
@@ -146,8 +147,6 @@ protected:
                     }
                 }
             }
-
-            return { wgs, {} };
         };
 
         return f;
@@ -162,8 +161,9 @@ protected:
     JitConstants get_jit_constants(const kernel_impl_params& params) const override {
         auto jit_constants = GroupNormalizationGeneratorBfyxOptBase::get_jit_constants(params);
         jit_constants.make("GROUP_NORM_KERNEL_GROUP_MEAN_VARIANCE", 1);
-        auto df = get_dispatch_data_func(params);
-        jit_constants.add(make_work_group_jit_constants(df(params, {}).work_groups, params.is_dynamic()));
+        KernelData kd;
+        get_dispatch_data_func()(params, kd);
+        jit_constants.add(make_work_group_jit_constants(kd.params.workGroups, params.is_dynamic()));
         return jit_constants;
     }
 
@@ -174,9 +174,9 @@ protected:
         return args;
     }
 
-    DispatchDataFunc get_dispatch_data_func(const kernel_impl_params& params) const override {
+    DispatchDataFunc get_dispatch_data_func() const override {
         static auto f = DISPATCH_DATA_FUNC(params, kd) {
-            WorkGroupSizes wgs;
+            auto& wgs = kd.params.workGroups;
             if (!params.is_dynamic()) {
                 const auto& ol = params.output_layouts[0];
                 auto desc = params.typed_desc<group_normalization>();
@@ -202,8 +202,6 @@ protected:
                     divisor += 1;
                 }
             }
-
-            return { wgs, {} };
         };
 
         return f;
@@ -218,8 +216,9 @@ protected:
     JitConstants get_jit_constants(const kernel_impl_params& params) const override {
         auto jit_constants = GroupNormalizationGeneratorBfyxOptBase::get_jit_constants(params);
         jit_constants.make("GROUP_NORM_KERNEL_FINAL", 1);
-        auto df = get_dispatch_data_func(params);
-        jit_constants.add(make_work_group_jit_constants(df(params, {}).work_groups, params.is_dynamic()));
+        KernelData kd;
+        get_dispatch_data_func()(params, kd);
+        jit_constants.add(make_work_group_jit_constants(kd.params.workGroups, params.is_dynamic()));
         return jit_constants;
     }
 
@@ -236,9 +235,9 @@ protected:
         return args;
     }
 
-    DispatchDataFunc get_dispatch_data_func(const kernel_impl_params& params) const override {
+    DispatchDataFunc get_dispatch_data_func() const override {
         static auto f = DISPATCH_DATA_FUNC(params, kd) {
-            WorkGroupSizes wgs;
+            auto& wgs = kd.params.workGroups;
 
             if (!params.is_dynamic()) {
                 const auto& ol = params.output_layouts[0];
@@ -276,8 +275,6 @@ protected:
                     divisor += 1;
                 }
             }
-
-            return { wgs, {} };
         };
         return f;
     }

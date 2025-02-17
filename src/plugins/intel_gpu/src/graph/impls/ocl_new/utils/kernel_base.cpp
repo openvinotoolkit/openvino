@@ -137,10 +137,8 @@ KernelData SingleKernelGenerator::get_kernel_data(const kernel_impl_params& para
     kd.code.kernelString->str = build_code(m_kernel_name, jit, kd.code.kernelString->entry_point);
 
     kd.params.arguments = get_arguments_desc(params);
-    kd.update_dispatch_data_func = get_dispatch_data_func(params);;
-
-    auto dispatch_data = kd.update_dispatch_data_func(params, kd);
-    kd.params.workGroups = dispatch_data.work_groups;
+    kd.update_dispatch_data_func = get_dispatch_data_func();
+    kd.update_dispatch_data_func(params, kd);
 
     return kd;
 }

@@ -173,9 +173,9 @@ protected:
         return jit;
     }
 
-    DispatchDataFunc get_dispatch_data_func(const kernel_impl_params& params) const override {
+    DispatchDataFunc get_dispatch_data_func() const override {
         static auto f = DISPATCH_DATA_FUNC(params, kd) {
-            WorkGroupSizes wgs;
+            auto& wgs = kd.params.workGroups;
 
             if (!params.is_dynamic()) {
                 auto desc = params.typed_desc<scaled_dot_product_attention>();
@@ -193,8 +193,6 @@ protected:
                 wgs.global = { batch_size * heads_num, target_seq_len, head_size * num_of_partitions * sg_num_scale };
                 wgs.local = { 1, 1, head_size * sg_num_scale };
             }
-
-            return { wgs, {} };
         };
         return f;
     }
@@ -216,9 +214,9 @@ public:
         return jit;
     }
 
-    DispatchDataFunc get_dispatch_data_func(const kernel_impl_params& params) const override {
+    DispatchDataFunc get_dispatch_data_func() const override {
         static auto f = DISPATCH_DATA_FUNC(params, kd) {
-            WorkGroupSizes wgs;
+            auto& wgs = kd.params.workGroups;
 
             if (!params.is_dynamic()) {
                 auto desc = params.typed_desc<scaled_dot_product_attention>();
@@ -240,8 +238,6 @@ public:
 
 
             }
-
-            return { wgs, {} };
         };
         return f;
     }
@@ -263,9 +259,11 @@ public:
         return jit;
     }
 
-    DispatchDataFunc get_dispatch_data_func(const kernel_impl_params& params) const override {
+    DispatchDataFunc get_dispatch_data_func() const override {
         static auto f = DISPATCH_DATA_FUNC(params, kd) {
-            WorkGroupSizes wgs;
+            auto& wgs = kd.params.workGroups;
+            auto& scalars = kd.params.scalars;
+            scalars.clear();
 
             ScalarDescriptor num_of_partitions_scalar;
             num_of_partitions_scalar.t = ScalarDescriptor::Types::UINT32;
@@ -287,9 +285,8 @@ public:
                 wgs.local = { 1, 1, head_size };
 
                 num_of_partitions_scalar.v.u32 = static_cast<uint32_t>(num_of_partitions);
+                scalars.push_back(num_of_partitions_scalar);
             }
-
-            return { wgs, {num_of_partitions_scalar} };
         };
         return f;
     }

@@ -34,14 +34,13 @@ protected:
         return jit_constants;
     }
 
-    DispatchDataFunc get_dispatch_data_func(const kernel_impl_params& params) const override {
+    DispatchDataFunc get_dispatch_data_func() const override {
         static auto f = DISPATCH_DATA_FUNC(params, kd) {
-            WorkGroupSizes wgs;
+            auto& wgs = kd.params.workGroups;
             const auto& output = params.output_layouts[0];
 
             wgs.global = {output.get_shape()[0], 1, 1};
             wgs.local = get_optimal_lws(wgs.global, params.get_device_info());
-            return { wgs, {} };
         };
 
         return f;

@@ -42,9 +42,9 @@ protected:
         return args;
     }
 
-    DispatchDataFunc get_dispatch_data_func(const kernel_impl_params& params) const override {
+    DispatchDataFunc get_dispatch_data_func() const override {
         static auto f = DISPATCH_DATA_FUNC(params, kd) {
-            WorkGroupSizes wgs;
+            auto& wgs = kd.params.workGroups;
 
             auto desc = params.typed_desc<group_normalization>();
             auto max_wgs = params.get_program().get_engine().get_device_info().max_work_group_size;
@@ -54,7 +54,6 @@ protected:
                 wgs.global = { out_shape[0], num_groups, 1 };
                 wgs.local = { out_shape[0] *num_groups > max_wgs ? max_wgs / num_groups : out_shape[0], num_groups, 1 };
             }
-            return { wgs, {} };
         };
 
         return f;
@@ -83,9 +82,9 @@ protected:
         return args;
     }
 
-    DispatchDataFunc get_dispatch_data_func(const kernel_impl_params& params) const override {
+    DispatchDataFunc get_dispatch_data_func() const override {
         static auto f = DISPATCH_DATA_FUNC(params, kd) {
-            WorkGroupSizes wgs;
+            auto& wgs = kd.params.workGroups;
 
             auto desc = params.typed_desc<group_normalization>();
             auto max_wgs = params.get_program().get_engine().get_device_info().max_work_group_size;
@@ -95,7 +94,6 @@ protected:
                 wgs.global = { out_shape[0], num_groups, 1 };
                 wgs.local = { out_shape[0] *num_groups > max_wgs ? max_wgs / num_groups : out_shape[0], num_groups, 1 };
             }
-            return { wgs, {} };
         };
         return f;
     }
@@ -127,9 +125,9 @@ protected:
         return args;
     }
 
-    DispatchDataFunc get_dispatch_data_func(const kernel_impl_params& params) const override {
+    DispatchDataFunc get_dispatch_data_func() const override {
         static auto f = DISPATCH_DATA_FUNC(params, kd) {
-            WorkGroupSizes wgs;
+            auto& wgs = kd.params.workGroups;
 
             if (params.output_layouts[0].is_static()) {
                 const auto& in_l = params.input_layouts[0];
@@ -149,7 +147,6 @@ protected:
 
                 wgs.local = get_optimal_lws(wgs.global, params.get_device_info(), in_l.format, out_l.format, dims_by_gws);
             }
-            return { wgs, {} };
         };
         return f;
     }

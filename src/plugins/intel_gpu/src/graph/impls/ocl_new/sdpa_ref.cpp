@@ -86,9 +86,9 @@ protected:
         return args;
     }
 
-    DispatchDataFunc get_dispatch_data_func(const kernel_impl_params& params) const override {
+    DispatchDataFunc get_dispatch_data_func() const override {
         static auto f = DISPATCH_DATA_FUNC(params, kd) {
-            WorkGroupSizes wgs;
+            auto& wgs = kd.params.workGroups;
 
             if (!params.is_dynamic()) {
                 auto desc = params.typed_desc<scaled_dot_product_attention>();
@@ -102,8 +102,6 @@ protected:
                 wgs.global = { b * f, y, x };
                 wgs.local = { 1, 1, x };
             }
-
-            return { wgs, {} };
         };
         return f;
     }

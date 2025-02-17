@@ -111,9 +111,9 @@ protected:
         return args;
     }
 
-    DispatchDataFunc get_dispatch_data_func(const kernel_impl_params& params) const override {
+    DispatchDataFunc get_dispatch_data_func() const override {
         static auto f = DISPATCH_DATA_FUNC(params, kd) {
-            WorkGroupSizes wgs;
+            auto& wgs = kd.params.workGroups;
 
             if (!params.is_dynamic()) {
                 size_t vec_size = get_vec_size(params);
@@ -153,8 +153,6 @@ protected:
 
                 wgs.local = get_optimal_lws(wgs.global, params.get_device_info(), in_l.format, out_l.format, dims_by_gws);
             }
-
-            return { wgs, {} };
         };
         return f;
     }

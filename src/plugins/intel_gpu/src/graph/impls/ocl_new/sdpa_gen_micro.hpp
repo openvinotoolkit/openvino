@@ -293,7 +293,7 @@ public:
         kd.code.kernelString->str = build_code(m_kernel_name, jit, kd.code.kernelString->entry_point);
 
         kd.params.arguments = get_arguments_desc(params);
-        kd.update_dispatch_data_func = get_dispatch_data_func(params);
+        kd.update_dispatch_data_func = get_dispatch_data_func();
 
         /* Generate microkernel shims */
         micro::ShimOptions shim_options;
@@ -314,8 +314,7 @@ public:
             kd.micro_kernels.push_back(std::make_shared<micro::MicroKernelPackage>(p));
         }
 
-        auto dispatch_data = kd.update_dispatch_data_func(params, kd);
-        kd.params.workGroups = dispatch_data.work_groups;
+        kd.update_dispatch_data_func(params, kd);
         return kd;
     }
 
@@ -515,10 +514,11 @@ protected:
         return args;
     }
 
-    DispatchDataFunc get_dispatch_data_func(const kernel_impl_params& params) const override {
+    DispatchDataFunc get_dispatch_data_func() const override {
         static auto f = DISPATCH_DATA_FUNC(params, kd) {
-            WorkGroupSizes wgs;
-            Scalars scalars;
+            auto& wgs = kd.params.workGroups;
+            auto& scalars = kd.params.scalars;
+            scalars.clear();
             scalars.reserve(3);
             if (!params.is_dynamic()) {
                 auto desc = params.typed_desc<scaled_dot_product_attention>();
@@ -559,8 +559,6 @@ protected:
                 s_q.v.s32 = static_cast<uint32_t>(n_queries.get_length());
                 scalars.push_back(s_q);
             }
-
-            return { wgs, scalars };
         };
         return f;
     }

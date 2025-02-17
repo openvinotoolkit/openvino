@@ -33,15 +33,10 @@ struct KernelCode {
     std::shared_ptr<KernelString> kernelString;
 };
 
-struct DispatchData {
-    WorkGroupSizes work_groups;
-    Scalars scalars;
-};
-
 struct KernelData;
 
-using DispatchDataFunc = std::function<DispatchData(const kernel_impl_params&, const KernelData&)>;
-#define DISPATCH_DATA_FUNC(params, kd, ...) [__VA_ARGS__](const kernel_impl_params& params, const KernelData& kd) -> DispatchData
+using DispatchDataFunc = std::function<void(const kernel_impl_params&, KernelData&)>;
+#define DISPATCH_DATA_FUNC(params, kd, ...) [__VA_ARGS__](const kernel_impl_params& params, KernelData& kd)
 
 struct KernelData {
     KernelCode code;
@@ -60,7 +55,7 @@ public:
     virtual ~KernelGeneratorBase() = default;
 
     virtual KernelData get_kernel_data(const kernel_impl_params& params) const = 0;
-    virtual DispatchDataFunc get_dispatch_data_func(const kernel_impl_params& params) const = 0;
+    virtual DispatchDataFunc get_dispatch_data_func() const = 0;
 };
 
 class SingleKernelGenerator : public KernelGeneratorBase {

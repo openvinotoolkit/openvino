@@ -224,9 +224,7 @@ protected:
 
     virtual void update_dispatch_data(const kernel_impl_params& impl_params) {
         for (auto& [stage_id, kd] : _kernels_data) {
-            auto dd = kd.update_dispatch_data_func(impl_params, kd);
-            kd.params.workGroups = dd.work_groups;
-            kd.params.scalars = dd.scalars;
+            kd.update_dispatch_data_func(impl_params, kd);
         }
     }
 };
