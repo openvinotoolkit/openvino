@@ -99,7 +99,6 @@ py::object from_ov_any_map(const ov::AnyMap& map) {
     return py::cast(result);
 }
 
-
 py::object from_ov_any(const ov::Any& any) {
     // Check for py::object
     if (any.is<py::object>()) {
@@ -156,9 +155,9 @@ py::object from_ov_any(const ov::Any& any) {
     }
     // Check for std::vector<ov::Any>
     else if (any.is<std::vector<ov::Any>>()) {
-        const auto &values = any.as<std::vector<ov::Any>>();
-        PyObject *list = PyList_New(0);
-        for (const auto & value : values) {
+        const auto& values = any.as<std::vector<ov::Any>>();
+        PyObject* list = PyList_New(0);
+        for (const auto& value : values) {
             PyList_Append(list, from_ov_any(value).ptr());
         }
         return py::cast<py::object>(list);
