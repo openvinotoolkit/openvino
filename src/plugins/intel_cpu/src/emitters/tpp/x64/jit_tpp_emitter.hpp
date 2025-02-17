@@ -32,11 +32,11 @@ public:
     TppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                dnnl::impl::cpu::x64::cpu_isa_t isa,
                const ov::snippets::lowered::ExpressionPtr& expr);
-    void emit_code(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
     static libxsmm_datatype ov_to_xsmm_dtype(ov::element::Type_t elemet_type);
 
 protected:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
+    void emit_code_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
     static ov::snippets::VectorDims get_projected_subtensor(const snippets::lowered::PortDescriptorPtr& desc);
 
     /// Generate function pointer to the thin wrapper over the kernel that is called in runtime on every iteration
