@@ -301,8 +301,10 @@ void PluginConfig::print_help() const {
     const size_t max_name_width =
         std::max(max_name_length_item->first.size(), max_name_length_item->second->property_name.size()) + 4;
     const size_t terminal_width = get_terminal_width();
-    ss << std::left << std::setw(max_name_width) << "Option name" << " | " << " Description " << "\n";
+    // clang-format off
+    ss << std::left << std::setw(max_name_width) << "Option name" << " | Description\n";
     ss << std::left << std::setw(terminal_width) << std::setfill('-') << "" << "\n";
+    // clang-format on
     for (auto& [name, option] : m_options_map) {
         ss << format_text(name, option->property_name, option->description, max_name_width, terminal_width) << "\n";
     }
