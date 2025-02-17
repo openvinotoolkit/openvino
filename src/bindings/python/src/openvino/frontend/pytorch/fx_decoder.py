@@ -179,7 +179,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         self._input_signature = []
         self._example_input = None
 
-        if issubclass(type(pt_module), torch.fx.graph_module.GraphModule):
+        if isinstance(pt_module, torch.fx.graph_module.GraphModule):
             self._input_is_list = None
             self._nodes = list(pt_module.graph.nodes)
             found_types = []
@@ -188,38 +188,34 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 if value.op == 'placeholder':
                     self._inputs.append(i)
                     self._input_signature.append(value.name)
-                    if hasattr(value, "meta") and ('tensor_meta' in value.meta.keys()) and value.meta['tensor_meta']:
-                        found_shapes.append(value.meta['tensor_meta'].shape)
-                        found_types.append(
-                            OVAny(pt_to_ov_type_map[str(value.meta['tensor_meta'].dtype)]))
-                    else:
-                        found_shapes.append(None)
-                        found_types.append(None)
+
+                    found_shapes.append(self.get_found_shape(value))
+                    found_types.append(self.get_found_dtype(value))
+                    if found_shapes[-1] is not None:
+                        new_shape = []
+                        for dim in found_shapes[-1]:
+                            if (dynamic_shapes or type(dim).__name__ == "SymInt"):
+                                new_shape.append(-1)
+                            else:
+                                new_shape.append(dim)
+                        found_shapes[-1] = torch.Size(new_shape)
+
                 elif value.op == 'output':
                     # Instead of putting output index, refer to its target
                     uargs = self.unpack_containers(value.args)
                     self._outputs = [(arg[0], self._nodes.index(arg[1]))
                                      for arg in uargs if arg[1] is not None]
-            for idx, shape in enumerate(found_shapes):
-                if shape is not None:
-                    new_shape = []
-                    for dim in shape:
-                        if (dynamic_shapes or type(dim).__name__ == "SymInt"):
-                            new_shape.append(-1)
-                        else:
-                            new_shape.append(dim)
-                    found_shapes[idx] = torch.Size(new_shape)
 
             if not input_shapes or len(input_shapes) == 0:
                 self.input_shapes = found_shapes
             if not input_types or len(input_types) == 0:
                 self.input_types = found_types
 
-            if hasattr(pt_module, "forward"):
-                input_params = inspect.signature(pt_module.forward).parameters
+            if hasattr(self.pt_module, "forward"):
+                input_params = inspect.signature(self.pt_module.forward).parameters
                 self._input_signature = list(input_params)
 
-        elif issubclass(type(pt_module), torch.fx.Node):
+        elif isinstance(pt_module, torch.fx.Node):
             self._nodes = nodes  # passed from outer context
 
             # FIXME: Quadratic complexity nodes*nodes considering the outer loop over all nodes
@@ -260,6 +256,23 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         gm = exported_program.module()
         logger.debug(gm.code)
         return cls(gm, dynamic_shapes=True)
+
+    @staticmethod
+    def get_found_shape(value) -> str:
+        # If input is a tensor, read the shape from meta data
+        if hasattr(value, "meta"):
+            if ('tensor_meta' in value.meta.keys()) and value.meta['tensor_meta']:
+                return value.meta['tensor_meta'].shape
+            if ('val' in value.meta.keys()) and isinstance(value.meta["val"], torch.Tensor):
+                return value.meta['val'].shape
+        return None
+
+    @staticmethod
+    def get_found_dtype(value) -> str:
+        # If input is a tensor, read the data type from meta data
+        if hasattr(value, "meta") and ('tensor_meta' in value.meta.keys()) and value.meta['tensor_meta']:
+            return OVAny(pt_to_ov_type_map[str(value.meta['tensor_meta'].dtype)])
+        return None
 
     def get_input_signature_name(self, index: int) -> str:
         if self._input_signature is not None and index < len(self._input_signature):
@@ -358,6 +371,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
 
     def get_op_type(self):
         if self.pt_module.op == 'call_function':
+            if type(self.pt_module.target).__name__ == "EdgeOpOverload":
+                return self.pt_module.target.__name__
             return str(self.pt_module.target)
         elif self.pt_module.op == 'get_attr':
             return 'get_attr'  # FIXME should be aligned with get_attr from TS implementation
