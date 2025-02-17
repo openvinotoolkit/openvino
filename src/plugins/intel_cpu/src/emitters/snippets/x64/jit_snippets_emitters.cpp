@@ -8,8 +8,7 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using jit_generator = dnnl::impl::cpu::x64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
@@ -128,5 +127,4 @@ void jit_scalar_emitter::emit_isa(const std::vector<size_t>& in, const std::vect
     h->uni_vbroadcastss(vmm_dst, table_val("scalar"));
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

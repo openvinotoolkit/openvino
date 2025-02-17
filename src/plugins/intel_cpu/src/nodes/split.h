@@ -23,6 +23,7 @@ public:
 
     void initOptimalPrimitiveDescriptor() override;
 
+    bool neverExecute() const override;
     bool isExecutable() const override;
 
     bool needPrepareParams() const override;

@@ -57,20 +57,23 @@ Prerequisites
 
 
 
+-  Recommend >= 32GB RAM to convert “llava-hf/llava-v1.6-mistral-7b-hf”
+   to OpenVino IR format.
+
 .. code:: ipython3
 
     %pip install -q "nncf>=2.14.0" "torch>=2.1" "transformers>=4.39.1" "accelerate" "pillow" "gradio>=4.26" "datasets>=2.14.6" "tqdm" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q -U "openvino>=2024.5.0" "openvino-tokenizers>=2024.5.0" "openvino-genai>=2024.5"
-    %pip install -q "git+https://github.com/hugggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
 
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     import requests
-
+    
     utility_files = ["notebook_utils.py", "cmd_helper.py"]
-
+    
     for utility in utility_files:
         local_path = Path(utility)
         if not local_path.exists():
@@ -79,9 +82,14 @@ Prerequisites
             )
             with local_path.open("w") as f:
                 f.write(r.text)
-
+    
     model_id = "llava-hf/llava-v1.6-mistral-7b-hf"
     MODEL_DIR = Path(model_id.split("/")[-1].replace("-hf", "-ov"))
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("llava-next-multimodal-chatbot.ipynb")
 
 Convert model to OpenVINO IR format using Optimum CLI
 -----------------------------------------------------
@@ -114,7 +122,7 @@ tasks and model classes in Optimum TaskManager
 `documentation <https://huggingface.co/docs/optimum/exporters/task_manager>`__.
 Additionally, you can specify weights compression using
 ``--weight-format`` argument with one of following options: ``fp32``,
-``fp16``, ``int8`` and ``int4``. Fro int8 and int4
+``fp16``, ``int8`` and ``int4``. For int8 and int4
 `nncf <https://github.com/openvinotoolkit/nncf>`__ will be used for
 weight compression. More details about model export provided in `Optimum
 Intel
@@ -123,7 +131,7 @@ documentation <https://huggingface.co/docs/optimum/intel/openvino/export#export-
 .. code:: ipython3
 
     from cmd_helper import optimum_cli
-
+    
     if not (MODEL_DIR / "FP16").exists():
         optimum_cli(model_id, MODEL_DIR / "FP16", additional_args={"weight-format": "fp16"})
 
@@ -168,7 +176,7 @@ improves performance even more, but introduces a minor drop in
 prediction quality.
 
 More details about weights compression, can be found in `OpenVINO
-documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimization-guide/weight-compression.html>`__.
+documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/weight-compression.html>`__.
 
    **Note:** weights compression process may require additional time and
    memory for performing. You can disable it using widget below:
@@ -176,13 +184,13 @@ documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimizatio
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     to_compress_weights = widgets.Checkbox(
         value=True,
         description="Weights Compression",
         disabled=False,
     )
-
+    
     to_compress_weights
 
 
@@ -200,25 +208,25 @@ documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimizatio
     import nncf
     import openvino as ov
     import gc
-
+    
     compression_configuration = {
         "mode": nncf.CompressWeightsMode.INT4_SYM,
         "group_size": 64,
         "ratio": 0.6,
     }
-
+    
     core = ov.Core()
-
-
+    
+    
     def copy_model_folder(src, dst, ignore_file_names=None):
         ignore_file_names = ignore_file_names or []
-
+    
         for file_name in Path(src).glob("*"):
             if file_name.name in ignore_file_names:
                 continue
             shutil.copy(file_name, dst / file_name.relative_to(src))
-
-
+    
+    
     LANGUAGE_MODEL_PATH_INT4 = MODEL_DIR / "INT4/openvino_language_model.xml"
     LANGUAGE_MODEL_PATH = MODEL_DIR / "FP16/openvino_language_model.xml"
     if to_compress_weights.value and not LANGUAGE_MODEL_PATH_INT4.exists():
@@ -228,7 +236,7 @@ documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimizatio
         del ov_compressed_model
         del ov_model
         gc.collect()
-
+    
         copy_model_folder(MODEL_DIR / "FP16", MODEL_DIR / "INT4", ["openvino_language_model.xml", "openvino_language_model.bin"])
 
 
@@ -278,9 +286,9 @@ Select device from dropdown list for running inference using OpenVINO.
 .. code:: ipython3
 
     from notebook_utils import device_widget
-
+    
     device = device_widget("CPU", exclude=["NPU"])
-
+    
     device
 
 
@@ -300,13 +308,13 @@ Select model variant
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     use_int4_lang_model = widgets.Checkbox(
         value=LANGUAGE_MODEL_PATH_INT4.exists(),
         description="INT4 language model",
         disabled=not LANGUAGE_MODEL_PATH_INT4.exists(),
     )
-
+    
     use_int4_lang_model
 
 
@@ -329,9 +337,9 @@ and inference device.
 .. code:: ipython3
 
     import openvino_genai as ov_genai
-
+    
     model_dir = MODEL_DIR / "FP16" if not use_int4_lang_model.value else MODEL_DIR / "INT4"
-
+    
     ov_model = ov_genai.VLMPipeline(model_dir, device=device.value)
 
 Run OpenVINO model inference
@@ -364,11 +372,11 @@ one of the most critical aspects of a smooth experience.
     from PIL import Image
     from io import BytesIO
     import numpy as np
-
+    
     config = ov_genai.GenerationConfig()
     config.max_new_tokens = 100
-
-
+    
+    
     def load_image(image_file):
         if image_file.startswith("http") or image_file.startswith("https"):
             response = requests.get(image_file)
@@ -377,27 +385,32 @@ one of the most critical aspects of a smooth experience.
             image = Image.open(image_file).convert("RGB")
         image_data = np.array(image.getdata()).reshape(1, image.size[1], image.size[0], 3).astype(np.byte)
         return image, ov.Tensor(image_data)
-
-
+    
+    
     def streamer(subword: str) -> bool:
         """
-
+    
         Args:
             subword: sub-word of the generated text.
-
+    
         Returns: Return flag corresponds whether generation should be stopped.
-
+    
         """
         print(subword, end="", flush=True)
-
-
-    image_file = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/d5fbbd1a-d484-415c-88cb-9986625b7b11"
-
-    image, image_tensor = load_image(image_file)
+    
+    
+    image_url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/d5fbbd1a-d484-415c-88cb-9986625b7b11"
+    image_file = Path("cat.png")
+    
+    if not image_file.exists():
+        image, image_tensor = load_image(image_url)
+        image.save(image_file)
+    else:
+        image, image_tensor = load_image(image_file)
     text_message = "What is unusual on this image?"
-
+    
     prompt = text_message
-
+    
     display(image)
     print(f"Question:\n{text_message}")
     print("Answer:")
@@ -405,7 +418,7 @@ one of the most critical aspects of a smooth experience.
 
 
 
-.. image:: llava-next-multimodal-chatbot-with-output_files/llava-next-multimodal-chatbot-with-output_17_0.png
+.. image:: llava-next-multimodal-chatbot-with-output_files/llava-next-multimodal-chatbot-with-output_18_0.png
 
 
 .. parsed-literal::
@@ -413,8 +426,8 @@ one of the most critical aspects of a smooth experience.
     Question:
     What is unusual on this image?
     Answer:
-
-
+    
+    
     The unusual aspect of this image is that a cat is lying inside a cardboard box. Cats are known for their curiosity and love for small, enclosed spaces. They often find comfort and security in boxes, bags, or other confined spaces. In this case, the cat has chosen to lie down in a cardboard box, which is an unconventional and amusing sight. It is not common to see a cat lounging in a box, as they usually
 
 Interactive demo
@@ -427,11 +440,11 @@ Interactive demo
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llava-next-multimodal-chatbot/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)
-
+    
     from gradio_helper import make_demo
-
+    
     demo = make_demo(ov_model)
-
+    
     try:
         demo.launch(debug=False)
     except Exception:

@@ -15,9 +15,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "openvino/opsets/opset1.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 struct LrnKey {
@@ -212,7 +210,7 @@ void Lrn::prepareParams() {
     auto result = cache->getOrCreate(key, builder);
     execPtr = result.first;
     if (!execPtr) {
-        OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
+        THROW_CPU_NODE_ERR("Primitive descriptor was not found.");
     }
 
     auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
@@ -260,6 +258,4 @@ void Lrn::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

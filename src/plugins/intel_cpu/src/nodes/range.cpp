@@ -11,9 +11,7 @@
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool Range::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -109,11 +107,10 @@ void Range::execute(const dnnl::stream& strm) {
         retcode = rangeKernel<int32_t>();
         break;
     default:
-        OPENVINO_THROW("Incorrect output precision. Only FP32 and I32 are supported!");
+        THROW_CPU_NODE_ERR("Incorrect output precision. Only FP32 and I32 are supported!");
     }
     if (retcode == PARAMETER_MISMATCH) {
-        std::string errorMsg = "Range indexes exceeds data tensor dimension";
-        OPENVINO_THROW(errorMsg);
+        THROW_CPU_NODE_ERR("Range indexes exceeds data tensor dimension");
     }
 }
 
@@ -167,6 +164,4 @@ bool Range::created() const {
     return getType() == Type::Range;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -28,9 +28,7 @@ using namespace ov::Extensions::Cpu::XARCH;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 struct PagedAttentionKey {
     ov::element::Type rtPrecision;
@@ -56,7 +54,7 @@ PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphC
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        OPENVINO_THROW("CPU: " + errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     // output score may have no child
     m_hasScore = !op->get_output_target_inputs(1).empty();
@@ -83,7 +81,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
-    OPENVINO_ASSERT(orgInputNumber == 13 || orgInputNumber == 16,
+    CPU_NODE_ASSERT(orgInputNumber == 13 || orgInputNumber == 16,
                     "The input number of PagedAttention should be 13 or 16.");
     // kvcache, float, []
     auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
@@ -176,7 +174,7 @@ void PagedAttention::createPrimitive() {
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
     if (!result.first) {
-        OPENVINO_THROW("PagedAttention AttentionExecutor creation fails with precision " + rtPrecision.to_string());
+        THROW_CPU_NODE_ERR("AttentionExecutor creation fails with precision " + rtPrecision.to_string());
     }
     m_executor = result.first;
 }
@@ -268,6 +266,4 @@ ov::element::Type PagedAttention::getRuntimePrecision() const {
     return rtPrecision;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
