@@ -28,11 +28,13 @@ SDPAFusion::SDPAFusion() {
 
     auto q_base = makePattern(ov::Rank(4));
     auto q_shape = ov::pass::pattern::any_input();
-    auto q = optional<ov::op::v1::Reshape>({q_base, q_shape});
+    auto q_reshaped = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({q_base, q_shape});
+    auto q = q_reshaped | q_base;
 
     auto k_base = makePattern(ov::Rank(4));
     auto k_shape = ov::pass::pattern::any_input();
-    auto k = optional<ov::op::v1::Reshape>({k_base, k_shape});
+    auto k_reshaped = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({k_base, k_shape});
+    auto k = k_reshaped | k_base;
 
     // Optional k scale
     auto attn_scale = ov::pass::pattern::any_input();
@@ -45,15 +47,17 @@ SDPAFusion::SDPAFusion() {
     
     auto v_base = makePattern(ov::Rank(4));
     auto v_proj_shape_m = ov::pass::pattern::any_input();
-    auto v = optional<ov::op::v1::Reshape>({v_base, v_proj_shape_m});
+    auto v_reshaped = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({v_base, v_proj_shape_m});
+    auto v = v_reshaped | v_base;
 
     // No transpose check here, there are scenarios where k is not transposed and that uses equation (A*B)^T = B^T * A^T
     auto qk = makePattern<ov::op::v0::MatMul>({q, k_opt_transposed_opt_scaled});
 
+    // Optional unsqueeze that is converted to Reshape
     auto unsqueeze_axis = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto qk_unsqueeze = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({qk, unsqueeze_axis});
     auto qk_opt_unsqueeze = qk_unsqueeze | qk;
-
+    // Optional concat
     auto qk_opt_unsqueeze_concat = ov::pass::pattern::wrap_type<ov::op::v0::Concat>(ov::OutputVector{qk_opt_unsqueeze}, 0);
     auto qk_opt_unsqueeze_opt_concat = qk_opt_unsqueeze_concat | qk_opt_unsqueeze;
 
@@ -80,8 +84,8 @@ SDPAFusion::SDPAFusion() {
 
     auto qkv_base = makePattern<ov::op::v0::MatMul>({softmax_opt_reshaped, v}, {{"transpose_a", false}, {"transpose_b", false}});
     auto qkv_shape = ov::pass::pattern::any_input();
-    auto qkv = optional<ov::op::v1::Reshape>({qkv_base, qkv_shape});
-    // auto qkv = qkv_reshaped | qkv_base;
+    auto qkv_reshaped = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({qkv_base, qkv_shape});
+    auto qkv = qkv_reshaped | qkv_base;
 
     auto valid_qk_shapes = [](const std::shared_ptr<ov::op::v0::MatMul>& qk_matmul) {
         auto q_pshape = qk_matmul->get_input_partial_shape(0);
@@ -108,44 +112,32 @@ SDPAFusion::SDPAFusion() {
 
         auto q_node = pattern_map.at(q_base);
         auto q_node_ps = q_node.get_partial_shape();
-        // if (q_node_ps.is_dynamic())
-        //     return false;
-        if (q_node_ps.size() < 3)
+        if (q_node_ps[-1].is_dynamic() || q_node_ps[-3].is_dynamic())
             return false;
 
         auto k_node = pattern_map.at(k_base);
         auto k_node_ps = k_node.get_partial_shape();
-        // if (k_node_ps.is_dynamic())
-        //     return false;
-        if (k_node_ps.size() < 3)
-            return false;
 
         auto v_node = pattern_map.at(v_base);
         auto v_node_ps = v_node.get_partial_shape();
-        // if (v_node_ps.is_dynamic())
-        //     return false;
-        if (v_node_ps.size() < 3)
+        if (v_node_ps[-1].is_dynamic() || v_node_ps[-3].is_dynamic())
             return false;
 
-        if (v_node_ps[-2] != k_node_ps[-2]) {
-                if(k_node_ps.size() == 4){
-                    auto constant = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 3, 1});
-                    k_node = std::make_shared<ov::op::v1::Transpose>(k_node, constant);
-                    k_node_ps = k_node.get_partial_shape();
-                }
-                else if(k_node_ps.size() == 3){
-                    auto constant = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1});
-                    k_node = std::make_shared<ov::op::v1::Transpose>(k_node, constant);
-                    k_node_ps = k_node.get_partial_shape();
-                }
+        if (v_node_ps[-1] != k_node_ps[-1]) {
+                auto constant = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 3, 1});
+                k_node = std::make_shared<ov::op::v1::Transpose>(k_node, constant);
+                k_node_ps = k_node.get_partial_shape();
             }
 
+        if (k_node_ps[-1].is_dynamic() || k_node_ps[-3].is_dynamic())
+            return false;
+
         // get all important dims from shapes:
-        auto N = q_node_ps[0];  // batch size
+        auto N = q_node_ps[0];  // batch size - can be dynamic
         // auto Hq = q_node_ps[-3];   // number of heads of query
         auto H = k_node_ps[-3];    // number of heads of key and value
-        auto S = k_node_ps[-2];   // source sequence length
-        auto L = q_node_ps[-2];   // target sequence length
+        auto S = k_node_ps[-2];   // source sequence length - can be dynamic
+        auto L = q_node_ps[-2];   // target sequence length - can be dynamic
         auto E = q_node_ps[-1];   // embedding dimension of query and key
         auto Ev = k_node_ps[-1];  // embedding dimension of value
     
@@ -154,7 +146,7 @@ SDPAFusion::SDPAFusion() {
         // make sure that all inputs to SDPA (query, key and value) have the same batch
         if (k_node_ps[0] != N)
             return false;
-        if (k_node_ps[0] != N)
+        if (v_node_ps[0] != N)
             return false;
         
         // make sure that number of heads of value is the same as for key
@@ -167,6 +159,15 @@ SDPAFusion::SDPAFusion() {
 
         // make sure that embedding dimension of key is the same as for query
         if (v_node_ps[-1] != E)
+            return false;
+    
+        if (v_node_ps[-1] != Ev)
+            return false;
+        
+        // make sure that if inputs are reshaped the output is reshaped back
+        bool inputs_reshaped = pattern_map.count(q_reshaped) > 0 && pattern_map.count(k_reshaped) > 0 && pattern_map.count(v_reshaped) > 0;
+        bool output_reshaped = pattern_map.count(qkv_reshaped) > 0;
+        if (inputs_reshaped && !output_reshaped || !inputs_reshaped && output_reshaped)
             return false;
         
         if (!valid_qk_shapes(ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(qk).get_node_shared_ptr()))) {
@@ -182,7 +183,6 @@ SDPAFusion::SDPAFusion() {
             return false;
         }
          ov::Output<ov::Node> scale_node;
-        // ov::Output<ov::Node> attn_bias_out;
         
         if (pattern_map.count(attn_scale) > 0) {
             scale_node = pattern_map.at(attn_scale);
