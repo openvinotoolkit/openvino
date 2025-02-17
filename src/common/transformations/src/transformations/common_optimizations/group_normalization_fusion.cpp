@@ -109,7 +109,6 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         // number of channels has to be divisible by number of groups
         if (num_channels % num_groups != 0)
             return false;
-        auto channels_to_groups_ratio = num_channels / num_groups;
 
         // first dimension of MVN input (batch_size) has to be the same
         // as in pattern input
@@ -169,10 +168,9 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         auto gather_axis_const_m = op::v0::Constant::create(element::i64, Shape{1}, {0});
         auto gather_indices_vals = std::vector<int64_t>();
         for (auto i = 0ull; i < num_groups; i++)
-            gather_indices_vals.insert(gather_indices_vals.end(), channels_to_groups_ratio, i);
+            gather_indices_vals.insert(gather_indices_vals.end(), num_channels / num_groups, i);
         auto gather_indices_const_m = op::v0::Constant::create(element::i64, Shape{num_channels}, gather_indices_vals);
 
-        std::shared_ptr<ov::Node> instance_norm_beta_1d_m = nullptr;
         if (pattern_map.count(instance_norm_beta_m) > 0) {
             const auto& instance_norm_beta = pattern_map.at(instance_norm_beta_m);
             if (instance_norm_beta.get_element_type() != T)
@@ -182,6 +180,7 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
 
             // ensure that instance_norm_beta will have shape compatible
             // with group_norm parameters, i.e. 1D vector of shape (num_channels)
+            std::shared_ptr<ov::Node> instance_norm_beta_1d_m = nullptr;
             if (ov::shape_size(instance_norm_beta.get_shape()) == 1) {
                 auto shape_1d_const_m = op::v0::Constant::create(element::i64, Shape{1}, {1});
                 instance_norm_beta_1d_m =
