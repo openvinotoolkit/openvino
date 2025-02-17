@@ -54,15 +54,21 @@ bool pass::BuildBrgemm::run(snippets::lowered::LinearIR& linear_ir,
         const auto& gemm_out_desc = expr->get_output_port_descriptor(0);
 
         // Get innermost loop info
-        const auto& inner_loop_info = loop_manager->get_loop_info<snippets::lowered::UnifiedLoopInfo>(loop_ids.front());
+        const auto& inner_loop_info = loop_manager->get_loop_info<snippets::lowered::UnifiedLoopInfo>(loop_ids.back());
         if (inner_loop_info->is_dynamic()) {
             continue;
         }
+
+        if (!(in_ports.size() >= 2 && in_ports.front().is_processed() && in_ports.front().get_dim_idx() == 0 &&
+              in_ports.back().is_processed() && in_ports.back().get_dim_idx() == 1 && out_ports.size() == 1 &&
+              !out_ports.front().is_processed())) {
+            continue;
+        }
+
         auto iter_count = inner_loop_info->get_work_amount() / inner_loop_info->get_increment();
 
         std::shared_ptr<BrgemmCPU> brgemm_node;
-        if (with_amx(gemm_node->get_type()) || with_compensations(gemm_node->get_type())) {
-            fprintf(stderr, "with_amx(gemm_node->get_type()) || with_compensations(gemm_node->get_type())\n");
+        if (with_scratchpad(gemm_node->get_type())) {
             OPENVINO_ASSERT(expr->get_input_port_connectors().size(), "GemmCPU expects 3 inputs with input precisions i8|i8 and bf16|bf16 on AMX system");
             brgemm_node = std::make_shared<BrgemmCPU>(expr->get_input_port_connector(0)->get_source().get_expr()->get_node(),
                                                       expr->get_input_port_connector(1)->get_source().get_expr()->get_node(),
@@ -77,7 +83,6 @@ bool pass::BuildBrgemm::run(snippets::lowered::LinearIR& linear_ir,
                                                       gemm_in1_desc->get_layout(),
                                                       gemm_out_desc->get_layout());
         } else {
-            fprintf(stderr, "!with_amx(gemm_node->get_type()) || with_compensations(gemm_node->get_type())\n");
             OPENVINO_ASSERT(expr->get_input_port_connectors().size() == 2, "GemmCPU expects 2 inputs in cases, when input precisions are f32|f32, u8|i8 or bf16|bf16 (non-AMX system)");
             brgemm_node =
                 std::make_shared<BrgemmCPU>(expr->get_input_port_connector(0)->get_source().get_expr()->get_node(),
