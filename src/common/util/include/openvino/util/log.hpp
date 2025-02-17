@@ -116,10 +116,14 @@ static inline bool is_terminal_output() {
 #endif
 }
 
-#define OV_RESET    (ov::util::is_terminal_output() ? "\033[0m"    : "")
-#define OV_RED      (ov::util::is_terminal_output() ? "\033[31m"   : "")
-#define OV_GREEN    (ov::util::is_terminal_output() ? "\033[1;32m" : "")
-#define OV_YELLOW   (ov::util::is_terminal_output() ? "\033[33m"   : "")
+#define OV_RESET            (ov::util::is_terminal_output() ? "\033[0m"    : "")
+#define OV_RED              (ov::util::is_terminal_output() ? "\033[31m"   : "")
+#define OV_GREEN            (ov::util::is_terminal_output() ? "\033[1;32m" : "")
+#define OV_YELLOW           (ov::util::is_terminal_output() ? "\033[33m"   : "")
+#define OV_BLOCK_BEG        "{"
+#define OV_BLOCK_END        "}"
+#define OV_BLOCK_BODY       "│"
+#define OV_BLOCK_BODY_RIGHT "├─"
 
 #    define OV_LOG_MATCHING(matcher_ptr, ...)                                                                              \
         do {                                                                                                               \

@@ -534,7 +534,7 @@ bool ov::Node::match_value(ov::pass::pattern::Matcher* matcher,
         (matcher->is_strict_mode() &&
          (!pattern_value.get_element_type().compatible(graph_value.get_element_type()) ||
           !pattern_value.get_partial_shape().compatible(graph_value.get_partial_shape())))) {
-        OV_LOG_MATCHING(matcher, matcher->level_str, "}  INDEX, ELEMENT TYPE or PARTIAL SHAPE MISMATCH. EXPECTED IN PATTERN: ",
+        OV_LOG_MATCHING(matcher, matcher->level_str, OV_BLOCK_END, "  INDEX, ELEMENT TYPE or PARTIAL SHAPE MISMATCH. EXPECTED IN PATTERN: ",
                                                            pattern_value.get_index(), ", ", pattern_value.get_element_type(), ", ", pattern_value.get_partial_shape(),
                                   ". OBSERVED IN GRAPH: ", graph_value.get_index(), ", ", graph_value.get_element_type(), ", ", graph_value.get_partial_shape());
         return false;
@@ -553,19 +553,19 @@ bool ov::Node::match_node(ov::pass::pattern::Matcher* matcher, const Output<Node
     // patterns
     // with sub-graph of descent nodes types.
     if (graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_type_info())) {
-        OV_LOG_MATCHING(matcher, matcher->level_str, "├─ TYPE MATCHED. CHECKING PATTERN ARGUMENTS");
+        OV_LOG_MATCHING(matcher, matcher->level_str, OV_BLOCK_BODY_RIGHT, " TYPE MATCHED. CHECKING PATTERN ARGUMENTS");
         if (matcher->match_arguments(this, graph_value.get_node_shared_ptr())) {
             auto& pattern_map = matcher->get_pattern_value_map();
             pattern_map[shared_from_this()] = graph_value;
-            OV_LOG_MATCHING(matcher, matcher->level_str, "│");
-            OV_LOG_MATCHING(matcher, matcher->level_str, "}  ", OV_GREEN, "ALL ARGUMENTS MATCHED");
+            OV_LOG_MATCHING(matcher, matcher->level_str, OV_BLOCK_BODY);
+            OV_LOG_MATCHING(matcher, matcher->level_str, OV_BLOCK_END, OV_GREEN, "  ALL ARGUMENTS MATCHED");
             return true;
         }
-        OV_LOG_MATCHING(matcher, matcher->level_str, "│");
-        OV_LOG_MATCHING(matcher, matcher->level_str, "}  ", OV_RED, "ARGUMENTS DIDN'T MATCH");
+        OV_LOG_MATCHING(matcher, matcher->level_str, OV_BLOCK_BODY);
+        OV_LOG_MATCHING(matcher, matcher->level_str, OV_BLOCK_END, OV_RED, "  ARGUMENTS DIDN'T MATCH");
     } else {
-        OV_LOG_MATCHING(matcher, matcher->level_str, "}  ", OV_RED, "NODES' TYPE DIDN'T MATCH. EXPECTED: ", ov::node_version_type_str(shared_from_this()),
-                                                                                               ". OBSERVED: ", ov::node_version_type_str(graph_value.get_node_shared_ptr()));
+        OV_LOG_MATCHING(matcher, matcher->level_str, OV_BLOCK_END, OV_RED, "  NODES' TYPE DIDN'T MATCH. EXPECTED: ", ov::node_version_type_str(shared_from_this()),
+                                                                                                     ". OBSERVED: ", ov::node_version_type_str(graph_value.get_node_shared_ptr()));
     }
     return false;
 }

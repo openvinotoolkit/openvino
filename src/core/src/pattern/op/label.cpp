@@ -28,19 +28,19 @@ bool ov::pass::pattern::op::Label::match_value(ov::pass::pattern::Matcher* match
         auto saved = matcher->start_match();
         matcher->add_node(graph_value);
         if (pattern_map.count(shared_from_this())) {
-            OV_LOG_MATCHING(matcher, matcher->level_str, "}  ", OV_GREEN, "LABEL MATCHED: ", get_name());
+            OV_LOG_MATCHING(matcher, matcher->level_str, OV_BLOCK_END, OV_GREEN, "  LABEL MATCHED: ", get_name());
             return saved.finish(pattern_map[shared_from_this()] == graph_value);
         } else {
             pattern_map[shared_from_this()] = graph_value;
-            OV_LOG_MATCHING(matcher, matcher->level_str++, "├─ CHECKING INSIDE LABEL: ", get_name());
+            OV_LOG_MATCHING(matcher, matcher->level_str++, OV_BLOCK_BODY_RIGHT, " CHECKING INSIDE LABEL: ", get_name());
             auto res = saved.finish(matcher->match_value(input_value(0), graph_value));
-            OV_LOG_MATCHING(matcher, --matcher->level_str, "│");
-            OV_LOG_MATCHING(matcher, matcher->level_str, "}  ", OV_GREEN, "LABEL MATCHED");
+            OV_LOG_MATCHING(matcher, --matcher->level_str, OV_BLOCK_BODY);
+            OV_LOG_MATCHING(matcher, matcher->level_str, OV_BLOCK_END, OV_GREEN, "  LABEL MATCHED");
             return res;
         }
     }
-    OV_LOG_MATCHING(matcher, matcher->level_str, "│");
-    OV_LOG_MATCHING(matcher, matcher->level_str, "}  ", OV_RED, "LABEL DIDN'T MATCH");
+    OV_LOG_MATCHING(matcher, matcher->level_str, OV_BLOCK_BODY);
+    OV_LOG_MATCHING(matcher, matcher->level_str, OV_BLOCK_END, OV_RED, "  LABEL DIDN'T MATCH");
     return false;
 }
 
