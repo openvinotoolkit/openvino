@@ -528,7 +528,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
 #else
 #    error "Undefined system processor"
 #endif
-    } else if (name == ov::optimal_batch_size){
+    } else if (name == ov::optimal_batch_size) {
         return decltype(ov::optimal_batch_size)::value_type(1);
     } else if (name == ov::hint::model.name()) {
         return decltype(ov::hint::model)::value_type(nullptr);
