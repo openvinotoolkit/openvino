@@ -511,10 +511,7 @@ jobs:
       max-parallel: 3
       fail-fast: false
       matrix:
-        include:
-          - SANITIZER: 'AddressAndLeak'
-          - SANITIZER: 'UndefinedBehavior'
-          - SANITIZER: 'Thread'
+        SANITIZER: ['AddressAndLeak', 'UndefinedBehavior', 'Thread']
 
     steps:
       - name: Check matrix
