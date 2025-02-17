@@ -21,6 +21,7 @@
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
+#include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -41,9 +42,7 @@ struct RTInfoCache {
 
     void store(const std::shared_ptr<ov::Model>& model) {
         traverse(model, [this](const std::shared_ptr<ov::Node>& op) {
-            auto& rt_info = op->get_rt_info();
-            m_rt_info_cache[op.get()] = rt_info;
-            rt_info.clear();
+            m_rt_info_cache[op.get()] = op->get_rt_info();
         });
     }
 
@@ -52,6 +51,10 @@ struct RTInfoCache {
             auto it = m_rt_info_cache.find(op.get());
             if (it != m_rt_info_cache.end()) {
                 op->get_rt_info() = it->second;
+            } else {
+                ov::pass::enable_constant_folding(op);
+                ov::unmark_dequantization_node(op);
+                ov::unmark_as_decompression(op);
             }
         });
     }
