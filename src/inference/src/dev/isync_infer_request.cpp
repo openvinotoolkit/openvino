@@ -92,6 +92,12 @@ void check_batched_tensors(const ov::Output<const ov::Node>& input,
 
 ov::IInferRequest::~IInferRequest() = default;
 
+void ov::IInferRequest::reset_state(){
+    for (auto&& state : query_state()) {
+        state->reset();
+    }
+}
+
 ov::ISyncInferRequest::ISyncInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model)
     : m_compiled_model(compiled_model) {
     OPENVINO_ASSERT(m_compiled_model);
