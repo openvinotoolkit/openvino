@@ -16,6 +16,7 @@
 
 namespace ov::test {
 using op::v0::Constant, op::v0::Parameter, op::v1::Add, op::v1::ReduceMax, op::v1::StridedSlice, op::v3::ShapeOf;
+using testing::HasSubstr;
 
 class TypePropSegmentMaxTest : public TypePropOpTest<op::v16::SegmentMax> {};
 
@@ -69,45 +70,44 @@ TEST_F(TypePropSegmentMaxTest, incorrect_inputs) {
         const auto num_segments_f32 = std::make_shared<Parameter>(element::f32, PartialShape{});
         OV_EXPECT_THROW(std::ignore = make_op(data, segment_ids, num_segments_f32, op::FillMode::LOWEST),
                         ov::NodeValidationFailure,
-                        testing::HasSubstr("The element type of the num_segments input be i32 or i64."));
+                        HasSubstr("The element type of the num_segments input be i32 or i64."));
     }
     {
         const auto segment_ids_f32 = std::make_shared<Parameter>(element::f32, PartialShape{3});
         OV_EXPECT_THROW(std::ignore = make_op(data, segment_ids_f32, num_segments, op::FillMode::LOWEST),
                         ov::NodeValidationFailure,
-                        testing::HasSubstr("The element type of the segment_ids input be i32 or i64."));
+                        HasSubstr("The element type of the segment_ids input be i32 or i64."));
     }
     {
         const auto segment_ids_nd = std::make_shared<Parameter>(element::i32, PartialShape{2, 3});
         OV_EXPECT_THROW(std::ignore = make_op(data, segment_ids_nd, num_segments, op::FillMode::LOWEST),
                         ov::NodeValidationFailure,
-                        testing::HasSubstr("segment_ids must be a 1D input."));
+                        HasSubstr("segment_ids must be a 1D input."));
     }
     {
         const auto num_segments_nd = std::make_shared<Parameter>(element::i32, PartialShape{1});
         OV_EXPECT_THROW(std::ignore = make_op(data, segment_ids, num_segments_nd, op::FillMode::LOWEST),
                         ov::NodeValidationFailure,
-                        testing::HasSubstr("num_segments must be a scalar input."));
+                        HasSubstr("num_segments must be a scalar input."));
     }
     {
         const auto segment_ids_unsorted =
             std::make_shared<Constant>(element::i32, Shape{3}, std::vector<int64_t>{1, 0, 1});
         OV_EXPECT_THROW(std::ignore = make_op(data, segment_ids_unsorted, num_segments, op::FillMode::LOWEST),
                         ov::NodeValidationFailure,
-                        testing::HasSubstr("segment_ids must be sorted."));
+                        HasSubstr("segment_ids must be sorted."));
     }
     {
         const auto data_scalar = std::make_shared<Parameter>(element::i32, PartialShape{});
         OV_EXPECT_THROW(std::ignore = make_op(data_scalar, segment_ids, num_segments, op::FillMode::LOWEST),
                         ov::NodeValidationFailure,
-                        testing::HasSubstr("The data input cannot be a scalar."));
+                        HasSubstr("The data input cannot be a scalar."));
     }
     {
         const auto segment_ids_short = std::make_shared<Constant>(element::i32, Shape{2}, std::vector<int64_t>{1, 0});
-        OV_EXPECT_THROW(
-            std::ignore = make_op(data, segment_ids_short, num_segments, op::FillMode::LOWEST),
-            ov::NodeValidationFailure,
-            testing::HasSubstr("The number of elements in segment_ids must match the first dimension of data."));
+        OV_EXPECT_THROW(std::ignore = make_op(data, segment_ids_short, num_segments, op::FillMode::LOWEST),
+                        ov::NodeValidationFailure,
+                        HasSubstr("The number of elements in segment_ids must match the first dimension of data."));
     }
 }
 
