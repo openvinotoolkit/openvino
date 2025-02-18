@@ -86,6 +86,7 @@ public:
                     }
                 }
             } else {
+                source.push_back("#include <cm/cm.h>\n#include <cm/cmtl.h>\n");
             for (const auto& kv : batch_headers)
                 source.push_back(kv.second);
             }
