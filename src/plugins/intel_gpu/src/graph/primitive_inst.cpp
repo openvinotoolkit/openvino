@@ -1869,12 +1869,14 @@ void primitive_inst::prepare_primitive() {
         const bool need_realloc_for_runtime_skippable =
             prev_execution_skipped && !can_be_optimized() &&
             _network.get_engine().is_the_same_buffer(output_memory(), input_memory());
-        if (shape_changed || !_impl || (!shape_changed && _impl->is_dynamic() && can_use_async_compilation) || need_realloc_for_runtime_skippable) {
+        if (shape_changed || !_impl || (!shape_changed && _impl->is_dynamic() && can_use_async_compilation)) {
             update_impl(can_use_async_compilation);
-            if (get_flag(ExecutionFlags::IMPL_CHANGED) || need_realloc_for_runtime_skippable) {
+            if (get_flag(ExecutionFlags::IMPL_CHANGED)) {
                 update_weights();
                 realloc_if_needed(prev_execution_skipped);
             }
+        } else if (need_realloc_for_runtime_skippable) {
+            realloc_if_needed(prev_execution_skipped);
         }
 
         // Paged Attention may require dispatch data update and internal buffers reallocation
