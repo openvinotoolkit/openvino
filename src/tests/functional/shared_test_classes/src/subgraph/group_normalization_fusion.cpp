@@ -146,12 +146,6 @@ void GroupNormalizationFusionSubgraphTestsF::generate_inputs(const std::vector<S
     }
 }
 
-void GroupNormalizationFusionSubgraphTestsF::configure_device() {
-    if (target_configuration.count(hint::inference_precision.name()) <= 0) {
-        target_configuration.insert({hint::inference_precision.name(), elem_type});
-    }
-}
-
 void GroupNormalizationFusionSubgraphTestsF::read_test_parameters() {
     const auto& params = GetParam();
 
@@ -200,6 +194,12 @@ void GroupNormalizationFusionSubgraphTestsF::read_test_parameters() {
         instance_norm_gamma_present && (shape_size(instance_norm_gamma_shape) == static_cast<size_t>(num_groups));
     instance_norm_beta_present =
         instance_norm_beta_present && (shape_size(instance_norm_beta_shape) == static_cast<size_t>(num_groups));
+}
+
+void GroupNormalizationFusionSubgraphTestsF::configure_device() {
+    if (target_configuration.count(hint::inference_precision.name()) <= 0) {
+        target_configuration.insert({hint::inference_precision.name(), elem_type});
+    }
 }
 }  // namespace test
 }  // namespace ov

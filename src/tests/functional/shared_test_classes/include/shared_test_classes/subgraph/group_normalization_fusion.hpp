@@ -70,9 +70,9 @@ protected:
 
     void init_thresholds() override;
     void generate_inputs(const std::vector<Shape>& targetInputStaticShapes) override;
+    void read_test_parameters() override;
 
     void configure_device();
-    void read_test_parameters();
 };
 
 template <typename... T_old_vals, typename... T_added_vals>
