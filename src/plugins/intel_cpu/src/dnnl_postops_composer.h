@@ -11,6 +11,7 @@
 #include <dnnl_types.h>
 
 #include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/dnnl/dnnl_aliases.hpp"
 #include "nodes/executors/dnnl/dnnl_post_op_data.hpp"
 #include "post_ops.hpp"
@@ -88,6 +89,7 @@ private:
     const dnnl::memory::data_type outDataType;
     bool useLegacyPostOps;
     bool useLegacyZeroPoints;
+    MemoryDescPtr dstDesc;
 
     dnnl::primitive_attr attr;
     MemoryArgs cpuArgs;
