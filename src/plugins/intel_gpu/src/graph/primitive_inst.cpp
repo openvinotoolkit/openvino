@@ -1467,6 +1467,11 @@ void primitive_inst::do_runtime_skip_gather() {
                 GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because idx_data [" << i << "] (" << idx_data[i] << ") != " << i << std::endl;
                 if (_impl_params->output_layouts[0].data_padding.is_dynamic())
                     _impl_params->output_layouts[0].data_padding = padding();
+                // for runtime skippable nodes, if previous iter is skipped while this iter not, its output memory needs to be revalidate
+                // as memory opt/release may be applied for these nodes to reduce memory footprint in previous iters
+                if (can_be_optimized()) {
+                    set_flag(ExecutionFlags::SHAPE_CHANGED);
+                }
                 set_can_be_optimized(false);
                 return;
             }
@@ -1864,19 +1869,12 @@ void primitive_inst::prepare_primitive() {
         // Only try update weight and realloc when impl is updated.
         const bool can_use_async_compilation = use_async_compilation();
         const bool shape_changed = get_flag(ExecutionFlags::SHAPE_CHANGED);
-        // for runtime skippable nodes, if previous iter is skipped while this iter not, its output memory needs to be revalidate
-        // as memory opt/release may be applied for these nodes to reduce memory footprint in previous iters
-        const bool need_realloc_for_runtime_skippable =
-            prev_execution_skipped && !can_be_optimized() &&
-            _network.get_engine().is_the_same_buffer(output_memory(), input_memory());
         if (shape_changed || !_impl || (!shape_changed && _impl->is_dynamic() && can_use_async_compilation)) {
             update_impl(can_use_async_compilation);
             if (get_flag(ExecutionFlags::IMPL_CHANGED)) {
                 update_weights();
                 realloc_if_needed(prev_execution_skipped);
             }
-        } else if (need_realloc_for_runtime_skippable) {
-            realloc_if_needed(prev_execution_skipped);
         }
 
         // Paged Attention may require dispatch data update and internal buffers reallocation
