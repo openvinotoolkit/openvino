@@ -88,6 +88,8 @@ protected:
 
     static void execute_brgemm(const std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& kernel,
                                size_t bs,
+                               size_t stride_A,
+                               size_t stride_B,
                                const void* src,
                                const void* wei,
                                void* dst,

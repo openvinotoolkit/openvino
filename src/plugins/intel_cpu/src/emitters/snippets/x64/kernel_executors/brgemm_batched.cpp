@@ -105,21 +105,37 @@ void BrgemmBatchedKernelExecutor::execute(const BrgemmBatchedKernelExecutor* exe
 
     // Note: compensations should be applied only once, so we do it only on the first iteration, when beta == 0
     const auto is_with_comp = config.get_beta() == 0 && config.is_with_comp();
-    execute_brgemm(kernel->brgemm_kernel, config.get_iter_count(), args->A, args->B, args->C, args->scratch, is_with_comp);
+    size_t stride_A = config.get_LDA();
+    size_t stride_B = config.get_LDB();
+
+    execute_brgemm(kernel->brgemm_kernel,
+                   config.get_iter_count(),
+                   stride_A,
+                   stride_B,
+                   args->A,
+                   args->B,
+                   args->C,
+                   args->scratch,
+                   is_with_comp);
 }
 
 void BrgemmBatchedKernelExecutor::execute_brgemm(const std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& kernel,
                                                  size_t bs,
+                                                 size_t stride_A,
+                                                 size_t stride_B,
                                                  const void* pin0,
                                                  const void* pin1,
                                                  void* dst,
                                                  void* scratch,
                                                  bool with_comp) {
     cpu::x64::brgemm_kernel_params_t brgemm_p;
-    brgemm_batch_element_t addr_batch;
-    addr_batch.ptr.A = pin0;
-    addr_batch.ptr.B = pin1;
-    brgemm_p.batch = &addr_batch;
+    std::vector<brgemm_batch_element_t> addr_batch(bs);
+
+    for (size_t i = 0; i < bs; i++) {
+        addr_batch[i].ptr.A = (char*)(pin0) + i * stride_A;
+        addr_batch[i].ptr.B = (char*)(pin1) + i * stride_B;
+    }
+    brgemm_p.batch = addr_batch.data();
     brgemm_p.ptr_A = nullptr;
     brgemm_p.ptr_B = nullptr;
     brgemm_p.ptr_C = dst;
@@ -129,7 +145,7 @@ void BrgemmBatchedKernelExecutor::execute_brgemm(const std::shared_ptr<dnnl::imp
     brgemm_p.do_post_ops = with_comp;
     brgemm_p.do_apply_comp = with_comp;
     brgemm_p.skip_accm = 0;
-    brgemm_p.BS = 1;
+    brgemm_p.BS = bs;
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr Brgemm kernel");
     (*kernel)(&brgemm_p);
 }
