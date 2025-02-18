@@ -793,16 +793,21 @@ void extract_diagonal(ov::OutputVector& inputs,
         const auto& dim_map_unrepeated_label = transposed_label_dim_map.find(unrepeated_label);
         OPENVINO_ASSERT(dim_map_unrepeated_label != transposed_label_dim_map.end());
         const auto& unrepeated_label_dims = dim_map_unrepeated_label->second;
-        const auto& unrepeated_label_indices =
-            ov::op::v0::Constant::create(ov::element::i64, {unrepeated_label_dims.size()}, unrepeated_label_dims);
-        const auto& unrepeated_dimensions =
-            std::make_shared<ov::op::v7::Gather>(input_shape, unrepeated_label_indices, const_0);
-        convenient_shape_vector.push_back(unrepeated_dimensions);
-        shape_after_pad_vector.push_back(unrepeated_dimensions);
+        unrepeated_dimension_indices_vec.insert(unrepeated_dimension_indices_vec.end(),
+                                                unrepeated_label_dims.begin(),
+                                                unrepeated_label_dims.end());
         begins.insert(begins.end(), unrepeated_label_dims.size(), const_0);
         ends.insert(ends.end(), unrepeated_label_dims.size(), const_0);
-        subgraph_nodes.insert(subgraph_nodes.end(), {unrepeated_label_indices, unrepeated_dimensions});
     }
+    const auto& unrepeated_dimensions_indices = ov::op::v0::Constant::create(ov::element::i64,
+                                                                             {unrepeated_dimension_indices_vec.size()},
+                                                                             unrepeated_dimension_indices_vec);
+    const auto& unrepeated_dimensions =
+        std::make_shared<ov::op::v7::Gather>(input_shape, unrepeated_dimensions_indices, const_0);
+    subgraph_nodes.insert(subgraph_nodes.end(), {unrepeated_dimensions_indices, unrepeated_dimensions});
+    convenient_shape_vector.push_back(unrepeated_dimensions);
+    shape_after_pad_vector.push_back(unrepeated_dimensions);
+
     const auto& convenient_shape = std::make_shared<ov::op::v0::Concat>(convenient_shape_vector, 0);
     const auto& pads_end = std::make_shared<ov::op::v0::Concat>(ends, 0);
     const auto& pads_begin = std::make_shared<ov::op::v0::Concat>(begins, 0);
