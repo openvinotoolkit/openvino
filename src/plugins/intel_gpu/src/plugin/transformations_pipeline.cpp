@@ -279,6 +279,7 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
 
 namespace cldnn {
 extern bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
+extern bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config);
 }  // namespace cldnn
 
 namespace ov::intel_gpu {
@@ -530,6 +531,50 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::pass::BidirectionalGRUSequenceDecomposition>();
             manager.register_pass<ov::pass::BidirectionalRNNSequenceDecomposition>();
         }
+
+        // Disable Bidirectional LSTM decomposition if node is supported by XeTLA
+        pass_config->set_callback<ov::pass::BidirectionalLSTMSequenceDecomposition>(
+                [&](const_node_ptr &node) -> bool {
+                    const auto &lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(node);
+
+                    auto &engine = m_context->get_engine();
+                    if (!cldnn::check_cm_jit_support(engine, config) || engine.get_device_info().arch != cldnn::gpu_arch::xe2) {
+                        return false;
+                    }
+
+                    if (lstm_seq->get_clip() > 0.f) {
+                        return false;
+                    }
+
+                    const auto &activations = lstm_seq->get_activations();
+                    if (activations.size() != 3 ||
+                        activations[0].compare("sigmoid") != 0 || activations[1].compare("tanh") != 0 || activations[2].compare("tanh") != 0) {
+                        return false;
+                    }
+
+                    if (lstm_seq->get_output_element_type(0) != ov::element::f16) {
+                        return false;
+                    }
+
+                    if (lstm_seq->is_dynamic()) {
+                        return false;
+                    }
+                    const auto &input = lstm_seq->get_input_shape(0);
+                    const auto &output = lstm_seq->get_output_shape(0);
+                    if (input.size() != 3 || output.size() != 4) {
+                        return false;
+                    }
+                    auto batch_size = input[0];
+                    auto input_size = input[2];
+                    auto num_dir = output[1];
+                    auto hidden_size = output[3];
+
+                    if (hidden_size != 128 || batch_size != 1 || num_dir != 2 || (input_size != 64 && input_size != 256)) {
+                        return false;
+                    }
+
+                    return true;
+                });
 
         manager.register_pass<ConvertShapeOf1To3>();
         manager.register_pass<ov::pass::ConvertNMS1ToNMS9>();
@@ -975,9 +1020,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();
 
+        manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
+        // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
+        manager.register_pass<ov::pass::Validate>();
+
         float activations_scale_factor = config.get_property(ov::hint::activations_scale_factor);
 
-        if (activations_scale_factor > 0.f && infer_precision == ov::element::f16 && !enableInt8) {
+        if (activations_scale_factor > 0.f && infer_precision == ov::element::f16) {
             using namespace ov::pass::low_precision;
 
             auto supportedPrecisions = std::vector<PrecisionsRestriction>({});
@@ -1004,6 +1053,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             manager.register_pass<ov::pass::activations_scaling::ScaleDownSingleLayer>(activations_scale_factor, infer_precision);
             manager.register_pass<ov::pass::SharedOpOptimization>();
+
+            pass_config->set_callback<ov::pass::activations_scaling::ScaleDownSingleLayer>(
+                [&infer_precision](const std::shared_ptr<const ov::Node> &node) -> bool {
+                    return (node->input(0).get_element_type() != infer_precision);
+                });
 
             // Move down scalar-multiply layers as much as possible
             auto params = LayerTransformation::Params(false, infer_precision, {infer_precision}, true, true);
@@ -1093,10 +1147,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size, device_info.supports_immad);
 
         manager.register_pass<ov::intel_gpu::OptimizeSubsequentReshapes>();
-
-        manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
-        // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
-        manager.register_pass<ov::pass::Validate>();
 
         manager.register_pass<ov::intel_gpu::SinkReshape>();
 

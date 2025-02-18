@@ -72,8 +72,8 @@ class TRANSFORMATIONS_API KeepConstPrecision : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("KeepConstPrecision");
     explicit KeepConstPrecision(const element::TypeVector& precisions,
-                                 bool fold_subtract_const = false,
-                                 bool fold_multiply_const = true);
+                                bool fold_subtract_const = false,
+                                bool fold_multiply_const = true);
 };
 
 }  // namespace pass

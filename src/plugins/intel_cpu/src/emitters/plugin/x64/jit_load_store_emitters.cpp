@@ -300,7 +300,7 @@ void jit_load_emitter::load_bytes(const Vmm& vmm, const Xbyak::Reg64& reg, int o
         if (bytes_to_load >= 8 && bytes_to_load < 16) {
             h->uni_vmovq(xmm, addr(start_bytes));
         } else if (bytes_to_load == 16) {
-            h->uni_vmovdqu(xmm, addr(start_bytes));
+            h->uni_vmovdqu16(xmm, addr(start_bytes));
         }
 
         switch (bytes_to_load) {
@@ -371,11 +371,23 @@ void jit_load_emitter::load_bytes(const Vmm& vmm, const Xbyak::Reg64& reg, int o
         }
 
         if (has_xmm_block) {
-            h->vinsertf128(ymm, ymm, xmm, 1);  // insert to upper bits of ymm
-            if (has_ymm_block) {
-                h->vinsertf128(ymm, ymm, addr(32), 0);  // insert to lower bits of ymm
+            // insert to upper bits of ymm
+            // on avx512 target, ymm may have index [16,31], so need evex encoded instruction.
+            if (mayiuse(cpu::x64::avx512_core)) {
+                h->vinsertf32x4(ymm, ymm, xmm, 1);
             } else {
-                h->vinsertf128(ymm, ymm, addr(0), 0);  // insert to lower bits of ymm
+                h->vinsertf128(ymm, ymm, xmm, 1);
+            }
+            if (has_ymm_block) {
+                // insert to lower bits of ymm, could only executed on avx512
+                h->vinsertf32x4(ymm, ymm, addr(32), 0);
+            } else {
+                // insert to lower bits of ymm
+                if (mayiuse(cpu::x64::avx512_core)) {
+                    h->vinsertf32x4(ymm, ymm, addr(0), 0);  // evex encoded instruction needed.
+                } else {
+                    h->vinsertf128(ymm, ymm, addr(0), 0);
+                }
             }
         }
 
@@ -387,13 +399,13 @@ void jit_load_emitter::load_bytes(const Vmm& vmm, const Xbyak::Reg64& reg, int o
 
     switch (load_size) {
     case 64:
-        h->uni_vmovdqu(zmm, addr(0));
+        h->uni_vmovdqu16(zmm, addr(0));
         break;
     case 32:
-        h->uni_vmovdqu(ymm, addr(0));
+        h->uni_vmovdqu16(ymm, addr(0));
         break;
     case 16:
-        h->uni_vmovdqu(xmm, addr(0));
+        h->uni_vmovdqu16(xmm, addr(0));
         break;
     default: {
         if (mayiuse(cpu::x64::avx512_core) && load_size > threshold_for_mask_emu_load) {
@@ -905,7 +917,7 @@ void jit_store_emitter::store_bytes(const Xbyak::Reg64& reg, int offset, int sto
         int bytes_to_store = store_size;
 
         if (store_size > 32) {
-            h->uni_vmovdqu(addr(0), ymm);  // store lower bits from zmm
+            h->uni_vmovdqu16(addr(0), ymm);  // store lower bits from zmm
             start_bytes += 32;
             bytes_to_store -= 32;
             // load upper bits from zmm into ymm
@@ -913,17 +925,21 @@ void jit_store_emitter::store_bytes(const Xbyak::Reg64& reg, int offset, int sto
         }
 
         if (bytes_to_store > 16) {
-            h->uni_vmovdqu(addr(start_bytes), xmm);  // store lower bits from ymm
+            h->uni_vmovdqu16(addr(start_bytes), xmm);  // store lower bits from ymm
             start_bytes += 16;
             bytes_to_store -= 16;
             // load upper bits from ymm into xmm
-            STORE_KEEP_SOURCE(vextractf128, xmm, Xmm(aux_src_idx), ymm, 1);
+            if (mayiuse(cpu::x64::avx512_core)) {
+                STORE_KEEP_SOURCE(vextractf32x4, xmm, Xmm(aux_src_idx), ymm, 1);  // evex used on avx512
+            } else {
+                STORE_KEEP_SOURCE(vextractf128, xmm, Xmm(aux_src_idx), ymm, 1);
+            }
         }
 
         if (bytes_to_store >= 8 && bytes_to_store < 16) {
             h->uni_vmovq(addr(start_bytes), xmm);
         } else if (bytes_to_store == 16) {
-            h->uni_vmovdqu(addr(start_bytes), xmm);
+            h->uni_vmovdqu16(addr(start_bytes), xmm);
         }
 
         // 64/32/16/8 with one go
@@ -1005,13 +1021,13 @@ void jit_store_emitter::store_bytes(const Xbyak::Reg64& reg, int offset, int sto
 
     switch (store_size) {
     case 64:
-        h->uni_vmovdqu(addr(0), zmm);
+        h->uni_vmovdqu16(addr(0), zmm);
         break;
     case 32:
-        h->uni_vmovdqu(addr(0), ymm);
+        h->uni_vmovdqu16(addr(0), ymm);
         break;
     case 16:
-        h->uni_vmovdqu(addr(0), xmm);
+        h->uni_vmovdqu16(addr(0), xmm);
         break;
     default:
         if (mayiuse(cpu::x64::avx512_core) && store_size > threshold_for_mask_emu_store) {
@@ -1332,7 +1348,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64& reg,
             }
             h->vcvtps2ph(xmm, ymm, 0x4);
             if (store_num == 8) {
-                h->uni_vmovdqu(ptr[reg + offset], xmm);
+                h->uni_vmovdqu16(ptr[reg + offset], xmm);
             } else {
                 data_idx = static_cast<int>(xmm.getIdx());
                 store_bytes<Vmm>(reg, offset, store_num * 2);

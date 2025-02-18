@@ -9,6 +9,7 @@
 
 #include "intel_gpu/primitives/kv_cache.hpp"
 #include "intel_gpu/primitives/read_value.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/usm_host_tensor.hpp"
 #include "intel_gpu/plugin/sync_infer_request.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
@@ -31,29 +32,6 @@
 #include <utility>
 
 namespace {
-
-inline bool can_use_usm_host(const cldnn::engine& engine, const uint64_t total_output_bytes) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->use_usm_host == 1) { return true; }
-    GPU_DEBUG_IF(debug_config->use_usm_host == 2) { return false; }
-
-    auto can_use_usm = engine.use_unified_shared_memory();
-    // When output size is large, it is better not to write to usm_host directly
-    const uint64_t LARGE_OUTPUT_BYTES_THRESHOLD = 4 * 1048576;
-
-    const auto& device_info = engine.get_device_info();
-    if ((device_info.gfx_ver.major == 12 && device_info.gfx_ver.minor == 60) ||
-        (device_info.gfx_ver.major >= 20 && device_info.dev_type == cldnn::device_type::discrete_gpu) ||
-        (device_info.dev_type == cldnn::device_type::discrete_gpu && total_output_bytes > LARGE_OUTPUT_BYTES_THRESHOLD)) {
-        // WA: Disable USM host memory for infer request`s tensors for PVC and subsequent dGPUs, as kernel access
-        // to system memory is slower than using an explicit memcpy (Host <-> Device) call with the copy engine
-        // Driver tickets with additional details: 6155, 10054
-        GPU_DEBUG_TRACE << "Do not use usm_host for performance issue" << std::endl;
-        can_use_usm = false;
-    }
-
-    return can_use_usm;
-}
 
 bool is_convert_required(ov::element::Type src_et, ov::element::Type dst_et) {
     return src_et != dst_et && !(dst_et == ov::element::boolean && src_et == ov::element::u8);
