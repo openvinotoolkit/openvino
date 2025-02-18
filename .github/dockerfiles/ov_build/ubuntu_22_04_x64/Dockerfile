@@ -31,13 +31,6 @@ RUN apt-get update && \
         python3.11-distutils \
         # For Java API
         default-jdk \
-        # libGL for PyTorch Models tests
-        ffmpeg  \
-        libsm6  \
-        libxext6 \
-        libgl1 \
-        libgl1-mesa-glx \
-        libglib2.0-0 \
         && \
     rm -rf /var/lib/apt/lists/*
 
