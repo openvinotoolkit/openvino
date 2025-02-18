@@ -1,28 +1,26 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "include/batch_headers/fetch_data.cl"
-
-#define TO_OUTPUT_TYPE              CAT(convert_, OUTPUT_TYPE)
 #define INPUT0_VEC_TYPE  MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)
 #define INPUT1_VEC_TYPE  MAKE_VECTOR_TYPE(INPUT1_TYPE, 8)
 #define OUTPUT_VEC_TYPE  MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8)
 
 #define TO_VECTOR_TYPE_IMPL_8(elem_type)  CAT(convert_##elem_type, 8)
 #define TO_VECTOR_TYPE(elem_type, size)   CAT(TO_VECTOR_TYPE_IMPL_, size)(elem_type)
-
 #define TO_VECTOR_TYPE_IMPL_SAT_8(elem_type)  CAT(convert_##elem_type, 8##_sat)
 #define TO_VECTOR_TYPE_IMPL_SAT_RTE_8(elem_type)  CAT(convert_##elem_type, 8##_sat_rte)
 #define TO_VECTOR_TYPE_SAT(elem_type, size)   CAT(TO_VECTOR_TYPE_IMPL_SAT_, size)(elem_type)
 #define TO_VECTOR_TYPE_SAT_RTE(elem_type, size)   CAT(TO_VECTOR_TYPE_IMPL_SAT_RTE_, size)(elem_type)
-#define VLOAD_DECLS vload8(global_id, input)
+
 #ifdef SUB_GROUP_SIZE
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 #endif
 #ifndef IS_DYNAMIC
 __attribute__((reqd_work_group_size(LWS_0, LWS_1, LWS_2)))
 #endif
+
 KERNEL(quantize_gpu_scale_shift_vload8_opt)(OPTIONAL_SHAPE_INFO_ARG
                                      const __global INPUT0_TYPE* input,
                                      const __global INPUT1_TYPE* input_low,
@@ -37,7 +35,7 @@ KERNEL(quantize_gpu_scale_shift_vload8_opt)(OPTIONAL_SHAPE_INFO_ARG
 {
     const int global_id = get_global_id(0);
 
-    const INPUT0_VEC_TYPE in0 = VLOAD_DECLS;
+    const INPUT0_VEC_TYPE in0 = vload8(global_id, input);
 
     OUTPUT_VEC_TYPE res;
 
@@ -113,13 +111,6 @@ KERNEL(quantize_gpu_scale_shift_vload8_opt)(OPTIONAL_SHAPE_INFO_ARG
 
 #endif // CAN_USE_OUTPUT_RANGE
 
-// *********************************** //
-// Common section with results writing //
-// *********************************** //
-
-#if FEATURE_BLOCKED_FORMAT
-    //if (of < OUTPUT_FEATURE_NUM)
-#endif
 #if OUTPUT_IS_FP
         res = TO_VECTOR_TYPE_SAT(OUTPUT_TYPE, 8)(val);
 #else
@@ -128,6 +119,3 @@ KERNEL(quantize_gpu_scale_shift_vload8_opt)(OPTIONAL_SHAPE_INFO_ARG
 
     vstore8(res, global_id, output);
 }
-
-#undef TO_OUTPUT_TYPE
-#undef TO_OUTPUT_TYPE_SAT_RTE

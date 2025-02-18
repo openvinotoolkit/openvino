@@ -17,7 +17,7 @@ public:
     CommonDispatchData SetDefault(const quantize_params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    KernelsData GetKernelsData(const Params& params) const override;
+
 protected:
     bool Validate(const Params& p) const override;
     JitConstants GetJitConstants(const quantize_params& params, const CommonDispatchData& dispatchData) const override;

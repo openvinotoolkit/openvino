@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,7 @@
 
 #include "kernel_selector_utils.h"
 
-static const size_t sub_group_size = 32;
-static const size_t feature_size = 32;
+static const size_t vec_size = 8;
 
 namespace kernel_selector {
 ParamsKey QuantizeKernelScaleShift_vload8::GetSupportedKey() const {
@@ -30,20 +29,43 @@ ParamsKey QuantizeKernelScaleShift_vload8::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableDifferentTypes();
     k.EnableQuantizeScaleShiftOpt();
-    k.EnableDynamicShapesSupport();
     return k;
 }
 
+auto parse_block_size = [](int index, DataLayout dl) {
+    std::string format_str = toString(dl);
+    auto get_block_size = [&] (std::string substr) {
+        auto start_pos = format_str.find(substr);
+        if (start_pos != std::string::npos) {
+            auto end_pos = format_str.find("_", start_pos);
+            auto sub_string = format_str.substr(start_pos + strlen(substr.c_str()) , end_pos);
+            return std::atoi(sub_string.c_str());
+        }
+        return 1;
+    };
+    return index == 0 ? get_block_size("BSV") : (index == 1 ? get_block_size("FSV") : 1);
+};
+
+auto get_total_size = [](const quantize_params& params) {
+    const auto input = params.inputs[0];
+    size_t totalSize = input.LogicalSize();
+    auto feature_block_size = parse_block_size(1, input.GetLayout());
+    auto feature_division = feature_block_size > 1 ? (input.Feature().v ? input.Feature().v : 1) : 1;
+    auto feature_align_multiplexer = feature_block_size > 1 ? Align(input.Feature().v, feature_block_size) : 1;
+    auto batch_block_size = parse_block_size(0, input.GetLayout());
+    auto batch_divsion = batch_block_size > 1 ? (input.Batch().v ? input.Batch().v : 1) : 1;
+    auto batch_align_multiplexer = batch_block_size > 1 ? Align(input.Batch().v, batch_block_size) : 1;
+    return (totalSize / (feature_division * batch_divsion)) * feature_align_multiplexer * batch_align_multiplexer;
+};
+
 CommonDispatchData QuantizeKernelScaleShift_vload8::SetDefault(const quantize_params& params) const {
     CommonDispatchData dispatchData;
-    // need special handle for blocked format??
     if (true) {
-        dispatchData.gws[0] = std::max(params.outputs[0].LogicalSize() / 8, (size_t)1);
+        dispatchData.gws[0] = std::max(get_total_size(params) / vec_size, (size_t)1);
         dispatchData.gws[1] = 1;
         dispatchData.gws[2] = 1;
     }
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes({dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]},
-                                                     params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
     return dispatchData;
 }
 
@@ -83,56 +105,41 @@ bool QuantizeKernelScaleShift_vload8::Validate(const Params& p) const {
     // this kernel is opt for per tensor quantization params for now
     if (!params.per_tensor_input_range || !params.per_tensor_output_range || !params.per_tensor_input_scale ||
         !params.per_tensor_output_scale || !params.per_tensor_output_shift ||
-        (params.has_pre_shift && !params.per_tensor_input_shift))
+        (params.has_pre_shift && !params.per_tensor_input_shift) ||
+        params.outputs[0].GetLayout() != params.inputs[0].GetLayout())
         return false;
-    /*auto check_blocked_format = [] (const DataTensor& dt) -> bool {
-        // if padding is there for blocked format, there will be uncessary cals introduced if directly using vec compute
-        auto feature_block_size = 16;
-        auto feature_size = dt.Feature().v;
-        if (feature_size % feature_block_size != 0)
-            return false;
-        if (dt.DoubleBlockedLayout()) {
-            auto batch_size = dt.Batch().v;
-            if (batch_size % feature_block_size != 0)
+
+    // for blocked format, if extra padding exist in a block, will be opt in a seprate kernel
+    if (!params.inputs[0].SimpleLayout()) {
+        const auto input_layout = params.inputs[0].GetLayout();
+        const auto batch_size = params.inputs[0].Batch().v;
+        const auto feature_size = params.inputs[0].Feature().v;
+        if (!params.inputs[0].SimpleLayout())
+            if (((input_layout == DataLayout::b_fs_yx_fsv16 || input_layout == DataLayout::b_fs_zyx_fsv16) &&
+                 feature_size % 16 != 0) ||
+                ((input_layout == DataLayout::b_fs_yx_fsv32 || input_layout == DataLayout::b_fs_zyx_fsv32) &&
+                 feature_size % 32 != 0) ||
+                (input_layout == DataLayout::b_fs_yx_fsv4 && feature_size % 8 != 0) ||
+                input_layout == DataLayout::fs_b_yx_fsv32 ||
+                ((input_layout == DataLayout::bs_fs_yx_bsv32_fsv16 ||
+                  input_layout == DataLayout::bs_fs_zyx_bsv32_fsv16) &&
+                 (feature_size % 16 != 0 || batch_size % 32 != 0)) ||
+                ((input_layout == DataLayout::bs_fs_yx_bsv32_fsv32 ||
+                  input_layout == DataLayout::bs_fs_zyx_bsv32_fsv32) &&
+                 (feature_size % 32 != 0 || batch_size % 32 != 0)) ||
+                ((input_layout == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+                  input_layout == DataLayout::bs_fs_zyx_bsv16_fsv16) &&
+                 (feature_size % 16 != 0 || batch_size % 16 != 0)) ||
+                ((input_layout == DataLayout::bs_fs_yx_bsv16_fsv32 ||
+                  input_layout == DataLayout::bs_fs_zyx_bsv16_fsv32) &&
+                 (feature_size % 32 != 0 || batch_size % 16 != 0)))
                 return false;
-        }
-        return true;
-    };*/
-    if (!params.outputs[0].SimpleLayout() || params.outputs[0].GetLayout() != params.inputs[0].GetLayout() || params.outputs[0].PhysicalSize() % 8 != 0)
-        return false;
-    /*if (!params.outputs[0].SimpleLayout()) {
-        //return check_blocked_format(params.outputs[0]);
-        return false;
-    }*/
-    return true;
-}
-
-KernelsData QuantizeKernelScaleShift_vload8::GetKernelsData(const Params& params) const {
-    assert(params.GetType() == KernelType::QUANTIZE);
-
-    KernelData kd = KernelData::Default<quantize_params>(params);
-    quantize_params& nparams = *static_cast<quantize_params*>(kd.params.get());
-
-    if (!Validate(params)) {
-        return {};
     }
 
-    auto dispatchData = SetDefault(nparams);
-    auto entry_point = GetEntryPoint(kernelName, nparams.layerID, params);
-    auto cldnn_jit = GetJitConstants(nparams, dispatchData);
-    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
-
-    GetUpdateDispatchDataFunc(kd);
-
-    auto& kernel = kd.kernels[0];
-
-    kernel.params.workGroups.global = dispatchData.gws;
-    kernel.params.workGroups.local = dispatchData.lws;
-    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, EXE_MODE_DEFAULT);
-    kernel.params.arguments =
-        GetArgsDesc(static_cast<int>(nparams.inputs.size()), false, false, 0, 1, nparams.has_dynamic_tensors());
-
-    return {kd};
+    auto total_size = get_total_size(params);
+    if ((total_size % vec_size) != 0 || (params.inputs[0].GetFirstElementOffset() % vec_size) != 0)
+        return false;
+    return true;
 }
 
 KernelsPriority QuantizeKernelScaleShift_vload8::GetKernelsPriority(const Params& /*params*/) const {
