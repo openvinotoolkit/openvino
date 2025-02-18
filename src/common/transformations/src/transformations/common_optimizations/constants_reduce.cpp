@@ -9,6 +9,8 @@
 #include "openvino/util/log.hpp"
 #include "itt.hpp"
 
+#include <string_view>
+
 namespace ov {
 namespace pass {
 
@@ -17,7 +19,7 @@ ConstantsReduce::ConstantsReduce() {}
 bool ConstantsReduce::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_MODEL_SCOPE(ConstantsReduce);
 
-    using BlobCacheKey = std::tuple<const char*, ov::Shape, ov::element::Type>;
+    using BlobCacheKey = std::tuple<std::size_t, ov::Shape, ov::element::Type>;
     std::map<BlobCacheKey, std::shared_ptr<ov::Node>> blobMemCache;
 
     int copies = 0;
@@ -30,7 +32,8 @@ bool ConstantsReduce::run_on_model(const std::shared_ptr<ov::Model>& m) {
         auto data = const_node->get_data_ptr<char>();
         auto const_shape = const_node->get_shape();
 
-        const auto cache_key = std::make_tuple(data, const_shape, const_node->get_output_element_type(0));
+	std::size_t hash = std::hash<std::string_view>{}(std::string_view(data, const_node->get_byte_size()));
+        const auto cache_key = std::make_tuple(hash, const_shape, const_node->get_output_element_type(0));
         auto bufIter = blobMemCache.find(cache_key);
 
         if (bufIter == blobMemCache.end()) {
@@ -49,6 +52,8 @@ bool ConstantsReduce::run_on_model(const std::shared_ptr<ov::Model>& m) {
     }
 
     OPENVINO_DEBUG("Reduced ", copies, " constant node duplications from model");
+
+    std::cout << copies << std::endl;
 
     return true;
 }
