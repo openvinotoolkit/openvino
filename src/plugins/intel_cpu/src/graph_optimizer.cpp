@@ -81,10 +81,6 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     MergeConvertAndEltwise(graph);
     graph.RemoveDroppedNodes();
 
-    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "MergeEltwiseAndConvert");
-    MergeEltwiseAndConvert(graph);
-    graph.RemoveDroppedNodes();
-
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndConvertOnWeights");
     FuseFCAndConvertOnWeights(graph);
     graph.RemoveDroppedNodes();
@@ -163,6 +159,10 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseEltwiseAndSimple");
     FuseEltwiseAndSimple(graph);
+    graph.RemoveDroppedNodes();
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "MergeEltwiseAndConvert");
+    MergeEltwiseAndConvert(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "reshapeRnnSeq");
@@ -711,53 +711,30 @@ void GraphOptimizer::MergeEltwiseAndConvert(Graph& graph) {
             continue;
         }
 
-        if (!one_of(childNode->getOriginalOutputPrecisionAtPort(0), ov::element::i8, ov::element::u8)) {
+        if (!one_of(childNode->getOriginalOutputPrecisionAtPort(0),
+                    ov::element::i8,
+                    ov::element::u8,
+                    ov::element::f16,
+                    ov::element::bf16,
+                    ov::element::f32)) {
             parent++;
             continue;
         }
 
-        if (parentNode->canFuse(childNode)) {
-            parent++;
-            continue;
+        auto parentEdges = childNode->parentEdges;
+        for (auto& parentEdge : parentEdges) {
+            auto p_edge = parentEdge.lock();
+            if (p_edge->getParent()->getType() == Type::Eltwise) {
+                continue;
+            }
+            graph.RemoveEdge(p_edge);
         }
 
-        const auto parents = parentNode->parentEdges;
-        for (size_t i = 0; i < parents.size(); i++) {
-            auto p_edge = parents[i].lock();
-            if (!p_edge) {
-                continue;
-            }
-            auto parent = p_edge->getParent();
-            if (!parent) {
-                continue;
-            }
-
-            if (!parentNode->childEdges[0].lock()) {
-                continue;
-            }
-            auto child = parentNode->childEdges[0].lock()->getChild();
-            if (!child) {
-                continue;
-            }
-
-            EdgePtr& remEdge = p_edge;
-            int inNum = 0;
-            if (remEdge) {
-                inNum = remEdge->getInputNum();
-                graph.RemoveEdge(remEdge);
-            }
-            remEdge = parentNode->childEdges[0].lock();
-            int outNum = 0;
-            if (remEdge) {
-                outNum = remEdge->getOutputNum();
-                graph.RemoveEdge(remEdge);
-            }
-            graph.CreateEdge(parent, child, inNum, outNum);
-        }
-
-        childNode->setOriginalInputPrecisionAtPort(0, parentNode->getOriginalInputPrecisionAtPort(0));
-        childNode->addOriginalLayer(parentNode->getOriginalLayers());
-        graph.DropNode(parentNode);
+        auto fusedOps = parentNode->getFusedWith();
+        fusedOps[fusedOps.size() - 1]->setOriginalOutputPrecisionAtPort(0, childNode->getOriginalOutputPrecisionAtPort(0));
+        parentNode->setOriginalOutputPrecisionAtPort(0, childNode->getOriginalOutputPrecisionAtPort(0));
+        parentNode->addOriginalLayer(childNode->getOriginalLayers());
+        graph.DropNode(childNode);
     }
 }
 

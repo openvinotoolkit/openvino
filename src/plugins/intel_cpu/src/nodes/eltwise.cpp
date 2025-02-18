@@ -2330,7 +2330,7 @@ bool Eltwise::canFuse(const NodePtr& node) const {
         return false;
     }
     const auto eltwise = dynamic_cast<const Eltwise*>(node.get());
-    if ((eltwise != nullptr) &&
+    if ((eltwise == nullptr) ||
         (!jitIsSupported(eltwise, eltwise->getAlpha(), eltwise->getBeta(), eltwise->getGamma()))) {
         return false;
     }
@@ -2422,9 +2422,7 @@ bool Eltwise::canFuse(const NodePtr& node) const {
     if (node->getType() == Type::FakeQuantize) {
         return node->getAlgorithm() != Algorithm::FQBinarization;
     }
-    if (node->getType() == Type::Convert) {
-        return true;
-    }
+
     return false;
 }
 
