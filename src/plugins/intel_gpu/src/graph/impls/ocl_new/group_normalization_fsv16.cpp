@@ -287,7 +287,7 @@ public:
     static constexpr size_t NORMALIZE_STAGE = 2;
 
     GroupNormalizationFsv16OptImpl(const program_node& node, const kernel_impl_params& params)
-        : PrimitiveImplOCL(std::string(GroupNormalizationFsv16Opt::get_type_info_static().name)) {
+        : PrimitiveImplOCL(GroupNormalizationFsv16Opt::get_type_info_static()) {
         add_stage<GroupNormalizationGeneratorCalcSQRMean, CALC_SQR_MEAN_STAGE>(params);
         add_stage<GroupNormalizationGeneratorCalcMeanVariance, CALC_MEAN_VARIANCE_STAGE>(params);
         add_stage<GroupNormalizationGeneratorFinalKernel, NORMALIZE_STAGE>(params);

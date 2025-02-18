@@ -5,29 +5,18 @@
 #pragma once
 
 #include "impls/registry/implementation_manager.hpp"
-#include "scaled_dot_product_attention_inst.h"
 #include "intel_gpu/runtime/utils.hpp"
 #include "program_node.h"
 
 #include <memory>
 
 namespace ov::intel_gpu::ocl {
-struct SDPAStage {
-    constexpr static size_t SINGLE_TOKEN = 0;
-    constexpr static size_t MULTI_TOKENS = 1;
-    constexpr static size_t FINALIZATION = 2;
-    constexpr static size_t MICRO = 3;
-};
 
-struct SDPAOpt : public ImplementationManager {
-    OV_GPU_PRIMITIVE_IMPL("ocl::sdpa::opt")
-    SDPAOpt(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, vf) {}
+struct PagedAttentionOpt : public ImplementationManager {
+    OV_GPU_PRIMITIVE_IMPL("ocl::paged_attention::opt")
+    PagedAttentionOpt(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, vf) {}
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
-    static bool supports_micro_sdpa(const kernel_impl_params& params);
     bool validate_impl(const program_node& node) const override {
-        constexpr size_t subgroup_size = 16;
-
-        const auto desc = node.as<scaled_dot_product_attention>().get_primitive();
         static constexpr std::array supported_q_types = {
             ov::element::f32,
             ov::element::f16,
@@ -49,19 +38,6 @@ struct SDPAOpt : public ImplementationManager {
             return false;
 
         if (!one_of(q_layout.data_type, supported_q_types) || !one_of(out_layout.data_type, supported_q_types))
-            return false;
-
-        const auto head_size = q_layout.get_partial_shape()[3].get_length();
-        if (head_size < 1 || head_size % subgroup_size != 0)
-            return false;
-
-        const bool use_asymmetric_quantization =
-                desc->quantization_attributes.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
-        const bool combine_scales_and_zp =
-                desc->quantization_attributes.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
-
-        auto p = node.get_kernel_impl_params();
-        if (use_asymmetric_quantization && (!combine_scales_and_zp && !supports_micro_sdpa(*p)))
             return false;
 
         return true;

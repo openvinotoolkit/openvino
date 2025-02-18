@@ -72,6 +72,7 @@ protected:
     virtual std::string get_build_options(const kernel_impl_params& params) const;
 
     JitConstants make_base_jit_constants(const kernel_impl_params& params) const;
+    JitConstants make_tensors_jit_constants(const kernel_impl_params& params) const ;
     std::string build_code(std::string_view template_name, const JitConstants& jit_constants, const std::string& entry_point) const;
 
     const std::string m_kernel_name;

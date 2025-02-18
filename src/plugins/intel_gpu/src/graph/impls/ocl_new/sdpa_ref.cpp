@@ -27,6 +27,7 @@ public:
 protected:
     JitConstants get_jit_constants(const kernel_impl_params& params) const override {
         auto jit = SDPABase::get_jit_constants(params);
+        jit.merge(make_tensors_jit_constants(params));
         auto desc = params.typed_desc<scaled_dot_product_attention>();
 
         jit.add(make_type_jit_constants("ACCUMULATOR", get_accumulator_type(params)));
@@ -112,7 +113,7 @@ protected:
 class SDPARefImpl : public SDPAImplBase {
 public:
     SDPARefImpl(const kernel_impl_params& params)
-        : SDPAImplBase(std::string(SDPARef::get_type_info_static().name)) {
+        : SDPAImplBase(SDPARef::get_type_info_static()) {
         add_stage<SDPARefGenerator, REGULAR_STAGE>(params, false);
         add_stage<SDPARefGenerator, INDIRECT_STAGE>(params, true);
     }

@@ -3,6 +3,7 @@
 //
 
 #include "include/batch_headers/common.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
 
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 __attribute__((reqd_work_group_size(1, 1, SUBGROUP_SIZE)))

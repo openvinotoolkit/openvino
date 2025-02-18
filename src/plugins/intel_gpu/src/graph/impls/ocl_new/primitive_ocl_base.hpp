@@ -177,21 +177,13 @@ protected:
             return stream.aggregate_events(events, false, instance.is_output());
         }
 
-        std::vector<event::ptr> all_events;
         std::vector<event::ptr> tmp_events(events);
-
         // Default impl just runs each stage in registration order
         for (const auto& stage : _stages_registration_order) {
-            auto ev = execute_stage(tmp_events, instance, stage);
-            tmp_events = { ev };
-            all_events.emplace_back(ev);
+            tmp_events = { execute_stage(tmp_events, instance, stage) };
         }
 
-        if ((all_events.size() == 0) && (tmp_events.size() > 0))
-            return stream.aggregate_events(tmp_events);
-
-        bool group_events = (all_events.size() > 1);
-        return stream.aggregate_events(all_events, group_events);
+        return tmp_events[0];
     }
 
     std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
@@ -212,9 +204,8 @@ protected:
         OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
         auto& kernel_vec = kernels.begin()->second;
         _kernels.clear();
-        for (auto& k : kernel_vec) {
-            auto sub_kernel_idx = k.second;
-            _kernels[sub_kernel_idx] = k.first;
+        for (auto& [kernel, sub_kernel_idx] : kernel_vec) {
+            _kernels[sub_kernel_idx] = kernel;
         }
     }
 

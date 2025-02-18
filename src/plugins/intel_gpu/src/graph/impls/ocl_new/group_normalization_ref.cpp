@@ -159,7 +159,7 @@ public:
     static constexpr size_t NORMALIZE_STAGE = 2;
 
     GroupNormalizationRefImpl(const program_node& node, const kernel_impl_params& params)
-        : PrimitiveImplOCL(std::string(GroupNormalizationRef::get_type_info_static().name)) {
+        : PrimitiveImplOCL(GroupNormalizationRef::get_type_info_static()) {
         add_stage<GroupNormalizationGeneratorCalcMeanRef, CALC_MEAN_STAGE>(params);
         add_stage<GroupNormalizationGeneratorCalcStd, CALC_STD_STAGE>(params);
         add_stage<GroupNormalizationGeneratorNormalize, NORMALIZE_STAGE>(params);

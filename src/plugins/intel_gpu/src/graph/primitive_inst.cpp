@@ -2163,7 +2163,7 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
     // allocate intermediate memory for the updated layout of buffer
     auto layout = ibuf_layouts[idx];
     auto alloc_type = allocation_type::unknown;
-    const auto& lockable_buffers_indexes = _impl->get_lockable_internal_buffers();
+    const auto& lockable_buffers_indexes = _impl->get_lockable_internal_buffers(*_impl_params);
     auto need_lockable_allocation = lockable_buffers_indexes.find(idx) != lockable_buffers_indexes.end();
     GPU_DEBUG_LOG << "[" << _node->id() << ": internal buf " << idx << "] "
                   << layout.to_short_string() << " need_lockable_allocation=" << need_lockable_allocation << std::endl;

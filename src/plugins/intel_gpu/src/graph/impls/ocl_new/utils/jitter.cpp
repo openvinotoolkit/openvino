@@ -10,10 +10,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace ocl {
-
+namespace ov::intel_gpu::ocl {
 namespace {
 
 std::string format_string(format fmt) {
@@ -915,6 +912,4 @@ std::string to_ocl_type(ov::element::Type_t et) {
     }
 }
 
-}  // namespace ocl
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu::ocl

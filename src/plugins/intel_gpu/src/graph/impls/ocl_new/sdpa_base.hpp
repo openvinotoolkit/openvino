@@ -6,6 +6,7 @@
 
 #include "impls/ocl_new/primitive_ocl_base.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "openvino/core/type.hpp"
 #include "utils/jitter.hpp"
 #include "utils/kernel_base.hpp"
 #include "scaled_dot_product_attention_inst.h"
@@ -40,6 +41,7 @@ public:
     static constexpr const size_t REGULAR_STAGE = 20;
 
     SDPAImplBase(const std::string& name) : PrimitiveImplOCL(name) {}
+    SDPAImplBase(const ov::DiscreteTypeInfo& info) : PrimitiveImplOCL(std::string(info.name)) {}
 
     static size_t get_beam_table_id(std::shared_ptr<const scaled_dot_product_attention> primitive) {
         return primitive->input_size() - 1;

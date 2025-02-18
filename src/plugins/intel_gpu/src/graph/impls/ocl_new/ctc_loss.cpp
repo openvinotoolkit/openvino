@@ -51,7 +51,7 @@ protected:
 class CTCLossImpl : public PrimitiveImplOCL {
 public:
     CTCLossImpl(const program_node& node, const kernel_impl_params& params)
-        : PrimitiveImplOCL(std::string(CTCLoss::get_type_info_static().name)) {
+        : PrimitiveImplOCL(CTCLoss::get_type_info_static()) {
         add_stage<CTCLossGenerator, 0>(params);
     }
 

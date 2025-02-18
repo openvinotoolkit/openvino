@@ -322,6 +322,7 @@ protected:
     JitConstants get_jit_constants(const kernel_impl_params& params) const override { OPENVINO_THROW("Use overloaded version instead"); }
     JitConstants get_jit_constants(const kernel_impl_params& params, const micro::Package& gemm_kq, const micro::Package& gemm_vs) const {
         auto jit = SDPABase::get_jit_constants(params);
+        jit.merge(make_tensors_jit_constants(params));
         auto desc = params.typed_desc<scaled_dot_product_attention>();
         const auto& device_info = params.get_device_info();
 

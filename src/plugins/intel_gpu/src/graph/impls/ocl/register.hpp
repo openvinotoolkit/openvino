@@ -63,7 +63,6 @@
 #include "intel_gpu/primitives/non_zero.hpp"
 #include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/primitives/unique.hpp"
-#include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/primitives/kv_cache.hpp"
 
 namespace cldnn {
@@ -106,7 +105,6 @@ REGISTER_OCL(gemm);
 REGISTER_OCL(generate_proposals);
 REGISTER_OCL(grid_sample);
 REGISTER_OCL(kv_cache);
-REGISTER_OCL(paged_attention);
 REGISTER_OCL(lrn);
 REGISTER_OCL(multiclass_nms);
 REGISTER_OCL(multinomial);

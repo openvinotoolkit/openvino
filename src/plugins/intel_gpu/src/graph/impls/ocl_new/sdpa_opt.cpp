@@ -25,42 +25,42 @@ public:
     static constexpr const size_t INDIRECT_STAGE = 10;
     static constexpr const size_t REGULAR_STAGE = 20;
 
-    SDPAOptImpl(const kernel_impl_params& params) : SDPAImplBase(std::string(SDPAOpt::get_type_info_static().name)) {
+    SDPAOptImpl(const kernel_impl_params& params) : SDPAImplBase(SDPAOpt::get_type_info_static()) {
         constexpr bool prefill = true;
         constexpr bool indirect = true;
         if (params.is_dynamic()) {
-            add_stage<SDPAOptGeneratorSingleToken, REGULAR_STAGE + KernelsTypes::SINGLE_TOKEN>(params, !indirect);
-            add_stage<SDPAOptGeneratorSingleToken, INDIRECT_STAGE + KernelsTypes::SINGLE_TOKEN>(params, indirect);
+            add_stage<SDPAOptGeneratorSingleToken, REGULAR_STAGE + SDPAStage::SINGLE_TOKEN>(params, !indirect);
+            add_stage<SDPAOptGeneratorSingleToken, INDIRECT_STAGE + SDPAStage::SINGLE_TOKEN>(params, indirect);
 
-            add_stage<SDPAOptGeneratorMultiToken, REGULAR_STAGE + KernelsTypes::MULTI_TOKENS>(params, !indirect);
-            add_stage<SDPAOptGeneratorMultiToken, INDIRECT_STAGE + KernelsTypes::MULTI_TOKENS>(params, indirect);
+            add_stage<SDPAOptGeneratorMultiToken, REGULAR_STAGE + SDPAStage::MULTI_TOKENS>(params, !indirect);
+            add_stage<SDPAOptGeneratorMultiToken, INDIRECT_STAGE + SDPAStage::MULTI_TOKENS>(params, indirect);
 
-            add_stage<SDPAOptGeneratorFinalization, REGULAR_STAGE + KernelsTypes::FINALIZATION>(params, !indirect);
+            add_stage<SDPAOptGeneratorFinalization, REGULAR_STAGE + SDPAStage::FINALIZATION>(params, !indirect);
 
             if (SDPAOpt::supports_micro_sdpa(params))
-                add_stage<SDPAMicroGenerator, REGULAR_STAGE + KernelsTypes::MICRO>(params, prefill);
+                add_stage<SDPAMicroGenerator, REGULAR_STAGE + SDPAStage::MICRO>(params, prefill);
         } else {
             auto indirect = params.typed_desc<scaled_dot_product_attention>()->indirect_axis != -1;
             if (is_prefill_stage(params)) {
                 if (indirect)
-                    add_stage<SDPAOptGeneratorMultiToken, INDIRECT_STAGE + KernelsTypes::MULTI_TOKENS>(params, !indirect);
+                    add_stage<SDPAOptGeneratorMultiToken, INDIRECT_STAGE + SDPAStage::MULTI_TOKENS>(params, !indirect);
                 else if (SDPAOpt::supports_micro_sdpa(params))
-                    add_stage<SDPAMicroGenerator, REGULAR_STAGE + KernelsTypes::MICRO>(params, prefill);
+                    add_stage<SDPAMicroGenerator, REGULAR_STAGE + SDPAStage::MICRO>(params, prefill);
                 else
-                    add_stage<SDPAOptGeneratorMultiToken, REGULAR_STAGE + KernelsTypes::MULTI_TOKENS>(params, !indirect);
+                    add_stage<SDPAOptGeneratorMultiToken, REGULAR_STAGE + SDPAStage::MULTI_TOKENS>(params, !indirect);
             } else {
                 const auto& gfx_ver = params.get_program().get_engine().get_device_info().gfx_ver;
                 bool is_ARL_H = (gfx_ver.major == 12 && gfx_ver.minor == 74);
                 if (!SDPAOpt::supports_micro_sdpa(params) || is_ARL_H) {
                     if (indirect)
-                        add_stage<SDPAOptGeneratorSingleToken, INDIRECT_STAGE + KernelsTypes::SINGLE_TOKEN>(params, !indirect);
+                        add_stage<SDPAOptGeneratorSingleToken, INDIRECT_STAGE + SDPAStage::SINGLE_TOKEN>(params, !indirect);
                     else
-                        add_stage<SDPAOptGeneratorSingleToken, REGULAR_STAGE + KernelsTypes::SINGLE_TOKEN>(params, indirect);
+                        add_stage<SDPAOptGeneratorSingleToken, REGULAR_STAGE + SDPAStage::SINGLE_TOKEN>(params, indirect);
 
-                    if (get_partitions_num(params, KernelsTypes::SINGLE_TOKEN) > 1)
-                        add_stage<SDPAOptGeneratorFinalization, REGULAR_STAGE + KernelsTypes::FINALIZATION>(params, !indirect);
+                    if (get_partitions_num(params, SDPAStage::SINGLE_TOKEN) > 1)
+                        add_stage<SDPAOptGeneratorFinalization, REGULAR_STAGE + SDPAStage::FINALIZATION>(params, !indirect);
                 } else {
-                    add_stage<SDPAMicroGenerator, REGULAR_STAGE + KernelsTypes::MICRO>(params, prefill);
+                    add_stage<SDPAMicroGenerator, REGULAR_STAGE + SDPAStage::MICRO>(params, prefill);
                 }
             }
         }
@@ -72,18 +72,18 @@ public:
         auto stage_type = need_indirect_load(static_cast<scaled_dot_product_attention_inst&>(instance)) ? INDIRECT_STAGE : REGULAR_STAGE;
         const auto& gfx_ver = params.get_program().get_engine().get_device_info().gfx_ver;
         bool is_ARL_H = (gfx_ver.major == 12 && gfx_ver.minor == 74);
-        bool run_micro_sdpa = has_stage(REGULAR_STAGE + KernelsTypes::MICRO) && (is_prefill || !is_ARL_H) && stage_type == REGULAR_STAGE;
+        bool run_micro_sdpa = has_stage(REGULAR_STAGE + SDPAStage::MICRO) && (is_prefill || !is_ARL_H) && stage_type == REGULAR_STAGE;
 
         if (run_micro_sdpa) {
-            return execute_stage(events, instance, REGULAR_STAGE + KernelsTypes::MICRO);
+            return execute_stage(events, instance, REGULAR_STAGE + SDPAStage::MICRO);
         } else if (is_prefill) {
-            return execute_stage(events, instance, stage_type + KernelsTypes::MULTI_TOKENS);
+            return execute_stage(events, instance, stage_type + SDPAStage::MULTI_TOKENS);
         } else {
-            const auto num_of_partitions = get_partitions_num(params, KernelsTypes::SINGLE_TOKEN);
+            const auto num_of_partitions = get_partitions_num(params, SDPAStage::SINGLE_TOKEN);
 
-            auto ev = execute_stage(events, instance, stage_type + KernelsTypes::SINGLE_TOKEN);
+            auto ev = execute_stage(events, instance, stage_type + SDPAStage::SINGLE_TOKEN);
             if (num_of_partitions > 1) {
-                ev = execute_stage({ev}, instance, stage_type + KernelsTypes::FINALIZATION);
+                ev = execute_stage({ev}, instance, stage_type + SDPAStage::FINALIZATION);
             }
             return ev;
         }

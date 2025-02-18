@@ -161,7 +161,7 @@ protected:
 class RopeOptImpl : public PrimitiveImplOCL {
 public:
     RopeOptImpl(const program_node& node, const kernel_impl_params& params)
-        : PrimitiveImplOCL(std::string(RopeOpt::get_type_info_static().name)) {
+        : PrimitiveImplOCL(RopeOpt::get_type_info_static()) {
         add_stage<RopeGenerator, 0>(params);
     }
 

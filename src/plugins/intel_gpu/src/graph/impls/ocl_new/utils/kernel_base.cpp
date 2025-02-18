@@ -64,12 +64,8 @@ public:
     }
 };
 
-JitConstants SingleKernelGenerator::make_base_jit_constants(const kernel_impl_params& params) const {
+JitConstants SingleKernelGenerator::make_tensors_jit_constants(const kernel_impl_params& params) const {
     JitConstants jit_constants;
-
-    auto entry_point = get_entry_point(params);
-    jit_constants.add(make_jit_constant("KERNEL(name)", "__kernel void " + entry_point));
-    jit_constants.add(make_jit_constant("KERNEL_ID", entry_point));
 
     const auto& in_offsets_map = params.in_port_to_shape_info_offset;
     const auto& out_offsets_map = params.out_port_to_shape_info_offset;
@@ -82,6 +78,16 @@ JitConstants SingleKernelGenerator::make_base_jit_constants(const kernel_impl_pa
     for (size_t i = 1; i < params.output_layouts.size(); i++) {
         jit_constants.add(make_layout_jit_constants("OUTPUT" + to_code_string(i), params.output_layouts[i], out_offsets_map.at(i)));
     }
+
+    return jit_constants;
+}
+
+JitConstants SingleKernelGenerator::make_base_jit_constants(const kernel_impl_params& params) const {
+    JitConstants jit_constants;
+
+    auto entry_point = get_entry_point(params);
+    jit_constants.add(make_jit_constant("KERNEL(name)", "__kernel void " + entry_point));
+    jit_constants.add(make_jit_constant("KERNEL_ID", entry_point));
 
     if (params.is_dynamic()) {
         jit_constants.add(make_jit_constant("IS_DYNAMIC", 1));
@@ -170,6 +176,7 @@ std::string SingleKernelGenerator::get_build_options(const kernel_impl_params& p
 
 JitConstants SingleKernelGenerator::get_jit_constants(const kernel_impl_params& params) const {
     auto jit = make_base_jit_constants(params);
+    jit.merge(make_tensors_jit_constants(params));
     jit.add(make_activation_jit_constants(activation_func::none, ov::element::undefined, "", false, false));
     return jit;
 }
