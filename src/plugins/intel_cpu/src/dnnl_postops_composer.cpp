@@ -14,9 +14,13 @@
 
 #include "cpu_memory.h"
 #include "cpu_types.h"
+#include "dnnl_extension_utils.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "nodes/executors/common/common_utils.hpp"
 #include "nodes/executors/memory_arguments.hpp"
+#include "nodes/reorder.h"
 #include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
 #include "utils/cpp/to_underlying.hpp"
@@ -45,6 +49,7 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const PostOps& postOps,
       useLegacyPostOps(useLegacyPostOps),
       useLegacyZeroPoints(useLegacyZeroPoints) {
     OPENVINO_ASSERT(idxOC >= 0 && static_cast<size_t>(idxOC) < outputDims.size());
+    dstDesc = memory.at(ARG_DST)->getDescPtr();
     OC = outputDims[idxOC];
     dimsPerOC = dimsPerTensor = VectorDims(outputDims.size(), 1);
     dimsPerOC[idxOC] = OC;
@@ -418,7 +423,11 @@ bool DnnlPostOpsComposer::appendAttrPostOps(const FakeQuantizePostOp& postOp,
         appendRoundHTE();
     }
     appendClip(f.clo, f.chi);
+
     appendLinear(f.osc, f.osh, isLastPostOp, allowBinary);
+    // if (!appendLinear(f.osc, f.osh, isLastPostOp, allowBinary)) {
+    //     return false;
+    // }
 
     return true;
 }
@@ -462,12 +471,28 @@ void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vec
 
     DEBUG_LOG("Append binary post op with algorithm: ", convert_to_c(alg), " Shape: ", Shape(*pdims));
 
+    // dnnl::memory::desc dnnlMemoryDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc)->getDnnlDesc();
+    // auto dstDesc = DnnlExtensionUtils::makeDescriptor(dnnlMemoryDesc);
     DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape(*pdims));
     ops.append_binary(alg, memoryDesc.getDnnlDesc());
-
+    // dnnl memory desc from dstDesc
     // copy the data as args
     auto mem = std::make_shared<Memory>(engine, memoryDesc);
     memcpy(mem->getData(), data.data(), data.size() * sizeof(float));
+
+    // std::cout << "original desc: " << memoryDesc << "\n";
+    // std::cout << "dst desc: " << *dstDesc << "\n";
+
+    // layout of dstDesc, shape of original memoryDesc
+    // auto dstMemDesc = dstDesc->cloneWithNewDims(*pdims);
+    // dstMemDesc = dstMemDesc->cloneWithNewPrecision(ov::element::f32);
+    // dstMemDesc = CpuBlockedMemoryDesc(dstMemDesc->getPrecision(),
+    //                                   dstMemDesc->getShape(),
+    // auto dstMemDesc = dstDesc->cloneWithNewDims(*pdims);
+
+    // auto dstMem = std::make_shared<Memory>(engine, dstMemDesc);
+    // node::Reorder::reorderData(*originalMem, *dstMem, nullptr);
+
     cpuArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = mem;
     dnnlArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = mem->getPrimitive();
 }
@@ -1003,6 +1028,7 @@ void DnnlPostOpsComposer::appendAttrPostOpsLegacy(const FakeQuantizePostOp& post
 }
 
 DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
+    DEBUG_LOG("Composing dnnl postops");
     for (size_t i = 0; i < postOps.size(); ++i) {
         const auto& postOp = postOps[i];
         bool isLastPostOp = (i == (postOps.size() - 1));
@@ -1044,6 +1070,24 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
             // drop rounding one special residual pattern
             // TODO: validate this unsafe optimization
             auto doRounding = [&]() {
+                bool hasSubsequentSum = false;
+                bool hasSubsequentFQ = false;
+                for (size_t j = i + 1; j < postOps.size(); j++) {
+                    auto& nextNode = postOps[j];
+
+                    if (auto nextEltwiseNode = std::dynamic_pointer_cast<SumPostOp>(nextNode)) {
+                        hasSubsequentSum = true;
+                    }
+
+                    if (auto nextQuantizeNode = std::dynamic_pointer_cast<FakeQuantizePostOp>(nextNode)) {
+                        hasSubsequentFQ = true;
+                    }
+                }
+
+                if (hasSubsequentSum && hasSubsequentFQ) {
+                    return false;
+                }
+
                 return true;
             };
 
@@ -1055,9 +1099,10 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
                     DEBUG_LOG("Append as original post op without binary");
                     continue;
                 }
-                // fallback to legacy if failed
+                DEBUG_LOG("Append as legacy post op");
                 appendAttrPostOpsLegacy(*fq);
             } else {
+                DEBUG_LOG("Append as original post op");
                 appendAttrPostOps(*fq, isLastPostOp, round, true);
             }
             continue;

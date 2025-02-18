@@ -5,6 +5,7 @@
 #include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 
 #include <cassert>
+#include <common/c_types_map.hpp>
 #include <common/primitive_desc_iface.hpp>
 #include <common/utils.hpp>
 #include <cstddef>
@@ -17,6 +18,7 @@
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "dnnl_postops_composer.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/executors/convolution_config.hpp"
@@ -144,7 +146,7 @@ static dnnl::convolution_forward::primitive_desc createDescriptorInternalForFC(c
                                                      algorithm,
                                                      convInDesc,
                                                      convWeightDescAny,
-                                                     // biasDesc,
+                                                     biasDesc,
                                                      convOutDesc,
                                                      dnnl::memory::dims(stride.begin(), stride.end()),
                                                      dnnl::memory::dims(dilation.begin(), dilation.end()),
@@ -332,6 +334,7 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const PostOps& postOps,
         const auto ops = attr.get_post_ops();
         return ops.get()->find(kind) != -1;
     };
+
     // dw-conv would be fused into conv only on AVX2 platform.
     if (attrContainsPostOp(legacyCompose.attr, dnnl::impl::primitive_kind::convolution)) {
         DEBUG_LOG("Attribute contains conv post op. Use legacy post ops");
@@ -370,7 +373,13 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const PostOps& postOps,
                                                             attrs.dqScales,
                                                             true,
                                                             false);
-        return legacyPostOpsOriginalZeroPoints.compose();
+        auto result = legacyPostOpsOriginalZeroPoints.compose();
+        // currently binary post ops are working only with ncsp layout
+        if (attrContainsPostOp(result.attr, dnnl::impl::primitive_kind::binary) &&
+            !dstDesc->hasLayoutType(LayoutType::ncsp)) {
+            DEBUG_LOG("Attribute contains conv post op. Use legacy post ops");
+            return legacyCompose;
+        }
     }
 
     DnnlPostOpsComposer originalPostOpsOriginalZeroPoints(postOps,
@@ -385,7 +394,15 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const PostOps& postOps,
                                                           false,
                                                           false);
     // compose using original post ops
-    return originalPostOpsOriginalZeroPoints.compose();
+    auto result = originalPostOpsOriginalZeroPoints.compose();
+
+    if (attrContainsPostOp(result.attr, dnnl::impl::primitive_kind::binary) &&
+        !dstDesc->hasLayoutType(LayoutType::ncsp)) {
+        DEBUG_LOG("Attribute contains conv post op. Use legacy post ops");
+        return legacyCompose;
+    }
+
+    return result;
 }
 
 constexpr auto dilated(const int64_t dim, const int64_t dilation) {
