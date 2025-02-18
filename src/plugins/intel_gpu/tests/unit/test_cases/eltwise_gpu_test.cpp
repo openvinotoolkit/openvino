@@ -10,9 +10,11 @@
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/gather.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
 #include "eltwise_inst.h"
+#include "reshape_inst.h"
 
 using namespace cldnn;
 using namespace ::tests;
