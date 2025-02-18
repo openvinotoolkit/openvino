@@ -142,94 +142,61 @@ public:
         void insert_free_block(MemBlock block) {
             // important property, freeing block may not overlap existing free blocks
             // fast track, try to insert before the free block
-
             const size_t end_offset = block.first + block.second;
             {
                 // try to merge free blocks
-                auto it = m_offset.lower_bound(end_offset);
-                if (it != m_offset.end()) {
+                auto it = m_free_blocks.lower_bound(end_offset);
+                if (it != m_free_blocks.end()) {
                     // merge blocks
                     if (it->first == end_offset) {
                         block.second += it->second;
-                        auto size_range = m_size.equal_range(it->second);
-                        OPENVINO_ASSERT(size_range.first != m_size.end());
-                        for (auto size_it = size_range.first; size_it != size_range.second; ++size_it) {
-                            if (size_it->second == it->first) {
-                                m_size.erase(size_it);
-                                break;
-                            }
-                        }
-                        it = m_offset.erase(it);
+                        it = m_free_blocks.erase(it);
                     }
                 }
-                if (it != m_offset.begin()) {
-                    std::advance(it, -1);  // look at the previous block
+                if (it != m_free_blocks.begin()) {
+                    std::advance(it, -1); // look at the previous block
                     if (it->first + it->second == block.first) {
                         // merge blocks
                         block.first = it->first;
                         block.second += it->second;
-                        auto size_range = m_size.equal_range(it->second);
-                        OPENVINO_ASSERT(size_range.first != m_size.end());
-                        for (auto size_it = size_range.first; size_it != size_range.second; ++size_it) {
-                            if (size_it->second == it->first) {
-                                m_size.erase(size_it);
-                                break;
-                            }
-                        }
-                        m_offset.erase(it);
+                        m_free_blocks.erase(it);
                     }
                 }
             }
 
             //[todo] sanity checks
-            m_offset.insert(std::make_pair(block.first, block.second));
-            m_size.insert(std::make_pair(block.second, block.first));
+            m_free_blocks.insert(std::make_pair(block.first, block.second));
         }
 
-        std::pair<size_t, size_t> get_suitable_slot(size_t size) {  // offset, size
-            // here we set up the policy,
-            // we try to search srough all the same blocks (if any) and pick the one with the lowest offset
-            auto it = m_size.lower_bound(size);
-            if (it == m_size.end()) {
-                // there are no free blocks that can accomodate the requested size
-                return {0, 0};
-            }
-            auto range = m_size.equal_range(it->first);
-            OPENVINO_ASSERT(range.first != m_size.end());
-            auto ret_it = it;
-            for (auto it = range.first; it != range.second; ++it) {
-                if (ret_it->second > it->second) {
-                    ret_it = it;
+        MemBlock get_suitable_slot(size_t size) {  // offset, size
+            // search free block to reuse
+            //  todo: there might be different strategy
+            //  this one - use the lowest address as the adjacent block is the next to be retired
+            for (auto it = m_free_blocks.begin(); it != m_free_blocks.end(); ++it) {
+                const size_t block_size = it->second;
+                if (block_size >= static_cast<size_t>(size)) {
+                    return {it->first, block_size}; 
                 }
             }
-            return {ret_it->second, ret_it->first};
+            return {0, 0};
         }
 
         void remove_slot(size_t offset) {
-            auto it = m_offset.find(offset);
-            OPENVINO_ASSERT(it != m_offset.end());
-            auto size_range = m_size.equal_range(it->second);
-            OPENVINO_ASSERT(size_range.first != m_size.end());
-            for (auto size_it = size_range.first; size_it != size_range.second; ++size_it) {
-                if (size_it->second == it->first) {
-                    m_size.erase(size_it);
-                    break;
-                }
-            }
-            m_offset.erase(it);
+            auto it = m_free_blocks.find(offset);
+            OPENVINO_ASSERT(it != m_free_blocks.end());
+            m_free_blocks.erase(it);
         }
 
-        std::pair<size_t, size_t> get_last_free_slot() {
-            if (m_offset.empty()) {
+        MemBlock get_last_free_slot() {
+            if (m_free_blocks.empty()) {
                 return {0, 0};
             }
-            auto it = m_offset.rbegin();
+            auto it = m_free_blocks.rbegin();
             return {it->first, it->second};
         }
 
     public:
-        Map m_offset;     // offset -> size
-        MultiMap m_size;  // size -> offset
+        Map m_free_blocks;     // offset -> size
     };
 
 public:
