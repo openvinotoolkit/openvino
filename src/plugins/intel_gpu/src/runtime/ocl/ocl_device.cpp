@@ -391,5 +391,9 @@ bool ocl_device::is_same(const device::ptr other) {
     return _device == casted->get_device() && _platform == casted->get_platform();
 }
 
+void ocl_device::set_mem_caps(memory_capabilities memory_capabilities) {
+    _mem_caps = memory_capabilities;
+}
+
 }  // namespace ocl
 }  // namespace cldnn
