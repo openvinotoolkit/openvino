@@ -25,14 +25,13 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-
 
 namespace ov {
 namespace detail {
 namespace {
 std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<op::v3::ShapeOf>& shape, const std::vector<int>& dims);
+std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::Node>& node, const std::vector<int>& dims);
 ov::OutputVector make_split(const ov::Output<ov::Node>& value, int64_t num_splits, int64_t axis);
 std::shared_ptr<ov::Node> rotaryEmbedding(ov::Output<ov::Node> input,
                                           ov::Output<ov::Node> past_seqlen,
@@ -47,12 +46,12 @@ std::shared_ptr<ov::Node> rotaryEmbedding(ov::Output<ov::Node> input,
 
 ov::pass::GroupQueryAttentionDecomposition::GroupQueryAttentionDecomposition() {
     MATCHER_SCOPE(GroupQeuryAttentionDecomposition);
-    auto pattern_node = ov::pass::pattern::wrap_type<ov::op::v15::GroupQueryAttention>();
+    auto pattern_node = ov::pass::pattern::wrap_type<ov::op::GroupQueryAttention>();
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto node =
-            ov::as_type_ptr<ov::op::v15::GroupQueryAttention>(pattern_to_output.at(pattern_node).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::GroupQueryAttention>(pattern_to_output.at(pattern_node).get_node_shared_ptr());
 
         if (node == nullptr || transformation_callback(node)) {
             return false;
@@ -68,7 +67,7 @@ ov::pass::GroupQueryAttentionDecomposition::GroupQueryAttentionDecomposition() {
 }
 
 ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
-    std::shared_ptr<ov::op::v15::GroupQueryAttention> node) {
+    std::shared_ptr<ov::op::GroupQueryAttention> node) {
     using namespace ov::op;
 
     const auto num_heads = node->get_num_heads();
@@ -87,7 +86,8 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     auto cos_cache = node->input_value(6);
     auto sin_cache = node->input_value(7);
 
-    // The length of all tokens (past + current) is `seqlens_k` + 1, current = Q.shape[2], past = `seqlens_k` + 1 - current
+    // The length of all tokens (past + current) is `seqlens_k` + 1
+    // current = Q.shape[2], past = `seqlens_k` + 1 - current
 
     const auto T = Q.get_element_type();
     const auto q_shape = std::make_shared<v3::ShapeOf>(Q);
@@ -106,29 +106,26 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     auto past_sequence_length = std::make_shared<v1::Subtract>(seqlens_1d, current_sequence_length);
     if (do_rotary) {
         Q = detail::rotaryEmbedding(Q,
-                            past_sequence_length,
-                            seqlens_1d,
-                            cos_cache.get_node_shared_ptr(),
-                            sin_cache.get_node_shared_ptr(),
-                            head_size_node,
-                            rotary_interleaved);
+                                    past_sequence_length,
+                                    seqlens_1d,
+                                    cos_cache.get_node_shared_ptr(),
+                                    sin_cache.get_node_shared_ptr(),
+                                    head_size_node,
+                                    rotary_interleaved);
         K = detail::rotaryEmbedding(K,
-                            past_sequence_length,
-                            seqlens_1d,
-                            cos_cache.get_node_shared_ptr(),
-                            sin_cache.get_node_shared_ptr(),
-                            head_size_node,
-                            rotary_interleaved);
+                                    past_sequence_length,
+                                    seqlens_1d,
+                                    cos_cache.get_node_shared_ptr(),
+                                    sin_cache.get_node_shared_ptr(),
+                                    head_size_node,
+                                    rotary_interleaved);
     }
-    // present = concat(K, V) if 'past' input is unavailable
-    // or
-    // present = concat(past, K, V)
+
     auto construct_kv_cache = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
         auto past_datas = std::make_shared<v8::Slice>(past, zero, past_sequence_length, one, two);
         auto curr_datas = std::make_shared<v8::Slice>(current, zero, current_sequence_length, one, two);
         return std::make_shared<v0::Concat>(ov::NodeVector{past_datas, curr_datas}, 2);
     };
-
     K = construct_kv_cache(past_key, K);
     V = construct_kv_cache(past_value, V);
     auto present_k = K;
@@ -155,15 +152,15 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
 
     // need to apply low-triangle mask to attention score.
     // two steps, construct the total_sequence x total_sequence triangle, then slice the current length
-    auto seqlens_1d_scalar = std::make_shared<v1::Reshape>(seqlens_1d, one_without_shape, false);  // 12 or 13
+    auto seqlens_1d_scalar = std::make_shared<v1::Reshape>(seqlens_1d, one_without_shape, false);
     std::shared_ptr<ov::Node> mask_per_line_node =
         std::make_shared<v4::Range>(v0::Constant::create(ov::element::i64, ov::Shape{}, {0}),
                                     seqlens_1d_scalar,
                                     one_without_shape,
-                                    ov::element::i64);                            // [0,1,2,...,]
-    auto hori_range = std::make_shared<v0::Unsqueeze>(mask_per_line_node, zero);  // 1x12 or 1x13
-    auto vert_range = std::make_shared<v0::Unsqueeze>(mask_per_line_node, one);   // 12x1 or 13x1
-    auto triu = std::make_shared<v1::Greater>(hori_range, vert_range);            // 12x12 or 13x13
+                                    ov::element::i64);
+    auto hori_range = std::make_shared<v0::Unsqueeze>(mask_per_line_node, zero);
+    auto vert_range = std::make_shared<v0::Unsqueeze>(mask_per_line_node, one);
+    auto triu = std::make_shared<v1::Greater>(hori_range, vert_range);
     auto typed_zero = v0::Constant::create(T, ov::Shape{}, {0});
     // cf. make_attention_mask@src\plugins\intel_gpu\tests\common\subgraphs_builders.hpp
     std::shared_ptr<ov::Node> minus_inf = nullptr;
@@ -171,14 +168,9 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         minus_inf = ov::op::v0::Constant::create(T, ov::Shape{}, {-std::numeric_limits<float>::infinity()});
     else if (T == ov::element::f16)
         minus_inf = ov::op::v0::Constant::create(T, ov::Shape{}, {std::numeric_limits<ov::float16>::lowest()});
-    auto atten_mask = std::make_shared<v1::Select>(triu, minus_inf, typed_zero);  // 12x12 or 13x13
-    auto atten_mask_sliced = std::make_shared<v8::Slice>(atten_mask,
-                                                         past_sequence_length,
-                                                         seqlens_1d,
-                                                         one,
-                                                         zero);  // slice to current query seqlen, 12x12 or 1x13
+    auto atten_mask = std::make_shared<v1::Select>(triu, minus_inf, typed_zero);
+    auto atten_mask_sliced = std::make_shared<v8::Slice>(atten_mask, past_sequence_length, seqlens_1d, one, zero);
 
-    // compute softmax((Q x K') / sqrt(head_size)) x V
     std::shared_ptr<ov::Node> qga_output;
     if (scale != 0.0f) {
         auto scale_node = v0::Constant::create(T, Shape{}, {scale});
@@ -196,7 +188,6 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
 
     return {output, present_k, present_v};
 }
-
 
 namespace ov {
 namespace detail {

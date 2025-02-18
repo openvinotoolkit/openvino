@@ -9,7 +9,6 @@
 using namespace std;
 namespace ov {
 namespace op {
-namespace v15 {
 
 GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
                                          int64_t num_heads,
@@ -27,7 +26,7 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
 }
 
 void GroupQueryAttention::validate_and_infer_types() {
-    OV_OP_SCOPE(v15_GroupQueryAttention_validate_and_infer_types);
+    OV_OP_SCOPE(GroupQueryAttention_validate_and_infer_types);
     // GQA expectes the following inputs: query, key, value, past_key, past_value, seqlens_k, cos_cache, sin_cache
     // All qkv's should have the shape [batch, num_heads, seq_len, head_size] ([B, N, S, H])
     // It has three outputs: output of shape [B, S, N * H], and present_key/value of shape [B, N, S, H]
@@ -57,7 +56,7 @@ void GroupQueryAttention::validate_and_infer_types() {
 }
 
 bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v15_GroupQueryAttention_visit_attributes);
+    OV_OP_SCOPE(GroupQueryAttention_visit_attributes);
     visitor.on_attribute("do_rotary", m_do_rotary);
     visitor.on_attribute("kv_num_heads", m_kv_num_heads);
     visitor.on_attribute("num_heads", m_num_heads);
@@ -67,7 +66,7 @@ bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {
 }
 
 std::shared_ptr<ov::Node> GroupQueryAttention::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    OV_OP_SCOPE(v15_GroupQueryAttention_clone_with_new_inputs);
+    OV_OP_SCOPE(GroupQueryAttention_clone_with_new_inputs);
     return std::make_shared<GroupQueryAttention>(new_args,
                                                  m_num_heads,
                                                  m_kv_num_heads,
@@ -76,6 +75,5 @@ std::shared_ptr<ov::Node> GroupQueryAttention::clone_with_new_inputs(const ov::O
                                                  m_rotary_interleaved);
 }
 
-}  // namespace v15
 }  // namespace op
 }  // namespace ov

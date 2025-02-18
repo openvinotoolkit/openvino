@@ -3,22 +3,21 @@
 //
 
 #include "openvino/op/group_query_attention.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/transpose.hpp"
+
+#include <algorithm>
 
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
-#include "openvino/frontend/exception.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/transpose.hpp"
 #include "utils/common.hpp"
 #include "utils/split.hpp"
-#include <algorithm>
 
 using namespace ov::op;
-using ov::Shape;
 
 namespace ov {
 namespace frontend {
@@ -98,12 +97,12 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
             continue;
         ov_op_inputs.push_back(onnx_op_inputs[i]);
     }
-    return std::make_shared<v15::GroupQueryAttention>(ov_op_inputs,
-                                                      num_heads,
-                                                      kv_num_heads,
-                                                      scale,
-                                                      do_rotary,
-                                                      rotary_interleaved)
+    return std::make_shared<GroupQueryAttention>(ov_op_inputs,
+                                                 num_heads,
+                                                 kv_num_heads,
+                                                 scale,
+                                                 do_rotary,
+                                                 rotary_interleaved)
         ->outputs();
 }
 
@@ -111,17 +110,12 @@ ONNX_OP("GroupQueryAttention", OPSET_SINCE(1), com_microsoft::opset_1::group_que
 
 }  // namespace opset_1
 
-
 namespace detail {
 namespace {
 std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<v3::ShapeOf>& shape, const std::vector<int>& dims) {
     static const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
     const auto dims_const = v0::Constant::create(ov::element::i32, ov::Shape{dims.size()}, dims);
     return std::make_shared<v8::Gather>(shape, dims_const, zero);
-}
-
-std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::Node>& node, const std::vector<int>& dims) {
-    return get_dimensions(std::make_shared<v3::ShapeOf>(node), dims);
 }
 }  // namespace
 }  // namespace detail
