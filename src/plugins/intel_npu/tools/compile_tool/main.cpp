@@ -445,8 +445,16 @@ int main(int argc, char* argv[]) {
         auto inputs_info = std::const_pointer_cast<ov::Model>(model)->inputs();
         InputsInfo info_map;
 
+        // Get the batch number from model
+        ov::Dimension modelBatchBefore = ov::get_batch(model);
+        std::cout << "Model Batch [Before] --->>> " << modelBatchBefore.to_string() << std::endl;
+
         std::cout << "Performing reshape" << std::endl;
         reshape(std::move(inputs_info), info_map, model, FLAGS_shape, FLAGS_override_model_batch_size, FLAGS_d);
+
+        // Get the batch number from model
+        ov::Dimension modelBatchAfter = ov::get_batch(model);
+        std::cout << "Model Batch [After]  --->>> " << modelBatchAfter.to_string() << std::endl;
 
         std::cout << "Configuring model pre & post processing" << std::endl;
         configurePrePostProcessing(model,
@@ -459,9 +467,10 @@ int main(int argc, char* argv[]) {
                                    FLAGS_iml,
                                    FLAGS_oml,
                                    FLAGS_ioml);
-        if (FLAGS_shape.empty()) {
-            setModelBatch(model, FLAGS_override_model_batch_size);
-        }
+        // TODO: Temporarily removing setting model batch here
+        // if (FLAGS_shape.empty()) {
+        //     setModelBatch(model, FLAGS_override_model_batch_size);
+        // }
         std::cout << "Printing Input and Output Info from model" << std::endl;
         printInputAndOutputsInfoShort(*model);
         auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
