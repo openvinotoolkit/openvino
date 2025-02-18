@@ -103,7 +103,7 @@ public:
         reorder_network.set_input_data("input0", input0);
         reorder_network.set_input_data("input1", input1);
         auto reorder_output = reorder_network.execute().at("reorder2").get_memory();
-        cldnn::mem_lock<T_dat> reorder_output_ptr(reorder_output, get_test_stream());
+        cldnn::mem_lock<T_dat, mem_lock_type::read> reorder_output_ptr(reorder_output, get_test_stream());
 
         topology planar_topo;
         planar_topo.add(input_layout("input0", input0->get_layout()));
@@ -114,7 +114,7 @@ public:
         planar_network.set_input_data("input0", input0);
         planar_network.set_input_data("input1", input1);
         auto planar_output = planar_network.execute().at("gather").get_memory();
-        cldnn::mem_lock<T_dat> planar_output_ptr(planar_output, get_test_stream());
+        cldnn::mem_lock<T_dat, mem_lock_type::read> planar_output_ptr(planar_output, get_test_stream());
 
         ASSERT_TRUE(
             !memcmp(reorder_output_ptr.data(), planar_output_ptr.data(), get_linear_size(shape_out) * sizeof(T_dat)));
