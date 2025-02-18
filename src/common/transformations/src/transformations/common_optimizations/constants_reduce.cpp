@@ -27,7 +27,11 @@ bool ConstantsReduce::run_on_model(const std::shared_ptr<ov::Model>& m) {
     const std::vector<std::shared_ptr<ov::Node>> ops = m->get_ops();
     for (auto& op : ops) {
         if (!ov::is_type<ov::op::v0::Constant>(op)) continue;
+
         auto const_node = ov::as_type_ptr<op::v0::Constant>(op);
+
+	// Limit size of node reading to avoid reading large tensors
+        if (const_node->get_byte_size() > 256) continue;
 
         auto data = const_node->get_data_ptr<char>();
         auto const_shape = const_node->get_shape();
@@ -39,6 +43,11 @@ bool ConstantsReduce::run_on_model(const std::shared_ptr<ov::Model>& m) {
         if (bufIter == blobMemCache.end()) {
             blobMemCache[cache_key] = op;
         } else {
+            auto stored_const = ov::as_type_ptr<op::v0::Constant>(bufIter->second);
+            // Byte-by-byte check for hash collisions
+            auto res = std::memcmp(stored_const->get_data_ptr<char>(), data, const_node->get_byte_size());
+	    if(res != 0) continue;
+
             auto users = const_node->get_users();
             copies++;
             for(auto user : users) {
