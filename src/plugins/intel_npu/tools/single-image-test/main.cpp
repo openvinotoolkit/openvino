@@ -2031,9 +2031,26 @@ static int runSingleImageTest() {
             auto inputsInfo = std::const_pointer_cast<ov::Model>(model)->inputs();
             InputsInfo infoMap;
 
+            for (const auto& inputInfo : inputsInfo) {
+                std::cout << "---------- Before" << std::endl;
+                std::cout << "Input name: " << inputInfo.get_any_name() << std::endl;
+                std::cout << "Input shape: " << inputInfo.get_partial_shape().to_string() << std::endl;
+                std::cout << "Input precision: " << inputInfo.get_element_type().get_type_name() << std::endl;
+                std::cout << "Input batch size: " << ov::get_batch(model) << std::endl;
+                std::cout << "----------" << std::endl;
+            }
+
+            // Get model shape and batch size
+            std::cout << "Override Model Batch Size -> " << FLAGS_override_model_batch_size << std::endl;
+            std::cout << " ^^^ Default = 1" << std::endl;
+
             std::cout << "Performing reshape" << std::endl;
             reshape(std::move(inputsInfo), infoMap, model, FLAGS_shape,
                     FLAGS_override_model_batch_size, FLAGS_device);
+
+            std::cout << "---------- After" << std::endl;
+            std::cout << "Input batch size: " << ov::get_batch(model) << std::endl;
+            std::cout << "----------" << std::endl;
 
             ov::preprocess::PrePostProcessor ppp(model);
 
@@ -2061,6 +2078,15 @@ static int runSingleImageTest() {
 
             // Input layout
             for (size_t i = 0; i < inputInfo.size(); ++i) {
+                std::cout << "InputInfo Name: " << inputInfo[i].get_any_name() << std::endl;
+
+                ov::Layout modelLayout = ov::layout::get_layout(model->input(i));;
+                std::cout << "Model Layout --->>> " << modelLayout.to_string() << std::endl;
+
+                // Get the batch number from model
+                ov::Dimension modelBatch = ov::get_batch(model);
+                std::cout << "Model Batch  --->>> " << modelBatch.to_string() << std::endl;
+
                 if (std::optional<ov::Layout> inUserLayout =
                             getRegexSubstitutionIfExist(inputInfo[i].get_any_name(), inUserLayouts);
                     inUserLayout.has_value()) {
@@ -2147,9 +2173,10 @@ static int runSingleImageTest() {
                 }
             }
 
-            if (FLAGS_shape.empty()) {
-                setModelBatch(model, FLAGS_override_model_batch_size);
-            }
+            // TODO: Temporarily removing setting model batch here
+            // if (FLAGS_shape.empty()) {
+            //     setModelBatch(model, FLAGS_override_model_batch_size);
+            // }
             std::cout << "Compile model" << std::endl;
             model = ppp.build();
             printInputAndOutputsInfoShort(*model);

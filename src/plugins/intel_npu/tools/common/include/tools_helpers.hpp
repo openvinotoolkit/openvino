@@ -136,6 +136,18 @@ void setModelBatch(std::shared_ptr<ov::Model>& model, uint32_t batch = 1) {
 void reshape(ov::OutputVector inputsInfo, InputsInfo& infoMap, std::shared_ptr<ov::Model>& model,
              std::string& shapeString, int overrideModelBatchSize, std::string_view device) {
     std::vector<InputsInfo> infoMaps;
+
+    // Shape and Override Model Batch Size cannot be specificed together
+    if (!shapeString.empty() && overrideModelBatchSize != 1) {
+        throw std::logic_error(R"(Incompatible params: "shape" and "override_model_batch_size")");
+    }
+
+    // Case 1: override_model_batch_size is specified
+    if (overrideModelBatchSize != 1) {
+        setModelBatch(model, overrideModelBatchSize);
+        return;
+    }
+
     if (!shapeString.empty()) {
         std::map<std::string, std::vector<std::string>> shapesMap = parseInputParameters(shapeString, inputsInfo);
 
