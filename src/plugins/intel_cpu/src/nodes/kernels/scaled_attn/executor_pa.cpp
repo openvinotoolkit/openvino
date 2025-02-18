@@ -2416,7 +2416,6 @@ struct MHA {
         auto nthr = static_cast<size_t>(parallel_get_max_threads());
 
         if (past_lens.m_dims[0] >= nthr || _workitems.get_reorder_max_batch_size() > 0) {
-            std::cout << "do exec_loop mixed" << std::endl;
             exec_loop_mixed(query,
                             present_key,
                             present_value,
@@ -2429,7 +2428,6 @@ struct MHA {
                             block_indices_begins,
                             alibi_slopes);
         } else {
-            std::cout << "do exec_loop_bhl" << std::endl;
             _helper.exec_loop_bhl(query,
                                   present_key,
                                   present_value,
@@ -2543,8 +2541,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             _helper._key_group_size = _helper._key_group_size ? _helper._key_group_size : S;
         }
         auto block_size = _helper._quant_key_bychannel ? (k_cache.size(2) - 2 * sizeof(float)) : k_cache.size(2);
-        std::cout << "executor|" << _helper._quant_key_bychannel << "|S|" << S << "|k_cache.size(3)}|"
-                  << k_cache.size(3) << "|block_size|" << block_size << std::endl;
         auto H = q.size(1) / S;
         auto h_each_group_len = 1;
         if (Hk != H) {
@@ -2572,10 +2568,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             v_cache.assert_dims({k_cache.m_dims[0], Hk, block_size, SV});
         }
         past_lens.assert_dims({B_seq});
-        std::cout << "init|past_lens|" << past_lens << std::endl;
-        std::cout << "init|subsequence_begins|" << subsequence_begins << std::endl;
-        std::cout << "init|block_indices|" << block_indices << std::endl;
-        std::cout << "init|block_indices_begins|" << block_indices_begins << std::endl;
         subsequence_begins.assert_dims({B_seq + 1});
         block_indices.assert_dims({0}, true);
         block_indices_begins.assert_dims({B_seq + 1});
@@ -2720,7 +2712,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
              output_score);
 
         if (rotated_block_indices) {
-            std::cout << "Page|Do RotateBlock|" << std::endl;
             rotate_kv_cache<KEY_CACHE_TYPE>(k_cache,
                                             rotated_block_indices,
                                             rotation_deltas,
