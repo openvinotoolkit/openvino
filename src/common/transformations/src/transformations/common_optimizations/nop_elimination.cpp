@@ -519,7 +519,7 @@ pass::EliminateConcatSplit::EliminateConcatSplit() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
         const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(pattern_concat));
-        if (!concat || concat->is_dynamic() || concat->get_users().size()==1) {
+        if (!concat || concat->is_dynamic() || concat->get_users().size() == 1) {
             return false;
         }
         const auto concat_users = concat->get_users();
@@ -670,8 +670,7 @@ pass::EliminateConcatSplit::EliminateConcatSplit() {
                 end_values[concat_axis] = slice_end - new_start_value + 1;
                 new_slice_in_nodes.push_back(
                     ov::op::v0::Constant::create(ov::element::i64, ov::Shape{end_values.size()}, end_values));
-                auto new_slice_node =
-                    slice_node->clone_with_new_inputs(ov::as_output_vector(new_slice_in_nodes));
+                auto new_slice_node = slice_node->clone_with_new_inputs(ov::as_output_vector(new_slice_in_nodes));
                 replace_output_update_name(slice_node, new_slice_node);
             }
         }
