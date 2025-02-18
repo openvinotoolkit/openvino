@@ -1751,11 +1751,12 @@ TEST(eltwise_gpu_f32, add_basic_8d) {
     }
 }
 
-TEST(eltwise_cpu_impl_f32, add_basic_8d) {
-    auto& engine = get_test_engine();
+void eltwise_cpu_impl_f32(bool disable_usm = false);
+void eltwise_cpu_impl_f32(bool disable_usm) {
+    auto engine = create_test_engine(engine_types::ocl, runtime_types::ocl, !disable_usm);
 
-    auto input1 = engine.allocate_memory({{1, 3, 2, 2, 2, 3, 2, 3}, data_types::f32, format::bfvuwzyx });
-    auto input2 = engine.allocate_memory({{1, 3, 2, 2, 2, 3, 2, 3}, data_types::f32, format::bfvuwzyx });
+    auto input1 = engine->allocate_memory({{1, 3, 2, 2, 2, 3, 2, 3}, data_types::f32, format::bfvuwzyx });
+    auto input2 = engine->allocate_memory({{1, 3, 2, 2, 2, 3, 2, 3}, data_types::f32, format::bfvuwzyx });
 
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
@@ -1770,11 +1771,11 @@ TEST(eltwise_cpu_impl_f32, add_basic_8d) {
         std::iota(lock2.begin(), lock2.end(), 0);
     }
 
-    auto config = get_test_default_config(engine);
+    auto config = get_test_default_config(*engine);
     auto forcing_map = ov::intel_gpu::ImplForcingMap{ {"eltwise", {format::bfvuwzyx, "", impl_types::cpu}} };
     config.set_property(ov::intel_gpu::force_implementations(forcing_map));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    network network(engine, topology, config);
+    network network(*engine, topology, config);
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -1792,6 +1793,14 @@ TEST(eltwise_cpu_impl_f32, add_basic_8d) {
     for (size_t i = 0; i < output->count(); i++) {
         ASSERT_EQ(2.f*i, output_ptr[i]) << " i = " << i;
     }
+}
+
+TEST(eltwise_cpu_impl_f32, add_basic_8d) {
+    eltwise_cpu_impl_f32();
+}
+
+TEST(eltwise_cpu_impl_f32, add_basic_8d_disable_usm) {
+    eltwise_cpu_impl_f32(true);
 }
 
 TEST(eltwise_gpu_f32, add_basic_in4x4x2x2) {
