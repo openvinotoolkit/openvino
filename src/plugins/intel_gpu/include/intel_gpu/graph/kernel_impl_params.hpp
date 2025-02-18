@@ -174,6 +174,9 @@ struct kernel_impl_params final {
         OPENVINO_ASSERT(prog != nullptr, "[GPU] Program pointer in kernel_impl_params is not initialized");
         return *prog;
     }
+
+    const device_info& get_device_info() const;
+
     stream& get_stream() const { return *strm; }
     stream::ptr get_stream_ptr() const { return strm; }
 
