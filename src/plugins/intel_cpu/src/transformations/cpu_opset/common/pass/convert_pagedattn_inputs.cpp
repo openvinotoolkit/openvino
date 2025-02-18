@@ -68,7 +68,11 @@ ov::intel_cpu::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const Config& conf
                                                           rotation_deltas,
                                                           rotation_trig_lut});
     auto result = pa_1 | pa_2;
-
+    auto key_cache_prec = config.keyCachePrecision;
+    auto value_cache_prec = config.valueCachePrecision;
+    auto key_cache_gs = config.keyCacheGroupSize;
+    auto value_cache_gs = config.valueCacheGroupSize;
+    auto infer_prec = config.inferencePrecision;
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto pa_op = m.get_match_root();
         auto key_cache = ov::as_type_ptr<ov::op::v0::Parameter>(pa_op->get_input_node_shared_ptr(3));
@@ -104,8 +108,8 @@ ov::intel_cpu::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const Config& conf
             }
             return ov::PartialShape{-1, _head_nums, block_size, _head_size};
         };
-        auto key_cache_precision = format_cache_precision(config.keyCachePrecision, config.inferencePrecision);
-        auto value_cache_precision = format_cache_precision(config.valueCachePrecision, config.inferencePrecision);
+        auto key_cache_precision = format_cache_precision(key_cache_prec, infer_prec);
+        auto value_cache_precision = format_cache_precision(value_cache_prec, infer_prec);
         key_cache->set_element_type(key_cache_precision);
         value_cache->set_element_type(value_cache_precision);
         if (!pa_op->get_rt_info().count("num_k_heads") || !pa_op->get_rt_info().count("k_head_size") ||
@@ -117,12 +121,12 @@ ov::intel_cpu::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const Config& conf
         const auto key_cache_shape = init_cache_shape(pa_op->get_rt_info()["num_k_heads"].as<size_t>(),
                                                       pa_op->get_rt_info()["k_head_size"].as<size_t>(),
                                                       key_cache_precision,
-                                                      config.keyCacheGroupSize,
+                                                      key_cache_gs,
                                                       false);
         const auto value_cache_shape = init_cache_shape(pa_op->get_rt_info()["num_v_heads"].as<size_t>(),
                                                         pa_op->get_rt_info()["v_head_size"].as<size_t>(),
                                                         value_cache_precision,
-                                                        config.valueCacheGroupSize,
+                                                        value_cache_gs,
                                                         false);
 
         key_cache->set_partial_shape(key_cache_shape);
