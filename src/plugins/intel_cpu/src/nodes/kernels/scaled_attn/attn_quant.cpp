@@ -503,15 +503,13 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
             float* buffer = temp_buffer.ptr<float>(parallel_get_thread_num());
             auto q_len =
                 subsequence_begins.ptr<int32_t>()[sub_seq_id + 1] - subsequence_begins.ptr<int32_t>()[sub_seq_id];
-            auto kv_len = past_lens.ptr<int32_t>()[sub_seq_id] + q_len;
-            auto used_block_nums = ov::intel_cpu::div_up(past_lens.ptr<int32_t>()[sub_seq_id], block_size);
             auto block_number_start = block_indices_begins.ptr<int32_t>()[sub_seq_id];
             auto total_blocks =
                 block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] - block_indices_begins.ptr<int32_t>()[sub_seq_id];
             size_t m = 0;
             if (past_len == 0) {
-                parallel_for(total_blocks, [&](size_t block_count) {
-                    size_t block_id = block_number_start + block_count;
+                parallel_for(total_blocks, [&](int32_t block_count) {
+                    auto block_id = block_number_start + block_count;
                     auto block_number = block_indices.ptr<int32_t>()[block_id];
                     auto token_num = (block_id == (block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] - 1))
                                          ? (q_len - (block_id - block_number_start) * block_size)
