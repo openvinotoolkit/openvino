@@ -455,7 +455,7 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
     size_t ioIndex = 0;
 
     for (const auto& levelZeroTensor : _levelZeroInputTensors) {
-        const auto inputDescriptor = _metadata.inputs.at(ioIndex);
+        const auto& inputDescriptor = _metadata.inputs.at(ioIndex);
         auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensor.at(SINGLE_TENSOR));
 
         if (is_batched_input(ioIndex) || inputDescriptor.isShapeTensor ||
@@ -484,7 +484,7 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
     ioIndex = 0;
 
     for (const auto& levelZeroTensor : _levelZeroOutputTensors) {
-        const auto outputDescriptor = _metadata.outputs.at(ioIndex);
+        const auto& outputDescriptor = _metadata.outputs.at(ioIndex);
         auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensor);
 
         if (outputDescriptor.isShapeTensor || is_remote_tensor(levelZeroTensor) || zeroTensor == nullptr) {
@@ -790,7 +790,7 @@ std::shared_ptr<ov::ITensor> ZeroInferRequest::create_tensor(ov::element::Type t
                                                              const ov::Allocator& allocator) const {
     OPENVINO_ASSERT(allocator, "Allocator mush be provided when creating a zero tensor!");
 
-    return std::make_shared<ZeroTensor>(_initStructs, type, shape, allocator);
+    return std::make_shared<ZeroTensor>(_initStructs, _config, type, shape, allocator);
 }
 
 void ZeroInferRequest::add_state(const IODescriptor& descriptor, size_t tensorIndex) const {
