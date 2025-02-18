@@ -1683,6 +1683,26 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_mul) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fast_gelu) {
+    const auto model = convert_model("com.microsoft/fast_gelu.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> X = {0.0f,  0.5f, 1.0f,  -0.5f, -1.0f, 2.0f, 1.5f,  -2.0f, 0.3f,  0.7f, -0.7f, 1.2f,
+                                  -0.3f, 0.8f, -1.5f, 1.1f,  -0.9f, 0.4f, -1.2f, 2.1f,  -0.4f, 0.6f, -1.1f, 1.3f};
+    const std::vector<float> bias = {0.1f, -0.1f, 0.2f};
+
+    const std::vector<float> expected_output = {
+        0.05398275f, 0.2621714f, 1.0615974f,  -0.1378286f, -0.1492447f, 2.1699832f, 1.51072f,     -0.0378f,
+        0.34569725f, 0.6304f,    -0.1696f,    1.2874f,     -0.0841f,    0.53025f,   -0.12675f,    1.0614f,
+        -0.159f,     0.4353f,    -0.1492447f, 1.954764f,   -0.0841f,    0.53025f,   -0.13829723f, 1.39957158f};
+
+    test_case.add_input<float>(Shape{2, 4, 3}, X);
+    test_case.add_input<float>(Shape{3}, bias);
+
+    test_case.add_expected_output<float>(Shape{2, 4, 3}, expected_output);
+    test_case.run_with_tolerance_as_fp(0.0055f);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_bias_add) {
     const auto model = convert_model("com.microsoft/bias_add.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
