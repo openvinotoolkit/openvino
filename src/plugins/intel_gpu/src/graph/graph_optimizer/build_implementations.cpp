@@ -11,7 +11,7 @@ using namespace cldnn;
 
 void build_implementations::run(program& p) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::build_implementations");
-    if (p.get_config().get_property(ov::intel_gpu::partial_build_program)) {
+    if (p.get_config().get_partial_build_program()) {
         return;
     }
 

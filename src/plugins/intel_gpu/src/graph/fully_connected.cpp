@@ -250,8 +250,7 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         }
     }
 
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->disable_fake_alignment) {
+    GPU_DEBUG_IF(orig_impl_param.get_program().get_config().get_disable_fake_alignment()) {
         can_apply_fake_alignment = false;
     }
 

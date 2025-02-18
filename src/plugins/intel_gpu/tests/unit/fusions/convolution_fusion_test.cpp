@@ -318,7 +318,7 @@ public:
 
         auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p));
 
-        auto impl_forcing = cfg_fused.get_property(ov::intel_gpu::force_implementations);
+        auto impl_forcing = cfg_fused.get_force_implementations();
 
         ov::intel_gpu::ImplementationDesc conv_impl = { format::any, "", impl_types::onednn };
 

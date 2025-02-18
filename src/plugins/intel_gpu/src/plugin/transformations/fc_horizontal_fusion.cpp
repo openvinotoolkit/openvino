@@ -20,7 +20,6 @@ namespace ov::intel_gpu {
 FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swiglu) {
     using namespace ov::pass::pattern;
 
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     // Three FCs connected to the same input
     size_t min_num_fcs_to_fuse = 3;
     // Note:

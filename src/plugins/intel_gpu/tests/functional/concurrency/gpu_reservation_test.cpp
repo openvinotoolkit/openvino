@@ -28,6 +28,10 @@ TEST_F(GpuReservationTest, Mutiple_CompiledModel_Reservation) {
     models.emplace_back(ov::test::utils::make_multi_single_conv());
 
     auto core = ov::test::utils::PluginCache::get().core();
+
+    auto available_devices = core->get_available_devices();
+    if (std::find(available_devices.begin(), available_devices.end(), ov::test::utils::DEVICE_CPU) == available_devices.end())
+        GTEST_SKIP();
     core->set_property(target_devices[1], config);
 
     ov::AnyMap property_config = {{ov::num_streams.name(), 1},

@@ -197,7 +197,7 @@ public:
     void set_reuse_variable_mem(bool reuse = false);
     bool is_reuse_variable_mem() { return _reuse_variable_mem; }
 
-    const ExecutionConfig& get_config() const { return _config; }
+    const ExecutionConfig& get_config() const { return _program->get_config(); }
 
     std::shared_ptr<ShapePredictor> get_shape_predictor() { return _shape_predictor; }
     void set_shape_predictor(std::shared_ptr<ShapePredictor> shape_predictor) { _shape_predictor = shape_predictor; }
@@ -210,7 +210,6 @@ private:
     using output_chains_map = std::map<primitive_id, std::vector<primitive_inst*>>;
     uint32_t net_id = 0;
     program::ptr _program;
-    ExecutionConfig _config;
     engine& _engine;
     stream::ptr _stream;
     std::unique_ptr<memory_pool> _memory_pool;
