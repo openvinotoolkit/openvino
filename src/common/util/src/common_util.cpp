@@ -8,7 +8,6 @@
 
 #if defined(_WIN32)
 #    include <windows.h>
-#    include <processthreadsapi.h>
 #endif
 
 std::string ov::util::to_lower(const std::string& s) {
@@ -66,13 +65,11 @@ std::string ov::util::filter_lines_by_prefix(const std::string& str, const std::
     return res.str();
 }
 
-bool ov::util::may_i_use_dynamic_code() {
 #if defined(_WIN32)
+bool ov::util::may_i_use_dynamic_code() {
     HANDLE handle = GetCurrentProcess();
     PROCESS_MITIGATION_DYNAMIC_CODE_POLICY dynamic_code_policy = {0};
     GetProcessMitigationPolicy(handle, ProcessDynamicCodePolicy, &dynamic_code_policy, sizeof(dynamic_code_policy));
-    return (dynamic_code_policy.ProhibitDynamicCode == TRUE) ? false : true;
-#else
-    return true;
-#endif
+    return dynamic_code_policy.ProhibitDynamicCode != TRUE;
 }
+#endif
