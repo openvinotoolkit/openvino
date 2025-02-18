@@ -643,11 +643,11 @@ def test_copy_and_deepcopy(copy_func, should_share_data):
 
 
 # supported dtypes by Pillow
-@pytest.mark.parametrize(("numpy_dtype", "shape"),
-    [(np.float32, (224, 224)),
-     (np.int32, (224, 224)),
-     (np.uint8, (224, 224, 3)),
-     (np.uint16, (224, 224)),],)
+@pytest.mark.parametrize(("numpy_dtype", "shape"), [
+                         (np.float32, (224, 224)),
+                         (np.int32, (224, 224)),
+                         (np.uint8, (224, 224, 3)),
+                         (np.uint16, (224, 224)),],)
 def test_tensor_from_pillow(numpy_dtype, shape):
     from PIL import Image
 
