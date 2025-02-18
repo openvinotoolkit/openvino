@@ -84,7 +84,7 @@ public:
         network_->set_input_data(bias_primitive_, bias_gpu_mem);
         auto outputs = network_->execute();
         auto output = outputs.at("output").get_memory();
-        cldnn::mem_lock<float> output_gpu_mem(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_gpu_mem(output, get_test_stream());
 
         std::vector<float> reference_output(data_.size());
         ov::reference::group_normalization(data_.data(), scale_.data(), bias_.data(), reference_output.data(),
