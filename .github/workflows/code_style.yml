@@ -1,5 +1,5 @@
 name: Code Style
-on: [pull_request]
+on: [pull_request, merge_group]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -39,7 +39,11 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           level: warning
-          fail_on_error: true
+          fail_level: error
+          filter_mode: nofilter
+          exclude: |
+              "*/thirdparty/*"
+              "./temp/*"
 
   clang-format-aarch64:
     runs-on: ubuntu-22.04
@@ -71,7 +75,11 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           level: warning
-          fail_on_error: true
+          fail_level: error
+          filter_mode: nofilter
+          exclude: |
+              "*/thirdparty/*"
+              "./temp/*"
 
   ShellCheck:
     runs-on: ubuntu-22.04
@@ -103,7 +111,7 @@ jobs:
           level: style
           reporter: github-pr-review
           check_all_files_with_shebangs: true
-          fail_on_error: true
+          fail_level: error
           exclude: |
               "*/thirdparty/*"
               "./temp/*"
