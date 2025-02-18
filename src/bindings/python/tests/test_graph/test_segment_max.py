@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino import Type, PartialShape, Dimension
+from openvino.opset15 import parameter
 import openvino.opset16 as ov
 import pytest
 
@@ -21,9 +22,9 @@ import pytest
     ((3, 1, 2, 5), (3,))
 ])
 def test_segment_max_with_num_segments(dtype_segment_ids, dtype_num_segments, data_shape, segment_ids_shape):
-    data = ov.parameter(data_shape, name="data", dtype=Type.f32)
-    segment_ids = ov.parameter(segment_ids_shape, name="segment_ids", dtype=dtype_segment_ids)
-    num_segments = ov.parameter((), name="num_segments", dtype=dtype_num_segments)
+    data = parameter(data_shape, name="data", dtype=Type.f32)
+    segment_ids = parameter(segment_ids_shape, name="segment_ids", dtype=dtype_segment_ids)
+    num_segments = parameter((), name="num_segments", dtype=dtype_num_segments)
     node = ov.segment_max(data, segment_ids, num_segments, fill_mode="ZERO")
 
     assert node.get_type_name() == "SegmentMax"
@@ -42,8 +43,8 @@ def test_segment_max_with_num_segments(dtype_segment_ids, dtype_num_segments, da
     ((3, 1, 2, 5), (3,))
 ])
 def test_segment_max_without_num_segments(dtype_segment_ids, data_shape, segment_ids_shape):
-    data = ov.parameter(data_shape, name="data", dtype=Type.f32)
-    segment_ids = ov.parameter(segment_ids_shape, name="segment_ids", dtype=dtype_segment_ids)
+    data = parameter(data_shape, name="data", dtype=Type.f32)
+    segment_ids = parameter(segment_ids_shape, name="segment_ids", dtype=dtype_segment_ids)
     node = ov.segment_max(data, segment_ids, fill_mode="LOWEST")
 
     assert node.get_type_name() == "SegmentMax"
