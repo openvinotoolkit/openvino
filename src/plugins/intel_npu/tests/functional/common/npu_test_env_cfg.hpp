@@ -26,6 +26,7 @@ public:
     std::string IE_NPU_TESTS_DUMP_PATH;
     std::string IE_NPU_TESTS_LOG_LEVEL;
     std::string IE_NPU_TESTS_PLATFORM;
+    std::string OV_NPU_TESTS_SKIP_CONFIG_FILE;
 
     bool IE_NPU_TESTS_RUN_COMPILER = true;
     bool IE_NPU_TESTS_RUN_EXPORT = false;
