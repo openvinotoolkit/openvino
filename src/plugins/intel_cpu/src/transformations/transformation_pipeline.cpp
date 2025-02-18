@@ -119,6 +119,7 @@
 #include "low_precision/fold_convert.hpp"
 #include "low_precision/fuse_convert.hpp"
 #include "low_precision/group_convolution.hpp"
+#include "low_precision/mat_mul.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/recurrent_cell.hpp"
@@ -839,6 +840,21 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
             return false;
         },
         FuseConvertTransformation);
+
+    // Enable MatMulTransformation against FC nodes only
+    // int8 MatMul is disabled because acl_lowp_matmul_t supports 2D case only
+    // most models have 3D/4D cases, so fallback to jit_gemm_i8 gives worse perf than gemm_acl_f16
+    // oneDNN ticket #2696
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [&](const_node_ptr& node) -> bool {
+            if (NetworkHelper::isConstantPath(node->get_input_node_shared_ptr(1)) &&
+                one_of(node->input_value(1).get_partial_shape().rank().get_length(), 2, 3)) {
+                return false;
+            }
+            return true;
+        },
+        MatMulTransformation);
 
     CPU_DISABLE_PASS_ARM(lptManager, RecurrentCellTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
