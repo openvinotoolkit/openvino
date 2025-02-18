@@ -521,62 +521,44 @@ NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(ze_graph_handle_t graphHandle
 }
 
 std::string ZeGraphExtWrappers::getCompilerSupportedOptions() const {
-    /// PLACEHOLDER
-    std::string test_supported_options = {"NPU_TURBO "
-                                          "NPU_BYPASS_UMD_CACHING "
-                                          "WORKLOAD_TYPE NPU_COMPILATION_MODE "
-                                          "CACHE_DIR NPU_TILES "
-                                          "LOADED_FROM_CACHE "
-                                          "LOG_LEVEL "
-                                          "NPU_BATCH_MODE "
-                                          "DEVICE_ID "
-                                          "NPU_COMPILER_TYPE "
-                                          "NPU_PLATFORM "
-                                          "INFERENCE_PRECISION_HINT "
-                                          "PERFORMANCE_HINT_NUM_REQUESTS "
-                                          "NPU_COMPILATION_MODE_PARAMS "
-                                          "NPU_DMA_ENGINES "
-                                          "PERFORMANCE_HINT "
-                                          "EXCLUSIVE_ASYNC_REQUESTS "
-                                          "NUM_STREAMS "
-                                          "NPU_BACKEND_COMPILATION_PARAMS "
-                                          "NPU_USE_ELF_COMPILER_BACKEND "
-                                          "NPU_MAX_TILES "
-                                          "COMPILATION_NUM_THREADS "
-                                          "NPU_DPU_GROUPS "
-                                          "EXECUTION_MODE_HINT "
-                                          "NPU_STEPPING "
-                                          "NPU_DYNAMIC_SHAPE_TO_STATIC "
-                                          "ENABLE_CPU_PINNING "
-                                          "NPU_PROFILING_TYPE "
-                                          "PERF_COUNT "
-                                          "MODEL_PRIORITY "
-                                          "NPU_CREATE_EXECUTOR"};
-    // Actual code will be:
     // 1. ask driver for size of compiler supported options list
-    size_t sizeof_compilerSupOptList = test_supported_options.size();
-    // 2. allocate buffer for it
-    char* compSupListChar = (char*)malloc(sizeof_compilerSupOptList);
-    // 3. ask driver to populate char list
-    memcpy(compSupListChar, test_supported_options.c_str(), sizeof_compilerSupOptList);
-    // 4. convert received buff to string
-    std::string compSupListStr(compSupListChar);
-    // 5. cleanup
-    free(compSupListChar);
+    _logger.debug("pfnCompilerGetSupportedOptions - obtain string size");
+    size_t str_size = 0;
+    auto result =
+        _zeroInitStruct->getGraphDdiTable().pfnCompilerGetSupportedOptions(ZE_NPU_COMPILER_OPTIONS, &str_size, nullptr);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerGetSupportedOptions", result, _zeroInitStruct->getGraphDdiTable())
 
-    return compSupListStr;
+    if (str_size > 0) {
+        _logger.debug("pfnCompilerGetSupportedOptions - obtain list");
+        // 2. allocate buffer for it
+        char* supported_options_list_chr = (char*)malloc(str_size);
+        // 3. ask driver to populate char list
+        auto result = _zeroInitStruct->getGraphDdiTable().pfnCompilerGetSupportedOptions(ZE_NPU_COMPILER_OPTIONS,
+                                                                                         &str_size,
+                                                                                         supported_options_list_chr);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerGetSupportedOptions", result, _zeroInitStruct->getGraphDdiTable())
+        // 4. convert received buff to string
+        std::string supported_options_list_str(supported_options_list_chr);
+        // 5. cleanup
+        free(supported_options_list_chr);
+        return supported_options_list_str;
+    }
+
+    _logger.debug("pfnCompilerGetSupportedOptions - list size 0 - skipping!");
+    return std::string();
 }
 
 bool ZeGraphExtWrappers::isOptionSupported(std::string optname) const {
-    // DUMMY POC
-    std::string poc_dummy_options("DUMMY_TEST_OPTION2 DUMMY_TEST_OPTION4 DUMMY_TEST_OPTION7");
-    size_t pos = poc_dummy_options.find(optname);
-    if (pos != std::string::npos) {
+    const char* optname_ch = optname.c_str();
+    auto result =
+        _zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(ZE_NPU_COMPILER_OPTIONS, optname_ch, nullptr);
+    if (result == ZE_RESULT_SUCCESS) {
         return true;
-    } else {
+    } else if (result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) {
         return false;
+    } else {
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerIsOptionSupported", result, _zeroInitStruct->getGraphDdiTable());
     }
-    // DUMMY POC end
     return false;
 }
 
