@@ -218,10 +218,10 @@ void regclass_Tensor(py::module m) {
                 if (!py::isinstance(image, py::module::import("PIL.Image").attr("Image"))) {
                     throw py::type_error("Input must be a PIL.Image.Image object");
                 }
-                auto np_array = py::module::import("numpy").attr("array")(image);
-                py::array array = np_array.cast<py::array>();
-
-                return Common::object_from_data<ov::Tensor>(array, false);
+                auto numpy = py::module::import("numpy");
+                py::array np_array = numpy.attr("array")(image);
+                
+                return Common::object_from_data<ov::Tensor>(np_array, false);
             }),
             py::arg("image"),
             R"(
