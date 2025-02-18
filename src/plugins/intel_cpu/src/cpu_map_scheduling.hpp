@@ -39,5 +39,4 @@ std::vector<std::vector<int>> apply_hyper_threading(bool& input_ht_hint,
                                                     const std::string& input_pm_hint,
                                                     const std::vector<std::vector<int>>& proc_type_table);
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
