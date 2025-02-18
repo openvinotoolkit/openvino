@@ -96,7 +96,7 @@ static void reg_pattern_symbol_value(py::module m) {
               R"(
         Create PatternSymbolValue with the given value.
 
-        :param value: vector of values representing a group of pattern values
+        :param value: list of values representing a group of pattern values
         :type value: List[PatternSymbolValue]
     )");
 

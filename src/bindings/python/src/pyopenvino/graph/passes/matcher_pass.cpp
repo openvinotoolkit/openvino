@@ -141,7 +141,7 @@ void regclass_passes_Matcher(py::module m) {
                 Should be used after match() method is called.
 
                 :return: mapping of symbol names to symbol values.
-                :rtype: dict
+                :rtype: Any
     )");
     matcher.def("match",
                 static_cast<bool (ov::pass::pattern::Matcher::*)(const ov::Output<ov::Node>&)>(
