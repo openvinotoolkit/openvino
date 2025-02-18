@@ -100,7 +100,7 @@ public:
      * @brief Resets all internal variable states for relevant infer request to a value specified as
      * default for the corresponding `ReadValue` node
      */
-    void reset_state();
+    virtual void reset_state();
 
     /**
      * @brief Gets pointer to compiled model (usually synchronous request holds the compiled model)
