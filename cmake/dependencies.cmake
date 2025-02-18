@@ -116,12 +116,6 @@ function(ov_download_tbb)
                     SHA256 "63bf0992406d69dfb3c402f46466face2388ca55b6678f29072ba304f3622fe7"
                     USE_NEW_LOCATION TRUE)
         endif()
-        RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_WIN "oneapi-tbb-2021.2.5-win-trim-cfg-simplify.zip"
-                TARGET_PATH "${TEMP}/tbb"
-                ENVIRONMENT "TBBROOT"
-                SHA256 "63bf0992406d69dfb3c402f46466face2388ca55b6678f29072ba304f3622fe7"
-                USE_NEW_LOCATION TRUE)
     elseif(ANDROID AND X86_64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
