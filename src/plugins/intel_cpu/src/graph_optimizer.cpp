@@ -77,8 +77,12 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     FuseMultiplyAndAdd(graph);
     graph.RemoveDroppedNodes();
 
-    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "MergeConvertAndScaleShift");
-    MergeConvertAndScaleShift(graph);
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "MergeConvertAndEltwise");
+    MergeConvertAndEltwise(graph);
+    graph.RemoveDroppedNodes();
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "MergeEltwiseAndConvert");
+    MergeEltwiseAndConvert(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndConvertOnWeights");
@@ -678,12 +682,91 @@ void GraphOptimizer::FuseMultiplyAndAdd(Graph& graph) {
     }
 }
 
-void GraphOptimizer::MergeConvertAndScaleShift(Graph& graph) {
+void GraphOptimizer::MergeEltwiseAndConvert(Graph& graph) {
+// The pass is required on arm platforms only
+#if !defined(OPENVINO_ARCH_ARM) && !defined(OPENVINO_ARCH_ARM64)
+    return;
+#endif
     auto& graphNodes = graph.GetNodes();
 
     auto parent = graphNodes.begin();
     while (parent != graphNodes.end()) {
-        CPU_GRAPH_OPTIMIZER_SCOPE(MergeConvertAndScaleShift);
+        CPU_GRAPH_OPTIMIZER_SCOPE(MergeEltwiseAndConvert);
+        auto parentNode = *parent;
+        if (parentNode->getType() != Type::Eltwise) {
+            parent++;
+            continue;
+        }
+
+        const auto& childEdges = parentNode->getChildEdges();
+        if (childEdges.size() != 1) {
+            parent++;
+            continue;
+        }
+
+        const auto edge = childEdges[0].lock();
+        auto childNode = edge->getChild();
+        if (childNode->getType() != Type::Convert) {
+            parent++;
+            continue;
+        }
+
+        if (!one_of(childNode->getOriginalOutputPrecisionAtPort(0), ov::element::i8, ov::element::u8)) {
+            parent++;
+            continue;
+        }
+
+        if (parentNode->canFuse(childNode)) {
+            parent++;
+            continue;
+        }
+
+        const auto parents = parentNode->parentEdges;
+        for (size_t i = 0; i < parents.size(); i++) {
+            auto p_edge = parents[i].lock();
+            if (!p_edge) {
+                continue;
+            }
+            auto parent = p_edge->getParent();
+            if (!parent) {
+                continue;
+            }
+
+            if (!parentNode->childEdges[0].lock()) {
+                continue;
+            }
+            auto child = parentNode->childEdges[0].lock()->getChild();
+            if (!child) {
+                continue;
+            }
+
+            EdgePtr& remEdge = p_edge;
+            int inNum = 0;
+            if (remEdge) {
+                inNum = remEdge->getInputNum();
+                graph.RemoveEdge(remEdge);
+            }
+            remEdge = parentNode->childEdges[0].lock();
+            int outNum = 0;
+            if (remEdge) {
+                outNum = remEdge->getOutputNum();
+                graph.RemoveEdge(remEdge);
+            }
+            graph.CreateEdge(parent, child, inNum, outNum);
+        }
+
+        childNode->setOriginalInputPrecisionAtPort(0, parentNode->getOriginalInputPrecisionAtPort(0));
+        childNode->addOriginalLayer(parentNode->getOriginalLayers());
+        graph.DropNode(parentNode);
+    }
+}
+
+void GraphOptimizer::MergeConvertAndEltwise(Graph& graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto parent = graphNodes.begin();
+    while (parent != graphNodes.end()) {
+        CPU_GRAPH_OPTIMIZER_SCOPE(MergeConvertAndEltwise);
         auto parentNode = *parent;
         if (parentNode->getType() != Type::Convert) {
             parent++;

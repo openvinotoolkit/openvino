@@ -1326,7 +1326,14 @@ void Transformations::Snippets(void) {
     }
 
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Snippets);
+// Disable MainSnippets for int8 models on arm platforms
+#if defined(OPENVINO_ARCH_ARM64)
+    if (!ov::pass::low_precision::LowPrecision::isFunctionQuantized(model, {ov::pass::low_precision::levels::int8})) {
+        MainSnippets();
+    }
+#else
     MainSnippets();
+#endif
     PostSnippets();
 }
 
