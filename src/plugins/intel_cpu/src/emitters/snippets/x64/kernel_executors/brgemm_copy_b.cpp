@@ -380,7 +380,8 @@ void BrgemmCopyBKernelExecutor::update_config(const ov::snippets::lowered::Expre
     init(N_dim, N_blk, 0);
 
     const auto& brg_weight_etype = expr->get_node()->get_input_element_type(0);
-    const auto LDB = brgemm_utils::repacking::compute_repacked_n_dim(N_dim, brg_weight_etype);
+    const auto LDB = static_cast<int64_t>(brgemm_utils::repacking::compute_repacked_n_dim(N_dim, brg_weight_etype));
+    OPENVINO_ASSERT(LDB >= 0, "Invalid LDB value (less than 0)");
     const auto copy_B_wei_stride =
         ov::snippets::utils::get_dim_stride(expr->get_input_port(0), config.is_transposed_B() ? 0 : 1) *
         brg_weight_etype.size();
