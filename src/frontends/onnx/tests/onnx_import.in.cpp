@@ -6945,3 +6945,13 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_float8e4m3fn_constant) {
 
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_crossentropy_loss_sum) {
+    auto model = convert_model("softmax_crossentropy_loss_sum.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({0.5f, 1.5f, 2.5f, 3.5f, 4.5f, 5.5f});
+    test_case.add_input<int64_t>({1, 2});
+    test_case.add_expected_output<float>(Shape{}, {1.81521f});
+
+    test_case.run_with_tolerance_as_fp(0.0015f);
+}
