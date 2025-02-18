@@ -375,7 +375,6 @@ TEST_P(ConcatSDPTransposeTest, CompareWithRefs) {
     // Transformation TSShapeOfForward will change:
     // ?->transpose->shapeof ==> ?-->shapeof->gather
     //                            |->transpose
-    size_t expectedGatherCount = hasShapeOf ? 1 : 0;
     CheckNumberOfNodesWithType(compiledModel, "Gather", hasShapeOf ? 1 : 0);
     auto expectedOutputs = run_test(functionRefs);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);
