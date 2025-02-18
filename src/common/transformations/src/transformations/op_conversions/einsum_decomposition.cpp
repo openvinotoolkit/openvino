@@ -19,6 +19,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/pad.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_prod.hpp"
@@ -26,6 +27,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
@@ -554,7 +556,6 @@ void transpose_input(ov::OutputVector& input_nodes,
     const auto& input_node = input_nodes[input_ind];
     const auto labels = ov::op::v7::Einsum::extract_labels(input_subscript);
     const auto required_labels = ov::op::v7::Einsum::extract_labels(required_subscript);
-    OPENVINO_ASSERT(labels.size() == required_labels.size());
     const auto label_dim_map = compute_label_dim_map(input_node.get_partial_shape().rank(), input_subscript);
     for (const auto& required_label : required_labels) {
         const auto label_dims_it = label_dim_map.find(required_label);
@@ -640,120 +641,6 @@ void reduce_input(ov::OutputVector& input_nodes,
     subgraph_nodes.insert(subgraph_nodes.end(), {axes_const, reduce_sum});
 }
 
-/// \brief      Builds an n-dimensional identity tensor based on the input node and repeated label dimensions.
-///
-/// This function constructs an identity tensor matching number of dimensions of the number of repeats for a single
-/// label.
-///
-/// \param      input_node          The input node for which the identity tensor is to be built.
-/// \param      repeated_label_dims A vector containing the dimensions of the repeated label.
-/// \param      subgraph_nodes      A vector of operation nodes that is included into
-///                                 a sub-graph decomposing Einsum that is needed for copy_runtime_info
-///
-/// \return     The final node representing the identity tensor, reshaped to match input rank and correct dimensions
-/// with repeated labels.
-ov::Output<ov::Node> build_identity(const ov::Output<ov::Node>& input_node,
-                                    const std::vector<size_t>& repeated_label_dims,
-                                    ov::NodeVector& subgraph_nodes) {
-    OPENVINO_ASSERT(repeated_label_dims.size() > 1);
-    // Create flattened (repeated_label_dims.size())-dimensional eye tensor with 1s on the diagonal.
-    const auto input_shape = std::make_shared<ov::op::v3::ShapeOf>(input_node);
-    const auto repeated_label_indices =
-        ov::op::v0::Constant::create(ov::element::i64, {repeated_label_dims.size()}, repeated_label_dims);
-    const auto repeated_label_indices_len =
-        ov::op::v0::Constant::create(ov::element::i64, {}, {repeated_label_dims.size()});
-    const auto const_0 = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
-    const auto const_1 = ov::op::v0::Constant::create(ov::element::i64, {}, {1});
-    const auto repeated_dimensions = std::make_shared<ov::op::v7::Gather>(input_shape, repeated_label_indices, const_0);
-    const auto repeated_dimension = std::make_shared<ov::op::v7::Gather>(repeated_dimensions, const_0, const_0);
-    const auto range_max_val = std::make_shared<ov::op::v1::Power>(repeated_dimension, repeated_label_indices_len);
-    const auto step_numerator = std::make_shared<ov::op::v1::Subtract>(range_max_val, const_1);
-    const auto step_denominator = std::make_shared<ov::op::v1::Subtract>(repeated_dimension, const_1);
-    const auto step_denominator_but_not_0 = std::make_shared<ov::op::v1::Maximum>(step_denominator, const_1);
-    const auto step_numerator_but_not_0 = std::make_shared<ov::op::v1::Maximum>(step_numerator, const_1);
-    const auto step = std::make_shared<ov::op::v1::Divide>(step_numerator_but_not_0, step_denominator_but_not_0);
-    const auto eye_flattened_indices = std::make_shared<ov::op::v0::Range>(const_0, range_max_val, step);
-    const auto repeated_dimension_1d = std::make_shared<ov::op::v0::Unsqueeze>(repeated_dimension, const_0);
-    const auto ones = std::make_shared<ov::op::v1::Broadcast>(const_1, repeated_dimension_1d);
-    const auto reduced_size = std::make_shared<ov::op::v1::ReduceProd>(repeated_dimensions, const_0, true);
-    const auto zeros = std::make_shared<ov::op::v1::Broadcast>(const_0, reduced_size);
-    const auto eye_flattened =
-        std::make_shared<ov::op::v3::ScatterElementsUpdate>(zeros, eye_flattened_indices, ones, const_0);
-
-    // Prepare target shape for identity tensor for specified repeated label dimensions.
-    const auto identity_rank = std::make_shared<ov::op::v0::ShapeOf>(input_shape);
-    const auto ones_of_input_shape_rank = std::make_shared<ov::op::v1::Broadcast>(const_1, identity_rank);
-    const auto identity_shape = std::make_shared<ov::op::v3::ScatterElementsUpdate>(ones_of_input_shape_rank,
-                                                                                    repeated_label_indices,
-                                                                                    repeated_dimensions,
-                                                                                    const_0);
-
-    // Reshape the flattened identity tensor to the target shape.
-    const auto identity = std::make_shared<ov::op::v1::Reshape>(eye_flattened, identity_shape, false);
-    subgraph_nodes.insert(subgraph_nodes.end(),
-                          {input_shape,
-                           repeated_label_indices,
-                           repeated_label_indices_len,
-                           const_0,
-                           const_1,
-                           repeated_dimensions,
-                           repeated_dimension,
-                           range_max_val,
-                           step_numerator,
-                           step_denominator,
-                           step_denominator_but_not_0,
-                           step_numerator_but_not_0,
-                           step,
-                           eye_flattened_indices,
-                           repeated_dimension_1d,
-                           ones,
-                           reduced_size,
-                           zeros,
-                           eye_flattened,
-                           identity_rank,
-                           ones_of_input_shape_rank,
-                           identity_shape,
-                           identity});
-    return subgraph_nodes.back();
-}
-
-/// \brief Builds a multi-identity node by multiplying identity nodes for each repeated label.
-///
-/// This function constructs a multi-identity node by iteratively multiplying identity nodes
-/// corresponding to each repeated label. The identity nodes are built using the provided
-/// input node and label dimension map.
-///
-/// \param input_node The input node for which the identity nodes are to be built.
-/// \param repeated_labels A vector of repeated labels for which identity nodes are to be created.
-/// \param label_dim_map A map from labels to their corresponding dimensions.
-/// \param subgraph_nodes A vector of operation nodes that is included into
-///                       a sub-graph decomposing Einsum that is needed for copy_runtime_info
-/// \return The final multi-identity node after multiplying all identity nodes.
-///
-ov::Output<ov::Node> build_multi_identity(const ov::Output<ov::Node>& input_node,
-                                          const std::vector<std::string>& repeated_labels,
-                                          const LabelDimMap& label_dim_map,
-                                          ov::NodeVector& subgraph_nodes) {
-    OPENVINO_ASSERT(repeated_labels.size() > 0);
-
-    const auto get_identity = [&](size_t idx) {
-        const auto repeated_label_dims = label_dim_map.find(repeated_labels[idx]);
-        OPENVINO_ASSERT(repeated_label_dims != label_dim_map.end());
-        return build_identity(input_node, repeated_label_dims->second, subgraph_nodes);
-    };
-
-    // initially set multi-identity with identity for the first repeated label
-    auto multi_identity = get_identity(0).get_node_shared_ptr();
-    for (size_t label_ind = 1; label_ind < repeated_labels.size(); ++label_ind) {
-        const auto identity = get_identity(label_ind);
-        multi_identity =
-            std::make_shared<ov::op::v1::Multiply>(multi_identity, identity, ov::op::AutoBroadcastType::NUMPY);
-        subgraph_nodes.insert(subgraph_nodes.end(), {multi_identity});
-    }
-
-    return subgraph_nodes.back();
-}
-
 /// \brief Prepares data for diagonal extraction in Einsum operation.
 ///
 /// This function processes the input subscript and label-dimension map to identify repeated labels,
@@ -762,17 +649,22 @@ ov::Output<ov::Node> build_multi_identity(const ov::Output<ov::Node>& input_node
 /// \param input_subscript The input subscript string representing the Einsum equation.
 /// \param label_dim_map A map from labels to their corresponding dimensions.
 /// \param resultant_subscript A reference to the resultant subscript string to be updated.
-/// \param repeated_labels A reference to a vector of strings to store repeated labels found in the input subscript.
-/// \param reduced_axes A reference to an AxisSet to store the axes that need to be reduced.
+/// \param resultant_subscript_with_duplicates A reference to a resultant subscript string with duplicates.
+/// \param repeated_labels A reference to a vector of strings to store repeated labels found in input subscript.
+/// \param unrepeated_labels A reference to a vector where unrepeated labels will be stored.
+/// \param reduced_axes A reference to an AxisVector to store the axes that need to be reduced.
 ///
 void prepare_diagonal_extraction_data(const std::string& input_subscript,
                                       const LabelDimMap& label_dim_map,
                                       std::string& resultant_subscript,
+                                      std::string& resultant_subscript_with_duplicates,
                                       std::vector<std::string>& repeated_labels,
-                                      ov::AxisSet& reduced_axes) {
+                                      std::vector<std::string>& unrepeated_labels,
+                                      ov::AxisVector& reduced_axes) {
     static const std::string ellipsis = "...";
     const auto labels = ov::op::v7::Einsum::extract_labels(input_subscript);
-
+    std::vector<std::string> repeated_labels_with_duplicates;
+    size_t reduced_dim = 1;
     for (const auto& label : labels) {
         if (resultant_subscript.find(label) != std::string::npos) {
             continue;
@@ -787,23 +679,30 @@ void prepare_diagonal_extraction_data(const std::string& input_subscript,
 
         if (label != ellipsis && dims_size > 1) {
             // repeated label is found
-            for (size_t dim_ind = 1; dim_ind < dims_size; ++dim_ind) {
-                reduced_axes.insert(dims[dim_ind]);
-            }
             // save only the first dimension corresponding to the repeated label
             dims = {dims[0]};
+            reduced_axes.push_back(reduced_dim);
             repeated_labels.push_back(label);
+            repeated_labels_with_duplicates.insert(repeated_labels_with_duplicates.end(), dims_size, label);
+            reduced_dim += 2;
+            resultant_subscript += label;
+        } else {
+            unrepeated_labels.push_back(label);
         }
-        resultant_subscript += label;
     }
+    resultant_subscript = std::accumulate(unrepeated_labels.begin(), unrepeated_labels.end(), resultant_subscript);
+    resultant_subscript_with_duplicates = std::accumulate(repeated_labels_with_duplicates.begin(),
+                                                          repeated_labels_with_duplicates.end(),
+                                                          std::string(""));
+    resultant_subscript_with_duplicates =
+        std::accumulate(unrepeated_labels.begin(), unrepeated_labels.end(), resultant_subscript_with_duplicates);
 }
 
 ///
 /// \brief Extracts the diagonal elements from the input tensor based on the provided subscripts.
 ///
 /// This function modifies the input tensor by extracting its diagonal elements for repeated lables and updating the
-/// corresponding subscript. The diagonal extraction is performed by multiplying the input tensor with a
-/// multi-identity.
+/// corresponding subscript.
 ///
 /// \param inputs A vector of input tensors.
 /// \param input_subscripts A vector of subscripts corresponding to each input tensor.
@@ -816,7 +715,7 @@ void extract_diagonal(ov::OutputVector& inputs,
                       size_t input_ind,
                       ov::NodeVector& subgraph_nodes) {
     // perform sanity check for arguments
-    const auto num_inputs = inputs.size();
+    const auto& num_inputs = inputs.size();
     OPENVINO_ASSERT(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
     OPENVINO_ASSERT(input_ind < num_inputs, "Input index is out of range.");
 
@@ -825,32 +724,107 @@ void extract_diagonal(ov::OutputVector& inputs,
 
     const auto label_dim_map = compute_label_dim_map(input_node.get_partial_shape().rank(), input_subscript);
     std::string resultant_subscript;
+    std::string resultant_subscript_with_duplicates;
     std::vector<std::string> repeated_labels;
-    ov::AxisSet reduced_axes;
+    std::vector<std::string> unrepeated_labels;
+    ov::AxisVector reduced_axes;
     prepare_diagonal_extraction_data(input_subscript,
                                      label_dim_map,
                                      resultant_subscript,
+                                     resultant_subscript_with_duplicates,
                                      repeated_labels,
+                                     unrepeated_labels,
                                      reduced_axes);
 
     if (repeated_labels.size() == 0) {
         return;
     }
-    const auto multi_identity = build_multi_identity(input_node, repeated_labels, label_dim_map, subgraph_nodes);
+    // Transpose input so that repeated labels are grouped by same label and un-repeated labels are moved to the end
+    transpose_input(inputs, input_subscripts, resultant_subscript, input_ind, subgraph_nodes);
+    const auto& input_shape = std::make_shared<ov::op::v3::ShapeOf>(input_node);
+    ov::NodeVector begins;
+    ov::NodeVector ends;
+    const auto transposed_label_dim_map =
+        compute_label_dim_map(input_node.get_partial_shape().rank(), resultant_subscript_with_duplicates);
+    const auto& const_0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+    const auto& const_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+    subgraph_nodes.insert(subgraph_nodes.end(), {input_shape, const_0, const_1});
+    ov::NodeVector convenient_shape_vector;
+    ov::NodeVector shape_after_pad_vector;
+    for (std::string repeated_label : repeated_labels) {
+        const auto dim_map_repeated_label = transposed_label_dim_map.find(repeated_label);
+        OPENVINO_ASSERT(dim_map_repeated_label != transposed_label_dim_map.end());
+        const auto& repeated_label_dims = dim_map_repeated_label->second;
+        const auto& repeated_label_indices =
+            ov::op::v0::Constant::create(ov::element::i64, {repeated_label_dims.size()}, repeated_label_dims);
+        const auto& repeated_label_indices_len =
+            ov::op::v0::Constant::create(ov::element::i64, {}, {repeated_label_dims.size()});
+        const auto& repeated_dimensions =
+            std::make_shared<ov::op::v7::Gather>(input_shape, repeated_label_indices, const_0);
+        const auto& repeated_dimension = std::make_shared<ov::op::v7::Gather>(repeated_dimensions, const_0, const_0);
+        const auto& range_max_val = std::make_shared<ov::op::v1::Power>(repeated_dimension, repeated_label_indices_len);
+        const auto& step_numerator = std::make_shared<ov::op::v1::Subtract>(range_max_val, const_1);
+        const auto& step_denominator = std::make_shared<ov::op::v1::Subtract>(repeated_dimension, const_1);
+        const auto& step_denominator_but_not_0 = std::make_shared<ov::op::v1::Maximum>(step_denominator, const_1);
+        const auto& step_numerator_but_not_0 = std::make_shared<ov::op::v1::Maximum>(step_numerator, const_1);
+        const auto& step = std::make_shared<ov::op::v1::Divide>(step_numerator_but_not_0, step_denominator_but_not_0);
+        const auto& end = std::make_shared<ov::op::v1::Subtract>(step, const_1);
+        const auto& reduced_size = std::make_shared<ov::op::v1::ReduceProd>(repeated_dimensions, const_0, true);
+        convenient_shape_vector.push_back(reduced_size);
+        shape_after_pad_vector.push_back(repeated_dimension);
+        shape_after_pad_vector.push_back(step);
+        begins.push_back(const_0);
+        ends.push_back(end);
+        subgraph_nodes.insert(subgraph_nodes.end(),
+                              {repeated_label_indices,
+                               repeated_label_indices_len,
+                               repeated_dimensions,
+                               repeated_dimension,
+                               range_max_val,
+                               step_numerator,
+                               step_denominator,
+                               step_denominator_but_not_0,
+                               step_numerator_but_not_0,
+                               step,
+                               end,
+                               reduced_size});
+    }
+    for (std::string unrepeated_label : unrepeated_labels) {
+        const auto& dim_map_unrepeated_label = transposed_label_dim_map.find(unrepeated_label);
+        OPENVINO_ASSERT(dim_map_unrepeated_label != transposed_label_dim_map.end());
+        const auto& unrepeated_label_dims = dim_map_unrepeated_label->second;
+        const auto& unrepeated_label_indices =
+            ov::op::v0::Constant::create(ov::element::i64, {unrepeated_label_dims.size()}, unrepeated_label_dims);
+        const auto& unrepeated_dimensions =
+            std::make_shared<ov::op::v7::Gather>(input_shape, unrepeated_label_indices, const_0);
+        convenient_shape_vector.push_back(unrepeated_dimensions);
+        shape_after_pad_vector.push_back(unrepeated_dimensions);
+        begins.insert(begins.end(), unrepeated_label_dims.size(), const_0);
+        ends.insert(ends.end(), unrepeated_label_dims.size(), const_0);
+        subgraph_nodes.insert(subgraph_nodes.end(), {unrepeated_label_indices, unrepeated_dimensions});
+    }
+    const auto& convenient_shape = std::make_shared<ov::op::v0::Concat>(convenient_shape_vector, 0);
+    const auto& pads_end = std::make_shared<ov::op::v0::Concat>(ends, 0);
+    const auto& pads_begin = std::make_shared<ov::op::v0::Concat>(begins, 0);
+    const auto& reshaped_input = std::make_shared<ov::op::v1::Reshape>(input_node, convenient_shape, false);
+    const auto& pad =
+        std::make_shared<ov::op::v1::Pad>(reshaped_input, pads_begin, pads_end, ov::op::PadMode::CONSTANT);
+    const auto& reshape_after_pad_target = std::make_shared<ov::op::v0::Concat>(shape_after_pad_vector, 0);
+    const auto& reshape_after_pad = std::make_shared<ov::op::v1::Reshape>(pad, reshape_after_pad_target, false);
+    subgraph_nodes.insert(
+        subgraph_nodes.end(),
+        {convenient_shape, pads_begin, pads_end, reshaped_input, pad, reshape_after_pad_target, reshape_after_pad});
+    std::shared_ptr<ov::Node> gather = reshape_after_pad;
+    for (auto axis : reduced_axes) {
+        auto axis_const = ov::op::v0::Constant::create(ov::element::i64, {1}, {axis});
+        gather = std::make_shared<ov::op::v7::Gather>(gather, const_0, axis_const);
+        subgraph_nodes.insert(subgraph_nodes.end(), {axis_const, gather});
+    }
+    const auto& reduced_indices = ov::op::v0::Constant::create(ov::element::i64, {reduced_axes.size()}, reduced_axes);
+    const auto& out_node = std::make_shared<ov::op::v0::Squeeze>(gather, reduced_indices);
+    subgraph_nodes.insert(subgraph_nodes.end(), {reduced_indices, out_node});
 
-    // multiply both operands with broadcasting
-    const auto multi_identity_converted = std::make_shared<ov::op::v1::ConvertLike>(multi_identity, input_node);
-    const auto mul =
-        std::make_shared<ov::op::v1::Multiply>(input_node, multi_identity_converted, ov::op::AutoBroadcastType::NUMPY);
-    subgraph_nodes.insert(subgraph_nodes.end(), {multi_identity_converted, mul});
-
-    const std::vector<int64_t> reduced_axes_vec{reduced_axes.cbegin(), reduced_axes.cend()};
-    const auto axes_const =
-        ov::op::v0::Constant::create(ov::element::Type_t::i64, ov::Shape{reduced_axes.size()}, reduced_axes_vec);
-    const auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(mul->output(0), axes_const, false);
-    subgraph_nodes.insert(subgraph_nodes.end(), {axes_const, reduce_sum});
-
-    inputs[input_ind] = reduce_sum->output(0);
+    inputs[input_ind] = out_node->output(0);
     input_subscripts[input_ind] = resultant_subscript;
 }
 
