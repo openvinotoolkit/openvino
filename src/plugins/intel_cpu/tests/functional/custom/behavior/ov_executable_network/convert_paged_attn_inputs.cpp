@@ -125,7 +125,7 @@ public:
 };
 
 TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
-    if (!(with_cpu_sve() && with_cpu_x86_avx2())) {
+    if (!(with_cpu_sve() || with_cpu_x86_avx2())) {
         GTEST_SKIP();
     }
     auto inferPrec = with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;

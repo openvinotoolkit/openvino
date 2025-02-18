@@ -13,8 +13,8 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
-
 using namespace ov::gen_pattern;
 
 ov::intel_cpu::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const Config& config) : config(config) {
@@ -114,9 +114,10 @@ ov::intel_cpu::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const Config& conf
         value_cache->set_element_type(value_cache_precision);
         if (!pa_op->get_rt_info().count("num_k_heads") || !pa_op->get_rt_info().count("k_head_size") ||
             !pa_op->get_rt_info().count("num_v_heads") || !pa_op->get_rt_info().count("num_v_heads")) {
-            OPENVINO_THROW("PagedAttn ",
+            OPENVINO_DEBUG("PagedAttn ",
                            pa_op->get_friendly_name(),
                            " doesn't have rtinfo for num_k_heads/k_head_size/num_v_heads/num_v_heads");
+            return false;
         }
         const auto key_cache_shape = init_cache_shape(pa_op->get_rt_info()["num_k_heads"].as<size_t>(),
                                                       pa_op->get_rt_info()["k_head_size"].as<size_t>(),
