@@ -118,16 +118,29 @@ def deprecatedclassproperty(name: Any = None, version: str = "", message: str = 
 
 
 def lazy_import(module_name: str) -> ModuleType:
-    spec = importlib.util.find_spec(module_name)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Module {module_name} not found")
+    # spec = importlib.util.find_spec(module_name)
+    # if spec is None or spec.loader is None:
+    #     raise ImportError(f"Module {module_name} not found")
 
-    loader = importlib.util.LazyLoader(spec.loader)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
+    # loader = importlib.util.LazyLoader(spec.loader)
+    # module = importlib.util.module_from_spec(spec)
+    # sys.modules[module_name] = module
 
-    try:
-        loader.exec_module(module)
-    except Exception as e:
-        raise ImportError(f"Failed to load module {module_name}") from e
-    return module
+    # try:
+    #     loader.exec_module(module)
+    # except Exception as e:
+    #     raise ImportError(f"Failed to load module {module_name}") from e
+    # return module
+    return LazyLoader(module_name)
+
+class LazyLoader:
+    def __init__(self, module_name: str):
+        self.module_name = module_name
+        self._module = None
+
+    def __getattr__(self, item: str) -> Any:
+        if self._module is None:
+            self._module = importlib.import_module(self.module_name)
+            self.__dict__.update(self._module.__dict__)
+        return getattr(self._module, item)
+    
