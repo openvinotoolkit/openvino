@@ -66,27 +66,27 @@ private:
 #    define _ov_dnnl_cpu_isa dnnl::impl::cpu::x64::cpu_isa_t
 #endif
 
-    _ov_dnnl_cpu_isa host_isa;
+    _ov_dnnl_cpu_isa m_host_isa;
 
-    std::shared_ptr<SubgraphAttrs> subgraph_attrs;
+    std::shared_ptr<SubgraphAttrs> m_subgraph_attrs;
 
     // Index of Paramater -> Index of broadcastable dimension from end
-    std::map<size_t, size_t> broadcastable_inputs = {};
+    std::map<size_t, size_t> m_broadcastable_inputs = {};
 
-    size_t input_num = 0;
-    size_t output_num = 0;
+    size_t m_input_num = 0;
+    size_t m_output_num = 0;
 
-    std::vector<MemoryPtr> srcMemPtrs = {};
-    std::vector<MemoryPtr> dstMemPtrs = {};
+    std::vector<MemoryPtr> m_srcMemPtrs = {};
+    std::vector<MemoryPtr> m_dstMemPtrs = {};
 
-    std::vector<ptrdiff_t> start_offset_in = {};
-    std::vector<ptrdiff_t> start_offset_out = {};
+    std::vector<ptrdiff_t> m_start_offset_in = {};
+    std::vector<ptrdiff_t> m_start_offset_out = {};
 
-    bool is_dynamic = false;
+    bool m_is_dynamic = false;
     // Input shapes that are used in PrepareParams and ShapeInfer to avoid frequent memory allocation
-    mutable std::vector<VectorDims> in_shapes;
+    mutable std::vector<VectorDims> m_in_shapes;
 
-    std::shared_ptr<SubgraphBaseExecutor> execPtr = nullptr;
+    std::shared_ptr<SubgraphBaseExecutor> m_execPtr = nullptr;
 };
 
 }  // namespace node
