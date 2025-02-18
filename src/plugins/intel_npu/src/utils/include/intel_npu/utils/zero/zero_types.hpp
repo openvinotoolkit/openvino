@@ -168,6 +168,21 @@ public:
         throwWhenUnsupported("ze_pfnGraphGetProperties_ext_2_t", ZE_GRAPH_EXT_VERSION_1_8);
         return _impl->pfnGraphInitialize(hGraph);
     }
+
+    // version 1.11
+    ze_result_t ZE_APICALL pfnCompilerGetSupportedOptions(ze_npu_options_type_t type,
+                                                          size_t* pSize,
+                                                          char* pSupportedOptions) {
+        throwWhenUnsupported("pfnCompilerGetSupportedOptions", ZE_GRAPH_EXT_VERSION_1_11);
+        return _impl->pfnCompilerGetSupportedOptions(type, pSize, pSupportedOptions);
+    }
+
+    ze_result_t ZE_APICALL pfnCompilerIsOptionSupported(ze_npu_options_type_t type,
+                                                        const char* pOption,
+                                                        const char* pValue) {
+        throwWhenUnsupported("pfnCompilerIsOptionSupported", ZE_GRAPH_EXT_VERSION_1_11);
+        return _impl->pfnCompilerIsOptionSupported(type, pOption, pValue);
+    }
 };
 
 /**
