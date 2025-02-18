@@ -331,6 +331,7 @@ static void showUsage() {
     std::cout << "    -oml                         <value>     " << outputs_model_layout_message << std::endl;
     std::cout << "    -ioml                       \"<value>\"    " << ioml_message << std::endl;
     std::cout << "    -shape                       <value>     " << shape_message << std::endl;
+    std::cout << "    -override_model_batch_size   <value>     " << override_model_batch_size_message << std::endl;
     std::cout << std::endl;
 }
 
