@@ -28,6 +28,7 @@
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
@@ -142,22 +143,20 @@ bool is_large_language_model(const std::shared_ptr<const ov::Model>& model) {
     using namespace ov::pass::pattern;
 
     const auto past = wrap_type<ov::op::v6::ReadValue>();
-    const auto convert_past = wrap_type<ov::op::v0::Convert>({past});
-    const auto gather_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past});
+    const auto convert_past = ov::pass::pattern::optional<ov::op::v0::Convert>(past);
     const auto beam_idx = wrap_type<ov::op::v0::Parameter>();
     const auto gather_past =
-        wrap_type<ov::op::v8::Gather>({gather_input, beam_idx, wrap_type<ov::op::v0::Constant>()});
-    const auto gather_convert = wrap_type<ov::op::v0::Convert>({gather_past});
+        wrap_type<ov::op::v8::Gather>({convert_past, beam_idx, wrap_type<ov::op::v0::Constant>()});
+    const auto gather_convert = ov::pass::pattern::optional<ov::op::v0::Convert>(gather_past);
     const auto concat_past_input =
-        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past, gather_past, gather_convert});
+        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{convert_past, gather_convert});
     const auto concat = wrap_type<ov::op::v0::Concat>({concat_past_input, any_input()});
-    const auto convert_present = wrap_type<ov::op::v0::Convert>({concat});
-    const auto present_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{concat, convert_present});
-    const auto present = wrap_type<ov::op::v6::Assign>({present_input});
+    const auto convert_present = ov::pass::pattern::optional<ov::op::v0::Convert>(concat);
+    const auto present = wrap_type<ov::op::v6::Assign>({convert_present});
     const auto kvcache_matcher = std::make_shared<ov::pass::pattern::Matcher>(present, "KVCacheMatcher");
 
-    for (const auto& op : model->get_ordered_ops()) {
-        if (kvcache_matcher->match(op))
+    for (const auto& op : model->get_sinks()) {
+        if (kvcache_matcher->match(op->output(0)))
             return true;
     }
     return false;
