@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "pass_manager.h"
 #include "program_node.h"
 #include "intel_gpu/runtime/engine.hpp"
@@ -132,9 +133,10 @@ propagate_constants::calculate(engine& engine,
     if (!has_non_trivial_constants)
         return {};
 
-    ExecutionConfig cf_config = config;
+    ExecutionConfig cf_config = config.clone();
     cf_config.set_property(ov::intel_gpu::optimize_data(false));
     cf_config.set_property(ov::intel_gpu::custom_outputs(const_outputs));
+    cf_config.finalize(engine);
     network::ptr net = network::build_network(engine, nodes, cf_config, task_executor, true);
     std::map<primitive_id, cache_tuple> weightless_cache_map;
     for (auto& cin : const_inputs) {
