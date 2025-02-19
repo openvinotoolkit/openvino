@@ -17,7 +17,10 @@ public:
                    const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                    const ov::element::Type element_type,
                    const ov::Shape& shape,
-                   const Config& config);
+                   const Config& config,
+                   ov::intel_npu::TensorType tensor_type = ov::intel_npu::TensorType::BINDED,
+                   ov::intel_npu::MemType mem_type = ov::intel_npu::MemType::L0_INTERNAL_BUF,
+                   void* mem = nullptr);
 
     ~ZeroHostTensor() override = default;
 

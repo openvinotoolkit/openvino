@@ -5,7 +5,6 @@
 #include "remote_context.hpp"
 
 #include "intel_npu/config/common.hpp"
-#include "openvino/runtime/intel_npu/remote_properties.hpp"
 
 using namespace ov::intel_npu;
 
@@ -29,13 +28,38 @@ std::optional<Type> extract_object(const ov::AnyMap& params, const ov::Property<
 
 namespace intel_npu {
 
-RemoteContextImpl::RemoteContextImpl(const std::shared_ptr<const NPUBackends>& backends, const Config& config)
+RemoteContextImpl::RemoteContextImpl(const std::shared_ptr<const NPUBackends>& backends,
+                                     const Config& config,
+                                     const ov::AnyMap& remote_properties)
     : _config(config),
       _device(backends->getDevice(_config.get<DEVICE_ID>())),
       _properties({l0_context(backends->getContext())}),
       _device_name("NPU") {
     if (_device == nullptr) {
         OPENVINO_THROW("Device is not available");
+    }
+
+    if (!remote_properties.empty()) {
+        _mem_type = extract_object(remote_properties, mem_type);
+
+        switch (*_mem_type) {
+        case MemType::L0_INTERNAL_BUF: {
+            auto object = extract_object(remote_properties, tensor_type, false);
+            if (object.has_value()) {
+                _tensor_type_object = *object;
+            }
+            break;
+        }
+        case MemType::SHARED_BUF: {
+            auto object = extract_object(remote_properties, mem_handle);
+            if (object.has_value()) {
+                _mem_handle_object = *object;
+            }
+            break;
+        }
+        default:
+            OPENVINO_THROW("Unsupported shared object type ", *_mem_type);
+        }
     }
 }
 
@@ -46,45 +70,46 @@ const ov::AnyMap& RemoteContextImpl::get_property() const {
 ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element::Type& type,
                                                               const ov::Shape& shape,
                                                               const ov::AnyMap& params) {
-    if (params.empty()) {
-        return _device->createRemoteTensor(get_this_shared_ptr(), type, shape, _config);
-    }
+    if (!params.empty()) {
+        _mem_type = extract_object(params, mem_type);
 
-    auto mem_type_object = extract_object(params, mem_type);
-
-    TensorType tensor_type_object = TensorType::BINDED;
-    void* mem_handle_object = nullptr;
-
-    switch (*mem_type_object) {
-    case MemType::L0_INTERNAL_BUF: {
-        auto object = extract_object(params, tensor_type, false);
-        if (object.has_value()) {
-            tensor_type_object = *object;
+        switch (*_mem_type) {
+        case MemType::L0_INTERNAL_BUF: {
+            auto object = extract_object(params, tensor_type, false);
+            if (object.has_value()) {
+                _tensor_type_object = *object;
+            }
+            break;
         }
-        break;
-    }
-    case MemType::SHARED_BUF: {
-        auto object = extract_object(params, mem_handle);
-        if (object.has_value()) {
-            mem_handle_object = *object;
+        case MemType::SHARED_BUF: {
+            auto object = extract_object(params, mem_handle);
+            if (object.has_value()) {
+                _mem_handle_object = *object;
+            }
+            break;
         }
-        break;
-    }
-    default:
-        OPENVINO_THROW("Unsupported shared object type ", *mem_type_object);
+        default:
+            OPENVINO_THROW("Unsupported shared object type ", *_mem_type);
+        }
     }
 
     return _device->createRemoteTensor(get_this_shared_ptr(),
                                        type,
                                        shape,
                                        _config,
-                                       tensor_type_object,
-                                       *mem_type_object,
-                                       mem_handle_object);
+                                       _tensor_type_object,
+                                       *_mem_type,
+                                       _mem_handle_object);
 }
 
 ov::SoPtr<ov::ITensor> RemoteContextImpl::create_host_tensor(const ov::element::Type type, const ov::Shape& shape) {
-    return _device->createHostTensor(get_this_shared_ptr(), type, shape, _config);
+    return _device->createHostTensor(get_this_shared_ptr(),
+                                     type,
+                                     shape,
+                                     _config,
+                                     _tensor_type_object,
+                                     *_mem_type,
+                                     _mem_handle_object);
 }
 
 const std::string& RemoteContextImpl::get_device_name() const {

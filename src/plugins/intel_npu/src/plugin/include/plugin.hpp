@@ -60,8 +60,6 @@ private:
     mutable Logger _logger;
     std::unique_ptr<Metrics> _metrics;
 
-    mutable ov::SoPtr<ov::IRemoteContext> _remoteContext;
-
     // properties map: {name -> [supported, mutable, eval function]}
     mutable std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>>
         _properties;

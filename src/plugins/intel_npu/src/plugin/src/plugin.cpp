@@ -786,18 +786,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     return compile_model(model, properties);
 }
 
-ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap&) const {
-    _remoteContext = std::make_shared<RemoteContextImpl>(_backends, _globalConfig);
-
-    return _remoteContext;
+ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remoteProperties) const {
+    return std::make_shared<RemoteContextImpl>(_backends, _globalConfig, remoteProperties);
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) const {
-    if (_remoteContext == nullptr) {
-        _remoteContext = std::make_shared<RemoteContextImpl>(_backends, _globalConfig);
-    }
-
-    return _remoteContext;
+    ov::AnyMap emptyConfig;  // Create an empty config
+    return std::make_shared<RemoteContextImpl>(_backends, _globalConfig, emptyConfig);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
