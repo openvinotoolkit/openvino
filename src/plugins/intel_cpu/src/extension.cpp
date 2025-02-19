@@ -7,6 +7,7 @@
 #include "openvino/core/op_extension.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
+#include "ov_ops/convolution_biased.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
 #include "ov_ops/fully_connected_quantized.hpp"
@@ -92,6 +93,7 @@ private:
     OP_EXTENSION(ov::op::internal::FullyConnectedCompressed)                \
     OP_EXTENSION(ov::op::internal::FullyConnectedQuantizedLegacy)           \
     OP_EXTENSION(ov::op::internal::FullyConnectedQuantized)                 \
+    OP_EXTENSION(ov::op::internal::ConvolutionBiased)                       \
     OP_EXTENSION_X64(ov::intel_cpu::MHANode)                                \
     OP_EXTENSION_X64(ov::intel_cpu::InteractionNode)                        \
     OP_EXTENSION_X64(ov::intel_cpu::LLMMLPNode)                             \
