@@ -303,7 +303,7 @@ DEFINE_string(cache_dir, "", cache_dir_message);
 DEFINE_bool(load_from_file, false, load_from_file_message);
 
 /// @brief Define execution mode
-DEFINE_string(api, "async", api_message);
+DEFINE_string(api, "", api_message);
 
 /// @brief Number of infer requests in parallel
 DEFINE_uint64(nireq, 0, infer_requests_count_message);
