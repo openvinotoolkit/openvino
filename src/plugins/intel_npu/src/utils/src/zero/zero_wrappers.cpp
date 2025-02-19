@@ -80,13 +80,16 @@ CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_stru
             mutable_cmd_id_desc.flags = ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT_DEPRECATED;
         };
 
-        if (zeCommandListGetNextCommandIdExp(_handle, &mutable_cmd_id_desc, &_command_id)) {
+        auto result = zeCommandListGetNextCommandIdExp(_handle, &mutable_cmd_id_desc, &_command_id);
+        if (result == ZE_RESULT_ERROR_INVALID_ENUMERATION) {
             // If ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENTS is not supported by the driver, try again with
             // ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT_DEPRECATED
             mutable_cmd_id_desc.flags = ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT_DEPRECATED;
 
             THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListGetNextCommandIdExp",
                                         zeCommandListGetNextCommandIdExp(_handle, &mutable_cmd_id_desc, &_command_id))
+        } else {
+            THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListGetNextCommandIdExp", result)
         }
     }
 }
