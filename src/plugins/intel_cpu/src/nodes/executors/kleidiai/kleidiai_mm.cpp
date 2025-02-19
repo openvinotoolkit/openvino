@@ -3,6 +3,7 @@
 //
 
 #include "kleidiai_mm.hpp"
+#include "kleidi_quant_utils.hpp"
 
 #include <cstdint>
 #include <memory>
@@ -68,32 +69,69 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
         aclfcAttrs.isWeightsRepacked = true;
     }
     packedWeights = acl_fc_executor::reorderWeights(memory, context, aclfcAttrs, dnnlSrcDesc, dnnlDstDesc);
-    const size_t rhsPackedSize = kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(N, K);
-    auto rhsPackedDesc = std::make_shared<CpuBlockedMemoryDesc>(f32, Shape({rhsPackedSize}));
-    rhsPackedMem = std::make_shared<Memory>(context->getEngine(), rhsPackedDesc);
 
-    float* bias = biasMem->getDataAs<float>();
-    float* rhs_packed = static_cast<float*>(rhsPackedMem->getData());
-    float* rhs = static_cast<float*>(packedWeights->getData());
-    const size_t rhs_stride = N * sizeof(float);
+    if (inferPrecision == f32) {
+        const size_t rhsPackedSize = kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(N, K);
+        auto rhsPackedDesc = std::make_shared<CpuBlockedMemoryDesc>(f32, Shape({rhsPackedSize}));
+        rhsPackedMem = std::make_shared<Memory>(context->getEngine(), rhsPackedDesc);
 
-    const size_t nr = ukernel.get_nr();
-    const size_t kr = ukernel.get_kr();
-    const size_t sr = ukernel.get_sr();
+        float* bias = biasMem->getDataAs<float>();
+        float* rhs_packed = static_cast<float*>(rhsPackedMem->getData());
+        float* rhs = static_cast<float*>(packedWeights->getData());
+        const size_t rhs_stride = N * sizeof(float);
 
-    kai_run_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(1,
-                                                     N,
-                                                     K,
-                                                     nr,
-                                                     kr,
-                                                     sr,          // Packing arguments
-                                                     rhs_stride,  // RHS stride
-                                                     rhs,         // RHS
-                                                     bias,        // Bias
-                                                     nullptr,     // Scale
-                                                     rhs_packed,  // RHS packed
-                                                     0,
-                                                     nullptr);
+        const size_t nr = ukernel_f32.get_nr();
+        const size_t kr = ukernel_f32.get_kr();
+        const size_t sr = ukernel_f32.get_sr();
+
+        kai_run_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(1,
+                                                        N,
+                                                        K,
+                                                        nr,
+                                                        kr,
+                                                        sr,          // Packing arguments
+                                                        rhs_stride,  // RHS stride
+                                                        rhs,         // RHS
+                                                        bias,        // Bias
+                                                        nullptr,     // Scale
+                                                        rhs_packed,  // RHS packed
+                                                        0,
+                                                        nullptr);
+    }
+    else if (inferPrecision == i8) {
+        const size_t rhs_native_size_qs8cx = K * N * sizeof(int8_t);
+        const size_t rhs_scales_size = N * sizeof(float);
+        float* rhs_scales = new float[rhs_scales_size];
+        int8_t* rhs_native_qs8cx = new int8_t[rhs_native_size_qs8cx];
+
+        mr = ukernel_i8.get_mr();
+        nr = ukernel_i8.get_nr();
+        kr = ukernel_i8.get_kr();
+        sr = ukernel_i8.get_sr();
+        
+        float* bias = biasMem->getDataAs<float>();
+        float* rhs = static_cast<float*>(packedWeights->getData());
+        
+        quant_kxn_qs8cx_f32(N, K, K, rhs, rhs_native_qs8cx, rhs_scales);
+        
+        const size_t rhsPackedSize = kai_get_rhs_packed_size_rhs_pack_kxn_qsi8cxp_qsi8cx_neon(N, K, nr, kr, sr);
+        auto rhsPackedDesc = std::make_shared<CpuBlockedMemoryDesc>(i8, Shape({rhsPackedSize}));
+        rhsPackedMem = std::make_shared<Memory>(context->getEngine(), rhsPackedDesc);
+        int8_t* rhs_packed_qs8cx = static_cast<int8_t*>(rhsPackedMem->getData());
+
+        kai_rhs_pack_qsi8cx_params params;
+        params.lhs_zero_point = 1;
+
+        kai_run_rhs_pack_kxn_qsi8cxp_qsi8cx_neon(
+            1, N, K,
+            nr, kr, sr,   
+            rhs_native_qs8cx,
+            bias,
+            rhs_scales,
+            rhs_packed_qs8cx,
+            0, &params
+        );
+    }
 }
 
 bool MatMulKleidiAIExecutor::update(const MemoryArgs& memory) {
@@ -129,32 +167,74 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
     const size_t lhs_stride = K * sizeof(float);
     const size_t dst_stride_row = N * sizeof(float);
     const size_t dst_stride_col = sizeof(float);
-
     float* lhs = srcMem->getDataAs<float>();
-    float* rhs_packed = static_cast<float*>(rhsPackedMem->getData());
     float* dst = dstMem->getDataAs<float>();
-
+    
     size_t n_blocks = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    parallel_for(n_blocks, [&](size_t n_block) {
-        size_t n_start = (n_block * BLOCK_SIZE);
-        size_t n_end = std::min(n_start + BLOCK_SIZE, N);
-        size_t n_block_size = n_end - n_start;
-        const size_t rhs_packed_offset = ukernel.get_rhs_packed_offset(n_start, K);
-        const size_t dst_offset = ukernel.get_dst_offset(0, n_start, dst_stride_row);
-        const float* rhs_ptr = (rhs_packed + rhs_packed_offset / sizeof(float));
-        float* dst_ptr = (dst + dst_offset / (sizeof(float)));
-        ukernel.run_matmul(M,
-                           n_block_size,
-                           K,
-                           lhs,
-                           lhs_stride,
-                           rhs_ptr,
-                           dst_ptr,
-                           dst_stride_row,
-                           dst_stride_col,
-                           FLOAT_MIN,
-                           FLOAT_MAX);
-    });
+    
+    // Create packed LHS and RHS
+    if (inferPrecision == f32) {
+        float* rhs_packed = static_cast<float*>(rhsPackedMem->getData());
+
+        parallel_for(n_blocks, [&](size_t n_block) {
+            size_t n_start = (n_block * BLOCK_SIZE);
+            size_t n_end = std::min(n_start + BLOCK_SIZE, N);
+            size_t n_block_size = n_end - n_start;
+                const size_t rhs_packed_offset = ukernel_f32.get_rhs_packed_offset(n_start, K);
+                const size_t dst_offset = ukernel_f32.get_dst_offset(0, n_start, dst_stride_row);
+                const float* rhs_ptr = (rhs_packed + rhs_packed_offset / sizeof(float));
+                float* dst_ptr = (dst + dst_offset / (sizeof(float)));
+                ukernel_f32.run_matmul(
+                        M,
+                        n_block_size,
+                        K,
+                        lhs,
+                        lhs_stride,
+                        rhs_ptr,
+                        dst_ptr,
+                        dst_stride_row,
+                        dst_stride_col,
+                        FLOAT_MIN,
+                        FLOAT_MAX);
+        });
+    }
+    else if (inferPrecision == i8) {
+        const size_t lhsPackedSize = kai_get_lhs_packed_size_lhs_quant_pack_qai8dxp_f32(M, K, mr, kr, sr);
+        int8_t* lhs_packed_qa8dx = new int8_t[lhsPackedSize];
+        int8_t* rhs_packed_qs8cx = static_cast<int8_t*>(rhsPackedMem->getData());
+
+        kai_run_lhs_quant_pack_qai8dxp_f32(
+            M, K,               // Dimensions
+            mr, kr, sr, 0,      // Packing dimensions
+            lhs,                // LHS (F32)
+            lhs_stride,         // LHS stride
+            lhs_packed_qa8dx    // LHS packed
+        );
+
+        const size_t lhs_packed_offset = ukernel_i8.get_lhs_packed_offset(0, K);
+        const void* lhs_ptr = (const void*)((const char*)lhs_packed_qa8dx + lhs_packed_offset);
+        
+        parallel_for(n_blocks, [&](size_t n_block) {
+            size_t n_start = (n_block * BLOCK_SIZE);
+            size_t n_end = std::min(n_start + BLOCK_SIZE, N);
+            size_t n_block_size = n_end - n_start;
+            const size_t rhs_packed_offset = ukernel_i8.get_rhs_packed_offset(n_start, K);
+            const size_t dst_offset = ukernel_i8.get_dst_offset(0, n_start, dst_stride_row);
+                const void* rhs_ptr = (const void*)((const char*)rhs_packed_qs8cx + rhs_packed_offset);
+                float* dst_ptr = (dst + dst_offset / sizeof(float));
+                ukernel_i8.run_matmul(
+                        M,
+                        n_block_size,
+                        K,
+                        lhs_ptr,
+                        rhs_ptr,
+                        dst_ptr,
+                        dst_stride_row,
+                        dst_stride_col,
+                        FLOAT_MIN,
+                        FLOAT_MAX);
+        });
+    }
 }
 
 void MatMulKleidiAIExecutor::moveMemToNumaNode(int numaNodeID) {
