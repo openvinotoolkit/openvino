@@ -701,7 +701,7 @@ void prepare_diagonal_extraction_data(const std::string& input_subscript,
 ///
 /// \brief Extracts the diagonal elements from the input tensor based on the provided subscripts.
 ///
-/// This function modifies the input tensor by extracting its diagonal elements for repeated lables and updating the
+/// This function modifies the input tensor by extracting its diagonal elements for repeated labels and updating the
 /// corresponding subscript.
 ///
 /// \param inputs A vector of input tensors.
@@ -722,12 +722,15 @@ void extract_diagonal(ov::OutputVector& inputs,
     const auto& input_node = inputs[input_ind];
     const auto& input_subscript = input_subscripts[input_ind];
 
+    // Compute the label to dimension map for the input subscript
     const auto label_dim_map = compute_label_dim_map(input_node.get_partial_shape().rank(), input_subscript);
     std::string resultant_subscript;
     std::string resultant_subscript_with_duplicates;
     std::vector<std::string> repeated_labels;
     std::vector<std::string> unrepeated_labels;
     ov::AxisVector reduced_axes;
+
+    // Prepare data for diagonal extraction
     prepare_diagonal_extraction_data(input_subscript,
                                      label_dim_map,
                                      resultant_subscript,
@@ -736,14 +739,20 @@ void extract_diagonal(ov::OutputVector& inputs,
                                      unrepeated_labels,
                                      reduced_axes);
 
+    // If there are no repeated labels, return early
     if (repeated_labels.size() == 0) {
         return;
     }
+
     // Transpose input so that repeated labels are grouped by same label and un-repeated labels are moved to the end
     transpose_input(inputs, input_subscripts, resultant_subscript, input_ind, subgraph_nodes);
+
+    // Create a ShapeOf operation to get the shape of the input tensor
     const auto& input_shape = std::make_shared<ov::op::v3::ShapeOf>(input_node);
     ov::NodeVector begins;
     ov::NodeVector ends;
+
+    // Compute the label to dimension map for the transposed input subscript
     const auto transposed_label_dim_map =
         compute_label_dim_map(input_node.get_partial_shape().rank(), resultant_subscript_with_duplicates);
     const auto& const_0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
@@ -751,6 +760,8 @@ void extract_diagonal(ov::OutputVector& inputs,
     subgraph_nodes.insert(subgraph_nodes.end(), {input_shape, const_0, const_1});
     ov::NodeVector convenient_shape_vector;
     ov::NodeVector shape_after_pad_vector;
+
+    // Process each repeated label
     for (std::string repeated_label : repeated_labels) {
         const auto dim_map_repeated_label = transposed_label_dim_map.find(repeated_label);
         OPENVINO_ASSERT(dim_map_repeated_label != transposed_label_dim_map.end());
@@ -770,7 +781,9 @@ void extract_diagonal(ov::OutputVector& inputs,
         const auto& step = std::make_shared<ov::op::v1::Divide>(step_numerator_but_not_0, step_denominator_but_not_0);
         const auto& end = std::make_shared<ov::op::v1::Subtract>(step, const_1);
         const auto& reduced_size = std::make_shared<ov::op::v1::ReduceProd>(repeated_dimensions, const_0, true);
+        // Flatten dimensions of repeated label
         convenient_shape_vector.push_back(reduced_size);
+        // Compute the new shape after padding, separate diagonal elements
         shape_after_pad_vector.push_back(repeated_dimension);
         shape_after_pad_vector.push_back(step);
         begins.push_back(const_0);
@@ -789,6 +802,8 @@ void extract_diagonal(ov::OutputVector& inputs,
                                end,
                                reduced_size});
     }
+
+    // Process unrepeated labels - do not modify or pad dimensions
     std::vector<size_t> unrepeated_dimension_indices_vec;
     for (std::string unrepeated_label : unrepeated_labels) {
         const auto& dim_map_unrepeated_label = transposed_label_dim_map.find(unrepeated_label);
@@ -800,6 +815,8 @@ void extract_diagonal(ov::OutputVector& inputs,
         begins.insert(begins.end(), unrepeated_label_dims.size(), const_0);
         ends.insert(ends.end(), unrepeated_label_dims.size(), const_0);
     }
+
+    // Gather the dimensions for unrepeated labels in single call
     const auto& unrepeated_dimensions_indices = ov::op::v0::Constant::create(ov::element::i64,
                                                                              {unrepeated_dimension_indices_vec.size()},
                                                                              unrepeated_dimension_indices_vec);
@@ -809,27 +826,35 @@ void extract_diagonal(ov::OutputVector& inputs,
     convenient_shape_vector.push_back(unrepeated_dimensions);
     shape_after_pad_vector.push_back(unrepeated_dimensions);
 
+    // Create the new shape for the input tensor that would flatten repeated label dimensions
     const auto& convenient_shape = std::make_shared<ov::op::v0::Concat>(convenient_shape_vector, 0);
+    const auto& reshaped_input = std::make_shared<ov::op::v1::Reshape>(input_node, convenient_shape, false);
+    // Create the pads for the label-flattened input tensor to extract the diagonal elements
     const auto& pads_end = std::make_shared<ov::op::v0::Concat>(ends, 0);
     const auto& pads_begin = std::make_shared<ov::op::v0::Concat>(begins, 0);
-    const auto& reshaped_input = std::make_shared<ov::op::v1::Reshape>(input_node, convenient_shape, false);
     const auto& pad =
         std::make_shared<ov::op::v1::Pad>(reshaped_input, pads_begin, pads_end, ov::op::PadMode::CONSTANT);
+    // Reshape the tensor after padding to extract the diagonal elements to separate dimensions
     const auto& reshape_after_pad_target = std::make_shared<ov::op::v0::Concat>(shape_after_pad_vector, 0);
     const auto& reshape_after_pad = std::make_shared<ov::op::v1::Reshape>(pad, reshape_after_pad_target, false);
     subgraph_nodes.insert(
         subgraph_nodes.end(),
         {convenient_shape, pads_begin, pads_end, reshaped_input, pad, reshape_after_pad_target, reshape_after_pad});
+
+    // Gather the diagonal elements
     std::shared_ptr<ov::Node> gather = reshape_after_pad;
     for (auto axis : reduced_axes) {
         auto axis_const = ov::op::v0::Constant::create(ov::element::i64, {1}, {axis});
         gather = std::make_shared<ov::op::v7::Gather>(gather, const_0, axis_const);
         subgraph_nodes.insert(subgraph_nodes.end(), {axis_const, gather});
     }
+
+    // Squeeze the gathered tensor to remove the reduced axes
     const auto& reduced_indices = ov::op::v0::Constant::create(ov::element::i64, {reduced_axes.size()}, reduced_axes);
     const auto& out_node = std::make_shared<ov::op::v0::Squeeze>(gather, reduced_indices);
     subgraph_nodes.insert(subgraph_nodes.end(), {reduced_indices, out_node});
 
+    // Update the input tensor and its subscript
     inputs[input_ind] = out_node->output(0);
     input_subscripts[input_ind] = resultant_subscript;
 }

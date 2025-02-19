@@ -34,67 +34,130 @@ std::shared_ptr<ov::Node> broadcast_merge_shapes(const std::shared_ptr<ov::Node>
     auto broadcasted_shapes = makeOP<opset1::Maximum>({shape_node_lhs, shape_node_rhs}, {{"auto_broadcast", "numpy"}});
     return broadcasted_shapes;
 }
-
-std::shared_ptr<ov::Node> create_identity(const std::shared_ptr<ov::Node>& data,
-                                          const std::vector<size_t>& repated_label_indices) {
-    auto shapeof_data = makeOP<opset3::ShapeOf>({data}, {{"output_type", "i64"}});
-    auto rankof_data = makeOP<opset1::ShapeOf>({shapeof_data});
-    auto const_0 = makeConst(element::i64, ov::Shape({}), {0});
-    auto const_1 = makeConst(element::i64, ov::Shape({}), {1});
-    auto num_of_repeated_labels = makeConst(element::i64, ov::Shape({}), {repated_label_indices.size()});
-    auto repeated_label_indices = makeConst(element::i64,
-                                            ov::Shape({
-                                                repated_label_indices.size(),
-                                            }),
-                                            repated_label_indices);
-    auto repeated_dimensions =
-        makeOP<opset7::Gather>({shapeof_data, repeated_label_indices, const_0}, {{"batch_dims", 0}});
-    auto repeated_dimensions_size = makeOP<opset1::ReduceProd>({repeated_dimensions, const_0}, {{"keep_dims", true}});
-    auto zeros_of_size = makeOP<opset1::Broadcast>({const_0, repeated_dimensions_size}, {{"mode", "numpy"}});
-    auto repeated_dimension = makeOP<opset7::Gather>({repeated_dimensions, const_0, const_0}, {{"batch_dims", 0}});
-    auto range_max_val =
-        makeOP<opset1::Power>({repeated_dimension, num_of_repeated_labels}, {{"auto_broadcast", "numpy"}});
-    auto step_numerator = makeOP<opset1::Subtract>({range_max_val, const_1}, {{"auto_broadcast", "numpy"}});
-    auto step_numerator_but_not_0 = makeOP<opset1::Maximum>({step_numerator, const_1}, {{"auto_broadcast", "numpy"}});
-    auto step_denominator = makeOP<opset1::Subtract>({repeated_dimension, const_1}, {{"auto_broadcast", "numpy"}});
-    auto step_denominator_but_not_0 =
-        makeOP<opset1::Maximum>({step_denominator, const_1}, {{"auto_broadcast", "numpy"}});
-    auto step = makeOP<opset1::Divide>({step_numerator_but_not_0, step_denominator_but_not_0},
-                                       {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-    auto eye_flattened_indices = makeOP<opset1::Range>({const_0, range_max_val, step});
-    auto repeated_dimension_1d = makeOP<opset1::Unsqueeze>({repeated_dimension, const_0});
-    auto ones = makeOP<opset1::Broadcast>({const_1, repeated_dimension_1d}, {{"mode", "numpy"}});
-    auto eye_flattened = makeOP<opset3::ScatterElementsUpdate>({zeros_of_size, eye_flattened_indices, ones, const_0});
-    auto ones_of_input_shape_rank = makeOP<opset1::Broadcast>({const_1, rankof_data}, {{"mode", "numpy"}});
-    auto identity_shape = makeOP<opset3::ScatterElementsUpdate>(
-        {ones_of_input_shape_rank, repeated_label_indices, repeated_dimensions, const_0});
-    auto identity = makeOP<opset1::Reshape>({eye_flattened, identity_shape}, {{"special_zero", false}});
-    return identity;
-}
-
+///
+/// \brief Extracts the diagonal elements from the input tensor based on the specified repeated and unrepeated indices.
+///
+/// This function performs a series of operations to extract the diagonal elements from the input tensor `data`.
+/// It first transposes the input tensor based on the repeated and unrepeated indices, then reshapes and pads the tensor
+/// to isolate the diagonal elements. Finally, it gathers and squeezes the tensor to obtain the diagonal elements.
+///
+/// \param data A shared pointer to the input tensor node.
+/// \param indices_of_repeated_labels A vector of vectors containing the indices of repeated labels.
+/// \param unrepeated_indices A vector containing the indices of unrepeated labels. Default is an empty vector.
+/// \return A shared pointer to the node representing the diagonal elements of the input tensor.
 std::shared_ptr<ov::Node> extract_diagonal(const std::shared_ptr<ov::Node>& data,
-                                           const std::vector<std::vector<size_t>>& indices_of_repeated_labels) {
-    // Initialize multi_identity by identity for first repeated label.
-    auto multi_identity = create_identity(data, indices_of_repeated_labels[0]);
-    // Initialize reduction axes by all except first repated_label_indices for first repeated label.
-    std::vector<size_t> reduce_axes(indices_of_repeated_labels[0].begin() + 1, indices_of_repeated_labels[0].end());
-    // Merge remaining identities.
-    for (size_t i = 1; i < indices_of_repeated_labels.size(); i++) {
-        auto identity = create_identity(data, indices_of_repeated_labels[i]);
-        multi_identity = makeOP<opset1::Multiply>({multi_identity, identity}, {{"auto_broadcast", "numpy"}});
-        reduce_axes.insert(reduce_axes.end(),
-                           indices_of_repeated_labels[i].begin() + 1,
-                           indices_of_repeated_labels[i].end());
+                                           const std::vector<std::vector<size_t>>& indices_of_repeated_labels,
+                                           const std::vector<size_t>& unrepeated_indices = {}) {
+    std::vector<size_t> transpose_group_labels_target;
+    std::vector<size_t> reduced_axes;
+
+    // Prepare the target order for transposing the input tensor
+    for (size_t i = 0; i < indices_of_repeated_labels.size(); i++) {
+        auto repeated_label = indices_of_repeated_labels[i];
+        size_t step = i * 2;
+        reduced_axes.push_back(step + 1);
+        transpose_group_labels_target.insert(transpose_group_labels_target.end(),
+                                             repeated_label.begin(),
+                                             repeated_label.end());
     }
-    // Convert to match type of data
-    auto multi_identity_cvt = makeOP<opset1::ConvertLike>({multi_identity, data});
-    auto unreduced_diagonal = makeOP<opset1::Multiply>({data, multi_identity_cvt}, {{"auto_broadcast", "numpy"}});
-    auto const_reduce_axes = makeConst(element::i64, ov::Shape({reduce_axes.size()}), reduce_axes);
-    auto diagonal = makeOP<opset1::ReduceSum>({unreduced_diagonal, const_reduce_axes}, {{"keep_dims", false}});
+    transpose_group_labels_target.insert(transpose_group_labels_target.end(),
+                                         unrepeated_indices.begin(),
+                                         unrepeated_indices.end());
+
+    // Transpose the input tensor to group repeated and unrepeated labels
+    auto const_transpose_group_labels_target =
+        makeConst(element::i64, ov::Shape({transpose_group_labels_target.size()}), transpose_group_labels_target);
+    auto transpose_group_labels = std::make_shared<ov::op::v1::Transpose>(data, const_transpose_group_labels_target);
+
+    // Get the shape of the transposed tensor
+    auto shapeof_transposed_data = std::make_shared<ov::op::v3::ShapeOf>(transpose_group_labels);
+
+    auto const_0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape({1}), {0});
+    auto const_1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape({1}), {1});
+
+    ov::NodeVector flattened_shapes;
+    ov::NodeVector unflattened_shapes;
+    ov::NodeVector begins;
+    ov::NodeVector ends;
+
+    std::vector<size_t> dim_iota(transpose_group_labels_target.size());
+    std::iota(dim_iota.begin(), dim_iota.end(), 0);
+
+    size_t dimension_iter = 0;
+
+    // Process each repeated label group
+    for (auto repeated_label : indices_of_repeated_labels) {
+        auto num_repeats = repeated_label.size();
+        std::vector<size_t> label_indices = {dim_iota.begin() + dimension_iter,
+                                             dim_iota.begin() + dimension_iter + num_repeats};
+        auto repeated_label_indices_len = ov::op::v0::Constant::create(ov::element::i64, {}, {num_repeats});
+        auto repeated_label_indices =
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape({num_repeats}), label_indices);
+        auto repeated_dimensions =
+            std::make_shared<ov::op::v7::Gather>(shapeof_transposed_data, repeated_label_indices, const_0);
+        auto repeated_dimension = std::make_shared<ov::op::v7::Gather>(repeated_dimensions, const_0, const_0);
+        auto range_max_val = std::make_shared<ov::op::v1::Power>(repeated_dimension, repeated_label_indices_len);
+        auto step_numerator = std::make_shared<ov::op::v1::Subtract>(range_max_val, const_1);
+        auto step_denominator = std::make_shared<ov::op::v1::Subtract>(repeated_dimension, const_1);
+        auto step_denominator_but_not_0 = std::make_shared<ov::op::v1::Maximum>(step_denominator, const_1);
+        auto step_numerator_but_not_0 = std::make_shared<ov::op::v1::Maximum>(step_numerator, const_1);
+        auto step = std::make_shared<ov::op::v1::Divide>(step_numerator_but_not_0, step_denominator_but_not_0);
+        auto end = std::make_shared<ov::op::v1::Subtract>(step, const_1);
+        // Flatten all dimensions of single repeated label.
+        auto reduced_size = std::make_shared<ov::op::v1::ReduceProd>(repeated_dimensions, const_0, true);
+        flattened_shapes.push_back(reduced_size);
+        // Reshape the tensor to restore the original shape with diagonal elements isolated and remainder.
+        unflattened_shapes.push_back(repeated_dimension);
+        unflattened_shapes.push_back(step);
+        begins.push_back(const_0);
+        ends.push_back(end);
+        dimension_iter += num_repeats;
+    }
+
+    // Process unrepeated labels, do not perform flatten or pads on dimensions.
+    std::vector<size_t> unrepeated_indices_after_transpose = {dim_iota.begin() + dimension_iter, dim_iota.end()};
+    const auto& unrepeated_dimensions_indices =
+        ov::op::v0::Constant::create(ov::element::i64,
+                                     {unrepeated_indices_after_transpose.size()},
+                                     unrepeated_indices_after_transpose);
+    const auto unrepeated_dimensions =
+        std::make_shared<ov::op::v7::Gather>(shapeof_transposed_data, unrepeated_dimensions_indices, const_0);
+    begins.insert(begins.end(), unrepeated_indices_after_transpose.size(), const_0);
+    ends.insert(ends.end(), unrepeated_indices_after_transpose.size(), const_0);
+    flattened_shapes.push_back(unrepeated_dimensions);
+    unflattened_shapes.push_back(unrepeated_dimensions);
+
+    // Flatten the tensor to isolate diagonal elements
+    auto flatten_labels_shape_target = std::make_shared<ov::op::v0::Concat>(flattened_shapes, 0);
+    auto flatten_labels =
+        std::make_shared<ov::op::v1::Reshape>(transpose_group_labels, flatten_labels_shape_target, false);
+
+    // Pad the tensor to prepare for gathering diagonal elements
+    auto pad_begin = std::make_shared<ov::op::v0::Concat>(begins, 0);
+    auto pad_end = std::make_shared<ov::op::v0::Concat>(ends, 0);
+    auto pad = std::make_shared<ov::op::v1::Pad>(flatten_labels, pad_begin, pad_end, ov::op::PadMode::CONSTANT);
+
+    // Unflatten the tensor to restore the original shape with diagonal elements isolated
+    auto unflatten_labels_shape_target = std::make_shared<ov::op::v0::Concat>(unflattened_shapes, 0);
+    auto unflatten_labels = std::make_shared<ov::op::v1::Reshape>(pad, unflatten_labels_shape_target, false);
+
+    // Gather the diagonal elements
+    std::shared_ptr<ov::Node> gather = unflatten_labels;
+    for (auto axis : reduced_axes) {
+        auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape({1}), {axis});
+        gather = std::make_shared<ov::op::v7::Gather>(gather, const_0, axis_const);
+    }
+
+    // Squeeze the tensor to remove the reduced dimensions
+    auto squeeze_reduced_axes =
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape({reduced_axes.size()}), reduced_axes);
+    auto diagonal = std::make_shared<ov::op::v0::Squeeze>(gather, squeeze_reduced_axes);
+
     return diagonal;
 }
 
 }  // namespace
+
 TEST_F(TransformationTestsF, Einsum_2in_matmul) {
     PartialShape data_shape_1{5, 2};
     PartialShape data_shape_2{10, 1, 25};
@@ -324,17 +387,37 @@ TEST_F(TransformationTestsF, Einsum_1in_repeated_labels_ellipsis_static_cf) {
     {
         using namespace ov::gen_pattern;
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
-        // If shapes are static, multi-identity can be constant-folded.
-        auto multi_identity = makeConst(
-            element::f32,
-            ov::Shape({1, 3, 1, 1, 3, 1}),
-            {1.000000f, 0.000000f, 0.000000f, 0.000000f, 1.000000f, 0.000000f, 0.000000f, 0.000000f, 1.000000f});
-        auto Multiply_1383 = makeOP<opset1::Multiply>({data_1, multi_identity}, {{"auto_broadcast", "numpy"}});
-        auto Constant_1384 = makeConst(element::i64, ov::Shape({3}), {3, 4, 5});
-        auto data_1_diagonal = makeOP<opset1::ReduceSum>({Multiply_1383, Constant_1384}, {{"keep_dims", false}});
+        auto const_0 = makeConst(element::i64, ov::Shape({1}), {0});
+        auto const_1 = makeConst(element::i64, ov::Shape({1}), {1});
+        auto const_3 = makeConst(element::i64, ov::Shape({1}), {3});
+        // Transpose data so repeated labels are grouped and unrepeated labels are moved to back.
+        // ij...iji -> iiijj...
+        auto transpose_diagonal =
+            makeOP<opset1::Transpose>({data_1, makeConst(element::i64, ov::Shape({6}), {0, 3, 5, 1, 4, 2})});
+        // Flatten groups of repeated labels (ij...)
+        auto flatten_repeated_labels =
+            makeOP<opset1::Reshape>({transpose_diagonal, makeConst(element::i64, ov::Shape({3}), {1, 9, 2})},
+                                    {{"special_zero", false}});
+        // Pad begin and end are constant-folded.
+        auto pad_begin = makeConst(element::i64, ov::Shape({3}), {0, 0, 0});
+        auto pad_end = makeConst(element::i64, ov::Shape({3}), {0, 3, 0});
+        auto pad = makeOP<opset1::Pad>(
+            {flatten_repeated_labels, pad_begin, pad_end, makeConst(element::f32, ov::Shape({}), {0})},
+            {{"pad_mode", "constant"}});
+        // unflatten padded groups of repeated labels so i(padded reminder of i)j(padded reminder of j)...
+        auto unflatten_repeated_labels =
+            makeOP<opset1::Reshape>({pad, makeConst(element::i64, ov::Shape({5}), {1, 1, 3, 4, 2})},
+                                    {{"special_zero", false}});
+        // Reduce padded dimensions to get diagonal.
+        auto reduce_first_repeat =
+            makeOP<opset7::Gather>({unflatten_repeated_labels, const_0, const_1}, {{"batch_dims", 0}});
+        auto reduce_second_repeat =
+            makeOP<opset7::Gather>({reduce_first_repeat, const_0, const_3}, {{"batch_dims", 0}});
+        auto remove_reduced_dims =
+            makeOP<opset1::Squeeze>({reduce_second_repeat, makeConst(element::i64, ov::Shape({2}), {1, 3})});
         // Transpose to the original order of output labels.
         auto Constant_1386 = makeConst(element::i64, ov::Shape({3}), {1, 2, 0});
-        auto transpose_out = makeOP<opset1::Transpose>({data_1_diagonal, Constant_1386});
+        auto transpose_out = makeOP<opset1::Transpose>({remove_reduced_dims, Constant_1386});
         model_ref = std::make_shared<Model>(NodeVector{transpose_out}, ParameterVector{data_1});
     }
 }
@@ -384,52 +467,82 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_s
         auto node_0 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_3);
         auto node_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
         auto node_4 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
-        // ConstantFold folded multi-identity for input 2 to single constant
-        auto Multiply_1990 = makeConst(element::f32, ov::Shape({1, 1, 1, 1, 1, 1}), {1.000000f});
-        // Extract diagonals
-        auto Multiply_1991 = makeOP<opset1::Multiply>({node_2, Multiply_1990}, {{"auto_broadcast", "numpy"}});
-        auto Constant_1992 = makeConst(element::i64, ov::Shape({3}), {2, 3, 5});
-        auto ReduceSum_1993 = makeOP<opset1::ReduceSum>({Multiply_1991, Constant_1992}, {{"keep_dims", false}});
-        // Broadcast for ellipsis and labels constant folded to single constant and broadcast
-        auto Concat_2034 = makeConst(element::i64, ov::Shape({3}), {4, 3, 3});
-        // Broadcast ellipsis and labels
-        auto Broadcast_2035 = makeOP<opset3::Broadcast>({ReduceSum_1993, Concat_2034}, {{"mode", "bidirectional"}});
-        auto Concat_2051 = makeConst(element::i64, ov::Shape({4}), {4, 3, 3, 1});
-        auto Reshape_2052 = makeOP<opset1::Reshape>({Broadcast_2035, Concat_2051}, {{"special_zero", false}});
-        auto Convert_1700 = makeConst(element::f32, ov::Shape({1, 1, 1, 1, 1, 1}), {1.000000f});
-        auto Multiply_1701 = makeOP<opset1::Multiply>({node_4, Convert_1700}, {{"auto_broadcast", "numpy"}});
-        auto Constant_1702 = makeConst(element::i64, ov::Shape({1}), {5});
-        auto ReduceSum_1703 = makeOP<opset1::ReduceSum>({Multiply_1701, Constant_1702}, {{"keep_dims", false}});
-        auto Constant_1799 = makeConst(element::i64, ov::Shape({1}), {1});
-        auto ReduceSum_1800 = makeOP<opset1::ReduceSum>({ReduceSum_1703, Constant_1799}, {{"keep_dims", false}});
-        auto Constant_1803 = makeConst(element::i64, ov::Shape({2}), {4, 5});
-        auto Unsqueeze_1804 = makeOP<opset1::Unsqueeze>({ReduceSum_1800, Constant_1803});
-        auto Constant_1605 = makeConst(element::i64, ov::Shape({1}), {0});
-        auto Unsqueeze_1606 = makeOP<opset1::Unsqueeze>({node_0, Constant_1605});
-        auto Constant_1607 = makeConst(element::i64, ov::Shape({2}), {0, 1});
-        auto Unsqueeze_1608 = makeOP<opset1::Unsqueeze>({Unsqueeze_1606, Constant_1607});
-        auto Convert_1795 = makeConst(
-            element::f32,
-            ov::Shape({1, 1, 1, 1, 1, 3, 3}),
-            {1.000000f, 0.000000f, 0.000000f, 0.000000f, 1.000000f, 0.000000f, 0.000000f, 0.000000f, 1.000000f});
-        auto Multiply_1796 = makeOP<opset1::Multiply>({Unsqueeze_1608, Convert_1795}, {{"auto_broadcast", "numpy"}});
-        auto Constant_1797 = makeConst(element::i64, ov::Shape({1}), {6});
-        auto ReduceSum_1798 = makeOP<opset1::ReduceSum>({Multiply_1796, Constant_1797}, {{"keep_dims", false}});
-        auto Constant_1801 = makeConst(element::i64, ov::Shape({6}), {4, 0, 1, 2, 3, 5});
-        auto Transpose_1802 = makeOP<opset1::Transpose>({ReduceSum_1798, Constant_1801});
-        auto Multiply_1805 = makeOP<opset1::Multiply>({Unsqueeze_1804, Transpose_1802}, {{"auto_broadcast", "numpy"}});
-        auto Constant_1994 = makeConst(element::i64, ov::Shape({6}), {0, 5, 1, 2, 3, 4});
-        auto Transpose_1995 = makeOP<opset1::Transpose>({Multiply_1805, Constant_1994});
-        auto Concat_2043 = makeConst(element::i64, ov::Shape({6}), {4, 3, 2, 1, 1, 3});
-        auto Broadcast_2044 = makeOP<opset3::Broadcast>({Transpose_1995, Concat_2043}, {{"mode", "bidirectional"}});
-        auto Concat_2076 = makeConst(element::i64, ov::Shape({4}), {4, 3, 2, 3});
-        auto Reshape_2077 = makeOP<opset1::Reshape>({Broadcast_2044, Concat_2076}, {{"special_zero", false}});
-        auto MatMul_2116 =
-            makeOP<opset1::MatMul>({Reshape_2052, Reshape_2077}, {{"transpose_a", true}, {"transpose_b", true}});
-        auto Concat_2117 = makeConst(element::i64, ov::Shape({5}), {4, 3, 2, 1, 1});
-        auto Reshape_2118 = makeOP<opset1::Reshape>({MatMul_2116, Concat_2117}, {{"special_zero", false}});
-        auto Constant_2119 = makeConst(element::i64, ov::Shape({5}), {1, 2, 3, 4, 0});
-        auto node_6 = makeOP<opset1::Transpose>({Reshape_2118, Constant_2119});
+        auto Constant_8230 = makeConst(element::i64, ov::Shape({6}), {1, 2, 3, 4, 5, 0});
+        auto Transpose_8231 = makeOP<opset1::Transpose>({node_2, Constant_8230});
+        auto Concat_8261 = makeConst(element::i64, ov::Shape({3}), {1, 1, 4});
+        auto Reshape_8264 = makeOP<opset1::Reshape>({Transpose_8231, Concat_8261}, {{"special_zero", false}});
+        auto Concat_8263 = makeConst(element::i64, ov::Shape({3}), {0, 0, 0});
+        auto Concat_8262 = makeConst(element::i64, ov::Shape({3}), {0, 0, 0});
+        auto Pad_8304 =
+            makeOP<opset1::Pad>({Reshape_8264, Concat_8263, Concat_8262, 0.000000f}, {{"pad_mode", "constant"}});
+        auto Concat_8381 = makeConst(element::i64, ov::Shape({5}), {1, 1, 1, 1, 4});
+        auto Reshape_8382 = makeOP<opset1::Reshape>({Pad_8304, Concat_8381}, {{"special_zero", false}});
+        auto Constant_8233 = makeConst(element::i64, ov::Shape({1}), {0});
+        auto Constant_8459 = makeConst(element::i64, ov::Shape({1}), {1});
+        auto Gather_8460 = makeOP<opset7::Gather>({Reshape_8382, Constant_8233, Constant_8459}, {{"batch_dims", 0}});
+        auto Constant_8461 = makeConst(element::i64, ov::Shape({1}), {3});
+        auto Gather_8462 = makeOP<opset7::Gather>({Gather_8460, Constant_8233, Constant_8461}, {{"batch_dims", 0}});
+        auto Constant_8463 = makeConst(element::i64, ov::Shape({2}), {1, 3});
+        auto Squeeze_8464 = makeOP<opset1::Squeeze>({Gather_8462, Constant_8463});
+        auto Constant_8465 = makeConst(element::i64, ov::Shape({3}), {0, 2, 1});
+        auto Transpose_8466 = makeOP<opset1::Transpose>({Squeeze_8464, Constant_8465});
+        auto Constant_8494 = makeConst(element::i64, ov::Shape({3}), {3, 4, 3});
+        auto Broadcast_8495 = makeOP<opset3::Broadcast>({Transpose_8466, Constant_8494}, {{"mode", "bidirectional"}});
+        auto Constant_8528 = makeConst(element::i64, ov::Shape({4}), {3, 4, 1, 3});
+        auto Reshape_8529 = makeOP<opset1::Reshape>({Broadcast_8495, Constant_8528}, {{"special_zero", false}});
+        auto Constant_7971 = makeConst(element::i64, ov::Shape({6}), {0, 5, 1, 2, 3, 4});
+        auto Transpose_7972 = makeOP<opset1::Transpose>({node_4, Constant_7971});
+        auto Concat_7990 = makeConst(element::i64, ov::Shape({5}), {1, 2, 2, 1, 1});
+        auto Reshape_7993 = makeOP<opset1::Reshape>({Transpose_7972, Concat_7990}, {{"special_zero", false}});
+        auto Concat_7992 = makeConst(element::i64, ov::Shape({5}), {0, 0, 0, 0, 0});
+        auto Concat_7991 = makeConst(element::i64, ov::Shape({5}), {0, 0, 0, 0, 0});
+        auto Pad_8014 =
+            makeOP<opset1::Pad>({Reshape_7993, Concat_7992, Concat_7991, 0.000000f}, {{"pad_mode", "constant"}});
+        auto Concat_8053 = makeConst(element::i64, ov::Shape({6}), {1, 1, 2, 2, 1, 1});
+        auto Reshape_8054 = makeOP<opset1::Reshape>({Pad_8014, Concat_8053}, {{"special_zero", false}});
+        auto Constant_7974 = makeConst(element::i64, ov::Shape({1}), {0});
+        auto Constant_8093 = makeConst(element::i64, ov::Shape({1}), {1});
+        auto Gather_8094 = makeOP<opset7::Gather>({Reshape_8054, Constant_7974, Constant_8093}, {{"batch_dims", 0}});
+        auto Constant_8095 = makeConst(element::i64, ov::Shape({1}), {1});
+        auto Squeeze_8096 = makeOP<opset1::Squeeze>({Gather_8094, Constant_8095});
+        auto Constant_8223 = makeConst(element::i64, ov::Shape({1}), {1});
+        auto ReduceSum_8224 = makeOP<opset1::ReduceSum>({Squeeze_8096, Constant_8223}, {{"keep_dims", false}});
+        auto Constant_8227 = makeConst(element::i64, ov::Shape({2}), {4, 5});
+        auto Unsqueeze_8228 = makeOP<opset1::Unsqueeze>({ReduceSum_8224, Constant_8227});
+        auto Constant_7967 = makeConst(element::i64, ov::Shape({1}), {0});
+        auto Unsqueeze_7968 = makeOP<opset1::Unsqueeze>({node_0, Constant_7967});
+        auto Constant_7969 = makeConst(element::i64, ov::Shape({2}), {0, 1});
+        auto Unsqueeze_7970 = makeOP<opset1::Unsqueeze>({Unsqueeze_7968, Constant_7969});
+        auto Constant_8097 = makeConst(element::i64, ov::Shape({7}), {5, 6, 0, 1, 2, 3, 4});
+        auto Transpose_8098 = makeOP<opset1::Transpose>({Unsqueeze_7970, Constant_8097});
+        auto Concat_8116 = makeConst(element::i64, ov::Shape({6}), {9, 1, 1, 1, 3, 1});
+        auto Reshape_8119 = makeOP<opset1::Reshape>({Transpose_8098, Concat_8116}, {{"special_zero", false}});
+        auto Concat_8118 = makeConst(element::i64, ov::Shape({6}), {0, 0, 0, 0, 0, 0});
+        auto Concat_8117 = makeConst(element::i64, ov::Shape({6}), {3, 0, 0, 0, 0, 0});
+        auto Pad_8140 =
+            makeOP<opset1::Pad>({Reshape_8119, Concat_8118, Concat_8117, 0.000000f}, {{"pad_mode", "constant"}});
+        auto Concat_8179 = makeConst(element::i64, ov::Shape({7}), {3, 4, 1, 1, 1, 3, 1});
+        auto Reshape_8180 = makeOP<opset1::Reshape>({Pad_8140, Concat_8179}, {{"special_zero", false}});
+        auto Constant_8100 = makeConst(element::i64, ov::Shape({1}), {0});
+        auto Constant_8219 = makeConst(element::i64, ov::Shape({1}), {1});
+        auto Gather_8220 = makeOP<opset7::Gather>({Reshape_8180, Constant_8100, Constant_8219}, {{"batch_dims", 0}});
+        auto Constant_8221 = makeConst(element::i64, ov::Shape({1}), {1});
+        auto Squeeze_8222 = makeOP<opset1::Squeeze>({Gather_8220, Constant_8221});
+        auto Constant_8225 = makeConst(element::i64, ov::Shape({6}), {5, 1, 2, 3, 0, 4});
+        auto Transpose_8226 = makeOP<opset1::Transpose>({Squeeze_8222, Constant_8225});
+        auto Multiply_8229 = makeOP<opset1::Multiply>({Unsqueeze_8228, Transpose_8226}, {{"auto_broadcast", "numpy"}});
+        auto Constant_8467 = makeConst(element::i64, ov::Shape({6}), {4, 0, 1, 2, 3, 5});
+        auto Transpose_8468 = makeOP<opset1::Transpose>({Multiply_8229, Constant_8467});
+        auto Constant_8502 = makeConst(element::i64, ov::Shape({6}), {3, 4, 2, 1, 1, 3});
+        auto Broadcast_8503 = makeOP<opset3::Broadcast>({Transpose_8468, Constant_8502}, {{"mode", "bidirectional"}});
+        auto Constant_8573 = makeConst(element::i64, ov::Shape({4}), {3, 4, 2, 3});
+        auto Reshape_8574 = makeOP<opset1::Reshape>({Broadcast_8503, Constant_8573}, {{"special_zero", false}});
+        auto MatMul_8575 =
+            makeOP<opset1::MatMul>({Reshape_8529, Reshape_8574}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto Constant_8577 = makeConst(element::i64, ov::Shape({5}), {3, 4, 2, 1, 1});
+        auto Reshape_8578 = makeOP<opset1::Reshape>({MatMul_8575, Constant_8577}, {{"special_zero", false}});
+        auto Constant_8579 = makeConst(element::i64, ov::Shape({5}), {0, 2, 3, 4, 1});
+        auto node_6 = makeOP<opset1::Transpose>({Reshape_8578, Constant_8579});
         model_ref = std::make_shared<Model>(NodeVector{node_6}, ParameterVector{node_4, node_2, node_0});
     }
 }
@@ -462,36 +575,41 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_d
         auto data3_insert_missing_ellipsis = makeOP<opset1::Unsqueeze>({data_3, ellipsis_idx});
         auto align_ellipsis_idx = makeConst(element::i64, ov::Shape({2}), {0, 1});
         auto data_3_processed = makeOP<opset1::Unsqueeze>({data3_insert_missing_ellipsis, align_ellipsis_idx});
-        auto data_3_diagonal = extract_diagonal(data_3_processed, {{5, 6}});
+        auto data_3_diagonal = extract_diagonal(data_3_processed, {{5, 6}}, {0, 1, 2, 3, 4});
 
         // No reduced labels - use simplified subgraph that uses Multiply instead Matmul
-        auto convenient_layout = makeConst(element::i64, ov::Shape({6}), {0, 1, 2, 4, 3, 5});
-        // ...dbc -> ...bdc
+        // c...db -> ...bcd
+        auto convenient_layout = makeConst(element::i64, ov::Shape({6}), {1, 2, 3, 5, 0, 4});
         auto rhs_convenient_layout = makeOP<opset1::Transpose>({data_3_diagonal, convenient_layout});
         // Optionally unsqueeze both operands for elementwise-multiplication with broadcasting
         // For LHS operand, unsqueeze at RHS separate dimensions indices (placed at end of RHS by transpose)
         auto lhs_unsqueeze_dims = makeConst(element::i64, ov::Shape({2}), {4, 5});
         auto lhs_unsqueeze = makeOP<opset1::Unsqueeze>({data_1_processed, lhs_unsqueeze_dims});
         // Out subscript = LHS_subscript + RHS_separate_part_subscript
-        // ...bdc = ...b + dc
+        // ...bcd = ...b + cd
         auto data_1_3 = makeOP<opset1::Multiply>({lhs_unsqueeze, rhs_convenient_layout}, {{"auto_broadcast", "numpy"}});
 
         // Second pair of einsum inputs - data_2 and result of the first pair
-        // bcccdd,...bdc->c...b
+        // bcccdd,...bcd->c...b
         // data_2 - handle repeated labels
         auto data_2_diagonal = extract_diagonal(data_2,
                                                 {
                                                     {1, 2, 3},  // indices of repeated label c
                                                     {4, 5},     // indices_of_repeated_label_d
+                                                },
+                                                {
+                                                    {0},  // indices of unrepeated label b
                                                 });
+        // Transpose data_2 so that common labels, separated and reduced labels are grouped for both operands.
+        auto data_2_processed =
+            makeOP<opset1::Transpose>({data_2_diagonal, makeConst(element::i64, ov::Shape({3}), {0, 2, 1})});
         // data_1_3 - transpose to correctly group common, separate and reduced labels
-        // ...bdc->bc...d
-        auto transpose_data_1_3_target = makeConst(element::i64, ov::Shape({6}), {3, 5, 0, 1, 2, 4});
+        auto transpose_data_1_3_target = makeConst(element::i64, ov::Shape({6}), {4, 3, 0, 1, 2, 5});
         auto data_1_3_processed = makeOP<opset1::Transpose>({data_1_3, transpose_data_1_3_target});
         // Extract and broadcast common subshapes (bc)
         auto shapeof_data_1_3 = makeOP<opset3::ShapeOf>({data_1_3_processed}, {{"output_type", "i64"}});
         auto common_data_1_3 = extract_subshape_from_shape(shapeof_data_1_3, 0, 2);
-        auto shapeof_data_2 = makeOP<opset3::ShapeOf>({data_2_diagonal}, {{"output_type", "i64"}});
+        auto shapeof_data_2 = makeOP<opset3::ShapeOf>({data_2_processed}, {{"output_type", "i64"}});
         auto common_data_2 = extract_subshape_from_shape(shapeof_data_2, 0, 2);
         auto common_broadcast_merge_shapes = broadcast_merge_shapes(common_data_2, common_data_1_3);
 
@@ -507,7 +625,7 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_d
         auto broadcast_data_2_target =
             makeOP<opset1::Concat>({common_broadcast_merge_shapes, reduced_broadcast_merge_shapes}, {{"axis", 0}});
         auto broadcast_data_2 =
-            makeOP<opset3::Broadcast>({data_2_diagonal, broadcast_data_2_target}, {{"mode", "bidirectional"}});
+            makeOP<opset3::Broadcast>({data_2_processed, broadcast_data_2_target}, {{"mode", "bidirectional"}});
         auto broadcast_data_1_3_target =
             makeOP<opset1::Concat>({common_broadcast_merge_shapes, separate_data_1_3, reduced_broadcast_merge_shapes},
                                    {{"axis", 0}});
@@ -520,7 +638,7 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_d
         // Reshape data_2
         auto separate_data_2_placeholder = makeConst(element::i64, ov::Shape({1}), {1});
         auto reshape_data_2_target =
-            makeOP<opset1::Concat>({common_broadcast_merge_shapes, reduced_prod, separate_data_2_placeholder},
+            makeOP<opset1::Concat>({common_broadcast_merge_shapes, separate_data_2_placeholder, reduced_prod},
                                    {{"axis", 0}});
         auto reshape_data_2 =
             makeOP<opset1::Reshape>({broadcast_data_2, reshape_data_2_target}, {{"special_zero", false}});
@@ -534,11 +652,11 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_d
         auto reshape_data_1_3 =
             makeOP<opset1::Reshape>({broadcast_data_1_3, reshape_data_1_3_target}, {{"special_zero", false}});
         auto matmul =
-            makeOP<opset1::MatMul>({reshape_data_2, reshape_data_1_3}, {{"transpose_a", true}, {"transpose_b", true}});
+            makeOP<opset1::MatMul>({reshape_data_2, reshape_data_1_3}, {{"transpose_a", false}, {"transpose_b", true}});
         auto reshape_out_subshape =
             makeOP<opset1::Concat>({common_broadcast_merge_shapes, separate_data_1_3}, {{"axis", 0}});
         auto reshape_out = makeOP<opset1::Reshape>({matmul, reshape_out_subshape}, {{"special_zero", false}});
-        auto Constant_1965 = makeConst(element::i64, ov::Shape({5}), {1, 2, 3, 4, 0});
+        auto Constant_1965 = makeConst(element::i64, ov::Shape({5}), {0, 2, 3, 4, 1});
         auto transpose_out = makeOP<opset1::Transpose>({reshape_out, Constant_1965});
         model_ref = std::make_shared<Model>(NodeVector{transpose_out}, ParameterVector{data_1, data_2, data_3});
     }
