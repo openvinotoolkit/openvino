@@ -721,18 +721,11 @@ void GraphOptimizer::MergeEltwiseAndConvert(Graph& graph) {
             continue;
         }
 
-        auto parentEdges = childNode->parentEdges;
-        for (auto& parentEdge : parentEdges) {
-            auto p_edge = parentEdge.lock();
-            if (p_edge->getParent()->getType() == Type::Eltwise) {
-                continue;
-            }
-            graph.RemoveEdge(p_edge);
-        }
-
         auto fusedOps = parentNode->getFusedWith();
         if (!fusedOps.empty()) {
-            fusedOps[fusedOps.size() - 1]->setOriginalOutputPrecisionAtPort(0, childNode->getOriginalOutputPrecisionAtPort(0));
+            fusedOps[fusedOps.size() - 1]->setOriginalOutputPrecisionAtPort(
+                0,
+                childNode->getOriginalOutputPrecisionAtPort(0));
         }
         parentNode->setOriginalOutputPrecisionAtPort(0, childNode->getOriginalOutputPrecisionAtPort(0));
         parentNode->addOriginalLayer(childNode->getOriginalLayers());
