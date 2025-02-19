@@ -22,8 +22,6 @@ jit_uni_eltwise_generic<isa>::jit_uni_eltwise_generic(jit_eltwise_params jep, st
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_uni_eltwise_generic<isa>::generate() {
-    preamble();
-
     static const std::vector<element::Type> exec_precisions_priority = { ov::element::i8, ov::element::u8, element::i32, element::f32 };
     auto const exec_prc =
         eltwise_precision_helper::get_precision(jep_.inputs_number, jep_.src_prc, eltwise_data_, exec_precisions_priority);
@@ -36,11 +34,13 @@ void jit_uni_eltwise_generic<isa>::generate() {
     // Labels in Xbyak for RISC-V work with absolute addresses which are defined during call `L(label)`:
     // If we store label to the GPR and only then call `L(label)` to define data section,
     // during kernel compilation null-address will be stored to this GPRs since address will be inited later.
-    // To use data section, we define it before kernel execution for now.
-    Label start_point;
-    j_(start_point);
+    // To use data section, we define it before kernel execution.
+    dataTop = const_cast<uint8_t*>(getCurr());
     emit_data();
-    L(start_point);
+
+    // After data section, we define code section
+    codeTop = const_cast<uint8_t*>(getCurr());
+    preamble();
 
     const auto& jep = jep_;
     const int offset_count = jep.input_size - 1;

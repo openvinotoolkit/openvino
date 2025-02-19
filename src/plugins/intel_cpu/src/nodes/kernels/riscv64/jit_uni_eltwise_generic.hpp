@@ -30,6 +30,12 @@ public:
 
     void generate() override;
 
+    
+protected:
+    const uint8_t* getCodeTop() const override {
+        return codeTop;
+    }
+
 private:
     // Register mapping in the kernel:
     // x0-x4 | system | not used
@@ -183,6 +189,9 @@ private:
 
     std::shared_ptr<jit_emitter> eltwise_emitter = nullptr;
     std::vector<std::shared_ptr<jit_emitter>> post_op_emitters;
+
+    uint8_t* dataTop = nullptr;
+    uint8_t* codeTop = nullptr;
 };
 
 }  // ov::intel_cpu::riscv64

@@ -109,7 +109,11 @@ public:
 
 protected:
     virtual void generate() = 0;
-    
+
+    virtual const uint8_t* getCodeTop() const {
+        return CodeGenerator::getCode();
+    }
+
     const uint8_t *jit_ker_ = nullptr;
 
     // In the standard RISC-V calling convention, the stack pointer is always kept 16-byte aligned
@@ -138,7 +142,7 @@ private:
     const uint8_t* getCode() {
         ready();
         if (!is_initialized()) return nullptr;
-        return reinterpret_cast<const uint8_t*>(CodeGenerator::getCode());
+        return getCodeTop();
     }
 
     // At the moment, Xbyak_riscv does not have GetError()
