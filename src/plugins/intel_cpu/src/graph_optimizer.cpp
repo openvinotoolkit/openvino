@@ -39,6 +39,7 @@
 #include <algorithm>
 #include <list>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 
@@ -3136,11 +3137,11 @@ void GraphOptimizer::MatchSdpaKvCache(Graph& graph) {
         auto memInputNode = std::dynamic_pointer_cast<node::MemoryInputBase>(node);
         OPENVINO_ASSERT(memInputNode, "MemoryInput node ", node->getName(), " has unexpected dynamic type");
 
-        ov::optional<std::vector<Shape>> inputShapes;
-        ov::optional<std::vector<ov::element::Type>> inputPrcs;
+        std::optional<std::vector<Shape>> inputShapes;
+        std::optional<std::vector<ov::element::Type>> inputPrcs;
         if (!node->getParentEdges().empty()) {
-            inputShapes = ov::optional<std::vector<Shape>>(std::vector<Shape>{});
-            inputPrcs = ov::optional<std::vector<ov::element::Type>>(std::vector<ov::element::Type>{});
+            inputShapes = std::optional<std::vector<Shape>>(std::vector<Shape>{});
+            inputPrcs = std::optional<std::vector<ov::element::Type>>(std::vector<ov::element::Type>{});
 
             auto& input_shape_vec = *inputShapes;
             auto& input_prc_vec = *inputPrcs;
@@ -3272,11 +3273,11 @@ void GraphOptimizer::DropRedundantMemoryOutput(Graph& graph) {
         auto memInputNode = std::dynamic_pointer_cast<node::MemoryInputBase>(node);
         OPENVINO_ASSERT(memInputNode, "MemoryInput node ", node->getName(), " has unexpected dynamic type");
 
-        ov::optional<std::vector<Shape>> inputShapes;
-        ov::optional<std::vector<ov::element::Type>> inputPrcs;
+        std::optional<std::vector<Shape>> inputShapes;
+        std::optional<std::vector<ov::element::Type>> inputPrcs;
         if (!node->getParentEdges().empty()) {
-            inputShapes = ov::optional<std::vector<Shape>>(std::vector<Shape>{});
-            inputPrcs = ov::optional<std::vector<ov::element::Type>>(std::vector<ov::element::Type>{});
+            inputShapes = std::optional<std::vector<Shape>>(std::vector<Shape>{});
+            inputPrcs = std::optional<std::vector<ov::element::Type>>(std::vector<ov::element::Type>{});
 
             auto& input_shape_vec = *inputShapes;
             auto& input_prc_vec = *inputPrcs;
