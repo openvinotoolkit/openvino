@@ -278,7 +278,9 @@ std::vector<VariableState> InferRequest::query_state() {
 }
 
 void InferRequest::reset_state(){OV_INFER_REQ_CALL_STATEMENT({
-    _impl->reset_state();
+    for (auto&& state : _impl->query_state()) {
+        state->reset();
+    }
 })}
 
 CompiledModel InferRequest::get_compiled_model() {
