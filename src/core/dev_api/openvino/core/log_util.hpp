@@ -501,19 +501,21 @@ OPENVINO_API std::string node_with_arguments(const std::shared_ptr<ov::Node>& no
 #    define OPENVINO_LOG_MATCHER10(...)
 #    define OPENVINO_LOG_MATCHER11(...)
 
-#    define OPENVINO_LOG_GRAPH_REWRITE1(...)
-#    define OPENVINO_LOG_GRAPH_REWRITE2(...)
-#    define OPENVINO_LOG_GRAPH_REWRITE3(...)
-#    define OPENVINO_LOG_GRAPH_REWRITE4(...)
-
 #    define OPENVINO_LOG_LABEL1(...)
 #    define OPENVINO_LOG_LABEL2(...)
 #    define OPENVINO_LOG_LABEL3(...)
 #    define OPENVINO_LOG_LABEL4(...)
 
+#    define OPENVINO_LOG_GRAPH_REWRITE1(...)
+#    define OPENVINO_LOG_GRAPH_REWRITE2(...)
+#    define OPENVINO_LOG_GRAPH_REWRITE3(...)
+#    define OPENVINO_LOG_GRAPH_REWRITE4(...)
+
 #    define OPENVINO_LOG_OR1(...)
 #    define OPENVINO_LOG_OR2(...)
 #    define OPENVINO_LOG_OR3(...)
+#    define OPENVINO_LOG_OR4(...)
+#    define OPENVINO_LOG_OR5(...)
 
 #    define OPENVINO_LOG_TRUE1(...)
 
