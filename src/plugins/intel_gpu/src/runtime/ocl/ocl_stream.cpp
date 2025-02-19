@@ -289,7 +289,7 @@ event::ptr ocl_stream::enqueue_kernel(kernel& kernel,
     try {
         _command_queue.enqueueNDRangeKernel(kern, cl::NullRange, global, local, dep_events_ptr, set_output_event ? &ret_ev : nullptr);
     } catch (cl::Error const& err) {
-        ocl::rethrow_or_exit(err, _engine.get_device_info());
+        ocl::rethrow(err, _engine.get_device_info());
     }
 
     return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
