@@ -2826,8 +2826,9 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
 #elif (defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE))
     if (data_type == ov::element::f32) {
         if (key_cache_type == ov::element::u8 && value_cache_type == ov::element::u8) {
-            executor =
-                std::make_shared<AttentionExecutor<float, uint8_t, ov::element::u8>>(key_group_size, value_group_size);
+            executor = std::make_shared<AttentionExecutor<float, uint8_t, ov::element::u8>>(key_group_size,
+                                                                                            value_group_size,
+                                                                                            quant_key_bychannel);
         } else {
             OPENVINO_THROW("make_pa_executor: key_cache_type and value_cache_type of u8 is only support");
         }
