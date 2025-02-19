@@ -166,6 +166,15 @@ std::shared_ptr<Node> get_node_axes_range(const NodeContext& context, const Outp
 };
 
 Output<Node> normalize_axis(const NodeContext& context, const Output<Node>& axis, const Output<Node>& rank) {
+    if (const auto axis_const = ov::util::get_constant_from_source(axis)) {
+        // if axis is already a constant and all values are non-negative, return it
+        auto data = axis_const->cast_vector<int64_t>();
+        bool all_non_negative = std::all_of(data.begin(), data.end(), [](int64_t v) {
+            return v >= 0;
+        });
+        if (all_non_negative)
+            return axis_const;
+    }
     auto axis_rank = std::make_shared<v1::Add>(axis, rank);
     auto new_axis = std::make_shared<v1::Mod>(axis_rank, rank);
 
