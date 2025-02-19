@@ -30,9 +30,9 @@ protected:
 class CommonConvertExecutorBuilder : public ConvertExecutorBuilder {
 public:
     ~CommonConvertExecutorBuilder() = default;
-    bool isSupported(const ConvertParams& convertParams,
-                     const MemoryDescPtr& srcDesc,
-                     const MemoryDescPtr& dstDesc) const override {
+    bool isSupported(const ConvertParams& /*convertParams*/,
+                     const MemoryDescPtr& /*srcDesc*/,
+                     const MemoryDescPtr& /*dstDesc*/) const override {
         return true;
     }
     ConvertExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {

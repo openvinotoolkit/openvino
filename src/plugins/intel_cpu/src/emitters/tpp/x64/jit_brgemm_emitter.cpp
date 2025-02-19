@@ -85,7 +85,8 @@ BrgemmTppEmitter::BrgemmTppEmitter(jit_generator* h, cpu_isa_t isa, const Expres
     m_prefetching_flags = LIBXSMM_GEMM_PREFETCH_NONE;
 }
 
-std::set<std::vector<element::Type>> BrgemmTppEmitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> BrgemmTppEmitter::get_supported_precisions(
+    const std::shared_ptr<ov::Node>& /*node*/) {
     // Note: BrgemmTpp currently supports only fp32
     return {{element::f32, element::f32}};
 }

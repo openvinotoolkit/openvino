@@ -299,7 +299,7 @@ bool Split::isExecutable() const {
     return !isInPlace() && !isInputTensorAtPortEmpty(0);
 }
 
-void Split::execute(const dnnl::stream& strm) {
+void Split::execute(const dnnl::stream& /*strm*/) {
     if (isInPlace()) {
         return;
     }

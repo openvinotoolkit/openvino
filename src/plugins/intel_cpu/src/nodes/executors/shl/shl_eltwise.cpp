@@ -221,9 +221,9 @@ bool ShlEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs,
     return initFunc != nullptr && initFunc() == CSINN_TRUE;
 }
 
-void ShlEltwiseExecutor::exec(const std::vector<MemoryCPtr> &src,
-                              const std::vector<MemoryPtr> &dst,
-                              const void *post_ops_data_) {
+void ShlEltwiseExecutor::exec(const std::vector<MemoryCPtr>& src,
+                              const std::vector<MemoryPtr>& dst,
+                              const void* /*post_ops_data_*/) {
     for (size_t i = 0; i < src.size(); i++) {
         srcTensors[i].setData(src[i]->getData());
     }

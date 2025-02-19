@@ -140,7 +140,7 @@ void PriorBox::createPrimitive() {
     }
 }
 
-void PriorBox::execute(const dnnl::stream& strm) {
+void PriorBox::execute(const dnnl::stream& /*strm*/) {
     const int* in_data = getSrcDataAtPortAs<int>(0);
     const int H = in_data[0];
     const int W = in_data[1];

@@ -464,6 +464,7 @@ struct ScatterElementsUpdateDispatcher {
 
 private:
     void scatterElementsUpdate_dispatch(ScatterElementsUpdateContext& ctx) {
+        (void)ctx;
         using namespace scatter_reductions;
         using DT_NONE = std::pair<DataType, ReduceNone>;
         using DT_SUM = std::pair<DataType, ReduceAdd>;
@@ -521,6 +522,7 @@ struct ScatterNDUpdateDispatcher {
 
 private:
     void scatterNDUpdate_dispatch(ScatterNDUpdateContext& ctx) {
+        (void)ctx;
         using namespace scatter_reductions;
         // ReduceNone does not depend on DataType.
         using DT_NONE = ReduceNone;
@@ -841,7 +843,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& dstMemPtr,
               OV_CASE(ov::element::u8, uint8_t));
 }
 
-void ScatterUpdate::execute(const dnnl::stream& strm) {
+void ScatterUpdate::execute(const dnnl::stream& /*strm*/) {
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto indicesMemPtr = getSrcMemoryAtPort(INDICES_ID);
@@ -1031,7 +1033,7 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& dstMemPtr,
 void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
                                     const MemoryPtr& mem_indices,
                                     const MemoryPtr& mem_updates,
-                                    const scatter_reductions::ReduceNone& kernel) {
+                                    const scatter_reductions::ReduceNone& /*kernel*/) {
     uint8_t* indices = mem_indices->getDataAs<uint8_t>();
     uint8_t* update = mem_updates->getDataAs<uint8_t>();
     uint8_t* dstData = mem_data->getDataAs<uint8_t>();

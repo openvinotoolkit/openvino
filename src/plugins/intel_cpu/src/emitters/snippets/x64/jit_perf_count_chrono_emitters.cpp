@@ -31,8 +31,8 @@ void jit_perf_count_chrono_start_emitter::set_start_time(snippets::op::PerfCount
     start_node->set_start_time();
 }
 
-void jit_perf_count_chrono_start_emitter::emit_impl(const std::vector<size_t>& in_idxs,
-                                                    const std::vector<size_t>& out_idxs) const {
+void jit_perf_count_chrono_start_emitter::emit_impl(const std::vector<size_t>& /*in_idxs*/,
+                                                    const std::vector<size_t>& /*out_idxs*/) const {
     EmitABIRegSpills spill(h);
     spill.preamble();
 
@@ -63,8 +63,8 @@ void jit_perf_count_chrono_end_emitter::set_accumulated_time(snippets::op::PerfC
     end_node->set_accumulated_time();
 }
 
-void jit_perf_count_chrono_end_emitter::emit_impl(const std::vector<size_t>& in_idxs,
-                                                  const std::vector<size_t>& out_idxs) const {
+void jit_perf_count_chrono_end_emitter::emit_impl(const std::vector<size_t>& /*in_idxs*/,
+                                                  const std::vector<size_t>& /*out_idxs*/) const {
     EmitABIRegSpills spill(h);
     spill.preamble();
 

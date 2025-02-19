@@ -305,7 +305,7 @@ ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(const ov::Outpu
     }
 }
 
-bool CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& e) const {
+bool CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& /*e*/) const {
     return false;
 }
 
