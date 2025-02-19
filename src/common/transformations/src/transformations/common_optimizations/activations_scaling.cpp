@@ -277,8 +277,8 @@ ov::pass::activations_scaling::MulShareTransformation::MulShareTransformation() 
                         double scale_const_val = scale_const->cast_vector<double>()[0];
                         rms->set_epsilon(eps * scale_const_val * scale_const_val);
                     } else if (pattern_map.count(group_norm_m)) {
-                        auto group_norm =
-                            ov::as_type_ptr<ov::op::v12::GroupNormalization>(pattern_map.at(group_norm_m).get_node_shared_ptr());
+                        auto group_norm = ov::as_type_ptr<ov::op::v12::GroupNormalization>(
+                            pattern_map.at(group_norm_m).get_node_shared_ptr());
                         auto eps = group_norm->get_epsilon();
                         double scale_const_val = scale_const->cast_vector<double>()[0];
                         group_norm->set_epsilon(eps * scale_const_val * scale_const_val);
