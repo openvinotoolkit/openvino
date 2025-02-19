@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/log_util.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/backward_graph_rewrite.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -254,7 +255,7 @@ void ov::pass::GraphRewrite::set_pass_config(const std::shared_ptr<PassConfig>& 
     //
     // class ExampleGraphRewrite: public pass::GraphRewrite {
     // public:
-    //      OPENVINO_GRAPH_REWRITE_RTTI("ExampleGraphRewrite");
+    //      OPENVINO_LOG_GRAPH_REWRITE_RTTI("ExampleGraphRewrite");
     //      ExampleGraphRewrite() {
     //          add_mather<TestMatcher1, false /* disabled by default */>();
     //          add_mather<TestMatcher2>();
@@ -282,13 +283,7 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
     set_property(property, true);
     m_matcher = m;
     m_handler = [m, callback](const std::shared_ptr<Node>& node) -> bool {
-        OV_LOG_MATCHING(m,
-                        OV_BLOCK_BEG,
-                        OV_YELLOW,
-                        "  [",
-                        m->get_name(),
-                        "] START: trying to start pattern matching with ",
-                        ov::node_version_type_name_str(node));
+        OPENVINO_LOG_GRAPH_REWRITE1(m, node);
         if (m->match(node->output(0))) {
             OV_PASS_CALLBACK(m);
 
@@ -296,30 +291,14 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
                 const bool status = callback(*m.get());
                 // explicitly clear Matcher state because it holds pointers to matched nodes
                 m->clear_state();
-                OV_LOG_MATCHING(m, OV_BLOCK_BODY);
-                OV_LOG_MATCHING(m,
-                                OV_BLOCK_END,
-                                (status ? OV_GREEN : OV_RED),
-                                "  [",
-                                m->get_name(),
-                                "] END: PATTERN MATCHED, CALLBACK ",
-                                (status ? "SUCCEDED" : "FAILED"),
-                                "\n");
+                OPENVINO_LOG_GRAPH_REWRITE2(m, status);
                 return status;
             } catch (const std::exception& exp) {
-                OV_LOG_MATCHING(m, OV_BLOCK_BODY);
-                OV_LOG_MATCHING(m,
-                                OV_BLOCK_END,
-                                OV_RED,
-                                "  [",
-                                m->get_name(),
-                                "] END: PATTERN MATCHED, CALLBACK HAS THROWN: ",
-                                exp.what());
+                OPENVINO_LOG_GRAPH_REWRITE3(m, exp);
                 OPENVINO_THROW("[", m->get_name(), "] END: node: ", node, " CALLBACK HAS THROWN: ", exp.what(), "\n");
             }
         }
-        OV_LOG_MATCHING(m, OV_BLOCK_BODY);
-        OV_LOG_MATCHING(m, OV_BLOCK_END, OV_RED, "  [", m->get_name(), "] END: PATTERN DIDN'T MATCH\n");
+        OPENVINO_LOG_GRAPH_REWRITE4(m);
         m->clear_state();
         return false;
     };

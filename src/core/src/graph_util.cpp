@@ -24,7 +24,6 @@
 #include "openvino/util/file_util.hpp"
 #include "transformations/common_optimizations/compress_float_constants.hpp"
 #include "transformations/common_optimizations/fused_names_cleanup.hpp"
-#include "transformations/utils/gen_pattern.hpp"
 
 namespace {
 
@@ -356,66 +355,4 @@ bool is_used(Node* node) {
     }
     return false;
 }
-
-#ifdef ENABLE_OPENVINO_DEBUG
-// These functions are used for printing nodes in a pretty way for matching logging
-
-// Switch on verbose matching logging using OV_VERBOSE_LOGGING=true
-static const bool verbose = ov::util::getenv_bool("OV_VERBOSE_LOGGING");
-
-std::string node_version_type_str(const std::shared_ptr<ov::Node>& node) {
-    auto version = node->get_type_info().version_id;
-    std::string res;
-    if (verbose)
-        if (version)
-            res = version + std::string("::");
-    res += node->get_type_info().name;
-
-    if (auto wrap_type = ov::as_type_ptr<ov::pass::pattern::op::WrapType>(node)) {
-        res += wrap_type->type_description_str(verbose);
-    } else if (auto generic_pattern = ov::as_type_ptr<ov::gen_pattern::detail::GenericPattern>(node)) {
-        res += generic_pattern->get_wraped_type_str(verbose);
-    }
-
-    return res;
-}
-
-std::string node_version_type_name_str(const std::shared_ptr<ov::Node>& node) {
-    return ov::node_version_type_str(node) + std::string(" ") + node->get_name();
-}
-
-std::string node_with_arguments(const std::shared_ptr<ov::Node>& node) {
-    std::string res;
-    auto version = node->get_type_info().version_id;
-    if (verbose)
-        if (version)
-            res += version + std::string("::");
-    res += node->get_type_info().name;
-
-    if (auto wrap_type = ov::as_type_ptr<ov::pass::pattern::op::WrapType>(node)) {
-        res += wrap_type->type_description_str(verbose);
-    } else if (auto generic_pattern = ov::as_type_ptr<ov::gen_pattern::detail::GenericPattern>(node)) {
-        res += generic_pattern->get_wraped_type_str(verbose);
-    }
-
-    if (verbose)
-        res += std::string(" ") + node->get_name();
-
-    std::string sep = "";
-    std::stringstream stream;
-    stream << "(";
-    for (const auto& arg : node->input_values()) {
-        if (verbose)
-            stream << sep << arg;
-        else
-            stream << sep << arg.get_node_shared_ptr()->get_type_name();
-        sep = ", ";
-    }
-    stream << ")";
-
-    res += stream.str();
-
-    return res;
-}
-#endif /* ENABLE_OPENVINO_DEBUG */
 }  // namespace ov

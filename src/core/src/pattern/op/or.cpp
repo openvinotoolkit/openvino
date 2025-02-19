@@ -4,43 +4,26 @@
 
 #include "openvino/pass/pattern/op/or.hpp"
 
+#include "openvino/core/log_util.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/util/log.hpp"
 
 bool ov::pass::pattern::op::Or::match_value(Matcher* matcher,
                                             const Output<Node>& pattern_value,
                                             const Output<Node>& graph_value) {
-    OV_LOG_MATCHING(matcher,
-                    matcher->level_str,
-                    OV_BLOCK_BODY_RIGHT,
-                    " CHECKING ",
-                    this->get_input_size(),
-                    " OR BRANCHES: ",
-                    this->get_name());
+    OPENVINO_LOG_OR1(matcher, this->get_input_size(), this->get_name());
     for (size_t i = 0; i < get_input_size(); ++i) {
-        OV_LOG_MATCHING(matcher, ++matcher->level_str);
-        OV_LOG_MATCHING(matcher,
-                        matcher->level_str++,
-                        OV_BLOCK_BEG,
-                        "  BRANCH ",
-                        i,
-                        ": ",
-                        ov::node_version_type_str(input_value(i).get_node_shared_ptr()));
+        OPENVINO_LOG_OR2(matcher, i, input_value(i));
         auto saved = matcher->start_match();
         if (matcher->match_value(input_value(i), graph_value)) {
             auto& pattern_map = matcher->get_pattern_value_map();
             pattern_map[shared_from_this()] = graph_value;
             auto res = saved.finish(true);
-            OV_LOG_MATCHING(matcher, --matcher->level_str, OV_BLOCK_BODY);
-            OV_LOG_MATCHING(matcher, matcher->level_str--, OV_BLOCK_END, OV_GREEN, "  BRANCH ", i, " MATCHED");
-            OV_LOG_MATCHING(matcher, matcher->level_str, OV_BLOCK_BODY);
-            OV_LOG_MATCHING(matcher, matcher->level_str, OV_BLOCK_END, OV_GREEN, "  BRANCH ", i, " HAS MATCHED");
+            OPENVINO_LOG_OR3(matcher, i);
             return res;
         }
-        OV_LOG_MATCHING(matcher, --matcher->level_str, OV_BLOCK_BODY);
-        OV_LOG_MATCHING(matcher, matcher->level_str--, OV_BLOCK_END, OV_RED, "  BRANCH ", i, " DIDN'T MATCH");
+        OPENVINO_LOG_OR4(matcher, i);
     }
-    OV_LOG_MATCHING(matcher, matcher->level_str, OV_BLOCK_BODY);
-    OV_LOG_MATCHING(matcher, matcher->level_str, OV_BLOCK_END, OV_RED, "  NONE OF OR BRANCHES MATCHED");
+    OPENVINO_LOG_OR5(matcher);
     return false;
 }

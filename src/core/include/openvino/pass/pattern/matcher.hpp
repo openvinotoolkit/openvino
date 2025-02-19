@@ -202,10 +202,6 @@ public:
     PatternValueMaps m_pattern_value_maps;
     OutputVector m_matched_list;
 
-#ifdef ENABLE_OPENVINO_DEBUG
-    ov::LevelString level_str{"│  "};
-#endif
-
 protected:
     bool match_permutation(const OutputVector& pattern_args, const OutputVector& args);
 

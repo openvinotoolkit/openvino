@@ -6,6 +6,7 @@
 
 #include <deque>
 #include <functional>
+#include <iostream>
 #include <sstream>
 #include <unordered_set>
 #include <vector>
@@ -117,23 +118,25 @@ static inline bool is_terminal_output() {
 #    endif
 }
 
-#    define OV_RESET            (ov::util::is_terminal_output() ? "\033[0m" : "")
-#    define OV_RED              (ov::util::is_terminal_output() ? "\033[31m" : "")
-#    define OV_GREEN            (ov::util::is_terminal_output() ? "\033[1;32m" : "")
-#    define OV_YELLOW           (ov::util::is_terminal_output() ? "\033[33m" : "")
-#    define OV_BLOCK_BEG        "{"
-#    define OV_BLOCK_END        "}"
-#    define OV_BLOCK_BODY       "│"
-#    define OV_BLOCK_BODY_RIGHT "├─"
+#    define OPENVINO_RESET            (ov::util::is_terminal_output() ? "\033[0m" : "")
+#    define OPENVINO_RED              (ov::util::is_terminal_output() ? "\033[31m" : "")
+#    define OPENVINO_GREEN            (ov::util::is_terminal_output() ? "\033[1;32m" : "")
+#    define OPENVINO_YELLOW           (ov::util::is_terminal_output() ? "\033[33m" : "")
+#    define OPENVINO_BLOCK_BEG        "{"
+#    define OPENVINO_BLOCK_END        "}"
+#    define OPENVINO_BLOCK_BODY       "│"
+#    define OPENVINO_BLOCK_BODY_RIGHT "├─"
 
-#    define OV_LOG_MATCHING(matcher_ptr, ...)                                                                          \
-        do {                                                                                                           \
-            if (ov::util::logging_enabled) {                                                                           \
-                if (ov::util::matchers_to_log.empty() ||                                                               \
-                    ov::util::matchers_to_log.find(matcher_ptr->get_name()) != ov::util::matchers_to_log.end()) {      \
-                    ov::util::_write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_DEBUG_EMPTY), __VA_ARGS__, OV_RESET); \
-                }                                                                                                      \
-            }                                                                                                          \
+#    define OPENVINO_LOG_MATCHING(matcher_ptr, ...)                                                               \
+        do {                                                                                                      \
+            if (ov::util::logging_enabled) {                                                                      \
+                if (ov::util::matchers_to_log.empty() ||                                                          \
+                    ov::util::matchers_to_log.find(matcher_ptr->get_name()) != ov::util::matchers_to_log.end()) { \
+                    ov::util::_write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_DEBUG_EMPTY),                    \
+                                                   __VA_ARGS__,                                                   \
+                                                   OPENVINO_RESET);                                               \
+                }                                                                                                 \
+            }                                                                                                     \
         } while (0)
 #else
 #    define OPENVINO_ERR(...) \
@@ -148,8 +151,8 @@ static inline bool is_terminal_output() {
 #    define OPENVINO_DEBUG(...) \
         do {                    \
         } while (0)
-#    define OV_LOG_MATCHING(matcher_ptr, ...) \
-        do {                                  \
+#    define OPENVINO_LOG_MATCHING(matcher_ptr, ...) \
+        do {                                        \
         } while (0)
 #endif
 

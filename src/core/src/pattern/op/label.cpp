@@ -4,6 +4,7 @@
 
 #include "openvino/pass/pattern/op/label.hpp"
 
+#include "openvino/core/log_util.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/true.hpp"
@@ -28,19 +29,17 @@ bool ov::pass::pattern::op::Label::match_value(ov::pass::pattern::Matcher* match
         auto saved = matcher->start_match();
         matcher->add_node(graph_value);
         if (pattern_map.count(shared_from_this())) {
-            OV_LOG_MATCHING(matcher, matcher->level_str, OV_BLOCK_END, OV_GREEN, "  LABEL MATCHED: ", get_name());
+            OPENVINO_LOG_LABEL1(matcher, get_name());
             return saved.finish(pattern_map[shared_from_this()] == graph_value);
         } else {
             pattern_map[shared_from_this()] = graph_value;
-            OV_LOG_MATCHING(matcher, matcher->level_str++, OV_BLOCK_BODY_RIGHT, " CHECKING INSIDE LABEL: ", get_name());
+            OPENVINO_LOG_LABEL2(matcher, get_name());
             auto res = saved.finish(matcher->match_value(input_value(0), graph_value));
-            OV_LOG_MATCHING(matcher, --matcher->level_str, OV_BLOCK_BODY);
-            OV_LOG_MATCHING(matcher, matcher->level_str, OV_BLOCK_END, OV_GREEN, "  LABEL MATCHED");
+            OPENVINO_LOG_LABEL3(matcher);
             return res;
         }
     }
-    OV_LOG_MATCHING(matcher, matcher->level_str, OV_BLOCK_BODY);
-    OV_LOG_MATCHING(matcher, matcher->level_str, OV_BLOCK_END, OV_RED, "  LABEL DIDN'T MATCH");
+    OPENVINO_LOG_LABEL4(matcher);
     return false;
 }
 

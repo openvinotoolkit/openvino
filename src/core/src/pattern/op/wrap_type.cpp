@@ -5,6 +5,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "openvino/core/except.hpp"
+#include "openvino/core/log_util.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/util/log.hpp"
 
@@ -14,45 +15,23 @@ bool ov::pass::pattern::op::WrapType::match_value(Matcher* matcher,
     if (std::none_of(m_wrapped_types.begin(), m_wrapped_types.end(), [&](const NodeTypeInfo& type_info) {
             return graph_value.get_node_shared_ptr()->get_type_info().is_castable(type_info);
         })) {
-        OV_LOG_MATCHING(matcher,
-                        matcher->level_str,
-                        OV_BLOCK_END,
-                        OV_RED,
-                        "  NODES' TYPE DIDN'T MATCH. EXPECTED: ",
-                        ov::node_version_type_str(pattern_value.get_node_shared_ptr()),
-                        ". OBSERVED: ",
-                        ov::node_version_type_str(graph_value.get_node_shared_ptr()));
+        OPENVINO_LOG_WRAPTYPE1(matcher, pattern_value, graph_value);
         return false;
     }
 
     if (!m_predicate(graph_value)) {
-        OV_LOG_MATCHING(matcher,
-                        matcher->level_str,
-                        OV_BLOCK_END,
-                        OV_RED,
-                        "  NODES' TYPE MATCHED, but PREDICATE FAILED");
+        OPENVINO_LOG_WRAPTYPE2(matcher);
         return false;
     }
 
     auto& pattern_map = matcher->get_pattern_value_map();
     pattern_map[shared_from_this()] = graph_value;
     matcher->add_node(graph_value);
-    OV_LOG_MATCHING(matcher,
-                    matcher->level_str,
-                    OV_BLOCK_BODY_RIGHT,
-                    OV_GREEN,
-                    " NODES' TYPE and PREDICATE MATCHED. CHECKING ",
-                    get_input_size(),
-                    " PATTERN ARGUMENTS: ");
+    OPENVINO_LOG_WRAPTYPE3(matcher, get_input_size());
     auto res =
         (get_input_size() == 0 ? true
                                : matcher->match_arguments(pattern_value.get_node(), graph_value.get_node_shared_ptr()));
-    OV_LOG_MATCHING(matcher, matcher->level_str, OV_BLOCK_BODY);
-    OV_LOG_MATCHING(matcher,
-                    matcher->level_str,
-                    OV_BLOCK_END,
-                    (res ? OV_GREEN : OV_RED),
-                    (res ? "  ALL ARGUMENTS MATCHED" : "  ARGUMENTS DIDN'T MATCH"));
+    OPENVINO_LOG_WRAPTYPE4(matcher, res);
     return res;
 }
 

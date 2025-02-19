@@ -4,12 +4,13 @@
 
 #include "openvino/pass/pattern/op/true.hpp"
 
+#include "openvino/core/log_util.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/util/log.hpp"
 
 bool ov::pass::pattern::op::True::match_value(Matcher* matcher,
                                               const Output<Node>& pattern_value,
                                               const Output<Node>& graph_value) {
-    OV_LOG_MATCHING(matcher, matcher->level_str, OV_BLOCK_END, OV_GREEN, "  TRUE ALWAYS MATCHES");
+    OPENVINO_LOG_TRUE1(matcher);
     return true;
 }
