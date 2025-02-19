@@ -56,9 +56,9 @@ void IntegerReduceMeanTest::SetUp() {
     } else {
         reduce_mean = std::make_shared<ov::op::v1::ReduceMean>(dataNode, axesNode, true);
     }
-#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
-    abs_threshold = 3e-1;
-#endif
+    if (core->get_property(targetDevice, ov::hint::inference_precision) == ov::element::f16) {
+        abs_threshold = 3e-1;
+    }
 
     ov::ParameterVector inputs;
     inputs.push_back(dataNode);

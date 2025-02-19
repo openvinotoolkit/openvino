@@ -1136,17 +1136,18 @@ void Transformations::MainSnippets(void) {
                 ov::is_type<ov::op::v0::Clamp>(n) || ov::is_type<ov::op::v0::Ceiling>(n) ||
                 ov::is_type<ov::op::v0::Convert>(n) || ov::is_type<ov::op::v1::Divide>(n) ||
                 ov::is_type<ov::op::v0::Elu>(n) || ov::is_type<ov::op::v0::Exp>(n) ||
-                ov::is_type<ov::op::v1::Equal>(n) || ov::is_type<ov::op::v0::Floor>(n) ||
-                ov::is_type<ov::op::v1::FloorMod>(n) || ov::is_type<ov::op::v0::Gelu>(n) ||
-                ov::is_type<ov::op::v7::Gelu>(n) || ov::is_type<ov::op::v1::Greater>(n) ||
-                ov::is_type<ov::op::v1::GreaterEqual>(n) || ov::is_type<ov::op::v4::HSwish>(n) ||
-                ov::is_type<ov::op::v1::LessEqual>(n) || ov::is_type<ov::op::v1::Maximum>(n) ||
-                ov::is_type<ov::op::v1::Minimum>(n) || ov::is_type<ov::op::v4::Mish>(n) ||
-                ov::is_type<ov::op::v1::Mod>(n) || ov::is_type<ov::op::v1::Multiply>(n) ||
-                ov::is_type<ov::op::v0::PRelu>(n) || ov::is_type<ov::op::v0::Relu>(n) ||
-                ov::is_type<ov::op::v5::Round>(n) || ov::is_type<ov::op::v0::Sigmoid>(n) ||
-                ov::is_type<ov::op::v0::Sqrt>(n) || ov::is_type<ov::op::v1::Subtract>(n) ||
-                ov::is_type<ov::op::v4::Swish>(n) || ov::is_type<ov::op::v0::Tanh>(n));
+                ov::is_type<ov::op::v1::Equal>(n) || ov::is_type<ov::op::v0::FakeQuantize>(n) ||
+                ov::is_type<ov::op::v0::Floor>(n) || ov::is_type<ov::op::v1::FloorMod>(n) ||
+                ov::is_type<ov::op::v0::Gelu>(n) || ov::is_type<ov::op::v7::Gelu>(n) ||
+                ov::is_type<ov::op::v1::Greater>(n) || ov::is_type<ov::op::v1::GreaterEqual>(n) ||
+                ov::is_type<ov::op::v4::HSwish>(n) || ov::is_type<ov::op::v1::LessEqual>(n) ||
+                ov::is_type<ov::op::v1::Maximum>(n) || ov::is_type<ov::op::v1::Minimum>(n) ||
+                ov::is_type<ov::op::v4::Mish>(n) || ov::is_type<ov::op::v1::Mod>(n) ||
+                ov::is_type<ov::op::v1::Multiply>(n) || ov::is_type<ov::op::v0::PRelu>(n) ||
+                ov::is_type<ov::op::v0::Relu>(n) || ov::is_type<ov::op::v5::Round>(n) ||
+                ov::is_type<ov::op::v0::Sigmoid>(n) || ov::is_type<ov::op::v0::Sqrt>(n) ||
+                ov::is_type<ov::op::v1::Subtract>(n) || ov::is_type<ov::op::v4::Swish>(n) ||
+                ov::is_type<ov::op::v0::Tanh>(n));
 #else
         // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
         // and CPU Plugin does not support Mish for x64
@@ -1328,7 +1329,12 @@ void Transformations::Snippets(void) {
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Snippets);
 // Disable MainSnippets for int8 models on arm platforms
 #if defined(OPENVINO_ARCH_ARM64)
-    if (!ov::pass::low_precision::LowPrecision::isFunctionQuantized(model, {ov::pass::low_precision::levels::int8})) {
+    using namespace ov::pass::low_precision;
+    static const std::set<levels>& supported_fq_levels = {levels::int4,
+                                                          levels::int4_narrow_range,
+                                                          levels::int8,
+                                                          levels::int8_narrow_range};
+    if (!LowPrecision::isFunctionQuantized(model, supported_fq_levels)) {
         MainSnippets();
     }
 #else

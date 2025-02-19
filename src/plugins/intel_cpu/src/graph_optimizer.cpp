@@ -731,7 +731,9 @@ void GraphOptimizer::MergeEltwiseAndConvert(Graph& graph) {
         }
 
         auto fusedOps = parentNode->getFusedWith();
-        fusedOps[fusedOps.size() - 1]->setOriginalOutputPrecisionAtPort(0, childNode->getOriginalOutputPrecisionAtPort(0));
+        if (!fusedOps.empty()) {
+            fusedOps[fusedOps.size() - 1]->setOriginalOutputPrecisionAtPort(0, childNode->getOriginalOutputPrecisionAtPort(0));
+        }
         parentNode->setOriginalOutputPrecisionAtPort(0, childNode->getOriginalOutputPrecisionAtPort(0));
         parentNode->addOriginalLayer(childNode->getOriginalLayers());
         graph.DropNode(childNode);

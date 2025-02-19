@@ -768,8 +768,6 @@ void jit_uni_eltwise_generic<isa>::apply_post_ops() {
             eltwise_post_op_idx++;
         } else if (ops_list_[i] == ov::intel_cpu::Type::FakeQuantize) {
             OPENVINO_THROW("Eltwise jit kernel: FakeQuantize is not supported");
-        } else if (ops_list_[i] == ov::intel_cpu::Type::Convert) {
-            // do nothing
         } else {
             OPENVINO_THROW("Eltwise jit kernel: unexpected operation type");
         }
