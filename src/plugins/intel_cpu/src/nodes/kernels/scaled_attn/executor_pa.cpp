@@ -2371,14 +2371,16 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 auto SV = v_cache.m_dims[3];
                 auto Hk = k_cache.m_dims[1];  // shape: [block, H, 32, S]
                 parallel_for2d(Hk, zero_tokens, [&](size_t h, size_t l) {
-                    auto set_zero = [](PlainTensor& cache, size_t block_number, size_t h, size_t l, size_t hidden_dims) {
-                        auto sub_byte_multiplier = get_sub_byte_multiplier(cache.get_precision());
-                        size_t cache_stride = (block_number * cache.stride(0) + h * cache.stride(1) + l * cache.stride(2)) *
-                                        cache.get_precision().size() / sub_byte_multiplier;
-                        auto cahce_ptr = cache.m_ptr.get() + cache_stride;
-                        std::memset(cahce_ptr, 0, hidden_dims * cache.m_element_size / sub_byte_multiplier);
-                    };
-                    set_zero(k_cache, block_number, h, block_offset + l , S);
+                    auto set_zero =
+                        [](PlainTensor& cache, size_t block_number, size_t h, size_t l, size_t hidden_dims) {
+                            auto sub_byte_multiplier = get_sub_byte_multiplier(cache.get_precision());
+                            size_t cache_stride =
+                                (block_number * cache.stride(0) + h * cache.stride(1) + l * cache.stride(2)) *
+                                cache.get_precision().size() / sub_byte_multiplier;
+                            auto cahce_ptr = cache.m_ptr.get() + cache_stride;
+                            std::memset(cahce_ptr, 0, hidden_dims * cache.m_element_size / sub_byte_multiplier);
+                        };
+                    set_zero(k_cache, block_number, h, block_offset + l, S);
                     set_zero(v_cache, block_number, h, block_offset + l, SV);
                 });
             }
