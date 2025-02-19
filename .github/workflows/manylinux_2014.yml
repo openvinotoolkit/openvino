@@ -240,6 +240,7 @@ jobs:
         with:
           artifacts: |
             ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+            ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
             ${{ env.MANIFEST_PATH }}
             ${{ env.INSTALL_WHEELS_DIR }}/wheels
           storage_dir: ${{ env.PRODUCT_TYPE }}
