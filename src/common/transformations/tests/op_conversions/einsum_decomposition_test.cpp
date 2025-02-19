@@ -598,7 +598,7 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_d
                                                     {4, 5},     // indices_of_repeated_label_d
                                                 },
                                                 {
-                                                    {0},  // indices of unrepeated label b
+                                                    0,  // indices of unrepeated label b
                                                 });
         // Transpose data_2 so that common labels, separated and reduced labels are grouped for both operands.
         auto data_2_processed =
