@@ -28,6 +28,7 @@ PatternValueMap as_pattern_value_map(const PatternMap& pattern_map);
 
 template <typename T>
 op::Predicate has_class() {
+    // GCC treats an empty lambda (without captures / internal state) differently in different ABI versions
     bool gcc_abi_compatibility = true;
     auto pred = [gcc_abi_compatibility](std::shared_ptr<Node> node) -> bool {
         return gcc_abi_compatibility && ov::is_type<T>(std::move(node));
@@ -36,6 +37,7 @@ op::Predicate has_class() {
 }
 template <typename T>
 op::Predicate class_other_than() {
+    // GCC treats an empty lambda (without captures / internal state) differently in different ABI versions
     bool gcc_abi_compatibility = true;
     auto pred = [gcc_abi_compatibility](std::shared_ptr<Node> node) -> bool {
         return gcc_abi_compatibility && !ov::is_type<T>(std::move(node));

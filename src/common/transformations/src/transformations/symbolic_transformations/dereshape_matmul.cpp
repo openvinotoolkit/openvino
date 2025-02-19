@@ -351,7 +351,7 @@ ov::pass::DeReshapeFullyConnected::DeReshapeFullyConnected() {
 
     auto input = wrap_type<v1::Reshape>({any_input(shape_matches("BATCHES_1...,Y")), any_input()},
                                         shape_matches("BATCHES_2...,Y"));
-    auto converted = optional<v0::Convert>(input, consumers_count(1));
+    auto converted = pattern::optional<v0::Convert>(input, consumers_count(1));
     auto mm_label = wrap_type<v0::MatMul>({converted, any_input(rank_equals(2))},
                                           consumers_count(1) && transpose_a_false && shape_matches("BATCHES_2...,Z"));
     auto output = wrap_type<v1::Reshape>({mm_label, any_input()}, shape_matches("BATCHES_1...,Z"));

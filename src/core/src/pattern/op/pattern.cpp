@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <regex>
 
+#include "openvino/util/common_util.hpp"
+
 namespace ov::pass::pattern {
 namespace op {
 namespace {
@@ -111,9 +113,6 @@ op::Predicate has_static_dim(size_t pos) {
 }
 
 op::Predicate has_static_dims(const std::vector<size_t>& dims) {
-    std::string arg;
-    for (size_t i = 0; i < dims.size(); ++i)
-        arg += (i ? "," : "") + std::to_string(dims[i]);
     return op::Predicate(
         [=](const Output<Node>& output) -> bool {
             const auto& shape = output.get_partial_shape();
@@ -123,10 +122,12 @@ op::Predicate has_static_dims(const std::vector<size_t>& dims) {
                        return shape[pos].is_static();
                    });
         },
-        "has_static_dims({" + arg + "})");
+
+        "has_static_dims({" + ov::util::join(dims) + "})");
 }
 
 op::Predicate has_static_shape() {
+    // GCC treats an empty lambda (without captures / internal state) differently in different ABI versions
     bool gcc_abi_compatibility = true;
     return op::Predicate(
         [gcc_abi_compatibility](const Output<Node>& output) -> bool {
@@ -136,6 +137,7 @@ op::Predicate has_static_shape() {
 }
 
 op::Predicate has_static_rank() {
+    // GCC treats an empty lambda (without captures / internal state) differently in different ABI versions
     bool gcc_abi_compatibility = true;
     return op::Predicate(
         [gcc_abi_compatibility](const Output<Node>& output) -> bool {
@@ -171,9 +173,6 @@ op::Predicate type_matches(const element::Type& type) {
 }
 
 op::Predicate type_matches_any(const std::vector<element::Type>& expected_types) {
-    std::string arg;
-    for (size_t i = 0; i < expected_types.size(); ++i)
-        arg += (i ? "," : "") + expected_types[i].to_string();
     return op::Predicate(
         [=](const Output<Node>& output) -> bool {
             const auto& output_type = output.get_element_type();
@@ -181,7 +180,7 @@ op::Predicate type_matches_any(const std::vector<element::Type>& expected_types)
                 return type == output_type;
             });
         },
-        "type_matches_any({" + arg + "})");
+        "type_matches_any({" + ov::util::join(expected_types) + "})");
 }
 
 op::Predicate all_of(const std::vector<std::function<bool(Output<Node>)>>& predicates) {

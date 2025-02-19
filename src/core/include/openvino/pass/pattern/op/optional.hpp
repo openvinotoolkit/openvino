@@ -55,8 +55,8 @@ public:
         : Pattern(inputs),
           optional_types(type_infos){};
 
-    template <typename Fn, typename std::enable_if_t<std::is_constructible_v<op::Predicate, Fn>>* = nullptr>
-    Optional(const std::vector<DiscreteTypeInfo>& type_infos, const OutputVector& inputs, const Fn& pred)
+    template <typename TPredicate>
+    Optional(const std::vector<DiscreteTypeInfo>& type_infos, const OutputVector& inputs, const TPredicate& pred)
         : Pattern(inputs, Predicate(pred)),
           optional_types(type_infos){};
 
@@ -84,26 +84,22 @@ void collect_type_info(std::vector<DiscreteTypeInfo>& type_info_vec) {
     collect_type_info<NodeTypeArgs...>(type_info_vec);
 }
 
-template <class... NodeTypes,
-          typename Fn,
-          typename std::enable_if_t<std::is_constructible_v<op::Predicate, Fn>>* = nullptr>
-std::shared_ptr<Node> optional(const OutputVector& inputs, const Fn& pred) {
+template <class... NodeTypes, typename TPredicate>
+std::shared_ptr<Node> optional(const OutputVector& inputs, const TPredicate& pred) {
     std::vector<DiscreteTypeInfo> optional_type_info_vec;
     collect_type_info<NodeTypes...>(optional_type_info_vec);
     return std::make_shared<op::Optional>(optional_type_info_vec, inputs, op::Predicate(pred));
 }
 
-template <class... NodeTypes,
-          typename Fn,
-          typename std::enable_if_t<std::is_constructible_v<op::Predicate, Fn>>* = nullptr>
-std::shared_ptr<Node> optional(const Output<Node>& input, const Fn& pred) {
+template <class... NodeTypes, typename TPredicate>
+std::shared_ptr<Node> optional(const Output<Node>& input, const TPredicate& pred) {
     return optional<NodeTypes...>(OutputVector{input}, op::Predicate(pred));
 }
 
 template <class... NodeTypes,
-          typename Fn,
-          typename std::enable_if_t<std::is_constructible_v<op::Predicate, Fn>>* = nullptr>
-std::shared_ptr<Node> optional(const Fn& pred) {
+          typename TPredicate,
+          typename std::enable_if_t<std::is_constructible_v<op::Predicate, TPredicate>>* = nullptr>
+std::shared_ptr<Node> optional(const TPredicate& pred) {
     return optional<NodeTypes...>(OutputVector{}, op::Predicate(pred));
 }
 

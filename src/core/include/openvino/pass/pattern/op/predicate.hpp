@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,8 +20,8 @@ class OPENVINO_API PatternSymbolValue {
 public:
     PatternSymbolValue();
     PatternSymbolValue(const std::shared_ptr<ov::Symbol>& s);
-    PatternSymbolValue(const int64_t& i);
-    PatternSymbolValue(const double& d);
+    PatternSymbolValue(int64_t i);
+    PatternSymbolValue(double d);
     PatternSymbolValue(const std::vector<PatternSymbolValue>& g);
 
     bool is_dynamic() const;
@@ -50,7 +50,6 @@ using PatternSymbolMap = std::unordered_map<std::string, PatternSymbolValue>;
 namespace op {
 using NodePredicate = std::function<bool(std::shared_ptr<Node>)>;
 using ValuePredicate = std::function<bool(const Output<Node>&)>;
-const std::string no_name = "no_name";
 
 /// \brief Wrapper over different types of predicates. It is used to add restrictions to the match
 /// Predicate types:
@@ -63,30 +62,35 @@ public:
     Predicate();
     Predicate(std::nullptr_t);
 
-    template <typename Fn, typename std::enable_if_t<std::is_invocable_r_v<bool, Fn, const Output<Node>&>>* = nullptr>
-    explicit Predicate(Fn predicate, std::string name = no_name) {
-        m_pred = [=](PatternSymbolMap& m, const Output<Node>& out) {
+    template <typename TPredicate,
+              typename std::enable_if_t<std::is_invocable_r_v<bool, TPredicate, const Output<Node>&>>* = nullptr>
+    explicit Predicate(const TPredicate& predicate) {
+        m_pred = [=](PatternSymbolMap&, const Output<Node>& out) {
             return predicate(out);
         };
-        m_name = name;
     }
 
-    template <typename Fn,
-              typename std::enable_if_t<std::is_invocable_r_v<bool, Fn, const std::shared_ptr<Node>&> &&
-                                        !std::is_invocable_r_v<bool, Fn, const Output<Node>&>>* = nullptr>
-    explicit Predicate(Fn predicate, std::string name = no_name) {
-        m_pred = [=](PatternSymbolMap& m, const Output<Node>& out) {
+    template <typename TPredicate,
+              typename std::enable_if_t<std::is_invocable_r_v<bool, TPredicate, const std::shared_ptr<Node>&> &&
+                                        !std::is_invocable_r_v<bool, TPredicate, const Output<Node>&>>* = nullptr>
+    explicit Predicate(const TPredicate& predicate) {
+        m_pred = [=](PatternSymbolMap&, const Output<Node>& out) {
             return predicate(out.get_node_shared_ptr());
         };
-        m_name = name;
     }
 
-    template <typename F,
-              typename std::enable_if_t<std::is_invocable_r_v<bool, F, PatternSymbolMap&, Output<Node>>>* = nullptr>
-    explicit Predicate(const F& predicate, const std::string& name = no_name) {
-        m_pred = {predicate};
-        m_name = name;
+    template <
+        typename TPredicate,
+        typename std::enable_if_t<std::is_invocable_r_v<bool, TPredicate, PatternSymbolMap&, Output<Node>>>* = nullptr>
+    explicit Predicate(const TPredicate& predicate) {
+        m_pred = predicate;
         m_requires_map = true;
+    }
+
+    template <typename TPredicate>
+    explicit Predicate(const TPredicate& predicate, std::string name) : Predicate(predicate) {
+        if (!name.empty())
+            m_name = std::move(name);
     }
 
     bool operator()(PatternSymbolMap& m, const Output<Node>& output) const;
@@ -103,21 +107,19 @@ public:
                         "Predicate " + m_name + " called with unexpected argument: " + std::string(typeid(T).name()));
     }
 
-    template <typename F>
-    Predicate operator||(const F& other) const {
+    template <typename TPredicate>
+    Predicate operator||(const TPredicate& other) const {
         return *this || Predicate(other);
     }
 
-    template <typename F>
-    Predicate operator&&(const F& other) const {
+    template <typename TPredicate>
+    Predicate operator&&(const TPredicate& other) const {
         return *this && Predicate(other);
     }
 
-    template <typename F = Predicate>
     Predicate operator||(const Predicate& other) const {
-        auto pred = m_pred, other_pred = other.m_pred;
         auto result = Predicate(
-            [=](PatternSymbolMap& m, const Output<Node>& out) -> bool {
+            [pred = m_pred, other_pred = other.m_pred](PatternSymbolMap& m, const Output<Node>& out) -> bool {
                 return pred(m, out) || other_pred(m, out);
             },
             m_name + " || " + other.m_name);
@@ -125,11 +127,9 @@ public:
         return result;
     }
 
-    template <typename F = Predicate>
     Predicate operator&&(const Predicate& other) const {
-        auto pred = m_pred, other_pred = other.m_pred;
         auto result = Predicate(
-            [=](PatternSymbolMap& m, const Output<Node>& out) -> bool {
+            [pred = m_pred, other_pred = other.m_pred](PatternSymbolMap& m, const Output<Node>& out) -> bool {
                 return pred(m, out) && other_pred(m, out);
             },
             m_name + " && " + other.m_name);
@@ -139,22 +139,22 @@ public:
 
 private:
     bool m_requires_map = false;
-    std::string m_name = no_name;
+    std::string m_name = "no_name";
 
     std::function<bool(PatternSymbolMap&, const Output<Node>&)> m_pred;
 };
 
-template <
-    typename Fn,
-    typename std::enable_if_t<std::is_constructible_v<Predicate, Fn> && !std::is_same_v<Predicate, Fn>>* = nullptr>
-Predicate operator&&(const Fn& lhs, const Predicate& rhs) {
+template <typename TPredicate,
+          typename std::enable_if_t<std::is_constructible_v<Predicate, TPredicate> &&
+                                    !std::is_same_v<Predicate, TPredicate>>* = nullptr>
+Predicate operator&&(const TPredicate& lhs, const Predicate& rhs) {
     return Predicate(lhs) && rhs;
 }
 
-template <
-    typename Fn,
-    typename std::enable_if_t<std::is_constructible_v<Predicate, Fn> && !std::is_same_v<Predicate, Fn>>* = nullptr>
-Predicate operator||(const Fn& lhs, const Predicate& rhs) {
+template <typename TPredicate,
+          typename std::enable_if_t<std::is_constructible_v<Predicate, TPredicate> &&
+                                    !std::is_same_v<Predicate, TPredicate>>* = nullptr>
+Predicate operator||(const TPredicate& lhs, const Predicate& rhs) {
     return Predicate(lhs) || rhs;
 }
 }  // namespace op

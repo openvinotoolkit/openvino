@@ -34,12 +34,18 @@ public:
     ///                                                   nullptr,
     ///                                                   OutputVector{add});
     /// \endcode
-    template <typename Fn, typename std::enable_if_t<std::is_constructible_v<Predicate, Fn>>* = nullptr>
-    Label(const element::Type& type, const PartialShape& s, Fn pred, const OutputVector& wrapped_values = {})
+    template <typename TPredicate>
+    Label(const element::Type& type,
+          const PartialShape& s,
+          const TPredicate& pred,
+          const OutputVector& wrapped_values = {})
         : Pattern(OutputVector{wrap_values(wrapped_values)}, Predicate(pred)) {
         set_output_type(0, type, s);
     }
-    Label(const element::Type& type, const PartialShape& s, NodePredicate pred, const NodeVector& wrapped_values = {})
+    Label(const element::Type& type,
+          const PartialShape& s,
+          const NodePredicate& pred,
+          const NodeVector& wrapped_values = {})
         : Label(type, s, as_value_predicate(pred), as_output_vector(wrapped_values)) {}
 
     /// \brief creates a Label node containing a sub-pattern described by the type and
@@ -54,8 +60,8 @@ public:
     ///                                                   nullptr,
     ///                                                   OutputVector{add});
     /// \endcode
-    template <typename Fn, typename std::enable_if_t<std::is_constructible_v<Predicate, Fn>>* = nullptr>
-    Label(const Output<Node>& value, const Fn& pred, const OutputVector& wrapped_values = {})
+    template <typename TPredicate>
+    Label(const Output<Node>& value, const TPredicate& pred, const OutputVector& wrapped_values = {})
         : Label(value.get_element_type(), value.get_partial_shape(), Predicate(pred), wrapped_values) {}
     Label(const Output<Node>& node, const NodePredicate& pred, const NodeVector& wrapped_values = {})
         : Label(node.get_element_type(),
@@ -77,8 +83,8 @@ protected:
 
 OPENVINO_API std::shared_ptr<Node> any_input();
 
-template <typename Fn, typename std::enable_if_t<std::is_constructible_v<op::Predicate, Fn>>* = nullptr>
-std::shared_ptr<Node> any_input(const Fn& pred) {
+template <typename TPredicate>
+std::shared_ptr<Node> any_input(const TPredicate& pred) {
     return std::make_shared<pattern::op::Label>(element::dynamic, PartialShape::dynamic(), op::Predicate(pred));
 }
 }  // namespace ov::pass::pattern

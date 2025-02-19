@@ -18,8 +18,10 @@ public:
         set_output_type(0, element::Type_t::dynamic, PartialShape::dynamic());
     }
 
-    template <typename Fn, typename std::enable_if_t<std::is_constructible_v<Predicate, Fn>>* = nullptr>
-    WrapType(const std::vector<NodeTypeInfo>& wrapped_types, const Fn& pred, const OutputVector& input_values = {})
+    template <typename TPredicate>
+    WrapType(const std::vector<NodeTypeInfo>& wrapped_types,
+             const TPredicate& pred,
+             const OutputVector& input_values = {})
         : Pattern(input_values, Predicate(pred)),
           m_wrapped_types(wrapped_types) {
         set_output_type(0, element::Type_t::dynamic, PartialShape::dynamic());
@@ -29,8 +31,8 @@ public:
         set_output_type(0, element::Type_t::dynamic, PartialShape::dynamic());
     }
 
-    template <typename Fn, typename std::enable_if_t<std::is_constructible_v<Predicate, Fn>>* = nullptr>
-    WrapType(NodeTypeInfo wrapped_type, const Fn& pred, const OutputVector& input_values = {})
+    template <typename TPredicate>
+    WrapType(NodeTypeInfo wrapped_type, const TPredicate& pred, const OutputVector& input_values = {})
         : Pattern(input_values, Predicate(pred)),
           m_wrapped_types({wrapped_type}) {
         set_output_type(0, element::Type_t::dynamic, PartialShape::dynamic());
@@ -61,8 +63,8 @@ void collect_wrap_info(std::vector<DiscreteTypeInfo>& info) {
     collect_wrap_info<Targs...>(info);
 }
 
-template <class... Args, typename Fn, typename std::enable_if_t<std::is_constructible_v<op::Predicate, Fn>>* = nullptr>
-std::shared_ptr<Node> wrap_type(const OutputVector& inputs, const Fn& pred) {
+template <class... Args, typename TPredicate>
+std::shared_ptr<Node> wrap_type(const OutputVector& inputs, const TPredicate& pred) {
     std::vector<DiscreteTypeInfo> info;
     collect_wrap_info<Args...>(info);
     return std::make_shared<op::WrapType>(info, op::Predicate(pred), inputs);
@@ -73,8 +75,8 @@ std::shared_ptr<Node> wrap_type(const OutputVector& inputs = {}) {
     return wrap_type<Args...>(inputs, op::Predicate());
 }
 
-template <class... Args, typename Fn, typename std::enable_if_t<std::is_constructible_v<op::Predicate, Fn>>* = nullptr>
-std::shared_ptr<Node> wrap_type(const Fn& pred) {
+template <class... Args, typename TPredicate>
+std::shared_ptr<Node> wrap_type(const TPredicate& pred) {
     return wrap_type<Args...>({}, op::Predicate(pred));
 }
 }  // namespace ov::pass::pattern
