@@ -30,7 +30,7 @@ struct gpu_buffer : public lockable_gpu_mem, public memory {
     gpu_buffer(ocl_engine* engine, const layout& new_layout, const cl::Buffer& buffer, std::shared_ptr<MemoryTracker> mem_tracker);
     gpu_buffer(ocl_engine* engine, const layout& layout);
 
-    void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write, bool blocking = true) override;
+    void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
     void unlock(const stream& stream) override;
     event::ptr fill(stream& stream, unsigned char pattern, bool blocking = true) override;
     event::ptr fill(stream& stream, bool blocking = true) override;
@@ -59,7 +59,7 @@ struct gpu_image2d : public lockable_gpu_mem, public memory {
     gpu_image2d(ocl_engine* engine, const layout& new_layout, const cl::Image2D& buffer, std::shared_ptr<MemoryTracker> mem_tracker);
     gpu_image2d(ocl_engine* engine, const layout& layout);
 
-    void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write, bool blocking = true) override;
+    void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
     void unlock(const stream& stream) override;
     event::ptr fill(stream& stream, unsigned char pattern, bool blocking = true) override;
     event::ptr fill(stream& stream, bool blocking = true) override;
@@ -109,7 +109,7 @@ struct gpu_usm : public lockable_gpu_mem, public memory {
     gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& usm_buffer, std::shared_ptr<MemoryTracker> mem_tracker);
     gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type);
 
-    void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write, bool blocking = true) override;
+    void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
     void unlock(const stream& stream) override;
     const cl::UsmMemory& get_buffer() const { return _buffer; }
     cl::UsmMemory& get_buffer() { return _buffer; }

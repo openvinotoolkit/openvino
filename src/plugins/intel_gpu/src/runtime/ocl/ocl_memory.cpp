@@ -63,12 +63,12 @@ gpu_buffer::gpu_buffer(ocl_engine* engine,
     : lockable_gpu_mem(), memory(engine, new_layout, allocation_type::cl_mem, mem_tracker)
     , _buffer(buffer) {}
 
-void* gpu_buffer::lock(const stream& stream, mem_lock_type type, bool blocking) {
+void* gpu_buffer::lock(const stream& stream, mem_lock_type type) {
     auto& cl_stream = downcast<const ocl_stream>(stream);
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
         try {
-             _mapped_ptr = cl_stream.get_cl_queue().enqueueMapBuffer(_buffer, static_cast<cl_bool>(blocking), get_cl_map_type(type), 0, size());
+             _mapped_ptr = cl_stream.get_cl_queue().enqueueMapBuffer(_buffer, CL_TRUE, get_cl_map_type(type), 0, size());
         } catch (cl::Error const& err) {
             OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
         }
@@ -298,14 +298,14 @@ event::ptr gpu_image2d::fill(stream& stream, unsigned char pattern, bool blockin
     return ev;
 }
 
-void* gpu_image2d::lock(const stream& stream, mem_lock_type type, bool blocking) {
+void* gpu_image2d::lock(const stream& stream, mem_lock_type type) {
     auto& cl_stream = downcast<const ocl_stream>(stream);
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
         try {
             _mapped_ptr = cl_stream.get_cl_queue()
                     .enqueueMapImage(_buffer,
-                                    static_cast<cl_bool>(blocking),
+                                    CL_TRUE,
                                     get_cl_map_type(type),
                                     {0, 0, 0},
                                     {_width, _height, 1},
@@ -475,7 +475,7 @@ gpu_usm::gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type)
     m_mem_tracker = std::make_shared<MemoryTracker>(engine, _buffer.get(), actual_bytes_count, type);
 }
 
-void* gpu_usm::lock(const stream& stream, mem_lock_type type, bool blocking) {
+void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
         auto& cl_stream = downcast<const ocl_stream>(stream);
@@ -486,7 +486,7 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type, bool blocking) {
             GPU_DEBUG_LOG << "Copy usm_device buffer to host buffer." << std::endl;
             _host_buffer.allocateHost(_bytes_count);
             try {
-                cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(), _host_buffer.get(), _buffer.get(), _bytes_count, blocking);
+                cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(), _host_buffer.get(), _buffer.get(), _bytes_count, CL_TRUE);
             } catch (cl::Error const& err) {
                 OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
             }
