@@ -293,20 +293,19 @@ void regclass_graph_Model(py::module m) {
             :type name: str
             )");
 
-    model.def(
-        py::init([](const ov::OutputVector& results,
-                    const ov::OutputVector& nodes,
-                    const ov::ParameterVector& parameters,
-                    const ov::op::util::VariableVector& variables,
-                    const std::string& name) {
-            return make_model_with_tensor_names(results, cast_to_sink_vector(nodes), parameters, variables, name);
-        }),
-        py::arg("results"),
-        py::arg("sinks"),
-        py::arg("parameters"),
-        py::arg("variables"),
-        py::arg("name") = "",
-        R"(
+    model.def(py::init([](const ov::OutputVector& results,
+                          const ov::OutputVector& nodes,
+                          const ov::ParameterVector& parameters,
+                          const ov::op::util::VariableVector& variables,
+                          const std::string& name) {
+                  return make_model_with_tensor_names(results, cast_to_sink_vector(nodes), parameters, variables, name);
+              }),
+              py::arg("results"),
+              py::arg("sinks"),
+              py::arg("parameters"),
+              py::arg("variables"),
+              py::arg("name") = "",
+              R"(
             Create user-defined Model which is a representation of a model
 
             :param results: List of outputs.
@@ -347,20 +346,19 @@ void regclass_graph_Model(py::module m) {
         :type name: str
         )");
 
-    model.def(
-        py::init([](const ov::ResultVector& results,
-                    const ov::OutputVector& nodes,
-                    const ov::ParameterVector& parameters,
-                    const ov::op::util::VariableVector& variables,
-                    const std::string& name) {
-            return make_model_with_tensor_names(results, cast_to_sink_vector(nodes), parameters, variables, name);
-        }),
-        py::arg("results"),
-        py::arg("sinks"),
-        py::arg("parameters"),
-        py::arg("variables"),
-        py::arg("name") = "",
-        R"(
+    model.def(py::init([](const ov::ResultVector& results,
+                          const ov::OutputVector& nodes,
+                          const ov::ParameterVector& parameters,
+                          const ov::op::util::VariableVector& variables,
+                          const std::string& name) {
+                  return make_model_with_tensor_names(results, cast_to_sink_vector(nodes), parameters, variables, name);
+              }),
+              py::arg("results"),
+              py::arg("sinks"),
+              py::arg("parameters"),
+              py::arg("variables"),
+              py::arg("name") = "",
+              R"(
         Create user-defined Model which is a representation of a model
 
         :param results: List of results.
@@ -375,20 +373,19 @@ void regclass_graph_Model(py::module m) {
         :type name: str
         )");
 
-    model.def(
-        py::init([](const ov::ResultVector& results,
-                    const std::vector<std::shared_ptr<ov::Node>>& nodes,
-                    const ov::ParameterVector& parameters,
-                    const ov::op::util::VariableVector& variables,
-                    const std::string& name) {
-            return make_model_with_tensor_names(results, cast_to_sink_vector(nodes), parameters, variables, name);
-        }),
-        py::arg("results"),
-        py::arg("sinks"),
-        py::arg("parameters"),
-        py::arg("variables"),
-        py::arg("name") = "",
-        R"(
+    model.def(py::init([](const ov::ResultVector& results,
+                          const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                          const ov::ParameterVector& parameters,
+                          const ov::op::util::VariableVector& variables,
+                          const std::string& name) {
+                  return make_model_with_tensor_names(results, cast_to_sink_vector(nodes), parameters, variables, name);
+              }),
+              py::arg("results"),
+              py::arg("sinks"),
+              py::arg("parameters"),
+              py::arg("variables"),
+              py::arg("name") = "",
+              R"(
             Create user-defined Model which is a representation of a model
 
             :param results: List of results.
@@ -403,20 +400,19 @@ void regclass_graph_Model(py::module m) {
             :type name: str
             )");
 
-    model.def(
-        py::init([](const ov::OutputVector& results,
-                    const std::vector<std::shared_ptr<ov::Node>>& nodes,
-                    const ov::ParameterVector& parameters,
-                    const ov::op::util::VariableVector& variables,
-                    const std::string& name) {
-            return make_model_with_tensor_names(results, cast_to_sink_vector(nodes), parameters, variables, name);
-        }),
-        py::arg("results"),
-        py::arg("sinks"),
-        py::arg("parameters"),
-        py::arg("variables"),
-        py::arg("name") = "",
-        R"(
+    model.def(py::init([](const ov::OutputVector& results,
+                          const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                          const ov::ParameterVector& parameters,
+                          const ov::op::util::VariableVector& variables,
+                          const std::string& name) {
+                  return make_model_with_tensor_names(results, cast_to_sink_vector(nodes), parameters, variables, name);
+              }),
+              py::arg("results"),
+              py::arg("sinks"),
+              py::arg("parameters"),
+              py::arg("variables"),
+              py::arg("name") = "",
+              R"(
             Create user-defined Model which is a representation of a model
 
             :param results: List of results.
