@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include <memory>
 #include <string>
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/node.hpp"
-
-#pragma once
 
 #ifdef ENABLE_OPENVINO_DEBUG
 
@@ -24,8 +24,8 @@ private:
     }
 
 public:
-    static ov::util::LevelString& get() {
-        static ov::util::LevelString instance("│  ");
+    static LevelString& get() {
+        static LevelString instance("│  ");
         return instance;
     }
 
