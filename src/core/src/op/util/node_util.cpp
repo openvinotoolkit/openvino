@@ -16,7 +16,7 @@ void set_name(ov::Node& node, const std::string& name, size_t output_port) {
 
 namespace ov::util {
 
-std::string default_tensor_name(const Output<const Node>& output) {
+std::string make_default_tensor_name(const Output<const Node>& output) {
     auto default_name = output.get_node()->get_friendly_name();
     if (output.get_node()->get_output_size() > 1) {
         default_name += descriptor::port_separator + std::to_string(output.get_index());

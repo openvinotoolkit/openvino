@@ -4,7 +4,11 @@
 
 #pragma once
 
+#include <unordered_map>
+
+#include "openvino/core/core_visibility.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/model.hpp"
 
 namespace ov {
 class Model;

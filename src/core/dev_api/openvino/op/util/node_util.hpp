@@ -17,7 +17,7 @@ namespace util {
  * @param output - Node's output to create name for tensor.
  * @return Default tensor name.
  */
-OPENVINO_API std::string default_tensor_name(const Output<const Node>& output);
+OPENVINO_API std::string make_default_tensor_name(const Output<const Node>& output);
 }  // namespace util
 
 namespace op::util {

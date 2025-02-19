@@ -13,7 +13,7 @@ namespace {
 void set_default_tensor_names(OutputVector&& outputs) {
     for (auto& output : outputs) {
         if (output.get_tensor().get_names().empty()) {
-            output.get_tensor().set_names({default_tensor_name(output)});
+            output.get_tensor().set_names({make_default_tensor_name(output)});
         }
     }
 }
