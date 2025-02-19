@@ -1328,7 +1328,7 @@ void Transformations::Snippets(void) {
 
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Snippets);
 // Disable MainSnippets for int8 models on arm platforms
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     using namespace ov::pass::low_precision;
     static const std::set<levels>& supported_fq_levels = {levels::int4,
                                                           levels::int4_narrow_range,

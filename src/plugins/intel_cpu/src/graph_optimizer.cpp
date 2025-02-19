@@ -684,7 +684,7 @@ void GraphOptimizer::FuseMultiplyAndAdd(Graph& graph) {
 
 void GraphOptimizer::MergeEltwiseAndConvert(Graph& graph) {
 // The pass is required on arm platforms only
-#if !defined(OPENVINO_ARCH_ARM) && !defined(OPENVINO_ARCH_ARM64)
+#if !defined(OPENVINO_ARCH_ARM64)
     return;
 #endif
     auto& graphNodes = graph.GetNodes();

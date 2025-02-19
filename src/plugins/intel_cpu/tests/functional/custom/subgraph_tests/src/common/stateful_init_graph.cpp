@@ -249,7 +249,7 @@ public:
     }
 
     void check_init_graph_node() override {
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64)
         // Convert node is fused into Eltwise on arm platforms
         if (directPair) {
             CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
