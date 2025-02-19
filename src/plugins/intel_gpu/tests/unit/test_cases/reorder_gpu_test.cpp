@@ -1913,7 +1913,7 @@ TEST(reorder_gpu_opt, non_trivial_remove_redundant)
     auto outputs = net.execute();
     auto executed_primitives = net.get_executed_primitives();
 
-    if (config.get_property(ov::intel_gpu::queue_type) != QueueTypes::out_of_order)
+    if (config.get_queue_type() != QueueTypes::out_of_order)
         GTEST_SKIP();
 
     ASSERT_TRUE(executed_primitives.count("in") == 1);

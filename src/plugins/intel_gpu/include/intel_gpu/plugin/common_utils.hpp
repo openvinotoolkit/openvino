@@ -34,9 +34,8 @@ enum class TensorType {
 #define TensorValue(val) static_cast<cldnn::tensor::value_type>(val)
 
 inline bool can_use_usm_host(cldnn::engine& engine, const uint64_t total_output_bytes) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->use_usm_host == 1) { return true; }
-    GPU_DEBUG_IF(debug_config->use_usm_host == 2) { return false; }
+    GPU_DEBUG_IF(ExecutionConfig::get_usm_policy() == 1) { return true; }
+    GPU_DEBUG_IF(ExecutionConfig::get_usm_policy() == 2) { return false; }
 
     auto can_use_usm = engine.use_unified_shared_memory();
     // When output size is large, it is better not to write to usm_host directly
