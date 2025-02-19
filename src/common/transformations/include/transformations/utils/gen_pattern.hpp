@@ -22,6 +22,7 @@
 #include <string>
 #include <utility>
 
+#include "openvino/core/log_util.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset2.hpp"
 #include "openvino/opsets/opset3.hpp"
@@ -35,7 +36,6 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
-#include "openvino/core/log_util.hpp"
 
 namespace ov {
 namespace gen_pattern {
