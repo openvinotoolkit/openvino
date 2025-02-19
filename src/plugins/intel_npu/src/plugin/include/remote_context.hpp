@@ -54,9 +54,8 @@ public:
 private:
     std::shared_ptr<ov::IRemoteContext> get_this_shared_ptr();
 
-    std::shared_ptr<const NPUBackends> _backends;
-
     const Config _config;
+    std::shared_ptr<intel_npu::IDevice> _device;
     ov::AnyMap _properties;
     std::string _device_name;
 };

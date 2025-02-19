@@ -30,10 +30,14 @@ std::optional<Type> extract_object(const ov::AnyMap& params, const ov::Property<
 namespace intel_npu {
 
 RemoteContextImpl::RemoteContextImpl(const std::shared_ptr<const NPUBackends>& backends, const Config& config)
-    : _backends(backends),
-      _config(config),
+    : _config(config),
+      _device(backends->getDevice(_config.get<DEVICE_ID>())),
       _properties({l0_context(backends->getContext())}),
-      _device_name("NPU") {}
+      _device_name("NPU") {
+    if (_device == nullptr) {
+        OPENVINO_THROW("Device is not available");
+    }
+}
 
 const ov::AnyMap& RemoteContextImpl::get_property() const {
     return _properties;
@@ -42,13 +46,8 @@ const ov::AnyMap& RemoteContextImpl::get_property() const {
 ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element::Type& type,
                                                               const ov::Shape& shape,
                                                               const ov::AnyMap& params) {
-    auto device = _backends->getDevice(_config.get<DEVICE_ID>());
-    if (device == nullptr) {
-        OPENVINO_THROW("Device is not available");
-    }
-
     if (params.empty()) {
-        return device->createRemoteTensor(get_this_shared_ptr(), type, shape, _config);
+        return _device->createRemoteTensor(get_this_shared_ptr(), type, shape, _config);
     }
 
     auto mem_type_object = extract_object(params, mem_type);
@@ -75,22 +74,17 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
         OPENVINO_THROW("Unsupported shared object type ", *mem_type_object);
     }
 
-    return device->createRemoteTensor(get_this_shared_ptr(),
-                                      type,
-                                      shape,
-                                      _config,
-                                      tensor_type_object,
-                                      *mem_type_object,
-                                      mem_handle_object);
+    return _device->createRemoteTensor(get_this_shared_ptr(),
+                                       type,
+                                       shape,
+                                       _config,
+                                       tensor_type_object,
+                                       *mem_type_object,
+                                       mem_handle_object);
 }
 
 ov::SoPtr<ov::ITensor> RemoteContextImpl::create_host_tensor(const ov::element::Type type, const ov::Shape& shape) {
-    auto device = _backends->getDevice(_config.get<DEVICE_ID>());
-    if (device == nullptr) {
-        OPENVINO_THROW("Device is not available");
-    }
-
-    return device->createHostTensor(get_this_shared_ptr(), type, shape, _config);
+    return _device->createHostTensor(get_this_shared_ptr(), type, shape, _config);
 }
 
 const std::string& RemoteContextImpl::get_device_name() const {
