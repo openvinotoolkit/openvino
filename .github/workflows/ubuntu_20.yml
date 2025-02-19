@@ -97,6 +97,7 @@ jobs:
       - name: Who am I
         run: |
           whoami
+          id
           ls -la /__w
 
   Test_Job_wo_Docker:
@@ -115,6 +116,7 @@ jobs:
       - name: Who am I
         run: |
           whoami
+          id
           ls -laR /runner
 
 
