@@ -146,7 +146,7 @@ NpuInferStatistics NpuInferProfiling::getNpuInferStatistics() const {
             info.exec_type = "INFER_REQ";
             info.node_type = "INFER_REQ";
 
-            npuPerfCounts.push_back(info);
+            npuPerfCounts.push_back(std::move(info));
         }
     }
 
@@ -163,21 +163,21 @@ NpuInferStatistics NpuInferProfiling::getNpuInferStatistics() const {
         "AVG",
         "AVG",
         "AVG"};
-    npuPerfCounts.push_back(info_avg);
+    npuPerfCounts.push_back(std::move(info_avg));
     ov::ProfilingInfo info_min = {ov::ProfilingInfo::Status::EXECUTED,
                                   std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_min_cc)),
                                   std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_min_cc)),
                                   "MIN",
                                   "MIN",
                                   "MIN"};
-    npuPerfCounts.push_back(info_min);
+    npuPerfCounts.push_back(std::move(info_min));
     ov::ProfilingInfo info_max = {ov::ProfilingInfo::Status::EXECUTED,
                                   std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_max_cc)),
                                   std::chrono::microseconds(convertCCtoUS(_npu_infer_stats_max_cc)),
                                   "MAX",
                                   "MAX",
                                   "MAX"};
-    npuPerfCounts.push_back(info_max);
+    npuPerfCounts.push_back(std::move(info_max));
     return npuPerfCounts;
 }
 

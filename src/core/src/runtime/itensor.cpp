@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "compare.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/core/type/element_iterator.hpp"
@@ -46,7 +47,21 @@ bool ITensor::is_continuous() const {
         // OpenVINO doesn't support strides for lp types
         return true;
     }
-    return default_byte_strides(get_shape(), get_element_type()) == get_strides();
+
+    const auto& strides = get_strides();
+    auto stride = strides.rbegin();
+    const auto default_strides = default_byte_strides(get_shape(), get_element_type());
+    auto default_stride = default_strides.rbegin();
+
+    for (; stride != strides.rend(); ++stride, ++default_stride) {
+        if (*stride != *default_stride) {
+            break;
+        }
+    }
+
+    const auto default_last = default_strides.rend();
+    return (default_stride == default_last) || (*default_stride < *stride && (get_shape()[0] == 1) &&
+                                                std::all_of(default_stride, default_last, cmp::Equal(*default_stride)));
 }
 
 void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {

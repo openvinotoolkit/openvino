@@ -31,13 +31,12 @@
 using namespace ov;
 using namespace testing;
 
-const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(
-    std::shared_ptr<ov::Node> query,
-    std::shared_ptr<ov::Node> key,
-    std::shared_ptr<ov::Node> value,
-    std::shared_ptr<ov::Node> attention_mask,
-    std::shared_ptr<ov::Node> scale,
-    bool casual);
+const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(std::shared_ptr<ov::Node> query,
+                                                                           std::shared_ptr<ov::Node> key,
+                                                                           std::shared_ptr<ov::Node> value,
+                                                                           std::shared_ptr<ov::Node> attention_mask,
+                                                                           std::shared_ptr<ov::Node> scale,
+                                                                           bool casual);
 
 TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionStaticBasic) {
     const PartialShape query_shape{1, 32, 32};
@@ -187,13 +186,12 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionDynamic) {
     }
 }
 
-const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(
-    std::shared_ptr<ov::Node> query,
-    std::shared_ptr<ov::Node> key,
-    std::shared_ptr<ov::Node> value,
-    std::shared_ptr<ov::Node> attention_mask,
-    std::shared_ptr<ov::Node> scale,
-    bool casual) {
+const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(std::shared_ptr<ov::Node> query,
+                                                                           std::shared_ptr<ov::Node> key,
+                                                                           std::shared_ptr<ov::Node> value,
+                                                                           std::shared_ptr<ov::Node> attention_mask,
+                                                                           std::shared_ptr<ov::Node> scale,
+                                                                           bool casual) {
     const auto q_shape = std::make_shared<ov::op::v3::ShapeOf>(query, element::i32);
     const auto k_shape = std::make_shared<ov::op::v3::ShapeOf>(key, element::i32);
     const auto minus_one = ov::op::v0::Constant::create(element::i32, Shape{}, {-1});

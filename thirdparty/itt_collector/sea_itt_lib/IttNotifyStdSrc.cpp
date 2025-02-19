@@ -1577,15 +1577,13 @@ void FillApiList(__itt_api_info* api_list_ptr) {
 #define ITT_STUB_IMPL_ORIG(name) ITT_STUB_IMPL(name)
 #ifdef _DEBUG  // dangerous stub that doesn't return anything (even when expected) but records the function call for
                // statistics sake
-#    define ITT_STUB_NO_IMPL(fn)                                              \
-        if (0 == strcmp("__itt_" ITT_TO_STR(fn), api_list_ptr[i].name)) {     \
-            struct local {                                                    \
-                static void stub(...) {                                       \
-                    CIttFnStat oIttFnStat("NO IMPL:\t" ITT_TO_STR(fn));       \
-                }                                                             \
-            };                                                                \
-            *api_list_ptr[i].func_ptr = reinterpret_cast<void*>(local::stub); \
-            continue;                                                         \
+#    define ITT_STUB_NO_IMPL(fn)                                                              \
+        if (0 == strcmp("__itt_" ITT_TO_STR(fn), api_list_ptr[i].name)) {                     \
+            struct local {                                                                    \
+                static void stub(...) { CIttFnStat oIttFnStat("NO IMPL:\t" ITT_TO_STR(fn)); } \
+            };                                                                                \
+            *api_list_ptr[i].func_ptr = reinterpret_cast<void*>(local::stub);                 \
+            continue;                                                                         \
         }
 #else
 #    define ITT_STUB_NO_IMPL(fn)

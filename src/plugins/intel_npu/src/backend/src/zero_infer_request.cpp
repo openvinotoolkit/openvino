@@ -455,7 +455,7 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
     size_t ioIndex = 0;
 
     for (const auto& levelZeroTensor : _levelZeroInputTensors) {
-        const auto inputDescriptor = _metadata.inputs.at(ioIndex);
+        const auto& inputDescriptor = _metadata.inputs.at(ioIndex);
         auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensor.at(SINGLE_TENSOR));
 
         if (is_batched_input(ioIndex) || inputDescriptor.isShapeTensor ||
@@ -484,7 +484,7 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
     ioIndex = 0;
 
     for (const auto& levelZeroTensor : _levelZeroOutputTensors) {
-        const auto outputDescriptor = _metadata.outputs.at(ioIndex);
+        const auto& outputDescriptor = _metadata.outputs.at(ioIndex);
         auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensor);
 
         if (outputDescriptor.isShapeTensor || is_remote_tensor(levelZeroTensor) || zeroTensor == nullptr) {
@@ -726,6 +726,8 @@ void ZeroInferRequest::check_network_precision(const ov::element::Type_t precisi
         break;
     case ov::element::Type_t::bf16:
         break;
+    case ov::element::Type_t::nf4:
+        break;
     case ov::element::Type_t::u4:
         break;
     case ov::element::Type_t::i4:
@@ -749,8 +751,9 @@ void ZeroInferRequest::check_network_precision(const ov::element::Type_t precisi
     case ov::element::Type_t::f64:
         break;
     default:
-        OPENVINO_THROW("Unsupported tensor precision: " + ov::element::Type(precision).get_type_name() +
-                       "! Supported precisions: FP32, FP16, BF16, U4, I4, U8, I8, U16, I16, U32, I32, U64, I64, FP64");
+        OPENVINO_THROW(
+            "Unsupported tensor precision: " + ov::element::Type(precision).get_type_name() +
+            "! Supported precisions: FP32, FP16, BF16, NF4, U4, I4, U8, I8, U16, I16, U32, I32, U64, I64, FP64");
     }
 }
 
@@ -787,7 +790,7 @@ std::shared_ptr<ov::ITensor> ZeroInferRequest::create_tensor(ov::element::Type t
                                                              const ov::Allocator& allocator) const {
     OPENVINO_ASSERT(allocator, "Allocator mush be provided when creating a zero tensor!");
 
-    return std::make_shared<ZeroTensor>(_initStructs, type, shape, allocator);
+    return std::make_shared<ZeroTensor>(_initStructs, _config, type, shape, allocator);
 }
 
 void ZeroInferRequest::add_state(const IODescriptor& descriptor, size_t tensorIndex) const {

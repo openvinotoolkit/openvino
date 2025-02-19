@@ -4,8 +4,12 @@
 
 #include "openvino/core/any.hpp"
 
+#include <array>
 #include <limits>
 #include <string>
+#include <string_view>
+
+#include "openvino/util/common_util.hpp"
 namespace {
 template <class Container>
 bool contains_type_index(Container&& types, const std::type_info& user_type) {
@@ -202,9 +206,14 @@ namespace util {
 void Read<bool>::operator()(std::istream& is, bool& value) const {
     std::string str;
     is >> str;
-    if (str == "YES") {
+
+    constexpr std::array<std::string_view, 4> off = {"0", "false", "off", "no"};
+    constexpr std::array<std::string_view, 4> on = {"1", "true", "on", "yes"};
+    str = util::to_lower(str);
+
+    if (std::find(on.begin(), on.end(), str) != on.end()) {
         value = true;
-    } else if (str == "NO") {
+    } else if (std::find(off.begin(), off.end(), str) != off.end()) {
         value = false;
     } else {
         OPENVINO_THROW("Could not convert to bool from string " + str);

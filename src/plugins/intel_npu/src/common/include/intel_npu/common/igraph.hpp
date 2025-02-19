@@ -92,7 +92,7 @@ protected:
     std::unique_ptr<BlobContainer> _blobPtr;
 
     uint32_t _unique_id = 0;
-    uint32_t _last_submitted_id;
+    uint32_t _last_submitted_id = 0;
 
     /**
      * @brief The batch size used by the corresponding model.

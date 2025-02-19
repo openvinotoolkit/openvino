@@ -1316,7 +1316,6 @@ TEST_P(crop_gpu_dynamic, i32_in2x3x2x2_crop_offsets) {
             }
         }
     }
-    config2.set_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape(true));
     network network2(engine, topology, config2); // run with static kernel
     network2.set_input_data("input", input);
     auto outputs2 = network2.execute();
@@ -1340,6 +1339,59 @@ INSTANTIATE_TEST_SUITE_P(crop_test, crop_gpu_dynamic,
                         ::testing::Combine(
                                 ::testing::ValuesIn(impls)
                                 ));
+
+TEST(crop_cpu, basic_in2x3x2x2_crop_all_bfyx_disable_usm) {
+    //  Reference  : 3x1x2x2
+    //  Input      : 6x2x4x3
+    //  Output     : 3x1x2x2
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto engine = create_test_engine(engine_types::ocl, runtime_types::ocl, false);
+
+    auto batch_num = 6;
+    auto feature_num = 2;
+    auto x_size = 4;
+    auto y_size = 3;
+
+    auto crop_batch_num = batch_num - 3;
+    auto crop_feature_num = feature_num - 1;
+    auto crop_x_size = x_size - 2;
+    auto crop_y_size = y_size - 1;
+
+    auto input = engine->allocate_memory({ data_types::f32,format::bfyx,{ batch_num, feature_num, x_size, y_size } });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(crop("crop", input_info("input"), { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, {0, 0, 0, 0} ));
+
+    std::vector<float> input_vec = rg.generate_random_1d<float>(input->count(), -10, 10);
+    set_values(input, input_vec);
+
+    ExecutionConfig config = get_test_default_config(*engine);
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"crop", {format::bfyx, "", impl_types::cpu}} }));
+
+    network network(*engine, topology, config);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("crop").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    std::vector<float> a;
+    for (int b = 0; b < crop_batch_num; ++b) { //B
+        for (int f = 0; f < crop_feature_num; ++f) { //F
+            for (int y = 0; y < crop_y_size; ++y) { //Y
+                for (int x = 0; x < crop_x_size; ++x) { //X
+                    int linear_id = x + x_size * (y + y_size * (f + feature_num * b));
+                    int output_linear_id = x + crop_x_size * (y + crop_y_size * (f + crop_feature_num * b));
+                    a.push_back(output_ptr[output_linear_id]);
+                    ASSERT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                }
+            }
+        }
+    }
+}
 
 TEST(crop_gpu, dynamic_in1x4x1x1_split) {
     auto& engine = get_test_engine();

@@ -177,6 +177,7 @@ _OPENVINO_OP_REG(SearchSorted, ov::op::v15)
 
 _OPENVINO_OP_REG(Identity, ov::op::v16)
 _OPENVINO_OP_REG(ISTFT, ov::op::v16)
+_OPENVINO_OP_REG(SegmentMax, ov::op::v16)
 
 _OPENVINO_OP_REG(AUGRUCell, ov::op::internal)
 _OPENVINO_OP_REG(AUGRUSequence, ov::op::internal)

@@ -20,7 +20,7 @@ enum class PadMode { CONSTANT = 0, EDGE, REFLECT, SYMMETRIC };
 OPENVINO_API
 std::ostream& operator<<(std::ostream& s, const PadMode& type);
 
-/// \brief Fill modes for the `SegmentMax` operator.
+/// \brief Fill modes to set default value for operators like `SegmentMax`.
 enum class FillMode { ZERO = 0, LOWEST };
 
 OPENVINO_API

@@ -610,6 +610,8 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
         return create_tensor_random_4bit(inputInfo.second, 0, 15);
     } else if (type == ov::element::i4) {
         return create_tensor_random_4bit(inputInfo.second, 0, 15);
+    } else if (type == ov::element::nf4) {
+        return create_tensor_random_4bit(inputInfo.second, 0, 15);
     } else if (type == ov::element::string) {
         const auto& in_info = inputInfo.second;
         const auto tensor_size = ov::shape_size(in_info.dataShape);

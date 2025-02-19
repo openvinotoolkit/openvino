@@ -16,11 +16,6 @@ namespace ov::intel_cpu {
 static constexpr Property<int32_t, PropertyMutability::RW> cpu_runtime_cache_capacity{"CPU_RUNTIME_CACHE_CAPACITY"};
 
 /**
- * @brief Allow low precision transform.
- */
-static constexpr Property<bool, PropertyMutability::RW> lp_transforms_mode{"LP_TRANSFORMS_MODE"};
-
-/**
  * @brief Enum to define possible snippets mode hints.
  */
 enum class SnippetsMode {

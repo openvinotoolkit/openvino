@@ -637,6 +637,7 @@ std::string Node::getPrimitiveDescriptorType() const {
     SEARCH_TYPE(sparse);
     SEARCH_TYPE(acl);
     SEARCH_TYPE(shl);
+    SEARCH_TYPE(kleidiai);
     SEARCH_TYPE(_dw);
     SEARCH_TYPE(_1x1);
 
@@ -1330,7 +1331,8 @@ const std::vector<impl_desc_type>& Node::getDefaultImplPriority() {
 #endif
             impl_desc_type::gemm_any, impl_desc_type::gemm_blas, impl_desc_type::gemm_avx512, impl_desc_type::gemm_avx2,
             impl_desc_type::gemm_avx, impl_desc_type::gemm_sse42, impl_desc_type::gemm_acl, impl_desc_type::acl,
-            impl_desc_type::jit_gemm, impl_desc_type::ref_any, impl_desc_type::ref,
+            impl_desc_type::gemm_kleidiai, impl_desc_type::kleidiai, impl_desc_type::jit_gemm, impl_desc_type::ref_any,
+            impl_desc_type::ref,
     };
 
     return priorities;

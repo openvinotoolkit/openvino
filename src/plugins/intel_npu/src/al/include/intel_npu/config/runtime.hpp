@@ -215,7 +215,7 @@ struct WEIGHTS_PATH final : OptionBase<WEIGHTS_PATH, std::string> {
     }
 
     static OptionMode mode() {
-        return OptionMode::CompileTime;
+        return OptionMode::RunTime;
     }
 };
 

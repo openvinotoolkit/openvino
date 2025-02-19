@@ -252,7 +252,9 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
             }
 
             auto reshapeOutName = op->get_friendly_name() + "/Crop";
-            auto reshapePrim = cldnn::reshape(reshapeOutName, layerName, false, output_pattern, output_pshape);
+            auto output_ts = tensor_from_dims(output_shape);
+            auto reshapePrim = cldnn::reshape(reshapeOutName, layerName, output_ts);
+
             p.add_primitive(*op, reshapePrim);
             last_layer_primitive = reshapeOutName;
         }

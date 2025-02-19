@@ -85,6 +85,8 @@ static inline std::size_t precisionToSize(const ze_graph_argument_precision_t va
         return 64;
     case ZE_GRAPH_ARGUMENT_PRECISION_UINT64:
         return 64;
+    case ZE_GRAPH_ARGUMENT_PRECISION_NF4:
+        return 4;
     case ZE_GRAPH_ARGUMENT_PRECISION_BF16:
         return 16;
     case ZE_GRAPH_ARGUMENT_PRECISION_FP16:
@@ -122,6 +124,8 @@ static inline ze_graph_argument_precision_t getZePrecision(const ov::element::Ty
         return ZE_GRAPH_ARGUMENT_PRECISION_INT64;
     case ov::element::Type_t::u64:
         return ZE_GRAPH_ARGUMENT_PRECISION_UINT64;
+    case ov::element::Type_t::nf4:
+        return ZE_GRAPH_ARGUMENT_PRECISION_NF4;
     case ov::element::Type_t::bf16:
         return ZE_GRAPH_ARGUMENT_PRECISION_BF16;
     case ov::element::Type_t::f16:

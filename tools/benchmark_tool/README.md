@@ -2,9 +2,9 @@
 
 This page demonstrates how to use the Benchmark Python Tool to estimate deep learning inference performance on supported devices.
 
-> **NOTE**: This page describes usage of the Python implementation of the Benchmark Tool. For the C++ implementation, refer to the [Benchmark C++ Tool](https://docs.openvino.ai/2025/learn-openvino/openvino-samples/benchmark-tool.html) page. The Python version is recommended for benchmarking models that will be used in Python applications, and the C++ version is recommended for benchmarking models that will be used in C++ applications. Both tools have a similar command interface and backend.
+> **NOTE**: This page describes usage of the Python implementation of the Benchmark Tool. For the C++ implementation, refer to the [Benchmark C++ Tool](https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/benchmark-tool.html) page. The Python version is recommended for benchmarking models that will be used in Python applications, and the C++ version is recommended for benchmarking models that will be used in C++ applications. Both tools have a similar command interface and backend.
 
-For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2025/learn-openvino/openvino-samples/benchmark-tool.html)
+For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/benchmark-tool.html)
 
 ## Requirements
 
