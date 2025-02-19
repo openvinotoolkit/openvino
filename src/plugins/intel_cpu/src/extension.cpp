@@ -10,6 +10,7 @@
 #include "ov_ops/fully_connected.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
 #include "ov_ops/fully_connected_quantized.hpp"
+#include "ov_ops/convolution_biased.hpp"
 #include "ov_ops/fully_connected_quantized_legacy.hpp"
 #include "ov_ops/gather_compressed.hpp"
 #include "ov_ops/multiclass_nms_ie_internal.hpp"
@@ -92,6 +93,7 @@ private:
     OP_EXTENSION(ov::op::internal::FullyConnectedCompressed)                \
     OP_EXTENSION(ov::op::internal::FullyConnectedQuantizedLegacy)           \
     OP_EXTENSION(ov::op::internal::FullyConnectedQuantized)                 \
+    OP_EXTENSION(ov::op::internal::ConvolutionBiased)                       \
     OP_EXTENSION_X64(ov::intel_cpu::MHANode)                                \
     OP_EXTENSION_X64(ov::intel_cpu::InteractionNode)                        \
     OP_EXTENSION_X64(ov::intel_cpu::LLMMLPNode)                             \

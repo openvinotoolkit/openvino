@@ -32,6 +32,7 @@
 #include "onednn/dnnl.h"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
+#include "ov_ops/convolution_biased.hpp"
 #include "pooling.h"
 #include "reorder.h"
 #include "utils/cpu_utils.hpp"
@@ -226,8 +227,10 @@ private:
 
 bool Convolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ov::is_type<ov::op::v1::Convolution>(op) && !ov::is_type<ov::op::v1::GroupConvolution>(op)) {
-            errorMessage = "Only opset1 Convolution and GroupConvolution operations are supported";
+        if (!ov::is_type<ov::op::v1::Convolution>(op) && !ov::is_type<ov::op::v1::GroupConvolution>(op) &&
+            !ov::is_type<ov::op::internal::ConvolutionBiased>(op)) {
+            errorMessage = "opset1 Convolution and GroupConvolution, internal opset ConvolutionBiased operations are "
+                           "supported only";
             return false;
         }
         size_t ndims = op->get_input_partial_shape(0).rank().get_length();
@@ -268,8 +271,16 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
 
     auto convolutionOp = ov::as_type_ptr<ov::op::v1::Convolution>(op);
     auto groupConvolutionOp = ov::as_type_ptr<ov::op::v1::GroupConvolution>(op);
+    auto biasedConvolutionOp = ov::as_type_ptr<ov::op::internal::ConvolutionBiased>(op);
 
-    if (convolutionOp) {
+    if (biasedConvolutionOp) {
+        OPENVINO_THROW("Biased convolution is not supported");
+    //     algorithm = Algorithm::ConvolutionBiased;
+    //     withBiases = true;
+    //     groupNum = 1;
+    //     isGrouped = false;
+
+    } else if (convolutionOp) {
         algorithm = Algorithm::ConvolutionCommon;
 
         groupNum = 1;
