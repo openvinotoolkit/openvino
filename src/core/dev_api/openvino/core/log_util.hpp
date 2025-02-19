@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <iostream>
 #include <memory>
 #include <string>
 
@@ -22,7 +21,6 @@ private:
         : level_identifier(level_identifier_),
           level_str(level_identifier_) {
         level_str.reserve(level_identifier_.size() * 10);
-        std::cout << "LEVEL STRING CREATED " << std::endl;
     }
 
 public:

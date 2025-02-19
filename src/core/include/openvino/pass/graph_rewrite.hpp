@@ -21,7 +21,6 @@
                                                                _OPENVINO_GRAPH_REWRITE_RTTI_WITH_TYPE_VERSION, \
                                                                _OPENVINO_GRAPH_REWRITE_RTTI_WITH_TYPE)(__VA_ARGS__))
 
-
 namespace ov {
 namespace pass {
 /// \brief GraphRewrite is a container for MatcherPasses that allows to run them on Function
@@ -92,7 +91,7 @@ public:
     ///
     ///    class ov::pass::LinFusions: public ov::pass::GraphRewrite {
     ///    public:
-    ///         OPENVINO_LOG_GRAPH_REWRITE_RTTI("LinFusion");
+    ///         OPENVINO_GRAPH_REWRITE_RTTI("LinFusion");
     ///         Fusions() {
     ///             add_matcher<ov::pass::AddFusion>();
     ///             add_matcher<ov::pass::MulFusion>();

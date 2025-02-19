@@ -3,9 +3,8 @@
 //
 
 #include "openvino/core/log_util.hpp"
-
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/env_util.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 
 namespace ov {
@@ -72,5 +71,5 @@ std::string node_with_arguments(const std::shared_ptr<ov::Node>& node) {
 }
 
 #endif
-}  // namespace util
-}  // namespace ov
+}
+}

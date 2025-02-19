@@ -35,7 +35,6 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
-
 #include "openvino/core/log_util.hpp"
 
 namespace ov {
