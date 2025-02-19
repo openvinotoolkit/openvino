@@ -85,6 +85,10 @@ public:
         void set_outer_splited_loop(bool outer_splited_loop);
         void set_first_iter_handler(FirstIterHandler handler);
 
+        // Update the parameters of existing LoopPorts
+        void update_entry_points(const std::function<void(LoopPort&)>& updater);
+        void update_exit_points(const std::function<void(LoopPort&)>& updater);
+
     private:
         size_t m_work_amount = 0;
         size_t m_increment = 0;
@@ -101,8 +105,6 @@ public:
     using LoopInfoPtr = std::shared_ptr<LoopInfo>;
 
     std::shared_ptr<LoopManager> clone_with_new_expr(const ExressionMap& expr_map) const;
-    size_t add_loop_info(const LoopInfoPtr& loop);
-    void remove_loop_info(size_t index);
     LoopInfoPtr get_loop_info(size_t index) const;
     size_t get_loop_count() const { return m_map.size(); }
     const std::map<size_t, LoopInfoPtr>& get_map() const;
@@ -182,23 +184,55 @@ public:
     void expression_replacement(constExprIt new_expr_begin, constExprIt new_expr_end, const ExpressionPtr& decomposed_expr,
                                 size_t loop_id, const std::vector<ExpressionPort>& new_entries, const std::vector<ExpressionPort>& exits);
 
-    // Note: these methods find iterators of first entry loop point and last exit point (bounds of Loop)
-    //       If there are already inserted LoopBegin and LoopEnd in Linear IR, the methods can find them as well if `loop_ops_inserted` = true
-    void get_loop_bounds(const LinearIR& linear_ir,
-                         size_t loop_id,
-                         LinearIR::constExprIt& loop_begin_pos,
-                         LinearIR::constExprIt& loop_end_pos,
-                         bool loop_ops_inserted = false) const;
-    static void get_loop_bounds(const LinearIR& linear_ir,
-                                const std::vector<LoopPort>& entries,
-                                const std::vector<LoopPort>& exits,
-                                LinearIR::constExprIt& loop_begin_pos,
-                                LinearIR::constExprIt& loop_end_pos,
-                                size_t loop_id, bool loop_ops_inserted = false);
+    /**
+     * @brief Find bounds of Loop:
+     *        - If the explicit Loop exprs with the target `loop_id` have been inserted,
+     *          Loop bounds are these iterators of the corresponding LoopBegin and LoopEnd.
+     *        - Otherwise Loop bounds are iterators of the first entry loop port (or Scalar, VectorBuffer and another LoopBegin that
+     *          are in this Loop but have another `loop_id`) and the next iterator of the last exit loop port (or another LoopEnd that
+     *          are in this Loop but have another `loop_id`).
+     * @param linear_ir linear IR
+     * @param loop_id target Loop ID
+     * @return the pair of loop_begin_pos and loop_end_pos iterators
+     */
+    std::pair<LinearIR::constExprIt, LinearIR::constExprIt> get_loop_bounds(const LinearIR& linear_ir, size_t loop_id) const;
+    /**
+     * @brief Find bounds of Loop:
+     *        - If the explicit Loop exprs with the target `loop_id` have been inserted,
+     *          Loop bounds are these iterators of the corresponding LoopBegin and LoopEnd.
+     *        - Otherwise Loop bounds are iterators of the first entry loop port (or Scalar, VectorBuffer and another LoopBegin that
+     *          are in this Loop but have another `loop_id`) and the next iterator of the last exit loop port (or another LoopEnd that
+     *          are in this Loop but have another `loop_id`).
+     * @param linear_ir linear IR
+     * @param loop_id target Loop ID
+     * @param entries input loop ports
+     * @param exits output loop ports
+     * @return the pair of loop_begin_pos and loop_end_pos iterators
+     */
+    static std::pair<LinearIR::constExprIt, LinearIR::constExprIt> get_loop_bounds(const LinearIR& linear_ir, size_t loop_id,
+                                                                                   const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits);
 
     LoopPort get_loop_port_by_expr_port(const ExpressionPort& expr_port, const size_t loop_id);
 
 private:
+    /**
+     * @brief Add new Loop Info to the map
+     * @param loop target loop info
+     * @return the loop ID
+     */
+    size_t add_loop_info(const LoopInfoPtr& loop);
+    /**
+     * @brief Remove LoopInfo from the map
+     * @param index the target index of Loop
+     */
+    void remove_loop_info(size_t index);
+    /**
+     * @brief Find expression ports in bounds that are connected to consumers or parent that aren't in these bounds
+     * @param loop_begin_pos the first expression iterator of the Loop
+     * @param loop_end_pos the next iterator after the last expression
+     * @param entries found input expression ports
+     * @param exits found output expression ports
+     */
     static void get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,
                                   LinearIR::constExprIt loop_end_pos,
                                   std::vector<ExpressionPort>& entries,
@@ -220,6 +254,7 @@ private:
     //                                         for `before` the new Loop is the most outer Loop
     void insert_loop_id(const ExpressionPtr& expr, size_t new_id, bool before = true, size_t target_id = SIZE_MAX);
     void insert_loop_ids(const ExpressionPtr& expr, const std::vector<size_t>& new_ids, bool before = true, size_t target_id = SIZE_MAX);
+    static bool is_loop_id_found(const ExpressionPtr& expr, size_t id);
 
     std::map<size_t, LoopInfoPtr> m_map = {};
     size_t next_id = 0;

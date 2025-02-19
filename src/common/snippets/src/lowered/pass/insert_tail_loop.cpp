@@ -129,10 +129,10 @@ void InsertTailLoop::propagate_updated_subtensor_through_loop(const LinearIR& li
 
 LinearIR::constExprIt InsertTailLoop::insert_copy_loop(LinearIR& linear_ir, const size_t loop_id, const LinearIR::constExprIt& insert_pos) {
     const auto& loop_manager = linear_ir.get_loop_manager();
-    LinearIR::constExprIt loop_begin_pos, loop_end_pos;
-    loop_manager->get_loop_bounds(linear_ir, loop_id, loop_begin_pos, loop_end_pos, true);
+    const auto loop_bounds = loop_manager->get_loop_bounds(linear_ir, loop_id);
+
     ExressionMap expression_map;
-    const auto& loop_copy_range = LinearIR::deep_copy_range(loop_begin_pos, std::next(loop_end_pos), expression_map);
+    const auto& loop_copy_range = LinearIR::deep_copy_range(loop_bounds.first, std::next(loop_bounds.second), expression_map);
     const auto new_loop_begin_pos = linear_ir.insert(insert_pos, loop_copy_range.begin(), loop_copy_range.end());
     const auto new_loop_end_pos = insert_pos;
 
@@ -158,14 +158,9 @@ LinearIR::constExprIt InsertTailLoop::insert_copy_loop(LinearIR& linear_ir, cons
             loop_manager->update_loops_port(outer_loop_ids, expr->get_output_port(i), {expr->get_output_port(i), new_expr->get_output_port(i)}, false);
     }
 
-    const auto new_id = loop_manager->replace_with_new_loop(linear_ir,
-                                                            new_loop_begin_pos,
-                                                            new_loop_end_pos,
-                                                            original_loop_info->get_work_amount(),
-                                                            original_loop_info->get_increment(),
-                                                            new_entry_points,
-                                                            new_exit_points,
-                                                            loop_id);
+    const auto new_id = loop_manager->replace_with_new_loop(linear_ir, new_loop_begin_pos, new_loop_end_pos,
+                                                            original_loop_info->get_work_amount(), original_loop_info->get_increment(),
+                                                            new_entry_points, new_exit_points, loop_id);
     const auto loop_end = ov::as_type_ptr<op::LoopEnd>(std::prev(new_loop_end_pos)->get()->get_node());
     OPENVINO_ASSERT(loop_end, "Cloned Loop does not contain LoopEnd op at the expected place.");
     loop_end->set_id(new_id);
