@@ -27,6 +27,7 @@ void jit_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
 }
 
 void jit_emitter::emit_data() const {
+    h->align(64);
     h->L(*l_table.get());
 
     // Assumption: entries can be inserted with dd, so they should be 4 bytes.
