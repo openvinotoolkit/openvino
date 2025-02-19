@@ -81,6 +81,7 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
     // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
     // so that not extra memory is used for intermediate decompressed constants.
     REGISTER_PASS(manager, MarkCompressedFloatConstants);
+    REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding);
 
     // 2. Fusion transformations:
     REGISTER_PASS(manager, ConvertDivideWithConstant)
