@@ -100,25 +100,25 @@ namespace ov::intel_gpu {
 bool is_supported(ov::element::Type_t et) {
     switch (et) {
         case ov::element::Type_t::dynamic: return true;
-        case ov::element::Type_t::boolean: return true;  // converted to u8
+        case ov::element::Type_t::boolean: return true; // converted to u8
         case ov::element::Type_t::bf16: return false;
         case ov::element::Type_t::f16: return true;
         case ov::element::Type_t::f32: return true;
-        case ov::element::Type_t::f64: return true;  // converted to inference precision
+        case ov::element::Type_t::f64: return true; // converted to inference precision
         case ov::element::Type_t::i4: return true;
         case ov::element::Type_t::i8: return true;
         case ov::element::Type_t::i16: return false;
         case ov::element::Type_t::i32: return true;
-        case ov::element::Type_t::i64: return true;  // converted to i32
+        case ov::element::Type_t::i64: return true; // converted to i32
         case ov::element::Type_t::u1: return true;
         case ov::element::Type_t::u2: return false;
         case ov::element::Type_t::u3: return false;
         case ov::element::Type_t::u4: return true;
         case ov::element::Type_t::u6: return true;
         case ov::element::Type_t::u8: return true;
-        case ov::element::Type_t::u16: return true;  // converted to i32
-        case ov::element::Type_t::u32: return true;  // converted to i32
-        case ov::element::Type_t::u64: return true;  // converted to i32
+        case ov::element::Type_t::u16: return true; // converted to i32
+        case ov::element::Type_t::u32: return true; // converted to i32
+        case ov::element::Type_t::u64: return true; // converted to i32
         case ov::element::Type_t::nf4: return false;
         case ov::element::Type_t::f8e4m3: return false;
         case ov::element::Type_t::f8e5m2: return false;
