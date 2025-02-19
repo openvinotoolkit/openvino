@@ -144,7 +144,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
             EXCLUDE_FROM_ALL ON
         )
 
-        set(LIB_INCLUDE_DIRS "${ONEDNN_INSTALL_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src")
+        set(LIB_INCLUDE_DIRS "${ONEDNN_INSTALL_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src" "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/third_party")
         set(LIB_DEFINITIONS ENABLE_ONEDNN_FOR_GPU
                             DNNL_DLL
                             DNNL_DLL_EXPORTS
