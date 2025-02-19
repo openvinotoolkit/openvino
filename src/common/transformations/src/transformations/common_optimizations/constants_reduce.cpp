@@ -102,7 +102,8 @@ bool ConstantsReduce::run_on_model(const std::shared_ptr<ov::Model>& m) {
 
     OPENVINO_DEBUG("Reduced ", copies, " constant node duplications from model");
 
-    return true;
+    // Return true if we have made any replacements
+    return copies > 0;
 }
 
 }  // namespace pass
