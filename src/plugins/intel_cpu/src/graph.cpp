@@ -1142,7 +1142,9 @@ void Graph::Allocate() {
     const auto& edges = allocationContext.edges;
     InitEdgeStatus(edges);
 
-    auto [solution, edgeClusters, m_outputNodesMemBlocks] =
+    MemoryControl::MemorySolution solution;
+    EdgeClusters edgeClusters;
+    std::tie(solution, edgeClusters, m_outputNodesMemBlocks) =
         SolveMemoryReuse(memoryControl, allocationContext, m_context, outputNodesMap);
 
     AllocateBaseEdges(edgeClusters, solution);
