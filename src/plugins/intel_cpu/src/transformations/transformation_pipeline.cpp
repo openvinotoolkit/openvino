@@ -119,9 +119,9 @@
 #include "low_precision/fold_convert.hpp"
 #include "low_precision/fuse_convert.hpp"
 #include "low_precision/group_convolution.hpp"
+#include "low_precision/mat_mul.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 #include "low_precision/network_helper.hpp"
-#include "low_precision/mat_mul.hpp"
 #include "low_precision/recurrent_cell.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
@@ -850,7 +850,7 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
         [&](const_node_ptr& node) -> bool {
             if (NetworkHelper::isConstantPath(node->get_input_node_shared_ptr(1)) &&
                 one_of(node->input_value(1).get_partial_shape().rank().get_length(), 2, 3)) {
-                    return false;
+                return false;
             }
             return true;
         },

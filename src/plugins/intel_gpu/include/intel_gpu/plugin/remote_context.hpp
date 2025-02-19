@@ -19,7 +19,6 @@
 #include <string>
 #include <map>
 #include <memory>
-#include <atomic>
 
 namespace ov::intel_gpu {
 
@@ -37,6 +36,7 @@ public:
     ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type, const ov::Shape& shape, const ov::AnyMap& params) override;
 
     cldnn::engine& get_engine() { return *m_engine; }
+    const cldnn::engine& get_engine() const { return *m_engine; }
     ov::intel_gpu::gpu_handle_param get_external_queue() const { return m_external_queue; }
 
     cldnn::memory::ptr try_get_cached_memory(size_t hash);
