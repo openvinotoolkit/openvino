@@ -622,6 +622,12 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
     return {std::move(lowering_result)};
 }
 
+void Subgraph::analyze(const std::shared_ptr<snippets::lowered::pass::ConstPass>& analyzer) const {
+    OPENVINO_ASSERT(analyzer, "Analyzer is missed!");
+    OPENVINO_ASSERT(m_linear_ir, "Cannot analyze emoty LinearIR!");
+    analyzer->run(*m_linear_ir);
+}
+
 const std::shared_ptr<RuntimeConfigurator>& Subgraph::get_runtime_configurator() const {
     OPENVINO_ASSERT(m_generator, "Generator has not been inited!");
     return m_generator->get_target_machine()->get_runtime_configurator();

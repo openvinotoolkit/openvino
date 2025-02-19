@@ -5,6 +5,7 @@
 #pragma once
 
 #include "executors/subgraph.hpp"
+#include "graph.h"
 #include "node.h"
 
 #if defined(OPENVINO_ARCH_ARM64)
@@ -37,6 +38,8 @@ public:
     void execute(const dnnl::stream& strm) override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
+    int registerToAllocationContext(int offset, AllocationContext& context) override;
+
 protected:
     IShapeInfer::Result shapeInfer() const override;
 
@@ -46,6 +49,10 @@ private:
     void initStartOffsets();
     void initPluginBlockedShapes() const;
     void optimizeIR();
+    void initializeFallbackGraph();
+    void activateFallbackGraph();
+
+    bool canBeOptimizedExecuted() const;
 
     snippets::op::Subgraph::BlockedShapeVector getSnippetsBlockedShapes() const;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> getIOPrecisions() const;
@@ -84,9 +91,11 @@ private:
 
     bool m_is_dynamic = false;
     // Input shapes that are used in PrepareParams and ShapeInfer to avoid frequent memory allocation
-    mutable std::vector<VectorDims> m_in_shapes;
+    mutable std::vector<VectorDims> m_in_shapes = {};
 
-    std::shared_ptr<SubgraphBaseExecutor> m_execPtr = nullptr;
+    std::shared_ptr<SubgraphBaseExecutor> m_execPtr = {nullptr};
+
+    std::shared_ptr<Graph> m_fallback_graph = {nullptr};
 };
 
 }  // namespace node

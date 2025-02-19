@@ -94,7 +94,8 @@ public:
     std::shared_ptr<ov::Model>& body_ptr() { return m_bodies[m_transform_body_idx]; }
 
     // Return the original body which was wrapped as Subgraph (before all transformations, optimization)
-    std::shared_ptr<const ov::Model> original_body_ptr() const { return m_bodies[m_original_body_idx]; }
+    const std::shared_ptr<ov::Model>& original_body_ptr() const { return m_bodies[m_original_body_idx]; }
+    std::shared_ptr<ov::Model>& original_body_ptr() { return m_bodies[m_original_body_idx]; }
 
     const ov::Model& body() const { return *m_bodies[m_transform_body_idx]; }
     ov::Model& body() { return *m_bodies[m_transform_body_idx]; }
@@ -162,6 +163,8 @@ public:
                       const std::shared_ptr<IShapeInferSnippetsFactory>& factory = nullptr,
                       const void* compile_params = nullptr);
 
+    void analyze(const std::shared_ptr<snippets::lowered::pass::ConstPass>& analyzer) const;
+
     const std::vector<std::shared_ptr<InputDescription>>& get_input_descriptions() const { return m_input_descriptions[0]; }
     const std::vector<std::shared_ptr<OutputDescription>>& get_output_descriptions() const { return m_output_descriptions[0]; }
     const std::vector<std::shared_ptr<InputDescription>>& get_original_input_descriptions() const { return m_input_descriptions[1]; }
@@ -175,9 +178,6 @@ private:
     std::shared_ptr<lowered::LinearIR>
     convert_body_to_linear_ir(size_t min_parallel_work_amount = 8, size_t min_kernel_work_amount = 256,
                               const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory = std::make_shared<IShapeInferSnippetsFactory>());
-
-    // used for `visit_attributes`
-    std::shared_ptr<ov::Model>& original_body_ptr() { return m_bodies[m_original_body_idx]; }
 
     void init_config();
     // Count of Subgraph virtual ports:

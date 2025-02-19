@@ -22,6 +22,8 @@ public:
                  const std::vector<MemoryPtr>& inMemPtrs,
                  const std::vector<MemoryPtr>& outMemPtrs) override;
 
+    static bool canBeOptimizedExecuted(const std::shared_ptr<snippets::op::Subgraph>& subgraph_state);
+
 protected:
     std::vector<MemoryPtr> separately_repack_inputs(const dnnl::stream& strm, const std::vector<MemoryPtr>& srcMemPtrs);
     void in_parallel_repack_inputs(const std::vector<MemoryPtr>& inMemPtrs,

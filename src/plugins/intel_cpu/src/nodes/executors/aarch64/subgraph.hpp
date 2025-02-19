@@ -17,6 +17,10 @@ public:
                      const std::vector<ptrdiff_t>& start_offset_out,
                      const BufferScratchpadAllocator& allocator,
                      const ov::intel_cpu::MultiCacheWeakPtr& kernel_cache);
+
+    static bool canBeOptimizedExecuted(const std::shared_ptr<snippets::op::Subgraph>& subgraph_state) {
+        return true;
+    }
 };
 
 class SubgraphStaticExecutor : public SubgraphExecutor, public SubgraphStaticBaseExecutor {

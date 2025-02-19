@@ -90,6 +90,8 @@ public:
     void PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& input);
     void PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& output);
 
+    // Returns Inpput nodes memory descriptors
+    VecMemoryDescs getInputMemoryDescriptors() const;
     // Returns Output nodes memory descriptors
     VecMemoryDescs getOutputMemoryDescriptors() const;
 

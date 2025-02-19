@@ -340,6 +340,101 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
 
 void Subgraph::selectOptimalPrimitiveDescriptor() {
     selectPreferPrimitiveDescriptorWithShape(getImplPriority(), true);
+
+    // To avoid overheads on model compilation time, we init fallback graph
+    // only if there are domain sensetive ops
+    if (m_subgraph_attrs->snippet->has_domain_sensitive_ops()) {
+        initializeFallbackGraph();
+    }
+}
+
+void Subgraph::initializeFallbackGraph() {
+    const auto& config = getSelectedPrimitiveDescriptor()->getConfig();
+    const auto& inConfs = config.inConfs;
+    const auto& outConfs = config.outConfs;
+
+    const auto& subgraph = m_subgraph_attrs->snippet;
+    const auto body = subgraph->original_body_ptr()->clone();
+
+    constexpr bool isInPlace = true;
+
+    // The count of inputs of the original and the changeable (current) bodies might be different due to
+    // extractable non-scalar Constants from the body to the model level
+    const auto& inputDescs = subgraph->get_original_input_descriptions();
+    CPU_NODE_ASSERT(inputDescs.size() <= getOriginalInputsNumber(), "Incorrect count of Subgraph inputs");
+
+    //  for the input and output configuration, we use the optimized configuration for JIT execution
+    std::vector<Input::InputConfig> graphInputConfig(inputDescs.size());
+    for (const auto& inputDesc : inputDescs) {
+        graphInputConfig[inputDesc->m_body_parameter_index] =
+            node::Input::InputConfig{inConfs[inputDesc->m_input_index].getMemDesc(), isInPlace};
+    }
+
+    const auto& outputDescs = subgraph->get_original_output_descriptions();
+    CPU_NODE_ASSERT(outputDescs.size() == getOriginalOutputsNumber(), "Incorrect count of Subgraph inputs");
+
+    std::vector<Input::OutputConfig> graphOutputConfig(outputDescs.size());
+    for (const auto& outputDesc : outputDescs) {
+        graphOutputConfig[outputDesc->m_body_value_index] =
+            node::Input::OutputConfig{outConfs[outputDesc->m_output_index].getMemDesc(), isInPlace};
+    }
+
+    // configure the inner graph
+    m_fallback_graph = std::make_shared<Graph>();
+    m_fallback_graph->Init(body, context, graphInputConfig, graphOutputConfig);
+
+    // Validate
+    const auto& inputGraphDescs = m_fallback_graph->getInputMemoryDescriptors();
+    const auto& outputGraphDescs = m_fallback_graph->getOutputMemoryDescriptors();
+
+    for (const auto& inputDesc : inputDescs) {
+        CPU_NODE_ASSERT(inConfs[inputDesc->m_input_index].getMemDesc()->isCompatible(
+                            *inputGraphDescs[inputDesc->m_body_parameter_index]),
+                        "Unexpected input desc of Fallback Graph");
+    }
+    for (const auto& outputDesc : outputDescs) {
+        CPU_NODE_ASSERT(outConfs[outputDesc->m_output_index].getMemDesc()->isCompatible(
+                            *outputGraphDescs[outputDesc->m_body_value_index]),
+                        "Unexpected output desc of Fallback Graph");
+    }
+}
+
+void Subgraph::activateFallbackGraph() {
+    OPENVINO_ASSERT(m_fallback_graph, "Failed to activate Fallback Graph - it's not initialized yet");
+    m_fallback_graph->Activate();
+}
+
+int Subgraph::registerToAllocationContext(int offset, AllocationContext& context) {
+    if (m_fallback_graph) {
+        const auto& subgraph = m_subgraph_attrs->snippet;
+        const auto& inputDescs = subgraph->get_original_input_descriptions();
+        const auto& outputDescs = subgraph->get_original_output_descriptions();
+
+        for (const auto& inputDesc : inputDescs) {
+            const auto& parentEdge = getParentEdgeAt(inputDesc->m_input_index);
+            const auto& inputEdges =
+                m_fallback_graph->getInputNodeByIndex(inputDesc->m_body_parameter_index)->getChildEdgesAtPort(0);
+            for (const auto& inputEdge : inputEdges) {
+                CPU_NODE_ASSERT(inputEdge->getStatus() == Edge::Status::Uninitialized,
+                                "Expected Uninitialized state for edge: ",
+                                *this);
+                inputEdge->sharedMemFrom(parentEdge);
+            }
+        }
+
+        for (const auto& outputDesc : outputDescs) {
+            auto childEdge = getChildEdgeAt(outputDesc->m_output_index);
+            auto outputEdge =
+                m_fallback_graph->getOutputNodeByIndex(outputDesc->m_body_value_index)->getParentEdgeAt(0);
+            CPU_NODE_ASSERT(outputEdge->getStatus() == Edge::Status::Uninitialized,
+                            "Expected Uninitialized state for edge: ",
+                            *outputEdge);
+            outputEdge->sharedMemFrom(childEdge);
+        }
+
+        return m_fallback_graph->RegisterToAllocationContext(offset, context);
+    }
+    return Node::registerToAllocationContext(offset, context);
 }
 
 ov::element::Type Subgraph::getRuntimePrecision() const {
@@ -367,6 +462,9 @@ void Subgraph::createPrimitive() {
         initAttributes();
         initStartOffsets();
         optimizeIR();
+        if (!canBeOptimizedExecuted()) {
+            activateFallbackGraph();
+        }
     }
 
     Node::createPrimitive();
@@ -634,70 +732,89 @@ void Subgraph::optimizeIR() {
                                            control_flow_passes);
 }
 
+bool Subgraph::canBeOptimizedExecuted() const {
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+    return SubgraphExecutor::canBeOptimizedExecuted(m_subgraph_attrs->snippet);
+#else
+    return false;
+#endif
+}
+
 void Subgraph::prepareParams() {
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
-    const auto& cache = context->getParamsCache();
+    if (canBeOptimizedExecuted()) {
+        const auto& cache = context->getParamsCache();
 
-    auto builder = [this, &cache](const SubgraphKey& key) -> std::shared_ptr<SubgraphBaseExecutor> {
-        const auto& snippet = m_subgraph_attrs->snippet;
+        auto builder = [this, &cache](const SubgraphKey& key) -> std::shared_ptr<SubgraphBaseExecutor> {
+            const auto& snippet = m_subgraph_attrs->snippet;
 
-        SubgraphBaseExecutor::BufferScratchpadAllocator allocator = [this](size_t size) {
-            return getScratchPadMem(std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8, intel_cpu::Shape{size}));
+            SubgraphBaseExecutor::BufferScratchpadAllocator allocator = [this](size_t size) {
+                return getScratchPadMem(
+                    std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8, intel_cpu::Shape{size}));
+            };
+
+            if (m_is_dynamic) {
+                // Dynamic case:
+                // 1. Generate JIT code if needed
+                // 2. Update runtime config with dynamic values
+                //    If JIT code has been taken from cache, need to set cached kernel executor table for the
+                //    configuration
+                // 3. Create SubgraphDynamicSpecializedExecutor
+                const auto code_gen_result = cache->getOrCreate(
+                    SubgraphCodeGeneratorKey(m_subgraph_attrs, getBroadcastingMask(m_in_shapes)),
+                    [](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
+                        return std::make_shared<SubgraphCodeGenerator>(key.attrs, std::make_shared<CPURuntimeConfig>());
+                    });
+                const auto& code_gen = code_gen_result.first;
+                // [148644] : Update Kernel table from SubgraphCodeGenerator when JIT code was already generated with
+                // specific Kernel table
+                if (code_gen_result.second == CacheEntryBase::LookUpStatus::Hit) {
+                    snippet->get_runtime_configurator()->set_kernel_executor_table(
+                        code_gen->get()->lowering_result.kernel_executor_table);
+                }
+                const auto& snippet_config = ov::as_type_ptr<CPURuntimeConfig>(snippet->update_runtime_config());
+                return std::make_shared<SubgraphDynamicSpecializedExecutor>(snippet_config,
+                                                                            key.attrs,
+                                                                            code_gen,
+                                                                            m_start_offset_in,
+                                                                            m_start_offset_out,
+                                                                            allocator,
+                                                                            cache);
+            } else {
+                // Static case:
+                // 1. Update runtime config to get static scheduling data (io data offsets, parallel domain) which will
+                // be compiled in JIT code
+                // 2. Generate JIT code with this static data if needed
+                // 3. Create SubgraphStaticExecutor
+                const auto& snippet_config = ov::as_type_ptr<CPURuntimeConfig>(snippet->update_runtime_config());
+                const auto code_gen_result = cache->getOrCreate(
+                    SubgraphCodeGeneratorKey(m_subgraph_attrs, getBroadcastingMask(m_in_shapes)),
+                    [&snippet_config](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
+                        return std::make_shared<SubgraphCodeGenerator>(key.attrs, snippet_config);
+                    });
+                return std::make_shared<SubgraphStaticExecutor>(snippet_config,
+                                                                key.attrs,
+                                                                code_gen_result.first,
+                                                                m_start_offset_in,
+                                                                m_start_offset_out,
+                                                                allocator,
+                                                                cache);
+            }
         };
 
-        if (m_is_dynamic) {
-            // Dynamic case:
-            // 1. Generate JIT code if needed
-            // 2. Update runtime config with dynamic values
-            //    If JIT code has been taken from cache, need to set cached kernel executor table for the configuration
-            // 3. Create SubgraphDynamicSpecializedExecutor
-            const auto code_gen_result = cache->getOrCreate(
-                SubgraphCodeGeneratorKey(m_subgraph_attrs, getBroadcastingMask(m_in_shapes)),
-                [](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
-                    return std::make_shared<SubgraphCodeGenerator>(key.attrs, std::make_shared<CPURuntimeConfig>());
-                });
-            const auto& code_gen = code_gen_result.first;
-            // [148644] : Update Kernel table from SubgraphCodeGenerator when JIT code was already generated with
-            // specific Kernel table
-            if (code_gen_result.second == CacheEntryBase::LookUpStatus::Hit) {
-                snippet->get_runtime_configurator()->set_kernel_executor_table(
-                    code_gen->get()->lowering_result.kernel_executor_table);
-            }
-            const auto& snippet_config = ov::as_type_ptr<CPURuntimeConfig>(snippet->update_runtime_config());
-            return std::make_shared<SubgraphDynamicSpecializedExecutor>(snippet_config,
-                                                                        key.attrs,
-                                                                        code_gen,
-                                                                        m_start_offset_in,
-                                                                        m_start_offset_out,
-                                                                        allocator,
-                                                                        cache);
-        } else {
-            // Static case:
-            // 1. Update runtime config to get static scheduling data (io data offsets, parallel domain) which will be
-            // compiled in JIT code
-            // 2. Generate JIT code with this static data if needed
-            // 3. Create SubgraphStaticExecutor
-            const auto& snippet_config = ov::as_type_ptr<CPURuntimeConfig>(snippet->update_runtime_config());
-            const auto code_gen_result = cache->getOrCreate(
-                SubgraphCodeGeneratorKey(m_subgraph_attrs, getBroadcastingMask(m_in_shapes)),
-                [&snippet_config](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
-                    return std::make_shared<SubgraphCodeGenerator>(key.attrs, snippet_config);
-                });
-            return std::make_shared<SubgraphStaticExecutor>(snippet_config,
-                                                            key.attrs,
-                                                            code_gen_result.first,
-                                                            m_start_offset_in,
-                                                            m_start_offset_out,
-                                                            allocator,
-                                                            cache);
-        }
-    };
-
-    const auto result = cache->getOrCreate(SubgraphKey(m_subgraph_attrs, m_in_shapes), builder);
-    m_execPtr = result.first;
+        const auto result = cache->getOrCreate(SubgraphKey(m_subgraph_attrs, m_in_shapes), builder);
+        m_execPtr = result.first;
+    } else {
+        // If Subgraph cannot efficiently execute the current configuration,
+        // we set empty executor to fallback on CPU Graph
+        m_execPtr = nullptr;
+    }
 #endif
 
-    OPENVINO_ASSERT(m_execPtr != nullptr, "Executor is not created for node ", getName(), ".");
+    OPENVINO_ASSERT(m_execPtr || m_fallback_graph,
+                    "Executor and Fallback Graph are not created for node ",
+                    getName(),
+                    ".");
 }
 
 IShapeInfer::Result Subgraph::shapeInfer() const {
@@ -747,8 +864,15 @@ bool Subgraph::created() const {
 }
 
 void Subgraph::execute(const dnnl::stream& strm) {
-    OPENVINO_ASSERT(m_execPtr, "Can't execute Subgraph node. Primitive didn't created");
-    m_execPtr->execute(strm, m_srcMemPtrs, m_dstMemPtrs);
+    if (m_execPtr) {
+        m_execPtr->execute(strm, m_srcMemPtrs, m_dstMemPtrs);
+        return;
+    }
+    if (m_fallback_graph) {
+        m_fallback_graph->Infer();
+        return;
+    }
+    OPENVINO_THROW("Can't execute Subgraph node. JIT kernel and Fallback Graph weren't created");
 }
 
 void Subgraph::executeDynamicImpl(const dnnl::stream& strm) {
