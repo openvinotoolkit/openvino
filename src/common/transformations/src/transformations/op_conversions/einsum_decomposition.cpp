@@ -789,6 +789,7 @@ void extract_diagonal(ov::OutputVector& inputs,
                                end,
                                reduced_size});
     }
+    std::vector<size_t> unrepeated_dimension_indices_vec;
     for (std::string unrepeated_label : unrepeated_labels) {
         const auto& dim_map_unrepeated_label = transposed_label_dim_map.find(unrepeated_label);
         OPENVINO_ASSERT(dim_map_unrepeated_label != transposed_label_dim_map.end());
