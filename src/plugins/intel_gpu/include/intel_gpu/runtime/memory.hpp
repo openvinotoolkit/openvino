@@ -46,7 +46,7 @@ struct memory {
     memory(engine* engine, const layout& layout, allocation_type type, std::shared_ptr<MemoryTracker> mem_tracker);
 
     virtual ~memory() = default;
-    virtual void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) = 0;
+    virtual void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write, bool blocking = true) = 0;
     virtual void unlock(const stream& stream) = 0;
     virtual event::ptr fill(stream& stream, unsigned char pattern, bool blocking = true) = 0;
     virtual event::ptr fill(stream& stream, bool blocking = true) = 0;
@@ -145,7 +145,7 @@ struct simple_attached_memory : memory {
     simple_attached_memory(const layout& layout, void* pointer)
         : memory(nullptr, layout, allocation_type::unknown, nullptr), _pointer(pointer) {}
 
-    void* lock(const stream& /* stream */, mem_lock_type /* type */) override { return _pointer; }
+    void* lock(const stream& /* stream */, mem_lock_type /* type */, bool /* blocking */) override { return _pointer; }
     void unlock(const stream& /* stream */) override {}
     event::ptr fill(stream& /* stream */, unsigned char, bool) override { return nullptr; }
     event::ptr fill(stream& /* stream */, bool) override { return nullptr; }
@@ -173,8 +173,8 @@ private:
 
 template <class T, mem_lock_type lock_type = mem_lock_type::read_write>
 struct mem_lock {
-    explicit mem_lock(memory::ptr mem, const stream& stream) : _mem(std::move(mem)), _stream(stream),
-                      _ptr(reinterpret_cast<T*>(_mem->lock(_stream, lock_type))) {}
+    explicit mem_lock(memory::ptr mem, const stream& stream, bool blocking = true) : _mem(std::move(mem)), _stream(stream),
+                      _ptr(reinterpret_cast<T*>(_mem->lock(_stream, lock_type, blocking))) {}
 
     ~mem_lock() {
         _ptr = nullptr;

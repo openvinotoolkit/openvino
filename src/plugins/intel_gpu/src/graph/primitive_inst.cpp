@@ -271,6 +271,7 @@ event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, si
         ev = mem_new->copy_from(_network.get_stream(), *_outputs[idx], false);
     } else {
         _outputs[idx] = mem_new;
+        _max_output_layout_count[idx] = mem_new->get_layout().get_linear_size();
     }
     return ev;
 }
