@@ -1460,6 +1460,11 @@ void primitive_inst::do_runtime_skip_gather() {
                 GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because idx_data [" << i << "] (" << idx_data[i] << ") != " << i << std::endl;
                 if (_impl_params->output_layouts[0].data_padding.is_dynamic())
                     _impl_params->output_layouts[0].data_padding = padding();
+                // for runtime skippable nodes, if previous iter is skipped while this iter not, its output memory needs to be revalidate
+                // as memory opt/release may be applied for these nodes to reduce memory footprint in previous iters
+                if (can_be_optimized()) {
+                    set_flag(ExecutionFlags::SHAPE_CHANGED);
+                }
                 set_can_be_optimized(false);
                 return;
             }
