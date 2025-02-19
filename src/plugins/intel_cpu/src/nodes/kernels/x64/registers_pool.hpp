@@ -10,8 +10,7 @@
 #include "dnnl_types.h"
 #include "utils/cpu_utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * The RegistersPool is the base class for the IsaRegistersPool template:
@@ -398,5 +397,4 @@ inline RegistersPool::Ptr RegistersPool::create(dnnl::impl::cpu::x64::cpu_isa_t 
 #undef ISA_SWITCH_CASE
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

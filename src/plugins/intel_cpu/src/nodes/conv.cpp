@@ -40,9 +40,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 struct ConvKey {
@@ -182,7 +180,15 @@ public:
 
         std::vector<NodePtr> nodes(nodesSet.begin(), nodesSet.end());
 
-        _graph->CreateGraph(nodes, edges, context, "fused_subgraph");
+        _graph->Init(nodes, edges, context, "fused_subgraph");
+    }
+
+    int RegisterToAllocationContext(int offset, AllocationContext& context) {
+        return _graph->RegisterToAllocationContext(offset, context);
+    }
+
+    void Activate() const {
+        _graph->Activate();
     }
 
     std::shared_ptr<Input> getInput(size_t idx) const {
@@ -699,7 +705,8 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
                         continue;
                     }
                     DEBUG_LOG(getName(), ": Append ", node->getName(), " as legacy post op");
-                    eltwiseNode->appendPostOps(ops, dims, args);
+                    int channelAxis = 1;
+                    eltwiseNode->appendPostOps(ops, dims, args, channelAxis);
                 } else {
                     DEBUG_LOG(getName(), ": Append ", node->getName(), " as original post op with binary");
                     eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType);
@@ -741,7 +748,8 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
                 }
                 // fallback to legacy
                 DEBUG_LOG(getName(), ": Append ", node->getName(), " as legacy post op");
-                fakeQuantizeNode->appendPostOps(ops, dims, args);
+                int channelAxis = 1;
+                fakeQuantizeNode->appendPostOps(ops, dims, args, channelAxis);
             } else {
                 DEBUG_LOG(getName(), ": Append ", node->getName(), " as original post op with binary");
                 fakeQuantizeNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, true, do_rounding);
@@ -786,10 +794,6 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
     }
 
     attr.set_post_ops(ops);
-}
-
-void Convolution::selectOptimalPrimitiveDescriptor() {
-    selectPreferPrimitiveDescriptor(getImplPriority(), true);
 }
 
 void Convolution::initSupportedPrimitiveDescriptors() {
@@ -902,6 +906,36 @@ void Convolution::initSupportedPrimitiveDescriptors() {
             add_supported_desc(first_desc);
         }
     }
+}
+
+void Convolution::selectOptimalPrimitiveDescriptor() {
+    selectPreferPrimitiveDescriptor(getImplPriority(), true);
+    /* preemptively create a fallback subgraph to include it into global memory reuse
+     * pros:
+     * - less total memory usage when fallback is actually needed (by size of intermediate memory)
+     * - no runtime overhead of graph creation when fallback is needed for the first time
+     * cons:
+     * - more total memory usage when fallback is not needed (by size of a graph data structure itself)
+     */
+    if (withSum && isDynamicNode()) {
+        subgraph = std::make_shared<FusedSubgraph>(fusedWith, *this, context);
+    }
+}
+
+int Convolution::registerToAllocationContext(int offset, AllocationContext& context) {
+    if (subgraph) {
+        return subgraph->RegisterToAllocationContext(offset, context);
+    }
+
+    return Node::registerToAllocationContext(offset, context);
+}
+
+void Convolution::createPrimitive() {
+    if (subgraph) {
+        subgraph->Activate();
+    }
+
+    Node::createPrimitive();
 }
 
 bool Convolution::created() const {
@@ -1653,7 +1687,7 @@ void Convolution::executeDynamicImpl(const dnnl::stream& strm) {
         const auto& outMem = out->getParentEdgeAt(0)->getMemory();
         auto convOutMem = getDstMemoryAtPort(0);
         Node::redefineOutputMemory({outMem.getStaticDims()});
-        convOutMem->load(outMem);
+        convOutMem->load(outMem, true);
     }
 }
 
@@ -1671,9 +1705,7 @@ void Convolution::redefineOutputMemory(const std::vector<VectorDims>& newOutputS
         const auto& sumInpMem = getParentEdgeAt(sumPortNum)->getMemory();
         if (newOutputShapes.front() != sumInpMem.getStaticDims()) {
             withSumBroadcast = true;
-            if (!subgraph) {
-                subgraph = std::make_shared<FusedSubgraph>(fusedWith, *this, context);
-            }
+
             auto inp0 = subgraph->getInput(0);
             inp0->redefineOutputMemory(newOutputShapes);
 
@@ -1824,6 +1856,4 @@ VectorDims Convolution::outputStaticShape() const {
     return outputShape.getStaticDims();
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

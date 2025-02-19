@@ -66,7 +66,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
 
         parameter->set_friendly_name(inputDescriptor.nodeFriendlyName);
         parameter->output(0).get_tensor().set_names(inputDescriptor.outputTensorNames);
-        parameters.push_back(parameter);
+        parameters.push_back(std::move(parameter));
     }
 
     // The "result" nodes require a parent node in order to satisfy the API conventions. Additionally, a dummy shape for
@@ -90,7 +90,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
         std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>(constantDummy);
         result->output(0).set_tensor_ptr(tensorDummy);
         result->set_friendly_name(outputDescriptor.nodeFriendlyName);
-        results.push_back(result);
+        results.push_back(std::move(result));
     }
 
     return std::make_shared<ov::Model>(results, parameters);
@@ -329,6 +329,12 @@ Plugin::Plugin()
           ov::PropertyMutability::RO,
           [](const Config& config) {
               return config.get<NUM_STREAMS>();
+          }}},
+        {ov::weights_path.name(),
+         {true,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<WEIGHTS_PATH>();
           }}},
         {ov::device::uuid.name(),
          {true,
@@ -797,8 +803,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     std::array<uint8_t, 6> serialization_indicator;
     ov::npuw::s11n::read(stream, serialization_indicator);
     if (serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
-        stream.seekg(stream_start_pos);
-        return ov::npuw::LLMCompiledModel::deserialize(stream, shared_from_this());
+        stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
+        // Properties are required for ov::weights_path
+        return ov::npuw::LLMCompiledModel::deserialize(stream, shared_from_this(), properties);
     }
     stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
 
@@ -843,13 +850,28 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         CompilerAdapterFactory compilerAdapterFactory;
         auto compiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), localConfig);
 
-        auto storedMeta = read_metadata_from(stream);
-        if (!storedMeta->is_compatible()) {
-            OPENVINO_THROW("Incompatible blob version!");
+        bool skipCompatibility = false;
+
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+        if (auto envVar = std::getenv("OV_NPU_DISABLE_VERSION_CHECK")) {
+            if (envVarStrToBool("OV_NPU_DISABLE_VERSION_CHECK", envVar)) {
+                _logger.info("Blob compatibility check skipped.");
+                skipCompatibility = true;
+            }
+        }
+#endif
+        uint64_t graphSize;
+        if (!skipCompatibility) {
+            auto storedMeta = read_metadata_from(stream);
+            if (!storedMeta->is_compatible()) {
+                OPENVINO_THROW("Incompatible blob version!");
+            }
+            graphSize = storedMeta->get_blob_size();
+        } else {
+            graphSize = MetadataBase::getFileSize(stream);
         }
 
         std::unique_ptr<BlobContainer> blobPtr;
-        auto graphSize = storedMeta->get_blob_size();
 
         if (modelBuffer == nullptr) {
             std::vector<uint8_t> blob(graphSize);

@@ -111,8 +111,7 @@
 #include "nodes/transpose.h"
 #include "nodes/unique.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 #define INTEL_CPU_NODE(__prim, __type) registerNodeIfRequired(intel_cpu, __prim, __type, NodeImpl<__prim>)
 
@@ -241,5 +240,4 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
 
 #undef INTEL_CPU_NODE
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

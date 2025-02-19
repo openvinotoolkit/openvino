@@ -4,7 +4,7 @@ This sample demonstrates how to execute an synchronous inference using [model](h
 
 You do not need an XML file to create a model. The API of ov::Model allows creating a model on the fly from the source code.
 
-For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2025/learn-openvino/openvino-samples/model-creation.html)
+For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/model-creation.html)
 
 ## Requirements
 
@@ -14,7 +14,7 @@ For more detailed information on how this sample works, check the dedicated [art
 | Model Format                | model weights file (\*.bin)                                                                                                    |
 | Validated images            | single-channel ``MNIST ubyte`` images                                                                                          |
 | Supported devices           | [All](https://docs.openvino.ai/2025/about-openvino/compatibility-and-support/supported-devices.html)                            |
-| Other language realization  | [Python](https://docs.openvino.ai/2025/learn-openvino/openvino-samples/model-creation.html)                                                  |
+| Other language realization  | [Python](https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/model-creation.html)                                                  |
 
 The following C++ API is used in the application:
 
@@ -43,4 +43,4 @@ The following C++ API is used in the application:
 |                           | ``ov::Model``,                          |                                       |
 |                           | ``ov::ParameterVector::vector``         |                                       |
 
-Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](https://docs.openvino.ai/2025/learn-openvino/openvino-samples/hello-classification.html).
+Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/hello-classification.html).

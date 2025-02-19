@@ -41,8 +41,7 @@ using namespace dnnl;
 using namespace openvino;
 using namespace ov::intel_cpu::node;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 Node::NodesFactory& Node::factory() {
     static NodesFactory factoryInstance;
@@ -638,6 +637,7 @@ std::string Node::getPrimitiveDescriptorType() const {
     SEARCH_TYPE(sparse);
     SEARCH_TYPE(acl);
     SEARCH_TYPE(shl);
+    SEARCH_TYPE(kleidiai);
     SEARCH_TYPE(_dw);
     SEARCH_TYPE(_1x1);
 
@@ -1331,7 +1331,8 @@ const std::vector<impl_desc_type>& Node::getDefaultImplPriority() {
 #endif
             impl_desc_type::gemm_any, impl_desc_type::gemm_blas, impl_desc_type::gemm_avx512, impl_desc_type::gemm_avx2,
             impl_desc_type::gemm_avx, impl_desc_type::gemm_sse42, impl_desc_type::gemm_acl, impl_desc_type::acl,
-            impl_desc_type::jit_gemm, impl_desc_type::ref_any, impl_desc_type::ref,
+            impl_desc_type::gemm_kleidiai, impl_desc_type::kleidiai, impl_desc_type::jit_gemm, impl_desc_type::ref_any,
+            impl_desc_type::ref,
     };
 
     return priorities;
@@ -1588,24 +1589,6 @@ ov::element::Type Node::getRuntimePrecision() const {
 }
 
 Node* Node::NodesFactory::create(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context) {
-    // getExceptionDescWithoutStatus removes redundant information from the exception message. For instance, the
-    // NotImplemented exception is generated in the form: full_path_to_src_file:line_number [ NOT_IMPLEMENTED ] reason.
-    // An example for gather node:
-    // /path-to-openVino-root/src/plugins/intel_cpu/nodes/gather.cpp:42 [ NOT_IMPLEMENTED ] Only opset7 Gather operation
-    // is supported The most important part of the message is the reason, so the lambda trims everything up to "]" Note
-    // that the op type and its friendly name will also be provided if we fail to create the node.
-    auto getExceptionDescWithoutStatus = [](const ov::Exception& ex) {
-        std::string desc = ex.what();
-        size_t pos = desc.find(']');
-        if (pos != std::string::npos) {
-            if (desc.size() == pos + 1) {
-                desc.erase(0, pos + 1);
-            } else {
-                desc.erase(0, pos + 2);
-            }
-        }
-        return desc;
-    };
     Node* newNode = nullptr;
     std::string errorMessage;
     if (newNode == nullptr) {
@@ -1616,7 +1599,7 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ov::Node>& op, const Grap
             }
         } catch (const ov::Exception& ex) {
             if (dynamic_cast<const ov::NotImplemented*>(&ex) != nullptr) {
-                errorMessage += getExceptionDescWithoutStatus(ex);
+                errorMessage += ex.what();
             } else {
                 throw;
             }
@@ -1631,7 +1614,7 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ov::Node>& op, const Grap
             }
         } catch (const ov::Exception& ex) {
             if (dynamic_cast<const ov::NotImplemented*>(&ex) != nullptr) {
-                const auto currErrorMess = getExceptionDescWithoutStatus(ex);
+                const std::string currErrorMess = ex.what();
                 if (!currErrorMess.empty()) {
                     errorMessage += errorMessage.empty() ? currErrorMess : "\n" + currErrorMess;
                 }
@@ -1815,7 +1798,7 @@ bool Node::isOutputTensorAtPortEmpty(size_t port) const {
         return outputShapes[port].hasZeroDims();
     }
     auto&& mem = getChildEdgeAt(port)->getMemory();
-    if (mem.isDefined()) {
+    if (mem.isDefined() && !mem.getDesc().empty()) {
         return mem.getShape().hasZeroDims();
     }
     return false;
@@ -2289,5 +2272,4 @@ std::ostream& operator<<(std::ostream& out, const Node* node) {
 }
 #endif
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

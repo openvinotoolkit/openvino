@@ -6,8 +6,7 @@
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class jit_fill_emitter : public jit_emitter {
 public:
@@ -43,5 +42,4 @@ private:
     uint32_t fill_value = 0x0;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

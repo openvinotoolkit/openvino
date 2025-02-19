@@ -30,6 +30,10 @@
 #include "utils/cpp/maybe_unused.hpp"
 #include "utils/debug_capabilities.h"
 
+#if defined(OV_CPU_WITH_KLEIDIAI)
+#    include "nodes/executors/kleidiai/kleidiai_mm.hpp"
+#endif
+
 #if defined(OV_CPU_WITH_ACL)
 #    include "nodes/executors/acl/acl_fullyconnected.hpp"
 #    include "nodes/executors/acl/acl_lowp_fullyconnected.hpp"
@@ -39,8 +43,7 @@
 #    include "nodes/executors/shl/shl_fullyconnected.hpp"
 #endif
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace ov::element;
 using namespace TypeMaskAlias;
@@ -419,6 +422,36 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                const ExecutorContext::CPtr& context) {
                 return std::make_shared<ACLLowpFullyConnectedExecutor>(attrs, postOps, memory, context);
             })
+        OV_CPU_INSTANCE_KLEIDIAI(
+            "fullyconnected_kleidiai",
+            ExecutorType::Kleidiai,
+            OperationType::MatMul,
+            ShapeTolerance::Agnostic,
+            // supports
+            [](const FCConfig& config) -> bool {
+                VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
+                VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
+                VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
+                VERIFY(everyone_is(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
+                if (config.attrs.withBias) {
+                    VERIFY(biaType(config) == f32, UNSUPPORTED_SRC_PRECISIONS);
+                }
+                VERIFY(srcRank(config) == 2U, UNSUPPORTED_SRC_RANK);
+                VERIFY(weiRank(config) == 2U, UNSUPPORTED_WEI_RANK);
+                return MatMulKleidiAIExecutor::supports(config);
+            },
+            // requiresFallback
+            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+                return {};
+            },
+            // acceptsShapes
+            [](const MemoryArgs& memory) -> bool {
+                return true;
+            },
+            // create
+            [](const FCAttrs& attrs, const PostOps& postOps, const MemoryArgs& memory, ExecutorContext::CPtr context) {
+                return std::make_shared<MatMulKleidiAIExecutor>(attrs, postOps, memory, context);
+            })
         OV_CPU_INSTANCE_SHL(
             "fullyconnected_shl",
             ExecutorType::Shl,
@@ -543,5 +576,4 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
 }
 // clang-format on
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
