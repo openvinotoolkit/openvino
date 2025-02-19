@@ -444,12 +444,8 @@ void SyncInferRequest::wait() {
             auto& stream = m_graph->get_network()->get_stream();
             auto user_mem = remote_tensor_impl_ptr->get_original_memory();
             if (user_mem->get_allocation_type() == cldnn::allocation_type::cl_mem && output_memory->get_allocation_type() != cldnn::allocation_type::cl_mem) {
-                // WA: Copy between cl_mem and usm memory may fail for some reason (driver bug?)
-                // so this explicit memcpy is used to provide correct output for cl_mem output in dynamic cases
                 auto blocking = (stream.get_queue_type() == QueueTypes::in_order) ? false : true;
-                cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read> lock_dst(user_mem, stream, blocking);
-                cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read> lock_src(output_memory, stream, blocking);
-                std::memcpy(lock_dst.data(), lock_src.data(), output_memory->size());
+                copy_events.push_back(user_mem->copy_from(stream, *output_memory, blocking));
             } else {
                 bool is_same_mem = output_memory->buffer_ptr() == user_mem->buffer_ptr();
                 if (!is_same_mem)
