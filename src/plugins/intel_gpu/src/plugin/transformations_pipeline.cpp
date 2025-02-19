@@ -335,7 +335,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     const ov::element::TypeVector supported_woq_types = {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4};
     bool enableInt8;
     ov::element::Type infer_precision = ov::element::undefined;
-    bool unroll_loop = config.get_property(ov::intel_gpu::enable_loop_unrolling);
+    bool unroll_loop = config.get_enable_loop_unrolling();
     {
         ov::pass::Manager manager("Plugin:GPU");
         auto pass_config = manager.get_pass_config();
@@ -348,7 +348,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
-        enableInt8 = config.get_property(ov::intel_gpu::enable_lp_transformations) && is_model_quantized;
+        enableInt8 = config.get_enable_lp_transformations() && is_model_quantized;
 
         manager.register_pass<ov::pass::MarkDequantization>(
             std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 },
@@ -381,7 +381,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         };
 
         // Add conversion from FP data types to infer precision if it's specified
-        infer_precision = config.get_property(ov::hint::inference_precision);
+        infer_precision = config.get_inference_precision();
         if (infer_precision != ov::element::undefined) {
             if (!fp_precision_supported(infer_precision))
                 infer_precision = fallback_precision;
@@ -459,11 +459,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::CommonOptimizations>();
 
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){
-            GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->enable_sdpa != -1) {
-                GPU_DEBUG_CODE(return cldnn::debug_configuration::get_instance()->enable_sdpa == 1);
-            }
-
-            if (!config.get_property(ov::intel_gpu::hint::enable_sdpa_optimization))
+            if (!config.get_enable_sdpa_optimization())
                 return false;
 
             auto sdpa = ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(node);
@@ -1024,7 +1020,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
         manager.register_pass<ov::pass::Validate>();
 
-        float activations_scale_factor = config.get_property(ov::hint::activations_scale_factor);
+        float activations_scale_factor = config.get_activations_scale_factor();
 
         if (activations_scale_factor > 0.f && infer_precision == ov::element::f16) {
             using namespace ov::pass::low_precision;
@@ -1089,13 +1085,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
 
-        bool disable_horizontal_fc_fusion = false;
-        bool disable_fc_swiglu_fusion = false;
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->disable_horizontal_fc_fusion == 1)
-            disable_horizontal_fc_fusion = true;
-        GPU_DEBUG_IF(debug_config->disable_fc_swiglu_fusion == 1)
-            disable_fc_swiglu_fusion = true;
+        bool disable_horizontal_fc_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_horizontal_fc_fusion(), false);
+        bool disable_fc_swiglu_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_fc_swiglu_fusion(), false);
+
         // mlp fusion is only supported for cldnn on high performant GPUis
         bool fuse_mlp_swiglu = !device_info.supports_immad &&
                                device_info.execution_units_count >= 128 &&
@@ -1133,7 +1125,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::GLUFusion>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
 
-        auto kv_cache_compression_dt = config.get_property(ov::hint::kv_cache_precision);
+        auto kv_cache_compression_dt = config.get_kv_cache_precision();
         manager.register_pass<ov::intel_gpu::KVCacheCompression>(kv_cache_compression_dt, device_info.supports_immad);
 
         manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();
@@ -1151,7 +1143,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::SinkReshape>();
 
         if (device_info.supports_immad) {
-            auto dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization_group_size);
+            bool asymmetric_dyn_quant = GPU_DEBUG_VALUE_OR(config.get_asym_dynamic_quantization(), false);
+            auto dynamic_quantization_group_size = config.get_dynamic_quantization_group_size();
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
                 for (size_t i = 0 ; i < root->get_input_node_shared_ptr(0)->get_output_size(); ++i) {
                     if (root->get_input_node_shared_ptr(0)->get_output_element_type(i) == ov::element::Type_t::f32) {
@@ -1169,14 +1162,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
                 // AZP does not support 8bit weight
                 // XXX: This is currently wrapped as GPU_DEBUG_IF as dynamic_quantize_asym is not exposed through public API.
-                GPU_DEBUG_IF(debug_config->dynamic_quantize_asym
+                GPU_DEBUG_IF(asymmetric_dyn_quant
                     && (root->get_input_element_type(1) == ov::element::i8 || root->get_input_element_type(1) == ov::element::u8)) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: asym quantization does not support 8bit weight" << std::endl;
                     return true;
                 }
 
                 // AZP does not support grouped size dyn-quan
-                GPU_DEBUG_IF(debug_config->dynamic_quantize_asym && (dynamic_quantization_group_size != UINT64_MAX)) {
+                GPU_DEBUG_IF(asymmetric_dyn_quant && (dynamic_quantization_group_size != UINT64_MAX)) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: asym quantization does not support grouped quantization" <<
                                                                    " ('DynamicQuantizeAsym' is enabled with grouped size dyn-quan)" << std::endl;
                     return true;
@@ -1193,7 +1186,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
                 return false;
             });
-            manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size);
+            manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size, asymmetric_dyn_quant);
         }
 
         // Remove Pad in front of MaxPool if both the pads_begin and pads_end are zero.
@@ -1202,7 +1195,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation
         manager.register_pass<ov::pass::ResolveNameCollisions>(true);
-        GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->verbose >= 1) {
+        GPU_DEBUG_IF(config.get_verbose() >= 1) {
             manager.register_pass<ov::intel_gpu::PrintModelStatistics>();
         }
         manager.run_passes(func);
