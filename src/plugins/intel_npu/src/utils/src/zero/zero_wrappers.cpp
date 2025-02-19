@@ -68,15 +68,13 @@ CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_stru
         "zeCommandListCreate",
         zeCommandListCreate(_init_structs->getContext(), _init_structs->getDevice(), &desc, &_handle));
 
-    uint32_t mutable_command_list_version = _init_structs->getMutableCommandListVersion();
-    if (ZE_MAJOR_VERSION(mutable_command_list_version) >= 1) {
+    uint32_t mutable_command_list_ext_version = _init_structs->getMutableCommandListExtVersion();
+    if (mutable_command_list_ext_version >= ZE_MAKE_VERSION(1, 0)) {
         ze_mutable_command_id_exp_desc_t mutable_cmd_id_desc = {};
 
         mutable_cmd_id_desc.stype = ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_ID_EXP_DESC;
 
-        if (ZE_MAJOR_VERSION(mutable_command_list_version) > 1 ||
-            (ZE_MAJOR_VERSION(mutable_command_list_version) == 1 &&
-             ZE_MINOR_VERSION(mutable_command_list_version) >= 1)) {
+        if (mutable_command_list_ext_version >= ZE_MAKE_VERSION(1, 1)) {
             mutable_cmd_id_desc.flags = ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENTS;
         } else {
             mutable_cmd_id_desc.flags = ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT_DEPRECATED;
@@ -130,9 +128,7 @@ CommandList::~CommandList() {
 }
 void CommandList::updateMutableCommandList(uint32_t arg_index, const void* arg_value) const {
     ze_mutable_graph_argument_exp_desc_t desc = {
-        (ZE_MAJOR_VERSION(_init_structs->getZeDrvApiVersion()) > 1 ||
-         (ZE_MAJOR_VERSION(_init_structs->getZeDrvApiVersion()) == 1 &&
-          ZE_MINOR_VERSION(_init_structs->getZeDrvApiVersion()) >= 11))
+        (_init_structs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 11))
             ? ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC
             : static_cast<ze_structure_type_t>(ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC_DEPRECATED),
         nullptr,
@@ -158,7 +154,7 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_st
         {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr, group_ordinal, 0, 0, ZE_COMMAND_QUEUE_MODE_DEFAULT, priority};
 
     if (turbo) {
-        if (ZE_MAJOR_VERSION(_init_structs->getCommandQueueDdiTable().version()) >= 1) {
+        if (_init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
             ze_command_queue_desc_npu_ext_t turbo_cfg = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT, nullptr, turbo};
             queue_desc.pNext = &turbo_cfg;
         } else {
@@ -180,7 +176,7 @@ void CommandQueue::executeCommandList(CommandList& command_list, Fence& fence) c
 }
 
 void CommandQueue::setWorkloadType(ze_command_queue_workload_type_t workloadType) const {
-    if (ZE_MAJOR_VERSION(_init_structs->getCommandQueueDdiTable().version()) >= 1) {
+    if (_init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
         THROW_ON_FAIL_FOR_LEVELZERO("zeSetWorkloadType",
                                     _init_structs->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, workloadType));
     } else {
