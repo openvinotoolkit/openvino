@@ -204,7 +204,7 @@ public:
         }
 
         params.single_batch = updated_impl_param.is_single_batch();
-        params.dynamic_quantization_group_size = impl_param.get_program().get_config().get_property(ov::hint::dynamic_quantization_group_size);
+        params.dynamic_quantization_group_size = impl_param.get_program().get_config().get_dynamic_quantization_group_size();
 
         return params;
     }
