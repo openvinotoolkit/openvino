@@ -4,12 +4,10 @@
 
 #include "intel_npu/utils/zero/zero_init.hpp"
 
-#include <loader/ze_loader.h>
 #include <ze_command_queue_npu_ext.h>
 
 #include <regex>
 
-#include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 
 #ifdef _WIN32
@@ -135,7 +133,9 @@ void ZeroInitStructsHolder::initNpuDriver() {
     fallbackToZeDriverGet();
 }
 
-ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder", Logger::global().level()) {
+ZeroInitStructsHolder::ZeroInitStructsHolder()
+    : zero_api(ZeroApi::getInstance()),
+      log("NPUZeroInitStructsHolder", Logger::global().level()) {
     log.debug("ZeroInitStructsHolder - performing zeInit on NPU only");
     THROW_ON_FAIL_FOR_LEVELZERO("zeInit", zeInit(ZE_INIT_FLAG_VPU_ONLY));
 
@@ -323,8 +323,12 @@ ZeroInitStructsHolder::~ZeroInitStructsHolder() {
     if (context) {
         log.debug("ZeroInitStructsHolder - performing zeContextDestroy");
         auto result = zeContextDestroy(context);
-        if (ZE_RESULT_SUCCESS != result) {
-            log.error("zeContextDestroy failed %#X", uint64_t(result));
+        if (result != ZE_RESULT_SUCCESS) {
+            if (result == ZE_RESULT_ERROR_UNINITIALIZED) {
+                log.warning("zeContextDestroy failed to destroy the context; Level zero context was already destroyed");
+            } else {
+                log.error("zeContextDestroy failed %#X", uint64_t(result));
+            }
         }
     }
 }

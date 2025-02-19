@@ -14,8 +14,7 @@
 #    include "utils/blob_dump.h"
 #    include "utils/debug_caps_config.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 static void formatNodeName(std::string& name) {
     std::replace(name.begin(), name.end(), '\\', '_');
@@ -202,7 +201,6 @@ void dumpOutputBlobs(const NodePtr& node, const DebugCapsConfig& config, int cou
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 #endif  // CPU_DEBUG_CAPS

@@ -45,6 +45,8 @@ ov::element::Type_t toOVElementType(const ze_graph_argument_precision_t zeElemen
         return ov::element::Type_t::dynamic;
     case ZE_GRAPH_ARGUMENT_PRECISION_BOOLEAN:
         return ov::element::Type_t::boolean;
+    case ZE_GRAPH_ARGUMENT_PRECISION_NF4:
+        return ov::element::Type_t::nf4;
     case ZE_GRAPH_ARGUMENT_PRECISION_BF16:
         return ov::element::Type_t::bf16;
     case ZE_GRAPH_ARGUMENT_PRECISION_FP16:
@@ -219,7 +221,7 @@ static std::unordered_set<std::string> parseQueryResult(std::vector<char>& data)
             start = ++i;
         } else if (dataString[i] == '>') {
             std::string temp(dataString.begin() + start, dataString.begin() + i);
-            result.insert(temp);
+            result.insert(std::move(temp));
             i++;
         } else {
             i++;

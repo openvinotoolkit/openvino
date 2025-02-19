@@ -12,8 +12,7 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 jit_kernel_emitter::jit_kernel_emitter(jit_generator* h,
                                        cpu_isa_t isa,
@@ -50,10 +49,10 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h,
     data_ptr_regs_idx = snippets::utils::transform_snippets_regs_to_idxs(data_ptr_regs, snippets::RegType::gpr);
 }
 
-void jit_kernel_emitter::emit_code(const std::vector<size_t>& in,
-                                   const std::vector<size_t>& out,
-                                   const std::vector<size_t>& pool_vec_idxs,
-                                   const std::vector<size_t>& pool_gpr_idxs) const {
+void jit_kernel_emitter::emit_code_impl(const std::vector<size_t>& in,
+                                        const std::vector<size_t>& out,
+                                        const std::vector<size_t>& pool_vec_idxs,
+                                        const std::vector<size_t>& pool_gpr_idxs) const {
     validate_arguments(in, out);
     aux_vec_idxs = pool_vec_idxs;
     aux_gpr_idxs = pool_gpr_idxs;
@@ -251,5 +250,4 @@ void jit_kernel_dynamic_emitter::init_data_pointers(const std::vector<Xbyak::Reg
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

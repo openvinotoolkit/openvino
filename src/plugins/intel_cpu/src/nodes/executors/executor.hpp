@@ -15,8 +15,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/visibility.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 #if defined(OV_CPU_WITH_MLAS) && defined(OPENVINO_ARCH_ARM64)
 #    define OV_CPU_INSTANCE_MLAS_ARM64(...) {__VA_ARGS__},
@@ -52,6 +51,12 @@ namespace intel_cpu {
 #    define OV_CPU_INSTANCE_DNNL(...)
 #endif
 
+#if defined(OV_CPU_WITH_KLEIDIAI)
+#    define OV_CPU_INSTANCE_KLEIDIAI(...) {__VA_ARGS__},
+#else
+#    define OV_CPU_INSTANCE_KLEIDIAI(...)
+#endif
+
 #if defined(OPENVINO_ARCH_X86_64)
 #    define OV_CPU_INSTANCE_X64(...) {__VA_ARGS__},
 #else
@@ -75,7 +80,7 @@ namespace intel_cpu {
 // @todo another option is to determine shape relation by executor type
 enum class ShapeTolerance { Agnostic, Dependant };
 
-enum class ExecutorType { Undefined, Graph, Common, jit_x64, Dnnl, Acl, Mlas, jit_aarch64, Shl };
+enum class ExecutorType { Undefined, Graph, Common, jit_x64, Dnnl, Acl, Mlas, jit_aarch64, Shl, Kleidiai };
 
 enum class OperationType { FullyConnected, MatMul, Convolution };
 
@@ -176,5 +181,4 @@ public:
 };
 using ExecutorPtr = std::shared_ptr<Executor>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -25,9 +25,7 @@
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 #if defined(OPENVINO_ARCH_X86_64)
 static std::vector<int> allocate_workers(const std::vector<int>& grouped_works, int n_workers) {
@@ -293,12 +291,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                                                                                asym);
                     }
                     // compress accumulation result into target
-                    for (int mi = 0; mi < BM; mi++, src += stride_src, dst += stride_dst) {
-                        // the prefetch distance is increased to ensure by the time store happens
-                        // prefetch has done and no HW prefetcher is triggered
-                        auto* prefetch_dst = (mi + 2 < BM) ? (dst + 2 * stride_dst) : (dst);
-                        jit_cvt(src, dst, prefetch_dst, work.BN);
-                    }
+                    jit_cvt.call(src, stride_src, dst, stride_dst, BM, work.BN);
                 }
             });
             m += BM;
@@ -479,6 +472,4 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
 #endif
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
