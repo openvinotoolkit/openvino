@@ -11,7 +11,6 @@
 #include "openvino/core/model.hpp"
 
 namespace ov {
-class Model;
 
 /** @brief Generic atg suggests automated functionality.
  *
