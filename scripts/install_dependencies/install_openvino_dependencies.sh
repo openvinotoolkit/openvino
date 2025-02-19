@@ -302,9 +302,9 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] || [ "$os" == "centos9" ] 
     [ -z "$interactive" ] && iopt="--assumeyes"
     [ -n "$dry" ] && iopt="--downloadonly"
     [ -n "$keepcache" ] && iopt="$iopt --setopt=keepcache=1"
-    [ -n "$extra" ] && [ ${#extra_repos[@]} -ne 0 ] && yum localinstall "$iopt" --nogpgcheck "${extra_repos[@]}"
+    [ -n "$extra" ] && [ ${#extra_repos[@]} -ne 0 ] && yum localinstall ${iopt:+$iopt} --nogpgcheck "${extra_repos[@]}"
 
-    yum install "$iopt" "${pkgs[@]}"
+    yum install ${iopt:+$iopt} "${pkgs[@]}"
 
 elif [ "$os" == "opensuse-leap15.3" ] ; then
 
