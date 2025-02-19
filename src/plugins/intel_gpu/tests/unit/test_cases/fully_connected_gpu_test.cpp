@@ -1999,7 +1999,7 @@ public:
 
         // long int ifm_num = 18944;
         // long int ofm_num = 3584;
-        long int ifm_num = 4096;
+        long int ifm_num = 1024;
         long int ofm_num = 14336;
 
         char* IFM_NUM = getenv("OV_IFM_NUM");
