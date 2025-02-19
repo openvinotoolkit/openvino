@@ -957,7 +957,7 @@ static EdgeClusters FormEdgeClusters(const std::vector<EdgePtr>& graphEdges) {
         if (auto it = edgeClusterIndices.find(edge); it != edgeClusterIndices.end()) {
             return it->second;
         }
-        // create a edge cluster when the base edge is visited for the first time
+        // create an edge cluster when the base edge is visited for the first time
         // so the base edge is always the first edge in the cluster
         if (edge == nullptr) {
             edgeClusters.emplace_back(EdgeCluster{});
@@ -989,7 +989,8 @@ static EdgeClusters FormEdgeClusters(const std::vector<EdgePtr>& graphEdges) {
  * - The first edge in the cluster (base edge) must have the status `NeedAllocation`.
  * - All subsequent edges in the cluster must have the status `NotAllocated`.
  *
- * @param clusters A collection of edges.
+ * @param clusters   collection of edges.
+ * @param remaining  number of clusters to process (not allocated yet).
  *
  * @throws If any of the required conditions are violated
  */
