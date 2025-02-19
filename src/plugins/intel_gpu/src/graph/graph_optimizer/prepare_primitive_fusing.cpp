@@ -56,6 +56,9 @@
 using namespace cldnn;
 
 void prepare_primitive_fusing::run(program& p) {
+    GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions())
+        return;
+
     fuse_reorders(p);
     remove_redundant_reshape(p);
     fuse_swiglu(p);
@@ -165,10 +168,7 @@ void prepare_primitive_fusing::fuse_reorders(program &p) {
 }
 
 void prepare_primitive_fusing::fuse_swiglu(program &p) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    bool disable_fc_swiglu_fusion = false;
-    GPU_DEBUG_IF(debug_config->disable_fc_swiglu_fusion == 1)
-        disable_fc_swiglu_fusion = true;
+    bool disable_fc_swiglu_fusion = GPU_DEBUG_VALUE_OR(p.get_config().get_disable_fc_swiglu_fusion(), false);
     // Apply only for high performant GPU
     if (disable_fc_swiglu_fusion || p.get_engine().get_device_info().execution_units_count < 128)
         return;
