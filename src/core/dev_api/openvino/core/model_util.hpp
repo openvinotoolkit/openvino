@@ -37,8 +37,9 @@ OPENVINO_API void set_input_tensors_names(Model& model, const TensorNamesMap& in
 
 /** @brief Set input tensors names for the model
  *
- * Sets tensors defined in the input map others on others set to default names if there is no name.
- * The tensors defined in map but not existing in the model will be ignored.
+ * Sets tensors defined in the input map.
+ * Tensors not defined in the map are set to default names if the tensor hasn't got names.
+ * The tensors defined in the map but not existing in the model will be ignored.
  *
  * @param model Model to set its input tensors names.
  * @param inputs_names Map of input tensor names. Default empty.
@@ -57,8 +58,9 @@ OPENVINO_API void set_output_tensor_names(Model& model, const TensorNamesMap& ou
 
 /** @brief Set output tensors names for the model.
  *
- * Sets tensors defined in the output map others on others set to default names if there is no name.
- * The tensors defined in map but not existing in the model will be ignored.
+ * Sets tensors defined in the output map.
+ * Tensors not defined in the map are set to default names if the tensor hasn't got names.
+ * The tensors defined in the map but not existing in the model will be ignored.
  *
  * @param model Model to set its output tensors names.
  * @param outputs_names Map of output tensor names. Default empty.
@@ -80,8 +82,9 @@ OPENVINO_API void set_tensors_names(Model& model,
 
 /** @brief Set input and output tensors names for the model.
  *
- * Sets tensors defined in the input and output maps others on others set to default names if there is no name.
- * The tensors defined in map but not existing in the model will be ignored.
+ * Sets tensors defined in the input and output maps.
+ * Tensors not defined in the maps are set to default names if the tensor hasn't got names.
+ * The tensors defined in the maps but not existing in the model will be ignored.
  *
  * @param model Model to set its input and output tensors names.
  * @param inputs_names Map of input tensor names. Default empty.
