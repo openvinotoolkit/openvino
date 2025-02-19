@@ -17,7 +17,7 @@
 #include "transformations/utils/utils.hpp"
 using namespace ov::gen_pattern;
 
-ov::intel_cpu::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const Config& config) : config(config) {
+ov::intel_cpu::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const Config& config) : m_config(config) {
     MATCHER_SCOPE(ConvertPagedAttnInputs);
 
     auto Q = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
@@ -68,11 +68,11 @@ ov::intel_cpu::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const Config& conf
                                                           rotation_deltas,
                                                           rotation_trig_lut});
     auto result = pa_1 | pa_2;
-    auto key_cache_prec = config.keyCachePrecision;
-    auto value_cache_prec = config.valueCachePrecision;
-    auto key_cache_gs = config.keyCacheGroupSize;
-    auto value_cache_gs = config.valueCacheGroupSize;
-    auto infer_prec = config.inferencePrecision;
+    auto key_cache_prec = this->m_config.keyCachePrecision;
+    auto value_cache_prec = this->m_config.valueCachePrecision;
+    auto key_cache_gs = this->m_config.keyCacheGroupSize;
+    auto value_cache_gs = this->m_config.valueCacheGroupSize;
+    auto infer_prec = this->m_config.inferencePrecision;
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto pa_op = m.get_match_root();
         auto key_cache = ov::as_type_ptr<ov::op::v0::Parameter>(pa_op->get_input_node_shared_ptr(3));

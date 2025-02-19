@@ -16,7 +16,7 @@ public:
     ConvertPagedAttnInputs(const Config& p);
 
 private:
-    const Config& config;
+    const Config& m_config;
 };
 
 }  // namespace intel_cpu
