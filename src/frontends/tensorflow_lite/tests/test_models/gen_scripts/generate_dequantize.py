@@ -35,7 +35,7 @@ with open(os.path.join(sys.argv[1], sm_path + ".tflite"), 'wb') as f:
   f.write(tflite_model)
 
 # Model:
-# (int8)tensor_0[12] -> QUANTIZE -> (float32)tensor_1[12]
+# (int8)tensor_0[12] -> DEQUANTIZE -> (float32)tensor_1[12]
 # QUANTIZE:
 #   scale: 0.25
 #   zero point: 16
@@ -45,7 +45,7 @@ with open(os.path.join(sys.argv[1], sm_path + ".tflite"), 'wb') as f:
   f.write(tflite_model)
 
 # Model:
-# (uint8)tensor_0[12] -> QUANTIZE -> (float32)tensor_1[12]
+# (uint8)tensor_0[12] -> DEQUANTIZE -> (float32)tensor_1[12]
 # QUANTIZE:
 #   scale: 0.25
 #   zero point: 16
