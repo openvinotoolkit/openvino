@@ -20,6 +20,7 @@
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/convolution_base.hpp"
+#include "ov_ops/convolution.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_status.hpp"
 #include "utils/general_utils.h"
@@ -108,7 +109,10 @@ Result ConvolutionShapeInfer::infer(const std::vector<std::reference_wrapper<con
 
 ShapeInferPtr ConvolutionShapeInferFactory::makeShapeInfer() const {
     if (const auto convolution = ov::as_type_ptr<const ov::op::util::ConvolutionFwdPropBase>(m_op)) {
-        const auto is_grouped = ov::is_type<const ov::op::v1::GroupConvolution>(convolution);
+        const bool is_grouped = ov::is_type<const ov::op::v1::GroupConvolution>(convolution) ||
+                                (ov::is_type<const ov::op::internal::Convolution>(convolution) &&
+                                 ov::as_type_ptr<const ov::op::internal::Convolution>(convolution)->get_groups() > 1);
+
         return std::make_shared<ConvolutionShapeInfer>(
             convolution->get_strides(),
             convolution->get_dilations(),

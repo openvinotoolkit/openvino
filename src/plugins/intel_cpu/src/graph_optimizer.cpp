@@ -357,7 +357,7 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph& graph) {
         }
 
         if (!deconv) {
-            return (any_of(node->getType(), Type::Convolution, Type::MatMul) && node->getParentEdges().size() == 2);
+            return node->getType() == Type::MatMul && node->getParentEdges().size() == 2;
         }
         return deconv->canFuseBias();
     };
