@@ -144,20 +144,19 @@ void ov::npuw::s11n::read(std::istream& stream, float& var) {
 void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::Spatial& var) {
     using ov::npuw::s11n::read;
 
-    ov::npuw::compiled::Spatial spat;
     std::size_t params_size = 0;
     read(stream, params_size);
     for (std::size_t i = 0; i < params_size; ++i) {
         ov::npuw::compiled::Spatial::Param p;
         read(stream, p.idx);
         read(stream, p.dim);
-        spat.params.push_back(p);
+        var.params.push_back(p);
     }
-    read(stream, spat.range);
-    read(stream, spat.nway);
-    read(stream, spat.out_dim);
-    read(stream, spat.nway_iters);
-    read(stream, spat.tail_size);
+    read(stream, var.range);
+    read(stream, var.nway);
+    read(stream, var.out_dim);
+    read(stream, var.nway_iters);
+    read(stream, var.tail_size);
 }
 
 void ov::npuw::s11n::read(std::istream& stream, ov::Tensor& var) {
