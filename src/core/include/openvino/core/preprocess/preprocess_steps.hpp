@@ -209,6 +209,18 @@ public:
     /// \endcode
     ///
     PreProcessSteps& reverse_channels();
+
+    /// \brief Clamp operation.
+    ///
+    ///\param min_value, specifies the minimum value
+    ///
+    /// \param max_value, specifies the maximum value
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
+    ///
+    /// Clamps a value to ensure it stays within the specified range [min, max], returning min if below or max if above.
+    ///
+    PreProcessSteps& clamp(float min_value, float max_value);
 };
 
 }  // namespace preprocess
