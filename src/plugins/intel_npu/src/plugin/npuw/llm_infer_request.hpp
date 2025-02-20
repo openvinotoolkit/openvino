@@ -31,6 +31,8 @@ public:
     }
 
 private:
+    void init_tensor(const ov::Output<const ov::Node>& port);
+
     void prepare_for_new_conversation();
 
     void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
