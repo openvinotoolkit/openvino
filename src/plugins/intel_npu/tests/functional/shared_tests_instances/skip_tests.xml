@@ -312,7 +312,7 @@ Example:
         <!-- EISW 70764 -->
         <message>Disabled for when backend is empty (i.e., no device)</message>
         <enable_rules>
-            <backend>empty</backend>
+            <backend></backend> <!-- special case for no device -->
         </enable_rules>
         <filters>
             <!-- Cannot run InferRequest tests without a device to infer to -->
@@ -636,7 +636,7 @@ Example:
             <backend>LEVEL0</backend>
         </enable_rules>
         <filters>
-            <filter>.*CoreThreadingTest.CoreThreadingTestsWithCacheEnabled.*</filter>
+            <filter>.*CoreThreadingTest.*CoreThreadingTestsWithCacheEnabled.*</filter>
         </filters>
     </skip_config>
     <skip_config>
