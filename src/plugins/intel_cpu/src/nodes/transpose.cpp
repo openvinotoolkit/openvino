@@ -77,7 +77,8 @@ void Transpose::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].constant(false);
     transpose_context = std::make_shared<ExecutorContext>(context, getImplPriority());
 
-    auto supportedPrimitiveDescriptorsBuilder = [this](const NodeConfig& config, const TransposeParams& transposeParams) {
+    auto supportedPrimitiveDescriptorsBuilder = [this](const NodeConfig& config,
+                                                       const TransposeParams& transposeParams) {
         std::vector<MemoryDescPtr> srcMemoryDescs;
         srcMemoryDescs.reserve(config.inConfs.size());
         for (const auto& inConf : config.inConfs) {

@@ -1793,6 +1793,7 @@ void Graph::DropNode(const NodePtr& node) {
     auto children = node->childEdges;
     auto parents = node->parentEdges;
 
+    // The collections are being updated while iterating. So, range based for loops cannot be used.
     for (size_t i = 0; i < parents.size(); i++) {  // NOLINT(modernize-loop-convert)
         auto p_edge = parents[i].lock();
         if (!p_edge) {
@@ -1806,6 +1807,7 @@ void Graph::DropNode(const NodePtr& node) {
         const int inNum = p_edge->getInputNum();
         RemoveEdge(p_edge);
 
+        // The collections are being updated while iterating. So, range based for loops cannot be used.
         for (size_t j = 0; j < children.size(); j++) {  // NOLINT(modernize-loop-convert)
             auto c_edge = children[j].lock();
             if (!c_edge) {
@@ -1851,6 +1853,7 @@ void Graph::DropDWConvNode(const NodePtr& node) {
         const int inNum = p_edge->getInputNum();
         RemoveEdge(p_edge);
 
+        // The collections are being updated while iterating. So, range based for loops cannot be used.
         for (size_t j = 0; j < children.size(); j++) {  // NOLINT(modernize-loop-convert)
             auto c_edge = children[j].lock();
             if (!c_edge) {

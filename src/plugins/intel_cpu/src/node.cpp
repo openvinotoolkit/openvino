@@ -887,7 +887,7 @@ void Node::redefineOutputMemory(const size_t port, const VectorDims& new_output_
 
     const bool has_zero_dims = std::count(std::begin(new_shape), std::end(new_shape), 0lu) > 0;
     const auto mem_desc = getBaseMemDescAtOutputPort(port)->cloneWithNewDims(new_shape, has_zero_dims);
-    for (size_t j = 0lu; j < edges.size(); j++) {  // NOLINT(modernize-loop-convert)
+    for (size_t j = 0lu; j < edges.size(); j++) {
         edges[j]->getMemoryPtr()->redefineDesc(mem_desc);
     }
 }
@@ -1879,7 +1879,7 @@ std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<Shape>& shapes
         auto input_value_port_mask = shapeInference->get_port_mask();
 
         input_shapes.reserve(shapes.size());
-        for (size_t i = 0; i < shapes.size(); i++) {  // NOLINT(modernize-loop-convert)
+        for (size_t i = 0; i < shapes.size(); i++) {
             input_shapes.emplace_back(std::ref(shapes[i].getStaticDims()));
         }
 
