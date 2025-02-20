@@ -12,6 +12,9 @@
 namespace ov {
 namespace descriptor {
 
+/// @brief Defines tensor name port separator.
+inline constexpr auto port_separator = ':';
+
 class Tensor;
 class Input;
 class Output;

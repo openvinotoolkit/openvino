@@ -26,6 +26,8 @@ using TensorSymbol = std::vector<std::shared_ptr<Symbol>>;
 /// \brief Alias for vector of symbol tensors.
 using TensorSymbolVector = std::vector<TensorSymbol>;
 
+/// \brief Alias for set of tensor names.
+using TensorNames = std::unordered_set<std::string>;
 namespace descriptor {
 class ITensorDescriptor;
 
