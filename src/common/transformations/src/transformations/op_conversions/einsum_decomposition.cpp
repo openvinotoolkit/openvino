@@ -480,10 +480,10 @@ ov::Output<ov::Node> reshape_input_for_matmul(const ov::Output<ov::Node>& input_
         subgraph_nodes.insert(subgraph_nodes.end(), {reduce_axis_const, separate_shape_prod});
     }
     ov::OutputVector reduced_sub_shape_prod;
-    auto const_0 = ov::op::v0::Constant::create(ov::element::i32, {1}, {0});
     if (reduced_sub_shape.size() > 0) {
+        auto const_0 = ov::op::v0::Constant::create(ov::element::i32, {1}, {0});
         auto product = std::make_shared<ov::op::v1::ReduceProd>(reduced_sub_shape[0], const_0, true);
-        subgraph_nodes.insert(subgraph_nodes.end(), {reduce_axis_const, product});
+        subgraph_nodes.insert(subgraph_nodes.end(), {reduce_axis_const, const_0, product});
         reduced_sub_shape_prod.push_back(product->output(0));
     }
 
