@@ -101,7 +101,8 @@ void Bank::evaluate_and_allocate() {
             auto iter_device_registered = device_bank.registered_tensors.find(lt);
             NPUW_ASSERT(iter_device_registered != device_bank.registered_tensors.end() &&
                         "Tensor should be registered first!");
-            if (device_bank.storage[iter_device_registered->second].tensor) {
+            auto uid = iter_device_registered->second;
+            if (device_bank.storage[uid].tensor) {
                 // Already allocated
                 return;
             }
@@ -113,17 +114,18 @@ void Bank::evaluate_and_allocate() {
             const auto& transformed_tensor = lt.eval();
 
             std::unique_lock<std::mutex> guard(device_bank.mutex);
+            device_bank.storage[uid].tensor = transformed_tensor;
             if (device_for_alloc == "CPU") {
                 // No allocation needed
-                device_bank.storage[device_bank.registered_tensors.at(lt)].tensor = transformed_tensor;
                 return;
             }
 
             // Need to allocate
             // Note: secured by the lock above
-            uids_to_allocated.insert({device_bank.registered_tensors.at(lt), ov::Tensor()});
+            uids_to_allocated.insert({uid, ov::Tensor()});
         });
 
+        std::unique_lock guard(device_bank.mutex);
         // Allocate memory sequentially - in order of UID
         for (const auto& elem : uids_to_allocated) {
             auto uid = elem.first;
@@ -137,6 +139,7 @@ void Bank::evaluate_and_allocate() {
                 remote_ctx->create_host_tensor(transformed_tensor.get_element_type(), transformed_tensor.get_shape());
             uids_to_allocated.at(uid) = ov::make_tensor(remote_tensor);
         }
+       guard.unlock();
 
         // Copy to allocated memory
         ov::parallel_for(uids_to_allocated.size(), [&](std::size_t idx) {
