@@ -80,8 +80,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
     if (concat_node.is_output() || concat_params.fused_desc.size() > 0 || concat_node.is_in_shape_of_subgraph())
         return false;
     bool do_runtime_buffer_fusing = true;
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing) {
+    GPU_DEBUG_IF(concat_node.get_config().get_disable_runtime_buffer_fusing()) {
         do_runtime_buffer_fusing = false;
     }
 
@@ -522,8 +521,7 @@ bool crop_in_place_optimization::match(const program_node& node,
         return false;
 
     if (node.get_users().size() > 0) {
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing && node.is_dynamic()) {
+        GPU_DEBUG_IF(node.get_config().get_disable_runtime_buffer_fusing() && node.is_dynamic()) {
             return false;
         }
 
@@ -943,7 +941,7 @@ void prepare_buffer_fusing::run(program& p) {
                 auto update_scale_zp = [&](size_t kv_cache_output_idx, size_t read_value_output_idx) {
                     auto scales_out_layout = node.get_output_layout(false, kv_cache_output_idx);
 
-                    const auto scales_zp_concat_axis = kv_cache_inst::get_scale_zp_sequence_axis(desc->concat_axis, desc->quantization_attributes);
+                    const auto scales_zp_concat_axis = kv_cache_inst::get_scale_zp_sequence_axis();
                     padding::DynamicDimsMask info_dynamic_pad_scales;
                     info_dynamic_pad_scales[scales_zp_concat_axis] = 1;
                     scales_out_layout.data_padding._dynamic_dims_mask = info_dynamic_pad_scales;

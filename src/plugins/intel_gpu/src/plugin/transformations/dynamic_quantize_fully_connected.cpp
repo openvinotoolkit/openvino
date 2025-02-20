@@ -14,12 +14,10 @@
 #include "transformations/utils/utils.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
-DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size)
+DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size, bool asymmetric)
     : ov::pass::MatcherPass() {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     using namespace ov::pass::pattern;
     using QuantizationType = ov::op::internal::DynamicQuantize::QuantizationType;
 
@@ -56,7 +54,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         config.scale_dt = element::f16;
         config.group_sizes = shape_group_size;
 
-        GPU_DEBUG_IF(debug_config->dynamic_quantize_asym) {
+        if (asymmetric && group_size == UINT64_MAX) {
             config.quantization_type = QuantizationType::Asymmetric;
             config.quantization_dt = element::u8;
             config.zp_dt = element::u8; // it supports u8 only now
@@ -90,5 +88,4 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

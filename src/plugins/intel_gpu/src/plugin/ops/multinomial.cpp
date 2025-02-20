@@ -21,8 +21,7 @@
 #include <memory>
 #include <cstring>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 namespace {
 
 template<typename T>
@@ -148,5 +147,4 @@ static void CreateMultinomialOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
 
 REGISTER_FACTORY_IMPL(v13, Multinomial);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

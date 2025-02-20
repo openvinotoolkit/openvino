@@ -29,14 +29,12 @@ Since `actions/setup-python` does not work on the Linux ARM64 machines,
       pip-cache-path: ${{ env.PIP_CACHE_PATH }}
       should-setup-pip-paths: 'true'
       self-hosted-runner: 'true'
-      show-cache-info: 'true'
 ```
 where:
 * `version` - the Python version to install in the `MAJOR.MINOR` format
 * `pip-cache-path` - the path to the `pip` cache on the mounted share. Read more in the [shares and caches](./caches.md) documentation
 * `should-setup-pip-paths` - indicates whether the action should set up the `PIP_CACHE_DIR` and `PIP_INSTALL_PATH` environment variables for later usage
 * `self-hosted-runner` - indicates whether the runner is self-hosted. Learn more about [available runners](./runners.md)
-* `show-cache-info` - indicates whether the action should show the share space occupied by the `pip` cache
 
 ## System Info Print
 

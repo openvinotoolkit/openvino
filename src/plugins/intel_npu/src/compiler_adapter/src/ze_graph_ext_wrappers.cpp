@@ -45,6 +45,8 @@ ov::element::Type_t toOVElementType(const ze_graph_argument_precision_t zeElemen
         return ov::element::Type_t::dynamic;
     case ZE_GRAPH_ARGUMENT_PRECISION_BOOLEAN:
         return ov::element::Type_t::boolean;
+    case ZE_GRAPH_ARGUMENT_PRECISION_NF4:
+        return ov::element::Type_t::nf4;
     case ZE_GRAPH_ARGUMENT_PRECISION_BF16:
         return ov::element::Type_t::bf16;
     case ZE_GRAPH_ARGUMENT_PRECISION_FP16:
@@ -219,7 +221,7 @@ static std::unordered_set<std::string> parseQueryResult(std::vector<char>& data)
             start = ++i;
         } else if (dataString[i] == '>') {
             std::string temp(dataString.begin() + start, dataString.begin() + i);
-            result.insert(temp);
+            result.insert(std::move(temp));
             i++;
         } else {
             i++;
@@ -365,19 +367,15 @@ ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(std::pair<size_t, std::shar
     return graphHandle;
 }
 
-ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(const std::vector<uint8_t>& network) const {
+ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(const uint8_t& blobData, size_t blobSize) const {
     ze_graph_handle_t graphHandle;
 
-    if (network.empty()) {
+    if (blobSize == 0) {
         OPENVINO_THROW("Empty blob");
     }
 
-    ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
-                            nullptr,
-                            ZE_GRAPH_FORMAT_NATIVE,
-                            network.size(),
-                            network.data(),
-                            nullptr};
+    ze_graph_desc_t desc =
+        {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES, nullptr, ZE_GRAPH_FORMAT_NATIVE, blobSize, &blobData, nullptr};
 
     _logger.debug("getGraphHandle - perform pfnCreate");
     auto result = _zeroInitStruct->getGraphDdiTable().pfnCreate(_zeroInitStruct->getContext(),

@@ -23,7 +23,7 @@ class LP_TRANSFORMATIONS_API GroupConvolutionTransformation : public Convolution
 public:
     OPENVINO_RTTI("GroupConvolutionTransformation", "0", ConvolutionTransformation);
     GroupConvolutionTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
+    bool transform(ov::pass::pattern::Matcher &m) override;
     bool isQuantized(const std::shared_ptr<const Node>& layer,
         const std::vector<ov::element::Type>& defaultPrecisions) const override;
     static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer,
