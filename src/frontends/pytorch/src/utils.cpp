@@ -172,8 +172,15 @@ Output<Node> normalize_axis(const NodeContext& context, const Output<Node>& axis
         bool all_non_negative = std::all_of(data.begin(), data.end(), [](int64_t v) {
             return v >= 0;
         });
-        if (all_non_negative)
-            return axis_const;
+        if (all_non_negative) {
+            Output<Node> res = axis_const;
+            if (axis_const->get_shape() == Shape({}) && rank.get_partial_shape() == PartialShape({1})) {
+                // Unsqueeze scalar const if rank is 1d
+                auto zero = v0::Constant::create(element::i32, Shape{}, {0});
+                res = std::make_shared<v0::Unsqueeze>(res, zero);
+            }
+            return res;
+        }
     }
     auto axis_rank = std::make_shared<v1::Add>(axis, rank);
     auto new_axis = std::make_shared<v1::Mod>(axis_rank, rank);
