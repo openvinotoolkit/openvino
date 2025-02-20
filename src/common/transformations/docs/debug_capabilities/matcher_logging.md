@@ -2,8 +2,6 @@
 
 The logging functionality allows to observe/debug the pattern matching process.
 
-![logging_example.png](images/logging_example.png)
-
 ## Usage
 In order to utilzie the logging, first, you need to set the CMake flag ```-DENABLE_OPENVINO_DEBUG=ON```
 
@@ -19,12 +17,6 @@ You can also set the environmental variable ```OV_VERBOSE_LOGGING``` to ```true`
 ```OV_MATCHER_LOGGING=true OV_VERBOSE_LOGGING=true ./your_amazing_program```
 
 ## Useful feature:
-If you redirect the logging output into a .json file (extension is important for the correct processing of the file in Visual Studio Code). This allows collapsing blocks in Visual Studio Code as you would do with a normal .json file. This is especially useful for large patterns:
-
-![output_not_collapsed.png](images/output_not_collapsed.png)
-
-into:
-
-![output_collapsed.png](images/output_collapsed.png)
+If you redirect the logging output into a .json file (extension is important for the correct processing of the file in Visual Studio Code). This allows collapsing blocks in Visual Studio Code as you would do with a normal .json file.
 
 If you have any suggestions for improvement or you observe a bug in logging, feel free to submit changes or contact Andrii Staikov <andrii.staikov@intel.com>
