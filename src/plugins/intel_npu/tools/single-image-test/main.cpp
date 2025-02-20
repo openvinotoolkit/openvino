@@ -162,6 +162,7 @@ DEFINE_int32(num, 3, "Number of scales for Yolo V3");
 
 typedef std::chrono::high_resolution_clock Time;
 // for Semantic Segmentation
+DEFINE_bool(skip_arg_max, false, "Skip ArgMax post processing step");
 DEFINE_uint32(sem_seg_classes, 12, "Number of classes for semantic segmentation");
 DEFINE_double(sem_seg_threshold, 0.98, "Threshold for 'semantic segmentation' mode");
 DEFINE_uint32(sem_seg_ignore_label, std::numeric_limits<uint32_t>::max(), "The number of the label to be ignored");
@@ -1796,6 +1797,7 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
     OPENVINO_ASSERT(outputs.size() == outputLayouts.size(),
                     "Mismatch between the number of model outputs and their corresponding layout values");
 
+    bool skipArgMax = FLAGS_skip_arg_max;
     unsigned int classes = FLAGS_sem_seg_classes;
     auto semSegThreshold = static_cast<float>(FLAGS_sem_seg_threshold);
 
@@ -1803,8 +1805,20 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
     std::vector<uint8_t> parsedOutputs;
     std::vector<std::pair<bool, float>> iou(classes, {false, 0.0f});
 
-    utils::argMax_channels(references.begin()->second, parsedReferences, outputLayouts.begin()->second);
-    utils::argMax_channels(outputs.begin()->second, parsedOutputs, outputLayouts.begin()->second);
+    if (skipArgMax) {
+        const ov::Tensor referenceU8 = npu::utils::toPrecision(references.begin()->second, ov::element::u8);
+        const ov::Tensor outputU8 = npu::utils::toPrecision(outputs.begin()->second, ov::element::u8);
+
+        const size_t C = referenceU8.get_shape()[ov::layout::channels_idx(outputLayouts.begin()->second)];
+        const size_t H = referenceU8.get_shape()[ov::layout::height_idx(outputLayouts.begin()->second)];
+        const size_t W = referenceU8.get_shape()[ov::layout::width_idx(outputLayouts.begin()->second)];
+
+        std::copy_n(referenceU8.data<uint8_t>(), C * H * W, std::back_insert_iterator(parsedReferences));
+        std::copy_n(outputU8.data<uint8_t>(), C * H * W, std::back_insert_iterator(parsedOutputs));
+    } else {
+        utils::argMax_channels(references.begin()->second, parsedReferences, outputLayouts.begin()->second);
+        utils::argMax_channels(outputs.begin()->second, parsedOutputs, outputLayouts.begin()->second);
+    }
 
     if (parsedReferences.size() != parsedOutputs.size()) {
         std::cout << "Reference size and output size are different" << std::endl;
