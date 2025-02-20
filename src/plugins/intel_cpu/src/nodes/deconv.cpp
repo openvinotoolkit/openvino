@@ -474,16 +474,13 @@ std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
 }
 
 std::vector<memory::format_tag> Deconvolution::getAvailableFormatsForDims(const Shape& dims) const {
-    if (dims.getRank() == 0) {
+    switch (dims.getRank()) {
+    case 0:
+    case 1:
         return {memory::format_tag::x};
-    }
-    if (dims.getRank() == 1) {
-        return {memory::format_tag::x};
-    }
-    if (dims.getRank() == 2) {
+    case 2:
         return {memory::format_tag::nc};
-    }
-    if (dims.getRank() == 3) {
+    case 3:
         // Ticket 156640
         if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx_fp16)) {
             return {memory::format_tag::ncw,
@@ -496,20 +493,19 @@ std::vector<memory::format_tag> Deconvolution::getAvailableFormatsForDims(const 
                 memory::format_tag::ncw,
                 memory::format_tag::nCw8c,
                 memory::format_tag::nCw16c};
-    }
-    if (dims.getRank() == 4) {
+    case 4:
         return {memory::format_tag::nchw,
                 memory::format_tag::nChw8c,
                 memory::format_tag::nChw16c,
                 memory::format_tag::nhwc};
-    }
-    if (dims.getRank() == 5) {
+    case 5:
         return {memory::format_tag::ncdhw,
                 memory::format_tag::nCdhw8c,
                 memory::format_tag::nCdhw16c,
                 dnnl::memory::format_tag::ndhwc};
+    default:
+        return {memory::format_tag::any};
     }
-    return {memory::format_tag::any};
 }
 
 void Deconvolution::getSupportedDescriptors() {
