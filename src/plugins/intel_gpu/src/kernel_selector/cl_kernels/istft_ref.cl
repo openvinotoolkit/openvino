@@ -46,7 +46,7 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
     cfloat res;
     real(res) = signal[INPUT0_GET_INDEX(batch, 0, frame_id, 0)];
     imag(res) = signal[INPUT0_GET_INDEX(batch, 0, frame_id, 1)];
-    for (int freq_id = 1; freq_id < freqs-1; ++freq_id) {
+    for (int freq_id = 1; freq_id < freqs - 1; ++freq_id) {
         cfloat freqVal_i;
         real(freqVal_i) = signal[INPUT0_GET_INDEX(batch, freq_id, frame_id, 0)];
         imag(freqVal_i) = signal[INPUT0_GET_INDEX(batch, freq_id, frame_id, 1)];
@@ -55,28 +55,30 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
         const cfloat val_i = cmult(freqVal_i, e_i);
         res = cadd(res, val_i);
 
-        const cfloat e_i_n = expi(idft_power * (float)(frame_size-freq_id));
+        const cfloat e_i_n = expi(idft_power * (float)(frame_size - freq_id));
         const cfloat val_i_n = cmult(conj(freqVal_i), e_i_n);
         res = cadd(res, val_i_n);
     }
 
     cfloat lastFreq;
-    real(lastFreq) = signal[INPUT0_GET_INDEX(batch, freqs-1, frame_id, 0)];
-    imag(lastFreq) = signal[INPUT0_GET_INDEX(batch, freqs-1, frame_id, 1)];
+    real(lastFreq) = signal[INPUT0_GET_INDEX(batch, freqs - 1, frame_id, 0)];
+    imag(lastFreq) = signal[INPUT0_GET_INDEX(batch, freqs - 1, frame_id, 1)];
 
-    const cfloat e_i = expi(idft_power * (float)(freqs-1));
+    const cfloat e_i = expi(idft_power * (float)(freqs - 1));
     const cfloat val_i = cmult(lastFreq, e_i);
     res = cadd(res, val_i);
 
-    const float finalIRDFTVal = real(res)/frame_size;
+    const float finalIRDFTVal = real(res) / frame_size;
 
     // printf("window_id=%i, real(res)=%f\n", window_id, real(res)/frame_size);
 
     // TODO: handle case when windowVal == 0.0
-    const float finalVAl = finalIRDFTVal/windowVal;
+    const float finalVAl = finalIRDFTVal / windowVal;
+
+    const int frameOffset = frame_id * frame_step;
 
     // TODO: Handle sumation from different frames...(atomics?)
     const OUTPUT_TYPE finalVal = (OUTPUT_TYPE)(finalVAl);
 
-    output[OUTPUT_GET_INDEX(0, 0, batch, window_id)] = finalVal;
+    output[OUTPUT_GET_INDEX(0, 0, batch, window_id + frameOffset)] = finalVal;
 }
