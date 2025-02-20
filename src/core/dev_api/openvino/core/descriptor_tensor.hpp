@@ -16,6 +16,11 @@ class Tensor;
 class Input;
 class Output;
 
+/// @brief Defines tensor name port separator.
+inline constexpr auto port_separator = ':';
+/// @brief Defines unique name separator.
+inline constexpr auto unique_name_sep = '_';
+
 // To change Tensor element type please change the Parameter type.
 OPENVINO_API
 void set_element_type(Tensor& tensor, const element::Type& elemenet_type);
@@ -101,5 +106,6 @@ OPENVINO_API void set_shared_tensor(Output& output_descriptor, const Input& inpu
  */
 OPENVINO_API const std::unordered_set<std::string>& get_assigned_names(const Tensor& descriptor);
 
+// OPENVINO_API std::string get_resolved_name(const std::string& name);
 }  // namespace descriptor
 }  // namespace ov
