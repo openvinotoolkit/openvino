@@ -2,8 +2,8 @@ ARG REGISTRY="docker.io"
 FROM ${REGISTRY}/library/ubuntu:20.04
 
 # Create a non-root user and group
-ENV USER_NAME=openvino
-ENV USER_ID=1001
+ENV USER_NAME=runner
+ENV USER_ID=1000
 ENV GROUP_NAME=${USER_NAME}
 ENV GROUP_ID=${USER_ID}
 
@@ -88,9 +88,6 @@ RUN chown -R ${USER_NAME}:${USER_NAME} /venv
 
 # Change ownership of node to the non-root user
 RUN chown -R ${USER_NAME}:${USER_NAME} ${NVM_DIR}
-
-RUN mkdir -p /__w && chown -R ${USER_NAME}:${USER_NAME} /__w
-RUN mkdir -p /__w/_temp && chown -R ${USER_NAME}:${USER_NAME} /__w/_temp
 
 # Switch to the non-root user
 USER ${USER_NAME}
