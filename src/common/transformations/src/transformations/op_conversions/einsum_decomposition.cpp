@@ -207,8 +207,7 @@ LabelDimMap compute_label_dim_map(const ov::Rank& input_rank, const std::string&
             resulted_map[label].push_back(current_dim);
             ++current_dim;
         } else {
-            std::vector<size_t> label_dims;
-            label_dims.push_back(current_dim);
+            std::vector<size_t> label_dims{current_dim};
             resulted_map[label] = label_dims;
             ++current_dim;
         }
