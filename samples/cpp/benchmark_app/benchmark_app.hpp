@@ -99,7 +99,7 @@ static const char layout_message[] =
 
 /// @brief message for execution mode
 static const char api_message[] =
-    "Optional. Enable Sync/Async API. Wnen hint is throughput, default value is \"async\". "
+    "Optional. Enable Sync/Async API. When hint is throughput, default value is \"async\". "
     "When hint is latency, default value is \"sync\".";
 
 /// @brief message for #streams for CPU inference
