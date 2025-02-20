@@ -250,24 +250,26 @@ void compute_ranges(const ov::Rank& input_rank,
                     size_t& reduced_end,
                     bool is_separated_first) {
     auto label_to_dim_map = compute_label_dim_map(input_rank, input_subscript);
-    static const std::string ellipsis = "...";
 
     size_t common_rank = common_labels.size();
-    if (std::find(common_labels.begin(), common_labels.end(), ellipsis) != common_labels.end()) {
-        OPENVINO_ASSERT(label_to_dim_map.find(ellipsis) != label_to_dim_map.end());
-        common_rank += label_to_dim_map[ellipsis].size() - 1;
-    }
-
     size_t sep_rank = sep_labels.size();
-    if (std::find(sep_labels.begin(), sep_labels.end(), ellipsis) != sep_labels.end()) {
-        OPENVINO_ASSERT(label_to_dim_map.find(ellipsis) != label_to_dim_map.end());
-        sep_rank += label_to_dim_map[ellipsis].size() - 1;
-    }
-
     size_t reduced_rank = reduced_labels.size();
-    if (std::find(reduced_labels.begin(), reduced_labels.end(), ellipsis) != reduced_labels.end()) {
-        OPENVINO_ASSERT(label_to_dim_map.find(ellipsis) != label_to_dim_map.end());
-        reduced_rank += label_to_dim_map[ellipsis].size() - 1;
+
+    static const std::string ellipsis = "...";
+    // Adjust rank to include ellipsis dimensions.
+    // Initial rank is the number of labels in the input subscript, so if the ellipsis is present, initial ellipsis rank
+    // would be counted as 1. Adjust the rank to include actual ellipsis rank with accounting for existing "placeholder"
+    // by subtracting by 1.
+    if (label_to_dim_map.find(ellipsis) != label_to_dim_map.end()) {
+        if (std::find(common_labels.begin(), common_labels.end(), ellipsis) != common_labels.end()) {
+            common_rank += label_to_dim_map[ellipsis].size() - 1;
+        }
+        if (std::find(sep_labels.begin(), sep_labels.end(), ellipsis) != sep_labels.end()) {
+            sep_rank += label_to_dim_map[ellipsis].size() - 1;
+        }
+        if (std::find(reduced_labels.begin(), reduced_labels.end(), ellipsis) != reduced_labels.end()) {
+            reduced_rank += label_to_dim_map[ellipsis].size() - 1;
+        }
     }
 
     common_begin = 0;
