@@ -15,7 +15,15 @@
 #include <unordered_set>
 #include <vector>
 
-const constexpr std::array<uint8_t, 6> NPUW_SERIALIZATION_INDICATOR =
+namespace ov {
+namespace npuw {
+namespace s11n {
+using IndicatorType = std::array<uint8_t, 6>;
+}  // namespace s11n
+}  // namespace npuw
+}  // namespace ov
+
+const constexpr ov::npuw::s11n::IndicatorType NPUW_SERIALIZATION_INDICATOR =
     {char{0x13}, char{0x37}, char{0x6e}, char{0x70}, char{0x75}, char{0x77}};
 
 const constexpr char* NPUW_SERIALIZATION_VERSION = "0.1";

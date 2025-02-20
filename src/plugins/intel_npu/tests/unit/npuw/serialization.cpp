@@ -10,7 +10,9 @@
 #include "intel_npu/config/npuw.hpp"
 #include "openvino/openvino.hpp"
 #include "serialization.hpp"
+#include "compiled_model.hpp"
 #include "spatial.hpp"
+#include "model_generator/model_generator.hpp"
 
 TEST(SerializationTest, BasicTypes_string) {
     using namespace ov::npuw::s11n;
@@ -71,7 +73,7 @@ TEST(SerializationTest, BasicTypes_streampos) {
     EXPECT_EQ(var, res);
 }
 
-TEST(SerializationTest, BasicTypes_Tensor) {
+TEST(SerializationTest, OVTypes_Tensor) {
     using namespace ov::npuw::s11n;
 
     std::vector<uint8_t> data {0, 1, 2, 3};
@@ -92,7 +94,7 @@ TEST(SerializationTest, BasicTypes_Tensor) {
     EXPECT_EQ(data, data_res);
 }
 
-TEST(SerializationTest, BasicTypes_Spatial) {
+TEST(SerializationTest, OVTypes_Spatial) {
     using namespace ov::npuw::s11n;
 
     ov::npuw::compiled::Spatial var;
@@ -121,7 +123,7 @@ TEST(SerializationTest, BasicTypes_Spatial) {
     EXPECT_EQ(var.tail_size, res.tail_size);
 }
 
-TEST(SerializationTest, BasicTypes_Config) {
+TEST(SerializationTest, OVTypes_Config) {
     using namespace ov::npuw::s11n;
 
     auto options_desc(std::make_shared<::intel_npu::OptionsDesc>());
@@ -141,25 +143,30 @@ TEST(SerializationTest, BasicTypes_Config) {
     EXPECT_EQ(res.get<::intel_npu::NPUW_LLM_BATCH_DIM>(), 42);
 }
 
-TEST(SerializationTest, BasicTypes_Any) {
+TEST(SerializationTest, OVTypes_Any) {
     using namespace ov::npuw::s11n;
 
-    int tmp = 42;
-    ov::Any var(tmp);
-    ov::Any res;
+    std::vector<ov::Any> var;
+    var.push_back(42);
+    var.push_back("42");
+    var.push_back(float(3.14));
+    var.push_back(true);
+    std::vector<ov::Any> res;
+    res.resize(var.size());
 
     std::stringstream ss;
 
-    write_any(ss, var);
-    read_any(ss, res);
-
-    EXPECT_EQ(var.as<int>(), res.as<int>());
+    for (std::size_t i = 0; i < var.size(); ++i) {
+        write_any(ss, var[i]);
+        read_any(ss, res[i]);
+        EXPECT_EQ(var[i], res[i]);
+    }
 }
 
 TEST(SerializationTest, BasicTypes_array) {
     using namespace ov::npuw::s11n;
 
-    std::array<uint8_t, 6> res;
+    IndicatorType res;
 
     std::stringstream ss;
 
@@ -245,7 +252,7 @@ TEST(SerializationTest, BasicTypes_optional) {
     EXPECT_EQ(var2, res2);
 }
 
-TEST(SerializationTest, BasicTypes_Tensor_with_weights) {
+TEST(SerializationTest, OVTypes_Tensor_with_weights) {
     using namespace ov::npuw::s11n;
 
     std::vector<uint8_t> data {0, 1, 2, 3};
