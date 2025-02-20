@@ -1263,7 +1263,7 @@ void Transformations::MainSnippets(void) {
         // Note: BrgemmTPP doesn't support transposed KN natively
         // so we should extract transposes for the corresponding matmul nodes
 #if defined(SNIPPETS_LIBXSMM_TPP)
-        // TPP doesn't support dynamic shapes -> there will be BrgemmCPU node
+        // TPP doesn't support dynamic shapes -> there will be GemmCPU node
         if (n->is_dynamic())
             return true;
         std::vector<std::vector<size_t>> layouts(3);
