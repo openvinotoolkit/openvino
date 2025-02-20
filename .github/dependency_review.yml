@@ -11,7 +11,6 @@ allow-licenses:
   - 'Python-2.0'
   - 'LGPL-3.0'
   - 'MPL-2.0'
-  - 'BSD-2-Clause AND BSD-3-Clause'
 fail-on-scopes:
   - 'runtime'
   - 'development'
