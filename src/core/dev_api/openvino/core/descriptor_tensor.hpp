@@ -14,15 +14,12 @@ namespace descriptor {
 
 /// @brief Defines tensor name port separator.
 inline constexpr auto port_separator = ':';
+/// @brief Defines unique name separator.
+inline constexpr auto unique_name_sep = '_';
 
 class Tensor;
 class Input;
 class Output;
-
-/// @brief Defines tensor name port separator.
-inline constexpr auto port_separator = ':';
-/// @brief Defines unique name separator.
-inline constexpr auto unique_name_sep = '_';
 
 // To change Tensor element type please change the Parameter type.
 OPENVINO_API
