@@ -4,6 +4,8 @@
 
 #include <gmock/gmock.h>
 
+#include <optional>
+
 #include "openvino/core/model.hpp"
 #include "openvino/core/model_util.hpp"
 #include "openvino/op/add.hpp"
@@ -46,7 +48,21 @@ protected:
         results[0]->set_friendly_name("add_result");
         results[1]->set_friendly_name("mul_result");
         results[2]->set_friendly_name("final_result");
+        model->set_friendly_name("ModelWithNamedNodes");
         return model;
+    }
+
+    static auto compare_tensor_names(const OutputVector& outputs, const TensorNamesMap& expected) {
+        std::optional<std::string> mismatch_err;
+
+        for (const auto& [port, expected_names] : expected) {
+            if (const auto& names = outputs[port].get_names(); expected_names != names) {
+                using testing::PrintToString;
+                mismatch_err.emplace("Tensor names mismatch on port " + PrintToString(port) + "\n Expected: " +
+                                     PrintToString(expected_names) + "\n Actual:   " + PrintToString(names));
+            }
+        }
+        return mismatch_err;
     }
 };
 
@@ -61,7 +77,6 @@ TEST_F(ModelUtilTest, manual_set_all_input_tensors_names) {
         EXPECT_EQ(model->input(port).get_names(), names) << "Names not match for input port " << port;
     }
 }
-
 TEST_F(ModelUtilTest, manual_set_some_input_tensors_names) {
     const auto inputs_names = TensorNamesMap{{2, {"input_2", "mul_input"}}, {0, {"add_input"}}};
     auto expected_names = inputs_names;
@@ -71,9 +86,8 @@ TEST_F(ModelUtilTest, manual_set_some_input_tensors_names) {
     util::set_input_tensors_names(*model, inputs_names);
 
     ASSERT_EQ(model->inputs().size(), expected_names.size());
-    for (const auto& [port, names] : expected_names) {
-        EXPECT_EQ(model->input(port).get_names(), names) << "Names not match for input port " << port;
-    }
+    const auto mismatch_error = compare_tensor_names(model->inputs(), expected_names);
+    EXPECT_FALSE(mismatch_error) << *mismatch_error;
 }
 
 TEST_F(ModelUtilTest, auto_set_all_input_tensors_names) {
@@ -83,9 +97,8 @@ TEST_F(ModelUtilTest, auto_set_all_input_tensors_names) {
     util::set_input_tensors_names(AUTO, *model);
 
     ASSERT_EQ(model->inputs().size(), expected_names.size());
-    for (const auto& [port, names] : expected_names) {
-        EXPECT_EQ(model->input(port).get_names(), names) << "Names not match for input port " << port;
-    }
+    const auto mismatch_error = compare_tensor_names(model->inputs(), expected_names);
+    EXPECT_FALSE(mismatch_error) << *mismatch_error;
 }
 
 TEST_F(ModelUtilTest, auto_set_missing_input_tensors_names) {
@@ -97,9 +110,8 @@ TEST_F(ModelUtilTest, auto_set_missing_input_tensors_names) {
     util::set_input_tensors_names(AUTO, *model, inputs_names);
 
     ASSERT_EQ(model->inputs().size(), expected_names.size());
-    for (const auto& [port, names] : expected_names) {
-        EXPECT_EQ(model->input(port).get_names(), names) << "Names not match for input port " << port;
-    }
+    const auto mismatch_error = compare_tensor_names(model->inputs(), expected_names);
+    EXPECT_FALSE(mismatch_error) << *mismatch_error;
 }
 
 TEST_F(ModelUtilTest, auto_set_all_io_tensors_names) {
@@ -110,14 +122,12 @@ TEST_F(ModelUtilTest, auto_set_all_io_tensors_names) {
     util::set_tensors_names(AUTO, *model);
 
     ASSERT_EQ(model->inputs().size(), exp_inputs_names.size());
-    for (const auto& [port, names] : exp_inputs_names) {
-        EXPECT_EQ(model->input(port).get_names(), names) << "Names not match for input port: " << port;
-    }
+    auto mismatch_error = compare_tensor_names(model->inputs(), exp_inputs_names);
+    EXPECT_FALSE(mismatch_error) << *mismatch_error;
 
     ASSERT_EQ(model->outputs().size(), exp_outputs_names.size());
-    for (const auto& [port, names] : exp_outputs_names) {
-        EXPECT_EQ(model->output(port).get_names(), names) << "Names not match for output port: " << port;
-    }
+    mismatch_error = compare_tensor_names(model->outputs(), exp_outputs_names);
+    EXPECT_FALSE(mismatch_error) << *mismatch_error;
 }
 
 TEST_F(ModelUtilTest, manual_set_all_io_tensors_names) {
@@ -128,14 +138,12 @@ TEST_F(ModelUtilTest, manual_set_all_io_tensors_names) {
     util::set_tensors_names(*model, inputs_names, outputs_names);
 
     ASSERT_EQ(model->inputs().size(), inputs_names.size());
-    for (const auto& [port, names] : inputs_names) {
-        EXPECT_EQ(model->input(port).get_names(), names) << "Names not match for input port " << port;
-    }
+    auto mismatch_error = compare_tensor_names(model->inputs(), inputs_names);
+    EXPECT_FALSE(mismatch_error) << *mismatch_error;
 
     ASSERT_EQ(model->outputs().size(), outputs_names.size());
-    for (const auto& [port, names] : outputs_names) {
-        EXPECT_EQ(model->output(port).get_names(), names) << "Names not match for output port " << port;
-    }
+    mismatch_error = compare_tensor_names(model->outputs(), outputs_names);
+    EXPECT_FALSE(mismatch_error) << *mismatch_error;
 }
 
 TEST_F(ModelUtilTest, manual_set_some_io_tensors_names) {
@@ -152,14 +160,12 @@ TEST_F(ModelUtilTest, manual_set_some_io_tensors_names) {
     util::set_tensors_names(*model, inputs_names, outputs_names);
 
     ASSERT_EQ(model->inputs().size(), expected_input_names.size());
-    for (const auto& [port, names] : expected_input_names) {
-        EXPECT_EQ(model->input(port).get_names(), names) << "Names not match for input port " << port;
-    }
+    auto mismatch_error = compare_tensor_names(model->inputs(), expected_input_names);
+    EXPECT_FALSE(mismatch_error) << *mismatch_error;
 
     ASSERT_EQ(model->outputs().size(), expected_output_names.size());
-    for (const auto& [port, names] : expected_output_names) {
-        EXPECT_EQ(model->output(port).get_names(), names) << "Names not match for output port " << port;
-    }
+    mismatch_error = compare_tensor_names(model->outputs(), expected_output_names);
+    EXPECT_FALSE(mismatch_error) << *mismatch_error;
 }
 
 TEST_F(ModelUtilTest, manual_set_all_output_tensors_names) {
@@ -169,9 +175,8 @@ TEST_F(ModelUtilTest, manual_set_all_output_tensors_names) {
     util::set_output_tensor_names(*model, outputs_names);
 
     ASSERT_EQ(model->outputs().size(), outputs_names.size());
-    for (const auto& [port, names] : outputs_names) {
-        EXPECT_EQ(model->output(port).get_names(), names) << "Names not match for output port " << port;
-    }
+    const auto mismatch_error = compare_tensor_names(model->outputs(), outputs_names);
+    EXPECT_FALSE(mismatch_error) << *mismatch_error;
 }
 
 TEST_F(ModelUtilTest, manual_set_some_output_tensors_names) {
@@ -183,9 +188,8 @@ TEST_F(ModelUtilTest, manual_set_some_output_tensors_names) {
     util::set_output_tensor_names(*model, outputs_names);
 
     ASSERT_EQ(model->outputs().size(), expected_names.size());
-    for (const auto& [port, names] : expected_names) {
-        EXPECT_EQ(model->output(port).get_names(), names) << "Names not match for output port " << port;
-    }
+    const auto mismatch_error = compare_tensor_names(model->outputs(), expected_names);
+    EXPECT_FALSE(mismatch_error) << *mismatch_error;
 }
 
 TEST_F(ModelUtilTest, auto_set_all_output_tensors_names) {
@@ -195,9 +199,8 @@ TEST_F(ModelUtilTest, auto_set_all_output_tensors_names) {
     util::set_output_tensor_names(AUTO, *model);
 
     ASSERT_EQ(model->outputs().size(), expected_names.size());
-    for (const auto& [port, names] : expected_names) {
-        EXPECT_EQ(model->output(port).get_names(), names) << "Names not match for output port " << port;
-    }
+    const auto mismatch_error = compare_tensor_names(model->outputs(), expected_names);
+    EXPECT_FALSE(mismatch_error) << *mismatch_error;
 }
 
 TEST_F(ModelUtilTest, auto_set_missing_output_tensors_names) {
@@ -209,9 +212,8 @@ TEST_F(ModelUtilTest, auto_set_missing_output_tensors_names) {
     util::set_output_tensor_names(AUTO, *model, outputs_names);
 
     ASSERT_EQ(model->outputs().size(), expected_names.size());
-    for (const auto& [port, names] : expected_names) {
-        EXPECT_EQ(model->output(port).get_names(), names) << "Names not match for output port " << port;
-    }
+    const auto mismatch_error = compare_tensor_names(model->outputs(), expected_names);
+    EXPECT_FALSE(mismatch_error) << *mismatch_error;
 }
 
 }  // namespace ov::test
