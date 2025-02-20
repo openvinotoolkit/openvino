@@ -407,15 +407,30 @@ jobs:
         - /mount:/mount
         - ${{ github.workspace }}:${{ github.workspace }}
     env:
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
+      OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
+      MANIFEST_PATH: ${{ github.workspace }}/manifest.yml
       ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       PRODUCT_TYPE: public_macos_12_6_x86_release
-    steps:
-      - name: checkout action
+
+    steps:        
+      - name: Checkout OpenVINO actions
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
         with:
-          sparse-checkout: .github/actions/store_artifacts
+          sparse-checkout: |
+            .github/actions/store_artifacts
+            .github/actions/create_manifest
+          path: ${{ env.OPENVINO_REPO }}
+      
+      - name: Clone OpenVINO Contrib
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          repository: 'openvinotoolkit/openvino_contrib'
+          path: ${{ env.OPENVINO_CONTRIB_REPO }}
+          fetch-depth: 1
           
       - name: Download OpenVINO artifacts
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
@@ -423,13 +438,26 @@ jobs:
           pattern: "{openvino_package,openvino_wheels,openvino_developer_package,openvino_js_package}"
           path: ${{ env.ARTIFACTS_DIR }}
           merge-multiple: true
+     
+      - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
+        id: create_manifest
+        uses: ./openvino/.github/actions/create_manifest
+        with:
+          repos: |
+            ${{ env.OPENVINO_REPO }}
+            ${{ env.OPENVINO_CONTRIB_REPO }}
+          product_type: ${{ env.PRODUCT_TYPE }}
+          target_arch: ${{ inputs.arch }}
+          build_type: 'release'
+          save_to: ${{ env.MANIFEST_PATH }}     
           
       - name: Store artifacts to a shared drive
         id: store_artifacts
         if: ${{ always() }}
-        uses: ./.github/actions/store_artifacts
+        uses: ./openvino/.github/actions/store_artifacts
         with:
           artifacts: |
+            ${{ env.MANIFEST_PATH }}
             ${{ env.ARTIFACTS_DIR }}/openvino_package.tar.gz
             ${{ env.ARTIFACTS_DIR }}/openvino_developer_package.tar.gz
             ${{ env.ARTIFACTS_DIR }}/wheels
