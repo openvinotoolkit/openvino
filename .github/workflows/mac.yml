@@ -416,7 +416,7 @@ jobs:
         timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/store_artifacts
-        
+          
       - name: Download OpenVINO artifacts
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
@@ -427,7 +427,7 @@ jobs:
       - name: Store artifacts to a shared drive
         id: store_artifacts
         if: ${{ always() }}
-        uses: ./openvino/.github/actions/store_artifacts
+        uses: .github/actions/store_artifacts
         with:
           artifacts: |
             ${{ env.ARTIFACTS_DIR }}/openvino_package.tar.gz
