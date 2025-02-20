@@ -96,31 +96,31 @@ private:
 };
 
 class CurrentOS {
-    public:
-        CurrentOS() {
+public:
+CurrentOS() {
     #ifdef WIN32
-            _name = "windows";
+        _name = "windows";
     #elif defined(__linux__)
-            _name = "linux";
+        _name = "linux";
     #endif
-        }
-    
-        std::string getName() const {
-            return _name;
-        }
-    
-        bool isLinux() const {
-            return _name == "linux";
-        }
-    
-        bool isWindows() const {
-            return _name == "windows";
-        }
-    
-    private:
-        std::string _name;
-        intel_npu::Logger _log = intel_npu::Logger("CurrentOS", ov::log::Level::INFO);
-    };    
+    }
+
+    std::string getName() const {
+        return _name;
+    }
+
+    bool isLinux() const {
+        return _name == "linux";
+    }
+
+    bool isWindows() const {
+        return _name == "windows";
+    }
+
+private:
+    std::string _name;
+};    
+
 class SkipRegistry {
 public:
     void addPatterns(std::string&& comment, std::vector<std::string>&& patternsToSkip) {
@@ -196,9 +196,13 @@ bool isRuleInverted(std::string& rule) {
 std::vector<std::string> disabledTestPatterns();
 
 std::vector<std::string> disabledTestPatterns() {
+
+
     // Initialize skip registry
     static const auto skipRegistry = []() {
         SkipRegistry _skipRegistry;
+
+        intel_npu::Logger _log = intel_npu::Logger("SkipConfig", ov::log::Level::INFO);
 
         const BackendName backendName;
         const AvailableDevices devices;
@@ -207,13 +211,14 @@ std::vector<std::string> disabledTestPatterns() {
         // Check if skip xml is set to be read
         const auto& filePath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_SKIP_CONFIG_FILE;
         if (filePath.empty())
-            std::cout << "[WARNING] OV_NPU_TESTS_SKIP_CONFIG_FILE not set" << std::endl;
+           _log.warning ("[WARNING] OV_NPU_TESTS_SKIP_CONFIG_FILE not set");
+        else
+            _log.info ("Using %s as skip config", filePath.c_str());
 
         // Load the Skip config
         auto xmlResult = ov::util::pugixml::parse_xml(filePath.c_str());
-        if (!xmlResult.error_msg.empty() && !filePath.empty()){
-            std::cout << "[ERROR]: " << xmlResult.error_msg.c_str() << std::endl;
-        }
+        if (!xmlResult.error_msg.empty() && !filePath.empty())
+            _log.error (xmlResult.error_msg.c_str());
 
         pugi::xml_document& xmlSkipConfig = *xmlResult.xml;
 
@@ -232,7 +237,7 @@ std::vector<std::string> disabledTestPatterns() {
             bool ruleFlag = false;
             if (!enableRules.empty()) {
                 bool backendRuleFlag = false;
-                if (!enableRules.child("device").empty()) {
+                if (!enableRules.child("backend").empty()) {
                 FOREACH_CHILD(enableRule, enableRules, "backend") {
                     auto backendRule = enableRule.text().get();
 
@@ -240,7 +245,7 @@ std::vector<std::string> disabledTestPatterns() {
                     bool invertRule = isRuleInverted(backendRuleString);
                     // Perform logical XOR to invert condition
                     if (!(backendRuleString == backendName.getName()) != !invertRule)
-                    backendRuleFlag = true;
+                        backendRuleFlag = true;
                 }
                 } else {
                     // Rule empty, default to true
@@ -297,7 +302,7 @@ std::vector<std::string> disabledTestPatterns() {
 
         // OV_NPU_TESTS_SKIP_CONFIG_FILE not present
         if (filePath.empty() || !xmlResult.error_msg.empty()) {
-        std::cout << "[WARNING] Using legacy skip config" << std::endl;
+        _log.warning ("[WARNING] Using legacy skip config");
 
         // clang-format off
 
