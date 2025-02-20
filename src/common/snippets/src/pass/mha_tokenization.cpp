@@ -209,7 +209,7 @@ bool ov::snippets::pass::TokenizeMHASnippets::is_matmul0_supported(const std::sh
         return false;
 
     const auto matmul_prc = op::Brgemm::get_output_type(matmul->get_input_element_type(0), matmul->get_input_element_type(1));
-    return matmul_prc != element::undefined;
+    return matmul_prc != element::dynamic;
 }
 
 ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsTokenization::Config& config) {
@@ -311,8 +311,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
 
         const auto matmul1_out_type = op::Brgemm::get_output_type(matmul1->get_input_element_type(0),
                                                                   matmul1->get_input_element_type(1));
-        if (matmul1_out_type == element::undefined ||
-            !is_supported_tensor(matmul1->get_input_tensor(0)) ||
+        if (matmul1_out_type == element::dynamic || !is_supported_tensor(matmul1->get_input_tensor(0)) ||
             !is_supported_tensor(matmul1->get_input_tensor(1)))
             return false;
 

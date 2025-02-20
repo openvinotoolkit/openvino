@@ -68,11 +68,6 @@ static ov::test::utils::InputGenerateData get_range_by_type(
     }
 
     switch (elemType) {
-    case (ov::element::Type_t::undefined): {
-        inData.start_from = min_start;
-        inData.range = max_range_limit;
-        break;
-    }
     case (ov::element::Type_t::dynamic): {
         inData.start_from = min_start;
         inData.range = max_range_limit;
