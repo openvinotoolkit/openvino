@@ -40,7 +40,7 @@ namespace {
 ov::element::Type_t toOVElementType(const ze_graph_argument_precision_t zeElementType) {
     switch (zeElementType) {
     case ZE_GRAPH_ARGUMENT_PRECISION_UNKNOWN:
-        return ov::element::Type_t::undefined;
+        return ov::element::Type_t::dynamic;
     case ZE_GRAPH_ARGUMENT_PRECISION_DYNAMIC:
         return ov::element::Type_t::dynamic;
     case ZE_GRAPH_ARGUMENT_PRECISION_BOOLEAN:
@@ -78,7 +78,7 @@ ov::element::Type_t toOVElementType(const ze_graph_argument_precision_t zeElemen
     case ZE_GRAPH_ARGUMENT_PRECISION_UINT64:
         return ov::element::Type_t::u64;
     default:
-        return ov::element::Type_t::undefined;
+        return ov::element::Type_t::dynamic;
     }
 }
 

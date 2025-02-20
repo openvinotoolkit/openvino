@@ -23,13 +23,13 @@ public:
                                   const ov::Output<Node>& bias,
                                   const ov::Output<Node>& deq_scales,
                                   const ov::Output<Node>& deq_zero_points,
-                                  const ov::element::Type output_type = ov::element::undefined);
+                                  const ov::element::Type output_type = ov::element::dynamic);
 
     FullyConnectedQuantizedLegacy(const ov::Output<Node>& X,
                                   const ov::Output<Node>& W,
                                   const ov::Output<Node>& bias,
                                   const ov::Output<Node>& deq_scales,
-                                  const ov::element::Type output_type = ov::element::undefined);
+                                  const ov::element::Type output_type = ov::element::dynamic);
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 

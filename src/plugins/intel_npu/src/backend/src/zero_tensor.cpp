@@ -24,7 +24,7 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
       _strides{},
       _strides_once{},
       _allocator{allocator} {
-    OPENVINO_ASSERT(_element_type != ov::element::undefined && _element_type.is_static());
+    OPENVINO_ASSERT(_element_type.is_static());
     OPENVINO_ASSERT(allocator, "Allocator was not initialized");
     const auto byte_size = ov::element::get_memory_size(_element_type, shape_size(_shape));
     auto data = const_cast<ov::Allocator&>(_allocator).allocate(byte_size);
@@ -34,7 +34,7 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
 }
 
 void* ZeroTensor::data(const ov::element::Type& element_type) const {
-    if (element_type != ov::element::undefined && element_type != ov::element::dynamic &&
+    if (element_type != ov::element::dynamic &&
         (element_type.bitwidth() != get_element_type().bitwidth() ||
          element_type.is_real() != get_element_type().is_real() ||
          (element_type == ov::element::string && get_element_type() != ov::element::string) ||
