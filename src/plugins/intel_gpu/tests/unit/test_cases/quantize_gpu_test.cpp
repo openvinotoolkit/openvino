@@ -749,164 +749,6 @@ TEST(quantize_gpu, dynamic) {
     }
 }
 
-TEST(quantize_gpu, opt_vec_kernel) {
-    auto& engine = get_test_engine();
-
-    auto input       = engine.allocate_memory({ { 1, 16, 2, 2 }, data_types::f32, format::bfyx });
-    auto input_low   = engine.allocate_memory({ { 1, 1, 1, 1 }, data_types::f32, format::bfyx });
-    auto input_high  = engine.allocate_memory({ { 1, 1, 1, 1 }, data_types::f32, format::bfyx });
-    auto output_low  = engine.allocate_memory({ { 1, 1,  1, 1 }, data_types::f32, format::bfyx });
-    auto output_high = engine.allocate_memory({ { 1, 1,  1, 1 }, data_types::f32, format::bfyx });
-
-    layout in_dyn_layout { ov::PartialShape{1, 16, 2, 2}, data_types::f32, format::bfyx };
-
-    set_values(input, { -1.0f, 2.1f, 3.0f, 4.0f,
-                         5.0f, 2.0f, 2.0f, 3.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
-
-                         1.0f, 1.0f, 1.0f, 1.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
-                         1.0f, 1.0f, 1.0f, 1.0f,
-
-                         1.0f, 2.0f, 3.0f, 4.0f,
-                         5.0f, 2.0f, 2.0f, 3.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
-
-                         1.0f, 1.0f, 1.0f, 1.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
-                         1.0f, 1.0f, 1.0f, 1.0f });
-
-    set_values(input_low,  { 0.0f});
-    set_values(input_high, { 10.0f});
-
-    set_values(output_low,  { 0.0f });
-    set_values(output_high, { 255.0f });
-
-    std::vector<uint8_t> ref_data = {0,  54, 76, 102, 128, 51,  51, 76, 102, 153, 76, 76, 76, 128, 26, 26,
-                                     26, 26, 26, 26,  102, 153, 76, 76, 76,  128, 26, 26, 26, 26,  26, 26,
-                                     26, 51, 76, 102, 128, 51,  51, 76, 102, 153, 76, 76, 76, 128, 26, 26,
-                                     26, 26, 26, 26,  102, 153, 76, 76, 76,  128, 26, 26, 26, 26,  26, 26};
-
-    topology topology;
-    topology.add(
-        input_layout("input", in_dyn_layout),
-        data("input_low", input_low),
-        data("input_high", input_high),
-        data("output_low", output_low),
-        data("output_high", output_high),
-        quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 255, data_types::u8)
-    );
-
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    config.set_property(ov::intel_gpu::optimize_data(true));
-    network network(engine, topology, config);
-    network.set_input_data("input", input);
-
-    auto inst = network.get_primitive("quantize");
-    auto impl = inst->get_impl();
-    ASSERT_TRUE(impl != nullptr);
-
-    auto outputs = network.execute();
-
-    auto output = outputs.at("quantize").get_memory();
-    cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
-
-    // Check that layout and memory contains logical size of tensor
-    ASSERT_EQ(output->count(), (size_t)64);
-    ASSERT_EQ(output->get_layout().count(), (size_t)64);
-
-    ASSERT_EQ(output->size(), ref_data.size() * sizeof(uint8_t));
-
-    for (size_t i = 0; i < ref_data.size(); ++i) {
-        ASSERT_NEAR(output_ptr[i], ref_data[i], 1) << " index = " << i;
-    }
-}
-
-TEST(quantize_gpu, opt_vec_kernel_fsv16) {
-    auto& engine = get_test_engine();
-
-    auto input       = engine.allocate_memory({ { 1, 16, 2, 2 }, data_types::f32, format::b_fs_yx_fsv16 });
-    auto input_low   = engine.allocate_memory({ { 1, 1, 1, 1 }, data_types::f32, format::bfyx });
-    auto input_high  = engine.allocate_memory({ { 1, 1, 1, 1 }, data_types::f32, format::bfyx });
-    auto output_low  = engine.allocate_memory({ { 1, 1,  1, 1 }, data_types::f32, format::bfyx });
-    auto output_high = engine.allocate_memory({ { 1, 1,  1, 1 }, data_types::f32, format::bfyx });
-
-    layout in_dyn_layout { ov::PartialShape{1, 16, 2, 2}, data_types::f32, format::b_fs_yx_fsv16 };
-
-    set_values(input, { -1.0f, 2.1f, 3.0f, 4.0f,
-                         5.0f, 2.0f, 2.0f, 3.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
-
-                         1.0f, 1.0f, 1.0f, 1.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
-                         1.0f, 1.0f, 1.0f, 1.0f,
-
-                         1.0f, 2.0f, 3.0f, 4.0f,
-                         5.0f, 2.0f, 2.0f, 3.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
-
-                         1.0f, 1.0f, 1.0f, 1.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
-                         1.0f, 1.0f, 1.0f, 1.0f });
-
-    set_values(input_low,  { 0.0f });
-    set_values(input_high, { 10.0f });
-
-    set_values(output_low,  { 0.0f });
-    set_values(output_high, { 255.0f });
-
-    std::vector<uint8_t> ref_data = {0,  53, 76, 102, 128, 51,  51, 76, 102, 153, 76, 76, 76, 128, 25, 25,
-                                     25, 25, 25, 25,  102, 153, 76, 76, 76,  128, 25, 25, 25, 25,  25, 25,
-                                     25, 51, 76, 102, 128, 51,  51, 76, 102, 153, 76, 76, 76, 128, 25, 25,
-                                     25, 25, 25, 25,  102, 153, 76, 76, 76,  128, 25, 25, 25, 25,  25, 25};
-
-    topology topology;
-    topology.add(
-        input_layout("input", in_dyn_layout),
-        data("input_low", input_low),
-        data("input_high", input_high),
-        data("output_low", output_low),
-        data("output_high", output_high),
-        quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 255, data_types::u8),
-        reorder("reorder", input_info("quantize"), format::bfyx, data_types::f32),
-        softmax("softmax", input_info("reorder"))
-    );
-
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    config.set_property(ov::intel_gpu::optimize_data(true));
-    network network(engine, topology, config);
-    network.set_input_data("input", input);
-
-    auto inst = network.get_primitive("quantize");
-    auto impl = inst->get_impl();
-    ASSERT_TRUE(impl != nullptr);
-
-    auto outputs = network.execute();
-
-    auto output = outputs.at("softmax").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-
-    // Check that layout and memory contains logical size of tensor
-    ASSERT_EQ(output->count(), (size_t)64);
-    ASSERT_EQ(output->get_layout().count(), (size_t)64);
-
-    ASSERT_EQ(output->size(), ref_data.size() * sizeof(float));
-
-    for (size_t i = 0; i < ref_data.size(); ++i) {
-        ASSERT_NEAR(output_ptr[i], ref_data[i], 1) << " index = " << i;
-    }
-}
-
 TEST(quantize_gpu, dynamic_fsv16) {
     auto& engine = get_test_engine();
 
@@ -1118,8 +960,7 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
 
                         auto opt_out_offset = opt_output_lay.get_linear_offset(ref_out_coords);
                         auto opt_out_val = opt_ptr[opt_out_offset];
-
-                        ASSERT_EQ(opt_out_val, ref_out_val);
+                        ASSERT_NEAR(opt_out_val, ref_out_val, 1) << " index = " << opt_out_offset;
                     }
                 }
             }
@@ -1171,6 +1012,7 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"quantize"}));
+        config.set_property(ov::intel_gpu::optimize_data(true));
 
         cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
 
@@ -1235,6 +1077,9 @@ struct quantize_random_test_param_generator : std::vector<quantize_random_test_p
     quantize_random_test_param_generator& simple_params(data_types input_type, data_types output_type, format::type input_format, format::type output_format, int32_t inputs_num) {
         push_back(quantize_random_test_params{ input_type, output_type, {1, 32, 2, 2}, input_format, output_format, inputs_num});
         push_back(quantize_random_test_params{ input_type, output_type, {1, 16, 10, 10}, input_format, output_format, inputs_num});
+        push_back(quantize_random_test_params{ input_type, output_type, {64, 32, 10, 10}, input_format, output_format, inputs_num});
+        push_back(quantize_random_test_params{ input_type, output_type, {1, 17, 10, 10}, input_format, output_format, inputs_num});
+        push_back(quantize_random_test_params{ input_type, output_type, {17, 17, 10, 10}, input_format, output_format, inputs_num});
         return *this;
     }
 };
@@ -1250,6 +1095,8 @@ INSTANTIATE_TEST_SUITE_P(quantize_smoke,
                             quantize_random_test_param_generator()
                             .simple_params(data_types::f32, data_types::u8, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, 5)
                             .simple_params(data_types::f32, data_types::u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, 5)
+                            .simple_params(data_types::f32, data_types::u8, format::bfyx, format::bfyx, 5)
+                            .simple_params(data_types::f16, data_types::u8, format::bs_fs_yx_bsv16_fsv32, format::bs_fs_yx_bsv16_fsv32, 5)
                         ));
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS

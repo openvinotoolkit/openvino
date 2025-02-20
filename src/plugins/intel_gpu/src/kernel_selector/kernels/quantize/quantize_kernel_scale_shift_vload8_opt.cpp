@@ -61,7 +61,7 @@ auto get_total_size = [](const quantize_params& params) {
 CommonDispatchData QuantizeKernelScaleShift_vload8::SetDefault(const quantize_params& params) const {
     CommonDispatchData dispatchData;
     if (true) {
-        dispatchData.gws[0] = std::max(get_total_size(params) / vec_size, (size_t)1);
+        dispatchData.gws[0] = static_cast<size_t>(std::max(std::ceil(get_total_size(params) / static_cast<float>(vec_size)), 1.0f));
         dispatchData.gws[1] = 1;
         dispatchData.gws[2] = 1;
     }
@@ -93,7 +93,10 @@ JitConstants QuantizeKernelScaleShift_vload8::GetJitConstants(const quantize_par
     jit.AddConstant(MakeJitConstant("OUT_SHIFT_VAL", params.out_shift));
     jit.AddConstant(MakeJitConstant("CAN_USE_OUTPUT_RANGE", can_use_output_range));
     jit.AddConstant(MakeJitConstant("HAS_OUTPUT_RANGE_ROUND", has_output_range_round));
-
+    if (get_total_size(params) % vec_size) {
+        // handle some leftovers
+        jit.AddConstant(MakeJitConstant("LAST_ACCESSED", get_total_size(params) - vec_size));
+    }
     return jit;
 }
 
@@ -136,9 +139,6 @@ bool QuantizeKernelScaleShift_vload8::Validate(const Params& p) const {
                 return false;
     }
 
-    auto total_size = get_total_size(params);
-    if ((total_size % vec_size) != 0 || (params.inputs[0].GetFirstElementOffset() % vec_size) != 0)
-        return false;
     return true;
 }
 

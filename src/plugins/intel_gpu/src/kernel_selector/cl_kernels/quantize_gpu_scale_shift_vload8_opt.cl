@@ -34,9 +34,10 @@ KERNEL(quantize_gpu_scale_shift_vload8_opt)(OPTIONAL_SHAPE_INFO_ARG
                                            __global OUTPUT_TYPE* output)
 {
     const int global_id = get_global_id(0);
-
+#if LAST_ACCESSED_X
+    global_id -= max(global_id - (int)LAST_ACCESSED_X, 0);
+#endif
     const INPUT0_VEC_TYPE in0 = vload8(global_id, input);
-
     OUTPUT_VEC_TYPE res;
 
 #if HAS_CLAMP
@@ -116,6 +117,6 @@ KERNEL(quantize_gpu_scale_shift_vload8_opt)(OPTIONAL_SHAPE_INFO_ARG
 #else
         res = TO_VECTOR_TYPE_SAT_RTE(OUTPUT_TYPE, 8)(val);;
 #endif
-
+    //BLOCK_WRITEN(OUTPUT_TYPE, 8, output, global_id, res);
     vstore8(res, global_id, output);
 }

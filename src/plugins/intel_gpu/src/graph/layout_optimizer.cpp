@@ -1083,7 +1083,7 @@ format layout_optimizer::get_expected_format(quantize_node const& node) {
             else
                 return false;
         }
-
+        all_users_gemm &= (node.get_users().size() != 0);
         return all_users_gemm;
     };
 
