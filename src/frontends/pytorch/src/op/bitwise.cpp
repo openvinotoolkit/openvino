@@ -4,11 +4,11 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_left_shift.hpp"
 #include "openvino/op/bitwise_not.hpp"
 #include "openvino/op/bitwise_or.hpp"
-#include "openvino/op/bitwise_xor.hpp"
-#include "openvino/op/bitwise_left_shift.hpp"
 #include "openvino/op/bitwise_right_shift.hpp"
+#include "openvino/op/bitwise_xor.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "utils.hpp"
 
