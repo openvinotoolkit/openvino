@@ -145,6 +145,8 @@ JitConstants PermuteKernel_f_y_axes::GetJitConstants(const permute_params& param
         jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));
     }
 
+    jit.Merge(MakeTypeJitConstants(params.inputs[0].GetDType(), "ACCUMULATOR"));
+
     if (!params.fused_ops.empty()) {
         const std::vector<std::string> original_output_order = {"b_idx", "f_out_idx", "y_out_idx", "x_idx"};
         const FusedOpsConfiguration conf_scalar = {"", original_output_order, "res", params.inputs[0].GetDType(), 1};
