@@ -161,6 +161,7 @@ std::shared_ptr<ov::Node> extract_diagonal(const std::shared_ptr<ov::Node>& data
 TEST_F(TransformationTestsF, Einsum_2in_matmul) {
     PartialShape data_shape_1{5, 2};
     PartialShape data_shape_2{10, 1, 25};
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     {
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
         auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
@@ -211,6 +212,7 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul) {
 TEST_F(TransformationTestsF, Einsum_2in_matmul_dynamic) {
     PartialShape data_shape_1 = PartialShape::dynamic(2);
     PartialShape data_shape_2 = PartialShape::dynamic(3);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     {
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
         auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
@@ -293,6 +295,7 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul_dynamic) {
 TEST_F(TransformationTestsF, Einsum_2in_matmul_ellipsis_dynamic) {
     PartialShape data_shape_1 = PartialShape::dynamic(2);
     PartialShape data_shape_2 = PartialShape::dynamic(5);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     {
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
         auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
@@ -377,6 +380,7 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul_ellipsis_dynamic) {
 
 TEST_F(TransformationTestsF, Einsum_1in_repeated_labels_ellipsis_static_cf) {
     Shape data_shape_1 = {1, 3, 2, 1, 3, 1};
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     {
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
         auto einsum = std::make_shared<opset7::Einsum>(OutputVector{data_1}, "ij...iji->j...i");
@@ -424,6 +428,7 @@ TEST_F(TransformationTestsF, Einsum_1in_repeated_labels_ellipsis_static_cf) {
 
 TEST_F(TransformationTestsF, Einsum_1in_repeated_labels_empty_ellipsis_dynamic) {
     PartialShape data_shape_1 = PartialShape::dynamic(5);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     {
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
         auto einsum = std::make_shared<opset7::Einsum>(OutputVector{data_1}, "ij...iji->j...i");
@@ -452,6 +457,7 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_s
     PartialShape data_shape_1 = {1, 2, 2, 1, 1, 1};
     PartialShape data_shape_2 = {4, 1, 1, 1, 1, 1};
     PartialShape data_shape_3 = {3, 1, 3, 3};
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     {
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
         auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
@@ -551,6 +557,7 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_d
     PartialShape data_shape_1 = PartialShape::dynamic(5);
     PartialShape data_shape_2 = PartialShape::dynamic(6);
     PartialShape data_shape_3 = PartialShape::dynamic(4);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     {
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
         auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
