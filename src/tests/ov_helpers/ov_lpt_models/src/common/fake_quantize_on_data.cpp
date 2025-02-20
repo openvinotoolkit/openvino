@@ -46,9 +46,9 @@ bool FakeQuantizeOnData::empty() const {
         outputHighValues.empty();
 }
 
-FakeQuantizeOnDataWithConstant::FakeQuantizeOnDataWithConstant() :
-    quantizationLevel(0),
-    outputPrecision(ov::element::undefined) {}
+FakeQuantizeOnDataWithConstant::FakeQuantizeOnDataWithConstant()
+    : quantizationLevel(0),
+      outputPrecision(ov::element::dynamic) {}
 
 FakeQuantizeOnDataWithConstant::FakeQuantizeOnDataWithConstant(
     const uint64_t quantizationLevel,

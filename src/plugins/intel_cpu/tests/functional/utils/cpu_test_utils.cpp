@@ -473,10 +473,9 @@ CPUTestsBase::deduce_expected_precision(const ov::element::Type& opPrecision,
         auto inferencePrecisionConfig = it->second.as<ov::element::Type>();
         inferencePrecisionSetExplicitly = true;
         // TODO also need to check (dnnl::impl::cpu::x64::avx2_vnni_2)
-        if ((inferencePrecisionConfig == ov::element::bf16 && ov::with_cpu_x86_avx512_core())
-                || (inferencePrecisionConfig == ov::element::f16 && ov::with_cpu_x86_avx512_core_fp16())
-                || (inferencePrecisionConfig == ov::element::f32)
-                || (inferencePrecisionConfig == ov::element::undefined)) {
+        if ((inferencePrecisionConfig == ov::element::bf16 && ov::with_cpu_x86_avx512_core()) ||
+            (inferencePrecisionConfig == ov::element::f16 && ov::with_cpu_x86_avx512_core_fp16()) ||
+            (inferencePrecisionConfig == ov::element::f32) || (inferencePrecisionConfig == ov::element::dynamic)) {
             inferencePrecision = inferencePrecisionConfig;
         }
     }
@@ -489,7 +488,7 @@ CPUTestsBase::deduce_expected_precision(const ov::element::Type& opPrecision,
                 inferencePrecision = ov::element::bf16;
             }
         } else {
-            inferencePrecision = ov::element::undefined;
+            inferencePrecision = ov::element::dynamic;
         }
     }
 
@@ -508,7 +507,7 @@ CPUTestsBase::deduce_expected_precision(const ov::element::Type& opPrecision,
     if (deducedType == ov::element::bf16) {
         deducedType = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
     } else if (deducedType == ov::element::f16) {
-        if (inferencePrecision != ov::element::f16 && inferencePrecision != ov::element::undefined) {
+        if (inferencePrecision != ov::element::f16 && inferencePrecision != ov::element::dynamic) {
             deducedType = ov::element::f32;
         }
     } else {

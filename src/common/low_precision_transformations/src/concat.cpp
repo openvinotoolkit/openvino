@@ -300,7 +300,7 @@ bool ConcatTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) 
         if (constant == nullptr) {
             return true;
         }
-        if (const_precision == element::undefined) {
+        if (const_precision == element::dynamic) {
             const_precision = constant->get_element_type();
             return true;
         }
@@ -320,7 +320,7 @@ bool ConcatTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) 
             return false;
         }
 
-        if (precision == element::undefined) {
+        if (precision == element::dynamic) {
             precision = dequantization.data.get_element_type();
         } else if (precision != dequantization.data.get_element_type()) {
             return false;

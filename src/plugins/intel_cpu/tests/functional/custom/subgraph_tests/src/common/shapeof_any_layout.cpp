@@ -82,7 +82,7 @@ protected:
         std::vector<cpu_memory_format_t> eltwiseInFmts, eltwiseOutFmts;
         std::tie(eltwiseInFmts, eltwiseOutFmts, priority, selectedType) = cpuParams;
 
-        auto netPrecision = ElementType::undefined;
+        auto netPrecision = ElementType::dynamic;
         InputShape inputShape;
         std::tie(inputShape, netPrecision) = basicParamsSet;
         init_input_shapes({inputShape});

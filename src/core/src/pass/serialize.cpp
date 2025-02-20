@@ -731,7 +731,6 @@ std::string get_opset_name(const ov::Node* n) {
 
 std::string get_precision_name(const ov::element::Type& elem_type) {
     switch (elem_type) {
-    case ::ov::element::Type_t::undefined:
     case ::ov::element::Type_t::dynamic:
         return "UNSPECIFIED";
     case ::ov::element::Type_t::f16:

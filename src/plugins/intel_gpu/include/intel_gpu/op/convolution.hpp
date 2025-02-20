@@ -66,7 +66,7 @@ public:
 protected:
     int64_t m_groups = -1; // negative value means no groups
     bool m_asymmetric = false;
-    ov::element::Type m_output_type = ov::element::undefined;
+    ov::element::Type m_output_type = ov::element::dynamic;
 };
 
 std::vector<ov::PartialShape> shape_infer(const Convolution* op,

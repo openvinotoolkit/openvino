@@ -42,10 +42,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*_GroupConv.*_inFmts=nc.*_primitive=jit_gemm.*ENFORCE_BF16=YES.*)",
         // TODO: 157596 convolution bf16 leftover test case
         R"(smoke_JIT_AVX512_DW_GroupConv/GroupConvolutionLayerCPUTest.*ndhwc.*jit_avx512_dw.*INFERENCE_PRECISION_HINT=bf16.*)",
-        R"(smoke_Conv_1D_1x1_BF16/ConvolutionLayerCPUTest\.CompareWithRefs/IS=\[\]_TS=\(\((1|2)\.6(4|7)\.7\)_\)_K\(1\)_S\(1\)_PB\(0\)_PE\(0\)_D=\(1\)_O=63_AP=explicit_netPRC=f32_inPRC=undefined_outPRC=undefined_trgDev=CPU_inFmts=nhwc_outFmts=nhwc_primitive=jit_avx512_1x1_.*PluginConf_INFERENCE_PRECISION_HINT=bf16)",
-        R"(smoke_Conv_1D_1x1_BF16/ConvolutionLayerCPUTest\.CompareWithRefs/IS=\[1\.\.200\.64\.\?\]_TS=\(\(2\.64\.7\)_\(1\.64\.5\)_\)_K\(1\)_S\(1\)_PB\(0\)_PE\(0\)_D=\(1\)_O=63_AP=explicit_netPRC=f32_inPRC=undefined_outPRC=undefined_trgDev=CPU_inFmts=nhwc_outFmts=nhwc_primitive=jit_avx512_1x1_.*PluginConf_INFERENCE_PRECISION_HINT=bf16)",
-        R"(smoke_Conv_1D_1x1_BF16/ConvolutionLayerCPUTest\.CompareWithRefs/IS=\[\?\.6(4|7)\.1\.\.200\]_TS=\(\(2\.6(4|7)\.7\)_\(1\.6(4|7)\.9\)_\)_K\(1\)_S\(1\)_PB\(0\)_PE\(0\)_D=\(1\)_O=63_AP=explicit_netPRC=f32_inPRC=undefined_outPRC=undefined_trgDev=CPU_inFmts=nhwc_outFmts=nhwc_primitive=jit_avx512_1x1_.*PluginConf_INFERENCE_PRECISION_HINT=bf16)",
-        R"(smoke_GroupConv_brgemm_2D_BF16/GroupConvolutionLayerCPUTest\.CompareWithRefs/IS=\[\]_TS=\(\(1\.64\.7\.7\)_\)_K\(3\.3\)_S\(2\.2\)_PB\((0|1)\.(0|1)\)_PE\(0\.0\)_D=\(2\.2\)_O=64_G=2_AP=explicit_netPRC=f32_inPRC=undefined_outPRC=undefined_trgDev=CPU_inFmts=nhwc_outFmts=nhwc_primitive=brgconv_avx512_amx_.*PluginConf_INFERENCE_PRECISION_HINT=bf16)",
+        R"(smoke_Conv_1D_1x1_BF16/ConvolutionLayerCPUTest\.CompareWithRefs/IS=\[\]_TS=\(\((1|2)\.6(4|7)\.7\)_\)_K\(1\)_S\(1\)_PB\(0\)_PE\(0\)_D=\(1\)_O=63_AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=nhwc_outFmts=nhwc_primitive=jit_avx512_1x1_.*PluginConf_INFERENCE_PRECISION_HINT=bf16)",
+        R"(smoke_Conv_1D_1x1_BF16/ConvolutionLayerCPUTest\.CompareWithRefs/IS=\[1\.\.200\.64\.\?\]_TS=\(\(2\.64\.7\)_\(1\.64\.5\)_\)_K\(1\)_S\(1\)_PB\(0\)_PE\(0\)_D=\(1\)_O=63_AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=nhwc_outFmts=nhwc_primitive=jit_avx512_1x1_.*PluginConf_INFERENCE_PRECISION_HINT=bf16)",
+        R"(smoke_Conv_1D_1x1_BF16/ConvolutionLayerCPUTest\.CompareWithRefs/IS=\[\?\.6(4|7)\.1\.\.200\]_TS=\(\(2\.6(4|7)\.7\)_\(1\.6(4|7)\.9\)_\)_K\(1\)_S\(1\)_PB\(0\)_PE\(0\)_D=\(1\)_O=63_AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=nhwc_outFmts=nhwc_primitive=jit_avx512_1x1_.*PluginConf_INFERENCE_PRECISION_HINT=bf16)",
+        R"(smoke_GroupConv_brgemm_2D_BF16/GroupConvolutionLayerCPUTest\.CompareWithRefs/IS=\[\]_TS=\(\(1\.64\.7\.7\)_\)_K\(3\.3\)_S\(2\.2\)_PB\((0|1)\.(0|1)\)_PE\(0\.0\)_D=\(2\.2\)_O=64_G=2_AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=nhwc_outFmts=nhwc_primitive=brgconv_avx512_amx_.*PluginConf_INFERENCE_PRECISION_HINT=bf16)",
         // TODO: 56827. Sporadic test failures
         R"(.*smoke_Conv.+_FP32.ConvolutionLayerCPUTest\.CompareWithRefs.*TS=\(\(.\.67.+\).*inFmts=n.+c.*_primitive=jit_avx2.*)",
         // incorrect jit_uni_planar_convolution with dilation = {1, 2, 1} and output channel 1
@@ -256,7 +256,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*nightly_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\[\?.\?.50\]_\[50.7\]_TS=\(\(1.2.50\)_\(1.10.50\)_\(1.2.50\)_\(2.2.50\)\)_\(\(50.7\)_\(50.7\)_\(50.7\)_\(50.7\)\)_.*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)",
         R"(.*smoke_MM_Dynamic_Fusing/MatMulLayerCPUTest.CompareWithRefs/MatMul_IS=\[\?.\?\]_\[\?.33\]_TS=\(\(16.12\)_\(33.7\)_\(16.12\)\)_\(\(12.33\)_\(7.33\)_\(12.33\)\)_transpose_a=0_transpose_b=0_secondaryInputType=PARAMETER_.*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)",
         R"(.*(nightly|smoke)_MM_Brgemm_Static/MatMulLayerCPUTest.CompareWithRefs/MatMul_IS=\[\]_\[\]_TS=\(\(55.12\)\)_\(\(12.55\)\)_.*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=brgemm_avx512.*)",
-        R"(.*smoke_MM_Brgemm_Dynamic_Fusing/MatMulLayerCPUTest.CompareWithRefs/MatMul_IS=\[\?.\?\]_\[\?.33\]_TS=\(\(16.12\)_\(33.7\)_\(16.12\)\)_\(\(12.33\)_\(7.33\)_\(12.33\)\)_transpose_a=0_transpose_b=0_secondaryInputType=PARAMETER_netPRC=f32_inPRC=undefined_outPRC=undefined_trgDev=CPUconfig=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=brgemm_avx512.*)",
+        R"(.*smoke_MM_Brgemm_Dynamic_Fusing/MatMulLayerCPUTest.CompareWithRefs/MatMul_IS=\[\?.\?\]_\[\?.33\]_TS=\(\(16.12\)_\(33.7\)_\(16.12\)\)_\(\(12.33\)_\(7.33\)_\(12.33\)\)_transpose_a=0_transpose_b=0_secondaryInputType=PARAMETER_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPUconfig=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=brgemm_avx512.*)",
         // Issue: 140389
         R"(.*FQLayerDQBias.smoke_CompareWithRefs.*)",
         R"(.*smoke_matmulBrgemmInt8/MatmulBrgemmInt8Test.CompareWithRefs.*MatMul.*InputType=i8_OutputType=i8.*)",
@@ -285,7 +285,7 @@ std::vector<std::string> disabledTestPatterns() {
 #elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     {
         retVector.emplace_back(
-            R"(smoke_CompareWithRefs_static_check_collapsing/EltwiseLayerTest.Inference/IS.*_eltwise_op_type=Div_secondary_input_type=PARAMETER_opType=VECTOR_model_type=i32_InType=undefined_OutType=undefined_trgDev=CPU.*)");
+            R"(smoke_CompareWithRefs_static_check_collapsing/EltwiseLayerTest.Inference/IS.*_eltwise_op_type=Div_secondary_input_type=PARAMETER_opType=VECTOR_model_type=i32_InType=dynamic_OutType=dynamic_trgDev=CPU.*)");
         // Issue: 123321
         retVector.emplace_back(
             R"(.*smoke_RNNSequenceCommonZeroClip/RNNSequenceTest.Inference.*hidden_size=1.*relu.*direction=reverse.*)");
@@ -469,13 +469,13 @@ std::vector<std::string> disabledTestPatterns() {
 #if defined(_WIN32)
     retVector.emplace_back(R"(.*smoke_QuantizedConvolutionBatchNormTransposeOnWeights/QuantizedConvolutionBatchNorm.CompareWithRefs/conv_type=convolution_quantize_type=fake_quantize_intervals_type=per_(tensor|channel)_transpose_on_weights=true_device=CPU.*)");
     retVector.emplace_back(R"(.*smoke_LPT/ConvolutionTransformation.CompareWithRefImpl/f32_\[(1|4),3,16,16\]_CPU_f32_rank=4D_fq_on_data=\{level=256_shape=\[1,1,1,1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ -12.7 \}_output_high\{ 12.8 \}_precision=\}_fq_on_weights=\{_255_\[1,1,1,1\]_\{ -12.7 \}_\{ 12.7 \}\}.*)");
-    retVector.emplace_back(R"(.*smoke_LPT/FuseDequantizeToFakeQuantizeTransformation.CompareWithRefImpl/CPU_f32_0_undefined_\[\]_f32__\{\}_\{\}__\{ 0.01, 0.1, 1 \}_f32_\[1,3\]_1_1_.*)");
+    retVector.emplace_back(R"(.*smoke_LPT/FuseDequantizeToFakeQuantizeTransformation.CompareWithRefImpl/CPU_f32_0_dynamic_\[\]_f32__\{\}_\{\}__\{ 0.01, 0.1, 1 \}_f32_\[1,3\]_1_1_.*)");
     retVector.emplace_back(R"(.*smoke_QuantizedConvolutionBatchNorm/QuantizedConvolutionBatchNorm.CompareWithRefs/conv_type=convolution_quantize_.*)");
     retVector.emplace_back(R"(.*smoke_QuantizedConvolutionBatchNorm/QuantizedConvolutionBatchNorm.CompareWithRefs/conv_type=convolution_backprop_quantize_type=(quantize_dequantize_intervals|compressed_weights_intervals).*)");
     retVector.emplace_back(R"(.*smoke_LPT/MatMulTransformation.CompareWithRefImpl/f32_CPU_\[(1|8|1,1,1),4,12,2\]_level=256_shape=\[\]_input_low=\{ (0|-12.8) \}_input_high=\{ (25.5|12.7) \}_output_low=\{ (0|-12.8) \}_output_high\{ (25.5|12.7) \}_.*)");
     retVector.emplace_back(R"(.*smoke_LPT/MatMulTransformation.CompareWithRefImpl/f32_CPU_\[(1|8|1,1,1),4,12,2\]_level=256_shape=\[\]_input_low=\{ (0|-12.8) \}_input_high=\{ (25.5|12.7) \}_output_low=\{ (0|-12.8) \}_output_high\{ (25.5|12.7) \}_.*)");
     retVector.emplace_back(
-        R"(.*smoke_MatMulCompressedWeights_corner_cases_basic/MatmulWeightsDecompression.CompareWithRefs/data_shape=\[\?.\?.\?\]_\(\[1,1,4096\]\)_weights_shape=\[4096,4096\]_group_size=128_weights_precision=nf4_decompression_precision=f16_scale_precision=undefined_transpose_weights=0_decompression_subtract=full_reshape_on_decompression=1_config=\(\).*)");
+        R"(.*smoke_MatMulCompressedWeights_corner_cases_basic/MatmulWeightsDecompression.CompareWithRefs/data_shape=\[\?.\?.\?\]_\(\[1,1,4096\]\)_weights_shape=\[4096,4096\]_group_size=128_weights_precision=nf4_decompression_precision=f16_scale_precision=dynamic_transpose_weights=0_decompression_subtract=full_reshape_on_decompression=1_config=\(\).*)");
     retVector.emplace_back(R"(.*smoke_RDFT_CPU_1D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\(126\)\)_constAxes=true_axes=\(\(0\)\)_isInverse=false.*)");
     retVector.emplace_back(R"(.*smoke_RDFT_CPU_2D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\(16.38\)\)_constAxes=true_axes=\(\(0.1\)\)_isInverse=false.*)");
 #endif

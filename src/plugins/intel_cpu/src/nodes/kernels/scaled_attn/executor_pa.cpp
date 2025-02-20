@@ -1247,7 +1247,7 @@ struct MHAHelper {
 #    if defined(OPENVINO_ARCH_X86_64)
     std::shared_ptr<JitMatMulVecAMX> _gemv;
 #    endif
-    ov::element::Type _fastpath_valid_prec = ov::element::undefined;
+    ov::element::Type _fastpath_valid_prec = ov::element::dynamic;
     // second token for bhl loop
     PlainTensor _weight_bhl;
     PlainTensor _output_bhl;

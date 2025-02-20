@@ -331,7 +331,7 @@ inline element::Type get_input_const_element_type(const ov::Node* const op, size
     } else if (const auto& constant = ov::util::get_constant_from_source(op->input_value(port))) {
         return constant->get_element_type();
     } else {
-        return element::undefined;
+        return element::dynamic;
     }
 }
 

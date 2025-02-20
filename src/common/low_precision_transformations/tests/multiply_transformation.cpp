@@ -34,7 +34,7 @@ public:
 };
 
 inline std::ostream& operator<<(std::ostream& out, const MultiplyBranch& branch) {
-    if (branch.input_precision != element::undefined) {
+    if (branch.input_precision != element::dynamic) {
         out << "_input=" << branch.input_precision;
     }
     if (!branch.constant.empty()) {
@@ -83,8 +83,8 @@ public:
         expected(std::move(expected)) {}
 };
 
-const ov::element::Type MultiplyTransformationTestValues::input_precision = ov::element::undefined;
-const ov::element::Type MultiplyTransformationTestValues::model_precision = ov::element::undefined;
+const ov::element::Type MultiplyTransformationTestValues::input_precision = ov::element::dynamic;
+const ov::element::Type MultiplyTransformationTestValues::model_precision = ov::element::dynamic;
 
 typedef std::tuple<
     ov::element::Type, // model precision

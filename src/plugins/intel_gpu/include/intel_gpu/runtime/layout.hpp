@@ -269,10 +269,10 @@ struct layout {
     layout(const layout& other) = default;
 
     layout()
-        : data_type(cldnn::data_types::undefined)
-        , format(cldnn::format::any)
-        , data_padding(padding())
-        , size(ov::PartialShape()) { }
+        : data_type(cldnn::data_types::dynamic),
+          format(cldnn::format::any),
+          data_padding(padding()),
+          size(ov::PartialShape()) {}
 
     layout& operator=(const layout& other) {
         if (this == &other)

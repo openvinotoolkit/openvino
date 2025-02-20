@@ -35,19 +35,17 @@ std::vector<CPUSpecificParams> cpuParams_5D = {
         CPUSpecificParams({ncdhw}, {ncdhw}, {}, {}),
 };
 
-const auto params_MultiAxis_5D = testing::Combine(
-        testing::Combine(
-                testing::ValuesIn(axes5D),
-                testing::Values(ov::test::utils::OpType::VECTOR),
-                testing::Values(true),
-                testing::ValuesIn(reductionTypes()),
-                testing::ValuesIn(inpOutPrc()),
-                testing::Values(ElementType::undefined),
-                testing::Values(ElementType::undefined),
-                testing::ValuesIn(inputShapes_5D)),
-        testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
-        testing::Values(emptyFusingSpec),
-        testing::ValuesIn(additionalConfig()));
+const auto params_MultiAxis_5D = testing::Combine(testing::Combine(testing::ValuesIn(axes5D),
+                                                                   testing::Values(ov::test::utils::OpType::VECTOR),
+                                                                   testing::Values(true),
+                                                                   testing::ValuesIn(reductionTypes()),
+                                                                   testing::ValuesIn(inpOutPrc()),
+                                                                   testing::Values(ElementType::dynamic),
+                                                                   testing::Values(ElementType::dynamic),
+                                                                   testing::ValuesIn(inputShapes_5D)),
+                                                  testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
+                                                  testing::Values(emptyFusingSpec),
+                                                  testing::ValuesIn(additionalConfig()));
 
 const std::vector<std::vector<int>> axes5D_ref = {
         {0}
@@ -61,33 +59,30 @@ std::vector<std::map<std::string, ov::element::Type>> config_infer_prec_f32 = {
         {{ov::hint::inference_precision.name(), ov::element::f32}}
     };
 
-const auto params_MultiAxis_5D_ref = testing::Combine(
-        testing::Combine(
-                testing::ValuesIn(axes5D_ref),
-                testing::Values(ov::test::utils::OpType::VECTOR),
-                testing::Values(true),
-                testing::ValuesIn(reductionTypes()),
-                testing::ValuesIn(inpOutPrc()),
-                testing::Values(ElementType::undefined),
-                testing::Values(ElementType::undefined),
-                testing::ValuesIn(inputShapes_5D)),
-        testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_ref)),
-        testing::Values(emptyFusingSpec),
-        testing::ValuesIn(config_infer_prec_f32));
+const auto params_MultiAxis_5D_ref = testing::Combine(testing::Combine(testing::ValuesIn(axes5D_ref),
+                                                                       testing::Values(ov::test::utils::OpType::VECTOR),
+                                                                       testing::Values(true),
+                                                                       testing::ValuesIn(reductionTypes()),
+                                                                       testing::ValuesIn(inpOutPrc()),
+                                                                       testing::Values(ElementType::dynamic),
+                                                                       testing::Values(ElementType::dynamic),
+                                                                       testing::ValuesIn(inputShapes_5D)),
+                                                      testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_ref)),
+                                                      testing::Values(emptyFusingSpec),
+                                                      testing::ValuesIn(config_infer_prec_f32));
 
-const auto params_MultiAxis_5D_ZeroDim_ref = testing::Combine(
-        testing::Combine(
-                testing::ValuesIn(axes5D),
-                testing::Values(ov::test::utils::OpType::VECTOR),
-                testing::Values(true),
-                testing::ValuesIn(reductionTypes()),
-                testing::ValuesIn(inpOutPrc()),
-                testing::Values(ElementType::undefined),
-                testing::Values(ElementType::undefined),
-                testing::ValuesIn(inputShapes_5D_ZeroDim)),
-        testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_ref)),
-        testing::Values(emptyFusingSpec),
-        testing::ValuesIn(additionalConfigFP32()));
+const auto params_MultiAxis_5D_ZeroDim_ref =
+    testing::Combine(testing::Combine(testing::ValuesIn(axes5D),
+                                      testing::Values(ov::test::utils::OpType::VECTOR),
+                                      testing::Values(true),
+                                      testing::ValuesIn(reductionTypes()),
+                                      testing::ValuesIn(inpOutPrc()),
+                                      testing::Values(ElementType::dynamic),
+                                      testing::Values(ElementType::dynamic),
+                                      testing::ValuesIn(inputShapes_5D_ZeroDim)),
+                     testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_ref)),
+                     testing::Values(emptyFusingSpec),
+                     testing::ValuesIn(additionalConfigFP32()));
 
 //There are dedicated instences of smoke_Reduce_MultiAxis_5D_CPU test in arm and x64 folders
 //because ACL does not support 0 as reduction axis

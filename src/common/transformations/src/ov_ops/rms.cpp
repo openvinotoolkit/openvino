@@ -22,7 +22,7 @@ bool RMS::visit_attributes(ov::AttributeVisitor& visitor) {
 }
 
 void RMS::validate_and_infer_types() {
-    auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;
+    auto output_type = m_output_type == ov::element::dynamic ? get_input_element_type(0) : m_output_type;
     set_output_type(0, output_type, get_input_partial_shape(0));
 }
 

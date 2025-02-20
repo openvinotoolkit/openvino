@@ -203,9 +203,9 @@ TEST(pre_post_process, preprocess_assert_input_without_index) {
 TEST(pre_post_process, convert_element_type_from_unknown) {
     auto f = create_simple_function(element::i32, Shape{1, 3, 224, 224});
     auto p = PrePostProcessor(f);
-    ASSERT_THROW(p.input().preprocess().convert_element_type(element::dynamic).convert_element_type(element::i32);
-                 f = p.build();
-                 , ov::AssertFailure);
+
+    ASSERT_NO_THROW(p.input().preprocess().convert_element_type(element::dynamic).convert_element_type(element::i32);
+                    f = p.build(););
 }
 
 TEST(pre_post_process, scale_not_float) {

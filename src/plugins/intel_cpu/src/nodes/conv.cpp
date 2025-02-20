@@ -340,7 +340,7 @@ bool Convolution::canBeExecutedInInt8() const {
 }
 
 ov::element::Type Convolution::fusedEltwisePrecision(const NodePtr& fusingNode) const {
-    if (sumPrc != ov::element::undefined) {
+    if (sumPrc != ov::element::dynamic) {
         return sumPrc;
     }
 

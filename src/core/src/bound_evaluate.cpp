@@ -72,7 +72,7 @@ bool are_equal(const ov::Tensor& lhs, const ov::Tensor& rhs) {
 }
 
 bool is_type_allocable(const element::Type& type) {
-    return type != element::undefined && type.is_static();
+    return type != element::dynamic && type.is_static();
 }
 
 /**

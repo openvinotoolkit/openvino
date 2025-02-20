@@ -68,8 +68,6 @@ void checkedMemcpy(void* destination, size_t destinationSize, void const* source
  */
 std::string ovPrecisionToLegacyPrecisionString(const ov::element::Type& precision) {
     switch (precision) {
-    case ov::element::Type_t::undefined:
-        return "UNSPECIFIED";
     case ov::element::Type_t::f16:
         return "FP16";
     case ov::element::Type_t::f32:

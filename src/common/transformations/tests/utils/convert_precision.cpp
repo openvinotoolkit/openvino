@@ -943,7 +943,7 @@ TEST(TransformationTests, ConvertPrecision_LogicalNot) {
             tr = op;
     ASSERT_TRUE(tr != nullptr);
     ASSERT_EQ(tr->get_origin_input_type(0), element::boolean);
-    ASSERT_EQ(tr->get_origin_input_type(1), element::undefined);
+    ASSERT_EQ(tr->get_origin_input_type(1), element::dynamic);
 }
 
 TEST(TransformationTests, ConvertPrecision_Select) {

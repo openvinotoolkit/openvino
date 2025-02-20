@@ -15,11 +15,13 @@ namespace ov::intel_gpu {
 class RemoteContextImpl;
 
 struct VariableStateInfo {
-    VariableStateInfo(const std::string& id, const cldnn::layout& layout, ov::element::Type_t user_specified_type = ov::element::undefined)
-        : m_id(id)
-        , m_layout(layout)
-        , m_user_specified_type(user_specified_type)
-        , m_primitives() {}
+    VariableStateInfo(const std::string& id,
+                      const cldnn::layout& layout,
+                      ov::element::Type_t user_specified_type = ov::element::dynamic)
+        : m_id(id),
+          m_layout(layout),
+          m_user_specified_type(user_specified_type),
+          m_primitives() {}
 
     std::string m_id;
     cldnn::layout m_layout;
