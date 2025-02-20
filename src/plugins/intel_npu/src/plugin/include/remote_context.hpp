@@ -62,9 +62,9 @@ private:
     ov::AnyMap _properties;
     std::string _device_name;
 
-    std::optional<ov::intel_npu::MemType> _mem_type = ov::intel_npu::MemType::L0_INTERNAL_BUF;
-    ov::intel_npu::TensorType _tensor_type_object = ov::intel_npu::TensorType::BINDED;
-    void* _mem_handle_object = nullptr;
+    std::optional<ov::intel_npu::MemType> _mem_type_object = std::nullopt;
+    std::optional<ov::intel_npu::TensorType> _tensor_type_object = std::nullopt;
+    std::optional<void*> _mem_handle_object = std::nullopt;
 };
 
 }  // namespace intel_npu

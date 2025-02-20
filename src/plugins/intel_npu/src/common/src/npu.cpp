@@ -93,9 +93,7 @@ ov::SoPtr<ov::ITensor> IDevice::createHostTensor(std::shared_ptr<ov::IRemoteCont
                                                  const ov::element::Type&,
                                                  const ov::Shape&,
                                                  const Config&,
-                                                 ov::intel_npu::TensorType,
-                                                 ov::intel_npu::MemType,
-                                                 void*) {
+                                                 ov::intel_npu::TensorType) {
     OPENVINO_THROW("Create Host Tensor is not supported");
 }
 

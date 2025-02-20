@@ -13,11 +13,14 @@ ZeroHostTensor::ZeroHostTensor(const std::shared_ptr<ov::IRemoteContext>& contex
                                const ov::element::Type element_type,
                                const ov::Shape& shape,
                                const Config& config,
-                               ov::intel_npu::TensorType tensor_type,
-                               ov::intel_npu::MemType mem_type,
-                               void* mem)
-    : _impl(std::make_shared<
-            ZeroRemoteTensor>(context, init_structs, element_type, shape, config, tensor_type, mem_type, mem)) {}
+                               ov::intel_npu::TensorType tensor_type)
+    : _impl(std::make_shared<ZeroRemoteTensor>(context,
+                                               init_structs,
+                                               element_type,
+                                               shape,
+                                               config,
+                                               tensor_type,
+                                               ov::intel_npu::MemType::L0_INTERNAL_BUF)) {}
 
 void* ZeroHostTensor::data(const ov::element::Type&) const {
     return _impl->get_original_memory();

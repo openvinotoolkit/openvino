@@ -11,13 +11,9 @@ using namespace ov::intel_npu;
 namespace {
 
 template <typename Type>
-std::optional<Type> extract_object(const ov::AnyMap& params, const ov::Property<Type>& p, bool isMandatory = true) {
+std::optional<Type> extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
     auto itrHandle = params.find(p.name());
     if (itrHandle == params.end()) {
-        if (isMandatory) {
-            OPENVINO_THROW("No parameter ", p.name(), " found in parameters map");
-        }
-
         return std::nullopt;
     }
 
@@ -40,26 +36,9 @@ RemoteContextImpl::RemoteContextImpl(const std::shared_ptr<const NPUBackends>& b
     }
 
     if (!remote_properties.empty()) {
-        _mem_type = extract_object(remote_properties, mem_type);
-
-        switch (*_mem_type) {
-        case MemType::L0_INTERNAL_BUF: {
-            auto object = extract_object(remote_properties, tensor_type, false);
-            if (object.has_value()) {
-                _tensor_type_object = *object;
-            }
-            break;
-        }
-        case MemType::SHARED_BUF: {
-            auto object = extract_object(remote_properties, mem_handle);
-            if (object.has_value()) {
-                _mem_handle_object = *object;
-            }
-            break;
-        }
-        default:
-            OPENVINO_THROW("Unsupported shared object type ", *_mem_type);
-        }
+        _mem_type_object = extract_object(remote_properties, mem_type);
+        _tensor_type_object = extract_object(remote_properties, tensor_type);
+        _mem_handle_object = extract_object(remote_properties, mem_handle);
     }
 }
 
@@ -70,46 +49,60 @@ const ov::AnyMap& RemoteContextImpl::get_property() const {
 ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element::Type& type,
                                                               const ov::Shape& shape,
                                                               const ov::AnyMap& params) {
-    if (!params.empty()) {
-        _mem_type = extract_object(params, mem_type);
+    // Local remote properties
+    std::optional<ov::intel_npu::MemType> mem_type_object = std::nullopt;
+    std::optional<ov::intel_npu::TensorType> tensor_type_object = std::nullopt;
+    std::optional<void*> mem_handle_object = std::nullopt;
 
-        switch (*_mem_type) {
-        case MemType::L0_INTERNAL_BUF: {
-            auto object = extract_object(params, tensor_type, false);
-            if (object.has_value()) {
-                _tensor_type_object = *object;
-            }
-            break;
-        }
-        case MemType::SHARED_BUF: {
-            auto object = extract_object(params, mem_handle);
-            if (object.has_value()) {
-                _mem_handle_object = *object;
-            }
-            break;
-        }
-        default:
-            OPENVINO_THROW("Unsupported shared object type ", *_mem_type);
-        }
+    if (!params.empty()) {
+        // Save local remote properties.
+        mem_type_object = extract_object(params, mem_type);
+        tensor_type_object = extract_object(params, tensor_type);
+        mem_handle_object = extract_object(params, mem_handle);
     }
 
-    return _device->createRemoteTensor(get_this_shared_ptr(),
-                                       type,
-                                       shape,
-                                       _config,
-                                       _tensor_type_object,
-                                       *_mem_type,
-                                       _mem_handle_object);
+    // Merge local remote properties with global remote properties.
+    if (!mem_type_object.has_value()) {
+        mem_type_object = _mem_type_object;
+    }
+    if (!tensor_type_object.has_value()) {
+        tensor_type_object = _tensor_type_object;
+    }
+    if (!mem_handle_object.has_value()) {
+        mem_handle_object = _mem_handle_object;
+    }
+
+    // Mem_type shall be set if any other property is set.
+    if (!mem_type_object.has_value() && (mem_handle_object.has_value() || tensor_type_object.has_value())) {
+        OPENVINO_THROW("Parameter ", mem_type.name(), " must be set");
+    }
+
+    if (!mem_type_object.has_value()) {
+        return _device->createRemoteTensor(get_this_shared_ptr(), type, shape, _config);
+    }
+
+    // Mem_handle shall be set if mem_type is a shared memory type.
+    if (*mem_type_object == MemType::SHARED_BUF && !mem_handle_object.has_value()) {
+        OPENVINO_THROW("No parameter ", mem_handle.name(), " found in parameters map");
+    }
+
+    return _device->createRemoteTensor(
+        get_this_shared_ptr(),
+        type,
+        shape,
+        _config,
+        tensor_type_object.has_value() ? *tensor_type_object : ov::intel_npu::TensorType::BINDED,
+        *mem_type_object,
+        *mem_handle_object);
 }
 
 ov::SoPtr<ov::ITensor> RemoteContextImpl::create_host_tensor(const ov::element::Type type, const ov::Shape& shape) {
-    return _device->createHostTensor(get_this_shared_ptr(),
-                                     type,
-                                     shape,
-                                     _config,
-                                     _tensor_type_object,
-                                     *_mem_type,
-                                     _mem_handle_object);
+    return _device->createHostTensor(
+        get_this_shared_ptr(),
+        type,
+        shape,
+        _config,
+        _tensor_type_object.has_value() ? *_tensor_type_object : ov::intel_npu::TensorType::BINDED);
 }
 
 const std::string& RemoteContextImpl::get_device_name() const {
