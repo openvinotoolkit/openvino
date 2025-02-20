@@ -99,7 +99,6 @@ TEST(UtilsTests, split_by_delimiter_empty_and_comma) {
     const auto split_set = ov::util::split_by_delimiter(line, ',');
 
     const std::unordered_set<std::string> expected_set = {"", ""};
-    int a = 0;
 
     ASSERT_EQ(split_set, expected_set);
 }
