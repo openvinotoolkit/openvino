@@ -217,7 +217,7 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
         m_queue_type = QueueTypes::in_order;
     }
 
-    if (!is_set_by_user(ov::hint::kv_cache_precision) || get_kv_cache_precision() == ov::element::undefined) {
+    if (!is_set_by_user(ov::hint::kv_cache_precision) || get_kv_cache_precision() == ov::element::dynamic) {
         if (info.supports_immad) {  // MFDNN-11755
             m_kv_cache_precision = get_inference_precision();
         } else {
@@ -253,7 +253,7 @@ void ExecutionConfig::apply_execution_hints(const cldnn::device_info& info) {
         const auto mode = get_execution_mode();
         if (!is_set_by_user(ov::hint::inference_precision)) {
             if (mode == ov::hint::ExecutionMode::ACCURACY) {
-                m_inference_precision = ov::element::undefined;
+                m_inference_precision = ov::element::dynamic;
             } else if (mode == ov::hint::ExecutionMode::PERFORMANCE) {
                 if (info.supports_fp16)
                     m_inference_precision = ov::element::f16;
