@@ -37,6 +37,6 @@ bool getenv_bool(const char* env_var, bool default_value = false);
 /// \param str String to split
 /// \param delimiter Delimiter to use for splitting
 /// \return Returns an unordered set of split strings
-std::unordered_set<std::string> split_by_delimiter(std::string str, char delimiter);
+std::unordered_set<std::string> split_by_delimiter(const std::string& str, char delimiter);
 }  // namespace util
 }  // namespace ov

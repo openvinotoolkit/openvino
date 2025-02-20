@@ -859,17 +859,9 @@ public:
         return ret;
     }
 
-#ifdef ENABLE_OPENVINO_DEBUG
-    std::string get_wraped_type_str(bool verbose) {
-        auto version = m_type_info.version_id;
-        std::string res = "<";
-        if (verbose)
-            if (version)
-                res += version + std::string("::");
-        res += m_type_info.name + std::string(">");
-        return res;
+    const DiscreteTypeInfo& get_wrapped_type() const {
+        return m_type_info;
     }
-#endif
 
 private:
     const DiscreteTypeInfo& m_type_info;
