@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -140,9 +140,7 @@ OPENVINO_API
 std::ostream& operator<<(std::ostream& s, const Shape& shape);
 
 template <>
-class OPENVINO_API AttributeAdapter<ov::Shape> : public IndirectVectorValueAccessor<ov::Shape, std::vector<int64_t>>
-
-{
+class OPENVINO_API AttributeAdapter<ov::Shape> : public IndirectVectorValueAccessor<ov::Shape, std::vector<int64_t>> {
 public:
     OPENVINO_RTTI("AttributeAdapter<Shape>");
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,9 +8,7 @@
 #include "shape_inference/shape_inference.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 Result MMShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                            const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
@@ -80,6 +78,4 @@ ShapeInferPtr MMShapeInferFactory::makeShapeInfer() const {
         OPENVINO_THROW("Unexpected operation type in the MatMul shape inference factory");
     }
 }
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

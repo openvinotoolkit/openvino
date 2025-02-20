@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,12 +6,12 @@
 
 #include <set>
 #include <string>
+#include <utility>
 
 #include "openvino/core/node.hpp"
 #include "openvino/op/util/op_types.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 constexpr const char* InputMemoryFormatsAttr = "InputMemoryFormats";
 constexpr const char* OutputMemoryFormatsAttr = "OutputMemoryFormats";
@@ -23,7 +23,7 @@ protected:
 
 public:
     MemoryFormats() = default;
-    explicit MemoryFormats(const std::string& _memory_format) : memory_format(_memory_format) {}
+    explicit MemoryFormats(std::string _memory_format) : memory_format(std::move(_memory_format)) {}
     std::string to_string() const override {
         return memory_format;
     };
@@ -77,5 +77,4 @@ public:
 
 std::string getOutputMemoryFormats(const std::shared_ptr<ov::Node>& node);
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

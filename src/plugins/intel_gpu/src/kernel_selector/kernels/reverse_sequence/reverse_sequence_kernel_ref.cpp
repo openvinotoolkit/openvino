@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ CommonDispatchData ReverseSequenceKernelRef::SetDefault(const reverse_sequence_p
 
     dispatchData.gws = { params.outputs[0].Batch().v,
                          params.outputs[0].Feature().v,
-                         params.outputs[0].Y().v * params.outputs[0].X().v };
+                         params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v };
 
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 

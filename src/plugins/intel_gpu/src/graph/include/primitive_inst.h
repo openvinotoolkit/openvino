@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -199,6 +199,8 @@ public:
     program_node const& get_node() const { return *_node; }
     network& get_network() const { return _network; }
     uint32_t get_network_id() const;
+    const ExecutionConfig& get_config() const { return get_network().get_config(); }
+
     virtual event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
     void check_memory_to_set(const memory& mem, const layout& layout) const;
     const std::list<const cldnn::program_node *>& get_users() const { return _node->get_users(); }
@@ -232,6 +234,7 @@ public:
     }
 
     memory::ptr shape_info_memory_ptr() const { return _shape_info_memory; }
+    void set_shape_info_memory_subbuffer(memory::ptr addr);
 
     void add_dep_events(const std::vector<event::ptr>& events);
     void add_dep_event(event::ptr ev);

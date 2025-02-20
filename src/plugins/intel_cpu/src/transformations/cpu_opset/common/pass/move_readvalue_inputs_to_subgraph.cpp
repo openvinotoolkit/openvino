@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
         OutputVector outputs = {};
 
         // DFS, Check if current node's final successor is only ReadValue.
-        std::function<void(std::shared_ptr<ov::Node>, bool&)> dfs = [&](std::shared_ptr<ov::Node> node,
+        std::function<void(std::shared_ptr<ov::Node>, bool&)> dfs = [&](const std::shared_ptr<ov::Node>& node,
                                                                         bool& found_output) {
             if (found_output) {
                 return;
@@ -84,7 +84,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             }
         };
 
-        std::function<void(std::shared_ptr<ov::Node>)> reverse_dfs = [&](std::shared_ptr<ov::Node> node) {
+        std::function<void(std::shared_ptr<ov::Node>)> reverse_dfs = [&](const std::shared_ptr<ov::Node>& node) {
             if (visited_path_to_output.find(node) != visited_path_to_output.end()) {
                 inputs.emplace_back(node);
                 return;
@@ -128,7 +128,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
 
         // Subgraph's input
         auto params = ParameterVector{};
-        for (auto inp : inputs) {
+        for (const auto& inp : inputs) {
             auto param =
                 std::make_shared<ov::op::v0::Parameter>(inp->get_element_type(), inp->get_output_partial_shape(0));
             params.push_back(param);

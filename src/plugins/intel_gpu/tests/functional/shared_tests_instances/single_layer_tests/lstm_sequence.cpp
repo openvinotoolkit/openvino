@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,6 +91,30 @@ INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCommonClip, LSTMSequenceTest,
                                 ::testing::ValuesIn(direction),
                                 ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                        LSTMSequenceTest::getTestCaseName);
+
+
+std::vector<size_t> seq_lengths_cm{2};
+std::vector<size_t> batch_cm{1};
+std::vector<size_t> hidden_size_cm{128};
+std::vector<size_t> input_size_cm{64, 256};
+std::vector<std::vector<std::string>> activations_cm = {{"sigmoid", "tanh", "tanh"}};
+std::vector<float> clip_cm{0};
+std::vector<ov::element::Type> netPrecisions_cm = {ov::element::f16};
+
+INSTANTIATE_TEST_SUITE_P(LSTMSequenceCM, LSTMSequenceTest,
+                        ::testing::Combine(
+                                ::testing::Values(ov::test::utils::SequenceTestsMode::PURE_SEQ),
+                                ::testing::ValuesIn(seq_lengths_cm),
+                                ::testing::ValuesIn(batch_cm),
+                                ::testing::ValuesIn(hidden_size_cm),
+                                ::testing::ValuesIn(input_size_cm),
+                                ::testing::ValuesIn(activations_cm),
+                                ::testing::ValuesIn(clip_cm),
+                                ::testing::Values(ov::op::RecurrentSequenceDirection::BIDIRECTIONAL),
+                                ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
+                                ::testing::ValuesIn(netPrecisions_cm),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         LSTMSequenceTest::getTestCaseName);
 

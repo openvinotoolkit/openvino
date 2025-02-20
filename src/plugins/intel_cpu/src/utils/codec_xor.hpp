@@ -1,13 +1,13 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
 
 #include <functional>
 #include <string>
+#include <utility>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 void codec_xor(char* dst_str, const char* src_str, size_t len);
 
@@ -22,9 +22,9 @@ union CacheDecrypt {
 
     CacheDecrypt() {}
 
-    CacheDecrypt(CacheDecryptStr fn) : m_decrypt_str(fn) {}
+    CacheDecrypt(CacheDecryptStr fn) : m_decrypt_str(std::move(fn)) {}
 
-    CacheDecrypt(CacheDecryptChar fn) : m_decrypt_char(fn) {}
+    CacheDecrypt(CacheDecryptChar fn) : m_decrypt_char(std::move(fn)) {}
 
     ~CacheDecrypt() {}
 
@@ -33,5 +33,4 @@ union CacheDecrypt {
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

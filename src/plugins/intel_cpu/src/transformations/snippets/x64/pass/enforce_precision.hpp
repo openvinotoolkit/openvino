@@ -9,9 +9,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "snippets/generator.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace pass {
+namespace ov::intel_cpu::pass {
 
 class EnforcePrecision : public ov::pass::ModelPass {
 public:
@@ -19,7 +17,7 @@ public:
 
     EnforcePrecision(const element::Type source,
                      const element::Type target,
-                     std::function<std::set<std::vector<element::Type>>(const std::shared_ptr<ov::Node>& op)>
+                     const std::function<std::set<std::vector<element::Type>>(const std::shared_ptr<ov::Node>& op)>&
                          get_supported_precisions = nullptr);
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
@@ -34,6 +32,4 @@ private:
         get_supported_precisions;
 };
 
-}  // namespace pass
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::pass

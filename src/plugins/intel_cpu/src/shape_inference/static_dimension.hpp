@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,7 @@
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/except.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /// \brief Class representing a dimension, which must be static,
 ///        in a shape or shape-like object.
@@ -79,7 +78,7 @@ public:
     StaticDimension& operator/=(const value_type divisor);
 
     /// \brief Swap of dimensions
-    friend void swap(StaticDimension& a, StaticDimension& b) {
+    friend void swap(StaticDimension& a, StaticDimension& b) noexcept {
         using std::swap;
         swap(a.m_dimension, b.m_dimension);
     }
@@ -90,5 +89,4 @@ private:
 
 std::ostream& operator<<(std::ostream& str, const StaticDimension& dimension);
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

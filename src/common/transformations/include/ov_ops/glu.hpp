@@ -77,4 +77,15 @@ private:
 
 }  // namespace internal
 }  // namespace op
+
+std::ostream& operator<<(std::ostream& s, const op::internal::GLU::GluType& reduction);
+
+template <>
+class AttributeAdapter<op::internal::GLU::GluType> : public EnumAttributeAdapterBase<op::internal::GLU::GluType> {
+public:
+    AttributeAdapter(op::internal::GLU::GluType& value) : EnumAttributeAdapterBase<op::internal::GLU::GluType>(value) {}
+
+    OPENVINO_RTTI("AttributeAdapter<op::internal::GLU::GluType>");
+};
+
 }  // namespace ov

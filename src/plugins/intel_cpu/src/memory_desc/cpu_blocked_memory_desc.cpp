@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,7 @@
 #include "dnnl_blocked_memory_desc.h"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 static VectorDims makeRange(size_t size) {
     VectorDims retVec(size, 0);
@@ -142,8 +141,9 @@ size_t CpuBlockedMemoryDesc::getCurrentMemSizeImp() const {
     auto e_size = getOffsetPadding();  // size in bytes (from begin of data to last element)
     if (!getShape().hasZeroDims()) {
         e_size += 1;
-        for (size_t j = 0; j < getBlockDims().size(); j++)
+        for (size_t j = 0; j < getBlockDims().size(); j++) {
             e_size += (getBlockDims()[j] - 1) * getStrides()[j];
+        }
     }
 
     const auto prc = getPrecision();
@@ -288,11 +288,13 @@ MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims& dims) 
 
     // TODO [DS]: add stride recalculation for strided blobs
     for (int i = strides.size() - 2; i >= 0; i--) {
-        if (strides[i] == Shape::UNDEFINED_DIM)
+        if (strides[i] == Shape::UNDEFINED_DIM) {
             break;
+        }
 
-        if (strides[i] != strides[i + 1] * blockedDims[i + 1])
+        if (strides[i] != strides[i + 1] * blockedDims[i + 1]) {
             OPENVINO_THROW_NOT_IMPLEMENTED("Can't clone desc with new dims for not dense tensor");
+        }
     }
 
     VectorDims newBlockedDims(order.size());
@@ -329,16 +331,18 @@ bool CpuBlockedMemoryDesc::blocksExtended() const {
         size_t idx = order[i];
         Dim paddedDim = 1;
         for (size_t j = rank; j < order.size(); j++) {
-            if (order[j] == idx)
+            if (order[j] == idx) {
                 paddedDim *= blockedDims[j];
+            }
         }
         if (blockedDims[idx] == Shape::UNDEFINED_DIM) {
             paddedDim = Shape::UNDEFINED_DIM;
         } else {
             paddedDim *= blockedDims[idx];
         }
-        if (paddedDim != shape.getDims()[idx])
+        if (paddedDim != shape.getDims()[idx]) {
             return true;
+        }
     }
     return false;
 }
@@ -361,5 +365,4 @@ MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewPrecision(const ov::element::Typ
     return newDesc;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

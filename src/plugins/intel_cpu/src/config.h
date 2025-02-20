@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,24 +48,32 @@ struct Config {
     uint64_t fcDynamicQuantizationGroupSize = 32;
     bool fcDynamicQuantizationGroupSizeSetExplicitly = false;
     bool kvCachePrecisionSetExplicitly = false;
+    bool keyCachePrecisionSetExplicitly = false;
+    bool valueCachePrecisionSetExplicitly = false;
+    bool keyCacheGroupSizeSetExplicitly = false;
+    bool valueCacheGroupSizeSetExplicitly = false;
 #if defined(OV_CPU_WITH_ACL)
     bool aclFastMath = false;
 #endif
 #if defined(OPENVINO_ARCH_X86_64)
     ov::element::Type kvCachePrecision = ov::element::u8;
+    ov::element::Type keyCachePrecision = ov::element::u8;
+    ov::element::Type valueCachePrecision = ov::element::u8;
     size_t rtCacheCapacity = 5000ul;
 #else
     ov::element::Type kvCachePrecision = ov::element::f16;
+    ov::element::Type keyCachePrecision = ov::element::f16;
+    ov::element::Type valueCachePrecision = ov::element::f16;
     // TODO: Executor cache may leads to incorrect behavior on oneDNN ACL primitives
     size_t rtCacheCapacity = 0ul;
 #endif
+    size_t keyCacheGroupSize = 0ul;
+    size_t valueCacheGroupSize = 0ul;
     ov::threading::IStreamsExecutor::Config streamExecutorConfig;
     int streams = 1;
     bool streamsChanged = false;
     int threads = 0;
     int threadsPerStream = 0;
-    ov::threading::IStreamsExecutor::ThreadBindingType threadBindingType =
-        ov::threading::IStreamsExecutor::ThreadBindingType::NONE;
     ov::hint::PerformanceMode hintPerfMode = ov::hint::PerformanceMode::LATENCY;
     std::vector<std::vector<int>> streamsRankTable;
     bool changedHintPerfMode = false;
@@ -73,6 +81,7 @@ struct Config {
     uint32_t hintNumRequests = 0;
     bool enableCpuPinning = true;
     bool changedCpuPinning = false;
+    bool enableCpuReservation = false;
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
     std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {};
     int streamsRankLevel = 1;

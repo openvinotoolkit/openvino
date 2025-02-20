@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ public:
                                      const std::string& buildFlags,
                                      const uint32_t& flags) const;
 
-    ze_graph_handle_t getGraphHandle(const std::vector<uint8_t>& network) const;
+    ze_graph_handle_t getGraphHandle(const uint8_t& data, size_t size) const;
 
     NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const;
 

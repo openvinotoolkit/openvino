@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,7 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov {
-namespace pass {
+namespace ov::pass {
 
 // This pass inserts explicit Convert on Extension operation outputs for hard-coded list of precisions.
 // Supported cases: I64/U64 -> I32.
@@ -18,5 +17,4 @@ public:
     InsertConvertAfterExtension(bool convert_output_precision = true);
 };
 
-}  // namespace pass
-}  // namespace ov
+}  // namespace ov::pass

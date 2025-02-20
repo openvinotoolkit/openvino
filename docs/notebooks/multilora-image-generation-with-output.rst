@@ -102,6 +102,11 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/multilora-image-generation/lora_config.py",
         )
         lora_config_path.open("w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("multilora-image-generation.ipynb")
 
 Convert Diffusion Model using Optimum Intel
 -------------------------------------------

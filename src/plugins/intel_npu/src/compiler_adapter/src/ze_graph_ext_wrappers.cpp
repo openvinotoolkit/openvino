@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,9 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/partial_shape.hpp"
 
 #define NotSupportQuery(T) (T <= ZE_GRAPH_EXT_VERSION_1_2)
 
@@ -43,6 +45,8 @@ ov::element::Type_t toOVElementType(const ze_graph_argument_precision_t zeElemen
         return ov::element::Type_t::dynamic;
     case ZE_GRAPH_ARGUMENT_PRECISION_BOOLEAN:
         return ov::element::Type_t::boolean;
+    case ZE_GRAPH_ARGUMENT_PRECISION_NF4:
+        return ov::element::Type_t::nf4;
     case ZE_GRAPH_ARGUMENT_PRECISION_BF16:
         return ov::element::Type_t::bf16;
     case ZE_GRAPH_ARGUMENT_PRECISION_FP16:
@@ -217,7 +221,7 @@ static std::unordered_set<std::string> parseQueryResult(std::vector<char>& data)
             start = ++i;
         } else if (dataString[i] == '>') {
             std::string temp(dataString.begin() + start, dataString.begin() + i);
-            result.insert(temp);
+            result.insert(std::move(temp));
             i++;
         } else {
             i++;
@@ -363,19 +367,15 @@ ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(std::pair<size_t, std::shar
     return graphHandle;
 }
 
-ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(const std::vector<uint8_t>& network) const {
+ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(const uint8_t& blobData, size_t blobSize) const {
     ze_graph_handle_t graphHandle;
 
-    if (network.empty()) {
+    if (blobSize == 0) {
         OPENVINO_THROW("Empty blob");
     }
 
-    ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
-                            nullptr,
-                            ZE_GRAPH_FORMAT_NATIVE,
-                            network.size(),
-                            network.data(),
-                            nullptr};
+    ze_graph_desc_t desc =
+        {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES, nullptr, ZE_GRAPH_FORMAT_NATIVE, blobSize, &blobData, nullptr};
 
     _logger.debug("getGraphHandle - perform pfnCreate");
     auto result = _zeroInitStruct->getGraphDdiTable().pfnCreate(_zeroInitStruct->getContext(),
@@ -400,7 +400,8 @@ ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(const std::vector<uint8_t>&
 static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
                                     const std::optional<ze_graph_argument_metadata_t>& metadata) {
     ov::element::Type_t precision = toOVElementType(arg.devicePrecision);
-    ov::Shape shapeFromCompiler, shapeFromIRModel;
+    ov::Shape shapeFromCompiler;
+    ov::PartialShape shapeFromIRModel;
     std::unordered_set<std::string> outputTensorNames;
 
     for (uint32_t id = 0; id < arg.associated_tensor_names_count; id++) {
@@ -410,8 +411,17 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
         shapeFromCompiler.push_back(arg.dims[id]);
     }
     if (metadata.has_value()) {
+        const auto dynamicDim = std::numeric_limits<uint64_t>::max();
+        shapeFromIRModel.reserve(metadata->shape_size);
         for (uint32_t id = 0; id < metadata->shape_size; id++) {
-            shapeFromIRModel.push_back(metadata->shape[id]);
+            if (metadata->shape[id] != dynamicDim) {
+                shapeFromIRModel.push_back(metadata->shape[id]);
+            } else {
+                // lower bound is ignored, so we set it to 1 just to satisfy the Dimension constructor,
+                // upper bound is set to the value from shapeFromCompiler as it is filled with upper bounds
+                // in case of dynamic dimensions
+                shapeFromIRModel.push_back(ov::Dimension(1, shapeFromCompiler[id]));
+            }
         }
     }
 
@@ -433,7 +443,7 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
 
     return {std::move(nameFromCompiler),
             precision,
-            std::move(shapeFromCompiler),
+            shapeFromCompiler,
             isStateInput,
             isStateOutput,
             isShapeTensor,

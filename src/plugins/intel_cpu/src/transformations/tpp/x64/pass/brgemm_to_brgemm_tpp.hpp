@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,17 +6,14 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
-namespace pass {
+namespace ov::intel_cpu::tpp::pass {
 
 /**
  * @interface BrgemmToBrgemmTPP
  * @brief Converts Snippets Brgemm to BrgemmTPP operation, if possible. Only fp32 Brgemms are currently converted.
  * @ingroup snippets
  */
-class BrgemmToBrgemmTPP: public ov::pass::MatcherPass {
+class BrgemmToBrgemmTPP : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("BrgemmToBrgemmTPP");
     BrgemmToBrgemmTPP();
@@ -25,8 +22,4 @@ public:
                                                   const ov::element::TypeVector& precisions);
 };
 
-
-}  // namespace pass
-}  // namespace tpp
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::tpp::pass

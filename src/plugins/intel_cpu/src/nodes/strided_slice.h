@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,18 +15,19 @@ namespace node {
 
 class StridedSlice : public Node {
 public:
-    StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
     }
 
+    bool neverExecute() const override;
     bool isExecutable() const override;
     bool needShapeInfer() const override;
 
@@ -65,29 +66,23 @@ public:
 protected:
     bool needPrepareParams() const override;
     void prepareParams() override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
 
 private:
     class StridedSliceExecutor {
     public:
         StridedSliceExecutor(const StridedSliceAttributes& attrs,
                              const std::vector<MemoryCPtr>& srcMemory,
-                             const std::vector<MemoryCPtr>& dstMemory,
-                             const std::string& errorPrefix)
-            : errorPrefix(errorPrefix) {}
+                             const std::vector<MemoryCPtr>& dstMemory) {}
         virtual void exec(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory) = 0;
         virtual ~StridedSliceExecutor() = default;
-
-    protected:
-        const std::string errorPrefix;
     };
 
     class StridedSliceCommonExecutor : public StridedSliceExecutor {
     public:
         StridedSliceCommonExecutor(const StridedSliceAttributes& attrs,
                                    const std::vector<MemoryCPtr>& srcMemory,
-                                   const std::vector<MemoryCPtr>& dstMemory,
-                                   const std::string& errorPrefix);
+                                   const std::vector<MemoryCPtr>& dstMemory);
         void exec(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory) override;
         void execSliceScatter(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory);
         void execStridedSlice(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory);
@@ -134,8 +129,6 @@ private:
 
     std::vector<MemoryCPtr> srcMemory;
     std::vector<MemoryCPtr> dstMemory;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

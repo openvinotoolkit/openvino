@@ -1,20 +1,22 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <node.h>
 
+#include <utility>
+
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "snippets/op/subgraph.hpp"
 
 #pragma once
-namespace ov {
-namespace intel_cpu {
-namespace node {
+
+namespace ov::intel_cpu::node {
 using Result = IShapeInfer::Result;
 
 class SnippetShapeInfer : public ShapeInferEmptyPads {
 public:
-    explicit SnippetShapeInfer(const std::shared_ptr<snippets::op::Subgraph>& s) : m_subgraph(s) {
+    explicit SnippetShapeInfer(std::shared_ptr<snippets::op::Subgraph> s) : m_subgraph(std::move(s)) {
         m_status_map[snippets::ShapeInferStatus::success] = ov::intel_cpu::ShapeInferStatus::success;
         m_status_map[snippets::ShapeInferStatus::skip] = ov::intel_cpu::ShapeInferStatus::skip;
     }
@@ -48,6 +50,4 @@ public:
 private:
     std::shared_ptr<snippets::op::Subgraph> m_subgraph = nullptr;
 };
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

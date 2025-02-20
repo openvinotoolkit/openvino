@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ bool ConvertLike::constant_fold(OutputVector& output_values, const OutputVector&
         return false;
     }
 
-    if (auto data_const = std::dynamic_pointer_cast<op::v0::Constant>(input_values[0].get_node_shared_ptr())) {
+    if (auto data_const = ov::as_type_ptr<op::v0::Constant>(input_values[0].get_node_shared_ptr())) {
         auto convert = std::make_shared<ov::op::v0::Convert>(input_values[0], input_values[1].get_element_type());
         return convert->constant_fold(output_values, OutputVector{data_const});
     }

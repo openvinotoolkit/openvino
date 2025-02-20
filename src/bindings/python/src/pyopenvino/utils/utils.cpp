@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -190,8 +190,22 @@ py::object from_ov_any(const ov::Any& any) {
         PyObject* dict = PyDict_New();
         for (const auto& it : val) {
             std::string property_name = it;
-            std::string mutability = it.is_mutable() ? "RW" : "RO";
-            PyDict_SetItemString(dict, property_name.c_str(), PyUnicode_FromString(mutability.c_str()));
+            auto mutability = it.get_mutability();
+            std::string mutability_str;
+            switch (mutability) {
+            case ov::PropertyMutability::RW:
+                mutability_str = "RW";
+                break;
+            case ov::PropertyMutability::RO:
+                mutability_str = "RO";
+                break;
+            case ov::PropertyMutability::WO:
+                mutability_str = "WO";
+                break;
+            default:
+                throw std::runtime_error("Unknown mutability type");
+            }
+            PyDict_SetItemString(dict, property_name.c_str(), PyUnicode_FromString(mutability_str.c_str()));
         }
         return py::cast<py::object>(dict);
     } else if (any.is<std::shared_ptr<ov::Meta>>()) {
@@ -217,8 +231,6 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::device::Type>());
     } else if (any.is<ov::streams::Num>()) {
         return py::cast(any.as<ov::streams::Num>());
-    } else if (any.is<ov::Affinity>()) {
-        return py::cast(any.as<ov::Affinity>());
     } else if (any.is<ov::WorkloadType>()) {
         return py::cast(any.as<ov::WorkloadType>());
     } else if (any.is<ov::CacheMode>()) {
@@ -372,9 +384,7 @@ ov::AnyMap py_object_to_any_map(const py::object& py_obj) {
     for (auto& item : py::cast<py::dict>(py_obj)) {
         std::string key = py::cast<std::string>(item.first);
         py::object value = py::cast<py::object>(item.second);
-        if (py::isinstance<ov::Affinity>(value)) {
-            return_value[key] = py::cast<ov::Affinity>(value);
-        } else if (py_object_is_any_map(value)) {
+        if (py_object_is_any_map(value)) {
             return_value[key] = Common::utils::py_object_to_any_map(value);
         } else {
             return_value[key] = Common::utils::py_object_to_any(value);
@@ -449,8 +459,6 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::device::Type>(py_obj);
     } else if (py::isinstance<ov::streams::Num>(py_obj)) {
         return py::cast<ov::streams::Num>(py_obj);
-    } else if (py::isinstance<ov::Affinity>(py_obj)) {
-        return py::cast<ov::Affinity>(py_obj);
     } else if (py::isinstance<ov::WorkloadType>(py_obj)) {
         return py::cast<ov::WorkloadType>(py_obj);
     } else if (py::isinstance<ov::Tensor>(py_obj)) {
@@ -460,9 +468,9 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         // FrontEnd Decoder
     } else if (py::isinstance<ov::frontend::IDecoder>(py_obj)) {
         return py::cast<std::shared_ptr<ov::frontend::IDecoder>>(py_obj);
-        // TF FrontEnd GraphIterator
-    } else if (py::isinstance<ov::frontend::tensorflow::GraphIterator>(py_obj)) {
-        return py::cast<std::shared_ptr<ov::frontend::tensorflow::GraphIterator>>(py_obj);
+        // FrontEnd GraphIterator
+    } else if (py::isinstance<ov::frontend::GraphIterator>(py_obj)) {
+        return py::cast<std::shared_ptr<ov::frontend::GraphIterator>>(py_obj);
         // Custom FrontEnd Types
     } else if (py::isinstance<ov::frontend::type::Tensor>(py_obj)) {
         return py::cast<ov::frontend::type::Tensor>(py_obj);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,7 @@
 #include "cpu_memory.h"
 #include "nodes/executors/executor.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 enum ACLArgs { ACL_SRC_0, ACL_SRC_1, ACL_SRC_2, ACL_BIAS, ACL_WEI, ACL_DST, ACL_DST_DEQ_SCALE, COUNT_OF_ARGS };
 
@@ -54,5 +53,4 @@ private:
 
 using ACLCommonExecutorPtr = std::shared_ptr<ACLCommonExecutor>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,9 +11,7 @@ using namespace dnnl::impl::cpu;
 
 #define GET_OFF(field) offsetof(NmsCallArgs, field)
 
-namespace ov {
-namespace intel_cpu {
-namespace kernel {
+namespace ov::intel_cpu::kernel {
 
 template <x64::cpu_isa_t isa>
 void NonMaxSuppression<isa>::generate() {
@@ -294,8 +292,9 @@ template <x64::cpu_isa_t isa>
 void NonMaxSuppression<isa>::suppressed_by_iou(bool is_scalar) {
     if (x64::mayiuse(x64::avx512_core)) {
         vcmpps(k_mask, vmm_temp3, vmm_iou_threshold, 0x0D);  // _CMP_GE_OS. vcmpps w/ kmask only on V5
-        if (is_scalar)
+        if (is_scalar) {
             kandw(k_mask, k_mask, k_mask_one);
+        }
         kortestw(k_mask, k_mask);  // bitwise check if all zero
     } else if (x64::mayiuse(x64::avx)) {
         // vex instructions with xmm on avx and ymm on avx2
@@ -348,10 +347,11 @@ void NonMaxSuppression<isa>::suppressed_by_score() {
 template <x64::cpu_isa_t isa>
 void NonMaxSuppression<isa>::iou(int ele_num) {
     auto load = [&](Xbyak::Reg64 reg_src, Vmm vmm_dst) {
-        if (ele_num != scalar_step && ele_num != vector_step)
+        if (ele_num != scalar_step && ele_num != vector_step) {
             OPENVINO_THROW("NMS JIT implementation supports load emitter with only element count scalar_step or "
                            "vector_step! Get: ",
                            ele_num);
+        }
 
         const auto& load_emitter = ele_num == 1 ? load_scalar_emitter : load_vector_emitter;
         load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())},
@@ -470,6 +470,4 @@ template class NonMaxSuppression<x64::avx512_core>;
 template class NonMaxSuppression<x64::avx2>;
 template class NonMaxSuppression<x64::sse41>;
 
-}  // namespace kernel
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::kernel

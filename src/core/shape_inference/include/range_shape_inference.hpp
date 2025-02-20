@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -102,7 +102,7 @@ std::vector<TRShape> range_shape_infer(const Node* op,
 
         output_shapes[0] = TRShape{static_cast<uint32_t>(strided)};
     } else {
-        symbol_propagation(op, output_shapes, start, step, start_val, step_val);
+        symbol_propagation(op, output_shapes, start, step, start_val.has_value(), step_val.has_value());
     }
     return output_shapes;
 }

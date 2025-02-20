@@ -127,6 +127,13 @@ DEFINE_string(
     ref_dir,
     "",
     "A directory with reference blobs to compare with in run_test mode. Leave it empty to use the current folder.");
+static constexpr char ref_results_message[] =
+        "String of reference result file(s) to be used during run_test mode. "
+        "For the same test case, the files should be separated by comma (,) (example: one case multiple output). "
+        "For different test cases, it should be separated by semicolon (;). "
+        "If ref_dir is provided, the reference files should be relative to the ref_dir. "
+        "Else, if ref_dir is not provided, the reference files should be absolute paths. ";
+DEFINE_string(ref_results, "", ref_results_message);
 DEFINE_string(mode, "", "Comparison mode to use");
 
 DEFINE_uint32(top_k, 1, "Top K parameter for 'classification' mode");
@@ -251,8 +258,10 @@ void parseCommandLine(int argc, char* argv[]) {
     std::cout << "    Scale_values [channel1,channel2,channel3] " << FLAGS_scale_values << std::endl;
     std::cout << "    Skip checking output layers:              " << FLAGS_skip_output_layers << std::endl;
     if (FLAGS_run_test) {
-        std::cout << "    Reference files direcotry:                "
-                  << (FLAGS_ref_dir.empty() ? "Current directory" : FLAGS_ref_dir) << std::endl;
+        std::cout << "    Reference files directory:                "
+                  << (FLAGS_ref_dir.empty() && FLAGS_ref_results.empty() ? "Current directory" : FLAGS_ref_dir)
+                  << std::endl;
+        std::cout << "    Reference file(s):                        " << FLAGS_ref_results<< std::endl;
         std::cout << "    Mode:             " << FLAGS_mode << std::endl;
         if (strEq(FLAGS_mode, "classification")) {
             std::cout << "    Top K:            " << FLAGS_top_k << std::endl;
@@ -1569,8 +1578,8 @@ std::pair<TensorMap, ProfVec> runInfer(ov::InferRequest& inferRequest, ov::Compi
 
     TensorMap out;
     for (const auto& outputInfo : compiledModel.outputs()) {
-        const std::string layer_name = outputInfo.get_any_name();
-        out.insert({layer_name, inferRequest.get_tensor(layer_name)});
+        const std::string layerName = outputInfo.get_any_name();
+        out.insert({layerName, inferRequest.get_tensor(layerName)});
     }
 
     ProfVec profData{};
@@ -1807,13 +1816,44 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
 }
 
 static ov::Shape parseDataShape(const std::string& dataShapeStr) {
-    std::vector<size_t> dataShape;
-    std::istringstream ss(dataShapeStr);
-    std::string token;
-    while (std::getline(ss, token, ',')) {
-        dataShape.push_back(std::stoul(token));
+    std::vector<uint64_t> dataShape;
+    std::stringstream ss(dataShapeStr);
+
+    char ch;  // To discard non-numeric characters
+    int64_t dim;
+    while (ss >> ch) {
+        if (std::isdigit(ch)) {
+            ss.putback(ch);
+            ss >> dim;
+            dataShape.push_back(dim);
+        }
     }
     return ov::Shape(dataShape);
+}
+
+std::string getRefBlobFilePath(const std::string& netFileName, const std::vector<std::string>& refFiles,
+                               size_t numberOfTestCase, size_t outputInd) {
+    std::string blobFileFullPath;
+    if (!refFiles.empty() && !FLAGS_ref_dir.empty()) {
+        // Case 1: Reference files & directory are provided (relative path)
+        std::filesystem::path refDirPath(FLAGS_ref_dir);
+        std::filesystem::path refFilePath(refFiles[outputInd]);
+        blobFileFullPath = (refDirPath / refFilePath).string();
+    } else if (!refFiles.empty()) {
+        // Case 2: Reference files provided only (absolute path)
+        blobFileFullPath = refFiles[outputInd];
+    } else {
+        // Case 3: Reference directory provided only
+        std::ostringstream ostr;
+        ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
+        const auto blobFileName = ostr.str();
+
+        std::filesystem::path fullPath = FLAGS_ref_dir;
+        fullPath /= blobFileName;
+        blobFileFullPath = fullPath.string();
+    }
+
+    return blobFileFullPath;
 }
 
 static int runSingleImageTest() {
@@ -1853,6 +1893,29 @@ static int runSingleImageTest() {
                 entireModelFiles.push_back(splitStringList(filesPerInput, '|'));
             }
             inputFilesForOneInfer.push_back(std::move(entireModelFiles));
+        }
+
+        std::vector<std::string> refFilesPerCase;
+        using RefFilesPerInput = std::vector<std::string>;
+        using RefFilesForModelOutputs = std::vector<RefFilesPerInput>;
+        RefFilesForModelOutputs refFilesForOneInfer;
+
+        if (!FLAGS_ref_results.empty()) {
+            refFilesPerCase = splitStringList(FLAGS_ref_results, ';');
+            // Make sure that the number of test cases (separated by ;) is the same as number of test cases given in
+            // input files
+            if (refFilesPerCase.size() != inputFilesPerCase.size()) {
+                std::cout << "The number of test cases in reference files is not equal to the number of test cases"
+                    << " given in input files. "
+                    << "  Number of test cases in reference files: " << refFilesPerCase.size()
+                    << "  Number of test cases in input files: " << inputFilesPerCase.size() << std::endl;
+                return EXIT_FAILURE;
+            }
+
+            for (const auto& refResult : refFilesPerCase) {
+                std::vector<std::string> refFilesPerModel = splitStringList(refResult, ',');
+                refFilesForOneInfer.push_back(std::move(refFilesPerModel));
+            }
         }
 
         std::vector<std::string> inputBinPrecisionStrPerCase;
@@ -1906,11 +1969,11 @@ static int runSingleImageTest() {
             auto model = core.read_model(FLAGS_network);
             nameIOTensors(model);
 
-            auto inputs_info = std::const_pointer_cast<ov::Model>(model)->inputs();
-            InputsInfo info_map;
+            auto inputsInfo = std::const_pointer_cast<ov::Model>(model)->inputs();
+            InputsInfo infoMap;
 
             std::cout << "Performing reshape" << std::endl;
-            reshape(std::move(inputs_info), info_map, model, FLAGS_shape,
+            reshape(std::move(inputsInfo), infoMap, model, FLAGS_shape,
                     FLAGS_override_model_batch_size, FLAGS_device);
 
             ov::preprocess::PrePostProcessor ppp(model);
@@ -2084,6 +2147,12 @@ static int runSingleImageTest() {
             const FilesForModelInputs &inputFiles = inputFilesForOneInfer[numberOfTestCase];
             OPENVINO_ASSERT(inputFiles.size() == inputsInfo.size(), "Number of input files ", inputFiles.size(),
                             " doesn't match network configuration ", inputsInfo.size());
+            const RefFilesPerInput &refFiles = refFilesForOneInfer.empty() ? RefFilesPerInput{}
+                                                                           : refFilesForOneInfer[numberOfTestCase];
+            if (!FLAGS_ref_results.empty()) {
+                OPENVINO_ASSERT(refFiles.size() == outputsInfo.size(), "Number of reference files ", refFiles.size(),
+                " doesn't match number of network output (s): ", outputsInfo.size());
+            }
 
             TensorMap inTensors;
             size_t inputInd = 0;
@@ -2163,18 +2232,12 @@ static int runSingleImageTest() {
                     const ov::element::Type& precision = tensor.get_element_type();
                     const ov::Shape& shape = tensor.get_shape();
 
-                    std::ostringstream ostr;
-                    ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
-                    const auto blobFileName = ostr.str();
+                    std::string blobFileFullPath = getRefBlobFilePath(netFileName, refFiles, numberOfTestCase, outputInd);
 
-                    std::filesystem::path fullPath = FLAGS_ref_dir;
-                    fullPath /= blobFileName;
-                    const auto blobFileFullName = fullPath.string();
-
-                    std::cout << "Load reference output #" << outputInd << " from " << blobFileFullName << " as "
+                    std::cout << "Load reference output #" << outputInd << " from " << blobFileFullPath << " as "
                               << precision << std::endl;
 
-                    const ov::Tensor referenceTensor = loadTensor(precision, shape, blobFileFullName);
+                    const ov::Tensor referenceTensor = loadTensor(precision, shape, blobFileFullPath);
                     referenceTensors.emplace(tensorName, referenceTensor);
 
                     // Determine the output layout

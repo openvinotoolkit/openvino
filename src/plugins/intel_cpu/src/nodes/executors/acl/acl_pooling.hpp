@@ -8,8 +8,7 @@
 #include "nodes/executors/pooling.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class AclPoolingExecutor : public PoolingExecutor {
 public:
@@ -79,7 +78,7 @@ public:
             return false;
         }
 
-        if (dstDescs.size() == 2u && dstDescs[1]->getPrecision() != ov::element::u32) {
+        if (dstDescs.size() == 2u && !one_of(dstDescs[1]->getPrecision(), ov::element::u32, ov::element::i32)) {
             DEBUG_LOG("AclPoolingExecutor supports U32 as indices precisions only. ",
                       "Passed indices precision: ",
                       dstDescs[1]->getPrecision());
@@ -130,5 +129,4 @@ public:
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

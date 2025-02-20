@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #ifdef SNIPPETS_DEBUG_CAPS
@@ -14,8 +14,7 @@ using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 using namespace Xbyak::util;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 jit_perf_count_chrono_start_emitter::jit_perf_count_chrono_start_emitter(dnnl::impl::cpu::x64::jit_generator* host,
                                                                          dnnl::impl::cpu::x64::cpu_isa_t host_isa,
@@ -41,7 +40,7 @@ void jit_perf_count_chrono_start_emitter::emit_impl(const std::vector<size_t>& i
     h->mov(h->rax, reinterpret_cast<size_t>(set_start_time_overload));
     h->mov(abi_param1, reinterpret_cast<size_t>(m_start_node.get()));
 
-    spill.rsp_align();
+    spill.rsp_align(h->rbx.getIdx());
     h->call(h->rax);
     spill.rsp_restore();
 
@@ -74,13 +73,13 @@ void jit_perf_count_chrono_end_emitter::emit_impl(const std::vector<size_t>& in_
     h->mov(h->rax, reinterpret_cast<size_t>(set_accumulated_time_overload));
     h->mov(abi_param1, reinterpret_cast<size_t>(m_end_node.get()));
 
-    spill.rsp_align();
+    spill.rsp_align(h->rbx.getIdx());
     h->call(h->rax);
     spill.rsp_restore();
 
     spill.postamble();
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
+
 #endif  // SNIPPETS_DEBUG_CAPS

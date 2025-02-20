@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,9 +7,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 /**
  * Implements Prior Box Clustered shape inference algorithm. The output shape is [2,  4 * height * width *
@@ -36,6 +34,4 @@ ShapeInferPtr PriorBoxClusteredShapeInferFactory::makeShapeInfer() const {
     return std::make_shared<PriorBoxClusteredShapeInfer>(number_of_priors);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

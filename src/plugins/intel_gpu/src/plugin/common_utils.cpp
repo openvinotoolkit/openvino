@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -95,8 +95,7 @@ void convert_and_copy(const void* src_ptr, ov::element::Type src_et, void* dst_p
 
 }  // namespace
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 bool is_supported(ov::element::Type_t et) {
     switch (et) {
@@ -255,5 +254,4 @@ std::vector<cldnn::optional_data_type> get_output_data_types(const ov::Node* op,
     return output_data_types;
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

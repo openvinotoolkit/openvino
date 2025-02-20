@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,8 +74,15 @@ bool ZeroRemoteTensor::deallocate() noexcept {
         if (_data) {
             auto result = zeMemFree(_init_structs->getContext(), _data);
             if (ZE_RESULT_SUCCESS != result) {
-                return false;
+                if (ZE_RESULT_ERROR_UNINITIALIZED == result) {
+                    _logger.warning("ZeroRemoteTensor failed to free memory; Level zero context was already destroyed "
+                                    "and memory was already released by the driver.");
+                } else {
+                    _logger.error("zeMemFree failed %#X", uint64_t(result));
+                    return false;
+                }
             }
+
             _data = nullptr;
         }
 
@@ -166,6 +173,14 @@ void ZeroRemoteTensor::update_properties() {
     default:
         OPENVINO_THROW("Unsupported object type ", static_cast<int>(_mem_type));
     }
+}
+
+void* ZeroRemoteTensor::get_original_memory() const {
+    return _data;
+}
+
+ze_context_handle_t ZeroRemoteTensor::get_zero_context_handle() const {
+    return _init_structs->getContext();
 }
 
 }  // namespace intel_npu

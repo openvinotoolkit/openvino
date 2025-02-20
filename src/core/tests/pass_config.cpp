@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -265,11 +265,11 @@ public:
         ov::matcher_pass_callback callback = [this](pattern::Matcher& m) {
             auto root = m.get_match_root();
             auto pass_config = this->get_pass_config();
-            if (std::dynamic_pointer_cast<op::v0::Relu>(root) && !pass_config->is_disabled<RenameReLU>()) {
+            if (ov::as_type_ptr<op::v0::Relu>(root) && !pass_config->is_disabled<RenameReLU>()) {
                 auto pass = std::make_shared<RenameReLU>();
                 pass->set_pass_config(pass_config);
                 pass->apply(root);
-            } else if (std::dynamic_pointer_cast<op::v0::Sigmoid>(root) && !pass_config->is_disabled<RenameSigmoid>()) {
+            } else if (ov::as_type_ptr<op::v0::Sigmoid>(root) && !pass_config->is_disabled<RenameSigmoid>()) {
                 auto pass = std::make_shared<RenameSigmoid>();
                 pass->set_pass_config(pass_config);
                 pass->apply(root);

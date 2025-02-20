@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -204,6 +204,9 @@ std::shared_ptr<Model> PrePostProcessor::build() {
     guard.reset();
     return function;
 }
+
+// ------------------ TensorInfoMemoryType ----------------
+TensorInfoMemoryType::~TensorInfoMemoryType() = default;
 
 // --------------------- InputTensorInfo ------------------
 InputTensorInfo::InputTensorInfo() : m_impl(std::unique_ptr<InputTensorInfoImpl>(new InputTensorInfoImpl())) {}

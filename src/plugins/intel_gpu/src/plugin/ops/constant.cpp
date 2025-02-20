@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,8 +28,7 @@
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static cldnn::tensor getConstTensor(const ov::Shape constDims) {
     std::vector<cldnn::tensor::value_type> shuffled_dims(constDims.size());
@@ -124,7 +123,7 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
 }
 
 static bool is_btiwise(Node* node) {
-    return dynamic_cast<const ov::op::util::BinaryElementwiseBitwise*>(node) != nullptr;
+    return ov::as_type<const ov::op::util::BinaryElementwiseBitwise>(node) != nullptr;
 }
 
 static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Constant>& op) {
@@ -185,7 +184,7 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
     // Also check if constant users is a backprop convolution - in that case O and I need to be swapped.
     for (auto& node : constUsers) {
         auto outOp = node.get_node();
-        if (auto castedOp = dynamic_cast<ov::op::v0::Concat*>(outOp)) {
+        if (auto castedOp = ov::as_type<ov::op::v0::Concat>(outOp)) {
             if (castedOp->get_axis() == 0) {
                 consts[op].needsBatchInterpretation = constDims.size() == 1;
             }
@@ -249,5 +248,4 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
 
 REGISTER_FACTORY_IMPL(v0, Constant);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

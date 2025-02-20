@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <float.h>
@@ -27,10 +27,7 @@
 #    include <arm_neon.h>
 #endif
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace ov::Extensions::Cpu::XARCH {
 
 using namespace ov;
 
@@ -50,7 +47,7 @@ using namespace ov;
 #endif
 
 template <typename TA, typename TB>
-void cvt_copy(TA* dst, TB* src, size_t n) {
+static void cvt_copy(TA* dst, TB* src, size_t n) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)
     for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
@@ -62,31 +59,50 @@ void cvt_copy(TA* dst, TB* src, size_t n) {
         auto vb = mm256_uni_loadu_ps(src + i);
         mm256_uni_storeu_ps(dst + i, vb);
     }
-#elif defined(OPENVINO_ARCH_ARM64)
-#    if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-    if (std::is_same<TA, ov::float16>::value && std::is_same<TB, ov::float16>::value) {
-#        if defined(HAVE_SVE)
-        size_t inc = vec_len_f16_sve();
-        svbool_t pg = svptrue_b16();
-
-        while (i < n) {
-            if (n - i < vec_len_f16_sve()) {
-                inc = n - i;
-                pg = svwhilelt_b16(0, static_cast<int>(inc));
-            }
-            svfloat16_t b1 = svld1_f16(pg, reinterpret_cast<const float16_t*>(src + i));
-            svst1_f16(pg, reinterpret_cast<float16_t*>(dst + i), b1);
-            i += inc;
-        }
-#        else
-        for (; i + vec_len_f16_neon <= n; i += vec_len_f16_neon) {
-            auto vb1 = vld1q_f16(reinterpret_cast<const float16_t*>(src + i));
-            vst1q_f16(reinterpret_cast<float16_t*>(dst + i), vb1);
-        }
-#        endif
+#endif
+    for (; i < n; i++) {
+        dst[i] = src[i];
     }
-#    else
+}
+
+#if defined(OPENVINO_ARCH_ARM64)
+#    if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 #        if defined(HAVE_SVE)
+template <>
+void cvt_copy(ov::float16* dst, ov::float16* src, size_t n) {
+    size_t i = 0;
+    size_t inc = vec_len_f16_sve();
+    svbool_t pg = svptrue_b16();
+
+    while (i < n) {
+        if (n - i < vec_len_f16_sve()) {
+            inc = n - i;
+            pg = svwhilelt_b16(0, static_cast<int>(inc));
+        }
+        svfloat16_t b1 = svld1_f16(pg, reinterpret_cast<const float16_t*>(src + i));
+        svst1_f16(pg, reinterpret_cast<float16_t*>(dst + i), b1);
+        i += inc;
+    }
+}
+#        else   // NEON
+template <>
+void cvt_copy(ov::float16* dst, ov::float16* src, size_t n) {
+    size_t i = 0;
+    for (; i + vec_len_f16_neon <= n; i += vec_len_f16_neon) {
+        auto vb1 = vld1q_f16(reinterpret_cast<const float16_t*>(src + i));
+        vst1q_f16(reinterpret_cast<float16_t*>(dst + i), vb1);
+    }
+    for (; i < n; i++) {
+        dst[i] = src[i];
+    }
+}
+#        endif  // defined(HAVE_SVE)
+#    endif      // defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+
+#    if defined(HAVE_SVE)
+template <>
+void cvt_copy(float* dst, float* src, size_t n) {
+    size_t i = 0;
     auto _dst = reinterpret_cast<float32_t*>(dst);
     size_t inc = vec_len_f32_sve();
     svbool_t pg = svptrue_b32();
@@ -100,20 +116,21 @@ void cvt_copy(TA* dst, TB* src, size_t n) {
         svst1_f32(pg, _dst + i, b1);
         i += inc;
     }
-#        else
-    if (std::is_same<TA, float>::value && std::is_same<TB, float>::value) {
-        for (; i + vec_len_f32_neon <= n; i += vec_len_f32_neon) {
-            float32x4_t vb1 = __vld1q_f32(src + i);
-            __vst1q_f32(dst + i, vb1);
-        }
+}
+#    else   // NEON
+template <>
+void cvt_copy(float* dst, float* src, size_t n) {
+    size_t i = 0;
+    for (; i + vec_len_f32_neon <= n; i += vec_len_f32_neon) {
+        float32x4_t vb1 = __vld1q_f32(src + i);
+        __vst1q_f32(dst + i, vb1);
     }
-#        endif
-#    endif
-#endif
     for (; i < n; i++) {
         dst[i] = src[i];
     }
 }
+#    endif  // defined(HAVE_SVE)
+#endif      // defined(OPENVINO_ARCH_ARM64)
 
 template <typename T>
 static void attn_acc_value(float* out, float weight, T* v, size_t S, float* scale, float* zp) {
@@ -1150,8 +1167,9 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     if (h_group_num != H) {
         h_each_group_len = H / h_group_num;
     }
-    if (d_scale == 0.0f)
+    if (d_scale == 0.0f) {
         d_scale = 1.0f / sqrt(S);
+    }
     auto nthr = parallel_get_max_threads();
     auto kv_len = present_key.size(2);
 
@@ -1270,8 +1288,9 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
         T3* alibi_ptr = alibi_mask ? &alibi_mask.at<T3>({b, h, pq, 0}, true) : nullptr;
         uint8_t* attn_mask_ptr = nullptr;
         auto attn_mask_prec = attention_mask.get_precision();
-        if (attention_mask)
+        if (attention_mask) {
             attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<T>({b, h, pq, 0}, true));
+        }
         uint8_t* cmask_ptr = causal_mask ? &causal_mask.at<uint8_t>({b, h, pq, 0}, true) : nullptr;
         attn_softmax_kernel<T3>(buf_attn_w.ptr<T3>(b, h, pq),
                                 buf_attn_w.ptr<T3>(b, h, pq),
@@ -1538,7 +1557,4 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
     }
 }
 
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu::XARCH

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -26,6 +26,12 @@ function(ov_create_acl_version_file)
     file(WRITE ${ACL_VERSION_FILE_PATH} "\"arm_compute_version=v${ACL_VERSION}\"")
 endfunction()
 
+function(ov_build_kleidiai_static)
+    set(BUILD_SHARED_LIBS OFF)
+    set(KLEIDIAI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    add_subdirectory(kleidiai EXCLUDE_FROM_ALL)
+endfunction()
+
 function(ov_add_onednn)
     set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
     set(CMAKE_DISABLE_FIND_PACKAGE_PythonInterp ON)
@@ -44,6 +50,7 @@ function(ov_add_onednn)
     set(DNNL_CPU_RUNTIME "${THREADING}" CACHE STRING "" FORCE)
     set(DNNL_GPU_RUNTIME "NONE" CACHE STRING "" FORCE)
     set(DNNL_BLAS_VENDOR "NONE" CACHE STRING "" FORCE)
+    set(ONEDNN_ENABLE_GEMM_KERNELS_ISA "AVX2" CACHE STRING "" FORCE)
     # plugin does not use onednn graph
     set(ONEDNN_BUILD_GRAPH OFF CACHE BOOL "" FORCE)
     # select needed primitives
@@ -167,6 +174,11 @@ endif()
 if(ENABLE_SHL_FOR_CPU)
     add_subdirectory(shl)
     ov_install_static_lib(shl ${OV_CPACK_COMP_CORE})
+endif()
+
+if(ENABLE_KLEIDIAI_FOR_CPU)
+    ov_build_kleidiai_static()
+    ov_install_static_lib(kleidiai ${OV_CPACK_COMP_CORE})
 endif()
 
 ov_add_onednn()

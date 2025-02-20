@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,7 +77,7 @@ INSTANTIATE_TEST_SUITE_P(opset,
                                          OpsetTestParams{ov::get_opset13, 186},
                                          OpsetTestParams{ov::get_opset14, 188},
                                          OpsetTestParams{ov::get_opset15, 199},
-                                         OpsetTestParams{ov::get_opset16, 4}),
+                                         OpsetTestParams{ov::get_opset16, 6}),
                          OpsetTestNameGenerator{});
 
 class MyOpOld : public ov::op::Op {

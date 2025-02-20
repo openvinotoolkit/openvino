@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -44,6 +44,16 @@ caching_supported = 'EXPORT_IMPORT' in core.get_property(device_name, device.cap
 # ! [ov:caching:part3]
 
 # ! [ov:caching:part4]
+core = ov.Core()
+if "GPU" in core.available_devices:
+    core.set_property({props.cache_dir: path_to_cache_dir})
+    config_cache = {}
+    config_cache["CACHE_MODE"] = "OPTIMIZE_SIZE"
+    # Note: model path needs to point to the *.xml file, not *.bin when using the IR model format.
+    compiled_model = core.compile_model(model=model_path, device_name='GPU', config=config_cache)
+# ! [ov:caching:part4]
+
+# ! [ov:caching:part5]
 import base64
 
 def encrypt_base64(src):
@@ -58,9 +68,9 @@ config_cache = {}
 config_cache["CACHE_ENCRYPTION_CALLBACKS"] = [encrypt_base64, decrypt_base64]
 model = core.read_model(model=model_path)
 compiled_model = core.compile_model(model=model, device_name=device_name, config=config_cache)
-# ! [ov:caching:part4]
-
 # ! [ov:caching:part5]
+
+# ! [ov:caching:part6]
 import base64
 
 def encrypt_base64(src):
@@ -76,4 +86,4 @@ if "GPU" in core.available_devices:
     config_cache["CACHE_ENCRYPTION_CALLBACKS"] = [encrypt_base64, decrypt_base64]
     config_cache["CACHE_MODE"] = "OPTIMIZE_SIZE"
     compiled_model = core.compile_model(model=model_path, device_name='GPU', config=config_cache)
-# ! [ov:caching:part5]
+# ! [ov:caching:part6]

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -71,9 +71,12 @@ class TestSparseSegmentMean(CommonTFLayerTest):
                                  shape, indices_shape, segments_num,
                                  ie_device, precision, ir_version, temp_dir,
                                  use_legacy_frontend):
+        kwargs = {}
         if ie_device == 'GPU':
-            pytest.skip("GPU error: to_shape was called on a dynamic shape, ticket: 152352")
+            kwargs = {
+                 'custom_eps': 1e-2,
+            }
         self._test(*self.create_sparse_segment_mean(data_type, indices_type, segment_indices_type,
                                                     shape, indices_shape, segments_num),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   use_legacy_frontend=use_legacy_frontend, **kwargs)

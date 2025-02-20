@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,7 +69,7 @@ CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& initStruc
     if (mtci_is_supported) {
         ze_mutable_command_id_exp_desc_t mutableCmdIdDesc = {ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_ID_EXP_DESC,
                                                              nullptr,
-                                                             ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT};
+                                                             ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT_DEPRECATED};
         THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListGetNextCommandIdExp",
                                     zeCommandListGetNextCommandIdExp(_handle, &mutableCmdIdDesc, &_command_id));
     }

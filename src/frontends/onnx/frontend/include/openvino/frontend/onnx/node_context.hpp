@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,8 @@ public:
     size_t get_input_size() const override;
 
     Output<ov::Node> get_input(int port_idx) const override;
+
+    const std::string& get_name() const override;
 
     ov::Any get_attribute_as_any(const std::string& name) const override;
 

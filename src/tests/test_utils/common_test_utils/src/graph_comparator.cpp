@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -579,10 +579,10 @@ private:
     }
 
     static int64_t get_num_iterations(ov::op::util::SubGraphOp* sub) {
-        if (const auto ti = dynamic_cast<const ov::op::v0::TensorIterator*>(sub)) {
+        if (const auto ti = ov::as_type<const ov::op::v0::TensorIterator>(sub)) {
             return ti->get_num_iterations();
         }
-        if (const auto l = dynamic_cast<const ov::op::v5::Loop*>(sub)) {
+        if (const auto l = ov::as_type<const ov::op::v5::Loop>(sub)) {
             return l->get_num_iterations();
         }
 
@@ -724,8 +724,8 @@ Comparator::Result Comparator::compare(ov::Node* node1, ov::Node* node2, std::os
                              typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2));
     }
 
-    auto subgraph1 = dynamic_cast<ov::op::util::SubGraphOp*>(node1);
-    auto subgraph2 = dynamic_cast<ov::op::util::SubGraphOp*>(node2);
+    auto subgraph1 = ov::as_type<ov::op::util::SubGraphOp>(node1);
+    auto subgraph2 = ov::as_type<ov::op::util::SubGraphOp>(node2);
 
     const bool subgraph_nodes = subgraph1 && subgraph2;
 

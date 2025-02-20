@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,10 +39,10 @@ struct FCTensorParallelConfig {
 
 class FullyConnected : public Node {
 public:
-    FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override{};
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
 
     bool canBeInPlace() const override {
@@ -80,7 +80,7 @@ public:
     }
 
     void prepareParams() override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
     bool canBeExecutedInInt8() const override;
     void keepWeightsNonTransposed(bool weightsNonTransposed) {
         this->attrs.weightsNonTransposed = weightsNonTransposed;
@@ -111,7 +111,7 @@ private:
 
     void fuseDecompressionConstant(const MemoryCPtr& memory, MemoryCPtr& decompressionValuesPtr);
 
-    void initTensorParallelConfig(const GraphContext::CPtr context);
+    void initTensorParallelConfig(const GraphContext::CPtr& context);
     void needUpdateTensorParalelConfig();
     void needPrepareParamsForTensorParallel();
     void initTensorParallelSync();
@@ -123,7 +123,6 @@ private:
     MemoryArgs memory;
     ExecutorFactoryPtr<FCAttrs> factory;
     ExecutorPtr executor = nullptr;
-    std::string errorPrefix;
 
     FCTensorParallelConfig tp_cfg;
 };

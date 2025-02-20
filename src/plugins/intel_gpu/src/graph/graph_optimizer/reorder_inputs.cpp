@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -679,8 +679,6 @@ void insert_reorders(program& p, const std::map<program_node*, format::type>& fm
 }  // namespace
 
 void reorder_inputs::run(program& p, reorder_factory& rf) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-
     auto& lo = p.get_layout_optimizer();
 
     auto fmt_map = get_preferred_formats(p, lo);
@@ -704,7 +702,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
         GPU_DEBUG_LOG_PASS << "  " << node_ptr->id() << " " << fmt_to_str(fmt) << std::endl;
     }
 
-    GPU_DEBUG_IF(debug_config->verbose >= 2) {
+    GPU_DEBUG_IF(p.get_config().get_verbose() >= 2) {
         reorder_cnt total_reorder_count =
             std::accumulate(p.get_processing_order().begin(),
                             p.get_processing_order().end(),

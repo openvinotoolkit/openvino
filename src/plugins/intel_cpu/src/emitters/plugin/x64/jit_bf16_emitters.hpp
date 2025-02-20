@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,7 @@
 
 #include "jit_emitter.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class jit_uni_vcvtneps2bf16 : public jit_emitter {
 public:
@@ -16,9 +15,9 @@ public:
                           dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                           ov::element::Type exec_prc = ov::element::bf16,
                           conversion_mode mode = conversion_mode::default_mode)
-        : jit_emitter(host, host_isa, exec_prc) {
+        : jit_emitter(host, host_isa, exec_prc),
+          mode_(mode) {
         prepare_table();
-        mode_ = mode;
     }
 
     size_t get_inputs_num() const override {
@@ -148,11 +147,11 @@ private:
     }
 
     size_t aux_vecs_count() const override {
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
             return 0;
+        }
         return host_isa_ == dnnl::impl::cpu::x64::avx512_core ? 2 : 1;
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

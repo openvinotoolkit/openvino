@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,7 @@
 #include "cpu/x64/jit_generator.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct jit_kernel;
 
@@ -186,8 +185,9 @@ public:
 
     ~if_expression() {
         try {
-            if (!_is_exit_valid)
+            if (!_is_exit_valid) {
                 _expr._kernel.assignL(_exit, _else);
+            }
         } catch (...) {
         }
     }
@@ -229,7 +229,7 @@ public:
     variable_base& operator=(const variable_base&) = delete;
 
     variable_base(const variable_base&);
-    variable_base(variable_base&&);
+    variable_base(variable_base&&) noexcept;
 
     reg_type& reg() const {
         return *_reg;
@@ -263,7 +263,7 @@ public:
     variable_base& operator=(const variable_base&) = delete;
 
     variable_base(const variable_base&);
-    variable_base(variable_base&&);
+    variable_base(variable_base&&) noexcept;
 
     reg_type& reg() const {
         return *_addr;
@@ -286,7 +286,7 @@ public:
     using reg_type = const typename base::reg_type;
     using arithmetic_type = typename std::conditional<std::is_pointer<T>::value, size_t, T>::type;
 
-    variable(variable&&) = default;
+    variable(variable&&) noexcept = default;
     variable(jit_kernel& krnl);
     variable(jit_kernel& krnl, const shared_reg<reg_type>& reg);
 
@@ -491,7 +491,7 @@ public:
     using base = variable_base<type*, memory_tag>;
     using reg_type = const typename base::reg_type;
 
-    variable(variable&&) = default;
+    variable(variable&&) noexcept = default;
     variable(jit_kernel& krnl, const shared_reg<reg_type>& reg);
 
     const variable& operator=(const variable<T, register_tag>& rhs) const;
@@ -505,7 +505,7 @@ public:
     using reg_type = const typename base::reg_type;
     constexpr static size_t length = N;
 
-    variable(variable&&) = default;
+    variable(variable&&) noexcept = default;
     variable(jit_kernel& krnl);
     variable(jit_kernel& krnl, const shared_reg<reg_type>& reg);
 
@@ -546,7 +546,7 @@ class stack_frame {
 
 public:
     stack_frame(jit_kernel& kernel, size_t size, uint32_t alignment = 1);
-    stack_frame(stack_frame&& rhs);
+    stack_frame(stack_frame&& rhs) noexcept;
     ~stack_frame();
     const Xbyak::Reg64& pointer() const;
     void clear() const;
@@ -609,10 +609,11 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator {
         using traits = internal::reg_traits<U>;
         using reg_type = typename traits::type;
         const auto& res = reserve<reg_type>();
-        if (sizeof(T) < traits::size)
+        if (sizeof(T) < traits::size) {
             movzx(res, argPtr(member));
-        else
+        } else {
             mov(res, argPtr(member));
+        }
         return {*this, internal::make_shared(res, *this)};
     }
 
@@ -621,10 +622,11 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator {
         using traits = internal::reg_traits<U>;
         using reg_type = typename traits::type;
         const auto& res = reserve<reg_type>();
-        if (sizeof(T) < traits::size)
+        if (sizeof(T) < traits::size) {
             movzx(res, argPtr(member));
-        else
+        } else {
             mov(res, argPtr(member));
+        }
         return {*this, internal::make_shared(res, *this)};
     }
 
@@ -891,10 +893,11 @@ boolean_expression<T>::boolean_expression(jit_kernel& kernel, type t, const shar
 
 template <typename T>
 void boolean_expression<T>::cmp(const Xbyak::Label& exit) const {
-    if (_rhs)
+    if (_rhs) {
         _kernel.cmp(*_lhs, *_rhs);
-    else
+    } else {
         _kernel.cmp(*_lhs, _rvalue);
+    }
 
     switch (_type) {
     case type::eq: {
@@ -951,8 +954,9 @@ variable_base<T, register_tag>::variable_base(const variable_base& rhs) : _kerne
                                                                           _reg(rhs._reg) {}
 
 template <typename T>
-variable_base<T, register_tag>::variable_base(variable_base&& rhs) : _kernel(rhs._kernel),
-                                                                     _reg(std::move(rhs._reg)) {}
+variable_base<T, register_tag>::variable_base(variable_base&& rhs) noexcept
+    : _kernel(rhs._kernel),
+      _reg(std::move(rhs._reg)) {}
 
 template <typename T>
 variable_base<T, memory_tag>::variable_base(jit_kernel& krnl, const shared_reg<reg_type>& addr)
@@ -964,8 +968,9 @@ variable_base<T, memory_tag>::variable_base(const variable_base& rhs) : _kernel(
                                                                         _addr(rhs._addr) {}
 
 template <typename T>
-variable_base<T, memory_tag>::variable_base(variable_base&& rhs) : _kernel(rhs._kernel),
-                                                                   _addr(std::move(rhs._addr)) {}
+variable_base<T, memory_tag>::variable_base(variable_base&& rhs) noexcept
+    : _kernel(rhs._kernel),
+      _addr(std::move(rhs._addr)) {}
 
 template <typename T>
 variable<T, register_tag>::variable(jit_kernel& krnl)
@@ -993,5 +998,4 @@ variable<T[N], register_tag>::variable(jit_kernel& krnl, const shared_reg<reg_ty
 
 }  // namespace internal
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

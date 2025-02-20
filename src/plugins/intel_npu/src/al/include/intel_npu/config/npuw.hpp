@@ -68,59 +68,17 @@ DEFINE_OPT(NPUW_DUMP_SUBS_ON_FAIL, std::string, "", npuw::dump::subgraphs_on_fai
 DEFINE_OPT(NPUW_DUMP_IO, std::string, "", npuw::dump::inputs_outputs, RunTime);
 DEFINE_OPT(NPUW_DUMP_IO_ITERS, bool, false, npuw::dump::io_iters, RunTime);
 DEFINE_OPT(NPUW_LLM, bool, false, npuw::llm::enabled, CompileTime);
+DEFINE_OPT(NPUW_LLM_BATCH_DIM, uint32_t, 0, npuw::llm::batch_dim, CompileTime);
+DEFINE_OPT(NPUW_LLM_SEQ_LEN_DIM, uint32_t, 2, npuw::llm::seq_len_dim, CompileTime);
 DEFINE_OPT(NPUW_LLM_MAX_PROMPT_LEN, uint32_t, 1024, npuw::llm::max_prompt_len, CompileTime);
 DEFINE_OPT(NPUW_LLM_MIN_RESPONSE_LEN, uint32_t, 128, npuw::llm::min_response_len, CompileTime);
+DEFINE_OPT(NPUW_LLM_OPTIMIZE_V_TENSORS, bool, true, npuw::llm::optimize_v_tensors, CompileTime);
 
 namespace npuw {
 namespace llm {
-struct ModelDesc {
-    std::string type;
-    std::string name_or_path;
-    int num_key_value_heads;
-};
 enum class GenerateHint { FAST_COMPILE, BEST_PERF };
 }  // namespace llm
 }  // namespace npuw
-
-struct NPUW_LLM_MODEL_DESC final : OptionBase<NPUW_LLM_MODEL_DESC, ::intel_npu::npuw::llm::ModelDesc> {
-    static std::string_view key() {
-        return ov::intel_npu::npuw::llm::model_desc.name();
-    }
-
-    static constexpr std::string_view getTypeName() {
-        return "::intel_npu::npuw::llm::ModelDesc";
-    }
-
-    static ::intel_npu::npuw::llm::ModelDesc defaultValue() {
-        return {};
-    }
-
-    static ::intel_npu::npuw::llm::ModelDesc parse(std::string_view val) {
-        ::intel_npu::npuw::llm::ModelDesc res;
-        std::map<std::string, std::string> res_map = OptionParser<std::map<std::string, std::string>>::parse(val);
-        res.type = res_map["type"];
-        res.name_or_path = res_map["name_or_path"];
-        res.num_key_value_heads = std::stoi(res_map["num_key_value_heads"]);
-        return res;
-    }
-
-    static std::string toString(const ::intel_npu::npuw::llm::ModelDesc& val) {
-        std::string res;
-        std::map<std::string, std::string> res_map;
-        res_map["type"] = val.type;
-        res_map["name_or_path"] = val.name_or_path;
-        res_map["num_key_value_heads"] = std::to_string(val.num_key_value_heads);
-        return OptionPrinter<std::map<std::string, std::string>>::toString(res_map);
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
-
-    static bool isPublic() {
-        return true;
-    }
-};
 
 struct NPUW_LLM_GENERATE_HINT final : OptionBase<NPUW_LLM_GENERATE_HINT, ::intel_npu::npuw::llm::GenerateHint> {
     static std::string_view key() {

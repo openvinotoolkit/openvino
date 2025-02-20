@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
-#include "intel_gpu/runtime/optionals.hpp"
+
 #include "primitive.hpp"
 #include <vector>
 
@@ -154,7 +154,7 @@ struct fully_connected : public primitive_base<fully_connected> {
     bool dynamic_quantized_activation_zp = false;
     input_info activation_scale = {"", 0};
     input_info activation_zero_point = {"", 0};
-    optional_value<float> decompression_zero_point_scalar = optional_value<float>();
+    std::optional<float> decompression_zero_point_scalar = std::optional<float>();
 
     /// @brief Primitive dimension size.
     size_t input_size = 2;
@@ -237,7 +237,7 @@ struct fully_connected : public primitive_base<fully_connected> {
             ib >> decompression_zero_point_value;
             decompression_zero_point_scalar = decompression_zero_point_value;
         } else {
-            decompression_zero_point_scalar = optional_value<float>();
+            decompression_zero_point_scalar = std::optional<float>();
         }
     }
 

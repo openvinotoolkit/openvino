@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,10 +15,10 @@
 #    include <unistd.h>
 
 #    include <cstring> /* strerror(errno) */
+#    include <utility>
 #endif
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 template <>
 DnnlMemoryDescPtr IMemory::getDescWithType<DnnlMemoryDesc, 0, 0>() const {
     return MemoryDescUtils::convertToDnnlMemoryDesc(getDescPtr());
@@ -67,35 +67,35 @@ void transferData(const IMemory& src, const IMemory& dst, bool ftz) {
 
 }  // namespace
 
-Memory::Memory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data, bool pads_zeroing)
-    : m_eng(eng),
-      m_pMemDesc(desc),
+Memory::Memory(dnnl::engine eng, MemoryDescPtr desc, const void* data, bool pads_zeroing)
+    : m_eng(std::move(eng)),
+      m_pMemDesc(std::move(desc)),
       m_blockHandle(std::make_shared<DnnlMemoryBlock>(make_unique<MemoryBlockWithReuse>()), this),
       dnnlMemHandle(this) {
-    if (desc->getPrecision() == element::string) {
+    if (m_pMemDesc->getPrecision() == element::string) {
         OPENVINO_THROW("[CPU] Memory object cannot be created for string data.");
     }
     create(m_pMemDesc, data, pads_zeroing);
 }
 
-Memory::Memory(const dnnl::engine& eng, const MemoryDesc& desc, const void* data, bool pads_zeroing)
-    : Memory::Memory(eng, desc.clone(), data, pads_zeroing) {}
+Memory::Memory(dnnl::engine eng, const MemoryDesc& desc, const void* data, bool pads_zeroing)
+    : Memory::Memory(std::move(eng), desc.clone(), data, pads_zeroing) {}
 
-Memory::Memory(const dnnl::engine& eng, MemoryDescPtr desc, MemoryBlockPtr block)
-    : m_eng(eng),
-      m_pMemDesc(desc),
-      m_blockHandle(block, this),
+Memory::Memory(dnnl::engine eng, MemoryDescPtr desc, MemoryBlockPtr block)
+    : m_eng(std::move(eng)),
+      m_pMemDesc(std::move(desc)),
+      m_blockHandle(std::move(block), this),
       dnnlMemHandle(this) {
-    if (desc->getPrecision() == element::string) {
+    if (m_pMemDesc->getPrecision() == element::string) {
         OPENVINO_THROW("[CPU] Memory object can't be created for string data.");
     }
     bool memAllocated = m_blockHandle->getRawPtr();
 
-    create(desc, nullptr, !memAllocated);
+    create(m_pMemDesc, nullptr, !memAllocated);
 }
 
-Memory::Memory(const dnnl::engine& eng, const MemoryDesc& desc, MemoryBlockPtr block)
-    : Memory::Memory(eng, desc.clone(), block) {}
+Memory::Memory(dnnl::engine eng, const MemoryDesc& desc, MemoryBlockPtr block)
+    : Memory::Memory(std::move(eng), desc.clone(), std::move(block)) {}
 
 size_t Memory::getSize() const {
     auto size = getDesc().getCurrentMemSize();
@@ -110,7 +110,7 @@ void Memory::create(const MemoryDesc& desc, const void* data, bool pads_zeroing)
 }
 
 void Memory::create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
-    m_pMemDesc = desc;
+    m_pMemDesc = std::move(desc);
     m_padsZeroing = pads_zeroing;
     dnnlMemHandle.resetDnnlPrim();
 
@@ -134,8 +134,9 @@ void Memory::load(const IMemory& src, bool ftz) const {
 
 void Memory::nullify() {
     void* dataPtr = getData();
-    if (dataPtr != nullptr)
+    if (dataPtr != nullptr) {
         memset(dataPtr, 0, getDesc().getCurrentMemSize());
+    }
 }
 
 void Memory::redefineDesc(MemoryDescPtr desc) {
@@ -193,8 +194,9 @@ dnnl::memory Memory::DnnlMemPrimHandle::getPrim() const {
 
 void* Memory::getData() const {
     void* data = getDataNoThrow();
-    if (data == nullptr && m_pMemDesc->getShape().isStatic() && m_pMemDesc->getShape().getElementsCount() != 0)
+    if (data == nullptr && m_pMemDesc->getShape().isStatic() && m_pMemDesc->getShape().getElementsCount() != 0) {
         OPENVINO_THROW("Memory has not been allocated");
+    }
     return data;
 }
 
@@ -248,9 +250,9 @@ void MemoryBlockWithReuse::destroy(void* ptr) {
 
 /////////////// StringMemory ///////////////
 
-StringMemory::StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc, const void* data)
-    : m_engine(engine),
-      m_mem_desc(desc) {
+StringMemory::StringMemory(dnnl::engine engine, MemoryDescPtr desc, const void* data)
+    : m_engine(std::move(engine)),
+      m_mem_desc(std::move(desc)) {
     if (m_mem_desc->getPrecision() != element::string) {
         OPENVINO_THROW("[CPU] StringMemory supports String type only.");
     }
@@ -407,10 +409,10 @@ void DnnlMemoryBlock::notifyUpdate() {
     }
 }
 
-StaticMemory::StaticMemory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data, bool pads_zeroing)
-    : m_eng(eng),
-      m_pMemDesc(desc) {
-    if (desc->getPrecision() == element::string) {
+StaticMemory::StaticMemory(dnnl::engine eng, MemoryDescPtr desc, const void* data, bool pads_zeroing)
+    : m_eng(std::move(eng)),
+      m_pMemDesc(std::move(desc)) {
+    if (m_pMemDesc->getPrecision() == element::string) {
         OPENVINO_THROW("[CPU] StaticMemory object cannot be created for string data.");
     }
     if (!m_pMemDesc->isDefined()) {
@@ -439,8 +441,8 @@ StaticMemory::StaticMemory(const dnnl::engine& eng, MemoryDescPtr desc, const vo
     }
 }
 
-StaticMemory::StaticMemory(const dnnl::engine& eng, const MemoryDesc& desc, const void* data, bool pads_zeroing)
-    : StaticMemory::StaticMemory(eng, desc.clone(), data, pads_zeroing) {}
+StaticMemory::StaticMemory(dnnl::engine eng, const MemoryDesc& desc, const void* data, bool pads_zeroing)
+    : StaticMemory::StaticMemory(std::move(eng), desc.clone(), data, pads_zeroing) {}
 
 const MemoryDesc& StaticMemory::getDesc() const {
     return *m_pMemDesc;
@@ -491,8 +493,9 @@ dnnl::memory StaticMemory::getPrimitive() const {
 
 void StaticMemory::nullify() {
     void* dataPtr = getData();
-    if (dataPtr != nullptr)
+    if (dataPtr != nullptr) {
         memset(dataPtr, 0, getSize());
+    }
 }
 
 StaticMemory::StaticMemoryBlock::StaticMemoryBlock(size_t size) : m_size(size) {
@@ -538,13 +541,14 @@ void StaticMemory::StaticMemoryBlock::unregisterMemory(Memory* memPtr) {
 #    if !defined(__NR_mbind) && defined(__x86_64__)
 #        define __NR_mbind 237
 #    endif
-static long mbind(void* start,
-                  unsigned long len,
-                  int mode,
-                  const unsigned long* nmask,
-                  unsigned long maxnode,
-                  unsigned flags) {
-    return syscall(__NR_mbind, (long)start, len, mode, (long)nmask, maxnode, flags);
+static int64_t mbind(void* start, uint64_t len, int mode, const uint64_t* nmask, uint64_t maxnode, unsigned flags) {
+    return syscall(__NR_mbind,
+                   reinterpret_cast<uint64_t>(start),
+                   len,
+                   mode,
+                   reinterpret_cast<uint64_t>(nmask),
+                   maxnode,
+                   flags);
 }
 #endif
 
@@ -553,8 +557,9 @@ bool mbind_move(void* data, size_t size, int targetNode) {
     int realNode = ov::get_org_numa_id(targetNode);
     auto pagesize = getpagesize();
     auto page_count = (size + pagesize - 1) / pagesize;
-    char* pages = reinterpret_cast<char*>((((uintptr_t)data) & ~((uintptr_t)(pagesize - 1))));
-    unsigned long mask = 0;
+    char* pages = reinterpret_cast<char*>(  // NOLINT(performance-no-int-to-ptr)
+        ((reinterpret_cast<uintptr_t>(data)) & ~(static_cast<uintptr_t>(pagesize - 1))));
+    uint64_t mask = 0;
     unsigned flags = 0;
     if (realNode < 0) {
         // restore default policy
@@ -578,13 +583,13 @@ bool mbind_move(void* data, size_t size, int targetNode) {
 }
 #endif
 
-bool mbind_move(const MemoryCPtr mem, int numaNodeID) {
+bool mbind_move(const MemoryCPtr& mem, int numaNodeID) {
     void* data = mem->getData();
     auto size = mem->getSize();
     return mbind_move(data, size, numaNodeID);
 }
 
-bool mbind_move(const dnnl::memory mem, int numaNodeID) {
+bool mbind_move(const dnnl::memory& mem, int numaNodeID) {
     void* data = mem.get_data_handle();
     auto desc = mem.get_desc();
     auto size = desc.get_size();
@@ -592,14 +597,14 @@ bool mbind_move(const dnnl::memory mem, int numaNodeID) {
 }
 
 MemoryPtr split_horizontal(const dnnl::engine& eng,
-                           const MemoryPtr src,
+                           const MemoryPtr& src,
                            int dim,
                            int w_rank,
                            int w_size,
                            bool need_fill) {
     auto desc = src->getDescPtr();
     auto shape = src->getShape();
-    auto dims = shape.getDims();
+    const auto& dims = shape.getDims();
     auto prec = src->getPrecision();
     if (dim < 0) {
         dim += dims.size();
@@ -655,14 +660,14 @@ MemoryPtr split_horizontal(const dnnl::engine& eng,
 }
 
 MemoryPtr split_vertical(const dnnl::engine& eng,
-                         const MemoryPtr src,
+                         const MemoryPtr& src,
                          int dim,
                          int w_rank,
                          int w_size,
                          bool need_fill) {
     auto desc = src->getDescPtr();
-    auto shape = src->getShape();
-    auto dims = shape.getDims();
+    const auto& shape = src->getShape();
+    const auto& dims = shape.getDims();
     auto prec = src->getPrecision();
     if (dim < 0) {
         dim += dims.size();
@@ -723,5 +728,4 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
     return ptr;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

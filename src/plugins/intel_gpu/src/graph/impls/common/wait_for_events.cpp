@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::common::wait_for_events_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<wait_for_events_impl>(*this);
+        return std::make_unique<wait_for_events_impl>(*this);
     }
 
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
@@ -41,11 +41,11 @@ public:
     }
 
     static std::unique_ptr<primitive_impl> create_data(const data_node& data, const kernel_impl_params&) {
-        return make_unique<wait_for_events_impl>(data);
+        return std::make_unique<wait_for_events_impl>(data);
     }
 
     static std::unique_ptr<primitive_impl> create_input_layout(const input_layout_node& input, const kernel_impl_params&) {
-        return make_unique<wait_for_events_impl>(input);
+        return std::make_unique<wait_for_events_impl>(input);
     }
 
     void update(primitive_inst& inst, const kernel_impl_params& impl_param) override { }
