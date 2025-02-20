@@ -4,6 +4,7 @@
 
 #include "memory.hpp"
 
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -405,8 +406,8 @@ MemoryInputBase::MemoryInputBase(const std::string& id,
                                  const Shape& output_shape,
                                  const ov::element::Type& output_prc,
                                  const GraphContext::CPtr& context,
-                                 const ov::optional<std::vector<Shape>>& input_shape,
-                                 const ov::optional<std::vector<ov::element::Type>>& input_prc,
+                                 const std::optional<std::vector<Shape>>& input_shape,
+                                 const std::optional<std::vector<ov::element::Type>>& input_prc,
                                  MemoryInputBase::mode mode)
     : Input(output_shape, output_prc, name, type, context),
       MemoryStateNode(id) {
@@ -596,8 +597,8 @@ MemoryInput::MemoryInput(const std::string& id,
                          const Shape& output_shape,
                          const ov::element::Type& output_prc,
                          const GraphContext::CPtr& context,
-                         const ov::optional<std::vector<Shape>>& input_shape,
-                         const ov::optional<std::vector<ov::element::Type>>& input_prc,
+                         const std::optional<std::vector<Shape>>& input_shape,
+                         const std::optional<std::vector<ov::element::Type>>& input_prc,
                          std::shared_ptr<ov::Model> func,
                          mode mode)
     : MemoryInputBase::MemoryInputBase(id, name, type, output_shape, output_prc, context, input_shape, input_prc, mode),
@@ -917,8 +918,8 @@ MemoryInputSDPA::MemoryInputSDPA(const std::string& id,
                                  const Shape& output_shape,
                                  const ov::element::Type& output_prc,
                                  const GraphContext::CPtr& context,
-                                 const ov::optional<std::vector<Shape>>& input_shape,
-                                 const ov::optional<std::vector<ov::element::Type>>& input_prc,
+                                 const std::optional<std::vector<Shape>>& input_shape,
+                                 const std::optional<std::vector<ov::element::Type>>& input_prc,
                                  const std::shared_ptr<ScaledDotProductAttention>& sdpaNode)
     : MemoryInputBase(id, name, type, output_shape, output_prc, context, input_shape, input_prc),
       m_sdpaNode(sdpaNode) {}
@@ -1036,8 +1037,8 @@ MemoryInputSingle::MemoryInputSingle(const std::string& id,
                                      const Shape& output_shape,
                                      const ov::element::Type& output_prc,
                                      const GraphContext::CPtr& context,
-                                     const ov::optional<std::vector<Shape>>& input_shape,
-                                     const ov::optional<std::vector<ov::element::Type>>& input_prc,
+                                     const std::optional<std::vector<Shape>>& input_shape,
+                                     const std::optional<std::vector<ov::element::Type>>& input_prc,
                                      std::shared_ptr<ov::Model> func)
     : MemoryInput(id,
                   name,
