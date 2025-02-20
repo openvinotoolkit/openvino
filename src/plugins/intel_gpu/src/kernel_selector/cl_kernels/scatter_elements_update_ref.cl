@@ -47,7 +47,7 @@
 
     inline INPUT2_TYPE FUNC(reduce)(INPUT2_TYPE a, INPUT2_TYPE b)
     {
-    #if REDUCE_MODE == SUM_MODE
+    #if REDUCE_MODE == SUM_MODE || REDUCE_MODE == MEAN_MODE
         return a + b;
     #elif REDUCE_MODE == PROD_MODE
         return a * b;
@@ -55,12 +55,38 @@
         return MIN(a, b);
     #elif REDUCE_MODE == MAX_MODE
         return MAX(a, b);
-    #elif REDUCE_MODE == MEAN_MODE
-        return (a + b) / (INPUT2_TYPE)(1 + USE_INIT_VAL);
     #else
         #error "Invalid REDUCE_MODE value"
     #endif
     }
+
+    #ifdef IS_SECOND_ITER // Socond kernel only
+        #if REDUCE_MODE == MEAN_MODE
+            inline void add_count(__local int count_k[], __local int count_v[], int idx, int count)
+            {
+                for (int i = 0; i < INPUT2_LENGTH; ++i) {
+                    if (count_k[i] == -1) {
+                        count_k[i] = idx;
+                        count_v[i] = count;
+                        break;
+                    } else if (count_k[i] == idx) {
+                        count_v[i] += count;
+                        break;
+                    }
+                }
+            }
+
+            inline int get_count(__local int count_k[], __local int count_v[], int it, int *idx)
+            {
+                if (count_k[it] != -1) {
+                    *idx = count_k[it];
+                    count_k[it] = -1;
+                    return count_v[it];
+                }
+                return -1;
+            }
+        #endif
+    #endif
 #endif
 
 KERNEL(scatter_elements_update_ref)(const __global INPUT0_TYPE* data,
@@ -192,7 +218,50 @@ KERNEL(scatter_elements_update_ref)(const __global INPUT0_TYPE* data,
         #if USE_INIT_VAL == 0
             output[output_idx] = REDUCTION_NEUTRAL_VALUE;
         #endif
-        val = FUNC_CALL(reduce)(output[output_idx], val);
+
+        __local INPUT1_TYPE index_map[INPUT2_LENGTH];
+        index_map[updates_idx] = output_idx;
+
+        __local INPUT2_TYPE output_map[INPUT2_LENGTH];
+        output_map[updates_idx] = output[output_idx];
+
+        #if REDUCE_MODE == MEAN_MODE
+            __local int count_k[INPUT2_LENGTH];
+            __local int count_v[INPUT2_LENGTH];
+        #endif
+
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        if (get_local_id(0) == 0 && get_local_id(1) == 0 && get_local_id(2) == 0) {
+            #if REDUCE_MODE == MEAN_MODE
+                for (int i = 0; i < INPUT2_LENGTH; ++i) {
+                    count_k[i] = -1;
+                    count_v[i] = 0;
+                }
+            #endif
+
+            for (int i = 0; i < INPUT2_LENGTH; ++i) {
+                output[index_map[i]] = FUNC_CALL(reduce)(output[index_map[i]], updates[i]);
+
+                #if REDUCE_MODE == MEAN_MODE
+                    add_count(count_k, count_v, index_map[i], 1);
+                #endif
+            }
+
+            #if REDUCE_MODE == MEAN_MODE
+                for (int i = 0; i < INPUT2_LENGTH; ++i) {
+                    int idx;
+                    int count = get_count(count_k, count_v, i, &idx);
+                    if (count != -1) {
+                        output[idx] = output[idx] / (count + USE_INIT_VAL);
+                    }
+                }
+            #endif
+        }
+
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        val = output[output_idx];
     #endif
 
     #if HAS_FUSED_OPS
