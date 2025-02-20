@@ -63,16 +63,6 @@ RemoteContextImpl::RemoteContextImpl(const std::shared_ptr<const NPUBackends>& b
     }
 }
 
-RemoteContextImpl::RemoteContextImpl(const std::shared_ptr<const NPUBackends>& backends, const Config& config)
-    : _config(config),
-      _device(backends->getDevice(_config.get<DEVICE_ID>())),
-      _properties({l0_context(backends->getContext())}),
-      _device_name("NPU") {
-    if (_device == nullptr) {
-        OPENVINO_THROW("Device is not available");
-    }
-}
-
 const ov::AnyMap& RemoteContextImpl::get_property() const {
     return _properties;
 }

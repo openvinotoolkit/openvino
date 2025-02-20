@@ -19,9 +19,7 @@ class RemoteContextImpl : public ov::IRemoteContext {
 public:
     RemoteContextImpl(const std::shared_ptr<const NPUBackends>& backends,
                       const Config& config,
-                      const ov::AnyMap& remote_properties);
-
-    RemoteContextImpl(const std::shared_ptr<const NPUBackends>& backends, const Config& config);
+                      const ov::AnyMap& remote_properties = {});
 
     /**
      * @brief Returns name of a device on which underlying object is allocated.
