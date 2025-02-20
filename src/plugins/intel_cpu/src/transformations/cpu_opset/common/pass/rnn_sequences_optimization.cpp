@@ -138,7 +138,6 @@ ov::intel_cpu::OptimizeLSTMSequenceTransposes::OptimizeLSTMSequenceTransposes() 
                 return lstm5->get_direction() != ov::op::RecurrentSequenceDirection::BIDIRECTIONAL;
             }
             return false;
-           
         };
 
         std::shared_ptr<ov::Node> lstmSequence = m.get_match_root();

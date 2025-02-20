@@ -678,7 +678,6 @@ inline size_t convexHullGraham(const NonMaxSuppression::Point2D (&p)[24],
             return dot_2d(A, A) < dot_2d(B, B);
         }
         return temp > 0.f;
-       
     });
     // compute distance to origin after sort, since the points are now different.
     for (size_t i = 0lu; i < num_in; i++) {

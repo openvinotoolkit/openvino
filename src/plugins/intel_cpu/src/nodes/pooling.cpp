@@ -570,7 +570,6 @@ dnnl::algorithm Pooling::getPoolingAlgorithm() const {
             return dnnl::algorithm::pooling_avg_include_padding;
         }
         return dnnl::algorithm::pooling_avg_exclude_padding;
-
     }
     if (algorithm == Algorithm::PoolingMax) {
         return dnnl::algorithm::pooling_max;

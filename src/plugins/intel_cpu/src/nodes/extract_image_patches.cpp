@@ -436,7 +436,6 @@ void ExtractImagePatches::prepareParams() {
                                                                 key.rates,
                                                                 key.padType,
                                                                 key.prcSize);
-       
     };
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, buildExecutor);

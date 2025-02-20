@@ -1680,7 +1680,6 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         }
 
         return {config, impl_type};
-       
     };
 
     bool isChannelsFirstApplicable = one_of(getOutputShapeAtPort(0).getRank(), 1u, 2u, 3u, 4u, 5u);

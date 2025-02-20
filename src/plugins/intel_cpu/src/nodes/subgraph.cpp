@@ -688,7 +688,6 @@ void Subgraph::prepareParams() {
                                                         start_offset_out,
                                                         allocator,
                                                         cache);
-       
     };
 
     const auto result = cache->getOrCreate(SubgraphKey(subgraph_attrs, in_shapes), builder);

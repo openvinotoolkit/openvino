@@ -150,14 +150,12 @@ void Reorder::prepareReorderAsTranspose(const MemoryDescPtr& parentDesc, const M
                 return {{0, 2, 3, 1}, {in[0], in[2], in[3], in[1]}};
             }
             return {{0, 2, 1}, {in[0], in[2], in[1]}};
-
         }
         if (lhs.hasLayoutType(LayoutType::nspc) && rhs.hasLayoutType(LayoutType::ncsp)) {
             if (rank == 4) {
                 return {{0, 3, 1, 2}, {in[0], in[3], in[1], in[2]}};
             }
             return {{0, 2, 1}, {in[0], in[2], in[1]}};
-
         }
         if (rank == 4) {
             return {{0, 1, 2, 3}, in};

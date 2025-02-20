@@ -51,7 +51,6 @@ Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<co
             end = m_end_mask_set.count(cur_idx) ? shapeIn[in_idx] : endPtr[cur_idx];
         }
         return ov::op::slice::get_sliced_value(shapeIn[in_idx], begin, end, stridePtr[cur_idx]);
-       
     };
 
     const auto shapeInSize = shapeIn.size();

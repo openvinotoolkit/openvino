@@ -74,7 +74,6 @@ ShapeInferPtr MMShapeInferFactory::makeShapeInfer() const {
             return std::make_shared<MMShapeInfer>(output_rank, transpose_a, transpose_b);
         }
         return make_shape_inference(m_op);
-
     }
     OPENVINO_THROW("Unexpected operation type in the MatMul shape inference factory");
 }

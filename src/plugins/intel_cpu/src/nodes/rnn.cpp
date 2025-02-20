@@ -59,7 +59,6 @@ static dnnl::algorithm ie2dnnl(const std::shared_ptr<const ov::Node>& op) {
             return dnnl::algorithm::lbr_gru;
         }
         return dnnl::algorithm::vanilla_gru;
-
     }
     if (one_of(op->get_type_info(),
                ov::op::internal::AUGRUCell::get_type_info_static(),
@@ -70,17 +69,16 @@ static dnnl::algorithm ie2dnnl(const std::shared_ptr<const ov::Node>& op) {
             return dnnl::algorithm::lbr_augru;
         }
         return dnnl::algorithm::vanilla_augru;
-
     }
     if (one_of(op->get_type_info(),
-                      ov::op::v0::LSTMCell::get_type_info_static(),
-                      ov::op::v4::LSTMCell::get_type_info_static(),
-                      ov::op::v5::LSTMSequence::get_type_info_static())) {
+               ov::op::v0::LSTMCell::get_type_info_static(),
+               ov::op::v4::LSTMCell::get_type_info_static(),
+               ov::op::v5::LSTMSequence::get_type_info_static())) {
         return dnnl::algorithm::vanilla_lstm;
     }
     if (one_of(op->get_type_info(),
-                      ov::op::v0::RNNCell::get_type_info_static(),
-                      ov::op::v5::RNNSequence::get_type_info_static())) {
+               ov::op::v0::RNNCell::get_type_info_static(),
+               ov::op::v5::RNNSequence::get_type_info_static())) {
         return dnnl::algorithm::vanilla_rnn;
     }
     OPENVINO_THROW("Operation ",
