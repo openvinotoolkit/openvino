@@ -118,8 +118,7 @@ ov::Any IntervalsAlignmentAttribute::create(
             fakeQuantize->get_levels(),
             outputLowValues,
             outputHighValues);
-
-        if (preferablePrecision.precision != element::undefined) {
+        if (preferablePrecision.precision != element::dynamic) {
             attribute.value().preferablePrecisions.insert(preferablePrecision.precision);
         }
 
