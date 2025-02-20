@@ -17,8 +17,7 @@ namespace util {
 
 class OPENVINO_API LevelString {
 private:
-    LevelString(const std::string& level_identifier_)
-        : level_identifier(level_identifier_) {}
+    LevelString(const std::string& level_identifier_) : level_identifier(level_identifier_) {}
 
 public:
     static LevelString& get() {
@@ -73,8 +72,8 @@ OPENVINO_API std::string node_with_arguments(const ov::Node& node);
 // of the matching code.
 
 // transformations/utils/gen_pattern.hpp
-#    define OPENVINO_LOG_GENPATTERN1(matcher, pattern_value, graph_value)          \
-        do {                                                                       \
+#    define OPENVINO_LOG_GENPATTERN1(matcher, pattern_value, graph_value)      \
+        do {                                                                   \
             OPENVINO_LOG_MATCHING(matcher,                                     \
                                   ov::util::LevelString::get(),                \
                                   OPENVINO_BLOCK_END,                          \
@@ -85,16 +84,16 @@ OPENVINO_API std::string node_with_arguments(const ov::Node& node);
                                   graph_value.get_index());                    \
         } while (0)
 
-#    define OPENVINO_LOG_GENPATTERN2(matcher, pattern_value, graph_value)                               \
-        do {                                                                                            \
-            OPENVINO_LOG_MATCHING(matcher,                                                              \
-                                  ov::util::LevelString::get(),                                         \
-                                  OPENVINO_BLOCK_END,                                                   \
-                                  OPENVINO_RED,                                                         \
-                                  "  NODES' TYPE DIDN'T MATCH. EXPECTED: ",                             \
-                                  ov::util::node_version_type_str(*pattern_value.get_node_shared_ptr()),\
-                                  ". OBSERVED: ",                                                       \
-                                  ov::util::node_version_type_str(*graph_value.get_node_shared_ptr())); \
+#    define OPENVINO_LOG_GENPATTERN2(matcher, pattern_value, graph_value)                                \
+        do {                                                                                             \
+            OPENVINO_LOG_MATCHING(matcher,                                                               \
+                                  ov::util::LevelString::get(),                                          \
+                                  OPENVINO_BLOCK_END,                                                    \
+                                  OPENVINO_RED,                                                          \
+                                  "  NODES' TYPE DIDN'T MATCH. EXPECTED: ",                              \
+                                  ov::util::node_version_type_str(*pattern_value.get_node_shared_ptr()), \
+                                  ". OBSERVED: ",                                                        \
+                                  ov::util::node_version_type_str(*graph_value.get_node_shared_ptr()));  \
         } while (0)
 
 #    define OPENVINO_LOG_GENPATTERN3(matcher)                   \
@@ -106,13 +105,13 @@ OPENVINO_API std::string node_with_arguments(const ov::Node& node);
                                   "  PREDICATE DIDN'T MATCH."); \
         } while (0)
 
-#    define OPENVINO_LOG_GENPATTERN4(matcher)                   \
-        do {                                                    \
-            OPENVINO_LOG_MATCHING(matcher,                      \
-                                  ov::util::LevelString::get(), \
-                                  OPENVINO_BLOCK_END,           \
-                                  OPENVINO_RED,                 \
-                                  "  ATTRIBUTES DIDN'T MATCH.");\
+#    define OPENVINO_LOG_GENPATTERN4(matcher)                    \
+        do {                                                     \
+            OPENVINO_LOG_MATCHING(matcher,                       \
+                                  ov::util::LevelString::get(),  \
+                                  OPENVINO_BLOCK_END,            \
+                                  OPENVINO_RED,                  \
+                                  "  ATTRIBUTES DIDN'T MATCH."); \
         } while (0)
 
 #    define OPENVINO_LOG_GENPATTERN5(matcher)                                   \
@@ -267,42 +266,34 @@ OPENVINO_API std::string node_with_arguments(const ov::Node& node);
                                   ov::util::node_with_arguments(*graph_value.get_node_shared_ptr()));  \
         } while (0)
 
-#    define OPENVINO_LOG_MATCHER2(matcher, idx)                             \
-        do {                                                                \
-            OPENVINO_LOG_MATCHING(matcher, ++ov::util::LevelString::get()); \
-            OPENVINO_LOG_MATCHING(matcher,                                  \
-                                  ov::util::LevelString::get()++,           \
-                                  OPENVINO_BLOCK_BEG,                       \
-                                  "  ARGUMENT ",                            \
-                                  idx);                                     \
+#    define OPENVINO_LOG_MATCHER2(matcher, idx)                                                                     \
+        do {                                                                                                        \
+            OPENVINO_LOG_MATCHING(matcher, ++ov::util::LevelString::get());                                         \
+            OPENVINO_LOG_MATCHING(matcher, ov::util::LevelString::get()++, OPENVINO_BLOCK_BEG, "  ARGUMENT ", idx); \
         } while (0)
 
-#    define OPENVINO_LOG_MATCHER3(matcher, idx)                   \
-        do {                                                      \
-            OPENVINO_LOG_MATCHING(matcher,                        \
-                                  --ov::util::LevelString::get(), \
-                                  OPENVINO_BLOCK_BODY);           \
-            OPENVINO_LOG_MATCHING(matcher,                        \
-                                  ov::util::LevelString::get()--, \
-                                  OPENVINO_BLOCK_END,             \
-                                  OPENVINO_RED,                   \
-                                  "  ARGUMENT ",                  \
-                                  idx,                            \
-                                  " DIDN'T MATCH ");              \
+#    define OPENVINO_LOG_MATCHER3(matcher, idx)                                                  \
+        do {                                                                                     \
+            OPENVINO_LOG_MATCHING(matcher, --ov::util::LevelString::get(), OPENVINO_BLOCK_BODY); \
+            OPENVINO_LOG_MATCHING(matcher,                                                       \
+                                  ov::util::LevelString::get()--,                                \
+                                  OPENVINO_BLOCK_END,                                            \
+                                  OPENVINO_RED,                                                  \
+                                  "  ARGUMENT ",                                                 \
+                                  idx,                                                           \
+                                  " DIDN'T MATCH ");                                             \
         } while (0)
 
-#    define OPENVINO_LOG_MATCHER4(matcher, idx)                   \
-        do {                                                      \
-            OPENVINO_LOG_MATCHING(matcher,                        \
-                                  --ov::util::LevelString::get(), \
-                                  OPENVINO_BLOCK_BODY);           \
-            OPENVINO_LOG_MATCHING(matcher,                        \
-                                  ov::util::LevelString::get()--, \
-                                  OPENVINO_BLOCK_END,             \
-                                  OPENVINO_GREEN,                 \
-                                  "  ARGUMENT ",                  \
-                                  idx,                            \
-                                  " MATCHED");                    \
+#    define OPENVINO_LOG_MATCHER4(matcher, idx)                                                  \
+        do {                                                                                     \
+            OPENVINO_LOG_MATCHING(matcher, --ov::util::LevelString::get(), OPENVINO_BLOCK_BODY); \
+            OPENVINO_LOG_MATCHING(matcher,                                                       \
+                                  ov::util::LevelString::get()--,                                \
+                                  OPENVINO_BLOCK_END,                                            \
+                                  OPENVINO_GREEN,                                                \
+                                  "  ARGUMENT ",                                                 \
+                                  idx,                                                           \
+                                  " MATCHED");                                                   \
         } while (0)
 
 #    define OPENVINO_LOG_MATCHER5(matcher, pattern_arg_size, graph_arg_size)                        \
@@ -317,37 +308,30 @@ OPENVINO_API std::string node_with_arguments(const ov::Node& node);
                                   graph_arg_size);                                                  \
         } while (0)
 
-#    define OPENVINO_LOG_MATCHER6(matcher)                                  \
-        do {                                                                \
-            OPENVINO_LOG_MATCHING(matcher, ++ov::util::LevelString::get()); \
-            OPENVINO_LOG_MATCHING(matcher,                                  \
-                                  ov::util::LevelString::get(),             \
-                                  OPENVINO_BLOCK_BEG,                       \
-                                  "  NEW PERMUTATION");                     \
+#    define OPENVINO_LOG_MATCHER6(matcher)                                                                         \
+        do {                                                                                                       \
+            OPENVINO_LOG_MATCHING(matcher, ++ov::util::LevelString::get());                                        \
+            OPENVINO_LOG_MATCHING(matcher, ov::util::LevelString::get(), OPENVINO_BLOCK_BEG, "  NEW PERMUTATION"); \
         } while (0)
 
-#    define OPENVINO_LOG_MATCHER7(matcher)                        \
-        do {                                                      \
-            OPENVINO_LOG_MATCHING(matcher,                        \
-                                  ov::util::LevelString::get(),   \
-                                  OPENVINO_BLOCK_BODY);           \
-            OPENVINO_LOG_MATCHING(matcher,                        \
-                                  ov::util::LevelString::get()--, \
-                                  OPENVINO_BLOCK_END,             \
-                                  OPENVINO_GREEN,                 \
-                                  "  PERMUTATION MATCHED");       \
+#    define OPENVINO_LOG_MATCHER7(matcher)                                                     \
+        do {                                                                                   \
+            OPENVINO_LOG_MATCHING(matcher, ov::util::LevelString::get(), OPENVINO_BLOCK_BODY); \
+            OPENVINO_LOG_MATCHING(matcher,                                                     \
+                                  ov::util::LevelString::get()--,                              \
+                                  OPENVINO_BLOCK_END,                                          \
+                                  OPENVINO_GREEN,                                              \
+                                  "  PERMUTATION MATCHED");                                    \
         } while (0)
 
-#    define OPENVINO_LOG_MATCHER8(matcher)                        \
-        do {                                                      \
-            OPENVINO_LOG_MATCHING(matcher,                        \
-                                  ov::util::LevelString::get(),   \
-                                  OPENVINO_BLOCK_BODY);           \
-            OPENVINO_LOG_MATCHING(matcher,                        \
-                                  ov::util::LevelString::get()--, \
-                                  OPENVINO_BLOCK_END,             \
-                                  OPENVINO_RED,                   \
-                                  "  PERMUTATION DIDN'T MATCH");  \
+#    define OPENVINO_LOG_MATCHER8(matcher)                                                     \
+        do {                                                                                   \
+            OPENVINO_LOG_MATCHING(matcher, ov::util::LevelString::get(), OPENVINO_BLOCK_BODY); \
+            OPENVINO_LOG_MATCHING(matcher,                                                     \
+                                  ov::util::LevelString::get()--,                              \
+                                  OPENVINO_BLOCK_END,                                          \
+                                  OPENVINO_RED,                                                \
+                                  "  PERMUTATION DIDN'T MATCH");                               \
         } while (0)
 
 #    define OPENVINO_LOG_MATCHER9(matcher)                                                                  \
@@ -359,29 +343,25 @@ OPENVINO_API std::string node_with_arguments(const ov::Node& node);
                                   "  GRAPH NODE IS NOT COMMUTATIVE, A SINGLE PERMUTATION IS PRESENT ONLY"); \
         } while (0)
 
-#    define OPENVINO_LOG_MATCHER10(matcher, status)                         \
-        do {                                                                \
-            OPENVINO_LOG_MATCHING(matcher,                                  \
-                                  ov::util::LevelString::get(),             \
-                                  OPENVINO_BLOCK_BODY);                     \
-            OPENVINO_LOG_MATCHING(matcher,                                  \
-                                  ov::util::LevelString::get()--,           \
-                                  OPENVINO_BLOCK_END,                       \
-                                  (status ? OPENVINO_GREEN : OPENVINO_RED), \
-                                  "  PERMUTATION ",                         \
-                                  (status ? "MATCHED" : "DIDN'T MATCH"));   \
+#    define OPENVINO_LOG_MATCHER10(matcher, status)                                            \
+        do {                                                                                   \
+            OPENVINO_LOG_MATCHING(matcher, ov::util::LevelString::get(), OPENVINO_BLOCK_BODY); \
+            OPENVINO_LOG_MATCHING(matcher,                                                     \
+                                  ov::util::LevelString::get()--,                              \
+                                  OPENVINO_BLOCK_END,                                          \
+                                  (status ? OPENVINO_GREEN : OPENVINO_RED),                    \
+                                  "  PERMUTATION ",                                            \
+                                  (status ? "MATCHED" : "DIDN'T MATCH"));                      \
         } while (0)
 
-#    define OPENVINO_LOG_MATCHER11(matcher)                         \
-        do {                                                        \
-            OPENVINO_LOG_MATCHING(matcher,                          \
-                                  ov::util::LevelString::get(),     \
-                                  OPENVINO_BLOCK_BODY);             \
-            OPENVINO_LOG_MATCHING(matcher,                          \
-                                  ov::util::LevelString::get(),     \
-                                  OPENVINO_BLOCK_BODY_RIGHT,        \
-                                  OPENVINO_RED,                     \
-                                  " NONE OF PERMUTATIONS MATCHED"); \
+#    define OPENVINO_LOG_MATCHER11(matcher)                                                    \
+        do {                                                                                   \
+            OPENVINO_LOG_MATCHING(matcher, ov::util::LevelString::get(), OPENVINO_BLOCK_BODY); \
+            OPENVINO_LOG_MATCHING(matcher,                                                     \
+                                  ov::util::LevelString::get(),                                \
+                                  OPENVINO_BLOCK_BODY_RIGHT,                                   \
+                                  OPENVINO_RED,                                                \
+                                  " NONE OF PERMUTATIONS MATCHED");                            \
         } while (0)
 
 // pattern/op/label.cpp
@@ -431,7 +411,7 @@ OPENVINO_API std::string node_with_arguments(const ov::Node& node);
                                   ov::util::LevelString::get()++,                                                \
                                   OPENVINO_BLOCK_BODY_RIGHT,                                                     \
                                   (or_node == wrap_node ? " LEAVING OPTIONAL AS WRAP TYPE AND TRYING TO MATCH: " \
-                                                    : " UNFOLDING OPTIONAL INTO OR AND TRYING TO MATCH: "),      \
+                                                        : " UNFOLDING OPTIONAL INTO OR AND TRYING TO MATCH: "),  \
                                   opt_name);                                                                     \
         } while (0);
 
@@ -581,56 +561,142 @@ OPENVINO_API std::string node_with_arguments(const ov::Node& node);
 
 #else
 
-#    define OPENVINO_LOG_GENPATTERN1(...) do {} while (0)
-#    define OPENVINO_LOG_GENPATTERN2(...) do {} while (0)
-#    define OPENVINO_LOG_GENPATTERN3(...) do {} while (0)
-#    define OPENVINO_LOG_GENPATTERN4(...) do {} while (0)
-#    define OPENVINO_LOG_GENPATTERN5(...) do {} while (0)
-#    define OPENVINO_LOG_GENPATTERN6(...) do {} while (0)
+#    define OPENVINO_LOG_GENPATTERN1(...) \
+        do {                              \
+        } while (0)
+#    define OPENVINO_LOG_GENPATTERN2(...) \
+        do {                              \
+        } while (0)
+#    define OPENVINO_LOG_GENPATTERN3(...) \
+        do {                              \
+        } while (0)
+#    define OPENVINO_LOG_GENPATTERN4(...) \
+        do {                              \
+        } while (0)
+#    define OPENVINO_LOG_GENPATTERN5(...) \
+        do {                              \
+        } while (0)
+#    define OPENVINO_LOG_GENPATTERN6(...) \
+        do {                              \
+        } while (0)
 
-#    define OPENVINO_LOG_NODE1(...) do {} while (0)
-#    define OPENVINO_LOG_NODE2(...) do {} while (0)
-#    define OPENVINO_LOG_NODE3(...) do {} while (0)
-#    define OPENVINO_LOG_NODE4(...) do {} while (0)
-#    define OPENVINO_LOG_NODE5(...) do {} while (0)
+#    define OPENVINO_LOG_NODE1(...) \
+        do {                        \
+        } while (0)
+#    define OPENVINO_LOG_NODE2(...) \
+        do {                        \
+        } while (0)
+#    define OPENVINO_LOG_NODE3(...) \
+        do {                        \
+        } while (0)
+#    define OPENVINO_LOG_NODE4(...) \
+        do {                        \
+        } while (0)
+#    define OPENVINO_LOG_NODE5(...) \
+        do {                        \
+        } while (0)
 
-#    define OPENVINO_LOG_MATCHER1(...) do {} while (0)
-#    define OPENVINO_LOG_MATCHER2(...) do {} while (0)
-#    define OPENVINO_LOG_MATCHER3(...) do {} while (0)
-#    define OPENVINO_LOG_MATCHER4(...) do {} while (0)
-#    define OPENVINO_LOG_MATCHER5(...) do {} while (0)
-#    define OPENVINO_LOG_MATCHER6(...) do {} while (0)
-#    define OPENVINO_LOG_MATCHER7(...) do {} while (0)
-#    define OPENVINO_LOG_MATCHER8(...) do {} while (0)
-#    define OPENVINO_LOG_MATCHER9(...) do {} while (0)
-#    define OPENVINO_LOG_MATCHER10(...) do {} while (0)
-#    define OPENVINO_LOG_MATCHER11(...) do {} while (0)
+#    define OPENVINO_LOG_MATCHER1(...) \
+        do {                           \
+        } while (0)
+#    define OPENVINO_LOG_MATCHER2(...) \
+        do {                           \
+        } while (0)
+#    define OPENVINO_LOG_MATCHER3(...) \
+        do {                           \
+        } while (0)
+#    define OPENVINO_LOG_MATCHER4(...) \
+        do {                           \
+        } while (0)
+#    define OPENVINO_LOG_MATCHER5(...) \
+        do {                           \
+        } while (0)
+#    define OPENVINO_LOG_MATCHER6(...) \
+        do {                           \
+        } while (0)
+#    define OPENVINO_LOG_MATCHER7(...) \
+        do {                           \
+        } while (0)
+#    define OPENVINO_LOG_MATCHER8(...) \
+        do {                           \
+        } while (0)
+#    define OPENVINO_LOG_MATCHER9(...) \
+        do {                           \
+        } while (0)
+#    define OPENVINO_LOG_MATCHER10(...) \
+        do {                            \
+        } while (0)
+#    define OPENVINO_LOG_MATCHER11(...) \
+        do {                            \
+        } while (0)
 
-#    define OPENVINO_LOG_LABEL1(...) do {} while (0)
-#    define OPENVINO_LOG_LABEL2(...) do {} while (0)
-#    define OPENVINO_LOG_LABEL3(...) do {} while (0)
-#    define OPENVINO_LOG_LABEL4(...) do {} while (0)
+#    define OPENVINO_LOG_LABEL1(...) \
+        do {                         \
+        } while (0)
+#    define OPENVINO_LOG_LABEL2(...) \
+        do {                         \
+        } while (0)
+#    define OPENVINO_LOG_LABEL3(...) \
+        do {                         \
+        } while (0)
+#    define OPENVINO_LOG_LABEL4(...) \
+        do {                         \
+        } while (0)
 
-#    define OPENVINO_LOG_GRAPH_REWRITE1(...) do {} while (0)
-#    define OPENVINO_LOG_GRAPH_REWRITE2(...) do {} while (0)
-#    define OPENVINO_LOG_GRAPH_REWRITE3(...) do {} while (0)
-#    define OPENVINO_LOG_GRAPH_REWRITE4(...) do {} while (0)
+#    define OPENVINO_LOG_GRAPH_REWRITE1(...) \
+        do {                                 \
+        } while (0)
+#    define OPENVINO_LOG_GRAPH_REWRITE2(...) \
+        do {                                 \
+        } while (0)
+#    define OPENVINO_LOG_GRAPH_REWRITE3(...) \
+        do {                                 \
+        } while (0)
+#    define OPENVINO_LOG_GRAPH_REWRITE4(...) \
+        do {                                 \
+        } while (0)
 
-#    define OPENVINO_LOG_OR1(...) do {} while (0)
-#    define OPENVINO_LOG_OR2(...) do {} while (0)
-#    define OPENVINO_LOG_OR3(...) do {} while (0)
-#    define OPENVINO_LOG_OR4(...) do {} while (0)
-#    define OPENVINO_LOG_OR5(...) do {} while (0)
+#    define OPENVINO_LOG_OR1(...) \
+        do {                      \
+        } while (0)
+#    define OPENVINO_LOG_OR2(...) \
+        do {                      \
+        } while (0)
+#    define OPENVINO_LOG_OR3(...) \
+        do {                      \
+        } while (0)
+#    define OPENVINO_LOG_OR4(...) \
+        do {                      \
+        } while (0)
+#    define OPENVINO_LOG_OR5(...) \
+        do {                      \
+        } while (0)
 
-#    define OPENVINO_LOG_TRUE1(...) do {} while (0)
+#    define OPENVINO_LOG_TRUE1(...) \
+        do {                        \
+        } while (0)
 
-#    define OPENVINO_LOG_OPTIONAL1(...) do {} while (0)
-#    define OPENVINO_LOG_OPTIONAL2(...) do {} while (0)
-#    define OPENVINO_LOG_OPTIONAL3(...) do {} while (0)
+#    define OPENVINO_LOG_OPTIONAL1(...) \
+        do {                            \
+        } while (0)
+#    define OPENVINO_LOG_OPTIONAL2(...) \
+        do {                            \
+        } while (0)
+#    define OPENVINO_LOG_OPTIONAL3(...) \
+        do {                            \
+        } while (0)
 
-#    define OPENVINO_LOG_WRAPTYPE1(...) do {} while (0)
-#    define OPENVINO_LOG_WRAPTYPE2(...) do {} while (0)
-#    define OPENVINO_LOG_WRAPTYPE3(...) do {} while (0)
-#    define OPENVINO_LOG_WRAPTYPE4(...) do {} while (0)
+#    define OPENVINO_LOG_WRAPTYPE1(...) \
+        do {                            \
+        } while (0)
+#    define OPENVINO_LOG_WRAPTYPE2(...) \
+        do {                            \
+        } while (0)
+#    define OPENVINO_LOG_WRAPTYPE3(...) \
+        do {                            \
+        } while (0)
+#    define OPENVINO_LOG_WRAPTYPE4(...) \
+        do {                            \
+        } while (0)
 
 #endif
