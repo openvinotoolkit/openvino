@@ -164,7 +164,7 @@ static memory::ptr get_memory_from_pool(engine& _engine,
     OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(),
                     "[GPU] Can't allocate output for dynamic layout without upper bound");
     // Use layout with max tensor for dynamic shape with upper bound
-    if (_node.get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool)) {
+    if (_node.get_program().get_config().get_enable_memory_pool()) {
         if (curr_memory != nullptr)
             pool.release_memory(curr_memory, _node.get_unique_id(), _node.id(), net_id);
         return pool.get_memory(layout,
@@ -558,7 +558,6 @@ void primitive_inst::clear_output_memory() {
 
 void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("realloc_if_needed: " + id()));
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
 
     const auto& users = get_user_insts();
@@ -837,11 +836,6 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
     }
 
     int32_t tmp_prealloc_count = get_prealloc_iter_num();
-    GPU_DEBUG_IF(debug_config->mem_preallocation_params.is_initialized) {
-        // If debug config is set, repsect the config most
-        tmp_prealloc_count = -1;
-    }
-
     // If we allocated too large memory, reclaim the memory.
     for (size_t i = 0; i < updated_layouts.size(); ++i) {
         bool reclaim = 0;
@@ -1083,8 +1077,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
 }
 
 bool primitive_inst::use_async_compilation() {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->disable_async_compilation) {
+    GPU_DEBUG_IF(get_config().get_disable_async_compilation()) {
         return false;
     }
 
@@ -1276,8 +1269,7 @@ void primitive_inst::update_paddings() {
 
 void primitive_inst::do_runtime_skip_reorder() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_reorder: " + id()));
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->disable_runtime_skip_reorder) {
+    GPU_DEBUG_IF(get_config().get_disable_runtime_skip_reorder()) {
         return;
     }
     if (can_be_optimized())
@@ -1468,6 +1460,11 @@ void primitive_inst::do_runtime_skip_gather() {
                 GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because idx_data [" << i << "] (" << idx_data[i] << ") != " << i << std::endl;
                 if (_impl_params->output_layouts[0].data_padding.is_dynamic())
                     _impl_params->output_layouts[0].data_padding = padding();
+                // for runtime skippable nodes, if previous iter is skipped while this iter not, its output memory needs to be revalidate
+                // as memory opt/release may be applied for these nodes to reduce memory footprint in previous iters
+                if (can_be_optimized()) {
+                    set_flag(ExecutionFlags::SHAPE_CHANGED);
+                }
                 set_can_be_optimized(false);
                 return;
             }
@@ -1582,8 +1579,7 @@ void primitive_inst::do_runtime_in_place_concat() {
         return false;
     };
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_in_place_concat: " + id()));
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing) {
+    GPU_DEBUG_IF(get_config().get_disable_runtime_buffer_fusing()) {
         return;
     }
     if (update_shape_done_by_other) {
@@ -1692,8 +1688,7 @@ void primitive_inst::do_runtime_skip_scatter_update() {
 
 void primitive_inst::do_runtime_in_place_crop() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_in_place_crop: " + id()));
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing) {
+    GPU_DEBUG_IF(get_config().get_disable_runtime_buffer_fusing()) {
         return;
     }
 
@@ -1986,8 +1981,7 @@ void primitive_inst::execute() {
 
     set_out_event(_impl->execute(_impl_params->dep_events, *this));
 
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
+    GPU_DEBUG_IF(!get_config().get_dump_profiling_data_path().empty()) {
         auto ev = _impl_params->out_event;
         get_network().get_stream().wait_for_events({ev});
 
@@ -2043,7 +2037,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     : _network(network)
     , _node(&node)
     , _node_output_layout(node.get_output_layout())
-    , _use_shared_kernels(node.get_program().get_config().get_property(ov::intel_gpu::hint::enable_kernels_reuse))
+    , _use_shared_kernels(node.get_program().get_config().get_enable_kernels_reuse())
     , _impl_params(node.get_kernel_impl_params())
     , _impl(node.get_selected_impl() ? node.get_selected_impl()->clone() : nullptr)
     , _runtime_memory_dependencies(node.get_memory_dependencies())
@@ -2324,8 +2318,7 @@ void primitive_inst::update_weights() {
             reorder_impl->set_arguments(*reorder_inst, args);
             add_dep_event(reorder_impl->execute({}, *reorder_inst));
 
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
+            GPU_DEBUG_IF(!get_config().get_dump_profiling_data_path().empty()) {
                 stream.wait_for_events(_impl_params->dep_events);
             }
 
@@ -2600,8 +2593,8 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
         ExecutionConfig subgraph_config{
             ov::intel_gpu::allow_static_input_reorder(true),
             ov::intel_gpu::allow_new_shape_infer(true),
-            ov::enable_profiling(get_network().get_config().get_property(ov::enable_profiling)),
-            ov::intel_gpu::use_onednn(get_network().get_config().get_property(ov::intel_gpu::use_onednn))
+            ov::enable_profiling(get_network().get_config().get_enable_profiling()),
+            ov::intel_gpu::use_onednn(get_network().get_config().get_use_onednn())
         };
         auto prog = program::build_program(get_network().get_engine(),
                                            t,
@@ -2759,42 +2752,31 @@ bool primitive_inst::is_valid_fusion() const {
 }
 
 void primitive_inst::add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, std::string memalloc_info, int64_t time, bool per_iter_mode) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
+    instrumentation::perf_counter_key key {
+            _network.get_input_layouts(),
+            _impl_params->input_layouts,
+            _impl_params->output_layouts,
+            get_implementation_name(),
+            stage,
 #ifdef GPU_DEBUG_CONFIG
-    int64_t curr_iter = -1;
-    GPU_DEBUG_IF(debug_config->dump_prof_data_iter_params.is_enabled) {
-        curr_iter = get_network().get_current_iteration_num();
-    }
-    GPU_DEBUG_IF(curr_iter < 0 || debug_config->is_target_dump_prof_data_iteration(curr_iter)) {
+            per_iter_mode ? get_network().get_current_iteration_num() : 0,
 #else
-    {
+            0,
 #endif
-        instrumentation::perf_counter_key key {
-                _network.get_input_layouts(),
-                _impl_params->input_layouts,
-                _impl_params->output_layouts,
-                get_implementation_name(),
-                stage,
-#ifdef GPU_DEBUG_CONFIG
-                per_iter_mode ? get_network().get_current_iteration_num() : 0,
-#else
-                0,
-#endif
-                cache_hit,
-                memalloc_info
-        };
+            cache_hit,
+            memalloc_info
+    };
 
-        auto hash = instrumentation::perf_counter_hash()(key);
-        auto& d = _profiling_data[hash];
-        if (_profiling_info.find(hash) == _profiling_info.end()) {
-            _profiling_info.emplace(hash, key);
-        }
-
-        auto& total_time = std::get<0>(d);
-        auto& total_iter = std::get<1>(d);
-        total_time += time;
-        total_iter++;
+    auto hash = instrumentation::perf_counter_hash()(key);
+    auto& d = _profiling_data[hash];
+    if (_profiling_info.find(hash) == _profiling_info.end()) {
+        _profiling_info.emplace(hash, key);
     }
+
+    auto& total_time = std::get<0>(d);
+    auto& total_iter = std::get<1>(d);
+    total_time += time;
+    total_iter++;
 }
 
 std::string primitive_inst::get_implementation_name() const {
