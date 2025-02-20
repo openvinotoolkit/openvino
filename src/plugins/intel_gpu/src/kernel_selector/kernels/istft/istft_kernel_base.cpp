@@ -32,6 +32,8 @@ void ISTFTKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
 ISTFTKernelBase::DispatchData ISTFTKernelBase::SetDefault(const ISTFT_params& params) {
     CommonDispatchData dispatchData;
     const auto inLayout = params.inputs.front().GetLayout();
+    const auto input0 = params.inputs.front();
+    const auto input1 = params.inputs[1];
     const auto& output = params.outputs.front();
     const auto outLayout = output.GetLayout();
 
@@ -39,11 +41,23 @@ ISTFTKernelBase::DispatchData ISTFTKernelBase::SetDefault(const ISTFT_params& pa
 
     std::vector<std::vector<Tensor::DataChannelName>> dimsByGws;
 
-    dispatchData.gws = {output.Y().v, output.Feature().v, output.Batch().v};
-    dimsByGws = {{Tensor::DataChannelName::Y}, {Tensor::DataChannelName::FEATURE}, {Tensor::DataChannelName::BATCH}};
+    std::cout << "input1: [" << input1.Batch().v << ", " << input1.Feature().v << ", " << input1.Y().v << ", "
+              << input1.X().v << "]\n";
+
+    std::cout << "input0: [" << input0.Batch().v << ", " << input0.Feature().v << ", " << input0.Y().v << ", "
+              << input0.X().v << "]\n";
+
+    std::cout << "output: [" << output.Batch().v << ", " << output.Feature().v << ", " << output.Y().v << ", "
+              << output.X().v << "]\n";
+
+    dispatchData.gws = {input0.Batch().v, input0.Y().v, input1.X().v};
+    dimsByGws = {{Tensor::DataChannelName::BATCH}, {Tensor::DataChannelName::Y}, {Tensor::DataChannelName::X}};
 
     dispatchData.lws =
         GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, inLayout, outLayout, dimsByGws);
+
+    std::cout << "GWS: [" << dispatchData.gws[0] << ", " << dispatchData.gws[1] << ", " << dispatchData.gws[2] << "]\n";
+    std::cout << "LWS: [" << dispatchData.lws[0] << ", " << dispatchData.lws[1] << ", " << dispatchData.lws[2] << "]\n";
 
     return dispatchData;
 }
