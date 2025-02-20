@@ -57,41 +57,53 @@ std::string make_unique_node_name(const TNamesMap& names_map, ov::Node& node, in
     return new_name;
 }
 
-void resolve_node_tensor_names(const ov::Node& node, TensorNamesMap& names_map) {
+void resolve_output_tensor_names(const Output<const Node>& output, TensorNamesMap& names_map) {
     static constexpr ov::descriptor::TensorExtension::Hasher hasher;
+    ov::TensorNames new_names;
 
+    auto names = output.get_names();
+    const auto tensor_hash = hasher(output.get_tensor_ptr());
+
+    for (auto name_it = names.begin(); name_it != names.end();) {
+        if (auto it = names_map.find(*name_it); it != names_map.end() && tensor_hash != it->second) {
+            auto&& unique_name = new_names.insert(make_unique_tensor_name(names_map, *name_it, tensor_hash)).first;
+            name_it = names.erase(name_it);
+            names_map[*unique_name] = tensor_hash;
+        } else {
+            names_map[*name_it] = tensor_hash;
+            ++name_it;
+        }
+    }
+
+    if (!new_names.empty()) {
+        names.insert(std::move_iterator(new_names.begin()), std::move_iterator(new_names.end()));
+        output.get_tensor().set_names(names);
+    }
+}
+
+void resolve_node_tensors_names(const ov::Node& node, TensorNamesMap& names_map) {
     for (const auto& output : node.outputs()) {
-        ov::TensorNames new_names;
-
-        auto names = output.get_names();
-        const auto tensor_hash = hasher(output.get_tensor_ptr());
-
-        for (auto name_it = names.begin(); name_it != names.end();) {
-            if (auto it = names_map.find(*name_it); it != names_map.end() && tensor_hash != it->second) {
-                auto&& unique_name = new_names.insert(make_unique_tensor_name(names_map, *name_it, tensor_hash)).first;
-                name_it = names.erase(name_it);
-                names_map[*unique_name] = tensor_hash;
-            } else {
-                names_map[*name_it] = tensor_hash;
-                ++name_it;
-            }
-        }
-
-        if (!new_names.empty()) {
-            names.insert(std::move_iterator(new_names.begin()), std::move_iterator(new_names.end()));
-            output.get_tensor().set_names(names);
-        }
+        resolve_output_tensor_names(output, names_map);
     }
 }
 
 void resolve_tensor_names(const ov::Model& model, TensorNamesMap& names_map) {
+    // Resolve inputs and outputs names first to avoid rename if internal model node has same name.
+    for (const auto& input : model.inputs()) {
+        resolve_output_tensor_names(input, names_map);
+    }
+
+    for (const auto& output : model.outputs()) {
+        resolve_output_tensor_names(output, names_map);
+    }
+
     for (auto&& node : model.get_ordered_ops()) {
         if (auto msn = ov::as_type<ov::op::util::MultiSubGraphOp>(node.get())) {
             for (const auto& body : msn->get_functions()) {
                 resolve_tensor_names(*body, names_map);
             }
         } else {
-            resolve_node_tensor_names(*node, names_map);
+            resolve_node_tensors_names(*node, names_map);
         }
     }
 }

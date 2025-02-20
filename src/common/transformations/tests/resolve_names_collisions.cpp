@@ -241,7 +241,7 @@ TEST_F(ResolveTensorNamesTest, collision_on_inputs) {
     input_1->output(0).set_names({"input_2", "name", "test", "input:0", "input:1"});
     input_2->output(0).set_names({"input_2", "test", "input:1", "input:2"});
 
-    auto model = std::make_shared<Model>(ResultVector{result_2, result}, ParameterVector{input_2, input_1});
+    auto model = std::make_shared<Model>(ResultVector{result_2, result}, ParameterVector{input_1, input_2});
 
     pass::Manager pass_manager;
     pass_manager.register_pass<pass::ResolveNameCollisions>();
@@ -270,10 +270,10 @@ TEST_F(ResolveTensorNamesTest, collision_on_outputsinputs) {
     pass_manager.run_passes(model);
     model->validate_nodes_and_infer_types();
 
-    EXPECT_THAT(input_1->output(0).get_names(), UnorderedElementsAre("input_1", "input:0", "result_1"));
-    EXPECT_THAT(input_2->output(0).get_names(), UnorderedElementsAre("input_2", "input:2", "result_1_1"));
-    EXPECT_THAT(result_1->output(0).get_names(), UnorderedElementsAre("result_1", "input_1"));
-    EXPECT_THAT(result_2->output(0).get_names(), UnorderedElementsAre("result_1_1"));
+    EXPECT_THAT(input_1->output(0).get_names(), UnorderedElementsAre("input_1", "input:0", "result_1_1"));
+    EXPECT_THAT(input_2->output(0).get_names(), UnorderedElementsAre("input_2", "input:2", "result_1"));
+    EXPECT_THAT(result_1->output(0).get_names(), UnorderedElementsAre("result_1_1", "input_1"));
+    EXPECT_THAT(result_2->output(0).get_names(), UnorderedElementsAre("result_1"));
 }
 
 TEST(ResolveNameCollisionsTest, FixTensorNamesMultiSubgraphOp) {
