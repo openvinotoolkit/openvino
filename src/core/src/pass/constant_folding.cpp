@@ -14,6 +14,8 @@
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "transformations/rt_info/decompression.hpp"
+#include "transformations/rt_info/dequantization_node.hpp"
 
 /**
  * \brief Check if \ref ov::Output<ov::Node> can be folded base on `can_be_folded` attribute.
@@ -51,7 +53,7 @@ const auto friendly_name_from = [](const ov::Node& node, const size_t output_cou
 
 static bool restore_original_input_precision(const std::shared_ptr<ov::Node>& node) {
     bool restored = false;
-    if (ov::is_type<ov::op::v0::Convert>(node)) {
+    if (ov::is_type<ov::op::v0::Convert>(node) && !is_decompression(node) && !is_dequantization_node(node)) {
         auto input = node->input(0);
         ov::util::remove_original_input_precision_attribute(input);
         return restored;
