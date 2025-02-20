@@ -287,18 +287,6 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const PostOps& postOps,
     const auto weightScaleMask = attrs.isGrouped ? 3 : 1 << 0;
     constexpr int channelDimIdx = 1;
 
-    // if (attrs.fcSemantic) {
-    //     return DnnlPostOpsComposer(postOps,
-    //                                context->getEngine(),
-    //                                outputDims,
-    //                                channelDimIdx,
-    //                                isINT8,
-    //                                weightScaleMask,
-    //                                memory,
-    //                                outputDataType)
-    //         .compose();
-    // }
-
     if (attrs.fcSemantic) {
         // use original post ops and zero points in case if used as FC executor
         return DnnlPostOpsComposer(postOps,
@@ -360,6 +348,11 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const PostOps& postOps,
         return legacyCompose;
     }
 
+    if (!dstDesc->hasLayoutType(LayoutType::nspc)) {
+        DEBUG_LOG("Brgemm convolution supports only nspc layout. Use legacy post ops");
+        return legacyCompose;
+    }
+
     if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
         attrs.inputZeroPointsType == ZeroPointsType::PerTensor) {
         DnnlPostOpsComposer legacyPostOpsOriginalZeroPoints(postOps,
@@ -374,12 +367,19 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const PostOps& postOps,
                                                             true,
                                                             false);
         auto result = legacyPostOpsOriginalZeroPoints.compose();
+
+        auto dimsPerOC = VectorDims(outputDims.size(), 1);
+        dimsPerOC[channelDimIdx] = outputDims[channelDimIdx];
+        bool binaryWithoutBroadcast = outputDims == dimsPerOC;
+
         // currently binary post ops are working only with ncsp layout
-        if (attrContainsPostOp(result.attr, dnnl::impl::primitive_kind::binary) &&
+        if (binaryWithoutBroadcast && attrContainsPostOp(result.attr, dnnl::impl::primitive_kind::binary) &&
             !dstDesc->hasLayoutType(LayoutType::ncsp)) {
             DEBUG_LOG("Attribute contains conv post op. Use legacy post ops");
             return legacyCompose;
         }
+
+        return result;
     }
 
     DnnlPostOpsComposer originalPostOpsOriginalZeroPoints(postOps,
@@ -396,9 +396,14 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const PostOps& postOps,
     // compose using original post ops
     auto result = originalPostOpsOriginalZeroPoints.compose();
 
-    if (attrContainsPostOp(result.attr, dnnl::impl::primitive_kind::binary) &&
+    auto dimsPerOC = VectorDims(outputDims.size(), 1);
+    dimsPerOC[channelDimIdx] = outputDims[channelDimIdx];
+    bool binaryWithoutBroadcast = outputDims == dimsPerOC;
+
+    // currently binary post ops are working only with ncsp layout
+    if (binaryWithoutBroadcast && attrContainsPostOp(result.attr, dnnl::impl::primitive_kind::binary) &&
         !dstDesc->hasLayoutType(LayoutType::ncsp)) {
-        DEBUG_LOG("Attribute contains conv post op. Use legacy post ops");
+        DEBUG_LOG("Attribute contains binary post op. Use legacy post ops");
         return legacyCompose;
     }
 
