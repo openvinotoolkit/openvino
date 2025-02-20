@@ -280,7 +280,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     if (driver_properties.driverVersion != WIN_DRIVER_NO_MCL_SUPPORT) {
 #endif
         [[maybe_unused]] std::string mutuable_command_list_ext_name;
-        std::tie(mutable_command_list_version, mutuable_command_list_ext_name) =
+        std::tie(mutable_command_list_ext_version, mutuable_command_list_ext_name) =
             queryDriverExtensionVersion(ZE_MUTABLE_COMMAND_LIST_EXP_NAME,
                                         ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_CURRENT,
                                         extProps,
@@ -290,8 +290,8 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
 #endif
 
     log.debug("Mutable command list version %d.%d",
-              ZE_MAJOR_VERSION(mutable_command_list_version),
-              ZE_MINOR_VERSION(mutable_command_list_version));
+              ZE_MAJOR_VERSION(mutable_command_list_ext_version),
+              ZE_MINOR_VERSION(mutable_command_list_ext_version));
 
     // Load our profiling extension
     ze_graph_profiling_dditable_ext_t* _graph_profiling_ddi_table_ext = nullptr;

@@ -61,9 +61,7 @@ class CommandList {
 public:
     friend class CommandQueue;
     CommandList() = delete;
-    CommandList(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
-                const uint32_t& group_ordinal,
-                bool mtci_is_supported = false);
+    CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const uint32_t& group_ordinal);
     CommandList(const CommandList&) = delete;
     CommandList(CommandList&&) = delete;
     CommandList& operator=(const CommandList&) = delete;
@@ -85,7 +83,7 @@ public:
     }
 
 private:
-    std::shared_ptr<ZeroInitStructsHolder> _initStructs;
+    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
 
     Logger _log;
 
@@ -96,7 +94,7 @@ private:
 class Fence {
 public:
     Fence() = delete;
-    Fence(const CommandQueue& command_queue);
+    Fence(const std::shared_ptr<CommandQueue>& command_queue);
     Fence(const Fence&) = delete;
     Fence(Fence&&) = delete;
     Fence& operator=(const Fence&) = delete;
@@ -110,6 +108,8 @@ public:
     }
 
 private:
+    std::shared_ptr<CommandQueue> _command_queue;
+
     ze_fence_handle_t _handle = nullptr;
 
     Logger _log;
@@ -118,7 +118,7 @@ private:
 class CommandQueue {
 public:
     CommandQueue() = delete;
-    CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
+    CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                  const ze_command_queue_priority_t& priority,
                  const uint32_t& group_ordinal,
                  bool turbo = false);
@@ -136,7 +136,7 @@ public:
     }
 
 private:
-    std::shared_ptr<ZeroInitStructsHolder> _initStructs;
+    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
 
     Logger _log;
 
