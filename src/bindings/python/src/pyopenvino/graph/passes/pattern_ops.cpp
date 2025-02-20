@@ -53,8 +53,8 @@ inline std::vector<ov::NodeTypeInfo> get_types(const std::vector<std::string>& t
     return types;
 }
 
-using Predicate = const ov::pass::pattern::op::ValuePredicate;
-using NewPredicate = const ov::pass::pattern::op::Predicate;
+using ValuePredicate = const ov::pass::pattern::op::ValuePredicate;
+using Predicate = const ov::pass::pattern::op::Predicate;
 
 static void reg_pattern_wrap_type(py::module m) {
     py::class_<ov::pass::pattern::op::WrapType, std::shared_ptr<ov::pass::pattern::op::WrapType>, ov::Node> wrap_type(
@@ -73,7 +73,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type type_name: str
     )");
 
-    wrap_type.def(py::init([](const std::string& type_name, const Predicate& pred) {
+    wrap_type.def(py::init([](const std::string& type_name, const ValuePredicate& pred) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name), pred);
                   }),
                   py::arg("type_name"),
@@ -88,7 +88,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type predicate: Callable
     )");
 
-    wrap_type.def(py::init([](const std::string& type_name, const NewPredicate& pred) {
+    wrap_type.def(py::init([](const std::string& type_name, const Predicate& pred) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name), pred);
                   }),
                   py::arg("type_name"),
@@ -137,7 +137,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type input: openvino.Node
     )");
 
-    wrap_type.def(py::init([](const std::string& type_name, const ov::Output<ov::Node>& input, const Predicate& pred) {
+    wrap_type.def(py::init([](const std::string& type_name, const ov::Output<ov::Node>& input, const ValuePredicate& pred) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name),
                                                                                pred,
                                                                                ov::OutputVector{input});
@@ -159,7 +159,7 @@ static void reg_pattern_wrap_type(py::module m) {
     )");
 
     wrap_type.def(
-        py::init([](const std::string& type_name, const ov::Output<ov::Node>& input, const NewPredicate& pred) {
+        py::init([](const std::string& type_name, const ov::Output<ov::Node>& input, const Predicate& pred) {
             return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name),
                                                                      pred,
                                                                      ov::OutputVector{input});
@@ -181,7 +181,7 @@ static void reg_pattern_wrap_type(py::module m) {
     )");
 
     wrap_type.def(
-        py::init([](const std::string& type_name, const std::shared_ptr<ov::Node>& input, const Predicate& pred) {
+        py::init([](const std::string& type_name, const std::shared_ptr<ov::Node>& input, const ValuePredicate& pred) {
             return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name),
                                                                      pred,
                                                                      ov::OutputVector{input});
@@ -203,7 +203,7 @@ static void reg_pattern_wrap_type(py::module m) {
     )");
 
     wrap_type.def(
-        py::init([](const std::string& type_name, const std::shared_ptr<ov::Node>& input, const NewPredicate& pred) {
+        py::init([](const std::string& type_name, const std::shared_ptr<ov::Node>& input, const Predicate& pred) {
             return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name),
                                                                      pred,
                                                                      ov::OutputVector{input});
@@ -256,6 +256,25 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type inputs: List[openvino.Node]
     )");
 
+    wrap_type.def(py::init([](const std::string& type_name, const ov::OutputVector& inputs, const ValuePredicate& pred) {
+                      return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name), pred, inputs);
+                  }),
+                  py::arg("type_name"),
+                  py::arg("inputs"),
+                  py::arg("predicate"),
+                  R"(
+                  Create WrapType with given node type, input nodes and predicate.
+
+                  :param type_name: node type. For example: "opset8.Abs"
+                  :type type_name: str
+
+                  :param inputs: Node outputs.
+                  :type inputs: List[openvino.Output]
+
+                  :param predicate: Function that performs additional checks for matching.
+                  :type predicate: Callable
+    )");
+
     wrap_type.def(py::init([](const std::string& type_name, const ov::OutputVector& inputs, const Predicate& pred) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name), pred, inputs);
                   }),
@@ -275,26 +294,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type predicate: Callable
     )");
 
-    wrap_type.def(py::init([](const std::string& type_name, const ov::OutputVector& inputs, const NewPredicate& pred) {
-                      return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name), pred, inputs);
-                  }),
-                  py::arg("type_name"),
-                  py::arg("inputs"),
-                  py::arg("predicate"),
-                  R"(
-                  Create WrapType with given node type, input nodes and predicate.
-
-                  :param type_name: node type. For example: "opset8.Abs"
-                  :type type_name: str
-
-                  :param inputs: Node outputs.
-                  :type inputs: List[openvino.Output]
-
-                  :param predicate: Function that performs additional checks for matching.
-                  :type predicate: Callable
-    )");
-
-    wrap_type.def(py::init([](const std::string& type_name, const ov::NodeVector& inputs, const Predicate& pred) {
+    wrap_type.def(py::init([](const std::string& type_name, const ov::NodeVector& inputs, const ValuePredicate& pred) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name),
                                                                                pred,
                                                                                ov::as_output_vector(inputs));
@@ -315,7 +315,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type predicate: Callable
     )");
 
-    wrap_type.def(py::init([](const std::string& type_name, const ov::NodeVector& inputs, const NewPredicate& pred) {
+    wrap_type.def(py::init([](const std::string& type_name, const ov::NodeVector& inputs, const Predicate& pred) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name),
                                                                                pred,
                                                                                ov::as_output_vector(inputs));
@@ -347,7 +347,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type type_names: List[str]
     )");
 
-    wrap_type.def(py::init([](const std::vector<std::string>& type_names, const Predicate& pred) {
+    wrap_type.def(py::init([](const std::vector<std::string>& type_names, const ValuePredicate& pred) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names), pred);
                   }),
                   py::arg("type_names"),
@@ -362,7 +362,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type predicate: Callable
     )");
 
-    wrap_type.def(py::init([](const std::vector<std::string>& type_names, const NewPredicate& pred) {
+    wrap_type.def(py::init([](const std::vector<std::string>& type_names, const Predicate& pred) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names), pred);
                   }),
                   py::arg("type_names"),
@@ -413,7 +413,7 @@ static void reg_pattern_wrap_type(py::module m) {
 
     wrap_type.def(
         py::init(
-            [](const std::vector<std::string>& type_names, const ov::Output<ov::Node>& input, const Predicate& pred) {
+            [](const std::vector<std::string>& type_names, const ov::Output<ov::Node>& input, const ValuePredicate& pred) {
                 return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names),
                                                                          pred,
                                                                          ov::OutputVector{input});
@@ -436,7 +436,7 @@ static void reg_pattern_wrap_type(py::module m) {
 
     wrap_type.def(py::init([](const std::vector<std::string>& type_names,
                               const ov::Output<ov::Node>& input,
-                              const NewPredicate& pred) {
+                              const Predicate& pred) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names),
                                                                                pred,
                                                                                ov::OutputVector{input});
@@ -459,7 +459,7 @@ static void reg_pattern_wrap_type(py::module m) {
 
     wrap_type.def(py::init([](const std::vector<std::string>& type_names,
                               const std::shared_ptr<ov::Node>& input,
-                              const Predicate& pred) {
+                              const ValuePredicate& pred) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names),
                                                                                pred,
                                                                                ov::OutputVector{input});
@@ -482,7 +482,7 @@ static void reg_pattern_wrap_type(py::module m) {
 
     wrap_type.def(py::init([](const std::vector<std::string>& type_names,
                               const std::shared_ptr<ov::Node>& input,
-                              const NewPredicate& pred) {
+                              const Predicate& pred) {
                       return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names),
                                                                                pred,
                                                                                ov::OutputVector{input});
@@ -536,7 +536,7 @@ static void reg_pattern_wrap_type(py::module m) {
     )");
 
     wrap_type.def(
-        py::init([](const std::vector<std::string>& type_names, const ov::OutputVector& inputs, const Predicate& pred) {
+        py::init([](const std::vector<std::string>& type_names, const ov::OutputVector& inputs, const ValuePredicate& pred) {
             return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names), pred, inputs);
         }),
         py::arg("type_names"),
@@ -557,7 +557,7 @@ static void reg_pattern_wrap_type(py::module m) {
 
     wrap_type.def(
         py::init(
-            [](const std::vector<std::string>& type_names, const ov::OutputVector& inputs, const NewPredicate& pred) {
+            [](const std::vector<std::string>& type_names, const ov::OutputVector& inputs, const Predicate& pred) {
                 return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names), pred, inputs);
             }),
         py::arg("type_names"),
@@ -577,7 +577,7 @@ static void reg_pattern_wrap_type(py::module m) {
     )");
 
     wrap_type.def(
-        py::init([](const std::vector<std::string>& type_names, const ov::NodeVector& inputs, const Predicate& pred) {
+        py::init([](const std::vector<std::string>& type_names, const ov::NodeVector& inputs, const ValuePredicate& pred) {
             return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names),
                                                                      pred,
                                                                      ov::as_output_vector(inputs));
@@ -600,7 +600,7 @@ static void reg_pattern_wrap_type(py::module m) {
 
     wrap_type.def(
         py::init(
-            [](const std::vector<std::string>& type_names, const ov::NodeVector& inputs, const NewPredicate& pred) {
+            [](const std::vector<std::string>& type_names, const ov::NodeVector& inputs, const Predicate& pred) {
                 return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names),
                                                                          pred,
                                                                          ov::as_output_vector(inputs));
@@ -670,7 +670,7 @@ static void reg_pattern_any_input(py::module m) {
                   Create pattern AnyInput operation which is used to match any type of node.
     )");
 
-    any_input.def(py::init([](const Predicate& pred) {
+    any_input.def(py::init([](const ValuePredicate& pred) {
                       return std::make_shared<ov::pass::pattern::op::Label>(ov::element::dynamic,
                                                                             ov::PartialShape::dynamic(),
                                                                             pred);
@@ -683,7 +683,7 @@ static void reg_pattern_any_input(py::module m) {
                   :type predicate: function
     )");
 
-    any_input.def(py::init([](const NewPredicate& pred) {
+    any_input.def(py::init([](const Predicate& pred) {
                       return std::make_shared<ov::pass::pattern::op::Label>(ov::element::dynamic,
                                                                             ov::PartialShape::dynamic(),
                                                                             pred);
@@ -784,7 +784,7 @@ static void reg_pattern_optional(py::module m) {
         :type inputs: List[openvino.Node]
     )");
 
-    optional_type.def(py::init([](const std::vector<std::string>& type_names, const Predicate& predicate) {
+    optional_type.def(py::init([](const std::vector<std::string>& type_names, const ValuePredicate& predicate) {
                           return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names),
                                                                                    ov::OutputVector{},
                                                                                    predicate);
@@ -801,7 +801,7 @@ static void reg_pattern_optional(py::module m) {
         :type predicate: Callable
     )");
 
-    optional_type.def(py::init([](const std::vector<std::string>& type_names, const NewPredicate& predicate) {
+    optional_type.def(py::init([](const std::vector<std::string>& type_names, const Predicate& predicate) {
                           return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names),
                                                                                    ov::OutputVector{},
                                                                                    predicate);
@@ -820,7 +820,7 @@ static void reg_pattern_optional(py::module m) {
 
     optional_type.def(py::init([](const std::vector<std::string>& type_names,
                                   const ov::Output<ov::Node>& input,
-                                  const Predicate& predicate) {
+                                  const ValuePredicate& predicate) {
                           return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names),
                                                                                    ov::OutputVector{input},
                                                                                    predicate);
@@ -843,7 +843,7 @@ static void reg_pattern_optional(py::module m) {
 
     optional_type.def(py::init([](const std::vector<std::string>& type_names,
                                   const ov::Output<ov::Node>& input,
-                                  const NewPredicate& predicate) {
+                                  const Predicate& predicate) {
                           return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names),
                                                                                    ov::OutputVector{input},
                                                                                    predicate);
@@ -866,7 +866,7 @@ static void reg_pattern_optional(py::module m) {
 
     optional_type.def(py::init([](const std::vector<std::string>& type_names,
                                   const std::shared_ptr<ov::Node>& input,
-                                  const Predicate& predicate) {
+                                  const ValuePredicate& predicate) {
                           return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names),
                                                                                    ov::as_output_vector({input}),
                                                                                    predicate);
@@ -889,7 +889,7 @@ static void reg_pattern_optional(py::module m) {
 
     optional_type.def(py::init([](const std::vector<std::string>& type_names,
                                   const std::shared_ptr<ov::Node>& input,
-                                  const NewPredicate& predicate) {
+                                  const Predicate& predicate) {
                           return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names),
                                                                                    ov::as_output_vector({input}),
                                                                                    predicate);
@@ -912,7 +912,7 @@ static void reg_pattern_optional(py::module m) {
 
     optional_type.def(
         py::init(
-            [](const std::vector<std::string>& type_names, const ov::OutputVector& inputs, const Predicate& predicate) {
+            [](const std::vector<std::string>& type_names, const ov::OutputVector& inputs, const ValuePredicate& predicate) {
                 return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names), inputs, predicate);
             }),
         py::arg("type_names"),
@@ -933,7 +933,7 @@ static void reg_pattern_optional(py::module m) {
 
     optional_type.def(
         py::init(
-            [](const std::vector<std::string>& type_names, const ov::OutputVector& inputs, const NewPredicate& pred) {
+            [](const std::vector<std::string>& type_names, const ov::OutputVector& inputs, const Predicate& pred) {
                 return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names), inputs, pred);
             }),
         py::arg("type_names"),
@@ -953,7 +953,7 @@ static void reg_pattern_optional(py::module m) {
     )");
 
     optional_type.def(
-        py::init([](const std::vector<std::string>& type_names, const ov::NodeVector& inputs, const Predicate& pred) {
+        py::init([](const std::vector<std::string>& type_names, const ov::NodeVector& inputs, const ValuePredicate& pred) {
             return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names),
                                                                      ov::as_output_vector(inputs),
                                                                      pred);
@@ -976,7 +976,7 @@ static void reg_pattern_optional(py::module m) {
 
     optional_type.def(
         py::init(
-            [](const std::vector<std::string>& type_names, const ov::NodeVector& inputs, const NewPredicate& pred) {
+            [](const std::vector<std::string>& type_names, const ov::NodeVector& inputs, const Predicate& pred) {
                 return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names),
                                                                          ov::as_output_vector(inputs),
                                                                          pred);

@@ -11,7 +11,7 @@
 #include "openvino/pass/pattern/op/predicate.hpp"
 #include "pyopenvino/core/common.hpp"
 
-using Predicate = const ov::pass::pattern::op::ValuePredicate;
+using ValuePredicate = const ov::pass::pattern::op::ValuePredicate;
 using SymbolPredicate = const std::function<bool(ov::pass::pattern::PatternSymbolMap&, const ov::Output<ov::Node>&)>;
 
 static void reg_pattern_op_predicate(py::module m) {
@@ -27,7 +27,7 @@ static void reg_pattern_op_predicate(py::module m) {
                   Create default Predicate which always returns true.
     )");
 
-    predicate.def(py::init([](Predicate pred) {
+    predicate.def(py::init([](ValuePredicate pred) {
                       return std::make_shared<ov::pass::pattern::op::Predicate>(pred);
                   }),
                   py::arg("predicate"),

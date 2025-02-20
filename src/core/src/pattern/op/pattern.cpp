@@ -200,8 +200,8 @@ bool ends_with(std::string_view str, std::string_view suffix) {
     return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
-std::pair<std::vector<std::pair<int64_t, std::string>>, int64_t> parse_string(const std::string& s_global) {
-    auto s = s_global;
+std::pair<std::vector<std::pair<int64_t, std::string>>, int64_t> parse_notation(const std::string& notation) {
+    auto s = notation;
     s.erase(remove_if(s.begin(), s.end(), isspace), s.end());
     const std::unordered_set<std::string> scalar = {"", "[]", "()"}, dynamic = {"?", "..."};
     if (scalar.count(s))
@@ -266,32 +266,37 @@ struct GroupDetails {
 
 }  // namespace
 
+/**
+ * @brief Checks if bounds can be propagated on Node output.
+ * Shape Notation Rules and Examples:
+ * Dimension variants:
+ *   - digit -- for static dimension
+ *   - string name -- for static or symbolic equivalence check / recording; no spaces or commas in the name
+ *   - question mark -- for irrelevant dimensions that don't need recording or checking. Relevant for rank check.
+ *   - ellipsis -- any number of dimensions, including no dimensions. Only one ellipsis is allowed. Irrelevant for
+ * check / recording
+ *   - named ellipsis aka named group of dimensions -  any number of dimensions, including no dimensions. Only one
+ * ellipsis is allowed. Relevant for check / recording Shape may or may not be enclosed with brackets -- [] or ().
+ *
+ * Dimensions are delimited with commas. Spaces are irrelevant.
+ *
+ * Examples:
+ * "[A, 3, C, D]" -- check for rank == 4; A, C, D checked / recorded the Match obj; static dim checked;
+ * "[A, 3, ..., D]" -- check for rank >= 3; A, D checked / recorded the Match obj; static dim checked;
+ * "[?, D]" -- check for rank == 2; D checked / recorded the Match obj; ? dim -- not checked and not recorded;
+ * "[Batch, SequenceLength, ?]" -- check for rank == 3; Batch, SequenceLength checked / recorded the Match obj;
+ * "[Batches..., OutputDim]" -- check for rank >= 1; Group of dimensions Batches and dimension OutputDim checked /
+ * recorded the Match obj;
+ *
+ * @param shape_notation  string notation composed by the rules
+ * @return Predicate which checks if Output<Node> shape matches the shape_notation
+*/
 op::Predicate shape_matches(const std::string& shape_notation) {
-    /* Shape Notation Rules and Examples:
-     * Dimension variants:
-     *   - digit -- for static dimension
-     *   - string name -- for static or symbolic equivalence check / recording; no spaces or commas in the name
-     *   - question mark -- for irrelevant dimensions that don't need recording or checking. Relevant for rank check.
-     *   - ellipsis -- any number of dimensions, including no dimensions. Only one ellipsis is allowed. Irrelevant for
-     * check / recording
-     *   - named ellipsis aka named group of dimensions -  any number of dimensions, including no dimensions. Only one
-     * ellipsis is allowed. Relevant for check / recording Shape may or may not be enclosed with brackets -- [] or ().
-     *
-     * Dimensions are delimited with commas. Spaces are irrelevant.
-     *
-     * Examples:
-     * "[A, 3, C, D]" -- check for rank == 4; A, C, D checked / recorded the Match obj; static dim checked;
-     * "[A, 3, ..., D]" -- check for rank >= 3; A, D checked / recorded the Match obj; static dim checked;
-     * "[?, D]" -- check for rank == 2; D checked / recorded the Match obj; ? dim -- not checked and not recorded;
-     * "[Batch, SequenceLength, ?]" -- check for rank == 3; Batch, SequenceLength checked / recorded the Match obj;
-     * "[Batches..., OutputDim]" -- check for rank >= 1; Group of dimensions Batches and dimension OutputDim checked /
-     * recorded the Match obj;
-     * */
-    auto item = parse_string(shape_notation);
+    auto item = parse_notation(shape_notation);
     const auto& idx_to_name = item.first;
     const auto& rank_restrictions = item.second;
     return op::Predicate(
-        [=](PatternSymbolMap& m, const Output<Node>& output) -> bool {
+        [idx_to_name, rank_restrictions](PatternSymbolMap& m, const Output<Node>& output) -> bool {
             const auto& shape = output.get_partial_shape();
             if (rank_restrictions == 0)  // scalar
                 return shape.is_static() && shape.size() == 0;
