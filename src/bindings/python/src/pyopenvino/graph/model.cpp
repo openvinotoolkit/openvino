@@ -28,8 +28,6 @@ namespace py = pybind11;
 
 using PyRTMap = ov::RTMap;
 
-PYBIND11_MAKE_OPAQUE(PyRTMap);
-
 static void set_tensor_names(const ov::ParameterVector& parameters) {
     for (const auto& param : parameters) {
         ov::Output<ov::Node> p = param;

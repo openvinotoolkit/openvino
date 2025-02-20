@@ -5,6 +5,7 @@
 from types import TracebackType
 from typing import Any, Iterable, Union, Optional, Dict, Tuple, Type, List
 from pathlib import Path
+import traceback
 
 
 from openvino._pyopenvino import Model as ModelBase

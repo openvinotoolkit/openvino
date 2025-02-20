@@ -285,7 +285,7 @@ void regclass_Core(py::module m) {
             :return: A compiled model.
             :rtype: openvino.CompiledModel
         )");
-
+    
     cls.def(
         "compile_model",
         [](ov::Core& self,

@@ -12,6 +12,8 @@
 #include "openvino/pass/manager.hpp"
 #include "pyopenvino/graph/ops/constant.hpp"
 #include "pyopenvino/utils/utils.hpp"
+#include "pyopenvino/graph/node.hpp"
+#include "pyopenvino/graph/node_output.hpp"
 
 namespace py = pybind11;
 
