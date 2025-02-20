@@ -21,6 +21,8 @@ public:
                       const Config& config,
                       const ov::AnyMap& remote_properties);
 
+    RemoteContextImpl(const std::shared_ptr<const NPUBackends>& backends, const Config& config);
+
     /**
      * @brief Returns name of a device on which underlying object is allocated.
      * @return A device name string in fully specified format `<device_name>[.<device_id>[.<tile_id>]]` (e.g. GPU.0.1).

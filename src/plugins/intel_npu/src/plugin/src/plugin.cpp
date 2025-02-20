@@ -791,8 +791,7 @@ ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remotePro
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) const {
-    ov::AnyMap emptyConfig;  // Create an empty config
-    return std::make_shared<RemoteContextImpl>(_backends, _globalConfig, emptyConfig);
+    return std::make_shared<RemoteContextImpl>(_backends, _globalConfig);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
