@@ -443,13 +443,9 @@ void SyncInferRequest::wait() {
         } else if (is_remote_tensor_impl && is_dynamic) {
             auto& stream = m_graph->get_network()->get_stream();
             auto user_mem = remote_tensor_impl_ptr->get_original_memory();
-            if (user_mem->get_allocation_type() == cldnn::allocation_type::cl_mem && output_memory->get_allocation_type() != cldnn::allocation_type::cl_mem) {
+            if (!m_graph->get_engine().is_the_same_buffer(*output_memory, *user_mem)) {
                 auto blocking = (stream.get_queue_type() == QueueTypes::in_order) ? false : true;
-                copy_events.push_back(user_mem->copy_from(stream, *output_memory, blocking));
-            } else {
-                bool is_same_mem = output_memory->buffer_ptr() == user_mem->buffer_ptr();
-                if (!is_same_mem)
-                    copy_events.push_back(output_memory->copy_to(stream, *user_mem, false));
+                copy_events.push_back(output_memory->copy_to(stream, *user_mem, blocking));
             }
         }
     }
@@ -908,7 +904,6 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     auto is_dynamic = pshape.is_dynamic();
     auto element_type = port.get_element_type();
     auto user_tensor = user_tensor_wrapper.ptr;
-    auto user_tensor_pshape = ov::PartialShape(user_tensor->get_shape());
     auto iremote_tensor_ptr = std::dynamic_pointer_cast<IRemoteTensor>(user_tensor);
     auto remote_tensor_impl_ptr = std::dynamic_pointer_cast<RemoteTensorImpl>(user_tensor);
     auto internal_name = m_output_names_map.at(output_idx);
@@ -920,7 +915,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     GPU_DEBUG_TRACE_DETAIL << "    user_tensor shape: " << user_tensor->get_shape().to_string() << std::endl;
 
     if (user_tensor->get_size() > 0) {
-        OPENVINO_ASSERT(pshape.compatible(user_tensor_pshape),
+        OPENVINO_ASSERT(pshape.compatible(ov::PartialShape(user_tensor->get_shape())),
                         "[GPU] The output tensor size is not equal to model port shape, can't handle output tensor with name: ",
                         internal_name,
                         ", because model output (shape=",
@@ -935,7 +930,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     bool convert_needed = is_convert_required(device_tensor_et, element_type);
 
     // Even if the network is dynamic, if user tensor's shape is static, remote tensor can be set as plugin's output tensor
-    if (is_remote_tensor_impl && !convert_needed && !user_tensor_pshape.is_dynamic()) {
+    if (is_remote_tensor_impl && !convert_needed) {
         m_plugin_outputs[output_idx] = user_tensor_wrapper;
     }
 
