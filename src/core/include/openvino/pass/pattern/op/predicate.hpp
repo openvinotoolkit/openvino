@@ -35,7 +35,7 @@ public:
     int64_t i() const;
     double d() const;
     std::shared_ptr<ov::Symbol> s() const;
-    std::vector<PatternSymbolValue> g() const;
+    const std::vector<PatternSymbolValue>& g() const;
 
     bool operator==(const PatternSymbolValue& other) const;
 

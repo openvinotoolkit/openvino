@@ -46,7 +46,7 @@ std::shared_ptr<ov::Symbol> PatternSymbolValue::s() const {
     return m_value.as<std::shared_ptr<ov::Symbol>>();
 }
 
-std::vector<PatternSymbolValue> PatternSymbolValue::g() const {
+const std::vector<PatternSymbolValue>& PatternSymbolValue::g() const {
     return m_value.as<std::vector<PatternSymbolValue>>();
 }
 
