@@ -290,7 +290,7 @@ struct GroupDetails {
  *
  * @param shape_notation  string notation composed by the rules
  * @return Predicate which checks if Output<Node> shape matches the shape_notation
-*/
+ */
 op::Predicate shape_matches(const std::string& shape_notation) {
     auto item = parse_notation(shape_notation);
     const auto& idx_to_name = item.first;

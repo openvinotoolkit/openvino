@@ -137,15 +137,16 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type input: openvino.Node
     )");
 
-    wrap_type.def(py::init([](const std::string& type_name, const ov::Output<ov::Node>& input, const ValuePredicate& pred) {
-                      return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name),
-                                                                               pred,
-                                                                               ov::OutputVector{input});
-                  }),
-                  py::arg("type_name"),
-                  py::arg("input"),
-                  py::arg("predicate"),
-                  R"(
+    wrap_type.def(
+        py::init([](const std::string& type_name, const ov::Output<ov::Node>& input, const ValuePredicate& pred) {
+            return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name),
+                                                                     pred,
+                                                                     ov::OutputVector{input});
+        }),
+        py::arg("type_name"),
+        py::arg("input"),
+        py::arg("predicate"),
+        R"(
                   Create WrapType with given node type, input node and predicate.
 
                   :param type_name: node type. For example: "opset8.Abs"
@@ -158,16 +159,15 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type predicate: Callable
     )");
 
-    wrap_type.def(
-        py::init([](const std::string& type_name, const ov::Output<ov::Node>& input, const Predicate& pred) {
-            return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name),
-                                                                     pred,
-                                                                     ov::OutputVector{input});
-        }),
-        py::arg("type_name"),
-        py::arg("input"),
-        py::arg("predicate"),
-        R"(
+    wrap_type.def(py::init([](const std::string& type_name, const ov::Output<ov::Node>& input, const Predicate& pred) {
+                      return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name),
+                                                                               pred,
+                                                                               ov::OutputVector{input});
+                  }),
+                  py::arg("type_name"),
+                  py::arg("input"),
+                  py::arg("predicate"),
+                  R"(
                   Create WrapType with given node type, input node and predicate.
 
                   :param type_name: node type. For example: "opset8.Abs"
@@ -256,13 +256,14 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type inputs: List[openvino.Node]
     )");
 
-    wrap_type.def(py::init([](const std::string& type_name, const ov::OutputVector& inputs, const ValuePredicate& pred) {
-                      return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name), pred, inputs);
-                  }),
-                  py::arg("type_name"),
-                  py::arg("inputs"),
-                  py::arg("predicate"),
-                  R"(
+    wrap_type.def(
+        py::init([](const std::string& type_name, const ov::OutputVector& inputs, const ValuePredicate& pred) {
+            return std::make_shared<ov::pass::pattern::op::WrapType>(get_type(type_name), pred, inputs);
+        }),
+        py::arg("type_name"),
+        py::arg("inputs"),
+        py::arg("predicate"),
+        R"(
                   Create WrapType with given node type, input nodes and predicate.
 
                   :param type_name: node type. For example: "opset8.Abs"
@@ -411,17 +412,17 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type input: openvino.Node
     )");
 
-    wrap_type.def(
-        py::init(
-            [](const std::vector<std::string>& type_names, const ov::Output<ov::Node>& input, const ValuePredicate& pred) {
-                return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names),
-                                                                         pred,
-                                                                         ov::OutputVector{input});
-            }),
-        py::arg("type_names"),
-        py::arg("input"),
-        py::arg("predicate"),
-        R"(
+    wrap_type.def(py::init([](const std::vector<std::string>& type_names,
+                              const ov::Output<ov::Node>& input,
+                              const ValuePredicate& pred) {
+                      return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names),
+                                                                               pred,
+                                                                               ov::OutputVector{input});
+                  }),
+                  py::arg("type_names"),
+                  py::arg("input"),
+                  py::arg("predicate"),
+                  R"(
         Create WrapType with given node types, input and predicate.
 
         :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
@@ -434,17 +435,17 @@ static void reg_pattern_wrap_type(py::module m) {
         :type predicate: Callable
     )");
 
-    wrap_type.def(py::init([](const std::vector<std::string>& type_names,
-                              const ov::Output<ov::Node>& input,
-                              const Predicate& pred) {
-                      return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names),
-                                                                               pred,
-                                                                               ov::OutputVector{input});
-                  }),
-                  py::arg("type_names"),
-                  py::arg("input"),
-                  py::arg("predicate"),
-                  R"(
+    wrap_type.def(
+        py::init(
+            [](const std::vector<std::string>& type_names, const ov::Output<ov::Node>& input, const Predicate& pred) {
+                return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names),
+                                                                         pred,
+                                                                         ov::OutputVector{input});
+            }),
+        py::arg("type_names"),
+        py::arg("input"),
+        py::arg("predicate"),
+        R"(
         Create WrapType with given node types, input and predicate.
 
         :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
@@ -536,7 +537,28 @@ static void reg_pattern_wrap_type(py::module m) {
     )");
 
     wrap_type.def(
-        py::init([](const std::vector<std::string>& type_names, const ov::OutputVector& inputs, const ValuePredicate& pred) {
+        py::init(
+            [](const std::vector<std::string>& type_names, const ov::OutputVector& inputs, const ValuePredicate& pred) {
+                return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names), pred, inputs);
+            }),
+        py::arg("type_names"),
+        py::arg("inputs"),
+        py::arg("predicate"),
+        R"(
+        Create WrapType with given node types, inputs and predicate.
+
+        :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
+        :type type_names: List[str]
+
+        :param inputs: Nodes outputs.
+        :type inputs: List[openvino.Output]
+
+        :param predicate: Function that performs additional checks for matching.
+        :type predicate: Callable
+    )");
+
+    wrap_type.def(
+        py::init([](const std::vector<std::string>& type_names, const ov::OutputVector& inputs, const Predicate& pred) {
             return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names), pred, inputs);
         }),
         py::arg("type_names"),
@@ -557,31 +579,11 @@ static void reg_pattern_wrap_type(py::module m) {
 
     wrap_type.def(
         py::init(
-            [](const std::vector<std::string>& type_names, const ov::OutputVector& inputs, const Predicate& pred) {
-                return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names), pred, inputs);
+            [](const std::vector<std::string>& type_names, const ov::NodeVector& inputs, const ValuePredicate& pred) {
+                return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names),
+                                                                         pred,
+                                                                         ov::as_output_vector(inputs));
             }),
-        py::arg("type_names"),
-        py::arg("inputs"),
-        py::arg("predicate"),
-        R"(
-        Create WrapType with given node types, inputs and predicate.
-
-        :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
-
-        :param inputs: Nodes outputs.
-        :type inputs: List[openvino.Output]
-
-        :param predicate: Function that performs additional checks for matching.
-        :type predicate: Callable
-    )");
-
-    wrap_type.def(
-        py::init([](const std::vector<std::string>& type_names, const ov::NodeVector& inputs, const ValuePredicate& pred) {
-            return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names),
-                                                                     pred,
-                                                                     ov::as_output_vector(inputs));
-        }),
         py::arg("type_names"),
         py::arg("inputs"),
         py::arg("predicate"),
@@ -599,12 +601,11 @@ static void reg_pattern_wrap_type(py::module m) {
     )");
 
     wrap_type.def(
-        py::init(
-            [](const std::vector<std::string>& type_names, const ov::NodeVector& inputs, const Predicate& pred) {
-                return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names),
-                                                                         pred,
-                                                                         ov::as_output_vector(inputs));
-            }),
+        py::init([](const std::vector<std::string>& type_names, const ov::NodeVector& inputs, const Predicate& pred) {
+            return std::make_shared<ov::pass::pattern::op::WrapType>(get_types(type_names),
+                                                                     pred,
+                                                                     ov::as_output_vector(inputs));
+        }),
         py::arg("type_names"),
         py::arg("inputs"),
         py::arg("predicate"),
@@ -911,53 +912,54 @@ static void reg_pattern_optional(py::module m) {
     )");
 
     optional_type.def(
-        py::init(
-            [](const std::vector<std::string>& type_names, const ov::OutputVector& inputs, const ValuePredicate& predicate) {
-                return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names), inputs, predicate);
-            }),
-        py::arg("type_names"),
-        py::arg("inputs"),
-        py::arg("predicate"),
-        R"(
-        Create Optional with the given node type, input node and predicate.
-
-        :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
-
-        :param inputs: input node's output list.
-        :type inputs: List[openvino.Output]
-
-        :param predicate: Function that performs additional checks for matching.
-        :type predicate: Callable
-    )");
-
-    optional_type.def(
-        py::init(
-            [](const std::vector<std::string>& type_names, const ov::OutputVector& inputs, const Predicate& pred) {
-                return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names), inputs, pred);
-            }),
-        py::arg("type_names"),
-        py::arg("inputs"),
-        py::arg("predicate"),
-        R"(
-        Create Optional with the given node type, input node and predicate.
-
-        :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
-
-        :param inputs: input node's output list.
-        :type inputs: List[openvino.Output]
-
-        :param predicate: Function that performs additional checks for matching.
-        :type predicate: Callable
-    )");
-
-    optional_type.def(
-        py::init([](const std::vector<std::string>& type_names, const ov::NodeVector& inputs, const ValuePredicate& pred) {
-            return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names),
-                                                                     ov::as_output_vector(inputs),
-                                                                     pred);
+        py::init([](const std::vector<std::string>& type_names,
+                    const ov::OutputVector& inputs,
+                    const ValuePredicate& predicate) {
+            return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names), inputs, predicate);
         }),
+        py::arg("type_names"),
+        py::arg("inputs"),
+        py::arg("predicate"),
+        R"(
+        Create Optional with the given node type, input node and predicate.
+
+        :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
+        :type type_names: List[str]
+
+        :param inputs: input node's output list.
+        :type inputs: List[openvino.Output]
+
+        :param predicate: Function that performs additional checks for matching.
+        :type predicate: Callable
+    )");
+
+    optional_type.def(
+        py::init([](const std::vector<std::string>& type_names, const ov::OutputVector& inputs, const Predicate& pred) {
+            return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names), inputs, pred);
+        }),
+        py::arg("type_names"),
+        py::arg("inputs"),
+        py::arg("predicate"),
+        R"(
+        Create Optional with the given node type, input node and predicate.
+
+        :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
+        :type type_names: List[str]
+
+        :param inputs: input node's output list.
+        :type inputs: List[openvino.Output]
+
+        :param predicate: Function that performs additional checks for matching.
+        :type predicate: Callable
+    )");
+
+    optional_type.def(
+        py::init(
+            [](const std::vector<std::string>& type_names, const ov::NodeVector& inputs, const ValuePredicate& pred) {
+                return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names),
+                                                                         ov::as_output_vector(inputs),
+                                                                         pred);
+            }),
         py::arg("type_names"),
         py::arg("inputs"),
         py::arg("predicate"),
@@ -975,12 +977,11 @@ static void reg_pattern_optional(py::module m) {
     )");
 
     optional_type.def(
-        py::init(
-            [](const std::vector<std::string>& type_names, const ov::NodeVector& inputs, const Predicate& pred) {
-                return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names),
-                                                                         ov::as_output_vector(inputs),
-                                                                         pred);
-            }),
+        py::init([](const std::vector<std::string>& type_names, const ov::NodeVector& inputs, const Predicate& pred) {
+            return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names),
+                                                                     ov::as_output_vector(inputs),
+                                                                     pred);
+        }),
         py::arg("type_names"),
         py::arg("inputs"),
         py::arg("predicate"),

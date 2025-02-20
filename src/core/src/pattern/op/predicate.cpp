@@ -51,9 +51,11 @@ std::vector<PatternSymbolValue> PatternSymbolValue::g() const {
 }
 
 bool PatternSymbolValue::is_valid() const {
-    return m_value != nullptr && m_value.is<int64_t>() ^ m_value.is<double>() ^
-                                     m_value.is<std::shared_ptr<ov::Symbol>>() ^
-                                     m_value.is<std::vector<PatternSymbolValue>>();
+    if (m_value == nullptr)
+        return false;
+    size_t value_identities = m_value.is<int64_t>() + m_value.is<double>() + m_value.is<std::shared_ptr<ov::Symbol>>() +
+                              m_value.is<std::vector<PatternSymbolValue>>();
+    return value_identities == 1;
 }
 
 bool PatternSymbolValue::operator==(const ov::pass::pattern::PatternSymbolValue& other) const {
