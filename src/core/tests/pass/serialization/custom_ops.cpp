@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
-#include "openvino/op/constant.hpp"
 
 class CustomOpsSerializationTest : public ::testing::Test {
 protected:
@@ -117,7 +117,6 @@ TEST_F(CustomOpsSerializationTest, CustomOpNoExtensions) {
     ASSERT_TRUE(success) << message;
 }
 
-
 class PostponedOp : public ov::op::Op {
 public:
     ov::element::Type m_type;
@@ -144,28 +143,28 @@ public:
     }
 
     MOCK_METHOD(bool,
-        evaluate,
-        (ov::TensorVector & output_values, const ov::TensorVector& input_values),
-        (const, override));
+                evaluate,
+                (ov::TensorVector & output_values, const ov::TensorVector& input_values),
+                (const, override));
 };
 
 TEST(PostponedOpSerializationTest, CorrectRtInfo) {
-    auto constant = std::make_shared<PostponedOp>(ov::element::f16, ov::Shape{1,2,3,4});
+    auto constant = std::make_shared<PostponedOp>(ov::element::f16, ov::Shape{1, 2, 3, 4});
     constant->get_rt_info()["postponed_constant"] = true;
     auto model = std::make_shared<ov::Model>(ov::OutputVector{constant});
 
     EXPECT_CALL(*constant, evaluate).Times(1);
-    
+
     std::stringstream serialized_model, serialized_weigths;
     ov::pass::Serialize(serialized_model, serialized_weigths).run_on_model(model);
 }
 
 TEST(PostponedOpSerializationTest, IncorrectRtInfo) {
-    auto constant = std::make_shared<PostponedOp>(ov::element::f16, ov::Shape{1,2,3,4});
+    auto constant = std::make_shared<PostponedOp>(ov::element::f16, ov::Shape{1, 2, 3, 4});
     auto model = std::make_shared<ov::Model>(ov::OutputVector{constant});
 
     EXPECT_CALL(*constant, evaluate).Times(0);
-    
+
     std::stringstream serialized_model, serialized_weigths;
     ov::pass::Serialize(serialized_model, serialized_weigths).run_on_model(model);
 }
