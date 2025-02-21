@@ -109,7 +109,7 @@ void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITenso
 std::optional<ov::Output<const ov::Node>> find_port_by_name(const std::vector<ov::Output<const ov::Node>>& ports,
                                                             const std::string& name) {
     auto it = std::find_if(ports.begin(), ports.end(), [&](const auto& port) {
-        return port.get_any_name() == name;
+        return port.get_names().count(name) != 0;
     });
     if (it == ports.end()) {
         return std::nullopt;
