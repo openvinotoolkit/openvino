@@ -19,7 +19,6 @@ std::vector<std::string> disabledTestPatterns() {
             // Need to update activation primitive to support any broadcastable constant to enable these cases.
             R"(.*ActivationParamLayerTest.*)",
             // Unknown issues
-            R"(.*(LSTMSequence).*mode=.*_RAND_SEQ_LEN_CONST.*)",
             R"(.*(smoke_DetectionOutput5In).*)",
 
 
@@ -36,10 +35,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*Behavior.*OVInferRequestIOTensorTest.*canInferAfterIOBlobReallocation.*)",
             // Not implemented yet:
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
-            // TODO: Issue 67408
-            R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*Inference.*)",
-            // TODO: Issue 114262
-            R"(LSTMSequenceCommonZeroClipNonConstantWRB/LSTMSequenceTest.Inference/mode=PURE_SEQ_seq_lengths=2_batch=10_hidden_size=1_.*relu.*)",
             // Expected behavior. GPU plugin doesn't support i64 for eltwise power operation.
             R"(.*EltwiseLayerTest.*eltwise_op_type=Pow.*model_type=i64.*)",
             // TODO: Issue: 68712
