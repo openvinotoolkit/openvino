@@ -328,3 +328,32 @@ TEST_F(ISTFTShapeInferenceTest, window_incompatible_dim_with_frame_size) {
                     NodeValidationFailure,
                     HasSubstr("Window input dimension must be in range [1, 8]"));
 }
+
+TEST_F(ISTFTShapeInferenceTest, data_shape_incompatible_dim_with_frame_size) {
+    const auto data_type = element::f32;
+    const auto step_size_type = element::i32;
+    const auto in_data = std::make_shared<Parameter>(data_type, PartialShape{-1, -1, -1});
+    const auto in_window = std::make_shared<Parameter>(data_type, PartialShape{-1});
+    const auto in_frame_size = std::make_shared<Parameter>(step_size_type, ov::Shape{});
+    const auto in_frame_step = std::make_shared<Parameter>(step_size_type, ov::Shape{});
+
+    constexpr bool center = false;
+    constexpr bool normalized = false;
+    const auto op = make_op(in_data, in_window, in_frame_size, in_frame_step, center, normalized);
+
+    std::vector<StaticShape> static_input_shapes = {StaticShape{9, 3, 2},
+                                                    StaticShape{16},
+                                                    StaticShape{},
+                                                    StaticShape{},
+                                                    StaticShape{}};
+    int32_t frame_size = 31;
+    int32_t frame_step = 11;
+
+    auto const_data = std::unordered_map<size_t, Tensor>{{2, {element::i32, ov::Shape{}, &frame_size}},
+                                                         {3, {element::i32, ov::Shape{}, &frame_step}}};
+    auto acc = make_tensor_accessor(const_data);
+
+    OV_EXPECT_THROW(std::ignore = shape_infer(op.get(), static_input_shapes, acc),
+                    NodeValidationFailure,
+                    HasSubstr("The dimension at data_shape[-3] must be equal to: (frame_size // 2 + 1)"));
+}
