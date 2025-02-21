@@ -56,6 +56,10 @@
 #include "snippets/lowered/pass/extract_loop_invariants.hpp"
 #include "snippets/lowered/pass/set_dynamic_wa_to_outermost_loop.hpp"
 
+// todo: remove debug serialization
+#include "snippets/lowered/pass/serialize_control_flow.hpp"
+#include "snippets/lowered/pass/serialize_data_flow.hpp"
+
 #include "snippets/lowered/pass/init_registers.hpp"
 
 #include "transformations/utils/utils.hpp"
@@ -483,6 +487,9 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     validation_pipeline.register_pass<lowered::pass::ValidateBuffers>();
     validation_pipeline.register_pass<lowered::pass::Validate>();
     validation_pipeline.run(*m_linear_ir);
+
+    ov::snippets::lowered::pass::SerializeControlFlow("snsdebug_control.xml").run(*m_linear_ir);
+    ov::snippets::lowered::pass::SerializeDataFlow("snsdebug_data.xml").run(*m_linear_ir);
 
 #ifdef SNIPPETS_DEBUG_CAPS
     if (m_linear_ir->get_config().debug_config->perf_count_mode != DebugCapsConfig::PerfCountMode::Disabled) {
