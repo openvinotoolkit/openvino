@@ -159,14 +159,17 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         endif()
 
         if(TBB_DIR MATCHES "^${TBBROOT}.*")
+            message(STATUS "${TBB_DIR} matches ${TBBROOT}")
             file(RELATIVE_PATH OV_TBB_DIR_INSTALL "${TBBROOT}" "${TBB_DIR}")
             set(OV_TBB_DIR_INSTALL "${OV_TBB_DIR_INSTALL}/${OV_TBB_DIR_INSTALL}")
+            message(STATUS "OV_TBB_DIR_INSTALL is ${OV_TBB_DIR_INSTALL}")
         else()
             # TBB_DIR is not a subdirectory of TBBROOT
             # example: old TBB 2017 with no cmake support at all
             # - TBBROOT point to actual root of TBB
             # - TBB_DIR points to cmake/developer_package/tbb/<lnx|mac|win>
             set(OV_TBB_DIR_INSTALL "${TBB_DIR}")
+            message(STATUS "OV_TBB_DIR_INSTALL is TBB_DIR:${TBB_DIR}")
         endif()
 
         # try to select proper library directory
