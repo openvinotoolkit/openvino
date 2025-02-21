@@ -1050,21 +1050,30 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
         if (ibuf_layouts.empty())
             return;
         GPU_DEBUG_CODE(std::string memalloc_info = "");
+        const auto& lockable_buffers_indexes = _impl->get_lockable_internal_buffers();
         for (size_t i = 0; i < ibuf_layouts.size(); ++i) {
-            if (i < _intermediates_memory.size() && ibuf_layouts[i].bytes_count() <= max_intermediates_memory_sizes[i]) {
-                // can reuse
+            auto need_lockable = lockable_buffers_indexes.find(i) != lockable_buffers_indexes.end();
+            auto alloc_type = i < _intermediates_memory.size() ? _intermediates_memory[i]->get_allocation_type()
+                                                               : allocation_type::unknown;
+            bool can_reuse = true;
+            can_reuse &= alloc_type != allocation_type::unknown &&
+                         ibuf_layouts[i].bytes_count() <= max_intermediates_memory_sizes[i];
+            can_reuse &= (need_lockable && alloc_type != cldnn::allocation_type::usm_device) ||
+                         (!need_lockable && alloc_type != cldnn::allocation_type::usm_host);
+
+            if (can_reuse) {
                 _intermediates_memory[i] = _network.get_engine().reinterpret_buffer(*_intermediates_memory[i], ibuf_layouts[i]);
                GPU_DEBUG_CODE(memalloc_info += ((_intermediates_memory.size() > 1) ? ("i" + to_string(i) + ":") : "") + "reuse_buffer");
             } else {
                 // TODO: If there is a kernel which requires reset internal buffer in the future,
                 // we'll need additional handle for that purpose like need_reset_output_memory
-                bool need_reset = false;
+                const bool need_reset = false;
                 if (i < _intermediates_memory.size()) {
-                    _intermediates_memory[i] = allocate_internal_buffer(i, need_reset);
+                    _intermediates_memory[i] = allocate_internal_buffer(ibuf_layouts[i], i, need_reset, need_lockable);
                     max_intermediates_memory_sizes[i] = _intermediates_memory[i]->size();
                 } else {
                     // i-th layout has not been allocated yet
-                    _intermediates_memory.push_back(allocate_internal_buffer(i, need_reset));
+                    _intermediates_memory.push_back(allocate_internal_buffer(ibuf_layouts[i], i, need_reset, need_lockable));
                     max_intermediates_memory_sizes.push_back(_intermediates_memory[i]->size());
                 }
                 GPU_DEBUG_CODE(memalloc_info +=
@@ -2120,11 +2129,8 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     OPENVINO_ASSERT(_max_output_layout_count.size() == get_node().get_output_layouts().size());
 }
 
-memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
+memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_t idx, bool reset, bool lockable) {
     if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
-        return nullptr;
-    const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
-    if (ibuf_layouts.empty())
         return nullptr;
 
     auto device_mem_acc = [&](size_t a, std::pair<primitive_inst*, int32_t> b) {
@@ -2164,14 +2170,11 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
         }
     }
     // allocate intermediate memory for the updated layout of buffer
-    auto layout = ibuf_layouts[idx];
     auto alloc_type = allocation_type::unknown;
-    const auto& lockable_buffers_indexes = _impl->get_lockable_internal_buffers();
-    auto need_lockable_allocation = lockable_buffers_indexes.find(idx) != lockable_buffers_indexes.end();
     GPU_DEBUG_LOG << "[" << _node->id() << ": internal buf " << idx << "] "
-                  << layout.to_short_string() << " need_lockable_allocation=" << need_lockable_allocation << std::endl;
+                  << layout.to_short_string() << " lockable=" << lockable << std::endl;
     if ((int64_t)available_device_mem_size - (int64_t)layout.bytes_count() >= 0 &&
-        (input_device_mem || _node->get_preferred_impl_type() == impl_types::onednn) && !need_lockable_allocation) {
+        (input_device_mem || _node->get_preferred_impl_type() == impl_types::onednn) && !lockable) {
         // scratchpad memory type enforces to device mem.
         GPU_DEBUG_LOG << " input is device mem and available device mem size (" << available_device_mem_size
                       << ") > requested memory (" << layout.bytes_count() << " )" << std::endl;
@@ -2213,7 +2216,7 @@ void primitive_inst::allocate_internal_buffers(bool reset) {
     for (size_t i = 0; i < ibuf_layouts.size(); ++i) {
         if (ibuf_layouts[i].get_linear_size() == 0)
             continue;
-        intermediates_memory.push_back(allocate_internal_buffer(i, reset));
+        intermediates_memory.push_back(allocate_internal_buffer(ibuf_layouts[i], i, reset));
         max_intermediates_memory_sizes.push_back(intermediates_memory[i]->size());
     }
     _intermediates_memory = intermediates_memory;

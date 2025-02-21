@@ -62,7 +62,8 @@ public:
     memory::ptr rotation_deltas_memory_ptr() const { return input_memory_ptr(14); }
     memory::ptr rotation_trig_lut_memory_ptr() const { return input_memory_ptr(15); }
 
-    std::shared_ptr<network> prefill_network;
+    bool use_micro_sdpa = false;
+    size_t query_block_size = 0;
 
 protected:
     void on_execute() override;

@@ -59,6 +59,7 @@ struct primitive_impl {
     virtual std::set<size_t> get_lockable_internal_buffers() const { return {}; }
     virtual void set_node_params(const program_node&) {}
     virtual const std::string& get_type_info() const = 0;
+    virtual void update_inst_params(primitive_inst& instance) const {}
     virtual void set_arguments(primitive_inst& instance) = 0;
     virtual void set_arguments(primitive_inst& instance, kernel_arguments_data& args) = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
@@ -412,7 +413,7 @@ protected:
     std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr,
                                               bool reset_mem = true,
                                               bool runtime_alloc = false);
-    memory::ptr allocate_internal_buffer(size_t idx, bool reset = true);
+    memory::ptr allocate_internal_buffer(const layout& layout, size_t idx, bool reset = true, bool lockable = false);
     void allocate_shape_info_memory();
     static std::vector<primitive_inst*> build_exec_deps(
         std::vector<std::pair<primitive_inst*, int32_t>> const& mem_deps);
