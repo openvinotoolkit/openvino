@@ -61,31 +61,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
           skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg'
-          
-  Docker:
-    needs: Smart_CI
-    if: "!needs.smart_ci.outputs.skip_workflow"
-    runs-on: aks-linux-4-cores-16gb-docker-build
-    container:
-      image: openvinogithubactions.azurecr.io/docker_build:0.2
-      volumes:
-        - /mount:/mount
-    outputs:
-      images: "${{ steps.handle_docker.outputs.images }}"
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        timeout-minutes: 15
-        
-      - uses: ./.github/actions/handle_docker
-        id: handle_docker
-        with:
-          images: |
-            ov_build/ubuntu_22_04_x64
-          registry: 'openvinogithubactions.azurecr.io'
-          dockerfiles_root_dir: '.github/dockerfiles'
-          changed_components: ${{ needs.smart_ci.outputs.changed_components }}
-
+         
   Build:
     needs: Smart_CI
     timeout-minutes: 150
@@ -422,13 +398,13 @@ jobs:
   upload_artifacts:
     name: Upload OpenVINO artifacts
     timeout-minutes: 10
-    needs: [Build, Smart_CI, Docker]
+    needs: [Build, Smart_CI]
     defaults:
       run:
         shell: bash
     runs-on: aks-linux-2-cores-8gb
     container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
+      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04'
       volumes: 
         - /mount:/mount
         - ${{ github.workspace }}:${{ github.workspace }}
@@ -446,6 +422,7 @@ jobs:
         timeout-minutes: 15
         with:
           sparse-checkout: |
+            .github/actions/common
             .github/actions/store_artifacts
             .github/actions/create_manifest
           path: ${{ env.OPENVINO_REPO }}
