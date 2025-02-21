@@ -81,11 +81,11 @@ TEST_P(FakeConvertDecompositionTest, CompareFunctions) {
         std::shared_ptr<Node> data = input_data;
 
         const auto lower_bound = dst_prec == ov::element::f8e4m3
-                                 ? static_cast<float>(std::numeric_limits<ov::float8_e4m3>::lowest())
-                                 : static_cast<float>(std::numeric_limits<ov::float8_e5m2>::lowest());
+                                     ? static_cast<float>(std::numeric_limits<ov::float8_e4m3>::lowest())
+                                     : static_cast<float>(std::numeric_limits<ov::float8_e5m2>::lowest());
         const auto upper_bound = dst_prec == ov::element::f8e4m3
-                                 ? static_cast<float>(std::numeric_limits<ov::float8_e4m3>::max())
-                                 : static_cast<float>(std::numeric_limits<ov::float8_e5m2>::max());
+                                     ? static_cast<float>(std::numeric_limits<ov::float8_e4m3>::max())
+                                     : static_cast<float>(std::numeric_limits<ov::float8_e5m2>::max());
 
         std::shared_ptr<Node> result;
         const auto scale = std::make_shared<ov::op::v1::Multiply>(data, input_scale);
