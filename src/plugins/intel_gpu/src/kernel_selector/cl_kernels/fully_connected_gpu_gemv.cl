@@ -12,7 +12,6 @@
 // DECOMPRESSION_GROUP_SIZE    - group size for weight int4 compression
 // FILTER_LAYOUT_OS_IS_YX_TYPE - 0: OS_IS_YX_OSV16, 1: OS_IS_YX_OSV32_ISV2, 2: OS_IS_YX_OSV64_ISV2
 
-
 #define KERNEL_LAYOUT_OS_IS_YX_OSV16  (FILTER_LAYOUT_OS_IS_YX_TYPE == 0)
 #define KERNEL_LAYOUT_OS_IS_YX_OSV32_ISV2 (FILTER_LAYOUT_OS_IS_YX_TYPE == 1)
 #define KERNEL_LAYOUT_OS_IS_YX_OSV64_ISV2 (FILTER_LAYOUT_OS_IS_YX_TYPE == 2)
@@ -69,7 +68,7 @@ KERNEL(fully_connected_gpu_gemv)(
     const __global half* scales,
 #    endif
 #    if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
-    const __global char* zps,
+    const __global half* zps,
 #    endif
     __global half* output,
     const __global uchar* weights
@@ -113,11 +112,11 @@ KERNEL(fully_connected_gpu_gemv)(
         float scale_1 = convert_float(scales[gk * WEIGHTS_N]);
 
 #    if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
-        char16 zpx16 = (char16)(zps[gk * WEIGHTS_N]);
+        half16 zpx16 = (half16)(zps[gk * WEIGHTS_N]);
 #    elif DECOMPRESSION_ZP_SCALAR
-        char16 zpx16 = (char16)(zp_scalar_value);
+        half16 zpx16 = (half16)(zp_scalar_value);
 #    else
-        char16 zpx16 = (char16)0;
+        half16 zpx16 = (half16)0;
 #    endif
         char16 mask16 = (char16)0xF;
 
@@ -127,15 +126,15 @@ KERNEL(fully_connected_gpu_gemv)(
             char16 bx16 = as_char16(intel_sub_group_block_read_uc16(B));
 
 #if WEI_UINT4
-            half16 i4x16_even = convert_half16((bx16 & mask16) - zpx16);
-            half16 i4x16_odd = convert_half16(as_char16(as_uchar16(bx16) >> 4) - zpx16);
+            half16 i4x16_even = convert_half16((bx16 & mask16)) - zpx16;
+            half16 i4x16_odd = convert_half16(as_char16(as_uchar16(bx16) >> 4)) - zpx16;
 #else
             char16 i4x16_even_c16 = (bx16 & (char16)0xF);
             char16 i4x16_odd_c16 = (as_char16(as_uchar16(bx16) >> 4));
-            i4x16_even_c16 = select(i4x16_even_c16, i4x16_even_c16 - (char16)16, i4x16_even_c16 > (char16)7) - zpx16;
-            i4x16_odd_c16 = select(i4x16_odd_c16, i4x16_odd_c16 - (char16)16, i4x16_odd_c16 > (char16)7) - zpx16;
-            half16 i4x16_even = convert_half16(i4x16_even_c16);
-            half16 i4x16_odd = convert_half16(i4x16_odd_c16);
+            i4x16_even_c16 = select(i4x16_even_c16, i4x16_even_c16 - (char16)16, i4x16_even_c16 > (char16)7);
+            i4x16_odd_c16 = select(i4x16_odd_c16, i4x16_odd_c16 - (char16)16, i4x16_odd_c16 > (char16)7);
+            half16 i4x16_even = convert_half16(i4x16_even_c16) - zpx16;
+            half16 i4x16_odd = convert_half16(i4x16_odd_c16) - zpx16;
 #endif
 
             sum[0] += as_half(sub_group_broadcast(input_value.s0, 0)) * i4x16_even.s0 +
@@ -211,7 +210,7 @@ KERNEL(fully_connected_gpu_gemv)(
     const __global half* scales,
 #    endif
 #    if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
-    const __global char* zps,
+    const __global half* zps,
 #    endif
     __global half* output,
     const __global uchar* weights
@@ -239,7 +238,7 @@ KERNEL(fully_connected_gpu_gemv)(
     __local float all_sum_even[16][16];  // [wi_id, thr_id]
     __local float all_sum_odd[16][16];
 
-    // Scale layout is byfx
+    // Scale layout is fbyx
     scales += (n / 32) * 32 + (n % 32) / 2;
 #    if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
     zps += (n / 32) * 32 + (n % 32) / 2;
@@ -256,14 +255,13 @@ KERNEL(fully_connected_gpu_gemv)(
         half scale_1 = scales[gk * WEIGHTS_N + 16];
 
 #    if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
-        char16 zpx16_0 = (char16)(zps[gk * WEIGHTS_N]);
-        char16 zpx16_1 = (char16)(zps[gk * WEIGHTS_N + 16]);
+        half zp0 = zps[gk * WEIGHTS_N];
+        half zp1 = zps[gk * WEIGHTS_N + 16];
+        half16 zpx16 = {zp0, zp1, zp0, zp1, zp0, zp1, zp0, zp1, zp0, zp1, zp0, zp1, zp0, zp1, zp0, zp1};
 #    elif DECOMPRESSION_ZP_SCALAR
-        char16 zpx16_0 = (char16)(zp_scalar_value);
-        char16 zpx16_1 = (char16)(zp_scalar_value);
+        half16 zpx16 = (half16)(zp_scalar_value);
 #    else
-        char16 zpx16_0 = (char16)0;
-        char16 zpx16_1 = (char16)0;
+        half16 zpx16 = (half16)0;
 #    endif
         char16 mask16 = (char16)0xF;
 
@@ -276,45 +274,52 @@ KERNEL(fully_connected_gpu_gemv)(
             char16 bx16 = as_char16(intel_sub_group_block_read_uc16(B));
 
 #if WEI_UINT4
-            half16 i4x16_even = convert_half16((bx16 & mask16) - zpx16_0);
-            half16 i4x16_odd = convert_half16(as_char16(as_uchar16(bx16) >> 4) - zpx16_0);
+            half16 i4x16_even = convert_half16(bx16 & mask16) - zpx16;
+            half16 i4x16_odd = convert_half16(as_char16(as_uchar16(bx16) >> 4)) - zpx16;
 #else
             char16 i4x16_even_c16 = (bx16 & (char16)0xF);
             char16 i4x16_odd_c16 = (as_char16(as_uchar16(bx16) >> 4));
-            i4x16_even_c16 = select(i4x16_even_c16, i4x16_even_c16 - (char16)16, i4x16_even_c16 > (char16)7) - zpx16_0;
-            i4x16_odd_c16 = select(i4x16_odd_c16, i4x16_odd_c16 - (char16)16, i4x16_odd_c16 > (char16)7) - zpx16_1;
-            half16 i4x16_even = convert_half16(i4x16_even_c16);
-            half16 i4x16_odd = convert_half16(i4x16_odd_c16);
+            i4x16_even_c16 = select(i4x16_even_c16, i4x16_even_c16 - (char16)16, i4x16_even_c16 > (char16)7);
+            i4x16_odd_c16 = select(i4x16_odd_c16, i4x16_odd_c16 - (char16)16, i4x16_odd_c16 > (char16)7);
+            half16 i4x16_even = convert_half16(i4x16_even_c16) - zpx16;
+            half16 i4x16_odd = convert_half16(i4x16_odd_c16) - zpx16;
 #endif
 
             sum[0] += as_half(sub_group_broadcast(input_value, 0)) * i4x16_even.s0 +
                       as_half(sub_group_broadcast(input_value, 4)) * i4x16_even.s4 +
                       as_half(sub_group_broadcast(input_value, 8)) * i4x16_even.s8 +
                       as_half(sub_group_broadcast(input_value, 12)) * i4x16_even.sc;
+
             sum[1] += as_half(sub_group_broadcast(input_value, 0)) * i4x16_even.s1 +
                       as_half(sub_group_broadcast(input_value, 4)) * i4x16_even.s5 +
                       as_half(sub_group_broadcast(input_value, 8)) * i4x16_even.s9 +
                       as_half(sub_group_broadcast(input_value, 12)) * i4x16_even.sd;
+
             sum[2] += as_half(sub_group_broadcast(input_value, 1)) * i4x16_odd.s0 +
                       as_half(sub_group_broadcast(input_value, 5)) * i4x16_odd.s4 +
                       as_half(sub_group_broadcast(input_value, 9)) * i4x16_odd.s8 +
                       as_half(sub_group_broadcast(input_value, 13)) * i4x16_odd.sc;
+
             sum[3] += as_half(sub_group_broadcast(input_value, 1)) * i4x16_odd.s1 +
                       as_half(sub_group_broadcast(input_value, 5)) * i4x16_odd.s5 +
                       as_half(sub_group_broadcast(input_value, 9)) * i4x16_odd.s9 +
                       as_half(sub_group_broadcast(input_value, 13)) * i4x16_odd.sd;
+
             sum[4] += as_half(sub_group_broadcast(input_value, 2)) * i4x16_even.s2 +
                       as_half(sub_group_broadcast(input_value, 6)) * i4x16_even.s6 +
                       as_half(sub_group_broadcast(input_value, 10)) * i4x16_even.sa +
                       as_half(sub_group_broadcast(input_value, 14)) * i4x16_even.se;
+
             sum[5] += as_half(sub_group_broadcast(input_value, 2)) * i4x16_even.s3 +
                       as_half(sub_group_broadcast(input_value, 6)) * i4x16_even.s7 +
                       as_half(sub_group_broadcast(input_value, 10)) * i4x16_even.sb +
                       as_half(sub_group_broadcast(input_value, 14)) * i4x16_even.sf;
+
             sum[6] += as_half(sub_group_broadcast(input_value, 3)) * i4x16_odd.s2 +
                       as_half(sub_group_broadcast(input_value, 7)) * i4x16_odd.s6 +
                       as_half(sub_group_broadcast(input_value, 11)) * i4x16_odd.sa +
                       as_half(sub_group_broadcast(input_value, 15)) * i4x16_odd.se;
+
             sum[7] += as_half(sub_group_broadcast(input_value, 3)) * i4x16_odd.s3 +
                       as_half(sub_group_broadcast(input_value, 7)) * i4x16_odd.s7 +
                       as_half(sub_group_broadcast(input_value, 11)) * i4x16_odd.sb +
@@ -342,7 +347,6 @@ KERNEL(fully_connected_gpu_gemv)(
 #    if BIAS_TERM
         sum_value[0] += bias[cur_n];
         sum_value[1] += bias[cur_n + 16];
-        // printf("osv-32: idx = %d, bias[%d] = %f, bias[%d] = %f\n", cur_n, cur_n, bias[cur_n], cur_n + 16, bias[cur_n + 16]);
 #    endif
 
 // fused_op
@@ -366,7 +370,7 @@ KERNEL(fully_connected_gpu_gemv)(
     const __global half* scales,
 #    endif
 #    if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
-    const __global char* zps,
+    const __global half* zps,
 #    endif
     __global half* output,
     const __global uchar* weights
@@ -409,21 +413,16 @@ KERNEL(fully_connected_gpu_gemv)(
         half scale_2 = scales[gk * WEIGHTS_N + 2 * 16];
         half scale_3 = scales[gk * WEIGHTS_N + 3 * 16];
 #    if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
-        char16 zpx16_0 = (char16)(zps[k * WEIGHTS_N]);
-        char16 zpx16_1 = (char16)(zps[k * WEIGHTS_N + 1 * 16]);
-        char16 zpx16_2 = (char16)(zps[k * WEIGHTS_N + 2 * 16]);
-        char16 zpx16_3 = (char16)(zps[k * WEIGHTS_N + 3 * 16]);
+        half zp0 = zps[gk * WEIGHTS_N];
+        half zp1 = zps[gk * WEIGHTS_N + 1 * 16];
+        half zp2 = zps[gk * WEIGHTS_N + 2 * 16];
+        half zp3 = zps[gk * WEIGHTS_N + 3 * 16];
+        half16 zpx16 = {zp0, zp1, zp2, zp3, zp0, zp1, zp2, zp3, zp0, zp1, zp2, zp3, zp0, zp1, zp2, zp3};
 #    elif DECOMPRESSION_ZP_SCALAR
-        char zp_scalar_value = (char)(DECOMPRESSION_ZP_VALUE);
-        char16 zpx16_0 = (char16)(zp_scalar_value);
-        char16 zpx16_1 = (char16)(zp_scalar_value);
-        char16 zpx16_2 = (char16)(zp_scalar_value);
-        char16 zpx16_3 = (char16)(zp_scalar_value);
+        half zp_scalar_value = (half)(DECOMPRESSION_ZP_VALUE);
+        half16 zpx16 = (half16)(zp_scalar_value);
 #    else
-        char16 zpx16_0 = (char16)0;
-        char16 zpx16_1 = (char16)0;
-        char16 zpx16_2 = (char16)0;
-        char16 zpx16_3 = (char16)0;
+        half16 zpx16 = (half16)0;
 #    endif
         char16 mask16 = (char16)0xF;
 
@@ -434,25 +433,25 @@ KERNEL(fully_connected_gpu_gemv)(
             char16 bx16_second = as_char16(intel_sub_group_block_read_uc16(B + 16 * 16));
 
 #if WEI_UINT4
-            half16 i4x16_even = convert_half16((bx16 & mask16) - zpx16_0);
-            half16 i4x16_odd = convert_half16(as_char16(as_uchar16(bx16) >> 4) - zpx16_1);
-            half16 i4x16_even_second = convert_half16((bx16_second & mask16) - zpx16_2);
-            half16 i4x16_odd_second = convert_half16(as_char16(as_uchar16(bx16_second) >> 4) - zpx16_3);
+            half16 i4x16_even = convert_half16((bx16 & mask16)) - zpx16;
+            half16 i4x16_odd = convert_half16(as_char16(as_uchar16(bx16) >> 4)) - zpx16;
+            half16 i4x16_even_second = convert_half16((bx16_second & mask16)) - zpx16;
+            half16 i4x16_odd_second = convert_half16(as_char16(as_uchar16(bx16_second) >> 4)) - zpx16;
 #else
             char16 i4x16_even_c16 = (bx16 & (char16)0xF);
             char16 i4x16_odd_c16 = (as_char16(as_uchar16(bx16) >> 4));
-            i4x16_even_c16 = select(i4x16_even_c16, i4x16_even_c16 - (char16)16, i4x16_even_c16 > (char16)7) - zpx16_0;
-            i4x16_odd_c16 = select(i4x16_odd_c16, i4x16_odd_c16 - (char16)16, i4x16_odd_c16 > (char16)7) - zpx16_1;
+            i4x16_even_c16 = select(i4x16_even_c16, i4x16_even_c16 - (char16)16, i4x16_even_c16 > (char16)7);
+            i4x16_odd_c16 = select(i4x16_odd_c16, i4x16_odd_c16 - (char16)16, i4x16_odd_c16 > (char16)7);
 
             char16 i4x16_even_c16_second = (bx16_second & (char16)0xF);
             char16 i4x16_odd_c16_second = (as_char16(as_uchar16(bx16_second) >> 4));
-            i4x16_even_c16_second = select(i4x16_even_c16_second, i4x16_even_c16_second - (char16)16, i4x16_even_c16_second > (char16)7) - zpx16_2;
-            i4x16_odd_c16_second = select(i4x16_odd_c16_second, i4x16_odd_c16_second - (char16)16, i4x16_odd_c16_second > (char16)7) - zpx16_3;
+            i4x16_even_c16_second = select(i4x16_even_c16_second, i4x16_even_c16_second - (char16)16, i4x16_even_c16_second > (char16)7);
+            i4x16_odd_c16_second = select(i4x16_odd_c16_second, i4x16_odd_c16_second - (char16)16, i4x16_odd_c16_second > (char16)7);
 
-            half16 i4x16_even = convert_half16(i4x16_even_c16);
-            half16 i4x16_odd = convert_half16(i4x16_odd_c16);
-            half16 i4x16_even_second = convert_half16(i4x16_even_c16_second);
-            half16 i4x16_odd_second = convert_half16(i4x16_odd_c16_second);
+            half16 i4x16_even = convert_half16(i4x16_even_c16) - zpx16;
+            half16 i4x16_odd = convert_half16(i4x16_odd_c16) - zpx16;
+            half16 i4x16_even_second = convert_half16(i4x16_even_c16_second) - zpx16;
+            half16 i4x16_odd_second = convert_half16(i4x16_odd_c16_second) - zpx16;
 #endif
 
             sum[0] += as_half(sub_group_broadcast(input_value, 0)) * i4x16_even.s0 +
@@ -521,7 +520,6 @@ KERNEL(fully_connected_gpu_gemv)(
                       as_half(sub_group_broadcast(input_value, 15)) * i4x16_odd_second.sf;
         }
 
-        // scales applied once
         sum_all[0] += (sum[0] + sum[4]) * scale_0;
         sum_all[1] += (sum[1] + sum[5]) * scale_1;
         sum_all[2] += (sum[2] + sum[6]) * scale_2;
