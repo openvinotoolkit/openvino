@@ -932,7 +932,6 @@ public:
     }
 };
 
-
 bool is_correct_tag_name(const std::string& name) {
     if (name.length() == 0) {
         return false;
