@@ -25,6 +25,8 @@ public:
 
     bool is_same(const device::ptr other) override;
 
+    void set_mem_caps(memory_capabilities memory_capabilities) override;
+
     ~ocl_device() = default;
 
 private:

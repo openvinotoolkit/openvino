@@ -33,7 +33,7 @@ public:
         int64_t split_lengths,
         const GluType glu_type,
         const size_t split_to_glu_idx,
-        const ov::element::Type output_type = ov::element::undefined);
+        const ov::element::Type output_type = ov::element::dynamic);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
