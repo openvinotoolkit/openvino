@@ -68,7 +68,7 @@ void ISTFT::initSupportedPrimitiveDescriptors() {
                                                  {LayoutType::ncsp, dataPrecision},
                                                  {LayoutType::ncsp, ov::element::i32},
                                                  {LayoutType::ncsp, ov::element::i32}});
-    if (getParentEdges().size() == 5) {
+    if (getOriginalInputsNumber() == 5) {
         configurators.emplace_back(LayoutType::ncsp, ov::element::i32);
     }
 
