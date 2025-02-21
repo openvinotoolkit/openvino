@@ -244,7 +244,7 @@ bool Transformations::fuse_type_to_fq(const std::shared_ptr<ov::Node>& node, con
     auto consumers = node->output(0).get_target_inputs();
     for (auto& input : consumers) {
         const auto consumer = input.get_node();
-        if (ov::is_type<ov::op::v0::Result>(consumer) || ov::is_type<ov::op::v0::Convert>(consumer)) {
+        if (ov::is_type_any_of<ov::op::v0::Result, ov::op::v0::Convert>(consumer)) {
             continue;
         }
         auto convert_after = std::make_shared<opset4::Convert>(node, to);
@@ -1131,22 +1131,37 @@ void Transformations::MainSnippets(void) {
 
     auto is_supported_op = [](const std::shared_ptr<const ov::Node>& n) -> bool {
 #if defined(OPENVINO_ARCH_ARM64)
-        return (ov::is_type<ov::op::v0::Abs>(n) || ov::is_type<ov::op::v1::Add>(n) ||
-                ov::is_type<ov::op::v0::Clamp>(n) || ov::is_type<ov::op::v0::Ceiling>(n) ||
-                ov::is_type<ov::op::v0::Convert>(n) || ov::is_type<ov::op::v1::Divide>(n) ||
-                ov::is_type<ov::op::v0::Elu>(n) || ov::is_type<ov::op::v0::Exp>(n) ||
-                ov::is_type<ov::op::v1::Equal>(n) || ov::is_type<ov::op::v0::FakeQuantize>(n) ||
-                ov::is_type<ov::op::v0::Floor>(n) || ov::is_type<ov::op::v1::FloorMod>(n) ||
-                ov::is_type<ov::op::v0::Gelu>(n) || ov::is_type<ov::op::v7::Gelu>(n) ||
-                ov::is_type<ov::op::v1::Greater>(n) || ov::is_type<ov::op::v1::GreaterEqual>(n) ||
-                ov::is_type<ov::op::v4::HSwish>(n) || ov::is_type<ov::op::v1::LessEqual>(n) ||
-                ov::is_type<ov::op::v1::Maximum>(n) || ov::is_type<ov::op::v1::Minimum>(n) ||
-                ov::is_type<ov::op::v4::Mish>(n) || ov::is_type<ov::op::v1::Mod>(n) ||
-                ov::is_type<ov::op::v1::Multiply>(n) || ov::is_type<ov::op::v0::PRelu>(n) ||
-                ov::is_type<ov::op::v0::Relu>(n) || ov::is_type<ov::op::v5::Round>(n) ||
-                ov::is_type<ov::op::v0::Sigmoid>(n) || ov::is_type<ov::op::v0::Sqrt>(n) ||
-                ov::is_type<ov::op::v1::Subtract>(n) || ov::is_type<ov::op::v4::Swish>(n) ||
-                ov::is_type<ov::op::v0::Tanh>(n));
+        return (ov::is_type_any_of<ov::op::v0::Abs,
+                                   ov::op::v1::Add,
+                                   ov::op::v0::Clamp,
+                                   ov::op::v0::Ceiling,
+                                   ov::op::v0::Convert,
+                                   ov::op::v1::Divide,
+                                   ov::op::v0::Elu,
+                                   ov::op::v0::Exp,
+                                   ov::op::v1::Equal,
+                                   ov::op::v0::FakeQuantize,
+                                   ov::op::v0::Floor,
+                                   ov::op::v1::FloorMod,
+                                   ov::op::v0::Gelu,
+                                   ov::op::v7::Gelu,
+                                   ov::op::v1::Greater,
+                                   ov::op::v1::GreaterEqual,
+                                   ov::op::v4::HSwish,
+                                   ov::op::v1::LessEqual,
+                                   ov::op::v1::Maximum,
+                                   ov::op::v1::Minimum,
+                                   ov::op::v4::Mish,
+                                   ov::op::v1::Mod,
+                                   ov::op::v1::Multiply,
+                                   ov::op::v0::PRelu,
+                                   ov::op::v0::Relu,
+                                   ov::op::v5::Round,
+                                   ov::op::v0::Sigmoid,
+                                   ov::op::v0::Sqrt,
+                                   ov::op::v1::Subtract,
+                                   ov::op::v4::Swish,
+                                   ov::op::v0::Tanh>(n));
 #else
         // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
         // and CPU Plugin does not support Mish for x64
@@ -1158,10 +1173,14 @@ void Transformations::MainSnippets(void) {
         // todo: general tokenization flow is not currently supported for these operations.
         // they can be tokenized only as a part of complex patterns
         auto is_unsupported_by_common_tokenization = [](const std::shared_ptr<const ov::Node>& n) {
-            return (ov::is_type<const ov::op::v1::Softmax>(n) || ov::is_type<const ov::op::v8::Softmax>(n) ||
-                    ov::is_type<const ov::op::v0::MatMul>(n) || ov::is_type<const ov::op::v1::Transpose>(n) ||
-                    ov::is_type<const ov::op::v1::Broadcast>(n) || ov::is_type<const ov::op::v3::Broadcast>(n) ||
-                    ov::is_type<const ov::op::v1::ReduceMax>(n) || ov::is_type<const ov::op::v1::ReduceSum>(n));
+            return (ov::is_type_any_of<const ov::op::v1::Softmax,
+                                       const ov::op::v8::Softmax,
+                                       const ov::op::v0::MatMul,
+                                       const ov::op::v1::Transpose,
+                                       const ov::op::v1::Broadcast,
+                                       const ov::op::v3::Broadcast,
+                                       const ov::op::v1::ReduceMax,
+                                       const ov::op::v1::ReduceSum>(n));
         };
         return !is_unsupported(n) && !is_unsupported_by_common_tokenization(n);
 #endif
@@ -1189,8 +1208,10 @@ void Transformations::MainSnippets(void) {
 
             return supported_element_types.count(t.get_element_type()) != 0 ||
                    (is_input && t.get_element_type() == ov::element::i32 &&
-                    (ov::is_type<const opset1::Transpose>(n) || ov::is_type<const opset1::Broadcast>(n) ||
-                     ov::is_type<const opset1::ReduceMax>(n) || ov::is_type<const opset1::ReduceSum>(n)));
+                    (ov::is_type_any_of<const opset1::Transpose,
+                                        const opset1::Broadcast,
+                                        const opset1::ReduceMax,
+                                        const opset1::ReduceSum>(n)));
         };
 
         const auto& inputs = n->inputs();

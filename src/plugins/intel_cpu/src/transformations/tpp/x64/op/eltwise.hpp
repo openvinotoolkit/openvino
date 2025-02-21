@@ -6,6 +6,7 @@
 
 #include "descriptor.hpp"
 #include "modifiers.hpp"
+#include "openvino/core/type_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"

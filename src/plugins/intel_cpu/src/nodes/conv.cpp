@@ -226,7 +226,7 @@ private:
 
 bool Convolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ov::is_type<ov::op::v1::Convolution>(op) && !ov::is_type<ov::op::v1::GroupConvolution>(op)) {
+        if (!ov::is_type_any_of<ov::op::v1::Convolution, ov::op::v1::GroupConvolution>(op)) {
             errorMessage = "Only opset1 Convolution and GroupConvolution operations are supported";
             return false;
         }

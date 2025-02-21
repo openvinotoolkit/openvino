@@ -78,9 +78,7 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes()
 bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                           std::string& errorMessage) noexcept {
     try {
-        if (!ov::is_type<const ov::op::internal::FullyConnected>(op) &&
-            !ov::is_type<const ov::op::internal::FullyConnectedQuantizedLegacy>(op) &&
-            !ov::is_type<const ov::op::internal::FullyConnectedCompressed>(op)) {
+        if (!ov::is_type<const ov::op::internal::FullyConnected>(op)) {
             return false;
         }
 

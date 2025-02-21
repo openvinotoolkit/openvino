@@ -8,6 +8,7 @@
 
 #include "openvino/core/core.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/type_util.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/static_shape.hpp"
 #include "tensor_data_accessor.hpp"

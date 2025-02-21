@@ -27,10 +27,8 @@ bool FuseTPPToEquations::fuse_from_root(const NodePtr& root, const std::shared_p
     auto get_tpp_op = [](const NodePtr& n) {
         auto tpp = std::dynamic_pointer_cast<op::EltwiseTPP>(n);
         bool not_supported_op =
-            // ticket: 152532
-            ov::is_type<ov::snippets::op::ReduceBase>(n) ||
-            // ticket: 152510
-            ov::is_type<ov::op::v0::Relu>(n);
+            // tickets: 152532, 152510
+            ov::is_type_any_of<ov::snippets::op::ReduceBase, ov::op::v0::Relu>(n);
         return not_supported_op ? nullptr : tpp;
     };
 
