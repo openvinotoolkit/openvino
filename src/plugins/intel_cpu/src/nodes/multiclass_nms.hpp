@@ -21,15 +21,15 @@ public:
     void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    bool neverExecute() const override;
-    bool isExecutable() const override;
+    [[nodiscard]] bool neverExecute() const override;
+    [[nodiscard]] bool isExecutable() const override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
-    bool needShapeInfer() const override {
+    [[nodiscard]] bool needShapeInfer() const override {
         return false;
     }
     void prepareParams() override;

@@ -70,8 +70,8 @@ void Ngram::prepareParams() {
     const auto& outDims = getDstMemoryAtPort(0)->getStaticDims();
     ;
 
-    idcesShapeSize = std::accumulate(srcIndicesDims.begin(), srcIndicesDims.end(), 1, std::multiplies<size_t>());
-    numOutElems = std::accumulate(outDims.begin(), outDims.end(), 1, std::multiplies<size_t>());
+    idcesShapeSize = std::accumulate(srcIndicesDims.begin(), srcIndicesDims.end(), 1, std::multiplies<>());
+    numOutElems = std::accumulate(outDims.begin(), outDims.end(), 1, std::multiplies<>());
     idcesStride = getSrcMemoryAtPort(1)->getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
     numIdces = srcIndicesDims[0];
 

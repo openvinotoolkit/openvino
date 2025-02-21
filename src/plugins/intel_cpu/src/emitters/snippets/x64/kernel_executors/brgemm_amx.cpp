@@ -84,7 +84,7 @@ struct BrgemmCopyAKey {
           src_stride{src_stride},
           LDA{LDA} {}
 
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         size_t seed = 0;
         HASH(isa);
         HASH(dt);
