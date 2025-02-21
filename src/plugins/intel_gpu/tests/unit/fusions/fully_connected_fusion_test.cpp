@@ -96,7 +96,7 @@ public:
 
         auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p), -1, 1);
 
-        auto impl_forcing = cfg_fused.get_property(ov::intel_gpu::force_implementations);
+        auto impl_forcing = cfg_fused.get_force_implementations();
         auto forcing_format = p.input_format;
         for (auto& forcing : impl_forcing)
             if (forcing.first == "fc_prim")
@@ -1007,13 +1007,13 @@ public:
     void run_test() {
         auto p = GetParam();
         auto test_input_layout = get_input_layout(p);
-        auto in_layout = layout{ ov::PartialShape::dynamic(test_input_layout.get_partial_shape().size()), 
-                                 test_input_layout.data_type, 
+        auto in_layout = layout{ ov::PartialShape::dynamic(test_input_layout.get_partial_shape().size()),
+                                 test_input_layout.data_type,
                                  test_input_layout.format };
         auto data_layout = layout{ p.out_shape, p.default_type, p.default_format };
         auto weight = layout{ { 29, 512 }, data_types::f16, format::bfyx };
         auto bias = layout{ { 1, 1, 1, 29 }, data_types::f16, format::bfyx };
-        
+
         create_topologies(
             input_layout("input", in_layout),
             data("weights", get_mem(get_weights_layout(p))),
