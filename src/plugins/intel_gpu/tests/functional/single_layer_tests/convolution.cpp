@@ -75,7 +75,7 @@ protected:
     void SetUp() override {
         convSpecificParams convParams;
         InputShape inputShape;
-        auto netType = ov::element::undefined;
+        auto netType = ov::element::dynamic;
         bool is_ReduceSum_test;
         std::tie(convParams, netType, inType, outType, inputShape, is_ReduceSum_test, targetDevice) = this->GetParam();
 
@@ -124,7 +124,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_3D_tensor_basic,
                                                                ::testing::Values(ov::op::PadType::SAME_UPPER)),
                                             ::testing::Values(ov::element::f16),
                                             ::testing::Values(ov::element::f16),
-                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::Values(ov::element::dynamic),
                                             ::testing::Values(InputShape{{}, {{1, 13, 30}}}),
                                             ::testing::Values(false),
                                             ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
@@ -146,7 +146,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_4D_tensor_ReduceSum,
                                                                ::testing::Values(ov::op::PadType::EXPLICIT)),
                                             ::testing::Values(ov::element::f16),
                                             ::testing::Values(ov::element::f16),
-                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::Values(ov::element::dynamic),
                                             ::testing::ValuesIn(input_shape_reducesum_test),
                                             ::testing::Values(true),
                                             ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
