@@ -21,8 +21,7 @@ using NodeNamesSolver = std::function<void(const std::list<Node*>&)>;
 using TensorNamesMap = std::unordered_map<std::string, size_t>;
 namespace {
 
-template <class TNamesMap>
-std::string make_unique_tensor_name(const TNamesMap& names_map, const std::string& name, size_t hash) {
+std::string make_unique_tensor_name(const TensorNamesMap& names_map, const std::string& name, size_t hash) {
     static const auto port_num_pattern = std::regex(R"((.*?)(:\d+)?$)");
     std::smatch matches;
     std::regex_match(name, matches, port_num_pattern);
@@ -46,10 +45,9 @@ std::string make_unique_tensor_name(const TNamesMap& names_map, const std::strin
     return new_name;
 }
 
-template <class TNamesMap>
-std::string make_unique_node_name(const TNamesMap& names_map, ov::Node& node, int& i) {
+std::string make_unique_node_name(const NodeNamesMap& names_map, ov::Node& node, int& i) {
     const auto& name = node.get_friendly_name();
-    auto new_name = name;  // + ov::descriptor::unique_name_sep + std::to_string(i);
+    auto new_name = name + ov::descriptor::unique_name_sep + std::to_string(i++);
     for (auto it = names_map.find(new_name); it != names_map.end(); ++i) {
         new_name = name + ov::descriptor::unique_name_sep + std::to_string(i);
         it = names_map.find(new_name);
