@@ -129,7 +129,7 @@ inline ov::element::Type normalizeToSupportedPrecision(ov::element::Type precisi
         break;
     }
     default: {
-        precision = ov::element::undefined;
+        precision = ov::element::dynamic;
     }
     }
 

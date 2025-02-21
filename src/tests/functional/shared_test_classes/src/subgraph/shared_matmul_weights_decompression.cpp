@@ -52,7 +52,7 @@ std::shared_ptr<ov::Model> SharedMatmulWeightsDecompression::initSubgraph(
                                                                   data_precision,
                                                                   weights_precision,
                                                                   decompression_precision,
-                                                                  ov::element::undefined,
+                                                                  ov::element::dynamic,
                                                                   transpose_weights,
                                                                   DecompressionType::full,
                                                                   decompression_subtract_type,
