@@ -12,9 +12,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/opsets/opset3.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool Bucketize::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -77,8 +75,8 @@ void Bucketize::initSupportedPrimitiveDescriptors() {
 
 inline constexpr uint32_t getElementsMask(ov::element::Type precision1,
                                           ov::element::Type precision2,
-                                          ov::element::Type precision3 = ov::element::undefined,
-                                          ov::element::Type precision4 = ov::element::undefined) {
+                                          ov::element::Type precision3 = ov::element::dynamic,
+                                          ov::element::Type precision4 = ov::element::dynamic) {
     return static_cast<uint32_t>(ov::element::Type_t(precision1)) |
            (static_cast<uint32_t>(ov::element::Type_t(precision2)) << 8) |
            (static_cast<uint32_t>(ov::element::Type_t(precision3)) << 16) |
@@ -257,6 +255,4 @@ bool Bucketize::created() const {
     return getType() == Type::Bucketize;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

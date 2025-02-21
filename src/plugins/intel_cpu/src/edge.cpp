@@ -10,8 +10,8 @@
 #include "openvino/util/pp.hpp"
 
 using namespace dnnl;
-namespace ov {
-namespace intel_cpu {
+
+namespace ov::intel_cpu {
 
 Edge::Edge(const NodePtr& parent, const NodePtr& child, int pr_port, int ch_port)
     : parent(parent),
@@ -242,8 +242,7 @@ Edge::ReorderStatus Edge::needReorder() {
     bool optimized = false;
     auto inputPortDesc = getInputPortDesc();
     auto outPortDesc = getOutputPortDesc();
-
-    if (inputPortDesc->getMemDesc()->getPrecision() == element::undefined) {
+    if (inputPortDesc->getMemDesc()->getPrecision() == element::dynamic) {
         return ReorderStatus::No;
     }
 
@@ -467,7 +466,7 @@ const MemoryDesc& Edge::getOriginalDesc() const {
                     *this,
                     " must be accessed through the memory object");
 
-    if (getInputDesc().getPrecision() == element::undefined) {
+    if (getInputDesc().getPrecision() == element::dynamic) {
         return getInputDesc();
     }
 
@@ -668,5 +667,4 @@ std::ostream& operator<<(std::ostream& os, const Edge& edge) {
               << ":" << Edge::statusToString(edge.getStatus());
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

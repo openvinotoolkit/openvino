@@ -60,7 +60,7 @@ public:
           inPlace(inPlace) {}
 
     PortConfigurator(ov::intel_cpu::LayoutType blockedDescType,
-                     ov::element::Type prc = ov::element::undefined,
+                     ov::element::Type prc = ov::element::dynamic,
                      bool constant = false,
                      int inPlace = -1)
         : blockedDescCreator(getBlockedDescCreator(blockedDescType)),
@@ -508,7 +508,7 @@ public:
         return perfCounter;
     }
 
-    virtual void resolveInPlaceEdges(Edge::LOOK look = Edge::LOOK_BOTH);
+    virtual void resolveInPlaceEdges(Edge::LOOK look);
 
     // @todo this supposed to be 'execute + executeImpl' instead of 'executeStatic + execute'
     // but this requires changes in all the nodes. Since moving to a numa node right before an execute
@@ -715,11 +715,11 @@ public:
     virtual void appendPostOps(dnnl::post_ops& ops,
                                const VectorDims& postOpDims,
                                std::unordered_map<int, MemoryPtr>& postOpsMem,
-                               const int channelAxis = 1);
+                               const int channelAxis);
     virtual void appendPostOps(dnnl::post_ops& ops,
                                const VectorDims& postOpDims,
                                std::vector<const void*>& postOpsMem,
-                               const int channelAxis = 1);
+                               const int channelAxis);
     virtual bool canBeExecutedInInt8() const {
         OPENVINO_THROW_NOT_IMPLEMENTED("canBeExecutedInInt8 not implemented for node with type ",
                                        NameFromType(getType()));

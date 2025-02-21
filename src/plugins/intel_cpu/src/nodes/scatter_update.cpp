@@ -20,9 +20,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool ScatterUpdate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                          std::string& errorMessage) noexcept {
@@ -83,9 +81,9 @@ ScatterUpdate::ScatterUpdate(const std::shared_ptr<ov::Node>& op, const GraphCon
       dataSize(0lu),
       indicesSize(0lu),
       axisSize(0lu),
-      dataPrec(ov::element::undefined),
-      indicesPrec(ov::element::undefined),
-      axisPrec(ov::element::undefined) {
+      dataPrec(ov::element::dynamic),
+      indicesPrec(ov::element::dynamic),
+      axisPrec(ov::element::dynamic) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -1125,6 +1123,4 @@ bool ScatterUpdate::created() const {
            getType() == Type::ScatterNDUpdate;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -41,8 +41,7 @@ using namespace dnnl;
 using namespace openvino;
 using namespace ov::intel_cpu::node;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 Node::NodesFactory& Node::factory() {
     static NodesFactory factoryInstance;
@@ -638,6 +637,7 @@ std::string Node::getPrimitiveDescriptorType() const {
     SEARCH_TYPE(sparse);
     SEARCH_TYPE(acl);
     SEARCH_TYPE(shl);
+    SEARCH_TYPE(kleidiai);
     SEARCH_TYPE(_dw);
     SEARCH_TYPE(_1x1);
 
@@ -1331,7 +1331,8 @@ const std::vector<impl_desc_type>& Node::getDefaultImplPriority() {
 #endif
             impl_desc_type::gemm_any, impl_desc_type::gemm_blas, impl_desc_type::gemm_avx512, impl_desc_type::gemm_avx2,
             impl_desc_type::gemm_avx, impl_desc_type::gemm_sse42, impl_desc_type::gemm_acl, impl_desc_type::acl,
-            impl_desc_type::jit_gemm, impl_desc_type::ref_any, impl_desc_type::ref,
+            impl_desc_type::gemm_kleidiai, impl_desc_type::kleidiai, impl_desc_type::jit_gemm, impl_desc_type::ref_any,
+            impl_desc_type::ref,
     };
 
     return priorities;
@@ -1573,7 +1574,7 @@ std::vector<ov::element::Type> Node::getOutputPrecisions() const {
 ov::element::Type Node::getRuntimePrecision() const {
     // Base implementation consider precision only on data path and
     // assumes it is placed on 0-th port (which is true for almost all layers)
-    ov::element::Type runtimePrecision = ov::element::undefined;
+    ov::element::Type runtimePrecision = ov::element::dynamic;
     auto inputPrecisions = getInputPrecisions();
     if (!inputPrecisions.empty()) {
         runtimePrecision = inputPrecisions[0];
@@ -1977,7 +1978,7 @@ void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfi
     for (size_t i = 0; i < inPortConfigs.size(); i++) {
         auto shape = inPortConfigs[i].shape.getRank() == 0 ? getInputShapeAtPort(i) : inPortConfigs[i].shape;
         auto prc =
-            inPortConfigs[i].prc == ov::element::undefined ? getOriginalInputPrecisionAtPort(i) : inPortConfigs[i].prc;
+            (inPortConfigs[i].prc == ov::element::dynamic) ? getOriginalInputPrecisionAtPort(i) : inPortConfigs[i].prc;
         if (!fill_port(inPortConfigs[i], shape, prc, config.inConfs)) {
             return;
         }
@@ -1985,7 +1986,7 @@ void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfi
 
     for (size_t i = 0; i < outPortConfigs.size(); i++) {
         auto dims = outPortConfigs[i].shape.getRank() == 0 ? getOutputShapeAtPort(i) : outPortConfigs[i].shape;
-        auto prc = outPortConfigs[i].prc == ov::element::undefined ? getOriginalOutputPrecisionAtPort(i)
+        auto prc = (outPortConfigs[i].prc == ov::element::dynamic) ? getOriginalOutputPrecisionAtPort(i)
                                                                    : outPortConfigs[i].prc;
         if (!fill_port(outPortConfigs[i], dims, prc, config.outConfs)) {
             return;
@@ -2271,5 +2272,4 @@ std::ostream& operator<<(std::ostream& out, const Node* node) {
 }
 #endif
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

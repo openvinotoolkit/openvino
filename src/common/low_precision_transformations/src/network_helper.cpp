@@ -1368,7 +1368,7 @@ std::shared_ptr<ov::opset1::Constant> NetworkHelper::normalizeDequantizationShap
 }
 
 FakeQuantizeDequantizationValues NetworkHelper::createEmptyValues(const FakeQuantizeDequantization& dequantization, const element::Type& prc) {
-    const auto precision = prc == element::undefined ? dequantization.getPrecision() : prc;
+    const auto precision = prc.is_dynamic() ? dequantization.getPrecision() : prc;
     const std::shared_ptr<Node> multiplyConstant = dequantization.multiply ?
         dequantization.multiplyConstant->get_element_type() != precision ?
             foldConvert(dequantization.multiplyConstant->output(0), precision) :

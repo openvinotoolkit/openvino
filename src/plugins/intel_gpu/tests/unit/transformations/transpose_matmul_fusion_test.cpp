@@ -39,7 +39,12 @@ TEST_F(TransformationTestsF, TranposeMatmulFusion1) {
         std::vector<int64_t> order_c = {0, 1, 2, 3};
         auto input_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
         auto input_b = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
-        auto gemm = std::make_shared<ov::intel_gpu::op::Gemm>(input_a, input_b, order_a, order_b, order_c, ov::element::undefined);
+        auto gemm = std::make_shared<ov::intel_gpu::op::Gemm>(input_a,
+                                                              input_b,
+                                                              order_a,
+                                                              order_b,
+                                                              order_c,
+                                                              ov::element::dynamic);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{ gemm }, ov::ParameterVector{ input_a, input_b });
         comparator.enable(FunctionsComparator::ATTRIBUTES);
@@ -63,7 +68,12 @@ TEST_F(TransformationTestsF, TranposeMatmulFusion2) {
         std::vector<int64_t> order_c = {0, 1, 2, 3};
         auto input_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
         auto input_b = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
-        auto gemm = std::make_shared<ov::intel_gpu::op::Gemm>(input_a, input_b, order_a, order_b, order_c, ov::element::undefined);
+        auto gemm = std::make_shared<ov::intel_gpu::op::Gemm>(input_a,
+                                                              input_b,
+                                                              order_a,
+                                                              order_b,
+                                                              order_c,
+                                                              ov::element::dynamic);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{ gemm }, ov::ParameterVector{ input_a, input_b });
         comparator.enable(FunctionsComparator::ATTRIBUTES);
@@ -89,7 +99,12 @@ TEST_F(TransformationTestsF, TranposeMatmulFusion3) {
         std::vector<int64_t> order_c = {0, 1, 2, 3};
         auto input_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
         auto input_b = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
-        auto gemm = std::make_shared<ov::intel_gpu::op::Gemm>(input_a, input_b, order_a, order_b, order_c, ov::element::undefined);
+        auto gemm = std::make_shared<ov::intel_gpu::op::Gemm>(input_a,
+                                                              input_b,
+                                                              order_a,
+                                                              order_b,
+                                                              order_c,
+                                                              ov::element::dynamic);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{ gemm }, ov::ParameterVector{ input_a, input_b });
         comparator.enable(FunctionsComparator::ATTRIBUTES);
@@ -117,7 +132,12 @@ TEST_F(TransformationTestsF, TranposeMatmulFusion4) {
         std::vector<int64_t> order_c = {0, 2, 1, 3};
         auto input_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
         auto input_b = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
-        auto gemm = std::make_shared<ov::intel_gpu::op::Gemm>(input_a, input_b, order_a, order_b, order_c, ov::element::undefined);
+        auto gemm = std::make_shared<ov::intel_gpu::op::Gemm>(input_a,
+                                                              input_b,
+                                                              order_a,
+                                                              order_b,
+                                                              order_c,
+                                                              ov::element::dynamic);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{ gemm }, ov::ParameterVector{ input_a, input_b });
         comparator.enable(FunctionsComparator::ATTRIBUTES);
@@ -143,7 +163,12 @@ TEST_F(TransformationTestsF, TranposeMatmulFusion5) {
         std::vector<int64_t> order_c = {0, 2, 1};
         auto input_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(3));
         auto input_b = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(3));
-        auto gemm = std::make_shared<ov::intel_gpu::op::Gemm>(input_a, input_b, order_a, order_b, order_c, ov::element::undefined);
+        auto gemm = std::make_shared<ov::intel_gpu::op::Gemm>(input_a,
+                                                              input_b,
+                                                              order_a,
+                                                              order_b,
+                                                              order_c,
+                                                              ov::element::dynamic);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{ gemm }, ov::ParameterVector{ input_a, input_b });
         comparator.enable(FunctionsComparator::ATTRIBUTES);
