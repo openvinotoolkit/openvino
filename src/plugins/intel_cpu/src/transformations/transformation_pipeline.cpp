@@ -158,6 +158,7 @@
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/pass/extract_reshapes_from_mha.hpp"
 #include "snippets/pass/fc_tokenization.hpp"
+#include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/tokenization.hpp"
@@ -421,7 +422,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     if (config.inferencePrecision == ov::element::f16) {
         precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-        type_to_fuse_map fuse_map = {{ov::opset1::FakeQuantize::get_type_info_static(), fuse_type_to_fq}};
+        type_to_fuse_map fuse_map = {};
 #else
         type_to_fuse_map fuse_map = {{ov::op::PagedAttentionExtension::get_type_info_static(), fuse_type_to_pa}};
 #endif
@@ -1304,6 +1305,7 @@ void Transformations::MainSnippets(void) {
 void Transformations::PostSnippets(void) {
     ov::pass::Manager postSnippetsManager("CPU:PostSnippets");
     postSnippetsManager.set_per_pass_validation(false);
+    CPU_REGISTER_PASS_ARM(postSnippetsManager, ov::snippets::pass::FakeQuantizeDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeQuantizeDecomposition);
     CPU_SET_CALLBACK_COMMON(
         postSnippetsManager,
@@ -1325,7 +1327,19 @@ void Transformations::Snippets(void) {
     }
 
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Snippets);
+// Disable MainSnippets for int8 models on arm platforms
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    using namespace ov::pass::low_precision;
+    static const std::set<levels>& supported_fq_levels = {levels::int4,
+                                                          levels::int4_narrow_range,
+                                                          levels::int8,
+                                                          levels::int8_narrow_range};
+    if (!LowPrecision::isFunctionQuantized(model, supported_fq_levels)) {
+        MainSnippets();
+    }
+#else
     MainSnippets();
+#endif
     PostSnippets();
 }
 
