@@ -22,7 +22,7 @@ ov::Output<ov::Node> ov::pass::pattern::op::Label::wrap_values(const ov::OutputV
 bool ov::pass::pattern::op::Label::match_value(ov::pass::pattern::Matcher* matcher,
                                                const ov::Output<ov::Node>& pattern_value,
                                                const ov::Output<ov::Node>& graph_value) {
-    if (m_predicate(graph_value)) {
+    if (m_predicate(matcher->get_symbols(), graph_value)) {
         auto& pattern_map = matcher->get_pattern_value_map();
         auto saved = matcher->start_match();
         matcher->add_node(graph_value);
@@ -38,8 +38,4 @@ bool ov::pass::pattern::op::Label::match_value(ov::pass::pattern::Matcher* match
 
 std::shared_ptr<ov::Node> ov::pass::pattern::any_input() {
     return std::make_shared<pattern::op::Label>();
-}
-
-std::shared_ptr<ov::Node> ov::pass::pattern::any_input(const ov::pass::pattern::op::ValuePredicate& pred) {
-    return std::make_shared<pattern::op::Label>(element::dynamic, PartialShape::dynamic(), pred);
 }
