@@ -4,7 +4,6 @@
 
 #include "ov_ops/convolution_biased.hpp"
 
-#include "convolution_backprop_shape_inference.hpp"
 #include "convolution_shape_inference.hpp"
 #include "itt.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
@@ -34,7 +33,34 @@ bool op::internal::ConvolutionBiased::visit_attributes(AttributeVisitor& visitor
 }
 
 void op::internal::ConvolutionBiased::validate_and_infer_types() {
-    util::ConvolutionFwdPropBase::validate_and_infer_types();
+    const auto& data_batch_et = get_input_element_type(0);
+    const auto& filters_et = get_input_element_type(1);
+
+    element::Type result_et;
+    NODE_VALIDATION_CHECK(this,
+                          element::Type::merge(result_et, data_batch_et, filters_et),
+                          "Element types for data batch and filters do not match (data batch element type: ",
+                          data_batch_et,
+                          ", filters element type: ",
+                          filters_et,
+                          ").");
+
+    NODE_VALIDATION_CHECK(this,
+                          result_et.is_real() || result_et.is_integral_number(),
+                          "Element types must be numeric. Got: ",
+                          result_et);
+
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
+
+    auto num_spatial = convolution::calculate_num_spatial(this, input_shapes);
+    if (num_spatial != util::num_spatial_undefined) {
+        resize_attributes(num_spatial);
+    }
+
+    const auto output_shapes = op::v1::shape_infer(this, input_shapes, m_pads_begin, m_pads_end);
+    set_output_type(0, result_et, output_shapes[0]);
+    set_num_spatial(num_spatial, input_shapes);
+
 }
 
 shared_ptr<Node> op::internal::ConvolutionBiased::clone_with_new_inputs(const OutputVector& new_args) const {

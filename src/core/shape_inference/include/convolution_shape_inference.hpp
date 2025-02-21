@@ -9,11 +9,17 @@
 
 namespace ov {
 namespace op {
+
+namespace internal {
+class ConvolutionBiased;
+}
+
 namespace v1 {
 template <class TOp,
           class TShape,
           class TRShape = result_shape_t<TShape>,
           typename std::enable_if<std::is_same<TOp, Convolution>::value ||
+                                  std::is_same<TOp, internal::ConvolutionBiased>::value ||
                                   std::is_same<TOp, BinaryConvolution>::value>::type* = nullptr>
 std::vector<TRShape> shape_infer(const TOp* op,
                                  const std::vector<TShape>& input_shapes,
