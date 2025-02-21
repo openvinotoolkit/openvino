@@ -48,6 +48,7 @@
 #include "nodes/interaction.h"
 #include "nodes/interpolate.h"
 #include "nodes/inverse.hpp"
+#include "nodes/istft.h"
 #include "nodes/llm_mlp.h"
 #include "nodes/log_softmax.h"
 #include "nodes/lora.h"
@@ -216,6 +217,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(DFT, Type::DFT);
     INTEL_CPU_NODE(RDFT, Type::RDFT);
     INTEL_CPU_NODE(STFT, Type::STFT);
+    INTEL_CPU_NODE(ISTFT, Type::ISTFT);
     INTEL_CPU_NODE(ExtractImagePatches, Type::ExtractImagePatches);
     INTEL_CPU_NODE(Subgraph, Type::Subgraph);
     INTEL_CPU_NODE(Composite, Type::SubModel);
