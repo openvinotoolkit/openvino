@@ -6,22 +6,21 @@ on:
   issues:
     types: [assigned, unassigned]
 
-permissions:
-  issues: write
-  repository-projects: write
-
 jobs:
   handle-issue:
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      repository-projects: write
     steps:
       - name: Process issue
-        uses: actions/github-script@v6
+        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 #v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const LABEL = "good first issue";
             const COLUMNS = {
-              todo: "Contributors needed",
+              todo: "Contributors Needed",
               inProgress: "Assigned",
               done: "Closed"
             };
@@ -79,35 +78,33 @@ jobs:
               }
             }
 
+            // Handle comment-based triggers (.take and .release)
             if (context.payload.comment) {
               const comment = context.payload.comment.body.trim();
               const user = context.payload.comment.user.login;
 
               if (comment === ".take") {
-                await moveIssue(COLUMNS.inProgress);
                 await github.rest.issues.addAssignees({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   issue_number: issue.number,
                   assignees: [user]
                 });
+                // No need to move issue here as the assignment event will trigger that
               }
 
               if (comment === ".release") {
-                const assignees = issue.assignees.map(a => a.login).filter(a => a !== user);
                 await github.rest.issues.removeAssignees({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   issue_number: issue.number,
                   assignees: [user]
                 });
-
-                if (assignees.length === 0) {
-                  await moveIssue(COLUMNS.todo);
-                }
+                // No need to move issue here as the unassignment event will trigger that
               }
             }
 
+            // Handle assignment/unassignment events
             if (context.payload.action === "assigned" || context.payload.action === "unassigned") {
               const hasAssignee = issue.assignees?.length > 0;
               await moveIssue(hasAssignee ? COLUMNS.inProgress : COLUMNS.todo);
