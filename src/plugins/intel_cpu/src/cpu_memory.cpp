@@ -9,6 +9,7 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/reorder.h"
+#include "utils/bfloat16.hpp"
 #include "utils/debug_capabilities.h"
 #if defined(__linux__)
 #    include <sys/syscall.h> /* Definition of SYS_* constants */
@@ -30,19 +31,44 @@ BlockedMemoryDescPtr IMemory::getDescWithType<BlockedMemoryDesc, 0, 0>() const {
 }
 
 namespace {
-inline void setSubnormalsToZero(float* data, size_t size) {
+inline void setSubnormalsToZeroAndbf16Saturation(float* data, size_t size, bool ftz, bool bf16saturation) {
     uint32_t* u32data = reinterpret_cast<uint32_t*>(data);
-    for (size_t i = 0; i < size; ++i) {
-        if ((u32data[i] & (0xFF << 23)) == 0) {
-            u32data[i] = 0;
+    float* floatdata = reinterpret_cast<float*>(data);
+    if (ftz && bf16saturation) {
+        for (size_t i = 0; i < size; ++i) {
+            if ((u32data[i] & (0xFF << 23)) == 0) {
+                u32data[i] = 0;
+            } else if (!std::isnan(floatdata[i]) && !std::isinf(floatdata[i])) {
+                floatdata[i] = (floatdata[i] < static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest()))
+                                   ? static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())
+                               : (floatdata[i] > static_cast<float>(std::numeric_limits<ov::bfloat16>::max()))
+                                   ? static_cast<float>(std::numeric_limits<ov::bfloat16>::max())
+                                   : floatdata[i];
+            }
+        }
+    } else if (ftz) {
+        for (size_t i = 0; i < size; ++i) {
+            if ((u32data[i] & (0xFF << 23)) == 0) {
+                u32data[i] = 0;
+            }
+        }
+    } else if (bf16saturation) {
+        for (size_t i = 0; i < size; ++i) {
+            if (!std::isnan(floatdata[i]) && !std::isinf(floatdata[i])) {
+                floatdata[i] = (floatdata[i] < static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest()))
+                                   ? static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())
+                               : (floatdata[i] > static_cast<float>(std::numeric_limits<ov::bfloat16>::max()))
+                                   ? static_cast<float>(std::numeric_limits<ov::bfloat16>::max())
+                                   : floatdata[i];
+            }
         }
     }
 }
 
-void transferData(const IMemory& src, const IMemory& dst, bool ftz) {
+void transferData(const IMemory& src, const IMemory& dst, bool ftz, bool bf16saturation) {
     node::Reorder::reorderData(src, dst);
 
-    if (!ftz) {
+    if (!ftz && !bf16saturation) {
         return;
     }
     if (src.getDesc().getPrecision() != ov::element::f32 || dst.getDesc().getPrecision() != ov::element::f32) {
@@ -62,7 +88,7 @@ void transferData(const IMemory& src, const IMemory& dst, bool ftz) {
     // actual FTZ
     auto* memData = static_cast<float*>(dst.getData());
     memData += offset;
-    setSubnormalsToZero(memData, dst.getSize() / sizeof(float));
+    setSubnormalsToZeroAndbf16Saturation(memData, dst.getSize() / sizeof(float), ftz, bf16saturation);
 }
 
 }  // namespace
@@ -125,11 +151,11 @@ void Memory::create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
     }
 }
 
-void Memory::load(const IMemory& src, bool ftz) const {
+void Memory::load(const IMemory& src, bool ftz, bool bf16saturation) const {
     if (src.getDesc().getPrecision() == element::string) {
         OPENVINO_THROW("[CPU] Memory object cannot load string data.");
     }
-    transferData(src, *this, ftz);
+    transferData(src, *this, ftz, bf16saturation);
 }
 
 void Memory::nullify() {
@@ -273,12 +299,12 @@ StringMemory::StringMemory(dnnl::engine engine, MemoryDescPtr desc, const void* 
     }
 }
 
-void StringMemory::load(const IMemory& src, bool ftz) const {
+void StringMemory::load(const IMemory& src, bool ftz, bool bf16saturation) const {
     if (src.getDesc().getPrecision() != element::string) {
         OPENVINO_THROW("[CPU] String memory cannot load a non-string object.");
     }
 
-    transferData(src, *this, false);
+    transferData(src, *this, false, false);
 }
 
 void* StringMemory::getData() const {
@@ -472,11 +498,11 @@ void StaticMemory::redefineDesc(MemoryDescPtr desc) {
     OPENVINO_THROW("Unexpected: Memory descriptor may not be modified in StaticMemory object");
 }
 
-void StaticMemory::load(const IMemory& src, bool ftz) const {
+void StaticMemory::load(const IMemory& src, bool ftz, bool bf16saturation) const {
     if (src.getDesc().getPrecision() == element::string) {
         OPENVINO_THROW("[CPU] StaticMemory cannot load string data.");
     }
-    transferData(src, *this, ftz);
+    transferData(src, *this, ftz, bf16saturation);
 }
 
 MemoryBlockPtr StaticMemory::getMemoryBlock() const {
