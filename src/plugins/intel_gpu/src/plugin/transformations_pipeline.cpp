@@ -86,6 +86,7 @@
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
+#include "plugin/transformations/lora_subgraph_horizontal_fusion.hpp"
 #include "plugin/transformations/sink_reshape.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
@@ -94,6 +95,7 @@
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
+#include "transformations/common_optimizations/lora_subgraph_fusion.hpp"
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
@@ -822,6 +824,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             });
         }
 
+        manager.register_pass<ov::pass::LoraSubgraphFusion>();
+
         manager.run_passes(func);
     }
 
@@ -1094,10 +1098,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                !disable_fc_swiglu_fusion;
         if (!disable_horizontal_fc_fusion) {
             manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>(fuse_mlp_swiglu);
-            // Temporary disabling for BMG due to regression
-            if (device_info.arch != cldnn::gpu_arch::xe2) {
-                manager.register_pass<ov::intel_gpu::LoRAHorizontalFusion>();
-            }
+            manager.register_pass<ov::intel_gpu::LoRASubgraphHorizontalFusion>();
         }
 
         // ZP should not be folded for FC. But still, ZP should be folded for Gather.
