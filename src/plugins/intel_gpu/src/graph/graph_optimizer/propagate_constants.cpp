@@ -110,6 +110,7 @@ void propagate_constants::run(program& p) {
                                              [](program_node* node) { return node->is_constant(); }),
                               curr_node.users.end());
         p.replace(curr_node, new_node);
+        new_node.recalc_output_layout(false);
     }
 }
 
