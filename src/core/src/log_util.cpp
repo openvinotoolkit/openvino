@@ -96,7 +96,7 @@ std::string node_with_arguments(const ov::Node& node) {
     }
 
     if (verbose)
-        res += " " + node.get_name();
+        res += " " + node.get_friendly_name();
 
     res += arguments_str(node.input_values(), verbose);
 
