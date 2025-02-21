@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1913,7 +1913,7 @@ TEST(reorder_gpu_opt, non_trivial_remove_redundant)
     auto outputs = net.execute();
     auto executed_primitives = net.get_executed_primitives();
 
-    if (config.get_property(ov::intel_gpu::queue_type) != QueueTypes::out_of_order)
+    if (config.get_queue_type() != QueueTypes::out_of_order)
         GTEST_SKIP();
 
     ASSERT_TRUE(executed_primitives.count("in") == 1);
@@ -2514,7 +2514,7 @@ TEST(reorder_gpu_f32, bfzyx_to_bfyx_padded) {
     auto output1 = outputs.at("reshape1").get_memory();
     auto output2 = outputs.at("reshape2").get_memory();
 
-    cldnn::mem_lock<float> output_ptr0(output0, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr0(output0, get_test_stream());
     for (int b = 0; b < b_crop; ++b) {
         for (int f = 0; f < f_crop; ++f) {
             for (int z = 0; z < z_crop; ++z) {
@@ -2529,7 +2529,7 @@ TEST(reorder_gpu_f32, bfzyx_to_bfyx_padded) {
         }
     }
 
-    cldnn::mem_lock<float> output_ptr1(output1, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr1(output1, get_test_stream());
     for (int b = 0; b < b_crop; ++b) {
         for (int f = 0; f < f_crop; ++f) {
             for (int z = 0; z < z_crop; ++z) {
@@ -2544,7 +2544,7 @@ TEST(reorder_gpu_f32, bfzyx_to_bfyx_padded) {
         }
     }
 
-    cldnn::mem_lock<float> output_ptr2(output2, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr2(output2, get_test_stream());
     for (int b = 0; b < b_crop; ++b) {
         for (int f = 0; f < f_crop; ++f) {
             for (int z = 0; z < z_crop; ++z) {
@@ -2729,6 +2729,42 @@ TEST(reorder_gpu, any_format) {
     for (size_t i = 0; i < data.size(); ++i) {
         ASSERT_EQ(output[i], data[i]) << "i = " << i;
     }
+}
+
+void reorder_cpu_any_format(bool disable_usm = false);
+void reorder_cpu_any_format(bool disable_usm) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto engine = create_test_engine(engine_types::ocl, runtime_types::ocl, !disable_usm);
+
+    auto input = engine->allocate_memory(layout(data_types::f32, format::yxfb, tensor(5, 7, 13, 9)));
+
+    topology topo;
+    topo.add(input_layout("in", input->get_layout()));
+    topo.add(reorder("reorder", input_info("in"), format::any, data_types::f32));
+    ExecutionConfig config = get_test_default_config(*engine);
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"reorder", {format::any, "", impl_types::cpu}} }));
+
+    network net(*engine, topo, config);
+
+    auto data = rg.generate_random_1d<float>(input->count(), -1, 1);
+    set_values(input, data);
+    net.set_input_data("in", input);
+
+    auto outputs = net.execute();
+    auto out_mem = outputs.at("reorder").get_memory();
+    cldnn::mem_lock<float> output(out_mem, get_test_stream());
+
+    for (size_t i = 0; i < data.size(); ++i) {
+        ASSERT_EQ(output[i], data[i]) << "i = " << i;
+    }
+}
+
+TEST(reorder_cpu, any_format) {
+    reorder_cpu_any_format();
+}
+
+TEST(reorder_cpu, any_format_disable_usm) {
+    reorder_cpu_any_format(true);
 }
 
 TEST(reorder_image2d_rgba_to_bfyx_gpu, basic)

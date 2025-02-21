@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -7,7 +7,7 @@
 import numpy as np
 import tensorflow as tf
 from openvino.frontend.tensorflow.py_tensorflow_frontend import _FrontEndDecoderBase as DecoderBase
-from openvino.runtime import PartialShape, Type, OVAny, Tensor
+from openvino import PartialShape, Type, OVAny, Tensor
 
 
 def tf_type_to_ov_type(tf_type_int):
@@ -20,7 +20,7 @@ def tf_type_to_ov_type(tf_type_int):
     try:
         ret_type = Type(numpy_type)
     except:
-        ret_type = Type.undefined
+        ret_type = Type.dynamic
     return ret_type
 
 
@@ -169,7 +169,7 @@ class TFGraphNodeDecoder(DecoderBase):
                         return OVAny(Type.dynamic)
                     return OVAny(tf_type_to_ov_type(variable_value.dtype))
                 else:
-                    return OVAny(Type.undefined)
+                    return OVAny(Type.dynamic)
             return OVAny(tf_type_to_ov_type(type_num))
 
         if name == "value":

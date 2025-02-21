@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -130,7 +130,7 @@ public:
                                                                           {ov::PrecisionPreservedAttribute(true),
                                                                            ov::IntervalsAlignmentAttribute(interval, 256),
                                                                            ov::QuantizationAlignmentAttribute(false)},
-                                                                          ov::element::undefined,
+                                                                          ov::element::dynamic,
                                                                           testValues.axis,
                                                                           oneInputWithSplit);
 

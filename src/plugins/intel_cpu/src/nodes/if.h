@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,26 +11,33 @@
 #include <string>
 #include <vector>
 
+#include "openvino/op/if.hpp"
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
 class If : public Node {
 public:
-    If(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    If(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void initSupportedPrimitiveDescriptors() override;
-    void getSupportedDescriptors() override;
+    void getSupportedDescriptors() override {}
+    int registerToAllocationContext(int offset, AllocationContext& context) override;
     void createPrimitive() override;
     bool created() const override;
-    void execute(dnnl::stream strm) override;
+
+    void execute(const dnnl::stream& strm) override;
+    bool neverExecute() const override {
+        return false;
+    }
     bool isExecutable() const override {
         return true;
     }
 
 protected:
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
     bool needPrepareParams() const override {
         return false;
     };
@@ -51,9 +58,9 @@ private:
 
     class PortMapHelper {
     public:
-        PortMapHelper(const MemoryPtr& from, const std::deque<MemoryPtr>& to, const dnnl::engine& eng);
+        PortMapHelper(MemoryPtr from, std::deque<MemoryPtr> to, const dnnl::engine& eng);
         ~PortMapHelper() = default;
-        void execute(dnnl::stream& strm);
+        void execute(const dnnl::stream& strm);
 
     private:
         void redefineTo();
@@ -65,8 +72,8 @@ private:
         ptrdiff_t size;
     };
 
-    Graph subGraphThen;
-    Graph subGraphElse;
+    Graph m_thenGraph;
+    Graph m_elseGraph;
     std::vector<std::deque<MemoryPtr>> inputMemThen, inputMemElse;
     std::deque<MemoryPtr> outputMemThen, outputMemElse;
 
@@ -75,7 +82,7 @@ private:
 
     std::vector<PortMap> thenInputPortMap, thenOutputPortMap, elseInputPortMap, elseOutputPortMap;
 
-    const std::shared_ptr<ov::Node> ovOp;
+    std::shared_ptr<ov::op::v8::If> m_op;
 };
 
 }  // namespace node

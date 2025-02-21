@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,11 +14,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include "shape_inference/custom/priorbox.hpp"
 
-#define THROW_ERROR(...) OPENVINO_THROW("PriorBox layer with name '", getName(), "': ", __VA_ARGS__)
-
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 float clip_great(float x, float threshold) {
     return x < threshold ? x : threshold;
@@ -32,7 +28,7 @@ float clip_less(float x, float threshold) {
 
 bool PriorBox::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto priorBox = std::dynamic_pointer_cast<const ov::opset1::PriorBox>(op);
+        const auto priorBox = ov::as_type_ptr<const ov::opset1::PriorBox>(op);
         if (!priorBox) {
             errorMessage = "Only opset1 PriorBox operation is supported";
             return false;
@@ -43,14 +39,14 @@ bool PriorBox::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, s
     return true;
 }
 
-PriorBox::PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+PriorBox::PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, PriorBoxShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto priorBox = std::dynamic_pointer_cast<const ov::opset1::PriorBox>(op);
+    const auto priorBox = ov::as_type_ptr<const ov::opset1::PriorBox>(op);
     const ov::opset1::PriorBox::Attributes& attrs = priorBox->get_attrs();
     offset = attrs.offset;
     step = attrs.step;
@@ -69,11 +65,11 @@ PriorBox::PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
         exist = false;
 
         if (std::fabs(aspect_ratio_item) < std::numeric_limits<float>::epsilon()) {
-            THROW_ERROR("Aspect_ratio param can't be equal to zero");
+            THROW_CPU_NODE_ERR("has aspect_ratio param can't be equal to zero");
         }
 
         for (float _aspect_ratio : aspect_ratio) {
-            if (fabs(aspect_ratio_item - _aspect_ratio) < 1e-6) {
+            if (std::fabs(aspect_ratio_item - _aspect_ratio) < 1e-6) {
                 exist = true;
                 break;
             }
@@ -94,7 +90,7 @@ PriorBox::PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
     if (attrs.variance.size() == 1 || attrs.variance.size() == 4) {
         for (float i : attrs.variance) {
             if (i < 0) {
-                THROW_ERROR("Variance must be > 0.");
+                THROW_CPU_NODE_ERR("variance must be > 0.");
             }
 
             variance.push_back(i);
@@ -102,7 +98,7 @@ PriorBox::PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
     } else if (attrs.variance.empty()) {
         variance.push_back(0.1f);
     } else {
-        THROW_ERROR("Wrong number of variance values. Not less than 1 and more than 4 variance values.");
+        THROW_CPU_NODE_ERR("has wrong number of variance values. Not less than 1 and more than 4 variance values.");
     }
 }
 
@@ -126,8 +122,9 @@ bool PriorBox::needPrepareParams() const {
 }
 
 void PriorBox::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     addSupportedPrimDesc({{LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},
                          {{LayoutType::ncsp, ov::element::f32}},
@@ -136,13 +133,14 @@ void PriorBox::initSupportedPrimitiveDescriptors() {
 
 void PriorBox::createPrimitive() {
     if (inputShapesDefined()) {
-        if (needPrepareParams())
+        if (needPrepareParams()) {
             prepareParams();
+        }
         updateLastInputDims();
     }
 }
 
-void PriorBox::execute(dnnl::stream strm) {
+void PriorBox::execute(const dnnl::stream& strm) {
     const int* in_data = getSrcDataAtPortAs<int>(0);
     const int H = in_data[0];
     const int W = in_data[1];
@@ -160,12 +158,14 @@ void PriorBox::execute(dnnl::stream strm) {
     auto min_size_ = min_size;
     if (!scale_all_sizes) {
         // mxnet-like PriorBox
-        if (step_ == -1)
+        if (step_ == -1) {
             step_ = 1.f * IH / H;
-        else
+        } else {
             step_ *= IH;
-        for (auto& size : min_size_)
+        }
+        for (auto& size : min_size_) {
             size *= IH;
+        }
     }
 
     int64_t idx = 0;
@@ -311,6 +311,4 @@ bool PriorBox::created() const {
     return getType() == Type::PriorBox;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

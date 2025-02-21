@@ -30,12 +30,14 @@ GLU::GLU(const Output<Node>& data,
 bool GLU::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("axis", m_axis);
     visitor.on_attribute("split_lengths", m_split_lengths);
+    visitor.on_attribute("glu_type", m_glu_type);
+    visitor.on_attribute("split_to_glu_idx", m_split_to_glu_idx);
     visitor.on_attribute("output_type", m_output_type);
     return true;
 }
 
 void GLU::validate_and_infer_types() {
-    auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;
+    auto output_type = m_output_type == ov::element::dynamic ? get_input_element_type(0) : m_output_type;
 
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
@@ -53,4 +55,15 @@ std::shared_ptr<Node> GLU::clone_with_new_inputs(const ov::OutputVector& new_arg
 }
 }  // namespace internal
 }  // namespace op
+
+template <>
+OPENVINO_API EnumNames<op::internal::GLU::GluType>& EnumNames<op::internal::GLU::GluType>::get() {
+    static auto enum_names =
+        EnumNames<op::internal::GLU::GluType>("op::internal::GLU::GluType",
+                                              {{"Swish", op::internal::GLU::GluType::Swish},
+                                               {"Gelu", op::internal::GLU::GluType::Gelu},
+                                               {"Gelu_Tanh", op::internal::GLU::GluType::Gelu_Tanh}});
+    return enum_names;
+}
+
 }  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +55,7 @@ protected:
         std::tie(basicParamsSet, cpuParams) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        auto netPrecision = ElementType::undefined;
+        auto netPrecision = ElementType::dynamic;
         InputShape inputShape;
         std::tie(inputShape, netPrecision) = basicParamsSet;
         init_input_shapes({inputShape});

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "common_test_utils/node_builders/constant.hpp"
@@ -82,7 +82,7 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         PSROIPoolingSpecificParams psroiPoolingParams;
-        auto netPrecision = ov::element::undefined;
+        auto netPrecision = ov::element::dynamic;
         std::tie(psroiPoolingParams, netPrecision, targetDevice) = basicParamsSet;
         inType = outType = netPrecision;
         std::tie(featureMapShape, proposal, outputDim, groupSize, spatialScale, spatialBinsX, spatialBinsY, mode) =

@@ -143,8 +143,13 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 
 .. code:: ipython3
 
+    import platform
+    
     %pip install -q "torch>=2.1.0" "git+https://github.com/huggingface/optimum-intel.git" "openvino>=2024.0.0" "onnx<1.16.2" tqdm "gradio>=4.19" "transformers>=4.33.0" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "nncf>=2.9.0" datasets jiwer
+    
+    if platform.system() == "Darwin":
+        %pip install -q "numpy<2.0.0"
 
 Download and Convert Models
 ---------------------------
@@ -179,9 +184,21 @@ Tokenizer class and pipelines API are compatible with Optimum models.
 
 .. code:: ipython3
 
-    from pathlib import Path
     from transformers import pipeline, AutoTokenizer
     from optimum.intel.openvino import OVModelForSeq2SeqLM, OVModelForSequenceClassification
+    import requests
+    from pathlib import Path
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("grammar-correction.ipynb")
 
 
 .. parsed-literal::
@@ -211,13 +228,6 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import requests
-    
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
-    
     from notebook_utils import device_widget
     
     device = device_widget(default="CPU", exclude=["AUTO", "GPU"])
@@ -274,12 +284,10 @@ Hugging Face inference pipelines in this
 
 .. code:: ipython3
 
+    import torch
+    
     input_text = "They are moved by salar energy"
-    grammar_checker_pipe = pipeline(
-        "text-classification",
-        model=grammar_checker_model,
-        tokenizer=grammar_checker_tokenizer,
-    )
+    grammar_checker_pipe = pipeline("text-classification", model=grammar_checker_model, tokenizer=grammar_checker_tokenizer, device=torch.device("cpu"))
     result = grammar_checker_pipe(input_text)[0]
     print(f"input text: {input_text}")
     print(f'predicted label: {"contains_errors" if result["label"] == "LABEL_1" else "no errors"}')
@@ -352,11 +360,7 @@ to run it.
 
 .. code:: ipython3
 
-    grammar_corrector_pipe = pipeline(
-        "text2text-generation",
-        model=grammar_corrector_model,
-        tokenizer=grammar_corrector_tokenizer,
-    )
+    grammar_corrector_pipe = pipeline("text2text-generation", model=grammar_corrector_model, tokenizer=grammar_corrector_tokenizer, device=torch.device("cpu"))
 
 .. code:: ipython3
 
@@ -567,7 +571,7 @@ some time to complete.
     grammar_corrector_pipe_fp32 = grammar_corrector_pipe
     grammar_corrector_pipe_int8 = None
     if to_quantize.value:
-        quantized_model_path = Path("quantized_decoder_with_past") / "openvino_model.xml"
+        quantized_model_path = Path("quantized_decodet") / "openvino_model.xml"
         grammar_corrector_pipe_int8 = get_quantized_pipeline(
             grammar_corrector_pipe_fp32,
             grammar_corrector_tokenizer,
@@ -723,7 +727,7 @@ First, we compare file size of ``FP32`` and ``INT8`` models.
     
     if to_quantize.value:
         model_size_fp32, model_size_int8 = calculate_compression_rate(
-            grammar_corrector_dir / "openvino_decoder_with_past_model.xml",
+            grammar_corrector_dir / "openvino_decoder_model.xml",
             quantized_model_path,
         )
 
@@ -820,8 +824,3 @@ Interactive demo
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
-
-.. code:: ipython3
-
-    # please uncomment and run this cell for stopping gradio interface
-    # demo.close()

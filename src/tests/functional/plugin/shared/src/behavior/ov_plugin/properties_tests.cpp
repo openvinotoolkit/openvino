@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -333,13 +333,6 @@ OVPropertiesTestsWithCompileModelProps::getRWOptionalPropertiesValues(
         res.push_back({ov::compilation_num_threads(1)});
     }
 
-    if (props.empty() || std::find(props.begin(), props.end(), ov::affinity.name()) != props.end()) {
-        ov::Affinity affinities[] = {ov::Affinity::NONE , ov::Affinity::CORE, ov::Affinity::NUMA, ov::Affinity::HYBRID_AWARE};
-        for (auto &affinity : affinities) {
-            res.push_back({ov::affinity(affinity)});
-        }
-    }
-
     if (props.empty() || std::find(props.begin(), props.end(), ov::hint::enable_hyper_threading.name()) != props.end()) {
         res.push_back({ov::hint::enable_hyper_threading(true)});
         res.push_back({ov::hint::enable_hyper_threading(false)});
@@ -389,10 +382,6 @@ OVPropertiesTestsWithCompileModelProps::getWrongRWOptionalPropertiesValues(
     if (props.empty() || std::find(props.begin(), props.end(), ov::inference_num_threads.name()) != props.end()) {
         res.push_back({{ov::inference_num_threads.name(), -1}});
         res.push_back({{ov::compilation_num_threads.name(), -1}});
-    }
-
-    if (props.empty() || std::find(props.begin(), props.end(), ov::affinity.name()) != props.end()) {
-        res.push_back({{ov::affinity.name(), -5}});
     }
 
     if (props.empty() || std::find(props.begin(), props.end(), ov::hint::enable_hyper_threading.name()) != props.end()) {
@@ -522,12 +511,23 @@ TEST_P(OVCheckChangePropComplieModleGetPropTests_InferencePrecision, ChangeCorre
     OV_ASSERT_NO_THROW(default_property = core->get_property(target_device, ov::hint::inference_precision));
     ASSERT_FALSE(default_property.empty());
 
-    const std::vector<ov::element::Type> ovElemTypes = {
-        ov::element::f64, ov::element::f32, ov::element::f16, ov::element::bf16,
-        ov::element::i64, ov::element::i32, ov::element::i16, ov::element::i8, ov::element::i4,
-        ov::element::u64, ov::element::u32, ov::element::u16, ov::element::u8, ov::element::u4,  ov::element::u1,
-        ov::element::boolean, ov::element::undefined, ov::element::dynamic
-    };
+    const std::vector<ov::element::Type> ovElemTypes = {ov::element::f64,
+                                                        ov::element::f32,
+                                                        ov::element::f16,
+                                                        ov::element::bf16,
+                                                        ov::element::i64,
+                                                        ov::element::i32,
+                                                        ov::element::i16,
+                                                        ov::element::i8,
+                                                        ov::element::i4,
+                                                        ov::element::u64,
+                                                        ov::element::u32,
+                                                        ov::element::u16,
+                                                        ov::element::u8,
+                                                        ov::element::u4,
+                                                        ov::element::u1,
+                                                        ov::element::boolean,
+                                                        ov::element::dynamic};
 
     bool any_supported = false;
     for (ov::element::Type type : ovElemTypes) {

@@ -1,9 +1,19 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """openvino module namespace, exposing factory functions for all ops and other classes."""
 # noqa: F401
+
+import warnings
+warnings.filterwarnings("once", category=DeprecationWarning, module="openvino.runtime")
+warnings.warn(
+    "The `openvino.runtime` module is deprecated and will be removed in the 2026.0 release. "
+    "Please replace `openvino.runtime` with `openvino`.",
+    DeprecationWarning,
+    stacklevel=1
+)
+
 
 from openvino._pyopenvino import get_version
 
@@ -45,6 +55,7 @@ from openvino._pyopenvino import save_model
 from openvino._pyopenvino import shutdown
 
 # Import opsets
+from openvino.runtime import op
 from openvino.runtime import opset1
 from openvino.runtime import opset2
 from openvino.runtime import opset3
@@ -61,6 +72,11 @@ from openvino.runtime import opset13
 from openvino.runtime import opset14
 from openvino.runtime import opset15
 from openvino.runtime import opset16
+
+# Import runtime proxy modules for backward compatibility
+from openvino.runtime import utils
+from openvino.runtime import opset_utils
+from openvino.runtime import exceptions
 
 # Import properties API
 from openvino.runtime import properties

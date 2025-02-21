@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -943,7 +943,7 @@ TEST(TransformationTests, ConvertPrecision_LogicalNot) {
             tr = op;
     ASSERT_TRUE(tr != nullptr);
     ASSERT_EQ(tr->get_origin_input_type(0), element::boolean);
-    ASSERT_EQ(tr->get_origin_input_type(1), element::undefined);
+    ASSERT_EQ(tr->get_origin_input_type(1), element::dynamic);
 }
 
 TEST(TransformationTests, ConvertPrecision_Select) {
@@ -2441,9 +2441,6 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsSingleNodeMultipleOutp
         auto convert_1 = make_shared<opset10::Convert>(param_1, element::f32);
         auto axis = opset10::Constant::create(element::i32, Shape{}, {0});
         auto split = make_shared<opset10::Split>(convert_1, axis, 3);
-        split->get_output_tensor(0).add_names({"split:0"});
-        split->get_output_tensor(1).add_names({"split:1"});
-        split->get_output_tensor(2).add_names({"split:2"});
 
         auto convert_split_0 = make_shared<opset10::Convert>(split->output(0), element::f64);
         auto convert_split_1 = make_shared<opset10::Convert>(split->output(1), element::f64);
@@ -2567,7 +2564,6 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiSubgraphs) {
         if_op->set_input(convert_1, param_1_then, param_1_else);
         if_op->set_input(convert_2, param_2_then, param_2_else);
         auto result = if_op->set_output(result_then, result_else);
-        result.add_names({"if_result:0"});
         auto converted_result = make_shared<opset10::Convert>(result, element::f64);
         converted_result->get_output_tensor(0).add_names({"if_result:0"});
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,10 +19,8 @@
 #include <string>
 #include <map>
 #include <memory>
-#include <atomic>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 class RemoteContextImpl : public ov::IRemoteContext {
 public:
@@ -38,6 +36,7 @@ public:
     ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type, const ov::Shape& shape, const ov::AnyMap& params) override;
 
     cldnn::engine& get_engine() { return *m_engine; }
+    const cldnn::engine& get_engine() const { return *m_engine; }
     ov::intel_gpu::gpu_handle_param get_external_queue() const { return m_external_queue; }
 
     cldnn::memory::ptr try_get_cached_memory(size_t hash);
@@ -74,5 +73,4 @@ inline RemoteContextImpl::Ptr get_context_impl(ov::SoPtr<ov::IRemoteContext> ptr
     return casted;
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

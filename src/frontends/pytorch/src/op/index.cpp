@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,7 +54,7 @@ OutputVector translate_index(const NodeContext& context) {
         }
     }
     if (index_ov_type == element::boolean || index_ov_type == element::u8) {
-        auto nonzero = context.mark_node(std::make_shared<v3::NonZero>(indices, element::i32));
+        auto nonzero = context.mark_node(std::make_shared<v3::NonZero>(indices));
         auto input_order = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {1, 0}));
         auto masked_id = context.mark_node(std::make_shared<v1::Transpose>(nonzero, input_order));
         auto gather = context.mark_node(std::make_shared<v8::GatherND>(x, masked_id));
@@ -68,16 +68,9 @@ OutputVector translate_index(const NodeContext& context) {
 };
 
 OutputVector translate_index_fx(const NodeContext& context) {
-    num_inputs_check(context, 2, context.get_input_size());
+    num_inputs_check(context, 2, 2);
     auto x = context.get_input(0);
-    std::deque<Output<Node>> list_elems;
-    for (size_t i = 1; i < context.get_input_size(); i++) {
-        Output<Node> index;
-        if (!context.input_is_none(i)) {
-            index = context.get_input(static_cast<int>(i));
-        }
-        list_elems.push_back(index);
-    }
+    auto list_elems = get_list_as_outputs(context.get_input(1));
     ov::pass::NodeRegistry rg;
     auto rank = x.get_partial_shape().rank();
     if (rank.is_dynamic()) {
@@ -86,7 +79,13 @@ OutputVector translate_index_fx(const NodeContext& context) {
     // index transformation supports only tensors with static rank
     PYTORCH_OP_CONVERSION_CHECK(rank.is_static(), "Dynamic rank for aten::index input is not supported.");
 
-    OutputVector ids{list_elems.begin(), list_elems.end()};
+    OutputVector ids;
+    for (size_t i = 0; i < list_elems.size(); ++i) {
+        if (!is_none_node(list_elems[i]))
+            ids.push_back(list_elems[i]);
+        else
+            ids.push_back(Output<Node>());
+    }
     ov::Output<ov::Node> res;
     bool use_input_as_output = true;
     index_tensor_on_list(rg, x, ids, rank, res, use_input_as_output);

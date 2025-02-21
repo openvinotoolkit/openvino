@@ -21,8 +21,7 @@
 
 #include <memory>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 ClampFP16Output::ClampFP16Output() {
     using namespace ov::op;
@@ -41,23 +40,20 @@ ClampFP16Output::ClampFP16Output() {
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        auto softmax = std::dynamic_pointer_cast<v8::Softmax>(pattern_map.at(softmax_m).get_node_shared_ptr());
+        auto softmax = ov::as_type_ptr<v8::Softmax>(pattern_map.at(softmax_m).get_node_shared_ptr());
         if (!softmax || transformation_callback(softmax)) {
             return false;
         }
 
         auto matmul = pattern_map.at(matmul_m).get_node_shared_ptr();
-        auto target_inputs = matmul->get_output_target_inputs(0);
 
         auto min = static_cast<double>(std::numeric_limits<ov::float16>::lowest());
         auto max = static_cast<double>(std::numeric_limits<ov::float16>::max());
-        auto clamp = std::make_shared<v0::Clamp>(matmul, min, max);
+        auto clamp = std::make_shared<v0::Clamp>(softmax->get_input_source_output(0), min, max);
         clamp->set_friendly_name(matmul->get_friendly_name() + "/ClampFP16Output");
         ov::copy_runtime_info({matmul, softmax}, clamp);
 
-        for (auto& in : target_inputs) {
-            in.replace_source_output(clamp);
-        }
+        softmax->input(0).replace_source_output(clamp);
 
         return true;
     };
@@ -66,5 +62,4 @@ ClampFP16Output::ClampFP16Output() {
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ class OPENVINO_API Allocator {
 
     friend class ov::Tensor;
 
-    struct Base : public std::enable_shared_from_this<Base> {
+    struct OPENVINO_API Base : public std::enable_shared_from_this<Base> {
         virtual void* addressof() = 0;
         const void* addressof() const {
             return const_cast<Base*>(this)->addressof();
@@ -48,7 +48,7 @@ class OPENVINO_API Allocator {
         virtual bool is_equal(const Base& other) const = 0;
 
     protected:
-        virtual ~Base() = default;
+        virtual ~Base();
     };
 
     template <typename A>

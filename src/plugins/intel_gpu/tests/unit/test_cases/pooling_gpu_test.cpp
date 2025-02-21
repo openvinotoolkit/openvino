@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -231,7 +231,7 @@ TEST(pooling_forward_gpu, basic_max_byxf_f32_wsiz3x3_wstr1x1_i1x3x3x8_nopad) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr (output_prim, get_test_stream());
     ASSERT_EQ(4.0f, output_ptr[3]);
 }
 
@@ -1454,7 +1454,7 @@ TEST(pooling_forward_gpu, b_fs_yx_fsv4)
             auto searchC = outputs.find("pool_GOLD");
             ASSERT_FALSE(searchC == outputs.end());
             auto output = outputs.begin()->second.get_memory();
-            cldnn::mem_lock<char> output_ptr(output, get_test_stream());
+            cldnn::mem_lock<char, mem_lock_type::read> output_ptr(output, get_test_stream());
             vGoldOutput.reserve(output_ptr.size());
             for (size_t i = 0; i < output_ptr.size(); i++)
                 vGoldOutput.push_back(output_ptr[i]);
@@ -1503,7 +1503,7 @@ TEST(pooling_forward_gpu, b_fs_yx_fsv4)
             auto searchC = outputs.find("reorder_UnSwizzelled");
             ASSERT_FALSE(searchC == outputs.end());
             auto output = outputs.begin()->second.get_memory();
-            cldnn::mem_lock<char> output_ptr(output, get_test_stream());
+            cldnn::mem_lock<char, mem_lock_type::read> output_ptr(output, get_test_stream());
             vTestOutput.reserve(output_ptr.size());
             for (size_t i = 0; i < output_ptr.size(); i++)
                 vTestOutput.push_back(output_ptr[i]);

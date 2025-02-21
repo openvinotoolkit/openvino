@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -93,13 +93,13 @@ ov::element::Type Brgemm::get_output_type(const ov::element::Type& in_type0, con
     } else if (is_int8) {
         return element::i32;
     } else {
-        return element::undefined;
+        return element::dynamic;
     }
 }
 
 ov::element::Type Brgemm::get_output_type() const {
     auto output_type = get_output_type(get_input_element_type(0), get_input_element_type(1));
-    if (output_type == element::undefined) {
+    if (output_type == element::dynamic) {
         OPENVINO_THROW("BrgemmCPU node has incompatible input element types: " +
                        get_input_element_type(0).get_type_name() +
                        " and " +

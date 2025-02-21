@@ -5,8 +5,9 @@ LLM Weight Compression
    :maxdepth: 1
    :hidden:
 
-   weight-compression/microscaling-quantization
    weight-compression/4-bit-weight-quantization
+   weight-compression/microscaling-quantization
+
 
 
 Weight compression enhances the efficiency of models by reducing their memory footprint,
@@ -16,16 +17,15 @@ Unlike full model quantization, where both weights and activations are quantized
 only targets weights, keeping activations as floating-point numbers. This means preserving most
 of the model's accuracy while improving its
 speed and reducing its size. The reduction in size is especially noticeable with larger models.
-For instance the 7 billion parameter Llama 2 model can be reduced
-from about 25GB to 4GB using 4-bit weight compression.
+For instance the 8 billion parameter Llama 3 model can be reduced
+from about 16.1 GB to 4.8 GB using 4-bit weight quantization on top of a bfloat16 model.
 
 .. note::
 
-   With smaller language models (i.e. less than 1B parameters), weight
+   With smaller language models (i.e. less than 1B parameters), low-bit weight
    compression may result in more accuracy reduction than with larger models.
-   Therefore, weight compression is recommended for use with LLMs only.
 
-LLMs and other GenAI models that require
+LLMs and other generative AI models that require
 extensive memory to store the weights during inference can benefit
 from weight compression as it:
 
@@ -36,7 +36,7 @@ from weight compression as it:
 * improves inference speed by reducing the latency of memory access when computing the
   operations with weights, for example, Linear layers. The weights are smaller and thus
   faster to load from memory;
-* unlike quantization, does not require sample data to calibrate the range of
+* unlike full static quantization, does not require sample data to calibrate the range of
   activation values.
 
 Currently, `NNCF <https://github.com/openvinotoolkit/nncf>`__
@@ -64,7 +64,7 @@ by running the following command:
    pip install optimum[openvino]
 
 **8-bit weight quantization** offers a good balance between reducing the size and lowering the
-accuracy of a model. It usually results in significant improvements for transformer-based models
+accuracy of a model. It usually results in significant improvements for Transformer-based models
 and guarantees good model performance for a vast majority of supported CPU and GPU platforms.
 By default, weights are compressed asymmetrically to "INT8_ASYM" mode.
 
@@ -105,7 +105,7 @@ By default, weights are compressed asymmetrically to "INT8_ASYM" mode.
          print(results)
 
       For more details, refer to the article on how to
-      :doc:`infer LLMs using Optimum Intel <../../learn-openvino/llm_inference_guide/llm-inference-hf>`.
+      :doc:`infer LLMs using Optimum Intel <../../openvino-workflow-generative/inference-with-optimum-intel>`.
 
    .. tab-item:: Compression with NNCF
       :sync: nncf
@@ -221,19 +221,8 @@ depending on the model.
 
 
       For more details, refer to the article on how to
-      :doc:`infer LLMs using Optimum Intel <../../../learn-openvino/llm_inference_guide/llm-inference-hf>`.
+      :doc:`infer LLMs using Optimum Intel <../../../openvino-workflow-generative/inference-with-optimum-intel>`.
 
-The code snippet below shows how to do 4-bit quantization of the model weights represented
-in OpenVINO IR using NNCF:
-
-.. tab-set::
-
-   .. tab-item:: OpenVINO
-      :sync: openvino
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/weight_compression_openvino.py
-         :language: python
-         :fragment: [compression_4bit]
 
 Refer to the article about
 :doc:`4-bit weight quantization <./weight-compression/4-bit-weight-quantization>`
@@ -344,7 +333,7 @@ load the compressed model later for faster time to first inference.
 .. tip::
 
    Models optimized with with NNCF or Optimum Intel can be used with
-   :doc:`OpenVINO GenAI <../../learn-openvino/llm_inference_guide/genai-guide>`.
+   :doc:`OpenVINO GenAI <../../openvino-workflow-generative/inference-with-genai>`.
 
 
 Auto-tuning of Weight Compression Parameters
@@ -354,7 +343,7 @@ To find the optimal weight compression parameters for a particular model, refer 
 `example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama_find_hyperparams>`__ ,
 where weight compression parameters are being searched from the subset of values.
 To speed up the search, a self-designed validation pipeline called
-`WhoWhatBench <https://github.com/openvinotoolkit/openvino.genai/tree/master/llm_bench/python/who_what_benchmark>`__
+`WhoWhatBench <https://github.com/openvinotoolkit/openvino.genai/tree/master/tools/who_what_benchmark>`__
 is used. The pipeline can quickly evaluate the changes in the accuracy of the optimized
 model compared to the baseline.
 
@@ -491,7 +480,7 @@ Additional Resources
 - `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
   : Repository containing example pipelines that implement image and text generation
   tasks. It also provides a tool to benchmark LLMs.
-- `WhoWhatBench <https://github.com/openvinotoolkit/openvino.genai/tree/master/llm_bench/python/who_what_benchmark>`__
+- `WhoWhatBench <https://github.com/openvinotoolkit/openvino.genai/tree/master/tools/who_what_benchmark>`__
 - `NNCF GitHub <https://github.com/openvinotoolkit/nncf>`__
 - :doc:`Post-training Quantization <quantizing-models-post-training>`
 - :doc:`Training-time Optimization <compressing-models-during-training>`

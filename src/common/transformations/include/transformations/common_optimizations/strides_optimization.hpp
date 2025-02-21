@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,6 +62,6 @@ public:
  */
 class ov::pass::StridesOptimization : public ov::pass::BackwardGraphRewrite {
 public:
-    OPENVINO_RTTI("StridesOptimization", "0");
+    OPENVINO_RTTI("StridesOptimization", "0", ov::pass::BackwardGraphRewrite);
     StridesOptimization();
 };

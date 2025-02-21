@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,9 +65,8 @@ protected:
     std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs;
     std::vector<ov::PartialShape> inputDynamicShapes;
     std::vector<std::vector<ov::Shape>> targetStaticShapes;
-    ElementType inType = ov::element::undefined,
-                outType = ov::element::undefined,
-                inference_precision = ov::element::undefined;
+    ElementType inType = ov::element::dynamic, outType = ov::element::dynamic,
+                inference_precision = ov::element::dynamic;
 
     ov::CompiledModel compiledModel;
     ov::InferRequest inferRequest;

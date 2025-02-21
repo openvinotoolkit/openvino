@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -69,7 +69,7 @@ protected:
     void SetUp() override {
         convSpecificParams convParams;
         InputShape inputShape;
-        auto model_type = ov::element::undefined;
+        auto model_type = ov::element::dynamic;
         bool activationFusing;
         std::tie(convParams, model_type, inputShape, targetDevice, activationFusing) = this->GetParam();
 
@@ -372,7 +372,7 @@ protected:
     void SetUp() override {
         convSpecificParams convParams;
         std::vector<InputShape> inputShapes;
-        auto model_type = ov::element::undefined;
+        auto model_type = ov::element::dynamic;
         bool activationFusing;
         std::tie(convParams, model_type, inputShapes, targetDevice, activationFusing) = this->GetParam();
 

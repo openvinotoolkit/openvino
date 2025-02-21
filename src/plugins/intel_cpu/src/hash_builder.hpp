@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,9 +9,8 @@
 #include <functional>
 #include <type_traits>
 #include <vector>
-namespace ov {
-namespace intel_cpu {
-namespace hash {
+
+namespace ov::intel_cpu::hash {
 
 // The following code is derived from Boost C++ library
 // Copyright 2005-2014 Daniel James.
@@ -30,8 +29,9 @@ size_t combine(size_t seed, const T& v) {
 
 template <typename T>
 size_t combine(size_t seed, const std::vector<T>& v) {
-    for (const auto& elem : v)
+    for (const auto& elem : v) {
         seed = combine(seed, elem);
+    }
     return seed;
 }
 
@@ -53,6 +53,4 @@ private:
     size_t m_seed;
 };
 
-}  // namespace hash
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::hash

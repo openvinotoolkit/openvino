@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,22 +82,23 @@ struct jit_uni_normalize_kernel {
 #endif
 class NormalizeL2 : public Node {
 public:
-    NormalizeL2(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    NormalizeL2(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool canBeInPlace() const override {
         return false;
     }
     bool canFuse(const NodePtr& node) const override;
 
     void prepareParams() override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
 
+    bool neverExecute() const override;
     bool isExecutable() const override;
 
     enum class NormEpsMode { ADD, MAX };
@@ -109,8 +110,8 @@ public:
         bool cornerCase = false;
         float eps = 1e-10f;
 
-        ov::element::Type input_prec = ov::element::undefined;
-        ov::element::Type output_prec = ov::element::undefined;
+        ov::element::Type input_prec = ov::element::dynamic;
+        ov::element::Type output_prec = ov::element::dynamic;
         size_t src_data_size = 0lu;
         size_t dst_data_size = 0lu;
     };

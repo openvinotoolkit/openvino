@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,9 +7,8 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
-namespace ov {
-namespace intel_cpu {
-namespace node {
+
+namespace ov::intel_cpu::node {
 using Result = IShapeInfer::Result;
 
 class FCShapeInfer : public ShapeInferEmptyPads {
@@ -28,7 +27,7 @@ private:
 
 class FCShapeInferFactory : public ShapeInferFactory {
 public:
-    FCShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    FCShapeInferFactory(const std::shared_ptr<ov::Node>& op) : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<FCShapeInfer>(m_op->get_output_partial_shape(0).rank().get_length());
     }
@@ -36,6 +35,4 @@ public:
 private:
     std::shared_ptr<const ov::Node> m_op;
 };
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

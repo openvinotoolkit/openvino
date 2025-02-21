@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,7 +74,7 @@ void select_preferred_formats::run(program& p) {
     }
 #endif  // ENABLE_ONEDNN_FOR_GPU
 
-    auto forcing_map = p.get_config().get_property(ov::intel_gpu::force_implementations);
+    auto forcing_map = p.get_config().get_force_implementations();
 
     for (auto n : p.get_processing_order()) {
         n->recalc_output_layout();
@@ -121,7 +121,7 @@ void select_preferred_formats::run(program& p) {
                     optimize_conv_permute(*n);
                 }
             } catch (std::exception& exception) {
-                GPU_DEBUG_INFO << "WARNING(select_preferred_formats): " << exception.what() << std::endl;
+                GPU_DEBUG_LOG << "WARNING(select_preferred_formats): " << exception.what() << std::endl;
             }
             print_selected_formats(*n);
         }

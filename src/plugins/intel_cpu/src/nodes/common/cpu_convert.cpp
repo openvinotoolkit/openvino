@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,7 @@
 #    include "utils/general_utils.h"
 #endif
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 namespace {
 
 #if defined(OPENVINO_ARCH_X86_64)
@@ -28,7 +27,7 @@ using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
-enum f8_type { none, f8e4m3, f8e5m2 };
+enum f8_type : uint8_t { none, f8e4m3, f8e5m2 };
 
 template <typename src_t, typename dst_t>
 f8_type get_f8_type() {
@@ -111,12 +110,15 @@ class jit_convert_array : public jit_kernel {
 
         postamble();
 
-        if (f8_e4m3_emu_)
+        if (f8_e4m3_emu_) {
             f8_e4m3_emu_->prepare_table();
-        if (f8_e5m2_emu_)
+        }
+        if (f8_e5m2_emu_) {
             f8_e5m2_emu_->prepare_table();
-        if (uni_vcvtneps2bf16_)
+        }
+        if (uni_vcvtneps2bf16_) {
             uni_vcvtneps2bf16_->emit_data();
+        }
     }
 
 public:
@@ -407,9 +409,11 @@ const std::tuple<U, U>& Range<T, U>::fit(const ov::element::Type& prec) {
         case ov::element::f8e4m3:
             lbound = static_cast<double>(std::numeric_limits<ov::float8_e4m3>::lowest());
             ubound = static_cast<double>(std::numeric_limits<ov::float8_e4m3>::max());
+            break;
         case ov::element::f8e5m2:
             lbound = static_cast<double>(std::numeric_limits<ov::float8_e5m2>::lowest());
             ubound = static_cast<double>(std::numeric_limits<ov::float8_e5m2>::max());
+            break;
         case ov::element::bf16:
             lbound = static_cast<double>(std::numeric_limits<ov::intel_cpu::bfloat16_t>::lowest());
             ubound = static_cast<double>(std::numeric_limits<ov::intel_cpu::bfloat16_t>::max());
@@ -607,8 +611,9 @@ struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
                 batch_type tmp;
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
-                for (size_t j = 0; j < current_batch_size; ++j)  // src_t -> fp32
+                for (size_t j = 0; j < current_batch_size; ++j) {  // src_t -> fp32
                     tmp[j] = static_cast<float>(std::max(std::min(src[offset + j], ubound), lbound));
+                }
                 jit_convert(tmp, dst + offset, current_batch_size);  // fp32 -> fp16
             });
         } else if (ctx.interimPrc.is_real()) {
@@ -619,8 +624,9 @@ struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
                     jit_convert(reinterpret_cast<const float*>(src) + offset, dst + offset, current_batch_size);
                 } else {
                     batch_type tmp;
-                    for (size_t j = 0; j < current_batch_size; ++j)  // src_t -> fp32
+                    for (size_t j = 0; j < current_batch_size; ++j) {  // src_t -> fp32
                         tmp[j] = static_cast<float>(src[offset + j]);
+                    }
                     jit_convert(tmp, dst + offset, current_batch_size);  // fp32 -> fp16
                 }
             });
@@ -629,8 +635,9 @@ struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
                 batch_type tmp;
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
-                for (size_t j = 0; j < current_batch_size; ++j)  // src_t -> fp32
+                for (size_t j = 0; j < current_batch_size; ++j) {  // src_t -> fp32
                     tmp[j] = static_cast<float>(std::trunc(std::max(std::min(src[offset + j], ubound), lbound)));
+                }
                 jit_convert(tmp, dst + offset, current_batch_size);  // fp32 -> fp16
             });
         }
@@ -658,8 +665,9 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
                 jit_convert(src + offset, tmp, current_batch_size);  // fp16 -> fp32
-                for (size_t j = 0; j < current_batch_size; ++j)      // fp32 -> dst_t
+                for (size_t j = 0; j < current_batch_size; ++j) {    // fp32 -> dst_t
                     dst[offset + j] = static_cast<dst_t>(std::max(std::min(tmp[j], ubound), lbound));
+                }
             });
         } else if (ctx.interimPrc.is_real()) {
             parallel_for(iterations, [&](size_t i) {
@@ -670,8 +678,9 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
                 } else {
                     batch_type tmp;
                     jit_convert(src + offset, tmp, current_batch_size);  // fp16 -> fp32
-                    for (size_t j = 0; j < current_batch_size; ++j)      // fp32 -> dst_t
+                    for (size_t j = 0; j < current_batch_size; ++j) {    // fp32 -> dst_t
                         dst[offset + j] = static_cast<dst_t>(tmp[j]);
+                    }
                 }
             });
         } else {
@@ -680,8 +689,9 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
                 jit_convert(src + offset, tmp, current_batch_size);  // fp16 -> fp32
-                for (size_t j = 0; j < current_batch_size; ++j)      // fp32 -> dst_t
+                for (size_t j = 0; j < current_batch_size; ++j) {    // fp32 -> dst_t
                     dst[offset + j] = static_cast<dst_t>(std::trunc(std::max(std::min(tmp[j], ubound), lbound)));
+                }
             });
         }
 
@@ -710,8 +720,9 @@ struct ConvertPrecision<std::tuple<ov::float16, ov::float16>> {
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
                 jit_convert(src + offset, tmp, current_batch_size);  // fp16 -> fp32
-                for (size_t j = 0; j < current_batch_size; ++j)      // truncate fp32
+                for (size_t j = 0; j < current_batch_size; ++j) {    // truncate fp32
                     tmp[j] = std::trunc(std::max(std::min(tmp[j], ubound), lbound));
+                }
                 jit_convert(tmp, dst + offset, current_batch_size);  // fp32 -> fp16
             });
         }
@@ -881,6 +892,50 @@ struct ConvertFrom4BitPrecision<std::tuple<src_t, dst_t>> {
     }
 };
 
+#define INTEL_CPU_CVT_TO_4BIT_LIST INTEL_CPU_CVT(f32, nf4), INTEL_CPU_CVT(f16, nf4), INTEL_CPU_CVT(bf16, nf4)
+
+struct ConvertTo4BitContext {
+    ov::element::Type_t outType;
+    const void* srcPtr;
+    void* dstPtr;
+    size_t size;
+    bool converted;
+};
+
+template <typename T>
+struct ConvertTo4BitPrecision;
+
+template <typename src_t, typename dst_t>
+struct ConvertTo4BitPrecision<std::tuple<src_t, dst_t>> {
+    void operator()(ConvertTo4BitContext& ctx) {
+        auto insert_half_byte = [](uint8_t dst, uint8_t val, bool high_half) -> uint8_t {
+            uint8_t shift = high_half ? 4 : 0;
+            return dst | (uint8_t)(val << shift);
+        };
+
+        auto src = static_cast<const src_t*>(ctx.srcPtr);
+        auto dst = static_cast<uint8_t*>(ctx.dstPtr);
+        // each byte must be fully processed within same thread
+        auto work_amount = ctx.size / 2;
+        auto has_tail = ctx.size % work_amount != 0;
+        if (ctx.outType == ov::element::nf4) {
+            parallel_for(work_amount, [&](size_t ib) {
+                size_t idx = ib * 2;
+                const auto val = insert_half_byte(0, ConvertNF4::quantize(static_cast<float>(src[idx])), false);
+                dst[ib] = insert_half_byte(val, ConvertNF4::quantize(static_cast<float>(src[idx + 1])), true);
+            });
+
+            if (has_tail) {
+                dst[work_amount] =
+                    insert_half_byte(0, ConvertNF4::quantize(static_cast<float>(src[2 * work_amount])), false);
+            }
+        } else {
+            OPENVINO_THROW("cpu_convert doesn't support output data type: ", ctx.outType, ". Not implemented.");
+        }
+        ctx.converted = true;
+    }
+};
+
 #define INTEL_CPU_CVT_FROM_BYTE_FP_LIST \
     INTEL_CPU_CVT(f8e8m0, f32), INTEL_CPU_CVT(f8e8m0, bf16), INTEL_CPU_CVT(f8e8m0, f16)
 
@@ -957,8 +1012,9 @@ void cpu_convert(const void* srcPtr,
     if (size == 0) {
         return;
     }
-    if (srcPtr == nullptr || dstPtr == nullptr)
+    if (srcPtr == nullptr || dstPtr == nullptr) {
         OPENVINO_THROW("cpu_convert has null data pointer");
+    }
 
     if (srcPrc == dstPrc && srcPrc == interimPrc) {
         const size_t L2_cache_size = dnnl::utils::get_cache_size(2, true);
@@ -979,7 +1035,7 @@ void cpu_convert(const void* srcPtr,
             cpu_memcpy(dstPtr, srcPtr, size * dstPrc.size());
         }
     } else if (srcPrc == ov::element::u1) {
-        if (srcPrc.bitwidth() != 1)
+        if (srcPrc.bitwidth() != 1) {
             OPENVINO_THROW("cpu_convert can't convert from: ",
                            srcPrc,
                            " <bitsSize == ",
@@ -987,20 +1043,29 @@ void cpu_convert(const void* srcPtr,
                            "> precision to: ",
                            dstPrc,
                            ". Not implemented.");
+        }
         ConvertFromBinContext ctx{srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu, ConvertFromBinPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_BIN_LIST);
-        if (!ctx.converted)
+        if (!ctx.converted) {
             OPENVINO_THROW("cpu_convert can't convert from: ",
                            srcPrc,
                            " <bitsSize == ",
                            srcPrc.bitwidth(),
                            "> precision to: ",
                            dstPrc);
+        }
     } else if (srcPrc.bitwidth() == 4u) {
         ConvertFrom4BitContext ctx{srcPrc, srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu, ConvertFrom4BitPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_4BIT_LIST);
-        if (!ctx.converted)
+        if (!ctx.converted) {
             OPENVINO_THROW("cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
+        }
+    } else if (dstPrc.bitwidth() == 4u) {
+        ConvertTo4BitContext ctx{dstPrc, srcPtr, dstPtr, size, false};
+        OV_SWITCH(intel_cpu, ConvertTo4BitPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_TO_4BIT_LIST);
+        if (!ctx.converted) {
+            OPENVINO_THROW("cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
+        }
     } else if (srcPrc == ov::element::f8e8m0) {
         ConvertFromByteFPContext ctx{srcPrc, srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu,
@@ -1008,22 +1073,25 @@ void cpu_convert(const void* srcPtr,
                   ctx,
                   std::tie(srcPrc, dstPrc),
                   INTEL_CPU_CVT_FROM_BYTE_FP_LIST);
-        if (!ctx.converted)
+        if (!ctx.converted) {
             OPENVINO_THROW("cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
+        }
 #if defined(OPENVINO_ARCH_X86_64)
     } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_fp16) &&
                (one_of(srcPrc, ov::element::f8e4m3, ov::element::f8e5m2) ||
                 one_of(dstPrc, ov::element::f8e4m3, ov::element::f8e5m2))) {
         ConvertFP8Context ctx{srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu, ConvertFP8Precision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FP8_LIST);
-        if (!ctx.converted)
+        if (!ctx.converted) {
             OPENVINO_THROW("cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
+        }
 #endif
     } else {
         ConvertContext ctx{srcPtr, dstPtr, size, interimPrc, dstPrc, false};
         OV_SWITCH(intel_cpu, ConvertPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_LIST);
-        if (!ctx.converted)
+        if (!ctx.converted) {
             OPENVINO_THROW("cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
+        }
     }
 }
 
@@ -1044,11 +1112,11 @@ bool is_supported_convert(ov::element::Type srcPrc, ov::element::Type dstPrc) {
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_BIN_LIST);
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_4BIT_LIST);
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_BYTE_FP_LIST);
+    OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_TO_4BIT_LIST);
     return ctx.isSupported;
 }
 
 #undef INTEL_CPU_CVT
 #undef INTEL_CPU_CVT_LIST
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,9 +26,7 @@ using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 using ngPoolingMode = ov::opset9::ROIAlign::PoolingMode;
 using ngAlignedMode = ov::opset9::ROIAlign::AlignedMode;
@@ -488,10 +486,11 @@ private:
 
             load_idx(reg_buf, vmm_buf, v_step);
 
-            if (jcp_.data_prc == ov::element::f32)
+            if (jcp_.data_prc == ov::element::f32) {
                 gather_f32(vmm_src, reg_src, vmm_buf);
-            else if (jcp_.data_prc == ov::element::bf16)
+            } else if (jcp_.data_prc == ov::element::bf16) {
                 gather_bf16_to_f32_zmm(vmm_src, reg_src, vmm_buf);
+            }
 
             uni_vmovups(vmm_weights, ptr[reg_weights]);
 
@@ -527,8 +526,9 @@ private:
         }
         L(main_loop_end_label);
 
-        if (jcp_.alg == Algorithm::ROIAlignAvg)
+        if (jcp_.alg == Algorithm::ROIAlignAvg) {
             uni_vpxor(vmm_dst_tail, vmm_dst_tail, vmm_dst_tail);
+        }
 
         lane = 1;
         L(tail_loop_label);
@@ -538,10 +538,11 @@ private:
 
             load_idx(reg_buf, vmm_buf, x_step);
 
-            if (jcp_.data_prc == ov::element::f32)
+            if (jcp_.data_prc == ov::element::f32) {
                 gather_f32_xmm(xmm_src, reg_src, xmm_buf);
-            else if (jcp_.data_prc == ov::element::bf16)
+            } else if (jcp_.data_prc == ov::element::bf16) {
                 gather_bf16_to_f32_xmm(xmm_src, reg_src, xmm_buf);
+            }
 
             uni_vmovups(xmm_weights, ptr[reg_weights]);
             if (jcp_.alg == Algorithm::ROIAlignAvg) {
@@ -568,10 +569,11 @@ private:
         }
 
         // xmm_dst[0] of f32 is the dst value
-        if (jcp_.data_prc == ov::element::f32)
+        if (jcp_.data_prc == ov::element::f32) {
             uni_vpextrd(ptr[reg_dst], xmm_dst, 0);
-        else if (jcp_.data_prc == ov::element::bf16)
+        } else if (jcp_.data_prc == ov::element::bf16) {
             uni_vpextrw(ptr[reg_dst], xmm_dst, 1);
+        }
     }
 
     // gather f32 data from reg_src with vmm_idx(data_size) to vmm_src with f32 precision
@@ -605,8 +607,9 @@ private:
     // gather bf16 data from reg_src with vmm_idx(data_size) to vmm_src with f32 precision
     // bf16 is needed from avx512_core
     inline void gather_bf16_to_f32_zmm(Vmm vmm_src, const reg64_t reg_src, const Vmm vmm_idx) {
-        if (!std::is_same<Vmm, Xbyak::Zmm>::value)
+        if (!std::is_same<Vmm, Xbyak::Zmm>::value) {
             OPENVINO_THROW("bf16 is only supported from avx512_core platform for ROIAlign node.");
+        }
         sub(rsp, v_len);
         uni_vmovdqu(ptr[rsp], vmm_idx);
         for (int i = 0; i < v_step; i++) {
@@ -694,12 +697,10 @@ bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, s
     return true;
 }
 
-ROIAlign::ROIAlign(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+ROIAlign::ROIAlign(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
-        errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
-
         auto roiAlign = ov::as_type_ptr<const ov::opset9::ROIAlign>(op);
         pooledH = roiAlign->get_pooled_h();
         pooledW = roiAlign->get_pooled_w();
@@ -725,40 +726,41 @@ ROIAlign::ROIAlign(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
 }
 
 void ROIAlign::getSupportedDescriptors() {
-    if (getParentEdges().size() != 3)
-        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges: ", getParentEdges().size());
-    if (getChildEdges().empty())
-        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges: ", getChildEdges().size());
+    if (getParentEdges().size() != 3) {
+        THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
+    }
+    if (getChildEdges().empty()) {
+        THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getChildEdges().size());
+    }
 
     if (getInputShapeAtPort(0).getRank() != 4) {
-        OPENVINO_THROW(errorPrefix, "doesn't support 0th input with rank: ", getInputShapeAtPort(0).getRank());
+        THROW_CPU_NODE_ERR("doesn't support 0th input with rank: ", getInputShapeAtPort(0).getRank());
     }
 
     if (getInputShapeAtPort(1).getRank() != 2) {
-        OPENVINO_THROW(errorPrefix, "doesn't support 1st input with rank: ", getInputShapeAtPort(1).getRank());
+        THROW_CPU_NODE_ERR("doesn't support 1st input with rank: ", getInputShapeAtPort(1).getRank());
     }
 
     if (getInputShapeAtPort(2).getRank() != 1) {
-        OPENVINO_THROW(errorPrefix, "doesn't support 2nd input with rank: ", getInputShapeAtPort(2).getRank());
+        THROW_CPU_NODE_ERR("doesn't support 2nd input with rank: ", getInputShapeAtPort(2).getRank());
     }
 
     if (getOutputShapeAtPort(0).getRank() != 4) {
-        OPENVINO_THROW(errorPrefix, "doesn't support output with rank: ", getOutputShapeAtPort(0).getRank());
+        THROW_CPU_NODE_ERR("doesn't support output with rank: ", getOutputShapeAtPort(0).getRank());
     }
 
     const auto& proposalsDims = getInputShapeAtPort(1).getDims();
     if (proposalsDims[1] != 4) {
-        OPENVINO_THROW(errorPrefix, "has invalid shape on 1st input: [", proposalsDims[0], ",", proposalsDims[1], "]");
+        THROW_CPU_NODE_ERR("has invalid shape on 1st input: [", proposalsDims[0], ",", proposalsDims[1], "]");
     }
 
     const auto& indexesDims = getInputShapeAtPort(2).getDims();
     if (!dimsEqualWeak(proposalsDims[0], indexesDims[0])) {
-        OPENVINO_THROW(errorPrefix,
-                       "has different sizes of inputs for proposals (",
-                       proposalsDims[0],
-                       ") and indexes (",
-                       indexesDims[0],
-                       ")");
+        THROW_CPU_NODE_ERR("has different sizes of inputs for proposals (",
+                           proposalsDims[0],
+                           ") and indexes (",
+                           indexesDims[0],
+                           ")");
     }
 }
 
@@ -778,14 +780,16 @@ void ROIAlign::createJitKernel(const ov::element::Type& dataPrec, const ROIAlign
     } else if (mayiuse(cpu::x64::sse41)) {
         roi_align_kernel.reset(new jit_uni_roi_align_kernel_f32<cpu::x64::sse41>(jcp));
     }
-    if (roi_align_kernel)
+    if (roi_align_kernel) {
         roi_align_kernel->create_ker();
+    }
 #endif
 }
 
 void ROIAlign::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     ov::element::Type inputPrec0 = getOriginalInputPrecisionAtPort(0);
     ov::element::Type outputPrec = getOriginalOutputPrecisionAtPort(0);
@@ -834,10 +838,12 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
 void ROIAlign::createPrimitive() {
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!srcMemPtr)
-        OPENVINO_THROW(errorPrefix, " has null input memory");
-    if (!dstMemPtr)
-        OPENVINO_THROW(errorPrefix, " has null destination memory");
+    if (!srcMemPtr) {
+        THROW_CPU_NODE_ERR("has null input memory");
+    }
+    if (!dstMemPtr) {
+        THROW_CPU_NODE_ERR("has null destination memory");
+    }
 
     if (!roi_align_kernel) {
         ROIAlignLayoutType selectedLayout = ROIAlignLayoutType::nspc;
@@ -867,11 +873,12 @@ struct ROIAlign::ROIAlignExecute {
         ctx.node.executeSpecified<srcT, dstT>();
     }
 };
-void ROIAlign::execute(dnnl::stream strm) {
+void ROIAlign::execute(const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDataType();
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDataType();
-    if (!((inputPrec == dnnl_bf16 && outputPrec == dnnl_bf16) || (inputPrec == dnnl_f32 && outputPrec == dnnl_f32)))
-        OPENVINO_THROW("ROIAlign doesn't support demanded precisions");
+    if (!((inputPrec == dnnl_bf16 && outputPrec == dnnl_bf16) || (inputPrec == dnnl_f32 && outputPrec == dnnl_f32))) {
+        THROW_CPU_NODE_ERR("doesn't support demanded precisions");
+    }
 
     ROIAlignContext ctx = {*this};
 
@@ -928,10 +935,11 @@ void ROIAlign::executeSpecified() {
     std::vector<std::vector<float>> weightsTbl(realRois);
     std::vector<std::vector<size_t>> srcAddressListTbl;
     std::vector<std::vector<int>> srcIndexTbl;
-    if (!isPlainFmt)
+    if (!isPlainFmt) {
         srcAddressListTbl.resize(realRois);
-    else
+    } else {
         srcIndexTbl.resize(realRois);
+    }
 
     bool aligned = false;
     float offset_src = 0;
@@ -960,9 +968,9 @@ void ROIAlign::executeSpecified() {
         const float* srcRoiPtr = &srcRoi[roiOff];
         int roiBatchInd = srcRoiIdx[n];
         if (roiBatchInd < -1) {  // -1 means switched off region
-            OPENVINO_THROW("Batch index cannot be less, than -1");
+            THROW_CPU_NODE_ERR("Batch index cannot be less, than -1");
         } else if (static_cast<size_t>(roiBatchInd) >= inputDimVector[0]) {
-            OPENVINO_THROW("Demanded batch (id = ", roiBatchInd, ") doesn't exist");
+            THROW_CPU_NODE_ERR("Demanded batch (id = ", roiBatchInd, ") doesn't exist");
         }
 
         float x1 = (srcRoiPtr[0] + offset_src) * spatialScale + offset_dst;
@@ -990,10 +998,11 @@ void ROIAlign::executeSpecified() {
         // prepare arrays for sampling points and weights
         size_t paramsSize = BLIParamsNum * numSamplesInBin * binCount;
         weightsTbl[n] = std::vector<float>(paramsSize, 0.f);
-        if (!isPlainFmt)
+        if (!isPlainFmt) {
             srcAddressListTbl[n] = std::vector<size_t>(paramsSize, 0);
-        else
+        } else {
             srcIndexTbl[n] = std::vector<int>(paramsSize, 0);
+        }
 
         size_t batchSrcOffset = roiBatchInd * batchInputStride;
         int idxIter = 0;
@@ -1015,14 +1024,17 @@ void ROIAlign::executeSpecified() {
                             // For this sample we save 4 index of (0,0) and 4 weight of 0
                             if (!isPlainFmt) {
                                 auto startPoint = reinterpret_cast<size_t>(&srcData[batchSrcOffset]);
-                                for (int i = 0; i < BLIParamsNum; i++)
+                                for (int i = 0; i < BLIParamsNum; i++) {
                                     srcAddressListTbl[n][idxIter + i] = startPoint;
+                                }
                             } else {
-                                for (int i = 0; i < BLIParamsNum; i++)
+                                for (int i = 0; i < BLIParamsNum; i++) {
                                     srcIndexTbl[n][idxIter + i] = 0;
+                                }
                             }
-                            for (int i = 0; i < BLIParamsNum; i++)
+                            for (int i = 0; i < BLIParamsNum; i++) {
                                 weightsTbl[n][idxIter + i] = 0.f;
+                            }
                             idxIter += BLIParamsNum;
                             continue;
                         }
@@ -1085,7 +1097,7 @@ void ROIAlign::executeSpecified() {
     });
 
     if (realRois == 0) {
-        OPENVINO_THROW("realRois must be greater than 0");
+        THROW_CPU_NODE_ERR("realRois must be greater than 0");
     }
 
     if (roi_align_kernel) {
@@ -1188,10 +1200,8 @@ bool ROIAlign::needPrepareParams() const {
     return false;
 }
 
-void ROIAlign::executeDynamicImpl(dnnl::stream strm) {
+void ROIAlign::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ FullyConnected::FullyConnected(const ov::Output<Node>& A,
 FullyConnected::FullyConnected(const ov::Output<Node>& A,
                                const ov::Output<Node>& B,
                                const ov::element::Type output_type)
-    : FullyConnected(A, B, std::make_shared<v0::Constant>(element::undefined, Shape{0}), output_type) {}
+    : FullyConnected(A, B, std::make_shared<v0::Constant>(element::dynamic, Shape{0}), output_type) {}
 
 bool FullyConnected::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("output_type", m_output_type);
@@ -52,8 +52,7 @@ void FullyConnected::validate_and_infer_types() {
     auto out_shapes =
         ov::op::v0::shape_infer(&op,
                                 std::vector<ov::PartialShape>{get_input_partial_shape(0), get_input_partial_shape(1)});
-
-    auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;
+    auto output_type = m_output_type == ov::element::dynamic ? get_input_element_type(0) : m_output_type;
     set_output_type(0, output_type, out_shapes[0]);
 }
 

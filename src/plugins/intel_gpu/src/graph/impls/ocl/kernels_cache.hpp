@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -86,6 +86,7 @@ public:
                     }
                 }
             } else {
+                source.push_back("#include <cm/cm.h>\n#include <cm/cmtl.h>\n");
             for (const auto& kv : batch_headers)
                 source.push_back(kv.second);
             }
@@ -113,7 +114,6 @@ private:
 
     std::string get_cache_path() const;
     bool is_cache_enabled() const;
-    size_t get_max_kernels_per_batch() const;
 
     bool _reuse_kernels = false;
 

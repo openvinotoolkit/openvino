@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,8 +19,9 @@ void core_configuration(ov::test::SubgraphBaseTest* test) {
     }
 
     // todo: issue: 123320
-    if (!((inf_prc != config.end() && inf_prc->second == element::undefined)
-        || (inf_prc == config.end() && exec_mode != config.end() && exec_mode->second == hint::ExecutionMode::ACCURACY))) {
+    if (!((inf_prc != config.end() && (inf_prc->second == element::dynamic)) ||
+          (inf_prc == config.end() && exec_mode != config.end() &&
+           exec_mode->second == hint::ExecutionMode::ACCURACY))) {
         test->convert_precisions.insert({ov::element::bf16, ov::element::f32});
         test->convert_precisions.insert({ov::element::f16, ov::element::f32});
     }

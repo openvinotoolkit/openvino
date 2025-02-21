@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,8 @@ std::shared_ptr<ov::Model> ConcatFunction::get(
     }
 
     const auto concat = std::make_shared<ov::opset1::Concat>(concatInputs, concatAxis);
-    if (precisionAfter != ov::element::undefined && (concat->get_output_element_type(0).is_real() ^ precisionAfter.is_real())) {
+    if (precisionAfter != ov::element::dynamic &&
+        (concat->get_output_element_type(0).is_real() ^ precisionAfter.is_real())) {
         throw std::runtime_error("Concat builder: requested precision after operation could't be set");
     }
 
@@ -925,7 +926,7 @@ std::shared_ptr<ov::Model> ConcatFunction::getReference(
         throw std::runtime_error("FakeQuantize expected precisions are different");
     }
     const ov::element::Type fqOnDataPrecision = fqOnData1.outputPrecision;
-    if (fqOnDataPrecision != ov::element::undefined) {
+    if (fqOnDataPrecision != ov::element::dynamic) {
         if (fakeQuantize1->get_output_element_type(0) != fakeQuantize2->get_output_element_type(0)) {
             throw std::runtime_error("FakeQuantize operation precisions are different");
         }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,7 @@ bool ov::pass::ChangePlaceholderTypes::run_on_model(const shared_ptr<ov::Model>&
             m_params_with_custom_types.end())
             continue;
 
-        element::Type legacy_type = element::undefined;
+        element::Type legacy_type = element::dynamic;
         bool all_castable_or_shapeof = true;
         for (const auto& target_input : param->get_output_target_inputs(0)) {
             all_castable_or_shapeof &= is_node_casts_to_float_or_shapeof(target_input.get_node());
@@ -56,7 +56,7 @@ bool ov::pass::ChangePlaceholderTypes::run_on_model(const shared_ptr<ov::Model>&
         }
 
         // set OldApiMapElementType only if legacy_type is defined
-        if (legacy_type != element::undefined) {
+        if (legacy_type != element::dynamic) {
             set_old_api_map_element_type(param, ov::OldApiMapElementType(legacy_type));
         }
     }

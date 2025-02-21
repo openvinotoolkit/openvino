@@ -6,11 +6,11 @@
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_base.hpp"
+#include "jit_binary_call_emitter.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
-class jit_brgemm_emitter : public jit_emitter {
+class jit_brgemm_emitter : public jit_binary_call_emitter {
 public:
     jit_brgemm_emitter(dnnl::impl::cpu::x64::jit_generator* h,
                        dnnl::impl::cpu::x64::cpu_isa_t isa,
@@ -46,5 +46,4 @@ private:
     bool m_is_with_amx{false};
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

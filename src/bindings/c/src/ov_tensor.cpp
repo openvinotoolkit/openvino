@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "openvino/c/ov_tensor.h"
@@ -6,7 +6,7 @@
 #include "common.h"
 
 const std::map<ov_element_type_e, ov::element::Type> element_type_map = {
-    {ov_element_type_e::UNDEFINED, ov::element::undefined},
+    {ov_element_type_e::UNDEFINED, ov::element::dynamic},
     {ov_element_type_e::DYNAMIC, ov::element::dynamic},
     {ov_element_type_e::BOOLEAN, ov::element::boolean},
     {ov_element_type_e::BF16, ov::element::bf16},

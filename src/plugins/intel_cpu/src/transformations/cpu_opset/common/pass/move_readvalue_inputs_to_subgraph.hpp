@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "transformations_visibility.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * @brief Move ReadValue's inputs inside the new CPU ngraph node:ReadValueWithSubgraph op.
@@ -23,9 +22,8 @@ namespace intel_cpu {
 
 class MoveReadValueInputsToSubgraph : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MoveReadValueInputsToSubgraph", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MoveReadValueInputsToSubgraph");
     MoveReadValueInputsToSubgraph();
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

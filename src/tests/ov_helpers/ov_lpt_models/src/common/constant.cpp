@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,25 +8,19 @@ namespace ov {
 namespace builder {
 namespace subgraph {
 
-Constant::Constant() :
-    isEmpty(true),
-    outPrecision(ov::element::undefined),
-    shapeIsDefined(false)
-{}
+Constant::Constant() : isEmpty(true), outPrecision(ov::element::dynamic), shapeIsDefined(false) {}
 
-Constant::Constant(const float value) :
-    isEmpty(false),
-    values({ value }),
-    outPrecision(ov::element::undefined),
-    shapeIsDefined(false) {
-}
+Constant::Constant(const float value)
+    : isEmpty(false),
+      values({value}),
+      outPrecision(ov::element::dynamic),
+      shapeIsDefined(false) {}
 
-Constant::Constant(const std::vector<float>& values) :
-    isEmpty(values.empty()),
-    values(values),
-    outPrecision(ov::element::undefined),
-    shapeIsDefined(false) {
-}
+Constant::Constant(const std::vector<float>& values)
+    : isEmpty(values.empty()),
+      values(values),
+      outPrecision(ov::element::dynamic),
+      shapeIsDefined(false) {}
 
 Constant::Constant(const std::vector<float>& values, const ov::element::Type outPrecision) :
     isEmpty(false),

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -11,8 +11,7 @@
 #include "openvino/util/mmap_object.hpp"
 #include "utils/codec_xor.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class ModelSerializer {
 public:
@@ -57,5 +56,4 @@ protected:
     std::shared_ptr<ov::AlignedBuffer> m_model_buffer;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

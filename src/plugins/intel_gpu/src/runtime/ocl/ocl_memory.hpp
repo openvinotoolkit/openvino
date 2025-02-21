@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,6 +38,9 @@ struct gpu_buffer : public lockable_gpu_mem, public memory {
     const cl::Buffer& get_buffer() const {
         assert(0 == _lock_count);
         return _buffer;
+    }
+    void* buffer_ptr() const override {
+        return get_buffer().get();
     }
 
     event::ptr copy_from(stream& stream, const void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) override;

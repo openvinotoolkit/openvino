@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -8,10 +8,10 @@ import numpy as np
 import pytest
 from contextlib import nullcontext as does_not_raise
 
-import openvino.runtime.opset8 as ov
+import openvino.opset8 as ov
 from openvino import Shape, Type
-from openvino.runtime import AxisSet
-from openvino.runtime.op import Constant, Parameter
+from openvino import AxisSet
+from openvino.op import Constant, Parameter
 
 
 @pytest.mark.parametrize(("ov_op", "expected_ov_str", "expected_type"), [

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -122,12 +122,12 @@ std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr& model) const {
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
-    if (auto conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
+    if (auto conv_ext = ov::as_type_ptr<ov::frontend::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(conv_ext);
         m_op_extension_translators[conv_ext->get_op_type()] = [=](const NodeContext& context) {
             return conv_ext->get_converter()(context);
         };
-    } else if (auto conv_ext = std::dynamic_pointer_cast<ov::frontend::jax::ConversionExtension>(extension)) {
+    } else if (auto conv_ext = ov::as_type_ptr<ov::frontend::jax::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(conv_ext);
         m_op_extension_translators[conv_ext->get_op_type()] = [=](const NodeContext& context) {
             return conv_ext->get_converter()(context);

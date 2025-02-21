@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -13,7 +14,6 @@
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
-#include "openvino/runtime/threading/thread_local.hpp"
 #include "sub_memory_manager.hpp"
 
 namespace ov {
@@ -34,15 +34,17 @@ public:
 
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
-                  const Config& cfg,
+                  Config cfg,
                   const bool loaded_from_cache,
-                  const std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr);
+                  std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr);
 
     ~CompiledModel() {
         if (m_has_sub_compiled_models) {
             m_sub_compiled_models.clear();
             m_sub_memory_manager->_memorys_table.clear();
         }
+        auto streamsExecutor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(m_task_executor);
+        streamsExecutor->cpu_reset();
     }
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;

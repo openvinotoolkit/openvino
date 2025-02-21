@@ -33,7 +33,7 @@ public:
         int64_t split_lengths,
         const GluType glu_type,
         const size_t split_to_glu_idx,
-        const ov::element::Type output_type = ov::element::undefined);
+        const ov::element::Type output_type = ov::element::dynamic);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
@@ -77,4 +77,15 @@ private:
 
 }  // namespace internal
 }  // namespace op
+
+std::ostream& operator<<(std::ostream& s, const op::internal::GLU::GluType& reduction);
+
+template <>
+class AttributeAdapter<op::internal::GLU::GluType> : public EnumAttributeAdapterBase<op::internal::GLU::GluType> {
+public:
+    AttributeAdapter(op::internal::GLU::GluType& value) : EnumAttributeAdapterBase<op::internal::GLU::GluType>(value) {}
+
+    OPENVINO_RTTI("AttributeAdapter<op::internal::GLU::GluType>");
+};
+
 }  // namespace ov

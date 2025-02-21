@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -172,7 +172,7 @@ private:
     OP_EXTENSION(ov::snippets::op::KernelStatic)      \
     OP_EXTENSION(ov::snippets::op::KernelDynamic)     \
     OP_EXTENSION(ov::snippets::op::Load)              \
-    OP_EXTENSION(ov::snippets::op::LoadReshape)       \
+    OP_EXTENSION(ov::snippets::op::LoadReorder)       \
     OP_EXTENSION(ov::snippets::op::LoopBegin)         \
     OP_EXTENSION(ov::snippets::op::LoopEnd)           \
     OP_EXTENSION(ov::snippets::op::Buffer)            \

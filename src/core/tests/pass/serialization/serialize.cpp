@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,10 +39,10 @@ public:
 
     void SetUp() override {
         m_model_path = ov::test::utils::getModelFromTestModelZoo(
-            ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<0>(GetParam())}));
+            ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<0>(GetParam())}).string());
         if (!std::get<1>(GetParam()).empty()) {
             m_binary_path = ov::test::utils::getModelFromTestModelZoo(
-                ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<1>(GetParam())}));
+                ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<1>(GetParam())}).string());
         }
 
         std::string filePrefix = ov::test::utils::generateTestFilePrefix();
@@ -74,7 +74,7 @@ TEST_P(SerializationTest, SaveModel) {
     });
 }
 
-#ifdef OPENVINO_CPP_VER_17
+#ifdef OPENVINO_CPP_VER_AT_LEAST_17
 TEST_P(SerializationTest, CompareFunctionsByPath) {
     const auto out_xml_path = std::filesystem::path(m_out_xml_path);
     const auto out_bin_path = std::filesystem::path(m_out_bin_path);

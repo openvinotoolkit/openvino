@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,9 +37,7 @@
 using namespace dnnl;
 using namespace ov::element;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes() {
     using ov::element::Type_t;
@@ -118,11 +116,13 @@ bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::No
 #if defined(OPENVINO_ARCH_X86_64)
     try {
         std::string errorMessage;
-        if (!isSupportedOperation(op, errorMessage))
+        if (!isSupportedOperation(op, errorMessage)) {
             return false;
+        }
 
-        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2))
+        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
             return false;
+        }
 
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
             inferencePrecision == ov::element::bf16) {
@@ -155,7 +155,7 @@ bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::No
 #endif
 }
 
-void FullyConnected::initTensorParallelConfig(const GraphContext::CPtr context) {
+void FullyConnected::initTensorParallelConfig(const GraphContext::CPtr& context) {
     if (context->getCPUStreamExecutor()) {
         if (!context->getCPUStreamExecutor()->get_rank().empty()) {
             // init tp_cfg.w_rank and tp_cfg.w_size
@@ -167,20 +167,21 @@ void FullyConnected::initTensorParallelConfig(const GraphContext::CPtr context) 
     }
 }
 
-FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, FCShapeInferFactory(op)),
-      errorPrefix("FullyConnected node with name '" + getName() + "'") {
+FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
+    : Node(op, context, FCShapeInferFactory(op)) {
     std::string errorMessage;
     initTensorParallelConfig(context);
-    if (!isSupportedOperation(op, errorMessage))
+    if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
+    }
 
     m_atoi[ARG_SRC] = DATA;
     m_atoi[ARG_WEI] = WEIGHTS;
     m_atoi[ARG_BIAS] = BIAS;
 
     auto mapArgToInput = [&op](std::unordered_map<size_t, size_t>& argToInput, size_t argId, size_t inputId) {
-        if (op->get_input_size() > inputId && op->input(inputId).get_element_type() != ov::element::undefined) {
+        if (op->get_input_size() > inputId && op->input(inputId).get_element_type() != ov::element::dynamic &&
+            op->input(inputId).get_element_type() != ov::element::dynamic) {
             argToInput[argId] = inputId;
         }
     };
@@ -220,13 +221,13 @@ void FullyConnected::needPrepareParamsForTensorParallel() {
         };
 
         int dim = -1;
-        auto dst_shape = dstMemoryBuffer->getShape();
+        const auto& dst_shape = dstMemoryBuffer->getShape();
         auto dst_desc = dstMemoryBuffer->getDescPtr();
         auto dims = dst_shape.getDims();
         if (dim < 0) {
             dim += dims.size();
         }
-        OPENVINO_ASSERT(static_cast<int>(dims[dim]) >= tp_cfg.w_size,
+        CPU_NODE_ASSERT(static_cast<int>(dims[dim]) >= tp_cfg.w_size,
                         getName() + " dim[" + std::to_string(dim) + "] is " + std::to_string(dims[dim]) +
                             ", which is larger than w_size " + std::to_string(tp_cfg.w_size));
         auto splited_dim_vec = split_parts(dims[dim], tp_cfg.w_size);
@@ -250,7 +251,7 @@ void FullyConnected::prepareParams() {
 void FullyConnected::initTensorParallelSync() {
     if (tp_cfg.enable_tensor_parallel) {
         tp_cfg.id = tp_cfg.sub_memory->get_memory_id(tp_cfg.w_rank);
-        OPENVINO_ASSERT(tp_cfg.id >= 0, "Tensor Parallel Config ID cannot be negative.");
+        CPU_NODE_ASSERT(tp_cfg.id >= 0, "Tensor Parallel Config ID cannot be negative.");
         tp_cfg.sub_memory->set_memory_used(tp_cfg.id, tp_cfg.w_rank);
         while (true) {
             std::lock_guard<std::mutex> lock(tp_cfg.sub_memory->_flagMutex);
@@ -357,7 +358,7 @@ void FullyConnected::execTensorParallelSync() {
     }
 }
 
-void FullyConnected::execute(dnnl::stream strm) {
+void FullyConnected::execute(const dnnl::stream& strm) {
     initTensorParallelSync();
 
     executor->execute(memory);
@@ -365,7 +366,7 @@ void FullyConnected::execute(dnnl::stream strm) {
     execTensorParallelSync();
 }
 
-void FullyConnected::executeDynamicImpl(dnnl::stream strm) {
+void FullyConnected::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -455,12 +456,14 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
         return false;
     }
 
-    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx))
+    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
         return false;
+    }
 
     const auto constNode = std::dynamic_pointer_cast<Input>(weightsInput);
-    if (!constNode)
+    if (!constNode) {
         return false;
+    }
 
     const auto weiMemory = constNode->getMemoryPtr();
     OPENVINO_ASSERT(weiMemory, "Cannot get const blob");
@@ -504,7 +507,7 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
 }
 
 void FullyConnected::initSupportedPrimitiveDescriptors() {
-    attrs.withBias = getOriginalInputPrecisionAtPort(BIAS) != ov::element::undefined;
+    attrs.withBias = getOriginalInputPrecisionAtPort(BIAS) != ov::element::dynamic;
 
     attrs.sparseWeights = useSparseWeightsDecompression(getParentEdgeAt(WEIGHTS)->getParent(),
                                                         getOriginalInputPrecisionAtPort(DATA),
@@ -517,13 +520,14 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     const auto& srcTypes = getOriginalInputPrecisions();
     auto dstTypes = getOriginalOutputPrecisions();
     // @todo graph optimizer should update original output precisions instead
-    if (!fusedWith.empty())
+    if (!fusedWith.empty()) {
         dstTypes = fusedWith.back()->getOriginalOutputPrecisions();
+    }
 
     VecMemoryDescs srcDescs;
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     for (size_t i = 0; i < srcTypes.size(); i++) {
-        if (srcTypes[i] == element::undefined) {
+        if (srcTypes[i] == element::dynamic) {
             srcDescs.push_back(MemoryDescUtils::makeEmptyDesc());
             continue;
         }
@@ -580,14 +584,13 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         // wgt
         // split N direction
         tp_cfg.cached_splited_weight =
-            attrs.weightsNonTransposed
-                ? split_vertical(context->getEngine(), std::move(wgt), 0, tp_cfg.w_rank, tp_cfg.w_size)
-                : split_horizontal(context->getEngine(), std::move(wgt), 0, tp_cfg.w_rank, tp_cfg.w_size);
+            attrs.weightsNonTransposed ? split_vertical(context->getEngine(), wgt, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                                       : split_horizontal(context->getEngine(), wgt, 0, tp_cfg.w_rank, tp_cfg.w_size);
         memory[ARG_WEI] = tp_cfg.cached_splited_weight;
         // bias
         if (attrs.withBias) {
             auto bias = getSrcMemoryAtPort(BIAS);
-            auto select_bias = split_horizontal(context->getEngine(), std::move(bias), 0, tp_cfg.w_rank, tp_cfg.w_size);
+            auto select_bias = split_horizontal(context->getEngine(), bias, 0, tp_cfg.w_rank, tp_cfg.w_size);
             tp_cfg.cached_splited_bias = std::move(select_bias);
         } else {
             tp_cfg.cached_splited_bias = MemoryDescUtils::makeEmptyMemory(context);
@@ -595,8 +598,7 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         memory[ARG_BIAS] = tp_cfg.cached_splited_bias;
         // dst
         memory[ARG_DST] = getDstMemoryAtPort(0);
-        tp_cfg.cached_dst =
-            split_horizontal(context->getEngine(), std::move(dst), -1, tp_cfg.w_rank, tp_cfg.w_size, false);
+        tp_cfg.cached_dst = split_horizontal(context->getEngine(), dst, -1, tp_cfg.w_rank, tp_cfg.w_size, false);
 
         memory[ARG_DST | ARG_ATTR_SCALES] =
             split_horizontal(context->getEngine(), memory[ARG_DST | ARG_ATTR_SCALES], 0, tp_cfg.w_rank, tp_cfg.w_size);
@@ -625,7 +627,7 @@ void FullyConnected::needUpdateTensorParalelConfig() {
     // 1. weight shape is dynamic
     // 2. last dim can be splited.
     if (tp_cfg.enable_tensor_parallel) {
-        auto& shape = getSrcMemoryAtPort(WEIGHTS)->getShape();
+        const auto& shape = getSrcMemoryAtPort(WEIGHTS)->getShape();
         if (shape.isDynamic()) {
             tp_cfg.enable_tensor_parallel = false;
         } else if (shape.getDims()[0] < static_cast<size_t>(tp_cfg.w_size)) {
@@ -669,6 +671,4 @@ ov::element::Type FullyConnected::getRuntimePrecision() const {
     return getMaxPrecision(srcTypes);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

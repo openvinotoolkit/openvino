@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ ov::pass::DecomposeDivideMatcher::DecomposeDivideMatcher() {
     auto div = std::make_shared<ov::opset3::Divide>(input0, input1);
 
     ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto div = std::dynamic_pointer_cast<ov::opset3::Divide>(m.get_match_root());
+        auto div = ov::as_type_ptr<ov::opset3::Divide>(m.get_match_root());
         // We can not apply this transformation in case with integer input data type
         if (!div || div->input(0).get_element_type().is_integral()) {
             return false;

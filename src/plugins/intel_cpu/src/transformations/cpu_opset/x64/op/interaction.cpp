@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,7 +45,7 @@ void ov::intel_cpu::InteractionNode::validate_and_infer_types() {
     if (feature.is_static()) {
         output_feature_size = input_size * (input_size - 1) / 2 + feature.get_length();
     }
-    auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;
+    auto output_type = m_output_type == ov::element::dynamic ? get_input_element_type(0) : m_output_type;
     m_output_type = output_type;
     PartialShape output_shape = ov::PartialShape::dynamic(2);
     output_shape[0] = batch;

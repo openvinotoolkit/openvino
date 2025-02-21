@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -609,6 +609,8 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
     } else if (type == ov::element::u4) {
         return create_tensor_random_4bit(inputInfo.second, 0, 15);
     } else if (type == ov::element::i4) {
+        return create_tensor_random_4bit(inputInfo.second, 0, 15);
+    } else if (type == ov::element::nf4) {
         return create_tensor_random_4bit(inputInfo.second, 0, 15);
     } else if (type == ov::element::string) {
         const auto& in_info = inputInfo.second;

@@ -9,6 +9,7 @@
 #include "llm_compiled_model.hpp"
 #include "logging.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "util_xarch.hpp"
 
 namespace {
 template <typename T>
@@ -28,15 +29,57 @@ ov::SoPtr<ov::ITensor> make_tensor_slice(ov::SoPtr<ov::ITensor> tensor,
     return ov::get_tensor_impl(ov::Tensor(ov::make_tensor(tensor), start_shape, end_shape));
 }
 
+void copy_by_planes(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor) {
+    // [1, H, S1, E] -> [1, H, S2, E]
+    const int N = 0;
+    const int H = 1;
+    const int S = 2;
+    const int E = 3;
+
+    OPENVINO_ASSERT(src_tensor->get_shape()[N] == dst_tensor->get_shape()[N]);
+    OPENVINO_ASSERT(src_tensor->get_shape()[H] == dst_tensor->get_shape()[H]);
+    OPENVINO_ASSERT(src_tensor->get_shape()[E] == dst_tensor->get_shape()[E]);
+    OPENVINO_ASSERT(src_tensor->get_element_type() == dst_tensor->get_element_type());
+    OPENVINO_ASSERT(src_tensor->get_shape()[N] == 1u);
+    OPENVINO_ASSERT(src_tensor->get_shape().size() == 4u);
+
+    const auto* src_tensor_data = reinterpret_cast<uint8_t*>(src_tensor->data());
+    auto* dst_tensor_data = reinterpret_cast<uint8_t*>(dst_tensor->data());
+
+    const auto num_planes = src_tensor->get_shape()[H];
+    const auto src_plane_stride = src_tensor->get_strides()[H];
+    const auto dst_plane_stride = dst_tensor->get_strides()[H];
+    const auto plane_size_in_bytes = src_tensor->get_strides()[S] * src_tensor->get_shape()[S];
+
+    for (size_t i = 0; i < num_planes; ++i) {
+        std::copy_n(src_tensor_data, plane_size_in_bytes, dst_tensor_data);
+        dst_tensor_data += dst_plane_stride;
+        src_tensor_data += src_plane_stride;
+    }
+}
+
 void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITensor>& dst) {
+    /*
+      src/dst layout: [1, heads, emb_size, seq_len]
+
+      X[*,i] - embedding for i-th token,
+      Instead of copy columns, copy rows X[i,*]
+
+      [[X00 X01 ... X0n]      [[X00 X01 ... X0n]
+       [X10 X11 ... X1n]       [X10 X11 ... X1n]
+       [X20 X21 ... X2n]  ...  [X20 X21 ... X2n]
+             ...                     ...
+       [Xm0 Xm1 ... Xmn]]      [Xm0 Xm1 ... Xmn]]
+    */
+
     const auto src_shape = src->get_shape();
 
     OPENVINO_ASSERT(src_shape.size() == 4u);
     OPENVINO_ASSERT(src_shape == dst->get_shape());
     OPENVINO_ASSERT(src->get_byte_size() == dst->get_byte_size());
 
-    const auto src_strides = src->get_strides();
-    const auto dst_strides = dst->get_strides();
+    const auto& src_strides = src->get_strides();
+    const auto& dst_strides = dst->get_strides();
     const auto elem_size = src->get_byte_size() / src->get_size();
 
     const auto C = src_shape[1];
@@ -62,6 +105,13 @@ void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITenso
 ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
     : ov::ISyncInferRequest(compiled_model),
       m_npuw_llm_compiled_model(compiled_model) {
+    for (const auto& input_port : m_npuw_llm_compiled_model->inputs()) {
+        init_tensor(input_port);
+    }
+    for (const auto& output_port : m_npuw_llm_compiled_model->outputs()) {
+        init_tensor(output_port);
+    }
+
     m_kvcache_request = compiled_model->m_kvcache_compiled->create_infer_request();
     m_prefill_request = compiled_model->m_prefill_compiled->create_infer_request();
 
@@ -77,6 +127,27 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     }
     for (const auto& output_port : m_kvcache_request->get_compiled_model()->outputs()) {
         m_kvcache_out_ports.emplace(output_port.get_any_name(), output_port);
+    }
+}
+
+void ov::npuw::LLMInferRequest::init_tensor(const ov::Output<const ov::Node>& port) {
+    ov::SoPtr<ITensor> tensor;
+    tensor = ov::ISyncInferRequest::get_tensor(port);
+
+    if (!tensor) {
+        const auto& shape = port.get_partial_shape();
+        const bool is_dynamic = shape.is_dynamic();
+        ov::Shape tensor_shape;
+        if (is_dynamic) {
+            for (auto&& item : shape) {
+                tensor_shape.push_back(item.is_static() ? item.get_length() : 0);
+            }
+        } else {
+            tensor_shape = shape.to_shape();
+        }
+
+        tensor = ov::make_tensor(port.get_element_type(), tensor_shape);
+        set_tensor(port, tensor);
     }
 }
 
@@ -157,6 +228,8 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
             if (kv_dim == 3u) {
                 copy_columns_by_row_chunks(prefill_out_slice, kvcache_in_slice);
+            } else if (kv_dim == 2u) {
+                copy_by_planes(prefill_out_slice, kvcache_in_slice);
             } else {
                 prefill_out_slice->copy_to(kvcache_in_slice._ptr);
             }
@@ -175,7 +248,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     std::copy_n(input_ids->data<int64_t>(), input_ids->get_size(), kv_input_ids->data<int64_t>());
 
     auto kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"));
-    std::copy_n(attention_mask->data<int64_t>(), attention_mask->get_size(), kv_attn_mask->data<int64_t>());
+    std::copy_n(attention_mask->data<int64_t>(), attention_mask->get_size() - 1, kv_attn_mask->data<int64_t>());
 
     auto kv_pos_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("position_ids"));
     std::copy_n(position_ids->data<int64_t>(), position_ids->get_size(), kv_pos_ids->data<int64_t>());
@@ -183,6 +256,10 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     m_kvcache_request->infer();
     m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at("logits"));
     kvcache_desc.num_stored_tokens += 1;
+
+    if (kvcache_desc.num_stored_tokens == kvcache_desc.total_size) {
+        return;
+    }
 
     LOG_DEBUG("Write KV-cache for the new token to the correct input position for next iteration.");
     const std::size_t kStartOutputKVCacheLayers = 1u;
@@ -199,7 +276,13 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                                   kvcache_desc.num_stored_tokens - 1,
                                                   kvcache_desc.num_stored_tokens);
         auto kvcache_out_tensor = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(output_name));
-        kvcache_out_tensor->copy_to(kvcache_in_slice._ptr);
+        if (kv_dim == 3u) {
+            ov::npuw::util::XARCH::copy_row_as_column(kvcache_out_tensor, kvcache_in_slice);
+        } else if (kv_dim == 2u) {
+            copy_by_planes(kvcache_out_tensor, kvcache_in_slice);
+        } else {
+            kvcache_out_tensor->copy_to(kvcache_in_slice._ptr);
+        }
     }
     LOG_DEBUG("Done");
 }

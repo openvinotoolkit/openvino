@@ -151,7 +151,9 @@ jobs:
       # Build
       #
 
-      - name: CMake configure - CC COLLECT
+      - name: CMake configure - CC COLLECT with clang-tidy
+         # clang-tidy static analysis check is enabled as part of collection
+         # to avoid an additional separate build execution
         run: |
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
@@ -159,6 +161,7 @@ jobs:
             -DBUILD_SHARED_LIBS=OFF \
             -DENABLE_TESTS=ON \
             -DENABLE_CPPLINT=OFF \
+            -DENABLE_CLANG_TIDY=ON \
             -DENABLE_NCC_STYLE=OFF \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DENABLE_PROFILING_ITT=ON \
@@ -226,7 +229,7 @@ jobs:
       # Upload build artifacts and logs
       #
       - name: Upload build logs
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         if: always()
         with:
           name: build_logs
@@ -235,7 +238,7 @@ jobs:
 
       - name: Upload openvino package
         if: ${{ always() }}
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -243,7 +246,7 @@ jobs:
 
       - name: Upload selective build statistics package
         if: ${{ always() }}
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: openvino_selective_build_stat
           path: ${{ env.BUILD_DIR }}/openvino_selective_build_stat.tar.gz
@@ -251,7 +254,7 @@ jobs:
 
       - name: Upload OpenVINO tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz

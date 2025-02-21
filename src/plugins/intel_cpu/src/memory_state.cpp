@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "memory_state.h"
 
 #include <nodes/common/cpu_convert.h>
+
+#include <utility>
 
 #include "cpu_memory.h"
 #include "cpu_tensor.h"
@@ -18,12 +20,11 @@
 
 using namespace ov::Extensions::Cpu::XARCH;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
-VariableStateBase::VariableStateBase(const std::string& name, const MemoryDescPtr& external_desc)
+VariableStateBase::VariableStateBase(const std::string& name, MemoryDescPtr external_desc)
     : IVariableState{name},
-      m_external_desc{external_desc} {}
+      m_external_desc{std::move(external_desc)} {}
 
 MemoryDescPtr VariableStateBase::to_static(const MemoryDescPtr& desc) {
     if (!desc->isDefined()) {
@@ -56,7 +57,7 @@ void VariableStateBase::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
     auto src = state->data();
 
     Memory mem(get_engine(), state_desc, src);
-    input_mem()->load(mem);
+    input_mem()->load(mem, true);
     reset_state_flag = false;
 }
 
@@ -95,7 +96,7 @@ ov::SoPtr<ov::ITensor> VariableStateBase::get_state() const {
 
     // reorder
     auto mem = std::make_shared<Memory>(get_engine(), current_ext_desc);
-    mem->load(*(internal_state_mem()));
+    mem->load(*(internal_state_mem()), true);
     return std::make_shared<Tensor>(mem);
 }
 
@@ -165,12 +166,12 @@ MemoryPtr VariableStateDoubleBuffer::internal_state_mem() const {
 }
 
 VariableStateSingleBuffer::VariableStateSingleBuffer(const std::string& name,
-                                                     const MemoryPtr& external_buffer,
-                                                     const MemoryDescPtr& external_desc)
-    : VariableStateBase(name, external_desc) {
-    OPENVINO_ASSERT(external_buffer);
-    m_internal_mem = external_buffer;
-    m_internal_desc = m_internal_mem->getDescPtr();
+                                                     MemoryPtr external_buffer,
+                                                     MemoryDescPtr external_desc)
+    : VariableStateBase(name, std::move(external_desc)),
+      m_internal_mem(std::move(external_buffer)),
+      m_internal_desc(m_internal_mem->getDescPtr()) {
+    OPENVINO_ASSERT(m_internal_mem);
     auto&& shape = m_internal_desc->getShape();
 
     if (shape.isStatic()) {
@@ -208,11 +209,11 @@ void VariableStateSingleBuffer::commit_impl() {
 }
 
 VariableStateKVcache::VariableStateKVcache(const std::string& name,
-                                           const MemoryDescPtr& external_desc,
-                                           const BlockedMemoryDescPtr& dense_internal_desc)
-    : VariableStateBase(name, external_desc),
-      m_dense_internal_desc(dense_internal_desc) {
-    auto&& shape = external_desc->getShape();
+                                           MemoryDescPtr external_desc,
+                                           BlockedMemoryDescPtr dense_internal_desc)
+    : VariableStateBase(name, std::move(external_desc)),
+      m_dense_internal_desc(std::move(dense_internal_desc)) {
+    auto&& shape = get_external_desc()->getShape();
 
     OPENVINO_ASSERT(shape.isDynamic(), "VariableStateKVcache is unexpectedly initalized with a static tensor");
 }
@@ -311,7 +312,7 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
                           m_scale_zp.at<float>({m, b, h, size_t{1}}));
         });
     } else {
-        m_internal_mem->load(external_mem);
+        m_internal_mem->load(external_mem, true);
     }
 
     // 2. Reset the beam search table
@@ -368,5 +369,4 @@ MemoryPtr VariableStateKVcache::hidden_state_mem() const {
 void VariableStateKVcache::assign_hidden_state(const MemoryPtr& mem) {
     m_hidden_state = mem;
 }
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

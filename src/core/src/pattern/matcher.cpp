@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,6 +36,8 @@ Matcher::Matcher(std::shared_ptr<Node> pattern_node, const std::string& name)
 
 Matcher::Matcher(std::shared_ptr<Node> pattern_node, const std::string& name, bool strict_mode)
     : Matcher(make_node_output(pattern_node), name, strict_mode) {}
+
+Matcher::~Matcher() = default;
 
 MatcherState::~MatcherState() {
     if (m_restore) {
@@ -137,7 +139,8 @@ bool Matcher::match_permutation(const OutputVector& pattern_args, const OutputVe
                            i,
                            " (",
                            args.at(i).get_node()->get_friendly_name(),
-                           ") mismatch");
+                           ") mismatch for pattern: ",
+                           pattern_args.at(i));
             return false;
         }
     }

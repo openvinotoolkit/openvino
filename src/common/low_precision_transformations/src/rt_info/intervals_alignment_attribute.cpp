@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -118,8 +118,7 @@ ov::Any IntervalsAlignmentAttribute::create(
             fakeQuantize->get_levels(),
             outputLowValues,
             outputHighValues);
-
-        if (preferablePrecision.precision != element::undefined) {
+        if (preferablePrecision.precision != element::dynamic) {
             attribute.value().preferablePrecisions.insert(preferablePrecision.precision);
         }
 

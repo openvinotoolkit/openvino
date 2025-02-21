@@ -1,0 +1,55 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "test_dequantize_21"
+  initializer {
+      dims: 6
+      dims: 3
+      data_type: 21
+      name: "data"
+      raw_data: "\x21\x43\x65\x87\xA9\xCB\xED\xFF\x00"
+  }
+  initializer {
+      dims: 2
+      dims: 3
+      data_type: 1
+      name: "scale"
+      raw_data: "\x00\x00\x80\x3f\x00\x00\x80\x3f\x00\x00\x80\x3f\x00\x00\x80\x3f\x00\x00\x80\x3f\x00\x00\x80\x3f"
+  }
+  node {
+    input: "data"
+    input: "scale"
+    output: "output"
+    name: "DequantizeNode"
+    op_type: "DequantizeLinear"
+    attribute {
+      name: "axis"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "block_size"
+      i: 3
+      type: INT
+    }
+  }
+  output {
+    name: "output"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 6
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 21
+}

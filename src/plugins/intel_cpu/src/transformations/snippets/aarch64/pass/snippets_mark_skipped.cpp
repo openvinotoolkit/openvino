@@ -12,16 +12,16 @@
 #include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace {
 static const int DEFAULT_AXIS = 1;
 NodeFusingType GetNodeFusingType(const std::shared_ptr<const Node>& node) {
     auto& rt = node->get_rt_info();
     const auto rinfo = rt.find("MayBeFusedInPlugin");
-    if (rinfo == rt.end())
+    if (rinfo == rt.end()) {
         return NodeFusingType::NotSet;
+    }
     return rinfo->second.as<NodeFusingType>();
 }
 void SetNodeFusingType(const std::shared_ptr<Node>& node, NodeFusingType nodeType) {
@@ -46,8 +46,9 @@ int getNumNonConstInputs(const std::shared_ptr<const Node>& node) {
         if (ov::is_type<ov::op::v1::Reshape>(parent)) {
             for (const auto& grandparent_out : parent->input_values()) {
                 const auto grandparent = grandparent_out.get_node_shared_ptr();
-                if (!ov::is_type<ov::op::v0::Constant>(grandparent))
+                if (!ov::is_type<ov::op::v0::Constant>(grandparent)) {
                     num_non_const_inputs++;
+                }
             }
         } else if (!ov::is_type<ov::op::v0::Constant>(parent)) {
             num_non_const_inputs++;
@@ -56,8 +57,9 @@ int getNumNonConstInputs(const std::shared_ptr<const Node>& node) {
     return num_non_const_inputs;
 }
 bool isFullyConnected(const std::shared_ptr<const ov::Node>& node) {
-    if (!ov::is_type<ov::op::v0::MatMul>(node))
+    if (!ov::is_type<ov::op::v0::MatMul>(node)) {
         return false;
+    }
     const auto out_activations = node->input_value(0);
     const auto out_weights = node->input_value(1);
     const auto rank_a = out_activations.get_partial_shape().rank();
@@ -119,8 +121,9 @@ bool isSuitableChildForFusingSimple(const std::shared_ptr<const Node>& node) {
     return SupportsFusingWithConvolution_Simple(node) && getNumNonConstInputs(node) == 1;
 }
 bool isSuitableChildForFusingBias(const std::shared_ptr<const Node>& node, int fusingAxis) {
-    if (!ov::is_type<ov::op::v1::Add>(node))
+    if (!ov::is_type<ov::op::v1::Add>(node)) {
         return false;
+    }
 
     auto is_suitable_parent = [](const std::shared_ptr<const Node>& node) {
         return (ov::is_type<ov::op::v1::Convolution>(node) || ov::is_type<ov::op::v1::GroupConvolution>(node) ||
@@ -132,25 +135,31 @@ bool isSuitableChildForFusingBias(const std::shared_ptr<const Node>& node, int f
         const auto& parent = parent_out.get_node_shared_ptr();
         const auto& parent_pshape = parent_out.get_partial_shape();
         if (is_suitable_parent(parent) && parent_pshape.rank().is_static()) {
-            if (parent->get_output_target_inputs(0).size() > 1)
+            if (parent->get_output_target_inputs(0).size() > 1) {
                 break;
+            }
             const auto bias_port = 1 - in.get_index();
             const auto bias_out = node->input_value(bias_port);
-            if ((bias_out.get_target_inputs().size() > 1) || !ov::op::util::is_on_constant_path(bias_out))
+            if ((bias_out.get_target_inputs().size() > 1) || !ov::op::util::is_on_constant_path(bias_out)) {
                 break;
+            }
             const auto& bias_pshape = bias_out.get_partial_shape();
-            if (bias_pshape.is_dynamic())
+            if (bias_pshape.is_dynamic()) {
                 break;
+            }
             const auto bias_shape_norm = getNormalizedDimsBySize(bias_pshape.get_shape(), parent_pshape.size());
             if (fusingAxis >= static_cast<int>(bias_shape_norm.size()) ||
                 fusingAxis >= static_cast<int>(parent_pshape.size()) ||
-                bias_shape_norm.size() != parent_pshape.size() || bias_shape_norm.size() < 2)
+                bias_shape_norm.size() != parent_pshape.size() || bias_shape_norm.size() < 2) {
                 break;
-            if (parent_pshape[fusingAxis].is_dynamic())
+            }
+            if (parent_pshape[fusingAxis].is_dynamic()) {
                 break;
+            }
             if ((bias_shape_norm[fusingAxis] == static_cast<size_t>(parent_pshape[fusingAxis].get_length())) &&
-                (bias_shape_norm[fusingAxis] == shape_size(bias_shape_norm)))
+                (bias_shape_norm[fusingAxis] == shape_size(bias_shape_norm))) {
                 return true;
+            }
         }
     }
     return false;
@@ -187,21 +196,24 @@ void MarkSubgraphOpAsSkipped(const std::shared_ptr<Node>& node) {
 }
 
 bool isSuitableConvert(const std::shared_ptr<const Node>& node) {
-    if (!ov::is_type<ov::op::v0::Convert>(node))
+    if (!ov::is_type<ov::op::v0::Convert>(node)) {
         return false;
+    }
     auto isSuitableParent = [](const std::shared_ptr<const Node>& node) {
         for (const auto& input : node->inputs()) {
             const auto parent = input.get_source_output().get_node_shared_ptr();
-            if (!ov::is_type<ov::op::v3::ReadValue>(parent))
+            if (!ov::is_type<ov::op::v3::ReadValue>(parent)) {
                 return false;
+            }
         }
         return true;
     };
     auto isSuitableChild = [](const std::shared_ptr<const Node>& node) {
         for (const auto& out : node->outputs()) {
             const auto& child = out.get_node_shared_ptr();
-            if (!ov::is_type<ov::op::v3::Assign>(child))
+            if (!ov::is_type<ov::op::v3::Assign>(child)) {
                 return false;
+            }
         }
         return true;
     };
@@ -225,8 +237,9 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_MODEL_SCOPE(SnippetsMarkSkipped);
     int channelAxis = DEFAULT_AXIS;
     for (auto& node : m->get_ordered_ops()) {
-        if (is_skipped_op(node))
+        if (is_skipped_op(node)) {
             continue;
+        }
         // We perform this check separately because we mark here only weights path
         // Matmul itself will be checked further
         if (isSuitableMatMulWithConstantPath(node)) {
@@ -292,5 +305,4 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
     return true;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

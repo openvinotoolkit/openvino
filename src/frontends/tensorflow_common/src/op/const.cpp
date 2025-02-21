@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,8 +20,7 @@ OutputVector translate_const_op(const NodeContext& node) {
 
     auto ov_type = node.get_attribute_as_any("dtype");
     std::shared_ptr<Node> const_node;
-    if (!ov_type.is<ov::element::Type>() || ov_type.as<ov::element::Type>() == ov::element::dynamic ||
-        ov_type.as<ov::element::Type>() == ov::element::undefined) {
+    if (!ov_type.is<ov::element::Type>() || ov_type.as<ov::element::Type>() == ov::element::dynamic) {
         const_node = std::make_shared<UnsupportedConstant>();
     } else {
         auto tensor = node.get_attribute<Tensor>("value");

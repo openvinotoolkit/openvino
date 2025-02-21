@@ -16,8 +16,8 @@ Its purpose is to:
 
 Execution via the heterogeneous mode can be divided into two independent steps:
 
-1. Setting hardware affinity to operations (`ov::Core::query_model <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_core.html#doxid-classov-1-1-core-1acdf8e64824fe4cf147c3b52ab32c1aab>`__ is used internally by the Hetero device).
-2. Compiling a model to the Heterogeneous device assumes splitting the model to parts, compiling them on the specified devices (via `ov::device::priorities <https://docs.openvino.ai/2024/api/c_cpp_api/structov_1_1device_1_1_priorities.html>`__), and executing them in the Heterogeneous mode. The model is split to subgraphs in accordance with the affinities, where a set of connected operations with the same affinity is to be a dedicated subgraph. Each subgraph is compiled on a dedicated device and multiple `ov::CompiledModel <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_compiled_model.html#doxid-classov-1-1-compiled-model>`__ objects are made, which are connected via automatically allocated intermediate tensors.
+1. Setting hardware affinity to operations (`ov::Core::query_model <https://docs.openvino.ai/2025/api/c_cpp_api/classov_1_1_core.html#class-ov-core>`__ is used internally by the Hetero device).
+2. Compiling a model to the Heterogeneous device assumes splitting the model to parts, compiling them on the specified devices (via `ov::device::priorities <https://docs.openvino.ai/2025/api/c_cpp_api/structov_1_1device_1_1_priorities.html>`__), and executing them in the Heterogeneous mode. The model is split to subgraphs in accordance with the affinities, where a set of connected operations with the same affinity is to be a dedicated subgraph. Each subgraph is compiled on a dedicated device and multiple `ov::CompiledModel <https://docs.openvino.ai/2025/api/c_cpp_api/classov_1_1_compiled_model.html#class-ov-compiledmodel>`__ objects are made, which are connected via automatically allocated intermediate tensors.
 
    If you set pipeline parallelism (via ``ov::hint::model_distribution_policy``), the model is split into multiple stages, and each stage is assigned to a different device. The output of one stage is fed as input to the next stage.
 
@@ -51,7 +51,7 @@ Manual and Automatic Modes for Assigning Affinities
 The Manual Mode
 +++++++++++++++++++++
 
-It assumes setting affinities explicitly for all operations in the model using `ov::Node::get_rt_info <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_node.html#doxid-classov-1-1-node-1a6941c753af92828d842297b74df1c45a>`__ with the ``"affinity"`` key.
+It assumes setting affinities explicitly for all operations in the model using `ov::Node::get_rt_info <https://docs.openvino.ai/2025/api/c_cpp_api/classov_1_1_node.html#class-ov-node>`__ with the ``"affinity"`` key.
 
 If you assign specific operation to a specific device, make sure that the device actually supports the operation.
 Randomly selecting operations and setting affinities may lead to decrease in model accuracy. To avoid that, try to set the related operations or subgraphs of this operation to the same affinity, such as the constant operation that will be folded into this operation.
@@ -156,14 +156,14 @@ In some cases you may need to consider manually adjusting affinities which were 
 
 Importantly, the automatic mode will not work if any operation in a model has its ``"affinity"`` already initialized.
 
-.. note:
+.. note::
 
-   `ov::Core::query_model <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_core.html#doxid-classov-1-1-core-1acdf8e64824fe4cf147c3b52ab32c1aab>`__ does not depend on affinities set by a user. Instead, it queries for an operation support based on device capabilities.
+   `ov::Core::query_model <https://docs.openvino.ai/2025/api/c_cpp_api/classov_1_1_core.html#_CPPv4NK2ov4Core11query_modelERKNSt10shared_ptrIKN2ov5ModelEEERKNSt6stringERK6AnyMap>`__ does not depend on affinities set by a user. Instead, it queries for an operation support based on device capabilities.
 
 Configure fallback devices
 ##########################
 
-If you want different devices in Hetero execution to have different device-specific configuration options, you can use the special helper property `ov::device::properties <https://docs.openvino.ai/2024/api/c_cpp_api/structov_1_1device_1_1_properties.html#doxid-group-ov-runtime-cpp-prop-api-1ga794d09f2bd8aad506508b2c53ef6a6fc>`__:
+If you want different devices in Hetero execution to have different device-specific configuration options, you can use the special helper property `ov::device::properties <https://docs.openvino.ai/2025/api/c_cpp_api/structov_1_1device_1_1_properties.html#struct-ov-device-properties>`__:
 
 
 .. tab-set::

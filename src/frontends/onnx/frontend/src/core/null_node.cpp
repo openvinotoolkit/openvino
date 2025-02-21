@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ std::shared_ptr<ov::Node> NullNode::clone_with_new_inputs(const ov::OutputVector
 }  // namespace ov
 
 bool ov::op::util::is_null(const ov::Node* node) {
-    return dynamic_cast<const ov::frontend::onnx::NullNode*>(node) != nullptr;
+    return ov::as_type<const ov::frontend::onnx::NullNode>(node) != nullptr;
 }
 
 bool ov::op::util::is_null(const std::shared_ptr<ov::Node>& node) {

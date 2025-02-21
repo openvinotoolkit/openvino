@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ public:
 
 class VariableStateBase : public IVariableState {
 public:
-    VariableStateBase(const std::string& name, const MemoryDescPtr& external_desc);
+    VariableStateBase(const std::string& name, MemoryDescPtr external_desc);
 
     // ov::IVariableState
     void set_state(const ov::SoPtr<ov::ITensor>& state) override final;  // NOLINT
@@ -96,9 +96,7 @@ private:
 
 class VariableStateSingleBuffer : public VariableStateBase {
 public:
-    VariableStateSingleBuffer(const std::string& name,
-                              const MemoryPtr& external_buffer,
-                              const MemoryDescPtr& external_desc);
+    VariableStateSingleBuffer(const std::string& name, MemoryPtr external_buffer, MemoryDescPtr external_desc);
 
     MemoryPtr input_mem() override;
     MemoryPtr output_mem() override;
@@ -111,15 +109,15 @@ private:
     MemoryPtr internal_state_mem() const override;
 
 private:
-    MemoryDescPtr m_internal_desc;  // mem desc required by the graph internal tensor
     MemoryPtr m_internal_mem;
+    MemoryDescPtr m_internal_desc;  // mem desc required by the graph internal tensor
 };
 
 class VariableStateKVcache : public VariableStateBase {
 public:
     VariableStateKVcache(const std::string& name,
-                         const MemoryDescPtr& external_desc,
-                         const BlockedMemoryDescPtr& dense_internal_desc);
+                         MemoryDescPtr external_desc,
+                         BlockedMemoryDescPtr dense_internal_desc);
 
     // ov::IVariableState
     ov::SoPtr<ov::ITensor> get_state() const override;

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Converts protobuf files from binary message format into prototxt format and vice-versa.

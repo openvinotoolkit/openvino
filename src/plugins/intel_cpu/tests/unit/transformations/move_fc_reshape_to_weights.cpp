@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -119,7 +119,7 @@ public:
         auto fully_connected = std::make_shared<ov::op::internal::FullyConnected>(
             data,
             weights_path,
-            std::make_shared<ov::op::v0::Constant>(ov::element::undefined, ov::Shape{0}));
+            std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}));
 
         return std::make_shared<ov::Model>(ov::NodeVector{fully_connected}, ov::ParameterVector{data});
     }

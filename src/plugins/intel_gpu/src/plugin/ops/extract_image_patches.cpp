@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,7 @@
 
 #include "intel_gpu/primitives/extract_image_patches.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateExtractImagePatchesOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v3::ExtractImagePatches>& op) {
     validate_inputs_count(op, {1});
@@ -30,5 +29,4 @@ static void CreateExtractImagePatchesOp(ProgramBuilder& p, const std::shared_ptr
 
 REGISTER_FACTORY_IMPL(v3, ExtractImagePatches);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

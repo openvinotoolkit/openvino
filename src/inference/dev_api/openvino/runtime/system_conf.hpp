@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -220,6 +220,13 @@ OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_proc_type_table();
 OPENVINO_RUNTIME_API int get_current_socket_id();
 
 /**
+ * @brief      Returns the numa node ID in cpu mapping table of the currently running thread.
+ * @ingroup    ov_dev_api_system_conf
+ * @return     numa node ID in cpu mapping
+ */
+OPENVINO_RUNTIME_API int get_current_numa_node_id();
+
+/**
  * @brief      Returns a table of original number of processor types without filtering other plugins occupying CPU
  * resources. The difference from get_proc_type_table: This is used to get the configuration of current machine. For
  * example, GPU plugin occupies all Pcores, there is only one type core in proc_type_table from get_proc_type_table().
@@ -287,14 +294,6 @@ OPENVINO_RUNTIME_API void reserve_available_cpus(const std::vector<std::vector<i
  * @param[in]  used update CPU_MAP_USED_FLAG of cpu_mapping with this flag bit
  */
 OPENVINO_RUNTIME_API void set_cpu_used(const std::vector<int>& cpu_ids, const int used);
-
-/**
- * @brief      Get socket id by current numa node id
- * @ingroup    ov_dev_api_system_conf
- * @param[in]  numa_node_id numa node id
- * @return     socket id
- */
-OPENVINO_RUNTIME_API int get_socket_by_numa_node(int numa_node_id);
 
 /**
  * @brief      Get original socket id by current socket id, the input socket id is recalculated after filtering (like

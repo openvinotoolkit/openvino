@@ -15,8 +15,7 @@
 #    include "emitters/snippets/utils/debug_caps_config.hpp"
 #endif
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class CompiledSnippetCPU : public snippets::CompiledSnippet {
     const std::unique_ptr<const dnnl::impl::cpu::x64::jit_generator> h_compiled;
@@ -35,7 +34,11 @@ public:
     bool is_supported() const override;
     snippets::CompiledSnippetPtr get_snippet() override;
     size_t get_lanes() const override;
-    size_t get_reg_count() const override;
+
+    std::vector<snippets::Reg> get_abi_arg_regs() const override;
+    std::vector<snippets::Reg> get_gp_reg_pool() const override;
+    std::vector<snippets::Reg> get_vec_reg_pool() const override;
+
     dnnl::impl::cpu::x64::cpu_isa_t get_isa() const;
 #ifdef SNIPPETS_DEBUG_CAPS
     SnippetsDebugCapsConfig debug_config;
@@ -58,5 +61,4 @@ protected:
     bool uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& emitter) const override;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

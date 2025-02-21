@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -149,7 +149,7 @@ TEST_P(UndefinedEtSubgraphTest, CompareWithRefs) {
     }
 
     ASSERT_EQ(compiledModel.get_property(ov::hint::execution_mode), m_mode);
-    ASSERT_EQ(compiledModel.get_property(ov::hint::inference_precision), element::undefined);
+    ASSERT_EQ(compiledModel.get_property(ov::hint::inference_precision), element::dynamic);
 
     size_t rnd_unfm_counter = 0lu;
     size_t logical_not_counter = 0lu;

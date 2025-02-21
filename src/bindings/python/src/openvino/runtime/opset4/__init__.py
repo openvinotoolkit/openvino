@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+from openvino.runtime.opset4 import ops
 
 from openvino.opset1.ops import absolute
 from openvino.opset1.ops import absolute as abs

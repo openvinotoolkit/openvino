@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
     auto convert_m = wrap_type<ov::op::v0::Convert>({weights_m}, consumers_count(1));
 
     auto one_consumer_rank_equals = [](const ov::Dimension& expected_rank) {
-        return [=](ov::Output<ov::Node> output) -> bool {
+        return [=](const ov::Output<ov::Node>& output) -> bool {
             return consumers_count(1)(output) && rank_equals(expected_rank)(output);
         };
     };
@@ -72,8 +72,9 @@ ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
             const size_t out_channels_idx = with_transpose ? 2 : 1;
             expected_shape[out_channels_idx] = fc_input_shape[0];
             const auto& node_shape = node->get_output_shape(0);
-            if (node_shape.size() > expected_shape.size())
+            if (node_shape.size() > expected_shape.size()) {
                 return false;
+            }
 
             const auto comparison_start_pos = expected_shape.size() - node_shape.size();
             return std::equal(node_shape.begin(), node_shape.end(), expected_shape.begin() + comparison_start_pos) ||
@@ -83,20 +84,23 @@ ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
         };
 
         const auto mul = reshape->get_input_node_shared_ptr(0);
-        if (!check_decompression_shape(mul->get_input_node_shared_ptr(1)))
+        if (!check_decompression_shape(mul->get_input_node_shared_ptr(1))) {
             return false;
+        }
         const auto mul_parent = mul->get_input_node_shared_ptr(0);
         const bool with_subtract = ov::is_type<ov::op::v1::Subtract>(mul_parent);
-        if (with_subtract && !check_decompression_shape(mul_parent->get_input_node_shared_ptr(1)))
+        if (with_subtract && !check_decompression_shape(mul_parent->get_input_node_shared_ptr(1))) {
             return false;
+        }
 
         const auto convert = with_subtract ? mul_parent->get_input_node_shared_ptr(0) : mul_parent;
         const auto weights = convert->get_input_node_shared_ptr(0);
         ov::Shape expected_weights_shape(3, 1);
         expected_weights_shape[1] = fc_input_shape[with_transpose ? 1 : 0];
         expected_weights_shape[2] = fc_input_shape[with_transpose ? 0 : 1];
-        if (weights->get_output_shape(0) != expected_weights_shape)
+        if (weights->get_output_shape(0) != expected_weights_shape) {
             return false;
+        }
 
         auto squeeze_constant = [&](const std::shared_ptr<ov::Node>& node) {
             const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
@@ -117,8 +121,9 @@ ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
         squeeze_constant(weights);
         if (with_subtract) {
             auto sub_const = mul_parent->get_input_node_shared_ptr(1);
-            if (ov::is_type<ov::op::v0::Convert>(sub_const))
+            if (ov::is_type<ov::op::v0::Convert>(sub_const)) {
                 sub_const = sub_const->get_input_node_shared_ptr(0);
+            }
             squeeze_constant(sub_const);
         }
         return true;

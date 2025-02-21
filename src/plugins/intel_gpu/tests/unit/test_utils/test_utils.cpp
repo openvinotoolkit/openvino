@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,14 +54,14 @@ void generic_test::run_single_test(bool is_caching_test) {
             }
         }
         std::string input_name = "input" + std::to_string(i);
-        if ((i == 0) && generic_params->network_config.get_property(ov::intel_gpu::optimize_data)) {
+        if ((i == 0) && generic_params->network_config.get_optimize_data()) {
             // Add reorder after the first input in case of optimize data flag since it might change the input layout.
             input_name = "input0_init";
         }
 
         // First input is provided to the network as input_layout.
         // Other inputs are provided as input_layout if optimize data flag is off. Otherwise they are provided as data.
-        if ((i == 0) || !generic_params->network_config.get_property(ov::intel_gpu::optimize_data)) {
+        if ((i == 0) || !generic_params->network_config.get_optimize_data()) {
             topology.add(input_layout(input_name, input_mems[i]->get_layout()));
             input_layouts_names.push_back(input_name);
         } else {
@@ -74,7 +74,7 @@ void generic_test::run_single_test(bool is_caching_test) {
         }
     }
 
-    if (generic_params->network_config.get_property(ov::intel_gpu::optimize_data)) {
+    if (generic_params->network_config.get_optimize_data()) {
         // Add reorder after the first input in case of optimize data flag since it might change the input layout.
         topology.add(reorder("input0", input_info("input0_init"), input_mems[0]->get_layout()));
     }
@@ -303,6 +303,29 @@ cldnn::ExecutionConfig get_test_default_config(const cldnn::engine& engine,
 
 std::shared_ptr<cldnn::engine> create_test_engine() {
     auto ret = cldnn::engine::create(engine_types::ocl, runtime_types::ocl);
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    if (ret->get_device_info().supports_immad)
+        ret->create_onednn_engine({});
+#endif
+    return ret;
+}
+
+std::shared_ptr<cldnn::engine> create_test_engine(cldnn::engine_types engine_type,
+                                                  cldnn::runtime_types runtime_type,
+                                                  bool allow_usm_mem) {
+    device_query query(engine_type, runtime_type);
+    auto devices = query.get_available_devices();
+
+    OPENVINO_ASSERT(!devices.empty(), "[GPU] Can't create ", engine_type, " engine for ", runtime_type, " runtime as no suitable devices are found\n"
+                                      "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n");
+
+    auto iter = devices.find(std::to_string(device_query::device_id));
+    auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
+
+    if (!allow_usm_mem)
+        device->set_mem_caps(cldnn::memory_capabilities({}));
+
+    auto ret = engine::create(engine_type, runtime_type, device);
 #ifdef ENABLE_ONEDNN_FOR_GPU
     if (ret->get_device_info().supports_immad)
         ret->create_onednn_engine({});

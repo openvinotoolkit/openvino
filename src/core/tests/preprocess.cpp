@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "gtest/gtest.h"
@@ -32,6 +33,24 @@ static std::shared_ptr<Model> create_trivial(element::Type type, const PartialSh
     data1->set_friendly_name("input1");
     data1->get_output_tensor(0).set_names({"tensor_input1"});
     auto res = std::make_shared<op::v0::Result>(data1);
+    res->set_friendly_name("Result1");
+    res->get_output_tensor(0).set_names({"tensor_output1"});
+    return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
+}
+
+static std::shared_ptr<Model> create_conv(element::Type in_type, const PartialShape& shape, element::Type weight_type) {
+    auto data1 = std::make_shared<op::v0::Parameter>(in_type, shape);
+    data1->set_friendly_name("input1");
+    data1->get_output_tensor(0).set_names({"tensor_input1"});
+
+    std::shared_ptr<Node> weights = std::make_shared<op::v0::Constant>(weight_type, ov::Shape{1, 3, 3, 3}, 1);
+    if (weight_type == element::f16) {
+        // decompression subgraph
+        weights = std::make_shared<op::v0::Convert>(weights, element::f32);
+    }
+    auto conv =
+        std::make_shared<op::v1::Convolution>(data1, weights, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
+    auto res = std::make_shared<op::v0::Result>(conv);
     res->set_friendly_name("Result1");
     res->get_output_tensor(0).set_names({"tensor_output1"});
     return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
@@ -184,9 +203,9 @@ TEST(pre_post_process, preprocess_assert_input_without_index) {
 TEST(pre_post_process, convert_element_type_from_unknown) {
     auto f = create_simple_function(element::i32, Shape{1, 3, 224, 224});
     auto p = PrePostProcessor(f);
-    ASSERT_THROW(p.input().preprocess().convert_element_type(element::dynamic).convert_element_type(element::i32);
-                 f = p.build();
-                 , ov::AssertFailure);
+
+    ASSERT_NO_THROW(p.input().preprocess().convert_element_type(element::dynamic).convert_element_type(element::i32);
+                    f = p.build(););
 }
 
 TEST(pre_post_process, scale_not_float) {
@@ -1547,7 +1566,7 @@ TEST(pre_post_process, postprocess_convert_element_type_explicit) {
     EXPECT_EQ(f->output().get_tensor().get_names(), old_names);
     auto ops = f->get_ordered_ops();
     auto res_count = std::count_if(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& n) {
-        return std::dynamic_pointer_cast<ov::op::v0::Result>(n) != nullptr;
+        return ov::as_type_ptr<ov::op::v0::Result>(n) != nullptr;
     });
     EXPECT_EQ(res_count, 1);
     auto names_count = std::count_if(ops.begin(), ops.end(), [](std::shared_ptr<ov::Node> n) {
@@ -1575,7 +1594,7 @@ TEST(pre_post_process, trivial_model_convert_element_type_explicit) {
     EXPECT_THAT(f->output().get_tensor().get_names(), old_names);
     const auto ops = f->get_ordered_ops();
     const auto res_count = std::count_if(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& n) {
-        return std::dynamic_pointer_cast<ov::op::v0::Result>(n) != nullptr;
+        return ov::as_type_ptr<ov::op::v0::Result>(n) != nullptr;
     });
     EXPECT_EQ(res_count, 1);
     const auto names_count = std::count_if(ops.begin(), ops.end(), [](std::shared_ptr<ov::Node> n) {
@@ -2096,12 +2115,94 @@ TEST(pre_post_process, postprocess_one_node_many_outputs) {
     p.output(2).tensor().set_element_type(element::f32);
     model = p.build();
     EXPECT_EQ(model->get_results().size(), 3);
-    // Tensor names on output is lost as origin named tensor is before convert op
+    // Tensor names on modified outputs are set to Split tensors not model output.
     // New result has different precision means different tensor.
     EXPECT_EQ(model->output(0).get_tensor().get_names().count("tensor_Split0"), 0);
-    EXPECT_EQ(model->output(0).get_tensor().get_names().count("output_split0"), 1);
-    EXPECT_EQ(model->output(1).get_tensor().get_names().count("tensor_Split1"), 1);
     EXPECT_EQ(model->output(2).get_tensor().get_names().count("tensor_Split2"), 0);
+    // Add output node still on output after pre-processing
+    EXPECT_EQ(model->output(0).get_tensor().get_names().count("output_split0"), 1);
+    // Not modified output still have name
+    EXPECT_EQ(model->output(1).get_tensor().get_names().count("tensor_Split1"), 1);
+    EXPECT_EQ(model->get_results()[0]->input(0).get_source_output().get_node()->get_friendly_name(), "Split.0");
+    EXPECT_EQ(model->get_results()[1]->input(0).get_source_output().get_node()->get_friendly_name(), "Split");
+    EXPECT_EQ(model->get_results()[2]->input(0).get_source_output().get_node()->get_friendly_name(), "Split.2");
+}
+
+TEST(pre_post_process, postprocess_one_node_many_outputs_results_created_by_model) {
+    auto data1 = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
+    auto c1 = opset8::Constant::create(element::i32, Shape{}, {0});
+    auto op = std::make_shared<opset8::Split>(data1, c1, 3);
+    op->set_friendly_name("Split");
+    op->output(0).set_names({"tensor_Split0"});
+    auto r1 = std::make_shared<op::v0::Result>(op->output(0));
+
+    OutputVector outputs{r1};
+    for (size_t i = 1; i < op->get_num_splits(); i++) {
+        auto output = op->output(i);
+        output.set_names({"tensor_Split" + std::to_string(i)});
+        outputs.push_back(std::move(output));
+    }
+    auto model = std::make_shared<Model>(outputs, ParameterVector{data1});
+    // Set tensor name to model output 0
+    model->output(0).set_names({"output_split0"});
+    EXPECT_EQ(model->output(0).get_tensor().get_names().count("output_split0"), 1);
+    // Result input has still tensor_split0 names from split op
+    EXPECT_EQ(model->output(0).get_node()->get_input_tensor(0).get_names().count("tensor_Split0"), 1);
+    EXPECT_EQ(model->output(1).get_tensor().get_names().count("tensor_Split1"), 1);
+    EXPECT_EQ(model->output(2).get_tensor().get_names().count("tensor_Split2"), 1);
+
+    auto p = PrePostProcessor(model);
+    p.output(0).tensor().set_element_type(element::f32);
+    p.output(2).tensor().set_element_type(element::f32);
+    model = p.build();
+    EXPECT_EQ(model->get_results().size(), 3);
+
+    // output 0 by user,not use input nodes names as its own, modified by PPP (tensor_Split0 is on split output)
+    EXPECT_EQ(model->output(0).get_tensor().get_names().count("tensor_Split0"), 0);
+    EXPECT_EQ(model->output(0).get_tensor().get_names().count("output_split0"), 1);
+    // output 1 created by model, assume its names is output name, not modified by PPP
+    EXPECT_EQ(model->output(1).get_tensor().get_names().count("tensor_Split1"), 1);
+    // output 2 created by model, assume its names is output name, modified by PPP
+    EXPECT_EQ(model->output(2).get_tensor().get_names().count("tensor_Split2"), 1);
+    EXPECT_EQ(model->get_results()[0]->input(0).get_source_output().get_node()->get_friendly_name(), "Split.0");
+    EXPECT_EQ(model->get_results()[1]->input(0).get_source_output().get_node()->get_friendly_name(), "Split");
+    EXPECT_EQ(model->get_results()[2]->input(0).get_source_output().get_node()->get_friendly_name(), "Split.2");
+}
+
+TEST(pre_post_process, postprocess_one_node_many_outputs_results_created_or_added_by_model) {
+    auto data1 = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
+    auto c1 = opset8::Constant::create(element::i32, Shape{}, {0});
+    auto op = std::make_shared<opset8::Split>(data1, c1, 3);
+    op->set_friendly_name("Split");
+    for (size_t i = 0; i < op->get_output_size(); ++i) {
+        op->output(i).set_names({"tensor_Split" + std::to_string(i)});
+    }
+
+    OutputVector outputs{std::make_shared<op::v0::Result>(op->output(0)), op->output(1)};
+
+    auto model = std::make_shared<Model>(outputs, ParameterVector{data1});
+    model->add_output(op->output(2));
+    // Set tensor name to model output 0
+    model->output(0).set_names({"output_split0"});
+    EXPECT_EQ(model->output(0).get_tensor().get_names().count("output_split0"), 1);
+    // Result input has still tensor_split0 names from split op
+    EXPECT_EQ(model->output(0).get_node()->get_input_tensor(0).get_names().count("tensor_Split0"), 1);
+    EXPECT_EQ(model->output(1).get_tensor().get_names().count("tensor_Split1"), 1);
+    EXPECT_EQ(model->output(2).get_tensor().get_names().count("tensor_Split2"), 1);
+
+    auto p = PrePostProcessor(model);
+    p.output(0).tensor().set_element_type(element::f32);
+    p.output(2).tensor().set_element_type(element::f32);
+    model = p.build();
+    EXPECT_EQ(model->get_results().size(), 3);
+
+    // output 0 by user,not use input nodes names as its own, modified by PPP (tensor_Split0 is on split output)
+    EXPECT_EQ(model->output(0).get_tensor().get_names().count("tensor_Split0"), 0);
+    EXPECT_EQ(model->output(0).get_tensor().get_names().count("output_split0"), 1);
+    // output 1 created by model, assume its names is output name, not modified by PPP
+    EXPECT_EQ(model->output(1).get_tensor().get_names().count("tensor_Split1"), 1);
+    // output 2 created by model, assume its names is output name, modified by PPP
+    EXPECT_EQ(model->output(2).get_tensor().get_names().count("tensor_Split2"), 1);
     EXPECT_EQ(model->get_results()[0]->input(0).get_source_output().get_node()->get_friendly_name(), "Split.0");
     EXPECT_EQ(model->get_results()[1]->input(0).get_source_output().get_node()->get_friendly_name(), "Split");
     EXPECT_EQ(model->get_results()[2]->input(0).get_source_output().get_node()->get_friendly_name(), "Split.2");
@@ -2343,4 +2444,63 @@ TEST(pre_post_process, dump_error) {
     stream << p;
     auto dump = stream.str();
     EXPECT_TRUE(dump.find("Error occurred:") != std::string::npos) << dump;
+}
+
+TEST_F(TransformationTestsF, preprocessing_mul_conv_fusion) {
+    auto in_shape = Shape{1, 3, 32, 32};
+    auto in_type = element::f32;
+    auto weight_type = element::f32;
+    {
+        auto f = create_conv(in_type, in_shape, weight_type);
+        auto p = PrePostProcessor(f);
+
+        p.input().tensor().set_layout(Layout("NCHW"));
+        p.input().preprocess().reverse_channels();
+        p.input().preprocess().scale(255.);
+        model = p.build();
+    }
+
+    {
+        // we expect that MultiplyConvolutionFusion will be applied
+        auto input = std::make_shared<op::v0::Parameter>(in_type, in_shape);
+
+        auto weights = op::v0::Constant::create(element::f32, ov::Shape({1, 3, 3, 3}), {0.003922f});
+        auto conv = std::make_shared<op::v1::Convolution>(input,
+                                                          weights,
+                                                          Strides{},
+                                                          CoordinateDiff{},
+                                                          CoordinateDiff{},
+                                                          Strides{});
+        auto res = std::make_shared<op::v0::Result>(conv);
+        model_ref = std::make_shared<ov::Model>(ResultVector{res}, ParameterVector{input});
+    }
+}
+
+TEST_F(TransformationTestsF, preprocessing_conv_decompression) {
+    auto in_shape = Shape{1, 3, 32, 32};
+    auto in_type = element::f32;
+    auto weight_type = element::f16;
+    {
+        auto f = create_conv(in_type, in_shape, weight_type);
+        auto p = PrePostProcessor(f);
+
+        p.input().tensor().set_layout(Layout("NCHW"));
+        p.input().preprocess().reverse_channels();
+        p.input().preprocess().scale(255.);
+        model = p.build();
+    }
+
+    {
+        // we expect that MultiplyConvolutionFusion will be applied
+        auto input = std::make_shared<op::v0::Parameter>(in_type, in_shape);
+
+        auto weights = op::v0::Constant::create(weight_type, ov::Shape({1, 3, 3, 3}), {1.f});
+        auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
+        auto B = op::v0::Constant::create(in_type, ov::Shape({1}), {0.003922f});
+        auto mul = std::make_shared<op::v1::Multiply>(convert, B);
+        auto conv =
+            std::make_shared<op::v1::Convolution>(input, mul, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
+        auto res = std::make_shared<op::v0::Result>(conv);
+        model_ref = std::make_shared<ov::Model>(ResultVector{res}, ParameterVector{input});
+    }
 }

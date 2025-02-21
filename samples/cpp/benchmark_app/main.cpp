@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,9 +61,11 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     if (FLAGS_api != "async" && FLAGS_api != "sync") {
         throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
     }
-    if (FLAGS_api == "sync" && FLAGS_nireq > FLAGS_niter) {
-        throw std::logic_error(
-            "Number of iterations should be greater than number of infer requests when using sync API.");
+    if (FLAGS_api == "sync") {
+        if ((FLAGS_t == 0) && (FLAGS_nireq > FLAGS_niter)) {
+            throw std::logic_error(
+                "Number of iterations should be greater than number of infer requests when using sync API.");
+        }
     }
     if (!FLAGS_hint.empty() && FLAGS_hint != "throughput" && FLAGS_hint != "tput" && FLAGS_hint != "latency" &&
         FLAGS_hint != "cumulative_throughput" && FLAGS_hint != "ctput" && FLAGS_hint != "none") {
@@ -490,21 +492,11 @@ int main(int argc, char* argv[]) {
                 }
             };
 
-            auto fix_pin_option = [](const std::string& str) -> std::string {
-                if (str == "NO")
-                    return "NONE";
-                else if (str == "YES")
-                    return "CORE";
-                else
-                    return str;
-            };
-
             auto set_nthreads_pin = [&](const std::string& str) {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                auto property_name = str == "nthreads" ? ov::inference_num_threads.name() : ov::affinity.name();
+                auto property_name =
+                    str == "nthreads" ? ov::inference_num_threads.name() : ov::hint::enable_cpu_pinning.name();
                 auto property = str == "nthreads" ? ov::inference_num_threads(int(FLAGS_nthreads))
-                                                  : ov::affinity(fix_pin_option(FLAGS_pin));
-                OPENVINO_SUPPRESS_DEPRECATED_END
+                                                  : ov::hint::enable_cpu_pinning(FLAGS_pin);
                 if (supported(property_name) || device_name == "AUTO") {
                     // create nthreads/pin primary property for HW device or AUTO if -d is AUTO directly.
                     device_config[property.first] = property.second;
@@ -531,15 +523,13 @@ int main(int argc, char* argv[]) {
             }
         }
         auto result = std::find_if(config.begin(), config.end(), [&](const std::pair<std::string, ov::AnyMap>& item) {
-            if (device_name.find(item.first) == 0)
-                return true;
-            return false;
+            return device_name.find(item.first) == 0;
         });
         ov::AnyMap device_config = {};
         if (result != config.end())
             device_config = result->second;
         size_t batchSize = FLAGS_b;
-        ov::element::Type type = ov::element::undefined;
+        ov::element::Type type = ov::element::dynamic;
         std::string topology_name = "";
         std::vector<benchmark_app::InputsInfo> app_inputs_info;
         std::string output_name;
@@ -556,6 +546,11 @@ int main(int argc, char* argv[]) {
         }
 
         bool isDynamicNetwork = false;
+        auto areNetworkInputsDynamic = [](const benchmark_app::InputsInfo& input_info) {
+            return std::any_of(input_info.begin(), input_info.end(), [](const auto& info) {
+                return info.second.partialShape.is_dynamic();
+            });
+        };
 
         if (FLAGS_load_from_file && !isNetworkCompiled) {
             if (!FLAGS_mean_values.empty() || !FLAGS_scale_values.empty()) {
@@ -665,14 +660,14 @@ int main(int argc, char* argv[]) {
                                         std::const_pointer_cast<const ov::Model>(model)->outputs());
             }
 
-            const auto input_precision = FLAGS_ip.empty() ? ov::element::undefined : getPrecision2(FLAGS_ip);
-            const auto output_precision = FLAGS_op.empty() ? ov::element::undefined : getPrecision2(FLAGS_op);
+            const auto input_precision = FLAGS_ip.empty() ? ov::element::dynamic : getPrecision2(FLAGS_ip);
+            const auto output_precision = FLAGS_op.empty() ? ov::element::dynamic : getPrecision2(FLAGS_op);
 
             const auto& inputs = model->inputs();
             for (size_t i = 0; i < inputs.size(); i++) {
                 const auto& item = inputs[i];
-                auto iop_precision = ov::element::undefined;
-                auto type_to_set = ov::element::undefined;
+                auto iop_precision = ov::element::dynamic;
+                auto type_to_set = ov::element::dynamic;
                 std::string name;
                 try {
                     // Some tensors might have no names, get_any_name will throw exception in that case.
@@ -681,10 +676,9 @@ int main(int argc, char* argv[]) {
                     iop_precision = getPrecision2(user_precisions_map.at(item.get_any_name()));
                 } catch (...) {
                 }
-
-                if (iop_precision != ov::element::undefined) {
+                if (iop_precision != ov::element::dynamic) {
                     type_to_set = iop_precision;
-                } else if (input_precision != ov::element::undefined) {
+                } else if (input_precision != ov::element::dynamic) {
                     type_to_set = input_precision;
                 } else if (!name.empty() && app_inputs_info[0].at(name).is_image()) {
                     // image input, set U8
@@ -692,7 +686,7 @@ int main(int argc, char* argv[]) {
                 }
 
                 auto& in = preproc.input(item.get_any_name());
-                if (type_to_set != ov::element::undefined) {
+                if (type_to_set != ov::element::dynamic) {
                     in.tensor().set_element_type(type_to_set);
 
                     if (!name.empty()) {
@@ -712,17 +706,16 @@ int main(int argc, char* argv[]) {
             const auto& outs = model->outputs();
             for (size_t i = 0; i < outs.size(); i++) {
                 const auto& item = outs[i];
-                auto iop_precision = ov::element::undefined;
+                auto iop_precision = ov::element::dynamic;
                 try {
                     // Some tensors might have no names, get_any_name will throw exception in that case.
                     // -iop option will not work for those tensors.
                     iop_precision = getPrecision2(user_precisions_map.at(item.get_any_name()));
                 } catch (...) {
                 }
-
-                if (iop_precision != ov::element::undefined) {
+                if (iop_precision != ov::element::dynamic) {
                     preproc.output(i).tensor().set_element_type(iop_precision);
-                } else if (output_precision != ov::element::undefined) {
+                } else if (output_precision != ov::element::dynamic) {
                     preproc.output(i).tensor().set_element_type(output_precision);
                 }
             }
@@ -730,12 +723,7 @@ int main(int argc, char* argv[]) {
             model = preproc.build();
 
             // Check if network has dynamic shapes
-            auto input_info = app_inputs_info[0];
-            isDynamicNetwork = std::any_of(input_info.begin(),
-                                           input_info.end(),
-                                           [](const std::pair<std::string, benchmark_app::InputInfo>& i) {
-                                               return i.second.partialShape.is_dynamic();
-                                           });
+            isDynamicNetwork = areNetworkInputsDynamic(app_inputs_info.at(0));
 
             topology_name = model->get_friendly_name();
 
@@ -797,6 +785,7 @@ int main(int argc, char* argv[]) {
                                               FLAGS_scale_values,
                                               FLAGS_mean_values,
                                               compiledModel.inputs());
+            isDynamicNetwork = areNetworkInputsDynamic(app_inputs_info.at(0));
 
             batchSize = get_batch_size(app_inputs_info.at(0));
             warn_if_no_batch(app_inputs_info.at(0));

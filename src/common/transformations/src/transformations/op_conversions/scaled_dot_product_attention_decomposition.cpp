@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -68,9 +69,23 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     auto one_f = register_new_node<v1::ConvertLike>(one_i, query);
     auto zero_f = register_new_node<v1::ConvertLike>(zero_i, query);
 
+    auto build_extract_dim_subgraph = [this, &zero_i](const std::shared_ptr<v3::ShapeOf>& shape_of,
+                                                      const int64_t idx) -> std::shared_ptr<ov::Node> {
+        const auto dim_to_extract_const = v0::Constant::create(element::i32, Shape{}, {idx});
+        const auto gather = std::make_shared<v8::Gather>(shape_of, dim_to_extract_const, zero_i);
+        // When dim_to_extract is static but the whole shape is dynamic,
+        // ConstantFolding can't fold ShapeOf->Gather subgraph in this case.
+        // So it's better to explicitly extract the needed dimension.
+        if (auto constant = ov::util::get_constant_from_source(gather)) {
+            return register_new_node(constant);
+        }
+        register_new_node(dim_to_extract_const);
+        return register_new_node(gather);
+    };
+
     Output<Node> scale;
     if (node->get_input_size() < 5) {
-        scale = register_new_node<v8::Gather>(q_shape, minus_one, zero_i)->output(0);
+        scale = build_extract_dim_subgraph(q_shape, -1);
         scale = register_new_node<v1::ConvertLike>(scale, query);
         auto sqrt_scale = register_new_node<v0::Sqrt>(scale);
         scale = register_new_node<v1::Divide>(one_f, sqrt_scale);
@@ -112,8 +127,8 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
                 atten_mask = mask;
             }
         } else {
-            auto target_s_len = register_new_node<v8::Gather>(q_shape, minus_two, zero_i);
-            auto source_s_len = register_new_node<v8::Gather>(k_shape, minus_two, zero_i);
+            auto target_s_len = build_extract_dim_subgraph(q_shape, -2);
+            auto source_s_len = build_extract_dim_subgraph(k_shape, -2);
             auto ssl = register_new_node<v0::Unsqueeze>(source_s_len, zero_i);
             auto tsl = register_new_node<v0::Unsqueeze>(target_s_len, zero_i);
             auto mask_shape = register_new_node<v0::Concat>(OutputVector{tsl, ssl}, 0);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -15,7 +15,7 @@ class Eltwise;
 
 class Convolution : public Node {
 public:
-    Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -24,6 +24,8 @@ public:
     void initDescriptor(const NodeConfig& config) override;
     void selectOptimalPrimitiveDescriptor() override;
     void initSupportedPrimitiveDescriptors() override;
+    int registerToAllocationContext(int offset, AllocationContext& context) override;
+    void createPrimitive() override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
@@ -108,12 +110,12 @@ private:
                                bool constWeight);
 
     private:
-        void reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::stream strm) override;
+        void reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, const dnnl::stream& strm) override;
     };
 
     void prepareParams() override;
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
     void addLegacyZeroPoints(dnnl::primitive_attr& attr);
     void addZeroPoints(dnnl::primitive_attr& attr);
     void setPostOps(dnnl::primitive_attr& attr,
@@ -180,7 +182,7 @@ private:
     MemoryPtr legacyOutputCompensationMemPtr;
     MemoryPtr stockInputZeroPointsMemPtr;
     dnnl::memory::data_type outputDataType = dnnl::memory::data_type::undef;
-    ov::element::Type sumPrc = ov::element::undefined;
+    ov::element::Type sumPrc = ov::element::dynamic;
     bool useJitPlanar = false;
     // TODO: migrate on convolution_auto algorithm for x64
 #if defined(OPENVINO_ARCH_X86_64)

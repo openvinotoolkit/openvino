@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,7 @@
 
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class CausalMaskPreprocessNode : public ov::op::Op {
 public:
@@ -19,7 +18,7 @@ public:
         std::string type;
     };
 
-    CausalMaskPreprocessNode(const OutputVector& args, const Config& cfg);
+    CausalMaskPreprocessNode(const OutputVector& args, Config cfg);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
@@ -39,5 +38,4 @@ private:
     Config m_config;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 DnnlMemoryDescPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDescPtr& desc) {
     if (MemoryDescType::Blocked == desc->getType()) {
@@ -115,7 +114,7 @@ std::shared_ptr<MemoryDesc> MemoryDescUtils::makeEmptyDesc() {
     return emptyDesc;
 }
 
-std::shared_ptr<IMemory> MemoryDescUtils::makeEmptyMemory(const GraphContext::CPtr context) {
+std::shared_ptr<IMemory> MemoryDescUtils::makeEmptyMemory(const GraphContext::CPtr& context) {
     return std::make_shared<StaticMemory>(context->getEngine(), makeEmptyDesc(), nullptr);
 }
 
@@ -144,5 +143,4 @@ Shape MemoryDescUtils::makeDummyShape(const Shape& shape, const VectorDims& dumm
     }
     return Shape(dummyDims);
 }
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
