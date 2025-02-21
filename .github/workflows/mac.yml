@@ -402,7 +402,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-2-cores-8gb
     container:
-      image: 'openvinogithubactions.azurecr.io/openvino_provider:0.1.0'
+      image: 'openvinogithubactions.azurecr.io/ov_build/ubuntu_22_04_x64'
       volumes: 
         - /mount:/mount
         - ${{ github.workspace }}:${{ github.workspace }}
