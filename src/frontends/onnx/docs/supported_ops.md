@@ -6,212 +6,212 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 
 | Domain                 | Operation Name                                         | Supported Version      | Defined Version                | Limitation                     |
 |------------------------|--------------------------------------------------------|------------------------|--------------------------------|--------------------------------|
-|                        |Abs                                                     |                        |13, 6, 1                        |                                |
-|                        |Acos                                                    |                        |22, 7                           |                                |
-|                        |Acosh                                                   |                        |22, 9                           |                                |
-|                        |Add                                                     |                        |14, 13, 7, 6, 1                 |                                |
-|                        |Affine                                                  |                        |                                |                                |
-|                        |And                                                     |                        |7, 1                            |                                |
-|                        |ArgMax                                                  |                        |13, 12, 11, 1                   |                                |
-|                        |ArgMin                                                  |                        |13, 12, 11, 1                   |                                |
-|                        |Asin                                                    |                        |22, 7                           |                                |
-|                        |Asinh                                                   |                        |22, 9                           |                                |
-|                        |Atan                                                    |                        |22, 7                           |                                |
-|                        |Atanh                                                   |                        |22, 9                           |                                |
-|                        |ATen                                                    |                        |                                |                                |
-|                        |AveragePool                                             |                        |22, 19, 11, 10, 7, 1            |                                |
-|                        |BatchNormalization                                      |                        |15, 14, 9, 7, 6, 1              |                                |
-|                        |BitShift                                                |                        |11                              |                                |
-|                        |BitwiseAnd                                              |                        |18                              |                                |
-|                        |BitwiseNot                                              |                        |18                              |                                |
-|                        |BitwiseOr                                               |                        |18                              |                                |
-|                        |BitwiseXor                                              |                        |18                              |                                |
-|                        |Cast                                                    |                        |21, 19, 13, 9, 6, 1             |                                |
-|                        |Ceil                                                    |                        |13, 6, 1                        |                                |
+|                        |ATen                                                    |1                       |                                |                                |
+|                        |Abs                                                     |13, 6, 1                |13, 6, 1                        |                                |
+|                        |Acos                                                    |1                       |22, 7                           |                                |
+|                        |Acosh                                                   |1                       |22, 9                           |                                |
+|                        |Add                                                     |14, 13, 7, 6, 1         |14, 13, 7, 6, 1                 |                                |
+|                        |Affine                                                  |1                       |                                |                                |
+|                        |AffineGrid                                              |                        |20                              |                                |
+|                        |And                                                     |7, 1                    |7, 1                            |                                |
+|                        |ArgMax                                                  |12, 1                   |13, 12, 11, 1                   |                                |
+|                        |ArgMin                                                  |12, 1                   |13, 12, 11, 1                   |                                |
+|                        |Asin                                                    |1                       |22, 7                           |                                |
+|                        |Asinh                                                   |1                       |22, 9                           |                                |
+|                        |Atan                                                    |1                       |22, 7                           |                                |
+|                        |Atanh                                                   |1                       |22, 9                           |                                |
+|                        |AveragePool                                             |1                       |22, 19, 11, 10, 7, 1            |                                |
+|                        |BatchNormalization                                      |14, 7, 1                |15, 14, 9, 7, 6, 1              |                                |
+|                        |Bernoulli                                               |                        |22, 15                          |                                |
+|                        |BitShift                                                |1                       |11                              |                                |
+|                        |BitwiseAnd                                              |1                       |18                              |                                |
+|                        |BitwiseNot                                              |1                       |18                              |                                |
+|                        |BitwiseOr                                               |1                       |18                              |                                |
+|                        |BitwiseXor                                              |1                       |18                              |                                |
+|                        |BlackmanWindow                                          |1                       |17                              |                                |
+|                        |Cast                                                    |1                       |21, 19, 13, 9, 6, 1             |                                |
+|                        |CastLike                                                |1                       |21, 19, 15                      |                                |
+|                        |Ceil                                                    |1                       |13, 6, 1                        |                                |
+|                        |Celu                                                    |1                       |12                              |                                |
+|                        |CenterCropPad                                           |                        |18                              |                                |
+|                        |Clip                                                    |11, 1                   |13, 12, 11, 6, 1                |                                |
 |                        |Col2Im                                                  |                        |18                              |                                |
-|                        |Compress                                                |                        |11, 9                           |                                |
-|                        |Concat                                                  |                        |13, 11, 4, 1                    |                                |
+|                        |Compress                                                |1                       |11, 9                           |                                |
+|                        |Concat                                                  |1                       |13, 11, 4, 1                    |                                |
 |                        |ConcatFromSequence                                      |                        |11                              |                                |
-|                        |Constant                                                |                        |21, 19, 13, 12, 11, 9, 1        |                                |
-|                        |ConstantFill                                            |                        |                                |                                |
-|                        |ConstantOfShape                                         |                        |21, 20, 9                       |                                |
-|                        |Conv                                                    |                        |22, 11, 1                       |                                |
-|                        |ConvInteger                                             |                        |10                              |                                |
-|                        |ConvTranspose                                           |                        |22, 11, 1                       |                                |
-|                        |Cos                                                     |                        |22, 7                           |                                |
-|                        |Cosh                                                    |                        |22, 9                           |                                |
-|                        |Crop                                                    |                        |                                |                                |
-|                        |CumSum                                                  |                        |14, 11                          |                                |
-|                        |DFT                                                     |                        |20, 17                          |                                |
+|                        |Constant                                                |13, 1                   |21, 19, 13, 12, 11, 9, 1        |                                |
+|                        |ConstantFill                                            |1                       |                                |                                |
+|                        |ConstantOfShape                                         |1                       |21, 20, 9                       |                                |
+|                        |Conv                                                    |1                       |22, 11, 1                       |                                |
+|                        |ConvInteger                                             |1                       |10                              |                                |
+|                        |ConvTranspose                                           |1                       |22, 11, 1                       |                                |
+|                        |Cos                                                     |1                       |22, 7                           |                                |
+|                        |Cosh                                                    |1                       |22, 9                           |                                |
+|                        |Crop                                                    |1                       |                                |                                |
+|                        |CumSum                                                  |1                       |14, 11                          |                                |
+|                        |DFT                                                     |1                       |20, 17                          |                                |
 |                        |DeformConv                                              |                        |22, 19                          |                                |
-|                        |DepthToSpace                                            |                        |13, 11, 1                       |                                |
-|                        |DequantizeLinear                                        |                        |21, 19, 13, 10                  |                                |
+|                        |DepthToSpace                                            |1                       |13, 11, 1                       |                                |
+|                        |DequantizeLinear                                        |21, 19, 13, 1           |21, 19, 13, 10                  |                                |
 |                        |Det                                                     |                        |22, 11                          |                                |
-|                        |Div                                                     |                        |14, 13, 7, 6, 1                 |                                |
-|                        |Dropout                                                 |                        |22, 13, 12, 10, 7, 6, 1         |                                |
-|                        |Einsum                                                  |                        |12                              |                                |
-|                        |Equal                                                   |                        |19, 13, 11, 7, 1                |                                |
-|                        |Erf                                                     |                        |13, 9                           |                                |
-|                        |Exp                                                     |                        |13, 6, 1                        |                                |
-|                        |Expand                                                  |                        |13, 8                           |                                |
-|                        |EyeLike                                                 |                        |22, 9                           |                                |
-|                        |Flatten                                                 |                        |21, 13, 11, 9, 1                |                                |
-|                        |Floor                                                   |                        |13, 6, 1                        |                                |
-|                        |GRU                                                     |                        |22, 14, 7, 3, 1                 |                                |
-|                        |Gather                                                  |                        |13, 11, 1                       |                                |
-|                        |GatherElements                                          |                        |13, 11                          |                                |
-|                        |GatherND                                                |                        |13, 12, 11                      |                                |
-|                        |Gemm                                                    |                        |13, 11, 9, 7, 6, 1              |                                |
-|                        |GlobalAveragePool                                       |                        |22, 1                           |                                |
-|                        |GlobalLpPool                                            |                        |22, 2, 1                        |                                |
-|                        |GlobalMaxPool                                           |                        |22, 1                           |                                |
-|                        |Greater                                                 |                        |13, 9, 7, 1                     |                                |
-|                        |GridSample                                              |                        |22, 20, 16                      |                                |
-|                        |Hardmax                                                 |                        |13, 11, 1                       |                                |
-|                        |Identity                                                |                        |21, 19, 16, 14, 13, 1           |                                |
-|                        |If                                                      |                        |21, 19, 16, 13, 11, 1           |                                |
+|                        |Div                                                     |7, 1                    |14, 13, 7, 6, 1                 |                                |
+|                        |Dropout                                                 |12, 7, 1                |22, 13, 12, 10, 7, 6, 1         |                                |
+|                        |DynamicQuantizeLinear                                   |1                       |11                              |                                |
+|                        |Einsum                                                  |1                       |12                              |                                |
+|                        |Elu                                                     |1                       |22, 6, 1                        |                                |
+|                        |Equal                                                   |1                       |19, 13, 11, 7, 1                |                                |
+|                        |Erf                                                     |1                       |13, 9                           |                                |
+|                        |Exp                                                     |1                       |13, 6, 1                        |                                |
+|                        |Expand                                                  |1                       |13, 8                           |                                |
+|                        |EyeLike                                                 |1                       |22, 9                           |                                |
+|                        |Flatten                                                 |1                       |21, 13, 11, 9, 1                |                                |
+|                        |Floor                                                   |1                       |13, 6, 1                        |                                |
+|                        |GRU                                                     |1                       |22, 14, 7, 3, 1                 |                                |
+|                        |Gather                                                  |1                       |13, 11, 1                       |                                |
+|                        |GatherElements                                          |1                       |13, 11                          |                                |
+|                        |GatherND                                                |1                       |13, 12, 11                      |                                |
+|                        |Gelu                                                    |1                       |20                              |                                |
+|                        |Gemm                                                    |6, 1                    |13, 11, 9, 7, 6, 1              |                                |
+|                        |GlobalAveragePool                                       |1                       |22, 1                           |                                |
+|                        |GlobalLpPool                                            |1                       |22, 2, 1                        |                                |
+|                        |GlobalMaxPool                                           |1                       |22, 1                           |                                |
+|                        |Greater                                                 |1                       |13, 9, 7, 1                     |                                |
+|                        |GreaterOrEqual                                          |16, 1                   |16, 12                          |                                |
+|                        |GridSample                                              |1                       |22, 20, 16                      |                                |
+|                        |GroupNormalization                                      |1                       |21, 18                          |                                |
+|                        |HammingWindow                                           |1                       |17                              |                                |
+|                        |HannWindow                                              |1                       |17                              |                                |
+|                        |HardSigmoid                                             |1                       |22, 6, 1                        |                                |
+|                        |HardSwish                                               |1                       |22, 14                          |                                |
+|                        |Hardmax                                                 |13, 1                   |13, 11, 1                       |                                |
+|                        |Identity                                                |1                       |21, 19, 16, 14, 13, 1           |                                |
+|                        |If                                                      |1                       |21, 19, 16, 13, 11, 1           |                                |
 |                        |ImageDecoder                                            |                        |20                              |                                |
-|                        |ImageScaler                                             |                        |                                |                                |
-|                        |InstanceNormalization                                   |                        |22, 6, 1                        |                                |
-|                        |IsFinite                                                |                        |                                |                                |
-|                        |IsInf                                                   |                        |20, 10                          |                                |
-|                        |IsNaN                                                   |                        |20, 13, 9                       |                                |
-|                        |LRN                                                     |                        |13, 1                           |                                |
-|                        |LSTM                                                    |                        |22, 14, 7, 1                    |                                |
-|                        |Less                                                    |                        |13, 9, 7, 1                     |                                |
-|                        |Log                                                     |                        |13, 6, 1                        |                                |
-|                        |Loop                                                    |                        |21, 19, 16, 13, 11, 1           |                                |
-|                        |LpNormalization                                         |                        |22, 1                           |                                |
+|                        |ImageScaler                                             |1                       |                                |                                |
+|                        |InstanceNormalization                                   |1                       |22, 6, 1                        |                                |
+|                        |IsFinite                                                |1                       |                                |                                |
+|                        |IsInf                                                   |1                       |20, 10                          |                                |
+|                        |IsNaN                                                   |1                       |20, 13, 9                       |                                |
+|                        |LRN                                                     |1                       |13, 1                           |                                |
+|                        |LSTM                                                    |1                       |22, 14, 7, 1                    |                                |
+|                        |LayerNormalization                                      |1                       |17                              |                                |
+|                        |LeakyRelu                                               |1                       |16, 6, 1                        |                                |
+|                        |Less                                                    |1                       |13, 9, 7, 1                     |                                |
+|                        |LessOrEqual                                             |16, 1                   |16, 12                          |                                |
+|                        |Log                                                     |1                       |13, 6, 1                        |                                |
+|                        |LogSoftmax                                              |13, 1                   |13, 11, 1                       |                                |
+|                        |Loop                                                    |1                       |21, 19, 16, 13, 11, 1           |                                |
+|                        |LpNormalization                                         |1                       |22, 1                           |                                |
 |                        |LpPool                                                  |                        |22, 18, 11, 2, 1                |                                |
-|                        |MatMul                                                  |                        |13, 9, 1                        |                                |
-|                        |MatMulInteger                                           |                        |10                              |                                |
-|                        |Max                                                     |                        |13, 12, 8, 6, 1                 |                                |
-|                        |MaxPool                                                 |                        |22, 12, 11, 10, 8, 1            |                                |
-|                        |MaxRoiPool                                              |                        |22, 1                           |                                |
+|                        |MatMul                                                  |1                       |13, 9, 1                        |                                |
+|                        |MatMulInteger                                           |1                       |10                              |                                |
+|                        |Max                                                     |8, 1                    |13, 12, 8, 6, 1                 |                                |
+|                        |MaxPool                                                 |8, 1                    |22, 12, 11, 10, 8, 1            |                                |
+|                        |MaxRoiPool                                              |1                       |22, 1                           |                                |
 |                        |MaxUnpool                                               |                        |22, 11, 9                       |                                |
-|                        |Mean                                                    |                        |13, 8, 6, 1                     |                                |
+|                        |Mean                                                    |1                       |13, 8, 6, 1                     |                                |
+|                        |MeanVarianceNormalization                               |9, 1                    |13, 9                           |                                |
 |                        |MelWeightMatrix                                         |                        |17                              |                                |
-|                        |Min                                                     |                        |13, 12, 8, 6, 1                 |                                |
-|                        |Mod                                                     |                        |13, 10                          |                                |
-|                        |Mul                                                     |                        |14, 13, 7, 6, 1                 |                                |
-|                        |Multinomial                                             |                        |22, 7                           |                                |
-|                        |Neg                                                     |                        |13, 6, 1                        |                                |
-|                        |NonMaxSuppression                                       |                        |11, 10                          |                                |
-|                        |NonZero                                                 |                        |13, 9                           |                                |
-|                        |Not                                                     |                        |1                               |                                |
-|                        |OneHot                                                  |                        |11, 9                           |                                |
+|                        |Min                                                     |8, 1                    |13, 12, 8, 6, 1                 |                                |
+|                        |Mish                                                    |1                       |22, 18                          |                                |
+|                        |Mod                                                     |1                       |13, 10                          |                                |
+|                        |Mul                                                     |7, 1                    |14, 13, 7, 6, 1                 |                                |
+|                        |Multinomial                                             |1                       |22, 7                           |                                |
+|                        |Neg                                                     |1                       |13, 6, 1                        |                                |
+|                        |NegativeLogLikelihoodLoss                               |                        |22, 13, 12                      |                                |
+|                        |NonMaxSuppression                                       |1                       |11, 10                          |                                |
+|                        |NonZero                                                 |1                       |13, 9                           |                                |
+|                        |Not                                                     |1                       |1                               |                                |
+|                        |OneHot                                                  |1                       |11, 9                           |                                |
 |                        |Optional                                                |                        |15                              |                                |
 |                        |OptionalGetElement                                      |                        |18, 15                          |                                |
 |                        |OptionalHasElement                                      |                        |18, 15                          |                                |
-|                        |Or                                                      |                        |7, 1                            |                                |
-|                        |Pad                                                     |                        |21, 19, 18, 13, 11, 2, 1        |                                |
-|                        |Pow                                                     |                        |15, 13, 12, 7, 1                |                                |
-|                        |QLinearConv                                             |                        |10                              |                                |
-|                        |QLinearMatMul                                           |                        |21, 10                          |                                |
-|                        |QuantizeLinear                                          |                        |21, 19, 13, 10                  |                                |
-|                        |RNN                                                     |                        |22, 14, 7, 1                    |                                |
-|                        |RandomNormal                                            |                        |22, 1                           |                                |
-|                        |RandomNormalLike                                        |                        |22, 1                           |                                |
-|                        |RandomUniform                                           |                        |22, 1                           |                                |
-|                        |RandomUniformLike                                       |                        |22, 1                           |                                |
-|                        |Reciprocal                                              |                        |13, 6, 1                        |                                |
-|                        |ReduceMax                                               |                        |20, 18, 13, 12, 11, 1           |                                |
-|                        |ReduceMean                                              |                        |18, 13, 11, 1                   |                                |
-|                        |ReduceMin                                               |                        |20, 18, 13, 12, 11, 1           |                                |
-|                        |ReduceProd                                              |                        |18, 13, 11, 1                   |                                |
-|                        |ReduceSum                                               |                        |13, 11, 1                       |                                |
+|                        |Or                                                      |1                       |7, 1                            |                                |
+|                        |PRelu                                                   |1                       |16, 9, 7, 6, 1                  |                                |
+|                        |Pad                                                     |11, 1                   |21, 19, 18, 13, 11, 2, 1        |                                |
+|                        |Pow                                                     |1                       |15, 13, 12, 7, 1                |                                |
+|                        |QLinearConv                                             |1                       |10                              |                                |
+|                        |QLinearMatMul                                           |1                       |21, 10                          |                                |
+|                        |QuantizeLinear                                          |13, 1                   |21, 19, 13, 10                  |                                |
+|                        |RNN                                                     |1                       |22, 14, 7, 1                    |                                |
+|                        |RandomNormal                                            |1                       |22, 1                           |                                |
+|                        |RandomNormalLike                                        |1                       |22, 1                           |                                |
+|                        |RandomUniform                                           |1                       |22, 1                           |                                |
+|                        |RandomUniformLike                                       |1                       |22, 1                           |                                |
+|                        |Range                                                   |1                       |11                              |                                |
+|                        |Reciprocal                                              |1                       |13, 6, 1                        |                                |
+|                        |ReduceL1                                                |18, 1                   |18, 13, 11, 1                   |                                |
+|                        |ReduceL2                                                |18, 13, 1               |18, 13, 11, 1                   |                                |
+|                        |ReduceLogSum                                            |18, 1                   |18, 13, 11, 1                   |                                |
+|                        |ReduceLogSumExp                                         |18, 13, 1               |18, 13, 11, 1                   |                                |
+|                        |ReduceMax                                               |20, 18, 13, 1           |20, 18, 13, 12, 11, 1           |                                |
+|                        |ReduceMean                                              |18, 13, 1               |18, 13, 11, 1                   |                                |
+|                        |ReduceMin                                               |20, 18, 13, 1           |20, 18, 13, 12, 11, 1           |                                |
+|                        |ReduceProd                                              |18, 13, 1               |18, 13, 11, 1                   |                                |
+|                        |ReduceSum                                               |13, 1                   |13, 11, 1                       |                                |
+|                        |ReduceSumSquare                                         |18, 13, 1               |18, 13, 11, 1                   |                                |
 |                        |RegexFullMatch                                          |                        |20                              |                                |
-|                        |Reshape                                                 |                        |21, 19, 14, 13, 5, 1            |                                |
-|                        |Resize                                                  |                        |19, 18, 13, 11, 10              |                                |
-|                        |ReverseSequence                                         |                        |10                              |                                |
-|                        |RoiAlign                                                |                        |22, 16, 10                      |                                |
-|                        |Round                                                   |                        |22, 11                          |                                |
-|                        |STFT                                                    |                        |17                              |                                |
-|                        |Scan                                                    |                        |21, 19, 16, 11, 9, 8            |                                |
-|                        |Scatter                                                 |                        |11, 9                           |                                |
-|                        |ScatterElements                                         |                        |18, 16, 13, 11                  |                                |
-|                        |ScatterND                                               |                        |18, 16, 13, 11                  |                                |
+|                        |Relu                                                    |1                       |14, 13, 6, 1                    |                                |
+|                        |Reshape                                                 |1                       |21, 19, 14, 13, 5, 1            |                                |
+|                        |Resize                                                  |11, 1                   |19, 18, 13, 11, 10              |                                |
+|                        |ReverseSequence                                         |1                       |10                              |                                |
+|                        |RoiAlign                                                |16, 1                   |22, 16, 10                      |                                |
+|                        |Round                                                   |1                       |22, 11                          |                                |
+|                        |STFT                                                    |1                       |17                              |                                |
+|                        |Scan                                                    |9, 1                    |21, 19, 16, 11, 9, 8            |                                |
+|                        |Scatter                                                 |1                       |11, 9                           |                                |
+|                        |ScatterElements                                         |1                       |18, 16, 13, 11                  |                                |
+|                        |ScatterND                                               |1                       |18, 16, 13, 11                  |                                |
+|                        |Selu                                                    |1                       |22, 6, 1                        |                                |
 |                        |SequenceAt                                              |                        |11                              |                                |
 |                        |SequenceConstruct                                       |                        |11                              |                                |
 |                        |SequenceEmpty                                           |                        |11                              |                                |
 |                        |SequenceErase                                           |                        |11                              |                                |
 |                        |SequenceInsert                                          |                        |11                              |                                |
 |                        |SequenceLength                                          |                        |11                              |                                |
-|                        |Shape                                                   |                        |21, 19, 15, 13, 1               |                                |
-|                        |Sigmoid                                                 |                        |13, 6, 1                        |                                |
-|                        |Sign                                                    |                        |13, 9                           |                                |
-|                        |Sin                                                     |                        |22, 7                           |                                |
-|                        |Sinh                                                    |                        |22, 9                           |                                |
-|                        |Size                                                    |                        |21, 19, 13, 1                   |                                |
-|                        |Slice                                                   |                        |13, 11, 10, 1                   |                                |
-|                        |SpaceToDepth                                            |                        |13, 1                           |                                |
-|                        |Split                                                   |                        |18, 13, 11, 2, 1                |                                |
+|                        |SequenceMap                                             |                        |17                              |                                |
+|                        |Shape                                                   |15, 1                   |21, 19, 15, 13, 1               |                                |
+|                        |Shrink                                                  |1                       |9                               |                                |
+|                        |Sigmoid                                                 |1                       |13, 6, 1                        |                                |
+|                        |Sign                                                    |1                       |13, 9                           |                                |
+|                        |SimplifiedLayerNormalization                            |                        |1                               |                                |
+|                        |Sin                                                     |1                       |22, 7                           |                                |
+|                        |Sinh                                                    |1                       |22, 9                           |                                |
+|                        |Size                                                    |1                       |21, 19, 13, 1                   |                                |
+|                        |Slice                                                   |10, 1                   |13, 11, 10, 1                   |                                |
+|                        |Softmax                                                 |13, 11, 1               |13, 11, 1                       |                                |
+|                        |SoftmaxCrossEntropyLoss                                 |                        |13, 12                          |                                |
+|                        |Softplus                                                |1                       |22, 1                           |                                |
+|                        |Softsign                                                |1                       |22, 1                           |                                |
+|                        |SpaceToDepth                                            |1                       |13, 1                           |                                |
+|                        |Split                                                   |13, 1                   |18, 13, 11, 2, 1                |                                |
 |                        |SplitToSequence                                         |                        |11                              |                                |
-|                        |Sqrt                                                    |                        |13, 6, 1                        |                                |
-|                        |Squeeze                                                 |                        |21, 13, 11, 1                   |                                |
+|                        |Sqrt                                                    |1                       |13, 6, 1                        |                                |
+|                        |Squeeze                                                 |13, 1                   |21, 13, 11, 1                   |                                |
 |                        |StringConcat                                            |                        |20                              |                                |
 |                        |StringNormalizer                                        |                        |10                              |                                |
 |                        |StringSplit                                             |                        |20                              |                                |
-|                        |Sub                                                     |                        |14, 13, 7, 6, 1                 |                                |
-|                        |Sum                                                     |                        |13, 8, 6, 1                     |                                |
-|                        |Tan                                                     |                        |22, 7                           |                                |
-|                        |Tanh                                                    |                        |13, 6, 1                        |                                |
+|                        |Sub                                                     |7, 1                    |14, 13, 7, 6, 1                 |                                |
+|                        |Sum                                                     |8, 1                    |13, 8, 6, 1                     |                                |
+|                        |Tan                                                     |1                       |22, 7                           |                                |
+|                        |Tanh                                                    |1                       |13, 6, 1                        |                                |
 |                        |TfIdfVectorizer                                         |                        |9                               |                                |
-|                        |Tile                                                    |                        |13, 6, 1                        |                                |
-|                        |TopK                                                    |                        |11, 10, 1                       |                                |
-|                        |Transpose                                               |                        |21, 13, 1                       |                                |
-|                        |Trilu                                                   |                        |14                              |                                |
-|                        |Unique                                                  |                        |11                              |                                |
-|                        |Unsqueeze                                               |                        |21, 13, 11, 1                   |                                |
-|                        |Upsample                                                |                        |10, 9, 7                        |                                |
-|                        |Where                                                   |                        |16, 9                           |                                |
-|                        |Xor                                                     |                        |7, 1                            |                                |
-|                        |AffineGrid                                              |                        |20                              |                                |
-|                        |Bernoulli                                               |                        |22, 15                          |                                |
-|                        |BlackmanWindow                                          |                        |17                              |                                |
-|                        |CastLike                                                |                        |21, 19, 15                      |                                |
-|                        |Celu                                                    |                        |12                              |                                |
-|                        |CenterCropPad                                           |                        |18                              |                                |
-|                        |Clip                                                    |                        |13, 12, 11, 6, 1                |                                |
-|                        |DynamicQuantizeLinear                                   |                        |11                              |                                |
-|                        |Elu                                                     |                        |22, 6, 1                        |                                |
-|                        |Gelu                                                    |                        |20                              |                                |
-|                        |GreaterOrEqual                                          |                        |16, 12                          |                                |
-|                        |GroupNormalization                                      |                        |21, 18                          |                                |
-|                        |HammingWindow                                           |                        |17                              |                                |
-|                        |HannWindow                                              |                        |17                              |                                |
-|                        |HardSigmoid                                             |                        |22, 6, 1                        |                                |
-|                        |HardSwish                                               |                        |22, 14                          |                                |
-|                        |LayerNormalization                                      |                        |17                              |                                |
-|                        |LeakyRelu                                               |                        |16, 6, 1                        |                                |
-|                        |LessOrEqual                                             |                        |16, 12                          |                                |
-|                        |LogSoftmax                                              |                        |13, 11, 1                       |                                |
-|                        |MeanVarianceNormalization                               |                        |13, 9                           |                                |
-|                        |Mish                                                    |                        |22, 18                          |                                |
-|                        |NegativeLogLikelihoodLoss                               |                        |22, 13, 12                      |                                |
-|                        |PRelu                                                   |                        |16, 9, 7, 6, 1                  |                                |
-|                        |Range                                                   |                        |11                              |                                |
-|                        |ReduceL1                                                |                        |18, 13, 11, 1                   |                                |
-|                        |ReduceL2                                                |                        |18, 13, 11, 1                   |                                |
-|                        |ReduceLogSum                                            |                        |18, 13, 11, 1                   |                                |
-|                        |ReduceLogSumExp                                         |                        |18, 13, 11, 1                   |                                |
-|                        |ReduceSumSquare                                         |                        |18, 13, 11, 1                   |                                |
-|                        |Relu                                                    |                        |14, 13, 6, 1                    |                                |
-|                        |Selu                                                    |                        |22, 6, 1                        |                                |
-|                        |SequenceMap                                             |                        |17                              |                                |
-|                        |Shrink                                                  |                        |9                               |                                |
-|                        |SimplifiedLayerNormalization                            |                        |1                               |                                |
-|                        |Softmax                                                 |                        |13, 11, 1                       |                                |
-|                        |SoftmaxCrossEntropyLoss                                 |                        |13, 12                          |                                |
-|                        |Softplus                                                |                        |22, 1                           |                                |
-|                        |Softsign                                                |                        |22, 1                           |                                |
-|                        |ThresholdedRelu                                         |                        |22, 10                          |                                |
-|com.microsoft           |Attention                                               |                        |1                               |                                |
+|                        |ThresholdedRelu                                         |1                       |22, 10                          |                                |
+|                        |Tile                                                    |1                       |13, 6, 1                        |                                |
+|                        |TopK                                                    |11, 10, 1               |11, 10, 1                       |                                |
+|                        |Transpose                                               |1                       |21, 13, 1                       |                                |
+|                        |Trilu                                                   |1                       |14                              |                                |
+|                        |Unique                                                  |1                       |11                              |                                |
+|                        |Unsqueeze                                               |13, 1                   |21, 13, 11, 1                   |                                |
+|                        |Upsample                                                |9, 7, 1                 |10, 9, 7                        |                                |
+|                        |Where                                                   |1                       |16, 9                           |                                |
+|                        |Xor                                                     |1                       |7, 1                            |                                |
+|com.microsoft           |Attention                                               |1                       |1                               |                                |
 |com.microsoft           |AttnLSTM                                                |                        |1                               |                                |
 |com.microsoft           |BeamSearch                                              |                        |1                               |                                |
-|com.microsoft           |BiasAdd                                                 |                        |1                               |                                |
+|com.microsoft           |BiasAdd                                                 |1                       |1                               |                                |
 |com.microsoft           |BiasDropout                                             |                        |1                               |                                |
-|com.microsoft           |BiasGelu                                                |                        |1                               |                                |
+|com.microsoft           |BiasGelu                                                |1                       |1                               |                                |
 |com.microsoft           |BiasSoftmax                                             |                        |1                               |                                |
 |com.microsoft           |BiasSplitGelu                                           |                        |1                               |                                |
 |com.microsoft           |BifurcationDetector                                     |                        |1                               |                                |
@@ -226,22 +226,22 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |DecoderMaskedMultiHeadAttention                         |                        |1                               |                                |
 |com.microsoft           |DecoderMaskedSelfAttention                              |                        |1                               |                                |
 |com.microsoft           |DequantizeBFP                                           |                        |1                               |                                |
-|com.microsoft           |DequantizeLinear                                        |                        |1                               |                                |
+|com.microsoft           |DequantizeLinear                                        |1                       |1                               |                                |
 |com.microsoft           |DequantizeWithOrder                                     |                        |1                               |                                |
 |com.microsoft           |DynamicQuantizeLSTM                                     |                        |1                               |                                |
-|com.microsoft           |DynamicQuantizeMatMul                                   |                        |1                               |                                |
+|com.microsoft           |DynamicQuantizeMatMul                                   |1                       |1                               |                                |
 |com.microsoft           |DynamicTimeWarping                                      |                        |1                               |                                |
 |com.microsoft           |EPContext                                               |                        |1                               |                                |
-|com.microsoft           |EmbedLayerNormalization                                 |                        |1                               |                                |
+|com.microsoft           |EmbedLayerNormalization                                 |1                       |1                               |                                |
 |com.microsoft           |ExpandDims                                              |                        |1                               |                                |
-|com.microsoft           |FastGelu                                                |                        |1                               |                                |
-|com.microsoft           |FusedConv                                               |                        |1                               |                                |
-|com.microsoft           |FusedGemm                                               |                        |1                               |                                |
-|com.microsoft           |FusedMatMul                                             |                        |1                               |                                |
+|com.microsoft           |FastGelu                                                |1                       |1                               |                                |
+|com.microsoft           |FusedConv                                               |1                       |1                               |                                |
+|com.microsoft           |FusedGemm                                               |1                       |1                               |                                |
+|com.microsoft           |FusedMatMul                                             |1                       |1                               |                                |
 |com.microsoft           |FusedMatMulActivation                                   |                        |1                               |                                |
 |com.microsoft           |GatedRelativePositionBias                               |                        |1                               |                                |
-|com.microsoft           |GatherND                                                |                        |1                               |                                |
-|com.microsoft           |Gelu                                                    |                        |1                               |                                |
+|com.microsoft           |GatherND                                                |1                       |1                               |                                |
+|com.microsoft           |Gelu                                                    |1                       |1                               |                                |
 |com.microsoft           |GemmFastGelu                                            |                        |1                               |                                |
 |com.microsoft           |GemmFloat8                                              |                        |1                               |                                |
 |com.microsoft           |GemmaRotaryEmbedding                                    |                        |1                               |                                |
@@ -255,8 +255,8 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |MatMulBnb4                                              |                        |1                               |                                |
 |com.microsoft           |MatMulFpQ4                                              |                        |1                               |                                |
 |com.microsoft           |MatMulInteger16                                         |                        |1                               |                                |
-|com.microsoft           |MatMulIntegerToFloat                                    |                        |1                               |                                |
-|com.microsoft           |MatMulNBits                                             |                        |1                               |                                |
+|com.microsoft           |MatMulIntegerToFloat                                    |1                       |1                               |                                |
+|com.microsoft           |MatMulNBits                                             |1                       |1                               |                                |
 |com.microsoft           |MaxpoolWithMask                                         |                        |1                               |                                |
 |com.microsoft           |MoE                                                     |                        |1                               |                                |
 |com.microsoft           |MulInteger                                              |                        |1                               |                                |
@@ -268,18 +268,18 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |NhwcMaxPool                                             |                        |1                               |                                |
 |com.microsoft           |PackedAttention                                         |                        |1                               |                                |
 |com.microsoft           |PackedMultiHeadAttention                                |                        |1                               |                                |
-|com.microsoft           |Pad                                                     |                        |1                               |                                |
+|com.microsoft           |Pad                                                     |1                       |1                               |                                |
 |com.microsoft           |QAttention                                              |                        |1                               |                                |
 |com.microsoft           |QGemm                                                   |                        |1                               |                                |
-|com.microsoft           |QLinearAdd                                              |                        |1                               |                                |
-|com.microsoft           |QLinearAveragePool                                      |                        |1                               |                                |
+|com.microsoft           |QLinearAdd                                              |1                       |1                               |                                |
+|com.microsoft           |QLinearAveragePool                                      |1                       |1                               |                                |
 |com.microsoft           |QLinearConcat                                           |                        |1                               |                                |
 |com.microsoft           |QLinearConv                                             |                        |1                               |                                |
 |com.microsoft           |QLinearGlobalAveragePool                                |                        |1                               |                                |
-|com.microsoft           |QLinearLeakyRelu                                        |                        |1                               |                                |
-|com.microsoft           |QLinearMul                                              |                        |1                               |                                |
+|com.microsoft           |QLinearLeakyRelu                                        |1                       |1                               |                                |
+|com.microsoft           |QLinearMul                                              |1                       |1                               |                                |
 |com.microsoft           |QLinearReduceMean                                       |                        |1                               |                                |
-|com.microsoft           |QLinearSigmoid                                          |                        |1                               |                                |
+|com.microsoft           |QLinearSigmoid                                          |1                       |1                               |                                |
 |com.microsoft           |QLinearSoftmax                                          |                        |1                               |                                |
 |com.microsoft           |QLinearWhere                                            |                        |1                               |                                |
 |com.microsoft           |QMoE                                                    |                        |1                               |                                |
@@ -289,10 +289,10 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |QOrderedLongformerAttention                             |                        |1                               |                                |
 |com.microsoft           |QOrderedMatMul                                          |                        |1                               |                                |
 |com.microsoft           |QuantizeBFP                                             |                        |1                               |                                |
-|com.microsoft           |QuantizeLinear                                          |                        |1                               |                                |
+|com.microsoft           |QuantizeLinear                                          |1                       |1                               |                                |
 |com.microsoft           |QuantizeWithOrder                                       |                        |1                               |                                |
-|com.microsoft           |QuickGelu                                               |                        |1                               |                                |
-|com.microsoft           |Range                                                   |                        |1                               |                                |
+|com.microsoft           |QuickGelu                                               |1                       |1                               |                                |
+|com.microsoft           |Range                                                   |1                       |1                               |                                |
 |com.microsoft           |ReduceSumInteger                                        |                        |1                               |                                |
 |com.microsoft           |RelativePositionBias                                    |                        |1                               |                                |
 |com.microsoft           |RemovePadding                                           |                        |1                               |                                |
@@ -301,17 +301,17 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |RotaryEmbedding                                         |                        |1                               |                                |
 |com.microsoft           |SampleOp                                                |                        |1                               |                                |
 |com.microsoft           |Sampling                                                |                        |1                               |                                |
-|com.microsoft           |SimplifiedLayerNormalization                            |                        |1                               |                                |
+|com.microsoft           |SimplifiedLayerNormalization                            |1                       |1                               |                                |
 |com.microsoft           |SkipGroupNorm                                           |                        |1                               |                                |
-|com.microsoft           |SkipLayerNormalization                                  |                        |1                               |                                |
-|com.microsoft           |SkipSimplifiedLayerNormalization                        |                        |1                               |                                |
+|com.microsoft           |SkipLayerNormalization                                  |1                       |1                               |                                |
+|com.microsoft           |SkipSimplifiedLayerNormalization                        |1                       |1                               |                                |
 |com.microsoft           |Snpe                                                    |                        |1                               |                                |
 |com.microsoft           |SparseAttention                                         |                        |1                               |                                |
 |com.microsoft           |SparseToDenseMatMul                                     |                        |1                               |                                |
 |com.microsoft           |Tokenizer                                               |                        |1                               |                                |
 |com.microsoft           |TorchEmbedding                                          |                        |1                               |                                |
 |com.microsoft           |TransposeMatMul                                         |                        |1                               |                                |
-|com.microsoft           |Trilu                                                   |                        |1                               |                                |
+|com.microsoft           |Trilu                                                   |1                       |1                               |                                |
 |com.microsoft           |UnfoldTensor                                            |                        |1                               |                                |
 |com.microsoft           |Unique                                                  |                        |1                               |                                |
 |com.microsoft           |WhisperBeamSearch                                       |                        |1                               |                                |
