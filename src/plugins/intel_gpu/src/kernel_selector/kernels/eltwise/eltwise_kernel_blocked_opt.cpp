@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+const int PLANAR_FORMAT_NO_VEC = 1;
+
 namespace kernel_selector {
 static inline bool InputHasFeatureBroadcast(const eltwise_params& params, const size_t op_num, const size_t input_idx);
 static inline bool IsBroadcastingPossibleInput(const DataTensor& input, const DataTensor& output);
@@ -28,6 +30,8 @@ ParamsKey EltwiseKernel_blocked_opt::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
@@ -104,13 +108,6 @@ bool EltwiseKernel_blocked_opt::Validate(const Params& params) const {
     if (IsUnsupportedModeForVecCode(ewParams))
         return false;
 
-    for (size_t i = 0; i < ewParams.inputs.size(); i++) {
-        if ((SelectVecSizeFromFormat(ewParams.inputs[i]) == 1) &&
-            !IsBroadcastingPossibleInput(ewParams.inputs[i], ewParams.outputs[0])) {
-            return false;
-        }
-    }
-
     const auto vec_size = SelectVecSizeFromFormat(ewParams.outputs[0]);
     const auto& input0 = ewParams.inputs[0];
     const auto& output = ewParams.outputs[0];
@@ -159,7 +156,9 @@ bool EltwiseKernel_blocked_opt::Validate(const Params& params) const {
 }
 
 JitConstants EltwiseKernel_blocked_opt::MakeLoadJitConstants(const eltwise_params& params, bool /*use_vload*/) const {
-    const auto vec_size = SelectVecSizeFromFormat(params.outputs[0]);
+    const auto& output = params.outputs[0];
+    const auto vec_size = SelectVecSizeFromFormat(output);
+    const auto vec_size_f_axis = (output.SimpleLayout()) ? 1 : vec_size;
     JitConstants jit = {};
     std::string vload_decls;
 
@@ -196,9 +195,9 @@ JitConstants EltwiseKernel_blocked_opt::MakeLoadJitConstants(const eltwise_param
             // Based on dimension, get a string of indexing for formmatted GET_INDEX
             std::string default_indexing_str;
             if (DataTensor::ChannelsCount(params.inputs[input_idx].GetLayout()) == 4)
-                default_indexing_str = "b, (f_block * " + toCodeString(vec_size) +"), y, x";
+                default_indexing_str = "b, (f_block * " + toCodeString(vec_size_f_axis) +"), y, x";
             else if (DataTensor::ChannelsCount(params.inputs[input_idx].GetLayout()) == 5)
-                default_indexing_str = "b, (f_block * " + toCodeString(vec_size) +"), z, y, x";
+                default_indexing_str = "b, (f_block * " + toCodeString(vec_size_f_axis) +"), z, y, x";
             else
                 OPENVINO_THROW("MakeLoadJit : Unexpected dimension for eltwise optimized kernel.");
 
@@ -289,16 +288,18 @@ JitConstants EltwiseKernel_blocked_opt::MakeLoadJitConstants(const eltwise_param
 
 JitConstants EltwiseKernel_blocked_opt::GetJitConstants(const eltwise_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
-    const auto vec_size = SelectVecSizeFromFormat(params.outputs[0]);
+    const auto& output = params.outputs[0];
+    const auto vec_size = SelectVecSizeFromFormat(output);
+    const auto vec_size_f_axis = (output.SimpleLayout()) ? 1 : vec_size;
     const auto inner_feature_blk_size = GetInnerFeatureBlockSize(params.outputs[0]);
     const auto inner_batch_blk_size = GetInnerBatchBlockSize(params.outputs[0]);
 
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
-    jit.AddConstant(MakeJitConstant("BLOCK_SIZE", vec_size));
+    jit.AddConstant(MakeJitConstant("F_BLOCK_SIZE", vec_size_f_axis));
     // Define inner blocks for batch & feature axes
-    jit.AddConstant(MakeJitConstant("F_BLOCK_COUNT", inner_feature_blk_size / vec_size));
-    jit.AddConstant(MakeJitConstant("INNER_BATCH_SIZE", inner_batch_blk_size));
-    jit.AddConstant(MakeJitConstant("INNER_BLOCKS_COUNT", (inner_feature_blk_size / vec_size) * inner_batch_blk_size));
+    jit.AddConstant(MakeJitConstant("INNER_FEATURE_SIZE", inner_feature_blk_size / vec_size_f_axis));  // SIZE OF SIZE_OF_F_AXIS_INNER_BLOCK
+    jit.AddConstant(MakeJitConstant("INNER_BATCH_SIZE", inner_batch_blk_size));  // SIZE_OF_B_AXIS_INNER_BLOCK
+    jit.AddConstant(MakeJitConstant("INNER_BLOCKS_COUNT", (inner_feature_blk_size / vec_size_f_axis) * inner_batch_blk_size));  // SIZE_OF_WHOLE_INNER_BLOCK
     // Define spatial size to calculate batch and feature from a raw global id of each work group
     jit.AddConstant(MakeJitConstant("OUTPUT_SIZE_XY", params.outputs[0].X().v * params.outputs[0].Y().v));
     // To calculate batch, define outer block size of feature axis (divided by the inner feature-block size)
@@ -341,22 +342,26 @@ JitConstants EltwiseKernel_blocked_opt::GetJitConstants(const eltwise_params& pa
 
     jit.Merge(MakeActivationJitConstants(params.activations, params.outputs[0].GetDType(), "_TYPED"));
 
-    if (params.outputs[0].Feature().v % vec_size != 0)
-        jit.AddConstant(MakeJitConstant("LEFTOVERS", params.outputs[0].Feature().v % vec_size));
+    if (params.outputs[0].Feature().v % vec_size_f_axis != 0)
+        jit.AddConstant(MakeJitConstant("LEFTOVERS", params.outputs[0].Feature().v % vec_size_f_axis));
 
     // Fused post_ops
     if (!params.fused_ops.empty()) {
         kernel_selector::Datatype input_dt = GetAccumulatorType(params);
         std::vector<std::string> idx_order;
         if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
-            idx_order = {"b", "f_block * " + toCodeString(vec_size), "y", "x"};
+            idx_order = {"b", "f_block * " + toCodeString(vec_size_f_axis), "y", "x"};
         } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
-            idx_order = {"b", "f_block * " + toCodeString(vec_size), "z", "y", "x"};
+            idx_order = {"b", "f_block * " + toCodeString(vec_size_f_axis), "z", "y", "x"};
         }
 
         FusedOpsConfiguration conf = {"", idx_order, "res", input_dt, (size_t)vec_size};
 
-        conf.vec_axis = Tensor::DataChannelName::FEATURE;
+        if (output.SimpleLayout())
+            conf.vec_axis = Tensor::DataChannelName::X;
+        else
+            conf.vec_axis = Tensor::DataChannelName::FEATURE;
+
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
@@ -387,7 +392,9 @@ EltwiseKernelBase::DispatchData EltwiseKernel_blocked_opt::SetDefault(const eltw
     // so that each global id can be an index of each work group.
     // It also makes an index for fomatted GET_INDEX macro if needed(e.g. feature broadcasting, fusing).
     KernelData kd = KernelData::Default<eltwise_params>(params);
-    dispatchData.gws = {std::max(CalculateTotalWorkItemCount(params) / SelectVecSizeFromFormat(params.outputs[0]), (size_t)1), 1, 1};
+    size_t vec_size = SelectVecSizeFromFormat(params.outputs[0]);
+
+    dispatchData.gws = {std::max(CalculateTotalWorkItemCount(params) / vec_size, (size_t)1), 1, 1};
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;
@@ -410,6 +417,9 @@ static inline int SelectVecSizeFromFormat(const DataTensor& tensor) {
     // No feature inner block : not acceptable for calculation of ordered index
     auto layout = tensor.GetLayout();
     switch (layout) {
+    case DataLayout::bfyx:
+        // Planar format : vector size would be give by size of inner spatial axis
+        return 4;
     case DataLayout::b_fs_yx_fsv4:
         return 4;
     case DataLayout::b_fs_yx_fsv16:
@@ -434,6 +444,8 @@ static inline int GetInnerBatchBlockSize(const DataTensor& tensor) {
     auto layout = tensor.GetLayout();
     switch (layout) {
     case DataLayout::bfyx:
+        // Planar format : Block size of batch axis would be 1. And its vector size would be give by size of inner spatial axis
+        return 1;
     case DataLayout::b_fs_yx_fsv4:
     case DataLayout::b_fs_yx_fsv16:
     case DataLayout::b_fs_zyx_fsv16:
@@ -460,6 +472,9 @@ static inline int GetInnerBatchBlockSize(const DataTensor& tensor) {
 static inline int GetInnerFeatureBlockSize(const DataTensor& tensor) {
     auto layout = tensor.GetLayout();
     switch (layout) {
+    case DataLayout::bfyx:
+        // Block size of feature axis would be 1. And its vector size would be give by size of inner spatial axis
+        return 1;
     case DataLayout::b_fs_yx_fsv4:
         return 4;
     case DataLayout::b_fs_yx_fsv16:
