@@ -281,6 +281,8 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
     config.insert(ov::device::priorities(targetDev));
     if (!enableRumtimeFallback) {
         config.insert(ov::intel_auto::enable_runtime_fallback(false));
+    } else {
+        config.insert(ov::intel_auto::enable_runtime_fallback(true));
     }
 
     EXPECT_CALL(*core,
@@ -471,6 +473,8 @@ TEST_P(AutoCTPUTRuntimeFallback, ctputDeviceInferFailTest) {
     config.insert(ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
     if (!enableRumtimeFallback) {
         config.insert(ov::intel_auto::enable_runtime_fallback(false));
+    } else {
+        config.insert(ov::intel_auto::enable_runtime_fallback(true));
     }
 
     EXPECT_CALL(*core,
