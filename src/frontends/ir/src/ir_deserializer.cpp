@@ -561,6 +561,7 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
         id_to_node[layer_id] = node;
 
         if (const auto& parameter_node = ov::as_type_ptr<ov::op::v0::Parameter>(node)) {
+            OPENVINO_ASSERT(!p.xml.child("data").empty(), "Layer data must be defined for: ", parameter_node);
             io_map.inputs.insert({layer_id, func_nodes.parameters.size()});
             func_nodes.parameters.emplace_back(parameter_node);
         }
@@ -783,7 +784,7 @@ ov::GenericLayerParams ov::XmlDeserializer::parse_generic_params(const pugi::xml
             port.dims.emplace_back(dim);
         }
 
-        ov::element::Type type(ov::element::Type_t::undefined);
+        ov::element::Type type(ov::element::Type_t::dynamic);
         // Input port hasn't precision
         if (!input) {
             const std::string& preStr = pugixml::get_str_attr(parentNode, "precision");
@@ -846,17 +847,6 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
                            " with id: ",
                            params.layerId,
                            " has incorrect input with index ",
-                           i,
-                           "!");
-
-        if (is_type<op::v0::Parameter>(inputs[i].get_node_shared_ptr()) &&
-            ov::element::Type_t::undefined == inputs[i].get_element_type())
-            OPENVINO_THROW(params.type,
-                           " layer ",
-                           params.name,
-                           " with id: ",
-                           params.layerId,
-                           " has undefined element type for input with index ",
                            i,
                            "!");
     }

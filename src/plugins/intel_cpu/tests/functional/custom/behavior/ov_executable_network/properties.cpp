@@ -183,7 +183,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckKVCachePrecision) {
     core.set_property(deviceName, ov::hint::kv_cache_precision(ov::element::f32));
     ov::CompiledModel compiledModel = core.compile_model(model, deviceName);
 
-    auto kv_cache_precision_value = ov::element::undefined;
+    auto kv_cache_precision_value = ov::element::dynamic;
     OV_ASSERT_NO_THROW(kv_cache_precision_value = compiledModel.get_property(ov::hint::kv_cache_precision));
     ASSERT_EQ(kv_cache_precision_value, ov::element::f32);
 }
@@ -195,8 +195,8 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkFinetuneKVCachePrecision) {
     core.set_property(deviceName, ov::value_cache_precision(ov::element::u4));
     ov::CompiledModel compiledModel = core.compile_model(model, deviceName);
 
-    auto key_cache_precision_value = ov::element::undefined;
-    auto value_cache_precision_value = ov::element::undefined;
+    auto key_cache_precision_value = ov::element::dynamic;
+    auto value_cache_precision_value = ov::element::dynamic;
     OV_ASSERT_NO_THROW(key_cache_precision_value = compiledModel.get_property(ov::key_cache_precision));
     OV_ASSERT_NO_THROW(value_cache_precision_value = compiledModel.get_property(ov::value_cache_precision));
     ASSERT_EQ(key_cache_precision_value, ov::element::f16);
@@ -235,7 +235,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckAccuracyModeKVCachePrecisi
     ASSERT_NO_THROW(core.set_property(deviceName, ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY)));
     ov::CompiledModel compiledModel = core.compile_model(model, deviceName);
 
-    auto kv_cache_precision_value = ov::element::undefined;
+    auto kv_cache_precision_value = ov::element::dynamic;
     ASSERT_NO_THROW(kv_cache_precision_value = compiledModel.get_property(ov::hint::kv_cache_precision));
     ASSERT_EQ(kv_cache_precision_value, ov::element::f32);
 }
@@ -264,7 +264,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckExecutionModeIsAvailableIn
 TEST_F(OVClassConfigTestCPU,
        smoke_CpuExecNetworkCheckModelInferencePrecisionHasHigherPriorityThanCoreInferencePrecision) {
     ov::Core ie;
-    auto inference_precision_value = ov::element::undefined;
+    auto inference_precision_value = ov::element::dynamic;
 
     OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(ov::element::f32)));
 
@@ -280,7 +280,7 @@ TEST_F(OVClassConfigTestCPU,
        smoke_CpuExecNetworkCheckCoreInferencePrecisionHasHigherPriorityThanModelPerformanceExecutionMode) {
     ov::Core ie;
     auto execution_mode_value = ov::hint::ExecutionMode::ACCURACY;
-    auto inference_precision_value = ov::element::undefined;
+    auto inference_precision_value = ov::element::dynamic;
 
     OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(ov::element::f32)));
 
@@ -299,7 +299,7 @@ TEST_F(OVClassConfigTestCPU,
        smoke_CpuExecNetworkCheckModelInferencePrecisionHasHigherPriorityThanCorePerformanceExecutionMode) {
     ov::Core ie;
     auto execution_mode_value = ov::hint::ExecutionMode::PERFORMANCE;
-    auto inference_precision_value = ov::element::undefined;
+    auto inference_precision_value = ov::element::dynamic;
     const auto inference_precision_expected = bf16_if_can_be_emulated;
 
     OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY)));
