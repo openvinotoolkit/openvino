@@ -41,7 +41,7 @@ protected:
         auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(node_matmul);
 
         auto param_shape = matched_param->get_partial_shape();
-        OPENVINO_ASSERT(param_shape.size() == 4u);
+        NPUW_ASSERT(param_shape.size() == 4u);
         // NB: Transpose Parameter that correspond to V-tensor it will
         // speed-up its multiplication with attention scores
         std::swap(param_shape[2], param_shape[3]);
@@ -150,7 +150,7 @@ private:
             auto matched_reshape = std::static_pointer_cast<ov::op::v1::Reshape>(matched_node_reshape);
 
             auto shape_broadcast = matched_broadcast->get_output_shape(0);
-            OPENVINO_ASSERT(shape_broadcast.size() == 5u);
+            NPUW_ASSERT(shape_broadcast.size() == 5u);
             std::swap(shape_broadcast[3], shape_broadcast[4]);
 
             LOG_DEBUG("shape_broadcast for: " << matched_broadcast->get_friendly_name()
@@ -162,7 +162,7 @@ private:
             matched_broadcast->input(1).replace_source_output(broadcast_axes_node);
 
             auto shape_reshape = matched_reshape->get_output_shape(0);
-            OPENVINO_ASSERT(shape_reshape.size() == 4u);
+            NPUW_ASSERT(shape_reshape.size() == 4u);
             std::swap(shape_reshape[2], shape_reshape[3]);
 
             LOG_DEBUG("shape_reshape for: " << matched_reshape->get_friendly_name() << ", shape=" << shape_reshape);
@@ -371,6 +371,11 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
         ov::PartialShape new_shape;
         if (input_name.find("input_ids") != std::string::npos) {
             new_shape = ov::PartialShape({1, input_size});
+        } else if (input_name.find("inputs_embeds") != std::string::npos) {
+            // NB: VLMs case, model accepts inputs_embeds[BATCH, SEQ_LEN, EMB_SIZE]
+            NPUW_ASSERT(input.get_partial_shape().size() == 3u);
+            NPUW_ASSERT(input.get_partial_shape()[2].is_static());
+            new_shape = ov::PartialShape({1, input_size, input.get_partial_shape()[2]});
         } else if (input_name.find("attention_mask") != std::string::npos) {
             new_shape = ov::PartialShape({1, kvcache_size});
         } else if (input_name.find("position_ids") != std::string::npos) {
@@ -628,14 +633,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     m_kvcache_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
         ov::npuw::ICompiledModel::create(kvcache_model, plugin, generate_config));
-    OPENVINO_ASSERT(m_kvcache_compiled,
-                    "Can't create ov::npuw::CompiledModel for passed kvcache "
-                    "model and its config, please check passed config.");
+    NPUW_ASSERT(m_kvcache_compiled && "Can't create ov::npuw::CompiledModel for passed kvcache "
+                                      "model and its config, please check passed config.");
     m_prefill_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
         ov::npuw::ICompiledModel::create(prefill_model, plugin, prefill_config));
-    OPENVINO_ASSERT(m_prefill_compiled,
-                    "Can't create ov::npuw::CompiledModel for passed prefill "
-                    "model and its config, please check passed config.");
+    NPUW_ASSERT(m_prefill_compiled && "Can't create ov::npuw::CompiledModel for passed prefill "
+                                      "model and its config, please check passed config.");
 
     implement_properties();
     LOG_DEBUG("Done");
