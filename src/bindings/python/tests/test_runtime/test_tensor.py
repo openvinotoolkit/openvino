@@ -640,3 +640,23 @@ def test_copy_and_deepcopy(copy_func, should_share_data):
         assert tensor_copy.data[0, 0] == outlier
     else:
         assert tensor_copy.data[0, 0] == value
+
+
+# supported dtypes by Pillow
+@pytest.mark.parametrize(("numpy_dtype", "shape"), [
+                         (np.float32, (224, 224)),
+                         (np.int32, (224, 224)),
+                         (np.uint8, (224, 224, 3)),
+                         (np.uint16, (224, 224)),],)
+def test_tensor_from_pillow(numpy_dtype, shape):
+    from PIL import Image
+
+    arr = generate_image(shape, numpy_dtype)
+    img = Image.fromarray(arr)
+
+    tensor = ov.Tensor(img)
+    assert tensor.shape == shape
+    assert tensor.element_type == ov.Type(numpy_dtype)
+    assert isinstance(tensor.data, np.ndarray)
+    assert tensor.data.dtype == numpy_dtype
+    assert tensor.data.shape == shape

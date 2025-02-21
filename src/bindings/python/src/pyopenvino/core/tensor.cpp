@@ -214,6 +214,31 @@ void regclass_Tensor(py::module m) {
             py::arg("begin"),
             py::arg("end"));
 
+    cls.def(py::init([](py::object& image) {
+                if (!py::isinstance(image, py::module::import("PIL.Image").attr("Image"))) {
+                    throw py::type_error("Input must be a PIL.Image.Image object");
+                }
+                auto numpy = py::module::import("numpy");
+                py::array np_array = numpy.attr("array")(image);
+
+                return Common::object_from_data<ov::Tensor>(np_array, false);
+            }),
+            py::arg("image"),
+            R"(
+                Constructs Tensor from a Pillow Image.
+
+                :param image: Pillow Image to create the tensor from.
+                :type image: PIL.Image.Image
+                :Example:
+                .. code-block:: python
+
+                    from PIL import Image
+                    import openvino as ov
+
+                    img = Image.open("example.jpg")
+                    tensor = ov.Tensor(img)
+            )");
+
     cls.def("get_element_type",
             &ov::Tensor::get_element_type,
             R"(
