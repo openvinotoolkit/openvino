@@ -101,7 +101,7 @@ struct kv_cache : public primitive_base<kv_cache> {
     void load(BinaryInputBuffer& ib) override {
         primitive_base<kv_cache>::load(ib);
         ov::PartialShape data_shape;
-        ov::element::Type_t data_type = ov::element::Type_t::undefined;
+        ov::element::Type_t data_type = ov::element::Type_t::dynamic;
         std::string variable_id;
         ib >> variable_id;
         ib >> data_shape;
