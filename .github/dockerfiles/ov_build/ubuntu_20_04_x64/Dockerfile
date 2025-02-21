@@ -81,10 +81,8 @@ RUN . "$NVM_DIR/nvm.sh" && nvm install ${NODE_VERSION}
 ENV PATH="$NVM_DIR/versions/node/v${NODE_VERSION}/bin/:${PATH}"
 
 # Change ownership of the home directory to the non-root user
-RUN mkdir -p /home/${USER_NAME}
-RUN mkdir -p /home/openvino
-RUN chown -R ${USER_NAME}:${USER_NAME} /home/${USER_NAME}
-RUN chown -R ${USER_NAME}:${USER_NAME} /home/openvino
+RUN mkdir -p /home/${USER_NAME} && chown -R ${USER_NAME}:${USER_NAME} /home/${USER_NAME}
+RUN mkdir -p /home/openvino && chown -R ${USER_NAME}:${USER_NAME} /home/openvino
 
 # Change ownership of the venv directory to the non-root user
 RUN chown -R ${USER_NAME}:${USER_NAME} /venv
