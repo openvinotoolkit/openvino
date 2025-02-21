@@ -1403,7 +1403,6 @@ void program::apply_opt_pass(base_pass& pass) { pm->run(*this, pass); }
 void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     lo.set_implementation_forcing(_config.get_force_implementations());
 
-
     // first pass to set layout optimization_attributes for topology
     bool can_use_fsv16 = true;
     bool can_use_bs_fs_yx_bsv16_fsv16 = true;
@@ -1520,7 +1519,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::convert_color::type_id() &&
             prim.type() != cldnn::unique_count::type_id() &&
             prim.type() != cldnn::unique_gather::type_id() &&
-            prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id()) {
+            prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id() &&
+            prim.type() != cldnn::scaled_dot_product_attention::type_id()) {
             can_use_fsv16 = false;
         }
 
