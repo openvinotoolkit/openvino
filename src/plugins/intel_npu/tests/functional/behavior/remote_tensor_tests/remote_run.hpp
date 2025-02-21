@@ -244,6 +244,88 @@ TEST_P(RemoteRunTests, CheckRemoteTensorInternalBuf) {
     OV_ASSERT_NO_THROW(inference_request.infer());
 }
 
+TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContext) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::InferRequest inference_request;
+
+    ov::AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::L0_INTERNAL_BUF},
+                         {ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::INPUT}}};
+
+    auto context = core->create_context(target_device, params);
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, context, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+
+    auto tensor = inference_request.get_input_tensor();
+    auto remote_tensor = context.create_tensor(ov::element::f32, tensor.get_shape());
+    tensor = {};
+
+    ov::Tensor check_remote_tensor;
+    OV_ASSERT_NO_THROW(check_remote_tensor = remote_tensor);
+    ASSERT_THROW(check_remote_tensor.data(), ov::Exception);
+
+    OV_ASSERT_NO_THROW(inference_request.set_input_tensor(check_remote_tensor));
+    OV_ASSERT_NO_THROW(inference_request.infer());
+}
+
+TEST_P(RemoteRunTests, CheckRemoteTensorSetOnlyTensorType) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::InferRequest inference_request;
+
+    ov::AnyMap params = {{ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::INPUT}}};
+
+    auto context = core->create_context(target_device, params);
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, context, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+
+    auto tensor = inference_request.get_input_tensor();
+    ASSERT_THROW(auto remote_tensor = context.create_tensor(ov::element::f32, tensor.get_shape()), ov::Exception);
+}
+
+TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContextandChangedInTensor) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::InferRequest inference_request;
+
+    ov::AnyMap paramsContext = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::L0_INTERNAL_BUF},
+                                {ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::INPUT}}};
+
+    auto context = core->create_context(target_device, paramsContext);
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, context, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+
+    ov::AnyMap paramsTensor = {{ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::BINDED}}};
+
+    auto tensor = inference_request.get_input_tensor();
+    auto remote_tensor = context.create_tensor(ov::element::f32, tensor.get_shape(), paramsTensor);
+    tensor = {};
+
+    ov::Tensor check_remote_tensor;
+    OV_ASSERT_NO_THROW(check_remote_tensor = remote_tensor);
+
+    OV_ASSERT_NO_THROW(inference_request.set_input_tensor(check_remote_tensor));
+    OV_ASSERT_NO_THROW(inference_request.infer());
+}
+
+TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContextandChangedInTensorExpectToFail) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::InferRequest inference_request;
+
+    ov::AnyMap paramsContext = {{ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::INPUT}}};
+
+    auto context = core->create_context(target_device, paramsContext);
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, context, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+
+    ov::AnyMap paramsTensor = {{ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::BINDED}}};
+
+    auto tensor = inference_request.get_input_tensor();
+    ASSERT_THROW(auto remote_tensor = context.create_tensor(ov::element::f32, tensor.get_shape(), paramsTensor),
+                 ov::Exception);
+}
+
 TEST_P(RemoteRunTests, CheckImportModelPath) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
