@@ -39,7 +39,7 @@ public:
     void SetUp() override {
         auto params = GetParam();
         const auto output_type =
-            params.expected.type == params.input.type ? ov::element::undefined : params.expected.type;
+            params.expected.type == params.input.type ? ov::element::dynamic : params.expected.type;
         function = CreateFunction(params.input, params.eps, params.scale, output_type);
         if (!params.scale.data) {
             inputData = {params.input.data};

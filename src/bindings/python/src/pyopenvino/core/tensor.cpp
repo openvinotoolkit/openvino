@@ -42,7 +42,7 @@ void regclass_Tensor(py::module m) {
             }),
             py::arg("array"),
             py::arg("shape"),
-            py::arg("type") = ov::element::undefined,
+            py::arg("type") = ov::element::dynamic,
             py::keep_alive<1, 2>(),
             R"(
                 Another Tensor's special constructor.
@@ -76,7 +76,7 @@ void regclass_Tensor(py::module m) {
             }),
             py::arg("array"),
             py::arg("shape"),
-            py::arg("type") = ov::element::undefined,
+            py::arg("type") = ov::element::dynamic,
             py::keep_alive<1, 2>(),
             R"(
                  Another Tensor's special constructor.
