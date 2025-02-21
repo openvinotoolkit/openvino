@@ -70,12 +70,18 @@ Imports
     # Fetch `notebook_utils` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
     
     from notebook_utils import download_file, device_widget
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("3D-segmentation-point-clouds.ipynb")
 
 Prepare the Model
 -----------------
@@ -92,12 +98,14 @@ find more point clouds examples
     # Set the data and model directories, model source URL and model filename
     MODEL_DIR = Path("model")
     MODEL_DIR.mkdir(exist_ok=True)
-    download_file(
-        "https://storage.googleapis.com/ailia-models/pointnet_pytorch/chair_100.onnx",
-        directory=Path(MODEL_DIR),
-        show_progress=False,
-    )
     onnx_model_path = MODEL_DIR / "chair_100.onnx"
+    
+    if not onnx_model_path.exists():
+        download_file(
+            "https://storage.googleapis.com/ailia-models/pointnet_pytorch/chair_100.onnx",
+            directory=Path(MODEL_DIR),
+            show_progress=False,
+        )
 
 Convert the ONNX model to OpenVINO IR. An OpenVINO IR (Intermediate
 Representation) model consists of an ``.xml`` file, containing
@@ -195,10 +203,13 @@ chair for example.
 .. code:: ipython3
 
     # Download data from the openvino_notebooks storage
-    point_data = download_file(
-        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/pts/chair.pts",
-        directory="data",
-    )
+    point_data_path = Path("data") / "chair.pts"
+    
+    if not point_data_path.exists():
+        point_data = download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/pts/chair.pts",
+            directory="data",
+        )
     
     points = load_data(str(point_data))
     X = points[:, 0]
@@ -219,7 +230,7 @@ chair for example.
 
 .. parsed-literal::
 
-    /tmp/ipykernel_2157242/2434168836.py:12: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
+    /tmp/ipykernel_3273469/2331834230.py:15: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
       ax.scatter3D(X, Y, Z, s=5, cmap="jet", marker="o", label="chair")
 
 
@@ -313,7 +324,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    /tmp/ipykernel_2157242/2804603389.py:23: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
+    /tmp/ipykernel_3273469/2804603389.py:23: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
       ax.scatter(XCur, YCur, ZCur, s=5, cmap="jet", marker="o", label=classes[i])
 
 

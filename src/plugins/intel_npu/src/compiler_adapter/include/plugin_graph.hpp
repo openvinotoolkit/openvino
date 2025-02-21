@@ -23,7 +23,7 @@ public:
                 const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                 ze_graph_handle_t graphHandle,
                 NetworkMetadata metadata,
-                std::vector<uint8_t> blob,
+                std::unique_ptr<BlobContainer> blobPtr,
                 const Config& config);
 
     size_t export_blob(std::ostream& stream) const override;

@@ -1,12 +1,12 @@
 // Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/op/if.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/condition.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 const size_t idx_true = 0;
 const size_t idx_false = 1;
@@ -21,17 +21,12 @@ static cldnn::condition::branch gen_branch(ProgramBuilder& p, const std::shared_
                     << internal_body->get_friendly_name()
                     << ", num inputs: " << op->get_input_size() << std::endl;
 
-    auto config = p.get_config();
-    {
-        auto custom_outputs = config.get_property(ov::intel_gpu::custom_outputs);
-        if (!custom_outputs.empty()) {
-            config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>({})));
-        }
-    }
-    config.set_property(ov::intel_gpu::max_dynamic_batch(1));
+    auto config = p.get_config().clone();
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>({})));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(op->is_dynamic() || p.use_new_shape_infer()));
+    config.finalize(p.get_engine());
 
-    ProgramBuilder prog(internal_body, p.get_engine(), config, false, p.get_task_executor(), p.get_compilation_context(), true);
+    ProgramBuilder prog(internal_body, p.get_engine(), config, p.get_task_executor(), p.get_compilation_context(), true);
     branch.inner_program = prog.get_compiled_program();
 
     auto& input_map = branch.input_map;
@@ -80,5 +75,4 @@ static void CreateIfOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v8::If>&
 
 REGISTER_FACTORY_IMPL(v8, If);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

@@ -7,8 +7,7 @@
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 #ifndef OPENVINO_ARCH_ARM64
 #    define GET_OFF(field) offsetof(jit_dft_args, field)
@@ -42,8 +41,9 @@ void jit_dft_kernel_f32<isa>::generate() {
         break;
     }
     int simd_size = vlen / output_type_size;
-    if (kernel_type_ == complex_to_complex)
+    if (kernel_type_ == complex_to_complex) {
         simd_size = vlen / type_size;
+    }
 
     mov(input_ptr, ptr[param1 + GET_OFF(input)]);
     mov(input_size, ptr[param1 + GET_OFF(input_size)]);
@@ -424,5 +424,4 @@ template struct jit_dft_kernel_f32<cpu::x64::avx2>;
 template struct jit_dft_kernel_f32<cpu::x64::avx512_core>;
 
 #endif
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

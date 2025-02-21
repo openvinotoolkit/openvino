@@ -11,6 +11,8 @@
 #include <string>
 #include <vector>
 
+#include "openvino/op/if.hpp"
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -21,10 +23,15 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void initSupportedPrimitiveDescriptors() override;
-    void getSupportedDescriptors() override;
+    void getSupportedDescriptors() override {}
+    int registerToAllocationContext(int offset, AllocationContext& context) override;
     void createPrimitive() override;
     bool created() const override;
+
     void execute(const dnnl::stream& strm) override;
+    bool neverExecute() const override {
+        return false;
+    }
     bool isExecutable() const override {
         return true;
     }
@@ -65,8 +72,8 @@ private:
         ptrdiff_t size;
     };
 
-    Graph subGraphThen;
-    Graph subGraphElse;
+    Graph m_thenGraph;
+    Graph m_elseGraph;
     std::vector<std::deque<MemoryPtr>> inputMemThen, inputMemElse;
     std::deque<MemoryPtr> outputMemThen, outputMemElse;
 
@@ -75,7 +82,7 @@ private:
 
     std::vector<PortMap> thenInputPortMap, thenOutputPortMap, elseInputPortMap, elseOutputPortMap;
 
-    const std::shared_ptr<ov::Node> ovOp;
+    std::shared_ptr<ov::op::v8::If> m_op;
 };
 
 }  // namespace node

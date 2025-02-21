@@ -4,8 +4,12 @@
 
 #include "openvino/core/any.hpp"
 
+#include <array>
 #include <limits>
 #include <string>
+#include <string_view>
+
+#include "openvino/util/common_util.hpp"
 namespace {
 template <class Container>
 bool contains_type_index(Container&& types, const std::type_info& user_type) {
@@ -22,13 +26,15 @@ namespace ov {
 
 bool util::equal(std::type_index lhs, std::type_index rhs) {
     auto result = lhs == rhs;
-#if (defined(__ANDROID__) || defined(__APPLE__)) && defined(__clang__)
+#if (defined(__ANDROID__) || defined(__APPLE__) || defined(__CHROMIUMOS__)) && defined(__clang__)
     if (!result) {
         result = std::strcmp(lhs.name(), rhs.name()) == 0;
     }
 #endif
     return result;
 }
+
+Any::Base::~Base() = default;
 
 bool Any::Base::is(const std::type_info& other) const {
     return util::equal(type_info(), other);
@@ -200,9 +206,14 @@ namespace util {
 void Read<bool>::operator()(std::istream& is, bool& value) const {
     std::string str;
     is >> str;
-    if (str == "YES") {
+
+    constexpr std::array<std::string_view, 4> off = {"0", "false", "off", "no"};
+    constexpr std::array<std::string_view, 4> on = {"1", "true", "on", "yes"};
+    str = util::to_lower(str);
+
+    if (std::find(on.begin(), on.end(), str) != on.end()) {
         value = true;
-    } else if (str == "NO") {
+    } else if (std::find(off.begin(), off.end(), str) != off.end()) {
         value = false;
     } else {
         OPENVINO_THROW("Could not convert to bool from string " + str);

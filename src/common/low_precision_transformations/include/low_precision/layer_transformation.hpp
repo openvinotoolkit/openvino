@@ -32,7 +32,7 @@ namespace precision_set {
 
 class LP_TRANSFORMATIONS_API DataPrecision {
 public:
-    DataPrecision() : precision(element::undefined), min(0.f), max(0.f), hasZeroPoint(false) {}
+    DataPrecision() : precision(element::dynamic), min(0.f), max(0.f), hasZeroPoint(false) {}
 
     explicit DataPrecision(const element::Type& precision) {
         this->precision = precision;
@@ -48,10 +48,9 @@ public:
             hasZeroPoint(hasZeroPoint) {}
 
     bool empty() const noexcept {
-        assert(
-            ((precision == element::undefined) && (min == 0.f) && (max == 0.f) && (!hasZeroPoint)) ||
-            ((precision != element::undefined) && (max != 0.f)));
-        return (precision == element::undefined) && (min == 0.f) && (max == 0.f) && (!hasZeroPoint);
+        assert(((precision == element::dynamic) && (min == 0.f) && (max == 0.f) && (!hasZeroPoint)) ||
+               ((precision != element::dynamic) && (max != 0.f)));
+        return (precision == element::dynamic) && (min == 0.f) && (max == 0.f) && (!hasZeroPoint);
     }
 
     static bool isSupported(const element::Type& precision) {
@@ -288,7 +287,6 @@ public:
     };
 
     LayerTransformation(const Params& params);
-    virtual ~LayerTransformation() = default;
     virtual bool transform(ov::pass::pattern::Matcher &m) = 0;
 
     virtual bool canBeTransformed(const std::shared_ptr<Node>& layer) const;
