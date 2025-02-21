@@ -2096,14 +2096,14 @@ void Interpolate::getSupportedDescriptors() {
     }
 
     // get pad
-    for (size_t i = 0; i < interpAttrs.padBegin.size(); i++) {
-        if (interpAttrs.padBegin[i] != 0) {
+    for (int i : interpAttrs.padBegin) {
+        if (i != 0) {
             hasPad = true;
             break;
         }
     }
-    for (size_t i = 0; i < interpAttrs.padEnd.size(); i++) {
-        if (interpAttrs.padEnd[i] != 0) {
+    for (int i : interpAttrs.padEnd) {
+        if (i != 0) {
             hasPad = true;
             break;
         }
@@ -2227,12 +2227,14 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
 
         if (useAclExecutor) {
             std::vector<MemoryDescPtr> srcMemoryDescs;
-            for (size_t i = 0; i < config.inConfs.size(); i++) {
-                srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
+            srcMemoryDescs.reserve(config.inConfs.size());
+            for (const auto& inConf : config.inConfs) {
+                srcMemoryDescs.push_back(inConf.getMemDesc());
             }
             std::vector<MemoryDescPtr> dstMemoryDescs;
-            for (size_t i = 0; i < config.outConfs.size(); i++) {
-                dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
+            dstMemoryDescs.reserve(config.outConfs.size());
+            for (const auto& outConf : config.outConfs) {
+                dstMemoryDescs.push_back(outConf.getMemDesc());
             }
 
             auto factory = std::make_shared<InterpolateExecutorFactory>(

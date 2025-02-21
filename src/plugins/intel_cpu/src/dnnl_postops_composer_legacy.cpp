@@ -169,8 +169,8 @@ bool DnnlPostOpsComposerLegacy::appendScale(const std::vector<float>& scale, boo
                 wei_scale_values[j] *= scale[j];
             }
         } else {
-            for (size_t j = 0; j < wei_scale_values.size(); j++) {
-                wei_scale_values[j] *= scale[0];
+            for (float& wei_scale_value : wei_scale_values) {
+                wei_scale_value *= scale[0];
             }
         }
 
