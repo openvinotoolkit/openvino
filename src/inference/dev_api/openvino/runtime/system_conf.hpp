@@ -175,11 +175,13 @@ OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx_fp16();
 OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx();
 
 /**
- * @brief      Checks whether cpu_mapping Available
+ * @brief      Checks whether cpu_pinning and cpu_reservation are available
  * @ingroup    ov_dev_api_system_conf
- * @return     `True` is CPU mapping is available, `false` otherwise
  */
-OPENVINO_RUNTIME_API bool is_cpu_map_available();
+OPENVINO_RUNTIME_API void cpu_pinning_available(bool& cpu_pinning,
+                                                const bool cpu_pinning_changed,
+                                                bool& cpu_reservation,
+                                                const std::vector<std::vector<int>>& streams_info_table);
 
 /**
  * @brief      Get number of numa nodes
