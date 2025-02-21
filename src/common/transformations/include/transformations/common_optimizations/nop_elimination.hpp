@@ -11,6 +11,7 @@ namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API EliminateConcat;
+class TRANSFORMATIONS_API EliminateConcatSplit;
 class TRANSFORMATIONS_API EliminateConvert;
 class TRANSFORMATIONS_API EliminateConvertNonZero;
 class TRANSFORMATIONS_API EliminateEltwise;
@@ -81,6 +82,16 @@ class ov::pass::EliminateConcat : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("EliminateConcat");
     EliminateConcat();
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief EliminateConcatSplit eliminates split from concat that no need
+ */
+class ov::pass::EliminateConcatSplit : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("EliminateConcatSplit");
+    EliminateConcatSplit();
 };
 
 /**
