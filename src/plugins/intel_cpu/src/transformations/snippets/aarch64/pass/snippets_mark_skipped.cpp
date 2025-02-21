@@ -4,6 +4,7 @@
 #include "snippets_mark_skipped.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/type_util.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/utils/utils.hpp"
