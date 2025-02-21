@@ -4,6 +4,7 @@
 
 #include "utils.hpp"
 
+#include "openvino/core/type_util.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"

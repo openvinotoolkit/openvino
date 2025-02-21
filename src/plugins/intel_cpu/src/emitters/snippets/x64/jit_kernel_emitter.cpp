@@ -5,6 +5,7 @@
 #include "jit_kernel_emitter.hpp"
 
 #include "jit_snippets_emitters.hpp"
+#include "openvino/core/type_util.hpp"
 #include "snippets/utils/reg_utils.hpp"
 #include "utils.hpp"
 

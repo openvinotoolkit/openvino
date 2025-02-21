@@ -29,6 +29,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/cc/factory.h"
 #include "openvino/core/node.hpp"
+#include "openvino/core/type_util.hpp"
 #include "perf_count.h"
 #include "selective_build.h"
 #include "utils/bit_util.hpp"

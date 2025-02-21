@@ -95,9 +95,8 @@ bool isSuitableBinaryConvolutionParent(const std::shared_ptr<const Node>& node) 
     return is_suitable_node && has_only_child;
 }
 bool isSuitableMiscParent(const std::shared_ptr<const Node>& node) {
-    const bool is_suitable_node = ov::is_type_any_of<ov::op::v0::NormalizeL2,
-                                                     ov::op::v1::ConvolutionBackpropData,
-                                                     ov::op::v1::GroupConvolutionBackpropData>(node);
+    const bool is_suitable_node =
+        ov::is_type_any_of<ov::op::v0::NormalizeL2, ov::op::util::ConvolutionBackPropBase>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
