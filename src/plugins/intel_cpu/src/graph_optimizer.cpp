@@ -50,6 +50,8 @@
 using namespace dnnl;
 using namespace ov::intel_cpu::node;
 
+// Many GraphOptimizer passes are changing graphNodes collection while iterating which is not completely safe. So, it is
+// impossible to use range based for loops.
 // NOLINTBEGIN(modernize-loop-convert)
 
 namespace ov::intel_cpu {
