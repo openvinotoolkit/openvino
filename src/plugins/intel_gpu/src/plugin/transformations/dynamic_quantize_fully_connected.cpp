@@ -66,7 +66,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
                                 std::make_shared<ov::intel_gpu::op::Placeholder>() : dyn_quan->output(2);
 
         auto output_type = m_fc->get_output_type();
-        if (output_type == ov::element::undefined)
+        if (output_type.is_dynamic())
             output_type = m_fc->get_input_element_type(0);
 
         auto new_fc = std::make_shared<op::FullyConnectedCompressed>(dyn_quan->output(0),
