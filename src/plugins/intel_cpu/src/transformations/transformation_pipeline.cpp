@@ -1055,7 +1055,8 @@ void Transformations::MainSnippets(void) {
     // To avoid performance degradations, we disable MHA tokenization into Subgraphs in LLMs'.
     // We consider the presence of `ScaledDotProductAttentionWithKVCache` and `PagedAttentionExtension` ops
     // in the model as a sign that this model is LLM.
-    const auto is_LLM = ov::op::util::has_op_with_type<intel_cpu::ScaledDotProductAttentionWithKVCache>(model) ||
+    const auto is_LLM = ov::op::util::is_large_language_model(model) ||
+                        ov::op::util::has_op_with_type<intel_cpu::ScaledDotProductAttentionWithKVCache>(model) ||
                         ov::op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model);
 
     // CPU Plugin Subgraph supports f32, bf16, quantized and fp16(on avx_512_core_amx_fp16 target) BRGEMM
