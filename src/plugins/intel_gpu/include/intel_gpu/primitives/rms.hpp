@@ -19,15 +19,21 @@ struct rms : public primitive_base<rms> {
     /// @param input Input primitive id
     /// @param gamma Gamma values for weight
     /// @param epsilon Epsilon for not dividing by zero while normalizing
+    /// @param input_rank The number of dimensions of the input
     rms(const primitive_id& id,
         const input_info& input,
         const input_info& gamma,
-        const float epsilon)
+        const float epsilon,
+        const size_t input_rank)
         : primitive_base(id, {input, gamma}),
-          epsilon(epsilon) {}
+          epsilon(epsilon),
+          input_rank(input_rank) {}
 
     /// @brief Epsilon for not dividing by zero while normalizing
     float epsilon;
+
+    /// @brief The number of dimensions of the input
+    size_t input_rank;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
