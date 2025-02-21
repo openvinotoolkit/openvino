@@ -42,7 +42,8 @@ void emulate_f8e5m2_on_fp16(const float16* const arg_f, float16* out_f, size_t c
         }
         val_bit_repr &= mask_mant; /* truncation */
         if (use_clamp) {
-            val_bit_repr -= (((val_bit_repr & 0x7F00) == fp16_inf) << lshift); /* clamp */
+            // clamp inf to max and -inf to lowest, S.11111.00 -> S.11110.11
+            val_bit_repr -= (((val_bit_repr & 0x7F00) == fp16_inf) << lshift);
         }
         out_u[i] = val_bit_repr;
     }
