@@ -70,7 +70,7 @@ public:
 
     static std::shared_ptr<DnnlFCPrimitive> create(const MemoryArgs& memory,
                                                    const FCAttrs& attrs,
-                                                   const ExecutorContext::CPtr context,
+                                                   const ExecutorContext::CPtr& context,
                                                    const DnnlShapeAgnosticDataPtr& shapeAgnosticData);
 
 private:
