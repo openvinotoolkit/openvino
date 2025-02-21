@@ -77,7 +77,7 @@ TEST(rms_gpu_test, rms_test_bfyx_ref) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("gamma", gamma->get_layout()));
-    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f));
+    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f, input->get_layout().get_rank()));
 
     network network(engine, topology, get_test_default_config(engine));
 
@@ -120,7 +120,7 @@ TEST(rms_gpu_test, rms_test_bfyx_opt) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("gamma", gamma->get_layout()));
-    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f));
+    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f, input->get_layout().get_rank()));
 
     network network(engine, topology, get_test_default_config(engine));
 
@@ -163,7 +163,7 @@ TEST(rms_gpu_test, rms_test_bfyx_opt_leftovers) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("gamma", gamma->get_layout()));
-    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f));
+    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f, input->get_layout().get_rank()));
 
     network network(engine, topology, get_test_default_config(engine));
 
@@ -200,7 +200,7 @@ TEST(rms_gpu_test, rms_test_bfyx_opt_dyn) {
     topology topology;
     topology.add(input_layout("input", input_layout_dynamic));
     topology.add(input_layout("gamma", gamma->get_layout()));
-    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f));
+    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f, input->get_layout().get_rank()));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -214,6 +214,50 @@ TEST(rms_gpu_test, rms_test_bfyx_opt_dyn) {
     auto impl = inst->get_impl();
     ASSERT_TRUE(impl != nullptr);
     ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "rms");
+
+    auto output = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
+
+    for (unsigned int i = 0; i < output_ref->count(); ++i) {
+        EXPECT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-3);
+    }
+}
+
+TEST(rms_gpu_test, rms_test_bfyx_opt_static) {
+    auto& engine = get_test_engine();
+
+    auto input_layout_static = layout{ov::PartialShape{2, 1, 4096}, data_types::f32, format::bfyx};
+    auto input = engine.allocate_memory({ov::PartialShape{2, 1, 4096}, data_types::f32, format::bfyx});
+    auto gamma = engine.allocate_memory({ov::PartialShape{1, 1, 4096}, data_types::f32, format::bfyx});
+    auto output_ref = engine.allocate_memory({ov::PartialShape{2, 1, 4096}, data_types::f32, format::bfyx});
+
+    tests::set_random_values<float>(input, true, 8, 100);
+    tests::set_random_values<float>(gamma, true, 8, 100);
+
+    rms_ref<float>(input, gamma, output_ref, 1e-5f);
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_static));
+    topology.add(input_layout("gamma", gamma->get_layout()));
+    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f, input->get_layout().get_rank()));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    // config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input);
+    network.set_input_data("gamma", gamma);
+
+    auto inst = network.get_primitive("rms");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_FALSE(impl->is_dynamic());
 
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -245,7 +289,7 @@ TEST(rms_gpu_test, rms_test_bfyx_opt_all_dims_dyn) {
     topology topology;
     topology.add(input_layout("input", input_layout_dynamic));
     topology.add(input_layout("gamma", gamma->get_layout()));
-    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f));
+    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f, input->get_layout().get_rank()));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -290,7 +334,7 @@ TEST(rms_gpu_test, rms_test_bfyx_opt_leftovers_dyn) {
     topology topology;
     topology.add(input_layout("input", input_layout_dynamic));
     topology.add(input_layout("gamma", gamma->get_layout()));
-    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f));
+    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f, input->get_layout().get_rank()));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -335,7 +379,7 @@ TEST(rms_gpu_test, rms_test_bfyx_opt_unaligned_dyn) {
     topology topology;
     topology.add(input_layout("input", input_layout_dynamic));
     topology.add(input_layout("gamma", gamma->get_layout()));
-    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f));
+    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f, input->get_layout().get_rank()));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));

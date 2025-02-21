@@ -78,7 +78,7 @@ TEST_P(rms_activation, basic) {
     create_topologies(
         input_layout("input", get_input_layout(p)),
         input_layout("gamma", get_gamma_layout(p)),
-        rms("rms", input_info("input"), input_info("gamma"), 1e-10f),
+        rms("rms", input_info("input"), input_info("gamma"), 1e-10f, get_input_layout(p).get_rank()),
         activation("act", input_info("rms"), activation_func::relu),
         reorder("reorder_bfyx", input_info("act"), format::bfyx, data_types::f32)
     );
@@ -104,7 +104,7 @@ TEST_P(rms_eltwise, basic) {
     create_topologies(
         input_layout("input", layout{ p.input_type, p.input_format, p.input_size }),
         input_layout("gamma", layout{ p.input_type, p.input_format, p.gamma_size }),
-        rms("rms", input_info("input"), input_info("gamma"), 1e-10f),
+        rms("rms", input_info("input"), input_info("gamma"), 1e-10f, p.input_size.sizes().size()),
         data("eltw_data", get_mem(layout{ p.input_type, p.input_format, p.elwise_size })),
         eltwise("eltw", { input_info("rms"), input_info("eltw_data") }, eltwise_mode::sum, p.input_type),
         reorder("reorder_bfyx", input_info("eltw"), p.input_format, data_types::f32)
