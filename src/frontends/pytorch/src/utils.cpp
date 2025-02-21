@@ -728,7 +728,7 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
         auto id_dtype = indices[i].get_element_type();
         if (id_dtype == element::boolean || id_dtype == element::u8) {
             auto idx = rg.make<v0::Convert>(indices[i], element::u8);
-            auto nonzero = rg.make<v3::NonZero>(idx, element::i32);
+            auto nonzero = rg.make<v3::NonZero>(idx);
             auto input_order = rg.make<v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{1, 0});
             auto masked_id = rg.make<v1::Transpose>(nonzero, input_order);
             masked_indicies.push_back(masked_id);
