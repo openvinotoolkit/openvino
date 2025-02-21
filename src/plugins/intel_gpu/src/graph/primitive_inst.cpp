@@ -1291,6 +1291,14 @@ void primitive_inst::do_runtime_skip_reorder() {
     for (auto u : get_user_insts()) {
         if (u->get_node().is_type<reorder>()) {
             if (u->get_node().can_be_optimized() && u->get_node().is_runtime_skippable()) {
+                if (u->is_output() && get_network().get_output_remote_memory_ptr() && u->output_memory_ptr()) {
+                    if (get_network().get_engine().is_the_same_buffer(get_network().get_output_remote_memory(), u->output_memory())) {
+                        u->set_can_be_optimized(false);
+                        GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] user " << u->id()
+                                               << " cannot be optimized for that " << u->id()
+                                               << " is using the shared buffer memory allocated from remote tensor" << std::endl;
+                    }
+                }
                 auto out_port_idx = u->get_node().get_dependency_with_port(0).second;
                 // If current node's output_node is not dynamic, the memory is already allocated at build time
                 auto alloc_type = allocation_type::unknown;
