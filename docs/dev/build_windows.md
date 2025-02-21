@@ -51,11 +51,11 @@ Supported configurations:
 ### Additional Build Options
 
 - To build the OpenVINO Runtime Python API:
-  1. Enable the `-DENABLE_PYTHON=ON` in the CMake (Step #3) option above. To specify an exact Python version, use the following options (requires cmake 3.16 and higher):
+  1. Enable the `-DENABLE_PYTHON=ON`and `-DENABLE_WHEEL=ON` options in the CMake (Step #3) option above. To specify an exact Python version, use the following options (requires cmake 3.16 and higher):
      ```sh
      -DPython3_EXECUTABLE="C:\Program Files\Python11\python.exe"
      ```
-  2. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4), and install requirements:
+  2. Install the required dependencies for building the wheel package (.whl):
      ```sh
      pip install -r <openvino source tree>\src\bindings\python\wheel\requirements-dev.txt
      ```
