@@ -28,7 +28,6 @@ class TestItem(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.precommit_torch_export
     def test_item(self, ie_device, precision, ir_version, dtype, shape):
         self.dtype = dtype
         self.shape = shape
