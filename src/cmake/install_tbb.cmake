@@ -140,9 +140,11 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
             file(TO_CMAKE_PATH $ENV{TBBROOT} TBBROOT)
         endif()
         # sometimes TBBROOT can be set with relative paths inside (e.g. oneAPI package)
-        message(STATUS "get_filename_component before TBBROOT is ${get_filename_component}")
-        get_filename_component(TBBROOT "${TBBROOT}" ABSOLUTE)
-        message(STATUS "get_filename_component after TBBROOT is ${get_filename_component}")
+        message(STATUS "get_filename_component before TBBROOT is ${TBBROOT}")
+        if (DEFINED TBBROOT)
+            get_filename_component(TBBROOT "${TBBROOT}" ABSOLUTE)
+        endif()
+        message(STATUS "get_filename_component after TBBROOT is ${TBBROOT}")
         message(STATUS "TBB_DIR is ${TBB_DIR}")
         if(NOT DEFINED TBBROOT)
             message(STATUS "TBBROOT is not defined")
@@ -198,16 +200,17 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                             install(PROGRAMS "${_tbb_lib}"
                                     DESTINATION "${OV_TBB_DIR_INSTALL}/${dir}"
                                     COMPONENT ${tbb_component})
+                            message(STATUS "install PROGRAMS:${_tbb_lib} to DESTINATION:${OV_TBB_DIR_INSTALL}/${dir}")
                         endif()
                     endforeach()
-                    message(STATUS "DESTINATION is ${OV_TBB_DIR_INSTALL}/${dir}")
+                    # message(STATUS "DESTINATION is ${OV_TBB_DIR_INSTALL}/${dir}")
                 else()
                     message(STATUS "tbb_libs_dir is not same as dir:${dir}")
                     install(DIRECTORY "${TBBROOT}/${dir}/"
                             DESTINATION "${OV_TBB_DIR_INSTALL}/${dir}"
                             COMPONENT ${tbb_component}
                             ${exclude_pattern})
-                    message(STATUS "DESTINATION is ${OV_TBB_DIR_INSTALL}/${dir}")
+                    message(STATUS "install DIRECTORY:${TBBROOT}/${dir}/ to DESTINATION:${OV_TBB_DIR_INSTALL}/${dir}")
                 endif()
             endif()
         endforeach()
