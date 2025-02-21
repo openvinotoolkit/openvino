@@ -67,6 +67,7 @@ jobs:
     defaults:
       run:
         shell: bash
+        working-directory: "/home/openvino"
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
@@ -109,6 +110,12 @@ jobs:
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
+
+      - name: Who am I
+        run: |
+          whoami
+          id
+          echo ${HOME}
 
       # Ticket: 139627
       - name: Checkout the latest OneDNN for GPU in nightly
