@@ -124,4 +124,6 @@ private:
 
 void FinalizerCallback(Napi::Env env, void* finalizeData, TsfnContext* context);
 
+std::map<std::string, ov::Tensor> get_js_infer_result(ov::InferRequest* infer_request);
+
 void performInferenceThread(TsfnContext* context);
