@@ -329,7 +329,6 @@ static void attn_acc_value_block(float* out,
             auto attn_w_vec0 = _mm256_set1_ps(weight[0] * v_f0[0]);
             auto zp0 = _mm256_set1_ps(v_f0[1]);
             size_t i = 0;
-            v += 8;
             for (; i + vec_len_f32_avx2 <= group_size; i += vec_len_f32_avx2) {
                 auto v_out = mm256_uni_loadu_ps(out + dst_offset + i);
                 auto v0 = _mm256_sub_ps(_mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(
