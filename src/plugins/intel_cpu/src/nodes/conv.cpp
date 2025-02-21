@@ -274,12 +274,29 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
     auto biasedConvolutionOp = ov::as_type_ptr<ov::op::internal::ConvolutionBiased>(op);
 
     if (biasedConvolutionOp) {
-        OPENVINO_THROW("Biased convolution is not supported");
-    //     algorithm = Algorithm::ConvolutionBiased;
-    //     withBiases = true;
-    //     groupNum = 1;
-    //     isGrouped = false;
+        algorithm = Algorithm::ConvolutionBiased;
+        withBiases = true;
+        groupNum = 1;
+        isGrouped = false;
 
+        weightDims = biasedConvolutionOp->input_value(1).get_shape();
+
+        IC = weightDims[1];
+        groupIC = IC;
+        groupOC = weightDims[0];
+
+        expectedBiasDims = {groupOC};
+
+        for (size_t i = 0; i < biasedConvolutionOp->get_strides().size(); i++) {
+            stride.push_back(biasedConvolutionOp->get_strides()[i]);
+        }
+        for (size_t i = 0; i < biasedConvolutionOp->get_dilations().size(); i++) {
+            dilation.push_back(static_cast<ptrdiff_t>(biasedConvolutionOp->get_dilations()[i]) - 1);
+        }
+        paddingL = biasedConvolutionOp->get_pads_begin();
+        paddingR = biasedConvolutionOp->get_pads_end();
+        autoPadding =
+            one_of(biasedConvolutionOp->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
     } else if (convolutionOp) {
         algorithm = Algorithm::ConvolutionCommon;
 

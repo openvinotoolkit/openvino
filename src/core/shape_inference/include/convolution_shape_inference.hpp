@@ -49,6 +49,11 @@ std::vector<TRShape> shape_infer(const TOp* op,
         output_shape.reserve(util::spatial_dim_offset + num_spatial);
         output_shape.emplace_back(data_rank.is_static() ? data_shape[0] : dim::inf_bound);
         output_shape.emplace_back(filters_rank.is_static() ? filters_shape[0] : dim::inf_bound);
+        if constexpr (std::is_same<TOp, internal::ConvolutionBiased>::value) {
+            const auto& bias_shape = input_shapes[2];
+            const auto bias_rank = bias_shape.rank();
+            output_shape.emplace_back(bias_rank.is_static() ? bias_shape[0] : dim::inf_bound);
+        }
         convolution::append_spatial_shape(op, data_shape, filters_shape, pads_begin, pads_end, output_shape);
     } else {
         output_shape = PartialShape::dynamic();
