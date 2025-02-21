@@ -94,7 +94,7 @@ jobs:
         working-directory: ${{ env.INSTALL_WHEELS_DIR }}
 
       - name: Install ONNX Models tests requirements
-        run: python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_onnx
+        run: python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_onnx.txt
 
       - name: Install Python tests dependencies
         run: |

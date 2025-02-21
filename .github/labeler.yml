@@ -110,6 +110,7 @@
 - 'src/frontends/onnx/**/*'
 - 'thirdparty/onnx/**/*'
 - 'tests/layer_tests/onnx_tests/**/*'
+- 'tests/requirements_onnx.txt'
 
 'category: packaging':
 - 'cmake/**/packaging/**/*'
@@ -149,7 +150,7 @@
 - 'tests/layer_tests/tensorflow_tests/**/*'
 - 'tests/layer_tests/tensorflow2_keras_tests/**/*'
 - 'tests/layer_tests/jax_tests/**/*'
-- 'tests/requirements_tensorflow'
+- 'tests/requirements_tensorflow.txt'
 - any: ['tests/model_hub_tests/**',
         '!tests/model_hub_tests/pytorch/**/*',
         '!tests/model_hub_tests/jax/**/*']
@@ -165,7 +166,7 @@
 - 'src/bindings/python/src/openvino/frontend/pytorch/**/*'
 - 'tests/layer_tests/py_frontend_tests/test_torch_decoder.py'
 - 'tests/layer_tests/py_frontend_tests/test_torch_frontend.py'
-- 'tests/requirements_pytorch'
+- 'tests/requirements_pytorch.txt'
 - any: ['tests/model_hub_tests/**',
         '!tests/model_hub_tests/tensorflow/**/*',
         '!tests/model_hub_tests/jax/**/*']
@@ -174,6 +175,7 @@
 - 'src/frontends/jax/**/*'
 - 'src/bindings/python/src/openvino/frontend/jax/**/*'
 - 'tests/layer_tests/jax_tests/**/*'
+- 'tests/requirements_jax.txt'
 - any: ['tests/model_hub_tests/**',
         '!tests/model_hub_tests/tensorflow/**/*',
         '!tests/model_hub_tests/pytorch/**/*']
