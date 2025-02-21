@@ -112,6 +112,13 @@ OPENVINO_RUNTIME_API bool with_cpu_x86_avx2();
 OPENVINO_RUNTIME_API bool with_cpu_x86_avx2_vnni();
 
 /**
+ * @brief      Checks whether CPU supports AVX2_VNNI_2 capability
+ * @ingroup    ov_dev_api_system_conf
+ * @return     `True` is AVX2_VNNI_2 instructions are available, `false` otherwise
+ */
+OPENVINO_RUNTIME_API bool with_cpu_x86_avx2_vnni_2();
+
+/**
  * @brief      Checks whether CPU supports AVX 512 capability
  * @ingroup    ov_dev_api_system_conf
  * @return     `True` is AVX512F (foundation) instructions are available, `false` otherwise

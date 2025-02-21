@@ -307,6 +307,12 @@ void SubgraphBaseTest::compile_model() {
     }
     try {
         inference_precision = core->get_property(targetDevice, ov::hint::inference_precision);
+        // for avx2_vnni_2 platforms use the set inference_precision hint in case generate higher threshold during
+        // following calculate_thresholds stage
+        if (ov::with_cpu_x86_avx2_vnni_2() &&
+            configuration.find(ov::hint::inference_precision.name()) != configuration.end()) {
+            inference_precision = configuration.at(ov::hint::inference_precision.name()).as<ov::element::Type>();
+        }
     } catch (std::exception& e) {
         std::cout << "[ WARNING ] Impossible to get Inference Precision with exception: " << e.what() << std::endl;
     }
