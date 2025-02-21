@@ -170,6 +170,7 @@ class TestDeformableConvolution(PytorchLayerTest):
     @pytest.mark.parametrize("mask", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_deformable_convolution2d(self, params, bias, mask, ie_device, precision, ir_version):
         self._test(*self.create_model(**params, bias=bias, mask=mask),
