@@ -22,6 +22,38 @@ from openvino.tools.benchmark.utils.utils import next_step, get_number_iteration
 from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, JsonStatisticsReport, CsvStatisticsReport, \
     averageCntReport, detailedCntReport
 
+import psutil
+import math
+
+def get_peak_memory_usage():
+    bytes_in_kilobyte = 1024
+    process = psutil.Process()
+    
+    if os.name == "posix":
+        with open("/proc/self/status", "r") as f:
+            for line in f:
+                if line.startswith("VmPeak:"):
+                    return int(line.split()[1])  # The value in KB
+        raise RuntimeError("VmPeak attribute not found. Unable to determine peak memory usage.")
+    
+    # Linux tracks memory usage in pages and then converts them to kB.
+    # Thus, there is always some room for inaccuracy as pages are not guaranteed to be fully used.
+    # In Windows, the situation is different: the system returns the memory usage in bytes, not in pages.
+    # To align the output between the two operating systems as closely as possible, we have two options:
+    #     1. Use rounding to the nearest integer.
+    #     2. Try to estimate the number of pages used in Windows. However,
+    #         this approach is likely to be inaccurate as well, so option 1 was chosen.
+    mem_info = process.memory_info()
+    if hasattr(mem_info, 'peak_wset'):
+        return round(mem_info.peak_wset / bytes_in_kilobyte)
+    else:
+        raise AttributeError("Can't get system memory values")
+
+def log_memory_usage(logger, start_mem_usage, end_mem_usage, action_name):
+    logger.info(f"Start of {action_name} memory usage: Peak {start_mem_usage} KB")
+    logger.info(f"End of {action_name} memory usage: Peak {end_mem_usage} KB")
+    logger.info(f"Load model ram used {end_mem_usage - start_mem_usage} KB")
+
 def parse_and_check_command_line():
     def arg_not_empty(arg_value,empty_value):
         return not arg_value is None and not arg_value == empty_value
@@ -346,10 +378,15 @@ def main():
             # --------------------- 7. Loading the model to the device -------------------------------------------------
             next_step()
 
+            start_mem_usage = get_peak_memory_usage()
             start_time = datetime.utcnow()
+
             compiled_model = benchmark.core.compile_model(args.path_to_model, benchmark.device, device_config)
+
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
+            end_mem_usage = get_peak_memory_usage()
             logger.info(f"Compile model took {duration_ms} ms")
+            log_memory_usage(logger, start_mem_usage, end_mem_usage, "compilation")
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
@@ -408,11 +445,15 @@ def main():
 
             # --------------------- 7. Loading the model to the device -------------------------------------------------
             next_step()
+            start_mem_usage = get_peak_memory_usage()
             start_time = datetime.utcnow()
-            compiled_model = benchmark.core.compile_model(model, benchmark.device, device_config)
 
+            compiled_model = benchmark.core.compile_model(model, benchmark.device, device_config)
+            
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
+            end_mem_usage = get_peak_memory_usage()
             logger.info(f"Compile model took {duration_ms} ms")
+            log_memory_usage(logger, start_mem_usage, end_mem_usage, "compilation")
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
@@ -432,10 +473,15 @@ def main():
             # --------------------- 7. Loading the model to the device -------------------------------------------------
             next_step()
 
+            start_mem_usage = get_peak_memory_usage()
             start_time = datetime.utcnow()
+
             compiled_model = benchmark.core.import_model(args.path_to_model, benchmark.device, device_config)
+
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
+            end_mem_usage = get_peak_memory_usage()
             logger.info(f"Import model took {duration_ms} ms")
+            log_memory_usage(logger, start_mem_usage, end_mem_usage, "import")
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
