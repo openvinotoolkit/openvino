@@ -543,7 +543,7 @@ protected:
                 _prim.execute(stream.get_onednn_stream(), _args[net_id]);
             } catch (dnnl::error& err) {
                 auto err_code = err.status == dnnl_status_t::dnnl_out_of_memory ? CL_OUT_OF_RESOURCES : CL_INVALID_OPERATION;
-                ocl::rethrow_or_exit(err.what(), err_code, _engine->get_device_info());
+                ocl::rethrow(err.what(), err_code, _engine->get_device_info());
             }
 
             if (_enable_profiling) {
