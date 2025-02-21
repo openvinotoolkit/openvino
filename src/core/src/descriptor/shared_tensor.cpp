@@ -217,11 +217,11 @@ public:
         set_tensor(m_input_descriptor->base());
     }
 
-    auto get_input_descriptor() const {
+    std::shared_ptr<InputTensorWrapper> get_input_descriptor() const {
         return m_input_descriptor;
     }
 
-    const auto& get_assigned_names() const {
+    const TensorNames& get_assigned_names() const {
         return m_output_names;
     }
 

@@ -34,7 +34,7 @@ OPENVINO_API
 void copy_tensor_names(Tensor& dst, const Tensor& src);
 
 /**
- * @brief Add names to destination tensor copy of all names from source tensor all tensor names.
+ * @brief Add names to destination tensor by copying of all names from source tensor all tensor names.
  *
  * If source tensor is parameter's tensor names are not copied.
  *
