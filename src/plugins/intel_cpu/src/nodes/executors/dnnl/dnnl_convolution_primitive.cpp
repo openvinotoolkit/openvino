@@ -66,8 +66,8 @@ bool DnnlConvolutionPrimitive::Key::operator==(const Key& rhs) const {
 }
 
 // make a fake shape: N, C, W
-template <typename T>
-static std::vector<T> normalizeDims(const std::vector<T>& dims) {
+template <typename C>
+static C normalizeDims(const C& dims) {
     assert(one_of(static_cast<int>(dims.size()), 2, 3));
 
     if (dims.size() == 3) {

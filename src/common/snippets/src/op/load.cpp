@@ -41,8 +41,9 @@ std::shared_ptr<Node> Load::clone_with_new_inputs(const OutputVector& new_args) 
     return std::make_shared<Load>(new_args.at(0), get_count(), get_offset());
 }
 
-LoadReorder::LoadReorder(const Output<ov::Node>& x, const size_t count, const size_t offset, std::vector<size_t> order)
-                            : Load(x, count, offset), m_order(std::move(order)) {
+LoadReorder::LoadReorder(const Output<ov::Node>& x, const size_t count, const size_t offset, VectorDims order)
+    : Load(x, count, offset),
+      m_order(std::move(order)) {
     const auto& in_shape = x.get_partial_shape();
     const auto in_shape_size = in_shape.size();
     OPENVINO_ASSERT(m_order.size() == in_shape_size, "LoadReorder got new_order of invalid size");

@@ -223,11 +223,11 @@ void convolution_backprop_impl(const T* in,
                            const Shape& out_shape,
                            const ConvolutionParams& params) {
         const size_t filters_count = filters_shape[filter_out_ch_axis];
-        const Shape filter_shape(++filters_shape.begin(), filters_shape.end());
+        const Shape filter_shape(filters_shape.begin() + 1, filters_shape.end());
         const size_t filter_size = shape_size(filter_shape);
 
         const size_t batches_count = input_shape[in_batch_axis];
-        Shape batch_shape(++input_shape.begin(), input_shape.end());
+        Shape batch_shape(input_shape.begin() + 1, input_shape.end());
         const size_t batch_size = shape_size(batch_shape);
 
         const size_t out_spatial_size =

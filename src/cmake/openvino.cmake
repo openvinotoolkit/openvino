@@ -49,7 +49,10 @@ target_include_directories(${TARGET_NAME} INTERFACE
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/tensorflow/include>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/tensorflow_lite/include>)
 
-target_link_libraries(${TARGET_NAME} PRIVATE openvino::reference
+target_link_libraries(${TARGET_NAME} PUBLIC absl::base
+                                            absl::throw_delegate 
+                                            absl::inlined_vector
+                                     PRIVATE openvino::reference
                                              openvino::shape_inference
                                              openvino::pugixml
                                              ${CMAKE_DL_LIBS}

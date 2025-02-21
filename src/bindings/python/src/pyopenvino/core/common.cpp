@@ -388,15 +388,15 @@ py::array array_from_constant_view(ov::op::v0::Constant&& c) {
 
 namespace constant_helpers {
 
-std::vector<size_t> _get_byte_strides(const ov::Shape& s, const size_t element_byte_size) {
-    auto byte_strides = ov::row_major_strides(s);
+ov::Strides _get_byte_strides(const ov::Shape& s, const size_t element_byte_size) {
+    ov::Strides byte_strides = ov::row_major_strides(s);
     for (auto&& stride : byte_strides) {
         stride *= element_byte_size;
     }
     return byte_strides;
 }
 
-std::vector<size_t> _get_strides(const ov::op::v0::Constant& self) {
+ov::Strides _get_strides(const ov::op::v0::Constant& self) {
     using namespace ov::element;
     switch (self.get_element_type()) {
     case i4:

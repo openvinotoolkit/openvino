@@ -14,8 +14,8 @@ namespace snippets {
 namespace utils {
 
 namespace {
-template<typename Shape>
-void ordered_shape(const Shape& shape, const std::vector<size_t>& layout, bool is_forward, Shape& reordered_shape) {
+template <typename Shape>
+void ordered_shape(const Shape& shape, const VectorDims& layout, bool is_forward, Shape& reordered_shape) {
     for (size_t i = 0; i < layout.size(); i++) {
         OPENVINO_ASSERT(layout[i] < shape.size(), "layout index is greater than the shape size");
         const auto src_idx = is_forward ? layout[i] : i;
@@ -27,7 +27,7 @@ void ordered_shape(const Shape& shape, const std::vector<size_t>& layout, bool i
 // Note:
 //   - If `is_forward` is True, `result shape` is ordered `shape` by `layout`
 //   - If `is_forward` is False, `result shape` is original shape to which the `layout` was applied
-ov::PartialShape get_pshape(const ov::PartialShape& shape, const std::vector<size_t>& layout, bool is_forward) {
+ov::PartialShape get_pshape(const ov::PartialShape& shape, const VectorDims& layout, bool is_forward) {
     if (layout.empty())
         return shape;
     ov::PartialShape reordered_shape(std::vector<Dimension>(layout.size()));
@@ -165,10 +165,10 @@ int64_t get_stride(size_t dim_idx, const VectorDims& shape) {
     return stride;
 }
 
-ov::PartialShape get_planar_pshape(const ov::PartialShape& shape, const std::vector<size_t>& order) {
+ov::PartialShape get_planar_pshape(const ov::PartialShape& shape, const VectorDims& order) {
     return get_pshape(shape, order, true);
 }
-ov::PartialShape get_preordered_pshape(const ov::PartialShape& shape, const std::vector<size_t>& order) {
+ov::PartialShape get_preordered_pshape(const ov::PartialShape& shape, const VectorDims& order) {
     return get_pshape(shape, order, false);
 }
 
@@ -181,12 +181,12 @@ ov::PartialShape get_preordered_pshape(const Output<Node>& out) {
     return get_preordered_pshape(ov::Shape{port->get_shape()}, port->get_layout());
 }
 
-VectorDims get_planar_vdims(const VectorDims& shape, const std::vector<size_t>& order) {
+VectorDims get_planar_vdims(const VectorDims& shape, const VectorDims& order) {
     VectorDims reordered_shape(order.size());
     ordered_shape(shape, order, true, reordered_shape);
     return reordered_shape;
 }
-VectorDims get_preordered_vdims(const VectorDims& shape, const std::vector<size_t>& order) {
+VectorDims get_preordered_vdims(const VectorDims& shape, const VectorDims& order) {
     VectorDims reordered_shape(order.size());
     ordered_shape(shape, order, false, reordered_shape);
     return reordered_shape;

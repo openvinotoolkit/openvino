@@ -31,7 +31,7 @@ std::string GatherTreeLayerTest::getTestCaseName(const testing::TestParamInfo<Ga
 }
 
 void GatherTreeLayerTest::SetUp() {
-    std::vector<size_t> input_shape;
+    ov::Shape input_shape;
     ov::element::Type model_type;
     InputLayerType secondary_input_type;
 

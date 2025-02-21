@@ -54,8 +54,8 @@ ov::Output<ov::Node> create_same_type_const(const ov::Output<ov::Node>& same_typ
     }
 }
 
-template <typename T>
-void get_const_input(const NodeContext& node, int input_index, std::vector<T>* vector) {
+template <typename T, class A>
+void get_const_input(const NodeContext& node, int input_index, std::vector<T, A>* vector) {
     auto input_size = static_cast<int>(node.get_input_size());
     auto node_name = node.get_name();
     auto node_type = node.get_op_type();
@@ -65,7 +65,27 @@ void get_const_input(const NodeContext& node, int input_index, std::vector<T>* v
                                 std::to_string(input_size));
     auto ov_input = node.get_input(input_index);
     if (auto constant = ov::util::get_constant_from_source(ov_input)) {
-        *vector = constant->cast_vector<T>();
+        auto tmp = constant->cast_vector<T>();
+        *vector = std::vector<T, A>(tmp.begin(), tmp.end());
+        return;
+    }
+    FRONT_END_THROW("[TensorFlow Frontend] Internal error: Input " + std::to_string(input_index) +
+                    " cannot be folded to Constant for node " + node_name + " of type " + node_type);
+}
+
+template <typename T, class A>
+void get_const_input(const NodeContext& node, int input_index, ov::inplace_vector<T, A>* vector) {
+    auto input_size = static_cast<int>(node.get_input_size());
+    auto node_name = node.get_name();
+    auto node_type = node.get_op_type();
+    FRONT_END_GENERAL_CHECK(0 <= input_index && input_index < input_size,
+                            "[TensorFlow Frontend] Internal error: Node " + node_name + " has " +
+                                std::to_string(input_size) + " inputs, but requested input port index to be " +
+                                std::to_string(input_size));
+    auto ov_input = node.get_input(input_index);
+    if (auto constant = ov::util::get_constant_from_source(ov_input)) {
+        auto tmp = constant->cast_vector<T>();
+        *vector = ov::inplace_vector<T, A>(tmp.begin(), tmp.end());
         return;
     }
     FRONT_END_THROW("[TensorFlow Frontend] Internal error: Input " + std::to_string(input_index) +
@@ -105,7 +125,7 @@ std::shared_ptr<ov::op::v1::Reshape> make_reshape(const ov::Output<ov::Node>& ar
                                                   const std::vector<int64_t>& new_shape);
 
 template <typename T>
-void convert_nhwc_to_hw(const std::vector<T>& src, std::vector<size_t>& dst) {
+void convert_nhwc_to_hw(const std::vector<T>& src, ov::inplace_vector<size_t>& dst) {
     if (dst.size() >= 2) {
         FRONT_END_GENERAL_CHECK(src.size() > 2,
                                 "[TensorFlow Frontend] Internal error: source vector size must be greater than 2.");
@@ -120,7 +140,7 @@ void convert_nhwc_to_hw(const std::vector<T>& src, std::vector<size_t>& dst) {
 }
 
 template <typename T>
-void convert_nchw_to_hw(const std::vector<T>& src, std::vector<size_t>& dst) {
+void convert_nchw_to_hw(const std::vector<T>& src, ov::inplace_vector<size_t>& dst) {
     if (dst.size() >= 2) {
         FRONT_END_GENERAL_CHECK(src.size() > 3,
                                 "[TensorFlow Frontend] Internal error: source vector size must be greater than 3.");
@@ -139,7 +159,7 @@ void convert_nhwc_to_nchw(bool need_convert, ov::Output<ov::Node>& node, ov::Ran
 void convert_nchw_to_nhwc(bool need_convert, ov::Output<ov::Node>& node, ov::Rank input_rank = ov::Rank::dynamic());
 
 template <typename T>
-void convert_nhwc_to_hw(bool is_nhwc, const std::vector<T>& src, std::vector<size_t>& dst) {
+void convert_nhwc_to_hw(bool is_nhwc, const std::vector<T>& src, ov::inplace_vector<size_t>& dst) {
     if (is_nhwc) {
         convert_nhwc_to_hw(src, dst);
     } else {

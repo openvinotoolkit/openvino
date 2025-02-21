@@ -161,7 +161,7 @@ inline bool copyStep(std::vector<size_t>& counters, const std::vector<size_t>& i
     return false;
 }
 
-size_t calculateOffsetFromStrides(const std::vector<size_t>& coords, const std::vector<size_t>& strides) {
+size_t calculateOffsetFromStrides(const VectorDims& coords, const VectorDims& strides) {
     size_t offset = 0;
     for (size_t index = 0; index < coords.size(); ++index) {
         offset += coords[index] * strides[index];
@@ -172,9 +172,9 @@ size_t calculateOffsetFromStrides(const std::vector<size_t>& coords, const std::
 void gatherToBufferND(float* buffer,
                       const float* data,
                       size_t axis,
-                      const std::vector<size_t>& dimIndexes,
-                      const std::vector<size_t>& shape,
-                      const std::vector<size_t>& strides) {
+                      const VectorDims& dimIndexes,
+                      const VectorDims& shape,
+                      const VectorDims& strides) {
     size_t numberOfComplex = shape[axis];
     size_t offset = calculateOffsetFromStrides(dimIndexes, strides);
 
@@ -188,9 +188,9 @@ void gatherToBufferND(float* buffer,
 void applyBufferND(const float* buffer,
                    float* output,
                    size_t axis,
-                   const std::vector<size_t>& dimIndexes,
-                   const std::vector<size_t>& shape,
-                   const std::vector<size_t>& strides) {
+                   const VectorDims& dimIndexes,
+                   const VectorDims& shape,
+                   const VectorDims& strides) {
     size_t numberOfComplex = shape[axis];
     size_t offset = calculateOffsetFromStrides(dimIndexes, strides);
 
@@ -202,15 +202,13 @@ void applyBufferND(const float* buffer,
 }
 
 void copyDataToOutputWithSignalSize(const float* input,
-                                    const std::vector<size_t>& inputShape,
-                                    const std::vector<size_t>& inputStrides,
+                                    const VectorDims& inputShape,
+                                    const VectorDims& inputStrides,
                                     float* output,
-                                    const std::vector<size_t>& outputShape,
-                                    const std::vector<size_t>& outputStrides) {
-    auto totalInput =
-        std::accumulate(inputShape.begin(), inputShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
-    auto totalOutput =
-        std::accumulate(outputShape.begin(), outputShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+                                    const VectorDims& outputShape,
+                                    const VectorDims& outputStrides) {
+    auto totalInput = std::accumulate(inputShape.begin(), inputShape.end(), size_t(1), std::multiplies());
+    auto totalOutput = std::accumulate(outputShape.begin(), outputShape.end(), size_t(1), std::multiplies());
     std::fill_n(output, totalOutput, 0.f);
     size_t lastChangedDim = 0;
     for (size_t index = inputShape.size() - 1; index > 0; --index) {
@@ -230,8 +228,8 @@ void copyDataToOutputWithSignalSize(const float* input,
         iterationRange[index] = std::min(inputShape[index], outputShape[index]);
     }
 
-    const std::vector<size_t> inputStridesRange(inputStrides.begin(), inputStrides.begin() + iterationRange.size());
-    const std::vector<size_t> outputStridesRange(outputStrides.begin(), outputStrides.begin() + iterationRange.size());
+    const VectorDims inputStridesRange(inputStrides.begin(), inputStrides.begin() + iterationRange.size());
+    const VectorDims outputStridesRange(outputStrides.begin(), outputStrides.begin() + iterationRange.size());
     const size_t blockSize = std::accumulate(inputShape.begin() + lastChangedDim + 1,
                                              inputShape.end(),
                                              static_cast<size_t>(1),
