@@ -3641,10 +3641,9 @@ void Reduce::reduce_ref_process(const float* in_ptr,
                     if (src_counters[axes_for_reduction[j]] < src_dims[axes_for_reduction[j]]) {
                         src_idx += src_strides[axes_for_reduction[j]];
                         break;
-                    } else {
-                        src_counters[axes_for_reduction[j]] = 0;
-                        update_idx = true;
                     }
+                    src_counters[axes_for_reduction[j]] = 0;
+                    update_idx = true;
                 }
             }
             out_ptr[dst_idx] = reduce_prod;
@@ -3652,9 +3651,8 @@ void Reduce::reduce_ref_process(const float* in_ptr,
                 dst_counters[j]++;
                 if (dst_counters[j] < process_dst_dims[j]) {
                     break;
-                } else {
-                    dst_counters[j] = 0;
                 }
+                dst_counters[j] = 0;
             }
         }
     });
@@ -3798,7 +3796,8 @@ int Reduce::getFusingAxis() const {
                 // channel axis has been reduced and doesn't exist any more
                 channelAxis = -1;
                 break;
-            } else if (axis == 0) {
+            }
+            if (axis == 0) {
                 channelAxis = 0;
             }
         }

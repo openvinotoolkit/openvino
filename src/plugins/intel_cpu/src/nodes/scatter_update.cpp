@@ -412,17 +412,16 @@ struct TensorIterator {
                 offsets[0] += dataBlockND[j + 1];
                 offsets[1] += indicesBlockND[j + 1];
                 break;
-            } else {
-                m_tensorIter[j] = 0;
-                size_t i = 0;
-                for (offsets[0] = 0, offsets[1] = 0; i < m_squashed_axis; ++i) {
-                    offsets[0] += m_tensorIter[i] * dataBlockND[i + 1];
-                    offsets[1] += m_tensorIter[i] * indicesBlockND[i + 1];
-                }
-                for (i++; i < m_squashed_shape.size(); ++i) {
-                    offsets[0] += m_tensorIter[i] * dataBlockND[i + 1];
-                    offsets[1] += m_tensorIter[i] * indicesBlockND[i + 1];
-                }
+            }
+            m_tensorIter[j] = 0;
+            size_t i = 0;
+            for (offsets[0] = 0, offsets[1] = 0; i < m_squashed_axis; ++i) {
+                offsets[0] += m_tensorIter[i] * dataBlockND[i + 1];
+                offsets[1] += m_tensorIter[i] * indicesBlockND[i + 1];
+            }
+            for (i++; i < m_squashed_shape.size(); ++i) {
+                offsets[0] += m_tensorIter[i] * dataBlockND[i + 1];
+                offsets[1] += m_tensorIter[i] * indicesBlockND[i + 1];
             }
         }
     }

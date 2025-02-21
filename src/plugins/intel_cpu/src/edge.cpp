@@ -570,7 +570,8 @@ EdgePtr Edge::getBaseEdge(int look) {
             }
         }
         return next_ch_edge;
-    } else if (parentInPlacePort >= 0 && (look & LOOK_UP)) {
+    }
+    if (parentInPlacePort >= 0 && (look & LOOK_UP)) {
         return getParent()->getParentEdgeAt(parentInPlacePort);
     }
 

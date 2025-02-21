@@ -71,9 +71,8 @@ std::tuple<T, T, T> Converter::yuv_to_rgb(float y, float u, float v) {
     auto clip = [](float a) -> T {
         if (std::is_integral<T>()) {
             return static_cast<T>(std::min(std::max(std::round(a), 0.f), 255.f));
-        } else {
-            return static_cast<T>(std::min(std::max(a, 0.f), 255.f));
         }
+        return static_cast<T>(std::min(std::max(a, 0.f), 255.f));
     };
     auto r = clip(1.164f * c + 1.596f * e);
     auto g = clip(1.164f * c - 0.391f * d - 0.813f * e);

@@ -92,10 +92,9 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
                 if (reverse) {
                     return check_dim_4(inp_shape) && check_dim_3(outp_shape) &&
                            (outp_shape[2] == inp_shape[2] * inp_shape[3]);
-                } else {
-                    return check_dim_3(inp_shape) && check_dim_4(outp_shape) &&
-                           (inp_shape[2] == outp_shape[2] * outp_shape[3]);
                 }
+                return check_dim_3(inp_shape) && check_dim_4(outp_shape) &&
+                       (inp_shape[2] == outp_shape[2] * outp_shape[3]);
             }
             return false;
         };

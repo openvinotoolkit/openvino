@@ -136,9 +136,8 @@ ov::intel_cpu::OptimizeLSTMSequenceTransposes::OptimizeLSTMSequenceTransposes() 
         auto checkSequence = [](const std::shared_ptr<ov::Node>& node) {
             if (auto lstm5 = ov::as_type_ptr<ov::opset5::LSTMSequence>(node)) {
                 return lstm5->get_direction() != ov::op::RecurrentSequenceDirection::BIDIRECTIONAL;
-            } else {
-                return false;
             }
+            return false;
         };
 
         std::shared_ptr<ov::Node> lstmSequence = m.get_match_root();

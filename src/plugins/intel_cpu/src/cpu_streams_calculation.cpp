@@ -101,11 +101,10 @@ std::vector<std::vector<int>> get_streams_info_table(
                                 streams_info_table.push_back(stream_info);
                                 total_threads -= stream_info[THREADS_PER_STREAM];
                                 return;
-                            } else {
-                                stream_info[THREADS_PER_STREAM] = one_proc_table[index][n];
-                                streams_info_table.push_back(stream_info);
-                                total_threads -= stream_info[THREADS_PER_STREAM];
                             }
+                            stream_info[THREADS_PER_STREAM] = one_proc_table[index][n];
+                            streams_info_table.push_back(stream_info);
+                            total_threads -= stream_info[THREADS_PER_STREAM];
                         }
                     }
                 }
@@ -172,14 +171,13 @@ std::vector<std::vector<int>> get_streams_info_table(
             }
             if (count >= n_streams) {
                 return;
+            }
+            count = 0;
+            if (n_threads_per_stream > 1) {
+                n_threads_per_stream--;
             } else {
-                count = 0;
-                if (n_threads_per_stream > 1) {
-                    n_threads_per_stream--;
-                } else {
-                    n_streams = n_threads;
-                    return;
-                }
+                n_streams = n_threads;
+                return;
             }
         }
     };
@@ -381,13 +379,12 @@ std::vector<std::vector<int>> get_streams_info_table(
                 }
                 if (stream_info[STREAM_SOCKET_ID] == row[PROC_SOCKET_ID]) {
                     continue;
-                } else {
-                    stream_info[THREADS_PER_STREAM] = std::min(stream_info[THREADS_PER_STREAM], row[ALL_PROC]);
-                    create_one_stream(row,
-                                      proc_type_table,
-                                      stream_info[THREADS_PER_STREAM],
-                                      IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_FOR_SOCKET);
                 }
+                stream_info[THREADS_PER_STREAM] = std::min(stream_info[THREADS_PER_STREAM], row[ALL_PROC]);
+                create_one_stream(row,
+                                  proc_type_table,
+                                  stream_info[THREADS_PER_STREAM],
+                                  IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_FOR_SOCKET);
             }
             stream_info = streams_info_table[0];
             stream_info[NUMBER_OF_STREAMS] = 1;

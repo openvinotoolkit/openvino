@@ -194,23 +194,21 @@ public:
     std::shared_ptr<Input> getInput(size_t idx) const {
         if (idx < inputs.size()) {
             return inputs[idx];
-        } else {
-            OPENVINO_THROW("OutOfBounds: Unexpected input index in Convolution::fusedSubgraph::getInput idx=",
-                           idx,
-                           " inputs.size()=",
-                           inputs.size());
         }
+        OPENVINO_THROW("OutOfBounds: Unexpected input index in Convolution::fusedSubgraph::getInput idx=",
+                       idx,
+                       " inputs.size()=",
+                       inputs.size());
     }
 
     std::shared_ptr<Input> getOutput(size_t idx) const {
         if (idx < outputs.size()) {
             return outputs[idx];
-        } else {
-            OPENVINO_THROW("OutOfBounds: Unexpected output index in Convolution::fusedSubgraph::getInput idx=",
-                           idx,
-                           " inputs.size()=",
-                           outputs.size());
         }
+        OPENVINO_THROW("OutOfBounds: Unexpected output index in Convolution::fusedSubgraph::getInput idx=",
+                       idx,
+                       " inputs.size()=",
+                       outputs.size());
     }
 
     void infer() {
@@ -969,20 +967,19 @@ dnnl::convolution_forward::primitive_desc createDescriptorInternal(const dnnl::e
                                                          dnnl::memory::dims(paddingR.begin(), paddingR.end()),
                                                          attr,
                                                          true);  // allow_empty
-    } else {
-        return dnnl::convolution_forward::primitive_desc(engine,
-                                                         prop_kind::forward_inference,
-                                                         alg,
-                                                         inputDesc,
-                                                         weightDesc,
-                                                         outputDesc,
-                                                         dnnl::memory::dims(stride.begin(), stride.end()),
-                                                         dnnl::memory::dims(dilation.begin(), dilation.end()),
-                                                         dnnl::memory::dims(paddingL.begin(), paddingL.end()),
-                                                         dnnl::memory::dims(paddingR.begin(), paddingR.end()),
-                                                         attr,
-                                                         true);  // allow_empty
     }
+    return dnnl::convolution_forward::primitive_desc(engine,
+                                                     prop_kind::forward_inference,
+                                                     alg,
+                                                     inputDesc,
+                                                     weightDesc,
+                                                     outputDesc,
+                                                     dnnl::memory::dims(stride.begin(), stride.end()),
+                                                     dnnl::memory::dims(dilation.begin(), dilation.end()),
+                                                     dnnl::memory::dims(paddingL.begin(), paddingL.end()),
+                                                     dnnl::memory::dims(paddingR.begin(), paddingR.end()),
+                                                     attr,
+                                                     true);  // allow_empty
 }
 }  // namespace
 
@@ -1714,9 +1711,8 @@ void Convolution::redefineOutputMemory(const std::vector<VectorDims>& newOutputS
             // here we postpone output memory reallocation due to the fact that it is the same memory with the sum
             // second input
             return;
-        } else {
-            withSumBroadcast = false;
         }
+        withSumBroadcast = false;
     }
     Node::redefineOutputMemory(newOutputShapes);
 }
@@ -1754,9 +1750,8 @@ MemoryPtr Convolution::getOutputMemory() const {
         }
         auto inp0 = subgraph->getInput(0);
         return inp0->getDstMemoryAtPort(0);
-    } else {
-        return getDstMemoryAtPort(0);
     }
+    return getDstMemoryAtPort(0);
 }
 
 void Convolution::addFusedNode(const NodePtr& fusingNode) {

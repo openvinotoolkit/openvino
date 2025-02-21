@@ -428,15 +428,14 @@ void ExtractImagePatches::prepareParams() {
                                                                     key.rates,
                                                                     key.padType,
                                                                     key.prcSize);
-        } else {
-            return std::make_shared<ExtractImagePatchesRefExecutor>(key.inDims,
-                                                                    key.outDims,
-                                                                    key.kSizes,
-                                                                    key.strides,
-                                                                    key.rates,
-                                                                    key.padType,
-                                                                    key.prcSize);
         }
+        return std::make_shared<ExtractImagePatchesRefExecutor>(key.inDims,
+                                                                key.outDims,
+                                                                key.kSizes,
+                                                                key.strides,
+                                                                key.rates,
+                                                                key.padType,
+                                                                key.prcSize);
     };
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, buildExecutor);
