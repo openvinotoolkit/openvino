@@ -10,13 +10,11 @@
 
 using namespace ov::pass::pattern::op;
 
-std::vector<ov::DiscreteTypeInfo> ov::pass::pattern::op::Optional::get_optional_types() const {
+std::vector<ov::DiscreteTypeInfo> Optional::get_optional_types() const {
     return optional_types;
 }
 
-bool ov::pass::pattern::op::Optional::match_value(Matcher* matcher,
-                                                  const Output<Node>& pattern_value,
-                                                  const Output<Node>& graph_value) {
+bool Optional::match_value(Matcher* matcher, const Output<Node>& pattern_value, const Output<Node>& graph_value) {
     // Turn the Optional node into WrapType node to create a case where the Optional node is present
     ov::OutputVector input_values_to_optional = input_values();
     bool is_empty_in_values = input_values_to_optional.empty();
