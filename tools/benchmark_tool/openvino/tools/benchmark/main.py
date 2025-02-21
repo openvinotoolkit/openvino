@@ -49,6 +49,9 @@ def parse_and_check_command_line():
         raise Exception("Cannot set precision for a compiled model. " \
                         "Please re-compile your model with required precision.")
 
+    if args.api_type == "":
+        args.api_type = "sync" if args.perf_hint == "latency" else "async"
+
     if args.api_type == "sync":
         if args.time == 0 and (args.number_infer_requests > args.number_iterations):
             raise Exception("Number of infer requests should be less than or equal to number of iterations in sync mode.")

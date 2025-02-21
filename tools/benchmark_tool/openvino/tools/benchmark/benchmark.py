@@ -16,7 +16,7 @@ def percentile(values, percent):
 
 class Benchmark:
     def __init__(self, device: str, number_infer_requests: int = 0, number_iterations: int = None,
-                 duration_seconds: int = None, api_type: str = 'async', inference_only = None,
+                 duration_seconds: int = None, api_type: str = '', inference_only = None,
                  maximum_inference_rate: float = 0):
         self.device = device
         self.core = Core()

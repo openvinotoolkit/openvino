@@ -98,7 +98,9 @@ static const char layout_message[] =
     "For example, \"input1[NCHW],input2[NC]\" or \"[NCHW]\" in case of one input size.";
 
 /// @brief message for execution mode
-static const char api_message[] = "Optional. Enable Sync/Async API. Default value is \"async\".";
+static const char api_message[] =
+    "Optional. Enable Sync/Async API. When hint is throughput, default value is \"async\". "
+    "When hint is latency, default value is \"sync\".";
 
 /// @brief message for #streams for CPU inference
 static const char infer_num_streams_message[] =
@@ -303,7 +305,7 @@ DEFINE_string(cache_dir, "", cache_dir_message);
 DEFINE_bool(load_from_file, false, load_from_file_message);
 
 /// @brief Define execution mode
-DEFINE_string(api, "async", api_message);
+DEFINE_string(api, "", api_message);
 
 /// @brief Number of infer requests in parallel
 DEFINE_uint64(nireq, 0, infer_requests_count_message);
