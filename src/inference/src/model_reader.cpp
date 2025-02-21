@@ -76,11 +76,11 @@ void update_v10_model(std::shared_ptr<ov::Model>& model, bool frontendMode = fal
         // we need to add operation names as tensor names for inputs and outputs
         {
             for (const auto& result : model->get_results()) {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                // Note, upon removal of 'create_ie_output_name', just move it to this file as a local function
-                // we still need to add operation names as tensor names for outputs for IR v10
-                auto res_name = ov::op::util::create_ie_output_name(result->input_value(0));
-                OPENVINO_SUPPRESS_DEPRECATED_END
+                auto prev_layer = result->input_value(0).get_node_shared_ptr();
+                const std::string res_name = prev_layer->get_friendly_name() +
+                                             std::string(prev_layer->get_output_size() != 1
+                                                             ? "." + std::to_string(result->input_value(0).get_index())
+                                                             : "");
                 OPENVINO_ASSERT(leaf_names.find(res_name) == leaf_names.end() ||
                                     result->output(0).get_names().find(res_name) != result->output(0).get_names().end(),
                                 "Model operation names have collisions with tensor names.",
