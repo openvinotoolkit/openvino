@@ -79,7 +79,7 @@ static const char shape_message[] =
         " For dynamic dimensions use symbol `?` or '-1'. Ex. [?,3,?,?]."
         " For bounded dimensions specify range 'min..max'. Ex. [1..10,3,?,?].";
 
-static const char override_model_batch_size[] = "Enforce a model to be compiled for batch size";
+static const char override_model_batch_size_message[] = "Optional. Enforce a model to be compiled for batch size";
 
 DEFINE_bool(h, false, help_message);
 DEFINE_string(m, "", model_message);
@@ -97,7 +97,7 @@ DEFINE_string(iml, "", inputs_model_layout_message);
 DEFINE_string(oml, "", outputs_model_layout_message);
 DEFINE_string(ioml, "", ioml_message);
 DEFINE_string(shape, "", shape_message);
-DEFINE_uint32(override_model_batch_size, 1, override_model_batch_size);
+DEFINE_uint32(override_model_batch_size, 1, override_model_batch_size_message);
 
 namespace {
 std::vector<std::string> splitStringList(const std::string& str, char delim) {
@@ -322,6 +322,7 @@ static void showUsage() {
     std::cout << "    -oml                         <value>     " << outputs_model_layout_message << std::endl;
     std::cout << "    -ioml                       \"<value>\"    " << ioml_message << std::endl;
     std::cout << "    -shape                       <value>     " << shape_message << std::endl;
+    std::cout << "    -override_model_batch_size   <value>     " << override_model_batch_size_message << std::endl;
     std::cout << std::endl;
 }
 
@@ -435,15 +436,24 @@ int main(int argc, char* argv[]) {
         auto inputs_info = std::const_pointer_cast<ov::Model>(model)->inputs();
         InputsInfo info_map;
 
+        // Get the batch number from model
+        ov::Dimension modelBatchBefore = ov::get_batch(model);
+        std::cout << "Model Batch [Before] --->>> " << modelBatchBefore.to_string() << std::endl;
+
         std::cout << "Performing reshape" << std::endl;
         reshape(std::move(inputs_info), info_map, model, FLAGS_shape, FLAGS_override_model_batch_size, FLAGS_d);
+
+        // Get the batch number from model
+        ov::Dimension modelBatchAfter = ov::get_batch(model);
+        std::cout << "Model Batch [After]  --->>> " << modelBatchAfter.to_string() << std::endl;
 
         std::cout << "Configuring model pre & post processing" << std::endl;
         configurePrePostProcessing(model, FLAGS_ip, FLAGS_op, FLAGS_iop, FLAGS_il, FLAGS_ol, FLAGS_iol, FLAGS_iml,
                                    FLAGS_oml, FLAGS_ioml);
-        if (FLAGS_shape.empty()) {
-            setModelBatch(model, FLAGS_override_model_batch_size);
-        }
+        // TODO: Temporarily removing setting model batch here
+        // if (FLAGS_shape.empty()) {
+        //     setModelBatch(model, FLAGS_override_model_batch_size);
+        // }
         std::cout << "Printing Input and Output Info from model" << std::endl;
         printInputAndOutputsInfoShort(*model);
         auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
