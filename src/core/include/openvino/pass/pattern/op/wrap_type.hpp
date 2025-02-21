@@ -12,7 +12,7 @@ namespace ov::pass::pattern {
 namespace op {
 class OPENVINO_API WrapType : public Pattern {
 public:
-    OPENVINO_RTTI("patternAnyType");
+    OPENVINO_RTTI("WrapType");
 
     explicit WrapType(const std::vector<NodeTypeInfo>& wrapped_types) : Pattern({}), m_wrapped_types(wrapped_types) {
         set_output_type(0, element::Type_t::dynamic, PartialShape::dynamic());
