@@ -103,9 +103,8 @@ is_type(Value value) {
 
 /// \brief Tests if value is a pointer/shared_ptr that can be statically cast to any of the specified types
 template <typename Type, typename... Types, typename Value>
-typename std::enable_if<(sizeof...(Types) > 0), bool>::type
-is_type(Value value) {
-    return is_type<Type>(value) || (is_type<Types>(value) || ...);
+bool is_type_any_of(Value value) {
+    return is_type<Type>(value) || (is_type_any_of<Types>(value) || ...);
 }
 
 /// Casts a Value* to a Type* if it is of type Type, nullptr otherwise
