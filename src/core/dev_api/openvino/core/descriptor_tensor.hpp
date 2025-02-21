@@ -106,6 +106,5 @@ OPENVINO_API void set_shared_tensor(Output& output_descriptor, const Input& inpu
  */
 OPENVINO_API const std::unordered_set<std::string>& get_assigned_names(const Tensor& descriptor);
 
-// OPENVINO_API std::string get_resolved_name(const std::string& name);
 }  // namespace descriptor
 }  // namespace ov
