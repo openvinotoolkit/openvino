@@ -27,7 +27,7 @@ public:
     RMS(const Output<Node>& data,
         const Output<Node>& gamma,
         double epsilson,
-        const ov::element::Type output_type = ov::element::undefined);
+        const ov::element::Type output_type = ov::element::dynamic);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 

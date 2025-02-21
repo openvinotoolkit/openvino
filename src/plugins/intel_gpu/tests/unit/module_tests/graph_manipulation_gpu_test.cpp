@@ -184,7 +184,7 @@ TEST(processing_order, bfs_order_restoring) {
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
-    if (config.get_property(ov::intel_gpu::queue_type) != QueueTypes::out_of_order)
+    if (config.get_queue_type() != QueueTypes::out_of_order)
         GTEST_SKIP();
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 3, 8, 8 } });
