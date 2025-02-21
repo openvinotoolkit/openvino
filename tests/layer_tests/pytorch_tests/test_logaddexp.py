@@ -3,6 +3,7 @@
 
 import pytest
 import numpy as np
+import torch
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -38,12 +39,50 @@ class TestLogAddExp(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize(
-        "dtype",
-        [
-            "float32",
-            "float64",
-        ],
+    "dtype",
+    [
+        "float32",
+        "float64",
+        "int32",  # Add int types as well
+        "int64",
+    ]
     )
+    def test_logaddexp(dtype):
+
+        if dtype.startswith("float"):
+            a = torch.tensor([1.0, 2.0], dtype=getattr(torch, dtype))
+            b = torch.tensor([3.0, 4.0], dtype=getattr(torch, dtype))
+        else:
+            a = torch.tensor([1, 2], dtype=getattr(torch, dtype))
+            b = torch.tensor([3, 4], dtype=getattr(torch, dtype))
+
+        # Perform the logaddexp operation
+        result = torch.logaddexp(a, b)
+        np_result = np.logaddexp(a.numpy(), b.numpy())
+
+        # Assert that the results are close
+        assert np.allclose(result.numpy(), np_result)
+
+    # Add mixed dtype cases
+    @pytest.mark.parametrize(
+        "dtype1, dtype2",
+        [
+            ("float32", "int32"),
+            ("float64", "int64"),
+        ]
+    )
+    def test_logaddexp_mixed_dtypes(dtype1, dtype2):
+
+        a = torch.tensor([1.0, 2.0], dtype=getattr(torch, dtype1))
+        b = torch.tensor([3, 4], dtype=getattr(torch, dtype2))
+
+        # Perform the logaddexp operation
+        result = torch.logaddexp(a, b)
+        np_result = np.logaddexp(a.numpy(), b.numpy())
+
+        # Assert that the results are close
+        assert np.allclose(result.numpy(), np_result)
+
     @pytest.mark.parametrize(
         "input1,input2",
         [
