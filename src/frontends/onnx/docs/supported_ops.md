@@ -10,6 +10,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Acos                                                    |                        |22, 7                           |                                |
 |                        |Acosh                                                   |                        |22, 9                           |                                |
 |                        |Add                                                     |                        |14, 13, 7, 6, 1                 |                                |
+|                        |Affine                                                  |                        |                                |                                |
 |                        |And                                                     |                        |7, 1                            |                                |
 |                        |ArgMax                                                  |                        |13, 12, 11, 1                   |                                |
 |                        |ArgMin                                                  |                        |13, 12, 11, 1                   |                                |
@@ -17,6 +18,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Asinh                                                   |                        |22, 9                           |                                |
 |                        |Atan                                                    |                        |22, 7                           |                                |
 |                        |Atanh                                                   |                        |22, 9                           |                                |
+|                        |ATen                                                    |                        |                                |                                |
 |                        |AveragePool                                             |                        |22, 19, 11, 10, 7, 1            |                                |
 |                        |BatchNormalization                                      |                        |15, 14, 9, 7, 6, 1              |                                |
 |                        |BitShift                                                |                        |11                              |                                |
@@ -31,12 +33,14 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Concat                                                  |                        |13, 11, 4, 1                    |                                |
 |                        |ConcatFromSequence                                      |                        |11                              |                                |
 |                        |Constant                                                |                        |21, 19, 13, 12, 11, 9, 1        |                                |
+|                        |ConstantFill                                            |                        |                                |                                |
 |                        |ConstantOfShape                                         |                        |21, 20, 9                       |                                |
 |                        |Conv                                                    |                        |22, 11, 1                       |                                |
 |                        |ConvInteger                                             |                        |10                              |                                |
 |                        |ConvTranspose                                           |                        |22, 11, 1                       |                                |
 |                        |Cos                                                     |                        |22, 7                           |                                |
 |                        |Cosh                                                    |                        |22, 9                           |                                |
+|                        |Crop                                                    |                        |                                |                                |
 |                        |CumSum                                                  |                        |14, 11                          |                                |
 |                        |DFT                                                     |                        |20, 17                          |                                |
 |                        |DeformConv                                              |                        |22, 19                          |                                |
@@ -67,7 +71,9 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Identity                                                |                        |21, 19, 16, 14, 13, 1           |                                |
 |                        |If                                                      |                        |21, 19, 16, 13, 11, 1           |                                |
 |                        |ImageDecoder                                            |                        |20                              |                                |
+|                        |ImageScaler                                             |                        |                                |                                |
 |                        |InstanceNormalization                                   |                        |22, 6, 1                        |                                |
+|                        |IsFinite                                                |                        |                                |                                |
 |                        |IsInf                                                   |                        |20, 10                          |                                |
 |                        |IsNaN                                                   |                        |20, 13, 9                       |                                |
 |                        |LRN                                                     |                        |13, 1                           |                                |
@@ -122,7 +128,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Round                                                   |                        |22, 11                          |                                |
 |                        |STFT                                                    |                        |17                              |                                |
 |                        |Scan                                                    |                        |21, 19, 16, 11, 9, 8            |                                |
-|                        |Scatter (deprecated)                                    |                        |11, 9                           |                                |
+|                        |Scatter                                                 |                        |11, 9                           |                                |
 |                        |ScatterElements                                         |                        |18, 16, 13, 11                  |                                |
 |                        |ScatterND                                               |                        |18, 16, 13, 11                  |                                |
 |                        |SequenceAt                                              |                        |11                              |                                |
@@ -157,10 +163,9 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Trilu                                                   |                        |14                              |                                |
 |                        |Unique                                                  |                        |11                              |                                |
 |                        |Unsqueeze                                               |                        |21, 13, 11, 1                   |                                |
-|                        |Upsample (deprecated)                                   |                        |10, 9, 7                        |                                |
+|                        |Upsample                                                |                        |10, 9, 7                        |                                |
 |                        |Where                                                   |                        |16, 9                           |                                |
 |                        |Xor                                                     |                        |7, 1                            |                                |
-|                        |Function                                                |                        |Since version                   |                                |
 |                        |AffineGrid                                              |                        |20                              |                                |
 |                        |Bernoulli                                               |                        |22, 15                          |                                |
 |                        |BlackmanWindow                                          |                        |17                              |                                |
@@ -195,6 +200,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Selu                                                    |                        |22, 6, 1                        |                                |
 |                        |SequenceMap                                             |                        |17                              |                                |
 |                        |Shrink                                                  |                        |9                               |                                |
+|                        |SimplifiedLayerNormalization                            |                        |1                               |                                |
 |                        |Softmax                                                 |                        |13, 11, 1                       |                                |
 |                        |SoftmaxCrossEntropyLoss                                 |                        |13, 12                          |                                |
 |                        |Softplus                                                |                        |22, 1                           |                                |
@@ -295,6 +301,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |RotaryEmbedding                                         |                        |1                               |                                |
 |com.microsoft           |SampleOp                                                |                        |1                               |                                |
 |com.microsoft           |Sampling                                                |                        |1                               |                                |
+|com.microsoft           |SimplifiedLayerNormalization                            |                        |1                               |                                |
 |com.microsoft           |SkipGroupNorm                                           |                        |1                               |                                |
 |com.microsoft           |SkipLayerNormalization                                  |                        |1                               |                                |
 |com.microsoft           |SkipSimplifiedLayerNormalization                        |                        |1                               |                                |
