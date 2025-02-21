@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from types import TracebackType
-from typing import Any, Iterable, Union, Optional, Dict, Tuple, List
-from typing import Type as TypeType
+from typing import Any, Iterable, Union, Optional, Dict, Tuple, List, cast
+from typing import Type as TypingType
 from pathlib import Path
 
 
@@ -13,27 +13,27 @@ from openvino._pyopenvino import Core as CoreBase
 from openvino._pyopenvino import CompiledModel as CompiledModelBase
 from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
 from openvino._pyopenvino import Op as OpBase
-from openvino._pyopenvino import Node, Output, Tensor
-from openvino._pyopenvino import Type as TypeBase
+from openvino._pyopenvino import Node, Output, Tensor, Type
 
 from openvino.utils.data_helpers import (
     OVDict,
     _InferRequestWrapper,
     _data_dispatch,
-    tensor_from_file,
 )
 from openvino.package_utils import deprecatedclassproperty
 
 
-class Type(TypeBase):
-    @deprecatedclassproperty(
-        name="openvino.Type.undefined",  # noqa: N802, N805
-        version="2026.0",
-        message="Please use openvino.Type.dynamic instead.",
-        stacklevel=2,
-    )
-    def undefined(self):
-        return super().undefined
+@deprecatedclassproperty(
+    name="openvino.Type.undefined",  # noqa: N802, N805
+    version="2026.0",
+    message="Please use openvino.Type.dynamic instead.",
+    stacklevel=2,
+)
+def undefined_deprecated(self):  # type: ignore
+    return Type.dynamic
+
+
+Type.undefined = undefined_deprecated
 
 
 class Op(OpBase):
@@ -90,7 +90,7 @@ class Model(object, metaclass=ModelMeta):
     def __enter__(self) -> "Model":
         return self
 
-    def __exit__(self, exc_type: TypeType[BaseException], exc_value: BaseException, traceback: TracebackType) -> None:
+    def __exit__(self, exc_type: TypingType[BaseException], exc_value: BaseException, traceback: TracebackType) -> None:
         del self.__model
         self.__model = None
 
