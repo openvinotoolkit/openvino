@@ -245,6 +245,11 @@ void serializeToXML(const Graph& graph, const std::string& path) {
     }
 
     std::string binPath;
+#    ifdef _WIN32
+    binPath = "NUL";
+#    else
+    binPath = "/dev/null";
+#    endif
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(path, binPath, ov::pass::Serialize::Version::IR_V10);
     manager.run_passes(graph.dump());
