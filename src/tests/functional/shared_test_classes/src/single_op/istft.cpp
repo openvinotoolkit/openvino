@@ -12,16 +12,8 @@ namespace test {
 
 std::string ISTFTLayerTest::getTestCaseName(const testing::TestParamInfo<ISTFTParams>& obj) {
     std::ostringstream result;
-    const std::vector<InputShape>& data_shapes = std::get<0>(obj.param);
-    const int64_t frame_size = std::get<1>(obj.param);
-    const int64_t frame_step = std::get<2>(obj.param);
-    const int64_t signal_len = std::get<3>(obj.param);
-    const bool center = std::get<4>(obj.param);
-    const bool normalized = std::get<5>(obj.param);
-    const ElementType& data_type = std::get<6>(obj.param);
-    const ElementType& step_size_type = std::get<7>(obj.param);
-    const utils::InputLayerType& param_type = std::get<8>(obj.param);
-    const ov::test::TargetDevice& dev = std::get<9>(obj.param);
+
+    const auto& [data_shapes, frame_size, frame_step, signal_len, center, normalized, data_type, step_size_type, param_type, dev] = obj.param;
 
     for (size_t s = 0lu; s < 2; s++) {
         const auto& shape_item = data_shapes[s];
