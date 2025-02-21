@@ -3,6 +3,7 @@
 //
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
@@ -26,7 +27,6 @@
 #include "nodes/executors/precision_translation.hpp"
 #include "nodes/executors/type_mask.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "ov_optional.hpp"
 #include "utils/cpp/maybe_unused.hpp"
 #include "utils/debug_capabilities.h"
 
@@ -75,7 +75,7 @@ static const TypeMapping dnnlFCTypeMapping {
     {{_f16, _bf16, _any, _any | _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
     // quantization configuration
     // int8 inner_product does not support f16 output and bias
-    {{_u8 | _i8, _i8, _u8 | _i8 | _i32 | _bf16 | _f32 | _undefined, _u8 | _i8 | _i32 | _bf16 | _f32}, pt(bypass(), bypass(), bypass(),  bypass())},
+    {{_u8 | _i8, _i8, _u8 | _i8 | _i32 | _bf16 | _f32 | _dynamic, _u8 | _i8 | _i32 | _bf16 | _f32}, pt(bypass(), bypass(), bypass(),  bypass())},
     {{_u8 | _i8, _i8, _f16, _u8 | _i8 | _i32 | _bf16 | _f32}, pt(bypass(), bypass(), just<f32>(), bypass())},
     {{_u8 | _i8, _i8, _any, _any}, pt(bypass(), bypass(), just<f32>(), just<f32>())},
     // compresses int weights (@todo more strict requrements for output precision?)
@@ -134,7 +134,7 @@ static const TypeMapping dnnlMatMulTypeMapping {
     {{_bf16, _f16, _any, _any | _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
     {{_f16, _bf16, _any, _any | _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
     // quantization configuration
-    {{_u8 | _i8, _i8, _u8|_i8|_i32|_bf16|_f16|_f32|_undefined, _u8|_i8|_i32|_bf16|_f16|_f32}, pt(bypass(), bypass(), bypass(),  bypass())},
+    {{_u8 | _i8, _i8, _u8|_i8|_i32|_bf16|_f16|_f32|_dynamic, _u8|_i8|_i32|_bf16|_f16|_f32}, pt(bypass(), bypass(), bypass(),  bypass())},
     {{_u8 | _i8, _i8, _any, _any},                            pt(bypass(), bypass(), just<f32>(), just<f32>())},
     // compresses int weights
     {{_f32 | _bf16 | _f16, _u8 | _i8, _any, _any},            pt(bypass(), bypass(), use<0>(), use<0>())},
@@ -196,10 +196,10 @@ static MemoryDescArgs createOptimalDescriptors(const MemoryDescArgs& currentDesc
 }
 
 template <typename Attrs>
-ov::optional<executor::Config<Attrs>> requiresFallbackCommon(const executor::Config<Attrs>& config,
-                                                             const TypeMapping& typeMapping,
-                                                             const LayoutConfig& layoutConfig,
-                                                             const MappingNotation& notation) {
+std::optional<executor::Config<Attrs>> requiresFallbackCommon(const executor::Config<Attrs>& config,
+                                                              const TypeMapping& typeMapping,
+                                                              const LayoutConfig& layoutConfig,
+                                                              const MappingNotation& notation) {
     const auto typeConfig = getTypeConfiguration(config.descs, typeMapping, notation);
 
     if (fullyMatchConfiguration(config.descs, typeConfig, layoutConfig, notation)) {
@@ -208,7 +208,7 @@ ov::optional<executor::Config<Attrs>> requiresFallbackCommon(const executor::Con
 
     const auto optimalDescriptors = createOptimalDescriptors(config.descs, typeConfig, layoutConfig, notation);
 
-    return ov::optional<executor::Config<Attrs>>(FCConfig{optimalDescriptors, config.attrs, config.postOps});
+    return std::optional<executor::Config<Attrs>>(FCConfig{optimalDescriptors, config.attrs, config.postOps});
 }
 
 OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noWeightsDecompression(const FCConfig& config) {
@@ -245,7 +245,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return MlasGemmExecutor::supports(config);
             },
             // requiresFallback
-            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+            [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
                 // @todo Implement proper handling for the cases when fallback is not expected
                 // throwing exception is not an option, since requiresFallback is used in two contexts:
                 // 1) getting proper memory descriptors configuration
@@ -294,7 +294,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return true;
             },
             // requiresFallback
-            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+            [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
                 // @todo use dnnlConvolutionLayoutConfig after one is implemented
                 return requiresFallbackCommon(config,
                                               dnnlConvolutionTypeMapping,
@@ -372,7 +372,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return ACLFullyConnectedExecutor::supports(config);
             },
             // requiresFallback
-            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+            [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
                 return requiresFallbackCommon(config,
                                               aclFCTypeMapping,
                                               aclFCLayoutConfig,
@@ -402,7 +402,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return ACLLowpFullyConnectedExecutor::supports(config);
             },
             // requiresFallback
-            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+            [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
                 return requiresFallbackCommon(config,
                                               aclLowpFCTypeMapping,
                                               aclFCLayoutConfig,
@@ -441,7 +441,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return MatMulKleidiAIExecutor::supports(config);
             },
             // requiresFallback
-            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+            [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
                 return {};
             },
             // acceptsShapes
@@ -467,7 +467,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return ShlFCExecutor::supports(config);
             },
             // requiresFallback
-            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+            [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
                 return {};
             },
             // acceptsShapes
@@ -498,7 +498,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return false;
             },
             // requiresFallback
-            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+            [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
                 return requiresFallbackCommon(config,
                                               dnnlMatMulTypeMapping,
                                               dnnlFCLayoutConfig,
@@ -549,7 +549,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return true;
             },
             // requiresFallback
-            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+            [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
                 return requiresFallbackCommon(config,
                                               dnnlFCTypeMapping,
                                               dnnlFCLayoutConfig,
