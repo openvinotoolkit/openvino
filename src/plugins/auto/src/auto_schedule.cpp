@@ -101,6 +101,8 @@ void AutoSchedule::init() {
     auto load_device_task = [&](AutoCompileContext* context_ptr, const std::shared_ptr<ov::Model>& model) {
         try_to_compile_model(*context_ptr, model);
         if (context_ptr->m_is_load_success) {
+            // release cloned model here
+            const_cast<std::shared_ptr<ov::Model>&>(model).reset();
             if (context_ptr->m_worker_name.empty()) {
                 context_ptr->m_worker_name = context_ptr->m_device_info.device_name;
             }
@@ -297,6 +299,11 @@ void AutoSchedule::init() {
         // only one device need to compile model, do not need to compile it async
         m_compile_context[ACTUALDEVICE].m_task();
         m_passthrough_compiled_model = m_compile_context[ACTUALDEVICE].m_compiled_model;
+        if (!m_context->m_bind_buffer) {
+            m_worker_requests.clear();
+            m_idle_worker_requests.clear();
+            m_infer_pipeline_tasks_device_specific.clear();
+        }
     }
     m_context->m_hw_compiled_model = wait_first_compiled_model_ready();
 }
