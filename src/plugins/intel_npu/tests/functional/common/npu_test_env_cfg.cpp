@@ -134,6 +134,10 @@ NpuTestEnvConfig::NpuTestEnvConfig() {
     if (auto var = std::getenv("IE_NPU_TESTS_PLATFORM")) {
         IE_NPU_TESTS_PLATFORM = var;
     }
+
+    if (auto var = std::getenv("OV_NPU_TESTS_SKIP_CONFIG_FILE")) {
+        OV_NPU_TESTS_SKIP_CONFIG_FILE = var;
+    }
 }
 
 const NpuTestEnvConfig& NpuTestEnvConfig::getInstance() {
