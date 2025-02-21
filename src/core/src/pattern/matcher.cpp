@@ -15,11 +15,11 @@
 namespace ov {
 bool is_used(Node* node);
 
-namespace pass {
-namespace pattern {
+namespace pass::pattern {
 MatcherState::MatcherState(Matcher* matcher)
     : m_matcher(matcher),
       m_pattern_value_map(matcher->m_pattern_map),
+      m_pattern_symbols(matcher->m_pattern_symbols),
       m_watermark(matcher->m_matched_list.size()),
       m_capture_size(matcher->m_pattern_value_maps.size()) {}
 
@@ -53,6 +53,7 @@ MatcherState::~MatcherState() {
         }
 
         m_matcher->m_pattern_map = m_pattern_value_map;
+        m_matcher->m_pattern_symbols = m_pattern_symbols;
     }
 }
 
@@ -217,7 +218,7 @@ void Matcher::clear_state() {
     m_pattern_map.clear();
     m_pattern_value_maps.clear();
     m_matched_list.clear();
+    m_pattern_symbols.clear();
 }
-}  // namespace pattern
-}  // namespace pass
+}  // namespace pass::pattern
 }  // namespace ov

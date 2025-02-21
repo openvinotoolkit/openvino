@@ -735,7 +735,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     TensorVector output_tensors;
     for (const auto& output : outputs()) {
         const auto& et = output.get_element_type();
-        if (et != element::undefined && et.is_static()) {
+        if (et.is_static()) {
             output_tensors.emplace_back(output);
         } else {
             output_tensors.emplace_back();
