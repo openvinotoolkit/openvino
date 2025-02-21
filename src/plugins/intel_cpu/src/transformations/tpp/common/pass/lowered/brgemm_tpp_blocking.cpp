@@ -9,9 +9,9 @@
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/tpp/x64/op/brgemm.hpp"
 
 namespace ov::intel_cpu::tpp::pass {
+
 using namespace ov::snippets::utils;
 
 bool BrgemmTPPBlocking::SetBrgemmBeta::run(ov::snippets::lowered::LinearIR& linear_ir,
@@ -53,4 +53,5 @@ ov::snippets::lowered::SpecificIterationHandlers BrgemmTPPBlocking::get_k_loop_h
     handlers.register_pass<ov::snippets::lowered::SpecificLoopIterType::FIRST_ITER, SetBrgemmBeta>();
     return handlers;
 }
+
 }  // namespace ov::intel_cpu::tpp::pass
