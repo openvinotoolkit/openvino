@@ -72,8 +72,7 @@ def test_graph_preprocess_scale_vector():
     assert list(model.get_output_shape(0)) == [2, 2]
     assert model.get_output_element_type(0) == Type.f32
     assert "Constant" in model_operators
-    # Div will be converted to Mul in the transformations
-    assert "Multiply" in model_operators
+    assert "Divide" in model_operators
 
 
 def test_graph_preprocess_mean_scale_convert():
@@ -96,13 +95,12 @@ def test_graph_preprocess_mean_scale_convert():
     model = ppp.build()
 
     model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
-    # Div will be converted to Mul in the transformations
     expected_ops = [
         "Parameter",
         "Convert",
         "Constant",
         "Subtract",
-        "Multiply",
+        "Divide",
         "Result",
         "Abs",
     ]
@@ -139,13 +137,12 @@ def test_graph_preprocess_input_output_by_name():
     model = ppp.build()
 
     model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
-    # Div will be converted to Mul in the transformations
     expected_ops = [
         "Parameter",
         "Convert",
         "Constant",
         "Subtract",
-        "Multiply",
+        "Divide",
         "Result",
         "Abs",
     ]
@@ -407,7 +404,7 @@ def test_graph_preprocess_steps(algorithm, color_format1, color_format2, is_fail
             "Gather",
             "Interpolate",
         ]
-        assert len(model_operators) == 12
+        assert len(model_operators) == 15
         assert model.get_output_size() == 1
         assert list(model.get_output_shape(0)) == [1, 3, 3, 3]
         assert model.get_output_element_type(0) == Type.f32
@@ -459,9 +456,10 @@ def test_graph_preprocess_postprocess_layout():
         "Constant",
         "Result",
         "Gather",
+        "Range",
         "Transpose",
     ]
-    assert len(model_operators) == 11
+    assert len(model_operators) == 14
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == [1, 1, 3, 3]
     assert model.get_output_element_type(0) == Type.f32
@@ -488,8 +486,9 @@ def test_graph_preprocess_reverse_channels():
         "Constant",
         "Result",
         "Gather",
+        "Range",
     ]
-    assert len(model_operators) == 7
+    assert len(model_operators) == 10
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == [1, 2, 2, 2]
     assert model.get_output_element_type(0) == Type.f32
@@ -629,7 +628,6 @@ def test_graph_preprocess_model():
     model = ppp.build()
 
     model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
-    # Div will be converted to Mul in the transformations
     expected_ops = [
         "Parameter",
         "Constant",
@@ -638,7 +636,7 @@ def test_graph_preprocess_model():
         "Convert",
         "Abs",
         "Add",
-        "Multiply",
+        "Divide",
     ]
     assert len(model_operators) == 13
     assert model.get_output_size() == 1
