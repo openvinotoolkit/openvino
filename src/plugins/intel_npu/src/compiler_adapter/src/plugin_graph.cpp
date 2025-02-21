@@ -119,7 +119,7 @@ void PluginGraph::initialize(const Config& config) {
         set_workload_type(config.get<WORKLOAD_TYPE>());
     }
 
-    _zeGraphExt->initializeGraph(_handle, config);
+    _zeGraphExt->initializeGraph(_handle);
 
     if (config.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER) {
         _batch_size = get_batch_size(_metadata);
