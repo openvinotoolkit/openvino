@@ -55,15 +55,19 @@ options:
       as well as conversion on the fly. For integration with the final product it may offer
       lower performance, though.
 
-   .. tab-item:: Base OpenVINO (not recommended)
+   .. tab-item:: OpenVINO™ Model Server
 
-      Note that the base version of OpenVINO may also be used to run generative AI. Although it may
-      offer a simpler environment, with fewer dependencies, it has significant limitations and a more
-      demanding implementation process.
+      | - Easy and quick deployment of models to edge or cloud.
+      | - Includes endpoints for serving generative AI models.
+      | - Available in both Python and C++.
+      | - Allows client applications in any programming language that supports REST or gRPC.
 
-      To learn more, refer to the article for the 2024.6 OpenVINO version:
-      `Generative AI with Base OpenVINO <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/llm-inference-native-ov.html>`__
-
+      Deploy deep learning models remotely, using
+      :doc:`OpenVINO™ Model Server <model-server/ovms_what_is_openvino_model_server>`
+      - a high-performance solution, developed in C++ for scalability and optimized for
+      Intel architectures. The deployment is straightforward, as you simply connect
+      your application via gRPC or REST endpoints to a server, where OpenVINO's logic for
+      inference tasks is applied.
 
 
 The advantages of using OpenVINO for generative model deployment:
@@ -94,10 +98,13 @@ The advantages of using OpenVINO for generative model deployment:
      better performance than Python-based runtimes.
 
 
+You can run Generative AI models, using native OpenVINO API, although it is not recommended.
+If you want to learn how to do it, refer to
+`the 24.6 documentation <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/llm-inference-native-ov.html>`__.
+
+
 Proceed to guides on:
 
 * :doc:`OpenVINO GenAI <./openvino-workflow-generative/inference-with-genai>`
 * :doc:`Hugging Face and Optimum Intel <./openvino-workflow-generative/inference-with-optimum-intel>`
 * `Generative AI with Base OpenVINO <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/llm-inference-native-ov.html>`__
-
-
