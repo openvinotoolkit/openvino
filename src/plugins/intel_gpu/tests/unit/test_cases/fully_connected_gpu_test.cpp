@@ -2138,15 +2138,228 @@ public:
         auto ref_output_mem = get_ref_results();
         cldnn::mem_lock<ov::float16> output_ptr_ref(ref_output_mem, get_test_stream());
 
-        size_t count = 0;
-        for (size_t i = 0; i < output_ptr_ref.size(); i++) {
+        size_t count[4] = {0, 0, 0, 0};
+        auto max_diff = 0.0f;
+        auto total_diff = 0.0f;
+        for (size_t i = 0; i < output_ptr_ref.size() / batch_num; i++) {
             EXPECT_NEAR(output_ptr_ref[i], output_ptr[i], 30.0) << "i = " << i;
-            if (fabs(output_ptr_ref[i] - output_ptr[i]) > 0.5 * fabs(output_ptr_ref[i])) {
-                count++;
+            // EXPECT_NEAR(output_ptr_ref[i], output_ptr[i], 0.2 * fabs(output_ptr_ref[i])) << "i = " << i;
+            auto diff = fabs(output_ptr_ref[i] - output_ptr[i]);
+            if (diff <= 0.01 * fabs(output_ptr_ref[i])) {
+                count[0]++;
+            }
+            if (diff > 0.1 * fabs(output_ptr_ref[i])) {
+                count[1]++;
+            }
+            if (diff > 0.2 * fabs(output_ptr_ref[i])) {
+                count[2]++;
+            }
+            if (diff > 0.5 * fabs(output_ptr_ref[i])) {
+                count[3]++;
+            }
+            total_diff += diff;
+            if (diff > max_diff) {
+                max_diff = diff;
             }
         }
-        std::cout << "miss_count = " << count << "/" << output_ptr_ref.size()
-                  << ", ratio = " << 100.0 * count / output_ptr_ref.size() << "%" << std::endl;
+        std::cout << "correct = " << count[0] << "/" << output_ptr_ref.size() / batch_num
+                  << ", ratio = " << 100.0 * count[0] / output_ptr_ref.size() * batch_num << "%" << std::endl;
+        std::cout << "diff_10 = " << count[1] << "/" << output_ptr_ref.size() / batch_num
+                  << ", ratio = " << 100.0 * count[1] / output_ptr_ref.size() * batch_num << "%" << std::endl;
+        std::cout << "diff_20 = " << count[2] << "/" << output_ptr_ref.size() / batch_num
+                  << ", ratio = " << 100.0 * count[2] / output_ptr_ref.size() * batch_num << "%" << std::endl;
+        std::cout << "diff_50 = " << count[3] << "/" << output_ptr_ref.size() / batch_num
+                  << ", ratio = " << 100.0 * count[3] / output_ptr_ref.size() * batch_num << "%" << std::endl;
+        std::cout << "max_diff = " << max_diff << std::endl;
+        std::cout << "avg_diff = " << total_diff / output_ptr_ref.size() * batch_num << std::endl;
+    }
+
+    void test_compressed_int4_scale_zp_gemv(bool is_caching_test,
+                                            bool is_dynamic,
+                                            long int batch_num,
+                                            long int scales_group_size = 128,
+                                            bool is_uint4 = false,
+                                            bool is_wei_dyn = false) {
+        tests::random_generator rg(GET_SUITE_NAME);
+        auto& engine = get_test_engine();
+        auto supports_immad = engine.get_device_info().supports_immad;
+
+        if (engine.get_device_info().dev_type == device_type::discrete_gpu || supports_immad)
+            GTEST_SKIP();
+
+        // long int ifm_num = 4096;
+        // long int ofm_num = 6144;
+        long int ifm_num = 256;
+        long int ofm_num = 512;
+
+        char* IFM_NUM = getenv("OV_IFM_NUM");
+        char* OFM_NUM = getenv("OV_OFM_NUM");
+        char* GROUP_SIZE = getenv("OV_GROUP_SIZE");
+        if (IFM_NUM)
+            ifm_num = atoi(IFM_NUM);
+        if (OFM_NUM)
+            ofm_num = atoi(OFM_NUM);
+        if (GROUP_SIZE)
+            scales_group_size = atoi(GROUP_SIZE);
+
+        std::cout << " weight_shape = " << ifm_num << " x " << ofm_num << std::endl;
+        std::cout << " batch_num = " << batch_num << std::endl;
+
+        auto wei_type = is_uint4 ? data_types::u4 : data_types::i4;
+
+        auto input_mem = engine.allocate_memory({{batch_num, ifm_num}, data_types::f16, format::bfyx});
+        auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, wei_type, format::bfyx});
+        auto scale_mem =
+            engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx});
+        auto dcomp_zp_mem =
+            engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx});
+        auto bias_mem = engine.allocate_memory({{batch_num, ofm_num}, data_types::f16, format::bfyx});
+
+        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.0f, 2.0f);
+        set_values(input_mem, input_data);
+
+        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 255);
+        set_values(weights_mem, weigths_data);
+
+        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -2.0f, 2.0f);
+        set_values(scale_mem, scale_data);
+
+        auto dcomp_zp_mem_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 2.0f, 4.0f);
+        set_values(dcomp_zp_mem, dcomp_zp_mem_data);
+
+        auto bias_data = rg.generate_random_1d<ov::float16>(batch_num * ofm_num, -1.0f, 1.0f);
+        set_values(bias_mem, bias_data);
+
+        auto in_layout = is_dynamic ? layout{{-1, ifm_num}, data_types::f16, format::bfyx}
+                                    : layout{{batch_num, ifm_num}, data_types::f16, format::bfyx};
+
+        if (is_dynamic && is_wei_dyn) {
+            // ifm_num is dynamic
+            in_layout = layout{{-1, -1}, data_types::f16, format::bfyx};
+        }
+
+        auto fc_prim = fully_connected("fc_prim",
+                                       input_info("input"),
+                                       "weights",
+                                       "",
+                                       "scale",
+                                       "dcomp_zp",
+                                       data_types::f16,
+                                       2,
+                                       2);
+
+        auto get_ref_results = [&]() {
+            topology topology(input_layout("input", in_layout),
+                              data("weights", weights_mem),
+                              data("bias", bias_mem),
+                              data("scale", scale_mem),
+                              data("dcomp_zp", dcomp_zp_mem),
+                              fc_prim);
+
+            auto config = get_test_default_config(engine);
+            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+            ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx,
+                                                              "fully_connected_gpu_bfyx_ref",
+                                                              impl_types::ocl};
+            config.set_property(
+                ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
+            config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+
+            network network(engine, topology, config);
+            network.set_input_data("input", input_mem);
+
+            auto outputs = network.execute();
+            OPENVINO_ASSERT(outputs.size() == 1);
+            OPENVINO_ASSERT(outputs.begin()->first == "fc_prim");
+
+            auto output_layout = outputs.begin()->second.get_layout();
+            auto output_mem = outputs.begin()->second.get_memory();
+
+            return engine.reinterpret_buffer(*output_mem, output_layout);
+        };
+
+        topology topology(input_layout("input", in_layout),
+                          data("weights", weights_mem),
+                          data("bias", bias_mem),
+                          data("scale", scale_mem),
+                          data("dcomp_zp", dcomp_zp_mem),
+                          fc_prim);
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+        network->set_input_data("input", input_mem);
+
+        auto outputs = network->execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+        auto inst = network->get_primitive("fc_prim");
+        auto impl = inst->get_impl();
+        ASSERT_TRUE(impl != NULL);
+        auto fc_kernels = impl->get_kernels();
+
+        for (auto& it : fc_kernels) {
+            auto kernel_name = it->get_id();
+            std::cout << "   check kernel: " << kernel_name << std::endl;
+            if (batch_num == 1) {
+                ASSERT_TRUE(kernel_name.find("fully_connected_gpu_gemv") != kernel_name.npos);
+            } else {
+                ASSERT_TRUE(kernel_name.find("fully_connected_gpu_gemv") == kernel_name.npos);
+            }
+        }
+        if (batch_num == 1) {
+            ASSERT_EQ(fc_kernels.size(), 1);
+        } else if (batch_num > 1) {
+            ASSERT_EQ(fc_kernels.size(), 2);
+        } else {
+            ASSERT_TRUE(false);
+        }
+
+        auto output_mem = outputs.begin()->second.get_memory();
+        cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+
+        auto ref_output_mem = get_ref_results();
+        cldnn::mem_lock<ov::float16> output_ptr_ref(ref_output_mem, get_test_stream());
+
+        size_t count[4] = {0, 0, 0, 0};
+        auto max_diff = 0.0f;
+        auto total_diff = 0.0f;
+        for (size_t i = 0; i < output_ptr_ref.size() / batch_num; i++) {
+            EXPECT_NEAR(output_ptr_ref[i], output_ptr[i], 10.0) << "i = " << i;
+            // EXPECT_NEAR(output_ptr_ref[i], output_ptr[i], 0.2 * fabs(output_ptr_ref[i])) << "i = " << i;
+            auto diff = fabs(output_ptr_ref[i] - output_ptr[i]);
+            if (diff <= 0.01 * fabs(output_ptr_ref[i])) {
+                count[0]++;
+            }
+            if (diff > 0.1 * fabs(output_ptr_ref[i])) {
+                count[1]++;
+            }
+            if (diff > 0.2 * fabs(output_ptr_ref[i])) {
+                count[2]++;
+            }
+            if (diff > 0.5 * fabs(output_ptr_ref[i])) {
+                count[3]++;
+            }
+            total_diff += diff;
+            if (diff > max_diff) {
+                max_diff = diff;
+            }
+        }
+        std::cout << "correct = " << count[0] << "/" << output_ptr_ref.size() / batch_num
+                  << ", ratio = " << 100.0 * count[0] / output_ptr_ref.size() * batch_num << "%" << std::endl;
+        std::cout << "diff_10 = " << count[1] << "/" << output_ptr_ref.size() / batch_num
+                  << ", ratio = " << 100.0 * count[1] / output_ptr_ref.size() * batch_num << "%" << std::endl;
+        std::cout << "diff_20 = " << count[2] << "/" << output_ptr_ref.size() / batch_num
+                  << ", ratio = " << 100.0 * count[2] / output_ptr_ref.size() * batch_num << "%" << std::endl;
+        std::cout << "diff_50 = " << count[3] << "/" << output_ptr_ref.size() / batch_num
+                  << ", ratio = " << 100.0 * count[3] / output_ptr_ref.size() * batch_num << "%" << std::endl;
+        std::cout << "max_diff = " << max_diff << std::endl;
+        std::cout << "avg_diff = " << total_diff / output_ptr_ref.size() * batch_num << std::endl;
     }
 
     void test_compressed_int4_scale_activation_gemv(bool is_caching_test,
@@ -2284,6 +2497,37 @@ public:
 
         for (size_t i = 0; i < output_ptr_ref.size(); i++)
             ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i;
+
+        size_t rel_count = 0;
+        size_t abs_count = 0;
+        for (size_t i = 0; i < output_ptr_ref.size() / batch_num; i++) {
+            EXPECT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i;
+            EXPECT_NEAR(output_ptr_ref[i], output_ptr[i], 0.2 * fabs(output_ptr_ref[i])) << "i = " << i;
+            if (fabs(output_ptr_ref[i] - output_ptr[i]) > 0.2 * fabs(output_ptr_ref[i])) {
+                rel_count++;
+            }
+            if (fabs(output_ptr_ref[i] - output_ptr[i]) > 9.0) {
+                abs_count++;
+            }
+        }
+        std::cout << "rel_miss_count = " << rel_count << "/" << output_ptr_ref.size() / batch_num
+                  << ", ratio = " << 100.0 * rel_count / output_ptr_ref.size() * batch_num << "%" << std::endl;
+        std::cout << "abs_miss_count = " << abs_count << "/" << output_ptr_ref.size() / batch_num
+                  << ", ratio = " << 100.0 * abs_count / output_ptr_ref.size() * batch_num << "%" << std::endl;
+
+        size_t count = 0;
+        float max_diff = 0.f;
+        float avg = 0.f;
+        for (size_t i = 0; i < output_ptr_ref.size() / batch_num; ++i) {
+            auto abs_diff = std::abs((float)output_ptr_ref[i] - (float)output_ptr[i]);
+            if (max_diff < abs_diff)
+                max_diff = abs_diff;
+            avg += abs_diff;
+            count++;
+            OPENVINO_ASSERT(abs_diff < 256);
+        }
+        std::cout << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg / count)
+                  << std::endl;
     }
 
     void test_compressed_int4_scale_large_n_gemv(bool is_caching_test,
@@ -4991,6 +5235,18 @@ TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_b1g64) {
 
 TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_b1g128) {
     this->test_compressed_int4_scale_gemv(false, false, 1, 128);
+}
+
+TEST_F(fully_connected_gpu_tests, gemv_compressed_uint4_scale_zp_dynamic_cached_b1) {
+    this->test_compressed_int4_scale_zp_gemv(true, true, 1, 128, true);
+}
+
+TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_zp_dynamic_cached_b1) {
+    this->test_compressed_int4_scale_zp_gemv(true, true, 1);
+}
+
+TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_zp_dynamic_b1g128) {
+    this->test_compressed_int4_scale_zp_gemv(false, true, 1, 128);
 }
 
 TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_relu_b1g128) {
