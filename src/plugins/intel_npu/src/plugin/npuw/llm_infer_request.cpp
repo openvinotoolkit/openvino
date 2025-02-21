@@ -355,24 +355,3 @@ ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<co
     }
     return ov::ISyncInferRequest::get_tensor(port);
 }
-
-void ov::npuw::LLMInferRequest::init_tensor(const ov::Output<const ov::Node>& port) {
-    ov::SoPtr<ITensor> tensor;
-    tensor = ov::ISyncInferRequest::get_tensor(port);
-
-    if (!tensor) {
-        const auto& shape = port.get_partial_shape();
-        const bool is_dynamic = shape.is_dynamic();
-        ov::Shape tensor_shape;
-        if (is_dynamic) {
-            for (auto&& item : shape) {
-                tensor_shape.push_back(item.is_static() ? item.get_length() : 0);
-            }
-        } else {
-            tensor_shape = shape.to_shape();
-        }
-
-        tensor = ov::make_tensor(port.get_element_type(), tensor_shape);
-        set_tensor(port, tensor);
-    }
-}

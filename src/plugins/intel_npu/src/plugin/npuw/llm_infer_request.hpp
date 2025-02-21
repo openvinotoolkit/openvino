@@ -31,8 +31,6 @@ public:
     }
 
 private:
-    void init_tensor(const ov::Output<const ov::Node>& port);
-
     void prepare_for_new_conversation();
     void init_tensor(const ov::Output<const ov::Node>& port);
 
