@@ -196,9 +196,10 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 
     auto padded_input = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
     // NB: padded_input can be either fp32(VLM) or i64(LLM)
-    std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()),
-                input_ids->get_byte_size() ,
-                reinterpret_cast<uint8_t*>(padded_input->data()) + padded_input->get_byte_size() - input_ids->get_byte_size());
+    std::copy_n(
+        reinterpret_cast<uint8_t*>(input_ids->data()),
+        input_ids->get_byte_size(),
+        reinterpret_cast<uint8_t*>(padded_input->data()) + padded_input->get_byte_size() - input_ids->get_byte_size());
 
     auto padded_attention_mask = m_prefill_request->get_tensor(m_prefill_in_ports.at("attention_mask"));
     std::copy_n(

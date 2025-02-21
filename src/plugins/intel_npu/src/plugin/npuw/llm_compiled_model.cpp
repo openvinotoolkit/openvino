@@ -633,14 +633,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     m_kvcache_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
         ov::npuw::ICompiledModel::create(kvcache_model, plugin, generate_config));
-    NPUW_ASSERT(m_kvcache_compiled &&
-               "Can't create ov::npuw::CompiledModel for passed kvcache "
-               "model and its config, please check passed config.");
+    NPUW_ASSERT(m_kvcache_compiled && "Can't create ov::npuw::CompiledModel for passed kvcache "
+                                      "model and its config, please check passed config.");
     m_prefill_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
         ov::npuw::ICompiledModel::create(prefill_model, plugin, prefill_config));
-    NPUW_ASSERT(m_prefill_compiled &&
-                "Can't create ov::npuw::CompiledModel for passed prefill "
-                "model and its config, please check passed config.");
+    NPUW_ASSERT(m_prefill_compiled && "Can't create ov::npuw::CompiledModel for passed prefill "
+                                      "model and its config, please check passed config.");
 
     implement_properties();
     LOG_DEBUG("Done");
