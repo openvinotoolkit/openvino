@@ -15,7 +15,7 @@ bool ov::pass::pattern::op::WrapType::match_value(Matcher* matcher,
                     [&](const NodeTypeInfo& type_info) {
                         return graph_value.get_node_shared_ptr()->get_type_info().is_castable(type_info);
                     }) &&
-        m_predicate(graph_value)) {
+        m_predicate(matcher->get_symbols(), graph_value)) {
         auto& pattern_map = matcher->get_pattern_value_map();
         pattern_map[shared_from_this()] = graph_value;
         matcher->add_node(graph_value);
