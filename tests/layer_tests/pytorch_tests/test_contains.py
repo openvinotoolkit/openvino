@@ -26,17 +26,14 @@ class TestContains(PytorchLayerTest):
     @pytest.mark.parametrize(
         "container, element",
         [
-            # Basic cases
-            ([1, 2, 3, 4], 3),  # Element in the container
-            ([1, 2, 3, 4], 5),  # Element not in the container
-            ([], 1),            # Empty container
-            ([1], 1),           # Single-element container
-
-            # Edge cases
-            ([1, 2, 3, 3, 4], 3),  # Duplicate elements
-            ([-1, -2, -3], -2),    # Negative numbers
-            ([0, 1, 2], 0),        # Contains zero
-            ([True, False], True), # Boolean values
+            ([1, 2, 3, 4], 3), 
+            ([1, 2, 3, 4], 5), 
+            ([], 1),           
+            ([1], 1),          
+            ([1, 2, 3, 3, 4], 3), 
+            ([-1, -2, -3], -2),    
+            ([0, 1, 2], 0),        
+            ([True, False], True), 
         ],
     )
     def test_contains_basic(self, container, element, ie_device, precision, ir_version):
@@ -52,14 +49,13 @@ class TestContains(PytorchLayerTest):
     @pytest.mark.parametrize(
         "container_type",
         [
-            list,               # Python list
-            torch.tensor,       # PyTorch tensor
-            set,                # Python set
-            tuple,              # Python tuple
+            list,               
+            torch.tensor,       
+            set,                
+            tuple,              
         ],
     )
     def test_contains_container_types(self, container_type, ie_device, precision, ir_version):
-        # Test with various container types
         container = container_type([1, 2, 3, 4])
         element = 2
         expected_result = element in container
@@ -86,7 +82,6 @@ class TestContains(PytorchLayerTest):
         ],
     )
     def test_contains_with_dtypes(self, dtype, ie_device, precision, ir_version):
-        # Test containers with various data types
         container = torch.tensor([1, 2, 3, 4], dtype=dtype)
         element = 3 if dtype.is_floating_point else 3
         expected_result = element in container
@@ -103,9 +98,9 @@ class TestContains(PytorchLayerTest):
     @pytest.mark.parametrize(
         "element_type",
         [
-            int,      # Integer element
-            float,    # Float element
-            bool,     # Boolean element
+            int,      
+            float,   
+            bool,     
         ],
     )
     def test_contains_element_types(self, element_type, ie_device, precision, ir_version):
@@ -123,9 +118,8 @@ class TestContains(PytorchLayerTest):
         )
 
     def test_contains_large_container(self, ie_device, precision, ir_version):
-        # Test with a large container
         container = torch.arange(0, 1000000)
-        element = 999999  # Large value in container
+        element = 999999  
         expected_result = element in container
 
         self._test(
