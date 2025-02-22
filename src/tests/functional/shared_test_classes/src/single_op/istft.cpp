@@ -13,7 +13,16 @@ namespace test {
 std::string ISTFTLayerTest::getTestCaseName(const testing::TestParamInfo<ISTFTParams>& obj) {
     std::ostringstream result;
 
-    const auto& [data_shapes, frame_size, frame_step, signal_len, center, normalized, data_type, step_size_type, param_type, dev] = obj.param;
+    const auto& [data_shapes,
+                 frame_size,
+                 frame_step,
+                 signal_len,
+                 center,
+                 normalized,
+                 data_type,
+                 step_size_type,
+                 param_type,
+                 dev] = obj.param;
 
     for (size_t s = 0lu; s < 2; s++) {
         const auto& shape_item = data_shapes[s];
