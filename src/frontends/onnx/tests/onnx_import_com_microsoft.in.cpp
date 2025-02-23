@@ -1742,7 +1742,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_bias_add) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary) {
-    const auto model = convert_model("com.microsoft/gqa_past_0_input_1_rotary.onnx");
+    const auto model = convert_model("com.microsoft/gqa_rotary.onnx");
 
     std::vector<float> query = {
         -1.1258f, -1.1524f, -0.2506f, -0.4339f, 0.8487f,  0.6920f,  -0.3160f, -2.1152f, 0.3223f, -1.2633f, 0.3500f,
@@ -1816,12 +1816,12 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary) {
                                                  1.3873f};
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_input<float>(query);
-    test_case.add_input<float>(past_key);
-    test_case.add_input<float>(past_value);
-    test_case.add_input<int>(seqlens_k);
-    test_case.add_input<float>(cos_cache);
-    test_case.add_input<float>(sin_cache);
+    test_case.add_input<float>(Shape{1, 1, 64}, query);
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<float>(Shape{1, 8}, cos_cache);
+    test_case.add_input<float>(Shape{1, 8}, sin_cache);
     test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
     test_case.add_expected_output<float>(Shape{1, 1, 1, 16}, expected_present_key);
     test_case.add_expected_output<float>(Shape{1, 1, 1, 16}, expected_present_value);
@@ -1829,7 +1829,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary_interleaved) {
-    const auto model = convert_model("com.microsoft/gqa_past_0_input_1_rotary_interleaved.onnx");
+    const auto model = convert_model("com.microsoft/gqa_rotary_interleaved.onnx");
 
     std::vector<float> query = {
         -1.1258f, -1.1524f, -0.2506f, -0.4339f, 0.8487f,  0.6920f,  -0.3160f, -2.1152f, 0.3223f, -1.2633f, 0.3500f,
@@ -1903,12 +1903,12 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary_interleaved)
                                                  1.3873f};
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_input<float>(query);
-    test_case.add_input<float>(past_key);
-    test_case.add_input<float>(past_value);
-    test_case.add_input<int>(seqlens_k);
-    test_case.add_input<float>(cos_cache);
-    test_case.add_input<float>(sin_cache);
+    test_case.add_input<float>(Shape{1, 1, 64}, query);
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<float>(Shape{1, 8}, cos_cache);
+    test_case.add_input<float>(Shape{1, 8}, sin_cache);
     test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
     test_case.add_expected_output<float>(Shape{1, 1, 1, 16}, expected_present_key);
     test_case.add_expected_output<float>(Shape{1, 1, 1, 16}, expected_present_value);
@@ -1916,7 +1916,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary_interleaved)
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_1_input_1_rotary) {
-    const auto model = convert_model("com.microsoft/gqa_past_1_input_1_rotary.onnx");
+    const auto model = convert_model("com.microsoft/gqa_rotary.onnx");
 
     std::vector<float> query = {
         -1.1258f, -1.1524f, -0.2506f, -0.4339f, 0.8487f,  0.6920f,  -0.3160f, -2.1152f, 0.3223f, -1.2633f, 0.3500f,
@@ -2018,12 +2018,12 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_1_input_1_rotary) {
         -0.9215f, -0.0562f, -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f,  1.1648f,  0.9234f,  1.3873f};
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_input<float>(query);
-    test_case.add_input<float>(past_key);
-    test_case.add_input<float>(past_value);
-    test_case.add_input<int>(seqlens_k);
-    test_case.add_input<float>(cos_cache);
-    test_case.add_input<float>(sin_cache);
+    test_case.add_input<float>(Shape{1, 1, 64}, query);
+    test_case.add_input<float>(Shape{1, 1, 1, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 1, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<float>(Shape{2, 8}, cos_cache);
+    test_case.add_input<float>(Shape{2, 8}, sin_cache);
     test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
     test_case.add_expected_output<float>(Shape{1, 1, 2, 16}, expected_present_key);
     test_case.add_expected_output<float>(Shape{1, 1, 2, 16}, expected_present_value);
@@ -2031,7 +2031,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_1_input_1_rotary) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_1_input_1_rotary_interleaved) {
-    const auto model = convert_model("com.microsoft/gqa_past_1_input_1_rotary_interleaved.onnx");
+    const auto model = convert_model("com.microsoft/gqa_rotary_interleaved.onnx");
 
     std::vector<float> query = {
         -1.1258f, -1.1524f, -0.2506f, -0.4339f, 0.8487f,  0.6920f,  -0.3160f, -2.1152f, 0.3223f, -1.2633f, 0.3500f,
@@ -2133,12 +2133,12 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_1_input_1_rotary_interleaved)
         -0.9215f, -0.0562f, -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f,  1.1648f,  0.9234f,  1.3873f};
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_input<float>(query);
-    test_case.add_input<float>(past_key);
-    test_case.add_input<float>(past_value);
-    test_case.add_input<int>(seqlens_k);
-    test_case.add_input<float>(cos_cache);
-    test_case.add_input<float>(sin_cache);
+    test_case.add_input<float>(Shape{1, 1, 64}, query);
+    test_case.add_input<float>(Shape{1, 1, 1, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 1, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<float>(Shape{2, 8}, cos_cache);
+    test_case.add_input<float>(Shape{2, 8}, sin_cache);
     test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
     test_case.add_expected_output<float>(Shape{1, 1, 2, 16}, expected_present_key);
     test_case.add_expected_output<float>(Shape{1, 1, 2, 16}, expected_present_value);

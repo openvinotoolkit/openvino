@@ -134,7 +134,6 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const size_t kv_num_heads_factor = num_heads / kv_num_heads;
     if (kv_num_heads_factor > 1) {
         const auto kv_shape = std::make_shared<v3::ShapeOf>(K);
-        // (batch_size, num_heads, sequence_len, head_size)
         const auto kv_shape_prev_2 = detail::get_dimensions(kv_shape, {0, 1});
         const auto kv_shape_last_2 = detail::get_dimensions(kv_shape, {2, 3});
         auto new_kv_shape = std::make_shared<v0::Concat>(ov::NodeVector{kv_shape_prev_2, one, kv_shape_last_2}, 0);
@@ -143,7 +142,6 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         K = std::make_shared<v0::Concat>(ov::OutputVector(kv_num_heads_factor, K), 2);
         V = std::make_shared<v0::Concat>(ov::OutputVector(kv_num_heads_factor, V), 2);
         auto q_shape = std::make_shared<v3::ShapeOf>(Q);
-        // (batch_size, num_heads, sequence_len, head_size)
         const auto q_shape_prev_2 = detail::get_dimensions(q_shape, {0, 1});
         auto extended_kv_shape = std::make_shared<v0::Concat>(ov::NodeVector{q_shape_prev_2, kv_shape_last_2}, 0);
         K = std::make_shared<v1::Reshape>(K, extended_kv_shape, false);
@@ -204,7 +202,7 @@ ov::OutputVector make_split(const ov::Output<ov::Node>& value, int64_t num_split
 std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::op::v3::ShapeOf>& shape,
                                          const std::vector<int>& dims) {
     using namespace ov::op;
-    static const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
+    const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
     const auto dims_const = v0::Constant::create(ov::element::i32, ov::Shape{dims.size()}, dims);
     return std::make_shared<v8::Gather>(shape, dims_const, zero);
 }
