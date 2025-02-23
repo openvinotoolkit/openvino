@@ -56,13 +56,13 @@ we cannot perform swapping as this would break another part of the graph.
                                ZP Const
                                   │
                                   ▼
-          Input                Convert                Input  
-            │                  │     │                  │    
-            ▼                  ▼     ▼                  ▼    
+          Input                Convert                Input
+            │                  │     │                  │
+            ▼                  ▼     ▼                  ▼
  Scale      Convert      Reshape     Reshape      Convert      Scale
      |            │    (64,1,1,1)   (1,64,1,1)    │            │
      |            │      │                 │      │            |
-     ▼            ▼      ▼                 ▼      ▼            ▼   
+     ▼            ▼      ▼                 ▼      ▼            ▼
      Reshape      Subtract                 Subtract      Reshape
            |      |                               |      |
            ▼      ▼                               ▼      ▼
@@ -73,13 +73,13 @@ Though, we can perform swapping if the shapes are same for all branches: e.g.
                                ZP Const
                                   │
                                   ▼
-          Input                Convert                Input  
-            │                  │     │                  │    
-            ▼                  ▼     ▼                  ▼    
+          Input                Convert                Input
+            │                  │     │                  │
+            ▼                  ▼     ▼                  ▼
             Convert      Reshape     Reshape      Convert
  Scale            │    (64,1,1,1)   (64,1,1,1)    │            Scale
      |            │      │                 │      │            |
-     ▼            ▼      ▼                 ▼      ▼            ▼   
+     ▼            ▼      ▼                 ▼      ▼            ▼
      Reshape      Subtract                 Subtract      Reshape
            |      |                               |      |
            ▼      ▼                               ▼      ▼
@@ -104,8 +104,8 @@ Scale       Convert   Convert          Input
                                   Subtract      Reshape
                                          |      |
                                          ▼      ▼
-                                         Multiply                               
-    
+                                         Multiply
+
 Step 2: the right part of the graph would be matched transforming the graph above into the final form:
 
                         ZP Const
@@ -150,17 +150,18 @@ bool can_swap(const PatternValueMap& pt_map,
             auto first_shape = target_inputs.begin()->get_node()->output(0).get_shape();
 
             // Step 1 (see steps description in the comments above)
-            if (std::all_of(std::next(target_inputs.begin()), target_inputs.end(),
+            if (std::all_of(std::next(target_inputs.begin()),
+                            target_inputs.end(),
                             [&](const ov::Input<ov::Node>& input) {
                                 return input.get_node()->get_output_partial_shape(0).is_static() &&
                                        input.get_node()->get_shape() == first_shape;
                             })) {
-                                return true;
+                return true;
             } else if (first_node->get_output_partial_shape(0).is_static() &&
                        second_node->get_output_partial_shape(0).is_static() &&
                        first_node->get_output_shape(0) == second_node->get_output_shape(0)) {
-            // Step 2
-                    return true;
+                // Step 2
+                return true;
             }
         }
     }
