@@ -153,6 +153,15 @@ py::object from_ov_any(const ov::Any& any) {
     else if (any.is<std::vector<double>>()) {
         return py::cast(any.as<std::vector<double>>());
     }
+    // Check for std::vector<ov::Any>
+    else if (any.is<std::vector<ov::Any>>()) {
+        const auto& values = any.as<std::vector<ov::Any>>();
+        PyObject* list = PyList_New(0);
+        for (const auto& value : values) {
+            PyList_Append(list, from_ov_any(value).ptr());
+        }
+        return py::cast<py::object>(list);
+    }
     // Check for std::tuple<unsigned int, unsigned int>
     else if (any.is<std::tuple<unsigned int, unsigned int>>()) {
         return py::cast(any.as<std::tuple<unsigned int, unsigned int>>());
@@ -192,8 +201,7 @@ py::object from_ov_any(const ov::Any& any) {
             std::string property_name = it;
             auto mutability = it.get_mutability();
             std::string mutability_str;
-            switch (mutability)
-            {
+            switch (mutability) {
             case ov::PropertyMutability::RW:
                 mutability_str = "RW";
                 break;
@@ -212,6 +220,8 @@ py::object from_ov_any(const ov::Any& any) {
     } else if (any.is<std::shared_ptr<ov::Meta>>()) {
         const ov::AnyMap& as_map = *any.as<std::shared_ptr<ov::Meta>>();
         return from_ov_any_map(as_map);
+    } else if (any.is<std::shared_ptr<ov::Symbol>>()) {
+        return py::cast(any.as<std::shared_ptr<ov::Symbol>>());
     } else if (any.is<ov::element::Type>()) {
         return py::cast(any.as<ov::element::Type>());
     } else if (any.is<ov::hint::Priority>()) {

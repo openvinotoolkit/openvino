@@ -22,7 +22,6 @@
 ### Checks that are turned off but better be enabled later:
 # -bugprone-narrowing-conversions
 # -bugprone-easily-swappable-parameters
-# -bugprone-fold-init-type
 # -bugprone-implicit-widening-of-multiplication-result
 # -cppcoreguidelines-narrowing-conversions
 # -google-default-arguments,
@@ -39,13 +38,11 @@ Checks: >
   modernize-pass-by-value,
   cppcoreguidelines-prefer-member-initializer,
   -bugprone-easily-swappable-parameters,
-  -bugprone-fold-init-type,
   -bugprone-implicit-widening-of-multiplication-result,
   -bugprone-narrowing-conversions,
   -cppcoreguidelines-narrowing-conversions,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -google-build-using-namespace,
-  -google-default-arguments,
   -google-explicit-constructor,
   -google-readability-casting,
   -google-readability-todo,

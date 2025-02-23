@@ -1247,7 +1247,7 @@ struct MHAHelper {
 #    if defined(OPENVINO_ARCH_X86_64)
     std::shared_ptr<JitMatMulVecAMX> _gemv;
 #    endif
-    ov::element::Type _fastpath_valid_prec = ov::element::undefined;
+    ov::element::Type _fastpath_valid_prec = ov::element::dynamic;
     // second token for bhl loop
     PlainTensor _weight_bhl;
     PlainTensor _output_bhl;
@@ -2369,7 +2369,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 auto zero_tokens = _helper._block_size - block_offset;
                 auto S = k_cache.m_dims[3];
                 auto SV = v_cache.m_dims[3];
-                auto Hk = k_cache.m_dims[1];    // shape: [block, H, 32, S]
+                auto Hk = k_cache.m_dims[1];  // shape: [block, H, 32, S]
                 parallel_for2d(Hk, zero_tokens, [&](size_t h, size_t l) {
                     std::memset(k_cache.ptr_v(block_number, h, block_offset + l, 0), 0, S * k_cache.m_element_size);
                     std::memset(v_cache.ptr_v(block_number, h, block_offset + l, 0), 0, SV * v_cache.m_element_size);
