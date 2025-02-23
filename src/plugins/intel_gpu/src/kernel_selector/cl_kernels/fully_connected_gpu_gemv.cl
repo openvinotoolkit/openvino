@@ -16,7 +16,7 @@
 #define KERNEL_LAYOUT_OS_IS_YX_OSV32_ISV2 (FILTER_LAYOUT_OS_IS_YX_TYPE == 1)
 #define KERNEL_LAYOUT_OS_IS_YX_OSV64_ISV2 (FILTER_LAYOUT_OS_IS_YX_TYPE == 2)
 #define SUBGROUP_SIZE                     SIMD
-#define DECOMPRESSION_GROUP_SIZE          DECOMPRESSION_SCALE_GROUP_SIZE
+#define DECOMPRESSION_GROUP_SIZE_SRC      DECOMPRESSION_SCALE_GROUP_SIZE
 
 // Verify JIT parameters.
 #if SIMD != 16
@@ -24,12 +24,23 @@
 #endif
 
 #ifdef DECOMPRESSION_SCALE_TERM
-#if DECOMPRESSION_GROUP_SIZE < 32
+#if DECOMPRESSION_GROUP_SIZE_SRC < 32
 #   error "fully_connected_gpu_gemv.cl - DECOMPRESSION_GROUP_SIZE must >= 32"
 #endif
-#define SCALE_GROUP_NUM (WEIGHTS_K / DECOMPRESSION_GROUP_SIZE)
+// CW
+#if WEIGHTS_K==DECOMPRESSION_GROUP_SIZE_SRC && WEIGHTS_K > 128
+#define SINGLE_GROUP_NUM
+#endif
+#ifdef SINGLE_GROUP_NUM
+#define SCALE_GROUP_NUM (WEIGHTS_K / 128)
+#define DECOMPRESSION_GROUP_SIZE 128
+#else
+#define SCALE_GROUP_NUM (WEIGHTS_K / DECOMPRESSION_GROUP_SIZE_SRC)
+#define DECOMPRESSION_GROUP_SIZE DECOMPRESSION_GROUP_SIZE_SRC
+#endif
 #else
 #define SCALE_GROUP_NUM (WEIGHTS_K / 128)
+#define DECOMPRESSION_GROUP_SIZE 128
 #endif
 
 #if KERNEL_LAYOUT_OS_IS_YX_OSV16 && WEIGHTS_K % 32 != 0
@@ -109,10 +120,18 @@ KERNEL(fully_connected_gpu_gemv)(
             weights + get_4bit_weight_index_no_isv(gk * DECOMPRESSION_GROUP_SIZE, n, WEIGHTS_K, WEIGHTS_N, 16);
 
         float8 sum = 0;
+        #ifdef SINGLE_GROUP_NUM
+        float scale_1 = convert_float(scales[0]);
+        #else
         float scale_1 = convert_float(scales[gk * WEIGHTS_N]);
+        #endif
 
 #    if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
+     #ifdef SINGLE_GROUP_NUM
+        half16 zpx16 = (half16)(zps[0]);
+     #else
         half16 zpx16 = (half16)(zps[gk * WEIGHTS_N]);
+     #endif
 #    elif DECOMPRESSION_ZP_SCALAR
         half16 zpx16 = (half16)(zp_scalar_value);
 #    else
@@ -251,12 +270,22 @@ KERNEL(fully_connected_gpu_gemv)(
             weights + get_4bit_weight_index(gk * DECOMPRESSION_GROUP_SIZE, n, WEIGHTS_K, WEIGHTS_N, 32);
 
         float8 sum = 0;
+        #ifdef SINGLE_GROUP_NUM
+        half scale_0 = scales[0];
+        half scale_1 = scales[16];
+        #else
         half scale_0 = scales[gk * WEIGHTS_N];
         half scale_1 = scales[gk * WEIGHTS_N + 16];
+        #endif
 
 #    if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
+        #ifdef SINGLE_GROUP_NUM
+        half zp0 = zps[0];
+        half zp1 = zps[16];
+        #else
         half zp0 = zps[gk * WEIGHTS_N];
         half zp1 = zps[gk * WEIGHTS_N + 16];
+        #endif
         half16 zpx16 = {zp0, zp1, zp0, zp1, zp0, zp1, zp0, zp1, zp0, zp1, zp0, zp1, zp0, zp1, zp0, zp1};
 #    elif DECOMPRESSION_ZP_SCALAR
         half16 zpx16 = (half16)(zp_scalar_value);
@@ -408,15 +437,29 @@ KERNEL(fully_connected_gpu_gemv)(
             weights + get_4bit_weight_index(gk * DECOMPRESSION_GROUP_SIZE, n, WEIGHTS_K, WEIGHTS_N, 64);
 
         float8 sum = 0;
+        #ifdef SINGLE_GROUP_NUM
+        half scale_0 = scales[0];
+        half scale_1 = scales[16];
+        half scale_2 = scales[2 * 16];
+        half scale_3 = scales[3 * 16];
+        #else
         half scale_0 = scales[gk * WEIGHTS_N];
         half scale_1 = scales[gk * WEIGHTS_N + 1 * 16];
         half scale_2 = scales[gk * WEIGHTS_N + 2 * 16];
         half scale_3 = scales[gk * WEIGHTS_N + 3 * 16];
+        #endif
 #    if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
+        #ifdef SINGLE_GROUP_NUM
+        half zp0 = zps[0];
+        half zp1 = zps[1 * 16];
+        half zp2 = zps[2 * 16];
+        half zp3 = zps[3 * 16];
+        #else
         half zp0 = zps[gk * WEIGHTS_N];
         half zp1 = zps[gk * WEIGHTS_N + 1 * 16];
         half zp2 = zps[gk * WEIGHTS_N + 2 * 16];
         half zp3 = zps[gk * WEIGHTS_N + 3 * 16];
+        #endif
         half16 zpx16 = {zp0, zp1, zp2, zp3, zp0, zp1, zp2, zp3, zp0, zp1, zp2, zp3, zp0, zp1, zp2, zp3};
 #    elif DECOMPRESSION_ZP_SCALAR
         half zp_scalar_value = (half)(DECOMPRESSION_ZP_VALUE);
