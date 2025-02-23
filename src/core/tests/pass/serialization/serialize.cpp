@@ -56,6 +56,35 @@ public:
     }
 };
 
+TEST(SerializationTest, WriteInReadOnly) {
+    // Create read-only files
+    ASSERT_TRUE(createReadOnlyFile(m_out_xml_path));
+    ASSERT_TRUE(createReadOnlyFile(m_out_bin_path));
+
+    // Set up the serializer with the current paths
+    ov::pass::Serialize serializer(m_out_xml_path, m_out_bin_path);
+
+    auto m = std::make_shared<ov::Model>(ov::OutputVector{}, ov::ParameterVector{}, "");
+
+    // Expect that running the serializer on a read-only file throws an exception
+    EXPECT_THROW(serializer.run_on_model(m), ov::AssertFailure);
+
+    // Force removal of read-only attribute (if needed) and then remove the files.
+    auto forceRemove = [](const std::string& filename) {
+#ifdef _WIN32
+        // On Windows, clear the read-only attribute first.
+        SetFileAttributesA(filename.c_str(), FILE_ATTRIBUTE_NORMAL);
+#endif
+        std::remove(filename.c_str());
+    };
+    forceRemove(m_out_xml_path);
+    forceRemove(m_out_bin_path);
+
+    // Confirm that files were successfully removed.
+    ASSERT_FALSE(std::ifstream(m_out_xml_path).good());
+    ASSERT_FALSE(std::ifstream(m_out_bin_path).good());
+}
+
 TEST_P(SerializationTest, CompareFunctions) {
     CompareSerialized([this](const std::shared_ptr<ov::Model>& m) {
         ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(m);
