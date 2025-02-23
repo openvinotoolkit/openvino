@@ -43,7 +43,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    ov::element::Type outType = ov::element::Type_t::undefined;
+    ov::element::Type outType = ov::element::Type_t::dynamic;
     template <typename inputType>
     void executeSpecified();
     template <typename T>

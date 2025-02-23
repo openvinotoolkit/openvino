@@ -93,6 +93,134 @@ public:
     }
 };
 
+TEST_P(RemoteRunTests, CheckIsContinuousHostTensorScalar) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto zero_context = core->get_default_context(target_device);
+
+    auto host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{});
+    auto data = host_tensor.data();
+    auto strides = host_tensor.get_strides();
+
+    ov::Tensor view_tensor;
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+}
+
+TEST_P(RemoteRunTests, CheckIsContinuousHostTensor1Dimension) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto zero_context = core->get_default_context(target_device);
+
+    auto host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{128});
+    auto data = host_tensor.data();
+    auto strides = host_tensor.get_strides();
+
+    ov::Tensor view_tensor;
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{16}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+}
+
+TEST_P(RemoteRunTests, CheckIsContinuousHostTensor2Dimensions) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto zero_context = core->get_default_context(target_device);
+
+    auto host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{32, 128});
+    auto data = host_tensor.data();
+    auto strides = host_tensor.get_strides();
+
+    ov::Tensor view_tensor;
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 16}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{2, 16}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
+}
+
+TEST_P(RemoteRunTests, CheckIsContinuousHostTensor3Dimensions) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto zero_context = core->get_default_context(target_device);
+
+    auto host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{5, 32, 128});
+    auto data = host_tensor.data();
+    auto strides = host_tensor.get_strides();
+
+    ov::Tensor view_tensor;
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{2, 32, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{2, 16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 1, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 1, 64}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+}
+
+TEST_P(RemoteRunTests, CheckIsContinuousHostTensor4Dimensions) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto zero_context = core->get_default_context(target_device);
+
+    auto host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{3, 5, 32, 128});
+    auto data = host_tensor.data();
+    auto strides = host_tensor.get_strides();
+
+    ov::Tensor view_tensor;
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 2, 32, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{2, 5, 32, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{2, 2, 32, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 2, 5, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{3, 5, 32, 64}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 1, 16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{2, 1, 16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 1, 1, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 1, 1, 32}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+}
+
 TEST_P(RemoteRunTests, CheckRemoteTensorInternalBuf) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
