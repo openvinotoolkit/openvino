@@ -108,8 +108,8 @@ void regclass_InferRequest(py::module m) {
         R"(
             Set output tensors using given indexes.
 
-            :param inputs: Data to set on output tensors.
-            :type inputs: Dict[int, openvino.Tensor]
+            :param outputs: Data to set on output tensors.
+            :type outputs: Dict[int, openvino.Tensor]
         )");
 
     // Python API exclusive function
