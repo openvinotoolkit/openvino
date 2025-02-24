@@ -326,18 +326,6 @@ std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::M
     return model;
 }
 
-std::shared_ptr<ov::Model> cvt_value_tensors_layout(std::shared_ptr<ov::Model> model) {
-    ov::preprocess::PrePostProcessor ppp(model);
-    for (const auto& tensor : model->outputs()) {
-        if (tensor.get_any_name().find("value") != std::string::npos) {
-            // NB: [batch, num_heads, seq_len, emb_size] -> [batch, num_heads, emb_size, seq_len]
-            ppp.output(tensor.get_any_name()).model().set_layout(ov::Layout("BHSE"));
-            ppp.output(tensor.get_any_name()).tensor().set_layout(ov::Layout("BHES"));
-        }
-    }
-    return ppp.build();
-}
-
 bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ScaledDotProductAttentionDecomposition>();
@@ -588,8 +576,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("6. Check and apply opt layout");
         LOG_BLOCK();
         if (optimize_value_tensors(kvcache_model)) {
+            NPUW_ASSERT(optimize_value_tensors(prefill_model));
             m_kvcache_desc.v_tensors_transposed = true;
-            prefill_model = cvt_value_tensors_layout(prefill_model);
         } else {
             LOG_DEBUG("vtensors optimisation not applied");
         }
