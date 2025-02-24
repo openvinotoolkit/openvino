@@ -34,6 +34,7 @@ permissions: read-all
 env:
   PYTHON_VERSION: '3.11'
   MANIFEST_FILE: manifest.yml
+  PRODUCT_TYPE: public_macos_12_6_x86_release
 
 jobs:
   
@@ -84,7 +85,6 @@ jobs:
       DEVELOPER_PACKAGE_DIR: ${{ github.workspace }}/developer_package_install
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       BUILD_DIR: ${{ github.workspace }}/build
-      PRODUCT_TYPE: public_macos_12_6_x86_release
     if: "!needs.smart_ci.outputs.skip_workflow"
     steps:
       - name: Clone OpenVINO
