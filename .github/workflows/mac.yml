@@ -404,7 +404,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-2-cores-8gb
     container:
-      image: 'openvinogithubactions.azurecr.io/library/python:3.12-slim'
+      image: 'openvinogithubactions.azurecr.io/library/python:3.11-slim'
       volumes: 
         - /mount:/mount
         - ${{ github.workspace }}:${{ github.workspace }}
