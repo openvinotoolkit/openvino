@@ -251,9 +251,25 @@ Data as of OpenVINO 2024.4, 18 Oct. 2024.
        ONNX Supported Operations (custom - com.microsoft Domain)               Limitations
       ======================================================================  ==============================================================
        Attention
+       Bias_Add
        BiasGelu
+       Dynamic_Quantize_MatMul
        EmbedLayerNormalization
+       Fast_Gelu
+       Fused_Conv
+       FusedGemm
+       FusedMatMul
+       MatMulIntegerToFloat
+       MatMulNBits
+       Pad
+       QLinearActivation
+       QLinearAdd
+       QLinearMul
+       QuickGelu
+       Range
+       SimplifiedLayerNormalization
        SkipLayerNormalization
+       SkipSimplifiedLayerNormalization
       ======================================================================  ==============================================================
 
 
