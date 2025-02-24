@@ -94,6 +94,7 @@ void Bank::evaluate_and_allocate() {
         storage_guard.unlock();
 
         std::map<int64_t, ov::Tensor> uids_to_allocated;
+        std::map<int64_t, std::pair<ov::Shape, ov::element::Type>> uids_to_meta;
 
         ov::parallel_for(vec.size(), [&](std::size_t idx) {
             const auto& lt = vec[idx];
@@ -109,14 +110,13 @@ void Bank::evaluate_and_allocate() {
             dev_guard.unlock();
 
             // Allocation and/or evaluation needed
-            // Evaluate concurrently, lock the device
-            // mutex only to update the device bank (& allocate on-device memory, if needed)
-            const auto& transformed_tensor = lt.eval();
+            const auto& transformed_tensor_meta = lt.eval_shape_type();
 
             std::unique_lock<std::mutex> guard(device_bank.mutex);
-            device_bank.storage[uid].tensor = transformed_tensor;
+            uids_to_meta[uid] = transformed_tensor_meta;
             if (device_for_alloc == "CPU") {
                 // No allocation needed
+                device_bank.storage.at(uid).tensor = lt.eval();
                 return;
             }
 
@@ -129,19 +129,20 @@ void Bank::evaluate_and_allocate() {
         // Allocate memory sequentially - in order of UID
         for (const auto& elem : uids_to_allocated) {
             auto uid = elem.first;
-            const auto& transformed_tensor = device_bank.storage[uid].tensor;
 
             ov::SoPtr<ov::ITensor> remote_tensor;
             ov::Tensor allocated_tensor;
 
             auto remote_ctx = m_core->get_default_context(device_for_alloc)._ptr;
             remote_tensor =
-                remote_ctx->create_host_tensor(transformed_tensor.get_element_type(), transformed_tensor.get_shape());
+                remote_ctx->create_host_tensor(uids_to_meta[uid].second, uids_to_meta[uid].first);
             uids_to_allocated.at(uid) = ov::make_tensor(remote_tensor);
         }
        guard.unlock();
 
         // Copy to allocated memory
+        // Evaluate concurrently, lock the device
+        // mutex only to update the device bank (& allocate on-device memory, if needed)
         ov::parallel_for(uids_to_allocated.size(), [&](std::size_t idx) {
             std::unique_lock dev_guard(device_bank.mutex);
             auto it = uids_to_allocated.begin();
@@ -149,10 +150,10 @@ void Bank::evaluate_and_allocate() {
             std::advance(it, idx);
             auto uid = it->first;
             auto allocated_tensor = it->second;
-            auto data = device_bank.storage.at(uid).tensor;
             dev_guard.unlock();
 
-            data.copy_to(allocated_tensor);
+            auto transformed = device_bank.storage.at(uid).lt.eval();
+            transformed.copy_to(allocated_tensor);
 
             std::unique_lock<std::mutex> guard(device_bank.mutex);
             device_bank.storage.at(uid).tensor = std::move(allocated_tensor);
