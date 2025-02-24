@@ -401,9 +401,9 @@ TEST_F(TypePropISTFTTest, frame_step_incompatible_type) {
 }
 
 TEST_F(TypePropISTFTTest, frame_step_incompatible_value) {
-    const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{9, 9, 2});
+    const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{9, 3, 2});
     const auto window = std::make_shared<Parameter>(element::f32, PartialShape{8});
-    const auto frame_size = Constant::create<int32_t>(element::i32, {}, {8});
+    const auto frame_size = Constant::create<int32_t>(element::i32, {}, {16});
     {
         const auto frame_step = Constant::create<int32_t>(element::i32, {}, {-1});
         OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, center, normalized),
