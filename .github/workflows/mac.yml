@@ -34,7 +34,7 @@ permissions: read-all
 env:
   PYTHON_VERSION: '3.11'
   MANIFEST_FILE: manifest.yml
-  PRODUCT_TYPE: public_macos_12_6_x86_release
+  PRODUCT_TYPE: public_macos_12_6_x86
 
 jobs:
   
