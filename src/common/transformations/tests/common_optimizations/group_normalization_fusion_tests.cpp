@@ -68,7 +68,6 @@ public:
 
         if (positive_test) {
             model_ref = create_ref_model();
-            disable_rt_info_check();
         } else {
             ASSERT_EQ(count_ops_of_type<op::v12::GroupNormalization>(model), 0);
             test_skipped = true;
