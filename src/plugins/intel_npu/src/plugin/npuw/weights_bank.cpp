@@ -134,11 +134,10 @@ void Bank::evaluate_and_allocate() {
             ov::Tensor allocated_tensor;
 
             auto remote_ctx = m_core->get_default_context(device_for_alloc)._ptr;
-            remote_tensor =
-                remote_ctx->create_host_tensor(uids_to_meta[uid].second, uids_to_meta[uid].first);
+            remote_tensor = remote_ctx->create_host_tensor(uids_to_meta[uid].second, uids_to_meta[uid].first);
             uids_to_allocated.at(uid) = ov::make_tensor(remote_tensor);
         }
-       guard.unlock();
+        guard.unlock();
 
         // Copy to allocated memory
         // Evaluate concurrently, lock the device

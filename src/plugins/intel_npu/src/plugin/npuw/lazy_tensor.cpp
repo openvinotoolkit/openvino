@@ -246,7 +246,9 @@ struct Permute {
         auto st = tensor.eval_shape_type();
         auto shape = st.first;
         ov::Shape new_shape;
-        std::transform(axes.begin(), axes.end(), std::back_inserter(new_shape), [&](int i) { return shape[i]; });
+        std::transform(axes.begin(), axes.end(), std::back_inserter(new_shape), [&](std::size_t i) {
+            return shape[i];
+        });
         return {new_shape, st.second};
     }
     void read_weight(const ov::npuw::s11n::Weights& weights) {
@@ -381,9 +383,9 @@ ov::Tensor LazyTensorImpl::eval() const {
 
 std::pair<ov::Shape, ov::element::Type> LazyTensorImpl::eval_shape_type() const {
     return std::visit(overloaded{[](const auto& op) {
-        return op.eval_shape_type();
-    }},
-    m_transform);
+                          return op.eval_shape_type();
+                      }},
+                      m_transform);
 }
 
 void LazyTensorImpl::read_weight(const ov::npuw::s11n::Weights& weights) {
