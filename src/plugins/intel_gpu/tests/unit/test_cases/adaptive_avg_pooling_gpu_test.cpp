@@ -126,7 +126,10 @@ public:
         auto shape_input = engine.allocate_memory({{ static_cast<int64_t>(params.output_shape.size()) - 2 }, ov::element::i32, plain_layout });
 
         set_values(input, input_data);
-        std::vector<int32_t> o_shape(params.output_shape.begin() + 2, params.output_shape.end());
+        std::vector<int32_t> o_shape;
+        std::transform(params.output_shape.begin() + 2, params.output_shape.end(), std::back_inserter(o_shape),
+                   [](size_t val) { return static_cast<int32_t>(val); });
+
         set_values<int32_t>(shape_input, o_shape);
 
         topology topology;

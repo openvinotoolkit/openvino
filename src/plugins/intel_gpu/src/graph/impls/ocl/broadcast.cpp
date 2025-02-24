@@ -33,7 +33,6 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
-        const auto& primitive = impl_param.typed_desc<broadcast>();
         auto params = get_default_params<kernel_selector::broadcast_params>(impl_param, is_shape_agnostic);
 
         const auto format = impl_param.get_output_layout().format;
