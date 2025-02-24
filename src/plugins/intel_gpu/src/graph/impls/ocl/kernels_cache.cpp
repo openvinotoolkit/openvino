@@ -166,6 +166,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             if (dump_custom_program) {
                 key += " __DUMP_CUSTOM_PROGRAM__";  // Adding label to key so it would be separated from other programs
             }
+            key += " __LANG__" + std::to_string(static_cast<size_t>(kernel_string->language));
 
             auto& bucket_id = std::get<0>(program_buckets[key]);
             auto& current_bucket = std::get<1>(program_buckets[key]);

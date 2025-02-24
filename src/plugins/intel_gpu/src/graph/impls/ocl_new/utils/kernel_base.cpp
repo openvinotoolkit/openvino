@@ -138,7 +138,7 @@ KernelData SingleKernelGenerator::get_kernel_data(const kernel_impl_params& para
     kd.code.kernelString->jit = "";
     kd.code.kernelString->undefs = "";
     kd.code.kernelString->options = get_build_options(params);
-    kd.code.kernelString->batch_compilation = false;
+    kd.code.kernelString->batch_compilation = true;
     kd.code.kernelString->has_microkernels = false;
     kd.code.kernelString->str = build_code(m_kernel_name, jit, kd.code.kernelString->entry_point);
 
