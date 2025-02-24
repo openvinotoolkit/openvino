@@ -116,7 +116,10 @@ void Bank::evaluate_and_allocate() {
             uids_to_meta[uid] = transformed_tensor_meta;
             if (device_for_alloc == "CPU") {
                 // No allocation needed
-                device_bank.storage.at(uid).tensor = lt.eval();
+                guard.unlock();
+                auto transformed = lt.eval();
+                std::unique_lock guard(device_bank.mutex);
+                device_bank.storage.at(uid).tensor = std::move(transformed);
                 return;
             }
 
