@@ -4,9 +4,25 @@
 
 #include "mlp_kernel.hpp"
 
-#include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <algorithm>
+#include <cassert>
+#include <common/c_types_map.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <type_traits>
+
 #include "mlp_utils.hpp"
+#include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;

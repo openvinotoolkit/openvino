@@ -6,10 +6,27 @@
 
 #include <memory_desc/cpu_memory_desc_utils.h>
 
+#include <cstddef>
+#include <cstring>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
 #include "cpu_convert.h"
 #include "cpu_memcpy.h"
+#include "cpu_memory.h"
+#include "cpu_shape.h"
+#include "cpu_types.h"
+#include "dnnl_extension_utils.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "node.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 

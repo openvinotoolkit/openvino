@@ -4,8 +4,20 @@
 
 #pragma once
 
-#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_emitter.hpp"
 #include "jit_kernel_base.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu::kernel {
 

@@ -4,6 +4,12 @@
 
 #pragma once
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cassert>
+#include <common/utils.hpp>
+#include <cstddef>
+
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/jit_generator.hpp"
 

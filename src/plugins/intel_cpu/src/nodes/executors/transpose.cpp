@@ -4,10 +4,17 @@
 
 #include "transpose.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <iterator>
 #include <utility>
 #include <vector>
 
+#include "cpu_types.h"
+#include "nodes/common/permute_kernel.h"
+#include "nodes/executors/executor.hpp"
 #include "openvino/core/parallel.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 

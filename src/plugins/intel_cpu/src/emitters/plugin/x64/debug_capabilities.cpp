@@ -2,12 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef CPU_DEBUG_CAPS
+#include <cpu/x64/xbyak/xbyak.h>
 
-#    include "debug_capabilities.hpp"
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#ifdef CPU_DEBUG_CAPS
 
 #    include <iostream>
 #    include <sstream>
+
+#    include "debug_capabilities.hpp"
 
 namespace ov::intel_cpu {
 

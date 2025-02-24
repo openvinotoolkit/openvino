@@ -4,17 +4,25 @@
 
 #pragma once
 
-#include <node.h>
-
 #include <cassert>
 #include <climits>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
+#include <initializer_list>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <string>
-#include <utility>
 #include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 
 #ifdef _WIN32
 #    include <cstdlib>

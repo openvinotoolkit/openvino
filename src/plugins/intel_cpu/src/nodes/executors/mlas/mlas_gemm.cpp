@@ -4,16 +4,23 @@
 
 #include "mlas_gemm.hpp"
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
+#include <numeric>
+#include <string>
 
 #include "cpu_memory.h"
+#include "cpu_types.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "mlas/sgemm.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/mlas/mlas_gemm.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {

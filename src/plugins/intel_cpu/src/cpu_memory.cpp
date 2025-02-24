@@ -4,15 +4,41 @@
 
 #include "cpu_memory.h"
 
-#include <common/memory_desc_wrapper.hpp>
+#include <oneapi/dnnl/dnnl_common_types.h>
 
+#include <algorithm>
+#include <cassert>
+#include <cerrno>
+#include <cmath>
+#include <common/memory_desc_wrapper.hpp>
+#include <common/nstl.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <exception>
+#include <functional>
+#include <limits>
+#include <memory>
+#include <mutex>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <vector>
+
+#include "cpu_types.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/reorder.h"
-#include "utils/bfloat16.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 #if defined(__linux__)
-#    include <sys/syscall.h> /* Definition of SYS_* constants */
+#    include <sys/syscall.h> // __NR_mbind
 #    include <unistd.h>
 
 #    include <cstring> /* strerror(errno) */

@@ -1,12 +1,21 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <cpu/platform.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstdint>
 #include <cstring>
-#include <iostream>
-#include <limits>
+#include <memory>
 #include <type_traits>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
@@ -16,14 +25,15 @@
 #include "attn_quant.hpp"
 #include "attn_quant_kernel.hpp"
 #include "cache_rotation.hpp"
-#include "common.hpp"
 #include "executor_pa.hpp"
 #include "executor_pa_common.hpp"
+#include "nodes/kernels/scaled_attn/common.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "softmax_kernel.hpp"
 #include "transpose_kernel.hpp"
+#include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/kernels/x64/brgemm_kernel.hpp"
@@ -1434,7 +1444,7 @@ struct MHAHelper {
     float _d_scale;
     size_t _key_group_size = 0;
     size_t _value_group_size = 0;
-    bool _quant_key_bychannel = 0;
+    bool _quant_key_bychannel = false;
     size_t _new_score_stride = 0;
 
     PlainTensor _weight;        // [nthr, H, 32, rnd_up(kv_len, block_size)], shared by first and second loop along bh
@@ -1516,10 +1526,11 @@ struct MHAHelper {
         auto want_score_stride = rnd_up(kv_len, _block_size);
         _new_score_stride = std::max(prev_score_stride, want_score_stride);
         // std::max(S, SV) here is to ensure by_channel quantize has enough buffer to use
-        if (_quant_key_bychannel)
+        if (_quant_key_bychannel) {
             _output.resize<float>({static_cast<size_t>(_nthr), _block_size, H, std::max(S, SV)});
-        else
+        } else {
             _output.resize<float>({static_cast<size_t>(_nthr), _block_size, H, SV});
+        }
 
         // TODO: kernel supports stride
         if (_qk_gemm.empty() || prev_score_stride < _new_score_stride) {
@@ -2517,19 +2528,21 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         _helper._value_group_size = _helper._value_group_size ? _helper._value_group_size : SV;
 
         // check by_hidden_dims parameter of value cache
-        if (!value_group_num && v_cache.get_precision().is_integral())
+        if (!value_group_num && v_cache.get_precision().is_integral()) {
             OPENVINO_THROW("PagedAttn value cache gets wrong group_size, ",
                            _helper._value_group_size,
                            " should be smaller than hidden_dims");
+        }
         size_t S = 0;
         if (_helper._quant_key_bychannel) {
             S = k_cache.size(3);
         } else {
             // check by_hidden_dims parameter of key cache
-            if (!key_group_num && k_cache.get_precision().is_integral())
+            if (!key_group_num && k_cache.get_precision().is_integral()) {
                 OPENVINO_THROW("PagedAttn key cache gets wrong group_size, ",
                                _helper._key_group_size,
                                " should be smaller than hidden_dims");
+            }
             S = k_cache.size(3) - (k_cache.get_precision().is_real() ? 0 : key_params_size * key_group_num);
             _helper._key_group_size = _helper._key_group_size ? _helper._key_group_size : S;
         }

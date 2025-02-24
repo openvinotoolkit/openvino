@@ -4,11 +4,34 @@
 
 #include "nodes/executors/x64/subgraph.hpp"
 
+#include <csignal>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <iostream>
+#include <memory>
+#include <mutex>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "cache/multi_cache.h"
+#include "cpu_types.h"
+#include "dnnl_extension_utils.h"
+#include "emitters/snippets/cpu_runtime_configurator.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/snippets/repacked_input.hpp"
 #include "emitters/snippets/x64/cpu_generator.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_copy_b.hpp"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "nodes/executors/subgraph.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
-#include "snippets/op/subgraph.hpp"
+#include "utils/general_utils.h"
 
 #if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
 #    include <csignal>
@@ -188,6 +211,7 @@ std::vector<MemoryPtr> SubgraphExecutor::prepare_weights(const std::vector<Memor
 }
 
 #if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
+// NOLINTBEGIN(misc-include-cleaner) bug in clang-tidy
 void SubgraphExecutor::segfault_detector() {
     if (enabled_segfault_detector) {
         __sighandler_t signal_handler = []([[maybe_unused]] int signal) {
@@ -204,6 +228,7 @@ void SubgraphExecutor::segfault_detector() {
         sigaction(SIGSEGV, &new_handler, nullptr);
     }
 }
+// NOLINTEND(misc-include-cleaner) bug in clang-tidy
 #endif
 
 std::vector<MemoryPtr> SubgraphExecutor::separately_repack_inputs(const dnnl::stream& strm,

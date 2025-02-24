@@ -4,6 +4,10 @@
 
 #include "deconv_list.hpp"
 
+#include <vector>
+
+#include "nodes/executors/executor.hpp"
+
 namespace ov::intel_cpu {
 
 const std::vector<DeconvExecutorDesc>& getDeconvExecutorsList() {

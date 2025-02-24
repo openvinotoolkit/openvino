@@ -4,8 +4,21 @@
 
 #include "one_hot.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/opsets/opset1.hpp"
-#include "utils.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -22,7 +35,7 @@ Result OneHotShapeInfer::infer(const std::vector<std::reference_wrapper<const Ve
     }
     auto result = input_shapes.front().get();
     auto depth_pos = result.begin();
-    if (result.size() > 0) {
+    if (!result.empty()) {
         depth_pos += m_axis;
     }
     result.insert(depth_pos, depth);
