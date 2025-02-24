@@ -1,7 +1,7 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
 # mypy: ignore-errors
 
 import functools
@@ -115,8 +115,8 @@ def __make_16bit_traceable(model: torch.nn.Module):
                 "_openvino_module_extension_patch_orig_forward")
     dtype_to_patch = [torch.float16, torch.bfloat16]
     for _, module in model.named_modules():
-        if (module.__class__ not in extensions and
-            (any(p.dtype in dtype_to_patch for p in module.parameters(False))
-             or any(b.dtype in dtype_to_patch for b in module.buffers(False)))):
+        if (module.__class__ not in extensions
+            and (any(p.dtype in dtype_to_patch for p in module.parameters(False))
+                 or any(b.dtype in dtype_to_patch for b in module.buffers(False)))):
             log.debug("Casting module %s to float32", module)
             module.float()

@@ -1,7 +1,7 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
 # mypy: ignore-errors
 
 import inspect
@@ -54,8 +54,8 @@ def torch_tensor_to_ov_const(torch_t: torch.Tensor, shared_memory=True):
     try:
         from torch._prims import FakeTensor
         is_fake_tensor = isinstance(torch_t, FakeTensor)
-    except:
-        pass
+    except ImportError:
+        log.debug("Failed to import FakeTensor")
     assert not is_fake_tensor, '`FakeTensor` is found in the graph during conversion. ' \
                                'In order to avoid `FakeTensor` in the traced model, ' \
                                'try to infer the model before exporting.'
