@@ -214,10 +214,6 @@ bool MatMulTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) 
                 return false;
             }
         }
-
-        if (!NetworkHelper::checkZeroPoint(dequantization1.subtract)) {
-            return false;
-        }
     } else {
         return false;
     }

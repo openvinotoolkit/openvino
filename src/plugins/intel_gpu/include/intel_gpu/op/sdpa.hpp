@@ -26,7 +26,7 @@ public:
          const std::vector<int64_t>& order_k,
          const std::vector<int64_t>& order_v,
          const std::vector<int64_t>& order_out,
-         const ov::element::Type output_type = ov::element::undefined);
+         const ov::element::Type output_type = ov::element::dynamic);
 
     SDPA(const OutputVector& inputs,
          const bool is_causal,
@@ -35,7 +35,7 @@ public:
          const std::vector<int64_t>& order_v,
          const std::vector<int64_t>& order_out,
          const QuantizationAttribute& quantization_attrs,
-         const ov::element::Type output_type = ov::element::undefined);
+         const ov::element::Type output_type = ov::element::dynamic);
 
     bool visit_attributes(ov::AttributeVisitor &visitor) override;
 
