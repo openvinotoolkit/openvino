@@ -491,7 +491,11 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
         throw std::runtime_error("primitive: " + id + " is not a network output");
 
     if (is_remote) {
-        _output_remote_mem_ptr = mem_new;
+        _output_remote_mem_ptrs[id] = mem_new;
+    } else {
+        if (has_output_remote_memory_ptr(id)) {
+            _output_remote_mem_ptrs.erase(id);
+        }
     }
 
     auto& eng = get_engine();
@@ -694,6 +698,19 @@ void network::build_exec_order() {
 bool network::contains_state(const std::string& variable_id) {
     auto it = _state_initializers.find(variable_id);
     if (it != _state_initializers.end())
+        return true;
+    else
+        return false;
+}
+
+memory& network::get_output_remote_memory(const primitive_id& id) const {
+    OPENVINO_ASSERT(_output_remote_mem_ptrs.count(id) == 1, "[GPU] Can't get output remote memory with ", id);
+    return *_output_remote_mem_ptrs.at(id);
+}
+
+bool network::has_output_remote_memory_ptr(const primitive_id& id) const {
+    auto it = _output_remote_mem_ptrs.find(id);
+    if (it != _output_remote_mem_ptrs.end())
         return true;
     else
         return false;
