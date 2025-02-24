@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from types import TracebackType
-from typing import Any, Iterable, Union, Optional, Dict, Tuple, List, cast
+from typing import Any, Iterable, Union, Optional, Dict, Tuple, List
 from typing import Type as TypingType
 from pathlib import Path
 
@@ -19,6 +19,7 @@ from openvino.utils.data_helpers import (
     OVDict,
     _InferRequestWrapper,
     _data_dispatch,
+    tensor_from_file,
 )
 from openvino.package_utils import deprecatedclassproperty
 
@@ -706,3 +707,6 @@ def compile_model(
 )
 def undefined_deprecated(self):  # type: ignore
     return Type.dynamic
+
+
+Type.undefined = undefined_deprecated

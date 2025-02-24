@@ -101,9 +101,6 @@ from openvino._pyopenvino import VASurfaceTensor
 from openvino._pyopenvino import get_version
 __version__ = get_version()
 
-from openvino._ov_api import undefined_deprecated
-Type.undefined = undefined_deprecated
-
 # Tools
 try:
     # Model Conversion API - ovc should reside in the main namespace
