@@ -6,10 +6,12 @@ Napi::FunctionReference NodeWrap::constructor;
 // NodeWrap constructor
 NodeWrap::NodeWrap(const Napi::CallbackInfo& info, ov::Node* node)
     : Napi::ObjectWrap<NodeWrap>(info), node_(node) {
+    // Ensure node_ is not null
     assert(node_ != nullptr && "Node pointer cannot be null");
 }
 
-Napi::Value NodeWrap::get_name(const Napi::CallbackInfo& info) const {
+Napi::Value NodeWrap::get_name(const Napi::CallbackInfo& info) {
+    // Ensure node_ is not null before accessing it
     assert(node_ != nullptr && "Node pointer cannot be null");
     return Napi::String::New(info.Env(), this->node_->get_name());
 }
@@ -23,6 +25,8 @@ Napi::Function NodeWrap::get_class(Napi::Env env) {
 }
 
 Napi::Object NodeWrap::New(Napi::Env env, ov::Node* node) {
+    // Ensure node is not null before creating the object
+    assert(node != nullptr && "Node pointer cannot be null");
     Napi::Object obj = constructor.New({});
     NodeWrap* wrap = Napi::ObjectWrap<NodeWrap>::Unwrap(obj);
     wrap->node_ = node;
@@ -35,8 +39,8 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     });
 
     // Store the class constructor in the static member
-    NodeWrap::constructor = Napi::Persistent(func);
-    NodeWrap::constructor.SuppressDestruct();
+    constructor = Napi::Persistent(func);
+    constructor.SuppressDestruct();
 
     exports.Set("Node", func);
     return exports;
