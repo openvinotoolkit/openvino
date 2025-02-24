@@ -4,15 +4,27 @@
 
 #include "align_matmul_input_ranks.hpp"
 
-#include <algorithm>
-#include <transformations/utils/utils.hpp>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <vector>
 
-#include "itt.hpp"
+#include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/opsets/opset1.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {

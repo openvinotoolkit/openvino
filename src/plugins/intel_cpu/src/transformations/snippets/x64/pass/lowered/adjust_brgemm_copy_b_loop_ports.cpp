@@ -4,12 +4,25 @@
 
 #include "adjust_brgemm_copy_b_loop_ports.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/itt.hpp"
+#include "openvino/op/parameter.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/loop_port.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
 namespace ov::intel_cpu {
 
@@ -94,7 +107,7 @@ bool pass::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& li
         }
 
         OPENVINO_ASSERT(brgemm_loop_ids.size() > repacking_loop_ids.size(), "Invalid BrgemmCopyB loop configuration");
-        const auto& loop_manager = linear_ir.get_loop_manager();
+        const snippets::lowered::LoopManagerPtr& loop_manager = linear_ir.get_loop_manager();
         for (auto i = repacking_loop_ids.size(); i < brgemm_loop_ids.size(); i++) {
             const auto& loop = loop_manager->get_loop_info(brgemm_loop_ids[i]);
             auto uni_loop = ov::as_type_ptr<snippets::lowered::UnifiedLoopInfo>(loop);

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "nodes/executors/convolution_config.hpp"
+#include "post_ops.hpp"
 #ifdef CPU_DEBUG_CAPS
 #    pragma once
 

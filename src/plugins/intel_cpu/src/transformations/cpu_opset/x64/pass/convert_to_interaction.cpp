@@ -4,15 +4,24 @@
 
 #include "convert_to_interaction.hpp"
 
+#include <cstddef>
+#include <memory>
 #include <openvino/core/rt_info.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <transformations/utils/utils.hpp>
+#include <vector>
 
-#include "itt.hpp"
+#include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "simplify_fakequantize.hpp"
 #include "transformations/cpu_opset/x64/op/interaction.hpp"

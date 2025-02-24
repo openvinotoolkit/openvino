@@ -4,8 +4,31 @@
 
 #include "graph_optimizer.h"
 
+#include <oneapi/dnnl/dnnl_common_types.h>
+
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <limits>
+#include <list>
+#include <memory>
+#include <numeric>
+#include <optional>
+#include <set>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
+
+#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "edge.h"
+#include "itt.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
+#include "node.h"
 #include "nodes/bin_conv.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/conv.h"
@@ -16,13 +39,19 @@
 #include "nodes/input.h"
 #include "nodes/interpolate.h"
 #include "nodes/memory.hpp"
+#include "nodes/memory_state_base.h"
 #include "nodes/reorder.h"
 #include "nodes/reshape.h"
 #include "nodes/rnn.h"
 #include "nodes/scaled_attn.h"
 #include "nodes/transpose.h"
 #include "onednn/dnnl.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/itt.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "selective_build.h"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
@@ -36,16 +65,6 @@
 #        define _WINSOCK2API_
 #    endif
 #endif
-#include <algorithm>
-#include <list>
-#include <memory>
-#include <optional>
-#include <set>
-#include <string>
-
-#include "cpu/x64/cpu_isa_traits.hpp"
-#include "itt.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
 
 using namespace dnnl;
 using namespace ov::intel_cpu::node;

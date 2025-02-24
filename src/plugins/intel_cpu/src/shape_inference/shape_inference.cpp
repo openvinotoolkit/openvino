@@ -3,13 +3,16 @@
 //
 #include "shape_inference.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
 #include <openvino/core/node.hpp>
-#include <openvino/opsets/opset10.hpp>
 #include <openvino/opsets/opset12.hpp>
 #include <openvino/opsets/opset13.hpp>
 #include <openvino/opsets/opset14.hpp>
 #include <openvino/opsets/opset15.hpp>
-#include <openvino/opsets/opset16.hpp>
 #include <openvino/opsets/opset2.hpp>
 #include <openvino/opsets/opset5.hpp>
 #include <openvino/opsets/opset6.hpp>
@@ -17,7 +20,13 @@
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/opsets/opset9.hpp>
 #include <optional>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
+// @todo try to get rid of supression
+// NOLINTBEGIN(misc-include-cleaner)
 #include "adaptive_avg_pool_shape_inference.hpp"
 #include "adaptive_max_pool_shape_inference.hpp"
 #include "assign_shape_inference.hpp"
@@ -33,6 +42,8 @@
 #include "convolution_backprop_shape_inference.hpp"
 #include "convolution_shape_inference.hpp"
 #include "copy_shape_inference.hpp"
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "ctc_greedy_decoder_seq_len_shape_inference.hpp"
 #include "ctc_greedy_decoder_shape_inference.hpp"
 #include "ctc_loss_shape_inference.hpp"
@@ -80,13 +91,35 @@
 #include "nms_shape_inference.hpp"
 #include "nv12_shape_inference.hpp"
 #include "one_hot_shape_inference.hpp"
-#include "openvino/op/binary_convolution.hpp"
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/group_conv.hpp"
+#include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/dimension.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/col2im.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/istft.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/rms_norm.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
+#include "openvino/op/search_sorted.hpp"
+#include "openvino/op/segment_max.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/stft.hpp"
+#include "openvino/op/string_tensor_pack.hpp"
+#include "openvino/op/string_tensor_unpack.hpp"
+#include "openvino/op/util/binary_elementwise_arithmetic.hpp"
+#include "openvino/op/util/binary_elementwise_comparison.hpp"
+#include "openvino/op/util/binary_elementwise_logical.hpp"
+#include "openvino/op/util/gather_base.hpp"
+#include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset4.hpp"
+#include "ov_ops/augru_cell.hpp"
+#include "ov_ops/augru_sequence.hpp"
+#include "ov_ops/glu.hpp"
 #include "pad_shape_inference.hpp"
 #include "prior_box_clustered_shape_inference.hpp"
 #include "prior_box_shape_inference.hpp"
@@ -113,6 +146,8 @@
 #include "search_sorted_shape_inference.hpp"
 #include "segment_max_shape_inference.hpp"
 #include "select_shape_inference.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
 #include "shape_nodes.hpp"
 #include "shuffle_channels_shape_inference.hpp"
 #include "slice_scatter_shape_inference.hpp"
@@ -126,6 +161,7 @@
 #include "strided_slice_shape_inference.hpp"
 #include "string_tensor_pack_shape_inference.hpp"
 #include "string_tensor_unpack_shape_inference.hpp"
+#include "tensor_data_accessor.hpp"
 #include "tile_shape_inference.hpp"
 #include "topk_shape_inference.hpp"
 #include "transpose_shape_inference.hpp"
@@ -133,6 +169,7 @@
 #include "utils.hpp"
 #include "utils/bit_util.hpp"
 #include "variadic_split_shape_inference.hpp"
+// NOLINTEND(misc-include-cleaner)
 
 namespace ov::intel_cpu {
 /**
@@ -425,9 +462,6 @@ std::shared_ptr<typename TShapeInfer::iface_type> make_shape_infer(std::shared_p
 
 // Type of key in shape inference Makers maps.
 using ShapeInferKey = ov::NodeTypeInfo;
-
-// Default opset used for 'default' in inference map.
-using namespace ov::opset10;
 
 // Helper macros to make map entries
 #define _OV_OP_SHAPE_INFER_VA_REG(OP, ...) \

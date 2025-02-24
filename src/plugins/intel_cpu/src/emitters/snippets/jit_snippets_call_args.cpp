@@ -4,9 +4,15 @@
 
 #include "jit_snippets_call_args.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
+#include <utility>
+#include <vector>
 
 #include "emitters/utils.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ov::intel_cpu {
 

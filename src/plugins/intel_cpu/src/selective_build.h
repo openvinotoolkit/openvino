@@ -3,10 +3,8 @@
 //
 
 #pragma once
-#include <openvino/cc/factory.h>
+#include "openvino/cc/selective_build.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 OV_CC_DOMAINS(intel_cpu)
 }
-}  // namespace ov

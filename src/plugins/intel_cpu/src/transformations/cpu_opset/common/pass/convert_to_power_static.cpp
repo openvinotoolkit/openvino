@@ -4,14 +4,27 @@
 
 #include "convert_to_power_static.hpp"
 
+#include <cstdint>
+#include <memory>
 #include <openvino/opsets/opset6.hpp>
+#include <type_traits>
 
-#include "itt.hpp"
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/mvn.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset4.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "transformations/cpu_opset/common/op/power_static.hpp"

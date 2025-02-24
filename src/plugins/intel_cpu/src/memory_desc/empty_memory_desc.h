@@ -4,8 +4,13 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <string>
+
 #include "cpu_memory_desc.h"
 #include "cpu_shape.h"
+#include "cpu_types.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"

@@ -4,22 +4,37 @@
 
 #include "adaptive_pooling.h"
 
+#include <oneapi/dnnl/dnnl_common_types.h>
+
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <string>
-#include <utils/bfloat16.hpp>
 #include <vector>
 
-#include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "onednn/dnnl.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
-#include "selective_build.h"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/adaptive_avg_pool.hpp"
+#include "openvino/op/adaptive_max_pool.hpp"
 #include "shape_inference/custom/adaptive_pooling.hpp"
 #include "utils/general_utils.h"
 
 using namespace dnnl;
-using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu::node {
 
@@ -283,7 +298,7 @@ inline void AdaptivePooling::setBinBorders(size_t* startPtr,
                                            size_t inputLength,
                                            size_t outputLength) {
     *(startPtr) = idx * inputLength / outputLength;
-    *(endPtr) = ceil(static_cast<float>((idx + 1) * inputLength) / outputLength);
+    *(endPtr) = std::ceil(static_cast<float>((idx + 1) * inputLength) / outputLength);
 }
 
 }  // namespace ov::intel_cpu::node

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <dnnl.hpp>
+#include <oneapi/dnnl/dnnl.hpp>
 
 namespace dnnl {
 

@@ -7,23 +7,63 @@
 #include "defs.hpp"
 
 // Operations
-#include <ov_ops/augru_cell.hpp>
-#include <ov_ops/augru_sequence.hpp>
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <numeric>
 #include <ov_ops/gather_compressed.hpp>
+#include <set>
+#include <vector>
 
+#include "itt.h"
+#include "low_precision/common/precisions_restriction.hpp"
+#include "low_precision/common/quantization_granularity_restriction.hpp"
+#include "low_precision/layer_transformation.hpp"
+#include "low_precision/quantization_details.hpp"
+#include "low_precision/weightable_layer_transformation.hpp"
+#include "nodes/fullyconnected.h"
+#include "onednn/dnnl.h"
+#include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_input.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/itt.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/group_normalization.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/mish.hpp"
 #include "openvino/op/paged_attention.hpp"
-#include "openvino/op/prelu.hpp"
-#include "openvino/op/round.hpp"
-#include "openvino/op/sqrt.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/swish.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset10.hpp"
-#include "openvino/opsets/opset2.hpp"
-#include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset4.hpp"
 #include "openvino/opsets/opset5.hpp"
 #include "openvino/opsets/opset6.hpp"
 
 // Common transformations
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/node_registry.hpp"
+#include "openvino/pass/validate.hpp"
+#include "selective_build.h"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/augru_cell_fusion.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
@@ -46,13 +86,34 @@
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
+#include "transformations/convert_precision.hpp"
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    include "low_precision/avg_pool.hpp"
+#    include "low_precision/convolution.hpp"
+#    include "low_precision/group_convolution.hpp"
+#    include "low_precision/interpolate.hpp"
+#    include "low_precision/mat_mul.hpp"
+#    include "low_precision/max_pool.hpp"
+#    include "low_precision/mvn.hpp"
+#    include "low_precision/normalize_l2.hpp"
+#    include "low_precision/recurrent_cell.hpp"
+#    include "low_precision/reduce_max.hpp"
+#    include "low_precision/reduce_mean.hpp"
+#    include "low_precision/reduce_min.hpp"
+#    include "low_precision/reduce_sum.hpp"
+#    include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
+#    include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
+#    include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
+#    include "transformations/cpu_opset/arm/pass/convert_reduce_no_keep_dims.hpp"
+#    include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
+#endif
+#include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/fp16_compression/mark_floatpoint_range.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/op_conversions/convert_avgpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
-#include "transformations/op_conversions/convert_bitwise_to_logical_bool.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
@@ -77,7 +138,6 @@
 #include "transformations/op_conversions/convert_slicescatter.hpp"
 #include "transformations/op_conversions/convert_space_to_batch.hpp"
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
-#include "transformations/op_conversions/convert_subtract.hpp"
 #include "transformations/op_conversions/convert_ti_to_sequences.hpp"
 #include "transformations/op_conversions/convert_topk11_downgrade.hpp"
 #include "transformations/op_conversions/convert_topk3.hpp"
@@ -89,7 +149,9 @@
 #include "transformations/op_conversions/gelu7_downgrade.hpp"
 #include "transformations/op_conversions/group_normalization_decomposition.hpp"
 #include "transformations/op_conversions/gru_cell_decomposition.hpp"
-#include "transformations/op_conversions/hard_sigmoid_decomposition.hpp"
+#if defined(OPENVINO_ARCH_ARM64)
+#    include "transformations/op_conversions/hard_sigmoid_decomposition.hpp"
+#endif
 #include "transformations/op_conversions/hsigmoid_decomposition.hpp"
 #include "transformations/op_conversions/hswish_decomposition.hpp"
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
@@ -98,7 +160,6 @@
 #include "transformations/op_conversions/reduce_l1_decomposition.hpp"
 #include "transformations/op_conversions/reduce_l2_decomposition.hpp"
 #include "transformations/op_conversions/rnn_cell_decomposition.hpp"
-#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
 #include "transformations/op_conversions/softmax_decomposition.hpp"
 #include "transformations/op_conversions/softplus_decomposition.hpp"
@@ -109,48 +170,32 @@
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
-#include "transformations/transpose_sinking/ts_shape_of.hpp"
-#include "transformations/utils/print_model.hpp"
+#include "transformations/utils/utils.hpp"
+#include "utils/general_utils.h"
 #include "utils/ngraph_transformation.hpp"
 
 // LPT transformations
 #include "low_precision/add.hpp"
-#include "low_precision/avg_pool.hpp"
 #include "low_precision/convert_subtract_constant.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
 #include "low_precision/fold_convert.hpp"
 #include "low_precision/fuse_convert.hpp"
-#include "low_precision/group_convolution.hpp"
-#include "low_precision/interpolate.hpp"
-#include "low_precision/mat_mul.hpp"
-#include "low_precision/max_pool.hpp"
+#include "low_precision/low_precision.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
-#include "low_precision/mvn.hpp"
 #include "low_precision/network_helper.hpp"
-#include "low_precision/normalize_l2.hpp"
-#include "low_precision/recurrent_cell.hpp"
-#include "low_precision/reduce_max.hpp"
-#include "low_precision/reduce_mean.hpp"
-#include "low_precision/reduce_min.hpp"
-#include "low_precision/reduce_sum.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 // CPU specific transformations
 #include "transformations/cpu_opset/convert_to_cpu_specific_opset.hpp"
+#include "utils/precision_support.h"
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
 #else
 #    include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
 #endif
-#include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
-#include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
-#include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
-#include "transformations/cpu_opset/arm/pass/convert_reduce_no_keep_dims.hpp"
-#include "transformations/cpu_opset/arm/pass/mish_decomposition.hpp"
 #include "transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/convert_fq_rnn_to_quantized_rnn.hpp"
-#include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
 #include "transformations/cpu_opset/common/pass/decompose_rms_norm.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/ngram_fusion.hpp"
@@ -160,7 +205,6 @@
 #include "transformations/cpu_opset/x64/pass/convert_to_interaction.hpp"
 #include "transformations/cpu_opset/x64/pass/mlp_fusion.hpp"
 #include "transformations/cpu_opset/x64/pass/qkv_proj_fusion.hpp"
-#include "transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp"
 
 // Snippets
 #include "snippets/pass/collapse_subgraph.hpp"
@@ -168,7 +212,6 @@
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/pass/extract_reshapes_from_mha.hpp"
 #include "snippets/pass/fc_tokenization.hpp"
-#include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/tokenization.hpp"
@@ -177,24 +220,19 @@
 #endif
 
 // Misc
-#include "dnnl.hpp"
 #include "nodes/fake_quantize.h"
 #include "nodes/llm_mlp.h"
-#include "nodes/mha.h"
 #include "nodes/mvn.h"
 #include "nodes/normalize.h"
 #include "nodes/paged_attn.h"
 #include "nodes/qkv_proj.h"
 #include "nodes/rms_norm.h"
 #include "nodes/rnn.h"
-#include "nodes/scaled_attn.h"
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
 #else
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
-#include "openvino/core/graph_util.hpp"
-#include "openvino/core/validation_util.hpp"
 
 namespace ov::intel_cpu {
 
@@ -1398,10 +1436,11 @@ void Transformations::MainSnippets() {
             }
             ov::element::TypeVector precisions;
             auto push_precision = [&](const ov::element::Type& precision) {
-                if (inferencePrecision == ov::element::bf16 && precision == ov::element::f32)
+                if (inferencePrecision == ov::element::bf16 && precision == ov::element::f32) {
                     precisions.push_back(ov::element::bf16);
-                else
+                } else {
                     precisions.push_back(precision);
+                }
             };
             push_precision(n->get_input_element_type(0));
             push_precision(n->get_input_element_type(1));

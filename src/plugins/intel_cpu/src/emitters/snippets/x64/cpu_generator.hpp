@@ -4,11 +4,18 @@
 
 #pragma once
 
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <vector>
+
 #include "cache/multi_cache.h"
 #include "cpu/x64/jit_generator.hpp"
-#include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "snippets/emitter.hpp"
 #include "snippets/generator.hpp"
-#include "snippets/runtime_configurator.hpp"
 #include "snippets/target_machine.hpp"
 
 #ifdef SNIPPETS_DEBUG_CAPS

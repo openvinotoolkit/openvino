@@ -4,16 +4,23 @@
 
 #include "mul_add_to_fma.hpp"
 
-#include <snippets/itt.hpp>
+#include <memory>
 
+#include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/itt.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
+#include "snippets/itt.hpp"
 #include "snippets/op/memory_access.hpp"
-#include "snippets/snippets_isa.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
-#include "transformations/utils/utils.hpp"
 
 ov::intel_cpu::pass::MulAddToFMA::MulAddToFMA() {
     MATCHER_SCOPE(MulAddToFMA);

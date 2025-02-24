@@ -6,6 +6,19 @@
 
 #include <node.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+
 namespace ov {
 namespace intel_cpu {
 namespace node {

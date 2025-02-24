@@ -4,12 +4,26 @@
 
 #include "enforce_precision.hpp"
 
+#include <cstddef>
+#include <functional>
 #include <memory>
+#include <set>
+#include <vector>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/itt.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/op/brgemm.hpp"
+#include "snippets/op/convert_saturation.hpp"
 #include "snippets/pass/propagate_precision.hpp"
 #include "transformations/utils/utils.hpp"
 

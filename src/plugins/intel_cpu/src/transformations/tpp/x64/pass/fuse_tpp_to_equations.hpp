@@ -4,7 +4,11 @@
 
 #pragma once
 
-#include "snippets/lowered/pass/pass.hpp"
+#include <memory>
+
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/pass/pass.hpp"
 
 namespace ov::intel_cpu::tpp::pass {
 

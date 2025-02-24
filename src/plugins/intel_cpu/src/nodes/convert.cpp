@@ -4,8 +4,27 @@
 
 #include "convert.h"
 
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+
 #include "common/blocked_desc_creator.h"
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/executors/common/ref_convert.hpp"
+#include "nodes/executors/convert_list.hpp"
+#include "nodes/executors/executor.hpp"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
 

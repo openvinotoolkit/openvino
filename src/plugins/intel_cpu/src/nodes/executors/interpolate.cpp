@@ -4,9 +4,20 @@
 
 #include "interpolate.hpp"
 
-#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include <algorithm>
+#include <cmath>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "nodes/common/cpu_memcpy.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
+#include "utils/general_utils.h"
 
 using namespace ov::intel_cpu;
 

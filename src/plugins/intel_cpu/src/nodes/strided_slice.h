@@ -6,8 +6,17 @@
 
 #include <node.h>
 
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace intel_cpu {

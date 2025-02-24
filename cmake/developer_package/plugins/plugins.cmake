@@ -106,6 +106,7 @@ function(ov_add_plugin)
             if (ENABLE_CLANG_TIDY)
                 set_target_properties(${OV_PLUGIN_NAME} PROPERTIES
                     CXX_CLANG_TIDY "${CLANG_TIDY};--extra-arg=-Wno-unused-command-line-argument")
+                    # CXX_CLANG_TIDY "${CLANG_TIDY};--extra-arg=-Wno-unused-command-line-argument;-fix;--config=/home/eduplens/git/openvino/numa_tensor_parallel/src/plugins/intel_cpu/src/clang-tidy-tmp")
             endif()
         endif()
 

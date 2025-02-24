@@ -4,10 +4,16 @@
 
 #include "convert_to_swish_cpu.hpp"
 
-#include "itt.hpp"
+#include <memory>
+
+#include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/opsets/opset4.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 
