@@ -102,10 +102,10 @@ std::shared_ptr<ov::Model> PrecisionPropagationFunction::getOriginalWithNeighbor
     std::shared_ptr<ov::Node> result1 = concat1;
     std::shared_ptr<ov::Node> result2 = concat2;
     {
-        const std::vector<size_t> kernel = { 3, 3 };
-        const std::vector<size_t> stride = { 1, 1 };
-        const std::vector<size_t> padBegin = { 0, 0 };
-        const std::vector<size_t> padEnd = { 0, 0 };
+        const ov::inplace_vector<size_t> kernel = {3, 3};
+        const ov::inplace_vector<size_t> stride = {1, 1};
+        const ov::inplace_vector<size_t> padBegin = {0, 0};
+        const ov::inplace_vector<size_t> padEnd = {0, 0};
         const ov::op::PadType padType = ov::op::PadType::NOTSET;
         const ov::op::RoundingType roundingType = ov::op::RoundingType::FLOOR;
 
@@ -213,10 +213,10 @@ std::shared_ptr<ov::Model> PrecisionPropagationFunction::getReferenceWithNeighbo
     std::shared_ptr<ov::Node> result1 = concat1;
     std::shared_ptr<ov::Node> result2 = concat2;
     {
-        const std::vector<size_t> kernel = { 3, 3 };
-        const std::vector<size_t> stride = { 1, 1 };
-        const std::vector<size_t> padBegin = { 0, 0 };
-        const std::vector<size_t> padEnd = { 0, 0 };
+        const ov::inplace_vector<size_t> kernel = {3, 3};
+        const ov::inplace_vector<size_t> stride = {1, 1};
+        const ov::inplace_vector<size_t> padBegin = {0, 0};
+        const ov::inplace_vector<size_t> padEnd = {0, 0};
         const ov::op::PadType padType = ov::op::PadType::NOTSET;
         const ov::op::RoundingType roundingType = ov::op::RoundingType::FLOOR;
 
@@ -285,10 +285,11 @@ std::shared_ptr<ov::Model> PrecisionPropagationFunction::getReferenceWithNeighbo
     return function;
 }
 
-std::shared_ptr<Node> PrecisionPropagationFunction::makeMaxPool(const ov::Output<Node>& parent, const std::vector<size_t>& kernel) {
-    const std::vector<size_t> stride = { 1, 1 };
-    const std::vector<size_t> padBegin = { 0, 0 };
-    const std::vector<size_t> padEnd = { 0, 0 };
+std::shared_ptr<Node> PrecisionPropagationFunction::makeMaxPool(const ov::Output<Node>& parent,
+                                                                const ov::inplace_vector<size_t>& kernel) {
+    const ov::inplace_vector<size_t> stride = {1, 1};
+    const ov::inplace_vector<size_t> padBegin = {0, 0};
+    const ov::inplace_vector<size_t> padEnd = {0, 0};
     const ov::op::PadType padType = ov::op::PadType::NOTSET;
     const ov::op::RoundingType roundingType = ov::op::RoundingType::FLOOR;
     const auto pooling = std::make_shared<ov::opset1::MaxPool>(

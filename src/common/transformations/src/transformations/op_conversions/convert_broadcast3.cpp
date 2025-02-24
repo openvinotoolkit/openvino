@@ -99,11 +99,15 @@ ov::pass::ConvertBroadcast3::ConvertBroadcast3() {
                     if (input_element_type == element::boolean) {
                         input = std::make_shared<ov::op::v1::LogicalAnd>(
                             input,
-                            ov::op::v0::Constant::create(input_element_type, target_shape, {1}));
+                            ov::op::v0::Constant::create(input_element_type,
+                                                         Shape(target_shape.begin(), target_shape.end()),
+                                                         {1}));
                     } else {
                         input = std::make_shared<ov::op::v1::Multiply>(
                             input,
-                            ov::op::v0::Constant::create(input_element_type, target_shape, {1}));
+                            ov::op::v0::Constant::create(input_element_type,
+                                                         Shape{target_shape.begin(), target_shape.end()},
+                                                         {1}));
                     }
                 }
             } else {

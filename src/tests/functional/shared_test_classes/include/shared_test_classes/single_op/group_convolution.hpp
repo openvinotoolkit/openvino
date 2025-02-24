@@ -12,15 +12,15 @@
 
 namespace ov {
 namespace test {
-typedef std::tuple<
-        std::vector<size_t>,
-        std::vector<size_t>,
-        std::vector<ptrdiff_t>,
-        std::vector<ptrdiff_t>,
-        std::vector<size_t>,
-        size_t,
-        size_t,
-        ov::op::PadType> groupConvSpecificParams;
+typedef std::tuple<ov::inplace_vector<size_t>,
+                   ov::inplace_vector<size_t>,
+                   std::vector<ptrdiff_t>,
+                   std::vector<ptrdiff_t>,
+                   ov::inplace_vector<size_t>,
+                   size_t,
+                   size_t,
+                   ov::op::PadType>
+    groupConvSpecificParams;
 typedef std::tuple<
         groupConvSpecificParams,
         ov::element::Type,

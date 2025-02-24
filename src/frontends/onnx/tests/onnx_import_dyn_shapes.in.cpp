@@ -645,12 +645,14 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_transpose) {
 
 namespace {
 Shape get_flattened_shape(const Shape& in_shape, size_t axis) {
-    size_t first_dim_size = std::accumulate(begin(in_shape),
-                                            next(begin(in_shape), axis),
+    size_t first_dim_size = std::accumulate(std::begin(in_shape),
+                                            std::next(std::begin(in_shape), axis),
                                             static_cast<size_t>(1),
                                             std::multiplies<size_t>());
-    size_t last_dim_size =
-        std::accumulate(next(begin(in_shape), axis), end(in_shape), static_cast<size_t>(1), std::multiplies<size_t>());
+    size_t last_dim_size = std::accumulate(std::next(std::begin(in_shape), axis),
+                                           std::end(in_shape),
+                                           static_cast<size_t>(1),
+                                           std::multiplies<size_t>());
     return Shape{first_dim_size, last_dim_size};
 }
 }  // namespace

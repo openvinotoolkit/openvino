@@ -94,7 +94,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
 
         mov(reg_work_amount, ptr[reg_const_params + GET_OFF(work_amount)]);
     } else {
-        auto init_ptrs_with_offsets = [this, offset_count](Reg64 pointer, const std::vector<size_t>& offsets) {
+        auto init_ptrs_with_offsets = [this, offset_count](Reg64 pointer, const auto& offsets) {
             for (int j = 0; j < offset_count; j++) {
                 if (jep_.dims[j] != 1 && offsets[j] != 0) {
                     mov(reg_tmp_64, offsets[j]);

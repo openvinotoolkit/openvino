@@ -384,10 +384,10 @@ struct EltwiseKey {
                 seed = hash_combine(seed, item.back() == 1);
             }
         } else {
-            seed = get_vector_hash(seed, outOrder);
-            seed = get_vector_hash(seed, outBlkDims);
+            seed = get_array_hash(seed, outOrder.data(), outOrder.size());
+            seed = get_array_hash(seed, outBlkDims.data(), outBlkDims.size());
             for (auto&& item : inpDims) {
-                seed = get_vector_hash(seed, item);
+                seed = get_array_hash(seed, item.data(), item.size());
             }
         }
         std::for_each(inpPrc.begin(), inpPrc.end(), [&](const ov::element::Type& item) {
@@ -464,7 +464,7 @@ public:
                        const dnnl::post_ops& post_ops,
                        bool useRuntimePtrs,
                        bool doOutputSaturation) {
-        auto collapseLastDims = [](std::vector<size_t>& dims, int dimsToCollapse) {
+        auto collapseLastDims = [](auto& dims, int dimsToCollapse) {
             for (size_t i = dims.size() - 2; i > dims.size() - dimsToCollapse - 2; i--) {
                 dims[dims.size() - 1] *= dims[i];
             }
@@ -478,7 +478,7 @@ public:
             }
         };
 
-        auto collapseLastOffsets = [](std::vector<size_t>& dims, int dimsToCollapse) {
+        auto collapseLastOffsets = [](auto& dims, int dimsToCollapse) {
             for (size_t i = dims.size() - 2; i > dims.size() - dimsToCollapse - 2; i--) {
                 if (dims[dims.size() - 1] > 0 || dims[i] > 0) {
                     dims[dims.size() - 1] = std::max(dims[dims.size() - 1], static_cast<size_t>(1)) *

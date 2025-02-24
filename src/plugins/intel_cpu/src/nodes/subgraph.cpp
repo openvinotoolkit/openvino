@@ -77,9 +77,8 @@ struct SubgraphKey {
         using namespace dnnl::impl::primitive_hashing;
 
         size_t seed = get_attr_hash(0, attrs);
-        for (const auto& shape : in_shapes) {
-            seed = get_vector_hash(seed, shape);
-        }
+        for (const auto& shape : in_shapes)
+            seed = get_array_hash(seed, shape.data(), shape.size());
 
         return seed;
     }
@@ -122,9 +121,8 @@ struct SubgraphShapeInferResultKey {
         using namespace dnnl::impl::primitive_hashing;
 
         size_t seed = hash_combine(0, body_hash);
-        for (const auto& shape : in_shapes) {
-            seed = get_vector_hash(seed, shape);
-        }
+        for (const auto& shape : in_shapes)
+            seed = get_array_hash(seed, shape.data(), shape.size());
 
         return seed;
     }
@@ -427,7 +425,7 @@ snippets::op::Subgraph::BlockedShapeVector Subgraph::getSnippetsBlockedShapes() 
         const auto& blockedDesc = memDesc->as<BlockedMemoryDesc>();
         const auto& order = blockedDesc->getOrder();
 
-        in_blocked_shapes[i] = {blockedDesc->getBlockDims(), order};
+        in_blocked_shapes[i] = {blockedDesc->getBlockDims(), {order.begin(), order.end()}};
     }
     return in_blocked_shapes;
 }

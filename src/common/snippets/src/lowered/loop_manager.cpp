@@ -168,7 +168,7 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
     std::vector<ExpressionPort> loop_input_ports, loop_output_ports;
     LoopManager::get_io_loop_ports(loop_begin_pos, loop_end_pos, loop_input_ports, loop_output_ports);
 
-    auto broadcast = [](std::vector<size_t>& lhs, const std::vector<size_t>& rhs, size_t index) -> void {
+    auto broadcast = [](auto& lhs, const auto& rhs, size_t index) -> void {
         if (rhs == lhs)
             return;
         const auto lhs_size = lhs.size();
@@ -182,12 +182,12 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
                         "Failed to broadcast work amount in marking loop");
     };
 
-    auto is_outside_loop = [](const std::vector<size_t>& subtensor) {
+    auto is_outside_loop = [](const VectorDims& subtensor) {
         return std::all_of(subtensor.begin(), subtensor.end(), utils::is_full_dim_value);
     };
 
-    std::vector<size_t> loop_subtensor;
-    std::vector<size_t> loop_tensor(loop_depth, 1);
+    VectorDims loop_subtensor;
+    VectorDims loop_tensor(loop_depth, 1);
     for (const auto& output_port : loop_output_ports) {
         const auto shape = utils::get_preordered_vdims(output_port);
         auto subtensor = output_port.get_descriptor_ptr()->get_subtensor();

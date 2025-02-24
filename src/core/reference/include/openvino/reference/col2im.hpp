@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "openvino/core/shape.hpp"
+#include "openvino/core/strides.hpp"
 
 namespace ov {
 namespace reference {

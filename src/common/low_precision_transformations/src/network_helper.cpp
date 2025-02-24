@@ -411,11 +411,11 @@ std::shared_ptr<Node> NetworkHelper::getConstantInput(const std::shared_ptr<cons
     return nullptr;
 }
 
-std::vector<size_t> NetworkHelper::updateReshapeValues(
+ov::inplace_vector<size_t> NetworkHelper::updateReshapeValues(
     const Shape& elementwiseConstantShape,
     const Shape& elementwiseShape,
-    const std::vector<size_t>& reshapeValues) {
-    Shape updatedReshapeValues = reshapeValues;
+    const ov::inplace_vector<size_t>& reshapeValues) {
+    auto updatedReshapeValues = reshapeValues;
     for (size_t elementwiseIndex = 0, reshapeIndex = 0; elementwiseIndex < elementwiseConstantShape.size(); ++elementwiseIndex) {
         if (elementwiseConstantShape[elementwiseIndex] != elementwiseShape[elementwiseIndex]) {
             size_t reducedValue = 1ul;
@@ -438,7 +438,7 @@ std::vector<size_t> NetworkHelper::updateReshapeValues(
             }
         }
     }
-    return std::move(updatedReshapeValues);
+    return updatedReshapeValues;
 }
 
 std::shared_ptr<ov::opset1::Multiply> NetworkHelper::optimizeMultipliesAfter(std::shared_ptr<Node> node) {

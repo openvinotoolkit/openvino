@@ -75,9 +75,9 @@ void gather_nd(const T* const params,
 
     const auto batch_offset = indices_offsets.front() * params_shape[batch_dims];
 
-    const auto k_1_indices = span(next(begin(indices_shape), batch_dims), prev(end(indices_shape)));
+    const auto k_1_indices = Shape(indices_shape.begin() + batch_dims, indices_shape.end() - 1);
 
-    const auto k_1_params = span(next(begin(params_shape), batch_dims), prev(end(params_shape)));
+    const auto k_1_params = Shape(next(begin(params_shape), batch_dims), prev(end(params_shape)));
 
     const auto number_of_slices_to_copy_in_one_batch = shape_size(k_1_indices);
 

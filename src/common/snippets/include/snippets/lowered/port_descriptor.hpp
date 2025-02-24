@@ -20,29 +20,29 @@ using PortDescriptorPtr = std::shared_ptr<PortDescriptor>;
 class PortDescriptor {
     friend class LinearIRBuilder;
 public:
-    explicit PortDescriptor(const ov::Input<ov::Node>& node,
-                            VectorDims subtensor_shape = {},
-                            std::vector<size_t> layout = {});
+    explicit PortDescriptor(const ov::Input<ov::Node>& node, VectorDims subtensor_shape = {}, VectorDims layout = {});
     explicit PortDescriptor(const ov::Input<const ov::Node>& node,
                             VectorDims subtensor_shape = {},
-                            std::vector<size_t> layout = {});
-    explicit PortDescriptor(const ov::Output<ov::Node>& node,
-                            VectorDims subtensor_shape = {},
-                            std::vector<size_t> layout = {});
+                            VectorDims layout = {});
+    explicit PortDescriptor(const ov::Output<ov::Node>& node, VectorDims subtensor_shape = {}, VectorDims layout = {});
     explicit PortDescriptor(const ov::Output<const ov::Node>& node,
                             VectorDims subtensor_shape = {},
-                            std::vector<size_t> layout = {});
-    PortDescriptor(VectorDims shape, VectorDims subtensor_shape, std::vector<size_t> layout = {}, Reg reg = {});
-    PortDescriptor(VectorDimsPtr shape, VectorDims subtensor_shape, std::vector<size_t> layout = {}, Reg reg = {});
+                            VectorDims layout = {});
+    PortDescriptor(VectorDims shape, VectorDims subtensor_shape, VectorDims layout = {}, Reg reg = {});
+    PortDescriptor(VectorDimsPtr shape, VectorDims subtensor_shape, VectorDims layout = {}, Reg reg = {});
     PortDescriptor();
 
     const VectorDims& get_shape() const;
     const VectorDims& get_subtensor() const {return m_subtensor_shape;}
-    const std::vector<size_t>& get_layout() const {return m_layout;}
+    const VectorDims& get_layout() const {
+        return m_layout;
+    }
     const Reg& get_reg() const { return m_reg; }
 
     void set_shape(const VectorDims& tensor);
-    void set_layout(const std::vector<size_t>& layout) { m_layout = layout; }
+    void set_layout(const VectorDims& layout) {
+        m_layout = layout;
+    }
     void set_subtensor(const VectorDims& subtensor) { m_subtensor_shape = subtensor; }
     void set_reg(Reg reg) { m_reg = std::move(reg); }
     void set_reg_type(RegType type) { m_reg.type = type; }
@@ -63,7 +63,7 @@ private:
     /// \brief Original tensor shape
     VectorDimsPtr m_tensor_shape = nullptr;
     /// \brief Order of dimensions: NCHW == {0, 1, 2, 3}, NHWC == {0, 2, 3, 1}, NCHW16c == {0, 1, 2, 3, 1}
-    std::vector<size_t> m_layout{};
+    VectorDims m_layout{};
     /// \brief Minimal tensor size that could be processed in one call
     VectorDims m_subtensor_shape{};
     /// \brief The corresponding abstract/physical register
@@ -84,8 +84,8 @@ class PortDescriptorUtils {
 public:
     static void set_port_descriptor_ptr(const ov::Input<ov::Node>& in, const PortDescriptorPtr& desc);
     static void set_port_descriptor_ptr(const ov::Output<ov::Node>& out, const PortDescriptorPtr& desc);
-    static void set_port_descriptor(const ov::Input<ov::Node>& in, std::vector<size_t> subtensor, std::vector<size_t> layout = {});
-    static void set_port_descriptor(const ov::Output<ov::Node>& out, std::vector<size_t> subtensor, std::vector<size_t> layout = {});
+    static void set_port_descriptor(const ov::Input<ov::Node>& in, VectorDims subtensor, VectorDims layout = {});
+    static void set_port_descriptor(const ov::Output<ov::Node>& out, VectorDims subtensor, VectorDims layout = {});
 
     static PortDescriptorPtr get_port_descriptor_ptr(const ov::Input<ov::Node>& in);
     static PortDescriptorPtr get_port_descriptor_ptr(const ov::Input<const ov::Node>& in);

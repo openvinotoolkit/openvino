@@ -6,19 +6,18 @@
 
 #include <memory>
 
-#include "openvino/op/constant.hpp"
-#include "ov_ops/type_relaxed.hpp"
-
+#include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
-#include "low_precision/network_helper.hpp"
-
+#include "openvino/core/shape.hpp"
+#include "openvino/op/constant.hpp"
 #include "ov_lpt_models/common/add.hpp"
 #include "ov_lpt_models/common/convolution.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/reshape.hpp"
 #include "ov_lpt_models/common/transpose.hpp"
+#include "ov_ops/type_relaxed.hpp"
 
 namespace ov {
 namespace builder {
@@ -26,14 +25,14 @@ namespace subgraph {
 
 template <typename Operation, typename OperationDesc>
 std::shared_ptr<Node> makeElementwise(const std::shared_ptr<ov::Node> data, const OperationDesc& description) {
-    std::vector<size_t> shape;
+    ov::Shape shape;
     if (description.constantShapeIsDefined) {
         shape = description.constantShape;
     } else {
         if (description.values.size() == 1ul) {
-            shape = std::vector<size_t>({});
+            shape = ov::Shape({});
         } else {
-            shape = std::vector<size_t>(data->get_output_partial_shape(0).rank().get_length(), 1ul);
+            shape = ov::Shape(data->get_output_partial_shape(0).rank().get_length(), 1ul);
             shape[shape.size() >= 2 ? 1ul : 0] = description.values.size();
         }
     }

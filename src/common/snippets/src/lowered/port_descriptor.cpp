@@ -9,23 +9,33 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
-PortDescriptor::PortDescriptor(const ov::Input<ov::Node>& in, VectorDims subtensor_shape, std::vector<size_t> layout)
-        : PortDescriptor(ov::Input<const Node>(in.get_node(), in.get_index()), std::move(subtensor_shape), std::move(layout)) {}
+PortDescriptor::PortDescriptor(const ov::Input<ov::Node>& in, VectorDims subtensor_shape, VectorDims layout)
+    : PortDescriptor(ov::Input<const Node>(in.get_node(), in.get_index()),
+                     std::move(subtensor_shape),
+                     std::move(layout)) {}
 
-PortDescriptor::PortDescriptor(const ov::Input<const ov::Node>& in, std::vector<size_t> subtensor_shape, std::vector<size_t> layout)
-        : PortDescriptor(utils::pshape_to_vdims(in.get_partial_shape()), std::move(subtensor_shape), std::move(layout)) {}
+PortDescriptor::PortDescriptor(const ov::Input<const ov::Node>& in, VectorDims subtensor_shape, VectorDims layout)
+    : PortDescriptor(utils::pshape_to_vdims(in.get_partial_shape()), std::move(subtensor_shape), std::move(layout)) {}
 
-PortDescriptor::PortDescriptor(const ov::Output<ov::Node>& out, VectorDims subtensor_shape, std::vector<size_t> layout)
-        : PortDescriptor(ov::Output<const Node>(out.get_node(), out.get_index()), std::move(subtensor_shape), std::move(layout)) {}
+PortDescriptor::PortDescriptor(const ov::Output<ov::Node>& out, VectorDims subtensor_shape, VectorDims layout)
+    : PortDescriptor(ov::Output<const Node>(out.get_node(), out.get_index()),
+                     std::move(subtensor_shape),
+                     std::move(layout)) {}
 
-PortDescriptor::PortDescriptor(const ov::Output<const ov::Node>& out, std::vector<size_t> subtensor_shape, std::vector<size_t> layout)
-        : PortDescriptor(utils::pshape_to_vdims(out.get_partial_shape()), std::move(subtensor_shape), std::move(layout)) {}
+PortDescriptor::PortDescriptor(const ov::Output<const ov::Node>& out, VectorDims subtensor_shape, VectorDims layout)
+    : PortDescriptor(utils::pshape_to_vdims(out.get_partial_shape()), std::move(subtensor_shape), std::move(layout)) {}
 
-PortDescriptor::PortDescriptor(VectorDims shape, VectorDims subtensor_shape, std::vector<size_t> layout, Reg reg)
-    : PortDescriptor(std::make_shared<VectorDims>(std::move(shape)), std::move(subtensor_shape), std::move(layout), std::move(reg)) {}
+PortDescriptor::PortDescriptor(VectorDims shape, VectorDims subtensor_shape, VectorDims layout, Reg reg)
+    : PortDescriptor(std::make_shared<VectorDims>(std::move(shape)),
+                     std::move(subtensor_shape),
+                     std::move(layout),
+                     std::move(reg)) {}
 
-PortDescriptor::PortDescriptor(VectorDimsPtr shape, VectorDims subtensor_shape, std::vector<size_t> layout, Reg reg)
-    : m_tensor_shape(std::move(shape)), m_layout(std::move(layout)), m_subtensor_shape(std::move(subtensor_shape)), m_reg(std::move(reg)) {
+PortDescriptor::PortDescriptor(VectorDimsPtr shape, VectorDims subtensor_shape, VectorDims layout, Reg reg)
+    : m_tensor_shape(std::move(shape)),
+      m_layout(std::move(layout)),
+      m_subtensor_shape(std::move(subtensor_shape)),
+      m_reg(std::move(reg)) {
     validate_arguments();
 }
 
@@ -134,8 +144,8 @@ void PortDescriptorUtils::set_port_descriptor_ptr(const ov::Output<ov::Node>& ou
 }
 
 namespace {
-template<typename T>
-void set_port_desc(const T& port, std::vector<size_t> subtensor, std::vector<size_t> layout) {
+template <typename T>
+void set_port_desc(const T& port, VectorDims subtensor, VectorDims layout) {
     const auto& shape = utils::pshape_to_vdims(port.get_partial_shape());
     for (size_t i = 1; i <= std::min(subtensor.size(), shape.size()); i++) {
         auto& dim = subtensor[subtensor.size() - i];
@@ -146,10 +156,12 @@ void set_port_desc(const T& port, std::vector<size_t> subtensor, std::vector<siz
 }
 }  // namespace
 
-void PortDescriptorUtils::set_port_descriptor(const ov::Input<ov::Node>& in, std::vector<size_t> subtensor, std::vector<size_t> layout) {
+void PortDescriptorUtils::set_port_descriptor(const ov::Input<ov::Node>& in, VectorDims subtensor, VectorDims layout) {
     set_port_desc(in, std::move(subtensor), std::move(layout));
 }
-void PortDescriptorUtils::set_port_descriptor(const ov::Output<ov::Node>& out, std::vector<size_t> subtensor, std::vector<size_t> layout) {
+void PortDescriptorUtils::set_port_descriptor(const ov::Output<ov::Node>& out,
+                                              VectorDims subtensor,
+                                              VectorDims layout) {
     set_port_desc(out, std::move(subtensor), std::move(layout));
 }
 
