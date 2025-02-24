@@ -50,7 +50,7 @@ class TorchScriptPythonDecoder(Decoder):
         self._input_signature = None
         self._shared_memory = shared_memory
         self._input_is_list = False
-        self.constant_cache = constant_cache if constant_cache is not None else {}
+        self.constant_cache = constant_cache if constant_cache is not None else dict()
         self.module_extensions = module_extensions
         self.config = None
         self.out_debug_name_overwrites = {}
