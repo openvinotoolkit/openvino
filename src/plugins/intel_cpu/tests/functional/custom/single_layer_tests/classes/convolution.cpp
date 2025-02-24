@@ -234,9 +234,7 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
     if (isBias) {
         checkBiasFusing(compiledModel);
     }
-    // @there are issues with implementation type for dynamic shapes
-    // resolve before merge
-    // CheckPluginRelatedResults(compiledModel, "Convolution");
+    CheckPluginRelatedResults(compiledModel, "Convolution");
 }
 
 const ov::Shape& numOutChannels() {

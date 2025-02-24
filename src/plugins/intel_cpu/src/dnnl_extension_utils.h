@@ -8,7 +8,6 @@
  */
 #pragma once
 
-#include <iostream>
 #include <optional>
 #include <string>
 
@@ -79,15 +78,12 @@ public:
 
         while (itpd) {
             const impl_desc_type descImplType = parse_impl_name(itpd.impl_info_str());
-            // std::cout << "find_implementation: " << itpd.impl_info_str() << "\n";
 
             if (comparator(descImplType)) {
-                // std::cout << "find_implementation, matched: " << itpd.impl_info_str() << "\n";
                 return true;
             }
 
             if (!itpd.next_impl()) {
-                // std::cout << "find_implementation, no next impl: " << itpd.impl_info_str() << "\n";
                 break;
             }
         }

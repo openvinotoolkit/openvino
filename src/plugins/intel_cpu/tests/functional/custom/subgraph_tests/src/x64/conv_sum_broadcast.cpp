@@ -206,7 +206,7 @@ protected:
 TEST_P(ConvSumInPlaceStrided, CompareWithRefs) {
     run();
 
-    // CheckPluginRelatedResults(compiledModel, "Convolution");
+    CheckPluginRelatedResults(compiledModel, "Convolution");
 }
 
 class ConvSumInPlaceTestInt8 : public ConvSumInPlaceTest {
@@ -274,7 +274,7 @@ public:
 TEST_P(ConvSumInPlaceTestInt8, CompareWithRefs) {
     run();
 
-    // CheckPluginRelatedResults(compiledModel, "Convolution");
+    CheckPluginRelatedResults(compiledModel, "Convolution");
 }
 
 class ConvSumInPlaceTestSeveralConsumers : public ConvSumInPlaceTest {
@@ -293,7 +293,7 @@ TEST_P(ConvSumInPlaceTestSeveralConsumers, CompareWithRefs) {
 
     run();
 
-    // CheckPluginRelatedResults(compiledModel, "Convolution");
+    CheckPluginRelatedResults(compiledModel, "Convolution");
 }
 
 class ConvSumBroadcastTest : public ConvSumInPlaceTest {
@@ -309,7 +309,7 @@ protected:
 TEST_P(ConvSumBroadcastTest, CompareWithRefs) {
     run();
 
-    // CheckPluginRelatedResults(compiledModel, "Convolution");
+    CheckPluginRelatedResults(compiledModel, "Convolution");
 }
 
 class Conv1x1SumUnsupportedBroadcastTest : public ConvSumInPlaceTest {
@@ -339,7 +339,7 @@ TEST_P(Conv1x1SumUnsupportedBroadcastTest, CompareWithRefs) {
 
     run();
 
-    // CheckPluginRelatedResults(compiledModel, "Convolution");
+    CheckPluginRelatedResults(compiledModel, "Convolution");
 }
 
 namespace {

@@ -14,15 +14,13 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-class Eltwise;
-
 class Convolution : public Node {
 public:
     Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void selectOptimalPrimitiveDescriptor() override;
     void initSupportedPrimitiveDescriptors() override;
     int registerToAllocationContext(int offset, AllocationContext& context) override;
@@ -116,11 +114,9 @@ private:
     ExecutorPtr m_executor = nullptr;
     ExecutorPtr fallbackExecutor = nullptr;
 
-    bool withBiases;
     bool withSum;
     bool withDWConv;
     bool withSumBroadcast = false;
-    ZeroPointsType inputZeroPointType = ZeroPointsType::None;
 
     size_t dw_conv_oc;
     size_t dw_conv_ih;
@@ -133,9 +129,6 @@ private:
     size_t IC;
     size_t groupIC;
     size_t groupOC;
-
-    const size_t X_AXIS = 0;
-    const size_t Y_AXIS = 1;
 
     FusedSubgraphPtr subgraph;
     std::unordered_map<NodePtr, std::vector<NodePtr>> fusedConstNodes;
