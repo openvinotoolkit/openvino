@@ -1201,10 +1201,10 @@ void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& in
 
             if (actualDesc->getPrecision() == element::string) {
                 StringMemory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr);
-                edgeMemory->load(ext_mem, false);
+                edgeMemory->load(ext_mem, false, false);
             } else if (!actualDesc->isCompatible(*ext_tensor_desc)) {
                 Memory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr, false);
-                edgeMemory->load(ext_mem, false);
+                edgeMemory->load(ext_mem, false, false);
             } else {
                 size_t size_to_copy = ext_tensor_desc->getCurrentMemSize();
                 cpu_parallel_memcpy(inter_data_ptr, ext_data_ptr, size_to_copy);
@@ -1311,10 +1311,10 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
 
         if (actualDesc->getPrecision() == element::string) {
             StringMemory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr);
-            outBloMem.load(intr_blob, false);
+            outBloMem.load(intr_blob, false, false);
         } else if (!actualDesc->isCompatible(*expected_desc_ptr) && !isScalarOutput) {
             Memory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr, false);
-            outBloMem.load(intr_blob, false);
+            outBloMem.load(intr_blob, false, false);
         } else {
             OPENVINO_ASSERT(srcPrec == dstPrec,
                             "The precision of the CPU output tensor index",

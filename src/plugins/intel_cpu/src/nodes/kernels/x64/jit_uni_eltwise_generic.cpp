@@ -59,9 +59,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
     }
 
     if (mayiuse(avx512_core) || mayiuse(avx2_vnni_2)) {
-        auto const mode = jep_.do_output_saturation ? jit_uni_vcvtneps2bf16::conversion_mode::saturation_mode
-                                                    : jit_uni_vcvtneps2bf16::conversion_mode::default_mode;
-        uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa, element::bf16, mode));
+        uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa));
     }
 
     const auto& jep = jep_;
@@ -208,11 +206,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
 
                 apply_post_ops(true, jep_.oc_size > 1 ? j * sizeof(float) : 0);
 
-                store_scalar(ptr[reg_dst + j * jep.dst_prc.size()],
-                             xmm_dst,
-                             exec_prc,
-                             jep.dst_prc,
-                             jep.do_output_saturation);
+                store_scalar(ptr[reg_dst + j * jep.dst_prc.size()], xmm_dst, exec_prc, jep.dst_prc);
             }
 
             for (size_t i = 0; i < jep.inputs_number; i++) {
@@ -288,7 +282,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
 
         apply_post_ops(true);
 
-        store_scalar(ptr[reg_dst], xmm_dst, exec_prc, jep.dst_prc, jep.do_output_saturation);
+        store_scalar(ptr[reg_dst], xmm_dst, exec_prc, jep.dst_prc);
 
         for (size_t i = 0; i < jep.inputs_number; i++) {
             if (jep.src_size[i] != 1) {
@@ -781,8 +775,7 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_uni_eltwise_generic<isa>::store_scalar(const Xbyak::Address& op,
                                                 Xmm xmm_dst,
                                                 ov::element::Type src_prc,
-                                                ov::element::Type dst_prc,
-                                                const bool do_output_saturation) {
+                                                ov::element::Type dst_prc) {
     if (src_prc == dst_prc) {
         switch (src_prc.size()) {
         case 4:
@@ -819,12 +812,7 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const Xbyak::Address& op,
         uni_vmovss(op, xmm_dst);
         break;
     case ov::element::bf16:
-        if (do_output_saturation) {
-            uni_vpsrld(xmm_dst, xmm_dst, 16);
-        } else {
-            uni_vcvtneps2bf16->emit_code({static_cast<size_t>(xmm_dst.getIdx())},
-                                         {static_cast<size_t>(xmm_dst.getIdx())});
-        }
+        uni_vcvtneps2bf16->emit_code({static_cast<size_t>(xmm_dst.getIdx())}, {static_cast<size_t>(xmm_dst.getIdx())});
         uni_vpextrw(op, xmm_dst, 0x0);
         break;
     case ov::element::f16:

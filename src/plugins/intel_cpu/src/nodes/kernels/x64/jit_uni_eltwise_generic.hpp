@@ -116,8 +116,7 @@ private:
     void store_scalar(const Xbyak::Address& op,
                       Xbyak::Xmm xmm_dst,
                       ov::element::Type src_prc,
-                      ov::element::Type dst_prc,
-                      const bool do_output_saturation);
+                      ov::element::Type dst_prc);
 };
 
 }  // namespace ov::intel_cpu::x64
