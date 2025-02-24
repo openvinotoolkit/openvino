@@ -337,7 +337,7 @@ protected:
  * @tparam TOp   Type of operator.
  * @tparam MASK  The bit mask where each bit corresponds to an input port number.
  */
-template <typename TOp, IShapeInfer::port_mask_t MASK>
+template <class TOp, IShapeInfer::port_mask_t MASK>
 class ShapeInferPaddingTA : public ShapeInferPaddingBase {
 public:
     using ShapeInferPaddingBase::ShapeInferPaddingBase;
