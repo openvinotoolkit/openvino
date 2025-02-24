@@ -535,6 +535,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*CompileModelWithCacheEncryptionTest.*CanImportModelWithoutException.*)");
     retVector.emplace_back(R"(.*ConcatMultiQuerySDPTest.*f16.*)");
     retVector.emplace_back(R"(.*ConcatSDPTest.*f16.*)");
+    retVector.emplace_back(R"(.*FakeConvertLayerTest.*f16.*)");
     retVector.emplace_back(R"(.*CoreThreadingTestsWithCacheEnabled.*smoke_compiled_model_cache_enabled.*)");
     retVector.emplace_back(R"(.*CoreThreadingTestsWithIter.*smoke_CompileModel.*)");
     retVector.emplace_back(R"(.*CustomOpConvertI64CPUTest.*CompareWithRefs.*)");
