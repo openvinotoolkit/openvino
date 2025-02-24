@@ -119,6 +119,8 @@ void setModelBatch(std::shared_ptr<ov::Model>& model, uint32_t batch = 1) {
         }
         auto layout = item->get_layout();
         if (!ov::layout::has_batch(layout)) {
+            std::cout << "WARNING: Batch layout not found. Inserting 'N' dimension = 1 to the layout before "
+            << "setting new model batch of " << batch << std::endl;
             item->set_layout(ov::Layout(layout.to_string().insert(1, "N,")));
             layout = item->get_layout();
         }
