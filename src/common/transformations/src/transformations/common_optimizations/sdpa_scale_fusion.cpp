@@ -84,7 +84,7 @@ SDPAScaleFusion::SDPAScaleFusion() {
         if (has_q_scale) {
             scale_q_node = pattern_map.at(scale_q).get_node_shared_ptr();
             if (ov::is_type<ov::op::v0::Constant>(scale_q_node) &&
-                pattern_map.at(k).get_element_type() == k_input.get_element_type()) {
+                pattern_map.at(q).get_element_type() == q_input.get_element_type()) {
                 scale_q_value = ov::as_type_ptr<ov::op::v0::Constant>(scale_q_node)->cast_vector<float>()[0];
                 q_input = pattern_map.at(q);
             }
