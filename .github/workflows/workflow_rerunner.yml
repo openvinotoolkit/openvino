@@ -12,6 +12,7 @@ on:
       - Linux ARM64 (Ubuntu 20.04, Python 3.11)
       - Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)
       - Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)
+      - Linux (Ubuntu 22.04, Python 3.11, Intel DPC++ Compiler)
       - Fedora 29 (RHEL 8.4), Python 3.9
       - Windows (VS 2022, Python 3.11, Release)
       - Windows (VS 2022, Python 3.11, Debug)
