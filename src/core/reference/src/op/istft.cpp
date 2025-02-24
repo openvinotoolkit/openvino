@@ -126,7 +126,7 @@ void istft(const float* in_data,
 
         batch_in_start += in_batch_single_step;
         batch_out_start += signal_length;
-        result += batch_out_start;
+        result += signal_length;
         final_result += final_signal_length;
     }
 }
