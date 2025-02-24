@@ -154,13 +154,13 @@ program::program(engine& engine_ref,
       _is_body_program(is_body_program),
       _compilation_context(compilation_context) {
     init_primitives();
+    _config.finalize(_engine);
     GPU_DEBUG_INFO << "Program config\n" << _config.to_string();
     init_program();
     prepare_nodes(topology);
     program_node::reset_unique_id();
     if (no_optimizations) {
         init_graph();
-        _config.finalize(_engine);
     } else {
         build_program(is_internal);
         if (_is_body_program) {
