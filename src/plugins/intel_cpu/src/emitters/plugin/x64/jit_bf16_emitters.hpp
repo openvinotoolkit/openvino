@@ -17,7 +17,12 @@ public:
                           conversion_mode mode = conversion_mode::default_mode)
         : jit_emitter(host, host_isa, exec_prc),
           mode_(mode) {
-        prepare_table();
+        // only saturation_mode or non avx512_core_bf16/avx2_vnni_2 platforms requires table
+        if ((!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) &&
+             !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) ||
+            mode_ == conversion_mode::saturation_mode) {
+            prepare_table();
+        }
     }
 
     size_t get_inputs_num() const override {

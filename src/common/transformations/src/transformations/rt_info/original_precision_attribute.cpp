@@ -25,6 +25,6 @@ element::Type_t ov::get_original_precision(const std::shared_ptr<Node>& node) {
     if (it != rt_info.end()) {
         return it->second.as<element::Type_t>();
     } else {
-        return element::Type_t::undefined;
+        return element::Type_t::dynamic;
     }
 }

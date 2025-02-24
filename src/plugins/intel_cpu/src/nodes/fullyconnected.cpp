@@ -78,9 +78,7 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes()
 bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                           std::string& errorMessage) noexcept {
     try {
-        if (!ov::is_type<const ov::op::internal::FullyConnected>(op) &&
-            !ov::is_type<const ov::op::internal::FullyConnectedQuantizedLegacy>(op) &&
-            !ov::is_type<const ov::op::internal::FullyConnectedCompressed>(op)) {
+        if (!ov::is_type<const ov::op::internal::FullyConnected>(op)) {
             return false;
         }
 
@@ -180,7 +178,8 @@ FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphC
     m_atoi[ARG_BIAS] = BIAS;
 
     auto mapArgToInput = [&op](std::unordered_map<size_t, size_t>& argToInput, size_t argId, size_t inputId) {
-        if (op->get_input_size() > inputId && op->input(inputId).get_element_type() != ov::element::undefined) {
+        if (op->get_input_size() > inputId && op->input(inputId).get_element_type() != ov::element::dynamic &&
+            op->input(inputId).get_element_type() != ov::element::dynamic) {
             argToInput[argId] = inputId;
         }
     };
@@ -506,7 +505,7 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
 }
 
 void FullyConnected::initSupportedPrimitiveDescriptors() {
-    attrs.withBias = getOriginalInputPrecisionAtPort(BIAS) != ov::element::undefined;
+    attrs.withBias = getOriginalInputPrecisionAtPort(BIAS) != ov::element::dynamic;
 
     attrs.sparseWeights = useSparseWeightsDecompression(getParentEdgeAt(WEIGHTS)->getParent(),
                                                         getOriginalInputPrecisionAtPort(DATA),
@@ -526,7 +525,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     VecMemoryDescs srcDescs;
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     for (size_t i = 0; i < srcTypes.size(); i++) {
-        if (srcTypes[i] == element::undefined) {
+        if (srcTypes[i] == element::dynamic) {
             srcDescs.push_back(MemoryDescUtils::makeEmptyDesc());
             continue;
         }
