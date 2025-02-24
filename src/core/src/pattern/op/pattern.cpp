@@ -242,7 +242,7 @@ private:
 };
 }  // namespace
 
-op::Predicate attrs_match(const std::unordered_map<std::string, ov::Any>& expected_attrs) {
+op::Predicate attrs_match(const Attributes& expected_attrs) {
     std::stringstream ss;
     ss << "{ ";
     bool first = true;

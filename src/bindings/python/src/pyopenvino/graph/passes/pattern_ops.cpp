@@ -1014,6 +1014,7 @@ inline void reg_predicates(py::module m) {
     m.def("type_matches", &ov::pass::pattern::type_matches);
     m.def("type_matches_any", &ov::pass::pattern::type_matches_any);
     m.def("shape_matches", &ov::pass::pattern::shape_matches);
+    m.def("attrs_match", &ov::pass::pattern::attrs_match);
 }
 
 void reg_passes_pattern_ops(py::module m) {
