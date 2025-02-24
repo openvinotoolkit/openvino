@@ -12,6 +12,7 @@ namespace ov::intel_cpu {
 struct ParallelLoopConfig : public ov::snippets::KernelExecutorBase::GenericConfig {
 public:
     ParallelLoopConfig() = default;
+    ParallelLoopConfig(int64_t work_amount, int num_threads) : m_work_amount(work_amount), m_num_threads(num_threads) {}
 
     bool is_completed() const override {
         return m_work_amount >= 0 && m_num_threads > 0;
@@ -38,8 +39,11 @@ protected:
 
 };
 
+// Note: the ParallelLoopKernel is empty because this executor doesn't need a kernel
+class ParallelLoopKernel {
+};
 
-class ParallelLoopExecutor : public snippets::KernelExecutor<ParallelLoopConfig, void> {
+class ParallelLoopExecutor : public snippets::KernelExecutor<ParallelLoopConfig, ParallelLoopKernel> {
 public:
     ParallelLoopExecutor(ParallelLoopConfig config);
     typedef void(*loop_preamble_t)(int64_t , int64_t , void*);
@@ -48,10 +52,10 @@ public:
 
 protected:
     /*** Updates stored kernel config based on runtime info from expression (e.g. new input shapes). */
-    virtual void update_config(const lowered::ExpressionPtr& expr, const lowered::LinearIRCPtr& linear_ir, Conf& config) const = 0;
+    void update_config(const lowered::ExpressionPtr& expr, const lowered::LinearIRCPtr& linear_ir, ParallelLoopConfig& config) const override {}
     /*** Updates stored kernel in accordance with the passed config. Recompilation of the kernel is
      * performed if necessary. */
-    virtual void update_kernel(const Conf& c, std::shared_ptr<KernelType>& kernel) const = 0;
+    void update_kernel(const ParallelLoopConfig& c, std::shared_ptr<ParallelLoopKernel>& kernel) const override {}
 };
 
 
