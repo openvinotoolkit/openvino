@@ -1053,10 +1053,10 @@ void Transformations::MainSnippets(void) {
 #if defined(OPENVINO_ARCH_X86_64)
     // Currently, Snippets don't provide efficient execution for single token inference in LLM case.
     // To avoid performance degradations, we disable MHA tokenization into Subgraphs in LLMs'.
-    // We consider the presence of `ScaledDotProductAttentionWithKVCache` and `PagedAttentionExtension` ops
+    // We consider the presence of `ScaledDotProductAttentionWithKVCache` ops
     // in the model as a sign that this model is LLM.
-    const auto is_LLM = ov::op::util::has_op_with_type<intel_cpu::ScaledDotProductAttentionWithKVCache>(model) ||
-                        ov::op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model);
+    const auto is_LLM = ov::op::util::is_large_language_model(*model.get()) ||
+                        ov::op::util::has_op_with_type<intel_cpu::ScaledDotProductAttentionWithKVCache>(model);
 
     // CPU Plugin Subgraph supports f32, bf16, quantized and fp16(on avx_512_core_amx_fp16 target) BRGEMM
     const auto is_infer_prc_supported_by_MHA =
