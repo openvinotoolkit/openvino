@@ -81,7 +81,19 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::Output<const ov::Node
     write(stream, var.get_names());
 }
 
-enum class AnyType : int { STRING = 0, CHARS, INT, UINT32, INT64, UINT64, SIZET, FLOAT, BOOL, CACHE_MODE, ELEMENT_TYPE };
+enum class AnyType : int {
+    STRING = 0,
+    CHARS,
+    INT,
+    UINT32,
+    INT64,
+    UINT64,
+    SIZET,
+    FLOAT,
+    BOOL,
+    CACHE_MODE,
+    ELEMENT_TYPE
+};
 
 void ov::npuw::s11n::write_any(std::ostream& stream, const ov::Any& var) {
     // FIXME: figure out a proper way to serialize Any (for config)
