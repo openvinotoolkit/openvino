@@ -145,8 +145,7 @@ bool is_large_language_model(const std::shared_ptr<const ov::Model>& model) {
     const auto past = wrap_type<ov::op::v6::ReadValue>();
     const auto convert_past = ov::pass::pattern::optional<ov::op::v0::Convert>(past);
     const auto beam_idx = wrap_type<ov::op::v0::Parameter>();
-    const auto gather_past =
-        wrap_type<ov::op::v8::Gather>({convert_past, beam_idx, wrap_type<ov::op::v0::Constant>()});
+    const auto gather_past = wrap_type<ov::op::v8::Gather>({convert_past, beam_idx, wrap_type<ov::op::v0::Constant>()});
     const auto gather_convert = ov::pass::pattern::optional<ov::op::v0::Convert>(gather_past);
     const auto concat_past_input =
         std::make_shared<ov::pass::pattern::op::Or>(OutputVector{convert_past, gather_convert});
