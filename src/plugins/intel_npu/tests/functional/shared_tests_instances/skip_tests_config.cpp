@@ -181,6 +181,8 @@ std::string getCurrentTestName() {
  * @param rule Input string
  * @return true if "!" is found
  */
+bool isRuleInverted(std::string& rule);
+
 bool isRuleInverted(std::string& rule) {
     bool invertRule = false;
     auto pos = rule.find("!");
