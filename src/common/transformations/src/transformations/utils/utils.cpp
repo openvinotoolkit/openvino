@@ -18,6 +18,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/relu.hpp"
@@ -154,8 +155,8 @@ bool is_large_language_model(const std::shared_ptr<const ov::Model>& model) {
     const auto present = wrap_type<ov::op::v6::Assign>({convert_present});
     const auto kvcache_matcher = std::make_shared<ov::pass::pattern::Matcher>(present, "KVCacheMatcher");
 
-    for (const auto& op : model->get_sinks()) {
-        if (kvcache_matcher->match(op->output(0)))
+    for (const auto& op : model->get_ops()) {
+        if (kvcache_matcher->match(op->output(0)) || ov::is_type<ov::op::PagedAttentionExtension>(op))
             return true;
     }
     return false;
