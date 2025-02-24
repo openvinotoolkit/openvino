@@ -1,11 +1,14 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <cstdlib>
+
+#include "openvino/core/except.hpp"
 #ifdef CPU_DEBUG_CAPS
 
-#    include "debug_caps_config.h"
-
 #    include <string>
+
+#    include "debug_caps_config.h"
 
 namespace ov::intel_cpu {
 

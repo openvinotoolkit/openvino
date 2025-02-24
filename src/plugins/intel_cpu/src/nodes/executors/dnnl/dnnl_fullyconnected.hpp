@@ -4,17 +4,23 @@
 
 #pragma once
 
+#include <oneapi/dnnl/dnnl_common_types.h>
+#include <oneapi/dnnl/dnnl_types.h>
+
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <utility>
 
 #include "cpu_memory.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/executors/dnnl/dnnl_aliases.hpp"
 #include "nodes/executors/dnnl/dnnl_utils.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
+#include "onednn/iml_type_mapper.h"
 #include "post_ops.hpp"
+#include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {
 

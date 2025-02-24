@@ -2,7 +2,34 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <oneapi/dnnl/dnnl_common_types.h>
+#include <oneapi/dnnl/dnnl_debug.h>
+
+#include <algorithm>
+#include <common/c_types_map.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <exception>
+#include <ios>
+#include <iostream>
+#include <ostream>
+#include <set>
+#include <sstream>
+#include <string>
+#include <type_traits>
+#include <vector>
+
+#include "cpu_types.h"
+#include "memory_control.hpp"
+#include "nodes/node_config.h"
+#include "openvino/core/attribute_adapter.hpp"
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #ifdef CPU_DEBUG_CAPS
 
 #    include <iomanip>
@@ -20,6 +47,7 @@
 #    include "oneapi/dnnl/dnnl.hpp"
 #    include "onednn/iml_type_mapper.h"
 #    include "openvino/op/util/multi_subgraph_base.hpp"
+#    include "openvino/util/env_util.hpp"
 #    include "transformations/rt_info/disable_fp16_compression.hpp"
 
 namespace dnnl::impl {

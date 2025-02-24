@@ -7,9 +7,14 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cstddef>
+#include <functional>
+#include <numeric>
 #include <vector>
 
 #include "nodes/executors/memory_arguments.hpp"
+#include "openvino/core/except.hpp"
 #include "utils/cpp/maybe_unused.hpp"
 #include "utils/cpu_utils.hpp"
 

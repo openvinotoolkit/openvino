@@ -3,9 +3,27 @@
 //
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+#include "allocation_context.hpp"
 #include "common/dnnl_executor.h"
+#include "cpu_memory.h"
+#include "cpu_shape.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
+#include "nodes/node_config.h"
 #include "oneapi/dnnl/dnnl.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {

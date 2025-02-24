@@ -4,7 +4,15 @@
 
 #pragma once
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <algorithm>
+#include <cstddef>
+#include <set>
+#include <vector>
+
 #include "cpu/x64/jit_generator.hpp"
+#include "snippets/emitter.hpp"
 #include "snippets/lowered/expression_port.hpp"
 
 namespace ov::intel_cpu::utils {

@@ -4,15 +4,26 @@
 
 #include "ngram_fusion.hpp"
 
+#include <cstddef>
+#include <memory>
 #include <openvino/core/dimension.hpp>
 #include <openvino/core/graph_util.hpp>
-#include <openvino/opsets/opset10.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/symbol.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
 
 using namespace ov::pass::pattern;

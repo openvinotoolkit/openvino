@@ -4,6 +4,18 @@
 
 #include "transpose_list.hpp"
 
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/common/ref_opt_transpose.hpp"
+#include "nodes/executors/common/ref_transpose.hpp"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/transpose.hpp"
+#include "nodes/executors/x64/jit_transpose.hpp"
+#include "openvino/core/except.hpp"
+
 namespace ov::intel_cpu {
 
 const std::vector<TransposeExecutorDesc>& getTransposeExecutorsList() {

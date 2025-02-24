@@ -4,11 +4,31 @@
 
 #include "multinomial.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <ctime>
+#include <limits>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <openvino/core/type.hpp>
 #include <openvino/op/constant.hpp>
+#include <random>
+#include <string>
 
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/op/multinomial.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bfloat16.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 

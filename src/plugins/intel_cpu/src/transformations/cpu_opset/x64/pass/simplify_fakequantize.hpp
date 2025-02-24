@@ -2,10 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
+#include <algorithm>
+#include <cstddef>
+#include <cstdlib>
+#include <memory>
 #include <openvino/opsets/opset8.hpp>
 #include <vector>
 
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
 

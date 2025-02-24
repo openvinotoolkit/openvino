@@ -3,11 +3,19 @@
 
 #include "convert_group_conv.hpp"
 
-#include <numeric>
+#include <cstdint>
+#include <memory>
 #include <openvino/opsets/opset8.hpp>
 
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::intel_cpu::ConvertGroupConvolution::ConvertGroupConvolution() {
     auto gconv = ov::pass::pattern::wrap_type<opset8::GroupConvolution>();

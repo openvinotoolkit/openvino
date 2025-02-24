@@ -4,8 +4,10 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <functional>
-#include <memory>
+#include <utility>
 
 #include "lru_cache.h"
 

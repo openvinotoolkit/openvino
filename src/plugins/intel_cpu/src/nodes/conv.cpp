@@ -4,39 +4,57 @@
 
 #include "conv.h"
 
+#include <oneapi/dnnl/dnnl_common_types.h>
+
+#include <algorithm>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <cstdlib>
+#include <iterator>
 #include <memory>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
 #include <vector>
 
+#include "allocation_context.hpp"
 #include "common/c_types_map.hpp"
 #include "common/cpu_convert.h"
-#include "common/primitive_desc.hpp"
-#include "common/primitive_desc_iface.hpp"
 #include "common/primitive_hashing_utils.hpp"
-#include "concat.h"
-#include "cpu/cpu_primitive.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu/x64/jit_generator.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "dnnl_types.h"
+#include "dnnl_postops_composer_legacy.h"
+#include "edge.h"
 #include "eltwise.h"
 #include "fake_quantize.h"
 #include "graph.h"
+#include "graph_context.h"
 #include "input.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "memory_desc/dnnl_memory_desc.h"
+#include "node.h"
+#include "nodes/common/dnnl_executor.h"
+#include "nodes/node_config.h"
 #include "oneapi/dnnl/dnnl.hpp"
 #include "oneapi/dnnl/dnnl_common.hpp"
 #include "oneapi/dnnl/dnnl_types.h"
-#include "onednn/dnnl.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
-#include "pooling.h"
-#include "reorder.h"
-#include "utils/cpu_utils.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+#include "utils/precision_support.h"
 
 using namespace dnnl;
 

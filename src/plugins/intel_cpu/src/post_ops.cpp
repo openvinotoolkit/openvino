@@ -4,9 +4,14 @@
 
 #include "post_ops.hpp"
 
+#include <memory>
+#include <vector>
+
+#include "cpu_types.h"
 #include "node.h"
 #include "nodes/eltwise.h"
 #include "nodes/fake_quantize.h"
+#include "openvino/core/except.hpp"
 
 namespace ov::intel_cpu {
 

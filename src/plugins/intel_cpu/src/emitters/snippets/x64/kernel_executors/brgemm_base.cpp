@@ -4,8 +4,27 @@
 
 #include "brgemm_base.hpp"
 
+#include <oneapi/dnnl/dnnl_common_types.h>
+
+#include <cpu/x64/brgemm/brgemm.hpp>
+#include <cpu/x64/brgemm/brgemm_types.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <tuple>
+
 #include "common/utils.hpp"
 #include "dnnl_extension_utils.h"
+#include "emitters/snippets/brgemm_generic.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 

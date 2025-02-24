@@ -4,19 +4,41 @@
 
 #include "scaled_attn.h"
 
-#include "common/arbitrary_order_desc_creator.h"
-#include "common/primitive_hashing_utils.hpp"
+#include <cassert>
+#include <cfloat>
+#include <cmath>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu/x64/jit_generator.hpp"
+#include "cpu_memory.h"
 #include "dnnl_extension_utils.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "onednn/dnnl.h"
+#include "memory_state.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/custom/scaled_attn.hpp"
-#include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "transformations/cpu_opset/common/op/sdpa.hpp"
+#include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 
 #ifdef OV_CPU_WITH_MLAS
@@ -236,7 +258,6 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         ov::element::Type in_type;
         [[nodiscard]] size_t hash() const {
             using namespace dnnl::impl;
-            using namespace dnnl::impl::primitive_hashing;
             size_t seed = 0;
             seed = hash_combine(seed, M);
             seed = hash_combine(seed, N);

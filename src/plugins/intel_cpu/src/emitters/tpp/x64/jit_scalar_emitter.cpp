@@ -4,7 +4,17 @@
 
 #include "jit_scalar_emitter.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/snippets/x64/jit_snippets_emitters.hpp"
+#include "emitters/utils.hpp"
+#include "snippets/lowered/expression.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
