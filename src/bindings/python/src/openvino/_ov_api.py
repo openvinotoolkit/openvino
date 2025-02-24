@@ -23,19 +23,6 @@ from openvino.utils.data_helpers import (
 from openvino.package_utils import deprecatedclassproperty
 
 
-@deprecatedclassproperty(
-    name="openvino.Type.undefined",  # noqa: N802, N805
-    version="2026.0",
-    message="Please use openvino.Type.dynamic instead.",
-    stacklevel=2,
-)
-def undefined_deprecated(self):  # type: ignore
-    return Type.dynamic
-
-
-Type.undefined = undefined_deprecated
-
-
 class Op(OpBase):
     def __init__(self, py_obj: "Op", inputs: Optional[Union[List[Union[Node, Output]], Tuple[Union[Node, Output, List[Union[Node, Output]]]]]] = None) -> None:
         super().__init__(py_obj)
@@ -709,3 +696,13 @@ def compile_model(
     if isinstance(model, Model):
         model = model._Model__model
     return core.compile_model(model, device_name, {} if config is None else config)
+
+
+@deprecatedclassproperty(
+    name="openvino.Type.undefined",  # noqa: N802, N805
+    version="2026.0",
+    message="Please use openvino.Type.dynamic instead.",
+    stacklevel=2,
+)
+def undefined_deprecated(self):  # type: ignore
+    return Type.dynamic
