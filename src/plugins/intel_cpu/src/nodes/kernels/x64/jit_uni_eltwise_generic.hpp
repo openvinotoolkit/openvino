@@ -4,19 +4,22 @@
 
 #pragma once
 
-#include <utility>
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <common/utils.hpp>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <vector>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
 #include "cpu/x64/jit_generator.hpp"
+#include "cpu_types.h"
 #include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "nodes/executors/eltwise.hpp"
 #include "nodes/kernels/jit_eltwise_common.hpp"
-#include "onednn/dnnl.h"
-#include "utils/cpu_utils.hpp"
-#include "utils/general_utils.h"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu::x64 {
 

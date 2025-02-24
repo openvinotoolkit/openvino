@@ -4,6 +4,9 @@
 
 #include "utils/codec_xor.hpp"
 
+#include <cstddef>
+#include <string>
+
 #include "openvino/core/parallel.hpp"
 
 namespace ov::intel_cpu {

@@ -4,7 +4,12 @@
 
 #pragma once
 
-#include "emitters/snippets/cpu_runtime_configurator.hpp"
+#include <utility>
+
+#include "cache/multi_cache.h"
+#include "emitters/snippets/repacked_input.hpp"
+#include "openvino/core/rtti.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 
 namespace ov::intel_cpu::pass {

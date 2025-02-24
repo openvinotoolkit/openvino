@@ -1,10 +1,10 @@
 // Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <cstdlib>
 #ifdef SNIPPETS_DEBUG_CAPS
 
 #    include "debug_caps_config.hpp"
-
 #    include "openvino/util/env_util.hpp"
 
 namespace ov::intel_cpu {

@@ -8,10 +8,21 @@
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include <nodes/common/cpu_memcpy.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <fstream>
+#include <ios>
+#include <istream>
+#include <ostream>
+#include <string>
+#include <vector>
 
-#include "common/memory_desc_wrapper.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "utils/bfloat16.hpp"
 
 namespace ov::intel_cpu {

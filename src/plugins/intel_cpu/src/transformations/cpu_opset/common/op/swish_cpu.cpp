@@ -4,6 +4,12 @@
 
 #include "swish_cpu.hpp"
 
+#include <memory>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/op/op.hpp"
 #include "transformations/itt.hpp"
 
 ov::intel_cpu::SwishNode::SwishNode(const ov::Output<ov::Node>& input, const float alpha)

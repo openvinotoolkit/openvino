@@ -4,7 +4,26 @@
 
 #pragma once
 
+#include <libxsmm.h>
+#include <libxsmm_typedefs.h>
+
+#include <cassert>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <set>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
+#include "emitters/tpp/common/utils.hpp"
 #include "jit_tpp_emitter.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
 
 namespace ov::intel_cpu {
 

@@ -4,7 +4,26 @@
 
 #include "jit_eltwise_emitters.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <algorithm>
+#include <cmath>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
 #include <memory>
+#include <set>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/op/powerstatic.hpp"
 
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;

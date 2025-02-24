@@ -4,14 +4,51 @@
 
 #include "input.h"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <algorithm>
+#include <atomic>
+#include <cmath>
+#include <common/c_types_map.hpp>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <functional>
+#include <limits>
+#include <memory>
+#include <new>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "cpu/x64/jit_generator.hpp"
+#include "cpu_memory.h"
+#include "cpu_shape.h"
+#include "cpu_types.h"
+#include "edge.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "node.h"
 #include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/read_value.hpp"
+#include "openvino/op/result.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
 #include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 using namespace dnnl::impl::cpu::x64;

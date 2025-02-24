@@ -6,6 +6,12 @@
 
 #    include "debug_capabilities.hpp"
 
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include <cpu/x64/cpu_isa_traits.hpp>
+#    include <cpu/x64/jit_generator.hpp>
+#    include <cstddef>
+#    include <cstdint>
 #    include <iostream>
 #    include <sstream>
 

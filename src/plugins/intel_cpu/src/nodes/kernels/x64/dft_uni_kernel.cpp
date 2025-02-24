@@ -4,6 +4,12 @@
 
 #include "dft_uni_kernel.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu::x64;

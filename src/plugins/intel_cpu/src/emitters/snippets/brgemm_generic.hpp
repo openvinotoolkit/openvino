@@ -4,11 +4,16 @@
 
 #pragma once
 
-#include "emitters/snippets/cpu_kernel_executor_table.hpp"
-#include "emitters/utils.hpp"
+#include <cstddef>
+#include <cstdint>
+#include <string>
+#include <tuple>
+
+#include "snippets/kernel_executor_table.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 

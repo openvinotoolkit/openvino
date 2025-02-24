@@ -4,8 +4,33 @@
 
 #include "brgemm_amx.hpp"
 
-#include <cpu/x64/amx_tile_configure.hpp>
+#include <oneapi/dnnl/dnnl.h>
+#include <oneapi/dnnl/dnnl_common_types.h>
+#include <oneapi/dnnl/dnnl_types.h>
 
+#include <common/utils.hpp>
+#include <cpu/x64/amx_tile_configure.hpp>
+#include <cpu/x64/brgemm/brgemm_types.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
+#include <cpu/x64/matmul/brgemm_matmul_utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <utility>
+
+#include "cache/multi_cache.h"
+#include "emitters/snippets/cpu_kernel_executor_table.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/snippets/x64/kernel_executors/brgemm_base.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 

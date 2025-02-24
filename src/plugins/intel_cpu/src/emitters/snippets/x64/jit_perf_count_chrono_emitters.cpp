@@ -1,11 +1,21 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <vector>
+
+#include "emitters/snippets/x64/jit_binary_call_emitter.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/op/perf_count.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
 
-#    include "jit_perf_count_chrono_emitters.hpp"
-
 #    include "emitters/plugin/x64/utils.hpp"
+#    include "jit_perf_count_chrono_emitters.hpp"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;

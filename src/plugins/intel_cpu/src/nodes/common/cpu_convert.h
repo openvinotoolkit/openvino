@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstddef>
+
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov {

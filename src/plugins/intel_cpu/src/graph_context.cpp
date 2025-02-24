@@ -3,11 +3,21 @@
 //
 #include "graph_context.h"
 
+#include <algorithm>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <utility>
 
+#include "cache/multi_cache.h"
 #include "config.h"
+#include "dnnl_scratch_pad.h"
 #include "memory_control.hpp"
 #include "nodes/memory.hpp"
+#include "openvino/runtime/system_conf.hpp"
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
+#include "sub_memory_manager.hpp"
+#include "weights_cache.hpp"
 
 namespace ov::intel_cpu {
 
