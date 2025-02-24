@@ -33,6 +33,7 @@ permissions: read-all
 
 env:
   PYTHON_VERSION: '3.11'
+  MANIFEST_FILE: manifest.yml
 
 jobs:
   
@@ -83,6 +84,7 @@ jobs:
       DEVELOPER_PACKAGE_DIR: ${{ github.workspace }}/developer_package_install
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       BUILD_DIR: ${{ github.workspace }}/build
+      PRODUCT_TYPE: public_macos_12_6_x86_release
     if: "!needs.smart_ci.outputs.skip_workflow"
     steps:
       - name: Clone OpenVINO
@@ -233,6 +235,18 @@ jobs:
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
 
+      - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
+        id: create_manifest
+        uses: ./openvino/.github/actions/create_manifest
+        with:
+          repos: |
+            ${{ env.OPENVINO_REPO }}
+            ${{ env.OPENVINO_CONTRIB_REPO }}
+          product_type: ${{ env.PRODUCT_TYPE }}
+          target_arch: ${{ runner.arch }}
+          build_type: 'release'
+          save_to: ${{ github.workspace }}/${{ env.MANIFEST_FILE }}  
+        
       - name: Cmake & Build - OpenVINO Contrib
         run: |
           cmake \
@@ -298,6 +312,14 @@ jobs:
         with:
           name: openvino_js_package
           path: ${{ env.BUILD_DIR }}/openvino_js_package.tar.gz
+          if-no-files-found: 'error'
+      
+      - name: Upload product manifest
+        if: ${{ always() }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: openvino_package_manifest
+          path: ${{ github.workspace }}/${{ env.MANIFEST_FILE }}
           if-no-files-found: 'error'
 
   Samples:
@@ -411,10 +433,8 @@ jobs:
     env:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
-      MANIFEST_PATH: ${{ github.workspace }}/manifest.yml
       ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
       ARTIFACTS_SHARE: "/mount/build-artifacts"
-      PRODUCT_TYPE: public_macos_12_6_x86_release
 
     steps:        
       - name: Checkout OpenVINO actions
@@ -424,35 +444,14 @@ jobs:
           sparse-checkout: |
             .github/actions/common
             .github/actions/store_artifacts
-            .github/actions/create_manifest
           path: ${{ env.OPENVINO_REPO }}
-      
-      - name: Clone OpenVINO Contrib
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        timeout-minutes: 15
-        with:
-          repository: 'openvinotoolkit/openvino_contrib'
-          path: ${{ env.OPENVINO_CONTRIB_REPO }}
-          fetch-depth: 1
-          
+             
       - name: Download OpenVINO artifacts
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          pattern: "{openvino_package,openvino_wheels,openvino_developer_package,openvino_js_package}"
+          pattern: "{openvino_package,openvino_wheels,openvino_developer_package,openvino_js_package,openvino_package_manifest}"
           path: ${{ env.ARTIFACTS_DIR }}
-          merge-multiple: true
-
-      - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
-        id: create_manifest
-        uses: ./openvino/.github/actions/create_manifest
-        with:
-          repos: |
-            ${{ env.OPENVINO_REPO }}
-            ${{ env.OPENVINO_CONTRIB_REPO }}
-          product_type: ${{ env.PRODUCT_TYPE }}
-          target_arch: ${{ inputs.arch }}
-          build_type: 'release'
-          save_to: ${{ env.MANIFEST_PATH }}     
+          merge-multiple: true   
           
       - name: Store artifacts to a shared drive
         id: store_artifacts
@@ -460,7 +459,7 @@ jobs:
         uses: ./openvino/.github/actions/store_artifacts
         with:
           artifacts: |
-            ${{ env.MANIFEST_PATH }}
+            ${{ env.ARTIFACTS_DIR }}/${{ env.MANIFEST_FILE }}
             ${{ env.ARTIFACTS_DIR }}/openvino_package.tar.gz
             ${{ env.ARTIFACTS_DIR }}/openvino_developer_package.tar.gz
             ${{ env.ARTIFACTS_DIR }}/wheels
