@@ -271,6 +271,7 @@ macro(ov_define_setup_py_dependencies)
     endforeach()
 
     file(GLOB_RECURSE openvino_py_files ${OpenVINOPython_SOURCE_DIR}/src/openvino/*.py)
+    file(GLOB_RECURSE openvino_py_files ${OpenVINOPython_SOURCE_DIR}/src/openvino/*.pyi)
 
     list(APPEND ov_setup_py_deps
         ${openvino_py_files}

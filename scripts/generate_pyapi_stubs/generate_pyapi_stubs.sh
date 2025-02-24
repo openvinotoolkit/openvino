@@ -46,12 +46,8 @@ create_regex_pattern() {
 
     for error in "${errors[@]}"; do
         escaped_error=$(printf '%s\n' "$error" | sed -e 's/[]\/$*.^|[]/\\&/g')
-        
-        # Append to the regex pattern with OR operator
         regex_pattern+=".*$escaped_error.*|"
     done
-
-    # Remove the trailing pipe character
     regex_pattern="${regex_pattern%|}"
     echo "$regex_pattern"
 }
@@ -59,12 +55,23 @@ create_regex_pattern() {
 invalid_expressions_regex=$(create_regex_pattern "${invalid_expressions[@]}")
 invalid_identifiers_regex=$(create_regex_pattern "${invalid_identifiers[@]}")
 unresolved_names_regex=$(create_regex_pattern "${unresolved_names[@]}")
+output_dir="$(dirname "$0")/../../src/bindings/python/src"
 
 python -m pybind11_stubgen \
+            --output-dir "$output_dir" \
+            --root-suffix "" \
             --ignore-invalid-expressions "$invalid_expressions_regex" \
             --ignore-invalid-identifiers "$invalid_identifiers_regex" \
             --ignore-unresolved-names "$unresolved_names_regex" \
-            --print-invalid-expressions-as-is \
+            --numpy-array-use-type-var \
             --exit-code \
             openvino
-echo "Stubs generated at: $(pwd)/stubs"
+
+# Workaround for pybind11-stubgen issue where it doesn't import some modules for stubs generated from .py files
+pyi_file="$output_dir/openvino/_ov_api.pyi"
+if [ -f "$pyi_file" ]; then
+    sed -i '2i import typing' "$pyi_file"
+    sed -i '2i import pathlib' "$pyi_file"
+else
+    echo "File $pyi_file not found."
+fi

@@ -10,8 +10,8 @@
 #include <string>
 
 #include "openvino/core/descriptor/tensor.hpp"
-#include "pyopenvino/core/common.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "pyopenvino/core/common.hpp"
 
 namespace py = pybind11;
 

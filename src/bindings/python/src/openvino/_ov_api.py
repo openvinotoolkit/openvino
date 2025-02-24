@@ -539,7 +539,7 @@ class Core(CoreBase):
         self,
         model: Union[str, bytes, object],
         weights: Union[object, str, bytes, Tensor] = None,
-        config: Optional[dict] = None
+        config: Optional[Dict[str, Any]] = None
     ) -> Model:
         config = {} if config is None else config
         if isinstance(model, Model):
@@ -554,11 +554,12 @@ class Core(CoreBase):
         else:
             return Model(super().read_model(model, weights, config))
 
+
     def compile_model(
         self,
         model: Union[Model, str, Path],
         device_name: Optional[str] = None,
-        config: Optional[dict] = None,
+        config: Optional[Dict[str, Any]] = None,
         *,
         weights: Optional[bytes] = None,
     ) -> CompiledModel:
@@ -612,7 +613,7 @@ class Core(CoreBase):
             self,
             model: Model,
             device_name: str,
-            config: Optional[dict] = None,
+            config: Optional[Dict[str, Any]] = None,
     ) -> dict:
         return super().query_model(model._Model__model,
                                    device_name,
@@ -622,7 +623,7 @@ class Core(CoreBase):
         self,
         model_stream: bytes,
         device_name: str,
-        config: Optional[dict] = None,
+        config: Optional[Dict[str, Any]] = None,
     ) -> CompiledModel:
         """Imports a compiled model from a previously exported one.
 
@@ -675,7 +676,7 @@ class Core(CoreBase):
 def compile_model(
     model: Union[Model, str, Path],
     device_name: Optional[str] = "AUTO",
-    config: Optional[dict] = None,
+    config: Optional[Dict[str, Any]] = None,
 ) -> CompiledModel:
     """Compact method to compile model with AUTO plugin.
 
