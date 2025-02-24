@@ -81,7 +81,7 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::Output<const ov::Node
     write(stream, var.get_names());
 }
 
-enum class AnyType : int { STRING = 0, CHARS, INT, UINT32, INT64, UINT64, SIZET, FLOAT, BOOL };
+enum class AnyType : int { STRING = 0, CHARS, INT, UINT32, INT64, UINT64, SIZET, FLOAT, BOOL, ELEMENT_TYPE };
 
 void ov::npuw::s11n::write_any(std::ostream& stream, const ov::Any& var) {
     // FIXME: figure out a proper way to serialize Any (for config)
@@ -113,6 +113,9 @@ void ov::npuw::s11n::write_any(std::ostream& stream, const ov::Any& var) {
     } else if (var.is<bool>()) {
         write(stream, static_cast<int>(AnyType::BOOL));
         write(stream, var.as<bool>());
+    } else if (var.is<ov::element::Type>()) {
+        write(stream, static_cast<int>(AnyType::ELEMENT_TYPE));
+        write(stream, var.as<ov::element::Type>());
     } else {
         NPUW_ASSERT(false && "Unsupported type");
     }
@@ -120,6 +123,10 @@ void ov::npuw::s11n::write_any(std::ostream& stream, const ov::Any& var) {
 
 void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::weights::LazyTensor& var) {
     var.serialize(stream);
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ov::element::Type& var) {
+    stream.write(reinterpret_cast<const char*>(&var), sizeof var);
 }
 
 void ov::npuw::s11n::read(std::istream& stream, std::streampos& var) {
@@ -264,6 +271,10 @@ void ov::npuw::s11n::read_any(std::istream& stream, ov::Any& var) {
         bool val;
         read(stream, val);
         var = val;
+    } else if (type == AnyType::ELEMENT_TYPE) {
+        ov::element::Type val;
+        read(stream, val);
+        var = val;
     } else {
         NPUW_ASSERT(false && "Unsupported type");
     }
@@ -271,6 +282,10 @@ void ov::npuw::s11n::read_any(std::istream& stream, ov::Any& var) {
 
 void ov::npuw::s11n::read(std::istream& stream, ov::npuw::weights::LazyTensor& var) {
     var = ov::npuw::weights::LazyTensor::deserialize(stream);
+}
+
+void ov::npuw::s11n::read(std::istream& stream, ov::element::Type& var) {
+    stream.read(reinterpret_cast<char*>(&var), sizeof var);
 }
 
 // Weightless
