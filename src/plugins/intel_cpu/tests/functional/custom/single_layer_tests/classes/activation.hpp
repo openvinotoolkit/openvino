@@ -36,7 +36,7 @@ protected:
     void SetUp() override;
 
 private:
-    ov::element::Type netPrecision = ov::element::undefined;
+    ov::element::Type netPrecision = ov::element::dynamic;
     utils::ActivationTypes activationType = utils::ActivationTypes::None;
 
     std::string getPrimitiveType(

@@ -59,9 +59,7 @@ def init_test_scope():
         quantized_model = OVModelForCausalLM.from_pretrained(
             model_path, quantization_config=quantization_config
         )
-        quantized_model_path = os.path.join(
-            tmp_dir, model_type + "_ov_int4"
-        )
+        quantized_model_path = os.path.join(tmp_dir, model_type + "_ov_int4")
         quantized_model.save_pretrained(quantized_model_path)
         tokenizer.save_pretrained(quantized_model_path)
         del quantized_model

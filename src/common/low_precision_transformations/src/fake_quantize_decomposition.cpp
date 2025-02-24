@@ -306,7 +306,8 @@ bool FakeQuantizeDecompositionTransformation::transform(ov::pass::pattern::Match
 
         const DataPrecision expectedDataPrecision = fq_decomposition::getDataPrecisionByOutputPortAndFakeQuantize(layer);
         // TODO: need test to compose FakeQuantize
-        if ((expectedDataPrecision.precision == element::undefined) || (expectedDataPrecision.precision == outputPrecision)) {
+        if ((expectedDataPrecision.precision == element::dynamic) ||
+            (expectedDataPrecision.precision == outputPrecision)) {
             return rewritten;
         }
 
@@ -363,7 +364,7 @@ bool FakeQuantizeDecompositionTransformation::transform(ov::pass::pattern::Match
 
     // if IntervalsAlignment attribute is defined then, the attribute defines decomposition parameters,
     // if IntervalsAlignment attribute is not defined, then FakeQuantize operation intervals define decomposition parameters
-    if (dataPrecision.precision == element::undefined) {
+    if (dataPrecision.precision == element::dynamic) {
         element::Type precision;
         const auto levels = layer->get_levels();
         const std::vector<float> outputLowValues = ov::as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(3))->cast_vector<float>();
