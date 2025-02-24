@@ -1009,7 +1009,7 @@ void prepare_buffer_fusing::run(program& p) {
             auto in_order = node.get_input_layout(0).get_dims_order();
             auto order = node.get_output_layout(0).get_dims_order();
             auto permute_order = permute_node.get_permute_order();
-            if (order.size() != permute_order.size()) {
+            if (order.size() != permute_order.size() || order.size() != in_order.size()) {
                 return;
             }
             // Check if permute cancels reorder changes
