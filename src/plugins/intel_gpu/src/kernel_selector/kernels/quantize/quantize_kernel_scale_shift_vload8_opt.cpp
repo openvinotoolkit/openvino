@@ -138,7 +138,8 @@ bool QuantizeKernelScaleShift_vload8::Validate(const Params& p) const {
                  (feature_size % 32 != 0 || batch_size % 16 != 0)))
                 return false;
     }
-
+    if (get_total_size(params) < vec_size)
+        return false;
     return true;
 }
 

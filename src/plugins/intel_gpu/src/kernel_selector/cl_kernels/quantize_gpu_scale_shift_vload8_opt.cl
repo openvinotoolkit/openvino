@@ -39,7 +39,10 @@ KERNEL(quantize_gpu_scale_shift_vload8_opt)(OPTIONAL_SHAPE_INFO_ARG
 #endif
     const INPUT0_VEC_TYPE in0 = vload8(global_id, input);
     OUTPUT_VEC_TYPE res;
-
+    const INPUT1_VEC_TYPE vscale = IN_SCALE_VAL;
+    const INPUT1_VEC_TYPE vshift = IN_SHIFT_VAL;
+    const INPUT1_VEC_TYPE ovscale = OUT_SCALE_VAL;
+    const INPUT1_VEC_TYPE ovshift = OUT_SHIFT_VAL;
 #if HAS_CLAMP
 #if CAN_USE_OUTPUT_RANGE
     INPUT1_TYPE output_low_val   = OUT_LO_VAL;
@@ -57,9 +60,9 @@ KERNEL(quantize_gpu_scale_shift_vload8_opt)(OPTIONAL_SHAPE_INFO_ARG
 #if CAN_USE_OUTPUT_RANGE
 
 #if HAS_PRE_SHIFT
-    INPUT1_VEC_TYPE val = TO_VECTOR_TYPE(INPUT1_TYPE, 8)(in0) * IN_SCALE_VAL + IN_SHIFT_VAL;
+    INPUT1_VEC_TYPE val = TO_VECTOR_TYPE(INPUT1_TYPE, 8)(in0) * vscale + vshift;
 #else
-    INPUT1_VEC_TYPE val = TO_VECTOR_TYPE(INPUT1_TYPE, 8)(in0) * IN_SCALE_VAL;
+    INPUT1_VEC_TYPE val = TO_VECTOR_TYPE(INPUT1_TYPE, 8)(in0) * vscale;
 #endif
 
 #if HAS_OUTPUT_RANGE_ROUND
@@ -67,11 +70,11 @@ KERNEL(quantize_gpu_scale_shift_vload8_opt)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if HAS_POST_SCALE
-    val *= OUT_SCALE_VAL;
+    val *= ovscale;
 #endif
 
 #if HAS_POST_SHIFT
-    val += OUT_SHIFT_VAL;
+    val += ovshift;
 #endif
 
 #if HAS_CLAMP
@@ -97,17 +100,17 @@ KERNEL(quantize_gpu_scale_shift_vload8_opt)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if HAS_PRE_SHIFT
-    val = round(val * IN_SCALE_VAL + IN_SHIFT_VAL);
+    val = round(val * vscale + vshift);
 #else
-    val = round(val * IN_SCALE_VAL);
+    val = round(val * vscale);
 #endif
 
 #if HAS_POST_SCALE
-    val *= OUT_SCALE_VAL;
+    val *= ovscale;
 #endif
 
 #if HAS_POST_SHIFT
-    val += OUT_SHIFT_VAL;
+    val += ovshift;
 #endif
 
 #endif // CAN_USE_OUTPUT_RANGE
