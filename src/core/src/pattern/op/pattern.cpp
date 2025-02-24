@@ -8,6 +8,7 @@
 #include <regex>
 
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/log.hpp"
 
 namespace ov::pass::pattern {
 namespace op {
@@ -193,6 +194,74 @@ op::Predicate all_of(const std::vector<std::function<bool(Output<Node>)>>& predi
             return true;
         },
         "all_of(...)");
+}
+
+namespace {
+class AttributeMatchingVisitor : public ov::AttributeVisitor {
+public:
+    explicit AttributeMatchingVisitor(const Attributes& expected_attrs)
+        : ov::AttributeVisitor(),
+          m_expected_attrs{expected_attrs} {}
+
+    void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
+        if (m_attrs_match && m_expected_attrs.count(name)) {
+            try {
+                const auto& node_attribute = adapter.get_as_any();
+                const auto& expected_attribute = m_expected_attrs.at(name);
+                if (node_attribute.type_info() != expected_attribute.type_info())
+                    OPENVINO_DEBUG("  Attribute `",
+                                   name,
+                                   "` -- data type does not match. ",
+                                   node_attribute.type_info().name(),
+                                   " vs ",
+                                   expected_attribute.type_info().name());
+                bool status = node_attribute == expected_attribute;
+                if (!status)
+                    OPENVINO_DEBUG("  Attribute `", name, "` -- value does not match. ", [&]() {
+                        std::stringstream ss;
+                        node_attribute.print(ss);
+                        ss << " vs ";
+                        expected_attribute.print(ss);
+                        return ss.str();
+                    }());
+                m_attrs_match &= status;
+            } catch (...) {
+                OPENVINO_DEBUG("  Attribute `", name, "` matching went wrong");
+                m_attrs_match = false;
+            }
+        }
+    };
+
+    bool get_match_status() const {
+        return m_attrs_match;
+    }
+
+private:
+    const Attributes& m_expected_attrs;
+    bool m_attrs_match = true;
+};
+}  // namespace
+
+op::Predicate attrs_match(const std::unordered_map<std::string, ov::Any>& expected_attrs) {
+    std::stringstream ss;
+    ss << "{ ";
+    bool first = true;
+    for (const auto& [key, value] : expected_attrs) {
+        if (!first)
+            ss << ", ";
+        first = false;
+        ss << key << ": ";
+        value.print(ss);
+    }
+    ss << " }";
+    return op::Predicate(
+        [expected_attrs](PatternSymbolMap&, const Output<Node>& output) -> bool {
+            const auto& node = output.get_node_shared_ptr();
+            AttributeMatchingVisitor visitor(expected_attrs);
+            node->visit_attributes(visitor);
+            return visitor.get_match_status();
+        },
+        "attrs_match(" + ss.str() + ")");
 }
 
 namespace {
