@@ -14,6 +14,8 @@
 #include "spatial.hpp"
 #include "model_generator/model_generator.hpp"
 
+// FIXME: parametrize all the tests below
+
 TEST(SerializationTest, BasicTypes_string) {
     using namespace ov::npuw::s11n;
 
@@ -163,7 +165,7 @@ TEST(SerializationTest, OVTypes_Any) {
     }
 }
 
-TEST(SerializationTest, BasicTypes_array) {
+TEST(SerializationTest, BasicTypes_Indicator) {
     using namespace ov::npuw::s11n;
 
     IndicatorType res;
@@ -252,6 +254,8 @@ TEST(SerializationTest, BasicTypes_optional) {
     EXPECT_EQ(var2, res2);
 }
 
+// "with_weights" is an option for read/write_weightless() when Constant in our model is not present in the original
+// it reads/writes the whole ov::Tensor
 TEST(SerializationTest, OVTypes_Tensor_with_weights) {
     using namespace ov::npuw::s11n;
 
