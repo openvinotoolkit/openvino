@@ -16,6 +16,7 @@ from openvino import (
 )
 from openvino.utils.postponed_constant import make_postponed_constant
 
+
 class Maker:
     def __init__(self):
         self.called = False
@@ -40,13 +41,17 @@ def create_model(maker):
     const_2 = op.Constant(Type.f32, input_shape, [1, 2, 3, 4])
     add_2 = opset13.add(add_1, const_2)
 
-    return Model(add_2, [param_node], 'test_model')
+    return Model(add_2, [param_node], "test_model")
 
 def test_postponned_constant():
     maker = Maker()
     model = create_model(maker)
-    assert maker.is_called() == False
-    serialize(model, 'out.xml', 'out.bin')
-    assert maker.is_called() == True
-    os.remove('out.xml')
-    os.remove('out.bin')
+    assert maker.is_called() is False
+
+    model_export_file_name = "out.xml"
+    weights_export_file_name = "out.bin"
+    serialize(model, model_export_file_name, weights_export_file_name)
+    assert maker.is_called() is True
+
+    os.remove(model_export_file_name)
+    os.remove(weights_export_file_name)
