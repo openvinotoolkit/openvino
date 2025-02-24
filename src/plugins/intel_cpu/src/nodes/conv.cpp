@@ -187,7 +187,6 @@ bool Convolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
 
 Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, ConvolutionShapeInferFactory(op)),
-      withBiases(false),
       withSum(false),
       withDWConv(false),
       dw_conv_oc(0),
@@ -439,7 +438,6 @@ void Convolution::initSupportedPrimitiveDescriptors() {
     m_attrs.fcSemantic = false;
     m_attrs.nonConstantWeights = !getParentEdgeAt(WEIGHTS)->getParent()->isConstant();
     m_attrs.weightsNonTransposed = false;
-    m_attrs.inputZeroPointsType = inputZeroPointType;
     m_attrs.dqScales = getDQScales();
 
     m_postOps = getPostOps(fusedWith);
@@ -484,6 +482,8 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         nodeConfig.outConfs.emplace_back(outputDesc, getBlockedMask(outputDesc, m_attrs.isGrouped), inPlaceOutPort);
 
         if (withDWConv) {
+            constexpr size_t X_AXIS = 0;
+            constexpr size_t Y_AXIS = 1;
             const std::vector<size_t> dwWeightsDims{dw_conv_oc, 1, 1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]};
             const std::vector<size_t> dwBiasesDims{dw_conv_oc};
 
@@ -509,8 +509,6 @@ void Convolution::initSupportedPrimitiveDescriptors() {
 
         supportedPrimitiveDescriptors.emplace_back(nodeConfig, impl_desc_type::undef);
     }
-
-    return;
 }
 
 bool Convolution::created() const {
@@ -662,9 +660,9 @@ void Convolution::redefineOutputMemory(const std::vector<VectorDims>& newOutputS
         // postpone output memory reallocation since it is the same memory with the sum
         // second input
         return;
-    } else {
-        withSumBroadcast = false;
     }
+
+    withSumBroadcast = false;
 
     Node::redefineOutputMemory(newOutputShapes);
 }
@@ -753,25 +751,26 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
     CPU_NODE_ASSERT(zeroPointsNotSet, "input zero points are not empty");
 
     if (inputZpSize) {
-        inputZeroPointType = ZeroPointsType::PerTensor;
+        m_attrs.inputZeroPointsType = ZeroPointsType::PerTensor;
     }
 
     for (size_t j = 0; j < inputZpSize; j++) {
         legacyInputZeroPoints.push_back(inputZpData[j]);
         if (inputZpData[j] != inputZpData[0]) {
-            inputZeroPointType = ZeroPointsType::PerChannel;
+            m_attrs.inputZeroPointsType = ZeroPointsType::PerChannel;
         }
     }
     // Only enable per-tensor zero point on avx512-amx and avx512-core-vnni, avx2_vnni_2.
     // avx2_vnni is not enabled per-tensor z because of perf regression brgconv with per-tensor zpcompared with jit
     // per-channel zp If zero point is pertensor, both legacy zp and stock zp would be passed into conv node. The conv
     // node would determine how to create post-ops attribute and prioritize to choose final onednn kernel.
-    if (inputZeroPointType == ZeroPointsType::PerTensor && (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) ||
-                                                            impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_vnni) ||
-                                                            impl::cpu::x64::mayiuse(impl::cpu::x64::avx2_vnni_2))) {
+    if (m_attrs.inputZeroPointsType == ZeroPointsType::PerTensor &&
+        (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) ||
+         impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_vnni) ||
+         impl::cpu::x64::mayiuse(impl::cpu::x64::avx2_vnni_2))) {
         inputZeroPoints.push_back(static_cast<int32_t>(inputZpData[0]));
     } else {
-        inputZeroPointType = ZeroPointsType::PerChannel;
+        m_attrs.inputZeroPointsType = ZeroPointsType::PerChannel;
     }
 }
 

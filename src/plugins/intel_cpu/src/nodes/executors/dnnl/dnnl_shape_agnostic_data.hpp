@@ -17,7 +17,7 @@ struct DnnlShapeAgnosticData {
           m_implType(implType) {}
 
     DnnlPrimitiveAttrs m_primAttrs;
-    // implementation type is a part of shape agnostic data to allow to use
+    // implementation type is a part of shape agnostic data to allow using
     // the same implementation for different shapes to avoid dealing with
     // multiple packed weights based on different implementations even it
     // may be not optimal from a performance perspective
