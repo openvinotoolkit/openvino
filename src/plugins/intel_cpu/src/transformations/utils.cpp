@@ -22,7 +22,7 @@ bool has_matmul_with_compressed_weights(const std::shared_ptr<const ov::Model>& 
     };
 
     for (const auto& op : model->get_ops()) {
-        if (!ov::is_type<ov::op::v0::MatMul>(op) && !ov::is_type<ov::op::internal::FullyConnected>(op)) {
+        if (!ov::is_type_any_of<ov::op::v0::MatMul, ov::op::internal::FullyConnected>(op)) {
             continue;
         }
 

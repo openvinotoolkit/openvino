@@ -72,11 +72,16 @@ bool isFullyConnected(const std::shared_ptr<const ov::Node>& node) {
 bool SupportsFusingWithConvolution_SumActivation(const std::shared_ptr<const Node>& node) {
     // todo: Do all PReLUs are fused? Not sure about round and softRelu
     // EltwiseRoundHalfToEven, EltwiseRoundHalfAwayFromZero, EltwiseSoftRelu
-    return ov::is_type<ov::op::v0::Relu>(node) || ov::is_type<ov::op::v0::PRelu>(node) ||
-           ov::is_type<ov::op::v0::Elu>(node) || ov::is_type<ov::op::v0::Sigmoid>(node) ||
-           ov::is_type<ov::op::v5::HSigmoid>(node) || ov::is_type<ov::op::v0::Clamp>(node) ||
-           ov::is_type<ov::op::v4::Swish>(node) || ov::is_type<ov::op::v4::HSwish>(node) ||
-           ov::is_type<ov::op::v4::Mish>(node) || ov::is_type<ov::op::v5::Round>(node);
+    return ov::is_type_any_of<ov::op::v0::Relu,
+                              ov::op::v0::PRelu,
+                              ov::op::v0::Elu,
+                              ov::op::v0::Sigmoid,
+                              ov::op::v5::HSigmoid,
+                              ov::op::v0::Clamp,
+                              ov::op::v4::Swish,
+                              ov::op::v4::HSwish,
+                              ov::op::v4::Mish,
+                              ov::op::v5::Round>(node);
 }
 
 bool canBePerformedAsScaleShift(const std::shared_ptr<const Node>& node, const int channelAxis) {
@@ -120,8 +125,7 @@ bool canBePerformedAsScaleShift(const std::shared_ptr<const Node>& node, const i
 
     // Prelu and MulAdd are still ignored
     // isConvertablePowerStatic() is ignored
-    return (ov::is_type<ov::opset1::Add>(node) || ov::is_type<ov::opset1::Multiply>(node) ||
-            ov::is_type<ov::opset1::Subtract>(node) || ov::is_type<ov::opset1::Divide>(node)) &&
+    return ov::is_type_any_of<ov::opset1::Add, ov::opset1::Multiply, ov::opset1::Subtract, ov::opset1::Divide>(node) &&
            isBroadcastableToDataInput();
 }
 
@@ -131,15 +135,18 @@ inline bool canBeMatMulExecutedInInt8(const ov::element::Type& firstType, const 
 
 bool SupportsFusingWithConvolution_Simple(const std::shared_ptr<const Node>& node,
                                           const int channelAxis = DEFAULT_AXIS) {
-    return SupportsFusingWithConvolution_SumActivation(node) || ov::is_type<ov::op::v0::Tanh>(node) ||
-           ov::is_type<ov::op::v0::Gelu>(node) || ov::is_type<ov::op::v7::Gelu>(node) ||
-           ov::is_type<ov::op::v0::Abs>(node) || ov::is_type<ov::op::v0::Sqrt>(node) ||
-           ov::is_type<ov::op::v0::FakeQuantize>(node) || canBePerformedAsScaleShift(node, channelAxis);
+    return SupportsFusingWithConvolution_SumActivation(node) ||
+           ov::is_type_any_of<ov::op::v0::Tanh,
+                              ov::op::v0::Gelu,
+                              ov::op::v7::Gelu,
+                              ov::op::v0::Abs,
+                              ov::op::v0::Sqrt,
+                              ov::op::v0::FakeQuantize>(node) ||
+           canBePerformedAsScaleShift(node, channelAxis);
 }
 // Convolution is a special case, since it supports peculiar fusings
 bool isSuitableConvolutionParent(const std::shared_ptr<const Node>& node) {
-    const bool is_suitable_node =
-        ov::is_type<ov::op::v1::Convolution>(node) || ov::is_type<ov::op::v1::GroupConvolution>(node);
+    const bool is_suitable_node = ov::is_type_any_of<ov::op::v1::Convolution, ov::op::v1::GroupConvolution>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
@@ -168,14 +175,18 @@ int getChannelAxis(const ov::AxisSet& axes, bool keep_dims) {
     return channelAxis;
 }
 bool isSuitableMiscParent(const std::shared_ptr<const Node>& node) {
-    const bool is_suitable_node =
-        ov::is_type<ov::op::v0::MVN>(node) || ov::is_type<ov::op::v6::MVN>(node) ||
-        ov::is_type<ov::op::v0::NormalizeL2>(node) || ov::is_type<ov::op::v0::Interpolate>(node) ||
-        ov::is_type<ov::op::v4::Interpolate>(node) || ov::is_type<ov::op::v0::LSTMCell>(node) ||
-        ov::is_type<ov::op::v4::LSTMCell>(node) || ov::is_type<ov::opset1::ConvolutionBackpropData>(node) ||
-        ov::is_type<ov::op::util::ArithmeticReductionKeepDims>(node) ||
-        ov::is_type<ov::opset1::GroupConvolutionBackpropData>(node) || ov::is_type<ov::opset1::AvgPool>(node) ||
-        ov::is_type<ov::op::v14::AvgPool>(node);
+    const bool is_suitable_node = ov::is_type_any_of<ov::op::v0::MVN,
+                                                     ov::op::v6::MVN,
+                                                     ov::op::v0::NormalizeL2,
+                                                     ov::op::v0::Interpolate,
+                                                     ov::op::v4::Interpolate,
+                                                     ov::op::v0::LSTMCell,
+                                                     ov::op::v4::LSTMCell,
+                                                     ov::opset1::ConvolutionBackpropData,
+                                                     ov::op::util::ArithmeticReductionKeepDims,
+                                                     ov::opset1::GroupConvolutionBackpropData,
+                                                     ov::opset1::AvgPool,
+                                                     ov::op::v14::AvgPool>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
@@ -307,9 +318,11 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node>& node,
 
     // MatMul specific checks from ::canFuse()
     if (one_of(updatedChainType, NodeFusingType::FusedWithMatMul, NodeFusingType::FusedWithMatMulI8)) {
-        const auto is_binary_eltwise = ov::is_type<ov::op::v1::Add>(node) || ov::is_type<ov::op::v1::Multiply>(node) ||
-                                       ov::is_type<ov::op::v1::Subtract>(node) ||
-                                       ov::is_type<ov::op::v1::Divide>(node) || ov::is_type<ov::op::v0::PRelu>(node);
+        const auto is_binary_eltwise = ov::is_type_any_of<ov::op::v1::Add,
+                                                          ov::op::v1::Multiply,
+                                                          ov::op::v1::Subtract,
+                                                          ov::op::v1::Divide,
+                                                          ov::op::v0::PRelu>(node);
         const auto rank = node->get_output_partial_shape(0).rank();
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) && rank.is_static() && is_binary_eltwise) {
             const auto const1 = ov::is_type<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0));
@@ -490,8 +503,7 @@ bool isSuitableConvert(const std::shared_ptr<const Node>& node) {
 }
 
 auto is_skipped_op(const std::shared_ptr<ov::Node>& op) -> bool {
-    return ov::is_type<ov::op::v0::Constant>(op) || ov::is_type<ov::op::v0::Parameter>(op) ||
-           ov::is_type<ov::op::v0::Result>(op);
+    return ov::is_type_any_of<ov::op::v0::Constant, ov::op::v0::Parameter, ov::op::v0::Result>(op);
 }
 }  // namespace
 

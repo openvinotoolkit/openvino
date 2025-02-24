@@ -125,7 +125,7 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
         const auto& node = expression->get_node();
         // Note: A few operations are allowed to have mixed register types on their inputs (or outputs) => skip
         // validation here
-        if (!ov::is_type<snippets::op::LoopEnd>(node) && !ov::is_type<snippets::op::RegSpillBase>(node) &&
+        if (!ov::is_type_any_of<snippets::op::LoopEnd, snippets::op::RegSpillBase>(node) &&
             !std::dynamic_pointer_cast<jit_nop_emitter>(emitter)) {
             std::tie(expected_in_type, expected_out_type) = get_expected_reg_types(emitter);
         }

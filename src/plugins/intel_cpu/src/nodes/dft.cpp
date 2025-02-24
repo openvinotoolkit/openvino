@@ -27,10 +27,7 @@ bool DFT::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
             errorMessage = "Doesn't support op with dynamic shapes";
             return false;
         }
-        const auto interpDFT = ov::is_type<const op::v7::DFT>(op);
-        const auto interpIDFT = ov::is_type<const op::v7::IDFT>(op);
-
-        if (!interpDFT && !interpIDFT) {
+        if (!ov::is_type_any_of<const op::v7::DFT, const op::v7::IDFT>(op)) {
             errorMessage = "Only opset7 DFT/IDFT operation is supported";
             return false;
         }

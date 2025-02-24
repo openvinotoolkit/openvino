@@ -101,6 +101,12 @@ is_type(Value value) {
     return value && value->get_type_info().is_castable(Type::get_type_info_static());
 }
 
+/// \brief Tests if value is a pointer/shared_ptr that can be statically cast to any of the specified types
+template <typename Type, typename... Types, typename Value>
+bool is_type_any_of(Value value) {
+    return is_type<Type>(value) || (is_type_any_of<Types>(value) || ...);
+}
+
 /// Casts a Value* to a Type* if it is of type Type, nullptr otherwise
 template <typename Type, typename Value>
 typename std::enable_if<std::is_convertible<decltype(static_cast<Type*>(std::declval<Value>())), Type*>::value,

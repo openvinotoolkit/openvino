@@ -623,9 +623,9 @@ std::shared_ptr<IStaticShapeInfer> make_shape_inference(std::shared_ptr<ov::Node
         return shape_infer;
     } else if (ov::is_type<op::util::UnaryElementwiseArithmetic>(op)) {
         return std::make_shared<ShapeInferCopy>(std::move(op));
-    } else if (ov::is_type<op::util::BinaryElementwiseArithmetic>(op) ||
-               ov::is_type<op::util::BinaryElementwiseComparison>(op) ||
-               ov::is_type<op::util::BinaryElementwiseLogical>(op)) {
+    } else if (ov::is_type_any_of<op::util::BinaryElementwiseArithmetic,
+                                  op::util::BinaryElementwiseComparison,
+                                  op::util::BinaryElementwiseLogical>(op)) {
         return std::make_shared<ShapeInferEltwise>(std::move(op));
     } else {
         return std::make_shared<ShapeInferFallback>(std::move(op));
