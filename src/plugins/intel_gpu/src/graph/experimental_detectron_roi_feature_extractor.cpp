@@ -14,21 +14,14 @@ size_t experimental_detectron_roi_feature_extractor_inst::inputs_memory_count() 
     return parent::inputs_memory_count() - 1;
 }
 
-memory::ptr experimental_detectron_roi_feature_extractor_inst::second_output_memory() const {
-    if (desc()->num_outputs == 1) {
-        return input_memory_ptr(parent::inputs_memory_count() - 1);
-    } else {
-        return output_memory_ptr(1);
-    }
-}
-
 memory::ptr experimental_detectron_roi_feature_extractor_inst::rois_memory() const {
     return input_memory_ptr(0);
 }
 
 void experimental_detectron_roi_feature_extractor_inst::copy_rois_input_to_second_output() const {
-    second_output_memory()->copy_from(get_network().get_stream(), *rois_memory());
+    output_memory_ptr(1)->copy_from(get_network().get_stream(), *rois_memory());
 }
+
 
 template<typename ShapeType>
 std::vector<layout> experimental_detectron_roi_feature_extractor_inst::calc_output_layouts(
@@ -48,19 +41,6 @@ std::vector<layout> experimental_detectron_roi_feature_extractor_inst::calc_outp
 template std::vector<layout>
 experimental_detectron_roi_feature_extractor_inst::calc_output_layouts<ov::PartialShape>(
         experimental_detectron_roi_feature_extractor_node const& node, const kernel_impl_params& impl_param);
-
-layout experimental_detectron_roi_feature_extractor_inst::calc_output_layout(
-    experimental_detectron_roi_feature_extractor_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
-           "Output data type forcing is not supported for roi_pooling_node!");
-    layout rois_layout = impl_param.get_input_layout(0);
-    layout data_layout = impl_param.get_input_layout(1);
-    int num_rois = rois_layout.batch();
-    int num_channels = data_layout.feature();
-    auto desc = impl_param.typed_desc<experimental_detectron_roi_feature_extractor>();
-
-    return layout(data_layout.data_type, format::bfyx, {num_rois, num_channels, desc->output_dim, desc->output_dim});
-}
 
 std::string experimental_detectron_roi_feature_extractor_inst::to_string(experimental_detectron_roi_feature_extractor_node const& node) {
     auto desc = node.get_primitive();

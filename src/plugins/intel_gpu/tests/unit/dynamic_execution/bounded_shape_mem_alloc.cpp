@@ -23,7 +23,6 @@ TEST(dyn_shape_bounded_shape_mem, reorder) {
     topology topology(input_layout("input", input_lay),
                       reorder("reorder", input_info("input"), format::bfyx, data_types::f16));
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
 
     const auto reorder_mem = network.get_primitive("reorder")->output_memory_ptr();
@@ -37,7 +36,6 @@ TEST(dyn_shape_bounded_shape_mem, permute) {
     topology topology(input_layout("input", input_lay),
                       permute("permute", input_info("input"), {0, 2, 3, 1}));
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
 
     const auto permute_mem = network.get_primitive("permute")->output_memory_ptr();

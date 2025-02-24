@@ -202,7 +202,6 @@ TEST(group_normalization, input_bfyx_output_fsv16) {
     ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc gn_impl = { format::bfyx, "", impl_types::ocl };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"group_normalization", gn_impl}}));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network_g(engine, topology_g, config);

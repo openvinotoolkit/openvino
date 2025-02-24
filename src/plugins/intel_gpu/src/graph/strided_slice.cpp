@@ -13,23 +13,6 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(strided_slice)
 
-layout strided_slice_inst::calc_output_layout(strided_slice_node const& node, kernel_impl_params const& impl_param) {
-    auto desc = impl_param.typed_desc<strided_slice>();
-    auto input_layout = impl_param.get_input_layout();
-    auto output_format = format::get_default_format(desc->out_size.size());
-    auto out_shape = desc->out_size;
-    std::vector<tensor::value_type> dims_converted;
-    for (auto dim : out_shape) {
-        dims_converted.push_back(static_cast<tensor::value_type>(dim));
-    }
-    // extend shape to 4d
-    for (size_t i = dims_converted.size(); i < 4; i++) {
-        dims_converted.push_back(1);
-    }
-    auto out_size = cldnn::tensor(output_format, dims_converted);
-    return layout{input_layout.data_type, output_format, out_size};
-}
-
 template<typename ShapeType>
 std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node const& /*node*/, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<strided_slice>();
@@ -194,7 +177,7 @@ void strided_slice_inst::update_output_memory() {
     if (!can_be_optimized())
         return;
 
-    if (node->get_program().is_new_shape_infer() && input_memory_ptr() == nullptr)
+    if (input_memory_ptr() == nullptr)
         return;
 
     if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))

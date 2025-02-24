@@ -879,7 +879,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_no_bias_dynamic) {
         convolution("conv", input_info("input"), "weights", no_bias, 1, { 2, 1 }, {1, 1}, {0, 0}, {0, 0}, false));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
 
     // first execute
@@ -1474,7 +1474,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution3D_group2_dynamic) {
         convolution("conv", input_info("input"), "weights", "biases", 2, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, true));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
 
     network.set_input_data("input", input0);
@@ -1669,7 +1669,6 @@ TEST(convolution_f32_fw_gpu, input_f32_output_f16_dynamic_ref_kernel) {
     ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc conv_impl_ref = { format::bfyx, "convolution_gpu_ref", impl_types::ocl };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl_ref } }));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -4715,7 +4714,6 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
         reorder("out", input_info("conv"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     ov::intel_gpu::ImplementationDesc conv_impl;
     if (engine.get_device_info().supports_immad) {
         conv_impl = { format::b_fs_yx_fsv16, "", impl_types::onednn };
@@ -9812,13 +9810,11 @@ TEST(convolution_gpu_onednn, spatial_1d) {
     ov::intel_gpu::ImplementationDesc conv_impl_test = { format::b_fs_yx_fsv16, "", impl_types::onednn };
     config_test.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl_test } }));
     config_test.set_property(ov::intel_gpu::optimize_data(true));
-    config_test.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     ExecutionConfig config_ref = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc conv_impl_ref = { format::bfyx, "", impl_types::ocl };
     config_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{ "conv", conv_impl_ref } }));
     config_ref.set_property(ov::intel_gpu::optimize_data(true));
-    config_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     network network_test(engine, t, config_test);
     network network_ref(engine, t, config_ref);
@@ -10210,7 +10206,6 @@ TEST(convolution_gpu_onednn, support_activation_zero_points_for_i32) {
     ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc conv_impl = { format::bfyx, "", impl_types::onednn };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl }}));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network(engine, topology, config);
@@ -10276,7 +10271,6 @@ TEST(convolution_gpu_onednn, has_proper_synchronization) {
 
     auto config_ref = get_test_default_config(engine);
     config_ref.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
-    config_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     auto config_test = config_ref;
     config_test.set_property(ov::intel_gpu::force_implementations(impl_forcing_map));
@@ -10612,7 +10606,7 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv16_no_bias) {
     ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc conv_impl = { format::bfyx, "convolution_gpu_bfyx_os_iyx_osv16", impl_types::ocl };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl } }));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::enable_profiling(true));
 
     network network(engine, topology, config);
@@ -10715,7 +10709,6 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv32_no_bias) {
     ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc conv_impl = { format::bfyx, "convolution_gpu_bfyx_os_iyx_osv32", impl_types::ocl };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl } }));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::enable_profiling(true));
 
     network network(engine, topology, config);
@@ -10846,7 +10839,6 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_1x1_no_bias) {
     ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_1x1", impl_types::ocl };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl } }));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::enable_profiling(true));
 
     network network(engine, topology, config);
@@ -10985,7 +10977,6 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_depthwise_quantized) {
     ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_b_fs_yx_fsv_16_32_imad_dw", impl_types::ocl };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl } }));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::enable_profiling(true));
 
     network network(engine, topology, config);
@@ -11141,7 +11132,6 @@ TEST_P(conv_dyn_3d_test, convolution_gpu_b_fs_zyx_fsv16_imad_quantized) {
     ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_zyx_fsv16, "convolution_gpu_b_fs_zyx_fsv16_imad", impl_types::ocl };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl } }));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::enable_profiling(true));
 
     cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), p.is_caching_test);

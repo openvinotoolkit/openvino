@@ -29,7 +29,6 @@ class typed_primitive_inst<grid_sample> : public typed_primitive_inst_base<grid_
 public:
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(grid_sample_node const& /*node*/, const kernel_impl_params& impl_param);
-    static layout calc_output_layout(const grid_sample_node& node, const kernel_impl_params& impl_param);
     static std::string to_string(const grid_sample_node& node);
 
     typed_primitive_inst(network& network, grid_sample_node const& node);

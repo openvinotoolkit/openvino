@@ -225,59 +225,6 @@ std::string vector_to_string(const std::vector<float>& vec) {
     return result.str();
 }
 
-std::vector<float> normalized_aspect_ratio(const std::vector<float>& aspect_ratio, bool flip) {
-    std::set<float> unique_ratios;
-    for (auto ratio : aspect_ratio) {
-        unique_ratios.insert(std::round(ratio * 1e6) / 1e6);
-        if (flip)
-            unique_ratios.insert(std::round(1 / ratio * 1e6) / 1e6);
-    }
-    unique_ratios.insert(1);
-    return std::vector<float>(unique_ratios.begin(), unique_ratios.end());
-}
-
-int64_t number_of_priors(const std::vector<float>& aspect_ratio,
-                         const std::vector<float>& min_size,
-                         const std::vector<float>& max_size,
-                         const std::vector<float>& fixed_size,
-                         const std::vector<float>& fixed_ratio,
-                         const std::vector<float>& densities,
-                         bool scale_all_sizes,
-                         bool flip) {
-    // Starting with 0 number of prior and then various conditions on attributes will contribute
-    // real number of prior boxes as PriorBox is a fat thing with several modes of
-    // operation that will be checked in order in the next statements.
-    int64_t num_priors = 0;
-
-    // Total number of boxes around each point; depends on whether flipped boxes are included
-    // plus one box 1x1.
-    int64_t total_aspect_ratios = normalized_aspect_ratio(aspect_ratio, flip).size();
-
-    if (scale_all_sizes) {
-        num_priors = total_aspect_ratios * min_size.size() + max_size.size();
-    } else {
-        num_priors = total_aspect_ratios + min_size.size() - 1;
-    }
-
-    if (!fixed_size.empty()) {
-        num_priors = total_aspect_ratios * fixed_size.size();
-    }
-
-    for (auto density : densities) {
-        auto rounded_density = static_cast<int64_t>(density);
-        auto density_2d = (rounded_density * rounded_density - 1);
-        if (!fixed_ratio.empty()) {
-            num_priors += fixed_ratio.size() * density_2d;
-        } else {
-            num_priors += total_aspect_ratios * density_2d;
-        }
-    }
-    return num_priors;
-}
-
-tensor get_output_shape(int32_t height, int32_t width, int32_t number_of_priors) {
-    return tensor{std::vector<int32_t>{2, 4 * height * width * number_of_priors}};
-}
 }  // namespace
 
 void prior_box_node::calc_result() {
@@ -410,25 +357,6 @@ void prior_box_node::calc_result() {
                                                                              get_program().get_stream(),
                                                                              get_input_layout(),
                                                                              *typed_desc());
-}
-
-layout prior_box_inst::calc_output_layout(prior_box_node const& node, kernel_impl_params const& impl_param) {
-    const auto primitive = impl_param.typed_desc<prior_box>();
-    auto number = number_of_priors(primitive->aspect_ratios,
-                                   primitive->min_sizes,
-                                   primitive->max_sizes,
-                                   primitive->fixed_size,
-                                   primitive->fixed_ratio,
-                                   primitive->density,
-                                   primitive->scale_all_sizes,
-                                   primitive->flip);
-    if (primitive->is_clustered()) {
-        number = primitive->widths.size();
-    }
-    const auto output_type = primitive->output_data_types[0].value_or(data_types::f32);
-    const auto output_shape = get_output_shape(primitive->output_size.spatial[1], primitive->output_size.spatial[0], number);
-
-    return {output_type, impl_param.get_input_layout().format, output_shape};
 }
 
 template<typename ShapeType>

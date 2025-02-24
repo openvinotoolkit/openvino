@@ -1356,7 +1356,7 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfyx_dynamic_padding_x) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(false));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
     auto input_mem = engine.allocate_memory({ov::PartialShape(in_shape),
                                              data_types::f16,
@@ -1418,7 +1418,7 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfyx_dynamic_padding_f) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(false));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
     auto input_mem = engine.allocate_memory({ov::PartialShape(in_shape),
                                              data_types::f16,
@@ -1483,7 +1483,7 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfzyx) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
 
     auto inst = network.get_primitive("reorder");
@@ -1551,7 +1551,6 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_fsv16) {
         reorder("output_reorder", input_info("relu"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
 
     auto fsv16_reorder_inst = network.get_primitive("reorder");
@@ -3589,7 +3588,6 @@ TEST(reorder_gpu_fp32, test_needs_completion_events) {
     ExecutionConfig config = get_test_default_config(engine);
     auto force_impl = ov::intel_gpu::ImplementationDesc{ format::bfyx, "", impl_types::cpu };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {primitive_id("reorder2"), force_impl} }));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
 
     network.set_input_data("input1", input1);

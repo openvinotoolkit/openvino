@@ -284,7 +284,7 @@ TEST(reorder_inputs, no_add_reorder_infront_of_reshape) {
     topology.add(reorder("reorder", input_info("eltw"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config);
 
@@ -320,16 +320,14 @@ TEST(reorder_inputs, no_need_of_reorder_for_strided_slice) {
         permute("permute1", input_info("input1"), {0, 1, 2, 3}),
         batch_to_space("batch_to_space1",
             input_info("input2"),
-            tensor{1, 1, 4, 1, 1},
-            tensor{0, 0, 1, 0, 0},
-            tensor{0, 0, 1, 0, 0},
-            tensor{1, 1080, 1920, 1, 2}),
+            std::vector<int32_t>{1, 1, 4, 1, 1},
+            std::vector<int32_t>{0, 0, 1, 0, 0},
+            std::vector<int32_t>{0, 0, 1, 0, 0}),
         batch_to_space("batch_to_space2",
             input_info("input2"),
-            tensor{1, 1, 4, 1, 1},
-            tensor{0, 0, 1, 0, 0},
-            tensor{0, 0, 1, 0, 0},
-            tensor{1, 1080, 1920, 1, 2}),
+            std::vector<int32_t>{1, 1, 4, 1, 1},
+            std::vector<int32_t>{0, 0, 1, 0, 0},
+            std::vector<int32_t>{0, 0, 1, 0, 0}),
         data("data_1", data_1),
         data("data_2", data_2),
         data("data_3", data_3),
@@ -559,7 +557,7 @@ TEST(reorder_inputs, has_reshape_user) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
 
     network.set_input_data("input", input);

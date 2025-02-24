@@ -19,28 +19,20 @@ struct multiclass_nms : public primitive_base<multiclass_nms> {
 
     multiclass_nms() : primitive_base("", {}) {}
 
+    /// @brief Constructs multiclass_nms primitive
+    /// @param id This primitive id
+    /// @param boxes Boxes coordinates
+    /// @param scores Box scores
+    /// @param roisnum Number of boxes in each batch for MulticlassNMS-9 (empty string for MulticlassNMS-8)
+    /// @param attrs Attributes
     multiclass_nms(const primitive_id& id,
                    const std::vector<input_info> inputs,
-                   const ov::op::util::MulticlassNmsBase::Attributes& attrs)
+                   const ov::op::util::MulticlassNmsBase::Attributes& attrs,
+                   const padding& output_padding = {})
         : primitive_base{id, inputs},
-          attrs(attrs) {
-        // Legacy multi-output
-        if (inputs.size() == 5) {
-            output_selected_indices = inputs[InputIdx::OutputSelectedIndices].pid;
-            output_selected_num = inputs[InputIdx::OutputSelectedNum].pid;
-            has_roisnum = !inputs[InputIdx::RoisNum].pid.empty();
-            if (inputs[InputIdx::RoisNum].pid.empty()) {
-                this->input.erase(this->input.begin() + 2);
-            }
-        } else {
-            has_roisnum = inputs.size() == 3;
-        }
-    }
+          attrs(attrs) {}
 
-    primitive_id output_selected_indices{};
-    primitive_id output_selected_num{};
     ov::op::util::MulticlassNmsBase::Attributes attrs;
-    bool has_roisnum{false};
 
    size_t hash() const override {
         size_t seed = primitive::hash();
@@ -99,16 +91,6 @@ struct multiclass_nms : public primitive_base<multiclass_nms> {
         ib >> attrs.background_class;
         ib >> attrs.normalized;
         ib >> attrs.nms_eta;
-    }
-
-protected:
-    std::vector<input_info> get_dependencies() const override {
-        std::vector<input_info> ret;
-        if (!output_selected_indices.empty())
-            ret.emplace_back(output_selected_indices);
-        if (!output_selected_num.empty())
-            ret.emplace_back(output_selected_num);
-        return ret;
     }
 
 private:

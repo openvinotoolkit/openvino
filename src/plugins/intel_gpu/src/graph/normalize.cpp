@@ -11,21 +11,6 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(normalize)
 
-layout normalize_inst::calc_output_layout(normalize_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
-           "Output data type forcing is not supported for normalize_node!");
-    auto input_node_layout = impl_param.get_non_padded_input_layout();
-    auto output_type = input_node_layout.data_type;
-
-    if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_output_element_type();
-    } else if (input_node_layout.data_type == data_types::u8 || input_node_layout.data_type == data_types::i8) {
-        output_type = data_types::f32;
-    }
-
-    return layout(output_type, input_node_layout.format, input_node_layout.get_tensor());
-}
-
 std::string normalize_inst::to_string(normalize_node const& node) {
     auto node_info = node.desc_to_json();
     auto desc = node.get_primitive();

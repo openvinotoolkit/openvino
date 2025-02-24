@@ -524,7 +524,6 @@ private:
 
         ExecutionConfig config = get_test_default_config(test_engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
         network::ptr network = get_network(test_engine, topology, config, get_test_stream_ptr(), false);
         network->set_input_data("query", query_mem);
@@ -827,7 +826,6 @@ public:
 
         ExecutionConfig config = get_test_default_config(get_test_engine());
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
         network::ptr network = get_network(get_test_engine(), topology, config, get_test_stream_ptr(), false);
         network->set_input_data("query", query_mem);

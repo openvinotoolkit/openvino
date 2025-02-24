@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "impls/ocl/kernel_selector_helper.h"
 #include "primitive_base.hpp"
 
 #include "adaptive_pooling_inst.h"
@@ -22,19 +23,6 @@ struct adaptive_pooling_impl : public typed_primitive_impl_ocl<adaptive_pooling>
         return make_deep_copy<adaptive_pooling_impl, kernel_params_t>(*this);
     }
 
-protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<adaptive_pooling>& instance) const override {
-        kernel_arguments_data args = parent::get_arguments(instance);
-        auto desc = instance.get_typed_desc<adaptive_pooling>();
-
-        // Legacy multi-output
-        if (desc->num_outputs == 1 && desc->mode == adaptive_pooling_mode::max) {
-            args.outputs.push_back(instance.dep_memory_ptr(2));
-        }
-
-        return args;
-    }
-
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<adaptive_pooling>();
@@ -46,12 +34,7 @@ public:
             params.mode = kernel_selector::PoolType::MAX;
             params.poolIndexElementType = to_data_type(primitive->index_element_type);
             params.outputs_num = 2;
-            if (primitive->num_outputs == 2) {
-                params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));
-            } else {
-                // Legacy multi-output
-                params.outputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
-            }
+            params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));
         }
 
         return params;

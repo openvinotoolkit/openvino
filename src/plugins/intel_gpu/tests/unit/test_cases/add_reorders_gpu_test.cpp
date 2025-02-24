@@ -8,7 +8,6 @@
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/activation.hpp>
-#include <intel_gpu/primitives/mutable_data.hpp>
 #include <intel_gpu/primitives/tile.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/concatenation.hpp>

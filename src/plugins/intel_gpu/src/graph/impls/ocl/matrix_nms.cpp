@@ -47,33 +47,14 @@ struct matrix_nms_impl : typed_primitive_impl_ocl<matrix_nms> {
         return make_deep_copy<matrix_nms_impl, kernel_params_t>(*this);
     }
 
-protected:
-    kernel_arguments_data get_arguments(const matrix_nms_inst& instance) const override {
-        kernel_arguments_data args = parent::get_arguments(instance);
-        // Legacy multi-output
-        if (instance.desc()->num_outputs == 1) {
-            args.outputs.push_back(instance.input_selected_boxes_mem());
-            args.outputs.push_back(instance.input_valid_outputs_mem());
-        }
-
-        return args;
-    }
-
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<matrix_nms>();
         auto params = get_default_params<kernel_selector::matrix_nms_params>(impl_param);
 
         params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
-
-        if (primitive->num_outputs == 3) {
-            params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[1]));
-            params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[2]));
-        } else {
-            // Legacy multi-output
-            params.outputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
-            params.outputs.push_back(convert_data_tensor(impl_param.get_input_layout(3)));
-        }
+        params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[1]));
+        params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[2]));
 
         params.sort_type = from(primitive->attribs.sort_result_type);
         params.sort_result_across_batch = primitive->attribs.sort_result_across_batch;

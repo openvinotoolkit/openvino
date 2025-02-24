@@ -43,14 +43,6 @@ static void CreateConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::int
     auto pads_end = op->get_pads_end();
     auto auto_pad = op->get_auto_pad();
 
-    if (!op->is_dynamic() && !p.use_new_shape_infer()) {
-        // Extend 1d vectors to 2d as 1d can't be handled properly by the graph optimizer for now
-        strides.resize(std::max<size_t>(2, strides.size()), 1);
-        dilations.resize(std::max<size_t>(2, strides.size()), 1);
-        pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
-        pads_end.resize(std::max<size_t>(2, pads_end.size()), 0);
-    }
-
     std::shared_ptr<cldnn::convolution> prim = nullptr;
 
     if (op->is_asymmetric()) {
@@ -132,48 +124,30 @@ static void CreateConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared
     auto pads_end = op->get_pads_end();
     auto output_padding = op->get_output_padding();
 
-    if (!op->is_dynamic() && !p.use_new_shape_infer()) {
-        // Extend 1d vectors to 2d as 1d can't be handled properly by the graph optimizer for now
-        strides.resize(std::max<size_t>(2, strides.size()), 1);
-        dilations.resize(std::max<size_t>(2, strides.size()), 1);
-        pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
-        auto deconvPrim = cldnn::deconvolution(layerName,
-                                               inputs[0],
-                                               weights,
-                                               {},
-                                               1,
-                                               strides,
-                                               pads_begin,
-                                               dilations,
-                                               tensor_from_dims(op->get_output_tensor(0).get_shape()),
-                                               weights_have_group_dim);
-        p.add_primitive(*op, deconvPrim);
-    } else {
-        auto deconvPrim = cldnn::deconvolution(layerName,
-                                               inputs[0],
-                                               weights,
-                                               {},
-                                               1,
-                                               strides,
-                                               pads_begin,
-                                               dilations,
-                                               pads_begin,
-                                               pads_end,
-                                               output_padding,
-                                               weights_have_group_dim);
-        if (op->get_input_size() == 3) {
-            auto output_shape_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
-            if (output_shape_constant) {
-                auto output_shape = output_shape_constant->cast_vector<int64_t>();
-                ov::Shape shape(output_shape.begin(), output_shape.end());
-                ov::PartialShape output_pshape(shape);
-                deconvPrim.output_partial_shape = output_pshape;
-            } else {
-                deconvPrim.output_shape_id = inputs[2].pid;
-            }
+    auto deconvPrim = cldnn::deconvolution(layerName,
+                                           inputs[0],
+                                           weights,
+                                           {},
+                                           1,
+                                           strides,
+                                           pads_begin,
+                                           dilations,
+                                           pads_begin,
+                                           pads_end,
+                                           output_padding,
+                                           weights_have_group_dim);
+    if (op->get_input_size() == 3) {
+        auto output_shape_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+        if (output_shape_constant) {
+            auto output_shape = output_shape_constant->cast_vector<int64_t>();
+            ov::Shape shape(output_shape.begin(), output_shape.end());
+            ov::PartialShape output_pshape(shape);
+            deconvPrim.output_partial_shape = output_pshape;
+        } else {
+            deconvPrim.output_shape_id = inputs[2].pid;
         }
-        p.add_primitive(*op, deconvPrim);
     }
+    p.add_primitive(*op, deconvPrim);
 }
 
 static void CreateGroupConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::GroupConvolutionBackpropData>& op) {

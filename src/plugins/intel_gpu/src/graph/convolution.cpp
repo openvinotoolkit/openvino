@@ -24,7 +24,14 @@ T align_to_spatial_rank(const T param, size_t rank, V fill_value) {
     return T(res);
 }
 
-std::vector<layout> calc_output_layout_impl(convolution_node const& node, kernel_impl_params const& impl_param, bool legacy_flow) {
+
+}  // namespace
+
+namespace cldnn {
+GPU_DEFINE_PRIMITIVE_TYPE_ID(convolution)
+
+template<typename ShapeType>
+std::vector<layout> convolution_inst::calc_output_layouts(convolution_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<convolution>();
 
     auto input_layout = impl_param.get_input_layout(0);
@@ -101,14 +108,6 @@ std::vector<layout> calc_output_layout_impl(convolution_node const& node, kernel
     auto dilation = desc->dilation;
     auto strides = desc->stride;
 
-    if (legacy_flow) {
-        auto spatial_rank = impl_param.get_input_layout(0).get_spatial_rank();
-        dilation = align_to_spatial_rank(dilation, spatial_rank, static_cast<size_t>(1));
-        strides = align_to_spatial_rank(strides, spatial_rank, static_cast<size_t>(1));
-        pads_begin = align_to_spatial_rank(pads_begin, spatial_rank, static_cast<std::ptrdiff_t>(0));
-        pads_end = align_to_spatial_rank(pads_end, spatial_rank, static_cast<std::ptrdiff_t>(0));
-    }
-
     if (desc->deformable_mode) {
         ov::op::v8::DeformableConvolution op;
         op.set_group(desc->groups);
@@ -123,12 +122,6 @@ std::vector<layout> calc_output_layout_impl(convolution_node const& node, kernel
         op.set_dilations(dilation);
         op.set_strides(strides);
         op.set_auto_pad(desc->auto_pad);
-        auto& weights_shape = input_shapes[1];
-        // WA for legacy flow, mostly for unit tests as sometimes grouped conv has non-grouped weights
-        if (legacy_flow && input_shapes[1].size() == 4 && input_shapes[0].size() == 4) {
-            weights_shape.insert(weights_shape.begin(), desc->groups);
-            weights_shape[1] /= desc->groups;
-        }
         output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
     } else {
         ov::op::v1::Convolution op;
@@ -139,20 +132,6 @@ std::vector<layout> calc_output_layout_impl(convolution_node const& node, kernel
     }
 
     return {layout{output_shapes[0], output_type, output_format}};
-}
-
-}  // namespace
-
-namespace cldnn {
-GPU_DEFINE_PRIMITIVE_TYPE_ID(convolution)
-
-layout convolution_inst::calc_output_layout(convolution_node const& node, kernel_impl_params const& impl_param) {
-    return calc_output_layout_impl(node, impl_param, true)[0];
-}
-
-template<typename ShapeType>
-std::vector<layout> convolution_inst::calc_output_layouts(convolution_node const& node, kernel_impl_params const& impl_param) {
-    return calc_output_layout_impl(node, impl_param, false);
 }
 
 template std::vector<layout> convolution_inst::calc_output_layouts<ov::PartialShape>(convolution_node const& node, const kernel_impl_params& impl_param);

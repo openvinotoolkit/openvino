@@ -346,7 +346,6 @@ TEST(fully_connected_gpu, no_biases_fc_i32) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     cldnn::network network(engine, topology, config);
 
@@ -1454,7 +1453,7 @@ public:
         );
 
         auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input_mem);
@@ -1528,7 +1527,6 @@ public:
             );
 
             auto config = get_test_default_config(engine);
-            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
             ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl };
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl_desc} }));
 
@@ -1553,7 +1551,6 @@ public:
         );
 
         auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_user_property(ov::hint::dynamic_quantization_group_size(32));
 
@@ -1640,7 +1637,6 @@ public:
             );
 
             auto config = get_test_default_config(engine);
-            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
             ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl };
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl_desc} }));
             config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
@@ -1667,7 +1663,7 @@ public:
         );
 
         auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
 
@@ -1750,7 +1746,6 @@ public:
             );
 
             auto config = get_test_default_config(engine);
-            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
             ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl };
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl_desc} }));
             config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
@@ -1777,7 +1772,6 @@ public:
         );
 
         auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::intel_gpu::optimize_data(true));
         if (is_dyn_quan) {
             config.set_user_property(ov::hint::dynamic_quantization_group_size(32));
@@ -1847,7 +1841,6 @@ public:
         );
 
         auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::intel_gpu::optimize_data(true));
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
@@ -1920,7 +1913,6 @@ public:
             );
 
             auto config = get_test_default_config(engine);
-            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
             ov::intel_gpu::ImplementationDesc fc_impl = { in_layout.format, "", impl_types::ocl };
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "fc_prim1", fc_impl }, { "fc_prim2", fc_impl }  }));
             config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
@@ -1950,7 +1942,6 @@ public:
         );
 
         auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
 
@@ -2026,7 +2017,7 @@ public:
         );
 
         auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         config.set_property(ov::intel_gpu::optimize_data(true));
 
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
@@ -2098,7 +2089,7 @@ public:
 
         auto get_ref_results = [&]() {
             auto config = get_test_default_config(engine);
-            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
             topology topology(
                 input_layout("input", in_layout),
@@ -2132,7 +2123,7 @@ public:
         );
 
         auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         config.set_property(ov::intel_gpu::optimize_data(true));
 
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
@@ -2186,7 +2177,7 @@ public:
         );
 
         auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input_mem);
@@ -2237,7 +2228,7 @@ public:
         );
 
         auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input_mem);
@@ -2302,7 +2293,6 @@ public:
         );
 
         auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::intel_gpu::optimize_data(true));
 
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
@@ -2345,7 +2335,7 @@ public:
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input_data);
 
@@ -2394,7 +2384,7 @@ public:
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input_data);
 
@@ -2500,7 +2490,7 @@ public:
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
         {
@@ -2581,7 +2571,7 @@ public:
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
         auto inst = network->get_primitive("fc");
@@ -2670,7 +2660,7 @@ public:
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
         // Call different shape multiple times to ensure caching works fine
@@ -2752,8 +2742,8 @@ public:
         ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl };
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc", fc_impl_desc} })),
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc", fc_impl_desc} }));
+
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input_data);
 
@@ -2817,7 +2807,7 @@ public:
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input_data);
 
@@ -2902,7 +2892,6 @@ public:
             topo.add(fc_prim);
 
             auto config = get_test_default_config(engine);
-            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
             ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl };
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl_desc} }));
             config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
@@ -2929,7 +2918,6 @@ public:
         );
 
         auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_user_property(ov::hint::dynamic_quantization_group_size(quantize_group_size));
 
@@ -3028,7 +3016,6 @@ public:
             topo.add(fc_prim);
 
             auto config = get_test_default_config(engine);
-            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
             ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl };
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl_desc} }));
             config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
@@ -3055,7 +3042,6 @@ public:
         );
 
         auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_user_property(ov::hint::dynamic_quantization_group_size(quantize_group_size));
 
@@ -4401,7 +4387,7 @@ struct dynamic_fully_connected_gpu : ::testing::TestWithParam<fully_connected_dy
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
         for (const auto& batch_size : batch_sizes) {

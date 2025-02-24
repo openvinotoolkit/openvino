@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "impls/ocl/kernel_selector_helper.h"
 #include "openvino/core/validation_util.hpp"
 #include "pooling/pooling_kernel_base.h"
 #include "pooling/pooling_kernel_selector.h"
@@ -54,17 +55,6 @@ struct pooling_impl : typed_primitive_impl_ocl<pooling> {
         return make_deep_copy<pooling_impl, kernel_params_t>(*this);
     }
 
-protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<pooling>& instance) const override {
-        kernel_arguments_data args = parent::get_arguments(instance);
-        // Legacy multi-output
-        if (instance.get_typed_desc<pooling>()->maxPoolOpset8Features) {
-            args.inputs = { instance.dep_memory_ptr(0) };
-            args.outputs.push_back(instance.dep_memory_ptr(1));
-        }
-        return args;
-    }
-
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<pooling>();
@@ -72,19 +62,12 @@ public:
 
         params.maxPoolOpset8Features = primitive->maxPoolOpset8Features;
         if (params.maxPoolOpset8Features) {
-            switch (primitive->index_element_type) {
-                case cldnn::data_types::i32: {
-                    params.poolIndexElementType = kernel_selector::Datatype::INT32;
-                    break;
-                }
-                case cldnn::data_types::i64: {
-                    params.poolIndexElementType = kernel_selector::Datatype::INT64;
-                    break;
-                }
-                default:
-                    throw std::runtime_error{"Not supported index element type"};
-            }
+            params.poolIndexElementType = to_data_type(primitive->index_element_type);
             params.poolAxis = primitive->axis;
+
+            if (primitive->num_outputs == 2) {
+                params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));
+            }
         }
 
         const auto& input_layout = impl_param.get_input_layout();

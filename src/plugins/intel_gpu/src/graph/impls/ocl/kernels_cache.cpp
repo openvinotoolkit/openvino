@@ -123,11 +123,6 @@ std::string kernels_cache::get_cache_path() const {
 }
 
 bool kernels_cache::is_cache_enabled() const {
-    if (!_config.get_allow_new_shape_infer() &&
-        (_config.get_cache_mode() == ov::CacheMode::OPTIMIZE_SPEED)) {
-        return false;
-    }
-
     return !_config.get_cache_dir().empty();
 }
 

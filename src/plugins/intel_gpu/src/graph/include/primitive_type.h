@@ -45,7 +45,6 @@ struct primitive_type {
     using in_out_fmts_t = std::pair<std::vector<format::type>, std::vector<format::type>>;
     virtual in_out_fmts_t query_preferred_formats(const cldnn::program_node& node, impl_types impl_type) const = 0;
 
-    virtual layout calc_output_layout(const program_node& node, const kernel_impl_params& params) const = 0;
     virtual std::vector<layout> calc_output_layouts(const program_node& node, const kernel_impl_params& impl_param) const = 0;
     virtual kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param) const = 0;
     virtual std::string to_string(const program_node& node) const = 0;

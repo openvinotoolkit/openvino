@@ -15,13 +15,6 @@ random_uniform_inst::typed_primitive_inst(network& network, random_uniform_node 
 : parent(network, node) {
 }
 
-layout random_uniform_inst::calc_output_layout(random_uniform_node const &node, kernel_impl_params const& impl_param) {
-    auto primitive = impl_param.typed_desc<random_uniform>();
-    auto format = format::get_default_format(primitive->output_shape.size());
-
-    return {primitive->output_shape, *primitive->output_data_types[0], format};
-}
-
 template<typename ShapeType>
 std::vector<layout> random_uniform_inst::calc_output_layouts(random_uniform_node const& /*node*/, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<random_uniform>();

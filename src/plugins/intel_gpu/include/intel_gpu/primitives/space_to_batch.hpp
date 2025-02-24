@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include "intel_gpu/runtime/utils.hpp"
 #include "primitive.hpp"
 
 namespace cldnn {
@@ -47,38 +48,33 @@ struct space_to_batch : public primitive_base<space_to_batch> {
     /// @param out_size Size of output tensor.
     space_to_batch(const primitive_id& id,
                    const input_info& input,
-                   const tensor& block_shape,
-                   const tensor& pads_begin,
-                   const tensor& pads_end,
-                   const tensor& out_size)
+                   const std::vector<int32_t>& block_shape,
+                   const std::vector<int32_t>& pads_begin,
+                   const std::vector<int32_t>& pads_end)
         : primitive_base(id, {input}),
           block_shape(block_shape),
           pads_begin(pads_begin),
           pads_end(pads_end),
-          out_size(out_size),
           shape_constant(1) {}
 
     space_to_batch(const primitive_id& id,
-                   const std::vector<input_info>& inputs,
-                   const tensor& out_size)
+                   const std::vector<input_info>& inputs)
         : primitive_base(id, inputs),
-          block_shape(tensor()),
-          pads_begin(tensor()),
-          pads_end(tensor()),
-          out_size(out_size),
+          block_shape({}),
+          pads_begin({}),
+          pads_end({}),
           shape_constant(0) {}
 
-    tensor block_shape;
-    tensor pads_begin;
-    tensor pads_end;
-    tensor out_size;
+    std::vector<int32_t> block_shape;
+    std::vector<int32_t> pads_begin;
+    std::vector<int32_t> pads_end;
     int64_t shape_constant;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
-        seed = hash_combine(seed, block_shape.hash());
-        seed = hash_combine(seed, pads_begin.hash());
-        seed = hash_combine(seed, pads_end.hash());
+        seed = hash_range(seed, block_shape.begin(), block_shape.end());
+        seed = hash_range(seed, pads_begin.begin(), pads_begin.end());
+        seed = hash_range(seed, pads_end.begin(), pads_end.end());
         seed = hash_combine(seed, shape_constant);
         return seed;
     }
@@ -100,7 +96,6 @@ struct space_to_batch : public primitive_base<space_to_batch> {
         ob << block_shape;
         ob << pads_begin;
         ob << pads_end;
-        ob << out_size;
         ob << shape_constant;
     }
 
@@ -109,7 +104,6 @@ struct space_to_batch : public primitive_base<space_to_batch> {
         ib >> block_shape;
         ib >> pads_begin;
         ib >> pads_end;
-        ib >> out_size;
         ib >> shape_constant;
     }
 };

@@ -19,17 +19,6 @@ struct ctc_greedy_decoder_impl : typed_primitive_impl_ocl<ctc_greedy_decoder> {
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::ctc_greedy_decoder_impl)
 
-protected:
-    kernel_arguments_data get_arguments(const ctc_greedy_decoder_inst& instance) const override {
-        kernel_arguments_data args = parent::get_arguments(instance);
-        // Legacy multi-output
-        if (instance.desc()->num_outputs == 1) {
-            args.outputs.push_back(instance.dep_memory_ptr(instance.desc()->input_size() - 1));
-        }
-
-        return args;
-    }
-
 public:
     std::unique_ptr<primitive_impl> clone() const override {
         return make_deep_copy<ctc_greedy_decoder_impl, kernel_params_t>(*this);
@@ -39,7 +28,6 @@ public:
         const auto& primitive = impl_param.typed_desc<ctc_greedy_decoder>();
         auto params = get_default_params<kernel_selector::ctc_greedy_decoder_params>(impl_param);
 
-        auto has_second_output = !primitive->second_output.empty();
         params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
         params.merge_repeated = primitive->ctc_merge_repeated;
         if (primitive->blank_index == UINT32_MAX) {
@@ -48,17 +36,14 @@ public:
             params.blank_index = primitive->blank_index;
         }
 
+        if (primitive->blank_index == UINT32_MAX) {
+            params.blank_index = impl_param.get_input_layout(0).get_partial_shape()[2].get_length() - 1;
+        } else {
+            params.blank_index = primitive->blank_index;
+        }
         if (primitive->num_outputs == 2) {
             params.outputs_num = 2;
             params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));
-
-        } else {
-            // Legacy multi-output
-            params.outputs_num = has_second_output ? 2 : 1;
-
-            if (params.outputs_num == 2) {
-                params.outputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
-            }
         }
 
         return params;

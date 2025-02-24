@@ -45,6 +45,9 @@ public:
         for (size_t i = 1; i < impl_param.input_layouts.size(); ++i) {
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
+        for (size_t i = 1; i < primitive->num_outputs; i++) {
+            params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[i]));
+        }
 
         if (!primitive->activations.empty()) {
             auto a_sz = primitive->activations.size();
@@ -64,11 +67,6 @@ public:
         params.SetOffsetOrder(static_cast<int32_t>(primitive->offset_order));
         params.clip = primitive->clip;
         params.direction = primitive->direction;
-        //Legacy multi-output
-        params.outputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
-        if (!primitive->initial_cell_state.pid.empty()) {
-            params.outputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
-        }
         return params;
     }
 

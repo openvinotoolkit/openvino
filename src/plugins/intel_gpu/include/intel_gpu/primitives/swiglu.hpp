@@ -26,20 +26,17 @@ struct swiglu : public primitive_base<swiglu> {
            const int64_t& axis,
            const int64_t& split_lengths,
            const ov::op::internal::GLU::GluType glu_type,
-           const size_t split_to_glu_idx,
-           const tensor output_size)
+           const size_t split_to_glu_idx)
            : primitive_base(id, {input}),
              axis(axis),
              split_lengths(split_lengths),
              glu_type(glu_type),
-             split_to_glu_idx(split_to_glu_idx),
-             output_size(output_size) {}
+             split_to_glu_idx(split_to_glu_idx) {}
 
     int64_t axis = 0;
     int64_t split_lengths = 0;
     ov::op::internal::GLU::GluType glu_type = ov::op::internal::GLU::GluType::Swish;
     size_t split_to_glu_idx = 0;
-    tensor output_size;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -63,7 +60,6 @@ struct swiglu : public primitive_base<swiglu> {
         primitive_base<swiglu>::save(ob);
         ob << axis;
         ob << split_lengths;
-        ob << output_size;
         ob << make_data(&glu_type, sizeof(glu_type));
         ob << split_to_glu_idx;
     }
@@ -72,7 +68,6 @@ struct swiglu : public primitive_base<swiglu> {
         primitive_base<swiglu>::load(ib);
         ib >> axis;
         ib >> split_lengths;
-        ib >> output_size;
         ib >> make_data(&glu_type, sizeof(glu_type));
         ib >> split_to_glu_idx;
     }

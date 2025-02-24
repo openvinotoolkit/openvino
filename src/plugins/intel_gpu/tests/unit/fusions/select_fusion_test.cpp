@@ -31,10 +31,8 @@ struct select_test_params {
 class SelectFusingTest : public ::BaseFusingTest<select_test_params> {
 public:
     void execute(select_test_params& p, bool count_reorder = false) {
-        cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         cfg_fused.set_property(ov::intel_gpu::optimize_data(true));
- 
+
         tests::random_generator rg;
         auto mask_mem   = get_mem(get_mask_layout(p), 0, 1);
         auto input1_mem = get_mem(get_input_layout(p));

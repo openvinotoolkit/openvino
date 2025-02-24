@@ -1292,7 +1292,6 @@ TEST_P(crop_gpu_dynamic, i32_in2x3x2x2_crop_offsets) {
                                     3.f, 50.f, 7.f, 12.f, 4.f, -5.f, 8.f, 8.f,  -14.f, -15.f, -16.f, -17.f};
     set_values(input, input_vec);
     ExecutionConfig config1 = get_test_default_config(engine);
-    config1.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     ExecutionConfig config2 = config1;
 
     if (impl_type != impl_types::any) {
@@ -1430,7 +1429,7 @@ TEST(crop_gpu, dynamic_in1x4x1x1_split) {
     std::vector<float> out2 = { -3.0f, 4.0f };
     set_values(input_mem, input_vec);
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::custom_outputs(topology.get_primitives_ids()));
 
@@ -1500,7 +1499,7 @@ TEST(crop_gpu, dynamic_in1x4x1x1_varaidic_split) {
     set_values(splits_length_mem, splits_vec);
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::custom_outputs(topology.get_primitives_ids()));
 
@@ -1578,7 +1577,6 @@ TEST(crop_gpu, dynamic_input_padding_varaidic_split) {
     set_values<int64_t>(axis_mem, {split_axis});
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::custom_outputs(topology.get_primitives_ids()));
 

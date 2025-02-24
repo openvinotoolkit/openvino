@@ -1295,7 +1295,7 @@ TEST(gather_elements_gpu, dynamic) {
     topology.add(gather_elements("gather_elements", input_info("InputData"), input_info("InputIndices"), axis));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
 
     network.set_input_data("InputData", input0);

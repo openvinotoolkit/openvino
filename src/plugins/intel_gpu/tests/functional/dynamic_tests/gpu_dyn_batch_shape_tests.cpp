@@ -99,12 +99,12 @@ TEST_P(OVDynamicBatchShape_Tests, InferDynamicBatchBound_cached) {
 
         core->set_property(ov::cache_dir(cacheFolderName));
         run();
+        core->set_property(ov::cache_dir(""));
     }
     {
-        core.reset();
-        core = ov::test::utils::PluginCache::get().core();
         core->set_property(ov::cache_dir(cacheFolderName));
         run();
+        core->set_property(ov::cache_dir(""));
 
         ov::test::utils::removeFilesWithExt(cacheFolderName, "blob");
         ov::test::utils::removeFilesWithExt(cacheFolderName, "cl_cache");

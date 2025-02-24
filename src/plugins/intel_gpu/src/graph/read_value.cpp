@@ -18,10 +18,6 @@ read_value_inst::typed_primitive_inst(network& network, const read_value_node& n
     memory_state::variable{node.get_primitive()->variable_id, node.get_primitive()->user_specified_type} {
 }
 
-layout read_value_inst::calc_output_layout(const read_value_node& node, kernel_impl_params const& impl_param) {
-    return impl_param.typed_desc<read_value>()->output_layouts[0];
-}
-
 std::string read_value_inst::to_string(const read_value_node& node) {
     auto node_info = node.desc_to_json();
 
