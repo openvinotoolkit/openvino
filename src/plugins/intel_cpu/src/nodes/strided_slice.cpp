@@ -4,20 +4,38 @@
 
 #include "strided_slice.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "common/cpu_memcpy.h"
-#include "input.h"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/slice_scatter.hpp"
 #include "openvino/op/strided_slice.hpp"
-#include "openvino/opsets/opset15_decl.hpp"
-#include "openvino/opsets/opset1_decl.hpp"
-#include "openvino/opsets/opset8_decl.hpp"
 #include "shape_inference/custom/strided_slice.hpp"
-#include "slice_shape_inference_utils.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 
@@ -26,7 +44,7 @@ namespace ov::intel_cpu::node {
 bool StridedSlice::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!ov::is_type_any_of<ov::op::v1::StridedSlice, ov::op::v8::Slice, ov::op::v15::SliceScatter>(op)) {
-            errorMessage = "Only StridedSlice from opset1, Slice from opset8 and SliceScatter from opset15 operations "
+            errorMessage = "Only v1 StridedSlice, v8 Slice and v15 SliceScatter operations "
                            "are supported.";
             return false;
         }
@@ -147,7 +165,7 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
             return;
         }
 
-        const auto constNode = ov::as_type_ptr<const ov::opset1::Constant>(op->get_input_node_shared_ptr(type));
+        const auto constNode = ov::as_type_ptr<const ov::op::v0::Constant>(op->get_input_node_shared_ptr(type));
         parameter = constNode->cast_vector<int>();
 
         auto size = constNode->get_shape()[0];

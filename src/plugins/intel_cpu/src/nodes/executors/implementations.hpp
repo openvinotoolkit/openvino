@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <type_traits>
 #include <vector>
 
 #include "nodes/executors/convolution_config.hpp"

@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cstddef>
+#include <type_traits>
 #ifdef CPU_DEBUG_CAPS
 
 #    include "cpu/x64/jit_generator.hpp"

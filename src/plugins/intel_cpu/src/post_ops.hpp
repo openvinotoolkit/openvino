@@ -6,10 +6,13 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "cpu_types.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "nodes/executors/executor.hpp"
 #include "openvino/core/type/element_type.hpp"

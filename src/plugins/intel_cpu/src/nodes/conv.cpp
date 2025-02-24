@@ -4,32 +4,53 @@
 
 #include "conv.h"
 
+#include <oneapi/dnnl/dnnl_common_types.h>
+
+#include <algorithm>
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <cstdlib>
+#include <iterator>
 #include <memory>
 #include <string>
+#include <tuple>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
+#include "allocation_context.hpp"
 #include "common/cpu_convert.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "edge.h"
 #include "eltwise.h"
 #include "graph.h"
+#include "graph_context.h"
 #include "input.h"
-#include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
 #include "nodes/executors/convolution_config.hpp"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/executor_factory.hpp"
 #include "nodes/executors/memory_arguments.hpp"
+#include "nodes/node_config.h"
 #include "oneapi/dnnl/dnnl.hpp"
 #include "oneapi/dnnl/dnnl_common.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "post_ops.hpp"
 #include "shape_inference/custom/convolution.hpp"
 #include "utils/debug_capabilities.h"
