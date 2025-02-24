@@ -257,7 +257,6 @@ interface Model {
    * @param index The index of the output.
    */
   getOutputElementType(index: number): string;
-
   /**
    * It gets the operations (nodes) of the model.
    * @returns An array of Node objects representing the operations in the model.
@@ -321,6 +320,7 @@ interface Node {
    */
   getName(): string;
 }
+
 /**
  * CompiledModel represents a model that is compiled for a specific device
  * by applying multiple optimization transformations,
