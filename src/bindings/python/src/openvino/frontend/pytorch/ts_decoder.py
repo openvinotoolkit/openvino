@@ -49,7 +49,7 @@ class TorchScriptPythonDecoder(Decoder):
         self._input_signature = None
         self._shared_memory = shared_memory
         self._input_is_list = False
-        self.constant_cache = constant_cache if constant_cache is not None else dict()
+        self.constant_cache = constant_cache if constant_cache is not None else {}
         self.module_extensions = module_extensions
         self.config = None
         self.out_debug_name_overwrites = {}
@@ -66,13 +66,13 @@ class TorchScriptPythonDecoder(Decoder):
             except Exception as e:
                 if example_input is not None:
                     msg = "tracing"
-                    help_msg = "Please check correctness of provided 'example_input'. " \
-                        "Sometimes models can be converted in scripted mode, please try running " \
-                        "conversion without 'example_input'.\n"
+                    help_msg = ("Please check correctness of provided 'example_input'. "
+                                "Sometimes models can be converted in scripted mode, please try running "
+                                "conversion without 'example_input'.\n")
                 else:
                     msg = "scripting"
-                    help_msg = "Tracing sometimes provide better results, " \
-                        "please provide valid 'example_input' argument.\n"
+                    help_msg = ("Tracing sometimes provide better results, "
+                                "please provide valid 'example_input' argument.\n")
                 raise RuntimeError(
                     f"Couldn't get TorchScript module by {msg}.\n{help_msg} "
                     "You can also provide TorchScript module that you obtained"
@@ -94,10 +94,10 @@ class TorchScriptPythonDecoder(Decoder):
                 # last input is args input, we need to multiply that name by
                 # number of extra inputs
                 self._input_signature = self._input_signature[:-1]
-                n = len(self._input_signature)
-                for i in range(len(self.raw_inputs) - n):
+                s_len = len(self._input_signature)
+                for i in range(len(self.raw_inputs) - s_len):
                     self._input_signature.append(
-                        self.raw_inputs[i + n].debugName())
+                        self.raw_inputs[i + s_len].debugName())
 
         if isinstance(self.graph_element, torch.Graph):
             self._transform_tensor_list_constants_to_listconstruct(
@@ -246,7 +246,6 @@ class TorchScriptPythonDecoder(Decoder):
     def _get_known_type_for_value(self, pt_type):
         """Returns known/unknown types wrapped as OVAny."""
         # Check for simple scalar types first
-        print(f"pt_type: {pt_type}")
         if pt_type is None:
             return OVAny(OVType.dynamic)
         # TODO: Don't use str, use native types
@@ -392,8 +391,8 @@ class TorchScriptPythonDecoder(Decoder):
         if "FrameworkNode" not in node.get_type_name():
             name += "/" + node.get_type_name()
         if self.graph_element.scopeName():
-            node.set_friendly_name(
-                self.graph_element.scopeName().split("/")[-1] + "/" + name)
+            scope_name = self.graph_element.scopeName().split("/")[-1]
+            node.set_friendly_name(scope_name + "/" + name)
         else:
             node.set_friendly_name(name)
         return node
@@ -445,8 +444,8 @@ class TorchScriptPythonDecoder(Decoder):
                                           shared_memory=self._shared_memory)
                 res += ivalue_to_constant(groups,
                                           shared_memory=self._shared_memory)
-            except:
-                pass
+            except Exception as e:
+                logging.debug("Failed to get conv params", exc_info=e)
             return res
         elif not isinstance(pt_value, (torch.jit.ScriptModule, torch.jit.TracedModule)):
             # this tensor can be used multiple times in the model, so we have to reuse constants
@@ -460,7 +459,7 @@ class TorchScriptPythonDecoder(Decoder):
                     pt_value, shared_memory=self._shared_memory)
                 self._add_name_to_const_and_cache(const, name, dtype)
             if dtype is not None:
-                self.cached_out_types = [dtype]                
+                self.cached_out_types = [dtype]
             return const
         else:
             return []
@@ -546,8 +545,9 @@ class TorchScriptPythonDecoder(Decoder):
             return False
         try:
             return self.alias_db.may_contain_alias(self._raw_input(in_index), self._raw_output(out_index))
-        except:
+        except Exception as e:
             # Sometimes pytorch fails to get result with IndexError exception while these indexes exist in node
+            logging.debug("Failed to get alias information", exc_info=e)
             return False
 
     def is_input_inlined(self, index):
@@ -587,8 +587,8 @@ class TorchScriptPythonDecoder(Decoder):
             if not any(allowed_types):
                 continue
             const_inputs = []
-            for val in node.output().toIValue():
-                const_input = graph.insertConstant(val)
+            for value in node.output().toIValue():
+                const_input = graph.insertConstant(value)
                 const_input.node().moveBefore(node)
                 const_input.node().copyMetadata(node)
                 const_inputs.append(const_input)
