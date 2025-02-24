@@ -449,8 +449,14 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::intel_auto::SchedulePolicy>(py_obj);
     } else if (py::isinstance<ov::hint::SchedulingCoreType>(py_obj)) {
         return py::cast<ov::hint::SchedulingCoreType>(py_obj);
-    } else if (py::isinstance<std::set<ov::hint::ModelDistributionPolicy>>(py_obj)) {
-        return py::cast<std::set<ov::hint::ModelDistributionPolicy>>(py_obj);
+    } else if (py::isinstance<py::set>(py_obj)) {
+        std::set<ov::hint::ModelDistributionPolicy> model_set;
+        for (auto item = py_obj.begin(); item != py_obj.end(); item++) {
+            if (py::isinstance<ov::hint::ModelDistributionPolicy>(*item)) {
+                model_set.insert(py::cast<ov::hint::ModelDistributionPolicy>(*item));
+            }
+        }
+        return model_set;
     } else if (py::isinstance<ov::hint::ExecutionMode>(py_obj)) {
         return py::cast<ov::hint::ExecutionMode>(py_obj);
     } else if (py::isinstance<ov::log::Level>(py_obj)) {
