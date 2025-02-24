@@ -1,15 +1,14 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "node/include/model_wrap.hpp"
-
 #include "node/include/addon.hpp"
 #include "node/include/errors.hpp"
 #include "node/include/helper.hpp"
 #include "node/include/node_output.hpp"
 #include "node/include/type_validation.hpp"
-#include "model_wrap.h"
-#include "node_wrap.h"
+
+#include "node/include/model_wrap.hpp"
+#include "node/include/node_wrap.hpp"
 
 ModelWrap::ModelWrap(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<ModelWrap>(info),
@@ -218,6 +217,7 @@ Napi::Value ModelWrap::clone(const Napi::CallbackInfo& info) {
         return info.Env().Undefined();
     }
 }
+
 
 Napi::Value ModelWrap::get_ops(const Napi::CallbackInfo& info) {
     std::vector<ov::Node*> ops = this->model_->get_ops();
