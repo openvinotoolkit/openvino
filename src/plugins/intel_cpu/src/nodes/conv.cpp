@@ -1687,7 +1687,7 @@ void Convolution::executeDynamicImpl(const dnnl::stream& strm) {
         const auto& outMem = out->getParentEdgeAt(0)->getMemory();
         auto convOutMem = getDstMemoryAtPort(0);
         Node::redefineOutputMemory({outMem.getStaticDims()});
-        convOutMem->load(outMem, true);
+        convOutMem->load(outMem, true, false);
     }
 }
 
