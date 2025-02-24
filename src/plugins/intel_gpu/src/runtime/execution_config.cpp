@@ -6,23 +6,16 @@
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/lstm_sequence.hpp"
-#include "openvino/op/paged_attention.hpp"
 #include "openvino/op/search_sorted.hpp"
 #include "openvino/op/stft.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/label.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "transformations/utils/utils.hpp"
 
 
 namespace ov::intel_gpu {
@@ -86,32 +79,6 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     return false;
 }
 
-bool is_llm(const ov::Model& model) {
-    using namespace ov::pass::pattern;
-
-    auto past = wrap_type<ov::op::v6::ReadValue>();
-    auto convert_past = wrap_type<ov::op::v0::Convert>({past});
-    auto gather_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past});
-    auto beam_idx = wrap_type<ov::op::v0::Parameter>();
-    auto gather_past = wrap_type<ov::op::v8::Gather>({gather_input, beam_idx, wrap_type<ov::op::v0::Constant>()});
-    auto gather_convert = wrap_type<ov::op::v0::Convert>({gather_past});
-    auto concat_past_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past, gather_past, gather_convert});
-    auto concat = wrap_type<ov::op::v0::Concat>({concat_past_input, any_input()});
-    auto convert_present = wrap_type<ov::op::v0::Convert>({concat});
-    auto present_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{concat, convert_present});
-    auto present = wrap_type<ov::op::v6::Assign>({present_input});
-
-    auto kvcache_matcher = std::make_shared<ov::pass::pattern::Matcher>(present, "KVCacheMatcher");
-
-    for (auto& op : model.get_ordered_ops()) {
-        if (kvcache_matcher->match(op) || ov::is_type<ov::op::PagedAttentionExtension>(op)) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 } // namespace
 
 ExecutionConfig::ExecutionConfig() : ov::PluginConfig() { }
@@ -163,7 +130,7 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
 }
 
 void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) {
-    apply_rt_info(context, get_rt_info(model), is_llm(model));
+    apply_rt_info(context, get_rt_info(model), ov::op::util::is_large_language_model(model));
 
     const auto& ops = model.get_ops();
 
