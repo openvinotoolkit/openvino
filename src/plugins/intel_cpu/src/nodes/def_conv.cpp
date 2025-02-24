@@ -4,20 +4,44 @@
 
 #include "def_conv.h"
 
+#include <cpu/x64/xbyak/xbyak.h>
+#include <oneapi/dnnl/dnnl_common_types.h>
+
+#include <algorithm>
 #include <cmath>
+#include <common/c_types_map.hpp>
 #include <common/dnnl_thread.hpp>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <openvino/op/deformable_convolution.hpp>
 #include <string>
 #include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/jit_generator.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "dnnl_types.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "node.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/deformable_convolution_base.hpp"
 #include "openvino/util/pp.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 using namespace dnnl::impl;

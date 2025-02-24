@@ -3,12 +3,9 @@
 //
 #pragma once
 
-#include <array>
 #include <cstddef>
 #include <cstdint>
-#include <vector>
 
-#include "openvino/core/type/element_type.hpp"
 #include "utils/plain_tensor.hpp"
 
 namespace ov::Extensions::Cpu::XARCH {

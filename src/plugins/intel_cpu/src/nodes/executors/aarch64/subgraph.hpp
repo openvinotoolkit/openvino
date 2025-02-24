@@ -4,6 +4,13 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "cache/multi_cache.h"
+#include "cpu_memory.h"
+#include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "nodes/executors/subgraph.hpp"
 
 namespace ov::intel_cpu {

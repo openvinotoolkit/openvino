@@ -4,19 +4,48 @@
 
 #include "infer_request.h"
 
+#include <cstddef>
+#include <exception>
+#include <functional>
+#include <map>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <string_view>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
 #include "async_infer_request.h"
+#include "compiled_model.h"
+#include "cpu_memory.h"
+#include "cpu_tensor.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "edge.h"
 #include "itt.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "node.h"
 #include "nodes/common/cpu_convert.h"
-#include "nodes/memory_state_base.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/itt.hpp"
+#include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
 #include "proxy_mem_blk.h"
+#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
-#include "utils/ngraph_utils.hpp"
 
 using OvString = ov::element_type_traits<ov::element::string>::value_type;
 

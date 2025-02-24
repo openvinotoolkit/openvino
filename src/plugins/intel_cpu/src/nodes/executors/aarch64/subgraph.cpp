@@ -4,7 +4,16 @@
 
 #include "nodes/executors/aarch64/subgraph.hpp"
 
-#include "snippets/op/subgraph.hpp"
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <vector>
+
+#include "cache/multi_cache.h"
+#include "emitters/snippets/cpu_runtime_configurator.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "nodes/executors/subgraph.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ov::intel_cpu {
 

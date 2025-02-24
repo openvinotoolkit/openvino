@@ -4,7 +4,19 @@
 
 #pragma once
 
-#include "compiled_model.h"
+#include <istream>
+#include <memory>
+#include <string>
+
+#include "config.h"
+#include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/runtime/common.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
 
 namespace ov {

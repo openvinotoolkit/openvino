@@ -4,17 +4,47 @@
 
 #include "mha.h"
 
+#include <cpu/x64/xbyak/xbyak.h>
+#include <oneapi/dnnl/dnnl_common_types.h>
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <algorithm>
+#include <cfloat>
+#include <common/c_types_map.hpp>
+#include <common/utils.hpp>
+#include <cpu/x64/amx_tile_configure.hpp>
+#include <cpu/x64/brgemm/brgemm.hpp>
+#include <cpu/x64/brgemm/brgemm_types.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
+#include <cpu/x64/matmul/brgemm_matmul_utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "common/cpu_convert.h"
-#include "common/cpu_memcpy.h"
 #include "cpu/x64/jit_generator.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "transformations/cpu_opset/x64/op/mha.hpp"
 #include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"

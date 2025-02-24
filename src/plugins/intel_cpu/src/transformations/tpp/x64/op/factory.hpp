@@ -4,8 +4,13 @@
 
 #pragma once
 
+#include <functional>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
+#include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/op/op.hpp"
 
 namespace ov::intel_cpu::tpp::op {
 class NodeFactory {

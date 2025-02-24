@@ -4,15 +4,20 @@
 
 #include "nodes/executors/dnnl/dnnl_utils.hpp"
 
-#include <common/primitive_desc_iface.hpp>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 
 #include "cpu_memory.h"
+#include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/reorder.h"
-#include "utils/cpu_utils.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu::utils {
 

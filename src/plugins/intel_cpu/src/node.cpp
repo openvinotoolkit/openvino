@@ -4,32 +4,51 @@
 
 #include "node.h"
 
-#include <dnnl_debug.h>
-#include <dnnl_types.h>
+#include <oneapi/dnnl/dnnl_types.h>
 
-#include <common/primitive_desc.hpp>
-#include <common/primitive_desc_iface.hpp>
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
 #include <cstdint>
+#include <exception>
+#include <functional>
+#include <limits>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
+#include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "edge.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/common/cpu_convert.h"
-#include "nodes/conv.h"
 #include "nodes/eltwise.h"
 #include "nodes/input.h"
+#include "nodes/node_config.h"
 #include "nodes/reference.h"
 #include "nodes/reorder.h"
+#include "onednn/dnnl.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/cc/factory.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "partitioned_mem_blk.h"
+#include "selective_build.h"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
@@ -161,7 +180,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
     if (it != rtInfo.end()) {
         enforceBF16evenForGraphTail = it->second.as<bool>();
     }
-    if (ov::fp16_compression_is_disabled(op)) {
+    if (fp16_compression_is_disabled(op)) {
         keepOriginalPrecision = true;
     }
 }

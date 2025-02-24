@@ -4,12 +4,20 @@
 
 #include "mha.hpp"
 
+#include <cstddef>
 #include <matmul_shape_inference.hpp>
+#include <memory>
 #include <utility>
 #include <vector>
 
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/op.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/opsets/opset3_decl.hpp"
 #include "transformations/itt.hpp"
 
 ov::intel_cpu::MHANode::MHANode(const ov::Output<ov::Node>& in0,
@@ -90,9 +98,9 @@ void ov::intel_cpu::MHANode::validate_and_infer_types() {
     const auto matmul0_shape0 = transpose(get_input_partial_shape(0).get_shape(), {0, 2, 1, 3});
     const auto matmul0_shape1 = transpose(get_input_partial_shape(1).get_shape(), {0, 2, 3, 1});
 
-    auto matmul0_in0 = std::make_shared<ov::opset3::Parameter>(ov::element::f32, matmul0_shape0);
-    auto matmul0_in1 = std::make_shared<ov::opset3::Parameter>(ov::element::f32, matmul0_shape1);
-    auto matmul0 = std::make_shared<ov::opset3::MatMul>(matmul0_in0, matmul0_in1);
+    auto matmul0_in0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, matmul0_shape0);
+    auto matmul0_in1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, matmul0_shape1);
+    auto matmul0 = std::make_shared<ov::op::v0::MatMul>(matmul0_in0, matmul0_in1);
 
     std::vector<ov::PartialShape> matmul0_input_shapes = {matmul0_shape0, matmul0_shape1};
     std::vector<ov::PartialShape> matmul0_output_shapes = shape_infer(matmul0.get(), matmul0_input_shapes);
@@ -100,9 +108,9 @@ void ov::intel_cpu::MHANode::validate_and_infer_types() {
     const auto matmul1_shape0 = matmul0_output_shapes[0];
     const auto matmul1_shape1 = transpose(get_input_partial_shape(3).get_shape(), {0, 2, 1, 3});
 
-    auto matmul1_in0 = std::make_shared<ov::opset3::Parameter>(ov::element::f32, matmul1_shape0);
-    auto matmul1_in1 = std::make_shared<ov::opset3::Parameter>(ov::element::f32, matmul1_shape1);
-    auto matmul1 = std::make_shared<ov::opset3::MatMul>(matmul1_in0, matmul1_in1);
+    auto matmul1_in0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, matmul1_shape0);
+    auto matmul1_in1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, matmul1_shape1);
+    auto matmul1 = std::make_shared<ov::op::v0::MatMul>(matmul1_in0, matmul1_in1);
 
     std::vector<ov::PartialShape> matmul1_input_shapes = {matmul1_shape0, matmul1_shape1};
     std::vector<ov::PartialShape> matmul1_output_shapes = shape_infer(matmul1.get(), matmul1_input_shapes);
