@@ -38,6 +38,62 @@ namespace ov::intel_cpu {
 using namespace dnnl;
 using namespace executor;
 
+DnnlConvolutionPrimitive::IntermediateReorders::IntermediateReorders(const Key& key,
+                                                                     const dnnl::primitive_desc& primDesc,
+                                                                     const dnnl::engine& engine) {
+    if (key.fcSemantic) {
+        return;  // currently 'any' format is never used for src / dst memory for FullyConnected
+    }
+
+    enum class AllocateMemoryFor : uint8_t { Src, Dst };
+
+    const auto& postOps = primDesc.get_primitive_attr().get_post_ops();
+
+    bool withSum = false;
+    for (int i = 0; i < postOps.len(); ++i) {
+        if (postOps.kind(i) == dnnl::primitive::kind::sum) {
+            withSum = true;
+            break;
+        }
+    }
+
+    auto createIfNotEqual = [](const dnnl::memory::desc& src,
+                               const dnnl::memory::desc& dst,
+                               AllocateMemoryFor allocate,
+                               const dnnl::engine& engine) -> IntermediateReorder {
+        const auto& memToAllocate = allocate == AllocateMemoryFor::Dst ? dst : src;
+        auto memory = dnnl::memory(memToAllocate, engine);
+        auto reorderDesc = dnnl::reorder::primitive_desc(engine, src, engine, dst);
+        auto reorder = dnnl::reorder(reorderDesc);
+
+        return {reorder, memory};
+    };
+
+    if (key.src->getDnnlDesc() != primDesc.src_desc()) {
+        m_inputReorders[DNNL_ARG_SRC] =
+            createIfNotEqual(key.src->getDnnlDesc(), primDesc.src_desc(), AllocateMemoryFor::Dst, engine);
+    }
+
+    if (withSum && key.dst->getDnnlDesc() != primDesc.dst_desc()) {
+        m_inputReorders[DNNL_ARG_DST] =
+            createIfNotEqual(key.dst->getDnnlDesc(), primDesc.dst_desc(), AllocateMemoryFor::Dst, engine);
+    }
+
+    if (key.nonConstantWeights && key.wei->getDnnlDesc() != primDesc.weights_desc()) {
+        m_inputReorders[DNNL_ARG_WEIGHTS] =
+            createIfNotEqual(key.wei->getDnnlDesc(), primDesc.weights_desc(), AllocateMemoryFor::Dst, engine);
+    }
+
+    if (primDesc.dst_desc() != key.dst->getDnnlDesc()) {
+        m_outputReorders[DNNL_ARG_DST] =
+            createIfNotEqual(primDesc.dst_desc(), key.dst->getDnnlDesc(), AllocateMemoryFor::Src, engine);
+    }
+}
+
+bool DnnlConvolutionPrimitive::IntermediateReorders::empty() const {
+    return m_inputReorders.empty() && m_outputReorders.empty();
+}
+
 static const std::map<memory::data_type, memory::data_type> weightsTypeByInputType{
     // input data type       weights data type
     {memory::data_type::f32, memory::data_type::f32},

@@ -9,6 +9,8 @@
 
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/dnnl/dnnl_fullyconnected.hpp"
+#include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
 #include "nodes/executors/executor_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/precision_translation.hpp"
@@ -90,6 +92,54 @@ template <typename Config>
 size_t postOpsNumbers(const Config& config) {
     return config.postOps.size();
 }
+
+template <typename Attrs>
+struct RequiredNoFallback {
+    std::optional<executor::Config<Attrs>> operator()(const executor::Config<Attrs>&) const {
+        return {};
+    }
+};
+
+template <typename Attrs>
+struct SupportsAnyConfig {
+    bool operator()(const executor::Config<Attrs>&) const {
+        return true;
+    }
+};
+
+template <typename Attrs>
+struct AcceptsAnyShape {
+    bool operator()(const Attrs&, const PostOps&, const MemoryArgs&) const {
+        return true;
+    }
+};
+
+template <typename Primitive, typename Attrs>
+struct CreateDefault {
+    ExecutorPtr operator()(const Attrs& attrs,
+                           const PostOps& postOps,
+                           const MemoryArgs& memory,
+                           const ExecutorContext::CPtr& context) const {
+        return std::make_shared<Primitive>(attrs, postOps, memory, context);
+    }
+};
+
+template <typename Primitive,
+          typename Attrs,
+          typename ShapeAgnosticData = DnnlShapeAgnosticData,
+          typename Instantiator = DefaultInstantiator<Primitive, Attrs, ShapeAgnosticData>>
+struct CreateDnnlDefault {
+    ExecutorPtr operator()(const Attrs& attrs,
+                           const PostOps& postOps,
+                           const MemoryArgs& memory,
+                           const ExecutorContext::CPtr& context) const {
+        return std::make_shared<DnnlFCExecutor<Primitive, Attrs, DnnlShapeAgnosticData, Instantiator>>(attrs,
+                                                                                                       postOps,
+                                                                                                       memory,
+                                                                                                       context,
+                                                                                                       false);
+    }
+};
 
 template <typename Attrs>
 std::optional<executor::Config<Attrs>> requiresFallbackCommon(const executor::Config<Attrs>& config,

@@ -155,6 +155,15 @@ static const TypeMapping dnnlMatMulTypeMapping {
     return config.postOps.empty();
 }
 
+struct RequiresFallbackDefault {
+    std::optional<ConvConfig> operator()(const ConvConfig& config) const {
+        return requiresFallbackCommon(config,
+                                      dnnlMatMulTypeMapping,
+                                      dnnlFCLayoutConfig,
+                                      dnnlConvolutionMappingNotation);
+    }
+};
+
 // to keep OV_CPU_INSTANCE macros aligned
 // clang-format off
 template <>
@@ -176,27 +185,10 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
 
                 return MlasGemmExecutor::supports(config);
             },
-            // requiresFallback
-            []([[maybe_unused]] const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
-                // @todo Implement proper handling for the cases when fallback is not expected
-                // throwing exception is not an option, since requiresFallback is used in two contexts:
-                // 1) getting proper memory descriptors configuration
-                // 2) actual fallback to subgraph
-                return {};
-            },
-            // acceptsShapes
-            []([[maybe_unused]] const FCAttrs& attrs,
-               [[maybe_unused]] const PostOps& postOps,
-               [[maybe_unused]] const MemoryArgs& memory) -> bool {
-                return true;
-            },
-            // create
-            [](const FCAttrs& attrs,
-               const PostOps& postOps,
-               const MemoryArgs& memory,
-               const ExecutorContext::CPtr& context) {
-                return std::make_shared<MlasGemmExecutor>(attrs, postOps, memory, context);
-            })
+            RequiredNoFallback<FCAttrs>{},
+            AcceptsAnyShape<FCAttrs>{},
+            CreateDefault<MlasGemmExecutor, FCAttrs>{}
+            )
         OV_CPU_INSTANCE_X64(
             "convolution_1x1_dnnl",
             ExecutorType::Dnnl,
@@ -318,20 +310,9 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                                               aclFCLayoutConfig,
                                               aclFullyConnectedMappingNotation);
             },
-            // acceptsShapes
-            []([[maybe_unused]] const FCAttrs& attrs,
-               [[maybe_unused]] const PostOps& postOps,
-               [[maybe_unused]] const MemoryArgs& memory) -> bool {
-                // @todo create syntactic sugar (functor) for shape agnostic lambda
-                return true;
-            },
-            // create
-            [](const FCAttrs& attrs,
-               const PostOps& postOps,
-               const MemoryArgs& memory,
-               const ExecutorContext::CPtr& context) {
-                return std::make_shared<ACLFullyConnectedExecutor>(attrs, postOps, memory, context);
-            })
+            AcceptsAnyShape<FCAttrs>{},
+            CreateDefault<ACLFullyConnectedExecutor, FCAttrs>{}
+            )
         OV_CPU_INSTANCE_ACL(
             "fullyconnected_acl_lowp",
             ExecutorType::Acl,
@@ -359,13 +340,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 // per-channel quantization is not unsupported by ACL
                 return !isPerChannelQuantization;
             },
-            // create
-            [](const FCAttrs& attrs,
-               const PostOps& postOps,
-               const MemoryArgs& memory,
-               const ExecutorContext::CPtr& context) {
-                return std::make_shared<ACLLowpFullyConnectedExecutor>(attrs, postOps, memory, context);
-            })
+            CreateDefault<ACLLowpFullyConnectedExecutor, FCAttrs>{}
         OV_CPU_INSTANCE_KLEIDIAI(
             "fullyconnected_kleidiai",
             ExecutorType::Kleidiai,
@@ -384,23 +359,10 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(weiRank(config) == 2U, UNSUPPORTED_WEI_RANK);
                 return MatMulKleidiAIExecutor::supports(config);
             },
-            // requiresFallback
-            [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
-                return {};
-            },
-            // acceptsShapes
-            []([[maybe_unused]] const FCAttrs& attrs,
-               [[maybe_unused]] const PostOps& postOps,
-               [[maybe_unused]] const MemoryArgs& memory) -> bool {
-                return true;
-            },
-            // create
-            [](const FCAttrs& attrs,
-               const PostOps& postOps,
-               const MemoryArgs& memory,
-               const ExecutorContext::CPtr& context) {
-                return std::make_shared<MatMulKleidiAIExecutor>(attrs, postOps, memory, context);
-            })
+            RequiredNoFallback<FCAttrs>{},
+            AcceptsAnyShape<FCAttrs>{},
+            CreateDefault<MatMulKleidiAIExecutor, FCAttrs>{}
+            )
         OV_CPU_INSTANCE_SHL(
             "fullyconnected_shl",
             ExecutorType::Shl,
@@ -415,23 +377,10 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
 
                 return ShlFCExecutor::supports(config);
             },
-            // requiresFallback
-            [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
-                return {};
-            },
-            // acceptsShapes
-            []([[maybe_unused]] const FCAttrs& attrs,
-               [[maybe_unused]] const PostOps& postOps,
-               [[maybe_unused]] const MemoryArgs& memory) -> bool {
-                return true;
-            },
-            // create
-            [](const FCAttrs& attrs,
-               const PostOps& postOps,
-               const MemoryArgs& memory,
-               const ExecutorContext::CPtr& context) {
-                return std::make_shared<ShlFCExecutor>(attrs, postOps, memory, context);
-            }
+            RequiredNoFallback<FCAttrs>{},
+            AcceptsAnyShape<FCAttrs>{},
+            CreateDefault<ShlFCExecutor, FCAttrs>{}
+            )
         )
         OV_CPU_INSTANCE_DNNL(
             "matmul_dnnl",
@@ -455,12 +404,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                                               dnnlFCLayoutConfig,
                                               dnnlFCMappingNotation);
             },
-            // acceptsShapes
-            []([[maybe_unused]] const FCAttrs& attrs,
-               [[maybe_unused]] const PostOps& postOps,
-               [[maybe_unused]] const MemoryArgs& memory) -> bool {
-                return true;
-            },
+            AcceptsAnyShape<FCAttrs>{},
             // create
             [](const FCAttrs& attrs,
                const PostOps& postOps,
@@ -497,10 +441,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             ExecutorType::Dnnl,
             OperationType::FullyConnected,
             ShapeTolerance::Dependant,
-            // supports
-            []([[maybe_unused]] const FCConfig& config) -> bool {
-                return true;
-            },
+            SupportsAnyConfig<FCAttrs>{},
             // requiresFallback
             [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
                 return requiresFallbackCommon(config,
@@ -508,12 +449,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                                               dnnlFCLayoutConfig,
                                               dnnlConvolutionMappingNotation);
             },
-            // acceptsShapes
-            []([[maybe_unused]] const FCAttrs& attrs,
-               [[maybe_unused]] const PostOps& postOps,
-               [[maybe_unused]] const MemoryArgs& memory) -> bool {
-                return true;
-            },
+            AcceptsAnyShape<FCAttrs>{},
             // create
             [](const FCAttrs& attrs,
                const PostOps& postOps,
@@ -523,7 +459,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                                                                                                          postOps,
                                                                                                          memory,
                                                                                                          context,
-                                                                                                         false);
+                                                                                                         true);
             })
     };
 

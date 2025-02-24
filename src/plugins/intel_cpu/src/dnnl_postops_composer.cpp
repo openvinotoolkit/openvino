@@ -20,7 +20,6 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "nodes/executors/common/common_utils.hpp"
 #include "nodes/executors/memory_arguments.hpp"
-#include "nodes/reorder.h"
 #include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
 #include "utils/cpp/to_underlying.hpp"
@@ -425,9 +424,6 @@ bool DnnlPostOpsComposer::appendAttrPostOps(const FakeQuantizePostOp& postOp,
     appendClip(f.clo, f.chi);
 
     appendLinear(f.osc, f.osh, isLastPostOp, allowBinary);
-    // if (!appendLinear(f.osc, f.osh, isLastPostOp, allowBinary)) {
-    //     return false;
-    // }
 
     return true;
 }
@@ -471,27 +467,11 @@ void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vec
 
     DEBUG_LOG("Append binary post op with algorithm: ", convert_to_c(alg), " Shape: ", Shape(*pdims));
 
-    // dnnl::memory::desc dnnlMemoryDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc)->getDnnlDesc();
-    // auto dstDesc = DnnlExtensionUtils::makeDescriptor(dnnlMemoryDesc);
     DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape(*pdims));
     ops.append_binary(alg, memoryDesc.getDnnlDesc());
-    // dnnl memory desc from dstDesc
     // copy the data as args
     auto mem = std::make_shared<Memory>(engine, memoryDesc);
     memcpy(mem->getData(), data.data(), data.size() * sizeof(float));
-
-    // std::cout << "original desc: " << memoryDesc << "\n";
-    // std::cout << "dst desc: " << *dstDesc << "\n";
-
-    // layout of dstDesc, shape of original memoryDesc
-    // auto dstMemDesc = dstDesc->cloneWithNewDims(*pdims);
-    // dstMemDesc = dstMemDesc->cloneWithNewPrecision(ov::element::f32);
-    // dstMemDesc = CpuBlockedMemoryDesc(dstMemDesc->getPrecision(),
-    //                                   dstMemDesc->getShape(),
-    // auto dstMemDesc = dstDesc->cloneWithNewDims(*pdims);
-
-    // auto dstMem = std::make_shared<Memory>(engine, dstMemDesc);
-    // node::Reorder::reorderData(*originalMem, *dstMem, nullptr);
 
     cpuArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = mem;
     dnnlArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = mem->getPrimitive();
@@ -897,9 +877,7 @@ void DnnlPostOpsComposer::appendAttrPostOpsLegacy(const ScaleShiftPostOp& postOp
     std::array<size_t, 2> offsets = {0};
     offsets[1] = offsets[0] + channelSize;
 
-    /* @todo legacy depthwise post ops are kept for now
-     * for performance reasons
-     */
+    // @todo legacy depthwise post ops are kept for now for performance reasons
     switch (postOp.type()) {
     case ScaleShiftPostOp::Type::add:
     case ScaleShiftPostOp::Type::subtract:
