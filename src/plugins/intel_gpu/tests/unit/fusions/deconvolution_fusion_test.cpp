@@ -121,9 +121,7 @@ public:
         cfg_not_fused = get_test_default_config(engine);
 
         cfg_fused.set_property(ov::intel_gpu::optimize_data(true));
-        cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         cfg_not_fused.set_property(ov::intel_gpu::optimize_data(false));
-        cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         cfg_not_fused.set_property(ov::intel_gpu::allow_static_input_reorder(true));
     }
 

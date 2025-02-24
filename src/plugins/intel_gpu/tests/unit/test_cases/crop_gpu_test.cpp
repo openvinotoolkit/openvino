@@ -1577,7 +1577,6 @@ TEST(crop_gpu, dynamic_input_padding_varaidic_split) {
     set_values<int64_t>(axis_mem, {split_axis});
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::custom_outputs(topology.get_primitives_ids()));
 

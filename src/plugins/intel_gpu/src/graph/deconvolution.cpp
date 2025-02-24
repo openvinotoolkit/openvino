@@ -44,39 +44,9 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
     auto output_padding = desc->out_padding;
     auto output_partial_shape = desc->output_partial_shape;
 
-    int32_t number_of_features = weights_layout.group() * weights_layout.ofm();
-
     format out_fmt = input_layout.format;
     if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
         out_fmt = node.get_preferred_output_fmt();
-    }
-
-    if (!node.get_program().is_new_shape_infer() && desc->with_output_size) {
-        CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
-                                       "User-defined output spatial X",
-                                       desc->output_size.spatial[0],
-                                       "value 0",
-                                       0,
-                                       "User-defined size of output layout must be positive (>= 1)");
-        CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
-                                       "User-defined output spatial Y",
-                                       desc->output_size.spatial[1],
-                                       "value 0",
-                                       0,
-                                       "User-defined size of output layout must be positive (>= 1)");
-        CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
-                                       "User-defined output spatial Z",
-                                       desc->output_size.spatial[2],
-                                       "value 0",
-                                       0,
-                                       "User-defined size of output layout must be positive (>= 1)");
-
-        tensor output_size(input_layout.batch(),
-                           number_of_features,
-                           desc->output_size.spatial[0],
-                           desc->output_size.spatial[1],
-                           desc->output_size.spatial[2]);
-        return {layout{output_type, out_fmt, output_size}};
     }
 
     std::vector<ShapeType> input_shapes = {
@@ -192,20 +162,6 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
                           "output size",
                           output_layout.get_rank(),
                           "Input/output number of dimension does not match.");
-    if (!node.get_program().is_new_shape_infer()) {
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
-                            "Stride size",
-                            stride.size(),
-                            "output size",
-                            output_layout.get_spatial_rank(),
-                            "Stride/output number of dimension does not match.");
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
-                            "Input offset size",
-                            pad.size(),
-                            "input number of dimensions",
-                            output_layout.get_spatial_rank(),
-                            "");
-    }
 
     auto filter_inst = node.weights().get_output_layout().convert_to_weights_layout(argument->grouped_weights_shape);
 

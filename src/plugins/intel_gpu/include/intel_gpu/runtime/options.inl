@@ -41,7 +41,6 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, allow_static_input_reorder, fal
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, custom_outputs, std::vector<std::string>{}, "List of output primitive names")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, force_implementations, ImplForcingMap{}, "Specifies the list of forced implementations for the primitives")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, partial_build_program, false, "Early exit from model compilation process which allows faster execution graph dumping")
-OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, allow_new_shape_infer, false, "Switch between new and old shape inference flow. Shall be removed soon")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, use_onednn, false, "Enable/Disable onednn for usage for particular model/platform")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, max_kernels_per_batch, 8, "Controls how many kernels we combine into batch for more efficient ocl compilation")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, impls_cache_capacity, 300, "Controls capacity of LRU implementations cache that is created for each program object for dynamic models")

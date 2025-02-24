@@ -2069,7 +2069,6 @@ TEST(gather_cpu_fp32, indice_out_of_bound_disable_usm) {
     topology.add(gather("gather", input_info("input1"), input_info("input2"), axis, 0, ov::Shape{}, 0, true));
 
     ExecutionConfig config = get_test_default_config(*engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gather", {format::bfyx, "", impl_types::cpu}} }));
 
     network network(*engine, topology, config);

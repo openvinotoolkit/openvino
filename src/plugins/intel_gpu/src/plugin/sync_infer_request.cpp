@@ -388,13 +388,6 @@ void SyncInferRequest::wait() {
         if (need_output_update) {
             OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::wait::update_output");
             auto mem_shape = output_layout.get_shape();
-            // In case of old shape infer we need to shrink out tensor shape to avoid redudnant dimensions that occur due to rank extension
-            // For new shape infer this shouldn't happen, thus remove that WA once we migrate to ngraph-based shape infer for all cases
-            if (!m_graph->get_config().get_allow_new_shape_infer()) {
-                OPENVINO_ASSERT(port.get_partial_shape().is_static(), "[GPU] Unexpected dynamic shape for legacy shape inference");
-                OPENVINO_ASSERT(ov::shape_size(port.get_shape()) == ov::shape_size(mem_shape), "[GPU] Unexpected elements count for output tensor");
-                mem_shape = port.get_shape();
-            }
             if (is_dynamic) {
                 bool need_reallocate = true;
                 auto usm_host_tensor = std::dynamic_pointer_cast<USMHostTensor>(output_tensor);
