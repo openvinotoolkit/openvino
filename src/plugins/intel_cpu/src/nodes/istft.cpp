@@ -85,7 +85,7 @@ bool ISTFT::created() const {
 
 void ISTFT::execute(const dnnl::stream& strm) {
     const auto signal_length =
-        getParentEdges().size() == 5 ? (getSrcDataAtPortAs<const int32_t>(SIGNAL_LENGTH_IDX))[0] : -1;
+        getOriginalInputsNumber() == 5 ? (getSrcDataAtPortAs<const int32_t>(SIGNAL_LENGTH_IDX))[0] : -1;
     ov::reference::istft(getSrcDataAtPortAs<const float>(DATA_IDX),
                          getSrcDataAtPortAs<const float>(WINDOW_IDX),
                          getDstDataAtPortAs<float>(0),

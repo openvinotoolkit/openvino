@@ -139,22 +139,30 @@ const ISTFTLayerTest::TGenData ISTFTLayerTest::GetTestDataForDevice(const char* 
 
     const std::vector<std::vector<InputShape>> input_shapes = {{
                                                                    // Static shapes
-                                                                   {{}, {{9, 3, 2}}},  // 1st input
-                                                                   {{}, {{8}}},        // 2nd input
+                                                                   {{}, {{9, 3, 2}}},  // 1st input 3D
+                                                                   {{}, {{8}}},       // 2nd input
                                                                    {{}, {{}}},         // 3rd input
                                                                    {{}, {{}}},         // 4th input
                                                                    {{}, {{}}}          // 5th input
                                                                },
                                                                {
                                                                    // Dynamic dims in the first and second input shape
-                                                                   {{-1, -1, -1}, {{9, 3, 2}}},  // 1st input
-                                                                   {{-1}, {{8}}},                // 2nd input
+                                                                   {{-1, -1, -1}, {{9, 3, 2}}},  // 1st input 3D
+                                                                   {{-1}, {{8}}},               // 2nd input
                                                                    {{}, {{}}},                   // 3rd input
                                                                    {{}, {{}}},                   // 4th input
                                                                    {{}, {{}}}                    // 5th input
+                                                               },
+                                                               {
+                                                                   // Dynamic dims in the first and second input shape
+                                                                   {{-1, -1, -1, -1}, {{4, 9, 3, 2}}},  // 1st input 4D
+                                                                   {{-1}, {{8}}},                      // 2nd input
+                                                                   {{}, {{}}},                          // 3rd input
+                                                                   {{}, {{}}},                          // 4th input
+                                                                   {{}, {{}}}                           // 5th input
                                                                }};
 
-    const std::vector<int64_t> frame_size = {8, 16};
+    const std::vector<int64_t> frame_size = {16};
     const std::vector<int64_t> step_size = {2, 3, 4};
     const std::vector<int64_t> signal_len = {48, 32, 256};
 
@@ -168,7 +176,7 @@ const ISTFTLayerTest::TGenData ISTFTLayerTest::GetTestDataForDevice(const char* 
         true,
     };
 
-    std::vector<utils::InputLayerType> in_types = {utils::InputLayerType::CONSTANT};
+    std::vector<utils::InputLayerType> in_types = {utils::InputLayerType::CONSTANT, utils::InputLayerType::PARAMETER};
 
     auto data = ::testing::Combine(::testing::ValuesIn(input_shapes),
                                    ::testing::ValuesIn(frame_size),
