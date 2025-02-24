@@ -119,7 +119,7 @@ void istft(const float* in_data,
                            func::add<float>);
         }
 
-        std::transform(result, result + signal_length, window_sum.begin(), result, postprocess_func);
+        std::transform(result, result + signal_length, window_sum.begin() + batch_out_start, result, postprocess_func);
 
         const auto result_start = result + margin;
         std::copy(result_start, result_start + copy_end, final_result);
