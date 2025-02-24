@@ -1,24 +1,27 @@
 #pragma once
+
 #include <napi.h>
 #include <ov/node.hpp>
-
-#include <openvino/openvino.hpp>
+#include "openvino/openvino.hpp"
 
 class NodeWrap : public Napi::ObjectWrap<NodeWrap> {
 public:
-    /**
-     * constructor
-     * @brief Constructs NodeWrap from the Napi::CallbackInfo.
-     * @param info contains passed arguments. Can be empty.
-     * @param node pointer to ov::Node object.
-     */
-    NodeWrap(const Napi::CallbackInfo& info, ov::Node* node);
+    // Constructor that initializes node_ from Napi::CallbackInfo
+    explicit NodeWrap(const Napi::CallbackInfo& info);
 
-    // member functions
-    Napi::Value get_name(const Napi::CallbackInfo& info);
+    // Delete default constructor to prevent creating with default values
+    NodeWrap() = delete;
+
+    // Member functions
+    Napi::Value get_name(const Napi::CallbackInfo& info) const;
+
+    // Static function to get the class constructor
+    static Napi::Function get_class(Napi::Env env);
+
+    // Static function to create a new instance
+    static Napi::Object New(Napi::Env env, const ov::Node& node);
 
 private:
-    ov::Node* node_;
+    // Internal node object (using a reference to ensure it's never null)
+    const ov::Node& node_;
 };
-
-#endif //NODE_WRAP_H
