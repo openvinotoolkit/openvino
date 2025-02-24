@@ -1,6 +1,8 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#pragma once
 
 #include <node.h>
 
@@ -13,10 +15,7 @@
 #include "shape_inference/static_dimension.hpp"
 #include "utils.hpp"
 
-#pragma once
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 VectorDims convolution_shape_infer(const VectorDims& data_shape,
                                    const VectorDims& filters_shape,
@@ -67,6 +66,4 @@ private:
     std::shared_ptr<ov::Node> m_op;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
