@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,9 +12,7 @@
 #include "shape_inference/shape_inference.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 constexpr auto dilated(const size_t dim, const size_t dilation) -> size_t {
     return (dim - 1) * dilation + 1;
@@ -28,8 +26,8 @@ VectorDims convolution_shape_infer(const VectorDims& data_shape,
                                    const std::vector<ptrdiff_t>& pads_end,
                                    bool auto_padding,
                                    bool isGrouped) {
-    assert(data_shape.size() >= 3);
-    assert(filters_shape.size() >= 3);
+    OPENVINO_ASSERT(data_shape.size() >= 3, "At least 3D data shape is expected");
+    OPENVINO_ASSERT(filters_shape.size() >= 3, "At least 3D filters shape is expected");
 
     const auto data_rank = data_shape.size();
     constexpr int spatial_offset = 2;
@@ -46,8 +44,7 @@ VectorDims convolution_shape_infer(const VectorDims& data_shape,
 
     const auto spatial_num = strides.size();
 
-    const auto& d_shape = data_shape;
-    auto data_dim_it = d_shape.cend() - spatial_num;
+    auto data_dim_it = data_shape.cend() - spatial_num;
 
     const auto ceil_div = [](const auto& x, const auto& y) {
         assert(y > 0);
@@ -55,17 +52,15 @@ VectorDims convolution_shape_infer(const VectorDims& data_shape,
     };
 
     if (auto_padding) {
-        std::transform(data_dim_it, d_shape.cend(), strides.cbegin(), std::back_inserter(output_shape), ceil_div);
+        std::transform(data_dim_it, data_shape.cend(), strides.cbegin(), std::back_inserter(output_shape), ceil_div);
     } else {
-        const auto& f_shape = filters_shape;
-        auto filters_dim = f_shape.cend() - spatial_num;
+        auto filters_dim = filters_shape.cend() - spatial_num;
 
         for (size_t i = 0; i < spatial_num; ++i, ++data_dim_it, ++filters_dim) {
             auto dim = *data_dim_it + pads_begin[i] + pads_end[i];
 
             const auto f_dim = *filters_dim;
-            const auto dilation = dilations[i];
-            const auto filter_dilated = (f_dim - 1) * dilation + 1;
+            const auto filter_dilated = (f_dim - 1) * dilations[i] + 1;
 
             dim = (dim - filter_dilated) / strides[i];
             dim += 1;
@@ -110,6 +105,4 @@ ShapeInferPtr ConvolutionShapeInferFactory::makeShapeInfer() const {
     }
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
