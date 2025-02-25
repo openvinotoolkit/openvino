@@ -152,14 +152,12 @@ protected:
         auto args = get_arguments(instance, stage);
         args.scalars = &params.scalars;
 
-
-        stream.set_arguments(*_kernels[stage], params, args);
-        // if (instance.get_flag(ExecutionFlags::MEMORY_CHANGED)) {
-            // stream.set_arguments(*_kernels[stage], _kernels_data[stage].params, args);
+        if (instance.get_flag(ExecutionFlags::MEMORY_CHANGED) || instance.get_flag(ExecutionFlags::IMPL_CHANGED)) {
+            stream.set_arguments(*_kernels[stage], params, args);
             // TODO: Can we call update dispatch data here for required kernels only?
             // Seems that it may conflict with fake alignment as get_impl_params stores not fake aligned data
-            // _kernels_data[stage].update_dispatch_data_func(*instance.get_impl_params(), _kernels_data[stage]);
-        // }
+            _kernels_data[stage].update_dispatch_data_func(*instance.get_impl_params(), _kernels_data[stage]);
+        }
 
         const auto& gws = params.workGroups.global;
         const auto& lws = params.workGroups.local;
@@ -189,14 +187,14 @@ protected:
     std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
         std::vector<std::shared_ptr<cldnn::kernel_string>> kernel_strings;
         for (size_t i = 0; i < _kernels_data.size(); ++i) {
-            kernel_strings.push_back(_kernels_data[_stages_registration_order[i]].code.kernelString);
+            kernel_strings.push_back(_kernels_data[_stages_registration_order[i]].code.kernel_string);
         }
         return kernel_strings;
     }
 
     void reset_kernels_source() override {
         for (auto& [stage, kd] : _kernels_data) {
-            kd.code.kernelString.reset();
+            kd.code.kernel_string.reset();
         }
     }
 
@@ -209,15 +207,8 @@ protected:
         }
     }
 
-    std::pair<std::string, std::string> get_kernels_dump_info() const override {
-        return {};
-    }
-
-    virtual void update_dispatch_data(const kernel_impl_params& impl_params) {
-        for (auto& [stage_id, kd] : _kernels_data) {
-            kd.update_dispatch_data_func(impl_params, kd);
-        }
-    }
+    std::pair<std::string, std::string> get_kernels_dump_info() const override { return {}; }
+    virtual void update_dispatch_data(const kernel_impl_params& impl_params) { }
 };
 
 }  // namespace ov::intel_gpu::ocl

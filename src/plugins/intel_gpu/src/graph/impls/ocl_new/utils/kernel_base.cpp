@@ -132,15 +132,15 @@ KernelData SingleKernelGenerator::get_kernel_data(const kernel_impl_params& para
     auto jit = get_jit_constants(params);
 
     KernelData kd;
-    kd.code.kernelString = std::make_shared<KernelString>();
-    kd.code.kernelString->language = kernel_language::OCLC_V2;
-    kd.code.kernelString->entry_point = get_entry_point(params);
-    kd.code.kernelString->jit = "";
-    kd.code.kernelString->undefs = "";
-    kd.code.kernelString->options = get_build_options(params);
-    kd.code.kernelString->batch_compilation = true;
-    kd.code.kernelString->has_microkernels = false;
-    kd.code.kernelString->str = build_code(m_kernel_name, jit, kd.code.kernelString->entry_point);
+    kd.code.kernel_string = std::make_shared<KernelString>();
+    kd.code.kernel_string->language = kernel_language::OCLC_V2;
+    kd.code.kernel_string->entry_point = get_entry_point(params);
+    kd.code.kernel_string->jit = "";
+    kd.code.kernel_string->undefs = "";
+    kd.code.kernel_string->options = get_build_options(params);
+    kd.code.kernel_string->batch_compilation = true;
+    kd.code.kernel_string->has_microkernels = false;
+    kd.code.kernel_string->str = build_code(m_kernel_name, jit, kd.code.kernel_string->entry_point);
 
     kd.params.arguments = get_arguments_desc(params);
     kd.update_dispatch_data_func = get_dispatch_data_func();

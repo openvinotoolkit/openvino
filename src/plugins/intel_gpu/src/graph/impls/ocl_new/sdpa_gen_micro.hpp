@@ -282,15 +282,15 @@ public:
         auto jit = get_jit_constants(params, gemms[kq_id], gemms[vs_id]);
 
         KernelData kd;
-        kd.code.kernelString = std::make_shared<KernelString>();
-        kd.code.kernelString->language = kernel_language::OCLC_V2;
-        kd.code.kernelString->entry_point = get_entry_point(params);;
-        kd.code.kernelString->jit = "";
-        kd.code.kernelString->undefs = "";
-        kd.code.kernelString->options = get_build_options(params);
-        kd.code.kernelString->batch_compilation = false;
-        kd.code.kernelString->has_microkernels = true;
-        kd.code.kernelString->str = build_code(m_kernel_name, jit, kd.code.kernelString->entry_point);
+        kd.code.kernel_string = std::make_shared<KernelString>();
+        kd.code.kernel_string->language = kernel_language::OCLC_V2;
+        kd.code.kernel_string->entry_point = get_entry_point(params);;
+        kd.code.kernel_string->jit = "";
+        kd.code.kernel_string->undefs = "";
+        kd.code.kernel_string->options = get_build_options(params);
+        kd.code.kernel_string->batch_compilation = false;
+        kd.code.kernel_string->has_microkernels = true;
+        kd.code.kernel_string->str = build_code(m_kernel_name, jit, kd.code.kernel_string->entry_point);
 
         kd.params.arguments = get_arguments_desc(params);
         kd.update_dispatch_data_func = get_dispatch_data_func();
@@ -301,14 +301,14 @@ public:
         shim_options.useTileOps = true;
         shim_options.decorator = "kq";
 
-        kd.code.kernelString->jit += generateShim(gemms[kq_id], micro::HostLanguage::OpenCL_C, shim_options);
+        kd.code.kernel_string->jit += generateShim(gemms[kq_id], micro::HostLanguage::OpenCL_C, shim_options);
 
         shim_options.microkernelID++;
         shim_options.decorator = "vs";
-        kd.code.kernelString->jit += generateShim(gemms[vs_id], micro::HostLanguage::OpenCL_C, shim_options);
+        kd.code.kernel_string->jit += generateShim(gemms[vs_id], micro::HostLanguage::OpenCL_C, shim_options);
 
         if (gemms[kq_id].grfMin > 128 || gemms[vs_id].grfMin > 128)
-            kd.code.kernelString->options += " -cl-intel-256-GRF-per-thread";
+            kd.code.kernel_string->options += " -cl-intel-256-GRF-per-thread";
 
         for (auto& p : gemms) {
             kd.micro_kernels.push_back(std::make_shared<micro::MicroKernelPackage>(p));

@@ -31,13 +31,12 @@ using ArgumentDescriptor = cldnn::argument_desc;
 using Arguments = cldnn::arguments_desc;
 
 struct KernelCode {
-    std::shared_ptr<KernelString> kernelString;
+    std::shared_ptr<KernelString> kernel_string;
 };
 
 struct KernelData;
 struct RuntimeParams { };
 
-// using DispatchDataFunc = std::function<void(const kernel_impl_params&, KernelData&, RuntimeParams*)>;
 struct DispatchDataFunc {
     std::function<void(const kernel_impl_params&, KernelData&, RuntimeParams*)> m_dispatch_data_func = nullptr;
 
