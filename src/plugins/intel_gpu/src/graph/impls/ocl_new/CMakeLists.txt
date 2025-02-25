@@ -60,10 +60,8 @@ add_test(NAME TestOCLCodePreprocessing
 
 ov_gpu_add_backend_target(
     NAME ${TARGET_NAME}
-    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-    INCLUDES
-        PRIVATE
-            $<BUILD_INTERFACE:${CODEGEN_INCDIR}>
-    ADDITIONAL_SOURCE_DIRS ${CODEGEN_INCDIR}
-    DEPENDENCIES run_codegen run_codeged_test
+    INCLUDES $<BUILD_INTERFACE:${CODEGEN_INCDIR}>
+    BYPASS
+        ADDITIONAL_SOURCE_DIRS ${CODEGEN_INCDIR}
+        DEPENDENCIES run_codegen run_codeged_test
 )
