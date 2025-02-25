@@ -903,7 +903,7 @@ public:
     }
 };
 
-// Substiture a Constant node instead of a node by calling node->constant_fold if 'postponed_constant' rt_info attribute
+// Substitute a Constant node instead of a node by calling node->constant_fold if 'postponed_constant' rt_info attribute
 // is present in the node
 class PostponedConstantReplacer {
 private:
@@ -1034,8 +1034,12 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
 
     for (const auto& n : sorted_ops) {
         ov::Node* node = n.get();
-        OPENVINO_ASSERT(layer_ids.find(node) != layer_ids.end(), "Internal error");
-        auto node_id = layer_ids.find(node)->second;
+        int node_id{};
+        {
+            auto it = layer_ids.find(node);
+            OPENVINO_ASSERT(it != layer_ids.end(), "Internal error");
+            node_id = it->second;
+        }
         PostponedConstantReplacer modified_node(node);
         node = modified_node.get_node();
 
