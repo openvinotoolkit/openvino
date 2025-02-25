@@ -20,6 +20,49 @@
 
 namespace opp = ov::pass::pattern;
 
+class RemoveEmptyKVTensors : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::RemoveEmptyKVTensors");
+
+    struct Context {
+        std::vector<std::shared_ptr<ov::opset13::Parameter>> old_params;
+        using Ref = std::reference_wrapper<Context>;
+    };
+
+    RemoveEmptyKVTensors(Context::Ref ctx) {
+        auto param = opp::wrap_type<ov::op::v0::Parameter>();
+        auto concat = opp::wrap_type<ov::op::v0::Concat>({param, opp::any_input()});
+
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
+            auto& node_to_output = m.get_pattern_value_map();
+            auto matched_param = ov::as_type_ptr<ov::op::v0::Parameter>(node_to_output.at(param).get_node_shared_ptr());
+            auto matched_node_concat = node_to_output.at(concat).get_node_shared_ptr();
+
+            ctx.get().old_params.push_back(matched_param);
+
+            auto users = matched_param->get_users();
+            if (users.size() == 2u) {
+                auto shapeof_node = ov::is_type<ov::op::v3::ShapeOf>(users[0]) ? users[0] : users[1];
+                NPUW_ASSERT(ov::is_type<ov::op::v3::ShapeOf>(shapeof_node));
+                auto cst_node =
+                    ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, matched_param->get_shape());
+                ov::replace_node(shapeof_node, cst_node);
+            } else {
+                NPUW_ASSERT(users.size() == 1u);
+            }
+
+            // Redirect second concat input to every node which reads from concat
+            auto curr_kv_tensor = matched_node_concat->input(1).get_source_output();
+            for (auto target_input : matched_node_concat->output(0u).get_target_inputs()) {
+                target_input.replace_source_output(curr_kv_tensor);
+            }
+
+            return true;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(concat, "RemoveEmptyKVTensors"), std::move(callback));
+    }
+};
+
 class TransposeValueTensors : public ov::pass::MatcherPass {
 public:
     struct Context {
@@ -344,6 +387,19 @@ bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
     return !ctx.new_params.empty();
 }
 
+bool remove_empty_kv_inputs(std::shared_ptr<ov::Model> model) {
+    ov::pass::GraphRewrite rewr;
+    RemoveEmptyKVTensors::Context ctx;
+    rewr.add_matcher<RemoveEmptyKVTensors>(std::ref(ctx));
+    rewr.run_on_model(model);
+    for (auto old_param : ctx.old_params) {
+        model->remove_parameter(old_param);
+    }
+    ov::pass::Validate().run_on_model(model);
+    // NB: if new_params is not empty - pass has been applied
+    return !ctx.old_params.empty();
+}
+
 struct KVAxesPosition {
     uint32_t batch;
     uint32_t seq_len;
@@ -584,6 +640,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     } else {
         LOG_DEBUG("6. Check and apply opt layout --- SKIPPED");
     }
+    NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
     LOG_DEBUG("7. Optimize kvcache model to output key/values for new token.");
     kvcache_model = redirect_new_kv_to_output(kvcache_model);
     LOG_DEBUG("8. Converting KV-cache in kvcache model to FP16.");
