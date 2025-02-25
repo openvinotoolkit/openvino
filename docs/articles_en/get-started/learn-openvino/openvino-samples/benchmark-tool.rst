@@ -382,7 +382,7 @@ available options and parameters:
               -t TIME, --time TIME  Optional. Time in seconds to execute topology.
 
               -api {sync,async}, --api_type {sync,async}
-                                    Optional. Enable using sync/async API. Default value is async.
+                                    Optional. Enable using sync/async API. When hint is throughput, default value is async. When hint is latency, default value is sync.
 
 
             Input shapes:
@@ -557,7 +557,7 @@ available options and parameters:
                 -c  <absolute_path>           Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
                 -cache_dir  <path>            Optional. Enables caching of loaded models to specified directory. List of devices which support caching is shown at the end of this message.
                 -load_from_file               Optional. Loads model from file directly without read_model. All CNNNetwork options (like re-shape) will be ignored
-                -api <sync/async>             Optional. Enable Sync/Async API. Default value is "async".
+                -api <sync/async>             Optional. Enable Sync/Async API. When hint is throughput, default value is "async". When hint is latency, default value is "sync".
                 -nireq  <integer>             Optional. Number of infer requests. Default value is determined automatically for device.
                 -nstreams  <integer>          Optional. Number of streams to use for inference on the CPU or GPU devices (for HETERO and MULTI device cases use format <dev1>:<nstreams1>,   <dev2>:<nstreams2> or just <nstreams>). Default value is determined automatically for a device.Please note that although the automatic selection usually provides a reasonable    performance, it still may be non - optimal for some cases, especially for very small models. See sample's README for more details. Also, using nstreams>1 is inherently    throughput-oriented option, while for the best-latency estimations the number of streams should be set to 1.
                 -inference_only         Optional. Measure only inference stage. Default option for static models. Dynamic models are measured in full mode which includes inputs setup stage,    inference only mode available for them with single input data shape only. To enable full mode for static models pass "false" value to this argument: ex. "-inference_only=false".
