@@ -44,8 +44,18 @@ where dimensions with labels ``b`` and ``d`` are reduced, and the transpose is a
 
 .. note::
 
+    Behavior before OpenVINO 2025.1 release:
+
+    * Dimensions covered by specific label need to be compatible across all input tensors without broadcasting.
+    * Ellipsis label need to cover at least one dimension in input tensor.
+    * Output subscripts need to contain ellipsis label if any of input subscripts contain ellipsis label.
+
+.. note::
+
    * *Einsum* operation can perform on a single operand. In this case, the operation can transpose the input and reduce its dimensions.
-   * Input ranks must be equal to amount of dimensions covered by corresponding subscripts. Ellipses may cover 0 or multiple dimensions. Dimensions with the same corresponding labels in input subscripts need to be broadcastable to satisfy NymPy broadcasting rules available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`.
+   * Input ranks must be equal to amount of dimensions covered by corresponding subscripts.
+   * Ellipses may cover 0 or multiple dimensions.
+   * Dimensions with the same corresponding labels in input subscripts (with exception for repeated label in same input subscript) need to be broadcastable across all input tensors to satisfy NymPy broadcasting rules available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`.
    * A label can be repeated in the same input subscript, for example, ``equation`` equal to ``aac,abd,ddde``. In this case, the corresponding dimensions must match in size, and the operand is replaced by its diagonal along these dimensions. For example, *Einsum* operation on the single 3D tensor of shape ``[2, 4, 5, 4]`` with ``equation`` equal to ``ijkj->ij``.
    * The specification considers the primitive algorithm for *Einsum* operation for better understanding of the operation and does not recommend it for implementation.
    * The described algorithm can be improved by immediate dimension sum-reduction of the intermediate results if the corresponding labels are absent  in the input subscripts of subsequent inputs and the output subscript. It can significantly boost performance and reduce memory costs. In the considered example, after the first step you can reduce the dimension corresponding to the label ``d``.
