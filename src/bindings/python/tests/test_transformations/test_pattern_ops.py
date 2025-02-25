@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 
-from openvino import PartialShape, Symbol, Dimension, OVAny
+from openvino import PartialShape, Symbol, Dimension
 from openvino import opset13 as ops
 from openvino.passes import Matcher, WrapType, Or, AnyInput, Optional
 from openvino.passes import (
@@ -284,7 +284,7 @@ def test_attrs_match():
 
     def test_shape_of_attribute(et: str):
         node = ops.shape_of(param, output_type=et)
-        attr = {"output_type": OVAny(et)}
+        attr = {"output_type": et}
         matcher = Matcher(AnyInput(attrs_match(attr)), "Find shape_of with attribute")
         assert matcher.match(node), f"Match failed for {node} with attribute"
 
