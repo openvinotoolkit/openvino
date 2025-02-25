@@ -203,7 +203,7 @@ TEST_P(CheckWeightlessCacheAccuracyLowPrecision, MatmulWeightsDecompression) {
                                                                             ov::element::f32,
                                                                             model_dtype,
                                                                             ov::element::f32,
-                                                                            ov::element::undefined,
+                                                                            ov::element::dynamic,
                                                                             true,
                                                                             ov::test::DecompressionType::full,
                                                                             ov::test::DecompressionType::full,
