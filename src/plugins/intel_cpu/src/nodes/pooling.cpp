@@ -32,9 +32,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 struct PoolingKey {
@@ -147,22 +145,24 @@ dnnl::pooling_forward::primitive_desc createDescriptorHelper(const dnnl::engine&
 
 bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (ov::is_type<const ov::op::v8::MaxPool>(op) || ov::is_type<const ov::op::v14::MaxPool>(op)) {
+        if (ov::is_type_any_of<const ov::op::v8::MaxPool, const ov::op::v14::MaxPool>(op)) {
             if (!op->get_output_target_inputs(1).empty()) {
                 errorMessage = "MaxPool from opset8 and opset14 is supported only with one output";
                 return false;
             }
-        } else if (!ov::is_type<const ov::op::v1::MaxPool>(op) && !ov::is_type<const ov::op::v8::MaxPool>(op) &&
-                   !ov::is_type<const ov::op::v14::MaxPool>(op) && !ov::is_type<const ov::op::v1::AvgPool>(op) &&
-                   !ov::is_type<const ov::op::v14::AvgPool>(op)) {
+        } else if (!ov::is_type_any_of<const ov::op::v1::MaxPool,
+                                       const ov::op::v8::MaxPool,
+                                       const ov::op::v14::MaxPool,
+                                       const ov::op::v1::AvgPool,
+                                       const ov::op::v14::AvgPool>(op)) {
             errorMessage = "Supported ops are MaxPool-1, MaxPool-8, MaxPool-14, AvgPool-1 and AvgPool-14";
             return false;
         }
 #if defined(OV_CPU_WITH_ACL)
-        if (ov::as_type_ptr<const ov::op::v8::MaxPool>(op) ||
-            ov::as_type_ptr<const ov::op::v14::MaxPool>(op)) {
-            if (ov::as_type_ptr<const ov::op::util::MaxPoolBase>(op)->get_kernel() != ov::Shape(2,2)) {
-                errorMessage = "Pooling indices returning source tensor coordinates is only supported for pool size 2x2";
+        if (ov::is_type_any_of<const ov::op::v8::MaxPool, const ov::op::v14::MaxPool>(op)) {
+            if (ov::as_type_ptr<const ov::op::util::MaxPoolBase>(op)->get_kernel() != ov::Shape(2, 2)) {
+                errorMessage =
+                    "Pooling indices returning source tensor coordinates is only supported for pool size 2x2";
                 return false;
             }
         }
@@ -759,9 +759,11 @@ void Pooling::setPostOps(dnnl::primitive_attr& attr) {
     dnnl::post_ops ops;
 
     for (auto& node : fusedWith) {
+        int channelAxis = 1;
+
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, {}, postOpsArgs);
+            fakeQuantizeNode->appendPostOps(ops, {}, postOpsArgs, channelAxis);
             continue;
         }
 
@@ -775,6 +777,4 @@ void Pooling::setPostOps(dnnl::primitive_attr& attr) {
     attr.set_post_ops(ops);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

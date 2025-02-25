@@ -6,7 +6,6 @@
 
 #include <cstddef>
 #include <memory>
-#include <ov_optional.hpp>
 #include <queue>
 #include <utility>
 
@@ -14,8 +13,7 @@
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace {
 
@@ -617,18 +615,4 @@ void NetworkMemoryControl::releaseMemory() {
     }
 }
 
-std::vector<std::pair<std::string, MemoryStatistics>> NetworkMemoryControl::dumpStatistics() const {
-#ifdef CPU_DEBUG_CAPS
-    std::vector<std::pair<std::string, MemoryStatistics>> retVal;
-    retVal.reserve(m_controlUnits.size());
-    for (auto&& item : m_controlUnits) {
-        retVal.emplace_back(std::make_pair(item->getId(), item->dumpStatistics()));
-    }
-    return retVal;
-#else
-    return {};
-#endif  // CPU_DEBUG_CAPS
-}
-
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

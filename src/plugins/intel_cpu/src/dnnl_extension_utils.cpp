@@ -16,8 +16,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
     switch (dataType) {
@@ -80,7 +79,7 @@ std::optional<dnnl::memory::data_type> DnnlExtensionUtils::ElementTypeToDataType
         return memory::data_type::f8_e5m2;
     case ov::element::f4e2m1:
         return memory::data_type::f4_e2m1;
-    case ov::element::undefined:
+    case ov::element::dynamic:
         return memory::data_type::undef;
     default: {
         return {};
@@ -128,7 +127,7 @@ ov::element::Type DnnlExtensionUtils::DataTypeToElementType(const dnnl::memory::
     case memory::data_type::f4_e2m1:
         return ov::element::f4e2m1;
     case memory::data_type::undef:
-        return ov::element::undefined;
+        return ov::element::dynamic;
     default: {
         OPENVINO_THROW("Unsupported data type.");
     }
@@ -295,5 +294,4 @@ std::string DnnlExtensionUtils::computeWeightsStringHash(const std::shared_ptr<c
     return std::to_string(desc_hash) + "_" + std::to_string(reinterpret_cast<uint64_t>(memory->getData()));
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

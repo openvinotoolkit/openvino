@@ -189,7 +189,7 @@ public:
     // Caution!!! This action invalidates the previous data layout. The old data may become unreachable.
     virtual void redefineDesc(MemoryDescPtr desc) = 0;
 
-    virtual void load(const IMemory& src, bool ftz = true) const = 0;
+    virtual void load(const IMemory& src, bool ftz, bool bf16saturation) const = 0;
 
     virtual MemoryBlockPtr getMemoryBlock() const = 0;
 
@@ -261,7 +261,7 @@ public:
     // Always throws since a static memory descriptor should not be modified
     void redefineDesc(MemoryDescPtr desc) override;
 
-    void load(const IMemory& src, bool ftz = true) const override;
+    void load(const IMemory& src, bool ftz, bool bf16saturation) const override;
 
     MemoryBlockPtr getMemoryBlock() const override;
 
@@ -316,7 +316,7 @@ public:
 
     void redefineDesc(MemoryDescPtr desc) override;
 
-    void load(const IMemory& src, bool ftz = true) const override;
+    void load(const IMemory& src, bool ftz, bool bf16saturation) const override;
     void nullify() override;
 
     dnnl::engine getEngine() const {
@@ -422,7 +422,7 @@ public:
 
     void redefineDesc(MemoryDescPtr desc) override;
 
-    void load(const IMemory& src, bool ftz = false) const override;
+    void load(const IMemory& src, bool ftz, bool bf16saturation) const override;
 
     MemoryBlockPtr getMemoryBlock() const override;
 

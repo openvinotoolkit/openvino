@@ -34,8 +34,7 @@
 
 using namespace ov::threading;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct ImmediateSerialExecutor : public ov::threading::ITaskExecutor {
     void run(ov::threading::Task task) override {
@@ -161,7 +160,7 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
     auto streamsExecutor = std::dynamic_pointer_cast<IStreamsExecutor>(m_task_executor);
     if (nullptr != streamsExecutor) {
         streamId = streamsExecutor->get_stream_id();
-        socketId = streamsExecutor->get_socket_id();
+        socketId = std::max(0, streamsExecutor->get_socket_id());
     }
     auto graphLock = GraphGuard::Lock(m_graphs[streamId % m_graphs.size()]);
     if (!graphLock._graph.IsReady()) {
@@ -370,5 +369,4 @@ void CompiledModel::release_memory() {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

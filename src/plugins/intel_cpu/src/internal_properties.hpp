@@ -7,19 +7,13 @@
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * @brief Defines how many records can be stored in the CPU runtime parameters cache per CPU runtime parameter type per
  * stream.
  */
 static constexpr Property<int32_t, PropertyMutability::RW> cpu_runtime_cache_capacity{"CPU_RUNTIME_CACHE_CAPACITY"};
-
-/**
- * @brief Allow low precision transform.
- */
-static constexpr Property<bool, PropertyMutability::RW> lp_transforms_mode{"LP_TRANSFORMS_MODE"};
 
 /**
  * @brief Enum to define possible snippets mode hints.
@@ -68,5 +62,4 @@ inline std::istream& operator>>(std::istream& is, SnippetsMode& mode) {
  */
 static constexpr Property<SnippetsMode, PropertyMutability::RW> snippets_mode{"SNIPPETS_MODE"};
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

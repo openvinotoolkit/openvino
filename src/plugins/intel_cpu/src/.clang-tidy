@@ -22,7 +22,6 @@
 ### Checks that are turned off but better be enabled later:
 # -bugprone-narrowing-conversions
 # -bugprone-easily-swappable-parameters
-# -bugprone-fold-init-type
 # -bugprone-implicit-widening-of-multiplication-result
 # -cppcoreguidelines-narrowing-conversions
 # -google-default-arguments,
@@ -31,7 +30,6 @@
 # -readability-implicit-bool-conversion,
 # -readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers
 # -readability-function-cognitive-complexity. Reasonable way to enforce splitting complex code into simple functions
-# -modernize-concat-nested-namespaces. More compact way when C++17 is available
 
 Checks: >
   -*,
@@ -40,13 +38,11 @@ Checks: >
   modernize-pass-by-value,
   cppcoreguidelines-prefer-member-initializer,
   -bugprone-easily-swappable-parameters,
-  -bugprone-fold-init-type,
   -bugprone-implicit-widening-of-multiplication-result,
   -bugprone-narrowing-conversions,
   -cppcoreguidelines-narrowing-conversions,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -google-build-using-namespace,
-  -google-default-arguments,
   -google-explicit-constructor,
   -google-readability-casting,
   -google-readability-todo,
@@ -58,7 +54,6 @@ Checks: >
   -cppcoreguidelines-avoid-magic-numbers,
   -readability-uppercase-literal-suffix,
   -readability-function-cognitive-complexity,
-  -modernize-concat-nested-namespaces,
 # Treat warnings as errors
 WarningsAsErrors: '*'
 # Use clang-format for applied fixes

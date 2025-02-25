@@ -9,8 +9,7 @@
 
 #include "openvino/runtime/system_conf.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 WeightsSharing::SharedMemory::SharedMemory(std::unique_lock<std::mutex>&& lock,
                                            MemoryInfo::Ptr memory,
@@ -122,5 +121,4 @@ std::vector<std::pair<int, WeightsSharing::Statistics>> SocketsWeights::dumpStat
     return retVal;
 }
 #endif  // CPU_DEBUG_CAPS
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

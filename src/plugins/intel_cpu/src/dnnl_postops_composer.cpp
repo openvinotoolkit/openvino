@@ -19,8 +19,7 @@
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 DnnlPostOpsComposer::DnnlPostOpsComposer(const PostOps& postOps,
                                          const dnnl::engine& engine,
@@ -660,7 +659,7 @@ static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
         srcFormat);
     auto srcMem = std::make_shared<Memory>(engine, srcMemoryDesc, paramsPtr->getData());
 
-    dstMem->load(*srcMem);
+    dstMem->load(*srcMem, true, false);
     return dstMem;
 }
 
@@ -802,5 +801,4 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
     return {attr, dnnlArgs, cpuArgs};
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

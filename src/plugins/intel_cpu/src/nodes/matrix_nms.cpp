@@ -16,9 +16,7 @@
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 using ngNmsSortResultType = ov::op::v8::MatrixNms::SortResultType;
 using ngNmseDcayFunction = ov::op::v8::MatrixNms::DecayFunction;
@@ -425,8 +423,9 @@ void MatrixNms::execute(const dnnl::stream& strm) {
     // NMS-alike nodes are always transformed to NMSIEInternal node in case of legacy api, for compatibility.
     // And on the other hand in case of api 2.0, keep them internal dynamic for better performance and functionality.
     if (!m_outStaticShape) {
-        size_t totalBox = std::accumulate(m_numPerBatch.begin(), m_numPerBatch.end(), static_cast<size_t>(0));
-        redefineOutputMemory({{totalBox, 6}, {totalBox, 1}, {m_numBatches}});
+        auto totalBox = std::accumulate(m_numPerBatch.begin(), m_numPerBatch.end(), int64_t{0});
+        OPENVINO_ASSERT(totalBox > 0, "Total number of boxes is less or equal than 0");
+        redefineOutputMemory({{static_cast<size_t>(totalBox), 6}, {static_cast<size_t>(totalBox), 1}, {m_numBatches}});
     }
     float* selectedOutputs = selectedOutputsMemPtr->getDataAs<float>();
     int* selectedIndices = selectedIndicesMemPtr->getDataAs<int>();
@@ -472,6 +471,4 @@ void MatrixNms::checkPrecision(const ov::element::Type prec,
     }
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

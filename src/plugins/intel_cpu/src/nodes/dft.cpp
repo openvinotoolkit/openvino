@@ -19,9 +19,7 @@
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool DFT::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -29,10 +27,7 @@ bool DFT::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
             errorMessage = "Doesn't support op with dynamic shapes";
             return false;
         }
-        const auto interpDFT = ov::is_type<const op::v7::DFT>(op);
-        const auto interpIDFT = ov::is_type<const op::v7::IDFT>(op);
-
-        if (!interpDFT && !interpIDFT) {
+        if (!ov::is_type_any_of<const op::v7::DFT, const op::v7::IDFT>(op)) {
             errorMessage = "Only opset7 DFT/IDFT operation is supported";
             return false;
         }
@@ -619,6 +614,4 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
     }
 #endif
 }
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
