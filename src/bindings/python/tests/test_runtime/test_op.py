@@ -43,6 +43,7 @@ def create_model(maker):
 
     return Model(add_2, [param_node], "test_model")
 
+
 def test_postponned_constant():
     maker = Maker()
     model = create_model(maker)

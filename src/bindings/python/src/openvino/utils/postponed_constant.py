@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 
-from typing import Callable
+from typing import Callable, List
 import openvino
 
 """Postponed Constant is a way to materialize a big constant only when it is going to be serialized to IR and then immediately dispose."""
@@ -24,12 +24,9 @@ def make_postponed_constant(element_type: openvino.Type, shape: openvino.Shape, 
         def get_type_info(self) -> openvino.DiscreteTypeInfo:
             return PostponedConstant.class_type_info
 
-        def evaluate(self, outputs: list[openvino.Tensor], _: list[openvino.Tensor]) -> bool:
+        def evaluate(self, outputs: List[openvino.Tensor], _: List[openvino.Tensor]) -> bool:
             maker().copy_to(outputs[0])
             return True
-
-        def clone_with_new_inputs(self, _: list[openvino.Tensor]) -> openvino.Op:
-            return PostponedConstant()
 
         def validate_and_infer_types(self) -> None:
             self.set_output_type(0, self.m_element_type, openvino.PartialShape(self.m_shape))
