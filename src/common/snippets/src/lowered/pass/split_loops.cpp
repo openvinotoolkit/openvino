@@ -122,12 +122,21 @@ InnerSplittedUnifiedLoopInfoPtr make_own_inner_splitted_unified_loop_info(const 
 }
 ExpandedLoopInfoPtr make_own_inner_splitted_expanded_loop_info(const ExpandedLoopInfoPtr& inner_expanded,
                                                                const InnerSplittedUnifiedLoopInfoPtr& inner_unified) {
-    return std::make_shared<ExpandedLoopInfo>(inner_unified->get_work_amount(), inner_unified->get_increment(),
-                                              inner_unified->get_input_ports(), inner_unified->get_output_ports(),
-                                              inner_unified->get_ptr_increments(),
-                                              inner_unified->get_finalization_offsets(),
-                                              inner_unified->get_data_sizes(), inner_expanded->get_type(),
-                                              inner_unified, inner_expanded->is_evaluate_once());
+    // return std::make_shared<ExpandedLoopInfo>(inner_unified->get_work_amount(), inner_unified->get_increment(),
+    //                                           inner_unified->get_input_ports(), inner_unified->get_output_ports(),
+    //                                           inner_unified->get_ptr_increments(),
+    //                                           inner_unified->get_finalization_offsets(),
+    //                                           inner_unified->get_data_sizes(), inner_expanded->get_type(),
+    //                                           inner_unified, inner_expanded->is_evaluate_once());
+    return inner_unified->produce_expanded_loop(inner_unified->get_work_amount(),
+                                                inner_unified->get_increment(),
+                                                inner_unified->get_input_ports(),
+                                                inner_unified->get_output_ports(),
+                                                inner_unified->get_ptr_increments(),
+                                                inner_unified->get_finalization_offsets(),
+                                                inner_unified->get_data_sizes(),
+                                                inner_expanded->get_type(),
+                                                inner_expanded->is_evaluate_once());
 }
 }  // namespace
 

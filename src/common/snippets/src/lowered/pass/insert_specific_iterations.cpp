@@ -184,9 +184,10 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir, LinearIR::constExp
             auto decomposed_loop_begin_it = begin, decomposed_loop_end_it = end;
             auto decomposed_loop_entry_ports = unified_loop_info->get_input_ports();
             auto decomposed_loop_exit_ports = unified_loop_info->get_output_ports();
-            auto decomposed_ptr_increments = unified_loop_info->get_ptr_increments();
             auto decomposed_finalization_offsets = unified_loop_info->get_finalization_offsets();
-            auto decomposed_data_sizes = unified_loop_info->get_data_sizes();
+
+            const auto decomposed_ptr_increments = unified_loop_info->get_ptr_increments();
+            const auto decomposed_data_sizes = unified_loop_info->get_data_sizes();
             // Need to copy body if there are other specific sup-loops
             // Otherwise we should update the current body
             if (remaining_work_amount > 0) {
@@ -203,10 +204,18 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir, LinearIR::constExp
                 });
             }
 
-            const auto decomposed_loop_info = std::make_shared<ExpandedLoopInfo>(work_amount, increment,
-                                                                                 decomposed_loop_entry_ports, decomposed_loop_exit_ports,
-                                                                                 decomposed_ptr_increments, decomposed_finalization_offsets,
-                                                                                 decomposed_data_sizes, iter_type, unified_loop_info);
+            const auto decomposed_loop_info = unified_loop_info->produce_expanded_loop(work_amount,
+                                                                                       increment,
+                                                                                       decomposed_loop_entry_ports,
+                                                                                       decomposed_loop_exit_ports,
+                                                                                       decomposed_ptr_increments,
+                                                                                       decomposed_finalization_offsets,
+                                                                                       decomposed_data_sizes,
+                                                                                       iter_type);
+            // const auto decomposed_loop_info = std::make_shared<ExpandedLoopInfo>(work_amount, increment,
+            //                                                                      decomposed_loop_entry_ports, decomposed_loop_exit_ports,
+            //                                                                      decomposed_ptr_increments, decomposed_finalization_offsets,
+            //                                                                      decomposed_data_sizes, iter_type, unified_loop_info);
             init_decomposed_loop(linear_ir, decomposed_loop_begin_it, decomposed_loop_end_it, decomposed_loop_info, loop_id, decomposed_loop_end);
 
             decomposed = true;

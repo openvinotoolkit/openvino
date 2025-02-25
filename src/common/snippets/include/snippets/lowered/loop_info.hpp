@@ -17,6 +17,9 @@ using LoopInfoMap = std::unordered_map<const LoopInfo*, std::shared_ptr<LoopInfo
 using LoopInfoSet = std::unordered_set<const LoopInfo*>;
 using LoopInfoPtr = std::shared_ptr<LoopInfo>;
 
+class ExpandedLoopInfo;
+using ExpandedLoopInfoPtr = std::shared_ptr<ExpandedLoopInfo>;
+
 /**
  * @interface LoopInfo
  * @brief The base class that contains the common information about a Loop in Linear Intermediate Representation (Linear IR):
@@ -378,6 +381,16 @@ public:
      */
     LoopPortInfo get_loop_port_info(const ExpressionPort& expr_port);
 
+    ExpandedLoopInfoPtr produce_expanded_loop(size_t work_amount,
+                                              size_t increment,
+                                              const std::vector<LoopPort>& entries,
+                                              const std::vector<LoopPort>& exits,
+                                              std::vector<int64_t> ptr_increments,
+                                              std::vector<int64_t> final_offsets,
+                                              std::vector<int64_t> data_sizes,
+                                              SpecificLoopIterType type,
+                                              bool evaluate_once = false);
+
 protected:
     /**
      * @brief Clone LoopPortDesc[actual_port_idx] `new_count` times and insert on the place of current desc
@@ -390,6 +403,7 @@ protected:
     SpecificIterationHandlers m_handlers = {};
     std::vector<LoopPortDesc> m_input_port_descs = {};
     std::vector<LoopPortDesc> m_output_port_descs = {};
+    std::map<SpecificLoopIterType, ExpandedLoopInfoPtr> m_expanded_loops = {};
 };
 using UnifiedLoopInfoPtr = std::shared_ptr<UnifiedLoopInfo>;
 
@@ -462,10 +476,6 @@ class ExpandedLoopInfo : public LoopInfo {
 public:
     OPENVINO_RTTI("ExpandedLoopInfo", "0", LoopInfo)
     ExpandedLoopInfo() = default;
-    ExpandedLoopInfo(size_t work_amount, size_t increment,
-                     const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
-                     std::vector<int64_t> ptr_increments, std::vector<int64_t> final_offsets, std::vector<int64_t> data_sizes,
-                     SpecificLoopIterType type, UnifiedLoopInfoPtr unified_loop_info, bool evaluate_once = false);
     /**
      * @brief Clone LoopInfo with new Expressions
      * @param expr_map map of new and old expressions
@@ -565,7 +575,14 @@ public:
      */
     void sort_ports() override;
 
+
 private:
+    friend class UnifiedLoopInfo;
+    ExpandedLoopInfo(size_t work_amount, size_t increment,
+                     const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
+                     std::vector<int64_t> ptr_increments, std::vector<int64_t> final_offsets, std::vector<int64_t> data_sizes,
+                     SpecificLoopIterType type, UnifiedLoopInfoPtr unified_loop_info, bool evaluate_once = false);
+
     std::vector<int64_t> m_ptr_increments = {};
     std::vector<int64_t> m_finalization_offsets = {};
     std::vector<int64_t> m_data_sizes = {};
@@ -575,7 +592,6 @@ private:
 
     bool m_evaluate_once = false;
 };
-using ExpandedLoopInfoPtr = std::shared_ptr<ExpandedLoopInfo>;
 
 } // namespace lowered
 } // namespace snippets

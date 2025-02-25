@@ -398,6 +398,30 @@ void UnifiedLoopInfo::replace_with_new_ports(const ExpressionPort& actual_port, 
     sort_ports();
 }
 
+ExpandedLoopInfoPtr UnifiedLoopInfo::produce_expanded_loop(size_t work_amount,
+                                                           size_t increment,
+                                                           const std::vector<LoopPort>& entries,
+                                                           const std::vector<LoopPort>& exits,
+                                                           std::vector<int64_t> ptr_increments,
+                                                           std::vector<int64_t> final_offsets,
+                                                           std::vector<int64_t> data_sizes,
+                                                           SpecificLoopIterType type,
+                                                           bool evaluate_once) {
+    OPENVINO_ASSERT(m_expanded_loops.find(type) == m_expanded_loops.end(), "Expanded loop for this type already exists");
+    const auto expanded_loop_info = std::make_shared<ExpandedLoopInfo>(m_work_amount,
+                                                                       m_increment,
+                                                                       entries,
+                                                                       exits,
+                                                                       ptr_increments,
+                                                                       final_offsets,
+                                                                       data_sizes,
+                                                                       type,
+                                                                       ov::as_type_ptr<UnifiedLoopInfo>(shared_from_this()),
+                                                                       evaluate_once);
+    m_expanded_loops[type] = expanded_loop_info;
+    return expanded_loop_info;
+}
+
 InnerSplittedUnifiedLoopInfo::InnerSplittedUnifiedLoopInfo(size_t increment, const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
                                                            const std::vector<LoopPortDesc>& in_descs, const std::vector<LoopPortDesc>& out_descs,
                                                            const SpecificIterationHandlers& handlers, LoopInfoPtr outer_splitted_loop_info)
@@ -462,9 +486,15 @@ std::shared_ptr<LoopInfo> ExpandedLoopInfo::clone_with_new_expr(const Expression
         const auto& new_input_ports = clone_loop_ports(expr_map, m_input_ports);
         const auto& new_output_ports = clone_loop_ports(expr_map, m_output_ports);
 
-        loop_map[this] = std::make_shared<ExpandedLoopInfo>(m_work_amount, m_increment, new_input_ports, new_output_ports,
-                                                            m_ptr_increments, m_finalization_offsets, m_data_sizes, m_type,
-                                                            std::move(cloned_unified_loop_info), m_evaluate_once);
+        loop_map[this] = cloned_unified_loop_info->produce_expanded_loop(m_work_amount,
+                                                                         m_increment,
+                                                                         new_input_ports,
+                                                                         new_output_ports,
+                                                                         m_ptr_increments,
+                                                                         m_finalization_offsets,
+                                                                         m_data_sizes,
+                                                                         m_type,
+                                                                         m_evaluate_once);
     }
     return loop_map.at(this);
 }
