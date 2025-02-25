@@ -360,7 +360,6 @@ struct EltwiseKey {
     ov::element::Type outPrc;
     dnnl::post_ops postOps;
     EltwiseImplType implType;
-    bool doOutputSaturation;
 
     size_t hash() const {
         using namespace dnnl::impl;
@@ -396,10 +395,6 @@ struct EltwiseKey {
         seed = hash_combine(seed, outPrc.hash());
         seed = get_post_op_hash(seed, *postOps.get());
         seed = hash_combine(seed, implType);
-
-        if (outPrc == ov::element::bf16) {
-            seed = hash_combine(seed, doOutputSaturation);
-        }
         return seed;
     }
 
@@ -426,9 +421,6 @@ struct EltwiseKey {
                 for (size_t i = 0; i < inpDims.size() && result; ++i) {
                     result = result && (inpDims[i] == rhs.inpDims[i]);
                 }
-            }
-            if (doOutputSaturation != rhs.doOutputSaturation) {
-                return false;
             }
         }
 
@@ -462,8 +454,7 @@ public:
                        const std::vector<ov::element::Type>& inpPrc,
                        const ov::element::Type& outPrc,
                        const dnnl::post_ops& post_ops,
-                       bool useRuntimePtrs,
-                       bool doOutputSaturation) {
+                       bool useRuntimePtrs) {
         auto collapseLastDims = [](std::vector<size_t>& dims, int dimsToCollapse) {
             for (size_t i = dims.size() - 2; i > dims.size() - dimsToCollapse - 2; i--) {
                 dims[dims.size() - 1] *= dims[i];
@@ -657,7 +648,6 @@ public:
         jep.dst_prc = outPrc;
         jep.work_amount = jep.dst_size = jep.dims.back();
         jep.oc_size = oc_size;
-        jep.do_output_saturation = doOutputSaturation;
 
         std::transform(jep.oc_offsets.begin(), jep.oc_offsets.end(), jep.oc_offsets.begin(), [](size_t& offset) {
             return offset * sizeof(float);
@@ -1189,8 +1179,7 @@ static Eltwise::executorPtr buildExecutor(const EltwiseKey& key) {
                                                 key.inpPrc,
                                                 key.outPrc,
                                                 key.postOps,
-                                                key.implType == EltwiseImplType::optimizedShapeAgnostic,
-                                                key.doOutputSaturation);
+                                                key.implType == EltwiseImplType::optimizedShapeAgnostic);
 }
 
 bool Eltwise::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -1903,18 +1892,6 @@ void Eltwise::prepareParams() {
                 node->appendPostOps(key.postOps, {}, fqDataPtrs, channelAxis);
             } else {
                 THROW_CPU_NODE_ERR("has unexpected fused op of type '", node->getTypeStr(), "'");
-            }
-        }
-
-        // FP32 constant inputs may contain values out of BF16 representable range. In case output precision is BF16 we
-        // choose "saturation" mode for fp32->bf16 conversion procedure to prevent getting -Inf/+Inf values in the
-        // outputs. Since "saturation" conversion is more time consuming, better solution would be to clamp constants on
-        // compilation stage (ticket: 159589).
-        key.doOutputSaturation = false;
-        for (size_t i = 0; i < getParentEdges().size(); i++) {
-            if (getParentEdgeAt(i)->getParent()->isConstant()) {
-                key.doOutputSaturation = true;
-                break;
             }
         }
 
