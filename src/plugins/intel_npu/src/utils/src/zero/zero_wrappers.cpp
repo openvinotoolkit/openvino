@@ -137,9 +137,13 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& initStr
     ze_command_queue_desc_t queue_desc =
         {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr, group_ordinal, 0, 0, ZE_COMMAND_QUEUE_MODE_DEFAULT, priority};
 
+    ze_command_queue_desc_npu_ext_t turbo_cfg = {};
+
     if (turbo) {
         if (_initStructs->getCommandQueueDdiTable().version()) {
-            ze_command_queue_desc_npu_ext_t turbo_cfg = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT, nullptr, turbo};
+            turbo_cfg.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT;
+            turbo_cfg.turbo = turbo;
+
             queue_desc.pNext = &turbo_cfg;
         } else {
             OPENVINO_THROW("Turbo is not supported by the current driver");
