@@ -51,14 +51,22 @@ VectorDims BrgemmExternalRepackingAdjuster::get_blk_order(size_t shape_rank) {
     return order;
 }
 
-VectorDims BrgemmExternalRepackingAdjuster::get_blk_shape(const VectorDims& planar_shape, ov::element::Type prc) {
-    const auto vnni_factor = brgemm_utils::compute_vnni_factor(prc);
+VectorDims BrgemmExternalRepackingAdjuster::get_blk_shape(const VectorDims& planar_shape, ov::element::Type prc, bool is_transposed) {
+    size_t block = 1;
+    if (is_transposed) {
+        // In case of transpose, K dimension must be rounded-up to number of elems in vector register
+        // For the details, please see 'transpose16x8' and 'fixup16x16' implementations and usage in
+        // onednn/src/cpu/x64/matmul/brgemm_matmul_copy_utils.cpp
+        block = brgemm_utils::get_elems_in_vec(prc);
+    } else {
+        block = brgemm_utils::compute_vnni_factor(prc);
+    }
     const auto K = *++planar_shape.rbegin();
     const auto N = *planar_shape.rbegin();
-    const auto new_K = snippets::utils::div_up(K, vnni_factor);
     const auto new_N = brgemm_utils::repacking::compute_repacked_n_dim(N, prc);
+    const auto new_K = snippets::utils::div_up(K, block);
     VectorDims blk_shape(planar_shape.begin(), planar_shape.end() - brgemm_kernel_rank);
-    blk_shape.insert(blk_shape.end(), {new_K, new_N, vnni_factor});
+    blk_shape.insert(blk_shape.end(), {new_K, new_N, block});
     return blk_shape;
 }
 
@@ -93,7 +101,7 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
         const auto& N = *planar_shape.rbegin();
 
         const auto& prc = linear_ir.get_parameters()[i]->get_node()->get_output_element_type(0);
-        const auto blk_shape = get_blk_shape(planar_shape, prc);
+        const auto blk_shape = get_blk_shape(planar_shape, prc, BrgemmCopyB::is_transposed(layout));
 
         // src data + dst data per kernel call
         const auto src_data = N * K * prc.size();
@@ -116,11 +124,12 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
     for (const auto& p : m_executors) {
         const auto& i = p.first;
         const auto& shape = cpu_config->io_shapes[i];
+        const auto& layout = cpu_config->io_layouts[i];
         auto& repacked_in = cpu_config->repacked_inputs[i];
 
         const auto& prc = linear_ir.get_parameters()[i]->get_node()->get_output_element_type(0);
-        auto planar_shape = ov::snippets::utils::get_planar_vdims(shape, cpu_config->io_layouts[i]);
-        auto blk_shape = get_blk_shape(planar_shape, prc);
+        auto planar_shape = ov::snippets::utils::get_planar_vdims(shape, layout);
+        auto blk_shape = get_blk_shape(planar_shape, prc, BrgemmCopyB::is_transposed(layout));
         // In parallel impl, each thread needs buffer with only shape [K_blk, N_blk, VNNI] to store repacking data
         if (is_impl_parallel) {
             std::fill(planar_shape.rbegin() + brgemm_kernel_rank, planar_shape.rend(), 1);
