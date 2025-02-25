@@ -39,8 +39,8 @@ from openvino._pyopenvino import Strides
 from openvino._pyopenvino import PartialShape
 from openvino._pyopenvino import Shape
 from openvino._pyopenvino import Layout
-from openvino._pyopenvino import Type
 from openvino._pyopenvino import Tensor
+from openvino._pyopenvino import Type
 from openvino._pyopenvino import OVAny
 from openvino._pyopenvino import get_batch
 from openvino._pyopenvino import set_batch
