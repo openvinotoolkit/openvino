@@ -434,6 +434,7 @@ jobs:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
       ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
+      WHEELS_DIR: ${{ github.workspace }}/wheels
       ARTIFACTS_SHARE: "/mount/build-artifacts"
 
     steps:        
@@ -451,8 +452,15 @@ jobs:
         with:
           pattern: "{openvino_package,openvino_wheels,openvino_developer_package,openvino_js_package,openvino_package_manifest}"
           path: ${{ env.ARTIFACTS_DIR }}
-          merge-multiple: true   
+          merge-multiple: true
           
+      - name: Download OpenVINO wheels
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          pattern: "{openvino_wheels}"
+          path: ${{ env.WHEELS_DIR }}
+          merge-multiple: true   
+            
       - name: Store artifacts to a shared drive
         id: store_artifacts
         if: ${{ always() }}
@@ -462,7 +470,7 @@ jobs:
             ${{ env.ARTIFACTS_DIR }}/${{ env.MANIFEST_FILE }}
             ${{ env.ARTIFACTS_DIR }}/openvino_package.tar.gz
             ${{ env.ARTIFACTS_DIR }}/openvino_developer_package.tar.gz
-            ${{ env.ARTIFACTS_DIR }}/wheels
+            ${{ env.WHEELS_DIR }}
             ${{ fromJSON(needs.smart_ci.outputs.affected_components).JS_API && format('{0}/openvino_js_package.tar.gz', env.ARTIFACTS_DIR) || '' }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
