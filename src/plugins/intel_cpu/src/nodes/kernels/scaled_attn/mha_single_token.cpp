@@ -1414,12 +1414,11 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     }
     auto nthr = parallel_get_max_threads();
     auto kv_len = present_key.size(2);
-
+    bool pastkv_is_int8 = past_k_scale_zp;
 #if defined(HAVE_AVX2) && !defined(HAVE_AVX512F)
     // avx2 will pre-compute the zero point and try to save the sub instruction in the dot_product,
     //  but it seems not necessary for avx512. Possible reason may be that for avx2 the cost of dot_product
     //  is larger than the memory access time, but for avx512 is not and the cost of pre-compute is a pure increase.
-    bool pastkv_is_int8 = past_k_scale_zp;
     if (pastkv_is_int8 && !quant_key_by_channel) {
         // be sure no false sharing
         size_t group_num = S / key_group_size;
@@ -1458,7 +1457,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                             continue;
                         }
 #endif
-                        if (quant_key_by_channel) {
+                        if (quant_key_by_channel && pastkv_is_int8) {
                             auto p_scale = past_k_scale_zp.ptr<float>(pk / key_group_size * 2, 0, h_group);
                             auto p_zp = past_k_scale_zp.ptr<float>(pk / key_group_size * 2 + 1, 0, h_group);
                             auto p_k = present_key.ptr<uint8_t>(0, h_group, pk);
@@ -1497,7 +1496,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                             continue;
                         }
 #endif
-                        if (quant_key_by_channel) {
+                        if (quant_key_by_channel && pastkv_is_int8) {
                             auto p_scale = past_k_scale_zp.ptr<float>(pk / key_group_size * 2, b_kv, h_group);
                             auto p_zp = past_k_scale_zp.ptr<float>(pk / key_group_size * 2 + 1, b_kv, h_group);
                             auto p_k = present_key.ptr<uint8_t>(b_kv, h_group, pk);
@@ -1536,7 +1535,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                                 continue;
                             }
 #endif
-                            if (quant_key_by_channel) {
+                            if (quant_key_by_channel && pastkv_is_int8) {
                                 auto p_scale = past_k_scale_zp.ptr<float>(pk / key_group_size * 2, b_kv, h_group);
                                 auto p_zp = past_k_scale_zp.ptr<float>(pk / key_group_size * 2 + 1, b_kv, h_group);
                                 auto p_k = present_key.ptr<uint8_t>(b_kv, h_group, pk);
