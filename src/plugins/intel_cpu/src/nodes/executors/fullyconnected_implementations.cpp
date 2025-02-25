@@ -341,6 +341,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return !isPerChannelQuantization;
             },
             CreateDefault<ACLLowpFullyConnectedExecutor, FCAttrs>{}
+            )
         OV_CPU_INSTANCE_KLEIDIAI(
             "fullyconnected_kleidiai",
             ExecutorType::Kleidiai,
@@ -381,7 +382,6 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             AcceptsAnyShape<FCAttrs>{},
             CreateDefault<ShlFCExecutor, FCAttrs>{}
             )
-        )
         OV_CPU_INSTANCE_DNNL(
             "matmul_dnnl",
             ExecutorType::Dnnl,
