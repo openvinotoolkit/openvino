@@ -5,6 +5,8 @@
 #pragma once
 
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/visibility.hpp"
 #include "openvino/op/util/framework_node.hpp"
 
@@ -44,7 +46,84 @@ public:
         return m_complex_part_type;
     }
 
+    // Complex data is represented as a floating-point tensor of shape [N1, N2, ..., Nk, 2]
+    // where real part is placed by index [..., 0] and
+    // `squeeze` flag indicated if squeezing the last dimension is needed
+    static ov::Output<ov::Node> get_real_part(const NodeContext& context,
+                                              const ov::Output<ov::Node>& complex_data,
+                                              bool squeezed = true) {
+        return get_complex_part_by_index(context, complex_data, 0, squeezed);
+    }
+
+    // Complex tensor is represented as a floating-point tensor of shape [N1, N2, ..., Nk, 2]
+    // where imaginary part is placed by index [..., 1] and
+    // `squeeze` flag indicated if squeezing the last dimension is needed
+    static ov::Output<ov::Node> get_imag_part(const NodeContext& context,
+                                              const ov::Output<ov::Node>& complex_data,
+                                              bool squeezed = true) {
+        return get_complex_part_by_index(context, complex_data, 1, squeezed);
+    }
+
+    // Real and imaginary parts are broadcasted to each other and concatenated along
+    // newly added dimensions in the tail
+    static ov::Output<ov::Node> create_complex_tensor(const NodeContext& context,
+                                                      const ov::Output<ov::Node>& real_part,
+                                                      const ov::Output<ov::Node>& imag_part,
+                                                      bool needs_broadcast = false);
+
+    // Compute summation of two operands that can be of complex type
+    // if operand is of complex type, complex type will be indicated by bool flag
+    // complex tensor is represented as a real tensor with auxiliary dimension 2 in the tail
+    // types of both operands must be aligned prior to the call
+    static ov::Output<ov::Node> add(const NodeContext& context,
+                                    const ov::Output<ov::Node>& lhs,
+                                    const ov::Output<ov::Node>& rhs,
+                                    bool lhs_complex = false,
+                                    bool rhs_complex = false);
+
+    // Compute subtraction of two operands that can be of complex type
+    // if operand is of complex type, complex type will be indicated by bool flag
+    // complex tensor is represented as a real tensor with auxiliary dimension 2 in the tail
+    // types of both operands must be aligned prior to the call
+    static ov::Output<ov::Node> sub(const NodeContext& context,
+                                    const ov::Output<ov::Node>& lhs,
+                                    const ov::Output<ov::Node>& rhs,
+                                    bool lhs_complex = false,
+                                    bool rhs_complex = false);
+
+    // Compute multiplication of two operands that can be of complex type
+    // if operand is of complex type, complex type will be indicated by bool flag
+    // complex tensor is represented as a real tensor with auxiliary dimension 2 in the tail
+    // types of both operands must be aligned prior to the call
+    static ov::Output<ov::Node> mul(const NodeContext& context,
+                                    const ov::Output<ov::Node>& lhs,
+                                    const ov::Output<ov::Node>& rhs,
+                                    bool lhs_complex = false,
+                                    bool rhs_complex = false);
+
+    // Compute inverse of operand that can be of complex type
+    // if operand is of complex type, complex type will be indicated by bool flag
+    // complex tensor is represented as a real tensor with auxiliary dimension 2 in the tail
+    static ov::Output<ov::Node> inv(const NodeContext& context,
+                                    const ov::Output<ov::Node>& data,
+                                    bool data_complex = false);
+
+    // Compute division of two operands that can be of complex type
+    // if operand is of complex type, complex type will be indicated by bool flag
+    // complex tensor is represented as a real tensor with auxiliary dimension 2 in the tail
+    // types of both operands must be aligned prior to the call
+    static ov::Output<ov::Node> div(const NodeContext& context,
+                                    const ov::Output<ov::Node>& lhs,
+                                    const ov::Output<ov::Node>& rhs,
+                                    bool lhs_complex = false,
+                                    bool rhs_complex = false);
+
 private:
+    static ov::Output<ov::Node> get_complex_part_by_index(const NodeContext& context,
+                                                          const ov::Output<ov::Node>& complex_data,
+                                                          int32_t index,
+                                                          bool squeezed);
+
     ov::element::Type m_complex_part_type;
 };
 

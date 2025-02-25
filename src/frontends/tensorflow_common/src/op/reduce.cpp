@@ -80,7 +80,7 @@ OutputVector translate_prod_op(const NodeContext& node) {
         auto is_complex_number_zero = make_shared<v1::LogicalAnd>(is_real_part_zero, is_imag_part_zero);
 
         Output<Node> r, theta;
-        std::tie(r, theta) = complex_rectangular_to_polar(real_part, imag_part);
+        std::tie(r, theta) = complex_rectangular_to_polar(node, real_part, imag_part);
 
         // theta for 0+0j will be nan but to make formula work properly it should be 0
         theta = make_shared<v1::Select>(is_complex_number_zero, const_zero, theta);

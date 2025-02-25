@@ -10,4 +10,4 @@ ov_add_frontend(NAME jax
                 LINKABLE_FRONTEND
                 DISABLE_CPP_INSTALL
                 FILEDESCRIPTION "FrontEnd to load and convert JAX/Flax models"
-                LINK_LIBRARIES openvino::util openvino::core::dev)
+                LINK_LIBRARIES openvino::util openvino::core::dev openvino::frontend::common_translators)

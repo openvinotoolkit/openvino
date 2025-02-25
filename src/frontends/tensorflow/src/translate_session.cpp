@@ -578,6 +578,15 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 ov_outputs = named_from_indexed(fw_outs);
             }
 
+            // set node name and output tensor names out of translators
+            // this is a common logic so perform it here
+            if (ov_outputs.size() > 0) {
+                ov_outputs[0].port.get_node_shared_ptr()->set_friendly_name(operation_name);
+            }
+            for (size_t idx = 0; idx < ov_outputs.size(); ++idx) {
+                ov_outputs[idx].port.add_names({operation_name + ":" + std::to_string(idx)});
+            }
+
             for (auto output : ov_outputs) {
                 auto node = output.port.get_node_shared_ptr();
                 // We can't add all Sink operations to sinks vector, as there can be a FrameworkNode,

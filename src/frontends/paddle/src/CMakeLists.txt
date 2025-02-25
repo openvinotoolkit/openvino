@@ -11,4 +11,4 @@ ov_add_frontend(NAME paddle
                 PROTOBUF_REQUIRED
                 PROTOBUF_LITE
                 FILEDESCRIPTION "FrontEnd to load and convert PaddlePaddle file format"
-                LINK_LIBRARIES openvino::util openvino::core::dev)
+                LINK_LIBRARIES openvino::util openvino::core::dev openvino::frontend::common_translators)

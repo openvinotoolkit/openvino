@@ -5,6 +5,7 @@
 #include "op_table.hpp"
 
 #include "common_op_table.hpp"
+#include "common_translators.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/acos.hpp"
 #include "openvino/op/acosh.hpp"
@@ -70,6 +71,7 @@
 using namespace std;
 using namespace ov;
 using namespace ov::op;
+using namespace ov::frontend;
 using namespace ov::frontend::tensorflow;
 
 namespace ov {
@@ -169,7 +171,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         // note: BinaryOp translator declaration for each op must to be added in binary_op.cpp file
         {"Add", CreatorFunction(translate_addv2_op)},
         {"AddV2", CreatorFunction(translate_addv2_op)},
-        {"Atan2", CreatorFunction(translate_atan2_op)},
+        {"Atan2", CreatorFunction(common_translators::translate_atan2)},
         {"BitwiseAnd", CreatorFunction(translate_binary_op<v13::BitwiseAnd>)},
         {"BitwiseOr", CreatorFunction(translate_binary_op<v13::BitwiseOr>)},
         {"BitwiseXor", CreatorFunction(translate_binary_op<v13::BitwiseXor>)},

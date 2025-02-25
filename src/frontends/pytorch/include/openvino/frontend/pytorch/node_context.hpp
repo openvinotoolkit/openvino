@@ -85,7 +85,7 @@ public:
         return m_decoder->get_schema();
     }
 
-    std::shared_ptr<Node> mark_node(std::shared_ptr<Node> ov_node) const;
+    std::shared_ptr<Node> mark_node(std::shared_ptr<Node> ov_node) const override;
 
     // Call mark_node for each node from the vector
     void mark_nodes(std::vector<std::shared_ptr<Node>> ov_nodes) const {

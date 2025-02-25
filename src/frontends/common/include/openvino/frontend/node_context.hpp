@@ -120,6 +120,13 @@ public:
         FRONT_END_NOT_IMPLEMENTED(get_subgraph);
     }
 
+    /// \brief Returns Node object that can be with updated attributes 
+    /// such node name, runtime info, etc.
+    /// By default, it returns the same node without update
+    virtual std::shared_ptr<Node> mark_node(std::shared_ptr<Node> ov_node) const {
+        return ov_node;
+    }
+
 private:
     virtual ov::Any apply_additional_conversion_rules(const ov::Any& data, const std::type_info& type_info) const {
         return data;
