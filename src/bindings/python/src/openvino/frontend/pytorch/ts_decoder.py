@@ -50,7 +50,7 @@ class TorchScriptPythonDecoder(Decoder):
         self._input_signature = None
         self._shared_memory = shared_memory
         self._input_is_list = False
-        self.constant_cache = constant_cache if constant_cache is not None else dict()
+        self.constant_cache = constant_cache if constant_cache is not None else dict()  # noqa: C408
         self.module_extensions = module_extensions
         self.config = None
         self.out_debug_name_overwrites = {}
@@ -287,7 +287,8 @@ class TorchScriptPythonDecoder(Decoder):
         return PartialShape.dynamic()
 
     def get_type_for_value(self, value: torch.Value):
-        full_type = self._get_known_type_for_value(value.type())
+        _type = value.type() if hasattr(value, "type") else type(value).__name__
+        full_type = self._get_known_type_for_value(_type)
         return full_type
 
     def get_subgraph_size(self) -> int:
@@ -454,7 +455,7 @@ class TorchScriptPythonDecoder(Decoder):
                 const, dtype = self.constant_cache[name]
             else:
                 dtype = self.get_type_for_value(pt_value)
-                if pt_value.dtype.is_complex:
+                if hasattr(pt_value, "dtype") and pt_value.dtype.is_complex:
                     pt_value = torch.view_as_real(pt_value)
                 const = ivalue_to_constant(
                     pt_value, shared_memory=self._shared_memory)
