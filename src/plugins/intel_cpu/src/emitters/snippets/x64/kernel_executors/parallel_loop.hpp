@@ -6,16 +6,18 @@
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/snippets/cpu_kernel_executor_table.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "snippets/lowered/expression.hpp"
 
 namespace ov::intel_cpu {
 
 struct ParallelLoopConfig : public ov::snippets::KernelExecutorBase::GenericConfig {
 public:
     ParallelLoopConfig() = default;
-    ParallelLoopConfig(int64_t work_amount, int num_threads) : m_work_amount(work_amount), m_num_threads(num_threads) {}
+    ParallelLoopConfig(jit_snippets_call_args::loop_args_t loop_args, int num_threads) : m_loop_args(std::move(loop_args)), m_num_threads(num_threads) {}
 
     bool is_completed() const override {
-        return m_work_amount >= 0 && m_num_threads > 0;
+        // todo: do we need a more detailed check on whether the work_amount is initialized properly?
+        return m_loop_args.m_work_amount >= 0 && m_num_threads > 0;
     }
 
     std::unique_ptr<GenericConfig> get_clone_ptr() const override {
@@ -24,8 +26,9 @@ public:
 
     virtual size_t hash() const override;
 
-    int64_t get_work_amount() const { return m_work_amount; }
+    const jit_snippets_call_args::loop_args_t& get_loop_args() const { return m_loop_args; }
     int get_num_threads() const { return  m_num_threads; }
+    
 
 // todo: re-enable
 //#ifdef SNIPPETS_DEBUG_CAPS
@@ -34,7 +37,7 @@ public:
 
 protected:
 
-    int64_t m_work_amount{0};
+    jit_snippets_call_args::loop_args_t m_loop_args{};
     int m_num_threads {0};
 
 };
@@ -48,11 +51,11 @@ public:
     ParallelLoopExecutor(ParallelLoopConfig config);
     typedef void(*loop_preamble_t)(int64_t , int64_t , void*);
     /** Function that will be called in runtime to execute the kernel */
-    static void execute(const ParallelLoopExecutor* executor, void* stack_ptr, loop_preamble_t preamble_ptr);
+    static void execute(const ParallelLoopExecutor* executor, int64_t* stack_ptr, loop_preamble_t preamble_ptr);
 
 protected:
     /*** Updates stored kernel config based on runtime info from expression (e.g. new input shapes). */
-    void update_config(const lowered::ExpressionPtr& expr, const lowered::LinearIRCPtr& linear_ir, ParallelLoopConfig& config) const override {}
+    void update_config(const snippets::lowered::ExpressionPtr& expr, const snippets::lowered::LinearIRCPtr& linear_ir, ParallelLoopConfig& config) const override {}
     /*** Updates stored kernel in accordance with the passed config. Recompilation of the kernel is
      * performed if necessary. */
     void update_kernel(const ParallelLoopConfig& c, std::shared_ptr<ParallelLoopKernel>& kernel) const override {}

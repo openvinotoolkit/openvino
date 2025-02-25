@@ -19,7 +19,7 @@ public:
                                    dnnl::impl::cpu::x64::cpu_isa_t isa,
                                    const ov::snippets::lowered::ExpressionPtr& expr);
 protected:
-    void emit_pointer_increments(size_t scale);
+    void emit_pointer_increments(size_t scale) const;
 
     size_t work_amount = 0;
     size_t wa_increment = 0;
@@ -33,6 +33,7 @@ protected:
     bool evaluate_once = false;
     size_t work_amount_reg_idx;
     std::vector<size_t> mem_ptr_regs_idxs;
+    jit_snippets_call_args::loop_args_t loop_args;
 };
 
 /* ================== jit_loop_begin_emitter ====================== */
@@ -82,11 +83,11 @@ protected:
 
 /* ================== jit_loop_end_emitter ====================== */
 
-class jit_parallel_loop_end_emitter : public jit_emitter {
+class jit_parallel_loop_end_emitter : public jit_parallel_loop_base_emitter {
 public:
     jit_parallel_loop_end_emitter(dnnl::impl::cpu::x64::jit_generator* h,
-                         dnnl::impl::cpu::x64::cpu_isa_t isa,
-                         const ov::snippets::lowered::ExpressionPtr& expr);
+                                  dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                  const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_num() const override {
         return 0;

@@ -46,17 +46,13 @@ jit_parallel_loop_base_emitter::jit_parallel_loop_base_emitter(dnnl::impl::cpu::
         data_sizes = loop_end->get_element_type_sizes();
         evaluate_once = loop_end->get_evaluate_once();
         loop_id = loop_end->get_id();
-
-        loop_arg = jit_snippets_call_args::loop_args_t(loop_info->get_work_amount(),
-                                                       loop_info->get_ptr_increments(),
-                                                       loop_info->get_finalization_offsets());
-
+        // todo: it's redundant to save both isolated fields and loop_args_t. choose only one implementation
+        loop_args = jit_snippets_call_args::loop_args_t(work_amount, ptr_increments, finalization_offsets, data_sizes);
 
         OV_CPU_JIT_EMITTER_ASSERT(loop_end_input_regs.size() == num_inputs + num_outputs && !loop_end_input_regs.empty(),
                                   "Invalid LoopEnd reg info");
         work_amount_reg_idx = loop_end_input_regs.rbegin()->idx;
         loop_end_input_regs.pop_back();
-        mem_ptr_regs_idxs;
         mem_ptr_regs_idxs.reserve(loop_end_input_regs.size());
         for (const auto& r : loop_end_input_regs) {
             if (r.type == snippets::RegType::gpr)
@@ -64,13 +60,7 @@ jit_parallel_loop_base_emitter::jit_parallel_loop_base_emitter(dnnl::impl::cpu::
         }
 }
 
-void jit_parallel_loop_base_emitter::init_loop_args(const std::shared_ptr<snippets::op::LoopEnd>& loop_end) {
-    m_loop_args = jit_snippets_call_args::loop_args_t(loop_info->get_work_amount(),
-                                                      loop_info->get_ptr_increments(),
-                                                      loop_info->get_finalization_offsets());
-}
-
-void jit_parallel_loop_base_emitter::emit_pointer_increments(size_t scale) {
+void jit_parallel_loop_base_emitter::emit_pointer_increments(size_t scale) const {
     for (size_t idx = 0; idx < mem_ptr_regs_idxs.size(); idx++) {
         const auto& increment = ptr_increments[idx];
         if (is_incremented[idx] && increment != 0) {
@@ -91,7 +81,7 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(dnnl::impl::cpu
     OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::LoopBegin>(expr->get_node()), "expects LoopBegin expression");
 
     int num_threads = 2;
-    ParallelLoopConfig kernel_config(work_amount, num_threads);
+    ParallelLoopConfig kernel_config(loop_args, num_threads);
     m_parallel_loop_executor =
             kernel_table->register_kernel<ParallelLoopExecutor>(expr, kernel_config);
 
@@ -115,24 +105,6 @@ void jit_parallel_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& 
     jit_emitter::emit_code_impl(in, out, pool_vec_idxs, pool_gpr_idxs);
 }
 
-/*
- * 1) LoopBegin emitter marks the start of the loop:
- *      1.1 records code address => beginning of the execution block
- *      1.2 spills live registers
- *      1.3 copies loop input ports' registers as arguments
- *      1.4 emits executor call
- * 2) ParallelLoop executor:
- *      2.1 splits work amount between threads => must apply pointer increments to loop ports (what if some of the ports are not gpr?)
- *      2.2 copies input arguments to appropriate registers (how would he know which? should it be handled by the loop begin emitter?)
- *          initialize work amount register
- *      2.3 registers initialized => emit call instruction (maybe jump? do we need to save stack) to the saved adress
- *      2.4 who should apply finalization offsets?
- * 3) LoopEnd emitter:
- *      3.1 applies ptr increments
- *      3.2 jumps to the LoopBegin address
- *      3.3 emits RET instruction to return to the executor
- */
-
 
 void jit_parallel_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
 
@@ -141,15 +113,14 @@ void jit_parallel_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, c
     const Xbyak::Reg64& aux_reg = get_call_address_reg();
     const Xbyak::Reg64& callee_saved_reg = get_callee_saved_reg();
 
-    EmitABIRegSpills spill(h);
-    spill.preamble(get_regs_to_spill());
-
     auto reserved_stack_size = sizeof(Xbyak::Reg64) * mem_ptr_regs_idxs.size();
-    // Spill before parallel for => we'll need them in preamble
+    // Spill before parallel for => we'll need them to update data ptrs afterwards
     h->sub(h->rsp, reserved_stack_size);
     for (auto i : mem_ptr_regs_idxs)
         h->mov(h->qword[h->rsp + i * sizeof(Xbyak::Reg64)], Xbyak::Reg64(i));
 
+    EmitABIRegSpills spill(h);
+    spill.preamble(get_regs_to_spill());
 
     h->mov(aux_reg, reinterpret_cast<uintptr_t>(ParallelLoopExecutor::execute));
     h->mov(abi_param1, reinterpret_cast<uintptr_t>(m_parallel_loop_executor.get()));
@@ -161,14 +132,17 @@ void jit_parallel_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, c
     h->call(aux_reg);
     spill.rsp_restore();
 
+    spill.postamble();
+    
+    // Restore incremented data ptrs
+    for (auto i : mem_ptr_regs_idxs)
+        h->mov(Xbyak::Reg64(i), h->qword[h->rsp + i * sizeof(Xbyak::Reg64)]);
+
     h->add(h->rsp, reserved_stack_size);
 
-    spill.postamble();
-
-    loop_begin_label.get();
+    h->jmp(*loop_end_label);
 
     h->L(*loop_begin_label);
-    /////////////////
 }
 
 /* ============================================================== */
@@ -178,30 +152,12 @@ void jit_parallel_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, c
 jit_parallel_loop_end_emitter::jit_parallel_loop_end_emitter(dnnl::impl::cpu::x64::jit_generator* h,
                                            dnnl::impl::cpu::x64::cpu_isa_t isa,
                                            const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_emitter(h, isa),
+    : jit_parallel_loop_base_emitter(h, isa, expr),
       loop_begin_label{nullptr},
       loop_end_label{new Xbyak::Label()} {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(loop_end != nullptr, "expected LoopEnd expr");
-    num_inputs = loop_end->get_input_num();
-    num_outputs = loop_end->get_output_num();
-    work_amount = loop_end->get_work_amount();
-    wa_increment = loop_end->get_increment();
-    is_incremented = loop_end->get_is_incremented();
-    ptr_increments = loop_end->get_ptr_increments();
-    finalization_offsets = loop_end->get_finalization_offsets();
-    data_sizes = loop_end->get_element_type_sizes();
-    evaluate_once = loop_end->get_evaluate_once();
-    loop_id = loop_end->get_id();
-
-    are_ptr_increments_dynamic =
-        std::any_of(ptr_increments.cbegin(), ptr_increments.cend(), ov::snippets::utils::is_dynamic_value<int64_t>);
-    are_final_offsets_dynamic = std::any_of(finalization_offsets.cbegin(),
-                                            finalization_offsets.cend(),
-                                            ov::snippets::utils::is_dynamic_value<int64_t>);
-    are_ptr_shifts_dynamic = are_ptr_increments_dynamic || are_final_offsets_dynamic;
-
     const auto begin_expr = get_loop_begin_expr(expr);
     const auto& loop_begin_emitter = std::dynamic_pointer_cast<jit_parallel_loop_begin_emitter>(begin_expr->get_emitter());
     OV_CPU_JIT_EMITTER_ASSERT(loop_begin_emitter, "LoopBegin expected jit_loop_begin_emitter");
@@ -264,49 +220,14 @@ void jit_parallel_loop_end_emitter::emit_impl(const std::vector<size_t>& in, con
     data_ptr_reg_idxs.reserve(num_inputs + num_outputs);
     std::copy(in.begin(), in.end() - 1, std::back_inserter(data_ptr_reg_idxs));
 
-    auto apply_increments =
-        [&](bool use_runtime_args, size_t field_offset, const std::vector<int64_t>& increments, size_t scale) {
-            Reg64 reg_increments;
-            auto add_increments = [&]() {
-                for (size_t idx = 0; idx < data_ptr_reg_idxs.size(); idx++) {
-                    const auto& increment = increments[idx];
-                    if (is_incremented[idx] && increment != 0) {
-                        if (ov::snippets::utils::is_dynamic_value(increment)) {
-                            OV_CPU_JIT_EMITTER_ASSERT(use_runtime_args,
-                                                      "Loop argument structure cannot be pushed to aux GPR");
-                            h->add(Reg64(static_cast<int>(data_ptr_reg_idxs[idx])),
-                                   h->ptr[reg_increments + idx * sizeof(int64_t)]);
-                        } else {
-                            h->add(Reg64(static_cast<int>(data_ptr_reg_idxs[idx])),
-                                   increment * scale * data_sizes[idx]);
-                        }
-                    }
-                }
-            };
-
-            const auto id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
-            if (use_runtime_args) {
-                jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, in);  // loop_end has only input registers
-                reg_increments = gpr_holder.get_reg();
-                h->mov(reg_increments, h->ptr[abi_param1 + GET_OFF(loop_args)]);
-                h->mov(reg_increments, h->ptr[reg_increments + id_offset + field_offset]);
-                add_increments();
-            } else {
-                add_increments();
-            }
-        };
-
-    if (!evaluate_once) {
-        apply_increments(are_ptr_increments_dynamic, GET_OFF_LOOP_ARGS(m_ptr_increments), ptr_increments, wa_increment);
-
-        Reg64 reg_work_amount = Reg64(in.back());
-        h->sub(reg_work_amount, wa_increment);
-        h->cmp(reg_work_amount, wa_increment);
-        h->jge(*loop_begin_label, Xbyak::CodeGenerator::T_NEAR);
-    }
-
-    apply_increments(are_final_offsets_dynamic, GET_OFF_LOOP_ARGS(m_finalization_offsets), finalization_offsets, 1);
-
+        
+    emit_pointer_increments(wa_increment);
+    Reg64 reg_work_amount = Reg64(in.back());
+    h->sub(reg_work_amount, wa_increment);
+    h->cmp(reg_work_amount, wa_increment);
+    h->jge(*loop_begin_label, Xbyak::CodeGenerator::T_NEAR);
+    // todo: we can return at the end of the tail processing loop instead
+    h->ret();
     h->L(*loop_end_label);
 }
 
