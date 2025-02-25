@@ -408,6 +408,7 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
     Logger logger("serializeConfig", Logger::global().level());
 
     std::string content = config.toStringForCompiler();
+    content += " " + config.toStringForCompilerInternal();
 
     logger.debug("Original content of config: %s", content.c_str());
 

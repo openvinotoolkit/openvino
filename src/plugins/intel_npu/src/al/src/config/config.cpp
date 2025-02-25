@@ -357,6 +357,40 @@ std::string Config::toStringForCompiler() const {
     return resultStream.str();
 }
 
+void Config::addOrUpdateInternal(std::string key, std::string value) {
+    auto log = Logger::global().clone("Config");
+    if (_internal_compiler_configs.count(key) != 0) {
+        log.warning("Internal compiler option '%s' was already registered! Updating value only!", key.c_str());
+        _internal_compiler_configs.at(key) = value;
+    } else {
+        // manual insert_or_assign
+        auto it = _internal_compiler_configs.find(key);
+        if (it != _internal_compiler_configs.end()) {
+            it->second = value;  // only update
+        } else {
+            _internal_compiler_configs.insert(std::make_pair(key, value));  // insert new
+        }
+    }
+};
+
+std::string Config::getInternal(std::string key) const {
+    auto log = Logger::global().clone("Config");
+    if (_internal_compiler_configs.count(key) == 0) {
+        OPENVINO_THROW(std::string("Internal compiler option " + key + " does not exist! "));
+    }
+    return _internal_compiler_configs.at(key);
+};
+
+std::string Config::toStringForCompilerInternal() const {
+    std::stringstream resultStream;
+
+    for (auto it = _internal_compiler_configs.cbegin(); it != _internal_compiler_configs.cend(); ++it) {
+        resultStream << it->first << "=\"" << it->second << "\"";
+    }
+
+    return resultStream.str();
+};
+
 //
 // envVarStrToBool
 //
