@@ -1238,10 +1238,17 @@ void ScaledDotProductAttention::createPrimitive() {
         std::shared_ptr<Executor> executor = nullptr;
 #ifdef OPENVINO_ARCH_X86_64
         if (rtPrecision == ov::element::bf16) {
-            executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(context,
-                                                                                    m_key_quant_param.groupSize,
-                                                                                    m_value_quant_param.groupSize,
-                                                                                    m_key_quant_param.isByChannel);
+            if (ov::with_cpu_x86_bfloat16()) {
+                executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(context,
+                                                                                        m_key_quant_param.groupSize,
+                                                                                        m_value_quant_param.groupSize,
+                                                                                        m_key_quant_param.isByChannel);
+            } else {
+                executor = std::make_shared<AttentionExecutor<KT_REF, ov::bfloat16>>(context,
+                                                                                     m_key_quant_param.groupSize,
+                                                                                     m_value_quant_param.groupSize,
+                                                                                     m_key_quant_param.isByChannel);
+            }
         } else if (rtPrecision == ov::element::f16) {
             if (with_cpu_x86_avx512_core_fp16()) {
                 executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::float16>>(context,
