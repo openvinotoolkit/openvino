@@ -437,26 +437,40 @@ ov::Any Properties::get_property(const std::string& name, const ov::AnyMap& argu
     if (configIterator != _properties.cend()) {
         return std::get<2>(configIterator->second)(amendedConfig);
     }
-
-    OPENVINO_THROW("Unsupported configuration key: ", name);
+    try {
+        return amendedConfig.getInternal(name);
+    } catch (...) {
+        OPENVINO_THROW("Unsupported configuration key: ", name);
+    }
 }
 
 void Properties::set_property(const ov::AnyMap& properties) {
     std::map<std::string, std::string> cfgs_to_set;
+
     for (auto&& value : properties) {
-        cfgs_to_set.emplace(value.first, value.second.as<std::string>());
-    }
-    for (const auto& configEntry : cfgs_to_set) {
-        if (_properties.find(configEntry.first) == _properties.end()) {
-            OPENVINO_THROW("Unsupported configuration key: ", configEntry.first);
+        if (_properties.find(value.first) == _properties.end()) {
+            // property doesn't exist
+            // checking as internal now
+            CompilerAdapterFactory compilerAdapterFactory;
+            auto compiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), _config);
+            if (compiler->is_option_supported(value.first)) {
+                // if compiler reports it supported > registering as internal
+                _config.addOrUpdateInternal(value.first, value.second.as<std::string>());
+            } else {
+                OPENVINO_THROW("Unsupported configuration key: ", value.first);
+            }
         } else {
-            if (std::get<1>(_properties[configEntry.first]) == ov::PropertyMutability::RO) {
-                OPENVINO_THROW("READ-ONLY configuration key: ", configEntry.first);
+            if (std::get<1>(_properties[value.first]) == ov::PropertyMutability::RO) {
+                OPENVINO_THROW("READ-ONLY configuration key: ", value.first);
+            } else {
+                cfgs_to_set.emplace(value.first, value.second.as<std::string>());
             }
         }
     }
 
-    _config.update(cfgs_to_set);
+    if (!cfgs_to_set.empty()) {
+        _config.update(cfgs_to_set);
+    }
 }
 
 }  // namespace intel_npu

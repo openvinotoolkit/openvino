@@ -149,10 +149,30 @@ void update_log_level(const std::map<std::string, std::string>& propertiesMap) {
 namespace intel_npu {
 
 static Config merge_configs(const Config& globalConfig,
-                            const std::map<std::string, std::string>& rawConfig,
+                            std::map<std::string, std::string>& rawConfig,
+                            const std::shared_ptr<NPUBackends>& backends,
                             OptionMode mode = OptionMode::Both) {
     update_log_level(rawConfig);
     Config localConfig = globalConfig;
+
+    // Filtering compiler internals
+    for (auto&& cfg : rawConfig) {
+        if (!localConfig.hasOpt(cfg.first)) {
+            // found config option which is not registered
+            // checking if compiler supports it
+            CompilerAdapterFactory compiler_adapter;
+            auto compiler = compiler_adapter.getCompiler(backends->getIEngineBackend(), localConfig);
+            if (compiler->is_option_supported(cfg.first)) {
+                // supported by compiler, register in internal anonymous config
+                localConfig.addOrUpdateInternal(cfg.first, cfg.second);
+                rawConfig.erase(cfg.first);
+            } else {
+                // key not found anywhere to be supported
+                OPENVINO_THROW("[ NOT_FOUND ] Option '", cfg.first, "' is not supported for current configuration");
+            }
+        }
+    }
+
     localConfig.update(rawConfig, mode);
     return localConfig;
 }
@@ -306,8 +326,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
-    const std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
-    auto localConfig = merge_configs(_globalConfig, localPropertiesMap);
+    std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
+    auto localConfig = merge_configs(_globalConfig, localPropertiesMap, _backends);
     update_log_level(localPropertiesMap);
 
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
@@ -450,7 +470,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
     const auto propertiesMap = any_copy(npu_plugin_properties);
 
-    auto localConfig = merge_configs(_globalConfig, propertiesMap, OptionMode::RunTime);
+    auto localConfig = merge_configs(_globalConfig, propertiesMap, _backends, OptionMode::RunTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
         utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
@@ -535,8 +555,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                         const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
-    const std::map<std::string, std::string> propertiesMap = any_copy(properties);
-    auto localConfig = merge_configs(_globalConfig, propertiesMap, OptionMode::CompileTime);
+    std::map<std::string, std::string> propertiesMap = any_copy(properties);
+    auto localConfig = merge_configs(_globalConfig, propertiesMap, _backends, OptionMode::CompileTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
         utils::getCompilationPlatform(localConfig.get<PLATFORM>(),

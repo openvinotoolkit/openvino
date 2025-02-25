@@ -33,15 +33,11 @@ struct TypePrinter {
     static constexpr const char* name();
 };
 
-#define TYPE_PRINTER(type)                    \
-    template <>                               \
-    struct TypePrinter<type> {                \
-        static constexpr bool hasName() {     \
-            return true;                      \
-        }                                     \
-        static constexpr const char* name() { \
-            return #type;                     \
-        }                                     \
+#define TYPE_PRINTER(type)                                    \
+    template <>                                               \
+    struct TypePrinter<type> {                                \
+        static constexpr bool hasName() { return true; }      \
+        static constexpr const char* name() { return #type; } \
     };
 
 TYPE_PRINTER(bool)
@@ -533,9 +529,14 @@ public:
     // and have OptionMode::Compile or OptionMode::Both
     std::string toStringForCompiler() const;
 
+    void addOrUpdateInternal(std::string key, std::string value);
+    std::string getInternal(std::string key) const;
+    std::string toStringForCompilerInternal() const;
+
 private:
     std::shared_ptr<const OptionsDesc> _desc;
     ImplMap _impl;
+    ConfigMap _internal_compiler_configs;
 };
 
 template <class Opt>
