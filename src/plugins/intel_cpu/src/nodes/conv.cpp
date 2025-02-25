@@ -226,7 +226,7 @@ private:
 
 bool Convolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ov::is_type<ov::op::v1::Convolution>(op) && !ov::is_type<ov::op::v1::GroupConvolution>(op)) {
+        if (!ov::is_type_any_of<ov::op::v1::Convolution, ov::op::v1::GroupConvolution>(op)) {
             errorMessage = "Only opset1 Convolution and GroupConvolution operations are supported";
             return false;
         }
@@ -340,7 +340,7 @@ bool Convolution::canBeExecutedInInt8() const {
 }
 
 ov::element::Type Convolution::fusedEltwisePrecision(const NodePtr& fusingNode) const {
-    if (sumPrc != ov::element::undefined) {
+    if (sumPrc != ov::element::dynamic) {
         return sumPrc;
     }
 
@@ -1687,7 +1687,7 @@ void Convolution::executeDynamicImpl(const dnnl::stream& strm) {
         const auto& outMem = out->getParentEdgeAt(0)->getMemory();
         auto convOutMem = getDstMemoryAtPort(0);
         Node::redefineOutputMemory({outMem.getStaticDims()});
-        convOutMem->load(outMem, true);
+        convOutMem->load(outMem, true, false);
     }
 }
 
