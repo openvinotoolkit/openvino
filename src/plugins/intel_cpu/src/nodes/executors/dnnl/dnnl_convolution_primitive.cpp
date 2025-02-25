@@ -166,16 +166,16 @@ static std::vector<T> normalizeDims(const std::vector<T>& dims) {
     return {dnnl::memory::dim{1}, dims[1], dims[0]};
 }
 
-static dnnl::convolution_forward::primitive_desc createDescriptorInternalForFC(const dnnl::memory::desc& inputDesc,
-                                                                               const dnnl::memory::desc& weightDesc,
-                                                                               const dnnl::memory::desc& biasDesc,
-                                                                               const dnnl::memory::desc& outputDesc,
-                                                                               const std::vector<size_t>& stride,
-                                                                               const std::vector<size_t>& dilation,
-                                                                               const std::vector<ptrdiff_t>& paddingL,
-                                                                               const std::vector<ptrdiff_t>& paddingR,
-                                                                               const dnnl::primitive_attr& attr,
-                                                                               const dnnl::engine& engine) {
+static dnnl::convolution_forward::primitive_desc createInnerProductDescriptor(const dnnl::memory::desc& inputDesc,
+                                                                              const dnnl::memory::desc& weightDesc,
+                                                                              const dnnl::memory::desc& biasDesc,
+                                                                              const dnnl::memory::desc& outputDesc,
+                                                                              const std::vector<size_t>& stride,
+                                                                              const std::vector<size_t>& dilation,
+                                                                              const std::vector<ptrdiff_t>& paddingL,
+                                                                              const std::vector<ptrdiff_t>& paddingR,
+                                                                              const dnnl::primitive_attr& attr,
+                                                                              const dnnl::engine& engine) {
     const auto normalizedInDims = normalizeDims(inputDesc.get_dims());
     const auto convInDesc = dnnl::memory::desc(normalizedInDims, inputDesc.get_data_type(), memory::format_tag::nwc);
     const auto normalizedOutDims = normalizeDims(outputDesc.get_dims());
@@ -211,16 +211,16 @@ static dnnl::convolution_forward::primitive_desc createDescriptorInternalForFC(c
                                                      attr);
 }
 
-static dnnl::convolution_forward::primitive_desc createDescriptorInternal(const dnnl::memory::desc& inputDesc,
-                                                                          const dnnl::memory::desc& weightDesc,
-                                                                          const dnnl::memory::desc& biasDesc,
-                                                                          const dnnl::memory::desc& outputDesc,
-                                                                          const std::vector<size_t>& stride,
-                                                                          const std::vector<size_t>& dilation,
-                                                                          const std::vector<ptrdiff_t>& paddingL,
-                                                                          const std::vector<ptrdiff_t>& paddingR,
-                                                                          const dnnl::primitive_attr& attr,
-                                                                          const dnnl::engine& engine) {
+static dnnl::convolution_forward::primitive_desc createConvolutionDescriptor(const dnnl::memory::desc& inputDesc,
+                                                                             const dnnl::memory::desc& weightDesc,
+                                                                             const dnnl::memory::desc& biasDesc,
+                                                                             const dnnl::memory::desc& outputDesc,
+                                                                             const std::vector<size_t>& stride,
+                                                                             const std::vector<size_t>& dilation,
+                                                                             const std::vector<ptrdiff_t>& paddingL,
+                                                                             const std::vector<ptrdiff_t>& paddingR,
+                                                                             const dnnl::primitive_attr& attr,
+                                                                             const dnnl::engine& engine) {
     const auto weightDataType = weightsTypeByInputType.at(inputDesc.get_data_type());
     const auto weightDescAny = dnnl::memory::desc(weightDesc.get_dims(), weightDataType, dnnl::memory::format_tag::any);
     // TODO: migrate on convolution_auto algorithm for x64
@@ -262,29 +262,35 @@ static primitive_desc createPrimitiveDesc(const dnnl::engine& engine,
                                           bool fcSemantic,
                                           const std::vector<impl_desc_type>& implPriorities,
                                           const impl_desc_type defaultImplType) {
-    auto prim_desc = fcSemantic ? createDescriptorInternalForFC(inputDesc,
-                                                                weightDesc,
-                                                                biasDesc,
-                                                                outputDesc,
-                                                                stride,
-                                                                dilation,
-                                                                paddingL,
-                                                                paddingR,
-                                                                attr,
-                                                                engine)
-                                : createDescriptorInternal(inputDesc,
-                                                           weightDesc,
-                                                           biasDesc,
-                                                           outputDesc,
-                                                           stride,
-                                                           dilation,
-                                                           paddingL,
-                                                           paddingR,
-                                                           attr,
-                                                           engine);
+    auto createPrimitiveDescriptor = [&]() {
+        return fcSemantic ? createInnerProductDescriptor(inputDesc,
+                                                         weightDesc,
+                                                         biasDesc,
+                                                         outputDesc,
+                                                         stride,
+                                                         dilation,
+                                                         paddingL,
+                                                         paddingR,
+                                                         attr,
+                                                         engine)
+                          : createConvolutionDescriptor(inputDesc,
+                                                        weightDesc,
+                                                        biasDesc,
+                                                        outputDesc,
+                                                        stride,
+                                                        dilation,
+                                                        paddingL,
+                                                        paddingR,
+                                                        attr,
+                                                        engine);
+    };
+
+    auto prim_desc = createPrimitiveDescriptor();
+
     if (!prim_desc.get(true)) {
         OPENVINO_THROW("Could not create a convolution primitive descriptor.");
     }
+
     // try to use a default implementations type (created using dummy shapes) if specified
     if (defaultImplType != impl_desc_type::undef) {
         const bool found = DnnlExtensionUtils::find_implementation(prim_desc, defaultImplType);
@@ -294,14 +300,17 @@ static primitive_desc createPrimitiveDesc(const dnnl::engine& engine,
         }
     }
 
+    // keep first implementation descriptor to fallback to it if no other implementation is found
     auto first_desc = prim_desc;
 
-    const bool found = DnnlExtensionUtils::find_implementation(prim_desc, [&](impl_desc_type implType) {
-        return contains(implPriorities, implType);
-    });
+    for (auto preferredImplType : implPriorities) {
+        const bool found = DnnlExtensionUtils::find_implementation(prim_desc, preferredImplType);
 
-    if (found) {
-        return std::move(prim_desc);
+        if (found) {
+            return std::move(prim_desc);
+        }
+        // the only way to fully reset primitive_desc after an iteration over implementations is to re-create it
+        prim_desc = createPrimitiveDescriptor();
     }
 
     if (fcSemantic) {  // fallback to the first implementation if used as FC executor
@@ -312,16 +321,16 @@ static primitive_desc createPrimitiveDesc(const dnnl::engine& engine,
     auto inputDescAny = dnnl::memory::desc(inputDesc.get_dims(), inputDesc.get_data_type(), memory::format_tag::any);
     auto outputDescAny = dnnl::memory::desc(outputDesc.get_dims(), outputDesc.get_data_type(), memory::format_tag::any);
 
-    prim_desc = createDescriptorInternal(inputDescAny,
-                                         weightDesc,
-                                         biasDesc,
-                                         outputDescAny,
-                                         stride,
-                                         dilation,
-                                         paddingL,
-                                         paddingR,
-                                         attr,
-                                         engine);
+    prim_desc = createConvolutionDescriptor(inputDescAny,
+                                            weightDesc,
+                                            biasDesc,
+                                            outputDescAny,
+                                            stride,
+                                            dilation,
+                                            paddingL,
+                                            paddingR,
+                                            attr,
+                                            engine);
 
     return std::move(prim_desc);
 }
@@ -431,7 +440,7 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const PostOps& postOps,
         // currently binary post ops are working only with ncsp layout
         if (binaryWithoutBroadcast && attrContainsPostOp(result.attr, dnnl::impl::primitive_kind::binary) &&
             !dstDesc->hasLayoutType(LayoutType::ncsp)) {
-            DEBUG_LOG("Attribute contains conv post op. Use legacy post ops");
+            DEBUG_LOG("Attribute contains binary post op without broadcast with incorrect layout. Use legacy post ops");
             return legacyCompose;
         }
 
@@ -452,16 +461,19 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const PostOps& postOps,
     // compose using original post ops
     auto result = originalPostOpsOriginalZeroPoints.compose();
 
-    auto dimsPerOC = VectorDims(outputDims.size(), 1);
-    dimsPerOC[channelDimIdx] = outputDims[channelDimIdx];
-    bool binaryWithoutBroadcast = outputDims == dimsPerOC;
+    // auto dimsPerOC = VectorDims(outputDims.size(), 1);
+    // dimsPerOC[channelDimIdx] = outputDims[channelDimIdx];
+    // std::cout << outputDims << "\n";
+    // std::cout << dimsPerOC << "\n";
+
+    // bool binaryWithoutBroadcast = outputDims == dimsPerOC;
 
     // currently binary post ops are working only with ncsp layout
-    if (binaryWithoutBroadcast && attrContainsPostOp(result.attr, dnnl::impl::primitive_kind::binary) &&
-        !dstDesc->hasLayoutType(LayoutType::ncsp)) {
-        DEBUG_LOG("Attribute contains binary post op. Use legacy post ops");
-        return legacyCompose;
-    }
+    // if (binaryWithoutBroadcast && attrContainsPostOp(result.attr, dnnl::impl::primitive_kind::binary) &&
+    //     !dstDesc->hasLayoutType(LayoutType::ncsp)) {
+    //     DEBUG_LOG("Attribute contains binary post op. Use legacy post ops");
+    //     return legacyCompose;
+    // }
 
     return result;
 }
