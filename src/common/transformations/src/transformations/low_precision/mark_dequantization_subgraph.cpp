@@ -11,6 +11,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
@@ -23,9 +24,13 @@ using namespace ov::pass::pattern;
 
 namespace {
 
-bool check_precision(const ov::element::Type_t type_to_check, const ov::element::TypeVector& precisions) {
-    return std::find(precisions.begin(), precisions.end(), type_to_check) != precisions.end();
-};
+ov::pass::pattern::op::Predicate check_precision(const ov::element::TypeVector& precisions) {
+    return ov::pass::pattern::op::Predicate(
+        [=](const Output<Node>& output) -> bool {
+            return std::find(precisions.begin(), precisions.end(), output.get_element_type()) != precisions.end();
+        },
+        "check_precision");
+}
 
 using RTInfoSetter = std::function<void(const std::shared_ptr<ov::Node>& node)>;
 void set_rt_info(const PatternValueMap& pt_map,
@@ -35,10 +40,9 @@ void set_rt_info(const PatternValueMap& pt_map,
     for (const auto& pattern_node : pattern_nodes) {
         if (pt_map.count(pattern_node)) {
             auto node = pt_map.at(pattern_node).get_node_shared_ptr();
-
             // we don't need to mark Converts with disable_cf attribute if the `from` type (input type)
             // is not in the `precisions` list.
-            if (ov::as_type_ptr<v0::Convert>(node) && !check_precision(node->get_input_element_type(0), precisions)) {
+            if (ov::as_type_ptr<v0::Convert>(node) && !check_precision(precisions)(node->input_value(0))) {
                 continue;
             }
 
@@ -196,7 +200,7 @@ ov::pass::MarkDequantization::MarkDequantization(const element::TypeVector& prec
     MATCHER_SCOPE(MarkDequantization);
 
     // data input:
-    auto input_pattern = any_input();
+    auto input_pattern = any_input(check_precision(precisions));
     auto convert_pattern = wrap_type<v0::Convert>({input_pattern}, consumers_count(1));
 
     // zero points:
@@ -217,7 +221,7 @@ ov::pass::MarkDequantization::MarkDequantization(const element::TypeVector& prec
         auto input = pt_map.at(input_pattern);
         const auto multiply = m.get_match_root();
 
-        if (!check_precision(input.get_element_type(), precisions) || transformation_callback(multiply)) {
+        if (transformation_callback(multiply)) {
             return false;
         }
 
@@ -290,8 +294,7 @@ ov::pass::KeepConstPrecision::KeepConstPrecision(const element::TypeVector& prec
         for (const auto& pattern_node : keep_const_precisions) {
             if (pt_map.count(pattern_node.first)) {
                 auto node = pt_map.at(pattern_node.first).get_node_shared_ptr();
-                const auto& precision = node->get_output_element_type(0);
-                if (ov::as_type_ptr<v0::Constant>(node) && check_precision(precision, precisions)) {
+                if (ov::as_type_ptr<v0::Constant>(node) && check_precision(precisions)(node->output(0))) {
                     if (pattern_node.second) {
                         ov::disable_keep_const_precision(node);
                     } else {

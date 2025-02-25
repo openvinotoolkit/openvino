@@ -18,6 +18,7 @@
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/ric_fusion.hpp"
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
@@ -73,6 +74,9 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
 
     Manager manager("pre_post_processing");
     manager.set_per_pass_validation(false);
+
+    // prerequisite: the model structure optimization before applying of the markup
+    REGISTER_PASS(manager, SharedOpOptimization)
 
     // 1. Set "disable_const_folding" attribute
     REGISTER_PASS(manager, MarkDequantization, TypeVector{i8, u8, i4, u4, nf4, f4e2m1, f8e4m3, f8e5m2, f8e8m0});
