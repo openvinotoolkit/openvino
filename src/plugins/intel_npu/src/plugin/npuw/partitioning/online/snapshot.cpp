@@ -376,7 +376,9 @@ void Snapshot::markInternalCompute() {
             prod_cons_tags.insert(group_cons->specialTags());
         }
         if (prod_cons_tags.size() == 1 && !(*prod_cons_tags.begin()).empty()) {
-            NPUW_ASSERT(!group->srcNodes().empty());
+            if (group->srcNodes().empty() || group->dstNodes().empty()) {
+                continue;
+            }
             auto prod_nh = group->srcNodes().at(0);  // all tags are the same, pick either group
             Group::GPtr group_prod = m_graph->meta(prod_nh).get<Group::GPtr>();
             NPUW_ASSERT(!group_prod->isolatedTag().empty());
@@ -479,6 +481,8 @@ void Snapshot::earlyRegroup() {
             HNDL(DQMatMulConv);
             HNDL(VocabMatMul);
             HNDL(VariadicSplit);
+            HNDL(FakeConvert);
+            HNDL(FakeQuantize);
 #undef HNDL
         }
         }
