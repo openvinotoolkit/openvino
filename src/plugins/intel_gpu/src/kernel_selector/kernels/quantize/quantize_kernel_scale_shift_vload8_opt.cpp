@@ -24,7 +24,6 @@ ParamsKey QuantizeKernelScaleShift_vload8::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
-    k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableDifferentTypes();
