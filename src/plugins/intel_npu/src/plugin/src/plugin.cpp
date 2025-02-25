@@ -575,13 +575,14 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<RUN_INFERENCES_SEQUENTIALLY>();
           }}},
-        {ov::intel_npu::batch_mode.name(), {false, ov::PropertyMutability::RW, [](const Config& config) {
-                                                return config.getString<BATCH_MODE>();
-                                            }}},
-        {ov::intel_npu::batch_compiler_mode_settings.name(),
+        {ov::intel_npu::batch_mode.name(),
          {false,
           ov::PropertyMutability::RW,
           [](const Config& config) {
+              return config.getString<BATCH_MODE>();
+          }}},
+        {ov::intel_npu::batch_compiler_mode_settings.name(),
+         {false, ov::PropertyMutability::RW, [](const Config& config) {
               return config.get<BATCH_COMPILER_MODE_SETTINGS>();
           }}}};
 }
