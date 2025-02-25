@@ -68,8 +68,16 @@ with open(supported_ops_doc, 'rt') as src:
             if not domain in ops:
                 ops[domain] = {}
             opname = row[2]
+            defined = []
+            for item in row[4].split(', '):
+                val = 1
+                try:
+                    val = int(item)
+                except:
+                    continue
+                defined.append(val)
             if not opname in ops[domain]:
-                ops[domain][opname] = {'supported':[], 'defined': row[4], 'limitations':row[5]}
+                ops[domain][opname] = {'supported':[], 'defined': defined, 'limitations':row[5]}
 
 documentation_errors = []
 
@@ -133,6 +141,7 @@ with open(supported_ops_doc, 'wt') as dst:
     for domain, ops in ops.items():
         for op_name in sorted(list(ops.keys())):
             data = ops[op_name]
-            dst.write(f"|{domain:<24}|{op_name:<56}|{', '.join([str(i) for i in sorted(data['supported'], reverse=True)]):<24}|{data['defined']:<32}|{data['limitations']:<32}|\n")
+            min_opset = data['defined'][-1] if len(data['defined']) > 0 else 1
+            dst.write(f"|{domain:<24}|{op_name:<56}|{', '.join([str(max(i, min_opset)) for i in sorted(data['supported'], reverse=True)]):<24}|{', '.join([str(i) for i in data['defined']]):<32}|{data['limitations']:<32}|\n")
 
 print("Data collected and stored")
