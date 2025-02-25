@@ -160,6 +160,10 @@ CommonDispatchData ScatterUpdateKernelRef::SetDefault(const scatter_update_param
         }
     }
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    if (is_second) {
+        dispatchData.gws = {1, 1, 1};
+        dispatchData.lws = {1, 1, 1};
+    }
 
     return dispatchData;
 }

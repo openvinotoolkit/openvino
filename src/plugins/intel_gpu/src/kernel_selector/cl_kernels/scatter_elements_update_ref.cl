@@ -108,25 +108,36 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
         output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
     #endif
 #else // Second kernel
+    // (TODO) Use atomic_cmpxchg or atomic_operator to implement multithread
     #if OUTPUT_DIMS == 4
-        const uint idx_x = dim0;
-        const uint idx_y = dim1;
-        const uint idx_f = dim2 % INPUT2_FEATURE_NUM;
-        const uint idx_b = dim2 / INPUT2_FEATURE_NUM;
+        const uint tgx = INPUT2_SIZE_X;
+        const uint tgy = INPUT2_SIZE_Y;
     #elif OUTPUT_DIMS == 5
-        const uint idx_x = dim0 % INPUT2_SIZE_X;
-        const uint idx_y = dim0 / INPUT2_SIZE_X;
-        const uint idx_z = dim1;
-        const uint idx_f = dim2 % INPUT2_FEATURE_NUM;
-        const uint idx_b = dim2 / INPUT2_FEATURE_NUM;
+        const uint tgx = INPUT2_SIZE_X * INPUT2_SIZE_Y;
+        const uint tgy = INPUT2_SIZE_Z;
     #elif OUTPUT_DIMS == 6
-        const uint idx_x = dim0 % INPUT2_SIZE_X;
-        const uint idx_y = dim0 / INPUT2_SIZE_X;
-        const uint idx_z = dim1 % INPUT2_SIZE_Z;
-        const uint idx_w = dim1 / INPUT2_SIZE_Z;
-        const uint idx_f = dim2 % INPUT2_FEATURE_NUM;
-        const uint idx_b = dim2 / INPUT2_FEATURE_NUM;
+        const uint tgx = INPUT2_SIZE_X * INPUT2_SIZE_Y;
+        const uint tgy = INPUT2_SIZE_Z * INPUT2_SIZE_W;
     #endif
+    const uint tgz = INPUT2_FEATURE_NUM * INPUT2_BATCH_NUM;
+    for (uint gx = 0; gx < tgx; gx++) {
+        for (uint gy = 0; gy < tgy; gy++) {
+            for (uint gz = 0; gz < tgz; gz++) {
+                #if OUTPUT_DIMS == 4
+                    const uint idx_x = gx;
+                    const uint idx_y = gy;
+                #elif OUTPUT_DIMS == 5
+                    const uint idx_x = gx % INPUT2_SIZE_X;
+                    const uint idx_y = gx / INPUT2_SIZE_X;
+                    const uint idx_z = gy;
+                #elif OUTPUT_DIMS == 6
+                    const uint idx_x = gx % INPUT2_SIZE_X;
+                    const uint idx_y = gx / INPUT2_SIZE_X;
+                    const uint idx_z = gy % INPUT2_SIZE_Z;
+                    const uint idx_w = gy / INPUT2_SIZE_Z;
+                #endif
+                const uint idx_f = gz % INPUT2_FEATURE_NUM;
+                const uint idx_b = gz / INPUT2_FEATURE_NUM;
 
     const uint indices_idx = GET_INDICES_INDEX(IDX_ORDER);
     INPUT1_TYPE index = indices[(int)indices_idx];
@@ -201,6 +212,9 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
     #else
         output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
     #endif
+            }
+        }
+    }
 #endif
 }
 
