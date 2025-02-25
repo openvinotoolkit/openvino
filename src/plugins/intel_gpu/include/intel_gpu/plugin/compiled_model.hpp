@@ -33,8 +33,8 @@ public:
                   const ExecutionConfig& config,
                   const bool loaded_from_cache);
     ~CompiledModel() {
-        auto streamsExecutor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(get_task_executor());
-        streamsExecutor->cpu_reset();
+        auto streams_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(get_task_executor());
+        streams_executor->cpu_reset();
     }
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
