@@ -223,6 +223,11 @@ network::network(program::ptr program, stream::ptr stream, uint16_t stream_id)
 network::~network() {
     if (_program != nullptr)
         _program->cancel_compilation_context();
+
+    // Clear the command queue to prevent errors caused by remaining tasks.
+    if (_stream != nullptr)
+        _stream->finish();
+
     _memory_pool->clear_pool_for_network(net_id);
     std::string dump_path = GPU_DEBUG_VALUE_OR(get_config().get_dump_profiling_data_path(), "");
     GPU_DEBUG_IF(!dump_path.empty()) {
