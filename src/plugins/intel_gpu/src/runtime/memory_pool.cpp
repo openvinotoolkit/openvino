@@ -49,6 +49,10 @@ bool memory_pool::has_conflict(const memory_set& mem_cand,
 void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive_id prim_id, uint32_t network_id) {
     // check non padded pool first
     auto _layout = mem->get_layout();
+    if (_layout.is_dynamic()) {
+        const auto max_shape = _layout.get_partial_shape().get_max_shape();
+        _layout = _layout.clone_with_other_shape(max_shape);
+    }
     auto type = mem->get_allocation_type();
     const auto _layout_bytes_count = _layout.bytes_count();
 
@@ -85,6 +89,16 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
         }
     }
     {
+        if (_layout.is_dynamic()) {
+            std::cout << "there will be problem with " << _layout << " which has addr " << mem->buffer_ptr() << std::endl;
+        }
+        for (auto el : _padded_pool) {
+            std::cout << el.first << " coorrespond to";
+            for (auto mem :  el.second) {
+                std::cout << mem._memory->buffer_ptr() << "_";
+            }
+        }
+        std::cout << "end correspond" << std::endl;
         auto itr = _padded_pool.find(_layout);
 
         if (itr != _padded_pool.end()) {
@@ -124,6 +138,9 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
             if (list.empty()) {
                 _padded_pool.erase(itr);
             }
+        } else {
+            std::cout << "cant find" << std::endl;
+            std::cout << "there IS problem with " << _layout << " which has addr " << mem->buffer_ptr() << std::endl;
         }
     }
 #ifdef GPU_DEBUG_CONFIG
