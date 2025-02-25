@@ -62,12 +62,16 @@ options:
       | - Available in both Python and C++.
       | - Allows client applications in any programming language that supports REST or gRPC.
 
-      Deploy deep learning models remotely, using
       :doc:`OpenVINO™ Model Server <model-server/ovms_what_is_openvino_model_server>`
-      - a high-performance solution, developed in C++ for scalability and optimized for
-      Intel architectures. The deployment is straightforward, as you simply connect
-      your application via gRPC or REST endpoints to a server, where OpenVINO's logic for
-      inference tasks is applied.
+      provides a set of REST API endpoints dedicated to generative use cases. The endpoints
+      simplify writing AI applications, ensure scalability, and provide state-of-the-art
+      performance optimizations. They include OpenAI API for:
+      `text generation <https://openvino-doc.iotg.sclab.intel.com/seba-test-8/model-server/ovms_docs_rest_api_chat.html>`__,
+      `embeddings <https://openvino-doc.iotg.sclab.intel.com/seba-test-8/model-server/ovms_docs_rest_api_embeddings.html>`__,
+      and `reranking <https://openvino-doc.iotg.sclab.intel.com/seba-test-8/model-server/ovms_docs_rest_api_rerank.html>`__.
+      The model server supports deployments as containers or binary applications on Linux and Windows with CPU or GPU acceleration.
+      See the :doc:`demos <model-server/ovms_docs_demos>`.
+
 
 
 The advantages of using OpenVINO for generative model deployment:
