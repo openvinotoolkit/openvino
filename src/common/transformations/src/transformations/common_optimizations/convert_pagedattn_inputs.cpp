@@ -147,7 +147,6 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
     this->register_matcher(m, callback);
 }
 
-
 void ov::pass::ConvertPagedAttnInputs::setKVCacheConfig(const KVCacheConfig& config) {
     m_config = config;
 }
