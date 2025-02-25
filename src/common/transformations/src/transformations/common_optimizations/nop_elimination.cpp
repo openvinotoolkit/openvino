@@ -513,23 +513,22 @@ pass::EliminateConcat::EliminateConcat() {
     this->register_matcher(m, callback);
 }
 
-pass::EliminateConcatSplit::EliminateConcatSplit() {
-    MATCHER_SCOPE(EliminateConcatSplit);
-    auto pattern_concat = pattern::wrap_type<ov::op::v0::Concat>();
+pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
+    MATCHER_SCOPE(EliminateConcatStridedSlice);
+    auto pattern_concat = pattern::wrap_type<ov::op::v0::Concat>(ov::pass::pattern::has_static_rank());
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
         const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(pattern_concat));
-        if (!concat || concat->is_dynamic() || concat->get_users().size() == 1) {
-            return false;
-        }
-        const auto concat_users = concat->get_users();
-        auto concat_inputs = concat->inputs();
-        auto concat_axis = concat->get_axis();
-        if (concat_axis < 0)
-            concat_axis = concat_axis + concat->get_output_shape(0).size();
 
-        bool need_opt = false;
-        std::vector<std::tuple<std::shared_ptr<Node>, int64_t, int64_t>> slice_out_index_in_cocat;
+        const auto concat_axis =
+            ov::util::normalize(concat->get_axis(), concat->get_output_partial_shape(0).rank().get_length());
+
+        const auto concat_users = concat->get_users();
+        if (concat_users.size() == 1)
+            return false;
+        auto concat_inputs = concat->inputs();
+
+        std::vector<std::tuple<std::shared_ptr<Node>, int64_t, int64_t>> slice_out_index_in_concat;
         for (const auto& user : concat_users) {
             if (ov::is_type<ov::op::v1::StridedSlice>(user)) {
                 auto strided_slice_node = ov::as_type_ptr<ov::op::v1::StridedSlice>(user);
@@ -555,21 +554,23 @@ pass::EliminateConcatSplit::EliminateConcatSplit() {
 
                 auto begin_node = strided_slice_node->get_input_node_shared_ptr(1);
                 const auto& begin_constant_node = ov::util::get_constant_from_source(begin_node);
+                if (begin_constant_node == nullptr)
+                    return false;
                 auto begin_values = begin_constant_node->cast_vector<int64_t>();
 
                 auto end_node = strided_slice_node->get_input_node_shared_ptr(2);
                 const auto& end_constant_node = ov::util::get_constant_from_source(end_node);
+                if (end_constant_node == nullptr)
+                    return false;
                 auto end_values = end_constant_node->cast_vector<int64_t>();
 
-                need_opt = true;
-                slice_out_index_in_cocat.push_back(
+                slice_out_index_in_concat.push_back(
                     std::make_tuple(strided_slice_node, begin_values[concat_axis], end_values[concat_axis] - 1));
             } else {
-                need_opt = false;
-                break;
+                return false;
             }
         }
-        if (!need_opt || (slice_out_index_in_cocat.size() == 1))
+        if (slice_out_index_in_concat.size() == 1)
             return false;
 
         uint64_t start_index = 0;
@@ -582,7 +583,7 @@ pass::EliminateConcatSplit::EliminateConcatSplit() {
         }
 
         std::vector<std::tuple<std::shared_ptr<Node>, int64_t, int64_t>> mismatch_slices{};
-        for (const auto& [slice_node, slice_begin, slice_end] : slice_out_index_in_cocat) {
+        for (const auto& [slice_node, slice_begin, slice_end] : slice_out_index_in_concat) {
             bool matched = false;
             for (const auto& [concat_input_node, concat_input_begin, concat_input_end] : in_index_in_concat) {
                 if (slice_begin == concat_input_begin && slice_end == concat_input_end) {
@@ -1329,7 +1330,7 @@ ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     ADD_MATCHER_FOR_THIS(EliminateSplitConcat)
     ADD_MATCHER_FOR_THIS(EliminateStridedSlice)
     ADD_MATCHER_FOR_THIS(EliminateSlice)
-    ADD_MATCHER_FOR_THIS(EliminateConcatSplit)
+    ADD_MATCHER_FOR_THIS(EliminateConcatStridedSlice)
 
     // shape-dependent transformations
     if (use_shape_for_elimination) {

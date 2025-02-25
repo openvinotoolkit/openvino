@@ -11,7 +11,7 @@ namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API EliminateConcat;
-class TRANSFORMATIONS_API EliminateConcatSplit;
+class TRANSFORMATIONS_API EliminateConcatStridedSlice;
 class TRANSFORMATIONS_API EliminateConvert;
 class TRANSFORMATIONS_API EliminateConvertNonZero;
 class TRANSFORMATIONS_API EliminateEltwise;
@@ -86,12 +86,42 @@ public:
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief EliminateConcatSplit eliminates split from concat that no need
+ * @brief EliminateConcatStridedSlice eliminates StrideSlice & Concat,
+ * if the StridedSlices split the tensor into the parts and these parts be equal to the original parts before Concat.
+// Before:
+          ┌─────────┐             ┌─────────┐             ┌─────────┐
+          │ Input A │             │ Input B │             │ Input C │
+          └────┬────┘             └────┬────┘             └────┬────┘
+               │                       │                       │
+               │                  ┌────▼──────┐                │
+               └──────────────────►  Concat   ◄────────────────┘
+                                  └─────┬─────┘  
+                                        │
+                            ┌────────────────────────┐
+                            |                        | 
+                            ▼                        ▼
+                       ┌────────────┐             ┌────────────┐
+                       │StridedSlice│             │StridedSlice│
+                       └─────┬──────┘             └──────┬─────┘
+                             |   (A)                     | (B + C)
+                             ▼                           ▼
+                      ┌─────────────┐                ┌─────────┐
+                      │Any OtherNode│                │  Concat │◄────── ...
+                      └─────────────┘                └─────────┘
+// After:
+          ┌─────────┐             ┌─────────┐             ┌─────────┐
+          │ Input A │             │ Input B │             │ Input C │
+          └────┬────┘             └────┬────┘             └────┬────┘
+               │                       │            ┌──────────│
+               ▼                       |            |
+         ┌─────────────┐               |      ┌─────▼───┐
+         │Any OtherNode│               └────► │  Concat │◄────── ...
+         └─────────────┘                      └─────────┘
  */
-class ov::pass::EliminateConcatSplit : public ov::pass::MatcherPass {
+class ov::pass::EliminateConcatStridedSlice : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("EliminateConcatSplit");
-    EliminateConcatSplit();
+    OPENVINO_MATCHER_PASS_RTTI("EliminateConcatStridedSlice");
+    EliminateConcatStridedSlice();
 };
 
 /**
