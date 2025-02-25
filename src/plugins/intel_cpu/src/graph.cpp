@@ -241,13 +241,13 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
         const auto& inputNode = input.second;
         const auto precToSet = inputNode->getOriginalOutputPrecisionAtPort(0);
         const auto childEdges = inputNode->getChildEdgesAtPort(0);
-        for (size_t i = 0; i < childEdges.size(); i++) {
-            const auto child = childEdges[i]->getChild();
-            const auto child_prec = child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum());
+        for (const auto& childEdge : childEdges) {
+            const auto child = childEdge->getChild();
+            const auto child_prec = child->getOriginalInputPrecisionAtPort(childEdge->getOutputNum());
             if (!one_of(child_prec, ov::element::bf16, ov::element::f16) &&
                 // remove this WA when #78939 is resolved
                 !hasSubgraphConsumers(child)) {
-                child->setOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum(), precToSet);
+                child->setOriginalInputPrecisionAtPort(childEdge->getOutputNum(), precToSet);
             }
         }
     }
@@ -631,7 +631,7 @@ void Graph::ResolveEdgeConflicts() {
 
     /* When inserting convert / reorder, two new edges are added (pushed to the end) to the graphEdges.
        So use a plain for loop, to handle newly inserted edges as well */
-    for (size_t i = 0; i < graphEdges.size(); i++) {
+    for (size_t i = 0; i < graphEdges.size(); i++) {  // NOLINT(modernize-loop-convert)
         auto& edge = graphEdges[i];
         auto reorderStatus = edge->needReorder();  // NOLINT(modernize-loop-convert)
         DEBUG_LOG(*edge, " reorderStatus = ", reorderStatus);
