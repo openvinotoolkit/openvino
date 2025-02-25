@@ -116,6 +116,7 @@ jobs:
           whoami
           id
           echo ${HOME}
+          ls -la /mount
 
       # Ticket: 139627
       - name: Checkout the latest OneDNN for GPU in nightly
