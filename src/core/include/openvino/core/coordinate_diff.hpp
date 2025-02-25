@@ -49,6 +49,7 @@ public:
         : IndirectVectorValueAccessor<CoordinateDiff, std::vector<int64_t>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<CoordinateDiff>");
+    ~AttributeAdapter() override;
 };
 
 }  // namespace ov

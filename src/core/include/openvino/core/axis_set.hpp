@@ -44,6 +44,7 @@ public:
 
     const std::vector<int64_t>& get() override;
     void set(const std::vector<int64_t>& value) override;
+    ~AttributeAdapter() override;
     operator ov::AxisSet&() {
         return m_ref;
     }

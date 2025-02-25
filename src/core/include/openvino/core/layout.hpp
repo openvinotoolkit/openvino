@@ -198,6 +198,8 @@ public:
         return m_ref;
     }
 
+    ~AttributeAdapter() override;
+
 protected:
     Layout& m_ref;
     std::string m_dump;
