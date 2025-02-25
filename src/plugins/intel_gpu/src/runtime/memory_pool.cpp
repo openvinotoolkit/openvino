@@ -89,16 +89,6 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
         }
     }
     {
-        if (_layout.is_dynamic()) {
-            std::cout << "there will be problem with " << _layout << " which has addr " << mem->buffer_ptr() << std::endl;
-        }
-        for (auto el : _padded_pool) {
-            std::cout << el.first << " coorrespond to";
-            for (auto mem :  el.second) {
-                std::cout << mem._memory->buffer_ptr() << "_";
-            }
-        }
-        std::cout << "end correspond" << std::endl;
         auto itr = _padded_pool.find(_layout);
 
         if (itr != _padded_pool.end()) {
@@ -138,9 +128,6 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
             if (list.empty()) {
                 _padded_pool.erase(itr);
             }
-        } else {
-            std::cout << "cant find" << std::endl;
-            std::cout << "there IS problem with " << _layout << " which has addr " << mem->buffer_ptr() << std::endl;
         }
     }
 #ifdef GPU_DEBUG_CONFIG
