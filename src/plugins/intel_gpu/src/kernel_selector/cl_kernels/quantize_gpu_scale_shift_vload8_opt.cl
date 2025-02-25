@@ -13,6 +13,10 @@
 #define TO_VECTOR_TYPE_IMPL_SAT_RTE_8(elem_type)  CAT(convert_##elem_type, 8##_sat_rte)
 #define TO_VECTOR_TYPE_SAT(elem_type, size)   CAT(TO_VECTOR_TYPE_IMPL_SAT_, size)(elem_type)
 #define TO_VECTOR_TYPE_SAT_RTE(elem_type, size)   CAT(TO_VECTOR_TYPE_IMPL_SAT_RTE_, size)(elem_type)
+// Convert built-in functions with _sat modifier are not supported in floating point
+//create defines without _sat to overcome this issue
+#define convert_float8_sat  convert_float8
+#define convert_half8_sat   convert_half8
 
 #ifdef SUB_GROUP_SIZE
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
