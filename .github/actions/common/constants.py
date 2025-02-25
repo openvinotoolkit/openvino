@@ -14,10 +14,10 @@ productTypes = (
     'public_linux_ubuntu_22_04_x86_64_release',
     'public_linux_ubuntu_22_04_dpcpp_x86_64_release',
     'public_linux_ubuntu_24_04_x86_64_release',
-    'public_windows_vs2019_Release',
-    'public_windows_vs2019_Debug',
-    'public_windows_vs2022_Release',
-    'public_windows_vs2022_Debug',
+    'public_windows_vs2019_release',
+    'public_windows_vs2019_debug',
+    'public_windows_vs2022_release',
+    'public_windows_vs2022_debug',
     'public_manylinux2014_x86_64_release',
 )
 ProductType = Enum('ProductType', {t.upper(): t for t in productTypes})
