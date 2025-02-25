@@ -142,6 +142,8 @@ with open(supported_ops_doc, 'wt') as dst:
         for op_name in sorted(list(ops.keys())):
             data = ops[op_name]
             min_opset = data['defined'][-1] if len(data['defined']) > 0 else 1
+            if min_opset in data['supported']:
+                min_opset = 1
             dst.write(f"|{domain:<24}|{op_name:<56}|{', '.join([str(max(i, min_opset)) for i in sorted(data['supported'], reverse=True)]):<24}|{', '.join([str(i) for i in data['defined']]):<32}|{data['limitations']:<32}|\n")
 
 print("Data collected and stored")

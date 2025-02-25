@@ -110,7 +110,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |MaxRoiPool                                              |1                       |22, 1                           |                                |
 |                        |MaxUnpool                                               |                        |22, 11, 9                       |                                |
 |                        |Mean                                                    |1                       |13, 8, 6, 1                     |                                |
-|                        |MeanVarianceNormalization                               |9, 9                    |13, 9                           |                                |
+|                        |MeanVarianceNormalization                               |9, 1                    |13, 9                           |                                |
 |                        |MelWeightMatrix                                         |                        |17                              |                                |
 |                        |Min                                                     |8, 1                    |13, 12, 8, 6, 1                 |                                |
 |                        |Mish                                                    |18                      |22, 18                          |                                |
@@ -203,7 +203,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Trilu                                                   |14                      |14                              |                                |
 |                        |Unique                                                  |11                      |11                              |                                |
 |                        |Unsqueeze                                               |13, 1                   |21, 13, 11, 1                   |                                |
-|                        |Upsample                                                |9, 7, 7                 |10, 9, 7                        |                                |
+|                        |Upsample                                                |9, 7, 1                 |10, 9, 7                        |                                |
 |                        |Where                                                   |9                       |16, 9                           |                                |
 |                        |Xor                                                     |1                       |7, 1                            |                                |
 |com.microsoft           |Attention                                               |1                       |1                               |                                |
