@@ -300,6 +300,37 @@ static constexpr ov::Property<BatchMode> batch_mode{"NPU_BATCH_MODE"};
 
 /**
  * @brief [Only for NPU Plugin]
+ * Type: String. Default is "".
+ * This option is added for providing a fine-grained batched model compilation control, otherwise batching compilation params will be determined automatically.
+ * Should be specified only when a model compilation is failed due to incorrect detection of batch dimension presence including false-positive and false-negative cases.
+ * NPU compiler supports two batch compile options by now: "unroll" and "debatch" - either can be activated using by setting "batch-compile-method" into the desired value.
+ * Leveragind the compile method "debatch" allows the additional param "debatcher-settings" being configured,
+ * which introduces the declared fine-grained compilation control suboptions.
+ * The suboption "debatcher-input-coefficients-partitions" determines how to split or debatch input tensors of an original model.
+ *
+ * Let's look at the following example:
+ * "batch-compile-method=debatch debatcher-settings={debatcher-input-coefficients-partitions=[0-1],[13-4],[1-1]}".
+ *
+ * These mean that we want to "debatch" inputs of a batched network providing that:
+ * - a batch dimension N of a first intput is on the 0-position (of its layout abbreviation);
+ * - the N dimension of a second input is on 13th-position of its layout;
+ * - and the N dimension of a third input is on 1-position of its layout accordingly.
+ * Thus the first digit of a pair of values enclosed by symbols'[' and ']' determines N dimension position in a layout of a corresponding input.
+ * A second value of the pair represents a "native" value of N-dimension of a tensor in assumption that having this value, the tensor becomes "non-batched" or a plain tensor.
+ * In the example above:
+ * - the non-batched tensor of the first input is assumed to have 1 in N-dimension (on the 0 position);
+ * - the second tensor assumed non-batched when it got 4 as a valua of N-dimension on the 13th-position
+ * - the third tensor is a plain tensor when it has 1 in N-dimension on the 1-position of its layout
+ *
+ * The given "debatcher-input-coefficients-partitions" provides the NPU compiler with sufficient information in order to compile a complicatied batched model,
+ * which might not be auto recognized by intrinsic heuristics
+ *
+ * Possible values: "AUTO", "PLUGIN", "COMPILER".
+ */
+static constexpr ov::Property<std::string> batch_compiler_mode_settings{"NPU_BATCH_COMPILER_MODE_SETTINGS"};
+
+/**
+ * @brief [Only for NPU Plugin]
  * Type: integer, default is 1
  * This option allows to omit creating an executor and therefore to omit running an inference when its value is 0
  */
