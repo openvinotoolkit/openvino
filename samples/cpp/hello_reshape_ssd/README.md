@@ -11,7 +11,7 @@ For more detailed information on how this sample works, check the dedicated [art
 | ----------------------------| -----------------------------------------------------------------------------------------------------------------------------------------|
 | Validated Models            | [person-detection-retail-0013](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/person-detection-retail-0013)  |
 | Model Format                | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)                                                          |
-| Supported devices           | [All](https://docs.openvino.ai/2025/about-openvino/compatibility-and-support/supported-devices.html)                                     |
+| Supported devices           | [All](https://docs.openvino.ai/2025/documentation/compatibility-and-support/supported-devices.html)                                      |
 | Other language realization  | [Python](https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/hello-reshape-ssd.html)                                           |
 
 The following C++ API is used in the application:
