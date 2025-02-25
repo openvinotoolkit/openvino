@@ -73,12 +73,13 @@ OutputVector translate_mul_common(const NodeContext& context, bool inplace) {
                                       is_python_scalar_input(context, 0),
                                       is_python_scalar_input(context, 1));
         }
-        auto res = ComplexTypeMark::mul(context, lhs, rhs, is_lhs_complex, is_rhs_complex);
-        align_output_types(context, OutputVector{res});
+        auto mul_res = OutputVector{ComplexTypeMark::mul(context, lhs, rhs, is_lhs_complex, is_rhs_complex)};
+        align_output_types(context, mul_res);
         if (is_lhs_complex || is_rhs_complex) {
-            res = context.mark_node(make_shared<ComplexTypeMark>(res, res.get_element_type()));
+            auto res = context.mark_node(make_shared<ComplexTypeMark>(mul_res[0], mul_res[0].get_element_type()));
+            mul_res = OutputVector{res};
         }
-        return {res};
+        return mul_res;
     }
 }
 
