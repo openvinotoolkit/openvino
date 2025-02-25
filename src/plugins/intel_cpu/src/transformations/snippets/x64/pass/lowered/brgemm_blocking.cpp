@@ -161,10 +161,8 @@ bool BrgemmBlocking::run(LinearIR& linear_ir) {
                         return false;
 
                     const auto loop_begin_it = linear_ir.find(linear_ir.get_expr_by_node(loop_end->get_loop_begin()));
-                    const auto new_loop_begin_pos =
-                        snippets::lowered::pass::InsertTailLoop::insert_copy_loop(linear_ir, loop_id, loop_begin_it);
-                    const auto new_loop_begin =
-                        ov::as_type_ptr<snippets::op::LoopBegin>(new_loop_begin_pos->get()->get_node());
+                    const auto new_loop_begin_pos = snippets::lowered::pass::InsertTailLoop::insert_copy_loop(linear_ir, loop_id, loop_begin_it);
+                    const auto new_loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(new_loop_begin_pos->get()->get_node());
                     OPENVINO_ASSERT(new_loop_begin, "Cloned Loop does not contain LoopBegin op at the expected place.");
                     const auto firt_iter_loop_end = new_loop_begin->get_loop_end();
                     auto first_iter_loop_info = loop_manager->get_loop_info(firt_iter_loop_end->get_id());

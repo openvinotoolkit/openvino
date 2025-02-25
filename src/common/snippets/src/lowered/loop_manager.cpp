@@ -141,14 +141,6 @@ void LoopInfo::set_first_iter_handler(LoopInfo::FirstIterHandler first_iter_hand
     m_first_iter_handler = std::move(first_iter_handler);
 }
 
-void LoopInfo::update_entry_points(const std::function<void(LoopPort&)>& updater) {
-    std::for_each(m_entry_points.begin(), m_entry_points.end(), updater);
-}
-
-void LoopInfo::update_exit_points(const std::function<void(LoopPort&)>& updater) {
-    std::for_each(m_exit_points.begin(), m_exit_points.end(), updater);
-}
-
 bool operator==(const LinearIR::LoopManager::LoopPort& lhs, const LinearIR::LoopManager::LoopPort& rhs) {
     if (&lhs == &rhs)
         return true;
@@ -366,8 +358,7 @@ size_t LinearIR::LoopManager::replace_with_new_loop(const LinearIR& linear_ir,
                                                     const size_t old_id) {
     const auto is_bound_explicit_loop_begin = ov::is_type<op::LoopBegin>(loop_begin_pos->get()->get_node());
     const auto is_bound_explicit_loop_end = ov::is_type<op::LoopEnd>(std::prev(loop_end_pos)->get()->get_node());
-    OPENVINO_ASSERT((is_bound_explicit_loop_begin && is_bound_explicit_loop_end) ||
-                        (!is_bound_explicit_loop_begin && !is_bound_explicit_loop_end),
+    OPENVINO_ASSERT((is_bound_explicit_loop_begin && is_bound_explicit_loop_end) || (!is_bound_explicit_loop_begin && !is_bound_explicit_loop_end),
                     "Incorrect LoopBounds!");
     const auto explicit_loop_bounds = is_bound_explicit_loop_begin && is_bound_explicit_loop_end;
 
@@ -379,8 +370,7 @@ size_t LinearIR::LoopManager::replace_with_new_loop(const LinearIR& linear_ir,
         replace_loop_id(*expr_it, old_id, loop_id);
     }
 
-    // Check that other expression in LinearIR doesn't have the old loop ID - otherwise completely removed from loop
-    // manager
+    // Check that other expression in LinearIR doesn't have the old loop ID - otherwise completely removed from loop manager
     const auto old_loop_bounds = get_loop_bounds(linear_ir, old_id);
     // If new bounds are equal to old loop bounds, this means that old Loop is removed totally from LIR
     // In this case old loop info must be completely removed from loop manager
@@ -560,7 +550,6 @@ void LinearIR::LoopManager::sort_loop_ports(LinearIR::constExprIt& loop_begin_po
 
 void LinearIR::LoopManager::insert_loop_id(const ExpressionPtr& expr, size_t new_id, bool before, size_t target_id) {
     OPENVINO_ASSERT(m_map.count(new_id) == 1, "Failed marking expression by Loop ID: the Loop with this ID hasn't registered");
-    OPENVINO_ASSERT(!is_loop_id_found(expr, new_id), "Expression cannot have several the same Loop IDs");
     auto& loop_ids = expr->m_loop_ids;
     OPENVINO_ASSERT(std::find(loop_ids.cbegin(), loop_ids.cend(), new_id) == loop_ids.cend(),
                     "Expression cannot have several the same Loop IDs");
@@ -588,7 +577,6 @@ void LinearIR::LoopManager::insert_loop_ids(const ExpressionPtr& expr, const std
 
 void LinearIR::LoopManager::replace_loop_id(const ExpressionPtr& expr, size_t prev_id, size_t new_id) {
     OPENVINO_ASSERT(m_map.count(new_id), "Failed marking expression by Loop ID: the Loop with this ID hasn't registered");
-    OPENVINO_ASSERT(!is_loop_id_found(expr, new_id), "Expression cannot have several the same Loop IDs");
     auto& loop_ids = expr->m_loop_ids;
     OPENVINO_ASSERT(std::find(loop_ids.cbegin(), loop_ids.cend(), new_id) == loop_ids.cend(),
                     "Expression already has the Loop with ID " + std::to_string(new_id));
@@ -603,11 +591,6 @@ void LinearIR::LoopManager::remove_loop_id(const ExpressionPtr& expr, size_t id)
     const auto it = std::find(loop_ids.cbegin(), loop_ids.cend(), id);
     OPENVINO_ASSERT(it != loop_ids.cend(), "Expression doesn't have the Loop with ID " + std::to_string(id));
     loop_ids.erase(it);
-}
-
-bool LinearIR::LoopManager::is_loop_id_found(const ExpressionPtr& expr, size_t id) {
-    const auto loop_ids = expr->get_loop_ids();
-    return std::find(loop_ids.cbegin(), loop_ids.cend(), id) != loop_ids.cend();
 }
 
 }// namespace lowered
