@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "paged_attention_opt.hpp"
+#include <memory>
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "paged_attention_inst.h"
@@ -21,6 +23,10 @@ namespace {
 constexpr ov::element::Type softmax_accumulator_type = ov::element::f32;
 constexpr size_t paged_attention_block_size = 16;
 constexpr size_t seq_len_partition_size = 256;
+
+struct PagedAttentionRuntimeParams : public RuntimeParams {
+    PagedAttentionStage stage;
+};
 
 size_t get_generate_stage_block_size(size_t head_size) {
     auto preferred_block_size = { 4, 2, 1 };
@@ -264,7 +270,7 @@ public:
     }
 
     DispatchDataFunc get_dispatch_data_func() const override {
-        static auto f = DISPATCH_DATA_FUNC(params, kd) {
+        static auto f = DISPATCH_DATA_FUNC(params, kd, rt_params) {
             if (params.input_layouts[0].is_static()) {
                 auto& wgs = kd.params.workGroups;
                 const auto desc = params.typed_desc<paged_attention>();
@@ -315,7 +321,7 @@ public:
     }
 
     DispatchDataFunc get_dispatch_data_func() const override {
-        static auto f = DISPATCH_DATA_FUNC(params, kd) {
+        static auto f = DISPATCH_DATA_FUNC(params, kd, rt_params) {
             if (params.input_layouts[0].is_static()) {
                 auto& wgs = kd.params.workGroups;
                 auto& scalars = kd.params.scalars;
@@ -409,7 +415,7 @@ public:
     }
 
     DispatchDataFunc get_dispatch_data_func() const override {
-        static auto f = DISPATCH_DATA_FUNC(params, kd) {
+        static auto f = DISPATCH_DATA_FUNC(params, kd, rt_params) {
             if (params.input_layouts[0].is_static()) {
                 auto& wgs = kd.params.workGroups;
                 const auto desc = params.typed_desc<paged_attention>();
@@ -463,7 +469,7 @@ public:
     }
 
     DispatchDataFunc get_dispatch_data_func() const override {
-        static auto f = DISPATCH_DATA_FUNC(params, kd) {
+        static auto f = DISPATCH_DATA_FUNC(params, kd, rt_params) {
             if (params.input_layouts[0].is_static()) {
                 auto& wgs = kd.params.workGroups;
                 auto& scalars = kd.params.scalars;
@@ -523,7 +529,7 @@ public:
     }
 
     DispatchDataFunc get_dispatch_data_func() const override {
-        static auto f = DISPATCH_DATA_FUNC(params, kd) {
+        static auto f = DISPATCH_DATA_FUNC(params, kd, rt_params) {
             if (params.input_layouts[0].is_static()) {
                 auto& wgs = kd.params.workGroups;
                 auto& scalars = kd.params.scalars;
@@ -610,7 +616,7 @@ protected:
     }
 
     DispatchDataFunc get_dispatch_data_func() const override {
-        static auto f = DISPATCH_DATA_FUNC(params, kd) {
+        static auto f = DISPATCH_DATA_FUNC(params, kd, rt_params) {
             auto& wgs = kd.params.workGroups;
             auto& scalars = kd.params.scalars;
             scalars.resize(1);
@@ -690,7 +696,7 @@ protected:
     }
 
     DispatchDataFunc get_dispatch_data_func() const override {
-        static auto f = DISPATCH_DATA_FUNC(params, kd) {
+        static auto f = DISPATCH_DATA_FUNC(params, kd, rt_params) {
             auto& wgs = kd.params.workGroups;
 
             const auto desc = params.typed_desc<paged_attention>();
@@ -787,7 +793,7 @@ public:
     }
 
     DispatchDataFunc get_dispatch_data_func() const override {
-        static auto f = DISPATCH_DATA_FUNC(params, kd) {
+        static auto f = DISPATCH_DATA_FUNC(params, kd, rt_params) {
             auto& wgs = kd.params.workGroups;
             auto& scalars = kd.params.scalars;
 
@@ -833,6 +839,8 @@ public:
     static constexpr const size_t PA_SDPA_MULTI_TOKENS_FINALIZATION = 6;
     static constexpr const size_t PA_SDPA_SCORES_CALC = 7;
 
+    std::unique_ptr<PagedAttentionRuntimeParams> m_rt_params = nullptr;
+
     PagedAttentionOptImpl(const kernel_impl_params& params)
         : SDPAImplBase(PagedAttentionOpt::get_type_info_static()) {
         const auto desc = params.typed_desc<paged_attention>();
@@ -854,12 +862,21 @@ public:
             add_stage<PagedAttentionGeneratorScoresCalculation, PA_SDPA_SCORES_CALC>(params);
     }
 
+    void update_rt_params(const kernel_impl_params& params) {
+        if (m_rt_params == nullptr)
+            m_rt_params = std::make_unique<PagedAttentionRuntimeParams>();
+
+        m_rt_params->stage = get_paged_attention_stage(params);
+    }
+
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         const auto& params = *instance.get_impl_params();
         const auto desc = params.typed_desc<paged_attention>();
         const auto& head_size = desc->head_size;
         const bool has_scores_output = params.output_layouts.size() > 1;
         const bool has_rotated_blocks = desc->has_rotated_blocks;
+
+        // update_rt_params(params);
 
         const auto stage = get_paged_attention_stage(params);
         std::vector<event::ptr> res_event = {};
@@ -926,17 +943,17 @@ public:
         const auto desc = params.typed_desc<paged_attention>();
 
         const auto indexes_dt = ov::element::i32;
-        const auto target_seq_len_block_size = 16;
+        const int64_t target_seq_len_block_size = 16;
         auto stage = get_paged_attention_stage(params);
         int64_t paged_attention_aligned_seq_len = -1;
         if ((stage == PagedAttentionStage::PREFILL || stage == PagedAttentionStage::MIXED) && !params.is_dynamic()) {
             paged_attention_aligned_seq_len = get_aligned_seq_len(params, stage);
         }
-        const auto partition_size = get_partitioning_params(params, desc->head_size, stage).second;
-        const size_t num_of_partitions = ceil_div(paged_attention_aligned_seq_len, partition_size);
+        const int64_t partition_size = get_partitioning_params(params, desc->head_size, stage).second;
+        const int64_t num_of_partitions = ceil_div(paged_attention_aligned_seq_len, partition_size);
 
-        const auto target_seq_len = std::max(paged_attention_aligned_seq_len, static_cast<int64_t>(1));
-        const auto indexes_buf_size = ceil_div(target_seq_len, target_seq_len_block_size);
+        const int64_t target_seq_len = std::max(paged_attention_aligned_seq_len, static_cast<int64_t>(1));
+        const int64_t indexes_buf_size = ceil_div(target_seq_len, target_seq_len_block_size);
 
         layout indices_layout{ov::PartialShape{indexes_buf_size}, indexes_dt, format::bfyx};
 
@@ -945,15 +962,15 @@ public:
         layouts.push_back(indices_layout);
 
         const auto& input = params.input_layouts[0];
-        const size_t total_tokens = input.get_partial_shape()[0].get_length();
-        auto buf_elements_count = total_tokens * desc->heads_num * num_of_partitions;
-        auto tmp_out_elements_count = total_tokens * desc->heads_num * desc->head_size * num_of_partitions;
+        const int64_t total_tokens = input.get_partial_shape()[0].get_length();
+        auto buf_elements_count = static_cast<int64_t>(total_tokens * desc->heads_num * num_of_partitions);
+        auto tmp_out_elements_count = static_cast<int64_t>(total_tokens * desc->heads_num * desc->head_size * num_of_partitions);
 
         const bool has_scores_output = params.output_layouts.size() > 1;
         if (has_scores_output) {
             const auto& past_lens = params.input_layouts[5];
             auto subsequences_number = past_lens.get_partial_shape()[0].get_length();
-            auto softmax_buf_elements_count = subsequences_number * desc->heads_num * num_of_partitions * partition_size;
+            auto softmax_buf_elements_count = static_cast<int64_t>(subsequences_number * desc->heads_num * num_of_partitions * partition_size);
 
             // Softmax intermediate output
             layouts.push_back(layout{ov::PartialShape{softmax_buf_elements_count}, softmax_accumulator_type, format::bfyx});
@@ -995,6 +1012,7 @@ public:
         return lockable_ids;
     };
 
+    PagedAttentionOptImpl(const PagedAttentionOptImpl& other) : SDPAImplBase(other) {}
     std::unique_ptr<primitive_impl> clone() const override {
         return std::make_unique<PagedAttentionOptImpl>(*this);
     }

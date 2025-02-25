@@ -115,7 +115,7 @@ protected:
     }
 
     DispatchDataFunc get_dispatch_data_func() const override {
-        static auto f = DISPATCH_DATA_FUNC(params, kd) {
+        static auto f = DISPATCH_DATA_FUNC(params, kd, rt_params) {
             auto& wgs = kd.params.workGroups;
 
             if (!params.is_dynamic()) {
@@ -173,7 +173,7 @@ protected:
     }
 
     DispatchDataFunc get_dispatch_data_func() const override {
-        static auto f = DISPATCH_DATA_FUNC(params, kd) {
+        static auto f = DISPATCH_DATA_FUNC(params, kd, rt_params) {
             auto& wgs = kd.params.workGroups;
             if (!params.is_dynamic()) {
                 const auto& ol = params.output_layouts[0];
@@ -234,7 +234,7 @@ protected:
     }
 
     DispatchDataFunc get_dispatch_data_func() const override {
-        static auto f = DISPATCH_DATA_FUNC(params, kd) {
+        static auto f = DISPATCH_DATA_FUNC(params, kd, rt_params) {
             auto& wgs = kd.params.workGroups;
 
             if (!params.is_dynamic()) {

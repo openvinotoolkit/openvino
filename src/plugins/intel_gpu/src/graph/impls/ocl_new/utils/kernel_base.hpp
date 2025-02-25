@@ -8,6 +8,7 @@
 
 #include "primitive_db.h"
 #include "jitter.hpp"
+#include <cstddef>
 #include <string>
 
 namespace micro {
@@ -34,15 +35,26 @@ struct KernelCode {
 };
 
 struct KernelData;
+struct RuntimeParams { };
 
-using DispatchDataFunc = std::function<void(const kernel_impl_params&, KernelData&)>;
-#define DISPATCH_DATA_FUNC(params, kd, ...) [__VA_ARGS__](const kernel_impl_params& params, KernelData& kd)
+// using DispatchDataFunc = std::function<void(const kernel_impl_params&, KernelData&, RuntimeParams*)>;
+struct DispatchDataFunc {
+    std::function<void(const kernel_impl_params&, KernelData&, RuntimeParams*)> m_dispatch_data_func = nullptr;
+
+    template <typename Callable>
+    DispatchDataFunc(Callable&& func) : m_dispatch_data_func(std::forward<Callable>(func)) {}
+    explicit DispatchDataFunc(std::nullptr_t) {}
+
+    void operator()(const kernel_impl_params& params, KernelData& kd, RuntimeParams* rt_params = nullptr) { m_dispatch_data_func(params, kd, rt_params); }
+};
+
+#define DISPATCH_DATA_FUNC(params, kd, rt_params, ...) [__VA_ARGS__](const kernel_impl_params& params, KernelData& kd, RuntimeParams* rt_params)
 
 struct KernelData {
     KernelCode code;
     KernelParams params;
     std::vector<std::shared_ptr<micro::MicroKernelPackage>> micro_kernels;
-    DispatchDataFunc update_dispatch_data_func = nullptr;
+    DispatchDataFunc update_dispatch_data_func{nullptr};
     WeightsReorderParams weights_reorder_params;
 };
 

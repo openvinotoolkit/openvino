@@ -158,7 +158,7 @@ protected:
             // stream.set_arguments(*_kernels[stage], _kernels_data[stage].params, args);
             // TODO: Can we call update dispatch data here for required kernels only?
             // Seems that it may conflict with fake alignment as get_impl_params stores not fake aligned data
-            // params.workGroups = _kernels_data[stage].update_dispatch_data_func(*instance.get_impl_params()).work_groups;
+            // _kernels_data[stage].update_dispatch_data_func(*instance.get_impl_params(), _kernels_data[stage]);
         // }
 
         const auto& gws = params.workGroups.global;
