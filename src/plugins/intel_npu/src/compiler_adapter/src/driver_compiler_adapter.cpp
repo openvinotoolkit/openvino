@@ -567,9 +567,8 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
         std::ostringstream dqstr;
         dqstr << ov::intel_npu::batch_compiler_mode_settings.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
               << VALUE_DELIMITER;
-        logger.warning(
-            "BATCH_COMPILER_MODE_SETTINGS property is not supported by this compiler version. Removing from "
-            "parameters");
+        logger.warning("BATCH_COMPILER_MODE_SETTINGS property is not supported by this compiler version. Removing from "
+                       "parameters");
         content = std::regex_replace(content, std::regex(dqstr.str()), "");
     }
 
