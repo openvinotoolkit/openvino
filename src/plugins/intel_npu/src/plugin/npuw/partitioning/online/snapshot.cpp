@@ -353,9 +353,87 @@ void Snapshot::fuseInputs() {
     LOG_INFO("DONE");
 }
 
+void Snapshot::stripNonComputeForBlocks() {
+    LOG_INFO("Online partitioning: executing stripNonComputeForBlocks pass...");
+    LOG_BLOCK();
+
+    // Iterate over groups and drop all non-"compute" tag between 2 "compute" tags.
+    // This way we only preserve non-"compute" tags in head and tail.
+    // It's done for markInternalCompute pass to work properly.
+    for (const auto& nh : m_graph->sorted()) {
+        Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
+        if (group->isolatedTag().empty() || group->isolatedTag() == "compute") {
+            continue;
+        }
+        bool prod_compute = false;
+        bool cons_compute = false;
+        // Recursively parse producers
+        std::vector<Group::GPtr> prods;
+        for (const auto& prod_nh : group->srcNodes()) {
+            Group::GPtr group_prod = m_graph->meta(prod_nh).get<Group::GPtr>();
+            prods.push_back(group_prod);
+        }
+        while (!prods.empty()) {
+            std::vector<Group::GPtr> new_prods;
+            for (const auto& prod_gptr : prods) {
+                if (prod_gptr->isolatedTag() == "compute") {
+                    prod_compute = true;
+                    break;
+                }
+                for (const auto& prod_nh : prod_gptr->srcNodes()) {
+                    Group::GPtr group_prod = m_graph->meta(prod_nh).get<Group::GPtr>();
+                    new_prods.push_back(group_prod);
+                }
+            }
+            if (prod_compute) {
+                prods.clear();
+                break;
+            } else {
+                prods.clear();
+                std::swap(prods, new_prods);
+            }
+        }
+
+        // Recursively parse consumers
+        std::vector<Group::GPtr> conss;
+        for (const auto& cons_nh : group->dstNodes()) {
+            Group::GPtr group_cons = m_graph->meta(cons_nh).get<Group::GPtr>();
+            conss.push_back(group_cons);
+        }
+        while (!conss.empty()) {
+            std::vector<Group::GPtr> new_conss;
+            for (const auto& cons_gptr : conss) {
+                if (cons_gptr->isolatedTag() == "compute") {
+                    cons_compute = true;
+                    break;
+                }
+                for (const auto& cons_nh : cons_gptr->dstNodes()) {
+                    Group::GPtr group_cons = m_graph->meta(cons_nh).get<Group::GPtr>();
+                    new_conss.push_back(group_cons);
+                }
+            }
+            if (cons_compute) {
+                conss.clear();
+                break;
+            } else {
+                conss.clear();
+                std::swap(conss, new_conss);
+            }
+        }
+
+        if (prod_compute && cons_compute) {
+            group->dontIsolate();
+        }
+    }
+
+    LOG_INFO("DONE");
+}
+
 void Snapshot::markInternalCompute() {
     LOG_INFO("Online partitioning: executing markInternalCompute pass...");
     LOG_BLOCK();
+
+    stripNonComputeForBlocks();
 
     // iterate it topological order
     for (const auto& nh : m_graph->sorted()) {

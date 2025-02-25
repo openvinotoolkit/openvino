@@ -28,8 +28,8 @@ static const std::map<std::string, std::string> ISOL_PRESETS = {{"COMPUTE",
                                                                  "P:DQMatMulConv/compute,"
                                                                  "P:VocabMatMul/compute,"
                                                                  "P:RMSNorm/compute,P:RMSNorm2/compute,"
-                                                                 "P:VariadicSplit/compute,"
-                                                                 "P:FakeConvert/compute,P:FakeQuantize/compute"}};
+                                                                 "P:VariadicSplit/compute"},
+                                                                {"FAKE", "P:FakeConvert/fake,P:FakeQuantize/fake"}};
 }
 
 // For missing declaration warning
@@ -418,6 +418,9 @@ public:
             // NB: We ignore NO_FOLD everywhere except pipeline COMPUTE - this needs
             // to be aligned in the future
             ctx.isolates = detail::getIsolates(detail::ISOL_PRESETS.at("COMPUTE"));
+            for (const auto& isol : detail::getIsolates(detail::ISOL_PRESETS.at("FAKE"))) {
+                ctx.isolates.push_back(isol);
+            }
             m_snapshot->setCtx(ctx);
             reg();
             break;
@@ -428,6 +431,9 @@ public:
             // Manually set predefined isolates and nofolds then do rep() pipeline
             // FIXME: initialize via a dedicated function instead of parsing
             ctx.isolates = detail::getIsolates(detail::ISOL_PRESETS.at("COMPUTE"));
+            for (const auto& isol : detail::getIsolates(detail::ISOL_PRESETS.at("FAKE"))) {
+                ctx.isolates.push_back(isol);
+            }
             ctx.nofolds = detail::getNoFolds("compute");
             m_snapshot->setCtx(ctx);
             rep();
@@ -439,6 +445,9 @@ public:
             // Manually set predefined isolates and nofolds then do rep() pipeline
             // FIXME: initialize via a dedicated function instead of parsing
             ctx.isolates = detail::getIsolates(detail::ISOL_PRESETS.at("COMPUTE"));
+            for (const auto& isol : detail::getIsolates(detail::ISOL_PRESETS.at("FAKE"))) {
+                ctx.isolates.push_back(isol);
+            }
             m_snapshot->setCtx(ctx);
             rep();
             break;
@@ -449,7 +458,7 @@ public:
         for (const auto& nh : graph->sorted()) {
             LOG_BLOCK();
             Group::GPtr group = graph->meta(nh).get<Group::GPtr>();
-            LOG_DEBUG("Group " << group->getId() << ", size " << group->size());
+            LOG_DEBUG("Group " << group->getId() << ", size " << group->size() << ", tag " << group->specialTags());
         }
 
         LOG_INFO("Done");
