@@ -459,6 +459,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                                                                                                          postOps,
                                                                                                          memory,
                                                                                                          context,
+                                                                                                         false,
                                                                                                          true);
             })
     };
