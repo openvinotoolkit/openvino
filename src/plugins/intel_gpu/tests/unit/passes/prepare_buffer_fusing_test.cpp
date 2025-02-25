@@ -1550,12 +1550,12 @@ TEST(prepare_buffer_fusing, redundant_reorder_permute) {
 
     auto& engine = get_test_engine();
 
-    auto in_layout = layout{ ov::PartialShape{1, 2, 3, 5}, data_types::f16, format::bfxy };
+    auto in_layout = layout{ ov::PartialShape{1, 2, 3, 5}, data_types::f16, format::byfx };
 
     topology topology;
     topology.add(input_layout("input", in_layout));
     topology.add(reorder("reorder", input_info("input"), format::bfyx, data_types::f16));
-    topology.add(permute("permute", input_info("reorder"), {0, 1, 3, 2}));
+    topology.add(permute("permute", input_info("reorder"), {0, 2, 1, 3}));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));

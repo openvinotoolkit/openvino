@@ -999,27 +999,25 @@ void prepare_buffer_fusing::run(program& p) {
             GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << node.id() << " can be optimized = " << node.can_be_optimized() << std::endl;
         });
         program_helpers::do_for_types<reorder>(*node, [](reorder_node& node) {
-            // Allow optimization of reorder -> permute patterns where permute cancels changes made by the reorder
+            // Allow optimization of reorder -> permute if input dimension order is same as the permute order
             auto &users = node.get_users();
             if (users.size() != 1 || !users.front()->is_type<permute>()) {
                 return;
             }
             auto &permute_node = users.front()->as<permute>();
 
-            auto in_order = node.get_input_layout(0).get_dims_order();
-            auto order = node.get_output_layout(0).get_dims_order();
-            auto permute_order = permute_node.get_permute_order();
-            if (order.size() != permute_order.size() || order.size() != in_order.size()) {
+            auto &input_layout = node.get_input_layout(0);
+            if (!format::is_simple_data_format(input_layout.format)) {
                 return;
             }
-            // Check if permute cancels reorder changes
+
+            auto input_order = input_layout.get_dims_order();
+            auto permute_order = permute_node.get_permute_order();
+            if (input_order.size() != permute_order.size()) {
+                return;
+            }
             for (size_t i = 0; i < permute_order.size(); i++) {
-                auto idx = permute_order[i];
-                if (idx >= order.size()) {
-                    // Invalid index
-                    return;
-                }
-                if (order[idx] != in_order[i]) {
+                if (permute_order[i] != input_order[i]) {
                     return;
                 }
             }
