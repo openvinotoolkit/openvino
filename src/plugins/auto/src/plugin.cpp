@@ -308,10 +308,6 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
                                                    ? m_plugin_config.parse_priorities_devices(
                                                          arguments.at(ov::device::priorities.name()).as<std::string>())
                                                    : get_core()->get_available_devices();
-        bool if_checking_support_cache = arguments.count(ov::device::capabilities.name())
-                                             ? arguments.at(ov::device::capabilities.name()).as<std::string>() ==
-                                                   ov::device::capability::EXPORT_IMPORT
-                                             : false;
         std::vector<std::string> capabilities;
         for (auto const& device : device_list) {
             if (device[0] == '-')
@@ -319,15 +315,6 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
             try {
                 auto dev_capabilities = get_core()->get_property(device, ov::device::capabilities);
                 capabilities.insert(capabilities.end(), dev_capabilities.begin(), dev_capabilities.end());
-                if (if_checking_support_cache &&
-                    std::find(dev_capabilities.begin(),
-                              dev_capabilities.end(),
-                              ov::device::capability::EXPORT_IMPORT) != dev_capabilities.end()) {
-                    // Return the capabilities of the first device that supports caching if Core is checking for caching
-                    // capability
-                    LOG_DEBUG_TAG("Got caching capability for device: ", device.c_str());
-                    break;
-                }
             } catch (const ov::Exception&) {
                 LOG_DEBUG_TAG("Failed to get capabilities for device: ", device.c_str());
             }
