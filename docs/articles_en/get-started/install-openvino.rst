@@ -26,8 +26,9 @@ Install OpenVINO™ 2024.6
 OpenVINO 2024.6, described here, is not a Long-Term-Support version!
 All currently supported versions are:
 
-* 2024.6 (development)
-* 2023.3 (LTS)
+* 2025.X (development)
+* 2024.6 (maintenance)
+* 2023.3 (LTS), it will be deprecated at the end of 2025.
 
 
 .. dropdown:: Effortless GenAI integration with OpenVINO GenAI Flavor
