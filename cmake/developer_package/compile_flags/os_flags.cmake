@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+include(compile_flags/functions)
+
 #
 # Compilation and linker flags
 #
