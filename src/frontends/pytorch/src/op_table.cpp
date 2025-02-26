@@ -798,6 +798,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.all.default", op::translate_all},
         {"aten.amax.default", op::translate_amax},
         {"aten.amin.default", op::translate_amin},
+        {"aten.angle.default", common_translators::translate_angle},
         {"aten.any.default", op::translate_any_fx},
         {"aten.any.dim", op::translate_any_fx},
         {"aten.any.dims", op::translate_any_fx},
