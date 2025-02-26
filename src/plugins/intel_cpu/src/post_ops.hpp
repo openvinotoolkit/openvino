@@ -12,6 +12,7 @@
 #include "cpu_types.h"
 #include "node.h"
 #include "nodes/executors/executor.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
 
@@ -228,7 +229,10 @@ private:
 };
 
 struct SumPostOp : PostOp {
-    SumPostOp(float scale, int32_t zero_point) : m_scale(scale), m_zero_point(zero_point) {}
+    SumPostOp(float scale, int32_t zero_point, ov::element::Type_t dataType)
+        : m_scale(scale),
+          m_zero_point(zero_point),
+          m_dataType(dataType) {}
 
     float scale() const {
         return m_scale;
@@ -238,9 +242,14 @@ struct SumPostOp : PostOp {
         return m_zero_point;
     }
 
+    ov::element::Type_t dataType() const {
+        return m_dataType;
+    }
+
 private:
     float m_scale;
     int32_t m_zero_point;
+    ov::element::Type_t m_dataType;
 };
 
 enum class EltwiseKind : uint8_t {
@@ -261,5 +270,5 @@ Algorithm convertToEltwiseAlgorithm(const ActivationPostOp::Type m_type);
 
 FakeQuantizePostOp::Type convertToFqPostOp(const Algorithm alg);
 
-PostOps getPostOps(const std::vector<NodePtr>& fused);
+PostOps getPostOps(const std::vector<NodePtr>& fused, ov::element::Type_t sumDataType = ov::element::dynamic);
 }  // namespace ov::intel_cpu

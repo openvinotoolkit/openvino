@@ -9,11 +9,8 @@
 #include <cstddef>
 #include <utility>
 
-#include "convolution_shape_inference_util.hpp"
 #include "cpu_types.h"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "shape_inference/static_dimension.hpp"
-#include "utils.hpp"
 
 namespace ov::intel_cpu::node {
 

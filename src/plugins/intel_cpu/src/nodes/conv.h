@@ -9,6 +9,7 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_factory.hpp"
 #include "oneapi/dnnl/dnnl.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -81,7 +82,8 @@ private:
     using FusedSubgraphPtr = std::shared_ptr<FusedSubgraph>;
     using executorPtr = std::shared_ptr<DnnlExecutor>;
 
-    std::tuple<VecMemoryDescs, VecMemoryDescs> initMemoryDescriptors() const;
+    std::tuple<ov::element::Type, ov::element::Type> getDstAndSumPrecision();
+    std::tuple<VecMemoryDescs, MemoryDescPtr> initMemoryDescriptors(ov::element::Type dstType) const;
     ExecutorFactoryPtr<ConvAttrs> createExecutorFactory(const MemoryDescArgs& descs,
                                                         const ConvAttrs& attrs,
                                                         const PostOps& postOps);

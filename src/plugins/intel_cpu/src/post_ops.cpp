@@ -11,6 +11,7 @@
 #include "nodes/conv.h"
 #include "nodes/eltwise.h"
 #include "nodes/fake_quantize.h"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
 
@@ -169,7 +170,7 @@ Algorithm convertToEltwiseAlgorithm(const ActivationPostOp::Type type) {
     OPENVINO_THROW("Unsupported algorithm");
 }
 
-PostOps getPostOps(const std::vector<NodePtr>& fused) {
+PostOps getPostOps(const std::vector<NodePtr>& fused, ov::element::Type_t sumDataType) {
     PostOps ops;
 
     auto makeActivationPostOp = [](const std::shared_ptr<node::Eltwise>& eltwise) {
@@ -185,8 +186,9 @@ PostOps getPostOps(const std::vector<NodePtr>& fused) {
                                                   eltwise->getShifts());
     };
 
-    auto makeSumPostOp = [](const std::shared_ptr<node::Eltwise>& eltwise) {
-        return std::make_shared<SumPostOp>(1.f, 0);
+    auto makeSumPostOp = [&](const std::shared_ptr<node::Eltwise>& eltwise) {
+        OPENVINO_ASSERT(sumDataType != ov::element::dynamic, "Sum data type is not defined");
+        return std::make_shared<SumPostOp>(1.0, 0, sumDataType);
     };
 
     for (const auto& node : fused) {

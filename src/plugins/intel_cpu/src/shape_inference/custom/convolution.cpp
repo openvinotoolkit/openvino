@@ -5,12 +5,8 @@
 #include "convolution.hpp"
 
 #include "openvino/core/type.hpp"
-#include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/util/attr_types.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "shape_inference/shape_inference.hpp"
-#include "utils.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -100,9 +96,9 @@ ShapeInferPtr ConvolutionShapeInferFactory::makeShapeInfer() const {
             convolution->get_pads_end(),
             one_of(convolution->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER),
             is_grouped);
-    } else {
-        OPENVINO_THROW("Unexpected operation type in the Convolution shape inference factory");
     }
+
+    OPENVINO_THROW("Unexpected operation type in the Convolution shape inference factory");
 }
 
 }  // namespace ov::intel_cpu::node

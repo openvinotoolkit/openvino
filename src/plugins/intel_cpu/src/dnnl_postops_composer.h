@@ -62,7 +62,7 @@ private:
     void appendAttrPostOpsLegacy(const FakeQuantizePostOp& postOp);
     void appendBinary(const dnnl::algorithm alg, const std::vector<float>& data);
     void appendEltwise(const dnnl::algorithm alg, float alpha, float beta);
-    void appendSum(float scale, int32_t zeroPoint);
+    void appendSum(float scale, int32_t zeroPoint, ov::element::Type dataType);
     void appendRoundHTE();
     bool appendScale(const std::vector<float>& scale, bool isLastPostOp, bool allowBinary = true);
     bool appendShift(const std::vector<float>& shift, bool allowBinary = true);
