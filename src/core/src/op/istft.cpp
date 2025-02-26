@@ -10,14 +10,12 @@
 #include "itt.hpp"
 #include "openvino/reference/istft.hpp"
 
-namespace ov {
-namespace op {
-namespace v16 {
+namespace ov::op::v16 {
 namespace {
-void check_int_input_at(const Node* op, size_t input_idx) {
-    const auto& in_type = op->get_input_element_type(input_idx);
+void check_int_input_at(const Node* op, size_t port) {
+    const auto& in_type = op->get_input_element_type(port);
     const auto has_valid_type = in_type.is_dynamic() || in_type == element::i32 || in_type == element::i64;
-    NODE_VALIDATION_CHECK(op, has_valid_type, "Expected i32 or i64 type of the input at port: ", input_idx);
+    NODE_VALIDATION_CHECK(op, has_valid_type, "Expected i32 or i64 type of the input at port: ", port);
 }
 }  // namespace
 ISTFT::ISTFT(const Output<Node>& data,
@@ -76,8 +74,8 @@ bool ISTFT::visit_attributes(AttributeVisitor& visitor) {
 void ISTFT::validate_and_infer_types() {
     OV_OP_SCOPE(v16_ISTFT_validate_and_infer_types);
     const auto input_size = get_input_size();
-    const auto is_in_count_correct = input_size == 4 || input_size == 5;
-    NODE_VALIDATION_CHECK(this, is_in_count_correct, "Expected 4 or 5 inputs to be provided.");
+    const auto is_input_count_correct = input_size == 4 || input_size == 5;
+    NODE_VALIDATION_CHECK(this, is_input_count_correct, "Expected 4 or 5 inputs to be provided.");
 
     auto data_type = get_input_element_type(0);
     const auto& window_type = get_input_element_type(1);
@@ -91,10 +89,8 @@ void ISTFT::validate_and_infer_types() {
                           has_valid_window_type,
                           "Expected floating point type of the 'window' input, matching the type of `data` input.");
 
-    check_int_input_at(this, 2);
-    check_int_input_at(this, 3);
-    if (input_size == 5) {
-        check_int_input_at(this, 4);
+    for (size_t port = 2; port < input_size; ++port) {
+        check_int_input_at(this, port);
     }
 
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
@@ -118,46 +114,4 @@ bool ISTFT::get_normalized() const {
     return m_normalized;
 }
 
-void ISTFT::set_normalized(const bool normalized) {
-    OV_OP_SCOPE(v16_ISTFT_set_normalized);
-    m_normalized = normalized;
-}
-
-bool ISTFT::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
-    OV_OP_SCOPE(v16_ISTFT_evaluate);
-    OPENVINO_ASSERT(outputs.size() == 1);
-
-    const auto input_shapes = ov::util::get_tensors_partial_shapes(inputs);
-    const auto output_shape = shape_infer(this, input_shapes, make_tensor_accessor(inputs)).front().to_shape();
-
-    outputs[0].set_shape(output_shape);
-
-    const auto frame_size = ov::get_tensor_data_as<int64_t>(inputs[2]).front();
-    const auto frame_step = ov::get_tensor_data_as<int64_t>(inputs[3]).front();
-    int64_t length = -1;
-    if (inputs.size() == 5) {
-        length = ov::get_tensor_data_as<int64_t>(inputs[4]).front();
-    }
-
-    ov::reference::istft(inputs[0].data<const float>(),
-                         inputs[1].data<const float>(),
-                         outputs[0].data<float>(),
-                         inputs[0].get_shape(),
-                         inputs[1].get_shape(),
-                         frame_size,
-                         frame_step,
-                         length,
-                         m_center,
-                         m_normalized);
-    return true;
-}
-
-bool ISTFT::has_evaluate() const {
-    OV_OP_SCOPE(v16_ISTFT_has_evaluate);
-    const auto& input_0_et = get_input_element_type(0);
-    return input_0_et == element::f32;
-}
-
-}  // namespace v16
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::op::v16

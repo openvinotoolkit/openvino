@@ -10,14 +10,15 @@
 #include "openvino/op/parameter.hpp"
 #include "visitors/visitors.hpp"
 
-namespace ov {
-namespace test {
+namespace ov::test {
+using op::v0::Parameter, op::v0::Constant;
+
 TEST(attributes, istft) {
     NodeBuilder::opset().insert<ov::op::v16::ISTFT>();
-    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{9, 9, 3});
-    const auto window = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{16});
-    const auto frame_size = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {}, {16});
-    const auto step_size = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {}, {4});
+    const auto data = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{9, 9, 3});
+    const auto window = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{16});
+    const auto frame_size = Constant::create<int32_t>(ov::element::i32, {}, {16});
+    const auto step_size = Constant::create<int32_t>(ov::element::i32, {}, {4});
 
     constexpr bool center = true;
     constexpr bool normalized = true;
@@ -34,11 +35,11 @@ TEST(attributes, istft) {
 
 TEST(attributes, istft_with_length) {
     NodeBuilder::opset().insert<ov::op::v16::ISTFT>();
-    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{9, 9, 3});
-    const auto window = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{16});
-    const auto frame_size = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {}, {16});
-    const auto step_size = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {}, {4});
-    const auto signal_length = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {}, {42});
+    const auto data = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{9, 9, 3});
+    const auto window = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{16});
+    const auto frame_size = Constant::create<int32_t>(ov::element::i32, {}, {16});
+    const auto step_size = Constant::create<int32_t>(ov::element::i32, {}, {4});
+    const auto signal_length = Constant::create<int32_t>(ov::element::i32, {}, {42});
 
     constexpr bool center = true;
     constexpr bool normalized = true;
@@ -53,6 +54,4 @@ TEST(attributes, istft_with_length) {
     EXPECT_EQ(op->get_center(), g_op->get_center());
     EXPECT_EQ(op->get_normalized(), g_op->get_normalized());
 }
-
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test

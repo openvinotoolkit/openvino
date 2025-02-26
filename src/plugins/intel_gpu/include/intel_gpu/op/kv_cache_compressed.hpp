@@ -24,7 +24,7 @@ public:
                       int64_t concat_axis,
                       int64_t gather_axis,
                       const QuantizationAttrs& quantization_attrs,
-                      const ov::element::Type output_type = ov::element::undefined);
+                      const ov::element::Type output_type = ov::element::dynamic);
 
     void validate_and_infer_types() override;
 

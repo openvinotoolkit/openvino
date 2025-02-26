@@ -8,9 +8,7 @@
 #include "openvino/op/istft.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace op {
-namespace v16 {
+namespace ov::op::v16 {
 template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const ISTFT* op,
                                  const std::vector<TShape>& input_shapes,
@@ -53,9 +51,8 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                0 < frame_size_val,
-                               "Provided frame size is ",
-                               frame_size_val,
-                               " but must be greater than zero.");
+                               "Provided frame size must be greater than zero, but got: ",
+                               frame_size_val);
         const bool is_win_shape_correct =
             window_shape.is_dynamic() || (TDimVal{0} < window_shape[0].get_length() &&
                                           window_shape[0].get_length() <= static_cast<TDimVal>(frame_size_val));
@@ -66,6 +63,15 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
                                "Window input dimension must be in range [1, ",
                                frame_size_val,
                                "].");
+
+        if (data_shape.is_static()) {
+            const auto& in_fft_dim = data_shape[data_shape.size() - 3];
+            const auto expected_fft_dim = TDim(frame_size_val / 2 + 1);
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   in_fft_dim.compatible(expected_fft_dim),
+                                   "The dimension at data_shape[-3] must be equal to: (frame_size // 2 + 1) ");
+        }
     }
 
     if (frame_step) {
@@ -73,9 +79,8 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                0 < frame_step_val,
-                               "Provided frame step is ",
-                               frame_step_val,
-                               " but must be greater than zero.");
+                               "Provided frame step must be greater than zero, but got: ",
+                               frame_step_val);
     }
 
     // For the input with dynamic rank, output shape is also fully dynamic
@@ -84,11 +89,13 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
     }
     const auto is_data_3D = data_shape.size() == 3;
 
-    std::vector<TRShape> output_shapes;
+    // Init output shape with dynamic dimension and update if more info can be inferred
+    std::vector<TRShape> output_shapes{TRShape{TDim(ov::util::dim::inf_bound)}};
     if (inputs_count == 5) {
         const auto& length_shape = input_shapes[4];
         const bool has_len_valid_shape =
-            length_shape.rank().is_dynamic() || (length_shape.size() == 0 || length_shape[0].compatible(1));
+            length_shape.rank().is_dynamic() ||
+            (length_shape.size() == 0 || (length_shape.size() == 1 && length_shape[0].compatible(1)));
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                has_len_valid_shape,
@@ -96,9 +103,7 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
 
         const auto sig_len_in = get_input_const_data_as_shape<TRShape>(op, 4, ta);
         if (sig_len_in) {  // Set desired length of the signal dimension, if provided
-            output_shapes.emplace_back(TRShape{(*sig_len_in)[0]});
-        } else {
-            output_shapes.emplace_back(TRShape{TDim(ov::util::dim::inf_bound)});
+            output_shapes[0][0] = TDim{(*sig_len_in)[0]};
         }
     } else if (frame_size && frame_step) {  // Otherwise infer the length of the signal
         const auto& frame_size_val = (*frame_size)[0];
@@ -110,9 +115,7 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
         if (!op->get_center()) {
             signal_length += frame_size_val;
         }
-        output_shapes.emplace_back(TRShape{std::move(signal_length)});
-    } else {  // Not enough info to infer the signal lenght, set dynamic dimension
-        output_shapes.emplace_back(TRShape{TDim(ov::util::dim::inf_bound)});
+        output_shapes[0][0] = std::move(signal_length);
     }
 
     if (!is_data_3D) {  // Copy batch dimension
@@ -122,6 +125,4 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
 
     return output_shapes;
 }
-}  // namespace v16
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::op::v16

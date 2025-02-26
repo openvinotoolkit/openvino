@@ -6,9 +6,7 @@
 
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace op {
-namespace v16 {
+namespace ov::op::v16 {
 /// \brief An operation ISTFT that computes the Inverse Short Time Fourier Transform.
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ISTFT : public Op {
@@ -34,7 +32,7 @@ public:
     /// \brief Constructs an ISTFT operation with signal length provided
     ///
     /// \param data  Input data
-    /// \param window Window values applied in STFT
+    /// \param window Window values applied in ISTFT
     /// \param frame_size Scalar value representing the size of Fourier Transform
     /// \param frame_step The distance (number of samples) between successive window frames
     /// \param signal_length The signal length of the original signal
@@ -56,15 +54,9 @@ public:
     void set_center(const bool center);
 
     bool get_normalized() const;
-    void set_normalized(const bool normalized);
-
-    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
-    bool has_evaluate() const override;
 
 private:
     bool m_center = false;
     bool m_normalized = false;
 };
-}  // namespace v16
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::op::v16

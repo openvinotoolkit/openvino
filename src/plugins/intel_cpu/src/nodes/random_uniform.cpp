@@ -8,9 +8,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/random_uniform.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 // Following const values are taken from the original paper:
 // https://www.thesalmons.org/john/random123/papers/random123sc11.pdf
@@ -41,7 +39,7 @@ RandomUniform::RandomUniform(const std::shared_ptr<ov::Node>& op, const GraphCon
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        THROW_CPU_NODE_ERR(errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     // RandomUniform should generate new sequence each run even if all inputs are constants. So that method
@@ -192,8 +190,9 @@ std::string RandomUniform::getPrimitiveDescriptorType() const {
     std::string str_type;
 
     auto add_type = [&](const std::string& t) {
-        if (!str_type.empty() && t.c_str()[0] != '_')
+        if (!str_type.empty() && t.c_str()[0] != '_') {
             str_type += "_";
+        }
         str_type += t;
     };
 
@@ -212,15 +211,16 @@ std::string RandomUniform::getPrimitiveDescriptorType() const {
 
 #undef SEARCH_TYPE
 
-    if (type == impl_desc_type::unknown)
+    if (type == impl_desc_type::unknown) {
         str_type = "unknown";
-    else if (str_type.empty())
+    } else if (str_type.empty()) {
         str_type = "undef";
+    }
 
     if (selectedPrimitiveDesc) {
         if (selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision() != ov::element::u8) {
             str_type +=
-                "_" + std::string(
+                "_" + static_cast<std::string>(
                           selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision().get_type_name());
         } else {
             str_type += "_I8";
@@ -232,6 +232,10 @@ std::string RandomUniform::getPrimitiveDescriptorType() const {
 
 bool RandomUniform::needShapeInfer() const {
     return !m_const_inputs[SHAPE];
+}
+
+bool RandomUniform::neverExecute() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(SHAPE);
 }
 
 bool RandomUniform::isExecutable() const {
@@ -651,8 +655,8 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
                                         float* out,
                                         int64_t elements_remaining,
                                         bool optimization_enabled) {
-    const auto mask = static_cast<uint32_t>((uint64_t(1) << std::numeric_limits<float>::digits) - 1);
-    const auto divisor = static_cast<float>(1) / (uint64_t(1) << std::numeric_limits<float>::digits);
+    const auto mask = static_cast<uint32_t>((static_cast<uint64_t>(1) << std::numeric_limits<float>::digits) - 1);
+    const auto divisor = static_cast<float>(1) / (static_cast<uint64_t>(1) << std::numeric_limits<float>::digits);
 
     out[0] = static_cast<float>((in1 & mask) * divisor) * range + min;
     if (elements_remaining >= 2l) {
@@ -667,8 +671,8 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
                                         float16* out,
                                         int64_t elements_remaining,
                                         bool optimization_enabled) {
-    const auto mask = static_cast<uint32_t>((uint64_t(1) << std::numeric_limits<float16>::digits) - 1);
-    const auto divisor = static_cast<float>(1) / (uint64_t(1) << std::numeric_limits<float16>::digits);
+    const auto mask = static_cast<uint32_t>((static_cast<uint64_t>(1) << std::numeric_limits<float16>::digits) - 1);
+    const auto divisor = static_cast<float>(1) / (static_cast<uint64_t>(1) << std::numeric_limits<float16>::digits);
 
     out[0] = static_cast<float>((in1 & mask) * divisor) * range + min;
     if (elements_remaining >= 2l) {
@@ -878,6 +882,4 @@ void RandomUniform::computeStl(void* out, size_t work_amount) {
 
 //////////////////////////////////
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

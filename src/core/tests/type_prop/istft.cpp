@@ -12,8 +12,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
 
-namespace ov {
-namespace test {
+namespace ov::test {
 
 using op::v0::Constant;
 using op::v0::Parameter;
@@ -177,7 +176,7 @@ TEST_P(TypePropISTFTTestP, istft_shapes) {
     EXPECT_EQ(op->get_output_partial_shape(0), signal_shape);
 }
 
-TEST_F(TypePropISTFTTest, istft_shape_length_const_out_1D) {
+TEST_F(TypePropISTFTTest, shape_length_const_out_1D) {
     const auto in_data = std::make_shared<Parameter>(element::f32, PartialShape{6, 13, 2});
     const auto window = std::make_shared<Parameter>(element::f32, PartialShape{7});
     const auto frame_size = Constant::create<int32_t>(element::i32, {}, {11});
@@ -190,7 +189,7 @@ TEST_F(TypePropISTFTTest, istft_shape_length_const_out_1D) {
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{36}));
 }
 
-TEST_F(TypePropISTFTTest, istft_shape_length_const_out_2D) {
+TEST_F(TypePropISTFTTest, shape_length_const_out_2D) {
     const auto in_data = std::make_shared<Parameter>(element::f32, PartialShape{4, 6, 13, 2});
     const auto window = std::make_shared<Parameter>(element::f32, PartialShape{7});
     const auto frame_size = Constant::create<int32_t>(element::i32, {}, {11});
@@ -203,7 +202,7 @@ TEST_F(TypePropISTFTTest, istft_shape_length_const_out_2D) {
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{4, 36}));
 }
 
-TEST_F(TypePropISTFTTest, istft_shape_of_length_out_2D_with_symbols) {
+TEST_F(TypePropISTFTTest, shape_of_length_out_2D_with_symbols) {
     auto marked_signal = Dimension(36);
     auto symbol_s = std::make_shared<Symbol>();
     marked_signal.set_symbol(symbol_s);
@@ -310,13 +309,6 @@ TEST_F(TypePropISTFTTest, signal_length_incompatible_shape) {
     const auto frame_step = std::make_shared<Parameter>(element::i64, PartialShape{});
     const auto frame_size = std::make_shared<Parameter>(element::i64, PartialShape{});
     {
-        const auto signal_length = std::make_shared<Parameter>(element::i64, PartialShape{2});
-        OV_EXPECT_THROW(
-            std::ignore = make_op(in_data, window, frame_size, frame_step, signal_length, center, normalized),
-            NodeValidationFailure,
-            HasSubstr("The shape of 'signal_length' input must be a scalar or single element 1D tensor"));
-    }
-    {
         const auto signal_length = std::make_shared<Parameter>(element::i64, PartialShape{1, 2});
         OV_EXPECT_THROW(
             std::ignore = make_op(in_data, window, frame_size, frame_step, signal_length, center, normalized),
@@ -409,14 +401,27 @@ TEST_F(TypePropISTFTTest, frame_step_incompatible_type) {
 }
 
 TEST_F(TypePropISTFTTest, frame_step_incompatible_value) {
-    const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{9, 9, 2});
+    const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{9, 3, 2});
     const auto window = std::make_shared<Parameter>(element::f32, PartialShape{8});
-    const auto frame_size = Constant::create<int32_t>(element::i32, {}, {8});
+    const auto frame_size = Constant::create<int32_t>(element::i32, {}, {16});
     {
         const auto frame_step = Constant::create<int32_t>(element::i32, {}, {-1});
         OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, center, normalized),
                         NodeValidationFailure,
-                        HasSubstr("Provided frame step is -1 but must be greater than zero"));
+                        HasSubstr("Provided frame step must be greater than zero, but got: -1"));
+    }
+}
+
+TEST_F(TypePropISTFTTest, frame_size_incompatible_value) {
+    const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{9, 9, 2});
+    const auto window = std::make_shared<Parameter>(element::f32, PartialShape{8});
+    const auto frame_step = Constant::create<int32_t>(element::i32, {}, {3});
+
+    {
+        const auto frame_size = Constant::create<int32_t>(element::i32, {}, {-1});
+        OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, center, normalized),
+                        NodeValidationFailure,
+                        HasSubstr("Provided frame size must be greater than zero, but got: -1"));
     }
 }
 
@@ -430,5 +435,14 @@ TEST_F(TypePropISTFTTest, window_incompatible_dim_with_frame_size) {
                     HasSubstr("Window input dimension must be in range [1, 8]"));
 }
 
-}  // namespace test
-}  // namespace ov
+TEST_F(TypePropISTFTTest, data_shape_incompatible_dim_with_frame_size) {
+    const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{9, 3, 2});
+    const auto window = std::make_shared<Parameter>(element::f32, PartialShape{16});
+    const auto frame_size = Constant::create<int32_t>(element::i32, {}, {31});
+    const auto frame_step = Constant::create<int32_t>(element::i32, {}, {11});
+    OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, center, normalized),
+                    NodeValidationFailure,
+                    HasSubstr("The dimension at data_shape[-3] must be equal to: (frame_size // 2 + 1)"));
+}
+
+}  // namespace ov::test

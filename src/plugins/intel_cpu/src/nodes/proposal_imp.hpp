@@ -6,9 +6,7 @@
 #include <cstddef>
 #include <vector>
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
+namespace ov::Extensions::Cpu {
 
 struct proposal_conf {
     size_t feat_stride_;
@@ -48,6 +46,4 @@ void proposal_exec(const float* input0,
                    proposal_conf& conf);
 
 }  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu

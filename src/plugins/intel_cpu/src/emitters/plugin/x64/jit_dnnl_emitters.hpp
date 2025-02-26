@@ -8,16 +8,10 @@
 #include "cpu/x64/jit_generator.hpp"
 #include "jit_emitter.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class jit_dnnl_emitter : public jit_emitter {
 public:
-    void emit_code(const std::vector<size_t>& in_vec_idxs,
-                   const std::vector<size_t>& out_vec_idxs,
-                   const std::vector<size_t>& pool_vec_idxs,
-                   const std::vector<size_t>& pool_gpr_idxs) const override;
-
     void emit_data() const override;
 
     void emit_impl(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const override{};
@@ -37,6 +31,11 @@ protected:
                      const std::shared_ptr<ov::Node>& n,
                      ov::element::Type exec_prc = ov::element::f32);
     void set_injector();
+
+    void emit_code_impl(const std::vector<size_t>& in_vec_idxs,
+                        const std::vector<size_t>& out_vec_idxs,
+                        const std::vector<size_t>& pool_vec_idxs,
+                        const std::vector<size_t>& pool_gpr_idxs) const override;
 
     dnnl_alg_kind_t kind{dnnl_alg_kind_undef};
     float alpha{0.f};
@@ -63,5 +62,4 @@ public:
 private:
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

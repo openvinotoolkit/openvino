@@ -9,8 +9,7 @@
 
 #    include "executor_config.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace executor {
 template <typename Attrs>
@@ -36,7 +35,6 @@ std::ostream& operator<<(std::ostream& os, const executor::Config<Attrs>& config
     return os;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 #endif  // CPU_DEBUG_CAPS

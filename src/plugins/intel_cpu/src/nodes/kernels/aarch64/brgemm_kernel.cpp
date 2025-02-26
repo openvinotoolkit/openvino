@@ -16,8 +16,8 @@ using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::aarch64::matmul;
 
 #define THROW_ERROR(...) OPENVINO_THROW("brgemm executor Init Failure '", __VA_ARGS__)
-namespace ov {
-namespace intel_cpu {
+
+namespace ov::intel_cpu {
 
 static size_t getVlen() {
     return mayiuse(sve_512)   ? cpu_isa_traits<sve_512>::vlen
@@ -74,8 +74,9 @@ BrgemmKernel::BrgemmKernel(size_t M,
 
                 // don't create brgemm kernels for empty tiles
                 if (M_ != 0 && K_ != 0 && N_ != 0) {
-                    if (brg0BaseIdx == std::numeric_limits<size_t>::max())
+                    if (brg0BaseIdx == std::numeric_limits<size_t>::max()) {
                         brg0BaseIdx = getBrgIdx(m, k, n);
+                    }
                     init_brgemm(brgemmCtx, brgKernels[getBrgIdx(m, k, n)]);
                 }
             }
@@ -214,8 +215,9 @@ void BrgemmKernel::init_brgemm_copy_b(
     brgCopyKernelConf.has_zero_point_b = false;
     brgCopyKernelConf.src_zp_type = dnnl::impl::cpu::aarch64::none;
     auto ret = create_brgemm_matmul_copy_b(brgCopyKernel, &brgCopyKernelConf);
-    if (ret != dnnl::impl::status_t::dnnl_success)
+    if (ret != dnnl::impl::status_t::dnnl_success) {
         THROW_ERROR("cannot create_brgemm_matmul_copy_b kernel");
+    }
 }
 
 void BrgemmKernel::copy_buffer_b(void* b, void* scratch_b) {
@@ -327,5 +329,4 @@ void BrgemmKernel::callBrgemm(brgemmCtx& ctx,
     brgemm_kernel_execute(brgKernel.get(), 1, &addr_batch, pout, wsp);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

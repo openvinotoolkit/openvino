@@ -14,13 +14,13 @@ a common workflow consists of the following steps:
 1. | **Create a Core object**:
    |   First step to manage available devices and read model objects
 2. | **Read the Intermediate Representation**:
-   |   Read an Intermediate Representation file into the `ov::Model <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_model.html>`__ object
+   |   Read an Intermediate Representation file into the `ov::Model <https://docs.openvino.ai/2025/api/c_cpp_api/classov_1_1_model.html>`__ object
 3. | **Prepare inputs and outputs**:
    |   If needed, manipulate precision, memory layout, size or color format
 4. | **Set configuration**:
    |   Add device-specific loading configurations to the device
 5. | **Compile and Load Network to device**:
-   |   Use the `ov::Core::compile_model() <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_core.html>`__ method with a specific device
+   |   Use the `ov::Core::compile_model() <https://docs.openvino.ai/2025/api/c_cpp_api/classov_1_1_core.html>`__ method with a specific device
 6. | **Set input data**:
    |   Specify input tensor
 7. | **Execute**:
@@ -140,6 +140,35 @@ model caching, use the following code in your application:
          :language: cpp
          :fragment: [ov:caching:part3]
 
+Set ``CacheMode`` property to ``OPTIMIZE_SIZE`` to enable weightless caching
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Weightless caching is a feature that allows you to create a cache file which doesn't contain the weights of the model. Instead, the weights are loaded from the original model file. This helps to reduce the size of the cache file.
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.py
+         :language: py
+         :fragment: [ov:caching:part4]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.cpp
+         :language: cpp
+         :fragment: [ov:caching:part4]
+
+.. important::
+
+   Currently, this property is supported only by the GPU Plugin and IR model format.
+
+.. important::
+
+   Some weights which undergo transformations during model compilation may not be eligible for weightless caching. In such cases, the cache file will contain these weights while still using the weightless caching mechanism for the rest. The feature supports some of the common transformations and replicates them after loading the model from the cache.
+
 Enable cache encryption
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -154,16 +183,16 @@ loading it from the cache. Currently, this property can be set only in ``compile
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.py
          :language: py
-         :fragment: [ov:caching:part4]
+         :fragment: [ov:caching:part5]
 
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.cpp
          :language: cpp
-         :fragment: [ov:caching:part4]
+         :fragment: [ov:caching:part5]
 
-Full encryption only works when the ``CacheMode`` property is set to ``OPTIMIZE_SIZE``.
+If model caching is enabled in the GPU Plugin, the model topology can be encrypted while it is saved to the cache and decrypted when it is loaded from the cache. Full encryption only works when the ``CacheMode`` property is set to ``OPTIMIZE_SIZE``.
 
 .. tab-set::
 
@@ -172,14 +201,14 @@ Full encryption only works when the ``CacheMode`` property is set to ``OPTIMIZE_
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.py
          :language: py
-         :fragment: [ov:caching:part5]
+         :fragment: [ov:caching:part6]
 
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.cpp
          :language: cpp
-         :fragment: [ov:caching:part5]
+         :fragment: [ov:caching:part6]
 
 .. important::
 

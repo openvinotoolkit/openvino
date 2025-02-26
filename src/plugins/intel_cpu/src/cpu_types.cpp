@@ -8,8 +8,7 @@
 
 #include "cpu_shape.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 std::string dim2str(Dim dim) {
     return dim == Shape::UNDEFINED_DIM ? "?" : std::to_string(dim);
@@ -187,6 +186,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"IDFT", Type::DFT},
         {"RDFT", Type::RDFT},
         {"IRDFT", Type::RDFT},
+        {"ISTFT", Type::ISTFT},
         {"STFT", Type::STFT},
         {"Abs", Type::Math},
         {"Acos", Type::Math},
@@ -349,6 +349,7 @@ std::string NameFromType(const Type type) {
         CASE(DFT);
         CASE(RDFT);
         CASE(STFT);
+        CASE(ISTFT);
         CASE(Math);
         CASE(CTCLoss);
         CASE(Bucketize);
@@ -530,5 +531,4 @@ std::string algToString(const Algorithm alg) {
     return "Undefined";
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

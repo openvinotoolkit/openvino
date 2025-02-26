@@ -81,9 +81,9 @@ public:
         name << obj.param.frame_step.type;
         name << "_frame_step_shape_";
         name << obj.param.frame_step.shape;
-        name << "_lentgh_input_type_";
+        name << "_length_input_type_";
         name << obj.param.frame_step.type;
-        name << "_lebgth_shape_";
+        name << "_length_shape_";
         name << obj.param.frame_step.shape;
         name << "_center_";
         name << obj.param.center;
@@ -167,6 +167,16 @@ std::vector<ISTFTParams> generateISTFTParams() {
                         0.9590,  0.7095,  -0.2771, -0.9758, -0.6608, 0.3406,  0.9882,  0.6092,  -0.4027, -0.9962,
                         -0.5549, 0.4629,  0.9998,  0.4981,  -0.5211, -0.9989, -0.4390, 0.5769,  0.9936,  0.3780,
                         -0.6302, -0.9838, -0.3154, 0.6806,  0.9696,  0.2513,  -0.7281, -0.9511});
+
+    reference_tests::Tensor signal_48_pad_0_to_55(
+        Shape{55},
+        ET,
+        std::vector<VT>{-0.9511, -0.1861, 0.7722,  0.9283,  0.1200,  -0.8129, -0.9014, -0.0534, 0.8500,  0.8704,
+                        -0.0134, -0.8833, -0.8356, 0.0801,  0.9126,  0.7971,  -0.1465, -0.9379, -0.7550, 0.2123,
+                        0.9590,  0.7095,  -0.2771, -0.9758, -0.6608, 0.3406,  0.9882,  0.6092,  -0.4027, -0.9962,
+                        -0.5549, 0.4629,  0.9998,  0.4981,  -0.5211, -0.9989, -0.4390, 0.5769,  0.9936,  0.3780,
+                        -0.6302, -0.9838, -0.3154, 0.6806,  0.9696,  0.2513,  -0.7281, -0.9511, 0.0000,  0.0000,
+                        0.0000,  0.0000,  0.0000,  0.0000,  0.0000});
 
     reference_tests::Tensor signal_39(
         signal_39_shape,
@@ -521,6 +531,37 @@ std::vector<ISTFTParams> generateISTFTParams() {
                         false,
                         signal_48,
                         "basic_1D_transp_two_win_step_16");
+
+    params.emplace_back(output_stft_9_3_2_transp_win_two,
+                        two_window_16,
+                        frame_size_16,
+                        frame_step_16,
+                        length_48,
+                        false,
+                        false,
+                        signal_48,
+                        "basic_1D_transp_two_win_step_16_length_48");
+
+    params.emplace_back(output_stft_9_3_2_transp_win_two,
+                        two_window_16,
+                        frame_size_16,
+                        frame_step_16,
+                        length_55,
+                        false,
+                        false,
+                        signal_48_pad_0_to_55,
+                        "basic_1D_transp_two_win_step_16_length_55");
+
+    params.emplace_back(output_stft_9_3_2_transp_win_two,
+                        two_window_16,
+                        frame_size_16,
+                        frame_step_16,
+                        length_39,
+                        false,
+                        false,
+                        signal_39,
+                        "basic_1D_transp_two_win_step_16_length_39");
+
     params.emplace_back(output_stft_2_9_3_2_transp_win_two,
                         two_window_16,
                         frame_size_16,
