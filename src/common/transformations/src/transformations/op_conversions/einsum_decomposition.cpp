@@ -763,7 +763,7 @@ void extract_diagonal(ov::OutputVector& inputs,
     ov::NodeVector shape_after_pad_vector;
 
     // Process each repeated label
-    for (std::string repeated_label : repeated_labels) {
+    for (const std::string& repeated_label : repeated_labels) {
         const auto dim_map_repeated_label = transposed_label_dim_map.find(repeated_label);
         OPENVINO_ASSERT(dim_map_repeated_label != transposed_label_dim_map.end());
         const auto& repeated_label_dims = dim_map_repeated_label->second;
