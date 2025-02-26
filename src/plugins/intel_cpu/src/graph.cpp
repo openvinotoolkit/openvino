@@ -1326,14 +1326,26 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
     }
 }
 
+VecMemoryDescs Graph::getInputMemoryDescriptors() const {
+    OPENVINO_ASSERT(status == Status::Initialized, "Invalid graph status");
+
+    VecMemoryDescs result;
+    result.reserve(inputNodesMap.size());
+
+    for (const auto& [_, node] : inputNodesMap) {
+        result.emplace_back(node->getBaseMemDescAtOutputPort(0));
+    }
+
+    return result;
+}
+
 VecMemoryDescs Graph::getOutputMemoryDescriptors() const {
     OPENVINO_ASSERT(status == Status::Initialized, "Invalid graph status");
 
     VecMemoryDescs result;
     result.reserve(outputNodesMap.size());
 
-    for (const auto& output : outputNodesMap) {
-        const auto& node = output.second;
+    for (const auto& [_, node] : outputNodesMap) {
         result.emplace_back(node->getBaseMemDescAtInputPort(0));
     }
 

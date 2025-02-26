@@ -6,6 +6,7 @@
 
 #include "emitters/snippets/x64/cpu_generator.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_copy_b.hpp"
+#include "transformations/snippets/x64/pass/lowered/analyze_optimized_execution_support.hpp"
 #include "openvino/core/parallel.hpp"
 #include "snippets/op/subgraph.hpp"
 
@@ -142,6 +143,13 @@ void SubgraphExecutor::segfault_detector() {
     }
 }
 #endif
+
+bool SubgraphExecutor::canBeOptimizedExecuted(const std::shared_ptr<snippets::op::Subgraph>& subgraph_state) {
+    bool can = true;
+    const auto analyzer = std::make_shared<ov::intel_cpu::pass::AnalyzeOptimizedExecutionSupport>(can);
+    subgraph_state->analyze(analyzer);
+    return can;
+}
 
 std::vector<MemoryPtr> SubgraphExecutor::separately_repack_inputs(const dnnl::stream& strm,
                                                                   const std::vector<MemoryPtr>& srcMemPtrs) {
