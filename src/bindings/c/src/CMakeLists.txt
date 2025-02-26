@@ -36,6 +36,10 @@ ov_set_install_rpath(${TARGET_NAME}
                      # openvino_c installed in the same directory as openvino
                      ${OV_CPACK_RUNTIMEDIR} ${OV_CPACK_RUNTIMEDIR})
 
+if(WIN32)
+    set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
+endif()
+
 # export
 
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime::c)

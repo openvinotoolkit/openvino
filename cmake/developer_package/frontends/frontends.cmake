@@ -195,6 +195,11 @@ macro(ov_add_frontend)
     add_library(${TARGET_NAME} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS}
                                ${PROTO_SRCS} ${PROTO_HDRS} ${flatbuffers_schema_files} ${proto_files})
 
+    if(WIN32)
+        # Provide default compile pdb name equal to target name
+        set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
+    endif()
+
     if(OV_FRONTEND_LINKABLE_FRONTEND)
         # create beautiful alias
         add_library(openvino::frontend::${OV_FRONTEND_NAME} ALIAS ${TARGET_NAME})

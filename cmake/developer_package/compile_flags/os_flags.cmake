@@ -520,18 +520,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
             "$<$<COMPILE_LANGUAGE:CXX>:/d1trimfile:${OV_NATIVE_PROJECT_ROOT_DIR}\\>"
             "$<$<COMPILE_LANGUAGE:CXX>:/d1trimfile:${CMAKE_SOURCE_DIR}/>")
     endif()
-
-    #
-    # Debug information flags, by default CMake adds /Zi option
-    # but provides no way to specify CMAKE_COMPILE_PDB_NAME on root level
-    # In order to avoid issues with ninja we are replacing default flag instead of having two of them
-    # and observing warning D9025 about flag override
-    #
-
-    string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
-    string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
-    string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-    string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 elseif(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
     #
     # Warnings as errors
