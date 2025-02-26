@@ -51,7 +51,9 @@ VectorDims BrgemmExternalRepackingAdjuster::get_blk_order(size_t shape_rank) {
     return order;
 }
 
-VectorDims BrgemmExternalRepackingAdjuster::get_blk_shape(const VectorDims& planar_shape, ov::element::Type prc, bool is_transposed) {
+VectorDims BrgemmExternalRepackingAdjuster::get_blk_shape(const VectorDims& planar_shape,
+                                                          ov::element::Type prc,
+                                                          bool is_transposed) {
     size_t block = 1;
     if (is_transposed) {
         // In case of transpose, K dimension must be rounded-up to number of elems in vector register
