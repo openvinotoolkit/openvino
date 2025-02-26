@@ -213,6 +213,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                             PATTERN "*${CMAKE_SHARED_LIBRARY_SUFFIX}*"
                             ${exclude_pattern})
                     # message(STATUS "DESTINATION is ${OV_TBB_DIR_INSTALL}/${dir}")
+                    message(STATUS "install DIRECTORY:${TBBROOT}/${dir}/ to DESTINATION:${OV_TBB_DIR_INSTALL}/${dir}")
                 else()
                     message(STATUS "tbb_libs_dir is not same as dir:${dir}")
                     install(DIRECTORY "${TBBROOT}/${dir}/"
@@ -230,6 +231,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                     ${OV_CPACK_COMP_TBB_EXCLUDE_ALL}
                     RENAME "TBB-LICENSE"
                     COMPONENT tbb)
+            message(STATUS "install FILES:${TBBROOT}/LICENSE to DESTINATION:${OV_TBB_DIR_INSTALL}")
         endif()
 
         if(WIN32)
@@ -242,6 +244,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         endif()
 
         set(TBB_LIB_INSTALL_DIR "${OV_TBB_DIR_INSTALL}/${tbb_libs_dir}" CACHE PATH "TBB library install directory" FORCE)
+        message(STATUS "TBB_LIB_INSTALL_DIR is ${TBB_LIB_INSTALL_DIR}")
     elseif(tbb_downloaded)
         ov_cpack_add_component(tbb HIDDEN)
         list(APPEND core_components tbb)
