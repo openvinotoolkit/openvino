@@ -12,6 +12,11 @@ namespace ov {
 namespace pass {
 class TRANSFORMATIONS_API ConvertPagedAttnInputs;
 
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief Set precision and shape of KV cache in PagedAttn op based runtime options
+ */
+
 class ConvertPagedAttnInputs : public ov::pass::MatcherPass {
 public:
     struct KVCacheConfig {
