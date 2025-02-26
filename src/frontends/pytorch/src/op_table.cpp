@@ -62,6 +62,7 @@ OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_col2im);
 OP_CONVERTER(translate_complex);
 OP_CONVERTER(translate_constant);
+OP_CONVERTER(translate_contains);
 OP_CONVERTER(translate_conv_transposend);
 OP_CONVERTER(translate_convnd);
 OP_CONVERTER(translate_convolution);
