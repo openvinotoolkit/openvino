@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# Copyright (C) 2018-2025 Intel Corporation
-# SPDX-License-Identifier: Apache-2.0
-
 invalid_expressions=(
     # The classes bindings' will be soon added to pyopenvino
     "ov::op::v1::Add"
