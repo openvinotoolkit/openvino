@@ -119,11 +119,8 @@ protected:
 
         auto result = std::make_shared<ov::op::v0::Result>(relu3);
         function = std::make_shared<ov::Model>(result, params, "SimpleNet");
-        if (core->get_property(targetDevice, ov::hint::inference_precision) == ov::element::f16) {
-          abs_threshold = 3e-1;
-        } else {
-          abs_threshold = 9e-4;
-        }
+
+        abs_threshold = 9e-4;
     }
 };
 

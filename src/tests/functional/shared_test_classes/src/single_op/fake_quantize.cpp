@@ -64,9 +64,6 @@ void FakeQuantizeLayerTest::SetUp() {
     if (fq_direct_arg.size() != 0) {
         abs_threshold = (fq_direct_arg[3] - fq_direct_arg[2]) / levels;
     }
-    if (core->get_property(targetDevice, ov::hint::inference_precision) == ov::element::f16) {
-        abs_threshold = 7e-2;
-    }
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
     std::shared_ptr<ov::Node> fq;
