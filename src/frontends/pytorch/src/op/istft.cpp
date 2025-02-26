@@ -29,8 +29,9 @@ OutputVector translate_istft(const NodeContext& context) {
 
     auto input = context.get_input(0);
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
-    PYTORCH_OP_CONVERSION_CHECK(complex_type_mark, "aten::istft operation expects complex type tensor on input.");
-    input = complex_type_mark->input_value(0);
+    if (complex_type_mark) {
+        input = complex_type_mark->input_value(0);
+    }
 
     auto n_fft = context.get_input(1);
 
