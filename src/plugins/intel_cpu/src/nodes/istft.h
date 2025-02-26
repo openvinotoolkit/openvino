@@ -37,6 +37,7 @@ private:
     bool m_is_frame_size_const = false;
     bool m_is_frame_step_const = false;
     bool m_is_signal_length_const = false;
+    bool m_has_signal_length_input = false;
 
     // Input indices
     static constexpr size_t DATA_IDX = 0lu;

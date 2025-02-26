@@ -38,6 +38,7 @@ ISTFT::ISTFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
     m_is_frame_size_const = is_type<op::v0::Constant>(istft_op->get_input_node_ptr(FRAME_SIZE_IDX));
     m_is_frame_step_const = is_type<op::v0::Constant>(istft_op->get_input_node_ptr(FRAME_STEP_IDX));
     if (istft_op->get_input_size() == 5) {
+        m_has_signal_length_input = true;
         m_is_signal_length_const = is_type<op::v0::Constant>(istft_op->get_input_node_ptr(SIGNAL_LENGTH_IDX));
     }
     m_center = istft_op->get_center();
@@ -68,7 +69,7 @@ void ISTFT::initSupportedPrimitiveDescriptors() {
                                                  {LayoutType::ncsp, dataPrecision},
                                                  {LayoutType::ncsp, ov::element::i32},
                                                  {LayoutType::ncsp, ov::element::i32}});
-    if (getOriginalInputsNumber() == 5) {
+    if (m_has_signal_length_input) {
         configurators.emplace_back(LayoutType::ncsp, ov::element::i32);
     }
 
@@ -85,7 +86,7 @@ bool ISTFT::created() const {
 
 void ISTFT::execute(const dnnl::stream& strm) {
     const auto signal_length =
-        getOriginalInputsNumber() == 5 ? (getSrcDataAtPortAs<const int32_t>(SIGNAL_LENGTH_IDX))[0] : -1;
+        m_has_signal_length_input ? (getSrcDataAtPortAs<const int32_t>(SIGNAL_LENGTH_IDX))[0] : -1;
     ov::reference::istft(getSrcDataAtPortAs<const float>(DATA_IDX),
                          getSrcDataAtPortAs<const float>(WINDOW_IDX),
                          getDstDataAtPortAs<float>(0),
@@ -103,9 +104,8 @@ void ISTFT::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 bool ISTFT::needShapeInfer() const {
-    return (getOriginalInputsNumber() == 5 && !m_is_signal_length_const) ||
-           (getOriginalInputsNumber() == 4 && !(m_is_frame_size_const && m_is_frame_step_const)) ||
-           Node::needShapeInfer();
+    return (m_has_signal_length_input && !m_is_signal_length_const) ||
+           (!m_has_signal_length_input && !(m_is_frame_size_const && m_is_frame_step_const)) || Node::needShapeInfer();
 }
 
 }  // namespace node
