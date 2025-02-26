@@ -11,11 +11,6 @@
 
 namespace ov::pass::pattern {
 namespace op {
-namespace {
-constexpr bool value_true_predicate(const Output<Node>&) {
-    return true;
-}
-}  // namespace
 
 Pattern::Pattern(const OutputVector& patterns) : Node(patterns), m_predicate() {}
 
