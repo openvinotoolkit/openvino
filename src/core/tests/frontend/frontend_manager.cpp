@@ -480,7 +480,6 @@ TEST(FrontEndManagerTest, Exception_Safety_Input_Model_set_tensor_partial_value)
     CHECK_EXCEPTION_INPUT_MODEL(input_model->set_tensor_partial_value({}, {}, {}))
 }
 
-#ifdef OPENVINO_CPP_VER_AT_LEAST_17
 
 TEST(FrontEndManagerTest, testFEMDestroy_InputModelHolderUsingPath) {
     InputModel::Ptr input_model;
@@ -504,4 +503,3 @@ TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Supported_By_Path) {
         fe->supported(std::filesystem::path("throw_now"));
     });
 }
-#endif

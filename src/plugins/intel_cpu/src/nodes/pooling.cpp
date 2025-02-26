@@ -145,19 +145,21 @@ dnnl::pooling_forward::primitive_desc createDescriptorHelper(const dnnl::engine&
 
 bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (ov::is_type<const ov::op::v8::MaxPool>(op) || ov::is_type<const ov::op::v14::MaxPool>(op)) {
+        if (ov::is_type_any_of<const ov::op::v8::MaxPool, const ov::op::v14::MaxPool>(op)) {
             if (!op->get_output_target_inputs(1).empty()) {
                 errorMessage = "MaxPool from opset8 and opset14 is supported only with one output";
                 return false;
             }
-        } else if (!ov::is_type<const ov::op::v1::MaxPool>(op) && !ov::is_type<const ov::op::v8::MaxPool>(op) &&
-                   !ov::is_type<const ov::op::v14::MaxPool>(op) && !ov::is_type<const ov::op::v1::AvgPool>(op) &&
-                   !ov::is_type<const ov::op::v14::AvgPool>(op)) {
+        } else if (!ov::is_type_any_of<const ov::op::v1::MaxPool,
+                                       const ov::op::v8::MaxPool,
+                                       const ov::op::v14::MaxPool,
+                                       const ov::op::v1::AvgPool,
+                                       const ov::op::v14::AvgPool>(op)) {
             errorMessage = "Supported ops are MaxPool-1, MaxPool-8, MaxPool-14, AvgPool-1 and AvgPool-14";
             return false;
         }
 #if defined(OV_CPU_WITH_ACL)
-        if (ov::as_type_ptr<const ov::op::v8::MaxPool>(op) || ov::as_type_ptr<const ov::op::v14::MaxPool>(op)) {
+        if (ov::is_type_any_of<const ov::op::v8::MaxPool, const ov::op::v14::MaxPool>(op)) {
             if (ov::as_type_ptr<const ov::op::util::MaxPoolBase>(op)->get_kernel() != ov::Shape(2, 2)) {
                 errorMessage =
                     "Pooling indices returning source tensor coordinates is only supported for pool size 2x2";
