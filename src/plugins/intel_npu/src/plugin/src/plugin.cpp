@@ -197,6 +197,7 @@ Plugin::Plugin()
     set_device_name("NPU");
 
     // parse env_variables to get LOG_LEVEL if needed
+    _options->add<LOG_LEVEL>();
     _globalConfig.parseEnvVars();
     Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
 
@@ -223,52 +224,113 @@ Plugin::Plugin()
 }
 
 void Plugin::init_options() {
+    OV_ITT_TASK_NEXT(PLUGIN, "initOptions");
+    // Initialize (note: it will reset registered options)
+    _options->reset();
     bool offline = false;
-    uint32_t compilerVersion = 0;
-    std::vector<std::string> compilerSupOptions{};
+    bool legacy = false;
+    uint32_t compiler_version = 0;
+    std::vector<std::string> compiler_support_list{};
     // create a dummy compiler to fetch version and supported options
     try {
         CompilerAdapterFactory compilerAdapterFactory;
         auto dummyCompiler = compilerAdapterFactory.getCompiler(_backend, _globalConfig);
-        compilerVersion = dummyCompiler->get_version();
-        compilerSupOptions = dummyCompiler->get_supported_options();
+        compiler_version = dummyCompiler->get_version();
+        compiler_support_list = dummyCompiler->get_supported_options();
+        if (compiler_support_list.size() == 0) {
+            _logger.warning("No compiler support options list received! Fallback to version-based option registration");
+            legacy = true;
+        }
     } catch (...) {
         _logger.warning("No available compiler. Registering only legacy options with no compiler version requirement");
         offline = true;
+        legacy = true;
     }
 
-    /// DEBUG
-    std::cout << "Compiler version: " << compilerVersion << std::endl;
-    std::cout << "Compiler supported options (" << compilerSupOptions.size() << "): ";
-    for (const auto& str : compilerSupOptions) {
-        std::cout << str << " ";
+    // Logs
+    _logger.debug("Compiler version: %ld", compiler_version);
+    _logger.debug("Compiler supported options list (%ld): ", compiler_support_list.size());
+    for (const auto& str : compiler_support_list) {
+        _logger.debug("    %s ", str.c_str());
     }
-    std::cout << std::endl;
-    /// DEBUG
+    _logger.debug("Offline registration: %s Legacy registration: %s",
+                  offline ? "true" : "false",
+                  legacy ? "true" : "false");
 
-    // Initialize (note: it will reset registered options)
-    _options->reset();
-    _options->setCompilerVersion(compilerVersion);
-    _options->setCompilerSupportedOptions(compilerSupOptions);
-    OV_ITT_TASK_NEXT(PLUGIN, "initOptions");
-    if (!offline) {
-        // not registering runtime options if we are offline
-        registerOptions(*_options, OptionMode::RunTime);
-    }
-    registerOptions(*_options, OptionMode::Both);
-    registerOptions(*_options, OptionMode::CompileTime);
+#define TRY_REGISTER_OPTION(OPT_NAME, OPT_TYPE)                                                                 \
+    do {                                                                                                        \
+        std::string o_name = OPT_NAME.name();                                                                   \
+        auto dummyopt = details::makeOptionModel<OPT_TYPE>();                                                   \
+        if (dummyopt.mode() == OptionMode::RunTime) {                                                           \
+            if (!offline) {                                                                                     \
+                _options->add<OPT_TYPE>();                                                                      \
+            } else {                                                                                            \
+                _logger.debug("Option %s not registered! Requirements not met.", o_name.c_str());               \
+            }                                                                                                   \
+        } else {                                                                                                \
+            if (legacy) {                                                                                       \
+                if (compiler_version >= dummyopt.compilerSupportVersion()) {                                    \
+                    _options->add<OPT_TYPE>();                                                                  \
+                } else {                                                                                        \
+                    _logger.debug("Option %s not registered! Requirements not met.", o_name.c_str());           \
+                }                                                                                               \
+            } else {                                                                                            \
+                auto it = std::find(compiler_support_list.begin(), compiler_support_list.end(), o_name);        \
+                if (it != compiler_support_list.end()) {                                                        \
+                    _options->add<OPT_TYPE>();                                                                  \
+                } else {                                                                                        \
+                    CompilerAdapterFactory compilerAdapter;                                                     \
+                    auto compiler = compilerAdapter.getCompiler(_backends->getIEngineBackend(), _globalConfig); \
+                    if (compiler->is_option_supported(o_name)) {                                                \
+                        _options->add<OPT_TYPE>();                                                              \
+                    } else {                                                                                    \
+                        _logger.debug("Option %s not registered! Requirements not met.", o_name.c_str());       \
+                    }                                                                                           \
+                }                                                                                               \
+            }                                                                                                   \
+        }                                                                                                       \
+    } while (0)
+
+    TRY_REGISTER_OPTION(ov::log::level, LOG_LEVEL);
+    TRY_REGISTER_OPTION(ov::cache_dir, CACHE_DIR);
+    TRY_REGISTER_OPTION(ov::device::id, DEVICE_ID);
+    TRY_REGISTER_OPTION(ov::num_streams, NUM_STREAMS);
+    TRY_REGISTER_OPTION(ov::enable_profiling, PERF_COUNT);
+    TRY_REGISTER_OPTION(ov::loaded_from_cache, LOADED_FROM_CACHE);
+    TRY_REGISTER_OPTION(ov::compilation_num_threads, COMPILATION_NUM_THREADS);
+    TRY_REGISTER_OPTION(ov::hint::performance_mode, PERFORMANCE_HINT);
+    TRY_REGISTER_OPTION(ov::hint::execution_mode, EXECUTION_MODE_HINT);
+    TRY_REGISTER_OPTION(ov::hint::num_requests, PERFORMANCE_HINT_NUM_REQUESTS);
+    TRY_REGISTER_OPTION(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
+    TRY_REGISTER_OPTION(ov::hint::inference_precision, INFERENCE_PRECISION_HINT);
+    TRY_REGISTER_OPTION(ov::hint::model_priority, MODEL_PRIORITY);
+    TRY_REGISTER_OPTION(ov::internal::exclusive_async_requests, EXCLUSIVE_ASYNC_REQUESTS);
+    TRY_REGISTER_OPTION(ov::intel_npu::compilation_mode_params, COMPILATION_MODE_PARAMS);
+    TRY_REGISTER_OPTION(ov::intel_npu::dma_engines, DMA_ENGINES);
+    TRY_REGISTER_OPTION(ov::intel_npu::tiles, TILES);
+    TRY_REGISTER_OPTION(ov::intel_npu::dpu_groups, DPU_GROUPS);
+    TRY_REGISTER_OPTION(ov::intel_npu::compilation_mode, COMPILATION_MODE);
+    TRY_REGISTER_OPTION(ov::intel_npu::compiler_type, COMPILER_TYPE);
+    TRY_REGISTER_OPTION(ov::intel_npu::platform, PLATFORM);
+    TRY_REGISTER_OPTION(ov::intel_npu::create_executor, CREATE_EXECUTOR);
+    TRY_REGISTER_OPTION(ov::intel_npu::dynamic_shape_to_static, DYNAMIC_SHAPE_TO_STATIC);
+    TRY_REGISTER_OPTION(ov::intel_npu::profiling_type, PROFILING_TYPE);
+    TRY_REGISTER_OPTION(ov::intel_npu::backend_compilation_params, BACKEND_COMPILATION_PARAMS);
+    TRY_REGISTER_OPTION(ov::intel_npu::batch_mode, BATCH_MODE);
+    TRY_REGISTER_OPTION(ov::intel_npu::bypass_umd_caching, BYPASS_UMD_CACHING);
+    TRY_REGISTER_OPTION(ov::intel_npu::defer_weights_load, DEFER_WEIGHTS_LOAD);
+    TRY_REGISTER_OPTION(ov::intel_npu::run_inferences_sequentially, RUN_INFERENCES_SEQUENTIALLY);
+    TRY_REGISTER_OPTION(ov::intel_npu::compiler_dynamic_quantization, COMPILER_DYNAMIC_QUANTIZATION);
+    TRY_REGISTER_OPTION(ov::intel_npu::qdq_optimization, QDQ_OPTIMIZATION);
+    TRY_REGISTER_OPTION(ov::intel_npu::disable_version_check, DISABLE_VERSION_CHECK);
+    TRY_REGISTER_OPTION(ov::intel_npu::stepping, STEPPING);
+    TRY_REGISTER_OPTION(ov::intel_npu::max_tiles, MAX_TILES);
     if (_backend) {
-        _backend->registerOptions(*_options);
-    }
-
-    // Extras
-    // Additional filtering of options, based on other criteria (other than compiler version)
-    if (_backend) {
-        if (!_backend->isCommandQueueExtSupported()) {
-            // Remove options which are tied to CommandQueueExtension
-            _options->remove(ov::workload_type.name());
-            _options->remove(ov::intel_npu::turbo.name());
+        if (_backend->isCommandQueueExtSupported()) {
+            TRY_REGISTER_OPTION(ov::intel_npu::turbo, TURBO);
+            TRY_REGISTER_OPTION(ov::workload_type, WORKLOAD_TYPE);
         }
+        _backend->registerOptions(*_options);
     }
 
     // parse again env_variables after backend is initialized to get backend proprieties

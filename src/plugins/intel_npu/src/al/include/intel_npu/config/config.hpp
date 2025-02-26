@@ -396,21 +396,11 @@ public:
     template <class Opt>
     void add();
 
-    template <class Opt>
-    void tryAdd(OptionMode mode);
-
     bool has(std::string_view key) const;
 
     void remove(std::string_view key);
 
     void reset();
-
-    void setCompilerVersion(uint32_t compiler_version) {
-        _compiler_ver = compiler_version;
-    };
-    void setCompilerSupportedOptions(std::vector<std::string> compiler_options) {
-        _compiler_opts = compiler_options;
-    };
 
     std::vector<std::string> getSupported(bool includePrivate = false) const;
     std::vector<ov::PropertyName> getSupportedOptions(bool includePrivate = false) const;
@@ -420,8 +410,6 @@ public:
     void walk(std::function<void(const details::OptionConcept&)> cb) const;
 
 private:
-    std::vector<std::string> _compiler_opts;
-    uint32_t _compiler_ver = ONEAPI_MAKE_VERSION(0, 0);
     std::unordered_map<std::string, details::OptionConcept> _impl;
     std::unordered_map<std::string, std::string> _deprecated;
 };
@@ -437,58 +425,6 @@ void OptionsDesc::add() {
                         deprecatedKey.data(),
                         "' was already registered");
         _deprecated.insert({deprecatedKey.data(), Opt::key().data()});
-    }
-}
-
-template <class Opt>
-void OptionsDesc::tryAdd(OptionMode mode) {
-    bool skipped = true;
-    // If there is no list with compiler supported options, we fallback to version based
-    if (Opt::mode() == mode && _compiler_opts.size() == 0) {
-        if (_compiler_ver >= Opt::compilerSupportVersion()) {
-            OPENVINO_ASSERT(_impl.count(Opt::key().data()) == 0,
-                            "Option '",
-                            Opt::key().data(),
-                            "' was already registered");
-            _impl.insert({Opt::key().data(), details::makeOptionModel<Opt>()});
-            skipped = false;
-        }
-    } else {
-        //  Runtime options we register straight away
-        if (mode == OptionMode::RunTime && Opt::mode() == mode) {
-            std::cout << "Runtime option " << Opt::key().data() << " registered!" << std::endl;
-            OPENVINO_ASSERT(_impl.count(Opt::key().data()) == 0,
-                            "Option '",
-                            Opt::key().data(),
-                            "' was already registered");
-            _impl.insert({Opt::key().data(), details::makeOptionModel<Opt>()});
-            skipped = false;
-        } else if ((mode == OptionMode::CompileTime && Opt::mode() == mode) ||
-                   (mode == OptionMode::Both && Opt::mode() == mode)) {
-            OPENVINO_ASSERT(_impl.count(Opt::key().data()) == 0,
-                            "Option '",
-                            Opt::key().data(),
-                            "' was already registered");
-            // For OptionMode::Compile and OptionMode::Both we need to filter
-            auto it = std::find(_compiler_opts.begin(), _compiler_opts.end(), Opt::key().data());
-            if (it != _compiler_opts.end()) {
-                std::cout << "Found: " << Opt::key().data() << " in compiler supported options! Registering"
-                          << std::endl;
-                _impl.insert({Opt::key().data(), details::makeOptionModel<Opt>()});
-                skipped = false;
-            } else {
-                std::cout << Opt::key().data() << " not found in compiler supported options! Skipping" << std::endl;
-            }
-        }
-    }
-    if (!skipped) {
-        for (const auto& deprecatedKey : Opt::deprecatedKeys()) {
-            OPENVINO_ASSERT(_deprecated.count(deprecatedKey.data()) == 0,
-                            "Option '",
-                            deprecatedKey.data(),
-                            "' was already registered");
-            _deprecated.insert({deprecatedKey.data(), Opt::key().data()});
-        }
     }
 }
 

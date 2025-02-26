@@ -8,53 +8,6 @@ using namespace intel_npu;
 using namespace ov::intel_npu;
 
 //
-// register
-//
-
-void intel_npu::registerOptions(OptionsDesc& desc, OptionMode mode) {
-    // register
-    desc.tryAdd<PERFORMANCE_HINT>(mode);
-    desc.tryAdd<PERFORMANCE_HINT_NUM_REQUESTS>(mode);
-    desc.tryAdd<INFERENCE_PRECISION_HINT>(mode);
-    desc.tryAdd<PERF_COUNT>(mode);
-    desc.tryAdd<LOG_LEVEL>(mode);
-    desc.tryAdd<PLATFORM>(mode);
-    desc.tryAdd<DEVICE_ID>(mode);
-    desc.tryAdd<CACHE_DIR>(mode);
-    desc.tryAdd<LOADED_FROM_CACHE>(mode);
-    desc.tryAdd<BATCH_MODE>(mode);
-    desc.tryAdd<COMPILER_TYPE>(mode);
-    desc.tryAdd<COMPILATION_MODE>(mode);
-    desc.tryAdd<COMPILATION_MODE_PARAMS>(mode);
-    desc.tryAdd<BACKEND_COMPILATION_PARAMS>(mode);
-    desc.tryAdd<COMPILATION_NUM_THREADS>(mode);
-    desc.tryAdd<DPU_GROUPS>(mode);
-    desc.tryAdd<TILES>(mode);
-    desc.tryAdd<STEPPING>(mode);
-    desc.tryAdd<MAX_TILES>(mode);
-    desc.tryAdd<DMA_ENGINES>(mode);
-    desc.tryAdd<DYNAMIC_SHAPE_TO_STATIC>(mode);
-    desc.tryAdd<EXECUTION_MODE_HINT>(mode);
-    desc.tryAdd<COMPILER_DYNAMIC_QUANTIZATION>(mode);
-    desc.tryAdd<EXCLUSIVE_ASYNC_REQUESTS>(mode);
-    desc.tryAdd<PROFILING_TYPE>(mode);
-    desc.tryAdd<MODEL_PRIORITY>(mode);
-    desc.tryAdd<CREATE_EXECUTOR>(mode);
-    desc.tryAdd<NUM_STREAMS>(mode);
-    desc.tryAdd<ENABLE_CPU_PINNING>(mode);
-    desc.tryAdd<WORKLOAD_TYPE>(mode);
-    desc.tryAdd<TURBO>(mode);
-    desc.tryAdd<BYPASS_UMD_CACHING>(mode);
-    desc.tryAdd<DEFER_WEIGHTS_LOAD>(mode);
-    desc.tryAdd<WEIGHTS_PATH>(mode);
-    desc.tryAdd<RUN_INFERENCES_SEQUENTIALLY>(mode);
-    desc.tryAdd<QDQ_OPTIMIZATION>(mode);
-    desc.tryAdd<DISABLE_VERSION_CHECK>(mode);
-    desc.tryAdd<MODEL_PTR>(mode);
-    desc.tryAdd<BATCH_COMPILER_MODE_SETTINGS>(mode);
-}
-
-//
 // PERFORMANCE_HINT
 //
 
