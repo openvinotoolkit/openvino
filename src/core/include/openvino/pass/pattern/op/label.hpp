@@ -46,7 +46,7 @@ public:
           const PartialShape& s,
           const NodePredicate& pred,
           const NodeVector& wrapped_values = {})
-        : Label(type, s, as_value_predicate(pred), as_output_vector(wrapped_values)) {}
+        : Label(type, s, Predicate(pred), as_output_vector(wrapped_values)) {}
 
     /// \brief creates a Label node containing a sub-pattern described by the type and
     ///        shape of \sa node.
@@ -64,10 +64,7 @@ public:
     Label(const Output<Node>& value, const TPredicate& pred, const OutputVector& wrapped_values = {})
         : Label(value.get_element_type(), value.get_partial_shape(), Predicate(pred), wrapped_values) {}
     Label(const Output<Node>& node, const NodePredicate& pred, const NodeVector& wrapped_values = {})
-        : Label(node.get_element_type(),
-                node.get_partial_shape(),
-                as_value_predicate(pred),
-                as_output_vector(wrapped_values)) {}
+        : Label(node.get_element_type(), node.get_partial_shape(), Predicate(pred), as_output_vector(wrapped_values)) {}
 
     explicit Label(const element::Type& type = element::dynamic, const PartialShape& s = PartialShape::dynamic())
         : Label(type, s, nullptr, OutputVector{}) {}

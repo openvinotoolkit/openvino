@@ -29,7 +29,7 @@ public:
         set_output_type(0, type, s);
     }
     AnyOf(const element::Type& type, const PartialShape& s, const NodePredicate& pred, const NodeVector& wrapped_values)
-        : AnyOf(type, s, as_value_predicate(pred), as_output_vector(wrapped_values)) {}
+        : AnyOf(type, s, Predicate(pred), as_output_vector(wrapped_values)) {}
 
     /// \brief creates a AnyOf node containing a sub-pattern described by the type and
     ///        shape of \sa node.
@@ -37,7 +37,7 @@ public:
     AnyOf(const Output<Node>& node, const TPredicate& pred, const OutputVector& wrapped_values)
         : AnyOf(node.get_element_type(), node.get_partial_shape(), pred, wrapped_values) {}
     AnyOf(const std::shared_ptr<Node>& node, const NodePredicate& pred, const NodeVector& wrapped_values)
-        : AnyOf(node, as_value_predicate(pred), as_output_vector(wrapped_values)) {}
+        : AnyOf(node, Predicate(pred), as_output_vector(wrapped_values)) {}
     bool match_value(Matcher* matcher, const Output<Node>& pattern_value, const Output<Node>& graph_value) override;
 };
 }  // namespace ov::pass::pattern::op

@@ -17,24 +17,12 @@ constexpr bool value_true_predicate(const Output<Node>&) {
 }
 }  // namespace
 
-struct NodeValuePredicate {
-    bool operator()(const Output<Node>& value) const {
-        return pred(value.get_node_shared_ptr());
-    }
-
-    NodePredicate pred;
-};
-
 Pattern::Pattern(const OutputVector& patterns) : Node(patterns), m_predicate() {}
 
 Pattern::Pattern(const OutputVector& patterns, const op::Predicate& pred) : Node(patterns), m_predicate(pred) {}
 
-ValuePredicate as_value_predicate(NodePredicate pred) {
-    if (pred) {
-        return NodeValuePredicate{std::move(pred)};
-    } else {
-        return value_true_predicate;
-    }
+Predicate as_value_predicate(NodePredicate pred) {
+    return Predicate(pred);
 }
 
 std::ostream& Pattern::write_type_description(std::ostream& out) const {
