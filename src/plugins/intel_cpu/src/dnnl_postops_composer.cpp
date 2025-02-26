@@ -527,8 +527,8 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLa
                 wei_scale_values[j] *= scale[j];
             }
         } else {
-            for (size_t j = 0; j < wei_scale_values.size(); j++) {
-                wei_scale_values[j] *= scale[0];
+            for (float& wei_scale_value : wei_scale_values) {
+                wei_scale_value *= scale[0];
             }
         }
 
@@ -659,7 +659,7 @@ static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
         srcFormat);
     auto srcMem = std::make_shared<Memory>(engine, srcMemoryDesc, paramsPtr->getData());
 
-    dstMem->load(*srcMem, true);
+    dstMem->load(*srcMem, true, false);
     return dstMem;
 }
 
