@@ -195,17 +195,23 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
 
                 if(tbb_libs_dir STREQUAL dir)
                     message(STATUS "tbb_libs_dir is same as dir:${dir}")
-                    file(GLOB _tbb_libs ${TBBROOT}/${tbb_libs_dir}/*)
-                    foreach(_tbb_lib IN LISTS _tbb_libs)
-                        if(_tbb_lib MATCHES ".*${CMAKE_SHARED_LIBRARY_SUFFIX}.*")
-                            # resolve absolute path to avoid issues with installation
-                            get_filename_component(_tbb_lib "${_tbb_lib}" REALPATH)
-                            install(PROGRAMS "${_tbb_lib}"
-                                    DESTINATION "${OV_TBB_DIR_INSTALL}/${dir}"
-                                    COMPONENT ${tbb_component})
-                            message(STATUS "install PROGRAMS:${_tbb_lib} to DESTINATION:${OV_TBB_DIR_INSTALL}/${dir}")
-                        endif()
-                    endforeach()
+                    # file(GLOB _tbb_libs ${TBBROOT}/${tbb_libs_dir}/*)
+                    # foreach(_tbb_lib IN LISTS _tbb_libs)
+                    #     if(_tbb_lib MATCHES ".*${CMAKE_SHARED_LIBRARY_SUFFIX}.*")
+                    #         # resolve absolute path to avoid issues with installation
+                    #         get_filename_component(_tbb_lib "${_tbb_lib}" REALPATH)
+                    #         install(PROGRAMS "${_tbb_lib}"
+                    #                 DESTINATION "${OV_TBB_DIR_INSTALL}/${dir}"
+                    #                 COMPONENT ${tbb_component})
+                    #         message(STATUS "install PROGRAMS:${_tbb_lib} to DESTINATION:${OV_TBB_DIR_INSTALL}/${dir}")
+                    #     endif()
+                    # endforeach()
+                    install(DIRECTORY "${TBBROOT}/${dir}/"
+                            DESTINATION "${OV_TBB_DIR_INSTALL}/${dir}"
+                            COMPONENT ${tbb_component}
+                            FILES_MATCHING
+                            PATTERN "*${CMAKE_SHARED_LIBRARY_SUFFIX}*"
+                            ${exclude_pattern})
                     # message(STATUS "DESTINATION is ${OV_TBB_DIR_INSTALL}/${dir}")
                 else()
                     message(STATUS "tbb_libs_dir is not same as dir:${dir}")
