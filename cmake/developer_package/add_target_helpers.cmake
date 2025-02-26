@@ -91,7 +91,7 @@ function(ov_add_target)
     # defining a target
     if (ARG_TYPE STREQUAL EXECUTABLE)
         add_executable(${ARG_NAME} ${all_sources})
-    elseif(ARG_TYPE STREQUAL STATIC OR ARG_TYPE STREQUAL SHARED)
+    elseif(ARG_TYPE STREQUAL STATIC OR ARG_TYPE STREQUAL SHARED OR ARG_TYPE STREQUAL OBJECT)
         add_library(${ARG_NAME} ${ARG_TYPE} ${all_sources})
     else()
         message(SEND_ERROR "Invalid target type ${ARG_TYPE} specified for target name ${ARG_NAME}")

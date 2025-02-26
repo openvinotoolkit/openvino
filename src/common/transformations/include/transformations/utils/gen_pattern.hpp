@@ -22,6 +22,7 @@
 #include <string>
 #include <utility>
 
+#include "openvino/core/log_util.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset2.hpp"
 #include "openvino/opsets/opset3.hpp"
@@ -34,6 +35,7 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/log.hpp"
 
 namespace ov {
 namespace gen_pattern {
@@ -811,17 +813,20 @@ public:
                          pattern_value.get_index(),
                          "!=",
                          graph_value.get_index());
+            OPENVINO_LOG_GENPATTERN1(matcher, pattern_value, graph_value);
             return false;
         }
 
         auto value_node = graph_value.get_node_shared_ptr();
         if (!value_node->get_type_info().is_castable(m_type_info)) {
             _VERBOSE_LOG(level, "X OP type mismatch: ", m_signature, " vs ", graph_value);
+            OPENVINO_LOG_GENPATTERN2(matcher, pattern_value, graph_value);
             return false;
         }
 
         if (!m_vt.predicate(graph_value)) {
             _VERBOSE_LOG(level, "X value info mismatch: ", m_signature, " vs ", graph_value);
+            OPENVINO_LOG_GENPATTERN3(matcher);
             return false;
         }
 
@@ -830,6 +835,7 @@ public:
             value_node->visit_attributes(visitor);
             if (!visitor.matched()) {
                 _VERBOSE_LOG(level, "X OP attrs mismatch: ", m_signature, " vs ", graph_value);
+                OPENVINO_LOG_GENPATTERN4(matcher);
                 return false;
             }
         }
@@ -843,12 +849,18 @@ public:
 
         if (matcher_verbose_enabled())
             level.push_back('\t');
+        OPENVINO_LOG_GENPATTERN5(matcher);
         bool ret = matcher->match_arguments(pattern_value.get_node(), graph_value.get_node_shared_ptr());
+        OPENVINO_LOG_GENPATTERN6(matcher, ret);
         if (matcher_verbose_enabled()) {
             level.pop_back();
             _VERBOSE_LOG(level, ret ? "O" : "X", m_signature, " vs ", graph_value);
         }
         return ret;
+    }
+
+    const DiscreteTypeInfo& get_wrapped_type() const {
+        return m_type_info;
     }
 
 private:

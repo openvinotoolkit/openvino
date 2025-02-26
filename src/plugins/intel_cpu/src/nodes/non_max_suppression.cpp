@@ -760,18 +760,18 @@ inline size_t getIntersectionPoints(const NonMaxSuppression::Point2D (&pts1)[4],
         const auto& DA = vec2[3];
         auto ABdotAB = dot_2d(AB, AB);
         auto ADdotAD = dot_2d(DA, DA);
-        for (size_t i = 0lu; i < 4lu; i++) {
+        for (auto i : pts1) {
             // Assume ABCD is the rectangle, and P is the point to be judged
             // P is inside ABCD if P's projection on AB lies within AB
             // and P's projection on AD lies within AD
 
-            auto AP = pts1[i] - pts2[0];
+            auto AP = i - pts2[0];
 
             auto APdotAB = dot_2d(AP, AB);
             auto APdotAD = -dot_2d(AP, DA);
 
             if ((APdotAB >= 0) && (APdotAD >= 0) && (APdotAB <= ABdotAB) && (APdotAD <= ADdotAD)) {
-                intersections[num++] = pts1[i];
+                intersections[num++] = i;
             }
         }
     }
@@ -782,14 +782,14 @@ inline size_t getIntersectionPoints(const NonMaxSuppression::Point2D (&pts1)[4],
         const auto& DA = vec1[3];
         auto ABdotAB = dot_2d(AB, AB);
         auto ADdotAD = dot_2d(DA, DA);
-        for (size_t i = 0lu; i < 4lu; i++) {
-            auto AP = pts2[i] - pts1[0];
+        for (auto i : pts2) {
+            auto AP = i - pts1[0];
 
             auto APdotAB = dot_2d(AP, AB);
             auto APdotAD = -dot_2d(AP, DA);
 
             if ((APdotAB >= 0) && (APdotAD >= 0) && (APdotAB <= ABdotAB) && (APdotAD <= ADdotAD)) {
-                intersections[num++] = pts2[i];
+                intersections[num++] = i;
             }
         }
     }
