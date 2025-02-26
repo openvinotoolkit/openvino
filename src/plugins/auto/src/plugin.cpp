@@ -308,22 +308,26 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
                                                    ? m_plugin_config.parse_priorities_devices(
                                                          arguments.at(ov::device::priorities.name()).as<std::string>())
                                                    : get_core()->get_available_devices();
-        bool enable_startup_cpu = arguments.count(ov::intel_auto::enable_startup_fallback.name())
-                                      ? arguments.at(ov::intel_auto::enable_startup_fallback.name()).as<bool>()
-                                      : true;
-        bool enable_runtime_cpu = arguments.count(ov::intel_auto::enable_runtime_fallback.name())
-                                      ? arguments.at(ov::intel_auto::enable_runtime_fallback.name()).as<bool>()
-                                      : true;
-        bool enable_cpu = enable_startup_cpu || enable_runtime_cpu;
+        bool if_checking_support_cache = arguments.count(ov::device::capabilities.name())
+                                             ? arguments.at(ov::device::capabilities.name()).as<std::string>() ==
+                                                   ov::device::capability::EXPORT_IMPORT
+                                             : false;
         std::vector<std::string> capabilities;
         for (auto const& device : device_list) {
-            auto real_device = device[0] == '-' ? device.substr(1) : device;
-            if (real_device.find("CPU") != std::string::npos && !enable_cpu) {
+            if (device[0] == '-')
                 continue;
-            }
             try {
-                auto devCapabilities = get_core()->get_property(real_device, ov::device::capabilities);
-                capabilities.insert(capabilities.end(), devCapabilities.begin(), devCapabilities.end());
+                auto dev_capabilities = get_core()->get_property(device, ov::device::capabilities);
+                capabilities.insert(capabilities.end(), dev_capabilities.begin(), dev_capabilities.end());
+                if (if_checking_support_cache &&
+                    std::find(dev_capabilities.begin(),
+                              dev_capabilities.end(),
+                              ov::device::capability::EXPORT_IMPORT) != dev_capabilities.end()) {
+                    // Return the capabilities of the first device that supports caching if Core is checking for caching
+                    // capability
+                    LOG_DEBUG_TAG("Got caching capability for device: ", device.c_str());
+                    break;
+                }
             } catch (const ov::Exception&) {
                 LOG_DEBUG_TAG("Failed to get capabilities for device: ", device.c_str());
             }
@@ -466,14 +470,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     }
     auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
-    // clone the model if HW plugin loading is in a background thread
-    bool if_model_cloned =
-        (meta_devices.size() != 1 && (auto_s_context->m_startup_fallback || auto_s_context->m_runtime_fallback))
-            ? true
-            : false;
     // in case of mismatching shape conflict when AUTO creates the infer requests for actual device with reshaped model
-    auto_s_context->m_model =
-        model_path.empty() && if_model_cloned ? model->clone() : std::const_pointer_cast<ov::Model>(model);
+    auto_s_context->m_model = model_path.empty() ? std::const_pointer_cast<ov::Model>(model) : nullptr;
     auto_s_context->m_model_path = model_path;
     auto_s_context->m_device_priorities = support_devices;
     auto_s_context->m_device_priorities_initial = std::move(support_devices);
