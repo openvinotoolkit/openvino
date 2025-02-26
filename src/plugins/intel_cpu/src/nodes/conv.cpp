@@ -283,11 +283,11 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
 
         expectedBiasDims = {groupOC};
 
-        for (size_t i = 0; i < convolutionOp->get_strides().size(); i++) {
-            stride.push_back(convolutionOp->get_strides()[i]);
+        for (size_t i : convolutionOp->get_strides()) {
+            stride.push_back(i);
         }
-        for (size_t i = 0; i < convolutionOp->get_dilations().size(); i++) {
-            dilation.push_back(static_cast<ptrdiff_t>(convolutionOp->get_dilations()[i]) - 1);
+        for (size_t i : convolutionOp->get_dilations()) {
+            dilation.push_back(static_cast<ptrdiff_t>(i) - 1);
         }
         paddingL = convolutionOp->get_pads_begin();
         paddingR = convolutionOp->get_pads_end();
@@ -306,11 +306,11 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
 
         expectedBiasDims = {groupOC * groupNum};
 
-        for (size_t i = 0; i < groupConvolutionOp->get_strides().size(); i++) {
-            stride.push_back(groupConvolutionOp->get_strides()[i]);
+        for (size_t i : groupConvolutionOp->get_strides()) {
+            stride.push_back(i);
         }
-        for (size_t i = 0; i < groupConvolutionOp->get_dilations().size(); i++) {
-            dilation.push_back(static_cast<ptrdiff_t>(groupConvolutionOp->get_dilations()[i]) - 1);
+        for (size_t i : groupConvolutionOp->get_dilations()) {
+            dilation.push_back(static_cast<ptrdiff_t>(i) - 1);
         }
         paddingL = groupConvolutionOp->get_pads_begin();
         paddingR = groupConvolutionOp->get_pads_end();
@@ -433,13 +433,13 @@ void Convolution::getSupportedDescriptors() {
     withBiases = getOriginalInputsNumber() == 3;
 
     int expectedInputEdgesNum = static_cast<int>(getOriginalInputsNumber());
-    for (size_t i = 0; i < fusedWith.size(); i++) {
-        if (fusedWith[i]->getType() == Type::Convolution) {
-            expectedInputEdgesNum += static_cast<int>(fusedWith[i]->getOriginalInputsNumber()) - 1;
+    for (auto& i : fusedWith) {
+        if (i->getType() == Type::Convolution) {
+            expectedInputEdgesNum += static_cast<int>(i->getOriginalInputsNumber()) - 1;
         }
 
-        if (fusedWith[i]->getAlgorithm() == Algorithm::EltwiseAdd) {
-            auto* eltwiseNode = dynamic_cast<Eltwise*>(fusedWith[i].get());
+        if (i->getAlgorithm() == Algorithm::EltwiseAdd) {
+            auto* eltwiseNode = dynamic_cast<Eltwise*>(i.get());
             if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
                 expectedInputEdgesNum++;
             }
@@ -464,11 +464,11 @@ void Convolution::getSupportedDescriptors() {
     // to FP32.
     if (outputDataType != memory::data_type::f32 && outputDataType != memory::data_type::bf16 &&
         outputDataType != memory::data_type::f16 && withSum) {
-        for (size_t i = 0; i < fusedWith.size(); i++) {
-            if (fusedWith[i]->getAlgorithm() == Algorithm::EltwiseAdd) {
-                auto* eltwiseNode = dynamic_cast<Eltwise*>(fusedWith[i].get());
+        for (auto& i : fusedWith) {
+            if (i->getAlgorithm() == Algorithm::EltwiseAdd) {
+                auto* eltwiseNode = dynamic_cast<Eltwise*>(i.get());
                 if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
-                    eltwisePrecision = fusedEltwisePrecision(fusedWith[i]);
+                    eltwisePrecision = fusedEltwisePrecision(i);
                     if (DnnlExtensionUtils::DataTypeToElementType(outputDataType).size() != eltwisePrecision.size()) {
                         eltwisePrecision = ov::element::f32;
                         outputDataType = memory::data_type::f32;
@@ -582,11 +582,11 @@ void Convolution::getSupportedDescriptors() {
     outputDataType = getSupportedDataType(getOriginalOutputPrecisionAtPort(0));
 
     eltwisePrecision = ov::element::f32;
-    for (size_t i = 0; i < fusedWith.size(); i++) {
-        if (fusedWith[i]->getAlgorithm() == Algorithm::EltwiseAdd) {
-            auto* eltwiseNode = dynamic_cast<Eltwise*>(fusedWith[i].get());
+    for (auto& i : fusedWith) {
+        if (i->getAlgorithm() == Algorithm::EltwiseAdd) {
+            auto* eltwiseNode = dynamic_cast<Eltwise*>(i.get());
             if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
-                eltwisePrecision = fusedEltwisePrecision(fusedWith[i]);
+                eltwisePrecision = fusedEltwisePrecision(i);
                 // TODO(amalyshe): there might be situation when convolution can be executed in BF16,
                 // output is required in FP32 but eltwise inplace tensor would be in BF16
                 // currently we forcedly change output to the BF16 that will add reoreder after the node
