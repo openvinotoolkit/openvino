@@ -40,7 +40,6 @@
 namespace ov {
 namespace gen_pattern {
 
-#ifdef CPU_DEBUG_CAPS
 
 #    ifdef __GNUC__
 #        define CURRENT_LINE_NO __builtin_LINE()
@@ -60,24 +59,14 @@ static inline void _verbose_log(Args&&... args) {
 }
 
 static bool matcher_verbose_enabled() {
-    static const bool enabled = std::getenv("GENP_VERBOSE") ? (atoi(std::getenv("GENP_VERBOSE")) != 0) : false;
+    static const bool enabled = true;
     return enabled;
 }
 
 #    define _VERBOSE_LOG(...)          \
         if (matcher_verbose_enabled()) \
         _verbose_log(__VA_ARGS__)
-#else
 
-#    define CURRENT_LINE_NO -1
-#    define CURRENT_FILE    ""
-
-static bool matcher_verbose_enabled() {
-    return false;
-}
-
-#    define _VERBOSE_LOG(...)
-#endif
 
 namespace detail {
 inline std::vector<std::string> split_string(const std::string& s, const std::string& delimiter) {
@@ -274,6 +263,7 @@ public:
     bool operator<(const Symbol& rhs) const {
         return get_id() < rhs.get_id();
     }
+    bool validate = true;
 };
 
 inline Symbol operator-(const Symbol& lhs) {
@@ -1360,6 +1350,10 @@ public:
                     shape_size(vconst_node->get_output_shape(0)) * vconst_node->get_output_element_type(0).size();
                 if (std::memcmp(pconst_node->get_data_ptr(), vconst_node->get_data_ptr(), byte_size) != 0) {
                     _VERBOSE_LOG("Constant value mismatch on ", pconst_node, " vs ", vconst_node);
+                    auto vec = pconst_node->cast_vector<int32_t>();
+                    auto vec1 = vconst_node->cast_vector<int32_t>();
+                    std::cout << vec[0] << std::endl;
+                    std::cout << vec[1] << std::endl;
                     return false;
                 }
                 continue;
@@ -1398,7 +1392,7 @@ public:
             if (sym.is_independent_var()) {
                 auto id = sym.get_id();
                 if (symbol_value_map.count(id)) {
-                    if (symbol_value_map[id] != value) {
+                    if (sym.validate && symbol_value_map[id] != value) {
                         _VERBOSE_LOG(" in-consistency between multiple references of same symbol(",
                                      sym.get_name(),
                                      "): ",

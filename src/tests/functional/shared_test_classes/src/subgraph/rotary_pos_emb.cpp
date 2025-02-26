@@ -1203,6 +1203,89 @@ std::shared_ptr<ov::Model> RoPETestChatGLM2DRoPEStridedSlice::buildROPE_ChatGLM(
                                        ov::ParameterVector{input, cos_sin_cache, position_ids});
 }
 
+std::shared_ptr<ov::Model> RoPETestChatGLM2DRoPEPagedAttention::buildROPE_ChatGLM(int batch, int head_cnt, int rotary_dims, ov::element::Type element_type) {
+    // TODO: these are 2 ROPEs operations, need to leave only once for test:
+
+    auto Constant_208983 = makeConst(element::f32, ov::Shape({1,1,4096,}), {3.546875f,3.343750f,3.218750f,3.437500f,3.593750f,3.500000f,3.546875f,2.843750f,3.546875f... (4096 in total)});
+    auto self_transformer_embedding_word_embeddings_weight = makeConst(element::u8, ov::Shape({151552,4096,}), {169,106,153,144,106,118,119,158,118,91,169,88,88,206,132,167,152,79,88,180,136,111... (620756992 in total)});
+    auto Convert_53428 = makeOP<opset1::Convert>({input_ids}, {{"destination_type", "i32"}});  
+    auto Unsqueeze_12577 = makeOP<opset1::Reshape>({Convert_53428, {-1,1}}, {{"special_zero", false}});  
+    auto __module_transformer_embedding_word_embeddings_ov_ext::embedding_Convert = makeConst(element::f32, ov::Shape({151552,1,}), {0.000045f,0.000052f,0.000059f,0.000046f,0.000050f,0.000049f,0.000056f,0.000050f,0.000045f... (151552 in total)});
+    auto Convert_240508 = makeConst(element::f32, ov::Shape({151552,1,}), {132.000000f,108.000000f,124.000000f,131.000000f,130.000000f,144.000000f,109.000000f... (151552 in total)});
+    auto __module_transformer_embedding_word_embeddings_ov_ext::embedding_Gather = makeOP<ie_internal_opset::GatherCompressed>({self_transformer_embedding_word_embeddings_weight, Unsqueeze_12577, 0, __module_transformer_embedding_word_embeddings_ov_ext::embedding_Convert, Convert_240508}, {{"batch_dims", 0}});  
+    auto Constant_208662 = makeConst(element::f32, ov::Shape({1,1,4096,}), {-0.004272f,0.002792f,-0.002121f,0.003479f,0.002563f,-0.002121f,-0.006226f,-0.006989f... (4096 in total)});
+    auto Constant_208659 = makeConst(element::f32, ov::Shape({1,1,1,}), {2.000000f});
+    auto __module_transformer_encoder_layers_0_input_layernorm_aten::pow_Power = makeOP<opset1::Power>({__module_transformer_embedding_word_embeddings_ov_ext::embedding_Gather, Constant_208659}, {{"auto_broadcast", "numpy"}});  
+    auto __module_transformer_encoder_layers_0_input_layernorm_aten::mean_ReduceMean = makeOP<opset1::ReduceMean>({__module_transformer_encoder_layers_0_input_layernorm_aten::pow_Power, {-1}}, {{"keep_dims", true}});  
+    auto Constant_208660 = makeConst(element::f32, ov::Shape({1,1,1,}), {0.000000f});
+    auto __module_transformer_encoder_layers_0_input_layernorm_aten::add_Add = makeOP<opset1::Add>({__module_transformer_encoder_layers_0_input_layernorm_aten::mean_ReduceMean, Constant_208660}, {{"auto_broadcast", "numpy"}});  
+    auto __module_transformer_encoder_layers_0_input_layernorm_aten::rsqrt_Sqrt = makeOP<opset1::Sqrt>({__module_transformer_encoder_layers_0_input_layernorm_aten::add_Add});  
+    auto __module_transformer_encoder_layers_0_input_layernorm_aten::rsqrt_Divide = makeOP<opset1::Power>({__module_transformer_encoder_layers_0_input_layernorm_aten::rsqrt_Sqrt, -1.000000f}, {{"auto_broadcast", "numpy"}});  
+    auto __module_transformer_encoder_layers_0_input_layernorm_aten::mul_Multiply = makeOP<opset1::Multiply>({__module_transformer_embedding_word_embeddings_ov_ext::embedding_Gather, __module_transformer_encoder_layers_0_input_layernorm_aten::rsqrt_Divide}, {{"auto_broadcast", "numpy"}});  
+    auto __module_transformer_encoder_layers_0_input_layernorm_aten::mul_Multiply_1 = makeOP<opset1::Multiply>({Constant_208662, __module_transformer_encoder_layers_0_input_layernorm_aten::mul_Multiply}, {{"auto_broadcast", "numpy"}});  
+    auto self_transformer_encoder_layers_0_self_attention_query_key_value_weight = makeConst(element::u8, ov::Shape({4608,4096,}), {138,142,115,143,90,140,150,137,107,171,142,147,208,118,106,87,108,168,119,121,130... (18874368 in total)});
+    auto Convert_241325 = makeOP<opset1::Convert>({self_transformer_encoder_layers_0_self_attention_query_key_value_weight}, {{"destination_type", "f32"}});  
+    auto self_transformer_encoder_layers_0_self_attention_query_key_value_weight_zero_point = makeConst(element::u8, ov::Shape({4608,1,}), {130,115,140,126,133,110,116,121,134,125,155,136,108,139,140,97,117,148,114,136,134... (4608 in total)});
+    auto Convert_241328 = makeOP<opset1::Convert>({self_transformer_encoder_layers_0_self_attention_query_key_value_weight_zero_point}, {{"destination_type", "f32"}});  
+    auto self_transformer_encoder_layers_0_self_attention_query_key_value_weight_zero_point_subtract = makeOP<opset1::Subtract>({Convert_241325, Convert_241328}, {{"auto_broadcast", "numpy"}});  
+    auto self_transformer_encoder_layers_0_self_attention_query_key_value_weight_scale = makeConst(element::f32, ov::Shape({4608,1,}), {0.000417f,0.000674f,0.000425f,0.000578f,0.000404f,0.000691f,0.000590f,0.000417f,0.000772f... (4608 in total)});
+    auto self_transformer_encoder_layers_0_self_attention_query_key_value_weight_fq_weights_1 = makeOP<opset1::Multiply>({self_transformer_encoder_layers_0_self_attention_query_key_value_weight_zero_point_subtract, self_transformer_encoder_layers_0_self_attention_query_key_value_weight_scale}, {{"auto_broadcast", "numpy"}});  
+    auto __module_transformer_encoder_layers_0_self_attention_query_key_value_ov_ext::linear_MatMul = makeOP<opset1::MatMul>({__module_transformer_encoder_layers_0_input_layernorm_aten::mul_Multiply_1, self_transformer_encoder_layers_0_self_attention_query_key_value_weight_fq_weights_1}, {{"transpose_a", false}, {"transpose_b", true}});  
+    auto Constant_43629 = makeConst(element::f32, ov::Shape({1,1,4608,}), {0.162109f,-0.255859f,0.067871f,-0.229492f,0.126953f,-0.296875f,-0.330078f,-0.143555f... (4608 in total)});
+    auto __module_transformer_encoder_layers_0_self_attention_query_key_value_ov_ext::linear_Add = makeOP<opset1::Add>({__module_transformer_encoder_layers_0_self_attention_query_key_value_ov_ext::linear_MatMul, Constant_43629}, {{"auto_broadcast", "numpy"}});  
+    auto __module_transformer_encoder_layers_0_self_attention_prim::ListUnpack = makeOP<opset1::VariadicSplit>({__module_transformer_encoder_layers_0_self_attention_query_key_value_ov_ext::linear_Add, -1, {4096,256,256}});  
+    auto __module_transformer_encoder_layers_0_self_attention_aten::transpose_Transpose = makeOP<opset1::Reshape>({__module_transformer_encoder_layers_0_self_attention_prim::ListUnpack->output(0), {-1,32,1,128}}, {{"special_zero", false}});  
+    auto VariadicSplit_39760 = makeOP<opset1::VariadicSplit>({__module_transformer_encoder_layers_0_self_attention_aten::transpose_Transpose, 3, {64,64}});  
+    auto aten::reshape_Reshape = makeOP<opset1::Reshape>({VariadicSplit_39760->output(0), {0,32,0,32,2}}, {{"special_zero", true}});  
+    auto aten::select_Gather = makeOP<opset8::Gather>({aten::reshape_Reshape, 0, -1}, {{"batch_dims", 0}});  
+    auto __module_transformer_rotary_pos_emb_aten::stack = makeConst(element::u8, ov::Shape({131072,32,2,}), {255,0,255,0,255,0,255,0,255,0,255,0,255,0,255,0,255,0,255,0,255,0,255,0,255,0,255... (8388608 in total)});
+    auto Convert_53429 = makeOP<opset1::Convert>({position_ids}, {{"destination_type", "i32"}});  
+    auto Unsqueeze_12579 = makeOP<opset1::Reshape>({Convert_53429, {-1,1}}, {{"special_zero", false}});  
+    auto __module_transformer_rotary_pos_emb_aten::stack_fq_weights_0_convert = makeConst(element::f32, ov::Shape({131072,1,1,}), {0.003922f,0.003922f,0.005554f,0.007805f,0.006992f,0.007835f,0.007236f,0.007549f,0.007828f... (131072 in total)});
+    auto Convert_242128 = makeConst(element::f32, ov::Shape({131072,1,1,}), {0.000000f,0.000000f,75.000000f,127.000000f,112.000000f,127.000000f,117.000000f,123.000000f... (131072 in total)});
+    auto __module_transformer_aten::index_Gather = makeOP<ie_internal_opset::GatherCompressed>({__module_transformer_rotary_pos_emb_aten::stack, Unsqueeze_12579, 0, __module_transformer_rotary_pos_emb_aten::stack_fq_weights_0_convert, Convert_242128}, {{"batch_dims", 0}});  
+    auto aten::slice_Slice_2 = makeOP<opset8::Slice>({__module_transformer_aten::index_Gather, {0}, {1}, {1}, {1}});  
+    auto aten::view_Reshape = makeOP<opset1::Reshape>({aten::slice_Slice_2, {-1,1,1,32,2}}, {{"special_zero", false}});  
+    auto aten::select_Gather_1 = makeOP<opset8::Gather>({aten::view_Reshape, 0, -1}, {{"batch_dims", 0}});  
+    auto aten::mul_Multiply_1 = makeOP<opset1::Multiply>({aten::select_Gather, aten::select_Gather_1}, {{"auto_broadcast", "numpy"}});  
+    auto aten::select_Gather_2 = makeOP<opset8::Gather>({aten::reshape_Reshape, 1, -1}, {{"batch_dims", 0}});  
+    auto aten::select_Gather_3 = makeOP<opset8::Gather>({aten::view_Reshape, 1, -1}, {{"batch_dims", 0}});  
+    auto aten::mul_Multiply_2 = makeOP<opset1::Multiply>({aten::select_Gather_2, aten::select_Gather_3}, {{"auto_broadcast", "numpy"}});  
+    auto Multiply_44819 = makeOP<opset1::Multiply>({aten::mul_Multiply_2, -1.000000f}, {{"auto_broadcast", "numpy"}});  
+    auto aten::sub_Subtract = makeOP<opset1::Add>({aten::mul_Multiply_1, Multiply_44819}, {{"auto_broadcast", "numpy"}});  
+    auto Unsqueeze_81694 = makeOP<opset1::Reshape>({aten::sub_Subtract, {-1,32,1,32,1}}, {{"special_zero", false}});  
+    auto aten::mul_Multiply_3 = makeOP<opset1::Multiply>({aten::select_Gather_2, aten::select_Gather_1}, {{"auto_broadcast", "numpy"}});  
+    auto aten::mul_Multiply_4 = makeOP<opset1::Multiply>({aten::select_Gather, aten::select_Gather_3}, {{"auto_broadcast", "numpy"}});  
+    auto aten::add_Add = makeOP<opset1::Add>({aten::mul_Multiply_3, aten::mul_Multiply_4}, {{"auto_broadcast", "numpy"}});  
+    auto Unsqueeze_81695 = makeOP<opset1::Reshape>({aten::add_Add, {-1,32,1,32,1}}, {{"special_zero", false}});  
+    auto aten::stack = makeOP<opset1::Concat>({Unsqueeze_81694, Unsqueeze_81695}, {{"axis", -1}});  
+    auto aten::flatten_Reshape = makeOP<opset1::Reshape>({aten::stack, {0,32,0,64}}, {{"special_zero", true}});  
+    auto aten::cat_Concat = makeOP<opset1::Concat>({aten::flatten_Reshape, VariadicSplit_39760->output(1)}, {{"axis", -1}});  
+    auto Reshape_12957 = makeOP<opset1::Reshape>({aten::cat_Concat, {-1,4096}}, {{"special_zero", false}});  
+    auto __module_transformer_encoder_layers_0_self_attention_aten::transpose_Transpose_1 = makeOP<opset1::Reshape>({__module_transformer_encoder_layers_0_self_attention_prim::ListUnpack->output(1), {-1,2,1,128}}, {{"special_zero", false}});  
+    auto VariadicSplit_39757 = makeOP<opset1::VariadicSplit>({__module_transformer_encoder_layers_0_self_attention_aten::transpose_Transpose_1, 3, {64,64}});  
+    auto aten::reshape_Reshape_1 = makeOP<opset1::Reshape>({VariadicSplit_39757->output(0), {0,2,0,32,2}}, {{"special_zero", true}});  
+    auto aten::select_Gather_8 = makeOP<opset8::Gather>({aten::reshape_Reshape_1, 0, -1}, {{"batch_dims", 0}});  
+    auto aten::mul_Multiply_6 = makeOP<opset1::Multiply>({aten::select_Gather_8, aten::select_Gather_1}, {{"auto_broadcast", "numpy"}});  
+    auto aten::select_Gather_10 = makeOP<opset8::Gather>({aten::reshape_Reshape_1, 1, -1}, {{"batch_dims", 0}});  
+    auto aten::mul_Multiply_7 = makeOP<opset1::Multiply>({aten::select_Gather_10, aten::select_Gather_3}, {{"auto_broadcast", "numpy"}});  
+    auto Multiply_44822 = makeOP<opset1::Multiply>({aten::mul_Multiply_7, -1.000000f}, {{"auto_broadcast", "numpy"}});  
+    auto aten::sub_Subtract_1 = makeOP<opset1::Add>({aten::mul_Multiply_6, Multiply_44822}, {{"auto_broadcast", "numpy"}});  
+    auto Unsqueeze_81697 = makeOP<opset1::Reshape>({aten::sub_Subtract_1, {-1,2,1,32,1}}, {{"special_zero", false}});  
+    auto aten::mul_Multiply_8 = makeOP<opset1::Multiply>({aten::select_Gather_10, aten::select_Gather_1}, {{"auto_broadcast", "numpy"}});  
+    auto aten::mul_Multiply_9 = makeOP<opset1::Multiply>({aten::select_Gather_8, aten::select_Gather_3}, {{"auto_broadcast", "numpy"}});  
+    auto aten::add_Add_1 = makeOP<opset1::Add>({aten::mul_Multiply_8, aten::mul_Multiply_9}, {{"auto_broadcast", "numpy"}});  
+    auto Unsqueeze_81698 = makeOP<opset1::Reshape>({aten::add_Add_1, {-1,2,1,32,1}}, {{"special_zero", false}});  
+    auto aten::stack_1 = makeOP<opset1::Concat>({Unsqueeze_81697, Unsqueeze_81698}, {{"axis", -1}});  
+    auto aten::flatten_Reshape_1 = makeOP<opset1::Reshape>({aten::stack_1, {0,2,0,64}}, {{"special_zero", true}});  
+    auto aten::cat_Concat_1 = makeOP<opset1::Concat>({aten::flatten_Reshape_1, VariadicSplit_39757->output(1)}, {{"axis", -1}});
+    auto Reshape_12961 = makeOP<opset1::Reshape>({aten::cat_Concat_1, {-1,256}}, {{"special_zero", false}});
+    auto Reshape_12963 = makeOP<opset1::Reshape>({__module_transformer_encoder_layers_0_self_attention_prim::ListUnpack->output(2), {-1,256}}, {{"special_zero", false}});
+
+    return std::make_shared<ov::Model>(ov::NodeVector{cat_Concat_425},
+                                       ov::ParameterVector{input, cos_sin_cache, position_ids});
+}
+
 ov::Tensor RoPETestChatGLM2DRoPEStridedSlice::create_i32_tensor(const ov::Shape& shape, int start, int step) {
     auto tensor = ov::Tensor(ov::element::i32, shape);
     auto* ptr = static_cast<int32_t*>(tensor.data());

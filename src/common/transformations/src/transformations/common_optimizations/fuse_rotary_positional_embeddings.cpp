@@ -524,6 +524,8 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     this->register_matcher(m, callback);
 }
 
+int chat_glm_cnt = 0;
+
 ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool support_2d_rope) {
     MATCHER_SCOPE(RoPEFusionChatGLM);
 
@@ -542,28 +544,42 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     auto total_size_k = ov::gen_pattern::Symbol("total_size_k");
     auto total_size_v = ov::gen_pattern::Symbol("total_size_v");
     auto batch = ov::gen_pattern::Symbol("batch");
+    // temporarily disable validation of the batch and seq_len symbols, it's a bad idea to determine these values from reshape constants,
+    // because Reshape op constants might contain special values (-1, 0), not the real batch, seq_len value
+    batch.validate = false;
+
     auto seq_len = ov::gen_pattern::Symbol("seq_len");
+    seq_len.validate = false;
 
     auto qkv_proj = makePattern<opset1::VariadicSplit>({qkv_linear, -1, {total_size_q, total_size_k, total_size_v}});
     qkv_proj->set_output_size(3);
-
+    qkv_proj->set_friendly_name("qkv_proj");
     auto cur_key = makePattern<opset1::Reshape>({qkv_proj->output(split_output_id), {0, 0, head_cnt, head_size}},
                                                 {{"special_zero", true}});
-
+    cur_key->set_friendly_name("cur_key");
     std::shared_ptr<ov::Node> input_key = nullptr;
     // Extended the RoPE to a two-dimensional form to accommodate the 2D positional encoding in GLM.
     // Calculate positional embedding independent of batch and each head
     if (support_2d_rope) {
         // Get transposed key [batch, head_cnt, seq_length, head_size]
-        input_key = makePattern<opset1::Transpose>({cur_key, {0, 2, 1, 3}});
+        // For Models, where SDPA to PagedAttention transformation was applied,
+        // all sequences have the size == 1, we move sequences to the batch, this is the PagedAttention specific,
+        // so seq_length dim will be always 1, this means that Transpose is unnecessary and Reshape op can be used.
+        auto transposed_cur_key = makePattern<opset1::Reshape>({qkv_proj->output(split_output_id),
+                                                                {-1,head_cnt,1,head_size}},
+                                                               {{"special_zero", false}});
+        // Transpose for SDPA version:
+        input_key = makePattern<opset1::Transpose>({cur_key, {0, 2, 1, 3}}) | transposed_cur_key;
     } else {
         // Get key [seq_length, batch, head_cnt, head_size]
         input_key = std::move(cur_key);
     }
 
     auto slice_Slice_437 = GenSlice(input_key, 0, ndims, 1, 3);
+    slice_Slice_437->set_friendly_name("slice_Slice_437");
     auto var_split_1 = makePattern<opset1::VariadicSplit>({input_key, 3, {ndims, ov::gen_pattern::Symbol("end")}});
     var_split_1->set_output_size(2);
+    var_split_1->set_friendly_name("var_split");
 
     // rotate half
     std::shared_ptr<ov::Node> reshape_Reshape_453 = nullptr;
@@ -572,6 +588,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
         reshape_Reshape_453 =
             makePattern<opset1::Reshape>({slice_Slice_437 | var_split_1->output(0), const_target_shape_1},
                                          {{"special_zero", true}});
+        reshape_Reshape_453->set_friendly_name("reshape_Reshape_453_1");
     } else {
         auto ListConstruct_452_Concat =
             makePattern<opset1::Concat>({seq_length, {-1}, {head_cnt}, {ndims / 2}, {2}}, {{"axis", 0}});
@@ -580,12 +597,16 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
         reshape_Reshape_453 =
             makePattern<opset1::Reshape>({slice_Slice_437 | var_split_1->output(0),
                                           ListConstruct_452_Concat | const_target_shape_1 | const_target_shape_0});
+        reshape_Reshape_453->set_friendly_name("reshape_Reshape_453_2");
     }
 
     auto x_even = makePattern<opset8::Gather>({reshape_Reshape_453, 0, -1}, {{"batch_dims", 0}});
+    x_even->set_friendly_name("x_even");
     auto x_odd = makePattern<opset8::Gather>({reshape_Reshape_453, 1, -1}, {{"batch_dims", 0}});
+    x_odd->set_friendly_name("x_odd");
 
     auto var_split_2 = makePattern<opset1::VariadicSplit>({cos_sin_cache, 0, {0, ov::gen_pattern::Symbol("end")}});
+    var_split_2->set_friendly_name("var_split_2");
     var_split_2->set_output_size(2);
 
     std::shared_ptr<ov::Node> view_Reshape_460 = nullptr;
@@ -603,8 +624,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
         // [batch, 1, seq_length, half_rotary_dims, 2]
         view_Reshape_460 = makePattern<opset1::Reshape>(
             {slice_StridedSlice_449 | slice_Slice_449_1d | slice_Slice_449_2d | var_split_2->output(0),
-             ListConstruct_379_Concat | const_target_shape_2},
-            {{"special_zero", false}});
+             ListConstruct_379_Concat | const_target_shape_2});
     } else {
         auto ListConstruct_379_Concat =
             makePattern<opset1::Concat>({seq_length, {-1}, {1}, {ndims / 2}, {2}}, {{"axis", 0}});
@@ -617,26 +637,26 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
         // [seq_length, 1, batch, half_rotary_dims, 2]
         view_Reshape_460 =
             makePattern<opset1::Reshape>({slice_StridedSlice_449 | slice_Slice_449 | var_split_2->output(0),
-                                          ListConstruct_379_Concat | const_target_shape_0 | const_target_shape_2},
-                                         {{"special_zero", false}});
+                                          ListConstruct_379_Concat | const_target_shape_0 | const_target_shape_2});
     }
 
     auto cos_tab = makePattern<opset8::Gather>({view_Reshape_460, 0, -1}, {{"batch_dims", 0}});
+    cos_tab->set_friendly_name("cos_tab_gather");
     auto x_even_cos = makePattern<opset1::Multiply>({x_even, cos_tab}, {{"auto_broadcast", "numpy"}});
+    x_even_cos->set_friendly_name("x_even_cos_gather");
 
     auto sin_tab = makePattern<opset8::Gather>({view_Reshape_460, 1, -1}, {{"batch_dims", 0}});
     auto x_odd_sin = makePattern<opset1::Multiply>({x_odd, sin_tab}, {{"auto_broadcast", "numpy"}});
     auto neg_x_odd_sin = makePattern<opset1::Multiply>({x_odd_sin, -1.000000f}, {{"auto_broadcast", "numpy"}});
     auto sub_Subtract_469 = makePattern<opset1::Add>({x_even_cos, neg_x_odd_sin}, {{"auto_broadcast", "numpy"}});
-
-    auto y_even = makePattern<opset1::Unsqueeze>({sub_Subtract_469, -1});
+    auto y_even = makePattern<opset1::Unsqueeze>({sub_Subtract_469, -1}) | makePattern<opset1::Reshape>({sub_Subtract_469, {-1,head_cnt,1,ndims / 2,1}}, {{"special_zero", false}});;
     auto const_y_even_reshape = makeConst({1, -1, head_cnt, ndims / 2, 1});
     auto y_even_reshape =
         makePattern<opset1::Reshape>({sub_Subtract_469, const_y_even_reshape}, {{"special_zero", false}});
     auto x_odd_cos = makePattern<opset1::Multiply>({x_odd, cos_tab}, {{"auto_broadcast", "numpy"}});
     auto x_even_sin = makePattern<opset1::Multiply>({x_even, sin_tab}, {{"auto_broadcast", "numpy"}});
     auto add_Add_476 = makePattern<opset1::Add>({x_odd_cos, x_even_sin}, {{"auto_broadcast", "numpy"}});
-    auto y_odd = makePattern<opset1::Unsqueeze>({add_Add_476, -1});
+    auto y_odd = makePattern<opset1::Unsqueeze>({add_Add_476, -1}) | makePattern<opset1::Reshape>({add_Add_476, {-1,head_cnt,1,ndims / 2,1}}, {{"special_zero", false}});;
     auto const_y_odd_reshape = makeConst({1, -1, head_cnt, ndims / 2, 1});
     auto y_odd_reshape = makePattern<opset1::Reshape>({add_Add_476, const_y_odd_reshape}, {{"special_zero", false}});
 
@@ -666,16 +686,21 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     auto cat_Concat_505 =
         makePattern<opset1::Concat>({flatten_Reshape_501, slice_Slice_443 | var_split_1->output(1)}, {{"axis", -1}});
 
-    auto result = cat_Concat_505 | flatten_Reshape_501;
+    // todo: do we need to add reshapes to the pattern? need to double check inference
+    //     auto Reshape_12961 = makeOP<opset1::Reshape>({aten::cat_Concat_1, {-1,256}}, {{"special_zero", false}});
+    //    auto Reshape_12963 = makeOP<opset1::Reshape>({__module_transformer_encoder_layers_0_self_attention_prim::ListUnpack->output(2), {-1,256}}, {{"special_zero", false}});
+    auto result = cat_Concat_505;
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
+        std::cout << "XXXXXX GLM pattern before validation " << std::endl;
         PatternValidator validator(m);
         if (!validator) {
             return false;
         }
-
+        chat_glm_cnt++;
+        std::cout << "XXXXXX GLM pattern after validation " << chat_glm_cnt << std::endl;
         op::internal::RoPE::Config config;
         OutputVector new_args;
         config.rotary_ndims = static_cast<size_t>(validator["ndims"]);
