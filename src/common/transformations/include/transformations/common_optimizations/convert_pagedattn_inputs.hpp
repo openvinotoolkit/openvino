@@ -23,8 +23,8 @@ public:
         ov::element::Type keyCachePrecision;
         ov::element::Type valueCachePrecision;
         ov::element::Type inferencePrecision;
-        size_t keyCacheBlockSize;
-        size_t valueCacheBlockSize;
+        size_t keyCacheBlockSize = 32;
+        size_t valueCacheBlockSize = 32;
         size_t keyCacheGroupSize = 0;
         size_t valueCacheGroupSize = 0;
         bool keyCacheQuantBychannel = false;

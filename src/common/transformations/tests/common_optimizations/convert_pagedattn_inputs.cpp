@@ -156,6 +156,7 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                  bool quantBychannel) {
             auto targeShape = PartialShape::dynamic(4);
             targeShape[1] = headNums;
+            groupSize = groupSize ? groupSize : headSize;
             const size_t paramSize = 2 * sizeof(float) * 8 / cachePrec.bitwidth();
             if (!cachePrec.is_integral()) {
                 targeShape[2] = blockSize;
@@ -260,7 +261,7 @@ std::vector<std::vector<ov::element::Type>> get_cache_prec() {
 }
 
 // group size
-const std::vector<std::vector<size_t>> cache_gs = {{32, 16}};
+const std::vector<std::vector<size_t>> cache_gs = {{32, 16}, {0, 0}};
 
 // block size
 const std::vector<std::vector<size_t>> cache_bs = {{32, 16}};
