@@ -1379,7 +1379,8 @@ bool ov::CoreImpl::device_supports_internal_property(const ov::Plugin& plugin, c
 }
 
 bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin, const ov::AnyMap& arguments) const {
-    return plugin.supports_model_caching(arguments);
+    return is_virtual_device(plugin.get_name()) ? plugin.supports_model_caching(arguments)
+                                                : plugin.supports_model_caching();
 }
 
 bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {

@@ -104,7 +104,10 @@ ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& argument
 bool ov::Plugin::supports_model_caching(const ov::AnyMap& arguments) const {
     bool supported(false);
     auto caching_arugments = arguments;
-    caching_arugments[ov::device::capabilities.name()] = ov::device::capability::EXPORT_IMPORT;
+    if (!arguments.empty()) {
+        // check if the virtual plugin supports caching
+        caching_arugments[ov::device::capabilities.name()] = ov::device::capability::EXPORT_IMPORT;
+    }
     supported = util::contains(get_property(ov::supported_properties), ov::device::capabilities) &&
                 util::contains(get_property(ov::device::capabilities, caching_arugments),
                                ov::device::capability::EXPORT_IMPORT) &&
