@@ -145,7 +145,6 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Assign", Type::MemoryOutput},    // for construction from layer ctor
         {"ReadValueWithSubgraph", Type::MemoryInput},
         {"Convert", Type::Convert},
-        {"ConvertSaturation", Type::Convert},
         {"NV12toRGB", Type::ColorConvert},
         {"NV12toBGR", Type::ColorConvert},
         {"I420toRGB", Type::ColorConvert},

@@ -8,7 +8,6 @@
 #include "dnnl_extension_utils.h"
 #include "openvino/opsets/opset1.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
-#include "snippets/op/convert_saturation.hpp"
 
 using namespace dnnl;
 
@@ -17,8 +16,7 @@ namespace ov::intel_cpu::node {
 bool Convert::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto convert = ov::as_type_ptr<const ov::opset1::Convert>(op);
-        const auto convertSaturation = ov::as_type_ptr<const ov::snippets::op::ConvertSaturation>(op);
-        if (!convert && !convertSaturation) {
+        if (!convert) {
             errorMessage = "Only opset1 Convert operation is supported";
             return false;
         }
