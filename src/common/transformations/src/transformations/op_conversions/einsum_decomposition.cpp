@@ -365,8 +365,8 @@ ov::Output<ov::Node> unsqueeze_input(const ov::Output<ov::Node>& input_node,
 /// \return An OutputVector containing the broadcasted and merged shape. If one of the input vectors is empty,
 ///         the other vector is returned.
 ///
-ov::OutputVector broadcast_merge_shapes(ov::OutputVector& shapes_lhs,
-                                        ov::OutputVector& shapes_rhs,
+ov::OutputVector broadcast_merge_shapes(const ov::OutputVector& shapes_lhs,
+                                        const ov::OutputVector& shapes_rhs,
                                         ov::NodeVector& subgraph_nodes) {
     ov::OutputVector broadcasted_shape_nodes{};
     // OutputVector is either empty or contains a single shape
