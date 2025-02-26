@@ -53,7 +53,6 @@ public:
         return get_ptr<T>();
     }
 
-private:
     AlignedBuffer(const AlignedBuffer&) = delete;
     AlignedBuffer& operator=(const AlignedBuffer&) = delete;
 

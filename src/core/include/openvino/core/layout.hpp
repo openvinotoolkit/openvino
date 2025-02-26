@@ -191,14 +191,13 @@ class OPENVINO_API AttributeAdapter<Layout> : public ValueAccessor<std::string> 
 public:
     OPENVINO_RTTI("AttributeAdapter<Layout>");
     explicit AttributeAdapter(Layout& value) : m_ref(value) {}
+    ~AttributeAdapter() override;
 
     const std::string& get() override;
     void set(const std::string& value) override;
     explicit operator Layout&() {
         return m_ref;
     }
-
-    ~AttributeAdapter() override;
 
 protected:
     Layout& m_ref;

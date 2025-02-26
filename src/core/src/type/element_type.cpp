@@ -342,4 +342,8 @@ const std::string& AttributeAdapter<element::Type>::get() {
 void AttributeAdapter<element::Type>::set(const std::string& value) {
     m_ref = as_enum<element::Type_t>(value);
 }
+
+AttributeAdapter<ov::element::Type_t>::~AttributeAdapter() = default;
+AttributeAdapter<ov::element::Type>::~AttributeAdapter() = default;
+AttributeAdapter<ov::element::TypeVector>::~AttributeAdapter() = default;
 }  // namespace ov
