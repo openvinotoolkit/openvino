@@ -37,4 +37,18 @@ std::shared_ptr<Node> QKVProjectionNode::clone_with_new_inputs(const ov::OutputV
     check_new_args_count(this, new_args);
     return std::make_shared<QKVProjectionNode>(new_args, m_config);
 }
+
+bool QKVProjectionNode::visit_attributes(ov::AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(QKVProjectionNode_visit_attributes);
+    visitor.start_structure("config");
+    visitor.on_attribute("quantized", m_config.quantized);
+    visitor.on_attribute("hidden_size", m_config.hidden_size);
+    visitor.on_attribute("proj_size0", m_config.proj_size0);
+    visitor.on_attribute("proj_size1", m_config.proj_size1);
+    visitor.on_attribute("proj_size2", m_config.proj_size2);
+    visitor.on_attribute("weights_combined", m_config.weights_combined);
+    visitor.finish_structure();
+    return true;
+}
+
 }  // namespace ov::intel_cpu
