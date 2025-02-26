@@ -445,15 +445,17 @@ if(TRUE)
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/pyapi_stubs_generated)
     message(STATUS "Script path: ${stub_gen_script}")
     execute_process(
-        COMMAND ${stub_gen_script} ${CMAKE_CURRENT_BINARY_DIR}/pyapi_stubs_generated
+        COMMAND ${CMAKE_COMMAND} -E 
+            env PYTHONPATH=${OpenVINOPython_SOURCE_DIR}/src:$ENV{PYTHONPATH}
+            env LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}:${OpenVINO_BINARY_DIR}/bin/intel64/Debug:$ENV{LD_LIBRARY_PATH}
+            ${stub_gen_script}
+            ${CMAKE_CURRENT_BINARY_DIR}/pyapi_stubs_generated
         RESULT_VARIABLE stub_gen_result
-        OUTPUT_VARIABLE stub_gen_output
         ERROR_VARIABLE stub_gen_error
     )
     if(NOT stub_gen_result EQUAL 0)
         message(FATAL_ERROR "Failed to generate Python API stub files: ${stub_gen_error}")
     else()
-        file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/pyapi_stubs_generated/stub_gen_done.txt "")
         message(STATUS "Successfully generated Python API stub files")
     endif()
 
@@ -478,7 +480,6 @@ if(TRUE)
         if(NOT EXISTS ${committed_file})
             message(FATAL_ERROR "Committed .pyi file not found for generated file: ${generated_file}")
         endif()
-        message(STATUS "Comparing generated file: ${generated_file} with committed file: ${committed_file}")
         execute_process(COMMAND ${CMAKE_COMMAND} -E compare_files ${generated_file} ${committed_file}
             RESULT_VARIABLE compare_result
         )
@@ -486,4 +487,5 @@ if(TRUE)
             message(FATAL_ERROR "The generated .pyi file ${generated_file} does not match the committed .pyi file ${committed_file}")
         endif()
     endforeach()
+    message(STATUS "Python stub files validation successful.")
 endif()
