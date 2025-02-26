@@ -13,6 +13,7 @@
 #include "dnnl_types.h"
 #include "nodes/executors/common/ref_transpose.hpp"
 #include "nodes/executors/transpose.hpp"
+#include "openvino/core/except.hpp"
 #include "utils/bfloat16.hpp"
 
 using namespace dnnl;
@@ -250,6 +251,8 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data,
             (*permute_kernel)(&arg);
         });
         break;
+    default:
+        OPENVINO_THROW("Unsupported number of dimensions: " + std::to_string(jcp.n));
     }
     return;
 }

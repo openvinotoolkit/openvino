@@ -33,6 +33,7 @@
 
 Checks: >
   -*,
+  bugprone-*,
   performance-*,
   google-*,
   modernize-loop-convert,
@@ -40,8 +41,13 @@ Checks: >
   cppcoreguidelines-prefer-member-initializer,
   readability-else-after-return,
   -bugprone-easily-swappable-parameters,
+  -bugprone-empty-catch,
+  -bugprone-exception-escape,
   -bugprone-implicit-widening-of-multiplication-result,
+  -bugprone-incorrect-roundings,
+  -bugprone-lambda-function-name,
   -bugprone-narrowing-conversions,
+  -bugprone-signed-char-misuse,
   -cppcoreguidelines-narrowing-conversions,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -google-build-using-namespace,

@@ -965,7 +965,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
             OPENVINO_THROW("Cannot cast to TBlob internal weights blob");
         }
 
-        auto weightsPtr = static_cast<const int8_t*>(weightsBlob->getData());
+        auto weightsPtr = static_cast<const uint8_t*>(weightsBlob->getData());
         if (weightsPtr == nullptr) {
             OPENVINO_THROW("weightsBlob has not allocated buffer");
         }
@@ -2081,7 +2081,7 @@ void GraphOptimizer::FuseEltwiseAndSimple(Graph& graph) {
                         graph.RemoveEdge(remEdge);
                     }
 
-                    if (parentNode->inputShapes.size() < static_cast<size_t>(outNum + 1)) {
+                    if (parentNode->inputShapes.size() < static_cast<size_t>(outNum) + 1) {
                         parentNode->inputShapes.resize(outNum + 1);
                     }
                     parentNode->inputShapes[outNum] = parent->getOutputShapeAtPort(inNum);
