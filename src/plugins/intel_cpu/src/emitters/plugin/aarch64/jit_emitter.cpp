@@ -62,8 +62,8 @@ void jit_emitter::emit_data() const {
     assert(sizeof(table_entry_val_t) == 4);
 
     // Run through the map and insert values stored there
-    for (auto it = entry_map_.begin(); it != entry_map_.end(); it++) {
-        const auto& te = (*it).second;  // get map entry for a given key
+    for (const auto& it : entry_map_) {
+        const auto& te = it.second;  // get map entry for a given key
         const auto len = te.bcast ? get_vec_length() : sizeof(table_entry_val_t);
         for (size_t d = 0; d < len; d += sizeof(table_entry_val_t)) {
             h->dd(te.val);
@@ -103,8 +103,8 @@ void jit_emitter::prepare_table() {
     // expect the same order when injecting the table entries in
     // prepare_table.
     size_t off = 0;
-    for (auto it = entry_map_.begin(); it != entry_map_.end(); it++) {
-        auto& te = (*it).second;
+    for (auto& it : entry_map_) {
+        auto& te = it.second;
         te.off = off;
         off += te.bcast ? get_vec_length() : sizeof(table_entry_val_t);
     }

@@ -11,19 +11,18 @@ static void set_intersection(const std::set<std::vector<element::Type>>& precisi
                              std::set<std::vector<element::Type>>& intersection) {
     std::map<element::Type, size_t> intersection_types;
 
-    for (auto it1 = precisions1.begin(); it1 != precisions1.end(); ++it1) {
-        for (auto it2 = precisions2.begin(); it2 != precisions2.end(); ++it2) {
-            const auto& it1_precisions = *it1;
+    for (const auto& it1_precisions : precisions1) {
+        for (const auto& it2 : precisions2) {
             // all element types are equal
-            if (it1_precisions[0] == (*it2)[0]) {
+            if (it1_precisions[0] == it2[0]) {
                 // first precisions size is used
                 intersection_types.emplace(it1_precisions[0], it1_precisions.size());
             }
         }
     }
 
-    for (auto it = intersection_types.begin(); it != intersection_types.end(); ++it) {
-        intersection.insert(std::vector<element::Type>(it->second, it->first));
+    for (auto& intersection_type : intersection_types) {
+        intersection.insert(std::vector<element::Type>(intersection_type.second, intersection_type.first));
     }
 }
 

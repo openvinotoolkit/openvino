@@ -21,11 +21,11 @@ inline std::vector<float> simplifyToScale(const std::shared_ptr<ov::opset8::Fake
         ov::as_type_ptr<ov::opset8::Constant>(fq_node->get_input_node_shared_ptr(4))->cast_vector<float>();
 
     std::vector<float> cl, ch, isc, ish, osc, osh;
-    for (size_t i = 0; i < input_low.size(); i++) {
-        cl.push_back(input_low[i]);
+    for (float i : input_low) {
+        cl.push_back(i);
     }
-    for (size_t i = 0; i < input_high.size(); i++) {
-        ch.push_back(input_high[i]);
+    for (float i : input_high) {
+        ch.push_back(i);
     }
 
     for (size_t i = 0; i < std::max(input_low.size(), input_high.size()); i++) {
