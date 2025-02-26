@@ -960,11 +960,11 @@ BinaryConvolution::BinaryConvolution(const std::shared_ptr<ov::Node>& op, const 
         const auto binConv = ov::as_type_ptr<const ov::opset1::BinaryConvolution>(op);
 
         pad_value = binConv->get_pad_value();
-        for (size_t i = 0; i < binConv->get_strides().size(); i++) {
-            stride.push_back(static_cast<ptrdiff_t>(binConv->get_strides()[i]));
+        for (uint64_t i : binConv->get_strides()) {
+            stride.push_back(static_cast<ptrdiff_t>(i));
         }
-        for (size_t i = 0; i < binConv->get_dilations().size(); i++) {
-            dilation.push_back(static_cast<ptrdiff_t>(binConv->get_dilations()[i]) - 1);
+        for (uint64_t i : binConv->get_dilations()) {
+            dilation.push_back(static_cast<ptrdiff_t>(i) - 1);
         }
         paddingL = binConv->get_pads_begin();
         paddingR = binConv->get_pads_end();
@@ -987,8 +987,8 @@ void BinaryConvolution::getSupportedDescriptors() {
     withBinarization = isFusedWith(Type::FakeQuantize);
     withSum = false;
     size_t expectedInputEdgesNum = 2;
-    for (size_t i = 0; i < fusedWith.size(); i++) {
-        auto* eltwiseNode = dynamic_cast<Eltwise*>(fusedWith[i].get());
+    for (auto& i : fusedWith) {
+        auto* eltwiseNode = dynamic_cast<Eltwise*>(i.get());
         if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
             withSum = true;
             expectedInputEdgesNum++;
