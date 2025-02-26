@@ -1801,6 +1801,7 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
         for (auto& node : processing_order) {
             if (node->get_selected_impl() != nullptr) {
                 impl_ids.emplace_back(node->id());
+                std::cerr << node->get_selected_impl()->get_type_info() << " KERNELS SIZE: " << node->get_selected_impl()->get_kernels().size() << std::endl;
                 kernels_cache.add_to_cached_kernels(node->get_selected_impl()->get_kernels());
             }
         }

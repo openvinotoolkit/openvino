@@ -1,15 +1,15 @@
 // Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#pragma once
+
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/runtime/utils.hpp"
-#include "sdpa_opt.hpp"
 #include "sdpa_base.hpp"
 #include "utils/jitter.hpp"
 #include "utils/kernel_base.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
-#include "primitive_ocl_base.hpp"
-#include "kv_cache_inst.h"
 #include "scaled_dot_product_attention_inst.h"
 
 #include "micro_utils.hpp"
@@ -314,7 +314,6 @@ public:
             kd.micro_kernels.push_back(std::make_shared<micro::MicroKernelPackage>(p));
         }
 
-        kd.update_dispatch_data_func(params, kd);
         return kd;
     }
 

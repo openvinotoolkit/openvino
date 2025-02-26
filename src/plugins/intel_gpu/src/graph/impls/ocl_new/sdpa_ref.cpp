@@ -112,6 +112,7 @@ protected:
 
 class SDPARefImpl : public SDPAImplBase {
 public:
+    DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::SDPARefImpl)
     SDPARefImpl(const kernel_impl_params& params)
         : SDPAImplBase(SDPARef::get_type_info_static()) {
         add_stage<SDPARefGenerator, REGULAR_STAGE>(params, false);

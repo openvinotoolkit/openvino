@@ -50,6 +50,7 @@ protected:
 
 class CTCLossImpl : public PrimitiveImplOCL {
 public:
+    DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::CTCLossImpl)
     CTCLossImpl(const program_node& node, const kernel_impl_params& params)
         : PrimitiveImplOCL(CTCLoss::get_type_info_static()) {
         add_stage<CTCLossGenerator, 0>(params);
@@ -57,10 +58,6 @@ public:
 
     std::unique_ptr<primitive_impl> clone() const override {
         return std::make_unique<CTCLossImpl>(*this);
-    }
-
-    std::vector<layout> get_internal_buffer_layouts(const kernel_impl_params& params) const override {
-        return {};
     }
 };
 

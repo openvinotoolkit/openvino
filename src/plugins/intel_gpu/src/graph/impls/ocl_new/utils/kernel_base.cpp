@@ -6,6 +6,11 @@
 #include "intel_gpu/runtime/kernel_args.hpp"
 #include "kernels_db.hpp"
 #include "jitter.hpp"
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "micro_utils.hpp"
+#endif
+
 #include <cctype>
 
 namespace ov::intel_gpu::ocl {
@@ -144,7 +149,7 @@ KernelData SingleKernelGenerator::get_kernel_data(const kernel_impl_params& para
 
     kd.params.arguments = get_arguments_desc(params);
     kd.update_dispatch_data_func = get_dispatch_data_func();
-    kd.update_dispatch_data_func(params, kd);
+    kd.need_args_update = true;
 
     return kd;
 }
@@ -177,7 +182,7 @@ std::string SingleKernelGenerator::get_build_options(const kernel_impl_params& p
 JitConstants SingleKernelGenerator::get_jit_constants(const kernel_impl_params& params) const {
     auto jit = make_base_jit_constants(params);
     jit.merge(make_tensors_jit_constants(params));
-    jit.add(make_activation_jit_constants(activation_func::none, ov::element::undefined, "", false, false));
+    jit.add(make_activation_jit_constants(activation_func::none, ov::element::dynamic, "", false, false));
     return jit;
 }
 
@@ -196,6 +201,56 @@ Arguments SingleKernelGenerator::get_arguments_desc(const kernel_impl_params& pa
     }
 
     return args;
+}
+
+void KernelData::save(cldnn::BinaryOutputBuffer& ob) const {
+    ob(params.workGroups.global, params.workGroups.local);
+    ob << params.arguments.size();
+    for (const auto& arg : params.arguments) {
+        ob << make_data(&arg.t, sizeof(cldnn::argument_desc::Types)) << arg.index;
+    }
+    ob << params.scalars.size();
+    for (const auto& scalar : params.scalars) {
+        ob << make_data(&scalar.t, sizeof(cldnn::scalar_desc::Types)) << make_data(&scalar.v, sizeof(cldnn::scalar_desc::ValueT));
+    }
+    ob << params.layerID;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    ob << micro_kernels.size();
+    for (const auto& microkernel : micro_kernels) {
+        microkernel->save(ob);
+    }
+#endif
+}
+
+void KernelData::load(cldnn::BinaryInputBuffer& ib) {
+    ib(params.workGroups.global, params.workGroups.local);
+
+    typename cldnn::arguments_desc::size_type arguments_desc_size = 0UL;
+    ib >> arguments_desc_size;
+    params.arguments.resize(arguments_desc_size);
+    for (auto& arg : params.arguments) {
+        ib >> make_data(&arg.t, sizeof(cldnn::argument_desc::Types)) >> arg.index;
+    }
+
+    typename cldnn::scalars_desc::size_type scalars_desc_size = 0UL;
+    ib >> scalars_desc_size;
+    params.scalars.resize(scalars_desc_size);
+    for (auto& scalar : params.scalars) {
+        ib >> make_data(&scalar.t, sizeof(cldnn::scalar_desc::Types)) >> make_data(&scalar.v, sizeof(cldnn::scalar_desc::ValueT));
+    }
+
+    ib >> params.layerID;
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    size_t n_microkernels;
+    ib >> n_microkernels;
+    micro_kernels.clear();
+    for (size_t i = 0; i < n_microkernels; i++) {
+        auto microkernel = std::make_shared<micro::MicroKernelPackage>();
+        microkernel->load(ib);
+        micro_kernels.push_back(microkernel);
+    }
+#endif
 }
 
 }  // namespace ov::intel_gpu::ocl

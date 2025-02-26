@@ -28,11 +28,10 @@ namespace ov::intel_gpu::ocl {
 // Base class for all GPU implementation of specified primitive type.
 // For example, all gpu convolution implementations should derive from primitive_impl_ocl<convolution>.
 struct PrimitiveImplOCL : public primitive_impl {
-    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::PrimitiveImplOCL)
-
     std::unordered_map<size_t, ov::intel_gpu::ocl::KernelData> _kernels_data;
     std::vector<size_t> _stages_registration_order;
     std::unordered_map<size_t, kernel::ptr> _kernels;
+    std::unique_ptr<RuntimeParams> m_rt_params = nullptr;
 
     template<typename StageType, size_t stage_id, typename... Args>
     void add_stage(const kernel_impl_params& params, Args&&... args) {
@@ -48,7 +47,8 @@ struct PrimitiveImplOCL : public primitive_impl {
     : primitive_impl(other._weights_reorder_params, other._kernel_name, other._is_dynamic)
     , _kernels_data(other._kernels_data)
     , _stages_registration_order(other._stages_registration_order)
-    , _kernels({}) {
+    , _kernels({})
+    , m_rt_params(nullptr) {
         _kernels.reserve(other._kernels.size());
         for (const auto& [id, kernel] : other._kernels) {
             _kernels.emplace(id, kernel->clone(other.can_share_kernels));
@@ -63,43 +63,33 @@ struct PrimitiveImplOCL : public primitive_impl {
     void save(BinaryOutputBuffer& ob) const override {
         primitive_impl::save(ob);
         ob << _stages_registration_order;
+        ob << _kernels_data.size();
+        for (auto& [stage, kd] : _kernels_data) {
+            ob << stage;
+            ob << kd;
+        }
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_impl::load(ib);
         ib >> _stages_registration_order;
+        size_t kernels_size;
+        ib >> kernels_size;
+        for (size_t i = 0; i < kernels_size; i++) {
+            size_t stage;
+            KernelData kd;
+            ib >> stage;
+            ib >> kd;
+            _kernels_data.emplace(stage, kd);
+        }
     }
 
     void update(primitive_inst& inst, const kernel_impl_params& impl_params) override {
-        update_dispatch_data(impl_params);
         inst.update_shape_info_tensor(impl_params);
     }
 
-protected:
-    virtual kernel_arguments_data get_arguments(const primitive_inst& instance, size_t stage) const {
-        kernel_arguments_data args;
-
-        for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
-            args.inputs.push_back(instance.input_memory_ptr(i));
-        }
-
-        if (instance.has_fused_primitives()) {
-            size_t count = instance.get_fused_mem_count();
-            for (size_t i = 0; i < count; i++) {
-                args.fused_op_inputs.push_back(instance.fused_memory(i));
-            }
-        }
-
-        for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
-            args.outputs.push_back(instance.output_memory_ptr(i));
-        }
-
-        args.shape_info = instance.shape_info_memory_ptr();
-
-        auto intermediates = instance.get_intermediates_memories();
-        args.intermediates = {intermediates.begin(), intermediates.end()};
-
-        return args;
+    std::vector<layout> get_internal_buffer_layouts(const kernel_impl_params& params) const override {
+        return {};
     }
 
     void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) override {
@@ -136,6 +126,32 @@ protected:
         return kernels;
     }
 
+    virtual kernel_arguments_data get_arguments(const primitive_inst& instance, size_t stage) const {
+        kernel_arguments_data args;
+
+        for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
+            args.inputs.push_back(instance.input_memory_ptr(i));
+        }
+
+        if (instance.has_fused_primitives()) {
+            size_t count = instance.get_fused_mem_count();
+            for (size_t i = 0; i < count; i++) {
+                args.fused_op_inputs.push_back(instance.fused_memory(i));
+            }
+        }
+
+        for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
+            args.outputs.push_back(instance.output_memory_ptr(i));
+        }
+
+        args.shape_info = instance.shape_info_memory_ptr();
+
+        auto intermediates = instance.get_intermediates_memories();
+        args.intermediates = {intermediates.begin(), intermediates.end()};
+
+        return args;
+    }
+
     void set_arguments(primitive_inst& instance) override { }
     void set_arguments(primitive_inst& instance, kernel_arguments_data& args) override { }
 
@@ -143,20 +159,32 @@ protected:
         return _kernels.count(stage) > 0;
     }
 
+    void update_stages_flags(const primitive_inst& instance) {
+        if (instance.get_flag(ExecutionFlags::MEMORY_CHANGED) || instance.get_flag(ExecutionFlags::IMPL_CHANGED)) {
+            for (auto& [stage, kd] : _kernels_data) {
+                kd.need_args_update = true;
+            }
+        }
+    }
+
+    virtual void update_rt_params(const primitive_inst& instance) {
+        update_stages_flags(instance);
+    }
+
     event::ptr execute_stage(const std::vector<event::ptr>& events, primitive_inst& instance, size_t stage) {
         stream& stream = instance.get_network().get_stream();
         // If any user of the desc's users is CPU implementation or network's output, set desc as a output event (event won't be nullptr)
         bool needs_completion_event = instance.needs_completion_event();
 
-        auto& params = _kernels_data[stage].params;
-        auto args = get_arguments(instance, stage);
-        args.scalars = &params.scalars;
+        auto& kd = _kernels_data[stage];
+        auto& params = kd.params;
 
-        if (instance.get_flag(ExecutionFlags::MEMORY_CHANGED) || instance.get_flag(ExecutionFlags::IMPL_CHANGED)) {
+        if (kd.need_args_update) {
+            kd.update_dispatch_data_func(*instance.get_impl_params(), kd, m_rt_params.get());
+            auto args = get_arguments(instance, stage);
+            args.scalars = &params.scalars;
             stream.set_arguments(*_kernels[stage], params, args);
-            // TODO: Can we call update dispatch data here for required kernels only?
-            // Seems that it may conflict with fake alignment as get_impl_params stores not fake aligned data
-            _kernels_data[stage].update_dispatch_data_func(*instance.get_impl_params(), _kernels_data[stage]);
+            kd.need_args_update = false;
         }
 
         const auto& gws = params.workGroups.global;
@@ -166,7 +194,7 @@ protected:
                                << "lws=[" << lws[0] << ", " << lws[1] << ", " << lws[2] << "]"
                                << (needs_completion_event ? " has_completion_event=true" : "") << std::endl;
 
-        return stream.enqueue_kernel(*_kernels[stage], params, args, events, needs_completion_event);
+        return stream.enqueue_kernel(*_kernels[stage], params, {}, events, needs_completion_event);
     }
 
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
@@ -174,6 +202,8 @@ protected:
         if (instance.can_be_optimized()) {
             return stream.aggregate_events(events, false, instance.is_output());
         }
+
+        update_stages_flags(instance);
 
         std::vector<event::ptr> tmp_events(events);
         // Default impl just runs each stage in registration order
@@ -208,7 +238,6 @@ protected:
     }
 
     std::pair<std::string, std::string> get_kernels_dump_info() const override { return {}; }
-    virtual void update_dispatch_data(const kernel_impl_params& impl_params) { }
 };
 
 }  // namespace ov::intel_gpu::ocl

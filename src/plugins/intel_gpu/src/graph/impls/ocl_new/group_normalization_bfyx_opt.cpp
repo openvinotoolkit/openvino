@@ -282,6 +282,7 @@ protected:
 
 class GroupNormalizationBfyxOptImpl : public PrimitiveImplOCL {
 public:
+    DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::GroupNormalizationBfyxOptImpl)
     static constexpr size_t CALC_SQR_MEAN_STAGE = 0;
     static constexpr size_t CALC_MEAN_VARIANCE_STAGE = 1;
     static constexpr size_t NORMALIZE_STAGE = 2;

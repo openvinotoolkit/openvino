@@ -12,8 +12,6 @@
 #include "utils/jitter.hpp"
 #include "utils/kernel_base.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
-#include "primitive_ocl_base.hpp"
-#include "kv_cache_inst.h"
 #include "scaled_dot_product_attention_inst.h"
 
 using namespace cldnn;

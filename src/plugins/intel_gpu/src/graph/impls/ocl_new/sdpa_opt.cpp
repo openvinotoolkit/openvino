@@ -22,6 +22,7 @@ namespace ov::intel_gpu::ocl {
 
 class SDPAOptImpl : public SDPAImplBase {
 public:
+    DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::SDPAOptImpl)
     static constexpr const size_t INDIRECT_STAGE = 10;
     static constexpr const size_t REGULAR_STAGE = 20;
 
@@ -73,6 +74,8 @@ public:
         const auto& gfx_ver = params.get_program().get_engine().get_device_info().gfx_ver;
         bool is_ARL_H = (gfx_ver.major == 12 && gfx_ver.minor == 74);
         bool run_micro_sdpa = has_stage(REGULAR_STAGE + SDPAStage::MICRO) && (is_prefill || !is_ARL_H) && stage_type == REGULAR_STAGE;
+
+        update_stages_flags(instance);
 
         if (run_micro_sdpa) {
             return execute_stage(events, instance, REGULAR_STAGE + SDPAStage::MICRO);

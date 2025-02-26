@@ -160,6 +160,7 @@ protected:
 
 class RopeOptImpl : public PrimitiveImplOCL {
 public:
+    DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::RopeOptImpl)
     RopeOptImpl(const program_node& node, const kernel_impl_params& params)
         : PrimitiveImplOCL(RopeOpt::get_type_info_static()) {
         add_stage<RopeGenerator, 0>(params);

@@ -154,6 +154,7 @@ protected:
 
 class GroupNormalizationRefImpl : public PrimitiveImplOCL {
 public:
+    DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::GroupNormalizationRefImpl)
     static constexpr size_t CALC_MEAN_STAGE = 0;
     static constexpr size_t CALC_STD_STAGE = 1;
     static constexpr size_t NORMALIZE_STAGE = 2;

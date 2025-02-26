@@ -55,8 +55,11 @@ struct KernelData {
     std::vector<std::shared_ptr<micro::MicroKernelPackage>> micro_kernels;
     DispatchDataFunc update_dispatch_data_func{nullptr};
     WeightsReorderParams weights_reorder_params;
-};
+    bool need_args_update{true};
 
+    void save(cldnn::BinaryOutputBuffer& ob) const;
+    void load(cldnn::BinaryInputBuffer& ib);
+};
 
 using KernelsData = std::vector<KernelData>;
 
