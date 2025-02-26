@@ -9,6 +9,7 @@
 #include <common/primitive_desc_iface.hpp>
 #include <common/utils.hpp>
 #include <cstddef>
+#include <cstdint>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <tuple>
@@ -249,6 +250,62 @@ static dnnl::convolution_forward::primitive_desc createConvolutionDescriptor(con
                                                      true);
 }
 
+static std::tuple<primitive_desc, size_t> selectPrimitiveDescWithMultipleAttributes(
+    const dnnl::engine& engine,
+    const dnnl::memory::desc& inputDesc,
+    const dnnl::memory::desc& weightDesc,
+    const dnnl::memory::desc& biasDesc,
+    const dnnl::memory::desc& outputDesc,
+    const std::vector<size_t>& stride,
+    const std::vector<size_t>& dilation,
+    const std::vector<ptrdiff_t>& paddingL,
+    const std::vector<ptrdiff_t>& paddingR,
+    const std::vector<dnnl::primitive_attr>& attrs,
+    bool fcSemantic,
+    const std::vector<impl_desc_type>& implPriorities) {
+    auto createPrimitiveDescriptor = [&](const dnnl::primitive_attr& attr) {
+        return createConvolutionDescriptor(inputDesc,
+                                           weightDesc,
+                                           biasDesc,
+                                           outputDesc,
+                                           stride,
+                                           dilation,
+                                           paddingL,
+                                           paddingR,
+                                           attr,
+                                           engine);
+    };
+
+    struct PrimitiveDescWithPriority {
+        dnnl::primitive_desc prim_desc;
+        size_t attrId;
+        size_t priority;
+    };
+
+    PrimitiveDescWithPriority prim_desc_w_priority{dnnl::primitive_desc(), 0, implPriorities.size()};
+
+    // try all the provided attributes and select the one which results in a primitive desc with the highest priority
+    for (size_t attrId = 0; attrId < attrs.size(); attrId++) {
+        const auto& attr = attrs[attrId];
+
+        for (size_t priorityId = 0; priorityId < implPriorities.size(); priorityId++) {
+            const auto preferredImplType = implPriorities[priorityId];
+            // the only way to fully reset primitive_desc after iterating over the implementations is to re-create it
+            auto cur_desc = createPrimitiveDescriptor(attr);
+            const bool found = DnnlExtensionUtils::find_implementation(cur_desc, preferredImplType);
+
+            const size_t highestPriority = prim_desc_w_priority.priority;
+            if (found && priorityId < highestPriority) {
+                prim_desc_w_priority = {cur_desc, attrId, priorityId};
+            }
+        }
+    }
+
+    auto prim_desc = prim_desc_w_priority.prim_desc;
+
+    return {prim_desc, prim_desc_w_priority.attrId};
+}
+
 static primitive_desc createPrimitiveDesc(const dnnl::engine& engine,
                                           const dnnl::memory::desc& inputDesc,
                                           const dnnl::memory::desc& weightDesc,
@@ -262,7 +319,7 @@ static primitive_desc createPrimitiveDesc(const dnnl::engine& engine,
                                           bool fcSemantic,
                                           const std::vector<impl_desc_type>& implPriorities,
                                           const impl_desc_type defaultImplType) {
-    auto createPrimitiveDescriptor = [&]() {
+    auto createPrimitiveDescriptor = [&](const dnnl::primitive_attr& attr) {
         return fcSemantic ? createInnerProductDescriptor(inputDesc,
                                                          weightDesc,
                                                          biasDesc,
@@ -285,32 +342,33 @@ static primitive_desc createPrimitiveDesc(const dnnl::engine& engine,
                                                         engine);
     };
 
-    auto prim_desc = createPrimitiveDescriptor();
+    if (defaultImplType == impl_desc_type::undef) {
+        auto prim_desc = createPrimitiveDescriptor(attr);
+        auto first_desc = prim_desc;
 
-    if (!prim_desc.get(true)) {
-        OPENVINO_THROW("Could not create a convolution primitive descriptor.");
-    }
+        for (auto preferredImplType : implPriorities) {
+            // the only way to fully reset primitive_desc after iterating over the implementations is to re-create it
+            const bool found = DnnlExtensionUtils::find_implementation(prim_desc, preferredImplType);
 
-    // try to use a default implementations type (created using dummy shapes) if specified
-    if (defaultImplType != impl_desc_type::undef) {
-        const bool found = DnnlExtensionUtils::find_implementation(prim_desc, defaultImplType);
+            if (found) {
+                return std::move(prim_desc);
+            }
 
-        if (found) {
-            return std::move(prim_desc);
+            prim_desc = createPrimitiveDescriptor(attr);
         }
+
+        return std::move(first_desc);
     }
 
+    auto prim_desc = createPrimitiveDescriptor(attr);
     // keep first implementation descriptor to fallback to it if no other implementation is found
     auto first_desc = prim_desc;
 
-    for (auto preferredImplType : implPriorities) {
-        const bool found = DnnlExtensionUtils::find_implementation(prim_desc, preferredImplType);
+    // try to use a default implementations type (created using dummy shapes) if specified
+    const bool found = DnnlExtensionUtils::find_implementation(prim_desc, defaultImplType);
 
-        if (found) {
-            return std::move(prim_desc);
-        }
-        // the only way to fully reset primitive_desc after an iteration over implementations is to re-create it
-        prim_desc = createPrimitiveDescriptor();
+    if (found) {
+        return std::move(prim_desc);
     }
 
     if (fcSemantic) {  // fallback to the first implementation if used as FC executor
@@ -335,10 +393,10 @@ static primitive_desc createPrimitiveDesc(const dnnl::engine& engine,
     return std::move(prim_desc);
 }
 
-static DnnlPrimitiveAttrs createPrimitiveAttrs(const ConvAttrs& attrs,
-                                               const PostOps& postOps,
-                                               const MemoryArgs& memory,
-                                               const ExecutorContext::CPtr& context) {
+static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& attrs,
+                                                            const PostOps& postOps,
+                                                            const MemoryArgs& memory,
+                                                            const ExecutorContext::CPtr& context) {
     const auto& srcDesc = memory.at(ARG_SRC)->getDescPtr();
     const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
     const auto& dstDesc = memory.at(ARG_DST)->getDescPtr();
@@ -355,18 +413,18 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const ConvAttrs& attrs,
 
     if (attrs.fcSemantic) {
         // use original post ops and zero points in case if used as FC executor
-        return DnnlPostOpsComposer(postOps,
-                                   context->getEngine(),
-                                   outputDims,
-                                   channelDimIdx,
-                                   isINT8,
-                                   weightScaleMask,
-                                   memory,
-                                   outputDataType,
-                                   attrs.dqScales,
-                                   false,
-                                   false)
-            .compose();
+        return {DnnlPostOpsComposer(postOps,
+                                    context->getEngine(),
+                                    outputDims,
+                                    channelDimIdx,
+                                    isINT8,
+                                    weightScaleMask,
+                                    memory,
+                                    outputDataType,
+                                    attrs.dqScales,
+                                    false,
+                                    false)
+                    .compose()};
     }
 
     DnnlPostOpsComposer legacyPostOpsLegacyZeroPoints(postOps,
@@ -392,32 +450,34 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const ConvAttrs& attrs,
     // dw-conv would be fused into conv only on AVX2 platform.
     if (attrContainsPostOp(legacyCompose.attr, dnnl::impl::primitive_kind::convolution)) {
         DEBUG_LOG("Attribute contains conv post op. Use legacy post ops");
-        return legacyCompose;
+        return {legacyCompose};
     }
 
     if (attrs.inputZeroPointsType == ZeroPointsType::None &&
         !attrContainsPostOp(legacyCompose.attr, dnnl::impl::primitive_kind::depthwise) &&
         !attrContainsPostOp(legacyCompose.attr, dnnl::impl::primitive_kind::quantization)) {
         DEBUG_LOG("Attribute already contains no legacy post ops");
-        return legacyCompose;
+        return {legacyCompose};
     }
 
     if (attrs.inputZeroPointsType == ZeroPointsType::PerChannel) {
         DEBUG_LOG("Per channel zero point can only supported with legacy post ops");
-        return legacyCompose;
+        return {legacyCompose};
     }
 
     // @todo avoid extra step of creating config to get the brgconv availability
     auto config = GraphEmitter<ConvAttrs>::createConfig(memory, attrs, postOps);
     if (!DnnlConvolutionPrimitive::isBrgConvAvailable(config)) {
         DEBUG_LOG("Brgconv is not available. Skip extra attribute");
-        return legacyCompose;
+        return {legacyCompose};
     }
 
     if (!dstDesc->hasLayoutType(LayoutType::nspc)) {
         DEBUG_LOG("Brgemm convolution supports only nspc layout. Use legacy post ops");
-        return legacyCompose;
+        return {legacyCompose};
     }
+
+    std::vector<DnnlPrimitiveAttrs> attributeVariants{legacyCompose};
 
     if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
         attrs.inputZeroPointsType == ZeroPointsType::PerTensor) {
@@ -432,20 +492,9 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const ConvAttrs& attrs,
                                                             attrs.dqScales,
                                                             true,
                                                             false);
-        auto result = legacyPostOpsOriginalZeroPoints.compose();
+        attributeVariants.emplace_back(legacyPostOpsOriginalZeroPoints.compose());
 
-        auto dimsPerOC = VectorDims(outputDims.size(), 1);
-        dimsPerOC[channelDimIdx] = outputDims[channelDimIdx];
-        bool binaryWithoutBroadcast = outputDims == dimsPerOC;
-
-        // currently binary post ops are working only with ncsp layout
-        if (binaryWithoutBroadcast && attrContainsPostOp(result.attr, dnnl::impl::primitive_kind::binary) &&
-            !dstDesc->hasLayoutType(LayoutType::ncsp)) {
-            DEBUG_LOG("Attribute contains binary post op without broadcast with incorrect layout. Use legacy post ops");
-            return legacyCompose;
-        }
-
-        return result;
+        return attributeVariants;
     }
 
     DnnlPostOpsComposer originalPostOpsOriginalZeroPoints(postOps,
@@ -459,24 +508,9 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const ConvAttrs& attrs,
                                                           attrs.dqScales,
                                                           false,
                                                           false);
-    // compose using original post ops
-    auto result = originalPostOpsOriginalZeroPoints.compose();
+    attributeVariants.emplace_back(originalPostOpsOriginalZeroPoints.compose());
 
-    // auto dimsPerOC = VectorDims(outputDims.size(), 1);
-    // dimsPerOC[channelDimIdx] = outputDims[channelDimIdx];
-    // std::cout << outputDims << "\n";
-    // std::cout << dimsPerOC << "\n";
-
-    // bool binaryWithoutBroadcast = outputDims == dimsPerOC;
-
-    // currently binary post ops are working only with ncsp layout
-    // if (binaryWithoutBroadcast && attrContainsPostOp(result.attr, dnnl::impl::primitive_kind::binary) &&
-    //     !dstDesc->hasLayoutType(LayoutType::ncsp)) {
-    //     DEBUG_LOG("Attribute contains binary post op. Use legacy post ops");
-    //     return legacyCompose;
-    // }
-
-    return result;
+    return attributeVariants;
 }
 
 constexpr auto dilated(const int64_t dim, const int64_t dilation) {
@@ -554,17 +588,10 @@ VectorDims static makeInputDummyShape(const Shape& inputShape,
     return MemoryDescUtils::makeDummyShape(inputShape, dummyInputShapeVals).getStaticDims();
 }
 
-DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const ConvAttrs& attrs,
-                                                                           const PostOps& postOps,
-                                                                           const MemoryArgs& memory,
-                                                                           const ExecutorContext::CPtr& context,
-                                                                           const bool cacheWeights) {
-    const bool cacheWeightsWithUndefData = !memory.at(ARG_SRC)->isDefined() && cacheWeights;
-    OPENVINO_ASSERT(!cacheWeightsWithUndefData,
-                    "dnnl convolution weights caching for dynamic shapes is not implemented");
-
-    const auto postOpData = createPrimitiveAttrs(attrs, postOps, memory, context);
-
+static std::tuple<MemoryDescPtr, MemoryDescPtr> createDummySrcDstDescs(const ConvAttrs& attrs,
+                                                                       const PostOps& postOps,
+                                                                       const MemoryArgs& memory,
+                                                                       const ExecutorContext::CPtr& context) {
     const auto& srcShape = memory.at(ARG_SRC)->getShape();
     const auto& weiShape = memory.at(ARG_WEI)->getShape();
     const auto& strides = attrs.stride;
@@ -598,11 +625,10 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
 
     auto srcDesc = memory.at(ARG_SRC)->getDescPtr();
     const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
-    const auto& biasDesc = memory.at(ARG_BIAS)->getDescPtr();
     auto dstDesc = memory.at(ARG_DST)->getDescPtr();
 
-    srcDesc = srcDesc->getShape().isDynamic() ? srcDesc->cloneWithNewDims(dummyInputDims) : srcDesc;
-    dstDesc = dstDesc->getShape().isDynamic() ? dstDesc->cloneWithNewDims(dummyOutputDims) : dstDesc;
+    srcDesc = srcDesc->cloneWithNewDims(dummyInputDims);
+    dstDesc = dstDesc->cloneWithNewDims(dummyOutputDims);
 
     if (attrs.autoPadding != AutoPaddingType::None) {
         std::tie(paddingL, paddingR) = apply_auto_pad(srcDesc->getShape().getDims(),
@@ -612,35 +638,74 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
                                                       attrs.autoPadding);
     }
 
+    return std::tuple(srcDesc, dstDesc);
+}
+
+DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const ConvAttrs& attrs,
+                                                                           const PostOps& postOps,
+                                                                           const MemoryArgs& memory,
+                                                                           const ExecutorContext::CPtr& context,
+                                                                           const bool cacheWeights) {
+    // @todo we might want to enable weights prepacking for dynamic shapes as well
+    const bool undefinedInputShapes = !memory.at(ARG_SRC)->isDefined();
+    const bool cacheWeightsWithUndefData = undefinedInputShapes && cacheWeights;
+    OPENVINO_ASSERT(!cacheWeightsWithUndefData,
+                    "dnnl convolution weights caching for dynamic shapes is not implemented");
+
+    auto [srcDesc, dstDesc] = undefinedInputShapes
+                                  ? createDummySrcDstDescs(attrs, postOps, memory, context)
+                                  : std::tuple{memory.at(ARG_SRC)->getDescPtr(), memory.at(ARG_DST)->getDescPtr()};
+
+    const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
+    const auto& biasDesc = memory.at(ARG_BIAS)->getDescPtr();
+
+    const bool autoPadding = attrs.autoPadding != AutoPaddingType::None;
+    const bool calculatePadding = undefinedInputShapes && autoPadding;
+    auto [paddingL, paddingR] = calculatePadding ? apply_auto_pad(srcDesc->getShape().getDims(),
+                                                                  weiDesc->getShape().getDims(),
+                                                                  attrs.stride,
+                                                                  attrs.dilation,
+                                                                  attrs.autoPadding)
+                                                 : std::tuple(attrs.paddingL, attrs.paddingR);
+
     const dnnl::memory::desc srcDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(srcDesc)->getDnnlDesc();
     const dnnl::memory::desc weiDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc)->getDnnlDesc();
     const dnnl::memory::desc dstDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc)->getDnnlDesc();
     const dnnl::memory::desc biaDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(biasDesc)->getDnnlDesc();
 
-    auto primitiveDesc = createPrimitiveDesc(context->getEngine(),
-                                             srcDnnlDesc,
-                                             weiDnnlDesc,
-                                             biaDnnlDesc,
-                                             dstDnnlDesc,
-                                             attrs.stride,
-                                             attrs.dilation,
-                                             paddingL,
-                                             paddingR,
-                                             postOpData.attr,
-                                             attrs.fcSemantic,
-                                             context->getImplPriorities(),
-                                             impl_desc_type::undef);
+    const auto primitiveAttributes = createPrimitiveAttrs(attrs, postOps, memory, context);
 
-    auto originalWeightsDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc);
-    const auto weightsDesc = DnnlExtensionUtils::makeDescriptor(primitiveDesc.weights_desc());
+    std::vector<dnnl::primitive_attr> dnnlAttrVariants;
+    dnnlAttrVariants.reserve(primitiveAttributes.size());
 
-    if (cacheWeights) {
+    for (const auto& postOp : primitiveAttributes) {
+        dnnlAttrVariants.push_back(postOp.attr);
+    }
+
+    auto [primitiveDesc, attrId] = selectPrimitiveDescWithMultipleAttributes(context->getEngine(),
+                                                                             srcDnnlDesc,
+                                                                             weiDnnlDesc,
+                                                                             biaDnnlDesc,
+                                                                             dstDnnlDesc,
+                                                                             attrs.stride,
+                                                                             attrs.dilation,
+                                                                             paddingL,
+                                                                             paddingR,
+                                                                             dnnlAttrVariants,
+                                                                             attrs.fcSemantic,
+                                                                             context->getImplPriorities());
+
+    // with all the current hacks it is not guaranteed that a primitive descriptor will be created
+    if (cacheWeights && primitiveDesc) {
+        auto originalWeightsDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc);
+        const auto weightsDesc = DnnlExtensionUtils::makeDescriptor(primitiveDesc.weights_desc());
         (void)utils::prepareWeightsMemory(originalWeightsDesc, weightsDesc, memory.at(ARG_WEI), context);
     }
 
-    const auto defaultImpType = parse_impl_name(primitiveDesc.impl_info_str());
+    const auto defaultImpType =
+        primitiveDesc ? parse_impl_name(primitiveDesc.impl_info_str()) : impl_desc_type::unknown;
 
-    return std::make_shared<DnnlShapeAgnosticData>(postOpData, defaultImpType);
+    return std::make_shared<DnnlShapeAgnosticData>(primitiveAttributes.at(attrId), defaultImpType);
 }
 
 DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const FCAttrs& fcAttrs,
@@ -664,8 +729,9 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
                     true};
 
     const auto postOpData = createPrimitiveAttrs(attrs, postOps, memory, context);
+    OPENVINO_ASSERT(postOpData.size() == 1, "Single attribute variant is expected when used as FC executor");
 
-    return std::make_shared<DnnlShapeAgnosticData>(postOpData);
+    return std::make_shared<DnnlShapeAgnosticData>(postOpData.front());
 }
 
 void DnnlConvolutionPrimitive::execute(dnnl_primitive_args& primArgs) {
@@ -897,7 +963,7 @@ DnnlConvolutionPrimitive::DnnlConvolutionPrimitive(const Key& key,
                                      key.dilation,
                                      key.paddingL,
                                      key.paddingR,
-                                     key.attr,
+                                     {key.attr},
                                      key.fcSemantic,
                                      implPriorities,
                                      defaultImplType)),
