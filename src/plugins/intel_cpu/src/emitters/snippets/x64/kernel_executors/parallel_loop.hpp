@@ -6,7 +6,7 @@
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/snippets/cpu_kernel_executor_table.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
-#include "snippets/lowered/expression.hpp"
+// #include "snippets/lowered/expression.hpp"
 
 namespace ov::intel_cpu {
 
@@ -48,7 +48,7 @@ class ParallelLoopKernel {
 
 class ParallelLoopExecutor : public snippets::KernelExecutor<ParallelLoopConfig, ParallelLoopKernel> {
 public:
-    ParallelLoopExecutor(ParallelLoopConfig config);
+    ParallelLoopExecutor(ParallelLoopConfig config) : KernelExecutor(std::move(config)) {}
     typedef void(*loop_preamble_t)(int64_t , int64_t , void*);
     /** Function that will be called in runtime to execute the kernel */
     static void execute(const ParallelLoopExecutor* executor, int64_t* stack_ptr, loop_preamble_t preamble_ptr);
@@ -58,7 +58,7 @@ protected:
     void update_config(const snippets::lowered::ExpressionPtr& expr, const snippets::lowered::LinearIRCPtr& linear_ir, ParallelLoopConfig& config) const override {}
     /*** Updates stored kernel in accordance with the passed config. Recompilation of the kernel is
      * performed if necessary. */
-    void update_kernel(const ParallelLoopConfig& c, std::shared_ptr<ParallelLoopKernel>& kernel) const override {}
+    void update_kernel(const ParallelLoopConfig& c, std::shared_ptr<ParallelLoopKernel>& kernel) const override;
 };
 
 

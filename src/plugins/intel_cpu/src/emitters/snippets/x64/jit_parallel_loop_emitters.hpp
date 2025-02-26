@@ -64,11 +64,6 @@ protected:
                         const std::vector<size_t>& pool_vec_idxs,
                         const std::vector<size_t>& pool_gpr_idxs) const override;
 
-    // `jit_loop_begin_emitter` handles manually aux_gpr allocation using `jit_aux_gpr_holder`
-    size_t aux_gprs_count() const override {
-        return 0;
-    }
-
     std::shared_ptr<Xbyak::Label> loop_begin_label = nullptr;
     std::shared_ptr<const Xbyak::Label> loop_end_label = nullptr;
     size_t work_amount = 0;
@@ -101,11 +96,6 @@ public:
 protected:
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
-
-    // `jit_loop_end_emitter` handles manually aux_gpr allocation using `jit_aux_gpr_holder`
-    size_t aux_gprs_count() const override {
-        return 0;
-    }
 
     static ov::snippets::lowered::ExpressionPtr get_loop_begin_expr(const ov::snippets::lowered::ExpressionPtr& expr);
 

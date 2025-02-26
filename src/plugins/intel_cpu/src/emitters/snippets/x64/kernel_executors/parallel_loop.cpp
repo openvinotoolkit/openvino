@@ -19,6 +19,10 @@ size_t ParallelLoopConfig::hash() const {
     return dnnl::impl::hash_combine(hash, m_num_threads);
 }
 
+void ParallelLoopExecutor::update_kernel(const ParallelLoopConfig& c, std::shared_ptr<ParallelLoopKernel>& kernel) const {
+    kernel = std::make_shared<ParallelLoopKernel>();
+}
+
 void ParallelLoopExecutor::execute(const ParallelLoopExecutor* executor, int64_t* stack_ptr, loop_preamble_t preamble_ptr) {
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
     const auto& config = static_cast<const ParallelLoopConfig&>(executor->get_config());

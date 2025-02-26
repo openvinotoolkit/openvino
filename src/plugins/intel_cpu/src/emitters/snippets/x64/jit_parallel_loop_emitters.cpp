@@ -47,10 +47,10 @@ jit_parallel_loop_base_emitter::jit_parallel_loop_base_emitter(dnnl::impl::cpu::
         evaluate_once = loop_end->get_evaluate_once();
         loop_id = loop_end->get_id();
         // todo: it's redundant to save both isolated fields and loop_args_t. choose only one implementation
+        // todo: data_sizes are already applied in runtime_configurator. can we do the same?
         loop_args = jit_snippets_call_args::loop_args_t(work_amount, ptr_increments, finalization_offsets, data_sizes);
 
-        OV_CPU_JIT_EMITTER_ASSERT(loop_end_input_regs.size() == num_inputs + num_outputs && !loop_end_input_regs.empty(),
-                                  "Invalid LoopEnd reg info");
+        OV_CPU_JIT_EMITTER_ASSERT(!loop_end_input_regs.empty(), "Invalid LoopEnd reg info");
         work_amount_reg_idx = loop_end_input_regs.rbegin()->idx;
         loop_end_input_regs.pop_back();
         mem_ptr_regs_idxs.reserve(loop_end_input_regs.size());
@@ -107,6 +107,7 @@ void jit_parallel_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& 
 
 
 void jit_parallel_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+    Xbyak::Label loop_preamble_label;
 
     init_binary_call_regs(3, mem_ptr_regs_idxs);
 
@@ -126,7 +127,7 @@ void jit_parallel_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, c
     h->mov(abi_param1, reinterpret_cast<uintptr_t>(m_parallel_loop_executor.get()));
     h->mov(abi_param2, h->rsp);
 //    h->mov(abi_param3, reinterpret_cast<const ParallelLoopExecutor::loop_preamble_t>(loop_begin_label->getAddress()));
-    h->mov(abi_param3, reinterpret_cast<const uintptr_t>(loop_begin_label->getAddress()));
+    h->mov(abi_param3, loop_preamble_label);
 
     spill.rsp_align(callee_saved_reg.getIdx());
     h->call(aux_reg);
@@ -134,13 +135,19 @@ void jit_parallel_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, c
 
     spill.postamble();
     
-    // Restore incremented data ptrs
+    // Restore data ptrs with applied finalization offsets
     for (auto i : mem_ptr_regs_idxs)
         h->mov(Xbyak::Reg64(i), h->qword[h->rsp + i * sizeof(Xbyak::Reg64)]);
 
     h->add(h->rsp, reserved_stack_size);
 
-    h->jmp(*loop_end_label);
+    h->jmp(*loop_end_label, Xbyak::CodeGenerator::T_NEAR);
+
+    h->L(loop_preamble_label);
+    // initialize work_amount reg and data ptr registers
+    h->int3();
+    for (auto i : mem_ptr_regs_idxs)
+        h->mov(Xbyak::Reg64(i), h->qword[h->rsp + i * sizeof(Xbyak::Reg64)]);
 
     h->L(*loop_begin_label);
 }
@@ -156,7 +163,7 @@ jit_parallel_loop_end_emitter::jit_parallel_loop_end_emitter(dnnl::impl::cpu::x6
       loop_begin_label{nullptr},
       loop_end_label{new Xbyak::Label()} {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-    const auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(expr->get_node());
+    const auto loop_end = ov::as_type_ptr<snippets::op::LoopEndParallel>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(loop_end != nullptr, "expected LoopEnd expr");
     const auto begin_expr = get_loop_begin_expr(expr);
     const auto& loop_begin_emitter = std::dynamic_pointer_cast<jit_parallel_loop_begin_emitter>(begin_expr->get_emitter());
@@ -168,7 +175,7 @@ jit_parallel_loop_end_emitter::jit_parallel_loop_end_emitter(dnnl::impl::cpu::x6
 ov::snippets::lowered::ExpressionPtr jit_parallel_loop_end_emitter::get_loop_begin_expr(
     const ov::snippets::lowered::ExpressionPtr& expr) {
     auto begin_expr = expr->get_input_port_connectors().back()->get_source().get_expr();
-    OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::LoopBegin>(begin_expr->get_node()),
+    OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::LoopBeginParallel>(begin_expr->get_node()),
                               "LoopEnd expression must have th last port connector to LoopBegin");
     return begin_expr;
 }
@@ -217,8 +224,8 @@ void jit_parallel_loop_end_emitter::emit_code_impl(const std::vector<size_t>& in
 void jit_parallel_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     std::vector<size_t> data_ptr_reg_idxs;
     // the last input is actually a work_amount reg
-    data_ptr_reg_idxs.reserve(num_inputs + num_outputs);
-    std::copy(in.begin(), in.end() - 1, std::back_inserter(data_ptr_reg_idxs));
+    // data_ptr_reg_idxs.reserve(num_inputs + num_outputs);
+    // std::copy(in.begin(), in.end() - 1, std::back_inserter(data_ptr_reg_idxs));
 
         
     emit_pointer_increments(wa_increment);
