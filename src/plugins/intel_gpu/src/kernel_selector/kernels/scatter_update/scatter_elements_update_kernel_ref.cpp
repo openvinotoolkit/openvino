@@ -130,7 +130,6 @@ CommonDispatchData ScatterElementsUpdateKernelRef::SetDefault(const scatter_elem
         dispatchData.lws = {1, 1, 1};
     }
 
-
     return dispatchData;
 }
 
