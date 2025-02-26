@@ -103,7 +103,9 @@ void ISTFT::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 bool ISTFT::needShapeInfer() const {
-    return !m_is_signal_length_const || (m_is_frame_size_const && m_is_frame_step_const) || Node::needShapeInfer();
+    return (getOriginalInputsNumber() == 5 && !m_is_signal_length_const) ||
+           (getOriginalInputsNumber() == 4 && !(m_is_frame_size_const && m_is_frame_step_const)) ||
+           Node::needShapeInfer();
 }
 
 }  // namespace node
