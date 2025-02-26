@@ -360,7 +360,6 @@ struct EltwiseKey {
     ov::element::Type outPrc;
     dnnl::post_ops postOps;
     EltwiseImplType implType;
-    bool doOutputSaturation;
 
     size_t hash() const {
         using namespace dnnl::impl;
@@ -396,10 +395,6 @@ struct EltwiseKey {
         seed = hash_combine(seed, outPrc.hash());
         seed = get_post_op_hash(seed, *postOps.get());
         seed = hash_combine(seed, implType);
-
-        if (outPrc == ov::element::bf16) {
-            seed = hash_combine(seed, doOutputSaturation);
-        }
         return seed;
     }
 
@@ -426,9 +421,6 @@ struct EltwiseKey {
                 for (size_t i = 0; i < inpDims.size() && result; ++i) {
                     result = result && (inpDims[i] == rhs.inpDims[i]);
                 }
-            }
-            if (doOutputSaturation != rhs.doOutputSaturation) {
-                return false;
             }
         }
 
@@ -462,8 +454,7 @@ public:
                        const std::vector<ov::element::Type>& inpPrc,
                        const ov::element::Type& outPrc,
                        const dnnl::post_ops& post_ops,
-                       bool useRuntimePtrs,
-                       bool doOutputSaturation) {
+                       bool useRuntimePtrs) {
         auto collapseLastDims = [](std::vector<size_t>& dims, int dimsToCollapse) {
             for (size_t i = dims.size() - 2; i > dims.size() - dimsToCollapse - 2; i--) {
                 dims[dims.size() - 1] *= dims[i];
@@ -529,9 +520,9 @@ public:
             jep.dims[jep.dims.size() - 1 - i] = outBlkDims[outRank - 1 - i];
         }
 
-        for (size_t i = 0; i < inpDims.size(); i++) {
-            for (size_t j = 0; j < inpDims[i].size(); j++) {
-                if (inpDims[i][j] != jep.dims[j] && inpDims[i][j] != 1) {
+        for (auto& inpDim : inpDims) {
+            for (size_t j = 0; j < inpDim.size(); j++) {
+                if (inpDim[j] != jep.dims[j] && inpDim[j] != 1) {
                     OPENVINO_THROW("Eltwise executor got invalid input/output dims configuration.");
                 }
             }
@@ -565,8 +556,8 @@ public:
         int maxCollapsedDims = static_cast<int>(jep.dims.size()) - lastUnchangedAxis - 2;
 
         size_t fullWorkAmount = 1;
-        for (size_t i = 0; i < jep.dims.size(); i++) {
-            fullWorkAmount *= jep.dims[i];
+        for (size_t dim : jep.dims) {
+            fullWorkAmount *= dim;
         }
 
         m_threads_num = static_cast<size_t>(parallel_get_max_threads());
@@ -593,8 +584,8 @@ public:
             }
 
             bool canCollapse = true;
-            for (size_t i = 0; i < inpDims.size(); i++) {
-                if (inpDims[i][inpDims[i].size() - 2] != 1) {
+            for (auto& inpDim : inpDims) {
+                if (inpDim[inpDim.size() - 2] != 1) {
                     if (hasDifferentDims) {
                         canCollapse = false;
                         break;
@@ -611,8 +602,8 @@ public:
                 currentJitWorkAmount = nextJitWorkAmount;
                 collapsedDims++;
 
-                for (size_t i = 0; i < inpDims.size(); i++) {
-                    collapseLastDims(inpDims[i], 1);
+                for (auto& inpDim : inpDims) {
+                    collapseLastDims(inpDim, 1);
                 }
                 collapseLastDims(jep.dims, 1);
 
@@ -657,7 +648,6 @@ public:
         jep.dst_prc = outPrc;
         jep.work_amount = jep.dst_size = jep.dims.back();
         jep.oc_size = oc_size;
-        jep.do_output_saturation = doOutputSaturation;
 
         std::transform(jep.oc_offsets.begin(), jep.oc_offsets.end(), jep.oc_offsets.begin(), [](size_t& offset) {
             return offset * sizeof(float);
@@ -793,8 +783,8 @@ public:
         }
 
         _fullWorkAmount = 1;
-        for (size_t i = 0; i < _dims.size(); i++) {
-            _fullWorkAmount *= _dims[i];
+        for (size_t _dim : _dims) {
+            _fullWorkAmount *= _dim;
         }
 
         // init offset
@@ -1189,8 +1179,7 @@ static Eltwise::executorPtr buildExecutor(const EltwiseKey& key) {
                                                 key.inpPrc,
                                                 key.outPrc,
                                                 key.postOps,
-                                                key.implType == EltwiseImplType::optimizedShapeAgnostic,
-                                                key.doOutputSaturation);
+                                                key.implType == EltwiseImplType::optimizedShapeAgnostic);
 }
 
 bool Eltwise::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -1529,8 +1518,8 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                 }
             };
 
-            for (size_t i = 0; i < inputPrecisions.size(); i++) {
-                inputPrecisions[i] = filterPrecision(inputPrecisions[i]);
+            for (auto& inputPrecision : inputPrecisions) {
+                inputPrecision = filterPrecision(inputPrecision);
             }
             outputPrecision = filterPrecision(outputPrecision);
 #if defined(OV_CPU_WITH_SHL)
@@ -1644,12 +1633,14 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 #endif
 
             std::vector<MemoryDescPtr> srcMemoryDescs;
-            for (size_t i = 0; i < config.inConfs.size(); i++) {
-                srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
+            srcMemoryDescs.reserve(config.inConfs.size());
+            for (const auto& inConf : config.inConfs) {
+                srcMemoryDescs.push_back(inConf.getMemDesc());
             }
             std::vector<MemoryDescPtr> dstMemoryDescs;
-            for (size_t i = 0; i < config.outConfs.size(); i++) {
-                dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
+            dstMemoryDescs.reserve(config.outConfs.size());
+            for (const auto& outConf : config.outConfs) {
+                dstMemoryDescs.push_back(outConf.getMemDesc());
             }
 
             auto factory =
@@ -1903,18 +1894,6 @@ void Eltwise::prepareParams() {
                 node->appendPostOps(key.postOps, {}, fqDataPtrs, channelAxis);
             } else {
                 THROW_CPU_NODE_ERR("has unexpected fused op of type '", node->getTypeStr(), "'");
-            }
-        }
-
-        // FP32 constant inputs may contain values out of BF16 representable range. In case output precision is BF16 we
-        // choose "saturation" mode for fp32->bf16 conversion procedure to prevent getting -Inf/+Inf values in the
-        // outputs. Since "saturation" conversion is more time consuming, better solution would be to clamp constants on
-        // compilation stage (ticket: 159589).
-        key.doOutputSaturation = false;
-        for (size_t i = 0; i < getParentEdges().size(); i++) {
-            if (getParentEdgeAt(i)->getParent()->isConstant()) {
-                key.doOutputSaturation = true;
-                break;
             }
         }
 

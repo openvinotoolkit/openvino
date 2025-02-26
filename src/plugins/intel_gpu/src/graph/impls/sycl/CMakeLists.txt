@@ -10,7 +10,6 @@ set(TARGET_NAME "openvino_intel_gpu_sycl_obj")
 
 ov_gpu_add_backend_target(
     NAME ${TARGET_NAME}
-    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 add_sycl_to_target(TARGET ${TARGET_NAME})

@@ -35,6 +35,7 @@ Checks: >
   -*,
   performance-*,
   google-*,
+  modernize-loop-convert,
   modernize-pass-by-value,
   cppcoreguidelines-prefer-member-initializer,
   -bugprone-easily-swappable-parameters,
