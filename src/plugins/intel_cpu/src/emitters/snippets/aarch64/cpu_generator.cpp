@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "emitters/snippets/aarch64/jit_kernel_emitter.hpp"
 #include "emitters/snippets/aarch64/jit_loop_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_memory_emitters.hpp"
+#include "emitters/snippets/cpu_kernel_executor_table.hpp"
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "emitters/utils.hpp"
 #include "jit_snippets_emitters.hpp"
@@ -24,12 +25,17 @@
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 
+#ifdef SNIPPETS_LIBXSMM_TPP
+#    include "emitters/tpp/aarch64/jit_brgemm_emitter.hpp"
+#    include "transformations/tpp/common/op/brgemm.hpp"
+#endif
+
 namespace ov {
 
-#define CREATE_SNIPPETS_EMITTER(e_type)                                                              \
+#define CREATE_SNIPPETS_EMITTER(e_type, ...)                                                         \
     {                                                                                                \
         [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-            return std::make_shared<e_type>(h.get(), isa, expr);                                     \
+            return std::make_shared<e_type>(h.get(), isa, expr, ##__VA_ARGS__);                      \
         },                                                                                           \
             [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {         \
                 return e_type::get_supported_precisions(n);                                          \
@@ -200,6 +206,12 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[ov::op::v0::Sqrt::get_type_info_static()] = CREATE_CPU_EMITTER(jit_sqrt_emitter);
     jitters[ov::intel_cpu::SwishNode::get_type_info_static()] = CREATE_CPU_EMITTER(jit_swish_emitter);
     jitters[ov::op::v0::Tanh::get_type_info_static()] = CREATE_CPU_EMITTER(jit_tanh_emitter);
+
+#ifdef SNIPPETS_LIBXSMM_TPP
+    // brgemm
+    jitters[ov::intel_cpu::tpp::op::BrgemmTPP::get_type_info_static()] =
+        CREATE_SNIPPETS_EMITTER(jit_brgemm_emitter, configurator->get_kernel_executor_table(), compiled_kernel_cache);
+#endif
 
     // control flow
     jitters[snippets::op::KernelStatic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_kernel_static_emitter);

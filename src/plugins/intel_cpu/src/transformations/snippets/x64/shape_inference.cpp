@@ -14,7 +14,7 @@
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 #ifdef SNIPPETS_LIBXSMM_TPP
-#    include "transformations/tpp/x64/op/brgemm.hpp"
+#    include "transformations/tpp/common/op/brgemm.hpp"
 #    include "transformations/tpp/x64/op/equation.hpp"
 #    include "transformations/tpp/x64/op/reduce.hpp"
 #    include "transformations/tpp/x64/op/scalar.hpp"

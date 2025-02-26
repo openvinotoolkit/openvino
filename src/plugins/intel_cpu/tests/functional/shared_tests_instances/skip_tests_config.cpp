@@ -487,13 +487,13 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*(BF|bf)16.*)");
         retVector.emplace_back(R"(.*bfloat16.*)");
     }
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     if (!ov::with_cpu_x86_avx2()) {
         // MatMul in Snippets uses BRGEMM that is supported only on AVX2 (and newer) platforms
         // Disabled Snippets MHA tests as well because MHA pattern contains MatMul
         retVector.emplace_back(R"(.*Snippets.*MHA.*)");
         retVector.emplace_back(R"(.*Snippets.*(MatMul|Matmul).*)");
     }
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     if (!ov::with_cpu_x86_avx512_core_fp16()) {
         // Skip fp16 tests for paltforms that don't support fp16 precision
         retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");

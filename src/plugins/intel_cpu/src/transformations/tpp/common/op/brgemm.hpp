@@ -5,7 +5,7 @@
 #pragma once
 
 #include "modifiers.hpp"
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "snippets/op/brgemm.hpp"
 
 namespace ov::intel_cpu::tpp::op {
 

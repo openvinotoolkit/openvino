@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "brgemm_base.hpp"
+#include "emitters/snippets/x64/kernel_executors/brgemm_base.hpp"
 
-namespace ov::intel_cpu {
+namespace ov::intel_cpu::x64 {
 
 struct BrgemmKernelConfig : public BrgemmBaseKernelConfig {
 public:
@@ -106,4 +106,4 @@ private:
     BrgemmKernelConfig m_config;
 };
 #endif
-}  // namespace ov::intel_cpu
+}  // namespace ov::intel_cpu::x64
