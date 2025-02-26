@@ -402,7 +402,27 @@ std::vector<EinsumParams> generateParams() {
             .equation("a...b,bcccdd,...dbcc->cb")
             .expectedResult(
                 {ET, {3, 4}, std::vector<T>{300, 600, 900, 1200, 420, 840, 1260, 1680, 540, 1080, 1620, 2160}})
-            .testcaseName("einsum_3in_broadcast_duplicated_ellipsis_repeated_4")
+            .testcaseName("einsum_3in_broadcast_duplicated_ellipsis_repeated_4"),
+        Builder{}
+            .inputs({{ET, {2, 1, 4}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8}},
+                     {ET, {1, 1, 1, 2, 2}, std::vector<T>{1, 2, 3, 4}}})
+            .equation("acd,ad...->acd...")
+            .expectedResult(
+                {ET, {2, 1, 4, 1, 2, 2}, std::vector<T>{1, 2,  3,  4,  2, 4,  6,  8,  3, 6,  9,  12, 4, 8,  12, 16,
+                                                        5, 10, 15, 20, 6, 12, 18, 24, 7, 14, 21, 28, 8, 16, 24, 32}})
+            .testcaseName("einsum_no_reduce1_sep2ellipsis"),
+        Builder{}
+            .inputs({{ET, {1, 5}, std::vector<T>{1, 2, 3, 4, 5}},
+                     {ET, {1, 1, 2, 1}, std::vector<T>{1, 2}},
+                     {ET, {2, 2, 1, 4}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}},
+                     {ET, {}, std::vector<T>{2}},
+                     {ET, {2, 1, 1}, std::vector<T>{1, 2}}})
+            .equation("a...b,b...,aacd,,...dd->da...c")
+            .expectedResult(
+                {ET, {4, 2, 1, 2, 2, 1}, std::vector<T>{30,  60,   60,  120, 390,  780, 780, 1560, 60,  120, 120,
+                                                        240, 420,  840, 840, 1680, 90,  180, 180,  360, 450, 900,
+                                                        900, 1800, 120, 240, 240,  480, 480, 960,  960, 1920}})
+            .testcaseName("einsum_multi_input_broadcasting")
 
     };
     return params;

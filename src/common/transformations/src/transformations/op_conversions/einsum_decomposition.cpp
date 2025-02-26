@@ -1013,8 +1013,13 @@ void contract_two_inputs(ov::OutputVector& input_nodes,
         // subscript
 
         int64_t unsqueeze_dim = input_node1.get_partial_shape().size();
+        size_t axis_1_unsqueeze_amount = separate_labels_inds2.size();
+        if (separate_part2.find("...") != std::string::npos) {
+            size_t input2_ellipsis_rank = input_node2.get_partial_shape().size() - labels2.size();
+            axis_1_unsqueeze_amount += input2_ellipsis_rank;
+        }
         std::vector<int64_t> unsqueeze_axis1;
-        for (size_t label_ind = 0; label_ind < separate_labels_inds2.size(); ++label_ind) {
+        for (size_t label_ind = 0; label_ind < axis_1_unsqueeze_amount; ++label_ind) {
             unsqueeze_axis1.push_back(unsqueeze_dim++);
         }
         const auto& unsqueeze_axis2 = separate_labels_inds1;
