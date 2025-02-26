@@ -13,7 +13,7 @@ template <typename T>
 class SharedBuffer : public ov::AlignedBuffer {
 public:
     SharedBuffer(char* data, size_t size, const T& shared_object) : _shared_object(shared_object) {
-        m_allocated_buffer = data;
+        m_allocated_buffer = nullptr;
         m_aligned_buffer = data;
         m_byte_size = size;
     }
@@ -24,8 +24,41 @@ public:
         m_byte_size = 0;
     }
 
-private:
+protected:
     T _shared_object;
+};
+
+template <typename T, typename Deleter>
+class RaiiSharedBuffer : public SharedBuffer<T>, private Deleter {
+public:
+    RaiiSharedBuffer(char* data, size_t size, const T& shared_object, Deleter&& d)
+        : SharedBuffer<T>(data, size, shared_object), Deleter(std::move(d)) {}
+
+    RaiiSharedBuffer(char* data, size_t size, const T& shared_object, const Deleter& d)
+        : SharedBuffer<T>(data, size, shared_object), Deleter(d) {}
+
+    ~RaiiSharedBuffer() {
+        static_cast<Deleter&>(*this)(SharedBuffer<T>::_shared_object);
+    }
+
+    RaiiSharedBuffer(const RaiiSharedBuffer&) = delete;
+    RaiiSharedBuffer& operator=(const RaiiSharedBuffer&) = delete;
+
+    RaiiSharedBuffer(RaiiSharedBuffer&& other) noexcept
+        : SharedBuffer<T>(std::move(other)),
+          Deleter(std::move(other.get_deleter())) {}
+
+    RaiiSharedBuffer& operator=(RaiiSharedBuffer&& other) noexcept {
+        if (this != &other) {
+            static_cast<SharedBuffer<T>&>(*this) = std::move(other);
+            static_cast<Deleter&>(*this) = std::move(other);
+        }
+        return *this;
+    }
+
+private:
+    Deleter& get_deleter() { return *this; }
+    const Deleter& get_deleter() const { return *this; }
 };
 
 /// \brief SharedStreamBuffer class to store pointer to pre-acclocated buffer and provide streambuf interface.
