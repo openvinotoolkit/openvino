@@ -67,10 +67,6 @@ if(DEFINED OV_GLIBCXX_USE_CXX11_ABI)
     target_compile_definitions(${TARGET_NAME} PUBLIC _GLIBCXX_USE_CXX11_ABI=${OV_GLIBCXX_USE_CXX11_ABI})
 endif()
 
-if(WIN32)
-    set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
-endif()
-
 if(RISCV64)
     # for std::atomic_bool
     target_link_libraries(${TARGET_NAME} PRIVATE atomic)

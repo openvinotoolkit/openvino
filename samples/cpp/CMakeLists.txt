@@ -65,7 +65,6 @@ endif()
 
 set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OV_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OV_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
-set (CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OV_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 set (CMAKE_PDB_OUTPUT_DIRECTORY ${OV_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OV_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 
@@ -195,7 +194,6 @@ macro(ov_add_sample)
     endif()
 
     set_target_properties(${SAMPLE_NAME} PROPERTIES FOLDER ${folder_name}
-                                                    COMPILE_PDB_NAME ${SAMPLE_NAME}
                                                     # to ensure out of box LC_RPATH on macOS with SIP
                                                     INSTALL_RPATH_USE_LINK_PATH ON)
 

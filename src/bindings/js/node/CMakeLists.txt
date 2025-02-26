@@ -100,10 +100,6 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     SUFFIX ".node"
 )
 
-if(WIN32)
-    set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_PDB_NAME ${PROJECT_NAME})
-endif()
-
 ov_set_install_rpath(${PROJECT_NAME}
     ${OV_CPACK_RUNTIMEDIR} ${OV_CPACK_RUNTIMEDIR})
 
