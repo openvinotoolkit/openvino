@@ -13,6 +13,8 @@
 #include "openvino/core/model.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
+#include "openvino/runtime/tensor_util.hpp"
+#include "openvino/op/constant.hpp"
 
 using namespace std;
 
@@ -88,5 +90,27 @@ TEST(tensor, get_byte_size_u6_not_even_div_by_storage_unit) {
     const auto tensor = Tensor(element::u6, Shape{17});
     EXPECT_EQ(tensor.get_byte_size(), 3 + 4 * 3);
 }
+
+
+
+TEST(tensor, mmaped_tensor_test) {
+    {
+        std::shared_ptr<ov::Node> constant;
+        {
+            auto init_tensor = ov::Tensor(ov::element::i32, ov::Shape({1, 1, 2, 2}));
+            std::vector<int> data = {1, 2, 3, 4};
+            std::memcpy(init_tensor.data(), data.data(), data.size() * sizeof(int));
+    
+            auto new_tensor = ov::create_mmaped_tensor(init_tensor, std::string{"tmp_file"});
+            constant = std::make_shared<ov::op::v0::Constant>(new_tensor);
+        }
+        // mmaped object is live here and tmp_file exists
+    }
+    // mmaped object is destroyed here and tmp_file is deleted
+}
+
+
+
+
 }  // namespace test
 }  // namespace ov
