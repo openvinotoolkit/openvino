@@ -182,8 +182,8 @@ Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
 
     auto get_attributes = [](std::vector<ptrdiff_t>& internal_attribute,
                              const std::vector<size_t>& external_attribute) {
-        for (size_t i = 0; i < external_attribute.size(); i++) {
-            internal_attribute.push_back(static_cast<ptrdiff_t>(external_attribute[i]));
+        for (uint64_t i : external_attribute) {
+            internal_attribute.push_back(static_cast<ptrdiff_t>(i));
         }
     };
 
