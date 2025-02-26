@@ -47,7 +47,7 @@ std::vector<TRShape> shape_infer(const Einsum* op, const std::vector<T>& input_s
                 (input_rank >= (labels.size() - 1) && has_ellipsis) || (input_rank == labels.size() && !has_ellipsis),
                 "Input rank must be greater or equal to a number of labels in the "
                 "corresponding input subscript.");
-
+            std::unordered_map<std::string, TRShape> single_input_label_to_shape;
             for (size_t label_ind = 0, dim_ind = 0; label_ind < labels.size() && dim_ind < input_rank; ++label_ind) {
                 auto const& label = labels[label_ind];
                 if (label.compare("...") == 0) {
@@ -67,17 +67,32 @@ std::vector<TRShape> shape_infer(const Einsum* op, const std::vector<T>& input_s
                     }
                     dim_ind += num_broadcasted_dims;
                 } else {
-                    if (label_to_shape.find(label) == label_to_shape.end()) {
-                        label_to_shape[label] = TRShape{pshape[dim_ind]};
+                    // Check if repeated label dimension in single input are compatible
+                    if (single_input_label_to_shape.find(label) == single_input_label_to_shape.end()) {
+                        single_input_label_to_shape[label] = TRShape{pshape[dim_ind]};
                     } else {
-                        NODE_VALIDATION_CHECK(op,
-                                              TRShape::broadcast_merge_into(label_to_shape[label],
-                                                                            TRShape{pshape[dim_ind]},
-                                                                            op::AutoBroadcastType::NUMPY),
-                                              "Different input dimensions indicated by the same labels for Einsum "
-                                              "must be compatible.");
+                        NODE_VALIDATION_CHECK(
+                            op,
+                            TRShape::merge_into(single_input_label_to_shape[label], TRShape{pshape[dim_ind]}),
+                            "Different input dimensions indicated by the repeated labels within single input node for "
+                            "Einsum "
+                            "must be compatible.");
                     }
                     ++dim_ind;
+                }
+            }
+            for (auto label_it : single_input_label_to_shape) {
+                // Repeated labels in single input node are eliminated, so we can merge them into the global
+                // label_to_shape.
+                if (label_to_shape.find(label_it.first) == label_to_shape.end()) {
+                    label_to_shape[label_it.first] = label_it.second;
+                } else {
+                    NODE_VALIDATION_CHECK(op,
+                                          TRShape::broadcast_merge_into(label_to_shape[label_it.first],
+                                                                        label_it.second,
+                                                                        op::AutoBroadcastType::NUMPY),
+                                          "Different input dimensions indicated by the same labels for Einsum "
+                                          "must be broadcastable.");
                 }
             }
         } else {
