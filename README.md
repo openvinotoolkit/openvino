@@ -35,7 +35,7 @@ Check out the [OpenVINO Cheat Sheet](https://docs.openvino.ai/2025/_static/downl
 pip install -U openvino
 ```
 
-Check [system requirements](https://docs.openvino.ai/2025/about-openvino/system-requirements.html) and [supported devices](https://docs.openvino.ai/2025/documentation/compatibility-and-support/supported-devices.html) for detailed information.
+Check [system requirements](https://docs.openvino.ai/2025/about-openvino/release-notes-openvino/system-requirements.html) and [supported devices](https://docs.openvino.ai/2025/documentation/compatibility-and-support/supported-devices.html) for detailed information.
 
 ## Tutorials and Examples
 
