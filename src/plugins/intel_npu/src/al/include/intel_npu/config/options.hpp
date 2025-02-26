@@ -26,12 +26,6 @@ std::string_view stringifyEnum(CompilerType val);
 namespace intel_npu {
 
 //
-// register
-//
-
-void registerOptions(OptionsDesc& desc, OptionMode mode);
-
-//
 // PERFORMANCE_HINT
 //
 
@@ -312,7 +306,7 @@ struct CACHE_DIR final : OptionBase<CACHE_DIR, std::string> {
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::RunTime;
     }
 };
 
@@ -330,7 +324,7 @@ struct LOADED_FROM_CACHE final : OptionBase<LOADED_FROM_CACHE, bool> {
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::RunTime;
     }
 };
 
@@ -352,7 +346,7 @@ struct CACHING_PROPERTIES final : OptionBase<CACHING_PROPERTIES, std::string> {
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::RunTime;
     }
 };
 
@@ -835,7 +829,7 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
     }
 
     static OptionMode mode() {
-        return OptionMode::CompileTime;
+        return OptionMode::RunTime;
     }
 
     static ov::PropertyMutability mutability() {
