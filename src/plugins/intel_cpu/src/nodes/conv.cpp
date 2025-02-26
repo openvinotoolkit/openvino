@@ -394,12 +394,8 @@ static MemoryDescPtr getSumMemDesc(const MemoryDescPtr& outputDesc, const Shape&
                                                   blockedOutputDesc->getStrides());
 }
 
-std::tuple<VecMemoryDescs, VecMemoryDescs> Convolution::initMemoryDescriptors() const {
+std::tuple<VecMemoryDescs, MemoryDescPtr> Convolution::initMemoryDescriptors(ov::element::Type dstType) const {
     const auto& srcTypes = getOriginalInputPrecisions();
-    auto dstTypes = getOriginalOutputPrecisions();
-    if (!fusedWith.empty()) {
-        dstTypes = fusedWith.back()->getOriginalOutputPrecisions();
-    }
 
     VecMemoryDescs srcDescs;
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
@@ -412,13 +408,9 @@ std::tuple<VecMemoryDescs, VecMemoryDescs> Convolution::initMemoryDescriptors() 
         srcDescs.push_back(srcDesc);
     }
 
-    VecMemoryDescs dstDescs;
-    for (size_t i = 0; i < dstTypes.size(); i++) {
-        auto dstDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(dstTypes[i], getOutputShapeAtPort(i));
-        dstDescs.push_back(dstDesc);
-    }
+    auto dstDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(dstType, getOutputShapeAtPort(0));
 
-    return {srcDescs, dstDescs};
+    return {srcDescs, dstDesc};
 }
 
 ExecutorFactoryPtr<ConvAttrs> Convolution::createExecutorFactory(const MemoryDescArgs& descs,
@@ -428,7 +420,65 @@ ExecutorFactoryPtr<ConvAttrs> Convolution::createExecutorFactory(const MemoryDes
     return std::make_shared<ExecutorFactory<ConvAttrs>>(attrs, postOps, executionContext, descs, memoryFormatFilter);
 }
 
+std::tuple<ov::element::Type, ov::element::Type> Convolution::getDstAndSumPrecision() {
+    auto getSumDataType = [](const std::shared_ptr<node::Eltwise>& eltwise) {
+        int fusingPort = eltwise->getFusingPort();
+        switch (fusingPort) {
+        case 0:
+            return eltwise->getOriginalInputPrecisionAtPort(1);
+        case 1:
+            return eltwise->getOriginalInputPrecisionAtPort(0);
+        default:
+            OPENVINO_THROW("Unexpected sum fusing port: ", fusingPort);
+        }
+    };
+
+    auto dstType = getOriginalOutputPrecisionAtPort(0);
+
+    // make sure dst type is equal to the output type of the last fused node
+    if (!fusedWith.empty()) {
+        dstType = fusedWith.back()->getOriginalOutputPrecisionAtPort(0);
+    }
+
+    auto ndims = getInputShapeAtPort(0).getRank();
+
+    // Make sure that convolution output and the Sum input have equal precision sizes
+    // since they use the same physical memory. Upscale in case precisions are different
+    for (auto& node : fusedWith) {
+        if (node->getAlgorithm() != Algorithm::EltwiseAdd) {
+            continue;
+        }
+
+        if (auto eltwiseNode = std::dynamic_pointer_cast<Eltwise>(node)) {
+            if (!eltwiseNode->isSpecialConvolutionAddFusing()) {
+                continue;
+            }
+
+            ov::element::Type eltwisePrecision = getSumDataType(eltwiseNode);
+            if (canBeExecutedInInt8() && dstType.size() != eltwisePrecision.size()) {
+                return {ov::element::f32, ov::element::f32};
+            }
+
+            if (isDepthWise() && ndims == 5) {
+                return {ov::element::f32, ov::element::f32};
+            }
+
+            if (one_of(dstType, ov::element::f32, ov::element::bf16, ov::element::f16)) {
+                return {dstType, dstType};
+            }
+
+            return {dstType, eltwisePrecision};
+        }
+    }
+
+    return {dstType, ov::element::dynamic};
+}
+
 void Convolution::initSupportedPrimitiveDescriptors() {
+    if (auto name = std::getenv("BREAK"); name && std::string(name) == getName()) {
+        (void)name;
+    }
+
     m_attrs.withBias = getOriginalInputsNumber() == 3;
     if (m_attrs.withBias) {
         m_atoi[ARG_BIAS] = BIAS;
@@ -440,15 +490,17 @@ void Convolution::initSupportedPrimitiveDescriptors() {
     m_attrs.weightsNonTransposed = false;
     m_attrs.dqScales = getDQScales();
 
-    m_postOps = getPostOps(fusedWith);
+    const auto [dstType, sumType] = getDstAndSumPrecision();
 
-    auto [srcDescs, dstDescs] = initMemoryDescriptors();
+    m_postOps = getPostOps(fusedWith, sumType);
+
+    auto [srcDescs, dstDesc] = initMemoryDescriptors(dstType);
 
     MemoryDescArgs descs{
         {ARG_SRC, srcDescs[DATA]},
         {ARG_WEI, srcDescs[WEIGHTS]},
         {ARG_BIAS, m_attrs.withBias ? srcDescs[BIAS] : MemoryDescUtils::makeEmptyDesc()},
-        {ARG_DST, dstDescs[0]},
+        {ARG_DST, dstDesc},
     };
 
     m_factory = createExecutorFactory(descs, m_attrs, m_postOps);
@@ -620,13 +672,19 @@ ExecutorPtr Convolution::createFallbackExecutor() {
 
     CPU_NODE_ASSERT(fallbackPostOps.size() < m_postOps.size(), "Unexpected post-ops size after sum post-op removal");
 
-    auto [srcDescs, dstDescs] = initMemoryDescriptors();
+    auto dstType = getOriginalInputPrecisionAtPort(0);
+
+    if (!fusedWith.empty()) {
+        dstType = fusedWith.back()->getOriginalOutputPrecisionAtPort(0);
+    }
+
+    auto [srcDescs, dstDesc] = initMemoryDescriptors(dstType);
 
     MemoryDescArgs descs{
         {ARG_SRC, srcDescs[DATA]},
         {ARG_WEI, srcDescs[WEIGHTS]},
         {ARG_BIAS, m_attrs.withBias ? srcDescs[BIAS] : MemoryDescUtils::makeEmptyDesc()},
-        {ARG_DST, dstDescs[0]},
+        {ARG_DST, dstDesc},
     };
 
     auto fallbackFactory = createExecutorFactory(descs, m_attrs, fallbackPostOps);
@@ -740,6 +798,19 @@ void Convolution::addFusedNode(const NodePtr& fusingNode) {
             }
         } else {
             dw_conv_in_dt = memory::data_type::f32;
+        }
+
+        const auto& weightDims = getInputShapeAtPort(1).getStaticDims();
+        // @todo padding should be updated by the graph optimizer / transformation
+        for (size_t j = 0; j < m_attrs.paddingR.size(); j++) {
+            int with_group = m_attrs.isGrouped ? 1 : 0;
+            int krn = weightDims[with_group + 2 + j];
+            int src = getInputShapeAtPort(0).getStaticDims()[2 + j];
+            int dst = fusingNode->getOutputShapeAtPort(0).getStaticDims()[2 + j];
+
+            krn = (krn - 1) * (m_attrs.dilation[j] + 1) + 1;
+            int calc_dst = (src - krn + m_attrs.paddingL[j]) / m_attrs.stride[j] + 1;
+            m_attrs.paddingR[j] = (dst - calc_dst) * m_attrs.stride[j];
         }
     }
 

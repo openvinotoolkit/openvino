@@ -130,11 +130,16 @@ bool DnnlPostOpsComposer::appendAttrPostOps(const ActivationPostOp& postOp, bool
         const auto& shift = postOp.gamma();
         if (scale != 1.0f && shift != 0.0f) {
             return appendLinear({scale}, {shift}, isLastPostOp, allowBinary);
-        } else if (scale != 1.0f) {  // Multiply if has scales
+        }
+
+        if (scale != 1.0f) {  // Multiply if has scales
             return appendScale({scale}, isLastPostOp, allowBinary);
-        } else if (shift != 0.0f) {  // Add only if has shifts
+        }
+
+        if (shift != 0.0f) {  // Add only if has shifts
             return appendShift({shift}, allowBinary);
         }
+
         return true;
     }
 
@@ -480,9 +485,11 @@ void DnnlPostOpsComposer::appendEltwise(const dnnl::algorithm alg, float alpha, 
     ops.append_eltwise(alg, alpha, beta);
 }
 
-void DnnlPostOpsComposer::appendSum(float scale, int32_t zeroPoint) {
-    DEBUG_LOG("Append sum post op with scale: ", scale, " zero point: ", zeroPoint);
-    ops.append_sum(scale, zeroPoint);
+void DnnlPostOpsComposer::appendSum(float scale, int32_t zeroPoint, ov::element::Type dataType) {
+    DEBUG_LOG("Append sum post op with scale: ", scale, " zero point: ", zeroPoint, " data type: ", dataType);
+    auto sum_data_type = DnnlExtensionUtils::ElementTypeToDataType(dataType);
+
+    ops.append_sum(scale, zeroPoint, sum_data_type);
 }
 
 void DnnlPostOpsComposer::appendRoundHTE() {
@@ -1085,7 +1092,7 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
         }
 
         if (const auto sum = std::dynamic_pointer_cast<SumPostOp>(postOp)) {
-            appendSum(sum->scale(), sum->zeroPoint());
+            appendSum(sum->scale(), sum->zeroPoint(), sum->dataType());
             continue;
         }
 

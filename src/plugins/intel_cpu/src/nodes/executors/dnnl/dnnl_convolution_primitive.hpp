@@ -45,7 +45,7 @@ class DnnlConvolutionPrimitive {
 
     struct IntermediateReorder {
         dnnl::reorder m_reorder;
-        dnnl::memory m_memory;
+        dnnl::memory::desc m_memory_desc;
     };
 
     class IntermediateReorders {
