@@ -212,9 +212,9 @@ std::vector<std::vector<int>> get_streams_info_table(
         ((input_streams_changed == true) && (input_streams == 1))) {
         n_streams = 1;
         stream_info[NUMBER_OF_STREAMS] = n_streams;
-        for (size_t n = 0; n < proc_socket_table.size(); n++) {
-            if (proc_socket_table[n][ALL_PROC] > 0) {
-                current_socket_id = proc_socket_table[n][PROC_SOCKET_ID];
+        for (auto& n : proc_socket_table) {
+            if (n[ALL_PROC] > 0) {
+                current_socket_id = n[PROC_SOCKET_ID];
                 break;
             }
         }
