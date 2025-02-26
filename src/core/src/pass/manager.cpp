@@ -197,50 +197,31 @@ public:
     }
 
     void start_timer(const std::string& name) {
-        if (m_profile_pass.is_enabled()) {
-            stopwatches[name] = stopwatch();
-            stopwatches[name].start();
+        stopwatches[name] = stopwatch();
+        stopwatches[name].start();
 
-            bool is_pass_manager = name == m_manager_name;
-            if (is_pass_manager) {
-                std::cout << std::setw(25) << std::left;
-                std::cout << "PassManager started: " << m_manager_name << std::endl;
-                std::cout << std::right;
-            }
+        bool is_pass_manager = name == m_manager_name;
+        if (is_pass_manager) {
+            std::cout << std::setw(25) << std::left;
+            std::cout << "PassManager started: " << m_manager_name << std::endl;
+            std::cout << std::right;
         }
     }
 
     void stop_timer(const std::string& name, bool applied) {
-        if (m_profile_pass.is_enabled()) {
-            auto& stopwatch = stopwatches.at(name);
-            stopwatch.stop();
+        auto& stopwatch = stopwatches.at(name);
+        stopwatch.stop();
 
-            bool is_pass_manager = name == m_manager_name;
-            if (m_profile_pass.is_bool()) {
-                std::cout << std::setw(25) << std::left;
-                if (is_pass_manager) {
-                    std::cout << "PassManager finished: ";
-                } else {
-                    std::cout << "  ";
-                }
-                std::cout << std::setw(60) << std::left << name;
-                std::cout << std::setw(5) << std::right << stopwatch.get_milliseconds() << "ms "
-                          << (applied ? "+" : "-") << std::endl;
-            } else if (m_file.is_open()) {
-                if (is_pass_manager) {
-                    m_file << "m;" << name << ";" << stopwatch.get_timer_value().count() << ";" << (applied ? "1" : "0")
-                           << std::endl;
-                    m_file << "m_start;" << name << ";" << stopwatch.get_start_time().count() << std::endl;
-                    m_file << "m_end;" << name << ";" << stopwatch.get_end_time().count() << std::endl;
-                } else {
-                    m_file << "t;" << name << ";" << m_manager_name << ";" << stopwatch.get_timer_value().count() << ";"
-                           << (applied ? "1" : "0") << std::endl;
-                }
-            } else {
-                OPENVINO_THROW("The output file for logging transformation statistics is closed. "
-                               "Recording of statistics is not possible.");
-            }
+        bool is_pass_manager = name == m_manager_name;
+        std::cout << std::setw(25) << std::left;
+        if (is_pass_manager) {
+            std::cout << "PassManager finished: ";
+        } else {
+            std::cout << "  ";
         }
+        std::cout << std::setw(60) << std::left << name;
+        std::cout << std::setw(5) << std::right << stopwatch.get_milliseconds() << "ms " << (applied ? "+" : "-")
+                  << std::endl;
     }
 
     void visualize(const std::shared_ptr<ov::Model>& model, const std::string& pass_name) const {

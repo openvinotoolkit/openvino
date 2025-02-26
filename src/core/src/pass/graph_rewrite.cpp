@@ -283,7 +283,7 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
     m_matcher = m;
     m_handler = [m, callback](const std::shared_ptr<Node>& node) -> bool {
         if (m->match(node->output(0))) {
-            std::cout << m->get_name() << " " << node << std::endl;
+            // std::cout << m->get_name() << " " << node << std::endl;
             OV_PASS_CALLBACK(m);
 
             try {

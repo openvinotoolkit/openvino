@@ -164,8 +164,6 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     const auto maxOpsetVersion = _compilerProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
-    std::cout << compilerVersion.major << " " << compilerVersion.minor << std::endl;
-
     std::shared_ptr<const ov::Model> modelAfterPasses = model;
     if ((compilerVersion.major > 7) || (compilerVersion.major == 7 && compilerVersion.minor >= 2)) {
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
