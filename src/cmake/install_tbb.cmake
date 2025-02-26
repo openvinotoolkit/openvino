@@ -188,6 +188,9 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                     set(tbb_component tbb_dev)
                     set(core_dev_components tbb_dev)
                     unset(exclude_pattern)
+                    ov_cpack_add_component(tbb_dev
+                                            HIDDEN
+                                            DEPENDS tbb)
                 else()
                     set(tbb_component tbb)
                     set(exclude_pattern REGEX ".*(cmake|pkgconfig)$" EXCLUDE)
