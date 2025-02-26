@@ -153,12 +153,6 @@ else()
 endif()
 ov_dependent_option(ENABLE_KLEIDIAI_FOR_CPU "Enable KleidiAI for OpenVINO CPU Plugin" ${ENABLE_KLEIDIAI_FOR_CPU_DEFAULT} "AARCH64" OFF)
 
-# libxsmm doesn't support arm on android, see
-# https://github.com/libxsmm/libxsmm/wiki/Q&A#what-operating-systems-are-covered-by-libxsmm-and-what-about-microsoft-windows
-if(AARCH64 AND (NOT ANDROID))
-    set(ENABLE_SNIPPETS_LIBXSMM_TPP ON)
-endif()
-
 add_subdirectory(thirdparty)
 
 if(WIN32)
