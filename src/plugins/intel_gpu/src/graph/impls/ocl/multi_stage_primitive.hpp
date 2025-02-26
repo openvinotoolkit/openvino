@@ -232,10 +232,6 @@ protected:
         }
     }
 
-    std::vector<kernel::ptr> get_kernels() override {
-        return _kernels;
-    }
-
     std::pair<std::string, std::string> get_kernels_dump_info() const override {
         return kernel_dump_info;
     }

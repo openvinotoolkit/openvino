@@ -5,7 +5,6 @@
 #pragma once
 
 #include "implementation_map.hpp"
-#include "intel_gpu/primitives/paged_attention.hpp"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     #define OV_GPU_WITH_ONEDNN 1

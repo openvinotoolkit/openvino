@@ -822,15 +822,7 @@ public:
 
 class PagedAttentionOptImpl : public SDPAImplBase {
 public:
-    std::vector<kernel::ptr> get_kernels() const override {
-        std::vector<kernel::ptr> kernels;
-        std::transform(_kernels.begin(), _kernels.end(), std::back_inserter(kernels), [](const decltype(_kernels)::value_type& e) { return e.second; });
-        return kernels;
-    }
-
-
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::PagedAttentionOptImpl)
-    PagedAttentionOptImpl() : SDPAImplBase(PagedAttentionOpt::get_type_info_static()) {}
 
     static constexpr const size_t KV_CACHE_UPDATE = 0;
     static constexpr const size_t KV_CACHE_ROTATE = 1;
