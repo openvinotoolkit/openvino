@@ -208,11 +208,11 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
         groupNum = 1;
         withGroups = false;
 
-        for (size_t i = 0; i < convBackprop->get_strides().size(); i++) {
-            deconvAttrs.stride.push_back(static_cast<ptrdiff_t>(convBackprop->get_strides()[i]));
+        for (size_t i : convBackprop->get_strides()) {
+            deconvAttrs.stride.push_back(static_cast<ptrdiff_t>(i));
         }
-        for (size_t i = 0; i < convBackprop->get_dilations().size(); i++) {
-            deconvAttrs.dilation.push_back(static_cast<ptrdiff_t>(convBackprop->get_dilations()[i]) - 1);
+        for (size_t i : convBackprop->get_dilations()) {
+            deconvAttrs.dilation.push_back(static_cast<ptrdiff_t>(i) - 1);
         }
         deconvAttrs.paddingL = convBackprop->get_pads_begin();
         deconvAttrs.paddingR = convBackprop->get_pads_end();
@@ -230,11 +230,11 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
         withGroups = groupNum > 1;
         isDW = withGroups && groupNum == OC && groupNum == IC;
 
-        for (size_t i = 0; i < groupConvBackprop->get_strides().size(); i++) {
-            deconvAttrs.stride.push_back(static_cast<ptrdiff_t>(groupConvBackprop->get_strides()[i]));
+        for (size_t i : groupConvBackprop->get_strides()) {
+            deconvAttrs.stride.push_back(static_cast<ptrdiff_t>(i));
         }
-        for (size_t i = 0; i < groupConvBackprop->get_dilations().size(); i++) {
-            deconvAttrs.dilation.push_back(static_cast<ptrdiff_t>(groupConvBackprop->get_dilations()[i]) - 1);
+        for (size_t i : groupConvBackprop->get_dilations()) {
+            deconvAttrs.dilation.push_back(static_cast<ptrdiff_t>(i) - 1);
         }
         deconvAttrs.paddingL = groupConvBackprop->get_pads_begin();
         deconvAttrs.paddingR = groupConvBackprop->get_pads_end();

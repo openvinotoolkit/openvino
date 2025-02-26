@@ -520,9 +520,9 @@ public:
             jep.dims[jep.dims.size() - 1 - i] = outBlkDims[outRank - 1 - i];
         }
 
-        for (size_t i = 0; i < inpDims.size(); i++) {
-            for (size_t j = 0; j < inpDims[i].size(); j++) {
-                if (inpDims[i][j] != jep.dims[j] && inpDims[i][j] != 1) {
+        for (auto& inpDim : inpDims) {
+            for (size_t j = 0; j < inpDim.size(); j++) {
+                if (inpDim[j] != jep.dims[j] && inpDim[j] != 1) {
                     OPENVINO_THROW("Eltwise executor got invalid input/output dims configuration.");
                 }
             }
@@ -556,8 +556,8 @@ public:
         int maxCollapsedDims = static_cast<int>(jep.dims.size()) - lastUnchangedAxis - 2;
 
         size_t fullWorkAmount = 1;
-        for (size_t i = 0; i < jep.dims.size(); i++) {
-            fullWorkAmount *= jep.dims[i];
+        for (size_t dim : jep.dims) {
+            fullWorkAmount *= dim;
         }
 
         m_threads_num = static_cast<size_t>(parallel_get_max_threads());
@@ -584,8 +584,8 @@ public:
             }
 
             bool canCollapse = true;
-            for (size_t i = 0; i < inpDims.size(); i++) {
-                if (inpDims[i][inpDims[i].size() - 2] != 1) {
+            for (auto& inpDim : inpDims) {
+                if (inpDim[inpDim.size() - 2] != 1) {
                     if (hasDifferentDims) {
                         canCollapse = false;
                         break;
@@ -602,8 +602,8 @@ public:
                 currentJitWorkAmount = nextJitWorkAmount;
                 collapsedDims++;
 
-                for (size_t i = 0; i < inpDims.size(); i++) {
-                    collapseLastDims(inpDims[i], 1);
+                for (auto& inpDim : inpDims) {
+                    collapseLastDims(inpDim, 1);
                 }
                 collapseLastDims(jep.dims, 1);
 
@@ -783,8 +783,8 @@ public:
         }
 
         _fullWorkAmount = 1;
-        for (size_t i = 0; i < _dims.size(); i++) {
-            _fullWorkAmount *= _dims[i];
+        for (size_t _dim : _dims) {
+            _fullWorkAmount *= _dim;
         }
 
         // init offset
@@ -1518,8 +1518,8 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                 }
             };
 
-            for (size_t i = 0; i < inputPrecisions.size(); i++) {
-                inputPrecisions[i] = filterPrecision(inputPrecisions[i]);
+            for (auto& inputPrecision : inputPrecisions) {
+                inputPrecision = filterPrecision(inputPrecision);
             }
             outputPrecision = filterPrecision(outputPrecision);
 #if defined(OV_CPU_WITH_SHL)
@@ -1633,12 +1633,14 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 #endif
 
             std::vector<MemoryDescPtr> srcMemoryDescs;
-            for (size_t i = 0; i < config.inConfs.size(); i++) {
-                srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
+            srcMemoryDescs.reserve(config.inConfs.size());
+            for (const auto& inConf : config.inConfs) {
+                srcMemoryDescs.push_back(inConf.getMemDesc());
             }
             std::vector<MemoryDescPtr> dstMemoryDescs;
-            for (size_t i = 0; i < config.outConfs.size(); i++) {
-                dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
+            dstMemoryDescs.reserve(config.outConfs.size());
+            for (const auto& outConf : config.outConfs) {
+                dstMemoryDescs.push_back(outConf.getMemDesc());
             }
 
             auto factory =

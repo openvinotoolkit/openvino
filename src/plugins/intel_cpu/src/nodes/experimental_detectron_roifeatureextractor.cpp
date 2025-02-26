@@ -256,9 +256,8 @@ void reord(const float* src_data, const int* ranks, const int n, const int step,
 void split_points(const std::vector<int>& ids, std::vector<int>& rois_per_level, const int levels_num) {
     rois_per_level.clear();
     rois_per_level.resize(levels_num, 0);
-    for (size_t i = 0; i < ids.size(); ++i) {
-        assert(0 <= ids[i] && ids[i] < levels_num);
-        rois_per_level[ids[i]]++;
+    for (int id : ids) {
+        rois_per_level[id]++;
     }
     for (int i = 1; i < levels_num; ++i) {
         rois_per_level[i] += rois_per_level[i - 1];

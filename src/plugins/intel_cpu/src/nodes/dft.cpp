@@ -314,8 +314,7 @@ void DFT::dftNd(float* output,
                 bool inverse) const {
     const std::vector<size_t> iterationRange(outputShape.begin(), outputShape.end() - 1);
     const size_t lastDimIndex = iterationRange.size() - 1;
-    for (size_t axisIndex = 0; axisIndex < axes.size(); ++axisIndex) {
-        const size_t currentAxis = axes[axisIndex];
+    for (size_t currentAxis : axes) {
         const size_t outputComplexLen = outputShape[currentAxis];
         const size_t outputLen = outputComplexLen * 2;
 

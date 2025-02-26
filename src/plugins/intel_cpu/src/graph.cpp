@@ -241,13 +241,13 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
         const auto& inputNode = input.second;
         const auto precToSet = inputNode->getOriginalOutputPrecisionAtPort(0);
         const auto childEdges = inputNode->getChildEdgesAtPort(0);
-        for (size_t i = 0; i < childEdges.size(); i++) {
-            const auto child = childEdges[i]->getChild();
-            const auto child_prec = child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum());
+        for (const auto& childEdge : childEdges) {
+            const auto child = childEdge->getChild();
+            const auto child_prec = child->getOriginalInputPrecisionAtPort(childEdge->getOutputNum());
             if (!one_of(child_prec, ov::element::bf16, ov::element::f16) &&
                 // remove this WA when #78939 is resolved
                 !hasSubgraphConsumers(child)) {
-                child->setOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum(), precToSet);
+                child->setOriginalInputPrecisionAtPort(childEdge->getOutputNum(), precToSet);
             }
         }
     }
@@ -631,9 +631,9 @@ void Graph::ResolveEdgeConflicts() {
 
     /* When inserting convert / reorder, two new edges are added (pushed to the end) to the graphEdges.
        So use a plain for loop, to handle newly inserted edges as well */
-    for (size_t i = 0; i < graphEdges.size(); i++) {
+    for (size_t i = 0; i < graphEdges.size(); i++) {  // NOLINT(modernize-loop-convert)
         auto& edge = graphEdges[i];
-        auto reorderStatus = edge->needReorder();
+        auto reorderStatus = edge->needReorder();  // NOLINT(modernize-loop-convert)
         DEBUG_LOG(*edge, " reorderStatus = ", reorderStatus);
 
         switch (reorderStatus) {
@@ -1757,11 +1757,11 @@ void Graph::GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const {
             }
         };
 
-    for (size_t i = 0; i < graphNodes.size(); i++) {
-        if (graphNodes[i]->isConstant()) {
+    for (const auto& graphNode : graphNodes) {
+        if (graphNode->isConstant()) {
             continue;
         }
-        getPerfMapFor(perfMap, graphNodes[i]);
+        getPerfMapFor(perfMap, graphNode);
     }
 }
 
@@ -1793,7 +1793,8 @@ void Graph::DropNode(const NodePtr& node) {
     auto children = node->childEdges;
     auto parents = node->parentEdges;
 
-    for (size_t i = 0; i < parents.size(); i++) {
+    // The collections are being updated while iterating. So, range based for loops cannot be used.
+    for (size_t i = 0; i < parents.size(); i++) {  // NOLINT(modernize-loop-convert)
         auto p_edge = parents[i].lock();
         if (!p_edge) {
             continue;
@@ -1806,7 +1807,8 @@ void Graph::DropNode(const NodePtr& node) {
         const int inNum = p_edge->getInputNum();
         RemoveEdge(p_edge);
 
-        for (size_t j = 0; j < children.size(); j++) {
+        // The collections are being updated while iterating. So, range based for loops cannot be used.
+        for (size_t j = 0; j < children.size(); j++) {  // NOLINT(modernize-loop-convert)
             auto c_edge = children[j].lock();
             if (!c_edge) {
                 continue;
@@ -1851,7 +1853,8 @@ void Graph::DropDWConvNode(const NodePtr& node) {
         const int inNum = p_edge->getInputNum();
         RemoveEdge(p_edge);
 
-        for (size_t j = 0; j < children.size(); j++) {
+        // The collections are being updated while iterating. So, range based for loops cannot be used.
+        for (size_t j = 0; j < children.size(); j++) {  // NOLINT(modernize-loop-convert)
             auto c_edge = children[j].lock();
             if (!c_edge) {
                 continue;
