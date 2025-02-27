@@ -230,6 +230,7 @@ jobs:
           source ${OPENVINO_BUILD_DIR}/dependencies/deactivate_conanbuild.sh
         env:
           CMAKE_TOOLCHAIN_FILE: ${{ env.OPENVINO_BUILD_DIR }}/dependencies/conan_toolchain.cmake
+          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
 
       - name: Clean ccache
         run: ccache --cleanup

@@ -26,8 +26,14 @@ function(ov_install_pdb target)
                 OPTIONAL
                 EXCLUDE_FROM_ALL)
     elseif(type STREQUAL "STATIC_LIBRARY")
+        set(compile_pdb_name "${target}")
+
+        set_target_properties(${target} PROPERTIES
+                              COMPILE_PDB_OUTPUT_DIRECTORY "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}"
+                              COMPILE_PDB_NAME "${compile_pdb_name}")
+
         # installation of compile PDB files for static libraries
-        install(FILES $<TARGET_PDB_FILE:${target}>
+        install(FILES "$<TARGET_FILE_DIR:${target}>/${compile_pdb_name}.pdb"
                 DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT pdb
                 OPTIONAL
                 EXCLUDE_FROM_ALL)

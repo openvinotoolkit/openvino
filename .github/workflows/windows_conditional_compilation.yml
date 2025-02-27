@@ -199,7 +199,7 @@ jobs:
 
       - name: Build C++ samples - OpenVINO build tree
         run: |
-          cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
+          cmake -G "${{ env.CMAKE_GENERATOR }}" -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
           cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
 
       - name: Build C samples - OpenVINO install tree
@@ -208,6 +208,7 @@ jobs:
         env:
           CXXFLAGS: "/DEBUG /Zi"
           CFLAGS: "/DEBUG /Zi"
+          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
 
       - name: Ctest - OpenVINO unit tests
         shell: cmd
