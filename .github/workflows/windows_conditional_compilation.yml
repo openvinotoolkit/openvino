@@ -65,7 +65,7 @@ jobs:
       CCACHE_MAXSIZE: 3G
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
-      INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
+      INSTALL_PDB_DIR: "${{ github.workspace }}\\install\\pdb"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       MODELS_PATH: "${{ github.workspace }}\\testdata"
       SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
@@ -175,6 +175,8 @@ jobs:
             -DSELECTIVE_BUILD=COLLECT `
             -DENABLE_FASTER_BUILD=ON `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
+            -DCMAKE_CXX_FLAGS="/DEBUG /Zi" `
+            -DCMAKE_C_FLAGS="/DEBUG /Zi" `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
@@ -191,7 +193,9 @@ jobs:
         run: '& ccache --show-stats'
 
       - name: Cmake install - OpenVINO
-        run: cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+        run: |
+          cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
+          cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_PDB_DIR }} --component pdb
 
       - name: Build C++ samples - OpenVINO build tree
         run: |
