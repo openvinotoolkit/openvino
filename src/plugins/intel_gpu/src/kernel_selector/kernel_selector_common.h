@@ -108,13 +108,6 @@ struct KernelData {
     bool needs_sub_kernels_sync = true;
 
     static bool SkipKernelExecution(const base_params& params, size_t kernel_id = 0) {
-        if (params.GetType() == kernel_selector::KernelType::SCATTER_ELEMENTS_UPDATE) {
-            if (kernel_id == 0) {
-                if (params.outputs[0].LogicalSize() != 0 && params.outputs[0] != params.inputs[0]) {
-                    return false;
-                }
-            }
-        }
         for (const auto& input : params.inputs) {
             if (input.LogicalSize() == 0) {
                 return true;

@@ -8,7 +8,6 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include <list>
 
-
 using namespace cldnn;
 
 void skipped_branch_memory_dependencies::run(program& p) {
