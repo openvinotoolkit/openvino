@@ -27,6 +27,7 @@
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/augru_cell_fusion.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
+#include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
@@ -446,6 +447,20 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
+    ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
+    cacheConfig.keyCachePrecision = config.keyCachePrecision;
+    cacheConfig.valueCachePrecision = config.valueCachePrecision;
+    cacheConfig.inferencePrecision = config.inferencePrecision;
+    cacheConfig.keyCacheGroupSize = config.keyCacheGroupSize;
+    cacheConfig.valueCacheGroupSize = config.valueCacheGroupSize;
+    cacheConfig.keyCacheBlockSize = 32;
+    cacheConfig.valueCacheBlockSize = 32;
+    // TODO enable quant_by_channel when available.
+    cacheConfig.keyCacheQuantBychannel = false;
+    cacheConfig.valueCacheQuantBychannel = false;
+    cacheConfig.keyCacheDimOrder = {0, 1, 2, 3};
+    cacheConfig.valueCacheDimOrder = {0, 1, 2, 3};
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPagedAttnInputs, cacheConfig);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_X64(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
     CPU_SET_CALLBACK_X64(
