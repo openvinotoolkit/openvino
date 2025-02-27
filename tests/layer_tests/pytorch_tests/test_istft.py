@@ -147,7 +147,7 @@ class TestISTFT(PytorchLayerTest):
             pytest.xfail(reason="ISTFT op is not supported on GPU yet")
 
         if center is False and window_size and window_size < n_fft:
-            pytest.xfail(
+            pytest.skip(
                 reason="torch istft doesn't allow for zeros padding in window, when `center` is false ")
 
         self._test(*self.create_model(n_fft, hop_length, window_size, normalized, center), ie_device, precision,
