@@ -423,7 +423,7 @@ if(DEFINED ENV{CI_BUILD_DEV_TAG})
                     RESULT_VARIABLE pybind11_stubgen_result)
 
     if(pybind11_stubgen_result)
-        message(FATAL_ERROR "pybind11-stubgen is not installed. Please install it using 'pip install pybind11-stubgen'.")
+        message(WARNING "pybind11-stubgen is not installed. Stub .pyi files comparison will be skipped.")
     else()
         string(REGEX MATCH "Version: ([\\.0-9]+)" pybind11_stubgen_version "${pybind11_stubgen_info}")
         set(pybind11_stubgen_version ${CMAKE_MATCH_1})
