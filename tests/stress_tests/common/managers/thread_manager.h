@@ -15,7 +15,7 @@ public:
 
     using TaskManager<Type>::TaskManager;
 
-    void run_parallel() final {
+    void run_parallel() override {
         // TODO: implement run_task function according to wait_task
         int numtasks = tasks.size();
         threads.reserve(numtasks);
@@ -28,7 +28,7 @@ public:
             }
     }
 
-    void wait_task(int task_index) final {
+    void wait_task(int task_index) override {
         if (threads.empty() ||
             static_cast<int>(threads.size()) < task_index ||
             task_index < 0)
@@ -44,7 +44,7 @@ public:
         }
     }
 
-    ManagerStatus get_task_status(int task_index) final {
+    ManagerStatus get_task_status(int task_index) override {
         if (threads.empty() ||
             static_cast<int>(threads.size()) < task_index ||
             task_index < 0)
