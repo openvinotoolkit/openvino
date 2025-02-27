@@ -428,35 +428,34 @@ if(DEFINED ENV{CI_BUILD_DEV_TAG})
         string(REGEX MATCH "Version: ([\\.0-9]+)" pybind11_stubgen_version "${pybind11_stubgen_info}")
         set(pybind11_stubgen_version ${CMAKE_MATCH_1})
         message(STATUS "pybind11-stubgen version: ${pybind11_stubgen_version}")
-    endif()
+        if(WIN32)
+            set(stub_gen_script "${CMAKE_CURRENT_SOURCE_DIR}/scripts/generate_pyapi_stubs.bat")
+        else()
+            set(stub_gen_script "${CMAKE_CURRENT_SOURCE_DIR}/scripts/generate_pyapi_stubs.sh")
+        endif()
+        file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/pyapi_stubs_generated)
+        set(stub_gen_output_file "${CMAKE_CURRENT_BINARY_DIR}/pyapi_stubs_generated/pyi_stub_gen_completed.txt")
+        set(stub_generation_command 
+                COMMAND ${CMAKE_COMMAND}
+                    -E env PYTHONPATH=${OpenVINO_SOURCE_DIR}/bin/intel64/${CMAKE_BUILD_TYPE}/python:$ENV{PYTHONPATH}
+                    ${stub_gen_script}
+                    ${CMAKE_CURRENT_BINARY_DIR}/pyapi_stubs_generated)
+        set(validation_command
+                COMMAND "${CMAKE_COMMAND}" 
+                    -D generated_pyi_files_location=${CMAKE_CURRENT_BINARY_DIR}/pyapi_stubs_generated
+                    -D source_pyi_files_location=${OpenVINOPython_SOURCE_DIR}/src/openvino
+                    -D python_exec=${Python3_EXECUTABLE}
+                    -P "${CMAKE_CURRENT_SOURCE_DIR}/compare_pyi.cmake")
+        add_custom_command(OUTPUT ${stub_gen_output_file}
+            ${stub_generation_command}
+            ${validation_command}
+            COMMAND "${CMAKE_COMMAND}" -E touch ${stub_gen_output_file}
+            DEPENDS ${openvino_py_files}
+            COMMENT "[pybind11_stubgen] Generate and validate .pyi files"
+            VERBATIM
+            COMMAND_ERROR_IS_FATAL ANY)
 
-    if(WIN32)
-        set(stub_gen_script "${CMAKE_CURRENT_SOURCE_DIR}/scripts/generate_pyapi_stubs.bat")
-    else()
-        set(stub_gen_script "${CMAKE_CURRENT_SOURCE_DIR}/scripts/generate_pyapi_stubs.sh")
+        add_custom_target(pyopenvino_stub ALL DEPENDS ${stub_gen_output_file})
+        add_dependencies(pyopenvino_stub pyopenvino)
     endif()
-    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/pyapi_stubs_generated)
-    set(stub_gen_output_file "${CMAKE_CURRENT_BINARY_DIR}/pyapi_stubs_generated/pyi_stub_gen_completed.txt")
-    set(stub_generation_command 
-            COMMAND ${CMAKE_COMMAND}
-                -E env PYTHONPATH=${OpenVINO_SOURCE_DIR}/bin/intel64/${CMAKE_BUILD_TYPE}/python:$ENV{PYTHONPATH}
-                ${stub_gen_script}
-                ${CMAKE_CURRENT_BINARY_DIR}/pyapi_stubs_generated)
-    set(validation_command
-            COMMAND "${CMAKE_COMMAND}" 
-                -D generated_pyi_files_location=${CMAKE_CURRENT_BINARY_DIR}/pyapi_stubs_generated
-                -D source_pyi_files_location=${OpenVINOPython_SOURCE_DIR}/src/openvino
-                -D python_exec=${Python3_EXECUTABLE}
-                -P "${CMAKE_CURRENT_SOURCE_DIR}/compare_pyi.cmake")
-    add_custom_command(OUTPUT ${stub_gen_output_file}
-        ${stub_generation_command}
-        ${validation_command}
-        COMMAND "${CMAKE_COMMAND}" -E touch ${stub_gen_output_file}
-        DEPENDS ${openvino_py_files}
-        COMMENT "[pybind11_stubgen] Generate and validate .pyi files"
-        VERBATIM
-        COMMAND_ERROR_IS_FATAL ANY)
-
-    add_custom_target(pyopenvino_stub ALL DEPENDS ${stub_gen_output_file})
-    add_dependencies(pyopenvino_stub pyopenvino)
 endif()
