@@ -87,7 +87,6 @@
 #include "transformations/op_conversions/eye_decomposition.hpp"
 #include "transformations/op_conversions/fake_convert_decomposition.hpp"
 #include "transformations/op_conversions/fq_decomposition.hpp"
-#include "transformations/op_conversions/fuse_bias.hpp"
 #include "transformations/op_conversions/gelu7_downgrade.hpp"
 #include "transformations/op_conversions/group_normalization_decomposition.hpp"
 #include "transformations/op_conversions/gru_cell_decomposition.hpp"
@@ -1344,8 +1343,6 @@ void Transformations::PostSnippets(void) {
     ov::pass::Manager postSnippetsManager("CPU:PostSnippets");
     postSnippetsManager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeQuantizeDecomposition);
-    CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::ConvertConvolution);
-    CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FuseBias);
     CPU_SET_CALLBACK_COMMON(
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
