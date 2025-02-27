@@ -10,9 +10,7 @@
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 class SDPA : public ov::op::v13::ScaledDotProductAttention {
 public:
@@ -28,7 +26,7 @@ public:
          const std::vector<int64_t>& order_k,
          const std::vector<int64_t>& order_v,
          const std::vector<int64_t>& order_out,
-         const ov::element::Type output_type = ov::element::undefined);
+         const ov::element::Type output_type = ov::element::dynamic);
 
     SDPA(const OutputVector& inputs,
          const bool is_causal,
@@ -37,7 +35,7 @@ public:
          const std::vector<int64_t>& order_v,
          const std::vector<int64_t>& order_out,
          const QuantizationAttribute& quantization_attrs,
-         const ov::element::Type output_type = ov::element::undefined);
+         const ov::element::Type output_type = ov::element::dynamic);
 
     bool visit_attributes(ov::AttributeVisitor &visitor) override;
 
@@ -83,6 +81,4 @@ std::vector<ov::PartialShape> shape_infer(const SDPA* op,
                                           const std::vector<int64_t>& order_out);
 
 
-}   // namespace op
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu::op

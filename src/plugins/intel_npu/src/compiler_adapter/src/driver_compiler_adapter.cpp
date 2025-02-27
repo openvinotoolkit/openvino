@@ -68,8 +68,6 @@ void checkedMemcpy(void* destination, size_t destinationSize, void const* source
  */
 std::string ovPrecisionToLegacyPrecisionString(const ov::element::Type& precision) {
     switch (precision) {
-    case ov::element::Type_t::undefined:
-        return "UNSPECIFIED";
     case ov::element::Type_t::f16:
         return "FP16";
     case ov::element::Type_t::f32:
@@ -78,6 +76,8 @@ std::string ovPrecisionToLegacyPrecisionString(const ov::element::Type& precisio
         return "FP64";
     case ov::element::Type_t::bf16:
         return "BF16";
+    case ov::element::Type_t::nf4:
+        return "NF4";
     case ov::element::Type_t::i4:
         return "I4";
     case ov::element::Type_t::i8:
@@ -145,10 +145,7 @@ DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 
     uint32_t graphExtVersion = _zeroInitStruct->getGraphDdiTable().version();
 
-    _deviceGraphProperties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
-    auto result = _zeroInitStruct->getGraphDdiTable().pfnDeviceGetGraphProperties(_zeroInitStruct->getDevice(),
-                                                                                  &_deviceGraphProperties);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnDeviceGetGraphProperties", result, _zeroInitStruct->getGraphDdiTable());
+    _compilerProperties = _zeroInitStruct->getCompilerProperties();
 
     _logger.info("DriverCompilerAdapter creating adapter using graphExtVersion");
 
@@ -163,8 +160,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                                        const Config& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compile");
 
-    const ze_graph_compiler_version_info_t& compilerVersion = _deviceGraphProperties.compilerVersion;
-    const auto maxOpsetVersion = _deviceGraphProperties.maxOVOpsetVersionSupported;
+    const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
+    const auto maxOpsetVersion = _compilerProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
     _logger.debug("serialize IR");
@@ -200,14 +197,16 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                          graphHandle,
                                          std::move(networkMeta),
                                          config,
-                                         std::nullopt);
+                                         nullptr);
 }
 
-std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::vector<uint8_t> network, const Config& config) const {
+std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::unique_ptr<BlobContainer> blobPtr,
+                                                     const Config& config) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
     _logger.debug("parse start");
-    ze_graph_handle_t graphHandle = _zeGraphExt->getGraphHandle(network);
+    ze_graph_handle_t graphHandle =
+        _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()), blobPtr->size());
     _logger.debug("parse end");
 
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
@@ -218,15 +217,15 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::vector<uint8_t> networ
                                          graphHandle,
                                          std::move(networkMeta),
                                          config,
-                                         std::optional<std::vector<uint8_t>>(std::move(network)));
+                                         std::move(blobPtr));
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
                                                  const Config& config) const {
     OV_ITT_TASK_CHAIN(query_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "query");
 
-    const ze_graph_compiler_version_info_t& compilerVersion = _deviceGraphProperties.compilerVersion;
-    const auto maxOpsetVersion = _deviceGraphProperties.maxOVOpsetVersionSupported;
+    const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
+    const auto maxOpsetVersion = _compilerProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
     _logger.debug("serialize IR");
@@ -579,6 +578,10 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
     std::ostringstream turbostring;
     turbostring << ov::intel_npu::turbo.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
     content = std::regex_replace(content, std::regex(turbostring.str()), "");
+    // Remove weights path property as it is not used by compiler
+    std::ostringstream weightspathstream;
+    weightspathstream << ov::weights_path.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
+    content = std::regex_replace(content, std::regex(weightspathstream.str()), "");
     // Remove Bypass UMD Caching propery
     std::ostringstream umdcachestring;
     umdcachestring << ov::intel_npu::bypass_umd_caching.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"

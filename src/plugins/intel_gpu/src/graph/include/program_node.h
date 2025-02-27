@@ -158,6 +158,7 @@ public:
 
     program& get_program() { return myprog; }
     program& get_program() const { return myprog; }
+    const ExecutionConfig& get_config() const { return myprog.get_config(); }
 
     primitive_impl* get_selected_impl() const { return selected_impl.get(); }
     void set_selected_impl(std::unique_ptr<primitive_impl> impl);

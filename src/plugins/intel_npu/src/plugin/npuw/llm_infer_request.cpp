@@ -78,8 +78,8 @@ void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITenso
     OPENVINO_ASSERT(src_shape == dst->get_shape());
     OPENVINO_ASSERT(src->get_byte_size() == dst->get_byte_size());
 
-    const auto src_strides = src->get_strides();
-    const auto dst_strides = dst->get_strides();
+    const auto& src_strides = src->get_strides();
+    const auto& dst_strides = dst->get_strides();
     const auto elem_size = src->get_byte_size() / src->get_size();
 
     const auto C = src_shape[1];
@@ -105,6 +105,13 @@ void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITenso
 ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
     : ov::ISyncInferRequest(compiled_model),
       m_npuw_llm_compiled_model(compiled_model) {
+    for (const auto& input_port : m_npuw_llm_compiled_model->inputs()) {
+        init_tensor(input_port);
+    }
+    for (const auto& output_port : m_npuw_llm_compiled_model->outputs()) {
+        init_tensor(output_port);
+    }
+
     m_kvcache_request = compiled_model->m_kvcache_compiled->create_infer_request();
     m_prefill_request = compiled_model->m_prefill_compiled->create_infer_request();
 
@@ -120,6 +127,27 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     }
     for (const auto& output_port : m_kvcache_request->get_compiled_model()->outputs()) {
         m_kvcache_out_ports.emplace(output_port.get_any_name(), output_port);
+    }
+}
+
+void ov::npuw::LLMInferRequest::init_tensor(const ov::Output<const ov::Node>& port) {
+    ov::SoPtr<ITensor> tensor;
+    tensor = ov::ISyncInferRequest::get_tensor(port);
+
+    if (!tensor) {
+        const auto& shape = port.get_partial_shape();
+        const bool is_dynamic = shape.is_dynamic();
+        ov::Shape tensor_shape;
+        if (is_dynamic) {
+            for (auto&& item : shape) {
+                tensor_shape.push_back(item.is_static() ? item.get_length() : 0);
+            }
+        } else {
+            tensor_shape = shape.to_shape();
+        }
+
+        tensor = ov::make_tensor(port.get_element_type(), tensor_shape);
+        set_tensor(port, tensor);
     }
 }
 
@@ -220,7 +248,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     std::copy_n(input_ids->data<int64_t>(), input_ids->get_size(), kv_input_ids->data<int64_t>());
 
     auto kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"));
-    std::copy_n(attention_mask->data<int64_t>(), attention_mask->get_size(), kv_attn_mask->data<int64_t>());
+    std::copy_n(attention_mask->data<int64_t>(), attention_mask->get_size() - 1, kv_attn_mask->data<int64_t>());
 
     auto kv_pos_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("position_ids"));
     std::copy_n(position_ids->data<int64_t>(), position_ids->get_size(), kv_pos_ids->data<int64_t>());
