@@ -5,6 +5,7 @@
 #pragma once
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
+#include "emitters/plugin/x64/utils.hpp"
 #include "emitters/snippets/x64/kernel_executors/parallel_loop.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/utils/utils.hpp"
@@ -55,6 +56,10 @@ public:
         return loop_begin_label;
     }
 
+    std::shared_ptr<EmitABIRegSpills> get_loop_reg_spiller() {
+        return m_loop_reg_spiller;
+    }
+
 protected:
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
@@ -72,6 +77,8 @@ protected:
     bool evaluate_once = false;
     bool is_work_amount_dynamic = false;
     std::shared_ptr<ParallelLoopExecutor> m_parallel_loop_executor = nullptr;
+    std::shared_ptr<EmitABIRegSpills> m_loop_reg_spiller = nullptr;
+
 };
 
 /* ============================================================== */
@@ -104,6 +111,7 @@ protected:
     bool are_ptr_increments_dynamic = false;
     bool are_final_offsets_dynamic = false;
     bool are_ptr_shifts_dynamic = false;
+    std::shared_ptr<EmitABIRegSpills> m_loop_reg_spiller = nullptr;
 };
 
 /* ============================================================== */

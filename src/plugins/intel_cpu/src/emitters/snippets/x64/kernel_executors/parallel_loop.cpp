@@ -28,7 +28,7 @@ void ParallelLoopExecutor::execute(const ParallelLoopExecutor* executor, int64_t
     const auto& config = static_cast<const ParallelLoopConfig&>(executor->get_config());
 
     const auto& loop_args = config.get_loop_args();
-    int nthr = config.get_num_threads();
+    int nthr = 1;//config.get_num_threads();
     // todo: it might worth to use num_ptrs as a template parameter, because it is always known in advance
     //  plus it would enable additional compiler optimizations like vectorized mem copy and for loops
     const auto num_ptrs = loop_args.m_num_data_ptrs;
@@ -36,12 +36,13 @@ void ParallelLoopExecutor::execute(const ParallelLoopExecutor* executor, int64_t
     const auto& dtype_sizes = loop_args.m_dtype_sizes;
     parallel_nt_static(nthr, [&](const int ithr, const int nthr) {
         int64_t start = 0, end = 0;
+        // std::cout << ithr << "\n";
         splitter(loop_args.m_work_amount, nthr, ithr, start, end);
         std::vector<int64_t> mem_ptrs;
         mem_ptrs.reserve(num_ptrs);
         for (int i = 0; i < num_ptrs; i++)
             mem_ptrs.push_back(stack_ptr[i] + ptr_increments[i] * dtype_sizes[i] * start);
-        preamble_ptr(start, end, mem_ptrs.data());
+        preamble_ptr(end - start, mem_ptrs.data());
     });
     // todo: we can precompute these ptr shifts when loop_info_t is created
     for (int i = 0; i < num_ptrs; i++)
