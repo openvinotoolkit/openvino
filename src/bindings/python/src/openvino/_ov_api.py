@@ -79,7 +79,7 @@ class Model(object, metaclass=ModelMeta):
     def __enter__(self) -> "Model":
         return self
 
-    def __exit__(self, exc_type: TypingType[BaseException], exc_value: BaseException, traceback: TracebackType) -> None:
+    def __exit__(self, exc_type: TypingType[BaseException], exc_value: BaseException, traceback: TracebackType) -> None:  # noqa: F811
         del self.__model
         self.__model = None
 
