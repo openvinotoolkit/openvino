@@ -44,7 +44,13 @@ def compare_files(file1, file2):
 
         normalized_lines1 = remove_memory_addresses(normalized_lines1)
         normalized_lines2 = remove_memory_addresses(normalized_lines2)
-        return normalized_lines1 == normalized_lines2
+        # DEBUG: Display differences, this fails on CI for one init and I'm not sure why
+        if normalized_lines1 != normalized_lines2:
+            for line1, line2 in zip(normalized_lines1, normalized_lines2):
+                if line1 != line2:
+                    print(f"Difference found:\nFile1: {line1}\nFile2: {line2}")
+                return False
+        return True
     else:
         return True
 

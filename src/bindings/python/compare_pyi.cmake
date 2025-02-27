@@ -29,7 +29,6 @@ foreach(generated_file IN LISTS generated_pyi_files)
     endif()
 
     # Use a custom script instead of compare_files (ticket: 163225)
-    message(STATUS "python exec: ${python_exec}")
     execute_process(COMMAND ${python_exec} ${source_pyi_files_location}/../../scripts/compare_pyi_files.py ${generated_file} ${committed_file}
         RESULT_VARIABLE compare_result
     )
