@@ -34,5 +34,6 @@ public:
 
 protected:
     bool Validate(const Params& p) const override;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

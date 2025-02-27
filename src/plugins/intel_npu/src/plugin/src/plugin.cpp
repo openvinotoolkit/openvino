@@ -66,7 +66,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
 
         parameter->set_friendly_name(inputDescriptor.nodeFriendlyName);
         parameter->output(0).get_tensor().set_names(inputDescriptor.outputTensorNames);
-        parameters.push_back(parameter);
+        parameters.push_back(std::move(parameter));
     }
 
     // The "result" nodes require a parent node in order to satisfy the API conventions. Additionally, a dummy shape for
@@ -90,7 +90,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
         std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>(constantDummy);
         result->output(0).set_tensor_ptr(tensorDummy);
         result->set_friendly_name(outputDescriptor.nodeFriendlyName);
-        results.push_back(result);
+        results.push_back(std::move(result));
     }
 
     return std::make_shared<ov::Model>(results, parameters);
@@ -786,8 +786,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     return compile_model(model, properties);
 }
 
-ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
-    return get_default_context(remote_properties);
+ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remoteProperties) const {
+    return std::make_shared<RemoteContextImpl>(_backends, _globalConfig, remoteProperties);
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) const {
