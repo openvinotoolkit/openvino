@@ -650,9 +650,27 @@ void kernels_cache::add_to_cached_kernels(const std::vector<kernel::ptr>& kernel
 
 void kernels_cache::save(BinaryOutputBuffer& ob) const {
     ob << _cached_binaries.size();
+
+    auto is_zebin = [](const std::vector<unsigned char>& bin) {
+        constexpr uint32_t ELF_MAGIC = 0x464C457F;
+
+        if (bin.size() < sizeof(uint32_t)) {
+            return false;
+        }
+        auto magic = reinterpret_cast<const uint32_t*>(bin.data())[0];
+        return magic == ELF_MAGIC;
+    };
+
     for (auto& cached_binary : _cached_binaries) {
+        auto is_zebin_binary = is_zebin(cached_binary.first);
+
         ob << cached_binary.second;
         ob << cached_binary.first;
+        ob << is_zebin_binary;
+        if (!is_zebin_binary) {
+            auto driver_version = downcast<ocl::ocl_device>(*_device).get_info().driver_version;
+            ob << driver_version;
+        }
     }
 }
 
@@ -662,9 +680,24 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
     size_t num_cached_binaries;
     ib >> num_cached_binaries;
     for (size_t i = 0; i < num_cached_binaries; ++i) {
+        bool is_zebin_binary = true;
+
         uint32_t id;
         ib >> id;
         ib >> precompiled_kernels[id];
+        ib >> is_zebin_binary;
+        if (!is_zebin_binary) {
+            // Legacy patchtoken path
+            std::string driver_version, current_driver_version;
+            ib >> driver_version;
+            current_driver_version  = downcast<ocl::ocl_device>(*_device).get_info().driver_version;
+
+            // If the driver versions don't match, the erasure will cause an assert failure in init_by_cached_kernels()
+            // and by consequence invalidate the whole cache blob.
+            if (driver_version != current_driver_version) {
+                precompiled_kernels.erase(id);
+            }
+        }
     }
 
     const auto& build_device = downcast<ocl::ocl_device>(*_device);
