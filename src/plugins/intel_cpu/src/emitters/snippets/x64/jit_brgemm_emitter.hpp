@@ -29,7 +29,7 @@ private:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
     template <typename T,
-              typename std::enable_if<std::is_base_of<BrgemmBaseKernelExecutor, T>::value, bool>::type = true>
+              typename std::enable_if<std::is_base_of<x64::BrgemmBaseKernelExecutor, T>::value, bool>::type = true>
     void emit_call(const std::vector<size_t>& mem_ptrs_idxs) const;
 
     // Note: offsets order: A, B, C (+ scratchpad, if needed). Values can be dynamic_value if offset is calculated in
@@ -37,7 +37,7 @@ private:
     std::vector<size_t> m_memory_offsets{};
     // Note: cluster ids order: A, B, C (+ scratchpad, if needed). Values can be dynamic_value if there is no buffer
     std::vector<size_t> m_buffer_ids{};
-    std::shared_ptr<BrgemmBaseKernelExecutor> m_kernel_executor = nullptr;
+    std::shared_ptr<x64::BrgemmBaseKernelExecutor> m_kernel_executor = nullptr;
 
 #ifdef SNIPPETS_DEBUG_CAPS
     friend std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter* emitter);
