@@ -92,7 +92,7 @@ jobs:
         run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_proxy_plugin_tests
 
       - name: Run OV Hetero Func tests
-        run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_hetero_func_tests --gtest_filter="*smoke*"
+        run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_hetero_func_tests --gtest_filter="*smoke*" --gtest_filter=-"nightly*"
 
       - name: Run IR frontend tests
         run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_ir_frontend_tests

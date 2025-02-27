@@ -25,9 +25,7 @@
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 #if defined(OPENVINO_ARCH_X86_64)
 static std::vector<int> allocate_workers(const std::vector<int>& grouped_works, int n_workers) {
@@ -293,12 +291,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                                                                                asym);
                     }
                     // compress accumulation result into target
-                    for (int mi = 0; mi < BM; mi++, src += stride_src, dst += stride_dst) {
-                        // the prefetch distance is increased to ensure by the time store happens
-                        // prefetch has done and no HW prefetcher is triggered
-                        auto* prefetch_dst = (mi + 2 < BM) ? (dst + 2 * stride_dst) : (dst);
-                        jit_cvt(src, dst, prefetch_dst, work.BN);
-                    }
+                    jit_cvt.call(src, stride_src, dst, stride_dst, BM, work.BN);
                 }
             });
             m += BM;
@@ -328,7 +321,7 @@ void QKVProjection::createPrimitive() {
     }
 #endif
     if (!m_executor) {
-        OPENVINO_THROW("QKVProjection Executor creation fails with precision " + rtPrecision.to_string());
+        THROW_CPU_NODE_ERR("Executor creation fails with precision " + rtPrecision.to_string());
     }
 }
 
@@ -348,7 +341,7 @@ QKVProjection::QKVProjection(const std::shared_ptr<ov::Node>& op, const GraphCon
     }
 
     if (!isSupportedOperation(op, errorMessage, concurrency, config.fcDynamicQuantizationGroupSize)) {
-        OPENVINO_THROW("CPU: " + errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto node = ov::as_type_ptr<const QKVProjectionNode>(op);
     m_config = node->get_config();
@@ -373,7 +366,7 @@ void QKVProjection::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    OPENVINO_ASSERT(rtPrecision == ov::element::bf16 || rtPrecision == ov::element::f16,
+    CPU_NODE_ASSERT(rtPrecision == ov::element::bf16 || rtPrecision == ov::element::f16,
                     "Unexpected rtPrecision:",
                     rtPrecision);
 
@@ -479,6 +472,4 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
 #endif
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

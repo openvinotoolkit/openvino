@@ -23,6 +23,13 @@ ov_add_test_target(
             OV HETERO
 )
 
+if(ENABLE_INTEL_CPU)
+    add_dependencies(${TARGET_NAME} openvino_intel_cpu_plugin)
+endif()
+if(ENABLE_INTEL_GPU)
+    add_dependencies(${TARGET_NAME} openvino_intel_gpu_plugin)
+endif()
+
 target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER=\"mock_version\")
 
 if(ENABLE_OV_IR_FRONTEND)

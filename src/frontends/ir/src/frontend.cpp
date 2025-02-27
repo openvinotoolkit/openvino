@@ -149,8 +149,9 @@ void FrontEnd::add_extension(const ov::Extension::Ptr& ext) {
         if (std::dynamic_pointer_cast<ov::BaseOpExtension>(so_ext->extension())) {
             m_extensions.emplace_back(so_ext->extension());
         }
-    } else if (std::dynamic_pointer_cast<ov::BaseOpExtension>(ext))
+    } else if (std::dynamic_pointer_cast<ov::BaseOpExtension>(ext)) {
         m_extensions.emplace_back(ext);
+    }
 }
 
 InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {

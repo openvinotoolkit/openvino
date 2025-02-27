@@ -12,7 +12,6 @@
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_normalization.hpp"
@@ -95,38 +94,6 @@ TEST_F(TransformationTestsF, EliminateScalarMulTest) {
         auto result = std::make_shared<ov::op::v0::Result>(convert);
 
         model_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
-    }
-}
-
-TEST_F(TransformationTestsF, ConcatTransformationTest) {
-    {
-        auto input0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{6, 12, 10, 24});
-        auto scale_const0 = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {10});
-        auto mul0 = std::make_shared<ov::op::v1::Multiply>(input0, scale_const0);
-        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{6, 12, 10, 24});
-        auto scale_const1 = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {10});
-        auto mul1 = std::make_shared<ov::op::v1::Multiply>(input1, scale_const1);
-        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{mul0, mul1}, 0);
-        auto convert = std::make_shared<ov::op::v0::Convert>(concat, ov::element::f32);
-        auto result = std::make_shared<ov::op::v0::Result>(convert);
-
-        model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input0, input1});
-        manager.register_pass<ov::pass::activations_scaling::MulConcatTransformation>();
-    }
-    {
-        auto input0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{6, 12, 10, 24});
-        auto scale_const0 = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1});
-        auto mul0 = std::make_shared<ov::op::v1::Multiply>(input0, scale_const0);
-        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{6, 12, 10, 24});
-        auto scale_const1 = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1});
-        auto mul1 = std::make_shared<ov::op::v1::Multiply>(input1, scale_const1);
-        auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{mul0, mul1}, 0);
-        auto new_scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {10});
-        auto new_mul = std::make_shared<ov::op::v1::Multiply>(concat, new_scale_const);
-        auto convert = std::make_shared<ov::op::v0::Convert>(new_mul, ov::element::f32);
-        auto result = std::make_shared<ov::op::v0::Result>(convert);
-
-        model_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input0, input1});
     }
 }
 

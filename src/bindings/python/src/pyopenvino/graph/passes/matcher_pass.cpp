@@ -14,6 +14,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "pyopenvino/core/common.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -107,7 +108,41 @@ void regclass_passes_Matcher(py::module m) {
                 :return: mapping of pattern nodes to matched nodes.
                 :rtype: dict
     )");
+    matcher.def(
+        "get_symbols",
+        [](const ov::pass::pattern::Matcher& self) {
+            const auto& symbols = self.get_symbols();
+            ov::AnyMap result;
+            for (const auto& [name, value] : symbols) {
+                if (value.is_integer())
+                    result[name] = value.i();
+                else if (value.is_double())
+                    result[name] = value.d();
+                else if (value.is_dynamic())
+                    result[name] = value.s();
+                else if (value.is_group()) {
+                    std::vector<ov::Any> group;
+                    for (const auto& gi : value.g()) {
+                        OPENVINO_ASSERT(!gi.is_group());
+                        if (gi.is_integer())
+                            group.push_back(gi.i());
+                        if (gi.is_double())
+                            group.push_back(gi.d());
+                        if (gi.is_dynamic())
+                            group.push_back(gi.s());
+                    }
+                    result[name] = group;
+                }
+            }
+            return Common::utils::from_ov_any_map(result);
+        },
+        R"(
+                Get map which can be used to access matched symbols using nodes from pattern.
+                Should be used after match() method is called.
 
+                :return: mapping of symbol names to symbol values.
+                :rtype: Any
+    )");
     matcher.def("match",
                 static_cast<bool (ov::pass::pattern::Matcher::*)(const ov::Output<ov::Node>&)>(
                     &ov::pass::pattern::Matcher::match),

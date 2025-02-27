@@ -7,8 +7,7 @@
 #include "nodes/common/cpu_memcpy.h"
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims& dims, VectorDims& indexes) {
     for (int j = nDims - 1; j >= 0; j--) {
@@ -23,9 +22,8 @@ static inline void parallel_step(size_t nDims, const VectorDims& dims, VectorDim
         ++indexes[j];
         if (indexes[j] < dims[j]) {
             break;
-        } else {
-            indexes[j] = 0;
         }
+        indexes[j] = 0;
     }
 }
 
@@ -85,5 +83,4 @@ bool RefTransposeExecutor::init(const TransposeParams& transposeParams,
     return true;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

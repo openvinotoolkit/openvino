@@ -269,10 +269,10 @@ struct layout {
     layout(const layout& other) = default;
 
     layout()
-        : data_type(cldnn::data_types::undefined)
-        , format(cldnn::format::any)
-        , data_padding(padding())
-        , size(ov::PartialShape()) { }
+        : data_type(cldnn::data_types::dynamic),
+          format(cldnn::format::any),
+          data_padding(padding()),
+          size(ov::PartialShape()) {}
 
     layout& operator=(const layout& other) {
         if (this == &other)
@@ -336,7 +336,15 @@ struct layout {
     padding data_padding;
 
     /// Number of bytes needed to store this layout
-    size_t bytes_count() const { return (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3; }
+    size_t bytes_count() const {
+        if (format == cldnn::format::custom) {
+            auto bytes_of_layout = (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3;
+            auto desc_size = format.traits().desc_size;
+            return desc_size > bytes_of_layout ? desc_size : bytes_of_layout;
+        } else {
+            return (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3;
+        }
+    }
 
     size_t get_rank() const;
 

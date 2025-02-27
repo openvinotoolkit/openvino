@@ -9,9 +9,8 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
-namespace ov {
-namespace intel_cpu {
-namespace node {
+
+namespace ov::intel_cpu::node {
 using Result = IShapeInfer::Result;
 
 constexpr IShapeInfer::port_mask_t port_mask = PortMask(/*BEGIN_ID*/ 1, /*END_ID*/ 2, /*STRIDE_ID*/ 3, /*AXES_ID*/ 4);
@@ -48,6 +47,4 @@ private:
     const std::shared_ptr<ov::Node> m_op;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
