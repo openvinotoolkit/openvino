@@ -11,7 +11,7 @@
 namespace ov {
 namespace test {
 
-INSTANTIATE_TEST_SUITE_P(smoke_ISTFT_static,
+INSTANTIATE_TEST_SUITE_P(smoke_ISTFT,
                          ISTFTLayerTest,
                          ISTFTLayerTest::GetTestDataForDevice(ov::test::utils::DEVICE_CPU),
                          ISTFTLayerTest::getTestCaseName);
