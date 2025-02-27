@@ -193,6 +193,7 @@ TEST(Extension, smoke_XmlModelWithExtensionFromDSO) {
 }
 
 TEST(DISABLED_Extension, OnnxModelWithExtensionFromDSO) {
+    // Issue: 163252
     std::vector<float> input_values{1, 2, 3, 4, 5, 6, 7, 8};
     std::vector<float> expected{1, 2, 3, 4, 5, 6, 7, 8};
 
