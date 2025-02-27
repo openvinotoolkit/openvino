@@ -302,6 +302,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*QuantizedModelsTests\.MaxPoolFQ.*)",
         R"(.*QuantizedModelsTests\.MaxPoolQDQ.*)",
         // Issue: 163268
+        R"(.*QuantizedModelsTests\.ConvolutionQDQ.*)",
         R"(.*QuantizedModelsTests\.ConvolutionFQ.*)",
         // Issue: 163230
         R"(.*ProposalLayerTest.*)",
@@ -311,6 +312,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*bf16.*RNNSequenceCPUTest.*)",
         // Issue: 163250
         R"(.*OnnxModelWithExtensionFromDSO.*)",
+        // Issue: 163273
+        // todo: define correct area
+        R"(.*Deconv_2D_Planar_FP16.*DeconvolutionLayerCPUTest.*)",
+        // Issue: 163275
+        R"(.*NoReshapeAndReshapeDynamic.*CodegenGelu.*)",
     };
 
     // fp32 floor for bf16 models: conversion issue

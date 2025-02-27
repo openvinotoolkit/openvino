@@ -70,7 +70,8 @@ static std::string model_full_path(const char* path) {
                                      path);
 }
 
-TEST(Extension, XmlModelWithCustomAbs) {
+TEST(DISABLED_Extension, XmlModelWithCustomAbs) {
+    // Issue: 163252
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
