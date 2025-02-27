@@ -9,7 +9,6 @@
 #include "quantize_inst.h"
 #include "eltwise_inst.h"
 #include "convolution_inst.h"
-#include "crop_inst.h"
 #include "read_value_inst.h"
 #include <string>
 #include <vector>
@@ -321,8 +320,7 @@ public:
             return;
         }
 
-        //if node is crop and dynamic and can be optimized - it not guarantee that it will be optimized
-        if ((node->can_be_optimized() && (!(node->is_type<crop>()) && !(node->is_dynamic()) ) && !node->is_runtime_skippable()) || !dep->can_be_optimized()) {
+        if ((node->can_be_optimized() && !node->is_runtime_skippable()) || !dep->can_be_optimized()) {
             node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
         } else {
             if (node->is_runtime_skippable() || dep->is_runtime_skippable() || dep->can_be_optimized()) {
