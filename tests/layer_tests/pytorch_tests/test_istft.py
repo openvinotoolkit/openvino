@@ -20,7 +20,7 @@ class TestISTFT(PytorchLayerTest):
             signal = np.sin(2 * np.pi * 5 * t)
             signal[half_idx:] += np.sin(2 * np.pi * 10 * t[half_idx:])
             signal = np.broadcast_to(signal, signal_shape).astype(out_dtype)
-            signal = torch.from_numpy(signal)
+        signal = torch.from_numpy(signal)
         
         if win_length is None:
             window_size = n_fft
@@ -170,3 +170,84 @@ class TestISTFT(PytorchLayerTest):
 
         self._test(*self.create_model_with_sig_len(n_fft, hop_length, window_size, normalized, center), ie_device, precision,
                    ir_version, kwargs_to_prepare_input={"win_length": window_size, "signal_shape": signal_shape, "n_fft": n_fft, "hop_length" : hop_length, "center": center, "normalized": normalized, "signal_length": signal_length}, trace_model=trace_model)
+
+
+class TestISTFTDefaultParams(PytorchLayerTest):
+    def _prepare_input(self, n_fft, hop_length, win_length, center, normalized, signal_shape, out_dtype="float32"):
+        import numpy as np
+
+        signal = np.random.randn(*signal_shape).astype(out_dtype)
+        signal = torch.from_numpy(signal)
+
+        stft_kwargs = {
+            'n_fft': n_fft,
+            'return_complex': True
+        }
+
+        if hop_length is not None:
+            stft_kwargs['hop_length'] = hop_length
+        if win_length is not None:
+            stft_kwargs['win_length'] = win_length
+        if center is not None:
+            stft_kwargs['center'] = center
+        if normalized is not None:
+            stft_kwargs['normalized'] = normalized
+
+        stft_out = torch.stft(
+                    signal,
+                    **stft_kwargs
+                )
+        
+        return (torch.view_as_real(stft_out).numpy().astype(out_dtype))
+
+    def create_model(self, n_fft, hop_length, win_length, normalized, center):
+
+        class aten_istft(torch.nn.Module):
+
+            def __init__(self, n_fft, hop_length, win_length, normalized, center):
+                super(aten_istft, self).__init__()
+                self.n_fft = n_fft
+                self.hop_length = hop_length
+                self.win_length = win_length
+                self.normalized = normalized
+                self.center = center
+
+            def forward(self, x):
+                istft_kwargs = {
+                    'n_fft': self.n_fft,
+                    'onesided': True,
+                    'return_complex': False,
+                }
+
+                if self.hop_length is not None:
+                    istft_kwargs['hop_length'] = self.hop_length
+                if self.win_length is not None:
+                    istft_kwargs['win_length'] = self.win_length
+                if self.center is not None:
+                    istft_kwargs['center'] = self.center
+                if self.normalized is not None:
+                    istft_kwargs['normalized'] = self.normalized
+
+                return torch.istft(torch.view_as_complex(x), **istft_kwargs)
+
+        ref_net = None
+
+        return aten_istft(n_fft, hop_length, win_length, normalized, center), ref_net, "aten::istft"
+
+   
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize(("trace_model"), [True])
+    @pytest.mark.parametrize(("signal_shape", "n_fft", "hop_length", "window_size"), [
+        [(1, 48), 16, None, 16],
+        [(1, 48), 16, 8, None],
+        [(1, 48), 16, None, None],
+    ])
+    @pytest.mark.parametrize(("normalized"), [True, None])
+    @pytest.mark.parametrize(("center"), [False, None])
+    def test_istft(self, n_fft, hop_length, window_size, signal_shape, normalized, center, ie_device, precision, ir_version, trace_model):
+        if ie_device == "GPU":
+            pytest.xfail(reason="ISTFT op is not supported on GPU yet")
+
+        self._test(*self.create_model(n_fft, hop_length, window_size, normalized, center), ie_device, precision,
+                   ir_version, kwargs_to_prepare_input={"win_length": window_size, "signal_shape": signal_shape, "n_fft": n_fft, "hop_length" : hop_length, "center": center, "normalized": normalized}, trace_model=trace_model)
