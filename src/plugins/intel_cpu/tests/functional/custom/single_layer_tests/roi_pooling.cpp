@@ -194,7 +194,12 @@ protected:
             selectedType = getPrimitiveType();
         }
         selectedType.push_back('_');
-        selectedType += netPrecision.to_string();
+        // BF16 is not supported for ROIPooling on AVX2_VNNI_2 platforms
+        if (ov::with_cpu_x86_avx2_vnni_2() && netPrecision == ElementType::bf16) {
+            selectedType += ov::element::f32.to_string();
+        } else {
+            selectedType += netPrecision.to_string();
+        }
 
         if (netPrecision == ov::element::bf16) {
             rel_threshold = 1e-2;
