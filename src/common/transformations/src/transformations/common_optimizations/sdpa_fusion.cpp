@@ -123,9 +123,13 @@ SDPAFusion::SDPAFusion() {
         if (v_node_ps[-1].is_dynamic() || v_node_ps[-3].is_dynamic())
             return false;
 
+        std::shared_ptr<ov::op::v1::Transpose> k_transpose;
+
         if (v_node_ps[-1] != k_node_ps[-1]) {
-                auto constant = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 3, 1});
-                k_node = std::make_shared<ov::op::v1::Transpose>(k_node, constant);
+                k_transpose = std::make_shared<ov::op::v1::Transpose>(k_node, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 3, 1}));
+                k_transpose->set_friendly_name(k->get_friendly_name());
+                ov::copy_runtime_info(m.get_matched_nodes(), k_transpose);
+                k_node = k_transpose;
                 k_node_ps = k_node.get_partial_shape();
             }
 
@@ -223,30 +227,29 @@ SDPAFusion::SDPAFusion() {
             auto attn_weight_out_ps = attn_weight_out.get_partial_shape();
             mask_input = pattern_map.at(mask);
             auto mask_input_ps = mask_input.get_partial_shape();
-            //if (mask_input_ps.is_dynamic())
-               // return false;
             
             if (attn_weight_out_ps.size() > 4) {
                 return false;
             }
 
+              std::shared_ptr<ov::op::v0::Unsqueeze> mask_unsqueeze;
             // attn_bias should be broadcastable to attn_weight shape
-            if (mask_input_ps.rank() == attn_weight_out_ps.rank()) {
-                mask_input = mask_input;
-            } else {
-                auto attn_bias_target_ps = attn_weight_out_ps;
-                if (!ov::PartialShape::broadcast_merge_into(attn_bias_target_ps,
+            if (!ov::PartialShape::broadcast_merge_into(attn_weight_out_ps,
                                                             mask_input_ps,
                                                             ov::op::AutoBroadcastType::NUMPY))
                     return false;
-
+                    
+            if (mask_input_ps.rank() != attn_weight_out_ps.rank()) {
                 size_t rank_diff = attn_weight_out_ps.size() - mask_input_ps.size();
                 std::vector<int64_t> axes(rank_diff);
                 std::iota(axes.begin(), axes.end(), 0);
-                mask_input = std::make_shared<ov::op::v0::Unsqueeze>(
+                mask_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(
                     mask_input,
                     ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank_diff}, axes));
-                }
+                mask_unsqueeze->set_friendly_name(mask->get_friendly_name());
+                ov::copy_runtime_info(m.get_matched_nodes(), mask_unsqueeze);
+                mask_input = mask_unsqueeze;
+            }                
         } else {
             mask_input = ov::op::v0::Constant::create(T, ov::Shape{}, {0});
         }
