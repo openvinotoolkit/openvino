@@ -1877,15 +1877,15 @@ public:
                                            (attr.shape_calculation_mode == ngInterpShapeCalcMode::SIZES);
             OPENVINO_ASSERT(is_supported_mode, "Unsupported interpolate shape calculation mode");
             return make_shape_inference(m_op);
-        } else if (auto interp11 = ov::as_type_ptr<ov::op::v11::Interpolate>(m_op)) {
-            return make_shape_inference(m_op);
-        } else {
-            OPENVINO_THROW("Shape infer factory cannot be created for ",
-                           m_op->get_type_name(),
-                           " node with name: ",
-                           m_op->get_friendly_name(),
-                           ", only versions 4 and 11 are supported.");
         }
+        if (auto interp11 = ov::as_type_ptr<ov::op::v11::Interpolate>(m_op)) {
+            return make_shape_inference(m_op);
+        }
+        OPENVINO_THROW("Shape infer factory cannot be created for ",
+                       m_op->get_type_name(),
+                       " node with name: ",
+                       m_op->get_friendly_name(),
+                       ", only versions 4 and 11 are supported.");
     }
 
 private:
@@ -2384,16 +2384,14 @@ bool Interpolate::needPrepareParams() const {
 inline int Interpolate::get_scale_id() const {
     if (is_version11) {
         return SIZE_OR_SCALE_ID_V11;
-    } else {
-        return SCALES_ID;
     }
+    return SCALES_ID;
 }
 inline int Interpolate::get_axis_id() const {
     if (is_version11) {
         return AXES_ID_V11;
-    } else {
-        return AXES_ID;
     }
+    return AXES_ID;
 }
 
 void Interpolate::prepareParams() {
@@ -3137,31 +3135,24 @@ float Interpolate::InterpolateExecutorBase::coordTransToInput(int outCoord,
     switch (coordTransMode) {
     case InterpolateCoordTransMode::half_pixel: {
         return (outCoord + 0.5f) / scale - 0.5f;
-        break;
     }
     case InterpolateCoordTransMode::pytorch_half_pixel: {
         if (outShape > 1) {
             return (outCoord + 0.5f) / scale - 0.5f;
-        } else {
-            return 0;
         }
-        break;
+        return 0;
     }
     case InterpolateCoordTransMode::asymmetric: {
         return static_cast<float>(outCoord) / scale;
-        break;
     }
     case InterpolateCoordTransMode::tf_half_pixel_for_nn: {
         return (outCoord + 0.5f) / scale;
-        break;
     }
     case InterpolateCoordTransMode::align_corners: {
         if (outShape > 1) {
             return outCoord * (static_cast<float>(inShape - 1) / static_cast<float>(outShape - 1));
-        } else {
-            return 0;
         }
-        break;
+        return 0;
     }
     default: {
         OPENVINO_THROW("does not support specified coordinate transformation mode");
@@ -3177,29 +3168,23 @@ int Interpolate::InterpolateExecutorBase::nearestRound(float originCoord,
     case InterpolateNearestMode::round_prefer_floor: {
         if (originCoord == (static_cast<int>(originCoord) + 0.5f)) {
             return static_cast<int>(std::floor(originCoord));
-        } else {
-            return static_cast<int>(std::round(originCoord));
         }
-        break;
+        return static_cast<int>(std::round(originCoord));
     }
     case InterpolateNearestMode::round_prefer_ceil: {
         return static_cast<int>(std::round(originCoord));
-        break;
     }
     case InterpolateNearestMode::floor: {
         return static_cast<int>(std::floor(originCoord));
-        break;
     }
     case InterpolateNearestMode::ceil: {
         return static_cast<int>(std::ceil(originCoord));
-        break;
     }
     case InterpolateNearestMode::simple: {
         if (isDownsample) {
             return static_cast<int>(std::ceil(originCoord));
-        } else {
-            return static_cast<int>(originCoord);
         }
+        return static_cast<int>(originCoord);
     }
     default: {
         OPENVINO_THROW("does not support specified nearest round mode");
