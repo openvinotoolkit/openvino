@@ -34,7 +34,7 @@ set(COMMON_LINK_LIBRARIES openvino::shape_inference # for tensor accessor
 define_property(GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL BRIEF_DOCS "All link libs" FULL_DOCS "Link libraries collection from all backends")
 set_property(GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL "")
 
-function(ov_gpu_add_backend_target)
+macro(ov_gpu_add_backend_target)
     set(options
     )
     set(oneValueRequiredArgs
@@ -43,6 +43,7 @@ function(ov_gpu_add_backend_target)
     set(multiValueArgs
         INCLUDES                      # Extra include directories
         LINK_LIBRARIES                # Link libraries (in form of target name or file name)
+        BYPASS                        # All other args that must be passed as is to ov_add_target call
     )
     cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs}" "${multiValueArgs}" ${ARGN} )
 
@@ -61,12 +62,13 @@ function(ov_gpu_add_backend_target)
 
     ov_add_target(
         NAME ${ARG_NAME}
+        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         TYPE OBJECT
         ADD_CPPLINT
         INCLUDES
             PRIVATE
                 ${TARGET_INCLUDES}
-        ${ARG_UNPARSED_ARGUMENTS}
+        ${ARG_BYPASS}
     )
 
     get_property(CURRENT_LIBS GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL)
@@ -82,7 +84,7 @@ function(ov_gpu_add_backend_target)
         target_include_directories(${ARG_NAME} PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt,INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>)
         add_dependencies(openvino_intel_gpu_${IMPL_TYPE}_obj onednn_gpu_tgt)
     endif()
-endfunction()
+endmacro()
 
 foreach(IMPL_TYPE IN LISTS AVAILABLE_IMPL_TYPES)
     add_subdirectory(impls/${IMPL_TYPE})
