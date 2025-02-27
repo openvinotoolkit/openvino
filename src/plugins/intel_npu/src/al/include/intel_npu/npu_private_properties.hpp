@@ -327,7 +327,8 @@ static constexpr ov::Property<BatchMode> batch_mode{"NPU_BATCH_MODE"};
  * The given "debatcher-input-coefficients-partitions" provides the NPU compiler with sufficient information in order to
  * compile a complicatied batched model, which might not be auto recognized by intrinsic heuristics
  *
- * Possible values: "AUTO", "PLUGIN", "COMPILER".
+ * Possible values: "", "batch-compile-method=unroll batch-unroll-settings={skip-unroll-batch=false}",
+ * "batch-compile-method=debatch debatcher-settings={debatcher-input-coefficients-partitions=[0-1],[0-1],[0-1]}".
  */
 static constexpr ov::Property<std::string> batch_compiler_mode_settings{"NPU_BATCH_COMPILER_MODE_SETTINGS"};
 
