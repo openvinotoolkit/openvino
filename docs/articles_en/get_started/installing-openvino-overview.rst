@@ -37,12 +37,11 @@ Install OpenVINO™ 2023.3
 
 .. tip::
 
-   OpenVINO 2023.3, described here, is a Long-Term-Support version!
-   All currently supported versions are:
+   OpenVINO 2025.0, described here, is not a Long-Term-Support version! All currently supported versions are:
 
-   * 2023.3 (LTS)
-   * 2022.3 (LTS)
-
+   * 2025 (development)
+   * 2024.6 (maintenance)
+   * 2023.3 (LTS), it will be deprecated at the end of 2025.
 
    Moreover, different OpenVINO distributions may support slightly different sets of features.
    Read installation guides for particular distributions for more details.
