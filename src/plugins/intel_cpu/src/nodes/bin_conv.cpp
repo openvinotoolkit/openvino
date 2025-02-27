@@ -1194,9 +1194,8 @@ bool BinaryConvolution::canFuse(const NodePtr& node) const {
             ret &= node->getParentEdgeAt(i)->getParent()->getChildEdges().size() == 1;
         }
         return ret;
-    } else {
-        return canFuseSimpleOperation(node);
     }
+    return canFuseSimpleOperation(node);
 }
 
 void BinaryConvolution::setPostOps(dnnl::primitive_attr& attr) {
@@ -1346,9 +1345,9 @@ void BinaryConvolution::executeReference(const uint8_t* src,
                     if (ih < 0 || ih >= IH || iw < 0 || iw >= IW) {
                         if (pad_value == 0) {
                             continue;
-                        } else {
-                            s = pad_value == 1.0f ? static_cast<uint8_t>(1) : static_cast<uint8_t>(0);
                         }
+                        s = pad_value == 1.0f ? static_cast<uint8_t>(1) : static_cast<uint8_t>(0);
+
                     } else {
                         s = extract_bit(src[iidx / nbits], static_cast<uint8_t>(iidx % nbits));
                     }

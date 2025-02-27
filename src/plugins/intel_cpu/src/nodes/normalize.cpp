@@ -755,7 +755,8 @@ bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
         const auto isSupportedAxes = [](const std::vector<size_t>& axes, const size_t inputRank) {
             if (axes.size() == 1 && axes[0] == 1) {
                 return true;
-            } else if (axes.size() == inputRank - 1) {
+            }
+            if (axes.size() == inputRank - 1) {
                 auto sortAxes = axes;
                 std::sort(sortAxes.begin(), sortAxes.end());
                 for (size_t i = 0; i < sortAxes.size(); i++) {
@@ -1581,7 +1582,8 @@ std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Execut
     if (attrs.cornerCase) {
         return std::make_shared<NormalizeL2CornerCaseExecutor<in_data_t, out_data_t>>(dims);
 #if defined(OPENVINO_ARCH_X86_64)
-    } else if (mayiuse(cpu::x64::sse41)) {
+    }
+    if (mayiuse(cpu::x64::sse41)) {
         return std::make_shared<NormalizeL2JitExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
 #endif
     } else if (attrs.layout == LayoutType::ncsp) {
