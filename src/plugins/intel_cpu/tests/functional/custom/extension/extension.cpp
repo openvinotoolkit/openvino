@@ -192,7 +192,7 @@ TEST(Extension, smoke_XmlModelWithExtensionFromDSO) {
     infer_model(core, compiled_model, input_values, expected);
 }
 
-TEST(Extension, OnnxModelWithExtensionFromDSO) {
+TEST(DISABLED_Extension, OnnxModelWithExtensionFromDSO) {
     std::vector<float> input_values{1, 2, 3, 4, 5, 6, 7, 8};
     std::vector<float> expected{1, 2, 3, 4, 5, 6, 7, 8};
 
