@@ -425,7 +425,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
             // cache disable and will read model first here
             LOG_DEBUG_TAG("Try to read model via core from model path: %s", model_path.c_str());
             try {
-                cloned_model = get_core()->read_model(model_path, std::string{});
+                cloned_model = get_core()->read_model(model_path, std::string{}, {});
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("Failed to read model from model path:%s", model_path.c_str());
             }
@@ -856,14 +856,7 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
         return meta_devices;
     }
 
-    std::vector<std::string> stateful_node_names;
-    for (auto& op : model->get_ops()) {
-        if (ov::as_type_ptr<ov::op::util::AssignBase>(op) ||
-            ov::as_type_ptr<ov::op::util::ReadValueBase>(op)) {
-            stateful_node_names.push_back(op->get_friendly_name());
-        }
-    }
-    if (stateful_node_names.empty()) {
+    if (ov::op::util::is_large_language_model(*model)) {
         // not stateful model
         return meta_devices;
     }
