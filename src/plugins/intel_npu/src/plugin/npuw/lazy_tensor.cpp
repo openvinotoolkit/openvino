@@ -468,7 +468,9 @@ ov::Tensor LazyTensor::eval() const {
 }
 
 void LazyTensor::read_weight(const ov::npuw::s11n::Weights& weights) {
-    NPUW_ASSERT(m_impl && "Trying to read weights into uninitialized tensor!");
+    if (!m_impl) {
+        return;
+    }
     m_impl->read_weight(weights);
 }
 
