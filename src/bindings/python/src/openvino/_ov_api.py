@@ -6,7 +6,7 @@ from types import TracebackType
 from typing import Any, Iterable, Union, Optional, Dict, Tuple, List
 from typing import Type as TypingType
 from pathlib import Path
-import traceback
+import traceback  # noqa: F811
 
 
 from openvino._pyopenvino import Model as ModelBase
@@ -555,7 +555,6 @@ class Core(CoreBase):
             return Model(super().read_model(model, config=config))
         else:
             return Model(super().read_model(model, weights, config))
-
 
     def compile_model(
         self,
