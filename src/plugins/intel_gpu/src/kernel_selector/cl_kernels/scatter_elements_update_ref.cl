@@ -65,7 +65,7 @@
 
     #ifdef IS_SECOND_ITER // Socond kernel only
         #if REDUCE_MODE == MEAN_MODE
-            inline void add_count(int count_k[], int count_v[], int length, int idx, int count)
+            inline void add_count(__local int count_k[], __local int count_v[], int length, int idx, int count)
             {
                 for (int i = 0; i < length; ++i) {
                     if (count_k[i] == -1) {
@@ -79,7 +79,7 @@
                 }
             }
 
-            inline int get_count(int count_k[], int count_v[], int it, int *idx)
+            inline int get_count(__local int count_k[], __local int count_v[], int it, int *idx)
             {
                 if (count_k[it] != -1) {
                     *idx = count_k[it];
@@ -151,10 +151,14 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
     const uint input2_length = tgx * tgy * tgz;
     #ifdef REDUCE_MODE
     #if REDUCE_MODE == MEAN_MODE
-        int count_k[OUTPUT_LENGTH];
-        int count_v[OUTPUT_LENGTH];
-
-        for (int i = 0; i < OUTPUT_LENGTH; ++i) {
+        #if INPUT2_LENGTH == 0
+            #define COUNT_LENGTH 4096   // Maximum number of elements to reduce in case of shape agnostic kernel
+        #else
+            #define COUNT_LENGTH INPUT2_LENGTH
+        #endif
+        __local int count_k[COUNT_LENGTH];
+        __local int count_v[COUNT_LENGTH];
+        for (int i = 0; i < COUNT_LENGTH; ++i) {
             count_k[i] = -1;
             count_v[i] = 0;
         }
