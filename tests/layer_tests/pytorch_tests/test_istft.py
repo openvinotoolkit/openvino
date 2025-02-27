@@ -21,11 +21,16 @@ class TestISTFT(PytorchLayerTest):
             signal[half_idx:] += np.sin(2 * np.pi * 10 * t[half_idx:])
             signal = np.broadcast_to(signal, signal_shape).astype(out_dtype)
             signal = torch.from_numpy(signal)
+        
+        if win_length is None:
+            window_size = n_fft
+        else:
+            window_size = win_length
 
-        if center and hop_length != n_fft:
-            window = np.hanning(win_length)
+        if center and hop_length and hop_length != n_fft:
+            window = np.hanning(window_size)
         else: # If 'center' is false, the window can't contain zeros at the beginning
-            window = np.hamming(win_length)
+            window = np.hamming(window_size)
 
         window = window.astype(out_dtype)
         window_tensor = torch.from_numpy(window)
@@ -131,6 +136,9 @@ class TestISTFT(PytorchLayerTest):
         [(1, 47), 17, 5, 17],
         [(1, 47), 17, 5, 13],
         [(1, 256), 133, 77, 133],
+        [(1, 48), 16, None, 16],
+        [(1, 48), 16, 8, None],
+        [(1, 48), 16, None, None],
     ])
     @pytest.mark.parametrize(("normalized"), [True, False])
     @pytest.mark.parametrize(("center"), [True, False])
@@ -138,7 +146,7 @@ class TestISTFT(PytorchLayerTest):
         if ie_device == "GPU":
             pytest.xfail(reason="ISTFT op is not supported on GPU yet")
 
-        if center is False and window_size < n_fft:
+        if center is False and window_size and window_size < n_fft:
             pytest.xfail(
                 reason="torch istft doesn't allow for zeros padding in window, when `center` is false ")
 
