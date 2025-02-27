@@ -8,7 +8,7 @@ import torch
 
 
 class TestISTFT(PytorchLayerTest):
-    def _prepare_input(self, n_fft, hop_length, win_length, center, normalized, signal_shape, signal_length_input = None, rand_data=False, out_dtype="float32"):
+    def _prepare_input(self, n_fft, hop_length, win_length, center, normalized, signal_shape, signal_length = None, rand_data=False, out_dtype="float32"):
         import numpy as np
 
         if rand_data:
@@ -42,8 +42,12 @@ class TestISTFT(PytorchLayerTest):
                     onesided=True,
                     return_complex=True,
                 )
-
-        return (torch.view_as_real(stft_out).numpy().astype(out_dtype), window)
+        
+        if (signal_length is not None):
+            signal_length_input = np.array(signal_length)
+            return (torch.view_as_real(stft_out).numpy().astype(out_dtype), window, signal_length_input)
+        else:
+            return (torch.view_as_real(stft_out).numpy().astype(out_dtype), window)
 
     def create_model(self, n_fft, hop_length, win_length, normalized, center):
 
@@ -69,7 +73,38 @@ class TestISTFT(PytorchLayerTest):
                     normalized=self.normalized,
                     onesided=True,
                     return_complex=False,
-                    length = None # TODO Add tests for input length
+                    length = None
+                )
+
+        ref_net = None
+
+        return aten_istft(n_fft, hop_length, win_length, normalized, center), ref_net, "aten::istft"
+
+    def create_model_with_sig_len(self, n_fft, hop_length, win_length, normalized, center):
+
+        class aten_istft(torch.nn.Module):
+
+            def __init__(self, n_fft, hop_length, win_length, normalized, center):
+                super(aten_istft, self).__init__()
+                self.n_fft = n_fft
+                self.hop_length = hop_length
+                self.win_length = win_length
+                self.normalized = normalized
+                self.center = center
+
+
+            def forward(self, x, window, sig_length):
+                return torch.istft(
+                    torch.view_as_complex(x),
+                    self.n_fft,
+                    hop_length=self.hop_length,
+                    win_length=self.win_length,
+                    window=window,
+                    center=self.center,
+                    normalized=self.normalized,
+                    onesided=True,
+                    return_complex=False,
+                    length = sig_length.item()
                 )
 
         ref_net = None
@@ -110,3 +145,20 @@ class TestISTFT(PytorchLayerTest):
         self._test(*self.create_model(n_fft, hop_length, window_size, normalized, center), ie_device, precision,
                    ir_version, kwargs_to_prepare_input={"win_length": window_size, "signal_shape": signal_shape, "n_fft": n_fft, "hop_length" : hop_length, "center": center, "normalized": normalized}, trace_model=trace_model)
 
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize(("trace_model"), [False, True])
+    @pytest.mark.parametrize(("signal_shape", "n_fft", "hop_length", "window_size", "signal_length"), [
+        [(3, 48), 16, 8, 16, 48],
+        [(3, 48), 16, 8, 16, 32],
+        [(3, 48), 16, 8, 16, 55],
+    ])
+    @pytest.mark.parametrize(("normalized"), [True, False])
+    @pytest.mark.parametrize(("center"), [True, False])
+    def test_stft_with_sig_len(self, n_fft, hop_length, window_size, signal_shape, normalized, center, signal_length, ie_device, precision, ir_version, trace_model):
+        if ie_device == "GPU":
+            pytest.xfail(reason="ISTFT op is not supported on GPU yet")
+
+        self._test(*self.create_model_with_sig_len(n_fft, hop_length, window_size, normalized, center), ie_device, precision,
+                   ir_version, kwargs_to_prepare_input={"win_length": window_size, "signal_shape": signal_shape, "n_fft": n_fft, "hop_length" : hop_length, "center": center, "normalized": normalized, "signal_length": signal_length}, trace_model=trace_model)
