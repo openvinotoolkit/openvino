@@ -56,11 +56,15 @@ void save_tensor_data(const Tensor& tensor, const std::wstring& file_name) {
 #endif
 
 void read_tensor_data(const std::filesystem::path& file_name, Tensor& tensor, std::size_t offset) {
-    std::ifstream fin(file_name,  std::ios::binary );
+    std::ifstream fin(file_name, std::ios::binary);
     fin.seekg(offset);
     auto bytes_to_read = tensor.get_byte_size();
     fin.read(static_cast<char*>(tensor.data()), bytes_to_read);
-    OPENVINO_ASSERT(fin.gcount() == bytes_to_read, "Cannot read ", bytes_to_read, "bytes from ", file_name);
+    OPENVINO_ASSERT(static_cast<size_t>(fin.gcount()) == bytes_to_read,
+                    "Cannot read ",
+                    bytes_to_read,
+                    "bytes from ",
+                    file_name);
 }
 void read_tensor_data(const std::string& file_name, Tensor& tensor, std::size_t offset) {
     read_tensor_data(std::filesystem::path(file_name), tensor, offset);
@@ -72,28 +76,29 @@ void read_tensor_data(const std::wstring& file_name, Tensor& tensor, std::size_t
 #endif
 
 Tensor read_tensor_data(const std::filesystem::path& file_name,
-    const element::Type& element_type,
-    const PartialShape& shape,
-    std::size_t offset,
-    bool mmap){
-        OPENVINO_ASSERT(element_type != ov::element::string);
-        OPENVINO_ASSERT(shape.is_static(), "Cannot read dynamic shape");
-        if (mmap) {
-            auto mapped_memory = ov::load_mmap_object(file_name);
-            auto mmaped = std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(
-                mapped_memory->data() + offset, mapped_memory->size(), mapped_memory);
-            return Tensor(element_type, shape.get_shape(), StaticBufferAllocator(mmaped));
-        } else {
-            ov::Tensor tensor(element_type, shape.get_shape());
-            read_tensor_data(file_name, tensor);
-            return tensor;
-        }
+                        const element::Type& element_type,
+                        const PartialShape& shape,
+                        std::size_t offset,
+                        bool mmap) {
+    OPENVINO_ASSERT(element_type != ov::element::string);
+    OPENVINO_ASSERT(shape.is_static(), "Cannot read dynamic shape");
+    if (mmap) {
+        auto mapped_memory = ov::load_mmap_object(file_name);
+        auto mmaped = std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data() + offset,
+                                                                                        mapped_memory->size(),
+                                                                                        mapped_memory);
+        return Tensor(element_type, shape.get_shape(), StaticBufferAllocator(mmaped));
+    } else {
+        ov::Tensor tensor(element_type, shape.get_shape());
+        read_tensor_data(file_name, tensor);
+        return tensor;
     }
+}
 Tensor read_tensor_data(const std::string& file_name,
                         const element::Type& element_type,
                         const PartialShape& shape,
                         std::size_t offset,
-                        bool mmap){
+                        bool mmap) {
     return read_tensor_data(std::filesystem::path(file_name), element_type, shape, offset, mmap);
 }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
@@ -106,16 +111,16 @@ Tensor read_tensor_data(const std::wstring& file_name,
 }
 #endif
 
-namespace{
+namespace {
 Tensor read_tensor_data_from_temporary_file(const std::filesystem::path& file_name,
                                             const element::Type& element_type,
                                             const Shape& shape) {
     OPENVINO_ASSERT(element_type != ov::element::string);
 
     auto mapped_memory = ov::load_mmap_object(file_name);
-    auto deleter = [&file_name] (std::shared_ptr<MappedMemory>& mapped_memory) {
-    mapped_memory.reset();
-    std::filesystem::remove(file_name);
+    auto deleter = [file_name](std::shared_ptr<MappedMemory>& mapped_memory) {
+        mapped_memory.reset();
+        std::filesystem::remove(file_name);
     };
 
     using Buffer = ov::RaiiSharedBuffer<std::shared_ptr<MappedMemory>, decltype(deleter)>;
@@ -123,17 +128,17 @@ Tensor read_tensor_data_from_temporary_file(const std::filesystem::path& file_na
 
     return Tensor(element_type, shape, Allocator(StaticBufferAllocator(mmaped)));
 }
-}
+}  // namespace
 
 Tensor create_mmaped_tensor(const Tensor& tensor, const std::filesystem::path& file_name) {
     save_tensor_data(tensor, file_name);
     return read_tensor_data_from_temporary_file(file_name, tensor.get_element_type(), tensor.get_shape());
 }
-Tensor create_mmaped_tensor(const Tensor& tensor, const std::string& file_name){
+Tensor create_mmaped_tensor(const Tensor& tensor, const std::string& file_name) {
     return create_mmaped_tensor(tensor, std::filesystem::path(file_name));
 }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-Tensor create_mmaped_tensor(const Tensor& tensor, const std::wstring& file_name){
+Tensor create_mmaped_tensor(const Tensor& tensor, const std::wstring& file_name) {
     return create_mmaped_tensor(tensor, std::filesystem::path(file_name));
 }
 #endif

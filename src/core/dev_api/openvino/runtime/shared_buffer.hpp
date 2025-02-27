@@ -32,13 +32,15 @@ template <typename T, typename Deleter>
 class RaiiSharedBuffer : public SharedBuffer<T>, private Deleter {
 public:
     RaiiSharedBuffer(char* data, size_t size, const T& shared_object, Deleter&& d)
-        : SharedBuffer<T>(data, size, shared_object), Deleter(std::move(d)) {}
+        : SharedBuffer<T>(data, size, shared_object),
+          Deleter(std::move(d)) {}
 
     RaiiSharedBuffer(char* data, size_t size, const T& shared_object, const Deleter& d)
-        : SharedBuffer<T>(data, size, shared_object), Deleter(d) {}
+        : SharedBuffer<T>(data, size, shared_object),
+          Deleter(d) {}
 
     ~RaiiSharedBuffer() {
-        static_cast<Deleter&>(*this)(SharedBuffer<T>::_shared_object);
+        get_deleter()(this->_shared_object);
     }
 
     RaiiSharedBuffer(const RaiiSharedBuffer&) = delete;
@@ -51,14 +53,18 @@ public:
     RaiiSharedBuffer& operator=(RaiiSharedBuffer&& other) noexcept {
         if (this != &other) {
             static_cast<SharedBuffer<T>&>(*this) = std::move(other);
-            static_cast<Deleter&>(*this) = std::move(other);
+            get_deleter() = std::move(other);
         }
         return *this;
     }
 
 private:
-    Deleter& get_deleter() { return *this; }
-    const Deleter& get_deleter() const { return *this; }
+    Deleter& get_deleter() {
+        return *this;
+    }
+    const Deleter& get_deleter() const {
+        return *this;
+    }
 };
 
 /// \brief SharedStreamBuffer class to store pointer to pre-acclocated buffer and provide streambuf interface.
