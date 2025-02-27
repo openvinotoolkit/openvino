@@ -2,332 +2,280 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/reference/paged_attn.hpp"
+#include "openvino/reference/paged_attention.hpp"
 
+#include <cmath>
+#include <cstdint>
+#include <cstring>
 #include <ctime>
 #include <memory>
 #include <random>
-#include <vector>
-#include <cstring>
-#include <cstdint>
 #include <stdexcept>
-#include <cmath>
+#include <vector>
 
-#include "openvino/core/except.hpp"
 #include "openvino/core/shape.hpp"
+
+// ==== HELPER FUNCS ====
+template <typename T>
+T dot_product(const T* a, const T* b, int32_t size) {
+    T sum = T(0);
+    for (int32_t i = 0; i < size; i++)
+        sum += a[i] * b[i];
+    return sum;
+}
+
+template <typename T>
+void softmax(std::vector<T>& scores) {
+    T max_score = *std::max_element(scores.begin(), scores.end());
+    T sum = T(0);
+    for (auto& s : scores) {
+        s = std::exp(s - max_score);
+        sum += s;
+    }
+    for (auto& s : scores)
+        s /= sum;
+}
+
+/*
+ * Apply RoPE (Rotary Positional Embedding) rotation to a vector.
+ */
+template <typename T>
+void apply_rope(T* vec, int32_t head_size, const T* rotation_trig_lut, int32_t trig_index) {
+    int32_t half = head_size / 2;
+    // Each row is of length head_size.
+    const float* row = rotation_trig_lut + trig_index * head_size;
+    for (int32_t i = 0; i < half; i++) {
+        T x0 = vec[2 * i];
+        T x1 = vec[2 * i + 1];
+        T cos_val = row[i];
+        T sin_val = row[half + i];
+        vec[2 * i] = x0 * cos_val - x1 * sin_val;
+        vec[2 * i + 1] = x0 * sin_val + x1 * cos_val;
+    }
+}
+
+/*
+ * Helper to check whether a given block_id is present in rotated_block_indices.
+ * If found, returns true and sets rotated_index to the position within rotated_block_indices.
+ */
+bool get_rotated_index(int32_t block_id,
+                       const int32_t* rotated_block_indices,
+                       int32_t num_rotated_blocks,
+                       int32_t& rotated_index) {
+    for (int32_t i = 0; i < num_rotated_blocks; i++) {
+        if (rotated_block_indices[i] == block_id) {
+            rotated_index = i;
+            return true;
+        }
+    }
+    return false;
+}
 
 namespace ov {
 namespace reference {
 
-// Implementation of PagedAttention
-class Memory {
-public:
-    Memory(const Shape& shape, const element::Type& type, char* data)
-        : shape_(shape), type_(type), data_(data) {}
+template <typename T>
+void paged_attention(
+    T* out,                                    // output: attention result
+    T* score,                                  // output: concatenated raw scores
+    const T* query,                            // shape: [batch_tokens, num_heads * head_size]
+    const T* key,                              // shape: [batch_tokens, num_kv_heads * head_size]
+    const T* value,                            // shape: [batch_tokens, num_kv_heads * head_size]
+    const T* key_cache,                        // shape: [num_blocks, num_kv_heads, block_size, head_size]
+    const T* value_cache,                      // shape: [num_blocks, num_kv_heads, block_size, head_size]
+    const Shape& q_shape,                      // e.g. {batch_tokens, num_heads * head_size}
+    const Shape& kv_shape,                     // e.g. {batch_tokens, num_kv_heads * head_size}
+    const Shape& kv_cache_shape,               // e.g. {num_blocks, num_kv_heads, block_size, head_size}
+    const int32_t* past_lens,                  // [batch_seq]: past tokens per sequence
+    const Shape& past_lens_shape,              // e.g. {batch_seq}
+    const int32_t* subsequence_begins,         // [batch_seq + 1]: start indices of new tokens per sequence
+    const int32_t* block_indices,              // [num_blocks]: block table for each sequence
+    const int32_t* block_indices_begins,       // [batch_seq + 1]: indices into block_indices per sequence
+    const T* scale_ptr,                        // attention scale factor
+    const int32_t* sliding_window_ptr,         // sliding window parameter
+    const T* alibi_slopes,                     // [num_kv_heads]: per-head bias slopes
+    const int32_t* max_context_len_ptr,        // max context length (for score output indexing)
+    const int32_t* rotated_block_indices,      // [num_rotated_blocks]: blocks to which RoPE is applied
+    const int32_t* rotation_deltas,            // [num_rotated_blocks, block_size || 1]: indices into the trig LUT
+    const float* rotation_trig_lut,            // LUT: [lut_rows, head_size] (first half: cosines, second half: sines)
+    const Shape& rotated_block_indices_shape,  // shape of rotated_block_indices (e.g. {num_rotated_blocks})
+    const Shape& rotation_deltas_shape,        // shape of rotation_deltas (e.g. {num_rotated_blocks, block_size} or
+                                               // {num_rotated_blocks, 1})
+    const Shape& rotation_trig_lut_shape) {    // shape of rotation_trig_lut
 
-    const Shape& getStaticDims() const { return shape_; }
-    char* getData() const { return data_; }
+    T scale = scale_ptr[0];
+    int sliding_window = sliding_window_ptr[0];
+    int max_context_len = max_context_len_ptr[0];
 
-private:
-    Shape shape_;
-    element::Type type_;
-    char* data_;
-};
+    // Determine dimensions.
+    int batch_tokens = q_shape[0];
+    int query_features = q_shape[1];  // equals num_heads * head_size.
+    int num_heads = query_features / head_size;
+    int num_blocks = kv_cache_shape[0];
+    int num_kv_heads = kv_cache_shape[1];
+    int block_size = kv_cache_shape[2];
+    int head_size = kv_cache_shape[3];
+    int batch_seq = past_lens_shape[0];
 
-template <typename DATA_TYPE, typename KVCACHE_TYPE>
-struct AttentionExecutor : public PagedAttentionExecutor {
-    MHAHelper<DATA_TYPE, KVCACHE_TYPE> _helper;
-    MHA<DATA_TYPE, KVCACHE_TYPE> _kernel;
-    PlainTensor _slot_mapping;
-
-    AttentionExecutor() : _kernel(_helper) {}
-
-    void init(const std::vector<Memory*>& inputs,
-              const std::vector<Memory*>& outputs,
-              PlainTensor& q,
-              PlainTensor& k,
-              PlainTensor& v,
-              PlainTensor& k_cache,
-              PlainTensor& v_cache,
-              PlainTensor& past_lens,
-              PlainTensor& subsequence_begins,
-              PlainTensor& block_indices,
-              PlainTensor& block_indices_begins,
-              float& scale,
-              size_t& sliding_window,
-              PlainTensor& alibi_slopes,
-              size_t& max_context_len,
-              PlainTensor& output_emb,
-              PlainTensor& output_score) {
-        q.reset(inputs[ID_Q]);  // [B_token, H * S]
-        k.reset(inputs[ID_K]);
-        v.reset(inputs[ID_V]);
-        k_cache.reset(inputs[ID_KCACHE]);                             // [NUM_BLOCKS, H, 32, S]
-        v_cache.reset(inputs[ID_VCACHE]);                             // [NUM_BLOCKS, H, 32, S]
-        past_lens.reset(inputs[ID_PAST_LENS]);                        // [B_seq]
-        subsequence_begins.reset(inputs[ID_SUBSEQUENCE_BEGINS]);      // [B_seq+1]
-        block_indices.reset(inputs[ID_BLOCK_INDICES]);                // [num_blocks]
-        block_indices_begins.reset(inputs[ID_BLOCK_INDICES_BEGINS]);  // [B_seq+1]
-        scale = *inputs[ID_SCALE]->getDataAs<float>();
-        sliding_window = static_cast<size_t>(*inputs[ID_SLIDING_WINDOW]->getDataAs<int32_t>());
-        if (!inputs[ID_ALIBI_SLOPES]->getShape().hasZeroDims())
-            alibi_slopes.reset(inputs[ID_ALIBI_SLOPES]);
-        max_context_len = static_cast<size_t>(*inputs[ID_MAX_CONTEXT_LEN]->getDataAs<int32_t>());
-        output_emb.reset(outputs[0]);
-        if (outputs.size() == 2)
-            output_score.reset(outputs[1]);
-
-        auto B_token = q.size(0);
-        auto Hk = k_cache.size(1);
-        auto S = k_cache.size(3) - (k_cache.m_dt == ov::element::Type_t::u8 ? sizeof(float) * 2 : 0);
-        auto SV = v_cache.size(3) - (k_cache.m_dt == ov::element::Type_t::u8 ? sizeof(float) * 2 : 0);
-        auto block_size = k_cache.size(2);
-        auto H = q.size(1) / S;
-        auto h_each_group_len = 1;
-        if (Hk != H) {
-            h_each_group_len = H / Hk;
-        }
-        auto B_seq = past_lens.size(0);
-
-        q.assert_dims({B_token, H * S});
-        k.assert_dims({B_token, Hk * S});
-        v.assert_dims({B_token, Hk * SV});
-        q = q.reshape({B_token, H, 1, S});
-        k = k.reshape({B_token, Hk, 1, S});
-        v = v.reshape({B_token, Hk, 1, SV});
-        if (k_cache.m_dt == ov::element::Type_t::u8) {
-            k_cache.assert_dims({0, Hk, block_size, S + sizeof(float) * 2}, true);
-            v_cache.assert_dims({k_cache.m_dims[0], Hk, block_size, SV + sizeof(float) * 2});
-        } else {
-            k_cache.assert_dims({0, Hk, block_size, S}, true);
-            v_cache.assert_dims({k_cache.m_dims[0], Hk, block_size, SV});
-        }
-        past_lens.assert_dims({B_seq});
-        subsequence_begins.assert_dims({B_seq + 1});
-        block_indices.assert_dims({0}, true);
-        block_indices_begins.assert_dims({B_seq + 1});
-        if (scale == 0.0f)
-            scale = 1.0f / sqrt(S);
-        if (alibi_slopes) {
-            alibi_slopes.assert_dims({H});
-        }
-        output_emb.assert_dims({B_token, H * SV});
-        output_emb = output_emb.reshape({B_token, 1, H * SV});
-
-        OPENVINO_ASSERT(block_size == 32, "CPU: block size must be 32, current: ", block_size);
-
-        _helper.init(H, S, SV, Hk, h_each_group_len, block_size, sliding_window, scale, max_context_len, alibi_slopes);
-    }
-
-    void concat_pastkv(const PlainTensor& k,
-                       const PlainTensor& v,
-                       const PlainTensor& k_cache,
-                       const PlainTensor& v_cache,
-                       const PlainTensor& past_lens,
-                       const PlainTensor& subsequence_begins,
-                       const PlainTensor& block_indices,
-                       const PlainTensor& block_indices_begins) {
-        auto B_token = k.size(0);
-        _slot_mapping.resize<int32_t>({B_token});
-
-        size_t idx = 0;
-        for (size_t i = 0; i < past_lens.size(0); i++) {
-            auto q_len = subsequence_begins.ptr<int32_t>()[i + 1] - subsequence_begins.ptr<int32_t>()[i];
-            auto kv_len = past_lens.ptr<int32_t>()[i] + q_len;
-            auto block_number_start = block_indices_begins.ptr<int32_t>()[i];
-            auto block_offset_start = kv_len - q_len;
-            for (int32_t j = 0; j < q_len; j++) {
-                auto block_offset = block_offset_start + j;
-                auto block_number =
-                    block_indices.ptr<int32_t>()[block_number_start + block_offset / _helper._block_size];
-                _slot_mapping.ptr<int32_t>()[idx++] =
-                    block_number * _helper._block_size + block_offset % _helper._block_size;
-            }
-        }
-
-        if (k_cache.m_dt == ov::element::Type_t::u8) {
-            paged_attn_quantkv(k, v, k_cache, v_cache, _slot_mapping);
-        } else {
-            paged_attn_memcpy(k, v, k_cache, v_cache, _slot_mapping);
-        }
-    }
-
-    void execute(const std::vector<Memory*>& inputs, const std::vector<Memory*>& outputs) override {
-        PlainTensor q, k, v, k_cache, v_cache;
-        PlainTensor past_lens, subsequence_begins, block_indices, block_indices_begins;
-        float scale;
-        size_t sliding_window;
-        PlainTensor alibi_slopes;
-        size_t max_context_len;
-        PlainTensor output_emb;
-        PlainTensor output_score;
-
-        init(inputs,
-             outputs,
-             q,
-             k,
-             v,
-             k_cache,
-             v_cache,
-             past_lens,
-             subsequence_begins,
-             block_indices,
-             block_indices_begins,
-             scale,
-             sliding_window,
-             alibi_slopes,
-             max_context_len,
-             output_emb,
-             output_score);
-        concat_pastkv(k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins);
-
-        _kernel(q,
-                k_cache,
-                v_cache,
-                output_emb,
-                output_score,
-                max_context_len,
-                past_lens,
-                subsequence_begins,
-                block_indices,
-                block_indices_begins,
-                alibi_slopes);
-    }
-};
-
-void paged_attention(const Shape* out_shape,
-                     char* out,
-                     const Shape& in_shape,
-                     char* in,
-                     const element::Type& elem_type,
-                     const std::vector<Memory*>& inputs,
-                     const std::vector<Memory*>& outputs) {
-    // Create input and output memory objects
-    Memory input_memory(in_shape, elem_type, in);
-    Memory output_memory(*out_shape, elem_type, out);
-
-    // Create executor and execute the attention mechanism
-    AttentionExecutor<float, float> executor; // Adjust template parameters as needed
-    executor.execute(inputs, outputs);
-}
-
-void paged_attn_quantkv(const PlainTensor& k,
-                        const PlainTensor& v,
-                        const PlainTensor& k_cache,
-                        const PlainTensor& v_cache,
-                        const PlainTensor& slot_mapping) {
-    auto B_token = k.size(0);
-    auto Hk = k.size(1);
-    auto S = k.size(3);
-    auto SV = v.size(3);
-
-    for (size_t b = 0; b < B_token; ++b) {
-        for (size_t h = 0; h < Hk; ++h) {
-            for (size_t s = 0; s < S; ++s) {
-                auto slot = slot_mapping.ptr<int32_t>()[b * Hk * S + h * S + s];
-                k_cache.ptr<float>()[slot] = k.ptr<float>()[b * Hk * S + h * S + s];
-            }
-            for (size_t sv = 0; sv < SV; ++sv) {
-                auto slot = slot_mapping.ptr<int32_t>()[b * Hk * SV + h * SV + sv];
-                v_cache.ptr<float>()[slot] = v.ptr<float>()[b * Hk * SV + h * SV + sv];
-            }
-        }
-    }
-}
-
-void paged_attn_memcpy(const PlainTensor& k,
-                       const PlainTensor& v,
-                       const PlainTensor& k_cache,
-                       const PlainTensor& v_cache,
-                       const PlainTensor& slot_mapping) {
-    auto B_token = k.size(0);
-    auto Hk = k.size(1);
-    auto S = k.size(3);
-    auto SV = v.size(3);
-
-    for (size_t b = 0; b < B_token; ++b) {
-        for (size_t h = 0; h < Hk; ++h) {
-            for (size_t s = 0; s < S; ++s) {
-                auto slot = slot_mapping.ptr<int32_t>()[b * Hk * S + h * S + s];
-                std::memcpy(&k_cache.ptr<float>()[slot], &k.ptr<float>()[b * Hk * S + h * S + s], sizeof(float));
-            }
-            for (size_t sv = 0; sv < SV; ++sv) {
-                auto slot = slot_mapping.ptr<int32_t>()[b * Hk * SV + h * SV + sv];
-                std::memcpy(&v_cache.ptr<float>()[slot], &v.ptr<float>()[b * Hk * SV + h * SV + sv], sizeof(float));
-            }
-        }
-    }
-}
-
-void paged_attention(char* out,
-                     const char* query,		 
-                     const char* key, 		
-                     const char* value, 
-                     const char* key_cache,	
-                     const char* value_cache,
-                     const ov::element::Type dtype,
-                     const ov::Shape& qkv_shape,		
-                     const ov::Shape& kv_cache_shape,
-                     const int32_t* past_lens,
-                     const int32_t* subsequence_begins,	
-                     const int32_t* block_indices,		
-                     const int32_t* block_indices_begins,                        
-                     const int32_t scale,					
-                     const int32_t sliding_window, 		
-                     const int32_t* alibi_slopes,			
-                     const int32_t max_context_len) {
-    // Assuming qkv_shape is [batch_size, num_heads, seq_len, head_dim]
-    int batch_size = qkv_shape[0];
-    int num_heads = qkv_shape[1];
-    int seq_len = qkv_shape[2];
-    int head_dim = qkv_shape[3];
-
-    // Determine the size of each element based on dtype
-    size_t element_size = dtype.size();
-
-    // Cast input buffers to the correct data type
-    const float* query_f = reinterpret_cast<const float*>(query);
-    const float* key_f = reinterpret_cast<const float*>(key);
-    const float* value_f = reinterpret_cast<const float*>(value);
-    const float* key_cache_f = reinterpret_cast<const float*>(key_cache);
-    const float* value_cache_f = reinterpret_cast<const float*>(value_cache);
-
-    // Initialize output buffer
-    std::vector<float> output(batch_size * num_heads * seq_len * head_dim, 0.0f);
-
-    // Iterate over each batch and head
-    for (int b = 0; b < batch_size; ++b) {
-        for (int h = 0; h < num_heads; ++h) {
-            // Compute attention scores
-            for (int i = 0; i < seq_len; ++i) {
-                float score = 0.0f;
-                for (int j = 0; j < head_dim; ++j) {
-                    int query_idx = b * num_heads * seq_len * head_dim + h * seq_len * head_dim + i * head_dim + j;
-                    int key_idx = b * num_heads * seq_len * head_dim + h * seq_len * head_dim + i * head_dim + j;
-                    score += query_f[query_idx] * key_f[key_idx];
+    // Process each query token.
+    for (int token_idx = 0; token_idx < batch_tokens; token_idx++) {
+        // Determine sequence index.
+        int seq_idx = 0;
+        if (batch_size_in_sequences > 1 && subsequence_begins) {
+            for (int s = 0; s < batch_size_in_sequences; s++) {
+                if (token_idx >= subsequence_begins[s] && token_idx < subsequence_begins[s + 1]) {
+                    seq_idx = s;
+                    break;
                 }
-                score /= std::sqrt(static_cast<float>(head_dim));
-                score *= scale;
+            }
+        }
+        // Process each query head.
+        for (int h = 0; h < num_heads; h++) {
+            const T* q_vec = query + token_idx * query_features + h * head_size;
 
-                // Apply sliding window and ALiBi slopes
-                if (sliding_window > 0) {
-                    int window_start = std::max(0, i - sliding_window);
-                    int window_end = std::min(seq_len, i + sliding_window + 1);
-                    for (int k = window_start; k < window_end; ++k) {
-                        score += alibi_slopes[k];
+            int seq_new_tokens =
+                subsequence_begins ? (subsequence_begins[seq_idx + 1] - subsequence_begins[seq_idx]) : 0;
+            int seq_past_tokens = past_lens ? past_lens[seq_idx] : 0;
+            int total_keys = seq_past_tokens + seq_new_tokens;
+            std::vector<T> scores(total_keys, T(0));
+
+            // Compute raw attention scores.
+            for (int k = 0; k < total_keys; k++) {
+                T score_val = T(0);
+                if (k < seq_past_tokens) {
+                    // Retrieve key from cache.
+                    int block_start = block_indices_begins ? block_indices_begins[seq_idx] : 0;
+                    int block_end = block_indices_begins ? block_indices_begins[seq_idx + 1] : num_blocks;
+                    int remaining = k;
+                    int block_id = -1;
+                    int token_offset = 0;
+                    for (int b = block_start; b < block_end; b++) {
+                        if (remaining < block_size) {
+                            block_id = block_indices[b];
+                            token_offset = remaining;
+                            break;
+                        }
+                        remaining -= block_size;
+                    }
+                    if (block_id < 0)
+                        continue;
+                    // Determine if this token falls in the sliding window of the first block.
+                    int first_block_for_seq =
+                        (block_indices_begins ? block_indices[block_indices_begins[seq_idx]] : -1);
+                    if (first_block_for_seq >= 0 && block_id == first_block_for_seq && token_offset < sliding_window) {
+                        score_val = -std::numeric_limits<T>::infinity();
+                    } else {
+                        int kv_head = h % num_kv_heads;
+                        const T* key_vec =
+                            key_cache + (((block_id * num_kv_heads + kv_head) * block_size + token_offset) * head_size);
+                        // Check for RoPE adjustment.
+                        bool do_rotate = false;
+                        int rotated_index = -1;
+                        int num_rotated_blocks = rotated_block_indices_shape.dims[0];
+                        if (rotated_block_indices && num_rotated_blocks > 0) {
+                            if (get_rotated_index(block_id, rotated_block_indices, num_rotated_blocks, rotated_index))
+                                do_rotate = true;
+                        }
+                        if (do_rotate) {
+                            int trig_index = 0;
+                            if (rotation_deltas_shape.rank() >= 2 && rotation_deltas_shape[1] == 1)
+                                trig_index = rotation_deltas[rotated_index];
+                            else if (rotation_deltas_shape.rank() >= 2 && rotation_deltas_shape[1] == block_size)
+                                trig_index = rotation_deltas[rotated_index * block_size + token_offset];
+                            std::vector<T> temp_key(key_vec, key_vec + head_size);
+                            apply_rope(temp_key.data(), head_size, rotation_trig_lut, trig_index);
+                            score_val = dot_product(q_vec, temp_key.data(), head_size);
+                        } else {
+                            score_val = dot_product(q_vec, key_vec, head_size);
+                        }
+                    }
+                } else {
+                    // Retrieve key from new input.
+                    int new_token_idx = subsequence_begins ? (subsequence_begins[seq_idx] + (k - seq_past_tokens))
+                                                           : (k - seq_past_tokens);
+                    int kv_head = h % num_kv_heads;
+                    const T* key_vec = key + new_token_idx * kv_shape[1] + kv_head * head_size;
+                    score_val = dot_product(q_vec, key_vec, head_size);
+                }
+                // Scale and add alibi bias (indexed by kv head).
+                score_val *= static_cast<T>(scale);
+                score_val += alibi_slopes[(h % num_kv_heads)] * static_cast<T>(k);
+                scores[k] = score_val;
+            }
+
+            softmax(scores);
+
+            // Compute weighted sum over value vectors.
+            std::vector<T> out_vec(head_size, T(0));
+            for (int k = 0; k < total_keys; k++) {
+                T weight = scores[k];
+                if (k < seq_past_tokens) {
+                    int block_start = block_indices_begins ? block_indices_begins[seq_idx] : 0;
+                    int block_end = block_indices_begins ? block_indices_begins[seq_idx + 1] : num_blocks;
+                    int remaining = k;
+                    int block_id = -1;
+                    int token_offset = 0;
+                    for (int b = block_start; b < block_end; b++) {
+                        if (remaining < block_size) {
+                            block_id = block_indices[b];
+                            token_offset = remaining;
+                            break;
+                        }
+                        remaining -= block_size;
+                    }
+                    if (block_id < 0)
+                        continue;
+                    // If token is in the sliding window region, skip accumulation.
+                    int first_block_for_seq =
+                        (block_indices_begins ? block_indices[block_indices_begins[seq_idx]] : -1);
+                    if (first_block_for_seq >= 0 && block_id == first_block_for_seq && token_offset < sliding_window)
+                        continue;
+
+                    int kv_head = h % num_kv_heads;
+                    const T* raw_val_vec =
+                        value_cache + (((block_id * num_kv_heads + kv_head) * block_size + token_offset) * head_size);
+
+                    bool do_rotate = false;
+                    int rotated_index = -1;
+                    int num_rotated_blocks = rotated_block_indices_shape.dims[0];
+                    if (rotated_block_indices && num_rotated_blocks > 0) {
+                        if (get_rotated_index(block_id, rotated_block_indices, num_rotated_blocks, rotated_index))
+                            do_rotate = true;
+                    }
+                    if (do_rotate) {
+                        int trig_index = 0;
+                        if (rotation_deltas_shape.rank() >= 2 && rotation_deltas_shape[1] == 1)
+                            trig_index = rotation_deltas[rotated_index];
+                        else if (rotation_deltas_shape.rank() >= 2 && rotation_deltas_shape[1] == block_size)
+                            trig_index = rotation_deltas[rotated_index * block_size + token_offset];
+                        std::vector<T> temp_value(raw_val_vec, raw_val_vec + head_size);
+                        apply_rope(temp_value.data(), head_size, rotation_trig_lut, trig_index);
+                        for (int d = 0; d < head_size; d++) {
+                            out_vec[d] += weight * temp_value[d];
+                        }
+                    } else {
+                        for (int d = 0; d < head_size; d++) {
+                            out_vec[d] += weight * raw_val_vec[d];
+                        }
+                    }
+                } else {
+                    int new_token_idx = subsequence_begins ? (subsequence_begins[seq_idx] + (k - seq_past_tokens))
+                                                           : (k - seq_past_tokens);
+                    int kv_head = h % num_kv_heads;
+                    const T* val_vec = value + new_token_idx * kv_shape[1] + kv_head * head_size;
+                    for (int d = 0; d < head_size; d++) {
+                        out_vec[d] += weight * val_vec[d];
                     }
                 }
-
-                // Store the computed score in the output buffer
-                int output_idx = b * num_heads * seq_len * head_dim + h * seq_len * head_dim + i * head_dim;
-                output[output_idx] = score;
+                // Write the raw score into the score output.
+                int global_score_index = seq_idx * max_context_len + k;
+                score[global_score_index] = scores[k];
             }
+            // Write the computed attention result for this query token and head.
+            T* dst = out + token_idx * query_features + h * head_size;
+            std::memcpy(dst, out_vec.data(), head_size * sizeof(T));
         }
     }
-
-    // Copy the output to the out buffer
-    std::memcpy(out, output.data(), output.size() * element_size);
 }
-
 }  // namespace reference
 }  // namespace ov

@@ -6,14 +6,16 @@
 
 #include "base_reference_test.hpp"
 #include "gtest/gtest.h"
-#include "openvino/opsets/opset13.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/manager.hpp"
 
 namespace {
-using PagedAttentionParams = std::tuple<ov::element::Type, std::vector<ov::Shape>, int32_t, int32_t, int32_t, std::string>;
+using PagedAttentionParams =
+    std::tuple<ov::element::Type, std::vector<ov::Shape>, int32_t, int32_t, int32_t, std::string>;
 
-class ReferencePagedAttention : public testing::TestWithParam<PagedAttentionParams>, public reference_tests::CommonReferenceTest {
+class ReferencePagedAttention : public testing::TestWithParam<PagedAttentionParams>,
+                                public reference_tests::CommonReferenceTest {
 public:
     void SetUp() override {
         const auto& params = GetParam();
@@ -54,11 +56,11 @@ private:
         int32_t max_context_len = std::get<4>(params);
 
         ov::ParameterVector inputParams;
-        inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputShapes[0])); // query
-        inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputShapes[1])); // key
-        inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputShapes[2])); // value
-        inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputShapes[3])); // key_cache
-        inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputShapes[4])); // value_cache
+        inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputShapes[0]));  // query
+        inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputShapes[1]));  // key
+        inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputShapes[2]));  // value
+        inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputShapes[3]));  // key_cache
+        inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputShapes[4]));  // value_cache
 
         ov::OutputVector inputs;
         for (auto& input : inputParams) {
@@ -68,7 +70,8 @@ private:
         return std::make_shared<ov::Model>(paged_attn->outputs(), inputParams);
     }
 
-    std::vector<reference_tests::Tensor> GenerateInputData(const std::vector<ov::Shape>& inputShapes, const ov::element::Type& inType) {
+    std::vector<reference_tests::Tensor> GenerateInputData(const std::vector<ov::Shape>& inputShapes,
+                                                           const ov::element::Type& inType) {
         std::vector<reference_tests::Tensor> inputData;
         for (const auto& shape : inputShapes) {
             inputData.emplace_back(shape, inType, std::vector<float>(shape_size(shape), 1.0f));
@@ -76,7 +79,8 @@ private:
         return inputData;
     }
 
-    std::vector<reference_tests::Tensor> GenerateRefData(const std::vector<ov::Shape>& inputShapes, const ov::element::Type& inType) {
+    std::vector<reference_tests::Tensor> GenerateRefData(const std::vector<ov::Shape>& inputShapes,
+                                                         const ov::element::Type& inType) {
         // Generate reference data based on the expected output
         // This is a placeholder implementation
         std::vector<reference_tests::Tensor> refData;

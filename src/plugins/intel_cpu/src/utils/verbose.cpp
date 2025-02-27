@@ -115,7 +115,8 @@ void Verbose::printInfo() {
         std::string dim_str = {};
         if (DnnlExtensionUtils::ElementTypeToDataType(desc->getPrecision(), DnnlExtensionUtils::nothrow_tag{})) {
             if (auto dnnl_desc = MemoryDescUtils::convertToDnnlMemoryDesc(desc)->getDnnlDesc()) {
-                fmt_str = dnnl::impl::md2fmt_str("", dnnl_desc.get(), dnnl::impl::format_kind_t::dnnl_format_kind_undef);
+                fmt_str =
+                    dnnl::impl::md2fmt_str("", dnnl_desc.get(), dnnl::impl::format_kind_t::dnnl_format_kind_undef);
                 std::string dim_str = dnnl::impl::md2dim_str(dnnl_desc.get());
             } else {
                 fmt_str = "empty";

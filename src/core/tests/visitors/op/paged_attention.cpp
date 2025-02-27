@@ -19,7 +19,7 @@ TEST(attributes, paged_attention) {
     NodeBuilder builder(op, {data});
     auto g_inv = ov::as_type_ptr<ov::op::v16::PagedAttention>(builder.create());
 
-    constexpr auto expected_attr_count = 1;
+    constexpr auto expected_attr_count = 13;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
     EXPECT_EQ(op->get_adjoint(), g_inv->get_adjoint());
 }
