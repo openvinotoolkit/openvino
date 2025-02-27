@@ -30,7 +30,7 @@ public:
 
     void wait_task(int task_index) final {
         if (threads.empty() ||
-            threads.size() < task_index ||
+            static_cast<int>(threads.size()) < task_index ||
             task_index < 0)
             throw std::out_of_range("Task index " + std::to_string(task_index) + " out of number of tasks");
 
@@ -46,7 +46,7 @@ public:
 
     ManagerStatus get_task_status(int task_index) final {
         if (threads.empty() ||
-            threads.size() < task_index ||
+            static_cast<int>(threads.size()) < task_index ||
             task_index < 0)
             throw std::out_of_range("Task index " + std::to_string(task_index) + " out of number of tasks");
 

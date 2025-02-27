@@ -315,7 +315,7 @@ jobs:
       - name: Upload openvino PDB package
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
-          name: openvino_tests
+          name: openvino_pdb
           path: ${{ env.BUILD_DIR }}/openvino_tests.zip
           if-no-files-found: 'error'
 
