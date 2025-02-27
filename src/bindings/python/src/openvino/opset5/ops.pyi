@@ -190,4 +190,4 @@ NumericData: typing._UnionGenericAlias  # value = typing.Union[int, float, numpy
 NumericType: typing._UnionGenericAlias  # value = typing.Union[type, numpy.dtype]
 ScalarData: typing._UnionGenericAlias  # value = typing.Union[int, float]
 TensorShape: typing._GenericAlias  # value = typing.List[int]
-_get_node_factory_opset5: functools.partial  # value = functools.partial(<function _get_node_factory at 0x7f24a52575b0>, 'opset5')
+_get_node_factory_opset5: functools.partial  # value = functools.partial(<function _get_node_factory at 0x7f34ebd8b640>, 'opset5')

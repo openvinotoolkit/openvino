@@ -56,4 +56,4 @@ def topk(*args, **kwargs) -> openvino._pyopenvino.Node:
         
     """
 NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
-_get_node_factory_opset11: functools.partial  # value = functools.partial(<function _get_node_factory at 0x7f24a52575b0>, 'opset11')
+_get_node_factory_opset11: functools.partial  # value = functools.partial(<function _get_node_factory at 0x7f34ebd8b640>, 'opset11')

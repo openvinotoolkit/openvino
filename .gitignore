@@ -3,9 +3,12 @@ _*
 [Bb]uild*/
 cmake-build*
 
-# but ensure we don't skip __init__.py and __main__.py
+# but ensure we don't skip Python files
 !__init__.py
 !__main__.py
+!*.pyi
+!_pyopenvino/
+
 # and sphinx documentation folders
 !docs/sphinx_setup/_*
 

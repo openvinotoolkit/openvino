@@ -57,12 +57,28 @@ if "%~1"=="" (
 
 python -m pybind11_stubgen --output-dir "%output_dir%" --root-suffix "" --ignore-invalid-expressions "%invalid_expressions_regex%" --ignore-invalid-identifiers "%invalid_identifiers_regex%" --ignore-unresolved-names "%unresolved_names_regex%" --numpy-array-use-type-var --exit-code openvino
 
+REM Check if the command was successful
+if %errorlevel% neq 0 (
+    echo Error: pybind11-stubgen failed.
+    exit /b 1
+)
+
+REM Check if the stubs were actually generated
+if exist "%output_dir%\openvino" (
+    echo Stub files generated successfully.
+) else (
+    echo No stub files were generated.
+    exit /b 1
+)
+
 REM Workaround for pybind11-stubgen issue where it doesn't import some modules for stubs generated from .py files
+REM Ticket: 163225
 set "pyi_file=%output_dir%\openvino\_ov_api.pyi"
 if exist "%pyi_file%" (
     powershell -Command "(gc '%pyi_file%') -replace '(^.*$)', 'import typing`r`nimport pathlib`r`n$1' | Out-File -encoding ASCII '%pyi_file%'"
 ) else (
     echo File %pyi_file% not found.
+    exit /b 1
 )
 
 endlocal
