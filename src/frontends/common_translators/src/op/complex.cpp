@@ -28,8 +28,7 @@ OutputVector translate_complex(const NodeContext& context) {
     auto real = context.get_input(0);
     auto imag = context.get_input(1);
 
-    auto complex_data = ComplexTypeMark::create_complex_tensor(context, real, imag, true);
-    auto complex_mark = context.mark_node(make_shared<ComplexTypeMark>(complex_data, complex_data.get_element_type()));
+    auto complex_mark = context.mark_node(make_shared<ComplexTypeMark>(real, imag));
 
     return {complex_mark};
 };
@@ -42,7 +41,7 @@ OutputVector translate_real(const NodeContext& context) {
     auto op_type = context.get_op_type();
     FRONT_END_OP_CONVERSION_CHECK(complex_type_mark, op_type + " operation expects complex type tensor on input.");
 
-    return {ComplexTypeMark::get_real_part(context, complex_type_mark->input_value(0))};
+    return {complex_type_mark->get_real()};
 };
 
 OutputVector translate_imag(const NodeContext& context) {
@@ -53,7 +52,7 @@ OutputVector translate_imag(const NodeContext& context) {
     auto op_type = context.get_op_type();
     FRONT_END_OP_CONVERSION_CHECK(complex_type_mark, op_type + " operation expects complex type tensor on input.");
 
-    return {ComplexTypeMark::get_imag_part(context, complex_type_mark->input_value(0))};
+    return {complex_type_mark->get_imag()};
 };
 
 }  // namespace common_translators

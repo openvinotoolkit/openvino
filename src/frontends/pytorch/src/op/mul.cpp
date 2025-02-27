@@ -24,18 +24,6 @@ OutputVector translate_mul_common(const NodeContext& context, bool inplace) {
     auto lhs_dtype = simplified_type_interpret(context.get_input_type(0));
     auto rhs_dtype = simplified_type_interpret(context.get_input_type(1));
 
-    auto lhs_complex = ov::as_type_ptr<ComplexTypeMark>(lhs.get_node_shared_ptr());
-    auto is_lhs_complex = (lhs_complex != nullptr);
-    auto rhs_complex = ov::as_type_ptr<ComplexTypeMark>(rhs.get_node_shared_ptr());
-    auto is_rhs_complex = (rhs_complex != nullptr);
-
-    if (is_lhs_complex) {
-        lhs = lhs_complex->input_value(0);
-    }
-    if (is_rhs_complex) {
-        rhs = rhs_complex->input_value(0);
-    }
-
     auto left_is_bool = lhs.get_element_type() == ov::element::boolean ||
                         (lhs_dtype.is<element::Type>() && lhs_dtype.as<element::Type>() == element::boolean);
     auto right_is_bool = rhs.get_element_type() == ov::element::boolean ||
@@ -52,12 +40,9 @@ OutputVector translate_mul_common(const NodeContext& context, bool inplace) {
     if (inplace) {
         // For inplace op we know direction of type alignment
         if (lhs.get_element_type().is_dynamic() || lhs.get_element_type() != rhs.get_element_type())
-            rhs = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(rhs, lhs));
+            rhs = ComplexTypeMark::convert_like(context, rhs, lhs);
 
-        auto res = ComplexTypeMark::mul(context, lhs, rhs, is_lhs_complex, is_rhs_complex);
-        if (is_lhs_complex || is_rhs_complex) {
-            res = context.mark_node(make_shared<ComplexTypeMark>(res, res.get_element_type()));
-        }
+        auto res = ComplexTypeMark::mul(context, lhs, rhs);
 
         context.mutate_input(0, res);
         return {res};
@@ -73,12 +58,8 @@ OutputVector translate_mul_common(const NodeContext& context, bool inplace) {
                                       is_python_scalar_input(context, 0),
                                       is_python_scalar_input(context, 1));
         }
-        auto mul_res = OutputVector{ComplexTypeMark::mul(context, lhs, rhs, is_lhs_complex, is_rhs_complex)};
+        auto mul_res = OutputVector{ComplexTypeMark::mul(context, lhs, rhs)};
         align_output_types(context, mul_res);
-        if (is_lhs_complex || is_rhs_complex) {
-            auto res = context.mark_node(make_shared<ComplexTypeMark>(mul_res[0], mul_res[0].get_element_type()));
-            mul_res = OutputVector{res};
-        }
         return mul_res;
     }
 }

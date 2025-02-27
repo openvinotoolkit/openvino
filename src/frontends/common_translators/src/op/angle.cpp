@@ -27,10 +27,8 @@ OutputVector translate_angle(const NodeContext& context) {
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(complex.get_node_shared_ptr());
     if (complex_type_mark) {
         // input is a complex tensor
-        complex = complex_type_mark->input_value(0);
-
-        auto real_part = ComplexTypeMark::get_real_part(context, complex);
-        auto imag_part = ComplexTypeMark::get_imag_part(context, complex);
+        auto real_part = complex_type_mark->get_real();
+        auto imag_part = complex_type_mark->get_imag();
 
         auto angle = translate_atan2_util(context, imag_part, real_part);
         return {angle};

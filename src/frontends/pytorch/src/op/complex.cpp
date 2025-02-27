@@ -24,14 +24,14 @@ OutputVector translate_view_as_real(const NodeContext& context) {
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(complex.get_node_shared_ptr());
     PYTORCH_OP_CONVERSION_CHECK(complex_type_mark, "aten::real operation expects complex type tensor on input.");
 
-    return {complex_type_mark->input_value(0)};
+    return {complex_type_mark->get_data()};
 };
 
 OutputVector translate_view_as_complex(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
     auto complex = context.get_input(0);
 
-    return {context.mark_node(std::make_shared<ComplexTypeMark>(complex, complex.get_element_type()))};
+    return {context.mark_node(std::make_shared<ComplexTypeMark>(complex))};
 };
 
 }  // namespace op

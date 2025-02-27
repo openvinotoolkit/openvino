@@ -22,21 +22,9 @@ OutputVector translate_sub_common(const NodeContext& context, bool inplace) {
     Output<Node> x = context.get_input(0);
     Output<Node> y = context.get_input(1);
 
-    auto x_complex = ov::as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
-    auto is_x_complex = (x_complex != nullptr);
-    auto y_complex = ov::as_type_ptr<ComplexTypeMark>(y.get_node_shared_ptr());
-    auto is_y_complex = (y_complex != nullptr);
-
-    if (x_complex) {
-        x = x_complex->input_value(0);
-    }
-    if (y_complex) {
-        y = y_complex->input_value(0);
-    }
-
     if (inplace) {
         if (x.get_element_type().is_dynamic() || x.get_element_type() != y.get_element_type())
-            y = context.mark_node(std::make_shared<v1::ConvertLike>(y, x));
+            y = ComplexTypeMark::convert_like(context, y, x);
     } else {
         align_eltwise_input_types(context,
                                   x,
@@ -48,19 +36,12 @@ OutputVector translate_sub_common(const NodeContext& context, bool inplace) {
     // default alpha is 1 so no need to multiply if alpha is not provided
     if (!context.input_is_none(2)) {
         auto alpha = context.get_input(2);
-        auto alpha_complex = ov::as_type_ptr<ComplexTypeMark>(alpha.get_node_shared_ptr());
-        auto is_alpha_complex = (alpha_complex != nullptr);
-        alpha = (is_alpha_complex) ? alpha_complex->input_value(0) : alpha;
-        auto casted_alpha = context.mark_node(std::make_shared<v1::ConvertLike>(alpha, y));
+        auto casted_alpha = ComplexTypeMark::convert_like(context, alpha, y);
 
-        y = ComplexTypeMark::mul(context, y, casted_alpha, is_y_complex, is_alpha_complex);
-        is_y_complex |= is_alpha_complex;
+        y = ComplexTypeMark::mul(context, y, casted_alpha);
     }
 
-    auto sub = ComplexTypeMark::sub(context, x, y, is_x_complex, is_y_complex);
-    if (is_x_complex || is_y_complex) {
-        sub = context.mark_node(make_shared<ComplexTypeMark>(sub, sub.get_element_type()));
-    }
+    auto sub = ComplexTypeMark::sub(context, x, y);
 
     if (inplace)
         context.mutate_input(0, sub);

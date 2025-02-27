@@ -105,13 +105,9 @@ OutputVector translate_mul_op(const NodeContext& node) {
     if (complex_type_mark_lhs || complex_type_mark_rhs) {
         FRONT_END_GENERAL_CHECK(complex_type_mark_lhs != nullptr && complex_type_mark_rhs != nullptr,
                                 "Mul gox complex and non-complex inputs. Inputs should be of same type.");
-        lhs = complex_type_mark_lhs->input_value(0);
-        rhs = complex_type_mark_rhs->input_value(0);
-
-        auto mul = ComplexTypeMark::mul(node, lhs, rhs, true, true);
+        auto mul = ComplexTypeMark::mul(node, lhs, rhs);
         set_node_name(node.get_name(), mul.get_node_shared_ptr());
-        auto complex_result = node.mark_node(make_shared<ComplexTypeMark>(mul, mul.get_element_type()));
-        return {complex_result};
+        return {mul};
     }
 
     set_node_name(node.get_name(), result);

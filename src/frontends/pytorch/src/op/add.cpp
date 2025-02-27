@@ -29,18 +29,6 @@ OutputVector translate_add_common(const NodeContext& context, bool inplace) {
     auto dtype0 = context.get_input_type(0);
     auto dtype1 = context.get_input_type(1);
 
-    auto lhs_complex = ov::as_type_ptr<ComplexTypeMark>(lhs.get_node_shared_ptr());
-    auto is_lhs_complex = (lhs_complex != nullptr);
-    auto rhs_complex = ov::as_type_ptr<ComplexTypeMark>(rhs.get_node_shared_ptr());
-    auto is_rhs_complex = (rhs_complex != nullptr);
-
-    if (lhs_complex) {
-        lhs = lhs_complex->input_value(0);
-    }
-    if (rhs_complex) {
-        rhs = rhs_complex->input_value(0);
-    }
-
     if (dtype0.is<type::List>() && dtype1.is<type::List>()) {
         // aten::add.t(t[] a, t[] b) -> t[]
         // Case when two lists gets concatenated
@@ -48,13 +36,19 @@ OutputVector translate_add_common(const NodeContext& context, bool inplace) {
     }
     if (inplace) {
         if (lhs.get_element_type().is_dynamic() || lhs.get_element_type() != rhs.get_element_type())
-            rhs = context.mark_node(std::make_shared<v1::ConvertLike>(rhs, lhs));
+            rhs = ComplexTypeMark::convert_like(context, rhs, lhs);
     } else {
         align_eltwise_input_types(context,
                                   lhs,
                                   rhs,
                                   is_python_scalar_input(context, 0),
                                   is_python_scalar_input(context, 1));
+    }
+
+    if (auto lhs_complex = ov::as_type_ptr<ComplexTypeMark>(lhs.get_node_shared_ptr())) {
+        std::cout << lhs_complex->get_data().get_partial_shape() << std::endl;
+    } else {
+        std::cout << lhs.get_partial_shape() << std::endl;
     }
 
     auto left_is_bool = lhs.get_element_type() == ov::element::boolean ||
@@ -72,32 +66,18 @@ OutputVector translate_add_common(const NodeContext& context, bool inplace) {
     }
 
     Output<Node> alpha;
-    shared_ptr<ComplexTypeMark> alpha_complex = nullptr;
-    bool is_alpha_complex = false;
     if (!context.input_is_none(2)) {
         alpha = context.get_input(2);
-        alpha_complex = ov::as_type_ptr<ComplexTypeMark>(alpha.get_node_shared_ptr());
     } else if (context.has_attribute("alpha")) {
         alpha = context.get_attribute<Output<Node>>("alpha");
-        alpha_complex = ov::as_type_ptr<ComplexTypeMark>(alpha.get_node_shared_ptr());
-    }
-
-    if (alpha_complex) {
-        alpha = alpha_complex->input_value(0);
-        is_alpha_complex = true;
     }
 
     if (alpha.get_node_shared_ptr()) {
-        auto converted_alpha = context.mark_node(std::make_shared<v1::ConvertLike>(alpha, rhs));
-        rhs = ComplexTypeMark::mul(context, rhs, converted_alpha, is_rhs_complex, is_alpha_complex);
-        is_rhs_complex |= is_alpha_complex;
+        auto converted_alpha = ComplexTypeMark::convert_like(context, alpha, rhs);
+        rhs = ComplexTypeMark::mul(context, rhs, converted_alpha);
     }
 
-    auto add = ComplexTypeMark::add(context, lhs, rhs, is_lhs_complex, is_rhs_complex);
-
-    if (is_lhs_complex || is_rhs_complex) {
-        add = context.mark_node(make_shared<ComplexTypeMark>(add, add.get_element_type()));
-    }
+    auto add = ComplexTypeMark::add(context, lhs, rhs);
 
     if (inplace)
         context.mutate_input(0, add);
