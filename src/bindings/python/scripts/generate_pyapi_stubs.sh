@@ -70,24 +70,22 @@ else
     output_dir="$1"
 fi
 
-python -m pybind11_stubgen \
+if ! python -m pybind11_stubgen \
             --output-dir "$output_dir" \
             --root-suffix "" \
             --ignore-invalid-expressions "$invalid_expressions_regex" \
             --ignore-invalid-identifiers "$invalid_identifiers_regex" \
             --ignore-unresolved-names "$unresolved_names_regex" \
+            --print-invalid-expressions-as-is \
             --numpy-array-use-type-var \
             --exit-code \
-            openvino
-
-# Check if the command was successful
-if [ $? -ne 0 ]; then
+            openvino; then
     echo "Error: pybind11-stubgen failed."
     exit 1
 fi
 
 # Check if the stubs were actually generated
-if [ "$(ls -A $output_dir/openvino)" ]; then
+if [ "$(ls -A "$output_dir/openvino")" ]; then
     echo "Stub files generated successfully."
 else
     echo "No stub files were generated."

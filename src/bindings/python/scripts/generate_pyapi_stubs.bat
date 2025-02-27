@@ -55,7 +55,7 @@ if "%~1"=="" (
     set "output_dir=%~1"
 )
 
-python -m pybind11_stubgen --output-dir "%output_dir%" --root-suffix "" --ignore-invalid-expressions "%invalid_expressions_regex%" --ignore-invalid-identifiers "%invalid_identifiers_regex%" --ignore-unresolved-names "%unresolved_names_regex%" --numpy-array-use-type-var --exit-code openvino
+python -m pybind11_stubgen --output-dir "%output_dir%" --root-suffix "" --ignore-invalid-expressions "%invalid_expressions_regex%" --ignore-invalid-identifiers "%invalid_identifiers_regex%" --ignore-unresolved-names "%unresolved_names_regex%" --print-invalid-expressions-as-is --numpy-array-use-type-var --exit-code openvino
 
 REM Check if the command was successful
 if %errorlevel% neq 0 (
