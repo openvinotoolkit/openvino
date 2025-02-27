@@ -307,6 +307,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*FC_3D_BF16.*MatMulLayerCPUTest.*)",
         // Issue: 163242
         R"(.*bf16.*RNNSequenceCPUTest.*)",
+        // Issue: 163250
+        R"(.*OnnxModelWithExtensionFromDSO.*)",
+        // Issue: 163252
+        R"(.*ConvolutionQDQ.*)",
     };
 
     // fp32 floor for bf16 models: conversion issue
