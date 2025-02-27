@@ -39,10 +39,12 @@ macro(ov_install_pdb target)
             message(FATAL_ERROR "OpenVINO PDB files should be installed only for SHARED or MODULE libraries, given target type is ${type}")
         endif()
 
-        install(FILES $<TARGET_PDB_FILE:${target}>
-                DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT pdb
-                OPTIONAL
-                EXCLUDE_FROM_ALL)
+        if(WIN32)
+            install(FILES $<TARGET_PDB_FILE:${target}>
+                    DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT pdb
+                    OPTIONAL
+                    EXCLUDE_FROM_ALL)
+        endif()
     else()
         # TODO: implement installation of compile PDB files for static libraries
     endif()
