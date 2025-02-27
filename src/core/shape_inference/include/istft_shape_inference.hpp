@@ -113,7 +113,7 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
         const TDim& num_frames_dim = data_shape[frames_axis];
         TDim signal_length = (num_frames_dim - 1) * frame_step_val + frame_size_val;
         if (op->get_center()) {
-            signal_length = signal_length - int64_t(frame_size_val / 2) * 2;
+            signal_length = signal_length - (frame_size_val & ~1);
         }
         output_shapes[0][0] = std::move(signal_length);
     }
