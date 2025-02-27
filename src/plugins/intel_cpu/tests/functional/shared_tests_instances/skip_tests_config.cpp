@@ -301,6 +301,8 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 163227
         R"(.*QuantizedModelsTests\.MaxPoolFQ.*)",
         R"(.*QuantizedModelsTests\.MaxPoolQDQ.*)",
+        // Issue: 163268
+        R"(.*QuantizedModelsTests\.ConvolutionFQ.*)",
         // Issue: 163230
         R"(.*ProposalLayerTest.*)",
         // Issue: 163232
@@ -309,8 +311,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*bf16.*RNNSequenceCPUTest.*)",
         // Issue: 163250
         R"(.*OnnxModelWithExtensionFromDSO.*)",
-        // Issue: 163252
-        R"(.*ConvolutionQDQ.*)",
     };
 
     // fp32 floor for bf16 models: conversion issue
