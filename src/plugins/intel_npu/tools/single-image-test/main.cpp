@@ -127,6 +127,13 @@ DEFINE_string(
     ref_dir,
     "",
     "A directory with reference blobs to compare with in run_test mode. Leave it empty to use the current folder.");
+static constexpr char ref_results_message[] =
+        "String of reference result file(s) to be used during run_test mode. "
+        "For the same test case, the files should be separated by comma (,) (example: one case multiple output). "
+        "For different test cases, it should be separated by semicolon (;). "
+        "If ref_dir is provided, the reference files should be relative to the ref_dir. "
+        "Else, if ref_dir is not provided, the reference files should be absolute paths. ";
+DEFINE_string(ref_results, "", ref_results_message);
 DEFINE_string(mode, "", "Comparison mode to use");
 
 DEFINE_uint32(top_k, 1, "Top K parameter for 'classification' mode");
@@ -155,6 +162,7 @@ DEFINE_int32(num, 3, "Number of scales for Yolo V3");
 
 typedef std::chrono::high_resolution_clock Time;
 // for Semantic Segmentation
+DEFINE_bool(skip_arg_max, false, "Skip ArgMax post processing step");
 DEFINE_uint32(sem_seg_classes, 12, "Number of classes for semantic segmentation");
 DEFINE_double(sem_seg_threshold, 0.98, "Threshold for 'semantic segmentation' mode");
 DEFINE_uint32(sem_seg_ignore_label, std::numeric_limits<uint32_t>::max(), "The number of the label to be ignored");
@@ -251,8 +259,10 @@ void parseCommandLine(int argc, char* argv[]) {
     std::cout << "    Scale_values [channel1,channel2,channel3] " << FLAGS_scale_values << std::endl;
     std::cout << "    Skip checking output layers:              " << FLAGS_skip_output_layers << std::endl;
     if (FLAGS_run_test) {
-        std::cout << "    Reference files direcotry:                "
-                  << (FLAGS_ref_dir.empty() ? "Current directory" : FLAGS_ref_dir) << std::endl;
+        std::cout << "    Reference files directory:                "
+                  << (FLAGS_ref_dir.empty() && FLAGS_ref_results.empty() ? "Current directory" : FLAGS_ref_dir)
+                  << std::endl;
+        std::cout << "    Reference file(s):                        " << FLAGS_ref_results<< std::endl;
         std::cout << "    Mode:             " << FLAGS_mode << std::endl;
         if (strEq(FLAGS_mode, "classification")) {
             std::cout << "    Top K:            " << FLAGS_top_k << std::endl;
@@ -755,7 +765,7 @@ void loadBinary(const std::string& filePath, const BatchIndexer &fileSourceInBat
     const size_t fileBytes = static_cast<size_t>(fileSize);
     const size_t reqTensorBytes = static_cast<size_t>(requestedTensor.get_byte_size());
 
-    if (dataPrecision != modelPrecision && dataPrecision != ov::element::Type_t::undefined) {
+    if (dataPrecision != modelPrecision && dataPrecision != ov::element::Type_t::dynamic) {
         std::cout << "Converting " << filePath << " input from " << dataPrecision << " to " << modelPrecision
                   << std::endl;
         const ov::Tensor inputTensor(dataPrecision, shape);
@@ -855,9 +865,12 @@ ov::Tensor loadBinaries(const ov::element::Type& modelPrecision, const ov::Shape
  * @param dataPrecision Indicates the precision used by the data found within the binary file.
  * @return The tensor containing the loaded data.
  */
-ov::Tensor loadInput(const ov::element::Type& modelPrecision, const ov::Shape& shape, const ov::Layout& layout,
-                     const std::vector<std::string>& filePaths, const std::string& colorFormat,
-                     const ov::element::Type& dataPrecision = ov::element::Type_t::undefined) {
+ov::Tensor loadInput(const ov::element::Type& modelPrecision,
+                     const ov::Shape& shape,
+                     const ov::Layout& layout,
+                     const std::vector<std::string>& filePaths,
+                     const std::string& colorFormat,
+                     const ov::element::Type& dataPrecision = ov::element::Type_t::dynamic) {
     if (isImage(shape, layout) && !FLAGS_img_as_bin) {
         return loadImages(modelPrecision, shape, layout, filePaths, colorFormat);
     } else {
@@ -1787,6 +1800,7 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
     OPENVINO_ASSERT(outputs.size() == outputLayouts.size(),
                     "Mismatch between the number of model outputs and their corresponding layout values");
 
+    bool skipArgMax = FLAGS_skip_arg_max;
     unsigned int classes = FLAGS_sem_seg_classes;
     auto semSegThreshold = static_cast<float>(FLAGS_sem_seg_threshold);
 
@@ -1794,8 +1808,20 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
     std::vector<uint8_t> parsedOutputs;
     std::vector<std::pair<bool, float>> iou(classes, {false, 0.0f});
 
-    utils::argMax_channels(references.begin()->second, parsedReferences, outputLayouts.begin()->second);
-    utils::argMax_channels(outputs.begin()->second, parsedOutputs, outputLayouts.begin()->second);
+    if (skipArgMax) {
+        const ov::Tensor referenceU8 = npu::utils::toPrecision(references.begin()->second, ov::element::u8);
+        const ov::Tensor outputU8 = npu::utils::toPrecision(outputs.begin()->second, ov::element::u8);
+
+        const size_t C = referenceU8.get_shape()[ov::layout::channels_idx(outputLayouts.begin()->second)];
+        const size_t H = referenceU8.get_shape()[ov::layout::height_idx(outputLayouts.begin()->second)];
+        const size_t W = referenceU8.get_shape()[ov::layout::width_idx(outputLayouts.begin()->second)];
+
+        std::copy_n(referenceU8.data<uint8_t>(), C * H * W, std::back_insert_iterator(parsedReferences));
+        std::copy_n(outputU8.data<uint8_t>(), C * H * W, std::back_insert_iterator(parsedOutputs));
+    } else {
+        utils::argMax_channels(references.begin()->second, parsedReferences, outputLayouts.begin()->second);
+        utils::argMax_channels(outputs.begin()->second, parsedOutputs, outputLayouts.begin()->second);
+    }
 
     if (parsedReferences.size() != parsedOutputs.size()) {
         std::cout << "Reference size and output size are different" << std::endl;
@@ -1820,6 +1846,31 @@ static ov::Shape parseDataShape(const std::string& dataShapeStr) {
         }
     }
     return ov::Shape(dataShape);
+}
+
+std::string getRefBlobFilePath(const std::string& netFileName, const std::vector<std::string>& refFiles,
+                               size_t numberOfTestCase, size_t outputInd) {
+    std::string blobFileFullPath;
+    if (!refFiles.empty() && !FLAGS_ref_dir.empty()) {
+        // Case 1: Reference files & directory are provided (relative path)
+        std::filesystem::path refDirPath(FLAGS_ref_dir);
+        std::filesystem::path refFilePath(refFiles[outputInd]);
+        blobFileFullPath = (refDirPath / refFilePath).string();
+    } else if (!refFiles.empty()) {
+        // Case 2: Reference files provided only (absolute path)
+        blobFileFullPath = refFiles[outputInd];
+    } else {
+        // Case 3: Reference directory provided only
+        std::ostringstream ostr;
+        ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
+        const auto blobFileName = ostr.str();
+
+        std::filesystem::path fullPath = FLAGS_ref_dir;
+        fullPath /= blobFileName;
+        blobFileFullPath = fullPath.string();
+    }
+
+    return blobFileFullPath;
 }
 
 static int runSingleImageTest() {
@@ -1861,12 +1912,35 @@ static int runSingleImageTest() {
             inputFilesForOneInfer.push_back(std::move(entireModelFiles));
         }
 
+        std::vector<std::string> refFilesPerCase;
+        using RefFilesPerInput = std::vector<std::string>;
+        using RefFilesForModelOutputs = std::vector<RefFilesPerInput>;
+        RefFilesForModelOutputs refFilesForOneInfer;
+
+        if (!FLAGS_ref_results.empty()) {
+            refFilesPerCase = splitStringList(FLAGS_ref_results, ';');
+            // Make sure that the number of test cases (separated by ;) is the same as number of test cases given in
+            // input files
+            if (refFilesPerCase.size() != inputFilesPerCase.size()) {
+                std::cout << "The number of test cases in reference files is not equal to the number of test cases"
+                    << " given in input files. "
+                    << "  Number of test cases in reference files: " << refFilesPerCase.size()
+                    << "  Number of test cases in input files: " << inputFilesPerCase.size() << std::endl;
+                return EXIT_FAILURE;
+            }
+
+            for (const auto& refResult : refFilesPerCase) {
+                std::vector<std::string> refFilesPerModel = splitStringList(refResult, ',');
+                refFilesForOneInfer.push_back(std::move(refFilesPerModel));
+            }
+        }
+
         std::vector<std::string> inputBinPrecisionStrPerCase;
         std::vector<std::vector<ov::element::Type>> inputBinPrecisionForOneInfer(inputFilesForOneInfer.size());
         if (FLAGS_img_as_bin) {
             for (std::size_t i = 0; i < inputFilesForOneInfer.size(); ++i) {
                 inputBinPrecisionForOneInfer[i] =
-                        std::vector<ov::element::Type>(inputFilesForOneInfer[i].size(), ov::element::undefined);
+                    std::vector<ov::element::Type>(inputFilesForOneInfer[i].size(), ov::element::dynamic);
             }
             inputBinPrecisionStrPerCase = splitStringList(FLAGS_img_bin_precision, ';');
             std::size_t inferIdx = 0;
@@ -2090,6 +2164,12 @@ static int runSingleImageTest() {
             const FilesForModelInputs &inputFiles = inputFilesForOneInfer[numberOfTestCase];
             OPENVINO_ASSERT(inputFiles.size() == inputsInfo.size(), "Number of input files ", inputFiles.size(),
                             " doesn't match network configuration ", inputsInfo.size());
+            const RefFilesPerInput &refFiles = refFilesForOneInfer.empty() ? RefFilesPerInput{}
+                                                                           : refFilesForOneInfer[numberOfTestCase];
+            if (!FLAGS_ref_results.empty()) {
+                OPENVINO_ASSERT(refFiles.size() == outputsInfo.size(), "Number of reference files ", refFiles.size(),
+                " doesn't match number of network output (s): ", outputsInfo.size());
+            }
 
             TensorMap inTensors;
             size_t inputInd = 0;
@@ -2169,18 +2249,12 @@ static int runSingleImageTest() {
                     const ov::element::Type& precision = tensor.get_element_type();
                     const ov::Shape& shape = tensor.get_shape();
 
-                    std::ostringstream ostr;
-                    ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
-                    const auto blobFileName = ostr.str();
+                    std::string blobFileFullPath = getRefBlobFilePath(netFileName, refFiles, numberOfTestCase, outputInd);
 
-                    std::filesystem::path fullPath = FLAGS_ref_dir;
-                    fullPath /= blobFileName;
-                    const auto blobFileFullName = fullPath.string();
-
-                    std::cout << "Load reference output #" << outputInd << " from " << blobFileFullName << " as "
+                    std::cout << "Load reference output #" << outputInd << " from " << blobFileFullPath << " as "
                               << precision << std::endl;
 
-                    const ov::Tensor referenceTensor = loadTensor(precision, shape, blobFileFullName);
+                    const ov::Tensor referenceTensor = loadTensor(precision, shape, blobFileFullPath);
                     referenceTensors.emplace(tensorName, referenceTensor);
 
                     // Determine the output layout

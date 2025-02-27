@@ -153,8 +153,8 @@ private:
 
     size_t bin_offset = SIZE_MAX;
     size_t original_size = SIZE_MAX;
-    ov::element::Type original_dtype = ov::element::Type_t::undefined;
-    ov::element::Type curr_dtype = ov::element::Type_t::undefined;
+    ov::element::Type original_dtype = ov::element::Type_t::dynamic;
+    ov::element::Type curr_dtype = ov::element::Type_t::dynamic;
     ov::Shape shape{};
 
     bool should_run_reorder() const {

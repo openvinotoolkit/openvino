@@ -13,6 +13,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"  // ov::Model
+#include "openvino/core/model_util.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/parameter.hpp"  // ov::op::v0::Parameter
@@ -28,15 +29,14 @@ namespace py = pybind11;
 
 using PyRTMap = ov::RTMap;
 
-static void set_tensor_names(const ov::ParameterVector& parameters) {
-    for (const auto& param : parameters) {
-        ov::Output<ov::Node> p = param;
-        if (p.get_node()->output(0).get_names().empty()) {
-            std::unordered_set<std::string> p_names({p.get_node()->get_friendly_name()});
-            p.get_node()->output(0).set_names(p_names);
-        }
-    }
+namespace {
+template <class... Args>
+std::shared_ptr<ov::Model> make_model_with_tensor_names(Args&&... args) {
+    auto model = std::make_shared<ov::Model>(std::forward<Args>(args)...);
+    ov::util::set_tensors_names(ov::AUTO, *model);
+    return model;
 }
+}  // namespace
 
 static std::shared_ptr<ov::Node> get_node_ptr(std::shared_ptr<ov::Node> node) {
     return node;
@@ -161,9 +161,8 @@ void regclass_graph_Model(py::module m) {
                           const std::vector<std::shared_ptr<ov::Node>>& nodes,
                           const ov::ParameterVector& params,
                           const std::string& name) {
-                  set_tensor_names(params);
                   const auto sinks = cast_to_sink_vector(nodes);
-                  auto model = std::make_shared<ov::Model>(res, sinks, params, name);
+                  auto model = make_model_with_tensor_names(res, sinks, params, name);
                   set_correct_variables_for_assign_ops(model, sinks);
                   return model;
               }),
@@ -187,8 +186,7 @@ void regclass_graph_Model(py::module m) {
     model.def(py::init([](const std::vector<std::shared_ptr<ov::Node>>& results,
                           const ov::ParameterVector& parameters,
                           const std::string& name) {
-                  set_tensor_names(parameters);
-                  return std::make_shared<ov::Model>(results, parameters, name);
+                  return make_model_with_tensor_names(results, parameters, name);
               }),
               py::arg("results"),
               py::arg("parameters"),
@@ -207,8 +205,7 @@ void regclass_graph_Model(py::module m) {
     model.def(py::init([](const std::shared_ptr<ov::Node>& result,
                           const ov::ParameterVector& parameters,
                           const std::string& name) {
-                  set_tensor_names(parameters);
-                  return std::make_shared<ov::Model>(result, parameters, name);
+                  return make_model_with_tensor_names(result, parameters, name);
               }),
               py::arg("result"),
               py::arg("parameters"),
@@ -226,8 +223,7 @@ void regclass_graph_Model(py::module m) {
 
     model.def(
         py::init([](const ov::OutputVector& results, const ov::ParameterVector& parameters, const std::string& name) {
-            set_tensor_names(parameters);
-            return std::make_shared<ov::Model>(results, parameters, name);
+            return make_model_with_tensor_names(results, parameters, name);
         }),
         py::arg("results"),
         py::arg("parameters"),
@@ -247,9 +243,8 @@ void regclass_graph_Model(py::module m) {
                           const std::vector<std::shared_ptr<ov::Node>>& nodes,
                           const ov::ParameterVector& parameters,
                           const std::string& name) {
-                  set_tensor_names(parameters);
                   const auto sinks = cast_to_sink_vector(nodes);
-                  auto model = std::make_shared<ov::Model>(results, sinks, parameters, name);
+                  auto model = make_model_with_tensor_names(results, sinks, parameters, name);
                   set_correct_variables_for_assign_ops(model, sinks);
                   return model;
               }),
@@ -274,9 +269,8 @@ void regclass_graph_Model(py::module m) {
                           const ov::OutputVector& nodes,
                           const ov::ParameterVector& parameters,
                           const std::string& name) {
-                  set_tensor_names(parameters);
                   const auto sinks = cast_to_sink_vector(nodes);
-                  auto model = std::make_shared<ov::Model>(results, sinks, parameters, name);
+                  auto model = make_model_with_tensor_names(results, sinks, parameters, name);
                   set_correct_variables_for_assign_ops(model, sinks);
                   return model;
               }),
@@ -302,9 +296,7 @@ void regclass_graph_Model(py::module m) {
                           const ov::ParameterVector& parameters,
                           const ov::op::util::VariableVector& variables,
                           const std::string& name) {
-                  set_tensor_names(parameters);
-                  const auto sinks = cast_to_sink_vector(nodes);
-                  return std::make_shared<ov::Model>(results, sinks, parameters, variables, name);
+                  return make_model_with_tensor_names(results, cast_to_sink_vector(nodes), parameters, variables, name);
               }),
               py::arg("results"),
               py::arg("sinks"),
@@ -330,9 +322,8 @@ void regclass_graph_Model(py::module m) {
                           const ov::OutputVector& nodes,
                           const ov::ParameterVector& parameters,
                           const std::string& name) {
-                  set_tensor_names(parameters);
                   const auto sinks = cast_to_sink_vector(nodes);
-                  auto model = std::make_shared<ov::Model>(results, sinks, parameters, name);
+                  auto model = make_model_with_tensor_names(results, sinks, parameters, name);
                   set_correct_variables_for_assign_ops(model, sinks);
                   return model;
               }),
@@ -358,9 +349,7 @@ void regclass_graph_Model(py::module m) {
                           const ov::ParameterVector& parameters,
                           const ov::op::util::VariableVector& variables,
                           const std::string& name) {
-                  set_tensor_names(parameters);
-                  const auto sinks = cast_to_sink_vector(nodes);
-                  return std::make_shared<ov::Model>(results, sinks, parameters, variables, name);
+                  return make_model_with_tensor_names(results, cast_to_sink_vector(nodes), parameters, variables, name);
               }),
               py::arg("results"),
               py::arg("sinks"),
@@ -387,9 +376,7 @@ void regclass_graph_Model(py::module m) {
                           const ov::ParameterVector& parameters,
                           const ov::op::util::VariableVector& variables,
                           const std::string& name) {
-                  set_tensor_names(parameters);
-                  const auto sinks = cast_to_sink_vector(nodes);
-                  return std::make_shared<ov::Model>(results, sinks, parameters, variables, name);
+                  return make_model_with_tensor_names(results, cast_to_sink_vector(nodes), parameters, variables, name);
               }),
               py::arg("results"),
               py::arg("sinks"),
@@ -416,9 +403,7 @@ void regclass_graph_Model(py::module m) {
                           const ov::ParameterVector& parameters,
                           const ov::op::util::VariableVector& variables,
                           const std::string& name) {
-                  set_tensor_names(parameters);
-                  const auto sinks = cast_to_sink_vector(nodes);
-                  return std::make_shared<ov::Model>(results, sinks, parameters, variables, name);
+                  return make_model_with_tensor_names(results, cast_to_sink_vector(nodes), parameters, variables, name);
               }),
               py::arg("results"),
               py::arg("sinks"),
@@ -442,8 +427,7 @@ void regclass_graph_Model(py::module m) {
                           const ov::ParameterVector& parameters,
                           const ov::op::util::VariableVector& variables,
                           const std::string& name) {
-                  set_tensor_names(parameters);
-                  return std::make_shared<ov::Model>(results, parameters, variables, name);
+                  return make_model_with_tensor_names(results, parameters, variables, name);
               }),
               py::arg("results"),
               py::arg("parameters"),
@@ -466,8 +450,7 @@ void regclass_graph_Model(py::module m) {
                           const ov::ParameterVector& parameters,
                           const ov::op::util::VariableVector& variables,
                           const std::string& name) {
-                  set_tensor_names(parameters);
-                  return std::make_shared<ov::Model>(results, parameters, variables, name);
+                  return make_model_with_tensor_names(results, parameters, variables, name);
               }),
               py::arg("results"),
               py::arg("parameters"),

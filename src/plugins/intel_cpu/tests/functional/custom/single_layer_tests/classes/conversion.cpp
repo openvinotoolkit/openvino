@@ -148,6 +148,11 @@ void ConvertCPULayerTest::SetUp() {
 }
 
 void ConvertCPULayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    if (outPrc != ov::element::nf4 && special_value == ov::test::SpecialValue::none) {
+        SubgraphBaseTest::generate_inputs(targetInputStaticShapes);
+        return;
+    }
+
     inputs.clear();
     const auto& funcInputs = function->inputs();
     for (size_t i = 0; i < funcInputs.size(); ++i) {
@@ -162,18 +167,17 @@ void ConvertCPULayerTest::generate_inputs(const std::vector<ov::Shape>& targetIn
         } else {
             tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
         }
-        if (special_value != ov::test::SpecialValue::none) {
-            if (inPrc == ov::element::f32) {
-                modify_value<float>(tensor, special_value);
-            } else if (inPrc == ov::element::f16) {
-                modify_value<ov::float16>(tensor, special_value);
-            } else if (inPrc == ov::element::bf16) {
-                modify_value<ov::bfloat16>(tensor, special_value);
-            } else if (inPrc == ov::element::f8e4m3) {
-                modify_value<ov::float8_e4m3>(tensor, special_value);
-            } else if (inPrc == ov::element::f8e5m2) {
-                modify_value<ov::float8_e5m2>(tensor, special_value);
-            }
+
+        if (inPrc == ov::element::f32) {
+            modify_value<float>(tensor, special_value);
+        } else if (inPrc == ov::element::f16) {
+            modify_value<ov::float16>(tensor, special_value);
+        } else if (inPrc == ov::element::bf16) {
+            modify_value<ov::bfloat16>(tensor, special_value);
+        } else if (inPrc == ov::element::f8e4m3) {
+            modify_value<ov::float8_e4m3>(tensor, special_value);
+        } else if (inPrc == ov::element::f8e5m2) {
+            modify_value<ov::float8_e5m2>(tensor, special_value);
         }
 
         inputs.insert({funcInput.get_node_shared_ptr(), tensor});
