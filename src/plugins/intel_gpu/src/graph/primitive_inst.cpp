@@ -803,7 +803,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             reset_user_output_memory(this, dep_memory_ptr(0));
         } else {
             // when this inst was not executed at the previous iteration,
-            // Reset output memory becuase current output memory is invalid.
+            // Reset output memory because current output memory is invalid.
             if (prev_execution_skipped) {
                 if (_outputs[0]) {
                     reset_user_output_memory(this, _outputs[0]);
@@ -1423,13 +1423,13 @@ void primitive_inst::do_runtime_skip_gather() {
     auto idx_rank = idx_shape.size();
 
     if (_impl_params->get_input_layout(0).count() == 0) {
-        GPU_DEBUG_TRACE_DETAIL << "-- Cannot optimize becuase of input is empty " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "-- Cannot optimize because input is empty " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
         set_can_be_optimized(false);
         return;
     }
 
     if (idx_rank != 1) {
-        GPU_DEBUG_TRACE_DETAIL << "-- Cannot optimize becuase of its indices rank " << idx_rank << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "-- Cannot optimize because of its indices rank " << idx_rank << std::endl;
         set_can_be_optimized(false);
         return;
     }
@@ -1444,7 +1444,7 @@ void primitive_inst::do_runtime_skip_gather() {
     // If the overhead for checking the index is bigger than doing gather itself, it does not make sense for skipping
     const int MAX_INDICES_SIZE = 10*1024;
     if (input_shape[axis] > MAX_INDICES_SIZE) {
-        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize becuase data length along with the axis is too big" << input_shape[axis] << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because data length along with the axis is too big" << input_shape[axis] << std::endl;
         set_can_be_optimized(false);
         return;
     }
