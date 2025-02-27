@@ -34,7 +34,7 @@ OutputVector translate_complex_abs_op(const NodeContext& node) {
     // data is complex tensor representation in a form [N1, N2, ..., Nk, 2]
     // where slice [N1, N2, ..., Nk, 0] contains real part of the complex tensor and
     // slice [N1, N2, ..., Nk, 1] contains imaginary part of the complex tensor
-    auto data = complex_type_mark->input_value(0);
+    auto data = complex_type_mark->get_data();
 
     // compute element-wise square for complex representation
     auto const_two = make_shared<v0::Constant>(complex_part_type, Shape{}, 2);

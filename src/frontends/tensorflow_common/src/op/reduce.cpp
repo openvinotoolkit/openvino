@@ -64,7 +64,7 @@ OutputVector translate_prod_op(const NodeContext& node) {
 
     if (complex_type_mark) {
         element::Type complex_part_type = complex_type_mark->get_complex_part_type();
-        input = complex_type_mark->input_value(0);
+        input = complex_type_mark->get_data();
 
         auto gather_index_real = make_shared<v0::Constant>(element::i64, Shape{}, 0);
         auto gather_index_imag = make_shared<v0::Constant>(element::i64, Shape{}, 1);

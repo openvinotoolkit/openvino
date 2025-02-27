@@ -30,7 +30,7 @@ OutputVector translate_complex_op(const NodeContext& node) {
     auto complex_type_mark = common_translators::translate_complex(node);
 
     auto complex_type_mark_node = as_type_ptr<ComplexTypeMark>(complex_type_mark[0].get_node_shared_ptr());
-    auto complex_tensor = complex_type_mark_node->input_value(0);
+    auto complex_tensor = complex_type_mark_node->get_data();
     if (complex_tensor.get_element_type() != complex_part_type) {
         complex_tensor = make_shared<v0::Convert>(complex_tensor, complex_part_type)->output(0);
         return make_shared<ComplexTypeMark>(complex_tensor, complex_part_type)->outputs();
