@@ -53,13 +53,12 @@ void op::internal::ConvolutionBiased::validate_and_infer_types() {
     const auto& filters_et = get_input_element_type(1);
 
     element::Type result_et;
-    NODE_VALIDATION_CHECK(this,
-                          element::Type::merge(result_et, data_batch_et, filters_et),
-                          "Element types for data batch and filters do not match (data batch element type: ",
-                          data_batch_et,
-                          ", filters element type: ",
-                          filters_et,
-                          ").");
+    if (inputs().size() == 3) {
+        const auto& bias_et = get_input_element_type(2);
+        result_et = bias_et;
+    } else {
+        element::Type::merge(result_et, data_batch_et, filters_et);
+    }
 
     NODE_VALIDATION_CHECK(this,
                           result_et.is_real() || result_et.is_integral_number(),

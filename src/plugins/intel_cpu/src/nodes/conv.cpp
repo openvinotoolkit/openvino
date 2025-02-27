@@ -288,11 +288,11 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
             expectedBiasDims = biasedConvolutionOp->input_value(2).get_shape();
         }
 
-        for (size_t i = 0; i < biasedConvolutionOp->get_strides().size(); i++) {
-            stride.push_back(biasedConvolutionOp->get_strides()[i]);
+        for (size_t i : biasedConvolutionOp->get_strides()) {
+            stride.emplace_back(i);
         }
-        for (size_t i = 0; i < biasedConvolutionOp->get_dilations().size(); i++) {
-            dilation.push_back(static_cast<ptrdiff_t>(biasedConvolutionOp->get_dilations()[i]) - 1);
+        for (size_t i : biasedConvolutionOp->get_dilations()) {
+            dilation.emplace_back(static_cast<ptrdiff_t>(i) - 1);
         }
         paddingL = biasedConvolutionOp->get_pads_begin();
         paddingR = biasedConvolutionOp->get_pads_end();
