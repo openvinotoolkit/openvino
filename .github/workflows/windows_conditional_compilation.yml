@@ -205,6 +205,9 @@ jobs:
       - name: Build C samples - OpenVINO install tree
         run: |
           & ${{ env.INSTALL_DIR }}/samples/c/build_samples.ps1 -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
+        env:
+          CXXFLAGS: "/DEBUG /Zi"
+          CFLAGS: "/DEBUG /Zi"
 
       - name: Ctest - OpenVINO unit tests
         shell: cmd
