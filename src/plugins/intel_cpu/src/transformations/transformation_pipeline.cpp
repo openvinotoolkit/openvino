@@ -114,15 +114,24 @@
 
 // LPT transformations
 #include "low_precision/add.hpp"
+#include "low_precision/avg_pool.hpp"
 #include "low_precision/convert_subtract_constant.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
 #include "low_precision/fold_convert.hpp"
 #include "low_precision/fuse_convert.hpp"
 #include "low_precision/group_convolution.hpp"
+#include "low_precision/interpolate.hpp"
 #include "low_precision/mat_mul.hpp"
+#include "low_precision/max_pool.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
+#include "low_precision/mvn.hpp"
 #include "low_precision/network_helper.hpp"
+#include "low_precision/normalize_l2.hpp"
 #include "low_precision/recurrent_cell.hpp"
+#include "low_precision/reduce_max.hpp"
+#include "low_precision/reduce_mean.hpp"
+#include "low_precision/reduce_min.hpp"
+#include "low_precision/reduce_sum.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
@@ -750,12 +759,58 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     manager.run_passes(model);
 }
 
-void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecisions) {
-    CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Lpt);
-
+void Transformations::runLptPasses(const std::vector<ov::element::Type>& defaultPrecisions) {
     using namespace ov::pass::low_precision;
-    CPU_LPT_SCOPE(LowPrecisionTransformations_Part4);
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
+    ov::pass::Manager lptManager("CPU:LPT");
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    auto supportedPrecisions = std::vector<PrecisionsRestriction>({
+        PrecisionsRestriction::create<ov::opset1::MatMul>({{{0, 1}, {ov::element::i8}}}),
+    });
+
+    auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>();
+
+    CPU_REGISTER_PASS_COMMON(lptManager,
+                             LowPrecision,
+                             supportedPrecisions,
+                             quantizationRestrictions,
+                             LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
+    CPU_DISABLE_PASS_COMMON(lptManager, AvgPoolTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, ConvolutionTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, ConvolutionBackpropDataTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, InterpolateTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, GroupConvolutionTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, MaxPoolTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, MVNTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, NormalizeL2Transformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, RecurrentCellTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, ReduceMaxTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, ReduceMeanTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, ReduceMinTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, ReduceSumTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
+
+    CPU_SET_CALLBACK_COMMON(
+        lptManager,
+        [](const_node_ptr& node) -> bool {
+            return ov::marked_as_bias(node);
+        },
+        AddTransformation);
+
+    // Enable MatMulTransformation against FC nodes only
+    // int8 MatMul is disabled because acl_lowp_matmul_t supports 2D case only
+    // most models have 3D/4D cases, so fallback to jit_gemm_i8 gives worse perf than gemm_acl_f16
+    // oneDNN ticket #2696
+    CPU_SET_CALLBACK_COMMON(
+        lptManager,
+        [&](const_node_ptr& node) -> bool {
+            if (NetworkHelper::isConstantPath(node->get_input_node_shared_ptr(1)) &&
+                one_of(node->input_value(1).get_partial_shape().rank().get_length(), 2, 3)) {
+                return false;
+            }
+            return true;
+        },
+        MatMulTransformation);
+#else
     // Only enable conv/group conv signed input on AMX and avx2_vnni_2 platform.
     std::vector<ov::element::Type> input0LowPrecisionList;
     if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) ||
@@ -764,6 +819,7 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
     } else {
         input0LowPrecisionList = {ov::element::u8};
     }
+    std::vector<ov::element::Type> lowPrecisionList = {ov::element::u8, ov::element::i8};
 
     auto supportedPrecisions = std::vector<PrecisionsRestriction>({
         PrecisionsRestriction::create<ov::opset1::Convolution>({
@@ -771,20 +827,18 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
             {{1}, {ov::element::i8}},
         }),
         PrecisionsRestriction::create<ov::opset1::ConvolutionBackpropData>(
-            {{{0}, {ov::element::u8, ov::element::i8}}, {{1}, {ov::element::i8}}}),
-        PrecisionsRestriction::create<ov::opset1::GroupConvolution>([input0LowPrecisionList](
+            {{{0}, lowPrecisionList}, {{1}, {ov::element::i8}}}),
+        PrecisionsRestriction::create<ov::opset1::GroupConvolution>([lowPrecisionList, input0LowPrecisionList](
                                                                         const std::shared_ptr<ov::Node>& node) {
             const auto& input_partial_shape = node->get_input_partial_shape(0);
             const auto& rank = input_partial_shape.rank();
             if (rank.is_static() && (rank.get_length() == 5)) {
-                return PrecisionsRestriction::PrecisionsByPorts{{{0}, {ov::element::u8, ov::element::i8}},
-                                                                {{1}, {ov::element::i8}}};
+                return PrecisionsRestriction::PrecisionsByPorts{{{0}, lowPrecisionList}, {{1}, {ov::element::i8}}};
             }
 
             return PrecisionsRestriction::PrecisionsByPorts{{{0}, input0LowPrecisionList}, {{1}, {ov::element::i8}}};
         }),
-        PrecisionsRestriction::create<ov::opset1::MatMul>(
-            {{{0}, {ov::element::u8, ov::element::i8}}, {{1}, {ov::element::i8}}}),
+        PrecisionsRestriction::create<ov::opset1::MatMul>({{{0}, lowPrecisionList}, {{1}, {ov::element::i8}}}),
         PrecisionsRestriction::create<ov::opset5::LSTMSequence>({{{0, 1}, {ov::element::u8}}}),
         PrecisionsRestriction::create<ov::opset6::GRUSequence>({{{0, 1}, {ov::element::u8}}}),
     });
@@ -793,7 +847,6 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
         {QuantizationGranularityRestriction::create<ov::opset1::Convolution>({0}),
          QuantizationGranularityRestriction::create<ov::opset1::ConvolutionBackpropData>({0})});
 
-    ov::pass::Manager lptManager("CPU:LPT");
     CPU_REGISTER_PASS_COMMON(lptManager,
                              LowPrecision,
                              supportedPrecisions,
@@ -842,25 +895,18 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
         },
         FuseConvertTransformation);
 
-    // Enable MatMulTransformation against FC nodes only
-    // int8 MatMul is disabled because acl_lowp_matmul_t supports 2D case only
-    // most models have 3D/4D cases, so fallback to jit_gemm_i8 gives worse perf than gemm_acl_f16
-    // oneDNN ticket #2696
-    CPU_SET_CALLBACK_ARM(
-        lptManager,
-        [&](const_node_ptr& node) -> bool {
-            if (NetworkHelper::isConstantPath(node->get_input_node_shared_ptr(1)) &&
-                one_of(node->input_value(1).get_partial_shape().rank().get_length(), 2, 3)) {
-                return false;
-            }
-            return true;
-        },
-        MatMulTransformation);
-
-    CPU_DISABLE_PASS_ARM(lptManager, RecurrentCellTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
-
+#endif
     lptManager.run_passes(model);
+}
+
+void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecisions) {
+    CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Lpt);
+
+    CPU_LPT_SCOPE(LowPrecisionTransformations_Part4);
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
+
+    runLptPasses(defaultPrecisions);
 }
 
 void Transformations::PostLpt() {
