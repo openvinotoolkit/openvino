@@ -336,26 +336,27 @@ OutputVector translate_rms_norm(const NodeContext& context) {
     if (!context.input_is_none(3)) {
         eps = context.get_input(3);
         if (eps.get_element_type().is_dynamic() || eps.get_element_type() != x.get_element_type())
-            eps = context.mark_node(std::make_shared<v1::ConvertLike>(eps, x));
+            eps = std::make_shared<v1::ConvertLike>(eps, x);
     } else {
         switch (x.get_element_type()) {
         case element::bf16:
-            eps = context.mark_node(v0::Constant::create(ov::element::bf16, {}, {0.0078125}));
+            eps = v0::Constant::create(ov::element::bf16, {}, {std::numeric_limits<bfloat16>::epsilon()});
             break;
         case element::f16:
-            eps = context.mark_node(v0::Constant::create(ov::element::f16, {}, {0.0009765625}));
+            eps = v0::Constant::create(ov::element::f16, {}, {std::numeric_limits<float16>::epsilon()});
             break;
         case element::f64:
-            eps = context.mark_node(v0::Constant::create(ov::element::f64, {}, {2.220446049250313e-16}));
+            eps = v0::Constant::create(ov::element::f64, {}, {std::numeric_limits<double>::epsilon()});
             break;
         case element::f32:
-            eps = context.mark_node(v0::Constant::create(ov::element::f32, {}, {1.1920928955078125e-07}));
+            eps = v0::Constant::create(ov::element::f32, {}, {std::numeric_limits<float>::epsilon()});
             break;
         default:
-            eps = context.mark_node(v0::Constant::create(ov::element::f32, {}, {1.1920928955078125e-07}));
-            eps = context.mark_node(std::make_shared<v1::ConvertLike>(eps, x));
+            eps = v0::Constant::create(ov::element::f32, {}, {std::numeric_limits<float>::epsilon()});
+            eps = std::make_shared<v1::ConvertLike>(eps, x);
         }
     }
+    context.mark_output(eps);
 
     // normalized shape represent D last dimensions to be normalized
     auto num_axes = context.mark_node(std::make_shared<v3::ShapeOf>(normalized_shape, element::i32));
