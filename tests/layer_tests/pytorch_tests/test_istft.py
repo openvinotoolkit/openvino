@@ -93,6 +93,9 @@ class TestISTFT(PytorchLayerTest):
         [(1, 256), 24, 16, 20],
         [(1, 256), 128, 128, 128],
         [(1, 256), 256, 256, 256],
+        [(1, 47), 17, 5, 17],
+        [(1, 47), 17, 5, 13],
+        [(1, 256), 133, 77, 133],
     ])
     @pytest.mark.parametrize(("normalized"), [True, False])
     @pytest.mark.parametrize(("center"), [True, False])
