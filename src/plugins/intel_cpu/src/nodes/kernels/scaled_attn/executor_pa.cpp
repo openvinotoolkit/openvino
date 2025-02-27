@@ -56,25 +56,6 @@ using namespace ov::intel_cpu;
 
 #    endif
 
-template <typename TA, typename TB>
-void cvt_copy(TA* dst, TB* src, size_t n) {
-    size_t i = 0;
-#    if defined(HAVE_AVX512F)
-    for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
-        auto vb = mm512_uni_loadu_ps(src + i);
-        mm512_uni_storeu_ps(dst + i, vb);
-    }
-#    elif defined(HAVE_AVX2)
-    for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
-        auto vb = mm256_uni_loadu_ps(src + i);
-        mm256_uni_storeu_ps(dst + i, vb);
-    }
-#    endif
-    for (; i < n; i++) {
-        dst[i] = src[i];
-    }
-}
-
 size_t inline get_sub_byte_multiplier(ov::element::Type type) {
     return one_of(type, ov::element::i4, ov::element::u4) ? 8 / type.bitwidth() : 1;
 }
@@ -1199,7 +1180,7 @@ template <typename T,
           ov::element::Type_t SRC_PREC,
           typename std::enable_if<SRC_PREC == ov::element::f16, bool>::type = true>
 static inline void dequant(float* dst, void* src, const size_t N, const size_t K, const size_t group_size) {
-    cvt_copy(dst, reinterpret_cast<ov::float16*>(src), K * N);
+    cvt_copy(dst, reinterpret_cast<ov::float16*>(src), K * N, 1, 0, 0);
 }
 
 template <typename TDST,
@@ -1749,7 +1730,10 @@ struct MHAHelper {
                 if (score_output) {
                     cvt_copy(score_output + h * rnd_up(cur_kv_len, 16),
                              reinterpret_cast<DATA_TYPE*>(score),
-                             cur_kv_len);
+                             1,
+                             cur_kv_len,
+                             0,
+                             0);
                 }
             }
 
@@ -1909,7 +1893,7 @@ struct MHAHelper {
         // convert to dst
         for (size_t pq = 0; pq < q_len; pq++) {
             for (size_t h = hq_beg; h < hq_end; h++) {
-                cvt_copy(output_emb.ptr<DATA_TYPE>(pq, h * _SV), _output.ptr<float>(ithr, pq, h), _SV);
+                cvt_copy(output_emb.ptr<DATA_TYPE>(pq, h * _SV), _output.ptr<float>(ithr, pq, h), 1, _SV, 0, 0);
             }
         }
     }

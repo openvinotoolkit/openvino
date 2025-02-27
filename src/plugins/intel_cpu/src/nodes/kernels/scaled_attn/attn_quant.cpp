@@ -240,31 +240,46 @@ static void quant_u8_by_channel_kernel(const T* src,
         zp[j] = temp_zp;
     }
     // quantize
-    for (size_t i = 0; i < seq_dim; ++i) {
-        for (size_t j = 0; j < hidden_dims; j++) {
-            float tmp = src[i * src_stride + j];
-            dst[i * dst_stride + j] = static_cast<uint8_t>(std::round(tmp / scale[j] + zp[j]));
+    j = 0;
+#if defined(HAVE_AVX512F)
+    for (; j + vec_len_f32_avx512 <= hidden_dims; j += vec_len_f32_avx512) {
+        auto v_scale = mm512_uni_loadu_ps(scale + j);
+        v_scale = _mm512_div_ps(_mm512_set1_ps(1.0f), v_scale);
+        auto v_zero = _mm512_setzero_epi32();
+        auto v_zp = mm512_uni_loadu_ps(zp + j);
+        for (size_t i = 0; i < seq_dim; i++) {
+            auto v = mm512_uni_loadu_ps(src + i * src_stride + j);
+            v = _mm512_fmadd_ps(v, v_scale, v_zp);
+            auto v_i32 = _mm512_cvt_roundps_epi32(v, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            v_i32 = _mm512_max_epi32(v_i32, v_zero);
+            _mm512_mask_cvtusepi32_storeu_epi8(dst + i * dst_stride + j, 0xffff, v_i32);
         }
     }
-}
-
-template <typename TA, typename TB>
-void cvt_copy(TA* a, TB* b, size_t m, size_t n, size_t src_stride, size_t dst_stride) {
-    for (size_t j = 0; j < m; j++) {
-        size_t i = 0;
-#if defined(HAVE_AVX512F)
-        for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
-            auto vb = mm512_uni_loadu_ps(b + i + j * src_stride);
-            mm512_uni_storeu_ps(a + i + j * dst_stride, vb);
-        }
-#elif defined(HAVE_AVX2)
-        for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
-            auto vb = mm256_uni_loadu_ps(b + i + j * src_stride);
-            mm256_uni_storeu_ps(a + i + j * dst_stride, vb);
-        }
 #endif
-        for (; i < n; i++) {
-            a[i + j * dst_stride] = b[i + j * src_stride];
+
+#if defined(HAVE_AVX2)
+    for (; j + vec_len_f32_avx2 <= hidden_dims; j += vec_len_f32_avx2) {
+        auto v_scale = mm256_uni_loadu_ps(scale + j);
+        v_scale = _mm256_div_ps(_mm256_set1_ps(1.0f), v_scale);
+        auto v_zp = mm256_uni_loadu_ps(zp + j);
+        for (size_t i = 0; i < seq_dim; i++) {
+            auto v = mm256_uni_loadu_ps(src + i * src_stride + j);
+            v = _mm256_fmadd_ps(v, v_scale, v_zp);
+            v = _mm256_round_ps(v, _MM_ROUND_NEAREST);
+            auto v_i32 = _mm256_cvtps_epi32(v);
+
+            auto high4 = _mm256_extractf128_si256(v_i32, 1);
+            auto low4 = _mm256_castsi256_si128(v_i32);
+            auto packed = _mm_packs_epi32(low4, high4);
+            packed = _mm_packus_epi16(packed, packed);
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(dst + i * dst_stride + j), packed);
+        }
+    }
+#endif
+    for (size_t i = 0; i < seq_dim; ++i) {
+        for (; j < hidden_dims; j++) {
+            float tmp = src[i * src_stride + j];
+            dst[i * dst_stride + j] = static_cast<uint8_t>(std::round(tmp / scale[j] + zp[j]));
         }
     }
 }
@@ -431,7 +446,7 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                              S);
                     quant_u8_by_channel_kernel(thread_temp_buffer,
                                                k_dst.ptr<T2>(b, h, group_id * key_group_size),
-                                               std::min(key_group_size, remaining_group_size + prev_nums),
+                                               remaining_group_size + prev_nums,
                                                S,
                                                S,
                                                k_dst.m_strides[2],
@@ -504,15 +519,15 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
             auto q_len =
                 subsequence_begins.ptr<int32_t>()[sub_seq_id + 1] - subsequence_begins.ptr<int32_t>()[sub_seq_id];
             auto block_number_start = block_indices_begins.ptr<int32_t>()[sub_seq_id];
-            auto total_blocks =
-                block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] - block_indices_begins.ptr<int32_t>()[sub_seq_id];
             size_t m = 0;
             if (past_len == 0) {
+                auto total_blocks = block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] -
+                                    block_indices_begins.ptr<int32_t>()[sub_seq_id];
                 parallel_for(total_blocks, [&](int32_t block_count) {
                     auto block_id = block_number_start + block_count;
                     auto block_number = block_indices.ptr<int32_t>()[block_id];
                     auto token_num = (block_id == (block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] - 1))
-                                         ? (q_len - (block_id - block_number_start) * block_size)
+                                         ? (q_len - block_count * block_size)
                                          : block_size;
                     size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id] + block_count * block_size;
                     auto p_scales = reinterpret_cast<float*>(
@@ -532,36 +547,61 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                                p_zps);
                 });
             } else {
-                auto block_number = block_indices.ptr<int32_t>()[block_number_start + past_len / block_size];
                 auto prev_nums = past_len % block_size;
-                size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id];
-                auto p_k = k_dst.ptr<typename ov::element_type_traits<KEY_DST_PREC>::value_type>(block_number,
-                                                                                                 h,
-                                                                                                 2 * sizeof(float));
-                auto p_scales = reinterpret_cast<float*>(
-                    k_dst.ptr<typename ov::element_type_traits<KEY_DST_PREC>::value_type>(block_number, h, 0, 0));
-                auto p_zps = p_scales + S;
-                if (prev_nums) {
-                    attn_dequant_u8_by_channel_kernel(p_k, buffer, prev_nums, S, k_dst.stride(2), S, p_scales, p_zps);
-                    cvt_copy(buffer + prev_nums * S, k_src.ptr<T>(b_in_tokens, h, m), q_len, S, k_src.stride(0), S);
-                    quant_u8_by_channel_kernel(buffer, p_k, prev_nums + q_len, S, S, k_dst.stride(2), p_scales, p_zps);
-                } else {
+                size_t block_offset = block_number_start + past_len / block_size;
+                auto total_blocks = block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] - block_offset;
+                for (size_t block_id = 0; block_id < total_blocks; block_id++) {
                     size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id];
+                    auto block_number = block_indices.ptr<int32_t>()[block_id + block_offset];
+                    auto p_k = k_dst.ptr<typename ov::element_type_traits<KEY_DST_PREC>::value_type>(block_number,
+                                                                                                     h,
+                                                                                                     2 * sizeof(float));
                     auto p_scales = reinterpret_cast<float*>(
                         k_dst.ptr<typename ov::element_type_traits<KEY_DST_PREC>::value_type>(block_number, h, 0, 0));
                     auto p_zps = p_scales + S;
-                    auto p_k = k_dst.ptr<typename ov::element_type_traits<KEY_DST_PREC>::value_type>(block_number,
-                                                                                                     h,
-                                                                                                     2 * sizeof(float),
-                                                                                                     0);
-                    quant_u8_by_channel_kernel(k_src.ptr<T>(b_in_tokens, h, m),
-                                               p_k,
-                                               q_len,
-                                               S,
-                                               k_src.stride(0),
-                                               k_dst.stride(2),
-                                               p_scales,
-                                               p_zps);
+                    size_t valid_length = 0;
+                    bool is_first_block = block_id == 0;
+                    if (is_first_block) {
+                        valid_length = std::min(static_cast<size_t>(q_len), block_size - prev_nums);
+                    } else {
+                        // first block may have pre-filled data, the offset of first block is prev_nums, following
+                        // blocks have offset = block_size
+                        valid_length =
+                            std::min(static_cast<size_t>(q_len) - block_size * block_id - prev_nums, block_size);
+                    }
+                    if (is_first_block && prev_nums) {
+                        attn_dequant_u8_by_channel_kernel(p_k,
+                                                          buffer,
+                                                          prev_nums,
+                                                          S,
+                                                          k_dst.stride(2),
+                                                          S,
+                                                          p_scales,
+                                                          p_zps);
+                        cvt_copy(buffer + prev_nums * S,
+                                 k_src.ptr<T>(b_in_tokens, h, m),
+                                 valid_length,
+                                 S,
+                                 k_src.stride(0),
+                                 S);
+                        quant_u8_by_channel_kernel(buffer,
+                                                   p_k,
+                                                   prev_nums + valid_length,
+                                                   S,
+                                                   S,
+                                                   k_dst.stride(2),
+                                                   p_scales,
+                                                   p_zps);
+                    } else {
+                        quant_u8_by_channel_kernel(k_src.ptr<T>(b_in_tokens, h, m),
+                                                   p_k,
+                                                   valid_length,
+                                                   S,
+                                                   k_src.stride(0),
+                                                   k_dst.stride(2),
+                                                   p_scales,
+                                                   p_zps);
+                    }
                 }
             }
         });
