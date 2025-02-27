@@ -160,7 +160,7 @@ void AutoSchedule::init() {
                         // passed model path
                         LOG_DEBUG_TAG("Will read model and check if model type is stateful model here");
                         auto m_model = m_context->m_ov_core->read_model(m_context->m_model_path, std::string{}, {});
-                        if (ov::op::util::is_large_language_model(*m_model)) {
+                        if (ov::op::util::is_stateful_model(*m_model)) {
                             LOG_DEBUG_TAG(
                                 "will disable CPU as accelerator and disable runtime fallback when blob file of "
                                 "stateful model is existed "

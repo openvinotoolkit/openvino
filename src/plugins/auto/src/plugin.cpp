@@ -856,7 +856,7 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
         return meta_devices;
     }
 
-    if (!ov::op::util::is_large_language_model(*model)) {
+    if (!ov::op::util::is_stateful_model(*model)) {
         // not stateful model
         return meta_devices;
     }
