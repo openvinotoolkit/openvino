@@ -66,7 +66,6 @@ jobs:
             -DENABLE_PYTHON=ON `
             -DENABLE_WHEEL=ON `
             -DENABLE_CPPLINT=OFF `
-            -DBUILD_SHARED_LIBS=ON `
             -DENABLE_TESTS=ON `
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
             -DENABLE_STRICT_DEPENDENCIES=OFF `

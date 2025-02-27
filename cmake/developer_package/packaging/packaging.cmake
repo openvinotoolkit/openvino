@@ -23,7 +23,7 @@ function(ov_install_pdb target)
         # installation of linker PDB files for shared libraries
         install(FILES $<TARGET_PDB_FILE:${target}>
                 DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT pdb
-                OPTIONAL
+                # OPTIONAL
                 EXCLUDE_FROM_ALL)
     elseif(type STREQUAL "STATIC_LIBRARY")
         set(compile_pdb_name "${target}")
@@ -35,7 +35,7 @@ function(ov_install_pdb target)
         # installation of compile PDB files for static libraries
         install(FILES "$<TARGET_FILE_DIR:${target}>/${compile_pdb_name}.pdb"
                 DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT pdb
-                OPTIONAL
+                # OPTIONAL
                 EXCLUDE_FROM_ALL)
     endif()
 endfunction()
