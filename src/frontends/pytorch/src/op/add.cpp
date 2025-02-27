@@ -45,12 +45,6 @@ OutputVector translate_add_common(const NodeContext& context, bool inplace) {
                                   is_python_scalar_input(context, 1));
     }
 
-    if (auto lhs_complex = ov::as_type_ptr<ComplexTypeMark>(lhs.get_node_shared_ptr())) {
-        std::cout << lhs_complex->get_data().get_partial_shape() << std::endl;
-    } else {
-        std::cout << lhs.get_partial_shape() << std::endl;
-    }
-
     auto left_is_bool = lhs.get_element_type() == ov::element::boolean ||
                         (dtype0.is<element::Type>() && dtype0.as<element::Type>() == element::boolean);
     auto right_is_bool = rhs.get_element_type() == ov::element::boolean ||
