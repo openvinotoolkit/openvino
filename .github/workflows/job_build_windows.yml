@@ -53,6 +53,7 @@ jobs:
       INSTALL_DIR_JS: "${{ github.workspace }}\\openvino_install\\js"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
       INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
+      INSTALL_PDB_DIR: "${{ github.workspace }}\\install\\pdb"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       ARTIFACTS_SHARE: "C:\\mount\\build-artifacts"
       MANIFEST_PATH: "${{ github.workspace }}\\manifest.yml"
@@ -163,7 +164,7 @@ jobs:
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
       - name: CMake configure
-        run: cmake -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} ${{ inputs.cmake-options }}
+        run: cmake -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} ${{ inputs.cmake-options }} -DCMAKE_CXX_FLAGS="/DEBUG /Zi" -DCMAKE_C_FLAGS="/DEBUG /Zi"
 
       - name: Clean ccache stats
         run: '& ccache --zero-stats'
@@ -179,6 +180,7 @@ jobs:
           cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
           cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
           cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
+          cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_PDB_DIR }} --component pdb
         working-directory: ${{ env.BUILD_DIR }}
 
       # Setup additional Python versions for wheels building
@@ -255,6 +257,14 @@ jobs:
           }
           Compress-Archive @compress
 
+          $file=Get-ChildItem -Path "${{ env.INSTALL_PDB_DIR }}"
+          $compress = @{
+            Path = $file
+            CompressionLevel = "Optimal"
+            DestinationPath = "${{ env.BUILD_DIR }}/openvino_pdb.zip"
+          }
+          Compress-Archive @compress
+
       - name: CMake configure, build and install - OpenVINO JS API
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
         run: |
@@ -264,7 +274,7 @@ jobs:
                 -DENABLE_WHEEL=OFF
           cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR_JS }}
-          
+
       - name: Pack JS Artifacts
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
         run: |
@@ -296,6 +306,13 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Upload openvino tests package
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: openvino_tests
+          path: ${{ env.BUILD_DIR }}/openvino_tests.zip
+          if-no-files-found: 'error'
+
+      - name: Upload openvino PDB package
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: openvino_tests
