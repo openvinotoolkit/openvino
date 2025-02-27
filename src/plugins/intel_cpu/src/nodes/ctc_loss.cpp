@@ -221,15 +221,14 @@ void CTCLoss::execute(const dnnl::stream& strm) {
     auto sumLogs = [&float_inf](float log1, float log2) {
         if (log1 == -float_inf) {
             return log2;
-        } else if (log2 == -float_inf) {
-            return log1;
-        } else {
-            if (log1 > log2) {
-                return log1 + std::log1pf(std::exp(log2 - log1));
-            } else {
-                return log2 + std::log1pf(std::exp(log1 - log2));
-            }
         }
+        if (log2 == -float_inf) {
+            return log1;
+        }
+        if (log1 > log2) {
+            return log1 + std::log1pf(std::exp(log2 - log1));
+        }
+        return log2 + std::log1pf(std::exp(log1 - log2));
     };
 
     auto threadBody_3 = [&](const int ithr, const int nthr) {
