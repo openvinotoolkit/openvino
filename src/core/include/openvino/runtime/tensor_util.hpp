@@ -24,8 +24,7 @@ void save_tensor_data(const Tensor& tensor, const std::wstring& file_name);
 OPENVINO_API
 void save_tensor_data(const Tensor& tensor, const std::filesystem::path& file_name);
 
-
-/// \brief Read a tensor content from a file. Only raw data is loaded. 
+/// \brief Read a tensor content from a file. Only raw data is loaded.
 /// \param file_name Path to file to read.
 /// \param element_type Element type, when not specified the it is assumed as element::u8.
 /// \param shape Shape for resulting tensor. If provided shape is static, specified number of elements is read only.
@@ -53,10 +52,10 @@ Tensor read_tensor_data(const std::wstring& file_name,
 #endif
 OPENVINO_API
 Tensor read_tensor_data(const std::filesystem::path& file_name,
-    const element::Type& element_type = element::u8,
-    const PartialShape& shape = PartialShape{Dimension::dynamic()},
-    std::size_t offset = 0,
-    bool mmap = true);
+                        const element::Type& element_type = element::u8,
+                        const PartialShape& shape = PartialShape{Dimension::dynamic()},
+                        std::size_t offset = 0,
+                        bool mmap = true);
 
 /// \brief Read raw data from a file into pre-allocated tensor.
 /// \param file_name Path to the input file with raw tensor data.
@@ -72,7 +71,6 @@ void read_tensor_data(const std::wstring& file_name, Tensor& tensor, std::size_t
 #endif
 OPENVINO_API
 void read_tensor_data(const std::filesystem::path& file_name, Tensor& tensor, std::size_t offset = 0);
-
 
 /// \brief Save given tensor data into a temporary file. Read the content from the file to a new tensor using mmap.
 ///        The temporary file is removed when the returned tensor and all its copies are destroyed.
