@@ -6,14 +6,12 @@
 
 #include <cstddef>
 #include <memory>
-#include <ov_optional.hpp>
 #include <utility>
 
 #include "openvino/runtime/memory_solver.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace {
 
@@ -387,5 +385,4 @@ void NetworkMemoryControl::releaseMemory() {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

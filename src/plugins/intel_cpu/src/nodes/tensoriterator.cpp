@@ -21,9 +21,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 static NodeConfig make_plain_config(const std::shared_ptr<ov::Node>& op) {
     NodeConfig config;
@@ -55,8 +53,8 @@ static NodeConfig make_plain_config(const std::shared_ptr<ov::Node>& op) {
 
 static void redefineToMemories(const std::vector<MemoryPtr>& to_mems, const MemoryDescPtr& new_desc) {
     // TODO : check the entire dstMemPtrs usage considering the proper memory sharing
-    for (size_t j = 0; j < to_mems.size(); j++) {
-        to_mems[j]->redefineDesc(new_desc);
+    for (const auto& to_mem : to_mems) {
+        to_mem->redefineDesc(new_desc);
     }
 }
 
@@ -156,7 +154,7 @@ public:
             getReorderPrim(cache, mem_holder_dst.get_engine(), mem_holder_src.get_desc(), mem_holder_dst.get_desc());
     }
 
-    void execute(const dnnl::stream& strm, int iter = -1) override {
+    void execute(const dnnl::stream& strm, int iter) override {
         if (iter != 0) {
             reorder.execute(strm, {{DNNL_ARG_FROM, mem_holder_src}, {DNNL_ARG_TO, mem_holder_dst}});
         }
@@ -650,7 +648,7 @@ void TensorIterator::execute(const dnnl::stream& strm) {
     int max_num_iter = trip_count_check->getStatus();
 
     for (auto& mapper : first_mappers) {
-        mapper.second->execute(strm);
+        mapper.second->execute(strm, -1);
     }
 
     // use  "i != max_num_iter" only to allow "-1" works like infinite loop
@@ -672,7 +670,7 @@ void TensorIterator::execute(const dnnl::stream& strm) {
     }
 
     for (auto& mapper : last_mappers) {
-        mapper->execute(strm);
+        mapper->execute(strm, -1);
     }
 }
 
@@ -684,7 +682,7 @@ void TensorIterator::executeDynamicImpl(const dnnl::stream& strm) {
     int max_num_iter = trip_count_check->getStatus();
 
     for (auto& mapper : first_mappers) {
-        mapper.second->execute(strm);
+        mapper.second->execute(strm, -1);
     }
 
     // use  "i != max_num_iter" only to allow "-1" works like infinite loop
@@ -868,7 +866,7 @@ void TensorIterator::reshapeAndFillOutput(const dnnl::stream& strm) {
 
             if (!newShape.isDynamic()) {
                 BackEdgePortHelper mapper(context->getParamsCache(), from_mem, to_mems.front());
-                mapper.execute(strm);
+                mapper.execute(strm, -1);
             }
         }
     }
@@ -1033,6 +1031,4 @@ bool TensorIterator::created() const {
     return getType() == Type::TensorIterator;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

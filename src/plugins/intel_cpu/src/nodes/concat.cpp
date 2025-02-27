@@ -22,9 +22,7 @@
 #include "openvino/op/concat.hpp"
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 constexpr size_t channelAxis = 1lu;
 }
@@ -206,8 +204,8 @@ void Concat::initSupportedPrimitiveDescriptors() {
     for (auto refPdIndex : pdIndexesToReuse) {
         auto config = supportedPrimitiveDescriptors[refPdIndex].getConfig();
         ;
-        for (size_t i = 0; i < config.inConfs.size(); i++) {
-            config.inConfs[i].inPlace(0);
+        for (auto& inConf : config.inConfs) {
+            inConf.inPlace(0);
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     }
@@ -764,6 +762,4 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
     }
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

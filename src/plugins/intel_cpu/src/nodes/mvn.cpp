@@ -34,9 +34,7 @@ using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_mvn_call_args, field)
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 struct MVNKey {
@@ -1975,10 +1973,9 @@ void MVN::initSupportedPrimitiveDescriptors() {
         for (auto& node : fusedWith) {
             if (isUnaryEltwise(node)) {
                 continue;
-            } else {
-                onlyUnaryPostOps = false;
-                break;
             }
+            onlyUnaryPostOps = false;
+            break;
         }
     }
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
@@ -2017,12 +2014,14 @@ void MVN::initSupportedPrimitiveDescriptors() {
 
         if (useAclExecutor) {
             std::vector<MemoryDescPtr> srcMemoryDescs;
-            for (size_t i = 0; i < config.inConfs.size(); i++) {
-                srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
+            srcMemoryDescs.reserve(config.inConfs.size());
+            for (const auto& inConf : config.inConfs) {
+                srcMemoryDescs.push_back(inConf.getMemDesc());
             }
             std::vector<MemoryDescPtr> dstMemoryDescs;
-            for (size_t i = 0; i < config.outConfs.size(); i++) {
-                dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
+            dstMemoryDescs.reserve(config.outConfs.size());
+            for (const auto& outConf : config.outConfs) {
+                dstMemoryDescs.push_back(outConf.getMemDesc());
             }
 
             auto factory =
@@ -2284,15 +2283,17 @@ void MVN::setPostOps(dnnl::primitive_attr& attr, bool initWeights) {
     dnnl::post_ops ops;
     postOpsDataPtrs.clear();
     for (auto& node : fusedWith) {
+        int channelAxis = 1;
+
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs);
+            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs, channelAxis);
             continue;
         }
 
         auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get());
         if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops, shape5D, postOpsDataPtrs);
+            eltwiseNode->appendPostOps(ops, shape5D, postOpsDataPtrs, channelAxis);
             continue;
         }
         THROW_CPU_NODE_ERR("Fusing of ",
@@ -2842,8 +2843,8 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
             }
         } else {  // for per_channel
             float size_inv = 1.f / static_cast<float>(D * H * W);
-            for (size_t i = 0; i < mean_buffer.size(); i++) {
-                mean_buffer[i] = 0.f;
+            for (float& i : mean_buffer) {
+                i = 0.f;
             }
 
             // one thread for one C*W size(the same H) to get C size result for the same H, added to last group result
@@ -2878,8 +2879,8 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
             }
 
             if (mvnAttrs.normalizeVariance_) {
-                for (size_t i = 0; i < variance_buffer.size(); i++) {
-                    variance_buffer[i] = 0.f;
+                for (float& i : variance_buffer) {
+                    i = 0.f;
                 }
 
                 auto dh_loop = [&](size_t thr_idx, size_t d, size_t h) {
@@ -2977,6 +2978,4 @@ bool MVN::created() const {
     return getType() == Type::MVN;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

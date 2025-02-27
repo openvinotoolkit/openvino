@@ -15,9 +15,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool Pad::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -435,9 +433,8 @@ static inline void parallel_step(size_t nDims, const VectorDims& dims, std::vect
         ++indexes[j];
         if (static_cast<size_t>(indexes[j]) < dims[j]) {
             break;
-        } else {
-            indexes[j] = 0;
         }
+        indexes[j] = 0;
     }
 }
 
@@ -667,6 +664,4 @@ bool Pad::created() const {
     return getType() == Type::Pad;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

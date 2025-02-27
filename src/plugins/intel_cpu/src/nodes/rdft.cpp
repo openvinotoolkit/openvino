@@ -23,9 +23,7 @@
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 static constexpr size_t DATA_INDEX = 0;
 static constexpr size_t AXES_INDEX = 1;
@@ -266,17 +264,16 @@ bool RDFT::signalSizesChanged() const {
         }
         return inverse ? static_cast<size_t>(signalSizes.back()) != 2 * (inputShape[axes.back()] - 1)
                        : static_cast<size_t>(signalSizes.back()) != inputShape[axes.back()];
-    } else {
-        const auto& signalSizesMem = getSrcMemoryAtPort(SIGNAL_SIZE_INDEX);
-        auto newSize = signalSizesMem->getStaticDims()[0];
-        if (signalSizes.size() != newSize || signalSizes.size() != axes.size()) {
+    }
+    const auto& signalSizesMem = getSrcMemoryAtPort(SIGNAL_SIZE_INDEX);
+    auto newSize = signalSizesMem->getStaticDims()[0];
+    if (signalSizes.size() != newSize || signalSizes.size() != axes.size()) {
+        return true;
+    }
+    const auto& signalSizesPtr = signalSizesMem->getDataAs<const int>();
+    for (size_t i = 0; i < newSize; i++) {
+        if (signalSizesPtr[i] != signalSizes[i]) {
             return true;
-        }
-        const auto& signalSizesPtr = signalSizesMem->getDataAs<const int>();
-        for (size_t i = 0; i < newSize; i++) {
-            if (signalSizesPtr[i] != signalSizes[i]) {
-                return true;
-            }
         }
     }
     return false;
@@ -1129,6 +1126,4 @@ std::shared_ptr<RDFTExecutor> RDFTExecutor::build(bool inverse, NodeDesc* primDe
     return executor;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

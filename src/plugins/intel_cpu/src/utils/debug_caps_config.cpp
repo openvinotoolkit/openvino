@@ -7,8 +7,7 @@
 
 #    include <string>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 void DebugCapsConfig::readProperties() {
     auto readEnv = [](const char* envVar) {
@@ -23,11 +22,11 @@ void DebugCapsConfig::readProperties() {
     auto parseDumpFormat = [](const std::string& format) {
         if (format == "BIN") {
             return FORMAT::BIN;
-        } else if (format == "TEXT") {
-            return FORMAT::TEXT;
-        } else {
-            OPENVINO_THROW("readDebugCapsProperties: Unknown dump format");
         }
+        if (format == "TEXT") {
+            return FORMAT::TEXT;
+        }
+        OPENVINO_THROW("readDebugCapsProperties: Unknown dump format");
     };
 
     const char* envVarValue = nullptr;
@@ -81,6 +80,6 @@ void DebugCapsConfig::readProperties() {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
+
 #endif  // CPU_DEBUG_CAPS

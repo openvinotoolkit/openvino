@@ -24,9 +24,7 @@
 #include "utils/general_utils.h"
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 struct MatMulKey {
@@ -556,9 +554,8 @@ MemoryDescPtr MatMul::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_
         return std::make_shared<CpuBlockedMemoryDesc>(
             DnnlExtensionUtils::DataTypeToElementType(desc.get_data_type()),
             getInputShapeAtPort(idx)); /* provide initial shapes, so hide transpose effect */
-    } else {                           // bias
-        return DnnlExtensionUtils::makeDescriptor(desc);
-    }
+    }                                  // bias
+    return DnnlExtensionUtils::makeDescriptor(desc);
 }
 
 bool MatMul::created() const {
@@ -745,6 +742,4 @@ bool MatMul::isExecutable() const {
     return !hasEmptyOutputTensors();
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

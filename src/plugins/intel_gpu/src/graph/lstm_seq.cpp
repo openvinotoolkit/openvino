@@ -20,7 +20,7 @@ layout lstm_seq_inst::calc_output_layout(lstm_seq_node const& node, kernel_impl_
     const auto& lstm_hidden_size = input_pshape_hidden[2];
 
     auto first_out_fmt = cldnn::format::bfyx;
-    if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
+    if (node.get_preferred_output_fmt() != format::any) {
         first_out_fmt = node.get_preferred_output_fmt();
     }
 
@@ -41,7 +41,7 @@ std::vector<layout> lstm_seq_inst::calc_output_layouts(lstm_seq_node const& node
     auto first_out_fmt = cldnn::format::bfyx;
     auto second_out_fmt = input_layout.format;
     auto third_out_fmt = input_layout.format;
-    if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
+    if (node.get_preferred_output_fmt() != format::any) {
         first_out_fmt = node.get_preferred_output_fmt();
         second_out_fmt = node.get_preferred_output_fmt(1);
         third_out_fmt = node.get_preferred_output_fmt(2);

@@ -41,8 +41,7 @@ using namespace dnnl;
 using namespace openvino;
 using namespace ov::intel_cpu::node;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 Node::NodesFactory& Node::factory() {
     static NodesFactory factoryInstance;
@@ -638,6 +637,7 @@ std::string Node::getPrimitiveDescriptorType() const {
     SEARCH_TYPE(sparse);
     SEARCH_TYPE(acl);
     SEARCH_TYPE(shl);
+    SEARCH_TYPE(kleidiai);
     SEARCH_TYPE(_dw);
     SEARCH_TYPE(_1x1);
 
@@ -723,24 +723,25 @@ std::vector<EdgePtr> Node::getChildEdgesAtPort(int inputNum) const {
 }
 
 std::vector<memory::format_tag> Node::getAvailableFormatsForDims(const Shape& dims) const {
-    if (dims.getRank() == 0) {
+    switch (dims.getRank()) {
+    case 0:
+    case 1:
         return {memory::format_tag::x};
-    } else if (dims.getRank() == 1) {
-        return {memory::format_tag::x};
-    } else if (dims.getRank() == 2) {
+    case 2:
         return {memory::format_tag::nc};
-    } else if (dims.getRank() == 3) {
+    case 3:
         return {memory::format_tag::tnc,
                 memory::format_tag::ntc,
                 memory::format_tag::ncw,
                 memory::format_tag::nCw8c,
                 memory::format_tag::nCw16c};
-    } else if (dims.getRank() == 4) {
+    case 4:
         return {memory::format_tag::nchw, memory::format_tag::nChw8c, memory::format_tag::nChw16c};
-    } else if (dims.getRank() == 5) {
+    case 5:
         return {memory::format_tag::ncdhw, memory::format_tag::nCdhw8c, memory::format_tag::nCdhw16c};
+    default:
+        return {memory::format_tag::any};
     }
-    return {memory::format_tag::any};
 }
 
 static void fetchRawMemory(const MemoryPtr& mem) {
@@ -824,9 +825,8 @@ void Node::updateDynamicParams() {
 void Node::execute(const dnnl::stream& strm, int numaId) {
     if (isDynamicNode()) {
         return executeDynamic(strm, numaId);
-    } else {
-        return executeStatic(strm, numaId);
     }
+    return executeStatic(strm, numaId);
 }
 
 void Node::executeStatic(const dnnl::stream& strm, int numaId) {
@@ -882,7 +882,7 @@ void Node::redefineOutputMemory(const size_t port, const VectorDims& new_output_
 
     const bool has_zero_dims = std::count(std::begin(new_shape), std::end(new_shape), 0lu) > 0;
     const auto mem_desc = getBaseMemDescAtOutputPort(port)->cloneWithNewDims(new_shape, has_zero_dims);
-    for (size_t j = 0lu; j < edges.size(); j++) {
+    for (size_t j = 0lu; j < edges.size(); j++) {  // NOLINT(modernize-loop-convert)
         edges[j]->getMemoryPtr()->redefineDesc(mem_desc);
     }
 }
@@ -1331,7 +1331,8 @@ const std::vector<impl_desc_type>& Node::getDefaultImplPriority() {
 #endif
             impl_desc_type::gemm_any, impl_desc_type::gemm_blas, impl_desc_type::gemm_avx512, impl_desc_type::gemm_avx2,
             impl_desc_type::gemm_avx, impl_desc_type::gemm_sse42, impl_desc_type::gemm_acl, impl_desc_type::acl,
-            impl_desc_type::jit_gemm, impl_desc_type::ref_any, impl_desc_type::ref,
+            impl_desc_type::gemm_kleidiai, impl_desc_type::kleidiai, impl_desc_type::jit_gemm, impl_desc_type::ref_any,
+            impl_desc_type::ref,
     };
 
     return priorities;
@@ -1573,7 +1574,7 @@ std::vector<ov::element::Type> Node::getOutputPrecisions() const {
 ov::element::Type Node::getRuntimePrecision() const {
     // Base implementation consider precision only on data path and
     // assumes it is placed on 0-th port (which is true for almost all layers)
-    ov::element::Type runtimePrecision = ov::element::undefined;
+    ov::element::Type runtimePrecision = ov::element::dynamic;
     auto inputPrecisions = getInputPrecisions();
     if (!inputPrecisions.empty()) {
         runtimePrecision = inputPrecisions[0];
@@ -1873,7 +1874,7 @@ std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<Shape>& shapes
         auto input_value_port_mask = shapeInference->get_port_mask();
 
         input_shapes.reserve(shapes.size());
-        for (size_t i = 0; i < shapes.size(); i++) {
+        for (size_t i = 0; i < shapes.size(); i++) {  // NOLINT(modernize-loop-convert)
             input_shapes.emplace_back(std::ref(shapes[i].getStaticDims()));
         }
 
@@ -1938,7 +1939,8 @@ bool Node::canFuseSimpleOperation(const NodePtr& node) const {
             ret &= node->getParentEdgeAt(i)->getParent()->getChildEdges().size() == 1;
         }
         return ret;
-    } else if (node->getType() == Type::Eltwise) {
+    }
+    if (node->getType() == Type::Eltwise) {
         return DnnlExtensionUtils::isUnarySupportedAsPostOp(node->getAlgorithm()) ||
                node->canBePerformedAsScaleShift(this);
     }
@@ -1977,7 +1979,7 @@ void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfi
     for (size_t i = 0; i < inPortConfigs.size(); i++) {
         auto shape = inPortConfigs[i].shape.getRank() == 0 ? getInputShapeAtPort(i) : inPortConfigs[i].shape;
         auto prc =
-            inPortConfigs[i].prc == ov::element::undefined ? getOriginalInputPrecisionAtPort(i) : inPortConfigs[i].prc;
+            (inPortConfigs[i].prc == ov::element::dynamic) ? getOriginalInputPrecisionAtPort(i) : inPortConfigs[i].prc;
         if (!fill_port(inPortConfigs[i], shape, prc, config.inConfs)) {
             return;
         }
@@ -1985,7 +1987,7 @@ void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfi
 
     for (size_t i = 0; i < outPortConfigs.size(); i++) {
         auto dims = outPortConfigs[i].shape.getRank() == 0 ? getOutputShapeAtPort(i) : outPortConfigs[i].shape;
-        auto prc = outPortConfigs[i].prc == ov::element::undefined ? getOriginalOutputPrecisionAtPort(i)
+        auto prc = (outPortConfigs[i].prc == ov::element::dynamic) ? getOriginalOutputPrecisionAtPort(i)
                                                                    : outPortConfigs[i].prc;
         if (!fill_port(outPortConfigs[i], dims, prc, config.outConfs)) {
             return;
@@ -2082,11 +2084,11 @@ void Node::resolveInPlaceDirection() {
                 auto inPlaceOutPort = node->inPlaceOutPort(inPlaceInpPort);
                 if (inPlaceOutPort == inPlaceInpPort) {
                     return InplaceDirectionType::CYCLIC;
-                } else if (inPlaceOutPort < 0) {
-                    return InplaceDirectionType::DOWN;
-                } else {
-                    OPENVINO_THROW("Non trivial inPlace memory dependency has been detected");
                 }
+                if (inPlaceOutPort < 0) {
+                    return InplaceDirectionType::DOWN;
+                }
+                OPENVINO_THROW("Non trivial inPlace memory dependency has been detected");
             }
             // the requested port has a negative inPlace tag, let's check whether it is referenced from the output
             auto& config = node->getSelectedPrimitiveDescriptor()->getConfig();
@@ -2101,11 +2103,11 @@ void Node::resolveInPlaceDirection() {
                 auto inPlaceInpPort = node->inPlaceInputPort(inPlaceOutPort);
                 if (inPlaceOutPort == inPlaceInpPort) {
                     return InplaceDirectionType::CYCLIC;
-                } else if (inPlaceInpPort < 0) {
-                    return InplaceDirectionType::UP;
-                } else {
-                    OPENVINO_THROW("Non trivial inPlace memory dependency has been detected");
                 }
+                if (inPlaceInpPort < 0) {
+                    return InplaceDirectionType::UP;
+                }
+                OPENVINO_THROW("Non trivial inPlace memory dependency has been detected");
             }
             // the requested port has a negative inPlace tag, let's check whether it is referenced from the input
             auto& config = node->getSelectedPrimitiveDescriptor()->getConfig();
@@ -2171,7 +2173,8 @@ void Node::resolveInPlaceDirection() {
                         auto result = inPlaceDirection(pChild, PortType::INPUT, edge->getOutputNum());
                         if (InplaceDirectionType::UP == result || InplaceDirectionType::DOWN == result) {
                             return result;
-                        } else if (InplaceDirectionType::CYCLIC == result) {
+                        }
+                        if (InplaceDirectionType::CYCLIC == result) {
                             return searchNonCyclicDirection(pChild, pChild->inPlaceInputPort(edge->getOutputNum()));
                         }
                     }
@@ -2271,5 +2274,4 @@ std::ostream& operator<<(std::ostream& out, const Node* node) {
 }
 #endif
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

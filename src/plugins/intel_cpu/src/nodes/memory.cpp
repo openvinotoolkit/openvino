@@ -4,6 +4,7 @@
 
 #include "memory.hpp"
 
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -20,9 +21,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 namespace {
 class MemoryStub : public IMemory {
@@ -84,7 +83,7 @@ public:
         m_pMemDesc = desc;
     }
 
-    void load(const IMemory& src, bool ftz = true) const override {
+    void load(const IMemory& src, bool ftz, bool bf16saturation) const override {
         OPENVINO_THROW("Unexpected call MemoryStub::load()");
     }
 
@@ -308,7 +307,7 @@ void MemoryOutput::runStatic(dnnl::stream strm) {
     CPU_NODE_ASSERT(assignedMem, " uninitialized assigned memory");
 
     if (inputMem->getData() != assignedMem->getData()) {
-        assignedMem->load(*inputMem);
+        assignedMem->load(*inputMem, true, false);
     }
 }
 
@@ -407,8 +406,8 @@ MemoryInputBase::MemoryInputBase(const std::string& id,
                                  const Shape& output_shape,
                                  const ov::element::Type& output_prc,
                                  const GraphContext::CPtr& context,
-                                 const ov::optional<std::vector<Shape>>& input_shape,
-                                 const ov::optional<std::vector<ov::element::Type>>& input_prc,
+                                 const std::optional<std::vector<Shape>>& input_shape,
+                                 const std::optional<std::vector<ov::element::Type>>& input_prc,
                                  MemoryInputBase::mode mode)
     : Input(output_shape, output_prc, name, type, context),
       MemoryStateNode(id) {
@@ -598,8 +597,8 @@ MemoryInput::MemoryInput(const std::string& id,
                          const Shape& output_shape,
                          const ov::element::Type& output_prc,
                          const GraphContext::CPtr& context,
-                         const ov::optional<std::vector<Shape>>& input_shape,
-                         const ov::optional<std::vector<ov::element::Type>>& input_prc,
+                         const std::optional<std::vector<Shape>>& input_shape,
+                         const std::optional<std::vector<ov::element::Type>>& input_prc,
                          std::shared_ptr<ov::Model> func,
                          mode mode)
     : MemoryInputBase::MemoryInputBase(id, name, type, output_shape, output_prc, context, input_shape, input_prc, mode),
@@ -788,8 +787,7 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
             // depending on the memory sharing solution, we can return here if the memory is substituted from the
             // external graph or override the src pointer with the memory pointer pointing to the subgraph output
             // memory
-            CPU_NODE_ASSERT(subGraph->outputsNumber() == 1,
-                            "has unexpected number of outputs");
+            CPU_NODE_ASSERT(subGraph->outputsNumber() == 1, "has unexpected number of outputs");
             src = subGraph->getOutputNodeByIndex(0)->getSrcMemoryAtPort(0);
 
             // since the shape inference(InternalDynShapeInfer, do nothing) is performed, a memory of the extra child
@@ -813,7 +811,7 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
 
     // copy data when necessary
     if (src->getData() != dst->getData()) {
-        dst->load(*src);
+        dst->load(*src, true, false);
     }
 }
 
@@ -857,7 +855,7 @@ void MemoryInput::runStatic(dnnl::stream strm) {
     // copy data when necessary
     auto dst = getDstMemoryAtPort(0);
     if (src->getData() != dst->getData()) {
-        dst->load(*src);
+        dst->load(*src, true, false);
     }
 }
 
@@ -920,8 +918,8 @@ MemoryInputSDPA::MemoryInputSDPA(const std::string& id,
                                  const Shape& output_shape,
                                  const ov::element::Type& output_prc,
                                  const GraphContext::CPtr& context,
-                                 const ov::optional<std::vector<Shape>>& input_shape,
-                                 const ov::optional<std::vector<ov::element::Type>>& input_prc,
+                                 const std::optional<std::vector<Shape>>& input_shape,
+                                 const std::optional<std::vector<ov::element::Type>>& input_prc,
                                  const std::shared_ptr<ScaledDotProductAttention>& sdpaNode)
     : MemoryInputBase(id, name, type, output_shape, output_prc, context, input_shape, input_prc),
       m_sdpaNode(sdpaNode) {}
@@ -1027,8 +1025,8 @@ MemoryInputSingle::MemoryInputSingle(const std::string& id,
                                      const Shape& output_shape,
                                      const ov::element::Type& output_prc,
                                      const GraphContext::CPtr& context,
-                                     const ov::optional<std::vector<Shape>>& input_shape,
-                                     const ov::optional<std::vector<ov::element::Type>>& input_prc,
+                                     const std::optional<std::vector<Shape>>& input_shape,
+                                     const std::optional<std::vector<ov::element::Type>>& input_prc,
                                      std::shared_ptr<ov::Model> func)
     : MemoryInput(id,
                   name,
@@ -1070,7 +1068,7 @@ void MemoryInputSingle::runStatic(dnnl::stream strm) {
         auto stateMem = getAssignedState()->output_mem();
         CPU_NODE_ASSERT(stateMem, " state memory has nullptr");
         if (result->getData() != stateMem->getData()) {
-            stateMem->load(*result);
+            stateMem->load(*result, true, false);
         }
     }
     getAssignedState()->commit();  // since we don't use MemoryOutput, commit must be called to change the reset state
@@ -1095,7 +1093,7 @@ void MemoryInputSingle::runDynamic(dnnl::stream strm) {
         }
 
         if (result->getData() != stateMem->getData()) {
-            stateMem->load(*result);
+            stateMem->load(*result, true, false);
         }
     }
     getAssignedState()->commit();  // since we don't use MemoryOutput, commit must be called to change the reset state
@@ -1106,6 +1104,4 @@ bool MemoryInputSingle::isSupportedOperation(const std::shared_ptr<const ov::Nod
     return MemoryInput::isSupportedOperation(op, errorMessage);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
