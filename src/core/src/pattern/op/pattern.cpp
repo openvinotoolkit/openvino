@@ -12,9 +12,12 @@
 namespace ov::pass::pattern {
 namespace op {
 
+Pattern::Pattern() : Node(), m_predicate() {}
 Pattern::Pattern(const OutputVector& patterns) : Node(patterns), m_predicate() {}
+Pattern::Pattern(const NodeVector& patterns) : Pattern(as_output_vector(patterns)) {}
 
 Pattern::Pattern(const OutputVector& patterns, const op::Predicate& pred) : Node(patterns), m_predicate(pred) {}
+Pattern::Pattern(const NodeVector& patterns, const op::Predicate& pred) : Pattern(as_output_vector(patterns), pred) {}
 
 Predicate as_value_predicate(NodePredicate pred) {
     return Predicate(pred);
