@@ -166,10 +166,18 @@ struct convert<std::map<K, V>> {
 template <typename T>
 struct convert<LayerVariantAttr<T>> {
     static bool decode(const Node& node, LayerVariantAttr<T>& layer_attr) {
-        if (node.IsMap()) {
-            layer_attr = node.as<std::map<std::string, T>>();
+        if constexpr (std::is_same_v<IAccuracyMetric::Ptr, T> || std::is_same_v<IRandomGenerator::Ptr, T>) {
+            if (node.IsMap() && (node.begin() != node.end()) && node.begin()->second.IsMap()) {
+                layer_attr = node.as<std::map<std::string, T>>();
+            } else {
+                layer_attr = node.as<T>();
+            }
         } else {
-            layer_attr = node.as<T>();
+            if (node.IsMap()) {
+                layer_attr = node.as<std::map<std::string, T>>();
+            } else {
+                layer_attr = node.as<T>();
+            }
         }
         return true;
     }
