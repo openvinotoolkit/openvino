@@ -82,9 +82,7 @@ using namespace Xbyak;
     const uint8_t* in_ptr_ncd = in_ptr_n + src_data_size * (icb * ID + id) * IH * IW * blk_size; \
     uint8_t* out_ptr_ncd = out_ptr_n + dst_data_size * (ocb * OD + od) * OH * OW * blk_size;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 struct ReduceKey {
@@ -3606,11 +3604,11 @@ void Reduce::reduce_ref_process(const float* in_ptr,
                                 float init_value,
                                 std::function<float(float, float)> func) {
     size_t work_amount_dst = 1, reduced_dims_work_amount = 1;
-    for (size_t i = 0; i < process_dst_dims.size(); i++) {
-        work_amount_dst *= process_dst_dims[i];
+    for (size_t process_dst_dim : process_dst_dims) {
+        work_amount_dst *= process_dst_dim;
     }
-    for (size_t i = 0; i < src_dims.size(); i++) {
-        reduced_dims_work_amount *= src_dims[i];
+    for (size_t src_dim : src_dims) {
+        reduced_dims_work_amount *= src_dim;
     }
     reduced_dims_work_amount /= work_amount_dst;
 
@@ -3643,10 +3641,9 @@ void Reduce::reduce_ref_process(const float* in_ptr,
                     if (src_counters[axes_for_reduction[j]] < src_dims[axes_for_reduction[j]]) {
                         src_idx += src_strides[axes_for_reduction[j]];
                         break;
-                    } else {
-                        src_counters[axes_for_reduction[j]] = 0;
-                        update_idx = true;
                     }
+                    src_counters[axes_for_reduction[j]] = 0;
+                    update_idx = true;
                 }
             }
             out_ptr[dst_idx] = reduce_prod;
@@ -3654,9 +3651,8 @@ void Reduce::reduce_ref_process(const float* in_ptr,
                 dst_counters[j]++;
                 if (dst_counters[j] < process_dst_dims[j]) {
                     break;
-                } else {
-                    dst_counters[j] = 0;
                 }
+                dst_counters[j] = 0;
             }
         }
     });
@@ -3700,9 +3696,11 @@ void Reduce::setPostOps(dnnl::primitive_attr& attr, const VectorDims& postOpDims
     dnnl::post_ops ops;
     postOpsDataPtrs.clear();
     for (auto& node : fusedWith) {
+        int channelAxis = 1;
+
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs);
+            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs, channelAxis);
             continue;
         }
 
@@ -3798,7 +3796,8 @@ int Reduce::getFusingAxis() const {
                 // channel axis has been reduced and doesn't exist any more
                 channelAxis = -1;
                 break;
-            } else if (axis == 0) {
+            }
+            if (axis == 0) {
                 channelAxis = 0;
             }
         }
@@ -3821,6 +3820,4 @@ bool Reduce::created() const {
     return getType() == Type::Reduce;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

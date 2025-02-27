@@ -2,7 +2,7 @@
 numpy
 bandit
 black
-flake8<=7.1.1
+flake8<=7.1.2
 flake8-annotations-complexity<=0.0.8
 flake8-broken-line<=1.0.0
 flake8-bugbear<=24.12.12
@@ -25,6 +25,7 @@ flake8_pep3101<=2.1.0
 flake8_quotes<=3.4.0
 mypy
 Pep8-naming
+pillow
 pydocstyle
 pytest-forked; sys_platform != 'win32'
 pytest-xdist

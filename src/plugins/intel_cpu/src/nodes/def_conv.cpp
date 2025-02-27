@@ -25,9 +25,7 @@ using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 #if defined(OPENVINO_ARCH_X86_64)
 #    define GET_OFF(field) offsetof(jit_def_conv_call_args, field)
 
@@ -785,13 +783,13 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op
     defConvAttr.group = defConvNodeBase->get_group();
     defConvAttr.deformable_group = defConvNodeBase->get_deformable_group();
     auto& strides = defConvNodeBase->get_strides();
-    for (size_t i = 0; i < strides.size(); i++) {
-        defConvAttr.stride.push_back(strides[i]);
+    for (uint64_t stride : strides) {
+        defConvAttr.stride.push_back(stride);
     }
 
     auto& dilations = defConvNodeBase->get_dilations();
-    for (size_t i = 0; i < dilations.size(); i++) {
-        defConvAttr.dilation.push_back(dilations[i] - 1);
+    for (uint64_t dilation : dilations) {
+        defConvAttr.dilation.push_back(dilation - 1);
     }
 
     defConvAttr.padL = defConvNodeBase->get_pads_begin();
@@ -1388,6 +1386,4 @@ ov::element::Type DeformableConvolution::getRuntimePrecision() const {
     return getMaxPrecision(getInputPrecisions());
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

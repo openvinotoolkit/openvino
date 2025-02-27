@@ -10,8 +10,7 @@
 #include "arm_compute/runtime/NEON/NEFunctions.h"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class AclReduceExecutor : public ReduceExecutor {
 public:
@@ -75,9 +74,8 @@ public:
         }
         auto srcShapeRank = srcDescs[0]->getShape().getRank();
         bool hasSrcNspcLayout = srcDescs[0]->hasLayoutType(LayoutType::nspc);
-        for (size_t i = 0; i < reduceAttrs.axes.size(); ++i) {
-            int axis =
-                axisCast(reduceAttrs.axes[i], srcShapeRank, hasSrcNspcLayout ? NHWC_TO_NCHW : NO_LAYOUT_CONVERSION);
+        for (int axe : reduceAttrs.axes) {
+            int axis = axisCast(axe, srcShapeRank, hasSrcNspcLayout ? NHWC_TO_NCHW : NO_LAYOUT_CONVERSION);
             if (axis == -1) {
                 DEBUG_LOG("Layout conversion to NHWC has failed");
                 return false;
@@ -102,5 +100,4 @@ public:
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

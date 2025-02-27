@@ -6,13 +6,10 @@
 
 #include "eltwise.hpp"
 #include "libxsmm_typedefs.h"
-#include "modifiers.hpp"
 #include "snippets/op/reduce.hpp"
+#include "transformations/tpp/common/op/modifiers.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
-namespace op {
+namespace ov::intel_cpu::tpp::op {
 
 // Note: Reduce ops are implemented as UnaryEltwise in libxsmm, so we inherit this properties here
 // Also note that UnaryEltwiseTPP is a modifier, so it won't trigger any flase positive matches in the pipeline
@@ -38,7 +35,4 @@ private:
     libxsmm_meltw_binary_type m_op_type;
 };
 
-}  // namespace op
-}  // namespace tpp
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::tpp::op

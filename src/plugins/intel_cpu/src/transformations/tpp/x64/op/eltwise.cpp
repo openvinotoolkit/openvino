@@ -4,10 +4,7 @@
 
 #include "eltwise.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
-namespace op {
+namespace ov::intel_cpu::tpp::op {
 
 #define GENERAL_AUX_METHODS(OP, OP_TYPE, ...)                                             \
     std::shared_ptr<Node> OP::clone_with_new_inputs(const OutputVector& new_args) const { \
@@ -29,8 +26,7 @@ namespace op {
 #define UNARY_AUX_METHODS(UNARY_OP) GENERAL_AUX_METHODS(UNARY_OP, UnaryEltwiseTPP, new_args.at(0))
 
 bool EltwiseTPP::is_supported(const std::shared_ptr<ov::Node>& node) {
-    return ov::is_type<ov::op::v1::Add>(node) || ov::is_type<ov::op::v1::Subtract>(node) ||
-           ov::is_type<ov::op::v1::Multiply>(node) || ov::is_type<ov::op::v1::Divide>(node);
+    return ov::is_type_any_of<ov::op::v1::Add, ov::op::v1::Subtract, ov::op::v1::Multiply, ov::op::v1::Divide>(node);
 }
 
 bool EltwiseTPP::visit_attributes(AttributeVisitor& visitor) {
@@ -155,7 +151,4 @@ SquareRoot::SquareRoot(const Output<Node>& arg)
 
 UNARY_AUX_METHODS(SquareRoot)
 
-}  // namespace op
-}  // namespace tpp
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::tpp::op

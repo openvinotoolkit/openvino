@@ -6,10 +6,8 @@
 
 #include <utility>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 EltwiseExecutor::EltwiseExecutor(ExecutorContext::CPtr context) : context(std::move(context)) {}
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

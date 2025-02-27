@@ -580,6 +580,8 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
     auto deviceName = pluginName;
     if (deviceName == ov::DEFAULT_DEVICE_NAME)
         deviceName = "AUTO";
+    if (deviceName == "(CPU)")
+        deviceName = "CPU";
     stripDeviceName(deviceName, "-");
     std::map<std::string, PluginDescriptor>::const_iterator it;
     {
@@ -628,7 +630,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             // Check that device plugin name is the same as requested for HW plugins
             if (!plugin_name.empty() && !ov::is_virtual_device(plugin_name)) {
                 OPENVINO_ASSERT(deviceName.find(plugin_name) != std::string::npos,
-                                ov::util::wstring_to_string(desc.libraryLocation.c_str()),
+                                desc.libraryLocation,
                                 " is used for ",
                                 deviceName,
                                 " , while it contains implementation for ",
@@ -747,7 +749,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
         return plugins.emplace(deviceName, plugin).first->second;
     } catch (const ov::Exception& ex) {
         OPENVINO_THROW("Failed to create plugin ",
-                       ov::util::from_file_path(desc.libraryLocation),
+                       desc.libraryLocation,
                        " for device ",
                        deviceName,
                        "\n",

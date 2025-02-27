@@ -594,7 +594,7 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     } else if (const auto& so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
         add_extension(so_ext->extension());
         m_extensions.push_back(so_ext);
-    } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
+    } else if (auto common_conv_ext = ov::as_type_ptr<ov::frontend::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(common_conv_ext);
         if (common_conv_ext->get_converter()) {
             m_op_translators[common_conv_ext->get_op_type()] =
@@ -610,7 +610,7 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         // Ignore other types of extensions in particular CreatorFunctionNamed which cannot be used with tensorflow
         // frontend
     } else if (const auto& tensorflow_conv_ext =
-                   std::dynamic_pointer_cast<ov::frontend::tensorflow::ConversionExtension>(extension)) {
+                   ov::as_type_ptr<ov::frontend::tensorflow::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(tensorflow_conv_ext);
         m_op_translators[tensorflow_conv_ext->get_op_type()] = tensorflow_conv_ext->get_converter();
     } else if (auto op_base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension)) {

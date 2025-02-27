@@ -19,10 +19,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace ov::Extensions::Cpu::XARCH {
 
 using namespace ov;
 
@@ -435,7 +432,4 @@ void attn_dequant_u8(const uint8_t* src, float* dst, size_t n, float scale, floa
     attn_dequant_kernel<float, ov::element::u8>(src, dst, n, scale, zp);
 }
 
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu::XARCH

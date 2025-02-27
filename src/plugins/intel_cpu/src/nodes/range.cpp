@@ -11,9 +11,7 @@
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool Range::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -137,9 +135,8 @@ size_t Range::getWorkAmount(data_t* startPtr, data_t* stopPtr, data_t* stepPtr) 
         int iSpan = static_cast<int>(span);
         int iStep = static_cast<int>(step);
         return static_cast<size_t>(div_up(iSpan < 0 ? -iSpan : iSpan, iStep < 0 ? -iStep : iStep));
-    } else {
-        return static_cast<size_t>(std::ceil(std::fabs(span) / std::fabs(step)));
     }
+    return static_cast<size_t>(std::ceil(std::fabs(span) / std::fabs(step)));
 }
 
 template <typename data_t>
@@ -166,6 +163,4 @@ bool Range::created() const {
     return getType() == Type::Range;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

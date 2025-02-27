@@ -12,8 +12,7 @@ using namespace Xbyak;
 #define INF_MASK     0x7F800000
 #define INF_NEG_MASK 0xFF800000
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace {
 ov::element::Type get_arithmetic_binary_exec_precision(const std::shared_ptr<ov::Node>& n) {
@@ -2558,11 +2557,12 @@ std::set<std::vector<element::Type>> jit_select_emitter::get_supported_precision
 size_t jit_select_emitter::aux_vecs_count() const {
     if (host_isa_ == x64::avx512_core) {
         return 0;
-    } else if (host_isa_ == x64::avx2) {  // tmp vec for mask
-        return 1;
-    } else {  // mask should be xmm0 on sse41 +  tmp vec for mask
-        return 2;
     }
+    if (host_isa_ == x64::avx2) {  // tmp vec for mask
+        return 1;
+    }
+    // mask should be xmm0 on sse41 +  tmp vec for mask
+    return 2;
 }
 
 void jit_select_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -2828,5 +2828,4 @@ void jit_bitwise_xor_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     h->uni_vxorps(vmm_dst, vmm_src0, vmm_src1);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -33,10 +33,7 @@
 #    include "nodes/kernels/aarch64/brgemm_kernel.hpp"
 #endif
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace ov::Extensions::Cpu::XARCH {
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -332,7 +329,6 @@ static void attn_acc_value_block(float* out,
             auto attn_w_vec0 = _mm256_set1_ps(weight[0] * v_f0[0]);
             auto zp0 = _mm256_set1_ps(v_f0[1]);
             size_t i = 0;
-            v += 8;
             for (; i + vec_len_f32_avx2 <= group_size; i += vec_len_f32_avx2) {
                 auto v_out = mm256_uni_loadu_ps(out + dst_offset + i);
                 auto v0 = _mm256_sub_ps(_mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(
@@ -1048,7 +1044,7 @@ static void pack_32xK_kernel(T* dst, T* src, size_t dst_stride, size_t src_strid
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     auto midx = _mm512_loadu_si512(idx);
     __mmask16 mask = (1 << K) - 1;
-    for (size_t i = 0; i < K; i++) {
+    for (size_t i = 0; i < 16; i++) {
         auto x = _mm256_maskz_loadu_epi16(mask, src);               // [a1  a2  a3 a4]   total 256-bits in 4 64bits unit
         auto y = _mm256_maskz_loadu_epi16(mask, src + src_stride);  // [b1  b2  b3 b4]   total 256-bits
         auto a = _mm512_castsi256_si512(x);
@@ -1250,7 +1246,7 @@ struct MHAHelper {
 #    if defined(OPENVINO_ARCH_X86_64)
     std::shared_ptr<JitMatMulVecAMX> _gemv;
 #    endif
-    ov::element::Type _fastpath_valid_prec = ov::element::undefined;
+    ov::element::Type _fastpath_valid_prec = ov::element::dynamic;
     // second token for bhl loop
     PlainTensor _weight_bhl;
     PlainTensor _output_bhl;
@@ -2334,8 +2330,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
     void concat_pastkv(const PlainTensor& k,
                        const PlainTensor& v,
-                       const PlainTensor& k_cache,
-                       const PlainTensor& v_cache,
+                       PlainTensor& k_cache,
+                       PlainTensor& v_cache,
                        const PlainTensor& past_lens,
                        const PlainTensor& subsequence_begins,
                        const PlainTensor& block_indices,
@@ -2355,6 +2351,37 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                     block_indices.ptr<int32_t>()[block_number_start + block_offset / _helper._block_size];
                 _slot_mapping.ptr<int32_t>()[idx++] =
                     block_number * _helper._block_size + block_offset % _helper._block_size;
+            }
+            // To simplify tails of the kernels for Q*K and W*V:
+            // for first token kernels:
+            //    Q*K aka [m, k0] * [n0, k0]', there is already tails logic for m, k0, but no(always assume n0 is
+            //    block_size) for n0 which means the tail of k_cache need to be set to zero.
+            //    W*V aka [m, k1] * [n1, k1]', there is no tails handing for n1, so tails of v_cache need to be set to
+            //    zero.
+            // for second token, the kernels have tails handling logic
+            if (q_len != 1 && kv_len % _helper._block_size != 0) {
+                // block no. which contains tails
+                auto block_number = block_indices.ptr<int32_t>()[block_number_start + kv_len / _helper._block_size];
+                // tails start position
+                auto block_offset = kv_len % _helper._block_size;
+                // tails number
+                auto zero_tokens = _helper._block_size - block_offset;
+                auto S = k_cache.m_dims[3];
+                auto SV = v_cache.m_dims[3];
+                auto Hk = k_cache.m_dims[1];  // shape: [block, H, 32, S]
+                parallel_for2d(Hk, zero_tokens, [&](size_t h, size_t l) {
+                    auto set_zero =
+                        [](PlainTensor& cache, size_t block_number, size_t h, size_t l, size_t hidden_dims) {
+                            auto sub_byte_multiplier = get_sub_byte_multiplier(cache.get_precision());
+                            size_t cache_stride =
+                                (block_number * cache.stride(0) + h * cache.stride(1) + l * cache.stride(2)) *
+                                cache.get_precision().size() / sub_byte_multiplier;
+                            auto cache_ptr = cache.m_ptr.get() + cache_stride;
+                            std::memset(cache_ptr, 0, hidden_dims * cache.m_element_size / sub_byte_multiplier);
+                        };
+                    set_zero(k_cache, block_number, h, block_offset + l, S);
+                    set_zero(v_cache, block_number, h, block_offset + l, SV);
+                });
             }
         }
 
@@ -2524,7 +2551,4 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
     return executor;
 }
 
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu::XARCH
