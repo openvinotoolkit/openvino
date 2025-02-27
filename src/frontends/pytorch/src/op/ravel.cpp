@@ -8,8 +8,6 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_ravel(const NodeContext& context) {
-    OV_OP_SCOPE(v0_PyTorch_ravel);
-
     // Ensure exactly one input is provided
     num_inputs_check(context, 1, 1);
 
