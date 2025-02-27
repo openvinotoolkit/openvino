@@ -173,8 +173,6 @@ void ScatterElementsUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) c
             kd.kernels[i].params.workGroups.global = dispatchData.gws;
             kd.kernels[i].params.workGroups.local = dispatchData.lws;
             kd.kernels[i].skip_execution = KernelData::SkipKernelExecution(prim_params);
-            if (i == 0 && prim_params.outputs[0].LogicalSize() != 0 && prim_params.outputs[0] != prim_params.inputs[0])
-                kd.kernels[i].skip_execution = false;
         }
     };
 }

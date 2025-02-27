@@ -7,7 +7,7 @@
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include <list>
-#include "reshape_inst.h"
+
 
 using namespace cldnn;
 
@@ -34,23 +34,12 @@ void skipped_branch_memory_dependencies::run(program& p) {
             itrUsr++;
         }
 
-        cldnn::program_node* nodeBParent = nullptr;
-        if (nodeB->can_be_optimized()) {
-            if (nodeB->get_dependencies().size() > 0) {
-                nodeBParent = nodeB->get_dependencies()[0].first;
-            }
-        }
-
         // mark all nodes in between B and lastUsr of B as forbidden to share buffer with B
         while (itrA != processing_order.get_processing_iterator(**lastUsr) && itrA != processing_order.end()) {
             auto& nodeA = *itrA;
             itrA++;
             add_memory_dependency(nodeA, nodeB);
             add_memory_dependency(nodeB, nodeA);
-            if (nodeBParent) {
-                add_memory_dependency(nodeA, nodeBParent);
-                add_memory_dependency(nodeBParent, nodeA);
-            }
         }
     }
 }
