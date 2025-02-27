@@ -28,8 +28,11 @@ def normalize_imports(lines):
 
 
 # Ignore differences in memory addresses like in function _get_node_factory at 0x7fdad9f53640
-def remove_memory_addresses(lines):
-    return [re.sub(r'at 0x[0-9a-fA-F]+', 'at <memory_address>', line) for line in lines]
+# Also ignore versions like __version__: str = '2025.1.0-18198-298262e2962-pyi_files', which may be different in CI environment
+def remove_memory_addresses_and_versions(lines):
+    lines = [re.sub(r'at 0x[0-9a-fA-F]+', 'at <memory_address>', line) for line in lines]
+    lines = [re.sub(r'__version__: str = \'[\d\.\-a-f]+\'', '__version__: str = \'<version>\'', line) for line in lines]
+    return lines
 
 
 def compare_files(file1, file2):
@@ -42,8 +45,8 @@ def compare_files(file1, file2):
         normalized_lines1 = normalize_imports(lines1)
         normalized_lines2 = normalize_imports(lines2)
 
-        normalized_lines1 = remove_memory_addresses(normalized_lines1)
-        normalized_lines2 = remove_memory_addresses(normalized_lines2)
+        normalized_lines1 = remove_memory_addresses_and_versions(normalized_lines1)
+        normalized_lines2 = remove_memory_addresses_and_versions(normalized_lines2)
         return normalized_lines1 == normalized_lines2
     else:
         return True
