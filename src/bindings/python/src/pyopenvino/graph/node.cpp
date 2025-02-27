@@ -45,7 +45,7 @@ void regclass_graph_Node(py::module m) {
     node.def(
         "__add__",
         [](const std::shared_ptr<ov::Node>& a, const std::shared_ptr<ov::Node> b) {
-            return std::make_shared<ov::op::v1::Add>(a, b);
+            return std::shared_ptr<ov::Node>(std::make_shared<ov::op::v1::Add>(a, b));
         },
         py::is_operator());
     node.def(
