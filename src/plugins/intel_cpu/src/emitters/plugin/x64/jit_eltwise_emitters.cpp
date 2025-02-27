@@ -2557,11 +2557,12 @@ std::set<std::vector<element::Type>> jit_select_emitter::get_supported_precision
 size_t jit_select_emitter::aux_vecs_count() const {
     if (host_isa_ == x64::avx512_core) {
         return 0;
-    } else if (host_isa_ == x64::avx2) {  // tmp vec for mask
-        return 1;
-    } else {  // mask should be xmm0 on sse41 +  tmp vec for mask
-        return 2;
     }
+    if (host_isa_ == x64::avx2) {  // tmp vec for mask
+        return 1;
+    }
+    // mask should be xmm0 on sse41 +  tmp vec for mask
+    return 2;
 }
 
 void jit_select_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,

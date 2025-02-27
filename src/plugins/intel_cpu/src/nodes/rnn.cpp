@@ -57,35 +57,35 @@ static dnnl::algorithm ie2dnnl(const std::shared_ptr<const ov::Node>& op) {
         auto gruSeqOp = ov::as_type_ptr<const ov::op::v5::GRUSequence>(op);
         if ((gruCellOp && gruCellOp->get_linear_before_reset()) || (gruSeqOp && gruSeqOp->get_linear_before_reset())) {
             return dnnl::algorithm::lbr_gru;
-        } else {
-            return dnnl::algorithm::vanilla_gru;
         }
-    } else if (one_of(op->get_type_info(),
-                      ov::op::internal::AUGRUCell::get_type_info_static(),
-                      ov::op::internal::AUGRUSequence::get_type_info_static())) {
+        return dnnl::algorithm::vanilla_gru;
+    }
+    if (one_of(op->get_type_info(),
+               ov::op::internal::AUGRUCell::get_type_info_static(),
+               ov::op::internal::AUGRUSequence::get_type_info_static())) {
         auto gruCellOp = ov::as_type_ptr<const ov::op::internal::AUGRUCell>(op);
         auto gruSeqOp = ov::as_type_ptr<const ov::op::internal::AUGRUSequence>(op);
         if ((gruCellOp && gruCellOp->get_linear_before_reset()) || (gruSeqOp && gruSeqOp->get_linear_before_reset())) {
             return dnnl::algorithm::lbr_augru;
-        } else {
-            return dnnl::algorithm::vanilla_augru;
         }
-    } else if (one_of(op->get_type_info(),
-                      ov::op::v0::LSTMCell::get_type_info_static(),
-                      ov::op::v4::LSTMCell::get_type_info_static(),
-                      ov::op::v5::LSTMSequence::get_type_info_static())) {
-        return dnnl::algorithm::vanilla_lstm;
-    } else if (one_of(op->get_type_info(),
-                      ov::op::v0::RNNCell::get_type_info_static(),
-                      ov::op::v5::RNNSequence::get_type_info_static())) {
-        return dnnl::algorithm::vanilla_rnn;
-    } else {
-        OPENVINO_THROW("Operation ",
-                       op->get_type_name(),
-                       " with name '",
-                       op->get_friendly_name(),
-                       "' has unsupported cell type.");
+        return dnnl::algorithm::vanilla_augru;
     }
+    if (one_of(op->get_type_info(),
+               ov::op::v0::LSTMCell::get_type_info_static(),
+               ov::op::v4::LSTMCell::get_type_info_static(),
+               ov::op::v5::LSTMSequence::get_type_info_static())) {
+        return dnnl::algorithm::vanilla_lstm;
+    }
+    if (one_of(op->get_type_info(),
+               ov::op::v0::RNNCell::get_type_info_static(),
+               ov::op::v5::RNNSequence::get_type_info_static())) {
+        return dnnl::algorithm::vanilla_rnn;
+    }
+    OPENVINO_THROW("Operation ",
+                   op->get_type_name(),
+                   " with name '",
+                   op->get_friendly_name(),
+                   "' has unsupported cell type.");
 }
 
 inline size_t gatesCount(const algorithm& alg) {

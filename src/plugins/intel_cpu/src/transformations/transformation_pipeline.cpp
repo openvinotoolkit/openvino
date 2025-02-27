@@ -162,7 +162,7 @@
 #include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/tokenization.hpp"
 #if defined(SNIPPETS_LIBXSMM_TPP)
-#    include "transformations/tpp/x64/pass/brgemm_to_brgemm_tpp.hpp"
+#    include "transformations/tpp/common/pass/brgemm_to_brgemm_tpp.hpp"
 #endif
 
 // Misc
@@ -830,7 +830,8 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
         [&](const_node_ptr& node) -> bool {
             if (ov::is_type<ov::opset1::Multiply>(node)) {
                 return ov::is_type<ov::opset1::Multiply>(node) && is_decompression_multiply(node);
-            } else if (ov::is_type<ov::opset1::Subtract>(node)) {
+            }
+            if (ov::is_type<ov::opset1::Subtract>(node)) {
                 const auto& consumers = node->get_output_target_inputs(0);
                 if (consumers.size() == 1) {
                     const auto consumer = consumers.begin()->get_node()->shared_from_this();
