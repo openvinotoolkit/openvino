@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ std::string EltwiseChainTest::getTestCaseName(const testing::TestParamInfo<Eltwi
     }
     results << "secondaryInputType=" << secondaryInputType << "_";
     results << "WithQuant=" << withQuantization << "_";
-    if (conversion != ov::element::undefined) {
+    if (conversion != ov::element::dynamic) {
         results << "Conversion=" << conversion << "_";
     }
     results << "targetDevice=" << targetName;
@@ -104,9 +104,10 @@ void EltwiseChainTest::SetUp() {
             const auto param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[i], inputDynamicShapes[i]);
             paramVec.push_back(param);
 
-            const auto inputNode = (conversion == ov::element::undefined) ?
-                param :
-                std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(param, conversion));
+            const auto inputNode =
+                (conversion == ov::element::dynamic)
+                    ? param
+                    : std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(param, conversion));
             if (inputNodes1.empty()) {
                 inputNodes1.push_back(inputNode);
             }
@@ -114,15 +115,15 @@ void EltwiseChainTest::SetUp() {
         }
     } else {
         paramVec = ov::ParameterVector {std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], inputDynamicShapes.front())};
-        inputNodes1.push_back(
-                conversion == ov::element::undefined ?
-                paramVec.front() :
-                std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(paramVec.front(), conversion)));
+        inputNodes1.push_back(conversion == ov::element::dynamic
+                                  ? paramVec.front()
+                                  : std::dynamic_pointer_cast<ov::Node>(
+                                        std::make_shared<ov::op::v0::Convert>(paramVec.front(), conversion)));
 
         for (size_t i = 1; i < inputPrecisions.size(); i++) {
             std::vector<float> input1Data(ov::shape_size(targetStaticShapes[0][i]));
             inputNodes2.push_back(ov::test::utils::make_constant(
-                conversion == ov::element::undefined ? static_cast<ov::element::Type>(inputPrecisions[i]) : conversion,
+                conversion == ov::element::dynamic ? static_cast<ov::element::Type>(inputPrecisions[i]) : conversion,
                 targetStaticShapes[0][i]));
         }
     }

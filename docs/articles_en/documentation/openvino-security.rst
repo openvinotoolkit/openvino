@@ -8,7 +8,7 @@ with encryption or other security tools.
 Actual security and privacy requirements depend on your unique deployment scenario.
 This section provides general guidance on using OpenVINO tools and libraries securely.
 The main security measure for OpenVINO is its
-:doc:`Security Add-on <openvino-ecosystem/openvino-security-add-on>`. You can find its description
+:doc:`Security Add-on <../about-openvino/openvino-ecosystem/openvino-project/openvino-security-add-on>`. You can find its description
 in the Ecosystem section.
 
 .. _encrypted-models:
@@ -86,4 +86,4 @@ Additional Resources
 - Intel® Distribution of OpenVINO™ toolkit `home page <https://software.intel.com/en-us/openvino-toolkit>`__.
 - :doc:`Convert a Model <../openvino-workflow/model-preparation/convert-model-to-ir>`.
 - :doc:`OpenVINO™ Runtime User Guide <../openvino-workflow/running-inference>`.
-- For more information on Sample Applications, see the :doc:`OpenVINO Samples Overview <../learn-openvino/openvino-samples>`
+- For more information on Sample Applications, see the :doc:`OpenVINO Samples Overview <../get-started/learn-openvino/openvino-samples>`

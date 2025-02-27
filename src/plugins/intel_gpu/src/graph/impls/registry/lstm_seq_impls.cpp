@@ -10,17 +10,21 @@
     #include "impls/ocl/rnn_seq.hpp"
 #endif
 
+#if OV_GPU_WITH_CM
+    #include "impls/cm/lstm_seq.hpp"
+#endif
+
 #if OV_GPU_WITH_ONEDNN
     #include "impls/onednn/lstm_seq_onednn.hpp"
 #endif
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 using namespace cldnn;
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<lstm_seq>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
+        OV_GPU_CREATE_INSTANCE_CM(cm::LSTMSeqImplementationManager, shape_types::static_shape)
         OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::LSTMSeqImplementationManager, shape_types::static_shape)
         OV_GPU_CREATE_INSTANCE_OCL(ocl::RNNSeqImplementationManager, shape_types::static_shape)
     };
@@ -28,5 +32,4 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<lstm_
     return impls;
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

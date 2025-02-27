@@ -6,26 +6,26 @@
 
 using namespace dnnl::impl::cpu;
 
-namespace ov {
-namespace intel_cpu {
-namespace kernel {
+namespace ov::intel_cpu::kernel {
 
 #define GET_OFF(field) offsetof(GridSamplesKernelExecArgs, field)
 
 template <x64::cpu_isa_t isa>
 GridSampleKernel<isa>::GridSampleKernel(const GridSampleKernelConfParams& jcp)
     : GridSampleKernelBase(jit_name(), jcp, isa, x64::cpu_isa_traits<isa>::vlen) {
-    if (dataTypeSize == 2)
+    if (dataTypeSize == 2) {
         dataTypeShift = 1;
-    else if (dataTypeSize == 4)
+    } else if (dataTypeSize == 4) {
         dataTypeShift = 2;
+    }
 }
 
 template <x64::cpu_isa_t isa>
 void GridSampleKernel<isa>::create_ker() {
     auto code = x64::jit_generator::create_kernel();
-    if (code != dnnl::impl::status::success)
+    if (code != dnnl::impl::status::success) {
         OPENVINO_THROW("Could not create GridSample kernel. Error code: ", std::to_string(code));
+    }
     ker_ = (decltype(ker_))jit_ker();
 }
 
@@ -309,8 +309,9 @@ void GridSampleKernel<isa>::tail() {
     denormalizeRawCoordinates(vWCoord, vHCoord);
     interpolation(vWCoord, vHCoord, true);
 
-    if (dataTypeSize > 1)
+    if (dataTypeSize > 1) {
         sal(regWorkAmount, dataTypeShift);  // Multiply by source data type size.
+    }
     add(regDst, regWorkAmount);
 
     L(lEnd);
@@ -429,7 +430,7 @@ void GridSampleKernel<x64::avx512_core>::getTailCoordinates(const Vmm& vHCoord, 
         jle(lEnd, T_NEAR);
 
         fillRestWorkMask(kTailMask, rAux);
-        uni_vmovups((Vmm)vAux | kTailMask, ptr[regGrid]);
+        uni_vmovups(Vmm(vAux) | kTailMask, ptr[regGrid]);
         vpermd(vAux, vGridPermMask, vAux);
         Xbyak::Ymm ymmAux(vAux.getIdx());
         vshuff64x2(vWCoord, vWCoord, vAux, 0B01000100);  // Extract X component
@@ -446,8 +447,9 @@ void GridSampleKernel<x64::avx512_core>::getTailCoordinates(const Vmm& vHCoord, 
     }
 
     L(lGridShift);
-    if (dataTypeSize > 1)
+    if (dataTypeSize > 1) {
         sal(rAux, dataTypeShift);  // Multiply by source data type size.
+    }
     add(regGrid, rAux);
 
     L(lEnd);
@@ -502,8 +504,9 @@ void GridSampleKernel<x64::avx2>::getTailCoordinates(const Vmm& vHCoord, const V
     }
 
     L(lGridShift);
-    if (dataTypeSize > 1)
+    if (dataTypeSize > 1) {
         sal(rAux, dataTypeShift);  // Multiply by source data type size.
+    }
     add(regGrid, rAux);
 
     L(lEnd);
@@ -524,10 +527,11 @@ void GridSampleKernel<x64::avx>::getTailCoordinates(const Vmm& vHCoord, const Vm
         cmp(rGridRest, 0);
         jle(lEnd, T_NEAR);
 
-        if (gridTypeSize == 4)
+        if (gridTypeSize == 4) {
             pinsrd(i % 2 == 0 ? xmmWCoord : xmmHCoord, ptr[regGrid], i / 2);
-        else if (gridTypeSize == 2)
+        } else if (gridTypeSize == 2) {
             pinsrw(i % 2 == 0 ? xmmWCoord : xmmHCoord, ptr[regGrid], i / 2);
+        }
 
         add(regGrid, gridTypeSize);
         dec(rGridRest);
@@ -543,10 +547,11 @@ void GridSampleKernel<x64::avx>::getTailCoordinates(const Vmm& vHCoord, const Vm
         cmp(rGridRest, 0);
         jle(lLoop2End, T_NEAR);
 
-        if (gridTypeSize == 4)
+        if (gridTypeSize == 4) {
             pinsrd(i % 2 == 0 ? xmmWCoord : xmmHCoord, ptr[regGrid], i / 2);
-        else if (gridTypeSize == 2)
+        } else if (gridTypeSize == 2) {
             pinsrw(i % 2 == 0 ? xmmWCoord : xmmHCoord, ptr[regGrid], i / 2);
+        }
 
         add(regGrid, gridTypeSize);
         dec(rGridRest);
@@ -600,8 +605,9 @@ void GridSampleKernel<x64::sse41>::getTailCoordinates(const Vmm& vHCoord, const 
     }
 
     L(lGridShift);
-    if (dataTypeSize > 1)
+    if (dataTypeSize > 1) {
         sal(rAux, dataTypeShift);  // Multiply by source data type size.
+    }
     add(regGrid, rAux);
 
     L(lEnd);
@@ -877,8 +883,9 @@ void GridSampleKernel<x64::avx512_core>::reflectionPadding(const Vmm& vCoordDst,
     } else {
         const auto& vSrcDimMul2F = dim == coord::w ? vSrcWidthMul2F : vSrcHeightMul2F;
         // (x % D2 + D2) % D2
-        if (vCoordDst.getIdx() != vCoordOrigin.getIdx())
+        if (vCoordDst.getIdx() != vCoordOrigin.getIdx()) {
             uni_vmovups(vCoordDst, vCoordOrigin);
+        }
         uni_vdivps(vAux, vCoordDst, vSrcDimMul2F);
         uni_vroundps(vAux, vAux, 0x3);                    // Truncation
         uni_vfnmadd231ps(vCoordDst, vAux, vSrcDimMul2F);  // x % D2
@@ -950,8 +957,9 @@ void GridSampleKernel<isa>::reflectionPadding(const Vmm& vCoordDst, const Vmm& v
         uni_vsubps(vAux0, vCoordDst, vMul2Sub1);  // abs(x) % D21 - D21
     } else {
         // x' = (x % D2 + D2) % D2 - D21
-        if (vCoordDst.getIdx() != vCoordOrigin.getIdx())
+        if (vCoordDst.getIdx() != vCoordOrigin.getIdx()) {
             uni_vmovups(vCoordDst, vCoordOrigin);
+        }
         Vmm vMul2;
         if (dim == coord::w) {
             if (vSrcWidthMul2F.isInitialized()) {
@@ -1242,10 +1250,11 @@ void GridSampleKernel<isa>::nearestInterpolation(const Vmm& vWCoord, const Vmm& 
         }
 
         if (jcp.paddingMode == GridSamplePaddingMode::ZEROS) {
-            if (isa == x64::avx512_core && tail)
+            if (isa == x64::avx512_core && tail) {
                 uni_kandd(kAuxMask, kTailMask, kGatherMask);
-            else
+            } else {
                 uni_kmovd(kAuxMask, kGatherMask);
+            }
         }
 
         if (!tail) {
@@ -1542,8 +1551,9 @@ void GridSampleKernel<isa>::bilinearInterpolation(const Vmm& vWCoord, const Vmm&
         // (y; x + 1)
         if (jcp.paddingMode == GridSamplePaddingMode::ZEROS) {
             uni_vpaddd(shift10, shift00, ptr[rTypeSize]);
-            if (isa == x64::avx2)
+            if (isa == x64::avx2) {
                 uni_vmovups(vGatherMask, vMask01);
+            }
         }
         gatherdd(vAux,
                  rSrcTmp,
@@ -1568,8 +1578,9 @@ void GridSampleKernel<isa>::bilinearInterpolation(const Vmm& vWCoord, const Vmm&
                 mov(rSrcWidth, ptr[regParams + GET_OFF(srcWidthB)]);
                 uni_vpaddd(shift10, shift10, ptr[rSrcWidth]);
             }
-            if (isa == x64::avx2)
+            if (isa == x64::avx2) {
                 uni_vmovups(vGatherMask, vMask11);
+            }
         }
         gatherdd(vAux,
                  rSrcTmp,
@@ -1584,8 +1595,9 @@ void GridSampleKernel<isa>::bilinearInterpolation(const Vmm& vWCoord, const Vmm&
         // (y + 1; x)
         if (jcp.paddingMode == GridSamplePaddingMode::ZEROS) {
             uni_vpsubd(shift10, shift10, ptr[rTypeSize]);
-            if (isa == x64::avx2)
+            if (isa == x64::avx2) {
                 uni_vmovups(vGatherMask, vMask10);
+            }
         }
         gatherdd(vQ1,
                  rSrcTmp,
@@ -1724,8 +1736,9 @@ void GridSampleKernel<x64::avx512_core>::bicubicInterpolation(const Vmm& vWCoord
                 uni_vaddps(vSrcShift, vSrcShift0, vSrcShift);
             }
             uni_vcvtps2dq(vSrcShift, vSrcShift);
-            if (dataTypeSize > 1)
+            if (dataTypeSize > 1) {
                 uni_vpslld(vSrcShift, vSrcShift, dataTypeShift);
+            }
             gatherdd(vAux, rSrcTmp, vSrcShift, kAuxMask, useMask, zeroFill);
             if (jcp.inDataPrc == ov::element::i32) {
                 uni_vcvtdq2ps(vAux, vAux);
@@ -1748,8 +1761,9 @@ void GridSampleKernel<x64::avx512_core>::bicubicInterpolation(const Vmm& vWCoord
                     uni_vaddps(vSrcShift, vSrcShift0, vSrcShift);
                 }
                 uni_vcvtps2dq(vSrcShift, vSrcShift);
-                if (dataTypeSize > 1)
+                if (dataTypeSize > 1) {
                     uni_vpslld(vSrcShift, vSrcShift, dataTypeShift);
+                }
                 gatherdd(vAux, rSrcTmp, vSrcShift, kAuxMask, useMask, zeroFill);
                 if (jcp.inDataPrc == ov::element::i32) {
                     uni_vcvtdq2ps(vAux, vAux);
@@ -1837,8 +1851,8 @@ void GridSampleKernel<isa>::bicubicInterpolation(const Vmm& vWCoord, const Vmm& 
             borderPadding(vH, vHTop, coord::h);
             uni_vmulps(vH, vH, vSrcWidthF);
             auto vShift = getVmm();
-            for (int w = 0; w < 4; w++) {
-                uni_vaddps(vShift, vH, vW[w]);
+            for (auto& w : vW) {
+                uni_vaddps(vShift, vH, w);
                 dataTypeShiftPs2Dq(vShift, vShift);
                 uni_vmovups(ptr[rBuff + bufShift], vShift);
                 bufShift += vlen;
@@ -1891,8 +1905,8 @@ void GridSampleKernel<isa>::bicubicInterpolation(const Vmm& vWCoord, const Vmm& 
             reflectionPadding(vH, vHTop, coord::h);
             uni_vmulps(vH, vH, vSrcWidthF);
             auto vShift = getVmm();
-            for (int w = 0; w < 4; w++) {
-                uni_vaddps(vShift, vH, vW[w]);
+            for (auto& w : vW) {
+                uni_vaddps(vShift, vH, w);
                 dataTypeShiftPs2Dq(vShift, vShift);
                 uni_vmovups(ptr[rBuff + bufShift], vShift);
                 bufShift += vlen;
@@ -2049,8 +2063,9 @@ void GridSampleKernel<isa>::bicubicInterpolation(const Vmm& vWCoord, const Vmm& 
 
 template <x64::cpu_isa_t isa>
 void GridSampleKernel<isa>::dataTypeShiftPs2Dq(const Vmm& vDst, const Vmm& vSrc) {
-    if (dataTypeSize == 1)
+    if (dataTypeSize == 1) {
         return;
+    }
 
     if (isa == x64::avx) {  // vpslld works just with XMM for AVX, so use vmulps for YMM
         auto rAux = getReg64();
@@ -2061,8 +2076,9 @@ void GridSampleKernel<isa>::dataTypeShiftPs2Dq(const Vmm& vDst, const Vmm& vSrc)
         uni_vcvtps2dq(vDst, vDst);
     } else {
         uni_vcvtps2dq(vDst, vSrc);
-        if (dataTypeSize > 1)
+        if (dataTypeSize > 1) {
             uni_vpslld(vDst, vDst, dataTypeShift);  // multiply by source data type size.
+        }
     }
 }
 
@@ -2101,8 +2117,9 @@ void GridSampleKernel<isa>::hwShiftPs2dq(const Vmm& vDst, const Vmm& vHCoord, co
         uni_vcvtps2dq(vDst, vDst);
     } else {
         uni_vcvtps2dq(vDst, vDst);
-        if (dataTypeSize > 1)
+        if (dataTypeSize > 1) {
             uni_vpslld(vDst, vDst, dataTypeShift);  // multiply by source data type size.
+        }
     }
 }
 
@@ -2110,6 +2127,4 @@ template class GridSampleKernel<x64::avx512_core>;
 template class GridSampleKernel<x64::avx2>;
 template class GridSampleKernel<x64::sse41>;
 
-}  // namespace kernel
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::kernel

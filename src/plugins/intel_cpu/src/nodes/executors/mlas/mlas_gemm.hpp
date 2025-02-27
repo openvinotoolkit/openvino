@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -10,8 +10,7 @@
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class MlasGemmExecutor : public Executor {
 public:
@@ -43,5 +42,4 @@ private:
 
 using MlasGemmExecutorPtr = std::shared_ptr<MlasGemmExecutor>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

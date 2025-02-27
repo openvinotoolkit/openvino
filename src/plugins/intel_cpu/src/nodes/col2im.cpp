@@ -7,9 +7,7 @@
 #include "openvino/op/col2im.hpp"
 #include "openvino/reference/col2im.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 Col2Im::Col2Im(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
@@ -40,8 +38,9 @@ void Col2Im::getSupportedDescriptors() {
 }
 
 void Col2Im::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
     ov::element::Type dataPrecision = getOriginalInputPrecisionAtPort(0);
     addSupportedPrimDesc(
         {{LayoutType::ncsp, dataPrecision}, {LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},
@@ -106,6 +105,4 @@ void Col2Im::execute(const dnnl::stream& strm) {
               OV_CASE2(ov::element::i8, ov::element::i32, int8_t, int32_t),
               OV_CASE2(ov::element::u8, ov::element::i32, uint8_t, int32_t))
 }
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

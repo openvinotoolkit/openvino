@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -111,7 +111,6 @@ namespace testValues1 {
 const std::vector<int> opset_version = {1, 7, 8};
 
 const std::vector<ov::PartialShape> inputShapes3D = {{3, 3, 4}, {-1, -1, -1}};
-
 const std::vector<GatherTransformationTestValues> testValues = {
     // U8: per-tensor quantization
     {{1},
@@ -149,13 +148,13 @@ const std::vector<GatherTransformationTestValues> testValues = {
      LayerTransformation::createParamsU8I8(),
      {ov::element::u8,
       {{ov::element::f32},
-       {{128.f}, element::undefined, {1, 3, 1}, false, 1ul, element::u8, true},
+       {{128.f}, element::dynamic, {1, 3, 1}, false, 1ul, element::u8, true},
        {{0.1f}, ov::element::f32, {1, 3, 1}}}},
      {ov::element::u8,
       {{}, {}, {}},
       ov::element::u8,
       {{ov::element::f32},
-       {{128.f}, element::undefined, {1, 3, 1}, false, 1ul, element::u8, true},
+       {{128.f}, element::dynamic, {1, 3, 1}, false, 1ul, element::u8, true},
        {{0.1f}, ov::element::f32, {1, 3, 1}}}}},
     // U8: per-channel quantization, gather axis match with channel
     {{1},

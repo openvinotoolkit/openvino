@@ -44,10 +44,10 @@
 #    include "emitters/tpp/x64/jit_eltwise_emitters.hpp"
 #    include "emitters/tpp/x64/jit_equation_emitter.hpp"
 #    include "emitters/tpp/x64/jit_scalar_emitter.hpp"
-#    include "transformations/tpp/x64/op/brgemm.hpp"
+#    include "transformations/tpp/common/op/brgemm.hpp"
+#    include "transformations/tpp/common/op/modifiers.hpp"
 #    include "transformations/tpp/x64/op/eltwise.hpp"
 #    include "transformations/tpp/x64/op/equation.hpp"
-#    include "transformations/tpp/x64/op/modifiers.hpp"
 #    include "transformations/tpp/x64/op/reduce.hpp"
 #    include "transformations/tpp/x64/op/scalar.hpp"
 // Note: for reference implementations
@@ -101,9 +101,8 @@ static bool is_segfault_detector_emitter(const intel_cpu::jit_emitter* emitter) 
                     return std::make_shared<jit_debug_emitter>(emitter,                                             \
                                                                segfault_emitter,                                    \
                                                                jit_debug_emitter::EmissionLocation::preamble);      \
-                } else {                                                                                            \
-                    return emitter;                                                                                 \
                 }                                                                                                   \
+                return emitter;                                                                                     \
             },                                                                                                      \
                 [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {                    \
                     return e_type::get_supported_precisions(n);                                                     \
@@ -295,7 +294,8 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
 #endif
 
 #ifdef SNIPPETS_LIBXSMM_TPP
-    jitters[intel_cpu::tpp::op::BrgemmTPP::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BrgemmTppEmitter);
+    jitters[intel_cpu::tpp::op::BrgemmTPP::get_type_info_static()] =
+        CREATE_SNIPPETS_EMITTER(BrgemmTppEmitter, configurator->get_kernel_executor_table(), compiled_kernel_cache);
     jitters[intel_cpu::tpp::op::Add::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BinaryEltwiseTppEmitter);
     jitters[intel_cpu::tpp::op::Subtract::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BinaryEltwiseTppEmitter);
     jitters[intel_cpu::tpp::op::Multiply::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BinaryEltwiseTppEmitter);
@@ -344,8 +344,9 @@ size_t intel_cpu::CPUTargetMachine::get_lanes() const {
 std::vector<snippets::Reg> intel_cpu::CPUTargetMachine::get_abi_arg_regs() const {
     const auto& abi_regs = dnnl::impl::cpu::x64::abi_param_regs;
     std::vector<snippets::Reg> res;
-    for (const auto& r : abi_regs)
+    for (const auto& r : abi_regs) {
         res.emplace_back(snippets::RegType::gpr, r);
+    }
     return res;
 }
 
@@ -353,8 +354,9 @@ std::vector<snippets::Reg> intel_cpu::CPUTargetMachine::get_gp_reg_pool() const 
     const auto num_gp_regs = 16;
     std::vector<snippets::Reg> reg_pool;
     for (size_t i = 0; i < num_gp_regs; i++) {
-        if (!one_of(i, Xbyak::Operand::RSP))
+        if (!one_of(i, Xbyak::Operand::RSP)) {
             reg_pool.emplace_back(snippets::RegType::gpr, i);
+        }
     }
     return reg_pool;
 }
@@ -374,8 +376,9 @@ std::vector<snippets::Reg> intel_cpu::CPUTargetMachine::get_vec_reg_pool() const
     }();
     std::vector<snippets::Reg> reg_pool;
     reg_pool.reserve(num_vec_regs);
-    for (int i = 0; i < num_vec_regs; i++)
+    for (int i = 0; i < num_vec_regs; i++) {
         reg_pool.emplace_back(snippets::RegType::vec, static_cast<size_t>(i));
+    }
     return reg_pool;
 }
 
@@ -433,12 +436,13 @@ ov::snippets::RegType intel_cpu::CPUGenerator::get_specific_op_out_reg_type(cons
         std::dynamic_pointer_cast<intel_cpu::tpp::modifier::TensorProcessingPrimitive>(op) ||
         is_type<intel_cpu::tpp::op::Scalar>(op) ||
 #endif
-        is_type<intel_cpu::BrgemmCopyB>(op))
+        is_type<intel_cpu::BrgemmCopyB>(op)) {
         return ov::snippets::RegType::gpr;
-    else if (is_type<intel_cpu::FusedMulAdd>(op) || is_type<intel_cpu::SwishNode>(op))
+    }
+    if (is_type<intel_cpu::FusedMulAdd>(op) || is_type<intel_cpu::SwishNode>(op)) {
         return ov::snippets::RegType::vec;
-    else
-        return ov::snippets::RegType::undefined;
+    }
+    return ov::snippets::RegType::undefined;
 }
 
 bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& e) const {

@@ -77,7 +77,7 @@ Install requirements
 
 .. code:: ipython3
 
-    %pip install -q "ultralytics==8.2.24" "matplotlib>=3.4" "onnx<1.16.2" tqdm --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "ultralytics==8.3.59" "matplotlib>=3.4" "onnx<1.16.2" tqdm --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino>=2024.4.0"
     %pip install -q "nncf>=2.9.0"
     %pip install -q "gradio>=4.13"
@@ -109,21 +109,27 @@ Imports
     # Fetch skip_kernel_extension module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
-    )
-    open("skip_kernel_extension.py", "w").write(r.text)
-    # Fetch `notebook_utils` module
-    import requests
+    if not Path("skip_kernel_extension.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
+        )
+        open("skip_kernel_extension.py", "w").write(r.text)
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
     
-    open("notebook_utils.py", "w").write(r.text)
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+    
+        open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file, device_widget
     
     %load_ext skip_kernel_extension
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("fast-segment-anything.ipynb")
 
 FastSAM in Ultralytics
 ----------------------
@@ -143,22 +149,22 @@ model and generate a segmentation map.
     model_name = "FastSAM-x"
     model = FastSAM(model_name)
     
-    # Run inference on an image
-    image_uri = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg"
-    image_uri = download_file(image_uri)
+    image_uri = Path("coco_bile.jpg")
+    if not image_uri.exists():
+        # Run inference on an image
+        image_url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg"
+        image_uri = download_file(image_url)
     results = model(image_uri, device="cpu", retina_masks=True, imgsz=1024, conf=0.6, iou=0.9)
 
 
 .. parsed-literal::
 
-    Downloading https://github.com/ultralytics/assets/releases/download/v8.2.0/FastSAM-x.pt to 'FastSAM-x.pt'...
+    Downloading https://github.com/ultralytics/assets/releases/download/v8.3.0/FastSAM-x.pt to 'FastSAM-x.pt'...
 
 
 .. parsed-literal::
 
-    100%|██████████| 138M/138M [00:03<00:00, 46.3MB/s]
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/ultralytics/nn/tasks.py:732: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
-      ckpt = torch.load(file, map_location="cpu")
+    100%|██████████| 138M/138M [00:07<00:00, 19.6MB/s]
 
 
 
@@ -170,8 +176,8 @@ model and generate a segmentation map.
 .. parsed-literal::
 
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 768x1024 37 objects, 638.3ms
-    Speed: 3.4ms preprocess, 638.3ms inference, 500.4ms postprocess per image at shape (1, 3, 768, 1024)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/875/archive/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 768x1024 37 objects, 801.0ms
+    Speed: 3.2ms preprocess, 801.0ms inference, 34.5ms postprocess per image at shape (1, 3, 768, 1024)
 
 
 The model returns segmentation maps for all the objects on the image.
@@ -209,15 +215,17 @@ tracing. The FastSAM model itself is based on YOLOv8 model.
 
 .. parsed-literal::
 
-    Ultralytics YOLOv8.2.24 🚀 Python-3.8.10 torch-2.4.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
+    Ultralytics 8.3.59 🚀 Python-3.8.10 torch-2.4.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
     
     PyTorch: starting from 'FastSAM-x.pt' with input shape (1, 3, 1024, 1024) BCHW and output shape(s) ((1, 37, 21504), (1, 32, 256, 256)) (138.3 MB)
+    requirements: Ultralytics requirement ['openvino>=2024.5.0'] not found, attempting AutoUpdate...
+    requirements: ❌ AutoUpdate skipped (offline)
     
     OpenVINO: starting export with openvino 2024.4.0-16579-c3152d32c9c-releases/2024/4...
-    OpenVINO: export success ✅ 6.2s, saved as 'FastSAM-x_openvino_model/' (276.1 MB)
+    OpenVINO: export success ✅ 7.3s, saved as 'FastSAM-x_openvino_model/' (276.1 MB)
     
-    Export complete (9.2s)
-    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/fast-segment-anything
+    Export complete (9.4s)
+    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/875/archive/.workspace/scm/ov-notebook/notebooks/fast-segment-anything
     Predict:         yolo predict task=segment model=FastSAM-x_openvino_model imgsz=1024  
     Validate:        yolo val task=segment model=FastSAM-x_openvino_model imgsz=1024 data=ultralytics/datasets/sa.yaml  
     Visualize:       https://netron.app
@@ -321,8 +329,8 @@ pipeline.
 .. parsed-literal::
 
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 1024x1024 42 objects, 498.5ms
-    Speed: 6.1ms preprocess, 498.5ms inference, 31.6ms postprocess per image at shape (1, 3, 1024, 1024)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/875/archive/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 1024x1024 42 objects, 500.3ms
+    Speed: 7.8ms preprocess, 500.3ms inference, 39.1ms postprocess per image at shape (1, 3, 1024, 1024)
 
 
 One can observe the converted model outputs in the next cell, they is
@@ -648,9 +656,9 @@ calibration dataset to measure the performance.
 
 .. parsed-literal::
 
-    Segmented in 21 seconds
-    Resulting in 6.1 fps
-    That is 3.24 times faster!
+    Segmented in 22 seconds
+    Resulting in 5.82 fps
+    That is 3.09 times faster!
 
 
 Try out the converted pipeline

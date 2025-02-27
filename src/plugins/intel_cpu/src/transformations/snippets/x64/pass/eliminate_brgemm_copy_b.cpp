@@ -13,8 +13,7 @@
 #include "snippets/op/reorder.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 pass::EliminateBrgemmCopyB::EliminateBrgemmCopyB() {
     MATCHER_SCOPE(EliminateBrgemmCopyB);
@@ -22,7 +21,7 @@ pass::EliminateBrgemmCopyB::EliminateBrgemmCopyB() {
     auto m_rank_norm = ov::pass::pattern::optional<ov::snippets::op::RankNormalization>(m_param);
     auto m_copy_b = ov::pass::pattern::wrap_type<BrgemmCopyB>({m_param});
 
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
+    auto callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::EliminateBrgemmCopyB")
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& copy_b_out = pattern_map.at(m_copy_b);
@@ -38,8 +37,9 @@ pass::EliminateBrgemmCopyB::EliminateBrgemmCopyB() {
 
         // TODO [157340]: support external repacking for copyB with compensations
         if (!is_supported_layout(layout) || brgemm_utils::with_compensations(copy_b_node->get_type()) ||
-            transformation_callback(copy_b_node))
+            transformation_callback(copy_b_node)) {
             return false;
+        }
 
         // If there is non-planar layout, we should insert reshape to support shape inference
         if (!ov::snippets::utils::is_planar_layout(layout)) {
@@ -57,5 +57,4 @@ pass::EliminateBrgemmCopyB::EliminateBrgemmCopyB() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(m_copy_b, matcher_name);
     register_matcher(m, callback);
 }
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
