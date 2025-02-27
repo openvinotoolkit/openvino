@@ -154,33 +154,30 @@ namespace {
 static inline float boxArea(const float* bbox, const bool normalized) {
     if (bbox[2] < bbox[0] || bbox[3] < bbox[1]) {
         return static_cast<float>(0.);
-    } else {
-        const float width = bbox[2] - bbox[0];
-        const float height = bbox[3] - bbox[1];
-        if (normalized) {
-            return width * height;
-        } else {
-            return (width + 1) * (height + 1);
-        }
     }
+    const float width = bbox[2] - bbox[0];
+    const float height = bbox[3] - bbox[1];
+    if (normalized) {
+        return width * height;
+    }
+    return (width + 1) * (height + 1);
 }
 
 static inline float intersectionOverUnion(const float* bbox1, const float* bbox2, const bool normalized) {
     if (bbox2[0] > bbox1[2] || bbox2[2] < bbox1[0] || bbox2[1] > bbox1[3] || bbox2[3] < bbox1[1]) {
         return static_cast<float>(0.);
-    } else {
-        const float xMin = std::max(bbox1[0], bbox2[0]);
-        const float yMin = std::max(bbox1[1], bbox2[1]);
-        const float xMax = std::min(bbox1[2], bbox2[2]);
-        const float yMax = std::min(bbox1[3], bbox2[3]);
-        float norm = normalized ? static_cast<float>(0.) : static_cast<float>(1.);
-        float width = xMax - xMin + norm;
-        float height = yMax - yMin + norm;
-        const float interArea = width * height;
-        const float bbox1Area = boxArea(bbox1, normalized);
-        const float bbox2Area = boxArea(bbox2, normalized);
-        return interArea / (bbox1Area + bbox2Area - interArea);
     }
+    const float xMin = std::max(bbox1[0], bbox2[0]);
+    const float yMin = std::max(bbox1[1], bbox2[1]);
+    const float xMax = std::min(bbox1[2], bbox2[2]);
+    const float yMax = std::min(bbox1[3], bbox2[3]);
+    float norm = normalized ? static_cast<float>(0.) : static_cast<float>(1.);
+    float width = xMax - xMin + norm;
+    float height = yMax - yMin + norm;
+    const float interArea = width * height;
+    const float bbox1Area = boxArea(bbox1, normalized);
+    const float bbox2Area = boxArea(bbox2, normalized);
+    return interArea / (bbox1Area + bbox2Area - interArea);
 }
 }  // namespace
 

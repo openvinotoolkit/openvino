@@ -554,9 +554,8 @@ MemoryDescPtr MatMul::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_
         return std::make_shared<CpuBlockedMemoryDesc>(
             DnnlExtensionUtils::DataTypeToElementType(desc.get_data_type()),
             getInputShapeAtPort(idx)); /* provide initial shapes, so hide transpose effect */
-    } else {                           // bias
-        return DnnlExtensionUtils::makeDescriptor(desc);
-    }
+    }                                  // bias
+    return DnnlExtensionUtils::makeDescriptor(desc);
 }
 
 bool MatMul::created() const {

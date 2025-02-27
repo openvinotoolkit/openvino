@@ -244,8 +244,9 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
                 }
 
                 return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
-            } else if (lt == Blocked && shape.getRank() != 1 &&
-                       (shape.getMinDims()[1] != Shape::UNDEFINED_DIM && shape.getMinDims()[1] > 1)) {
+            }
+            if (lt == Blocked && shape.getRank() != 1 &&
+                (shape.getMinDims()[1] != Shape::UNDEFINED_DIM && shape.getMinDims()[1] > 1)) {
 #if defined(OPENVINO_ARCH_ARM64)
                 size_t blockSize = 16;
 #else
@@ -261,13 +262,12 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
                 order.push_back(1);
 
                 return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
-            } else {
-                VectorDims blocks = dims;
-                VectorDims order(blocks.size());
-                std::iota(order.begin(), order.end(), 0);
-
-                return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
             }
+            VectorDims blocks = dims;
+            VectorDims order(blocks.size());
+            std::iota(order.begin(), order.end(), 0);
+
+            return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
         };
 
         size_t offset = 0;
@@ -701,26 +701,24 @@ void Subgraph::prepareParams() {
                                                                         start_offset_out,
                                                                         allocator,
                                                                         cache);
-        } else {
-            // Static case:
-            // 1. Update runtime config to get static scheduling data (io data offsets, parallel domain) which will be
-            // compiled in JIT code
-            // 2. Generate JIT code with this static data if needed
-            // 3. Create SubgraphStaticExecutor
-            const auto& snippet_config = ov::as_type_ptr<CPURuntimeConfig>(snippet->update_runtime_config());
-            const auto code_gen_result = cache->getOrCreate(
-                SubgraphCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes)),
-                [&snippet_config](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
-                    return std::make_shared<SubgraphCodeGenerator>(key.attrs, snippet_config);
-                });
-            return std::make_shared<SubgraphStaticExecutor>(snippet_config,
-                                                            key.attrs,
-                                                            code_gen_result.first,
-                                                            start_offset_in,
-                                                            start_offset_out,
-                                                            allocator,
-                                                            cache);
-        }
+        }  // Static case:
+        // 1. Update runtime config to get static scheduling data (io data offsets, parallel domain) which will be
+        // compiled in JIT code
+        // 2. Generate JIT code with this static data if needed
+        // 3. Create SubgraphStaticExecutor
+        const auto& snippet_config = ov::as_type_ptr<CPURuntimeConfig>(snippet->update_runtime_config());
+        const auto code_gen_result = cache->getOrCreate(
+            SubgraphCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes)),
+            [&snippet_config](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
+                return std::make_shared<SubgraphCodeGenerator>(key.attrs, snippet_config);
+            });
+        return std::make_shared<SubgraphStaticExecutor>(snippet_config,
+                                                        key.attrs,
+                                                        code_gen_result.first,
+                                                        start_offset_in,
+                                                        start_offset_out,
+                                                        allocator,
+                                                        cache);
     };
 
     const auto result = cache->getOrCreate(SubgraphKey(subgraph_attrs, in_shapes), builder);

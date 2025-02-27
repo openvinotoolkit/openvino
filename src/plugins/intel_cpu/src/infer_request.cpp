@@ -334,9 +334,8 @@ const ov::Output<const ov::Node>& SyncInferRequest::get_internal_port(const ov::
     OPENVINO_ASSERT(port_find.found(), "Can not find port: ", port.get_any_name());
     if (port_find.is_input()) {
         return m_input_ports_map.at(port_find.idx);
-    } else {
-        return m_output_ports_map.at(port_find.idx);
     }
+    return m_output_ports_map.at(port_find.idx);
 }
 
 void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, const ov::SoPtr<ov::ITensor>& in_tensor) {

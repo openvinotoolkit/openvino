@@ -135,9 +135,8 @@ size_t Range::getWorkAmount(data_t* startPtr, data_t* stopPtr, data_t* stepPtr) 
         int iSpan = static_cast<int>(span);
         int iStep = static_cast<int>(step);
         return static_cast<size_t>(div_up(iSpan < 0 ? -iSpan : iSpan, iStep < 0 ? -iStep : iStep));
-    } else {
-        return static_cast<size_t>(std::ceil(std::fabs(span) / std::fabs(step)));
     }
+    return static_cast<size_t>(std::ceil(std::fabs(span) / std::fabs(step)));
 }
 
 template <typename data_t>

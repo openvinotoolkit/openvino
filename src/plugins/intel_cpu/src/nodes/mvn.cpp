@@ -1973,10 +1973,9 @@ void MVN::initSupportedPrimitiveDescriptors() {
         for (auto& node : fusedWith) {
             if (isUnaryEltwise(node)) {
                 continue;
-            } else {
-                onlyUnaryPostOps = false;
-                break;
             }
+            onlyUnaryPostOps = false;
+            break;
         }
     }
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)

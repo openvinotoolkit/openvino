@@ -270,9 +270,8 @@ Type TypeFromName(const std::string& type) {
     auto itType = type_to_name_tbl.find(type);
     if (type_to_name_tbl.end() != itType) {
         return itType->second;
-    } else {
-        return Type::Unknown;
     }
+    return Type::Unknown;
 }
 
 std::string NameFromType(const Type type) {

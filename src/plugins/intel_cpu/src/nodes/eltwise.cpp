@@ -101,9 +101,8 @@ Eltwise::BroadcastingPolicy Eltwise::determineBroadcastingPolicy(const std::shar
     auto const_shape = op->get_input_shape(constPort);
     if (ov::shape_size(const_shape) == 1) {
         return PerTensor;
-    } else {
-        return PerChannel;
     }
+    return PerChannel;
 }
 
 const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getInitializers() {
@@ -1504,15 +1503,16 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                         return prc;
                     }
                     return ov::element::f32;
-                } else if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), prc) ==
-                           supportedPrecisions.end()) {
+                }
+                if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), prc) ==
+                    supportedPrecisions.end()) {
                     if (prc == ov::element::u32 || prc == ov::element::i64 || prc == ov::element::u64) {
                         return ov::element::i32;
-                    } else if (prc == ov::element::f64) {
-                        return ov::element::f32;
-                    } else {
-                        THROW_CPU_NODE_ERR("doesn't support ", prc, " precision.");
                     }
+                    if (prc == ov::element::f64) {
+                        return ov::element::f32;
+                    }
+                    THROW_CPU_NODE_ERR("doesn't support ", prc, " precision.");
                 } else {
                     return prc;
                 }
@@ -1563,8 +1563,9 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                 // TODO: need investigate
                 // bad accuracy for shape {1, 1, 4, 11}, {2, 5, 1, 1}
                 // same for disabled collapse dims
-            } else if (lt == Blocked && shape.getRank() != 1 &&
-                       (shape.getMinDims()[1] != Shape::UNDEFINED_DIM && shape.getMinDims()[1] > 1)) {
+            }
+            if (lt == Blocked && shape.getRank() != 1 &&
+                (shape.getMinDims()[1] != Shape::UNDEFINED_DIM && shape.getMinDims()[1] > 1)) {
 #if defined(OPENVINO_ARCH_X86_64)
                 size_t blockSize = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 16 : 8;
 #else
@@ -1578,13 +1579,12 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                 order.push_back(1);
 
                 return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
-            } else {
-                VectorDims blocks = dims;
-                VectorDims order(blocks.size());
-                std::iota(order.begin(), order.end(), 0);
-
-                return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
             }
+            VectorDims blocks = dims;
+            VectorDims order(blocks.size());
+            std::iota(order.begin(), order.end(), 0);
+
+            return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
         };
 
         // TODO [DS]: inplace
@@ -1650,28 +1650,27 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                                                          std::make_shared<ExecutorContext>(context, getImplPriority()));
 
             return {config, impl_type, !factory->isEmpty() ? factory : nullptr};
-        } else {
-            impl_desc_type impl_type = impl_desc_type::ref;
-            if (canUseOptimizedImpl) {
-#if defined(OPENVINO_ARCH_ARM64)
-                if (mayiuse(dnnl::impl::cpu::aarch64::asimd)) {
-                    impl_type = impl_desc_type::jit_asimd;
-                } else {
-                    THROW_CPU_NODE_ERR("not supported architecture");
-                }
-#elif defined(OPENVINO_ARCH_X86_64)
-                if (mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
-                    impl_type = impl_desc_type::jit_avx512;
-                } else if (mayiuse(dnnl::impl::cpu::x64::avx2)) {
-                    impl_type = impl_desc_type::jit_avx2;
-                } else if (mayiuse(dnnl::impl::cpu::x64::sse41)) {
-                    impl_type = impl_desc_type::jit_sse42;
-                }
-#endif
-            }
-
-            return {config, impl_type};
         }
+        impl_desc_type impl_type = impl_desc_type::ref;
+        if (canUseOptimizedImpl) {
+#if defined(OPENVINO_ARCH_ARM64)
+            if (mayiuse(dnnl::impl::cpu::aarch64::asimd)) {
+                impl_type = impl_desc_type::jit_asimd;
+            } else {
+                THROW_CPU_NODE_ERR("not supported architecture");
+            }
+#elif defined(OPENVINO_ARCH_X86_64)
+            if (mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+                impl_type = impl_desc_type::jit_avx512;
+            } else if (mayiuse(dnnl::impl::cpu::x64::avx2)) {
+                impl_type = impl_desc_type::jit_avx2;
+            } else if (mayiuse(dnnl::impl::cpu::x64::sse41)) {
+                impl_type = impl_desc_type::jit_sse42;
+            }
+#endif
+        }
+
+        return {config, impl_type};
     };
 
     bool isChannelsFirstApplicable = one_of(getOutputShapeAtPort(0).getRank(), 1u, 2u, 3u, 4u, 5u);

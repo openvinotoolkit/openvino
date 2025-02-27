@@ -111,21 +111,18 @@ void Verbose::printInfo() {
                 auto fmt_str = md2fmt_str("", dnnl_desc.get(), format_kind_t::dnnl_format_kind_undef);
                 auto dim_str = md2dim_str(dnnl_desc.get());
                 return {fmt_str, dim_str};
-            } else {
-                return {"empty", {}};
             }
-        } else {
-            auto fmt_str = desc->getPrecision().to_string();
-            if (const auto& dims = desc->getShape().getDims(); !dims.empty()) {
-                auto dim_str = dim2str(dims.front());
-                std::for_each(++(dims.begin()), dims.end(), [&dim_str](size_t dim) {
-                    dim_str.append("x" + dim2str(dim));
-                });
-                return {fmt_str, dim_str};
-            } else {
-                return {fmt_str, {}};
-            }
+            return {"empty", {}};
         }
+        auto fmt_str = desc->getPrecision().to_string();
+        if (const auto& dims = desc->getShape().getDims(); !dims.empty()) {
+            auto dim_str = dim2str(dims.front());
+            std::for_each(++(dims.begin()), dims.end(), [&dim_str](size_t dim) {
+                dim_str.append("x" + dim2str(dim));
+            });
+            return {fmt_str, dim_str};
+        }
+        return {fmt_str, {}};
     };
 
     auto formatMemDesc = [&](const MemoryDescPtr& desc, std::string& prefix) {

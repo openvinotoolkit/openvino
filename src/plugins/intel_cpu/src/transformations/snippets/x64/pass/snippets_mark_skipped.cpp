@@ -167,7 +167,8 @@ int getChannelAxis(const ov::AxisSet& axes, bool keep_dims) {
                 // channel axis has been reduced and doesn't exist any more
                 channelAxis = -1;
                 break;
-            } else if (axis == 0) {
+            }
+            if (axis == 0) {
                 channelAxis = 0;
             }
         }
@@ -493,13 +494,13 @@ bool isSuitableConvert(const std::shared_ptr<const Node>& node) {
         auto inPrc = node->get_input_element_type(0);
         auto outPrc = node->get_output_element_type(0);
         return inPrc == element::bf16 && outPrc == element::f32;
-    } else if (hasResult(node)) {
+    }
+    if (hasResult(node)) {
         auto inPrc = node->get_input_element_type(0);
         auto outPrc = node->get_output_element_type(0);
         return inPrc == element::f32 && outPrc == element::bf16;
-    } else {
-        return false;
     }
+    return false;
 }
 
 auto is_skipped_op(const std::shared_ptr<ov::Node>& op) -> bool {

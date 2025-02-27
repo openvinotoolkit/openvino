@@ -101,9 +101,8 @@ static bool is_segfault_detector_emitter(const intel_cpu::jit_emitter* emitter) 
                     return std::make_shared<jit_debug_emitter>(emitter,                                             \
                                                                segfault_emitter,                                    \
                                                                jit_debug_emitter::EmissionLocation::preamble);      \
-                } else {                                                                                            \
-                    return emitter;                                                                                 \
                 }                                                                                                   \
+                return emitter;                                                                                     \
             },                                                                                                      \
                 [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {                    \
                     return e_type::get_supported_precisions(n);                                                     \
@@ -439,11 +438,11 @@ ov::snippets::RegType intel_cpu::CPUGenerator::get_specific_op_out_reg_type(cons
 #endif
         is_type<intel_cpu::BrgemmCopyB>(op)) {
         return ov::snippets::RegType::gpr;
-    } else if (is_type<intel_cpu::FusedMulAdd>(op) || is_type<intel_cpu::SwishNode>(op)) {
-        return ov::snippets::RegType::vec;
-    } else {
-        return ov::snippets::RegType::undefined;
     }
+    if (is_type<intel_cpu::FusedMulAdd>(op) || is_type<intel_cpu::SwishNode>(op)) {
+        return ov::snippets::RegType::vec;
+    }
+    return ov::snippets::RegType::undefined;
 }
 
 bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& e) const {

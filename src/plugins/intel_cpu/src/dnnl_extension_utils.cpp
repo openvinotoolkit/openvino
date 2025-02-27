@@ -184,9 +184,8 @@ DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const dnnl::memory::desc& d
 DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const_dnnl_memory_desc_t desc) {
     if (desc->format_kind == dnnl::impl::format_kind_t::dnnl_blocked) {
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(desc));
-    } else {
-        return std::shared_ptr<DnnlMemoryDesc>(new DnnlMemoryDesc(desc));
     }
+    return std::shared_ptr<DnnlMemoryDesc>(new DnnlMemoryDesc(desc));
 }
 
 size_t DnnlExtensionUtils::getMemSizeForDnnlDesc(const dnnl::memory::desc& desc) {
@@ -205,9 +204,8 @@ std::shared_ptr<DnnlBlockedMemoryDesc> DnnlExtensionUtils::makeUndefinedDesc(con
                                                                              const Shape& shape) {
     if (desc.get_format_kind() == memory::format_kind::blocked) {
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(desc, shape));
-    } else {
-        OPENVINO_THROW("Unexpected: Cannot make undefined descriptor. Only dnnl_blocked type is allowed.");
     }
+    OPENVINO_THROW("Unexpected: Cannot make undefined descriptor. Only dnnl_blocked type is allowed.");
 }
 
 DnnlMemoryDescPtr DnnlExtensionUtils::query_md(const const_dnnl_primitive_desc_t& pd,

@@ -202,14 +202,12 @@ void Gather::initSupportedPrimitiveDescriptors() {
                                  ref_any);
         }
         return;
-    } else {
-        // Implementation desc type will be redefined in the fn prepareParams if a kernel will be created.
-        addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
-                              {LayoutType::ncsp, ov::element::i32},
-                              {LayoutType::ncsp, ov::element::i32, isAxisInputConst}},
-                             {{LayoutType::ncsp, dataPrecision}},
-                             ref_any);
-    }
+    }  // Implementation desc type will be redefined in the fn prepareParams if a kernel will be created.
+    addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
+                          {LayoutType::ncsp, ov::element::i32},
+                          {LayoutType::ncsp, ov::element::i32, isAxisInputConst}},
+                         {{LayoutType::ncsp, dataPrecision}},
+                         ref_any);
 
     // Let's check for the special inPlace memory use case
     // in place only makes sense when we split by dense blocks since strided tensors are not supported by most nodes
@@ -810,16 +808,14 @@ int8_t Gather::get_i4(const uint8_t& val, bool high) {
     if (high) {
         if (val & 0x80) {
             return static_cast<int8_t>((val >> 4) | 0xf8);
-        } else {
-            return static_cast<int8_t>(val >> 4);
         }
+        return static_cast<int8_t>(val >> 4);
     }
     if (val & 0x8) {
         // Just fill in the high 4 bits with 1
         return static_cast<int8_t>(val | 0xf8);
-    } else {
-        return static_cast<int8_t>(val & 0xF);
     }
+    return static_cast<int8_t>(val & 0xF);
 }
 
 int8_t Gather::get_u4(const uint8_t& val, bool high) {

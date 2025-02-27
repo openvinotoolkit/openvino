@@ -84,13 +84,15 @@ std::shared_ptr<ov::Node> convert(const std::shared_ptr<BaseOp>& node) {
                                                                 1.0f,
                                                                 0.0f,
                                                                 node->output(0).get_element_type());
-    } else if (std::is_same<BaseOp, ov::opset1::Add>::value) {
+    }
+    if (std::is_same<BaseOp, ov::opset1::Add>::value) {
         return std::make_shared<ov::intel_cpu::PowerStaticNode>(node->input(nonConstPort).get_source_output(),
                                                                 1.0f,
                                                                 1.0f,
                                                                 value,
                                                                 node->output(0).get_element_type());
-    } else if (std::is_same<BaseOp, ov::opset1::Subtract>::value) {
+    }
+    if (std::is_same<BaseOp, ov::opset1::Subtract>::value) {
         float scale = 1.0f;
         float shift = value;
         if (constPort == 0) {
@@ -103,15 +105,15 @@ std::shared_ptr<ov::Node> convert(const std::shared_ptr<BaseOp>& node) {
                                                                 scale,
                                                                 shift,
                                                                 node->output(0).get_element_type());
-    } else if (std::is_same<BaseOp, ov::opset1::Multiply>::value) {
+    }
+    if (std::is_same<BaseOp, ov::opset1::Multiply>::value) {
         return std::make_shared<ov::intel_cpu::PowerStaticNode>(node->input(nonConstPort).get_source_output(),
                                                                 1.f,
                                                                 value,
                                                                 0.0f,
                                                                 node->output(0).get_element_type());
-    } else {
-        OPENVINO_THROW("ConvertToPowerStatic: op type is not supported");
     }
+    OPENVINO_THROW("ConvertToPowerStatic: op type is not supported");
 }
 
 }  // namespace

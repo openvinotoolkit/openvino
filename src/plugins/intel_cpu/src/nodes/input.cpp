@@ -326,7 +326,8 @@ jit_has_special_value_base::fn_t jit_has_subnormals_function() {
         static jit_has_subnormals<cpu_isa_t::avx2> generator;
         static auto fn = generator.get();
         return fn;
-    } else if (mayiuse(cpu_isa_t::sse41)) {
+    }
+    if (mayiuse(cpu_isa_t::sse41)) {
         static jit_has_subnormals<cpu_isa_t::sse41> generator;
         static auto fn = generator.get();
         return fn;
@@ -338,7 +339,8 @@ jit_has_special_value_base::fn_t jit_has_bf16_overflows_function() {
         static jit_has_bf16_overflows<cpu_isa_t::avx2> generator;
         static auto fn = generator.get();
         return fn;
-    } else if (mayiuse(cpu_isa_t::sse41)) {
+    }
+    if (mayiuse(cpu_isa_t::sse41)) {
         static jit_has_bf16_overflows<cpu_isa_t::sse41> generator;
         static auto fn = generator.get();
         return fn;

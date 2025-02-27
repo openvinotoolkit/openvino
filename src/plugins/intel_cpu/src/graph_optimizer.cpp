@@ -325,9 +325,8 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph& graph) {
 
         if (!deconv) {
             return (one_of(node->getType(), Type::Convolution, Type::MatMul) && node->getParentEdges().size() == 2);
-        } else {
-            return deconv->canFuseBias();
         }
+        return deconv->canFuseBias();
     };
 
     auto isSuitableChildNode = [&](const NodePtr& parentNode, const NodePtr& childNode) {
@@ -564,9 +563,8 @@ void GraphOptimizer::FuseMultiplyAndAdd(Graph& graph) {
                 if (dims[i] != 1) {
                     if (channelAxis != -1) {  // more than one axis is != 1
                         return -1;
-                    } else {
-                        channelAxis = i;
                     }
+                    channelAxis = i;
                 }
             }
             return channelAxis;
@@ -3154,9 +3152,8 @@ void GraphOptimizer::MatchSdpaKvCache(Graph& graph) {
                 sdpa = std::dynamic_pointer_cast<ScaledDotProductAttention>(child);
                 if (sdpa) {
                     break;
-                } else {
-                    OPENVINO_THROW("Couldn't cast node", child->getName(), " to ScaledDotProductAttention type");
                 }
+                OPENVINO_THROW("Couldn't cast node", child->getName(), " to ScaledDotProductAttention type");
             }
         }
 

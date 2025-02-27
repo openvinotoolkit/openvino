@@ -224,7 +224,8 @@ void Split::initSupportedPrimitiveDescriptors() {
 bool Split::needShapeInfer() const {
     if (Node::needShapeInfer()) {
         return true;
-    } else if (!constSplitLengths) {
+    }
+    if (!constSplitLengths) {
         const auto& lengthsMemPtr = getSrcMemoryAtPort(2);
         const auto curLengthsSize = lengthsMemPtr->getStaticDims()[0];
         if (curLengthsSize != splitLengths.size()) {

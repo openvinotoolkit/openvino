@@ -577,9 +577,9 @@ bool DnnlPostOpsComposer::appendLinear(const std::vector<float>& scale,
     if (scale.size() == 1 && shift.size() == 1) {
         if (shift[0] == 0.0f) {
             return appendScale(scale, isLastPostOp, allowBinary);
-        } else {
-            appendEltwise(dnnl::algorithm::eltwise_linear, scale[0], shift[0]);
         }
+        appendEltwise(dnnl::algorithm::eltwise_linear, scale[0], shift[0]);
+
     } else {
         // return before committing any changes
         if (!allowBinary && shift.size() > 1) {

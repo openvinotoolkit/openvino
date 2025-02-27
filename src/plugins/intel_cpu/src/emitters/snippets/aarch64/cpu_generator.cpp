@@ -312,9 +312,8 @@ ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(const ov::Outpu
     const auto op = out.get_node_shared_ptr();
     if (ov::as_type_ptr<intel_cpu::FusedMulAdd>(op) || ov::as_type_ptr<intel_cpu::SwishNode>(op)) {
         return ov::snippets::RegType::vec;
-    } else {
-        return ov::snippets::RegType::undefined;
     }
+    return ov::snippets::RegType::undefined;
 }
 
 bool CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& e) const {
