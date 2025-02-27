@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+import torch
 
 from pytorch_layer_test_class import PytorchLayerTest
-import torch
 
 
 class TestISTFT(PytorchLayerTest):
@@ -134,7 +134,7 @@ class TestISTFT(PytorchLayerTest):
     ])
     @pytest.mark.parametrize(("normalized"), [True, False])
     @pytest.mark.parametrize(("center"), [True, False])
-    def test_stft(self, n_fft, hop_length, window_size, signal_shape, normalized, center, ie_device, precision, ir_version, trace_model):
+    def test_istft(self, n_fft, hop_length, window_size, signal_shape, normalized, center, ie_device, precision, ir_version, trace_model):
         if ie_device == "GPU":
             pytest.xfail(reason="ISTFT op is not supported on GPU yet")
 
@@ -156,7 +156,7 @@ class TestISTFT(PytorchLayerTest):
     ])
     @pytest.mark.parametrize(("normalized"), [True, False])
     @pytest.mark.parametrize(("center"), [True, False])
-    def test_stft_with_sig_len(self, n_fft, hop_length, window_size, signal_shape, normalized, center, signal_length, ie_device, precision, ir_version, trace_model):
+    def test_istft_with_sig_len(self, n_fft, hop_length, window_size, signal_shape, normalized, center, signal_length, ie_device, precision, ir_version, trace_model):
         if ie_device == "GPU":
             pytest.xfail(reason="ISTFT op is not supported on GPU yet")
 
