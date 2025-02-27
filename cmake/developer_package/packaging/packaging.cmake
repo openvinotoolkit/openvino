@@ -7,31 +7,32 @@ include(CPackComponent)
 #
 # ov_install_pdb(<target name>)
 #
-macro(ov_install_pdb target)
+function(ov_install_pdb target)
+    get_target_property(type ${target} TYPE)
+
+    if(NOT WIN32)
+        return()
+    endif()
+
     if(BUILD_SHARED_LIBS)
         # check that target type is either MODULE or SHARED
-        get_target_property(type ${target} TYPE)
         if(NOT type MATCHES "^(MODULE_LIBRARY|SHARED_LIBRARY)$")
             message(FATAL_ERROR "OpenVINO PDB files should be installed only for SHARED or MODULE libraries, given target type is ${type}")
         endif()
 
-        if(WIN32)
-            # installation of linker PDB files for shared libraries
-            install(FILES $<TARGET_PDB_FILE:${target}>
-                    DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT pdb
-                    OPTIONAL
-                    EXCLUDE_FROM_ALL)
-        endif()
-    else()
+        # installation of linker PDB files for shared libraries
+        install(FILES $<TARGET_PDB_FILE:${target}>
+                DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT pdb
+                OPTIONAL
+                EXCLUDE_FROM_ALL)
+    elseif(type STREQUAL "STATIC_LIBRARY")
         # installation of compile PDB files for static libraries
-        if(WIN32)
-            install(FILES $<TARGET_PDB_FILE:${target}>
-                    DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT pdb
-                    OPTIONAL
-                    EXCLUDE_FROM_ALL)
-        endif()
+        install(FILES $<TARGET_PDB_FILE:${target}>
+                DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT pdb
+                OPTIONAL
+                EXCLUDE_FROM_ALL)
     endif()
-endmacro()
+endfunction()
 
 #
 # ov_install_static_lib(<target> <comp>)
