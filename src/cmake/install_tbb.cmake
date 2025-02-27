@@ -140,20 +140,15 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
             file(TO_CMAKE_PATH $ENV{TBBROOT} TBBROOT)
         endif()
         # sometimes TBBROOT can be set with relative paths inside (e.g. oneAPI package)
-        message(STATUS "get_filename_component before TBBROOT is ${TBBROOT}")
         if (DEFINED TBBROOT)
             get_filename_component(TBBROOT "${TBBROOT}" ABSOLUTE)
         endif()
-        message(STATUS "get_filename_component after TBBROOT is ${TBBROOT}")
-        message(STATUS "TBB_DIR is ${TBB_DIR}")
         if(NOT DEFINED TBBROOT)
-            message(STATUS "TBBROOT is not defined")
             get_target_property(_tbb_include_dir TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
             get_filename_component(TBBROOT ${_tbb_include_dir} PATH)
         endif()
         if(DEFINED TBBROOT)
             set(TBBROOT "${TBBROOT}" CACHE PATH "TBBROOT path" FORCE)
-            message(STATUS "TBBROOT is defined:${TBBROOT}")
         else()
             message(FATAL_ERROR "Failed to deduce TBBROOT, please define env var TBBROOT")
         endif()
@@ -177,13 +172,10 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         get_filename_component(_tbb_libs_dir "${_tbb_lib_location}" DIRECTORY)
         get_filename_component(_tbb_libs_dir "${_tbb_libs_dir}" REALPATH)
         file(RELATIVE_PATH tbb_libs_dir "${TBBROOT}" "${_tbb_libs_dir}")
-        message(STATUS "tbb_libs_dir is ${tbb_libs_dir}")
 
         # install only meaningful directories
         foreach(dir include ${tbb_libs_dir} cmake lib/cmake lib/pkgconfig lib/intel64/vc14)
-            message(STATUS "dir is ${dir}")
             if(EXISTS "${TBBROOT}/${dir}")
-                message(STATUS "exist ${TBBROOT}/${dir}")
                 if(dir STREQUAL "include" OR dir MATCHES ".*(cmake|pkgconfig)$" OR dir STREQUAL "lib/intel64/vc14")
                     set(tbb_component tbb_dev)
                     set(core_dev_components tbb_dev)
@@ -197,7 +189,6 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                 endif()
 
                 if(tbb_libs_dir STREQUAL dir)
-                    message(STATUS "tbb_libs_dir is same as dir:${dir}")
                     # file(GLOB _tbb_libs ${TBBROOT}/${tbb_libs_dir}/*)
                     # foreach(_tbb_lib IN LISTS _tbb_libs)
                     #     if(_tbb_lib MATCHES ".*${CMAKE_SHARED_LIBRARY_SUFFIX}.*")
@@ -215,15 +206,11 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                             FILES_MATCHING
                             PATTERN "*${CMAKE_SHARED_LIBRARY_SUFFIX}*"
                             ${exclude_pattern})
-                    # message(STATUS "DESTINATION is ${OV_TBB_DIR_INSTALL}/${dir}")
-                    message(STATUS "install DIRECTORY:${TBBROOT}/${dir}/ to DESTINATION:${OV_TBB_DIR_INSTALL}/${dir}")
                 else()
-                    message(STATUS "tbb_libs_dir is not same as dir:${dir}")
                     install(DIRECTORY "${TBBROOT}/${dir}/"
                             DESTINATION "${OV_TBB_DIR_INSTALL}/${dir}"
                             COMPONENT ${tbb_component}
                             ${exclude_pattern})
-                    message(STATUS "install DIRECTORY:${TBBROOT}/${dir}/ to DESTINATION:${OV_TBB_DIR_INSTALL}/${dir}")
                 endif()
             endif()
         endforeach()
@@ -234,7 +221,6 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                     ${OV_CPACK_COMP_TBB_EXCLUDE_ALL}
                     RENAME "TBB-LICENSE"
                     COMPONENT tbb)
-            message(STATUS "install FILES:${TBBROOT}/LICENSE to DESTINATION:${OV_TBB_DIR_INSTALL}")
         endif()
 
         if(WIN32)
@@ -247,7 +233,6 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         endif()
 
         set(TBB_LIB_INSTALL_DIR "${OV_TBB_DIR_INSTALL}/${tbb_libs_dir}" CACHE PATH "TBB library install directory" FORCE)
-        message(STATUS "TBB_LIB_INSTALL_DIR is ${TBB_LIB_INSTALL_DIR}")
     elseif(tbb_downloaded)
         ov_cpack_add_component(tbb HIDDEN)
         list(APPEND core_components tbb)
