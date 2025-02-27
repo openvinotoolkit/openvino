@@ -17,6 +17,7 @@
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "transformations/init_node_info.hpp"
@@ -172,5 +173,26 @@ TEST_F(TransformationTestsF, MulAddAddMulFusion) {
         auto add1 = std::make_shared<opset3::Add>(mul1, add1_const);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{add1}, ParameterVector{input});
+    }
+}
+
+TEST_F(TransformationTestsF, EliminateAddZero) {
+    {
+        auto input = std::make_shared<opset3::Parameter>(element::i32, Shape{1, 1});
+        auto add1_const = opset3::Constant::create(element::i32, Shape{1, 1}, {0});
+        auto add1 = std::make_shared<opset3::Add>(input, add1_const);
+        auto shape = opset3::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+        auto reshape = std::make_shared<opset8::Reshape>(add1, shape, false);
+
+        model = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input});
+        manager.register_pass<ov::pass::LinOpSequenceFusion>();
+    }
+
+    {
+        auto input = std::make_shared<opset3::Parameter>(element::i32, Shape{1, 1});
+        auto shape = opset3::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+        auto reshape = std::make_shared<opset8::Reshape>(input, shape, false);
+
+        model_ref = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input});
     }
 }
