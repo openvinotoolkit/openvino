@@ -5,7 +5,19 @@ import importlib as importlib
 import os as os
 from pathlib import Path
 import sys as sys
-__all__ = ['ModuleType', 'Path', 'classproperty', 'deprecated', 'deprecatedclassproperty', 'get_cmake_path', 'importlib', 'lazy_import', 'os', 'sys', 'wraps']
+__all__ = ['LazyLoader', 'ModuleType', 'Path', 'classproperty', 'deprecated', 'deprecatedclassproperty', 'get_cmake_path', 'importlib', 'os', 'sys', 'wraps']
+class LazyLoader:
+    """
+    A class to lazily load a module, importing it only when an attribute is accessed.
+    """
+    def __getattr__(self, item: str) -> typing.Any:
+        ...
+    def __init__(self, module_name: str):
+        ...
+    def __repr__(self) -> str:
+        ...
+    def _load_module(self) -> None:
+        ...
 class _ClassPropertyDescriptor:
     def __get__(self, obj: typing.Any, cls: typing.Any = None) -> typing.Any:
         ...
@@ -35,5 +47,3 @@ def get_cmake_path() -> str:
         :rtype: str
         
     """
-def lazy_import(module_name: str) -> module:
-    ...

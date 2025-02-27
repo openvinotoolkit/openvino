@@ -11,6 +11,8 @@ from openvino._pyopenvino import Node
 from openvino._pyopenvino import Op as OpBase
 from openvino._pyopenvino import Output
 from openvino._pyopenvino import Tensor
+from openvino._pyopenvino import Type
+from openvino.package_utils import deprecatedclassproperty
 from openvino.utils.data_helpers.data_dispatcher import _data_dispatch
 import openvino.utils.data_helpers.wrappers
 from openvino.utils.data_helpers.wrappers import OVDict
@@ -18,7 +20,8 @@ from openvino.utils.data_helpers.wrappers import _InferRequestWrapper
 from openvino.utils.data_helpers.wrappers import tensor_from_file
 from pathlib import Path
 import traceback as traceback
-__all__ = ['AsyncInferQueue', 'AsyncInferQueueBase', 'CompiledModel', 'CompiledModelBase', 'Core', 'CoreBase', 'InferRequest', 'Model', 'ModelBase', 'ModelMeta', 'Node', 'OVDict', 'Op', 'OpBase', 'Output', 'Path', 'Tensor', 'TracebackType', 'compile_model', 'tensor_from_file', 'traceback']
+import typing
+__all__ = ['AsyncInferQueue', 'AsyncInferQueueBase', 'CompiledModel', 'CompiledModelBase', 'Core', 'CoreBase', 'InferRequest', 'Model', 'ModelBase', 'ModelMeta', 'Node', 'OVDict', 'Op', 'OpBase', 'Output', 'Path', 'Tensor', 'TracebackType', 'Type', 'TypingType', 'compile_model', 'deprecatedclassproperty', 'tensor_from_file', 'traceback']
 class AsyncInferQueue(openvino._pyopenvino.AsyncInferQueue):
     """
     AsyncInferQueue with a pool of asynchronous requests.
@@ -524,3 +527,4 @@ def compile_model(model: typing.Union[openvino._ov_api.Model, str, pathlib.Path]
     
         
     """
+TypingType: typing._SpecialGenericAlias  # value = typing.Type

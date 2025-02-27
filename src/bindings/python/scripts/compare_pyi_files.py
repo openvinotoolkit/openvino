@@ -4,6 +4,7 @@
 import sys
 import re
 
+# Ignore differences in import order
 def normalize_imports(lines):
     normalized_lines = []
     import_block = []
@@ -25,23 +26,28 @@ def normalize_imports(lines):
 
     return normalized_lines
 
+
+# Ignore differences in memory addresses like in function _get_node_factory at 0x7fdad9f53640
+def remove_memory_addresses(lines):
+    return [re.sub(r'at 0x[0-9a-fA-F]+', 'at <memory_address>', line) for line in lines]
+
+
 def compare_files(file1, file2):
     with open(file1, 'r') as f1, open(file2, 'r') as f2:
         lines1 = f1.readlines()
         lines2 = f2.readlines()
 
-    normalized_lines1 = normalize_imports(lines1)
-    normalized_lines2 = normalize_imports(lines2)
-
-    if normalized_lines1 != normalized_lines2:
-        # Ignore differences in memory addresses like in function _get_node_factory at 0x7fdad9f53640
-        def remove_memory_addresses(lines):
-            return [re.sub(r'at 0x[0-9a-fA-F]+', 'at <memory_address>', line) for line in lines]
+    # Handle edge cases
+    if lines1 != lines2:
+        normalized_lines1 = normalize_imports(lines1)
+        normalized_lines2 = normalize_imports(lines2)
 
         normalized_lines1 = remove_memory_addresses(normalized_lines1)
         normalized_lines2 = remove_memory_addresses(normalized_lines2)
+        return normalized_lines1 == normalized_lines2
+    else:
+        return True
 
-    return normalized_lines1 == normalized_lines2
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:

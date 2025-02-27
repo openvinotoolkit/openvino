@@ -3,6 +3,7 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+# When removing xfails remember to remove them from .bat script as well
 invalid_expressions=(
     # The classes bindings' will be soon added to pyopenvino. Ticket: 163077
     "ov::op::v1::Add"
@@ -22,9 +23,11 @@ invalid_expressions=(
     "ov::float16"
     "ov::EncryptionCallbacks"
     "ov::streams::Num"
+    "ov::pass::pattern::PatternSymbolValue"
 
     # Other issues, ticket: 163094
     "<Dimension:"
+    "dynamic"
 )
 
 invalid_identifiers=(
@@ -41,6 +44,7 @@ unresolved_names=(
     "capsule"
     "VASurfaceTensorWrapper"
     "_abc._abc_data"
+    "openvino._ov_api.undefined_deprecated"
 )
 
 create_regex_pattern() {

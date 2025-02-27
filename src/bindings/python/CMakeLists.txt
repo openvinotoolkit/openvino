@@ -431,58 +431,33 @@ if(TRUE)
         message(STATUS "pybind11-stubgen version: ${pybind11_stubgen_version}")
     endif()
 
-    ov_check_pip_package(REQUIREMENT "pybind11-stubgen"
-                        RESULT_VAR pybind11_stubgen_AVAILABLE
-                        WARNING_MESSAGE "Please, install pybind11-stubgen if you plan to develop Python OpenVINO API"
-                        MESSAGE_MODE WARNING)
-    # Generate reference .pyi files for OpenVINO Python API
     if(WIN32)
         set(stub_gen_script "${CMAKE_CURRENT_SOURCE_DIR}/scripts/generate_pyapi_stubs.bat")
     else()
         set(stub_gen_script "${CMAKE_CURRENT_SOURCE_DIR}/scripts/generate_pyapi_stubs.sh")
     endif()
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/pyapi_stubs_generated)
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E 
-            env PYTHONPATH=${OpenVINO_SOURCE_DIR}/bin/intel64/${CMAKE_BUILD_TYPE}/python:$ENV{PYTHONPATH}
-            ${stub_gen_script}
-            ${CMAKE_CURRENT_BINARY_DIR}/pyapi_stubs_generated
-        RESULT_VARIABLE stub_gen_result
-        ERROR_VARIABLE stub_gen_error
-    )
-    if(NOT stub_gen_result EQUAL 0)
-        message(FATAL_ERROR "Failed to generate Python API stub files: ${stub_gen_error}")
-    else()
-        message(STATUS "Successfully generated Python API stub files")
-    endif()
+    set(stub_gen_output_file "${CMAKE_CURRENT_BINARY_DIR}/pyapi_stubs_generated/pyi_stub_gen_completed.txt")
+    set(stub_generation_command 
+            COMMAND ${CMAKE_COMMAND}
+                -E env PYTHONPATH=${OpenVINO_SOURCE_DIR}/bin/intel64/${CMAKE_BUILD_TYPE}/python:$ENV{PYTHONPATH}
+                ${stub_gen_script}
+                ${CMAKE_CURRENT_BINARY_DIR}/pyapi_stubs_generated)
+    set(validation_command
+            COMMAND "${CMAKE_COMMAND}" 
+                -D generated_pyi_files_location=${CMAKE_CURRENT_BINARY_DIR}/pyapi_stubs_generated
+                -D source_pyi_files_location=${OpenVINOPython_SOURCE_DIR}/src/openvino
+                -D python_exec=${Python3_EXECUTABLE}
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/compare_pyi.cmake")
+    add_custom_command(OUTPUT ${stub_gen_output_file}
+        ${stub_generation_command}
+        ${validation_command}
+        COMMAND "${CMAKE_COMMAND}" -E touch ${stub_gen_output_file}
+        DEPENDS ${openvino_py_files}
+        COMMENT "[pybind11_stubgen] Generate and validate .pyi files"
+        VERBATIM
+        COMMAND_ERROR_IS_FATAL ANY)
 
-    # Find all generated and commited .pyi files
-    file(GLOB_RECURSE generated_pyi_files ${CMAKE_CURRENT_BINARY_DIR}/pyapi_stubs_generated/*.pyi)
-    file(GLOB_RECURSE committed_pyi_files ${OpenVINOPython_SOURCE_DIR}/src/openvino/*.pyi)
-
-    # Check the files count
-    list(LENGTH generated_pyi_files generated_pyi_files_count)
-    list(LENGTH committed_pyi_files committed_pyi_files_count)
-    if(NOT generated_pyi_files_count EQUAL committed_pyi_files_count OR generated_pyi_files_count EQUAL 0)
-        message(FATAL_ERROR "The number of generated .pyi files (${generated_pyi_files_count}) does not match the number of committed .pyi files (${committed_pyi_files_count}), or one of them is zero.")
-    endif()
-
-    foreach(generated_file IN LISTS generated_pyi_files)
-        file(RELATIVE_PATH relative_path ${CMAKE_CURRENT_BINARY_DIR}/pyapi_stubs_generated/openvino ${generated_file})
-        set(committed_file "${OpenVINOPython_SOURCE_DIR}/src/openvino/${relative_path}")
-
-        # Every file has to have a pair
-        if(NOT EXISTS ${committed_file})
-            message(FATAL_ERROR "Committed .pyi file not found for generated file: ${generated_file}")
-        endif()
-
-        # Use a custom script instead of compare_files (ticket: 163225)
-        execute_process(COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/compare_pyi_files.py ${generated_file} ${committed_file}
-            RESULT_VARIABLE compare_result
-        )
-        if(NOT compare_result EQUAL 0)
-            message(FATAL_ERROR "The reference .pyi file ${generated_file} does not match the committed .pyi file ${committed_file}. Please refer to documentation to generate up-to-date .pyi files.")
-        endif()
-    endforeach()
-    message(STATUS "Python stub files validation successful.")
+    add_custom_target(pyopenvino_stub ALL DEPENDS ${stub_gen_output_file})
+    add_dependencies(pyopenvino_stub pyopenvino)
 endif()

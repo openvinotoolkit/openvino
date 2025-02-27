@@ -11,8 +11,8 @@ from openvino.opset1.ops import asin
 from openvino.opset1.ops import atan
 from openvino.opset1.ops import avg_pool
 from openvino.opset1.ops import binary_convolution
-from openvino.opset1.ops import ceiling as ceil
 from openvino.opset1.ops import ceiling
+from openvino.opset1.ops import ceiling as ceil
 from openvino.opset1.ops import clamp
 from openvino.opset1.ops import concat
 from openvino.opset1.ops import constant

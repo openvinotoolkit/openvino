@@ -1702,8 +1702,8 @@ class InferRequest:
         """
                     Set output tensors using given indexes.
         
-                    :param inputs: Data to set on output tensors.
-                    :type inputs: Dict[int, openvino.Tensor]
+                    :param outputs: Data to set on output tensors.
+                    :type outputs: Dict[int, openvino.Tensor]
         """
     @typing.overload
     def set_tensor(self, name: str, tensor: RemoteTensor) -> None:
@@ -4551,6 +4551,22 @@ class Tensor:
     @typing.overload
     def __init__(self, other: Tensor, begin: list[int], end: list[int]) -> None:
         ...
+    @typing.overload
+    def __init__(self, image: typing.Any) -> None:
+        """
+                        Constructs Tensor from a Pillow Image.
+        
+                        :param image: Pillow Image to create the tensor from.
+                        :type image: PIL.Image.Image
+                        :Example:
+                        .. code-block:: python
+        
+                            from PIL import Image
+                            import openvino as ov
+        
+                            img = Image.open("example.jpg")
+                            tensor = ov.Tensor(img)
+        """
     def __repr__(self) -> str:
         ...
     @typing.overload
@@ -4756,7 +4772,7 @@ class Type:
     u4: typing.ClassVar[Type]  # value = <Type: 'uint4_t'>
     u64: typing.ClassVar[Type]  # value = <Type: 'uint64_t'>
     u8: typing.ClassVar[Type]  # value = <Type: 'uint8_t'>
-    undefined: typing.ClassVar[Type]  # value = <Type: 'undefined'>
+    undefined: typing.ClassVar[Type]  # value = <Type: 'dynamic'>
     def __eq__(self, arg0: Type) -> bool:
         ...
     def __hash__(self) -> int:
@@ -4768,7 +4784,7 @@ class Type:
                     :param dtype: numpy dtype
                     :type dtype: numpy.dtype
                     :return: OpenVINO type object
-                    :rtype: ov.Type
+                    :rtype: openvino.Type
         """
     def __repr__(self) -> str:
         ...

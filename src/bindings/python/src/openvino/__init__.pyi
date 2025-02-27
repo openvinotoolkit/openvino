@@ -40,8 +40,8 @@ from openvino._pyopenvino import save_model
 from openvino._pyopenvino import serialize
 from openvino._pyopenvino import set_batch
 from openvino._pyopenvino import shutdown
+from openvino.package_utils import LazyLoader
 from openvino.package_utils import _add_openvino_libs_to_search_path
-from openvino.package_utils import lazy_import
 from openvino.utils.data_helpers.wrappers import tensor_from_file
 from . import _ov_api
 from . import _pyopenvino
@@ -69,7 +69,7 @@ from . import opset9
 from . import package_utils
 from . import preprocess
 from . import properties
-from . import runtime
 from . import utils
-__all__ = ['AsyncInferQueue', 'AxisSet', 'AxisVector', 'CompiledModel', 'ConstOutput', 'Coordinate', 'CoordinateDiff', 'Core', 'Dimension', 'DiscreteTypeInfo', 'Extension', 'InferRequest', 'Input', 'Layout', 'Model', 'Node', 'OVAny', 'Op', 'OpExtension', 'Output', 'PartialShape', 'ProfilingInfo', 'RTMap', 'RemoteContext', 'RemoteTensor', 'Shape', 'Strides', 'Symbol', 'Tensor', 'Type', 'VAContext', 'VASurfaceTensor', 'Version', 'compile_model', 'exceptions', 'experimental', 'frontend', 'get_batch', 'get_version', 'helpers', 'layout_helpers', 'lazy_import', 'op', 'opset1', 'opset10', 'opset11', 'opset12', 'opset13', 'opset14', 'opset15', 'opset16', 'opset2', 'opset3', 'opset4', 'opset5', 'opset6', 'opset7', 'opset8', 'opset9', 'package_utils', 'preprocess', 'properties', 'runtime', 'save_model', 'serialize', 'set_batch', 'shutdown', 'tensor_from_file', 'utils']
-__version__: str = '2025.1.0-18196-f58124288d5-pyi_files'
+__all__ = ['AsyncInferQueue', 'AxisSet', 'AxisVector', 'CompiledModel', 'ConstOutput', 'Coordinate', 'CoordinateDiff', 'Core', 'Dimension', 'DiscreteTypeInfo', 'Extension', 'InferRequest', 'Input', 'Layout', 'LazyLoader', 'Model', 'Node', 'OVAny', 'Op', 'OpExtension', 'Output', 'PartialShape', 'ProfilingInfo', 'RTMap', 'RemoteContext', 'RemoteTensor', 'Shape', 'Strides', 'Symbol', 'Tensor', 'Type', 'VAContext', 'VASurfaceTensor', 'Version', 'compile_model', 'exceptions', 'experimental', 'frontend', 'get_batch', 'get_version', 'helpers', 'layout_helpers', 'op', 'opset1', 'opset10', 'opset11', 'opset12', 'opset13', 'opset14', 'opset15', 'opset16', 'opset2', 'opset3', 'opset4', 'opset5', 'opset6', 'opset7', 'opset8', 'opset9', 'package_utils', 'preprocess', 'properties', 'runtime', 'save_model', 'serialize', 'set_batch', 'shutdown', 'tensor_from_file', 'utils']
+__version__: str = '2025.1.0-18198-298262e2962-pyi_files'
+runtime: package_utils.LazyLoader  # value = <LazyLoader for module 'openvino.runtime'>
