@@ -308,8 +308,8 @@ void jit_uni_eltwise_generic<isa>::generate() {
     }
 
     eltwise_emitter->emit_data();
-    for (size_t i = 0; i < post_op_emitters.size(); i++) {
-        post_op_emitters[i]->emit_data();
+    for (auto& post_op_emitter : post_op_emitters) {
+        post_op_emitter->emit_data();
     }
 }
 

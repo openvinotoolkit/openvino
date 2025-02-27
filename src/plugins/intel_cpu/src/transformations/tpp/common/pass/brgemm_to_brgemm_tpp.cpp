@@ -11,7 +11,7 @@
 #include "snippets/itt.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/tpp/x64/op/brgemm.hpp"
+#include "transformations/tpp/common/op/brgemm.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu::tpp::pass {

@@ -352,8 +352,8 @@ void GenerateProposals::execute(const dnnl::stream& strm) {
 
         size_t anchor_dims_size = 1;
         const auto& anchorDims = getParentEdgeAt(INPUT_ANCHORS)->getMemory().getStaticDims();
-        for (size_t i = 0; i < anchorDims.size(); i++) {
-            anchor_dims_size *= anchorDims[i];
+        for (uint64_t anchorDim : anchorDims) {
+            anchor_dims_size *= anchorDim;
         }
 
         size_t deltas_dims_size = 1;
