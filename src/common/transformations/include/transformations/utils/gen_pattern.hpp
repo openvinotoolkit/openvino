@@ -40,6 +40,7 @@
 namespace ov {
 namespace gen_pattern {
 
+#ifdef CPU_DEBUG_CAPS
 
 #    ifdef __GNUC__
 #        define CURRENT_LINE_NO __builtin_LINE()
@@ -59,14 +60,24 @@ static inline void _verbose_log(Args&&... args) {
 }
 
 static bool matcher_verbose_enabled() {
-    static const bool enabled = true;
+    static const bool enabled = std::getenv("GENP_VERBOSE") ? (atoi(std::getenv("GENP_VERBOSE")) != 0) : false;
     return enabled;
 }
 
 #    define _VERBOSE_LOG(...)          \
         if (matcher_verbose_enabled()) \
         _verbose_log(__VA_ARGS__)
+#else
 
+#    define CURRENT_LINE_NO -1
+#    define CURRENT_FILE    ""
+
+static bool matcher_verbose_enabled() {
+    return false;
+}
+
+#    define _VERBOSE_LOG(...)
+#endif
 
 namespace detail {
 inline std::vector<std::string> split_string(const std::string& s, const std::string& delimiter) {
@@ -1350,10 +1361,6 @@ public:
                     shape_size(vconst_node->get_output_shape(0)) * vconst_node->get_output_element_type(0).size();
                 if (std::memcmp(pconst_node->get_data_ptr(), vconst_node->get_data_ptr(), byte_size) != 0) {
                     _VERBOSE_LOG("Constant value mismatch on ", pconst_node, " vs ", vconst_node);
-                    auto vec = pconst_node->cast_vector<int32_t>();
-                    auto vec1 = vconst_node->cast_vector<int32_t>();
-                    std::cout << vec[0] << std::endl;
-                    std::cout << vec[1] << std::endl;
                     return false;
                 }
                 continue;

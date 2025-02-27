@@ -1203,6 +1203,7 @@ std::shared_ptr<ov::Model> RoPETestChatGLM2DRoPEStridedSlice::buildROPE_ChatGLM(
                                        ov::ParameterVector{input, cos_sin_cache, position_ids});
 }
 
+/*
 std::shared_ptr<ov::Model> RoPETestChatGLM2DRoPEPagedAttention::buildROPE_ChatGLM(int batch, int head_cnt, int rotary_dims, ov::element::Type element_type) {
     // TODO: these are 2 ROPEs operations, need to leave only once for test:
 
@@ -1285,6 +1286,7 @@ std::shared_ptr<ov::Model> RoPETestChatGLM2DRoPEPagedAttention::buildROPE_ChatGL
     return std::make_shared<ov::Model>(ov::NodeVector{cat_Concat_425},
                                        ov::ParameterVector{input, cos_sin_cache, position_ids});
 }
+*/
 
 ov::Tensor RoPETestChatGLM2DRoPEStridedSlice::create_i32_tensor(const ov::Shape& shape, int start, int step) {
     auto tensor = ov::Tensor(ov::element::i32, shape);

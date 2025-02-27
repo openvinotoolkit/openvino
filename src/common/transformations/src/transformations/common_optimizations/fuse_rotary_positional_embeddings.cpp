@@ -524,8 +524,6 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     this->register_matcher(m, callback);
 }
 
-int chat_glm_cnt = 0;
-
 ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool support_2d_rope) {
     MATCHER_SCOPE(RoPEFusionChatGLM);
 
@@ -553,10 +551,8 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
 
     auto qkv_proj = makePattern<opset1::VariadicSplit>({qkv_linear, -1, {total_size_q, total_size_k, total_size_v}});
     qkv_proj->set_output_size(3);
-    qkv_proj->set_friendly_name("qkv_proj");
     auto cur_key = makePattern<opset1::Reshape>({qkv_proj->output(split_output_id), {0, 0, head_cnt, head_size}},
                                                 {{"special_zero", true}});
-    cur_key->set_friendly_name("cur_key");
     std::shared_ptr<ov::Node> input_key = nullptr;
     // Extended the RoPE to a two-dimensional form to accommodate the 2D positional encoding in GLM.
     // Calculate positional embedding independent of batch and each head
@@ -576,10 +572,8 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     }
 
     auto slice_Slice_437 = GenSlice(input_key, 0, ndims, 1, 3);
-    slice_Slice_437->set_friendly_name("slice_Slice_437");
     auto var_split_1 = makePattern<opset1::VariadicSplit>({input_key, 3, {ndims, ov::gen_pattern::Symbol("end")}});
     var_split_1->set_output_size(2);
-    var_split_1->set_friendly_name("var_split");
 
     // rotate half
     std::shared_ptr<ov::Node> reshape_Reshape_453 = nullptr;
@@ -588,7 +582,6 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
         reshape_Reshape_453 =
             makePattern<opset1::Reshape>({slice_Slice_437 | var_split_1->output(0), const_target_shape_1},
                                          {{"special_zero", true}});
-        reshape_Reshape_453->set_friendly_name("reshape_Reshape_453_1");
     } else {
         auto ListConstruct_452_Concat =
             makePattern<opset1::Concat>({seq_length, {-1}, {head_cnt}, {ndims / 2}, {2}}, {{"axis", 0}});
@@ -597,16 +590,12 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
         reshape_Reshape_453 =
             makePattern<opset1::Reshape>({slice_Slice_437 | var_split_1->output(0),
                                           ListConstruct_452_Concat | const_target_shape_1 | const_target_shape_0});
-        reshape_Reshape_453->set_friendly_name("reshape_Reshape_453_2");
     }
 
     auto x_even = makePattern<opset8::Gather>({reshape_Reshape_453, 0, -1}, {{"batch_dims", 0}});
-    x_even->set_friendly_name("x_even");
     auto x_odd = makePattern<opset8::Gather>({reshape_Reshape_453, 1, -1}, {{"batch_dims", 0}});
-    x_odd->set_friendly_name("x_odd");
 
     auto var_split_2 = makePattern<opset1::VariadicSplit>({cos_sin_cache, 0, {0, ov::gen_pattern::Symbol("end")}});
-    var_split_2->set_friendly_name("var_split_2");
     var_split_2->set_output_size(2);
 
     std::shared_ptr<ov::Node> view_Reshape_460 = nullptr;
@@ -641,9 +630,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     }
 
     auto cos_tab = makePattern<opset8::Gather>({view_Reshape_460, 0, -1}, {{"batch_dims", 0}});
-    cos_tab->set_friendly_name("cos_tab_gather");
     auto x_even_cos = makePattern<opset1::Multiply>({x_even, cos_tab}, {{"auto_broadcast", "numpy"}});
-    x_even_cos->set_friendly_name("x_even_cos_gather");
 
     auto sin_tab = makePattern<opset8::Gather>({view_Reshape_460, 1, -1}, {{"batch_dims", 0}});
     auto x_odd_sin = makePattern<opset1::Multiply>({x_odd, sin_tab}, {{"auto_broadcast", "numpy"}});
@@ -692,15 +679,13 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     auto result = cat_Concat_505;
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        std::cout << "xxxxxxxxxx" << matcher_name << "xxxxxxxxxx" << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
-        std::cout << "XXXXXX GLM pattern before validation " << std::endl;
         PatternValidator validator(m);
         if (!validator) {
             return false;
         }
-        chat_glm_cnt++;
-        std::cout << "XXXXXX GLM pattern after validation " << chat_glm_cnt << std::endl;
         op::internal::RoPE::Config config;
         OutputVector new_args;
         config.rotary_ndims = static_cast<size_t>(validator["ndims"]);
