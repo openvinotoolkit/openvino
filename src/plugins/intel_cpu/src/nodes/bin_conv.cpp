@@ -960,11 +960,11 @@ BinaryConvolution::BinaryConvolution(const std::shared_ptr<ov::Node>& op, const 
         const auto binConv = ov::as_type_ptr<const ov::opset1::BinaryConvolution>(op);
 
         pad_value = binConv->get_pad_value();
-        for (size_t i = 0; i < binConv->get_strides().size(); i++) {
-            stride.push_back(static_cast<ptrdiff_t>(binConv->get_strides()[i]));
+        for (uint64_t i : binConv->get_strides()) {
+            stride.push_back(static_cast<ptrdiff_t>(i));
         }
-        for (size_t i = 0; i < binConv->get_dilations().size(); i++) {
-            dilation.push_back(static_cast<ptrdiff_t>(binConv->get_dilations()[i]) - 1);
+        for (uint64_t i : binConv->get_dilations()) {
+            dilation.push_back(static_cast<ptrdiff_t>(i) - 1);
         }
         paddingL = binConv->get_pads_begin();
         paddingR = binConv->get_pads_end();
@@ -987,8 +987,8 @@ void BinaryConvolution::getSupportedDescriptors() {
     withBinarization = isFusedWith(Type::FakeQuantize);
     withSum = false;
     size_t expectedInputEdgesNum = 2;
-    for (size_t i = 0; i < fusedWith.size(); i++) {
-        auto* eltwiseNode = dynamic_cast<Eltwise*>(fusedWith[i].get());
+    for (auto& i : fusedWith) {
+        auto* eltwiseNode = dynamic_cast<Eltwise*>(i.get());
         if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
             withSum = true;
             expectedInputEdgesNum++;
@@ -1194,9 +1194,8 @@ bool BinaryConvolution::canFuse(const NodePtr& node) const {
             ret &= node->getParentEdgeAt(i)->getParent()->getChildEdges().size() == 1;
         }
         return ret;
-    } else {
-        return canFuseSimpleOperation(node);
     }
+    return canFuseSimpleOperation(node);
 }
 
 void BinaryConvolution::setPostOps(dnnl::primitive_attr& attr) {
@@ -1205,19 +1204,20 @@ void BinaryConvolution::setPostOps(dnnl::primitive_attr& attr) {
     postOpsDataPtrs.clear();
     for (auto& node : fusedWith) {
         auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get());
+        int channelAxis = 1;
         if (eltwiseNode) {
             if (eltwiseNode->isSpecialConvolutionAddFusing()) {
                 ops.append_sum(1.0);
             } else {
                 // TODO [DS]: change to shape from memory
-                eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), postOpsDataPtrs);
+                eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), postOpsDataPtrs, channelAxis);
             }
             continue;
         }
 
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), postOpsDataPtrs);
+            fakeQuantizeNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), postOpsDataPtrs, channelAxis);
             continue;
         }
 
@@ -1345,9 +1345,9 @@ void BinaryConvolution::executeReference(const uint8_t* src,
                     if (ih < 0 || ih >= IH || iw < 0 || iw >= IW) {
                         if (pad_value == 0) {
                             continue;
-                        } else {
-                            s = pad_value == 1.0f ? static_cast<uint8_t>(1) : static_cast<uint8_t>(0);
                         }
+                        s = pad_value == 1.0f ? static_cast<uint8_t>(1) : static_cast<uint8_t>(0);
+
                     } else {
                         s = extract_bit(src[iidx / nbits], static_cast<uint8_t>(iidx % nbits));
                     }
