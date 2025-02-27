@@ -23,10 +23,12 @@ function(ov_install_pdb target)
         # installation of linker PDB files for shared libraries
         install(FILES $<TARGET_PDB_FILE:${target}>
                 DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT pdb
-                # OPTIONAL
                 EXCLUDE_FROM_ALL)
     elseif(type STREQUAL "STATIC_LIBRARY")
-        set(compile_pdb_name "${target}")
+        get_target_property(compile_pdb_name ${target} OUTPUT_NAME)
+        if(compile_pdb_name MATCHES "NOTFOUND")
+            set(compile_pdb_name ${target})
+        endif()
 
         set_target_properties(${target} PROPERTIES
                               COMPILE_PDB_OUTPUT_DIRECTORY "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}"
@@ -35,7 +37,6 @@ function(ov_install_pdb target)
         # installation of compile PDB files for static libraries
         install(FILES "$<TARGET_FILE_DIR:${target}>/${compile_pdb_name}.pdb"
                 DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT pdb
-                # OPTIONAL
                 EXCLUDE_FROM_ALL)
     endif()
 endfunction()
