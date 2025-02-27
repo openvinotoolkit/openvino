@@ -310,6 +310,7 @@ protected:
 };
 
 TEST_P(StridedSliceLayerGPUTest, Inference) {
+    is_report_stages = true;
     run();
 }
 

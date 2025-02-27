@@ -15,6 +15,8 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 
+#include <mutex>
+
 namespace {
 using ov::test::InputShape;
 
@@ -340,6 +342,7 @@ protected:
                  dyn_quan_group_size,
                  lora_rank) = GetParam();
 
+        std::cout << __FILE__ << ":" << __LINE__ << " [SetUp] Start setup primitives" << std::endl;
         std::vector<InputShape> input_shapes = {shape_params.data_shape};
 
         if (lora_rank != 0) {
@@ -353,9 +356,11 @@ protected:
             }
         }
 
+        std::cout << __FILE__ << ":" << __LINE__ << " [SetUp] init_input_shapes" << std::endl;
         init_input_shapes(input_shapes);
 
         inType = outType = activations_precision;
+        std::cout << __FILE__ << ":" << __LINE__ << " [SetUp] init_subgraph" << std::endl;
         function = init_subgraph(shape_params.weights_shapes,
                                  shape_params.weights_group_size,
                                  activations_precision,
@@ -373,6 +378,7 @@ protected:
             abs_threshold = 1e-4f;
         }
         this->configuration.insert({ov::hint::dynamic_quantization_group_size(dyn_quan_group_size)});
+        std::cout << __FILE__ << ":" << __LINE__ << " [SetUp] Finished" << std::endl;
     }
 
     void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
@@ -415,6 +421,7 @@ protected:
 };
 
 TEST_P(FullyConnectedHorizontalFusion, Inference) {
+    is_report_stages = true;
     run();
     check_results();
 }
