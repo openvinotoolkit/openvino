@@ -190,7 +190,7 @@ struct ShlParams : public ShlStructure<T>, public IShlParams {
         setAPI(api);
     }
 
-    void* get(bool allow_empty) const override {
+    void* get(bool allow_empty = false) const override {
         return this->ShlStructure<T, traits>::get(allow_empty);
     }
 
