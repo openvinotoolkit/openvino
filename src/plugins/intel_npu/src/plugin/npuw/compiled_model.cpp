@@ -117,6 +117,7 @@ void pre_load_transform(const std::shared_ptr<ov::Model>& model, const ov::AnyMa
         rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulAdd>();
         rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulTranspose>();
         rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulMultiply>();
+        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulMultiply2>();
         rewr.run_on_model(model);
     }
     model->validate_nodes_and_infer_types();
