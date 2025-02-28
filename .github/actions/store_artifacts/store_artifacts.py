@@ -134,8 +134,10 @@ def main():
     if github_server:  # If running from GHA context
         # TODO: write an exact job link, but it's not trivial to get
         workflow_link = f"{github_server}/{os.getenv('GITHUB_REPOSITORY')}/actions/runs/{os.getenv('GITHUB_RUN_ID')}"
-        with open(storage / 'workflow_link.txt', 'w') as file:
+        workflow_link_file = storage / 'workflow_link.txt'
+        with open(workflow_link_file, 'w') as file:
             file.write(workflow_link)
+        store_checksums(workflow_link_file)
 
     if not error_found:
         latest_artifacts_for_branch = artifact_utils.get_latest_artifacts_link(storage_dir, args.storage_root,
