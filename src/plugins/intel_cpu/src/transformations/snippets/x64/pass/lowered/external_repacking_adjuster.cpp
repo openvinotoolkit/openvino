@@ -54,21 +54,12 @@ VectorDims BrgemmExternalRepackingAdjuster::get_blk_order(size_t shape_rank) {
 VectorDims BrgemmExternalRepackingAdjuster::get_blk_shape(const VectorDims& planar_shape,
                                                           ov::element::Type prc,
                                                           bool is_transposed) {
-    size_t block = 1;
-    if (is_transposed) {
-        // In case of transpose, K dimension must be rounded-up to number of elems in vector register
-        // For the details, please see 'transpose16x8' and 'fixup16x16' implementations and usage in
-        // onednn/src/cpu/x64/matmul/brgemm_matmul_copy_utils.cpp
-        block = brgemm_utils::get_elems_in_vec(prc);
-    } else {
-        block = brgemm_utils::compute_vnni_factor(prc);
-    }
     const auto K = *++planar_shape.rbegin();
     const auto N = *planar_shape.rbegin();
-    const auto new_N = brgemm_utils::repacking::compute_repacked_n_dim(N, prc);
-    const auto new_K = snippets::utils::div_up(K, block);
+    const auto buffer_b_shape = brgemm_utils::repacking::compute_buffer_b_allocation_shape(K, N, prc, is_transposed);
+    OPENVINO_ASSERT(buffer_b_shape.size() == 3, "Unexpected buffer B shape rank");
     VectorDims blk_shape(planar_shape.begin(), planar_shape.end() - brgemm_kernel_rank);
-    blk_shape.insert(blk_shape.end(), {new_K, new_N, block});
+    blk_shape.insert(blk_shape.end(), buffer_b_shape.cbegin(), buffer_b_shape.cend());
     return blk_shape;
 }
 
