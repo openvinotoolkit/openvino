@@ -819,7 +819,6 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     } else {
         input0LowPrecisionList = {ov::element::u8};
     }
-    std::vector<ov::element::Type> lowPrecisionList = {ov::element::u8, ov::element::i8};
 
     auto supportedPrecisions = std::vector<PrecisionsRestriction>({
         PrecisionsRestriction::create<ov::opset1::Convolution>({
@@ -827,18 +826,20 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
             {{1}, {ov::element::i8}},
         }),
         PrecisionsRestriction::create<ov::opset1::ConvolutionBackpropData>(
-            {{{0}, lowPrecisionList}, {{1}, {ov::element::i8}}}),
-        PrecisionsRestriction::create<ov::opset1::GroupConvolution>([lowPrecisionList, input0LowPrecisionList](
+            {{{0}, {ov::element::u8, ov::element::i8}}, {{1}, {ov::element::i8}}}),
+        PrecisionsRestriction::create<ov::opset1::GroupConvolution>([input0LowPrecisionList](
                                                                         const std::shared_ptr<ov::Node>& node) {
             const auto& input_partial_shape = node->get_input_partial_shape(0);
             const auto& rank = input_partial_shape.rank();
             if (rank.is_static() && (rank.get_length() == 5)) {
-                return PrecisionsRestriction::PrecisionsByPorts{{{0}, lowPrecisionList}, {{1}, {ov::element::i8}}};
+                return PrecisionsRestriction::PrecisionsByPorts{{{0}, {ov::element::u8, ov::element::i8}},
+                                                                {{1}, {ov::element::i8}}};
             }
 
             return PrecisionsRestriction::PrecisionsByPorts{{{0}, input0LowPrecisionList}, {{1}, {ov::element::i8}}};
         }),
-        PrecisionsRestriction::create<ov::opset1::MatMul>({{{0}, lowPrecisionList}, {{1}, {ov::element::i8}}}),
+        PrecisionsRestriction::create<ov::opset1::MatMul>(
+            {{{0}, {ov::element::u8, ov::element::i8}}, {{1}, {ov::element::i8}}}),
         PrecisionsRestriction::create<ov::opset5::LSTMSequence>({{{0, 1}, {ov::element::u8}}}),
         PrecisionsRestriction::create<ov::opset6::GRUSequence>({{{0, 1}, {ov::element::u8}}}),
     });
@@ -1028,6 +1029,19 @@ void Transformations::PostLpt() {
 }
 
 void Transformations::MainSnippets(void) {
+// Disable MainSnippets for int8 models on arm platforms due to performance issues
+// Ticket: 163408
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    using namespace ov::pass::low_precision;
+    static const std::set<levels>& supported_fq_levels = {levels::int4,
+                                                          levels::int4_narrow_range,
+                                                          levels::int8,
+                                                          levels::int8_narrow_range};
+    if (LowPrecision::isFunctionQuantized(model, supported_fq_levels)) {
+        return;
+    }
+#endif
+
     auto is_supported_isa = []() {
 #if defined(OPENVINO_ARCH_X86_64)
         return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
@@ -1372,19 +1386,7 @@ void Transformations::Snippets(void) {
     }
 
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Snippets);
-// Disable MainSnippets for int8 models on arm platforms
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    using namespace ov::pass::low_precision;
-    static const std::set<levels>& supported_fq_levels = {levels::int4,
-                                                          levels::int4_narrow_range,
-                                                          levels::int8,
-                                                          levels::int8_narrow_range};
-    if (!LowPrecision::isFunctionQuantized(model, supported_fq_levels)) {
-        MainSnippets();
-    }
-#else
     MainSnippets();
-#endif
     PostSnippets();
 }
 

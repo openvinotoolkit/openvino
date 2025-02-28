@@ -683,7 +683,8 @@ void GraphOptimizer::FuseMultiplyAndAdd(Graph& graph) {
 }
 
 void GraphOptimizer::MergeEltwiseAndConvert(Graph& graph) {
-// The pass is required on arm platforms only
+// The pass is enabled on arm platforms only, however it might be usefull for other platforms as well
+// It requires additional perf validation. Ticket: 163388
 #if !defined(OPENVINO_ARCH_ARM64)
     return;
 #endif
@@ -711,16 +712,13 @@ void GraphOptimizer::MergeEltwiseAndConvert(Graph& graph) {
             continue;
         }
 
-        if (!one_of(childNode->getOriginalOutputPrecisionAtPort(0),
-                    ov::element::i8,
-                    ov::element::u8,
-                    ov::element::f16,
-                    ov::element::bf16,
-                    ov::element::f32)) {
+        const auto eltwise = dynamic_cast<ov::intel_cpu::node::Eltwise*>(parentNode.get());
+        if (!eltwise->canFuseConvert(childNode)) {
             parent++;
             continue;
         }
 
+        // WA: Eltwise node uses precision of last fused node as output precision
         auto fusedOps = parentNode->getFusedWith();
         if (!fusedOps.empty()) {
             fusedOps[fusedOps.size() - 1]->setOriginalOutputPrecisionAtPort(
