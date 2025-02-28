@@ -119,7 +119,7 @@ void DriverGraph::initialize(const Config& config) {
         set_workload_type(config.get<WORKLOAD_TYPE>());
     }
 
-    _zeGraphExt->initializeGraph(_handle, config);
+    _zeGraphExt->initializeGraph(_handle);
 
     _logger.debug("Graph initialize finish");
 
@@ -163,12 +163,21 @@ bool DriverGraph::release_blob(const Config& config) {
 };
 
 DriverGraph::~DriverGraph() {
+    // make sure all the context-dependent components are destroyed before the zero context is destroyed
     if (_handle != nullptr) {
         auto result = _zeGraphExt->destroyGraph(_handle);
 
         if (ZE_RESULT_SUCCESS == result) {
             _handle = nullptr;
         }
+    }
+
+    if (!_last_submitted_event.empty()) {
+        _last_submitted_event.clear();
+    }
+
+    if (_command_queue != nullptr) {
+        _command_queue.reset();
     }
 }
 

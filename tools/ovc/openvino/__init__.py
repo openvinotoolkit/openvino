@@ -39,8 +39,8 @@ from openvino._pyopenvino import Strides
 from openvino._pyopenvino import PartialShape
 from openvino._pyopenvino import Shape
 from openvino._pyopenvino import Layout
-from openvino._pyopenvino import Type
 from openvino._pyopenvino import Tensor
+from openvino._pyopenvino import Type
 from openvino._pyopenvino import OVAny
 from openvino._pyopenvino import get_batch
 from openvino._pyopenvino import set_batch
@@ -60,8 +60,8 @@ from openvino._ov_api import AsyncInferQueue
 from openvino._ov_api import Op
 
 # Import all public modules
-from openvino.package_utils import lazy_import
-runtime = lazy_import("openvino.runtime")
+from openvino.package_utils import LazyLoader
+runtime = LazyLoader("openvino.runtime")
 from openvino import frontend as frontend
 from openvino import helpers as helpers
 from openvino import experimental as experimental

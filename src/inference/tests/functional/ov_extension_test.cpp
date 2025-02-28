@@ -82,12 +82,10 @@ public:
 };
 
 #if defined(ENABLE_OV_IR_FRONTEND)
-#    ifdef OPENVINO_CPP_VER_AT_LEAST_17
 TEST_F(OVExtensionTests, ReshapeIRWithNewExtensionsPathLib) {
     core.add_extension(std::filesystem::path(getOVExtensionPath()));
     test();
 }
-#    endif
 
 TEST_F(OVExtensionTests, ReshapeIRWithNewExtensionsLib) {
     core.add_extension(getOVExtensionPath());

@@ -28,10 +28,6 @@ public:
         prepare_table();
     }
 
-    void emit_code(const std::vector<size_t>& in_idxs,
-                   const std::vector<size_t>& out_idxs,
-                   const std::vector<size_t>& pool_vec_idxs = {},
-                   const std::vector<size_t>& pool_gpr_idxs = {}) const override;
     void emit_data() const override;
 
     size_t get_inputs_num() const override;
@@ -44,6 +40,11 @@ protected:
     void register_table_entries() override;
 
     void emit_impl(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const override;
+
+    void emit_code_impl(const std::vector<size_t>& in_idxs,
+                        const std::vector<size_t>& out_idxs,
+                        const std::vector<size_t>& pool_vec_idxs,
+                        const std::vector<size_t>& pool_gpr_idxs) const override;
 
     void emitter_preamble(const std::vector<size_t>& in_idxs,
                           const std::vector<size_t>& out_idxs,

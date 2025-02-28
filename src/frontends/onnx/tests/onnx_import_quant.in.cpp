@@ -428,7 +428,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_2d) {
     auto test_case = ov::test::TestCase(model, s_device);
 
 	test_case.add_input_from_file<uint8_t>(
-		util::path_join({ ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "files/qlinearconv2d/x.bin" }));
+		util::path_join({ ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "files/qlinearconv2d/x.bin" }).string());
     test_case.add_input(std::vector<float>{0.00369204697199166f});  // x_scale
     test_case.add_input(std::vector<uint8_t>{132});                 // x_zero_point
     test_case.add_input(std::vector<uint8_t>{0});                   // w
@@ -438,7 +438,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_2d) {
     test_case.add_input(std::vector<uint8_t>{123});                 // y_zero_point
 
 	test_case.add_expected_output_from_file<uint8_t>({ 1, 1, 7, 7 },
-		util::path_join({ ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "files/qlinearconv2d/y.bin" }));
+		util::path_join({ ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "files/qlinearconv2d/y.bin" }).string());
     test_case.run();
 }
 
