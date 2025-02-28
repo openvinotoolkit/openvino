@@ -4,8 +4,7 @@
 
 #include "common_translators.hpp"
 #include "openvino/frontend/complex_type_mark.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/convert_like.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/select.hpp"
 #include "utils.hpp"
@@ -38,19 +37,14 @@ OutputVector translate_angle(const NodeContext& context) {
     const double pi_val = atan(1.0) * 4;
     auto real = complex;
 
-    auto zero_as_input = context.mark_node(make_shared<v0::Constant>(element::i32, Shape{}, 0));
-    zero_as_input = context.mark_node(make_shared<v1::ConvertLike>(zero_as_input, real));
-    auto is_negative = context.mark_node(make_shared<v1::Less>(real, zero_as_input));
-
-    ov::Output<ov::Node> pi;
-    ov::Output<ov::Node> zero;
-    if (real.get_element_type() == ov::element::f64) {
-        pi = context.mark_node(make_shared<v0::Constant>(ov::element::f64, Shape{}, pi_val));
-        zero = context.mark_node(make_shared<v0::Constant>(ov::element::f64, Shape{}, 0));
-    } else {
-        pi = context.mark_node(make_shared<v0::Constant>(ov::element::f32, Shape{}, static_cast<float>(pi_val)));
-        zero = context.mark_node(make_shared<v0::Constant>(ov::element::f32, Shape{}, 0));
+    auto real_type = real.get_element_type();
+    if (real_type.is_static() && real_type.is_integral()) {
+        real = context.mark_node(std::make_shared<v0::Convert>(real, element::f32));
     }
+
+    ov::Output<ov::Node> pi = create_same_type_const_scalar<double>(real, pi_val);
+    ov::Output<ov::Node> zero = create_same_type_const_scalar<int32_t>(real, 0);
+    auto is_negative = context.mark_node(make_shared<v1::Less>(real, zero));
 
     auto angle = context.mark_node(make_shared<v1::Select>(is_negative, pi, zero));
     return {angle};
