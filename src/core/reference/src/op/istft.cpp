@@ -39,10 +39,13 @@ void istft(const float* in_data,
     std::vector<float> mid_result(batch_size * signal_length, 0.f);
     float* result = mid_result.data();
 
+    const auto fft_results_dim = data_shape[data_shape.size() - 3];
+    OPENVINO_ASSERT(fft_results_dim == static_cast<size_t>((frame_size / 2) + 1));
+
     const auto frame_size_dim = static_cast<size_t>(frame_size);
     const auto frame_size_dim_shape = Shape{frame_size_dim};
     const auto frame_size_dim_shape_out = Shape{frame_size_dim, 2};
-    const auto fft_out_shape = Shape{static_cast<size_t>((frame_size_dim / 2) + 1), 2};
+    const auto fft_out_shape = Shape{fft_results_dim, 2};
 
     const auto window_length = window_shape[0] < frame_size_dim ? window_shape[0] : frame_size_dim;
     std::vector<float> pad_window(frame_size, 0);
@@ -116,14 +119,14 @@ void istft(const float* in_data,
                            func::add<float>);
         }
 
-        std::transform(result, result + signal_length, window_sum.begin(), result, postprocess_func);
+        std::transform(result, result + signal_length, window_sum.begin() + batch_out_start, result, postprocess_func);
 
         const auto result_start = result + margin;
         std::copy(result_start, result_start + copy_end, final_result);
 
         batch_in_start += in_batch_single_step;
         batch_out_start += signal_length;
-        result += batch_out_start;
+        result += signal_length;
         final_result += final_signal_length;
     }
 }

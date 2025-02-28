@@ -90,6 +90,7 @@ enum class Type {
     DFT,
     RDFT,
     STFT,
+    ISTFT,
     Math,
     CTCLoss,
     Bucketize,

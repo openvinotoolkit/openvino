@@ -241,6 +241,7 @@ static std::map<ov::NodeTypeInfo, Range> inputRanges = {
     {ov::op::v15::BitwiseLeftShift::get_type_info_static(), Range({{0, 5}, {0, 4}}, {})},
     {ov::op::v15::BitwiseRightShift::get_type_info_static(), Range({{0, 5}, {0, 4}}, {})},
     {ov::op::v15::STFT::get_type_info_static(), Range({{16, 24}, {1, 16}}, {{0, 1, 10000}, {0, 1, 10000}})},
+    {ov::op::v16::ISTFT::get_type_info_static(), Range({{}, {}, {16, 0, 1}, {4, 0, 1}, {64, 0, 1}}, {{0, 1, 10000}, {0, 1, 10000}})},
 };
 
 class ModelRange {
