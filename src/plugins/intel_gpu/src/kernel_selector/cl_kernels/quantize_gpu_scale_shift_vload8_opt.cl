@@ -18,6 +18,42 @@
 #define convert_float8_sat  convert_float8
 #define convert_half8_sat   convert_half8
 
+#define vstore_partial_1(TENSOR, OFFSET, PTR) vstore1(TENSOR.s0, OFFSET, PTR);
+#define vstore_partial_2(TENSOR, OFFSET, PTR) vstore2(TENSOR.s01, OFFSET, PTR);
+#define vstore_partial_3(TENSOR, OFFSET, PTR) vstore3(TENSOR.s012, OFFSET, PTR);
+#define vstore_partial_4(TENSOR, OFFSET, PTR) vstore4(TENSOR.s0123, OFFSET, PTR);
+#define vstore_partial_5(TENSOR, OFFSET, PTR)    \
+    vstore_partial_4(TENSOR.s0123, OFFSET, PTR); \
+    vstore1(TENSOR.s4, OFFSET, PTR + 4);
+#define vstore_partial_6(TENSOR, OFFSET, PTR)    \
+    vstore_partial_4(TENSOR.s0123, OFFSET, PTR); \
+    vstore_partial_2(TENSOR.s45, OFFSET, PTR + 4);
+#define vstore_partial_7(TENSOR, OFFSET, PTR)    \
+    vstore_partial_4(TENSOR.s0123, OFFSET, PTR); \
+    vstore_partial_3(TENSOR.s456, OFFSET, PTR + 4);
+#define vstore_partial_8(DATA, OFFSET, PTR) vstore8(DATA.s01234567, OFFSET, PTR);
+
+#define VSTORE_PARTIAL_STR(size) vstore_partial_##size
+#define VSTORE_PARTIAL(size)     VSTORE_PARTIAL_STR(size)
+
+#define vload_partial_1(TENSOR, OFFSET, PTR) TENSOR.s0 = vload1(OFFSET, PTR);
+#define vload_partial_2(TENSOR, OFFSET, PTR) TENSOR.s01 = vload2(OFFSET, PTR);
+#define vload_partial_3(TENSOR, OFFSET, PTR) TENSOR.s012 = vload3(OFFSET, PTR);
+#define vload_partial_4(TENSOR, OFFSET, PTR) TENSOR.s0123 = vload4(OFFSET, PTR);
+#define vload_partial_5(TENSOR, OFFSET, PTR)    \
+    vload_partial_4(TENSOR.s0123, OFFSET, PTR); \
+    TENSOR.s4 = vload1(OFFSET, PTR + 4);
+#define vload_partial_6(TENSOR, OFFSET, PTR)    \
+    vload_partial_4(TENSOR.s0123, OFFSET, PTR); \
+    vload_partial_2(TENSOR.s45, OFFSET, PTR + 4);
+#define vload_partial_7(TENSOR, OFFSET, PTR)    \
+    vload_partial_4(TENSOR.s0123, OFFSET, PTR); \
+    vload_partial_3(TENSOR.s456, OFFSET, PTR + 4);
+#define vload_partial_8(TENSOR, OFFSET, PTR) TENSOR.s01234567 = vload8(OFFSET, PTR);
+
+#define VLOAD_PARTIAL_STR(size) vload_partial_##size
+#define VLOAD_PARTIAL(size)     VLOAD_PARTIAL_STR(size)
+
 #ifdef SUB_GROUP_SIZE
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 #endif
@@ -38,10 +74,16 @@ KERNEL(quantize_gpu_scale_shift_vload8_opt)(OPTIONAL_SHAPE_INFO_ARG
                                            __global OUTPUT_TYPE* output)
 {
     const int global_id = get_global_id(0);
-#if LAST_ACCESSED_X
-    global_id -= max(global_id - (int)LAST_ACCESSED_X, 0);
+    INPUT0_VEC_TYPE in0;
+#if defined LAST_ACCESSED_X
+    if ((global_id * 8)  > (int)LAST_ACCESSED_X) {
+        VLOAD_PARTIAL(LEFT_OVERS)(in0, 0, input + global_id * 8);
+    } else {
+        VLOAD_PARTIAL(8)(in0, global_id, input);
+    }
+#else
+    VLOAD_PARTIAL(8)(in0, global_id, input);
 #endif
-    const INPUT0_VEC_TYPE in0 = vload8(global_id, input);
     OUTPUT_VEC_TYPE res;
     const INPUT1_VEC_TYPE vscale = IN_SCALE_VAL;
     const INPUT1_VEC_TYPE vshift = IN_SHIFT_VAL;
@@ -124,6 +166,14 @@ KERNEL(quantize_gpu_scale_shift_vload8_opt)(OPTIONAL_SHAPE_INFO_ARG
 #else
         res = TO_VECTOR_TYPE_SAT_RTE(OUTPUT_TYPE, 8)(val);;
 #endif
-    //BLOCK_WRITEN(OUTPUT_TYPE, 8, output, global_id, res);
-    vstore8(res, global_id, output);
+
+#if defined LAST_ACCESSED_X
+    if ((global_id * 8) > (int)LAST_ACCESSED_X) {
+        VSTORE_PARTIAL(LEFT_OVERS)(res, 0, output + global_id * 8);
+    } else {
+        VSTORE_PARTIAL(8)(res, global_id, output);
+    }
+#else
+    VSTORE_PARTIAL(8)(res, global_id, output);
+#endif
 }
