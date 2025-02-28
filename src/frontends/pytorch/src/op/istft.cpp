@@ -10,8 +10,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/sqrt.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
@@ -65,7 +63,7 @@ OutputVector translate_istft(const NodeContext& context) {
         window = context.mark_node(std::make_shared<ov::op::v3::Broadcast>(one_cast, win_len_vec));
     }
 
-    bool center = false;
+    bool center = true;
     if (!context.input_is_none(5)) {
         center = context.const_input<bool>(5);
     }
