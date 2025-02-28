@@ -152,6 +152,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-main
 
+      - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
+        id: create_manifest
+        uses: ./openvino/.github/actions/create_manifest
+        with:
+          repos: |
+            ${{ env.OPENVINO_REPO }}
+            ${{ env.OPENVINO_CONTRIB_REPO }}
+          product_type: ${{ env.PRODUCT_TYPE }}
+          target_arch: ${{ runner.arch }}
+          build_type: 'release'
+          save_to: ${{ github.workspace }}/${{ env.MANIFEST_FILE }}      
+            
       - name: CMake configure
         run: |
           cmake \
@@ -234,18 +246,6 @@ jobs:
           version: ${{ env.PYTHON_VERSION }}
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
-
-      - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
-        id: create_manifest
-        uses: ./openvino/.github/actions/create_manifest
-        with:
-          repos: |
-            ${{ env.OPENVINO_REPO }}
-            ${{ env.OPENVINO_CONTRIB_REPO }}
-          product_type: ${{ env.PRODUCT_TYPE }}
-          target_arch: ${{ runner.arch }}
-          build_type: 'release'
-          save_to: ${{ github.workspace }}/${{ env.MANIFEST_FILE }}  
         
       - name: Cmake & Build - OpenVINO Contrib
         run: |
