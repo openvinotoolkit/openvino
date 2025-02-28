@@ -114,7 +114,7 @@ bool cpu_pinning_available(const bool cpu_reservation,
     return result_value;
 }
 
-bool check_cpu_reservation(bool cpu_reservation){
+bool check_cpu_reservation(bool cpu_reservation) {
 #if defined(__APPLE__)
     return false;
 #else

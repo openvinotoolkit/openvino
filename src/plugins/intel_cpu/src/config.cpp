@@ -9,6 +9,7 @@
 #include <string>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu_map_scheduling.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
@@ -17,7 +18,6 @@
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/precision_support.h"
-#include "cpu_map_scheduling.hpp"
 
 namespace ov::intel_cpu {
 
