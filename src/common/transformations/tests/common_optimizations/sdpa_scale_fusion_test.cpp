@@ -7,7 +7,6 @@
 #include <memory>
 #include <openvino/core/model.hpp>
 #include <openvino/opsets/opset10.hpp>
-#include "ov_ops/type_relaxed.hpp"
 #include <openvino/pass/manager.hpp>
 #include <transformations/common_optimizations/sdpa_scale_fusion.hpp>
 #include <transformations/utils/utils.hpp>
@@ -16,6 +15,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "ov_ops/type_relaxed.hpp"
 
 using namespace testing;
 using namespace ov::pass;
@@ -243,7 +243,7 @@ TEST_F(TransformationTestsF, SDPAScaleFusionTest6) {
         const auto q_scaled = std::make_shared<ov::op::v1::Multiply>(query, scale_const);
         const auto k_scaled = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Multiply>>(
             std::vector<element::Type>{element::f16, element::f16},
-            std::vector<element::Type>{ element::f16 },
+            std::vector<element::Type>{element::f16},
             ov::op::TemporaryReplaceOutputType(key, element::f16).get(),
             ov::op::TemporaryReplaceOutputType(scale_const, element::f16).get());
         const auto sdpa =
@@ -256,7 +256,7 @@ TEST_F(TransformationTestsF, SDPAScaleFusionTest6) {
     {
         const auto k_scaled_ref = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Multiply>>(
             std::vector<element::Type>{element::f16, element::f16},
-            std::vector<element::Type>{ element::f16 },
+            std::vector<element::Type>{element::f16},
             ov::op::TemporaryReplaceOutputType(key, element::f16).get(),
             ov::op::TemporaryReplaceOutputType(scale_const, element::f16).get());
         const auto new_mask_const = ov::op::v0::Constant::create(element::f16, ov::Shape{}, std::vector<float>{0.0f});
