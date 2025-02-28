@@ -57,7 +57,7 @@ void SyncInferRequest::redefine_memory_for_input_nodes(Graph& graph) {
         auto inputNode = graph.getInputNodeByIndex(input_port.first);
         OPENVINO_ASSERT(inputNode, "CPU execution graph doesn't contain output node with index: ", input_port.first);
         if (inputNode->isDynamicNode()) {
-            auto tensor = get_tensor(input_port.second);
+            const auto& tensor = get_tensor_ptr(input_port.second);
             inputNode->redefineOutputMemory({tensor->get_shape()});
         }
     }
@@ -67,7 +67,7 @@ void SyncInferRequest::update_external_tensor_ptrs() {
     // Update it due to batched_tensors case will update input tensor
     for (const auto& input : m_input_ports_map) {
         if (m_input_external_ptr.find(input.first) != m_input_external_ptr.end()) {
-            auto tensor = get_tensor(input.second);
+            const auto& tensor = get_tensor_ptr(input.second);
             m_input_external_ptr[input.first] = tensor;
         }
     }
@@ -586,7 +586,7 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
 
 void SyncInferRequest::push_input_data(Graph& graph) {
     for (auto& input : m_input_ports_map) {
-        auto tensor = get_tensor(input.second);
+        const auto& tensor = get_tensor_ptr(input.second);
         graph.PushInputData(input.first, tensor);
     }
 }
