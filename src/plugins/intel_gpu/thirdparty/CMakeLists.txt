@@ -147,7 +147,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
         if(WIN32)
             ExternalProject_Add_Step(onednn_gpu_build post-build
                 COMMAND ${CMAKE_COMMAND}
-                    -D "BUILD_DIR=${ONEDNN_BUILD_DIR}"
+                    -D "BUILD_DIR=${ONEDNN_BUILD_DIR}/src"
                     -D "OUTPUT_DIR=${OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}"
                     -P "${CMAKE_CURRENT_SOURCE_DIR}/copy_pdb.cmake"
                 COMMENT "Copy oneDNN for GPU PDB files"

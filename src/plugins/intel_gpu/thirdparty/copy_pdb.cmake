@@ -9,4 +9,10 @@ foreach(var IN ITEMS BUILD_DIR OUTPUT_DIR)
 endforeach()
 
 file(GLOB_RECURSE PDB_FILES "${BUILD_DIR}/*.pdb")
+
+message("Found PDBs for oneDNN GPU: ")
+foreach(pdb IN LISTS PDB_FILES)
+    message("${pdb}")
+endforeach()
+
 file(COPY ${PDB_FILES} DESTINATION ${OUTPUT_DIR})

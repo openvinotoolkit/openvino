@@ -182,6 +182,18 @@ install(EXPORT OpenVINOTargets
         COMPONENT ${OV_CPACK_COMP_CORE_DEV}
         ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
 
+#
+# Install PDB files
+#
+
+if(WIN32)
+    # installation of compile PDB files for static libraries
+    install(DIRECTORY "${OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}/"
+            DESTINATION ${OV_CPACK_ARCHIVEDIR}
+            COMPONENT pdb
+            EXCLUDE_FROM_ALL)
+endif()
+
 # build tree
 
 if(DNNL_USE_ACL)

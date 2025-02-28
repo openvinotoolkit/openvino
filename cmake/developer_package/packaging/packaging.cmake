@@ -64,12 +64,6 @@ macro(ov_install_pdb target)
                 endif()
             endforeach()
 
-            # installation of compile PDB files for static libraries
-            install(DIRECTORY "${OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}/"
-                    DESTINATION ${OV_CPACK_ARCHIVEDIR}
-                    COMPONENT pdb
-                    EXCLUDE_FROM_ALL)
-
             unset(source)
             unset(sources)
             unset(_compile_pdb_name)
