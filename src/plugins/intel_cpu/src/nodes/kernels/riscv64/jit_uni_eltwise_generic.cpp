@@ -35,11 +35,11 @@ void jit_uni_eltwise_generic<isa>::generate() {
     // If we store label to the GPR and only then call `L(label)` to define data section,
     // during kernel compilation null-address will be stored to this GPRs since address will be inited later.
     // To use data section, we define it before kernel execution.
-    dataTop = const_cast<uint8_t*>(getCurr());
+    data_section_address = const_cast<uint8_t*>(getCurr());
     emit_data();
 
     // After data section, we define code section
-    codeTop = const_cast<uint8_t*>(getCurr());
+    code_section_address = const_cast<uint8_t*>(getCurr());
     preamble();
 
     const auto& jep = jep_;
@@ -494,7 +494,7 @@ void jit_uni_eltwise_generic<isa>::emit_data() const {
     }
 }
 
-template struct jit_uni_eltwise_generic<cpu_isa_t::gcv>;
+template struct jit_uni_eltwise_generic<cpu_isa_t::gv>;
 
 }  // namespace riscv64
 

@@ -51,7 +51,7 @@ enum impl_desc_type : int64_t {
     // shl backend
     shl = 1ll << 32,
 
-    rvv = 1ll << 33,
+    gv = 1ll << 33,
 
     kleidiai = 1ll << 34,
 
@@ -127,7 +127,7 @@ enum impl_desc_type : int64_t {
     gemm_shl = gemm | shl,
     gemm_kleidiai = gemm | kleidiai,
 
-    jit_rvv = jit | rvv
+    jit_gv = jit | gv
 };
 
 std::vector<std::string> extractTypeAndImplName(const std::string& priority);

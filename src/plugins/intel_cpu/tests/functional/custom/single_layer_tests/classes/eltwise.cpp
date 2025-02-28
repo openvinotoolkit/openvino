@@ -278,7 +278,7 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
 #endif
 
 #if defined(OPENVINO_ARCH_RISCV64)
-    if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gcv)) {
+    if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
         if ((eltwise_type == utils::EltwiseTypes::ADD) ||
             (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
             (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
@@ -292,13 +292,10 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
         (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
         (eltwise_type == utils::EltwiseTypes::DIVIDE)) {
         return "shl";
-    } else {
-        return "ref";
     }
 #endif
-#else
-    return CPUTestsBase::getPrimitiveType();
 #endif
+    return CPUTestsBase::getPrimitiveType();
 }
 
 TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {

@@ -110,7 +110,7 @@ public:
 protected:
     virtual void generate() = 0;
 
-    virtual const uint8_t* getCodeTop() const {
+    virtual const uint8_t* getCodeAddress() const {
         return CodeGenerator::getCode();
     }
 
@@ -142,12 +142,14 @@ private:
     const uint8_t* getCode() {
         ready();
         if (!is_initialized()) return nullptr;
-        return getCodeTop();
+        return getCodeAddress();
     }
 
-    // At the moment, Xbyak_riscv does not have GetError()
-    // so that return dummy result.
-    static inline bool is_initialized() {  return true; }
+    static inline bool is_initialized() {
+        // At the moment, Xbyak_riscv does not have GetError()
+        // so that return dummy result.
+        return true;
+    }
 };
 
 }   // namespace riscv64
