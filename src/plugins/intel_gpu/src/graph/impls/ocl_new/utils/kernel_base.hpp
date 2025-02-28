@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/type.hpp"
 #include "program_node.h"
 
 #include "primitive_db.h"
@@ -48,6 +49,7 @@ struct DispatchDataFunc {
 };
 
 #define DISPATCH_DATA_FUNC(params, kd, rt_params, ...) [__VA_ARGS__](const kernel_impl_params& params, KernelData& kd, RuntimeParams* rt_params)
+#define OV_GPU_OCL_KERNEL(TYPE_NAME) OV_GPU_PRIMITIVE_IMPL(TYPE_NAME)
 
 struct KernelData {
     KernelCode code;
@@ -70,6 +72,7 @@ public:
 
     virtual KernelData get_kernel_data(const kernel_impl_params& params) const = 0;
     virtual DispatchDataFunc get_dispatch_data_func() const = 0;
+    virtual const ov::DiscreteTypeInfo& get_type_info() const = 0;
 };
 
 class SingleKernelGenerator : public KernelGeneratorBase {

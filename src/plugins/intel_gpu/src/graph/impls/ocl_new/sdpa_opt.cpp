@@ -73,7 +73,7 @@ public:
         auto stage_type = need_indirect_load(static_cast<scaled_dot_product_attention_inst&>(instance)) ? INDIRECT_STAGE : REGULAR_STAGE;
         const auto& gfx_ver = params.get_program().get_engine().get_device_info().gfx_ver;
         bool is_ARL_H = (gfx_ver.major == 12 && gfx_ver.minor == 74);
-        bool run_micro_sdpa = has_stage(REGULAR_STAGE + SDPAStage::MICRO) && (is_prefill || !is_ARL_H) && stage_type == REGULAR_STAGE;
+        bool run_micro_sdpa = /* has_stage(REGULAR_STAGE + SDPAStage::MICRO) && */ (is_prefill || !is_ARL_H) && stage_type == REGULAR_STAGE;
 
         update_stages_flags(instance);
 

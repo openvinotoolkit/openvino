@@ -846,6 +846,8 @@ public:
             network = std::make_shared<cldnn::network>(imported_prog);
         }
 
+        // network::ptr network = get_network(get_test_engine(), topology, config, get_test_stream_ptr(), false);
+
         network->set_input_data("query", query_mem);
         network->set_input_data("key", key_mem);
         network->set_input_data("value", value_mem);

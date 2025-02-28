@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "paged_attention_opt.hpp"
+#include <array>
 #include <memory>
+#include <utility>
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "openvino/core/partial_shape.hpp"
@@ -210,6 +212,7 @@ public:
 
 class PagedAttentionGeneratorSingleToken : public PagedAttentionGeneratorBase {
 public:
+    OV_GPU_OCL_KERNEL("PagedAttentionGeneratorSingleToken")
     PagedAttentionGeneratorSingleToken() : PagedAttentionGeneratorBase() {
         m_stage_suffix = "_single_token";
     }
@@ -296,6 +299,7 @@ public:
 
 class PagedAttentionGeneratorSingleTokenFinalization : public PagedAttentionGeneratorBase {
 public:
+    OV_GPU_OCL_KERNEL("PagedAttentionGeneratorSingleTokenFinalization")
     PagedAttentionGeneratorSingleTokenFinalization() : PagedAttentionGeneratorBase() {
         m_stage_suffix = "_single_token_finalization";
     }
@@ -353,6 +357,7 @@ public:
 
 class PagedAttentionGeneratorMultiTokens : public PagedAttentionGeneratorBase {
 public:
+    OV_GPU_OCL_KERNEL("PagedAttentionGeneratorMultiTokens")
     PagedAttentionGeneratorMultiTokens() : PagedAttentionGeneratorBase() {
         m_stage_suffix = "_multi_tokens";
     }
@@ -441,6 +446,7 @@ public:
 
 class PagedAttentionGeneratorMultiTokensFinalization : public PagedAttentionGeneratorBase {
 public:
+    OV_GPU_OCL_KERNEL("PagedAttentionGeneratorMultiTokensFinalization")
     PagedAttentionGeneratorMultiTokensFinalization() : PagedAttentionGeneratorBase() {
         m_stage_suffix = "_multi_tokens_finalization";
     }
@@ -501,6 +507,7 @@ public:
 
 class PagedAttentionGeneratorScoresCalculation : public PagedAttentionGeneratorBase {
 public:
+    OV_GPU_OCL_KERNEL("PagedAttentionGeneratorScoresCalculation")
     PagedAttentionGeneratorScoresCalculation() : PagedAttentionGeneratorBase() {
         m_stage_suffix = "_scores_calculation";
     }
@@ -560,6 +567,7 @@ public:
 
 class KVCacheUpdateGenerator : public SingleKernelGenerator {
 public:
+    OV_GPU_OCL_KERNEL("KVCacheUpdateGenerator")
     KVCacheUpdateGenerator() : SingleKernelGenerator("pa_kv_cache_update_ref") {}
 
 protected:
@@ -653,6 +661,7 @@ protected:
 
 class KVCacheRotateGenerator : public SingleKernelGenerator {
 public:
+    OV_GPU_OCL_KERNEL("KVCacheRotateGenerator")
     KVCacheRotateGenerator() : SingleKernelGenerator("pa_kv_cache_rotate_ref") {}
 
 protected:
@@ -716,6 +725,7 @@ protected:
 
 class PagedAttentionSDPAOptGeneratorMultiToken : public SDPAOptGeneratorBase {
 public:
+    OV_GPU_OCL_KERNEL("PagedAttentionSDPAOptGeneratorMultiToken")
     PagedAttentionSDPAOptGeneratorMultiToken() : SDPAOptGeneratorBase("sdpa_opt", false) {
         m_stage_suffix = "_paged";
     }
@@ -820,38 +830,39 @@ public:
 
 }  // namespace
 
+
 class PagedAttentionOptImpl : public SDPAImplBase {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::PagedAttentionOptImpl)
 
-    static constexpr const size_t KV_CACHE_UPDATE = 0;
-    static constexpr const size_t KV_CACHE_ROTATE = 1;
-    static constexpr const size_t SDPA = 2;
-    static constexpr const size_t PA_SDPA_SINGLE_TOKEN = 3;
-    static constexpr const size_t PA_SDPA_SINGLE_TOKEN_FINALIZATION = 4;
-    static constexpr const size_t PA_SDPA_MULTI_TOKENS = 5;
-    static constexpr const size_t PA_SDPA_MULTI_TOKENS_FINALIZATION = 6;
-    static constexpr const size_t PA_SDPA_SCORES_CALC = 7;
+    Stage kv_cache_update = make_stage<KVCacheUpdateGenerator>();
+    Stage pa_single_token = make_stage<PagedAttentionGeneratorSingleToken>();
+    Stage pa_single_token_finalization = make_stage<PagedAttentionGeneratorSingleTokenFinalization>();
+    Stage pa_multi_token = make_stage<PagedAttentionGeneratorMultiTokens>();
+    Stage pa_multi_token_finalization = make_stage<PagedAttentionGeneratorMultiTokensFinalization>();
+    Stage pa_sdpa_opt = make_stage<PagedAttentionSDPAOptGeneratorMultiToken>();
+    Stage kv_cache_rotate = make_stage<KVCacheRotateGenerator>();
+    Stage pa_scores_calc = make_stage<PagedAttentionGeneratorScoresCalculation>();
 
-    PagedAttentionOptImpl(const kernel_impl_params& params)
-        : SDPAImplBase(PagedAttentionOpt::get_type_info_static()) {
+    PagedAttentionOptImpl() : SDPAImplBase(PagedAttentionOpt::get_type_info_static()) {}
+    PagedAttentionOptImpl(const kernel_impl_params& params) : PagedAttentionOptImpl() {
         const auto desc = params.typed_desc<paged_attention>();
         const bool has_scores_output = params.output_layouts.size() > 1;
         const bool has_rotated_blocks = desc->has_rotated_blocks;
 
-        add_stage<KVCacheUpdateGenerator, KV_CACHE_UPDATE>(params);
-        add_stage<PagedAttentionGeneratorSingleToken, PA_SDPA_SINGLE_TOKEN>(params);
-        add_stage<PagedAttentionGeneratorSingleTokenFinalization, PA_SDPA_SINGLE_TOKEN_FINALIZATION>(params);
-        add_stage<PagedAttentionGeneratorMultiTokens, PA_SDPA_MULTI_TOKENS>(params);
-        add_stage<PagedAttentionGeneratorMultiTokensFinalization, PA_SDPA_MULTI_TOKENS_FINALIZATION>(params);
+        add_stage(kv_cache_update, params);
+        add_stage(pa_single_token, params);
+        add_stage(pa_single_token_finalization, params);
+        add_stage(pa_multi_token, params);
+        add_stage(pa_multi_token_finalization, params);
 
-        add_stage<PagedAttentionSDPAOptGeneratorMultiToken, SDPA>(params);
+        add_stage(pa_sdpa_opt, params);
 
         if (has_rotated_blocks)
-            add_stage<KVCacheRotateGenerator, KV_CACHE_ROTATE>(params);
+            add_stage(kv_cache_rotate, params);
 
         if (has_scores_output)
-            add_stage<PagedAttentionGeneratorScoresCalculation, PA_SDPA_SCORES_CALC>(params);
+            add_stage(pa_scores_calc, params);
     }
 
     void update_rt_params(const primitive_inst& instance) override {
@@ -887,24 +898,24 @@ public:
 
         std::vector<event::ptr> res_event = {};
         if (has_rotated_blocks) {
-            res_event = { execute_stage(events, instance, KV_CACHE_ROTATE) };
+            res_event = { execute_stage(events, instance, kv_cache_rotate) };
         }
 
-        res_event = { execute_stage(res_event, instance, KV_CACHE_UPDATE) };
+        res_event = { execute_stage(res_event, instance, kv_cache_update) };
 
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
-            res_event = { execute_stage(res_event, instance, SDPA) };
+            res_event = { execute_stage(res_event, instance, pa_sdpa_opt) };
         } else if (rt_params->stage == PagedAttentionStage::GENERATE || rt_params->stage == PagedAttentionStage::MIXED) {
             const auto multi_tokens_mode = rt_params->stage == PagedAttentionStage::MIXED;
             auto num_of_partitions = get_partitioning_params(params, head_size, rt_params->stage).first;
-            res_event = { execute_stage(res_event, instance, multi_tokens_mode ? PA_SDPA_MULTI_TOKENS : PA_SDPA_SINGLE_TOKEN) };
+            res_event = { execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_single_token) };
             if (num_of_partitions > 1) {
-                res_event = { execute_stage(res_event, instance, multi_tokens_mode ? PA_SDPA_MULTI_TOKENS_FINALIZATION : PA_SDPA_SINGLE_TOKEN_FINALIZATION) };
+                res_event = { execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token_finalization : pa_single_token_finalization) };
             }
         }
 
         if (has_scores_output) {
-            res_event = { execute_stage(res_event, instance, PA_SDPA_SCORES_CALC) };
+            res_event = { execute_stage(res_event, instance, pa_scores_calc) };
         }
 
         return res_event[0];
@@ -1019,7 +1030,7 @@ public:
     };
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return std::make_unique<PagedAttentionOptImpl>(*this);
+        return make_deep_copy<PagedAttentionOptImpl>(this);
     }
 };
 
