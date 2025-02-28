@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "impls/ocl_new/primitive_ocl_base.hpp"
+#include "primitive_ocl_base.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "openvino/core/type.hpp"
 #include "utils/jitter.hpp"

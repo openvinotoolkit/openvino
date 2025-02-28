@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "openvino_intel_gpu_ocl_new_obj")
+set(TARGET_NAME "openvino_intel_gpu_ocl_v2_obj")
 
 find_host_package(Python3 REQUIRED COMPONENTS Interpreter)
 

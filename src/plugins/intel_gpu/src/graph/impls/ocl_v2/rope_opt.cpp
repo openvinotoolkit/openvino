@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "rope_opt.hpp"
-#include "impls/ocl_new/utils/dispatch_utils.hpp"
+#include "utils/dispatch_utils.hpp"
 #include "utils/jitter.hpp"
 #include "utils/kernel_base.hpp"
 #include "intel_gpu/primitives/rope.hpp"

@@ -7,7 +7,7 @@
 #include "primitive_inst.h"
 
 #if OV_GPU_WITH_OCL
-    #include "impls/ocl_new/ctc_loss.hpp"
+    #include "impls/ocl_v2/ctc_loss.hpp"
 #endif
 
 namespace ov {

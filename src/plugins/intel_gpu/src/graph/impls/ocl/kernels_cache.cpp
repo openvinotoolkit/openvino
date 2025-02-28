@@ -5,7 +5,7 @@
 #include "kernels_cache.hpp"
 #include <regex>
 
-#include "impls/ocl_new/utils/kernels_db.hpp"
+#include "impls/ocl_v2/utils/kernels_db.hpp"
 #include "intel_gpu/runtime/kernel_args.hpp"
 #include "openvino/util/pp.hpp"
 #include "intel_gpu/graph/serialization/set_serializer.hpp"

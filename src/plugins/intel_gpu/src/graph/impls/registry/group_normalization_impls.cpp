@@ -7,9 +7,9 @@
 #include "primitive_inst.h"
 
 #if OV_GPU_WITH_OCL
-    #include "impls/ocl_new/group_normalization_ref.hpp"
-    #include "impls/ocl_new/group_normalization_bfyx_opt.hpp"
-    #include "impls/ocl_new/group_normalization_fsv16.hpp"
+    #include "impls/ocl_v2/group_normalization_ref.hpp"
+    #include "impls/ocl_v2/group_normalization_bfyx_opt.hpp"
+    #include "impls/ocl_v2/group_normalization_fsv16.hpp"
 #endif
 
 namespace ov {

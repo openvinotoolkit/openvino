@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "impls/ocl_new/utils/dispatch_utils.hpp"
+#include "utils/dispatch_utils.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "primitive_ocl_base.hpp"

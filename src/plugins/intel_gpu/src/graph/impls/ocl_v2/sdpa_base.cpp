@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "sdpa_base.hpp"
-#include "impls/ocl_new/sdpa_utils.hpp"
+#include "sdpa_utils.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 #include "utils/jitter.hpp"
