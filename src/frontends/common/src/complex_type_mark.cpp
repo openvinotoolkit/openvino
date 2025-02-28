@@ -34,6 +34,10 @@ ComplexTypeMark::ComplexTypeMark(const ov::Output<ov::Node>& input, const ov::el
     if (input.get_element_type() != m_complex_part_type && m_complex_part_type.is_static()) {
         m_data = make_shared<v0::Convert>(m_data, m_complex_part_type);
     }
+
+    if (m_complex_part_type.is_dynamic()) {
+        m_complex_part_type = m_data.get_element_type();
+    }
 }
 
 ComplexTypeMark::ComplexTypeMark(const ov::Output<ov::Node>& real,
@@ -58,6 +62,10 @@ ComplexTypeMark::ComplexTypeMark(const ov::Output<ov::Node>& real,
         auto imag_shape = make_shared<v3::ShapeOf>(m_imag, element::i32);
         m_real = make_shared<v3::Broadcast>(m_real, imag_shape, BroadcastType::BIDIRECTIONAL);
         m_imag = make_shared<v3::Broadcast>(m_imag, real_shape, BroadcastType::BIDIRECTIONAL);
+    }
+
+    if (m_complex_part_type.is_dynamic()) {
+        m_complex_part_type = m_real.get_element_type();
     }
 }
 
