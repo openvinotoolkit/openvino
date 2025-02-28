@@ -125,7 +125,7 @@ CommonDispatchData ScatterElementsUpdateKernelRef::SetDefault(const scatter_elem
     }
 
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
-    if (is_second) {
+    if (is_second && params.mode != ScatterUpdateReduction::NONE) {
         dispatchData.gws = {1, 1, 1};
         dispatchData.lws = {1, 1, 1};
     }
