@@ -27,21 +27,26 @@ TEST(attributes, paged_attention) {
     const auto data12 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
     const auto data13 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
 
-    const auto op = std::make_shared<ov::op::v16::PagedAttention>(data1,
-                                                                  data2,
-                                                                  data3,
-                                                                  data4,
-                                                                  data5,
-                                                                  data6,
-                                                                  data7,
-                                                                  data8,
-                                                                  data9,
-                                                                  data10,
-                                                                  data11,
-                                                                  data12,
-                                                                  data13);
-    NodeBuilder builder(paged_attention, {data});
+    const auto paged_attention = std::make_shared<ov::op::v16::PagedAttention>(data1,
+                                                                               data2,
+                                                                               data3,
+                                                                               data4,
+                                                                               data5,
+                                                                               data6,
+                                                                               data7,
+                                                                               data8,
+                                                                               data9,
+                                                                               data10,
+                                                                               data11,
+                                                                               data12,
+                                                                               data13);
+    NodeBuilder builder(
+        paged_attention,
+        {data1, data2, data3, data4, data5, data6, data7, data8, data9, data10, data11, data12, data13});
+    auto g_paged_attention = ov::as_type_ptr<ov::op::v16::PagedAttention>(builder.create());
 
-    constexpr auto expected_attr_count = 0;
+    constexpr auto expected_attr_count = 1;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
+    EXPECT_EQ(g_paged_attention->get_output_type(0), paged_attention->get_output_type(0));
+    EXPECT_EQ(g_paged_attention->get_output_type(1), paged_attention->get_output_type(1));
 }

@@ -25,7 +25,7 @@ bool evaluate(const std::shared_ptr<ov::op::v16::PagedAttention>& op,
                                    inputs[6].data<int32_t>(),   // sb
                                    inputs[7].data<int32_t>(),   // bi
                                    inputs[8].data<int32_t>(),   // bib
-                                   inputs[9].data<int32_t>(),   // sc --
+                                   inputs[9].data<ET>(),        // sc --
                                    inputs[10].data<int32_t>(),  // sw --
                                    inputs[11].data<ET>(),       // as
                                    inputs[12].data<int32_t>(),  // mcl --
