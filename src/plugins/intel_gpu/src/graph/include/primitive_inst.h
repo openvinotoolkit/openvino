@@ -122,7 +122,6 @@ struct primitive_impl {
     }
 
     virtual void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) {}
-    virtual std::vector<kernel::ptr> get_kernels() { return {}; }
 
     bool need_weights_reorder() const { return _weights_reorder_params != nullptr; }
     std::shared_ptr<WeightsReorderParams> get_weights_reorder_params() const { return _weights_reorder_params; }
