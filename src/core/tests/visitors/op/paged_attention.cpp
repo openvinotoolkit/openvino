@@ -13,13 +13,35 @@ using ov::test::NodeBuilder;
 
 TEST(attributes, paged_attention) {
     NodeBuilder::opset().insert<ov::op::v16::PagedAttention>();
-    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
+    const auto data1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
+    const auto data2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
+    const auto data3 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
+    const auto data4 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
+    const auto data5 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
+    const auto data6 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
+    const auto data7 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
+    const auto data8 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
+    const auto data9 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
+    const auto data10 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
+    const auto data11 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
+    const auto data12 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
+    const auto data13 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
 
-    const auto op = std::make_shared<ov::op::v16::PagedAttention>(data, true);
-    NodeBuilder builder(op, {data});
-    auto g_inv = ov::as_type_ptr<ov::op::v16::PagedAttention>(builder.create());
+    const auto op = std::make_shared<ov::op::v16::PagedAttention>(data1,
+                                                                  data2,
+                                                                  data3,
+                                                                  data4,
+                                                                  data5,
+                                                                  data6,
+                                                                  data7,
+                                                                  data8,
+                                                                  data9,
+                                                                  data10,
+                                                                  data11,
+                                                                  data12,
+                                                                  data13);
+    NodeBuilder builder(paged_attention, {data});
 
-    constexpr auto expected_attr_count = 13;
+    constexpr auto expected_attr_count = 0;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
-    EXPECT_EQ(op->get_adjoint(), g_inv->get_adjoint());
 }

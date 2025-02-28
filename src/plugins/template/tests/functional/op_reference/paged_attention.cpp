@@ -48,8 +48,6 @@ using PagedAttentionParams = std::tuple<ov::Tensor,    // 0: query
                                         ov::Tensor,    // 15: rotation_trig_lut
                                         ov::Tensor,    // 16: output data
                                         std::string>;  // 17: targetDevice
-};
-
 class ReferencePagedAttention : public testing::TestWithParam<PagedAttentionParams>,
                                 public reference_tests::CommonReferenceTest {
 public:
@@ -199,563 +197,197 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_PagedAttention_With_Hardcoded_Refs,
     ReferencePagedAttentionLayerTest,
     ::testing::Values(
-        PagedAttentionParams(ov::Tensor({2, 8},
-                                        ov::element::f32,
-                                        {// query: two tokens, two heads (head_size=4)
-                                         // Token0: head0=[1,0,0,0], head1=[0,1,0,0]
-                                         // Token1: head0=[1,1,0,0], head1=[0,0,1,0]
-                                         1,
-                                         0,
-                                         0,
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         1,
-                                         1,
-                                         0,
-                                         0,
-                                         0,
-                                         0,
-                                         1,
-                                         0}),
-                             ov::Tensor({2, 8},
-                                        ov::element::f32,
-                                        {// key (new tokens): token0: head0=[1,0,0,0], head1=[0,1,0,0]
-                                         // token1: head0=[0,1,0,0], head1=[1,0,0,0]
-                                         1,
-                                         0,
-                                         0,
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         0}),
-                             ov::Tensor({2, 8},
-                                        ov::element::f32,
-                                        {// value (new tokens) – same as key in this case
-                                         1,
-                                         0,
-                                         0,
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         0}),
-                             // key_cache is empty because past_lens=0.
-                             ov::Tensor({0, 2, 1, 4}, ov::element::f32, {}),
-                             ov::Tensor({0, 2, 1, 4}, ov::element::f32, {}),
-                             ov::Tensor({1}, ov::element::i32, {0}),         // past_lens: 0 past tokens
-                             ov::Tensor({2}, ov::element::i32, {0, 2}),      // subsequence_begins: new tokens [0,2)
-                             ov::Tensor({0}, ov::element::i32, {}),          // block_indices (empty)
-                             ov::Tensor({2}, ov::element::i32, {0, 0}),      // block_indices_begins
-                             ov::Tensor({1}, ov::element::f32, {1.0}),       // scale = 1.0
-                             ov::Tensor({1}, ov::element::i32, {0}),         // sliding_window = 0
-                             ov::Tensor({2}, ov::element::f32, {0.0, 0.0}),  // alibi_slopes (2 kv heads)
-                             ov::Tensor({1}, ov::element::i32, {10}),        // max_context_len = 10
-                             ov::Tensor({0}, ov::element::i32, {}),          // rotated_block_indices (none)
-                             ov::Tensor({0, 1}, ov::element::i32, {}),       // rotation_deltas (none)
-                             ov::Tensor({2, 4},
-                                        ov::element::f32,
-                                        {// dummy trig LUT (unused here)
-                                         1.0,
-                                         1.0,
-                                         0.0,
-                                         0.0,
-                                         0.5,
-                                         0.5,
-                                         0.5,
-                                         0.5}),
-                             ov::Tensor({2, 8},
-                                        ov::element::f32,
-                                        {// Expected output computed per head:
-                                         // Token0: head0≈[0.731,0.269,0,0], head1≈[0.269,0.731,0,0]
-                                         // Token1: head0=[0.5,0.5,0,0], head1=[0.5,0.5,0,0]
-                                         0.731,
-                                         0.269,
-                                         0.0,
-                                         0.0,
-                                         0.269,
-                                         0.731,
-                                         0.0,
-                                         0.0,
-                                         0.5,
-                                         0.5,
-                                         0.0,
-                                         0.0,
-                                         0.5,
-                                         0.5,
-                                         0.0,
-                                         0.0}),
-                             "Reference"),
-        // Test case 2: One new token with past tokens from cache.
-        PagedAttentionParams(ov::Tensor({1, 8},
-                                        ov::element::f32,
-                                        {// query token: head0=[1,0,0,0], head1=[0,1,0,0]
-                                         1,
-                                         0,
-                                         0,
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0}),
-                             ov::Tensor({1, 8},
-                                        ov::element::f32,
-                                        {// new key: head0=[0,1,0,0], head1=[1,0,0,0]
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         0}),
-                             ov::Tensor({1, 8},
-                                        ov::element::f32,
-                                        {// new value: same as key
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         0}),
-                             ov::Tensor({1, 2, 2, 4},
-                                        ov::element::f32,
-                                        {// key_cache: one block, 2 tokens per block.
-                                         // Head0: token0=[1,1,0,0], token1=[0,1,0,0]
-                                         1,
-                                         1,
-                                         0,
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         // Head1: token0=[0,0,1,0], token1=[0,0,0,1]
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         0,
-                                         0,
-                                         1}),
-                             ov::Tensor({1, 2, 2, 4},
-                                        ov::element::f32,
-                                        {// value_cache: matching key_cache values.
-                                         1,
-                                         0,
-                                         0,
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         0,
-                                         0,
-                                         1}),
-                             ov::Tensor({1}, ov::element::i32, {2}),     // past_lens: 2 past tokens
-                             ov::Tensor({2}, ov::element::i32, {0, 1}),  // subsequence_begins: new token indices [0,1)
-                             ov::Tensor({1}, ov::element::i32, {0}),     // block_indices: one block (index 0)
-                             ov::Tensor({2}, ov::element::i32, {0, 1}),  // block_indices_begins
-                             ov::Tensor({1}, ov::element::f32, {1.0}),   // scale = 1.0
-                             ov::Tensor({1}, ov::element::i32, {0}),     // sliding_window = 0
-                             ov::Tensor({2}, ov::element::f32, {0.0, 0.0}),  // alibi_slopes
-                             ov::Tensor({1}, ov::element::i32, {10}),        // max_context_len = 10
-                             ov::Tensor({0}, ov::element::i32, {}),          // rotated_block_indices (none)
-                             ov::Tensor({0, 1}, ov::element::i32, {}),       // rotation_deltas (none)
-                             ov::Tensor({2, 4}, ov::element::f32, {1.0, 1.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5}),
-                             ov::Tensor({1, 8},
-                                        ov::element::f32,
-                                        {// Expected output (approx):
-                                         // Head0 ≈ [0.576, 0.424, 0,0], Head1 ≈ [0.333, 0, 0.333, 0.333]
-                                         0.576,
-                                         0.424,
-                                         0.0,
-                                         0.0,
-                                         0.333,
-                                         0.0,
-                                         0.333,
-                                         0.333}),
-                             "Reference"),
-        // Test case 3: One new token with past tokens and RoPE applied (rotation).
-        PagedAttentionParams(ov::Tensor({1, 8},
-                                        ov::element::f32,
-                                        {// query: head0=[1,0,0,0], head1=[0,1,0,0]
-                                         1,
-                                         0,
-                                         0,
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0}),
-                             ov::Tensor({1, 8},
-                                        ov::element::f32,
-                                        {// new key: head0=[0,1,0,0], head1=[1,0,0,0]
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         0}),
-                             ov::Tensor({1, 8},
-                                        ov::element::f32,
-                                        {// new value: same as key
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         0}),
-                             ov::Tensor({1, 2, 1, 4},
-                                        ov::element::f32,
-                                        {// key_cache: one block for two heads.
-                                         // Head0: [1,0,0,0]
-                                         1,
-                                         0,
-                                         0,
-                                         0,
-                                         // Head1: [0,1,0,0]
-                                         0,
-                                         1,
-                                         0,
-                                         0}),
-                             ov::Tensor({1, 2, 1, 4},
-                                        ov::element::f32,
-                                        {// value_cache: same as key_cache
-                                         1,
-                                         0,
-                                         0,
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0}),
-                             ov::Tensor({1}, ov::element::i32, {1}),         // past_lens = 1
-                             ov::Tensor({2}, ov::element::i32, {0, 1}),      // subsequence_begins
-                             ov::Tensor({1}, ov::element::i32, {0}),         // block_indices: block 0
-                             ov::Tensor({2}, ov::element::i32, {0, 1}),      // block_indices_begins
-                             ov::Tensor({1}, ov::element::f32, {1.0}),       // scale = 1.0
-                             ov::Tensor({1}, ov::element::i32, {0}),         // sliding_window = 0
-                             ov::Tensor({2}, ov::element::f32, {0.0, 0.0}),  // alibi_slopes
-                             ov::Tensor({1}, ov::element::i32, {10}),        // max_context_len
-                             // Rotate block 0.
-                             ov::Tensor({1}, ov::element::i32, {0}),
-                             // rotation_deltas: trig index = 1.
-                             ov::Tensor({1, 1}, ov::element::i32, {1}),
-                             // rotation_trig_lut: two rows (row0 unused, row1 used)
-                             ov::Tensor({2, 4}, ov::element::f32, {1.0, 1.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5}),
-                             ov::Tensor({1, 8},
-                                        ov::element::f32,
-                                        {// Expected output (approx):
-                                         // Head0 ≈ [0.689, 0.311, 0,0], Head1 ≈ [0.067, 0.311, 0,0]
-                                         0.689,
-                                         0.311,
-                                         0.0,
-                                         0.0,
-                                         0.067,
-                                         0.311,
-                                         0.0,
-                                         0.0}),
-                             "Reference"),
-        // Test case 4: Multiple sequences. (Seq0 with 1 past token & 2 new tokens; Seq1 with 2 past tokens & 1 new
-        // token)
+        // Test case 1: No past tokens (all new); no rotation.
         PagedAttentionParams(
-            ov::Tensor({3, 8},
-                       ov::element::f32,
-                       {// Token0 (seq0): [1,0,0,0, 0,1,0,0]
-                        1,
-                        0,
-                        0,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0,
-                        // Token1 (seq0): [0,1,0,0, 1,0,0,0]
-                        0,
-                        1,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0,
-                        0,
-                        // Token2 (seq1): [1,1,0,0, 0,0,1,0]
-                        1,
-                        1,
-                        0,
-                        0,
-                        0,
-                        0,
-                        1,
-                        0}),
-            ov::Tensor({3, 8},
-                       ov::element::f32,
-                       {// new keys for seq0 and seq1
-                        0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0}),
-            ov::Tensor({3, 8},
-                       ov::element::f32,
-                       {// new values (same as keys)
-                        0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0}),
-            ov::Tensor({3, 2, 1, 4},
-                       ov::element::f32,
-                       {// key_cache: 3 blocks (each one token per block)
-                        // Block 0 for seq0: head0=[1,0,0,0], head1=[0,1,0,0]
-                        1,
-                        0,
-                        0,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0,
-                        // Block 1 for seq1: head0=[1,0,0,0], head1=[0,1,0,0]
-                        1,
-                        0,
-                        0,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0,
-                        // Block 2 for seq1: head0=[0,1,0,0], head1=[1,0,0,0]
-                        0,
-                        1,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0,
-                        0}),
-            ov::Tensor({3, 2, 1, 4},
-                       ov::element::f32,
-                       {// value_cache: same as key_cache for simplicity
-                        1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0}),
-            ov::Tensor({2}, ov::element::i32, {1, 2}),      // past_lens: seq0=1, seq1=2
-            ov::Tensor({3}, ov::element::i32, {0, 2, 3}),   // subsequence_begins: seq0 tokens [0,2), seq1 tokens [2,3)
-            ov::Tensor({3}, ov::element::i32, {0, 1, 2}),   // block_indices: seq0 uses block0, seq1 uses blocks 1 & 2
-            ov::Tensor({3}, ov::element::i32, {0, 1, 3}),   // block_indices_begins: seq0: [0,1), seq1: [1,3)
-            ov::Tensor({1}, ov::element::f32, {1.0}),       // scale = 1.0
-            ov::Tensor({1}, ov::element::i32, {0}),         // sliding_window = 0
-            ov::Tensor({2}, ov::element::f32, {0.0, 0.0}),  // alibi_slopes
-            ov::Tensor({1}, ov::element::i32, {10}),        // max_context_len = 10
-            ov::Tensor({0}, ov::element::i32, {}),          // rotated_block_indices (none)
-            ov::Tensor({0, 1}, ov::element::i32, {}),       // rotation_deltas (none)
-            ov::Tensor({2, 4}, ov::element::f32, {1.0, 1.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5}),
-            ov::Tensor({3, 8},
-                       ov::element::f32,
-                       {// Expected output (approximated):
-                        // For seq0, token0: [0.844,0.155,0,0, 0.155,0.844,0,0]
-                        0.844,
-                        0.155,
-                        0.0,
-                        0.0,
-                        0.155,
-                        0.844,
-                        0.0,
-                        0.0,
-                        // For seq0, token1: [0.424,0.576,0,0, 0.576,0.424,0,0]
-                        0.424,
-                        0.576,
-                        0.0,
-                        0.0,
-                        0.576,
-                        0.424,
-                        0.0,
-                        0.0,
-                        // For seq1, token0: [0.576,1.0,0,0, 0.424,0,0.576,0]
-                        0.576,
-                        1.0,
-                        0.0,
-                        0.0,
-                        0.424,
-                        0.0,
-                        0.576,
-                        0.0}),
+            // query: two tokens, two heads (head_size=4)
+            // Token0: head0 = [1,0,0,0], head1 = [0,1,0,0]
+            // Token1: head0 = [1,1,0,0], head1 = [0,0,1,0]
+            ov::Tensor(ov::element::f32, {2, 8}, {1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0}),
+            // key (new tokens):
+            // token0: head0 = [1,0,0,0], head1 = [0,1,0,0]
+            // token1: head0 = [0,1,0,0], head1 = [1,0,0,0]
+            ov::Tensor(ov::element::f32, {2, 8}, {1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0}),
+            // value (new tokens) – same as key in this case.
+            ov::Tensor(ov::element::f32, {2, 8}, {1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0}),
+            // key_cache is empty because past_lens = 0.
+            ov::Tensor(ov::element::f32, {0, 2, 1, 4}, {}),
+            ov::Tensor(ov::element::f32, {0, 2, 1, 4}, {}),
+            // past_lens: 0 past tokens.
+            ov::Tensor(ov::element::i32, {1}, {0}),
+            // subsequence_begins: new tokens [0,2)
+            ov::Tensor(ov::element::i32, {2}, {0, 2}),
+            // block_indices (empty).
+            ov::Tensor(ov::element::i32, {0}, {}),
+            // block_indices_begins.
+            ov::Tensor(ov::element::i32, {2}, {0, 0}),
+            // scale = 1.0.
+            ov::Tensor(ov::element::f32, {1}, {1.0}),
+            // sliding_window = 0.
+            ov::Tensor(ov::element::i32, {1}, {0}),
+            // alibi_slopes (2 kv heads).
+            ov::Tensor(ov::element::f32, {2}, {0.0, 0.0}),
+            // max_context_len = 10.
+            ov::Tensor(ov::element::i32, {1}, {10}),
+            // rotated_block_indices (none).
+            ov::Tensor(ov::element::i32, {0}, {}),
+            // rotation_deltas (none).
+            ov::Tensor(ov::element::i32, {2}, {0, 1}),
+            // dummy trig LUT (unused here).
+            ov::Tensor(ov::element::f32, {2, 4}, {1.0, 1.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5}),
+            // Expected output computed per head:
+            // Token0: head0 ≈ [0.731, 0.269, 0, 0], head1 ≈ [0.269, 0.731, 0, 0]
+            // Token1: head0 = [0.5, 0.5, 0, 0], head1 = [0.5, 0.5, 0, 0]
+            ov::Tensor(ov::element::f32,
+                       {2, 8},
+                       {0.731, 0.269, 0.0, 0.0, 0.269, 0.731, 0.0, 0.0, 0.5, 0.5, 0.0, 0.0, 0.5, 0.5, 0.0, 0.0}),
+            "Reference"),
+        // Test case 2: One new token with past tokens from cache.
+        PagedAttentionParams(
+            // query token: head0 = [1,0,0,0], head1 = [0,1,0,0]
+            ov::Tensor(ov::element::f32, {1, 8}, {1, 0, 0, 0, 0, 1, 0, 0}),
+            // new key: head0 = [0,1,0,0], head1 = [1,0,0,0]
+            ov::Tensor(ov::element::f32, {1, 8}, {0, 1, 0, 0, 1, 0, 0, 0}),
+            // new value: same as key.
+            ov::Tensor(ov::element::f32, {1, 8}, {0, 1, 0, 0, 1, 0, 0, 0}),
+            // key_cache: one block, 2 tokens per block.
+            // Head0: token0 = [1,1,0,0], token1 = [0,1,0,0]
+            // Head1: token0 = [0,0,1,0], token1 = [0,0,0,1]
+            ov::Tensor(ov::element::f32, {1, 2, 2, 4}, {1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}),
+            ov::Tensor(ov::element::f32, {1, 2, 2, 4}, {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}),
+            ov::Tensor(ov::element::i32, {1}, {2}),
+            ov::Tensor(ov::element::i32, {2}, {0, 1}),
+            ov::Tensor(ov::element::i32, {1}, {0}),
+            ov::Tensor(ov::element::i32, {2}, {0, 1}),
+            ov::Tensor(ov::element::f32, {1}, {1.0}),
+            ov::Tensor(ov::element::i32, {1}, {0}),
+            ov::Tensor(ov::element::f32, {2}, {0.0, 0.0}),
+            ov::Tensor(ov::element::i32, {1}, {10}),
+            ov::Tensor(ov::element::i32, {0}, {}),
+            ov::Tensor(ov::element::i32, {2}, {0, 1}),
+            ov::Tensor(ov::element::f32, {2, 4}, {1.0, 1.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5}),
+            ov::Tensor(ov::element::f32, {1, 8}, {0.576, 0.424, 0.0, 0.0, 0.333, 0.0, 0.333, 0.333}),
+            "Reference"),
+        // Test case 3: One new token with past tokens and RoPE applied (rotation).
+        PagedAttentionParams(
+            // query: head0 = [1,0,0,0], head1 = [0,1,0,0]
+            ov::Tensor(ov::element::f32, {1, 8}, {1, 0, 0, 0, 0, 1, 0, 0}),
+            // new key: head0 = [0,1,0,0], head1 = [1,0,0,0]
+            ov::Tensor(ov::element::f32, {1, 8}, {0, 1, 0, 0, 1, 0, 0, 0}),
+            // new value: same as key.
+            ov::Tensor(ov::element::f32, {1, 8}, {0, 1, 0, 0, 1, 0, 0, 0}),
+            // key_cache: one block for two heads.
+            // Head0: [1,0,0,0]
+            // Head1: [0,1,0,0]
+            ov::Tensor(ov::element::f32, {1, 2, 1, 4}, {1, 0, 0, 0, 0, 1, 0, 0}),
+            ov::Tensor(ov::element::f32, {1, 2, 1, 4}, {1, 0, 0, 0, 0, 1, 0, 0}),
+            ov::Tensor(ov::element::i32, {1}, {1}),
+            ov::Tensor(ov::element::i32, {2}, {0, 1}),
+            ov::Tensor(ov::element::i32, {1}, {0}),
+            ov::Tensor(ov::element::i32, {2}, {0, 1}),
+            ov::Tensor(ov::element::f32, {1}, {1.0}),
+            ov::Tensor(ov::element::i32, {1}, {0}),
+            ov::Tensor(ov::element::f32, {2}, {0.0, 0.0}),
+            ov::Tensor(ov::element::i32, {1}, {10}),
+            // Rotate block 0.
+            ov::Tensor(ov::element::i32, {1}, {0}),
+            // rotation_deltas: trig index = 1.
+            ov::Tensor(ov::element::i32, {1, 1}, {1}),
+            // rotation_trig_lut: two rows (row0 unused, row1 used)
+            ov::Tensor(ov::element::f32, {2, 4}, {1.0, 1.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5}),
+            ov::Tensor(ov::element::f32, {1, 8}, {0.689, 0.311, 0.0, 0.0, 0.067, 0.311, 0.0, 0.0}),
+            "Reference"),
+        // Test case 4: Multiple sequences.
+        // (Seq0 with 1 past token & 2 new tokens; Seq1 with 2 past tokens & 1 new token)
+        PagedAttentionParams(
+            // Three tokens total.
+            ov::Tensor(ov::element::f32, {3, 8}, {1, 0, 0, 0, 0, 1, 0, 0,    // Token0 (seq0)
+                                                  0, 1, 0, 0, 1, 0, 0, 0,    // Token1 (seq0)
+                                                  1, 1, 0, 0, 0, 0, 1, 0}),  // Token2 (seq1)
+            ov::Tensor(ov::element::f32, {3, 8}, {0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0,
+                                                  0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0}),
+            ov::Tensor(ov::element::f32, {3, 8}, {0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0,
+                                                  0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0}),
+            // key_cache: 3 blocks (each one token per block)
+            ov::Tensor(ov::element::f32, {3, 2, 1, 4}, {1, 0, 0, 0, 0, 1, 0, 0,    // Block 0 for seq0
+                                                        1, 0, 0, 0, 0, 1, 0, 0,    // Block 1 for seq1
+                                                        0, 1, 0, 0, 1, 0, 0, 0}),  // Block 2 for seq1
+            ov::Tensor(ov::element::f32, {3, 2, 1, 4}, {1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0,
+                                                        0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0}),
+            ov::Tensor(ov::element::i32, {2}, {1, 2}),
+            // subsequence_begins: seq0 tokens [0,2), seq1 tokens [2,3)
+            ov::Tensor(ov::element::i32, {3}, {0, 2, 3}),
+            // block_indices: seq0 uses block0; seq1 uses blocks 1 & 2.
+            ov::Tensor(ov::element::i32, {3}, {0, 1, 2}),
+            // block_indices_begins: seq0: [0,1), seq1: [1,3)
+            ov::Tensor(ov::element::i32, {3}, {0, 1, 3}),
+            ov::Tensor(ov::element::f32, {1}, {1.0}),
+            ov::Tensor(ov::element::i32, {1}, {0}),
+            ov::Tensor(ov::element::f32, {2}, {0.0, 0.0}),
+            ov::Tensor(ov::element::i32, {1}, {10}),
+            ov::Tensor(ov::element::i32, {0}, {}),
+            ov::Tensor(ov::element::i32, {2}, {0, 1}),
+            ov::Tensor(ov::element::f32, {2, 4}, {1.0, 1.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5}),
+            ov::Tensor(ov::element::f32, {3, 8}, {0.844, 0.155, 0.0, 0.0, 0.155, 0.844, 0.0,   0.0,
+                                                  0.424, 0.576, 0.0, 0.0, 0.576, 0.424, 0.0,   0.0,
+                                                  0.576, 1.0,   0.0, 0.0, 0.424, 0.0,   0.576, 0.0}),
             "Reference"),
         // Test case 5: Past tokens with a nonzero sliding_window.
         PagedAttentionParams(
-            ov::Tensor({1, 8},
-                       ov::element::f32,
-                       {// query: [1,0,0,0, 0,1,0,0]
-                        1,
-                        0,
-                        0,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0}),
-            ov::Tensor({1, 8},
-                       ov::element::f32,
-                       {// key: [1,0,0,0, 0,1,0,0]
-                        1,
-                        0,
-                        0,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0}),
-            ov::Tensor({1, 8},
-                       ov::element::f32,
-                       {// value: same as key
-                        1,
-                        0,
-                        0,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0}),
-            ov::Tensor({1, 2, 2, 4},
-                       ov::element::f32,
-                       {// key_cache: one block, 2 tokens.
-                        // Head0: [1,0,0,0] then [0,1,0,0]
-                        1,
-                        0,
-                        0,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0,
-                        // Head1: [0,1,0,0] then [1,0,0,0]
-                        0,
-                        1,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0,
-                        0}),
-            ov::Tensor({1, 2, 2, 4},
-                       ov::element::f32,
-                       {// value_cache: same as key_cache.
-                        1,
-                        0,
-                        0,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0,
-                        0}),
-            ov::Tensor({1}, ov::element::i32, {2}),     // past_lens = 2
-            ov::Tensor({2}, ov::element::i32, {0, 1}),  // subsequence_begins
-            ov::Tensor({1}, ov::element::i32, {0}),     // block_indices
-            ov::Tensor({2}, ov::element::i32, {0, 1}),  // block_indices_begins
-            ov::Tensor({1}, ov::element::f32, {1.0}),   // scale
-            ov::Tensor({1}, ov::element::i32, {1}),     // sliding_window = 1 (skips accumulation for token_offset < 1)
-            ov::Tensor({2}, ov::element::f32, {0.0, 0.0}),  // alibi_slopes
-            ov::Tensor({1}, ov::element::i32, {10}),        // max_context_len
-            ov::Tensor({0}, ov::element::i32, {}),          // rotated_block_indices (none)
-            ov::Tensor({0, 1}, ov::element::i32, {}),       // rotation_deltas (none)
-            ov::Tensor({2, 4}, ov::element::f32, {1.0, 1.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5}),
-            ov::Tensor({1, 8},
-                       ov::element::f32,
-                       {// Expected output: For head0 ≈ [0.731,0.269,0,0] and head1 = [0,1,0,0]
-                        0.731,
-                        0.269,
-                        0.0,
-                        0.0,
-                        0.0,
-                        1.0,
-                        0.0,
-                        0.0}),
+            // query: [1,0,0,0, 0,1,0,0]
+            ov::Tensor(ov::element::f32, {1, 8}, {1, 0, 0, 0, 0, 1, 0, 0}),
+            // key: [1,0,0,0, 0,1,0,0]
+            ov::Tensor(ov::element::f32, {1, 8}, {1, 0, 0, 0, 0, 1, 0, 0}),
+            // value: same as key.
+            ov::Tensor(ov::element::f32, {1, 8}, {1, 0, 0, 0, 0, 1, 0, 0}),
+            // key_cache: one block, 2 tokens.
+            // Head0: [1,0,0,0] then [0,1,0,0]
+            // Head1: [0,1,0,0] then [1,0,0,0]
+            ov::Tensor(ov::element::f32, {1, 2, 2, 4}, {1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0}),
+            ov::Tensor(ov::element::f32, {1, 2, 2, 4}, {1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0}),
+            ov::Tensor(ov::element::i32, {1}, {2}),
+            ov::Tensor(ov::element::i32, {2}, {0, 1}),
+            ov::Tensor(ov::element::i32, {1}, {0}),
+            ov::Tensor(ov::element::i32, {2}, {0, 1}),
+            ov::Tensor(ov::element::f32, {1}, {1.0}),
+            ov::Tensor(ov::element::i32, {1}, {1}),
+            ov::Tensor(ov::element::f32, {2}, {0.0, 0.0}),
+            ov::Tensor(ov::element::i32, {1}, {10}),
+            ov::Tensor(ov::element::i32, {0}, {}),
+            ov::Tensor(ov::element::i32, {2}, {0, 1}),
+            ov::Tensor(ov::element::f32, {2, 4}, {1.0, 1.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5}),
+            ov::Tensor(ov::element::f32, {1, 8}, {0.731, 0.269, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0}),
             "Reference"),
         // Test case 6: Nonzero alibi slopes.
-        PagedAttentionParams(ov::Tensor({1, 8}, ov::element::f32, {1, 0, 0, 0, 0, 1, 0, 0}),
-                             ov::Tensor({1, 8}, ov::element::f32, {0, 1, 0, 0, 1, 0, 0, 0}),
-                             ov::Tensor({1, 8}, ov::element::f32, {0, 1, 0, 0, 1, 0, 0, 0}),
-                             ov::Tensor({1, 2, 1, 4}, ov::element::f32, {1, 0, 0, 0, 0, 1, 0, 0}),
-                             ov::Tensor({1, 2, 1, 4}, ov::element::f32, {1, 0, 0, 0, 0, 1, 0, 0}),
-                             ov::Tensor({1}, ov::element::i32, {1}),
-                             ov::Tensor({2}, ov::element::i32, {0, 1}),
-                             ov::Tensor({1}, ov::element::i32, {0}),
-                             ov::Tensor({2}, ov::element::i32, {0, 1}),
-                             ov::Tensor({1}, ov::element::f32, {1.0}),
-                             ov::Tensor({1}, ov::element::i32, {0}),
-                             ov::Tensor({2}, ov::element::f32, {0.1, 0.2}),  // alibi slopes: head0=0.1, head1=0.2
-                             ov::Tensor({1}, ov::element::i32, {10}),
-                             ov::Tensor({0}, ov::element::i32, {}),
-                             ov::Tensor({0, 1}, ov::element::i32, {}),
-                             ov::Tensor({2, 4}, ov::element::f32, {1.0, 1.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5}),
-                             ov::Tensor({1, 8},
-                                        ov::element::f32,
-                                        {// Expected output (approx): head0≈[0.711,0.289,0,0], head1≈[0.31,0.69,0,0]
-                                         0.711,
-                                         0.289,
-                                         0.0,
-                                         0.0,
-                                         0.31,
-                                         0.69,
-                                         0.0,
-                                         0.0}),
+        PagedAttentionParams(ov::Tensor(ov::element::f32, {1, 8}, {1, 0, 0, 0, 0, 1, 0, 0}),
+                             ov::Tensor(ov::element::f32, {1, 8}, {0, 1, 0, 0, 1, 0, 0, 0}),
+                             ov::Tensor(ov::element::f32, {1, 8}, {0, 1, 0, 0, 1, 0, 0, 0}),
+                             ov::Tensor(ov::element::f32, {1, 2, 1, 4}, {1, 0, 0, 0, 0, 1, 0, 0}),
+                             ov::Tensor(ov::element::f32, {1, 2, 1, 4}, {1, 0, 0, 0, 0, 1, 0, 0}),
+                             ov::Tensor(ov::element::i32, {1}, {1}),
+                             ov::Tensor(ov::element::i32, {2}, {0, 1}),
+                             ov::Tensor(ov::element::i32, {1}, {0}),
+                             ov::Tensor(ov::element::i32, {2}, {0, 1}),
+                             ov::Tensor(ov::element::f32, {1}, {1.0}),
+                             ov::Tensor(ov::element::i32, {1}, {0}),
+                             ov::Tensor(ov::element::f32, {2}, {0.1, 0.2}),
+                             ov::Tensor(ov::element::i32, {1}, {10}),
+                             ov::Tensor(ov::element::i32, {0}, {}),
+                             ov::Tensor(ov::element::i32, {2}, {0, 1}),
+                             ov::Tensor(ov::element::f32, {2, 4}, {1.0, 1.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5}),
+                             ov::Tensor(ov::element::f32, {1, 8}, {0.711, 0.289, 0.0, 0.0, 0.31, 0.69, 0.0, 0.0}),
                              "Reference"),
         // Test case 7: Two past blocks (with block 1 rotated) and two new tokens.
         PagedAttentionParams(
-            ov::Tensor({2, 8},
-                       ov::element::f32,
-                       {// Token0: [1,0,0,0, 0,1,0,0]
-                        1,
+            ov::Tensor(ov::element::f32,
+                       {2, 8},
+                       {1,
                         0,
                         0,
                         0,
                         0,
                         1,
                         0,
-                        0,
-                        // Token1: [0,1,0,0, 1,0,0,0]
-                        0,
-                        1,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0,
-                        0}),
-            ov::Tensor({2, 8},
-                       ov::element::f32,
-                       {// New keys: token0: [0,1,0,0, 1,0,0,0], token1: [1,0,0,0, 0,1,0,0]
+                        0,  // Token0
                         0,
                         1,
                         0,
@@ -763,338 +395,104 @@ INSTANTIATE_TEST_SUITE_P(
                         1,
                         0,
                         0,
-                        0,
-                        1,
-                        0,
-                        0,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0}),
-            ov::Tensor({2, 8},
-                       ov::element::f32,
-                       {// New values: same as keys.
-                        0,
-                        1,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0}),
-            ov::Tensor({2, 2, 2, 4},
-                       ov::element::f32,
-                       {// key_cache: 2 blocks, each with 2 tokens.
-                        // Block 0: block_indices[0] = 10 (not rotated)
-                        // Head0: [1,0,0,0], [0,1,0,0]
-                        1,
-                        0,
-                        0,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0,
-                        // Head1: [0,1,0,0], [1,0,0,0]
-                        0,
-                        1,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0,
-                        0,
-                        // Block 1: block_indices[1] = 11 (rotated)
-                        // Head0: [1,1,0,0], [0,1,0,0]
-                        1,
-                        1,
-                        0,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0,
-                        // Head1: [0,0,1,0], [1,0,0,0]
-                        0,
-                        0,
-                        1,
-                        0,
-                        1,
-                        0,
-                        0,
-                        0}),
-            ov::Tensor({2, 2, 2, 4},
-                       ov::element::f32,
-                       {// value_cache: same as key_cache for simplicity.
-                        1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0,
-                        1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0}),
-            ov::Tensor({1}, ov::element::i32, {3}),       // past_lens = 3
-            ov::Tensor({2}, ov::element::i32, {0, 2}),    // subsequence_begins = {0,2}
-            ov::Tensor({2}, ov::element::i32, {10, 11}),  // block_indices: 10 and 11
-            ov::Tensor({1}, ov::element::i32, {0, 2}),    // block_indices_begins: all past tokens from this sequence
-            ov::Tensor({1}, ov::element::f32, {1.0}),
-            ov::Tensor({1}, ov::element::i32, {0}),
-            ov::Tensor({2}, ov::element::f32, {0.0, 0.0}),
-            ov::Tensor({1}, ov::element::i32, {10}),
+                        0}),  // Token1
+            ov::Tensor(ov::element::f32, {2, 8}, {0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0}),
+            ov::Tensor(ov::element::f32, {2, 8}, {0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0}),
+            // key_cache: 2 blocks, each with 2 tokens.
+            // Block 0: block_indices[0] = 10 (not rotated)
+            // Head0: [1,0,0,0], [0,1,0,0]
+            // Head1: [0,1,0,0], [1,0,0,0]
+            // Block 1: block_indices[1] = 11 (rotated)
+            // Head0: [1,1,0,0], [0,1,0,0]
+            // Head1: [0,0,1,0], [1,0,0,0]
+            ov::Tensor(ov::element::f32, {2, 2, 2, 4}, {1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0,
+                                                        1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0}),
+            ov::Tensor(ov::element::f32, {2, 2, 2, 4}, {1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0,
+                                                        1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0}),
+            ov::Tensor(ov::element::i32, {1}, {3}),
+            ov::Tensor(ov::element::i32, {2}, {0, 2}),
+            ov::Tensor(ov::element::i32, {2}, {10, 11}),
+            ov::Tensor(ov::element::i32, {1}, {0, 2}),
+            ov::Tensor(ov::element::f32, {1}, {1.0}),
+            ov::Tensor(ov::element::i32, {1}, {0}),
+            ov::Tensor(ov::element::f32, {2}, {0.0, 0.0}),
+            ov::Tensor(ov::element::i32, {1}, {10}),
             // Rotate only block with id 11.
-            ov::Tensor({1}, ov::element::i32, {11}),
-            ov::Tensor({1, 1}, ov::element::i32, {2}),  // rotation_deltas: trig index = 2
-            ov::Tensor({3, 4},
-                       ov::element::f32,
-                       {
-                           // rotation_trig_lut: 3 rows for head_size=4.
-                           1.0,
-                           1.0,
-                           0.0,
-                           0.0,  // row 0 (unused)
-                           0.5,
-                           0.5,
-                           0.5,
-                           0.5,  // row 1 (unused)
-                           0.25,
-                           0.25,
-                           0.75,
-                           0.75  // row 2 (used)
-                       }),
-            ov::Tensor({2, 8},
-                       ov::element::f32,
-                       {// Expected output (approximation):
-                        // Token0: head0≈[0.643,0.267,0,0], head1≈[0.5,0.5,0,0]
-                        0.643,
-                        0.267,
-                        0.0,
-                        0.0,
-                        0.5,
-                        0.5,
-                        0.0,
-                        0.0,
-                        // Token1: head0≈[0.424,0.576,0,0], head1≈[0.576,0.424,0,0]
-                        0.424,
-                        0.576,
-                        0.0,
-                        0.0,
-                        0.576,
-                        0.424,
-                        0.0,
-                        0.0}),
+            ov::Tensor(ov::element::i32, {1}, {11}),
+            ov::Tensor(ov::element::i32, {1, 1}, {2}),
+            ov::Tensor(ov::element::f32, {3, 4}, {1.0, 1.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5, 0.25, 0.25, 0.75, 0.75}),
+            ov::Tensor(ov::element::f32,
+                       {2, 8},
+                       {0.643, 0.267, 0.0, 0.0, 0.5, 0.5, 0.0, 0.0, 0.424, 0.576, 0.0, 0.0, 0.576, 0.424, 0.0, 0.0}),
             "Reference"),
         // Test case 8: Multiple sequences with different new token counts.
-        PagedAttentionParams(
-            ov::Tensor({3, 8},
-                       ov::element::f32,
-                       {// Token0 (seq0): [1,0,0,0, 0,1,0,0]
-                        1,
-                        0,
-                        0,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0,
-                        // Token1 (seq1): [0,1,0,0, 1,0,0,0]
-                        0,
-                        1,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0,
-                        0,
-                        // Token2 (seq1): [1,0,0,0, 0,1,0,0]
-                        1,
-                        0,
-                        0,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0}),
-            ov::Tensor({3, 8}, ov::element::f32, {1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0,
-                                                  1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0}),
-            ov::Tensor({3, 8}, ov::element::f32, {1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0,
-                                                  1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0}),
-            // key_cache: 3 blocks, 2 heads, 1 token each.
-            ov::Tensor({3, 2, 1, 4},
-                       ov::element::f32,
-                       {
-                           1, 0, 0, 0, 0, 1, 0, 0,  // block 0
-                           0, 1, 0, 0, 1, 0, 0, 0,  // block 1
-                           1, 1, 0, 0, 0, 0, 1, 0   // block 2
-                       }),
-            ov::Tensor({3, 2, 1, 4}, ov::element::f32, {1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0,
-                                                        1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0}),
-            ov::Tensor({2}, ov::element::i32, {1, 2}),     // past_lens: seq0=1, seq1=2
-            ov::Tensor({3}, ov::element::i32, {0, 1, 3}),  // subsequence_begins: seq0: [0,1), seq1: [1,3)
-            ov::Tensor({3}, ov::element::i32, {0, 1, 2}),  // block_indices: seq0 gets block0; seq1 gets blocks 1 and 2
-            ov::Tensor({3}, ov::element::i32, {0, 1, 3}),  // block_indices_begins: seq0: [0,1), seq1: [1,3)
-            ov::Tensor({1}, ov::element::f32, {1.0}),
-            ov::Tensor({1}, ov::element::i32, {0}),
-            ov::Tensor({2}, ov::element::f32, {0.0, 0.0}),
-            ov::Tensor({1}, ov::element::i32, {10}),
-            ov::Tensor({0}, ov::element::i32, {}),
-            ov::Tensor({0, 1}, ov::element::i32, {}),
-            ov::Tensor({2, 4}, ov::element::f32, {1.0, 1.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5}),
-            ov::Tensor({3, 8},
-                       ov::element::f32,
-                       {// For simplicity, assume expected output equals the new token input.
-                        1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0}),
-            "Reference"),
+        PagedAttentionParams(ov::Tensor(ov::element::f32, {3, 8}, {1, 0, 0, 0, 0, 1, 0, 0,    // Token0 (seq0)
+                                                                   0, 1, 0, 0, 1, 0, 0, 0,    // Token1 (seq1)
+                                                                   1, 0, 0, 0, 0, 1, 0, 0}),  // Token2 (seq1)
+                             ov::Tensor(ov::element::f32, {3, 8}, {1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0,
+                                                                   1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0}),
+                             ov::Tensor(ov::element::f32, {3, 8}, {1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0,
+                                                                   1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0}),
+                             // key_cache: 3 blocks, 2 heads, 1 token each.
+                             ov::Tensor(ov::element::f32, {3, 2, 1, 4}, {1, 0, 0, 0, 0, 1, 0, 0,    // block 0
+                                                                         0, 1, 0, 0, 1, 0, 0, 0,    // block 1
+                                                                         1, 1, 0, 0, 0, 0, 1, 0}),  // block 2
+                             ov::Tensor(ov::element::f32, {3, 2, 1, 4}, {1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0,
+                                                                         1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0}),
+                             ov::Tensor(ov::element::i32, {2}, {1, 2}),
+                             ov::Tensor(ov::element::i32, {3}, {0, 1, 3}),
+                             ov::Tensor(ov::element::i32, {3}, {0, 1, 2}),
+                             ov::Tensor(ov::element::i32, {3}, {0, 1, 3}),
+                             ov::Tensor(ov::element::f32, {1}, {1.0}),
+                             ov::Tensor(ov::element::i32, {1}, {0}),
+                             ov::Tensor(ov::element::f32, {2}, {0.0, 0.0}),
+                             ov::Tensor(ov::element::i32, {1}, {10}),
+                             ov::Tensor(ov::element::i32, {0}, {}),
+                             ov::Tensor(ov::element::i32, {2}, {0, 1}),
+                             ov::Tensor(ov::element::f32, {2, 4}, {1.0, 1.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5}),
+                             ov::Tensor(ov::element::f32, {3, 8}, {1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0,
+                                                                   1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0}),
+                             "Reference"),
         // Test case 9: All ones (trivial uniform softmax), no past tokens.
-        PagedAttentionParams(
-            ov::Tensor({2, 8},
-                       ov::element::f32,
-                       {// 16 ones.
-                        1,
-                        1,
-                        1,
-                        1,
-                        1,
-                        1,
-                        1,
-                        1,
-                        1,
-                        1,
-                        1,
-                        1,
-                        1,
-                        1,
-                        1,
-                        1}),
-            ov::Tensor({2, 8}, ov::element::f32, {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}),
-            ov::Tensor({2, 8}, ov::element::f32, {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}),
-            ov::Tensor({0, 2, 1, 4}, ov::element::f32, {}),
-            ov::Tensor({0, 2, 1, 4}, ov::element::f32, {}),
-            ov::Tensor({1}, ov::element::i32, {0}),
-            ov::Tensor({2}, ov::element::i32, {0, 2}),
-            ov::Tensor({0}, ov::element::i32, {}),
-            ov::Tensor({2}, ov::element::i32, {0, 0}),
-            ov::Tensor({1}, ov::element::f32, {1.0}),
-            ov::Tensor({1}, ov::element::i32, {0}),
-            ov::Tensor({2}, ov::element::f32, {0.0, 0.0}),
-            ov::Tensor({1}, ov::element::i32, {10}),
-            ov::Tensor({0}, ov::element::i32, {}),
-            ov::Tensor({0, 1}, ov::element::i32, {}),
-            ov::Tensor({2, 4}, ov::element::f32, {1.0, 1.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5}),
-            ov::Tensor({2, 8},
-                       ov::element::f32,
-                       {// Since the dot products are all equal, softmax yields 0.5 each and the output equals ones.
-                        1,
-                        1,
-                        1,
-                        1,
-                        1,
-                        1,
-                        1,
-                        1,
-                        1,
-                        1,
-                        1,
-                        1,
-                        1,
-                        1,
-                        1,
-                        1}),
-            "Reference"),
+        PagedAttentionParams(ov::Tensor(ov::element::f32, {2, 8}, {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}),
+                             ov::Tensor(ov::element::f32, {2, 8}, {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}),
+                             ov::Tensor(ov::element::f32, {2, 8}, {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}),
+                             ov::Tensor(ov::element::f32, {0, 2, 1, 4}, {}),
+                             ov::Tensor(ov::element::f32, {0, 2, 1, 4}, {}),
+                             ov::Tensor(ov::element::i32, {1}, {0}),
+                             ov::Tensor(ov::element::i32, {2}, {0, 2}),
+                             ov::Tensor(ov::element::i32, {0}, {}),
+                             ov::Tensor(ov::element::i32, {2}, {0, 0}),
+                             ov::Tensor(ov::element::f32, {1}, {1.0}),
+                             ov::Tensor(ov::element::i32, {1}, {0}),
+                             ov::Tensor(ov::element::f32, {2}, {0.0, 0.0}),
+                             ov::Tensor(ov::element::i32, {1}, {10}),
+                             ov::Tensor(ov::element::i32, {0}, {}),
+                             ov::Tensor(ov::element::i32, {2}, {0, 1}),
+                             ov::Tensor(ov::element::f32, {2, 4}, {1.0, 1.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5}),
+                             ov::Tensor(ov::element::f32, {2, 8}, {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}),
+                             "Reference"),
         // Test case 10: No past tokens but with a scale factor of 2.0.
-        PagedAttentionParams(ov::Tensor({2, 8},
-                                        ov::element::f32,
-                                        {// query: same as test case 1.
-                                         1,
-                                         0,
-                                         0,
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         1,
-                                         1,
-                                         0,
-                                         0,
-                                         0,
-                                         0,
-                                         1,
-                                         0}),
-                             ov::Tensor({2, 8},
-                                        ov::element::f32,
-                                        {// key: same as test case 1.
-                                         1,
-                                         0,
-                                         0,
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         0}),
-                             ov::Tensor({2, 8},
-                                        ov::element::f32,
-                                        {// value: same as test case 1.
-                                         1,
-                                         0,
-                                         0,
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         1,
-                                         0,
-                                         0,
-                                         0}),
-                             ov::Tensor({0, 2, 1, 4}, ov::element::f32, {}),
-                             ov::Tensor({0, 2, 1, 4}, ov::element::f32, {}),
-                             ov::Tensor({1}, ov::element::i32, {0}),
-                             ov::Tensor({2}, ov::element::i32, {0, 2}),
-                             ov::Tensor({0}, ov::element::i32, {}),
-                             ov::Tensor({2}, ov::element::i32, {0, 0}),
-                             ov::Tensor({1}, ov::element::f32, {2.0}),  // scale = 2.0
-                             ov::Tensor({1}, ov::element::i32, {0}),
-                             ov::Tensor({2}, ov::element::f32, {0.0, 0.0}),
-                             ov::Tensor({1}, ov::element::i32, {10}),
-                             ov::Tensor({0}, ov::element::i32, {}),
-                             ov::Tensor({0, 1}, ov::element::i32, {}),
-                             ov::Tensor({2, 4}, ov::element::f32, {1.0, 1.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5}),
-                             ov::Tensor({2, 8},
-                                        ov::element::f32,
-                                        {// Expected output for token0: head0≈[0.88,0.119,0,0], head1≈[0.119,0.88,0,0];
-                                         // token1: head0=[0.5,0.5,0,0], head1=[0.5,0.5,0,0].
-                                         0.88,
-                                         0.119,
-                                         0.0,
-                                         0.0,
-                                         0.119,
-                                         0.88,
-                                         0.0,
-                                         0.0,
-                                         0.5,
-                                         0.5,
-                                         0.0,
-                                         0.0,
-                                         0.5,
-                                         0.5,
-                                         0.0,
-                                         0.0}),
-                             "Reference")),
+        PagedAttentionParams(
+            ov::Tensor(ov::element::f32, {2, 8}, {1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0}),
+            ov::Tensor(ov::element::f32, {2, 8}, {1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0}),
+            ov::Tensor(ov::element::f32, {2, 8}, {1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0}),
+            ov::Tensor(ov::element::f32, {0, 2, 1, 4}, {}),
+            ov::Tensor(ov::element::f32, {0, 2, 1, 4}, {}),
+            ov::Tensor(ov::element::i32, {1}, {0}),
+            ov::Tensor(ov::element::i32, {2}, {0, 2}),
+            ov::Tensor(ov::element::i32, {0}, {}),
+            ov::Tensor(ov::element::i32, {2}, {0, 0}),
+            ov::Tensor(ov::element::f32, {1}, {2.0}),  // scale = 2.0
+            ov::Tensor(ov::element::i32, {1}, {0}),
+            ov::Tensor(ov::element::f32, {2}, {0.0, 0.0}),
+            ov::Tensor(ov::element::i32, {1}, {10}),
+            ov::Tensor(ov::element::i32, {0}, {}),
+            ov::Tensor(ov::element::i32, {2}, {0, 1}),
+            ov::Tensor(ov::element::f32, {2, 4}, {1.0, 1.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5}),
+            ov::Tensor(ov::element::f32,
+                       {2, 8},
+                       {0.88, 0.119, 0.0, 0.0, 0.119, 0.88, 0.0, 0.0, 0.5, 0.5, 0.0, 0.0, 0.5, 0.5, 0.0, 0.0}),
+            "Reference")),
     ReferencePagedAttentionLayerTest::getTestCaseName);
 }  // namespace
