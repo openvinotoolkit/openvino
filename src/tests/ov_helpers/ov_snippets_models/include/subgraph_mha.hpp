@@ -321,12 +321,15 @@ protected:
  */
 class MHAFQFunction : public SnippetsFunctionBase {
 public:
-    explicit MHAFQFunction(const std::vector<PartialShape>& inputShapes)
-            : SnippetsFunctionBase(inputShapes) {
+    explicit MHAFQFunction(const std::vector<PartialShape>& inputShapes, bool quantized_intermediate_eltwise)
+            : SnippetsFunctionBase(inputShapes), m_quantized_intermediate_eltwise(quantized_intermediate_eltwise) {
         OPENVINO_ASSERT(input_shapes.size() == 4, "Got invalid number of input shapes");
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
+
+private:
+    bool m_quantized_intermediate_eltwise = false;
 };
 
 // Only for tokenization! The graph is after LPT: contains TypeRelaxed ops
