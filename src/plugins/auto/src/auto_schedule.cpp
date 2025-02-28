@@ -189,18 +189,15 @@ void AutoSchedule::init() {
         } else {
             customize_helper_context_from_cache_setting(is_actual_cpu, m_compile_context, m_context);
         }
-        bool if_model_clone_needed = false;
+        std::shared_ptr<ov::Model> model;
         // initialize the rest members of load context
         for (int i = 0; i < CONTEXTNUM; i++) {
             if (m_compile_context[i].m_is_enabled) {
                 m_compile_context[i].m_future = m_compile_context[i].m_promise.get_future();
                 auto* context_ptr = &m_compile_context[i];
                 // clone this model if multi HW plugins need to load model in a background thread
-                auto model = m_context->m_model;
-                if (if_model_clone_needed && m_context->m_model)
-                    model = m_context->m_model->clone();
+                model = !model ? m_context->m_model : m_context->m_model->clone();
                 m_compile_context[i].m_task = std::bind(load_device_task, context_ptr, model);
-                if_model_clone_needed = true;
             }
         }
     }
