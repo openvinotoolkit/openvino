@@ -271,10 +271,6 @@ std::vector<std::vector<int>> get_proc_type_table() {
 std::vector<std::vector<int>> get_org_proc_type_table() {
     return {{-1}};
 }
-void cpu_pinning_available(bool& cpu_pinning,
-                           const bool cpu_pinning_changed,
-                           bool& cpu_reservation,
-                           const std::vector<std::vector<int>>& streams_info_table) {}
 int get_num_numa_nodes() {
     return -1;
 }
@@ -312,17 +308,6 @@ int get_number_of_logical_cpu_cores(bool) {
 int get_number_of_blocked_cores() {
     CPU& cpu = cpu_info();
     return cpu._blocked_cores;
-}
-
-void cpu_pinning_available(bool& cpu_pinning,
-                           const bool cpu_pinning_changed,
-                           bool& cpu_reservation,
-                           const std::vector<std::vector<int>>& streams_info_table) {
-    CPU& cpu = cpu_info();
-    if (cpu._cpu_mapping_table.size() == 0) {
-        cpu_pinning = false;
-        cpu_reservation = false;
-    }
 }
 
 int get_current_socket_id() {
@@ -401,23 +386,6 @@ std::vector<int> get_available_numa_nodes() {
 }
 #        endif
 
-void cpu_pinning_available(bool& cpu_pinning,
-                           const bool cpu_pinning_changed,
-                           bool& cpu_reservation,
-                           const std::vector<std::vector<int>>& streams_info_table) {
-    if (!cpu_pinning_changed) {
-        cpu_pinning = true;
-        // The following code disables pinning in case stream contains both Pcore and Ecore
-        if (streams_info_table.size() >= 3) {
-            if ((streams_info_table[0][PROC_TYPE] == ALL_PROC) &&
-                (streams_info_table[1][PROC_TYPE] != EFFICIENT_CORE_PROC) &&
-                (streams_info_table[2][PROC_TYPE] == EFFICIENT_CORE_PROC)) {
-                cpu_pinning = cpu_reservation;
-            }
-        }
-    }
-}
-
 int get_current_socket_id() {
     CPU& cpu = cpu_info();
     int cur_processor_id = sched_getcpu();
@@ -444,17 +412,6 @@ int get_current_numa_node_id() {
     return 0;
 }
 #    else
-void cpu_pinning_available(bool& cpu_pinning,
-                           const bool cpu_pinning_changed,
-                           bool& cpu_reservation,
-                           const std::vector<std::vector<int>>& streams_info_table) {
-    CPU& cpu = cpu_info();
-    if (cpu._proc_type_table.size() == 1) {
-        cpu_pinning = cpu_pinning_changed ? cpu_pinning : cpu_reservation;
-    } else {  // multiple sockets machine
-        cpu_pinning = false;
-    }
-}
 
 int get_current_socket_id() {
     CPU& cpu = cpu_info();

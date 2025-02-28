@@ -17,6 +17,7 @@
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/precision_support.h"
+#include "cpu_map_scheduling.hpp"
 
 namespace ov::intel_cpu {
 
@@ -106,7 +107,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::hint::enable_cpu_pinning.name()) {
             try {
-                enableCpuPinning = val.as<bool>();
+                auto cpu_pinning = val.as<bool>();
+                enableCpuPinning = check_cpu_pinning(cpu_pinning);
                 changedCpuPinning = true;
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
@@ -117,7 +119,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::hint::enable_cpu_reservation.name()) {
             try {
-                enableCpuReservation = val.as<bool>();
+                auto reservation = val.as<bool>();
+                enableCpuReservation = check_cpu_reservation(reservation);
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),

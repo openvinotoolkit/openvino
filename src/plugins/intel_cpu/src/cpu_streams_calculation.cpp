@@ -732,10 +732,10 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
             get_streams_rank_table(streams_info_table, config.streamsRankLevel, config.numSubStreams);
     }
 
-    cpu_pinning_available(config.enableCpuPinning,
-                          config.changedCpuPinning,
-                          config.enableCpuReservation,
-                          streams_info_table);
+    if (!config.changedCpuPinning) {
+        config.enableCpuPinning =
+            cpu_pinning_available(config.enableCpuReservation, proc_type_table, streams_info_table);
+    }
 
     config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor",
                                                            config.streams,

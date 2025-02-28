@@ -39,4 +39,29 @@ std::vector<std::vector<int>> apply_hyper_threading(bool& input_ht_hint,
                                                     const std::string& input_pm_hint,
                                                     const std::vector<std::vector<int>>& proc_type_table);
 
+/**
+ * @brief      Check enableCpuPinning in different platform
+ * @param[in]  cpu_pinning the property enableCpuPinning set by user.
+ * @return     whether pinning threads to cpu cores
+ */
+bool check_cpu_pinning(bool cpu_pinning);
+
+/**
+ * @brief      whether pinning cpu cores according to enableCpuPinning property
+ * @param[in]  cpu_reservation indicate if cpu need to be reserved
+ * @param[in]  proc_type_table indicate processors information of this platform
+ * @param[in]  streams_info_table indicate streams detail of this model
+ * @return     whether pinning threads to cpu cores
+ */
+bool cpu_pinning_available(const bool cpu_reservation,
+                           const std::vector<std::vector<int>>& proc_type_table,
+                           const std::vector<std::vector<int>>& streams_info_table);
+
+/**
+ * @brief      Check enableCpuReservation in different platform
+ * @param[in]  cpu_reservation the property enableCpuReservation set by user.
+ * @return     whether to enable cpu reservation
+ */
+bool check_cpu_reservation(bool cpu_reservation);
+
 }  // namespace ov::intel_cpu
