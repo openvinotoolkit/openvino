@@ -13,7 +13,6 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-using namespace ov;
 using namespace ov::op;
 using namespace std;
 

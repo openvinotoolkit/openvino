@@ -20,7 +20,6 @@
 #include "openvino/op/subtract.hpp"
 
 using namespace std;
-using namespace ov;
 using namespace ov::op;
 using namespace ov::frontend;
 

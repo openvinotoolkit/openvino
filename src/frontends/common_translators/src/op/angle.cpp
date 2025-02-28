@@ -17,7 +17,6 @@ namespace common_translators {
 using namespace ov::op;
 using namespace ov::frontend;
 using namespace std;
-using namespace ov;
 
 OutputVector translate_angle(const NodeContext& context) {
     num_inputs_check(context, 1, 1, true);

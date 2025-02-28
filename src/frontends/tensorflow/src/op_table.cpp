@@ -5,7 +5,6 @@
 #include "op_table.hpp"
 
 #include "common_op_table.hpp"
-#include "common_translators.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/acos.hpp"
 #include "openvino/op/acosh.hpp"
@@ -71,7 +70,6 @@
 using namespace std;
 using namespace ov;
 using namespace ov::op;
-using namespace ov::frontend;
 using namespace ov::frontend::tensorflow;
 
 namespace ov {

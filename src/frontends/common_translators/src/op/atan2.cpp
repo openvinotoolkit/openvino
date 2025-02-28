@@ -23,7 +23,6 @@ namespace common_translators {
 
 using namespace ov::op;
 using namespace std;
-using namespace ov;
 
 OutputVector translate_atan2_util(const NodeContext& context, const Output<Node>& lhs, const Output<Node>& rhs) {
     const double pi_val = atan(1.0) * 4;
