@@ -69,7 +69,9 @@ install(
   RUNTIME DESTINATION tests
           COMPONENT tests
           EXCLUDE_FROM_ALL)
-  
-install(FILES ${SKIP_CONFIG_PATH}
-        DESTINATION tests
-        COMPONENT tests)
+
+install(
+  FILES ${SKIP_CONFIG_PATH}
+  DESTINATION tests
+  COMPONENT tests
+  EXCLUDE_FROM_ALL)
