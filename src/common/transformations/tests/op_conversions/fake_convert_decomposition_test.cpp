@@ -80,17 +80,26 @@ TEST_P(FakeConvertDecompositionTest, CompareFunctions) {
         params.push_back(input_data);
         std::shared_ptr<Node> data = input_data;
 
+        const auto lower_bound = dst_prec == ov::element::f8e4m3
+                                     ? static_cast<float>(std::numeric_limits<ov::float8_e4m3>::lowest())
+                                     : static_cast<float>(std::numeric_limits<ov::float8_e5m2>::lowest());
+        const auto upper_bound = dst_prec == ov::element::f8e4m3
+                                     ? static_cast<float>(std::numeric_limits<ov::float8_e4m3>::max())
+                                     : static_cast<float>(std::numeric_limits<ov::float8_e5m2>::max());
+
         std::shared_ptr<Node> result;
         const auto scale = std::make_shared<ov::op::v1::Multiply>(data, input_scale);
         if (default_shift) {
-            const auto downconvert = std::make_shared<ov::op::v0::Convert>(scale, dst_prec);
+            const auto clamp = std::make_shared<ov::op::v0::Clamp>(scale, lower_bound, upper_bound);
+            const auto downconvert = std::make_shared<ov::op::v0::Convert>(clamp, dst_prec);
             const auto upconvert = std::make_shared<ov::op::v0::Convert>(downconvert, data_prec);
 
             result = std::make_shared<ov::op::v1::Divide>(upconvert, input_scale);
         } else {
             const auto shift = std::make_shared<ov::op::v1::Subtract>(scale, input_shift);
 
-            const auto downconvert = std::make_shared<ov::op::v0::Convert>(shift, dst_prec);
+            const auto clamp = std::make_shared<ov::op::v0::Clamp>(shift, lower_bound, upper_bound);
+            const auto downconvert = std::make_shared<ov::op::v0::Convert>(clamp, dst_prec);
             const auto upconvert = std::make_shared<ov::op::v0::Convert>(downconvert, data_prec);
 
             const auto deshift = std::make_shared<ov::op::v1::Add>(upconvert, input_shift);
