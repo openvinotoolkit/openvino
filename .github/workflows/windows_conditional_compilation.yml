@@ -197,7 +197,7 @@ jobs:
       - name: Cmake install - OpenVINO
         run: |
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
-          # cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_PDB_DIR }} --component pdb
+          cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_PDB_DIR }} --component pdb
 
       - name: Build C++ samples - OpenVINO build tree
         run: |

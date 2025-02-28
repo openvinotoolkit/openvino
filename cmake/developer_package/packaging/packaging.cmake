@@ -4,6 +4,12 @@
 
 include(CPackComponent)
 
+if(OV_GENERATOR_MULTI_CONFIG)
+    set(OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/$<CONFIG>/compile_pdbs)
+else()
+    set(OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/compile_pdbs)
+endif()
+
 #
 # ov_install_pdb(<target name>)
 #
@@ -22,12 +28,6 @@ macro(ov_install_pdb target)
                     DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT pdb
                     EXCLUDE_FROM_ALL)
         elseif(_lib_type STREQUAL "STATIC_LIBRARY")
-            if(OV_GENERATOR_MULTI_CONFIG)
-                set(_OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/$<CONFIG>/compile_pdbs)
-            else()
-                set(_OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/compile_pdbs)
-            endif()
-
             get_target_property(_compile_pdb_name ${target} OUTPUT_NAME)
             if(_compile_pdb_name MATCHES "NOTFOUND")
                 set(_compile_pdb_name ${target})
@@ -36,7 +36,7 @@ macro(ov_install_pdb target)
             set_target_properties(${target} PROPERTIES
                                   COMPILE_PDB_NAME ${_compile_pdb_name}
                                   COMPILE_PDB_NAME_DEBUG ${_compile_pdb_name}${OV_DEBUG_POSTFIX}
-                                  COMPILE_PDB_OUTPUT_DIRECTORY "${_OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}")
+                                  COMPILE_PDB_OUTPUT_DIRECTORY "${OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}")
 
             # override compile PDB locations for objects libraries within static library
             get_target_property(sources ${target} SOURCES)
@@ -57,7 +57,7 @@ macro(ov_install_pdb target)
                         set_target_properties(${object_library} PROPERTIES
                                               COMPILE_PDB_NAME ${_compile_pdb_name}
                                               COMPILE_PDB_NAME_DEBUG ${_compile_pdb_name}${OV_DEBUG_POSTFIX}
-                                              COMPILE_PDB_OUTPUT_DIRECTORY "${_OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}")
+                                              COMPILE_PDB_OUTPUT_DIRECTORY "${OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}")
                     endif()
 
                     unset(object_library)
@@ -65,7 +65,7 @@ macro(ov_install_pdb target)
             endforeach()
 
             # installation of compile PDB files for static libraries
-            install(DIRECTORY "${_OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}/"
+            install(DIRECTORY "${OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}/"
                     DESTINATION ${OV_CPACK_ARCHIVEDIR}
                     COMPONENT pdb
                     EXCLUDE_FROM_ALL)
@@ -73,7 +73,6 @@ macro(ov_install_pdb target)
             unset(source)
             unset(sources)
             unset(_compile_pdb_name)
-            unset(_OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY)
         endif()
 
         unset(_lib_type)
