@@ -91,12 +91,25 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(false),  // The graph doesn't contain Multiply
                        ::testing::Values(MHA::default_thread_count),
-                       ::testing::Values(8),  // Transposex3 + Subgraphsx5
-                       ::testing::Values(5),  // MHA + Deq Mul on output + Deqs on inputs + 2 xFQ on inputs
+                       ::testing::Values(6),  // Transposex2 + Subgraphsx4
+                       ::testing::Values(4),  // MHA + Deq Mul on output + Deqs on inputs + 2 xFQ on inputs
                        ::testing::Values(ov::test::utils::DEVICE_CPU),
                        ::testing::Values(CPUTestUtils::empty_plugin_config)),
     MHA::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(
+    smoke_Snippets_MHAFQNonQuantizedAdd,
+    MHAFQNonQuantizedAdd,
+    ::testing::Combine(::testing::ValuesIn(inputShapesQuantized),
+                       ::testing::Values(std::vector<element::Type>{}),
+                       ::testing::Values(ov::element::f32),
+                       ::testing::Values(false),  // The graph doesn't contain Multiply
+                       ::testing::Values(MHA::default_thread_count),
+                       ::testing::Values(6),  // Transposex2 + Subgraphsx4
+                       ::testing::Values(4),  // MHA + Deq Mul on output + Deqs on inputs + 2 xFQ on inputs
+                       ::testing::Values(ov::test::utils::DEVICE_CPU),
+                       ::testing::Values(CPUTestUtils::empty_plugin_config)),
+    MHA::getTestCaseName);
 }  // namespace
 }  // namespace snippets
 }  // namespace test

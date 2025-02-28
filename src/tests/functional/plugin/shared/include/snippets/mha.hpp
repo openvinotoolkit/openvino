@@ -108,6 +108,11 @@ protected:
     void init_thresholds() override;
 };
 
+class MHAFQNonQuantizedAdd : public MHAFQ {
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
+};
+
 class MHAWithExtractedReshape : public MHA {
 protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
