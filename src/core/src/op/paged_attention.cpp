@@ -12,16 +12,76 @@ namespace ov {
 namespace op {
 namespace v16 {
 
-PagedAttention::PagedAttention(const ov::OutputVector& args) : ov::op::Op(args) {
+PagedAttention::PagedAttention(const Output<Node>& query,
+                               const Output<Node>& key,
+                               const Output<Node>& value,
+                               const Output<Node>& key_cache,
+                               const Output<Node>& value_cache,
+                               const Output<Node>& past_lens,
+                               const Output<Node>& subsequence_begins,
+                               const Output<Node>& block_indices,
+                               const Output<Node>& block_indices_begins,
+                               const Output<Node>& scale,
+                               const Output<Node>& sliding_window,
+                               const Output<Node>& alibi_slopes,
+                               const Output<Node>& max_context_len)
+    : Op({query,
+          key,
+          value,
+          key_cache,
+          value_cache,
+          past_lens,
+          subsequence_begins,
+          block_indices,
+          block_indices_begins,
+          scale,
+          sliding_window,
+          alibi_slopes,
+          max_context_len}) {
+    constructor_validate_and_infer_types();
+}
+
+PagedAttention::PagedAttention(const Output<Node>& query,
+                               const Output<Node>& key,
+                               const Output<Node>& value,
+                               const Output<Node>& key_cache,
+                               const Output<Node>& value_cache,
+                               const Output<Node>& past_lens,
+                               const Output<Node>& subsequence_begins,
+                               const Output<Node>& block_indices,
+                               const Output<Node>& block_indices_begins,
+                               const Output<Node>& scale,
+                               const Output<Node>& sliding_window,
+                               const Output<Node>& alibi_slopes,
+                               const Output<Node>& max_context_len,
+                               const Output<Node>& rotated_block_indices,
+                               const Output<Node>& rotation_deltas,
+                               const Output<Node>& rotation_trig_lut)
+    : Op({query,
+          key,
+          value,
+          key_cache,
+          value_cache,
+          past_lens,
+          subsequence_begins,
+          block_indices,
+          block_indices_begins,
+          scale,
+          sliding_window,
+          alibi_slopes,
+          max_context_len,
+          rotated_block_indices,
+          rotation_deltas,
+          rotation_trig_lut}) {
     constructor_validate_and_infer_types();
 }
 
 void PagedAttention::validate_and_infer_types() {
-    OV_OP_SCOPE(PagedAttention_validate_and_infer_types);
+    OV_OP_SCOPE(v16_PagedAttention_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_size() == 13,
-                          "PagedAttensionExtension expects 13 inputs, but it has ",
+                          get_input_size() == 13 || get_input_size() == 16,
+                          "PagedAttensionExtension expects 13 or 16 inputs, but it has ",
                           get_input_size());
 
     NODE_VALIDATION_CHECK(
@@ -176,7 +236,40 @@ void PagedAttention::validate_and_infer_types() {
 }
 
 std::shared_ptr<ov::Node> PagedAttention::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    return std::make_shared<PagedAttention>(new_args);
+    OV_OP_SCOPE(v16_PagedAttention_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    if (new_args.size() == 16) {
+        return std::make_shared<PagedAttention>(new_args.at(0),
+                                                new_args.at(1),
+                                                new_args.at(2),
+                                                new_args.at(3),
+                                                new_args.at(4),
+                                                new_args.at(5),
+                                                new_args.at(6),
+                                                new_args.at(7),
+                                                new_args.at(8),
+                                                new_args.at(9),
+                                                new_args.at(10),
+                                                new_args.at(11),
+                                                new_args.at(12));
+    } else {
+        return std::make_shared<PagedAttention>(new_args.at(0),
+                                                new_args.at(1),
+                                                new_args.at(2),
+                                                new_args.at(3),
+                                                new_args.at(4),
+                                                new_args.at(5),
+                                                new_args.at(6),
+                                                new_args.at(7),
+                                                new_args.at(8),
+                                                new_args.at(9),
+                                                new_args.at(10),
+                                                new_args.at(11),
+                                                new_args.at(12),
+                                                new_args.at(13),
+                                                new_args.at(14),
+                                                new_args.at(15));
+    }
 }
 
 void PagedAttention::set_out_type(int index, const ov::element::Type& output_type) {

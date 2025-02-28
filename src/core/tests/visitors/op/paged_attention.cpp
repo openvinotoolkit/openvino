@@ -47,6 +47,6 @@ TEST(attributes, paged_attention) {
 
     constexpr auto expected_attr_count = 1;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
-    EXPECT_EQ(g_paged_attention->get_output_type(0), paged_attention->get_output_type(0));
-    EXPECT_EQ(g_paged_attention->get_output_type(1), paged_attention->get_output_type(1));
+    EXPECT_EQ(g_paged_attention->get_out_type(0), paged_attention->get_out_type(0));
+    EXPECT_EQ(g_paged_attention->get_out_type(1), paged_attention->get_out_type(1));
 }

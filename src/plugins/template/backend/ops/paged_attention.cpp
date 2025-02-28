@@ -11,13 +11,15 @@ template <ov::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ov::op::v16::PagedAttention>& op,
               ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
-    ov::reference::paged_attention(outputs[0].data<ET>(),
-                                   outputs[1].data<ET>(),
-                                   inputs[0].data<ET>(),        // q
-                                   inputs[1].data<ET>(),        // k
-                                   inputs[2].data<ET>(),        // v
-                                   inputs[3].data<ET>(),        // kc
-                                   inputs[4].data<ET>(),        // vc
+    using T = typename ov::element_type_traits<ET>::value_type;
+
+    ov::reference::paged_attention(outputs[0].data<T>(),
+                                   outputs[1].data<T>(),
+                                   inputs[0].data<T>(),         // q
+                                   inputs[1].data<T>(),         // k
+                                   inputs[2].data<T>(),         // v
+                                   inputs[3].data<T>(),         // kc
+                                   inputs[4].data<T>(),         // vc
                                    inputs[0].get_shape(),       // qs
                                    inputs[1].get_shape(),       // kvs
                                    inputs[3].get_shape(),       // kvcs
@@ -25,9 +27,9 @@ bool evaluate(const std::shared_ptr<ov::op::v16::PagedAttention>& op,
                                    inputs[6].data<int32_t>(),   // sb
                                    inputs[7].data<int32_t>(),   // bi
                                    inputs[8].data<int32_t>(),   // bib
-                                   inputs[9].data<ET>(),        // sc --
+                                   inputs[9].data<T>(),         // sc --
                                    inputs[10].data<int32_t>(),  // sw --
-                                   inputs[11].data<ET>(),       // as
+                                   inputs[11].data<T>(),        // as
                                    inputs[12].data<int32_t>(),  // mcl --
                                    inputs[13].data<int32_t>(),  // rbi
                                    inputs[14].data<int32_t>(),  // rd

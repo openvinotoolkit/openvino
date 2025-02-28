@@ -33,20 +33,19 @@ TEST_F(TypePropPagedAttentionV16Test, paged_attention_static_13_inputs) {
     const auto alibi_slopes = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{9});
     const auto max_context_len = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
 
-    ov::OutputVector args = {query,
-                             key,
-                             value,
-                             key_cache,
-                             value_cache,
-                             past_lens,
-                             subsequence_begins,
-                             block_indices,
-                             block_indices_begins,
-                             scale,
-                             sliding_window,
-                             alibi_slopes,
-                             max_context_len};
-    const auto op = std::make_shared<op::v16::PagedAttention>(args);
+    const auto op = std::make_shared<op::v16::PagedAttention>(query,
+                                                              key,
+                                                              value,
+                                                              key_cache,
+                                                              value_cache,
+                                                              past_lens,
+                                                              subsequence_begins,
+                                                              block_indices,
+                                                              block_indices_begins,
+                                                              scale,
+                                                              sliding_window,
+                                                              alibi_slopes,
+                                                              max_context_len);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 4}));
 }
@@ -70,24 +69,22 @@ TEST_F(TypePropPagedAttentionV16Test, paged_attention_static_16_inputs_eviction_
     const auto rotation_deltas = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{12, 1});
     const auto rotation_trig_lut = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{256, 4});
 
-    ov::OutputVector args = {query,
-                             key,
-                             value,
-                             key_cache,
-                             value_cache,
-                             past_lens,
-                             subsequence_begins,
-                             block_indices,
-                             block_indices_begins,
-                             scale,
-                             sliding_window,
-                             alibi_slopes,
-                             max_context_len,
-                             rotated_block_indices,
-                             rotation_deltas,
-                             rotation_trig_lut};
-
-    const auto op = std::make_shared<op::v16::PagedAttention>(args);
+    const auto op = std::make_shared<op::v16::PagedAttention>(query,
+                                                              key,
+                                                              value,
+                                                              key_cache,
+                                                              value_cache,
+                                                              past_lens,
+                                                              subsequence_begins,
+                                                              block_indices,
+                                                              block_indices_begins,
+                                                              scale,
+                                                              sliding_window,
+                                                              alibi_slopes,
+                                                              max_context_len,
+                                                              rotated_block_indices,
+                                                              rotation_deltas,
+                                                              rotation_trig_lut);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 4}));
 }
@@ -111,24 +108,22 @@ TEST_F(TypePropPagedAttentionV16Test, paged_attention_static_16_inputs_eviction_
     const auto rotation_deltas = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{12, 5});
     const auto rotation_trig_lut = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{256, 4});
 
-    ov::OutputVector args = {query,
-                             key,
-                             value,
-                             key_cache,
-                             value_cache,
-                             past_lens,
-                             subsequence_begins,
-                             block_indices,
-                             block_indices_begins,
-                             scale,
-                             sliding_window,
-                             alibi_slopes,
-                             max_context_len,
-                             rotated_block_indices,
-                             rotation_deltas,
-                             rotation_trig_lut};
-
-    const auto op = std::make_shared<op::v16::PagedAttention>(args);
+    const auto op = std::make_shared<op::v16::PagedAttention>(query,
+                                                              key,
+                                                              value,
+                                                              key_cache,
+                                                              value_cache,
+                                                              past_lens,
+                                                              subsequence_begins,
+                                                              block_indices,
+                                                              block_indices_begins,
+                                                              scale,
+                                                              sliding_window,
+                                                              alibi_slopes,
+                                                              max_context_len,
+                                                              rotated_block_indices,
+                                                              rotation_deltas,
+                                                              rotation_trig_lut);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 4}));
 }

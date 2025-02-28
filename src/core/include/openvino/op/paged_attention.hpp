@@ -6,7 +6,6 @@
 
 #include "openvino/op/op.hpp"
 
-
 namespace ov {
 namespace op {
 namespace v16 {
@@ -20,9 +19,37 @@ public:
     /**
      * @brief PagedAttention operation is used as a placeholder. It copies the tensor data to the output.
      */
-    PagedAttention(const OutputVector& args);
+    PagedAttention(const Output<Node>& query,
+                   const Output<Node>& key,
+                   const Output<Node>& value,
+                   const Output<Node>& key_cache,
+                   const Output<Node>& value_cache,
+                   const Output<Node>& past_lens,
+                   const Output<Node>& subsequence_begins,
+                   const Output<Node>& block_indices,
+                   const Output<Node>& block_indices_begins,
+                   const Output<Node>& scale,
+                   const Output<Node>& sliding_window,
+                   const Output<Node>& alibi_slopes,
+                   const Output<Node>& max_context_len);
 
-    bool visit_attributes(AttributeVisitor& visitor) override;
+    PagedAttention(const Output<Node>& query,
+                   const Output<Node>& key,
+                   const Output<Node>& value,
+                   const Output<Node>& key_cache,
+                   const Output<Node>& value_cache,
+                   const Output<Node>& past_lens,
+                   const Output<Node>& subsequence_begins,
+                   const Output<Node>& block_indices,
+                   const Output<Node>& block_indices_begins,
+                   const Output<Node>& scale,
+                   const Output<Node>& sliding_window,
+                   const Output<Node>& alibi_slopes,
+                   const Output<Node>& max_context_len,
+                   const Output<Node>& rotated_block_indices,
+                   const Output<Node>& rotation_deltas,
+                   const Output<Node>& rotation_trig_lut);
+
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 

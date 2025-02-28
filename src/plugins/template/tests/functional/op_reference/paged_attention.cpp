@@ -49,7 +49,7 @@ using PagedAttentionParams = std::tuple<reference_tests::Tensor,  // 0: query
                                         reference_tests::Tensor,  // 16: output data
                                         std::string>;             // 17: targetDevice
 class ReferencePagedAttentionLayerTest : public testing::TestWithParam<PagedAttentionParams>,
-                                public reference_tests::CommonReferenceTest {
+                                         public reference_tests::CommonReferenceTest {
 public:
     void SetUp() override {
         const auto& params = GetParam();
@@ -189,7 +189,7 @@ private:
     std::string targetDevice;
 };
 
-TEST_P(ReferencePagedAttention, CompareWithRefs) {
+TEST_P(ReferencePagedAttentionLayerTest, CompareWithRefs) {
     Exec();
 }
 

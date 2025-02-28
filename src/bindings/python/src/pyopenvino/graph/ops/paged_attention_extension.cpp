@@ -5,7 +5,7 @@
 #include "pyopenvino/graph/ops/paged_attention_extension.hpp"
 
 #include "openvino/op/op.hpp"
-#include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_attention_extension.hpp"
 #include "pyopenvino/core/common.hpp"
 
 namespace py = pybind11;

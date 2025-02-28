@@ -854,7 +854,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v12::Pad> &nod
     return std::make_shared<ov::Model>(results, params, "Pad-12");
 }
 
-std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v16::PagedAtention>& node) {
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v16::PagedAttention>& node) {
     const auto data1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
     const auto data2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
     const auto data3 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
