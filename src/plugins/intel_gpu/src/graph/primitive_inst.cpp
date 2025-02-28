@@ -516,7 +516,7 @@ kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(kernel_im
     const auto &dev_info = get_node().get_program().get_engine().get_device_info();
 
     // The target HW of this patch is limited because of performance concern
-    if (dev_info.supports_immad && dev_info.dev_type == device_type::integrated_gpu) {
+    if ((dev_info.supports_immad && dev_info.dev_type == device_type::integrated_gpu) || dev_info.gfx_ver.major >= 20) {
         // Check whether the input node has enough space for output data. Otherwise, fake alignment is not possible due to page fault
         // i.e. predecessor node was supposed be increased already
         if (get_node().is_type<fully_connected>() && dependencies().size() > 0 && dep_memory(0).get_layout().is_static()
