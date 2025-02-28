@@ -1000,6 +1000,10 @@ void prepare_buffer_fusing::run(program& p) {
         });
         program_helpers::do_for_types<reorder>(*node, [](reorder_node& node) {
             // Allow optimization of reorder -> permute if input dimension order is same as the permute order
+            if (node.has_mean() || !node.get_primitive()->subtract_per_feature.empty()) {
+                return;
+            }
+
             auto &users = node.get_users();
             if (users.size() != 1 || !users.front()->is_type<permute>()) {
                 return;
@@ -1007,7 +1011,8 @@ void prepare_buffer_fusing::run(program& p) {
             auto &permute_node = users.front()->as<permute>();
 
             auto &input_layout = node.get_input_layout(0);
-            if (!format::is_simple_data_format(input_layout.format)) {
+            auto &output_layout = node.get_output_layout(0);
+            if (!format::is_simple_data_format(input_layout.format) || input_layout.data_type != output_layout.data_type) {
                 return;
             }
 
