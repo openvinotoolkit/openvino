@@ -7,39 +7,60 @@ include(CPackComponent)
 #
 # ov_install_pdb(<target name>)
 #
-function(ov_install_pdb target)
-    get_target_property(type ${target} TYPE)
+macro(ov_install_pdb target)
+    if(WIN32)
+        get_target_property(_lib_type ${target} TYPE)
 
-    if(NOT WIN32)
-        return()
-    endif()
+        if(BUILD_SHARED_LIBS)
+            # check that target type is either MODULE or SHARED
+            if(NOT _lib_type MATCHES "^(MODULE_LIBRARY|SHARED_LIBRARY)$")
+                message(FATAL_ERROR "OpenVINO PDB files should be installed only for SHARED or MODULE libraries, given target type is ${_lib_type}")
+            endif()
 
-    if(BUILD_SHARED_LIBS)
-        # check that target type is either MODULE or SHARED
-        if(NOT type MATCHES "^(MODULE_LIBRARY|SHARED_LIBRARY)$")
-            message(FATAL_ERROR "OpenVINO PDB files should be installed only for SHARED or MODULE libraries, given target type is ${type}")
+            # installation of linker PDB files for shared libraries
+            install(FILES $<TARGET_PDB_FILE:${target}>
+                    DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT pdb
+                    EXCLUDE_FROM_ALL)
+        elseif(_lib_type STREQUAL "STATIC_LIBRARY")
+            if(OV_GENERATOR_MULTI_CONFIG)
+                set(_OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/$<CONFIG>/compile_pdbs)
+            else()
+                set(_OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/compile_pdbs)
+            endif()
+
+            # installation of compile PDB files for static libraries
+            install(DIRECTORY "${_OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}/"
+                    DESTINATION ${OV_CPACK_ARCHIVEDIR}
+                    COMPONENT pdb
+                    EXCLUDE_FROM_ALL)
+
+            # override compile PDB locations for objects libraries within static library
+            get_target_property(sources ${target} SOURCES)
+            foreach(source IN LISTS sources)
+                if(source MATCHES "\\$<TARGET_OBJECTS:")
+                    string(REGEX REPLACE ".*\\$<TARGET_OBJECTS:" "" source "${source}")
+                    string(REGEX REPLACE ">$" "" source "${source}")
+                    string(REGEX REPLACE ">$" "" object_library "${source}")
+
+                    if(TARGET ${object_library})
+                        set_target_properties(${object_library} PROPERTIES
+                                              COMPILE_PDB_OUTPUT_DIRECTORY "${_OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}")
+                    endif()
+                endif()
+            endforeach()
+
+            set_target_properties(${target} PROPERTIES
+                                  COMPILE_PDB_OUTPUT_DIRECTORY "${_OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}")
+
+            unset(object_library)
+            unset(source)
+            unset(sources)
+            unset(_OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY)
         endif()
 
-        # installation of linker PDB files for shared libraries
-        install(FILES $<TARGET_PDB_FILE:${target}>
-                DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT pdb
-                EXCLUDE_FROM_ALL)
-    elseif(type STREQUAL "STATIC_LIBRARY")
-        get_target_property(compile_pdb_name ${target} OUTPUT_NAME)
-        if(compile_pdb_name MATCHES "NOTFOUND")
-            set(compile_pdb_name ${target})
-        endif()
-
-        set_target_properties(${target} PROPERTIES
-                              COMPILE_PDB_OUTPUT_DIRECTORY "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}"
-                              COMPILE_PDB_NAME "${compile_pdb_name}")
-
-        # installation of compile PDB files for static libraries
-        install(FILES "$<TARGET_FILE_DIR:${target}>/${compile_pdb_name}.pdb"
-                DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT pdb
-                EXCLUDE_FROM_ALL)
+        unset(_lib_type)
     endif()
-endfunction()
+endmacro()
 
 #
 # ov_install_static_lib(<target> <comp>)
