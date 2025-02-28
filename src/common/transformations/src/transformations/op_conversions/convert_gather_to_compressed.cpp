@@ -89,8 +89,8 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
         std::shared_ptr<ov::Node> gather_input_a =
             reshape_to_2d ? reshape_const_to_2d(pattern_map.at(dicts_m).get_node_shared_ptr())
                           : pattern_map.at(dicts_m).get_node_shared_ptr();
-        const auto& gather_input_b = gather_node->get_input_node_shared_ptr(1);
-        const auto& gather_input_c = gather_node->get_input_node_shared_ptr(2);
+        const auto& gather_input_b = gather_node->get_input_source_output(1);
+        const auto& gather_input_c = gather_node->get_input_source_output(2);
         const auto& scale = reshape_to_2d ? reshape_const_to_2d(pattern_map.at(mul_const_m).get_node_shared_ptr())
                                           : pattern_map.at(mul_const_m).get_node_shared_ptr();
         std::shared_ptr<ov::Node> optional_zero_point = nullptr;
