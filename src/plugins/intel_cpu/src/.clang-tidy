@@ -40,6 +40,7 @@ Checks: >
   modernize-pass-by-value,
   cppcoreguidelines-prefer-member-initializer,
   readability-else-after-return,
+  -bugprone-assignment-in-if-condition,
   -bugprone-easily-swappable-parameters,
   -bugprone-empty-catch,
   -bugprone-exception-escape,
