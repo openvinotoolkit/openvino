@@ -57,12 +57,8 @@ SDPAFusion::SDPAFusion() {
     auto unsqueeze_axis = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto qk_unsqueeze = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({qk, unsqueeze_axis});
     auto qk_opt_unsqueeze = qk_unsqueeze | qk;
-    // Optional concat
-    auto qk_opt_unsqueeze_concat = ov::pass::pattern::wrap_type<ov::op::v0::Concat>(ov::OutputVector{qk_opt_unsqueeze}, 0);
-    auto qk_opt_unsqueeze_opt_concat = qk_opt_unsqueeze_concat | qk_opt_unsqueeze;
 
-    auto qk_opt_scaled = optional<ov::op::v1::Multiply>({qk_opt_unsqueeze_opt_concat, attn_scale});
-    // auto qk_opt_scaled = qk_scaled | qk_opt_unsqueeze_opt_concat;
+    auto qk_opt_scaled = optional<ov::op::v1::Multiply>({qk_opt_unsqueeze, attn_scale});
 
     // optional mask add, there are patterns where before or/and after mask add buffer is reshaped
     auto mask = makePattern();
@@ -71,8 +67,7 @@ SDPAFusion::SDPAFusion() {
     auto qk_opt_scaled_pre_bias_reshaped = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({qk_opt_scaled, qk_opt_scaled_pre_bias_shape});
     auto qk_opt_scaled_pre_bias_opt_reshaped = qk_opt_scaled_pre_bias_reshaped | qk_opt_scaled;
     // Optional mask add
-    auto qk_opt_scaled_biased =
-        ov::pass::pattern::wrap_type<ov::op::v1::Add>({qk_opt_scaled_pre_bias_opt_reshaped, mask});
+    auto qk_opt_scaled_biased = makePattern<ov::op::v1::Add>({qk_opt_scaled_pre_bias_opt_reshaped, mask});
     auto qk_opt_scaled_opt_biased = qk_opt_scaled_biased | qk_opt_scaled_pre_bias_opt_reshaped;
     // Optional reshape after adding mask
     auto qk_post_bias_shape = ov::pass::pattern::any_input();
@@ -215,8 +210,6 @@ SDPAFusion::SDPAFusion() {
             ov::Output<ov::Node> attn_weight_out;
             if (pattern_map.count(qk_opt_scaled_pre_bias_reshaped) > 0)
                 attn_weight_out = pattern_map.at(qk_opt_scaled_pre_bias_reshaped);
-            else if (pattern_map.count(qk_opt_unsqueeze_concat) > 0)
-                attn_weight_out = pattern_map.at(qk_opt_unsqueeze_concat);
             else if (pattern_map.count(qk_unsqueeze) > 0)
                 attn_weight_out = pattern_map.at(qk_unsqueeze);
             else if (pattern_map.count(qk) > 0)
