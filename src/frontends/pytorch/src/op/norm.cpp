@@ -360,8 +360,8 @@ OutputVector translate_rms_norm(const NodeContext& context) {
 
     // normalized shape represent D last dimensions to be normalized
     auto num_axes = context.mark_node(std::make_shared<v3::ShapeOf>(normalized_shape, element::i32));
-    num_axes = context.mark_node(std::make_shared<v0::Squeeze>(num_axes));
     auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    num_axes = context.mark_node(std::make_shared<v0::Squeeze>(num_axes, zero));
     auto minus_one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-1}));
     auto axes_range = context.mark_node(std::make_shared<v4::Range>(num_axes, zero, minus_one, element::i32));
     auto axes = context.mark_node(std::make_shared<v1::Multiply>(axes_range, minus_one));
