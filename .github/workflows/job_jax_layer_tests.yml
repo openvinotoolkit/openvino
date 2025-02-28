@@ -116,7 +116,7 @@ jobs:
       - name: Install JAX Layer tests dependencies
         run: |
           # jax test requirements
-          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_jax
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_jax.txt
 
       - name: JAX Layer Tests
         if: ${{ fromJSON(inputs.affected-components).JAX_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287, 142196
