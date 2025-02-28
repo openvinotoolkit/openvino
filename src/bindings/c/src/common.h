@@ -1,6 +1,3 @@
-// Copyright (C) 2018-2025 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
-//
 #pragma once
 
 #include <cassert>
@@ -249,3 +246,11 @@ char* str_to_char_array(const std::string& str);
 ov_element_type_e find_ov_element_type_e(ov::element::Type type);
 ov::element::Type get_element_type(ov_element_type_e type);
 void dup_last_err_msg(const char* msg);
+
+ov_status_e ov_preprocess_preprocess_steps_scale_multi_channels(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+                                                                const float* values,
+                                                                const int32_t value_size);
+
+ov_status_e ov_preprocess_preprocess_steps_mean_multi_channels(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+                                                               const float* values,
+                                                               const int32_t value_size);
