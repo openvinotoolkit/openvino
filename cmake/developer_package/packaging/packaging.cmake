@@ -28,11 +28,10 @@ macro(ov_install_pdb target)
                 set(_OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/compile_pdbs)
             endif()
 
-            # installation of compile PDB files for static libraries
-            install(DIRECTORY "${_OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}/"
-                    DESTINATION ${OV_CPACK_ARCHIVEDIR}
-                    COMPONENT pdb
-                    EXCLUDE_FROM_ALL)
+            get_target_property(_compile_pdb_name ${target} OUTPUT_NAME)
+            if(_compile_pdb_name MATCHES "NOTFOUND")
+                set(_compile_pdb_name ${target})
+            endif()
 
             # override compile PDB locations for objects libraries within static library
             get_target_property(sources ${target} SOURCES)
@@ -44,17 +43,29 @@ macro(ov_install_pdb target)
 
                     if(TARGET ${object_library})
                         set_target_properties(${object_library} PROPERTIES
+                                              COMPILE_PDB_NAME ${object_library}
+                                              COMPILE_PDB_NAME_DEBUG ${object_library}${OV_DEBUG_POSTFIX}
                                               COMPILE_PDB_OUTPUT_DIRECTORY "${_OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}")
                     endif()
+
+                    unset(object_library)
                 endif()
             endforeach()
 
             set_target_properties(${target} PROPERTIES
+                                  COMPILE_PDB_NAME ${_compile_pdb_name}
+                                  COMPILE_PDB_NAME_DEBUG ${_compile_pdb_name}${OV_DEBUG_POSTFIX}
                                   COMPILE_PDB_OUTPUT_DIRECTORY "${_OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}")
 
-            unset(object_library)
+            # installation of compile PDB files for static libraries
+            install(DIRECTORY "${_OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}/"
+                    DESTINATION ${OV_CPACK_ARCHIVEDIR}
+                    COMPONENT pdb
+                    EXCLUDE_FROM_ALL)
+
             unset(source)
             unset(sources)
+            unset(_compile_pdb_name)
             unset(_OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY)
         endif()
 
