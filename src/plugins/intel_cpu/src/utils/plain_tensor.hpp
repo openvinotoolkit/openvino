@@ -345,11 +345,11 @@ struct PlainTensor {
         size_t stride = 1;
         for (int i = m_rank - 1; i >= 0; i--) {
             m_dims[i] = new_dims[i];
-            m_strides[i] = strides ? strides[i] : stride;
+            m_strides[i] = (strides != nullptr) ? strides[i] : stride;
             stride *= new_dims[i];
         }
 
-        if (!data) {
+        if (data == nullptr) {
             auto capacity_new = m_strides[0] * m_dims[0] * m_element_size;
             if (capacity_new > m_capacity) {
                 void* ptr;
@@ -357,7 +357,7 @@ struct PlainTensor {
                 ptr = _aligned_malloc(capacity_new, 64);
 #else
                 int rc = ::posix_memalign(&ptr, 64, capacity_new);
-                if (rc) {
+                if (rc != 0) {
                     OPENVINO_ASSERT(false, "PlainTensor call posix_memalign failed: ", rc);
                 }
 #endif
@@ -537,7 +537,7 @@ struct PlainTensor {
                 } else if (m_dt == ov::element::Type_t::u8) {
                     ss << (ptr<uint8_t>())[i] << ",";
                 } else if (m_dt == ov::element::Type_t::boolean) {
-                    ss << static_cast<bool>((ptr<uint8_t>())[i]) << ",";
+                    ss << static_cast<int>(static_cast<bool>((ptr<uint8_t>())[i])) << ",";
                 } else {
                     ss << "?,";
                 }

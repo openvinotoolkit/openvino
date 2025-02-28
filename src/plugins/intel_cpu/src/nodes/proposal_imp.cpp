@@ -110,7 +110,8 @@ static void enumerate_proposals_cpu(const float* bottom4d,
             p_proposal[5 * anchor + 1] = y0;
             p_proposal[5 * anchor + 2] = x1;
             p_proposal[5 * anchor + 3] = y1;
-            p_proposal[5 * anchor + 4] = (min_box_W <= box_w) * (min_box_H <= box_h) * score;
+            p_proposal[5 * anchor + 4] =
+                static_cast<int>(min_box_W <= box_w) * static_cast<int>(min_box_H <= box_h) * score;
         }
     });
 }
@@ -162,7 +163,7 @@ static void nms_cpu(const int num_boxes,
 #endif
 
     for (int box = 0; box < num_boxes; ++box) {
-        if (is_dead[box]) {
+        if (is_dead[box] != 0) {
             continue;
         }
 
@@ -311,7 +312,7 @@ static void retrieve_rois_cpu(const int num_rois,
         rois[roi * 5 + 3] = x1;
         rois[roi * 5 + 4] = y1;
 
-        if (probs) {
+        if (probs != nullptr) {
             probs[roi] = src_probs[index];
         }
     });

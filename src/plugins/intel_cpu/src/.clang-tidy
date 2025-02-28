@@ -27,7 +27,6 @@
 # -google-default-arguments,
 # -google-explicit-constructor,
 # -google-readability-casting,
-# -readability-implicit-bool-conversion,
 # -readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers
 # -readability-function-cognitive-complexity. Reasonable way to enforce splitting complex code into simple functions
 
@@ -39,6 +38,7 @@ Checks: >
   modernize-pass-by-value,
   cppcoreguidelines-prefer-member-initializer,
   readability-else-after-return,
+  readability-implicit-bool-conversion,
   -bugprone-easily-swappable-parameters,
   -bugprone-implicit-widening-of-multiplication-result,
   -bugprone-narrowing-conversions,
@@ -51,7 +51,6 @@ Checks: >
   -readability-braces-around-statements,
   -modernize-use-trailing-return-type,
   -readability-identifier-length,
-  -readability-implicit-bool-conversion,
   -readability-magic-numbers,
   -cppcoreguidelines-avoid-magic-numbers,
   -readability-uppercase-literal-suffix,

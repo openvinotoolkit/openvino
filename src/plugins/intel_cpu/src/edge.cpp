@@ -144,8 +144,8 @@ bool Edge::enforceReorder() {
 }
 
 static inline bool isPhycicalMemCompatible(const MemoryDesc& lhsMemDesc, const MemoryDesc& rhsMemDesc) {
-    if (!lhsMemDesc.isDefined() || !rhsMemDesc.isDefined() || !(lhsMemDesc.getType() & MemoryDescType::Blocked) ||
-        !(rhsMemDesc.getType() & MemoryDescType::Blocked) ||
+    if (!lhsMemDesc.isDefined() || !rhsMemDesc.isDefined() || ((lhsMemDesc.getType() & MemoryDescType::Blocked) == 0) ||
+        ((rhsMemDesc.getType() & MemoryDescType::Blocked) == 0) ||
         (lhsMemDesc.getType() == DnnlBlocked && !lhsMemDesc.as<const DnnlMemoryDesc>()->hasEmptyExtraData()) ||
         (rhsMemDesc.getType() == DnnlBlocked && !rhsMemDesc.as<const DnnlMemoryDesc>()->hasEmptyExtraData())) {
         return false;
@@ -556,7 +556,7 @@ EdgePtr Edge::getBaseEdge(int look) {
                     "Unresolved in place memory conflict detected on edge: ",
                     *this);
 
-    if ((childInPlacePort >= 0) && (look & LOOK_DOWN)) {
+    if ((childInPlacePort >= 0) && ((look & LOOK_DOWN) != 0)) {
         auto ch_edges = getChild()->getChildEdgesAtPort(childInPlacePort);
         auto& next_ch_edge = ch_edges[0];
 
@@ -571,7 +571,7 @@ EdgePtr Edge::getBaseEdge(int look) {
         }
         return next_ch_edge;
     }
-    if (parentInPlacePort >= 0 && (look & LOOK_UP)) {
+    if (parentInPlacePort >= 0 && ((look & LOOK_UP) != 0)) {
         return getParent()->getParentEdgeAt(parentInPlacePort);
     }
 
@@ -598,14 +598,14 @@ EdgePtr Edge::getBaseEdge(int look) {
 
 bool Edge::inPlace(LOOK look) const {
     int inputNum = getInputNum();
-    if (look & LOOK_UP) {
+    if ((look & LOOK_UP) != 0) {
         if (getParent()->inPlaceOutPort(inputNum) >= 0) {
             return true;
         }
     }
 
     int outputNum = getOutputNum();
-    if (look & LOOK_DOWN) {
+    if ((look & LOOK_DOWN) != 0) {
         if (getChild()->inPlaceInputPort(outputNum) >= 0) {
             return true;
         }

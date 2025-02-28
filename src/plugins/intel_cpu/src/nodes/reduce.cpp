@@ -2492,7 +2492,7 @@ void Reduce::reduce_type(const uint8_t* in_ptr, uint8_t* out_ptr) {
     if (layout == ReduceLayoutType::reduce_ncsp || layout == ReduceLayoutType::reduce_nspc) {
         reduce_PLN(in_ptr, out_ptr);
     } else {
-        if (ReduceC && (IC % blk_size)) {
+        if (ReduceC && ((IC % blk_size) != 0u)) {
             reduce_BLK_concern_padding(in_ptr, out_ptr);
         } else {
             reduce_BLK(in_ptr, out_ptr);

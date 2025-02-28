@@ -52,7 +52,7 @@ void Tile::getSupportedDescriptors() {
     const auto& vec_to_string = [](const std::vector<size_t>& vec) -> std::string {
         std::string result = "[";
         for (size_t i = 0; i < vec.size(); i++) {
-            if (i) {
+            if (i != 0u) {
                 result += ", ";
             }
             result += std::to_string(vec[i]);

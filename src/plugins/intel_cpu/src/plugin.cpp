@@ -91,7 +91,7 @@ public:
         new_stack.ss_size = new_size;
         new_stack.ss_sp = altstack;
         auto rc = sigaltstack(&new_stack, &old_stack);
-        if (rc) {
+        if (rc != 0) {
             munmap(new_stack.ss_sp, new_stack.ss_size);
             new_stack.ss_sp = nullptr;
             new_stack.ss_size = 0;
@@ -101,7 +101,7 @@ public:
 
     ~SigAltStackSetup() {
         stack_t current_stack;
-        if (new_stack.ss_sp) {
+        if (new_stack.ss_sp != nullptr) {
             // restore old stack if new_stack is still the current one
             if (sigaltstack(NULL, &current_stack) == 0) {
                 if (current_stack.ss_sp == new_stack.ss_sp) {
@@ -324,7 +324,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     }
     if (name == ov::enable_profiling.name()) {
         const bool perfCount = engConfig.collectPerfCounters;
-        return static_cast<decltype(ov::enable_profiling)::value_type>(perfCount);
+        return static_cast<decltype(ov::enable_profiling)::value_type>(static_cast<int>(perfCount));
     }
     if (name == ov::hint::inference_precision) {
         return decltype(ov::hint::inference_precision)::value_type(engConfig.inferencePrecision);
@@ -334,11 +334,11 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     }
     if (name == ov::hint::enable_cpu_pinning) {
         const bool pin_value = engConfig.enableCpuPinning;
-        return static_cast<decltype(ov::hint::enable_cpu_pinning)::value_type>(pin_value);
+        return static_cast<decltype(ov::hint::enable_cpu_pinning)::value_type>(static_cast<int>(pin_value));
     }
     if (name == ov::hint::enable_cpu_reservation) {
         const bool reserve_value = engConfig.enableCpuReservation;
-        return static_cast<decltype(ov::hint::enable_cpu_reservation)::value_type>(reserve_value);
+        return static_cast<decltype(ov::hint::enable_cpu_reservation)::value_type>(static_cast<int>(reserve_value));
     }
     if (name == ov::hint::scheduling_core_type) {
         const auto core_type = engConfig.schedulingCoreType;
@@ -350,7 +350,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     }
     if (name == ov::hint::enable_hyper_threading) {
         const bool ht_value = engConfig.enableHyperThreading;
-        return static_cast<decltype(ov::hint::enable_hyper_threading)::value_type>(ht_value);
+        return static_cast<decltype(ov::hint::enable_hyper_threading)::value_type>(static_cast<int>(ht_value));
     }
     if (name == ov::hint::num_requests) {
         return static_cast<decltype(ov::hint::num_requests)::value_type>(engConfig.hintNumRequests);

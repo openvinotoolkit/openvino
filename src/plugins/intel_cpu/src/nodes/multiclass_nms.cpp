@@ -206,7 +206,7 @@ void MultiClassNms::prepareParams() {
     size_t real_num_classes = m_backgroundClass == -1                                 ? m_numClasses
                               : static_cast<size_t>(m_backgroundClass) < m_numClasses ? m_numClasses - 1
                                                                                       : m_numClasses;
-    if (m_nmsTopK) {
+    if (m_nmsTopK != 0) {
         max_output_boxes_per_class = (m_nmsTopK == -1) ? m_numBoxes : std::min(m_nmsTopK, static_cast<int>(m_numBoxes));
         m_filtBoxes.resize(max_output_boxes_per_class * m_numBatches * m_numClasses);
     }

@@ -74,7 +74,7 @@ public:
             ret = dnnlPostOps == rhs.dnnlPostOps;
             break;
         default:
-            assert(!"unsupported eltwise post operation type");
+            assert(!true);
         }
         return ret;
     }

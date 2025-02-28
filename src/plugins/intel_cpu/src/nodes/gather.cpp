@@ -806,12 +806,12 @@ void Gather::execCompressed8Bit() {
 
 int8_t Gather::get_i4(const uint8_t& val, bool high) {
     if (high) {
-        if (val & 0x80) {
+        if ((val & 0x80) != 0) {
             return static_cast<int8_t>((val >> 4) | 0xf8);
         }
         return static_cast<int8_t>(val >> 4);
     }
-    if (val & 0x8) {
+    if ((val & 0x8) != 0) {
         // Just fill in the high 4 bits with 1
         return static_cast<int8_t>(val | 0xf8);
     }

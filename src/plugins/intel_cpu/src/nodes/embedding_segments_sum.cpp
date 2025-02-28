@@ -128,7 +128,7 @@ void EmbeddingSegmentsSum::getIndices(size_t embIndex,
     if (size == 0) {
         size = 1lu;
         withWeight = false;
-        if (defaultIndices_) {
+        if (defaultIndices_ != nullptr) {
             indices = defaultIndices_;
         }
         return;
