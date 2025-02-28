@@ -16,6 +16,11 @@ on:
         description: 'Python version to setup. E.g., "3.11"'
         type: string
         required: true
+      scope:
+        description: 'Defines tests scope {nightly | smoke}'
+        type: string
+        required: false
+        default: 'smoke'
 
 permissions: read-all
 
