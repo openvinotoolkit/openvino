@@ -33,6 +33,11 @@ macro(ov_install_pdb target)
                 set(_compile_pdb_name ${target})
             endif()
 
+            set_target_properties(${target} PROPERTIES
+                                  COMPILE_PDB_NAME ${_compile_pdb_name}
+                                  COMPILE_PDB_NAME_DEBUG ${_compile_pdb_name}${OV_DEBUG_POSTFIX}
+                                  COMPILE_PDB_OUTPUT_DIRECTORY "${_OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}")
+
             # override compile PDB locations for objects libraries within static library
             get_target_property(sources ${target} SOURCES)
             foreach(source IN LISTS sources)
@@ -42,20 +47,22 @@ macro(ov_install_pdb target)
                     string(REGEX REPLACE ">$" "" object_library "${source}")
 
                     if(TARGET ${object_library})
+                        # we need to rename CPU dnnl PDB files to be different from GPU ones (which we cannot rename on cmake level because of external project)
+                        if(object_library MATCHES "^dnnl.*")
+                            set(_compile_pdb_name "openvino_cpu_${object_library}")
+                        else()
+                            set(_compile_pdb_name ${object_library})
+                        endif()
+
                         set_target_properties(${object_library} PROPERTIES
-                                              COMPILE_PDB_NAME ${object_library}
-                                              COMPILE_PDB_NAME_DEBUG ${object_library}${OV_DEBUG_POSTFIX}
+                                              COMPILE_PDB_NAME ${_compile_pdb_name}
+                                              COMPILE_PDB_NAME_DEBUG ${_compile_pdb_name}${OV_DEBUG_POSTFIX}
                                               COMPILE_PDB_OUTPUT_DIRECTORY "${_OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}")
                     endif()
 
                     unset(object_library)
                 endif()
             endforeach()
-
-            set_target_properties(${target} PROPERTIES
-                                  COMPILE_PDB_NAME ${_compile_pdb_name}
-                                  COMPILE_PDB_NAME_DEBUG ${_compile_pdb_name}${OV_DEBUG_POSTFIX}
-                                  COMPILE_PDB_OUTPUT_DIRECTORY "${_OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}")
 
             # installation of compile PDB files for static libraries
             install(DIRECTORY "${_OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}/"
