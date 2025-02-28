@@ -29,7 +29,7 @@ OutputVector translate_reshape(const NodeContext& context) {
 
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(tensor.get_node_shared_ptr());
     if (complex_type_mark) {
-        tensor = complex_type_mark->input_value(0);
+        tensor = complex_type_mark->get_data();
         auto const_2 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {2}));
         const_2 = context.mark_node(std::make_shared<v1::ConvertLike>(const_2, shape));
 

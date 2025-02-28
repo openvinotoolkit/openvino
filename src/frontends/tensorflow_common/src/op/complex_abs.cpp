@@ -30,14 +30,13 @@ OutputVector translate_complex_abs_op(const NodeContext& node) {
     TENSORFLOW_OP_VALIDATION(node,
                              complex_type_mark,
                              "[TensorFlow Frontend] internal error: ComplexTypeMark is not set to input of " + op_type);
-    auto complex_part_type = complex_type_mark->get_complex_part_type();
     // data is complex tensor representation in a form [N1, N2, ..., Nk, 2]
     // where slice [N1, N2, ..., Nk, 0] contains real part of the complex tensor and
     // slice [N1, N2, ..., Nk, 1] contains imaginary part of the complex tensor
-    auto data = complex_type_mark->input_value(0);
+    auto data = complex_type_mark->get_data();
 
     // compute element-wise square for complex representation
-    auto const_two = make_shared<v0::Constant>(complex_part_type, Shape{}, 2);
+    auto const_two = create_same_type_const_scalar<int32_t>(data, 2);
     auto squared_data = make_shared<v1::Power>(data, const_two);
 
     // compute sum of squared real and imaginary parts
@@ -45,7 +44,7 @@ OutputVector translate_complex_abs_op(const NodeContext& node) {
     auto complex_abs = make_shared<v1::ReduceSum>(squared_data, const_minus_one, false)->output(0);
 
     // compute ComplexAbs by root-squared operation
-    auto const_half = make_shared<v0::Constant>(complex_part_type, Shape{}, 0.5f);
+    auto const_half = create_same_type_const_scalar<float>(data, 0.5f);
     complex_abs = make_shared<v1::Power>(complex_abs, const_half);
 
     // aling output type required by tout attribute
