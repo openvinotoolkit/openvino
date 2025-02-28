@@ -45,7 +45,6 @@ std::vector<std::string> ov::util::split(const std::string& src, char delimiter,
     return rc;
 }
 
-
 std::string ov::util::filter_lines_by_prefix(const std::string& str, const std::string& prefix) {
     auto lines = ov::util::split(str, '\n');
     std::stringstream res;
