@@ -76,7 +76,7 @@ private:
 
         if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::Xml]) {
             std::string xmlFile(pathAndName + ".xml");
-            std::string binFile("/dev/null");  // @todo make it crossplatform using dummy implementation of std::ostream
+            std::string binFile(NULL_STREAM);
 
             serializer.register_pass<ov::pass::Serialize>(xmlFile, binFile);
         }

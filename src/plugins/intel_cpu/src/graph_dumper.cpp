@@ -16,6 +16,7 @@
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/platform.h"
 
 namespace ov::intel_cpu {
 
@@ -245,13 +246,8 @@ void serializeToXML(const Graph& graph, const std::string& path) {
     }
 
     std::string binPath;
-#    ifdef _WIN32
-    binPath = "NUL";
-#    else
-    binPath = "/dev/null";
-#    endif
     ov::pass::Manager manager;
-    manager.register_pass<ov::pass::Serialize>(path, binPath, ov::pass::Serialize::Version::IR_V10);
+    manager.register_pass<ov::pass::Serialize>(path, NULL_STREAM, ov::pass::Serialize::Version::IR_V10);
     manager.run_passes(graph.dump());
 }
 
