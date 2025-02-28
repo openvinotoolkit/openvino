@@ -15,7 +15,6 @@
 using namespace std;
 using namespace ov;
 using namespace ov::op;
-using namespace ov::frontend;
 
 namespace ov {
 namespace frontend {

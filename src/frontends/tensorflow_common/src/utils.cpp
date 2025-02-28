@@ -52,7 +52,6 @@ using namespace ov;
 using namespace ov::op;
 using namespace std;
 using namespace ov::frontend::tensorflow;
-using namespace ov::frontend;
 
 namespace ov {
 namespace frontend {

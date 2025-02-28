@@ -15,7 +15,6 @@ namespace frontend {
 namespace common_translators {
 
 using namespace ov::op;
-using namespace ov::frontend;
 using namespace std;
 
 OutputVector translate_angle(const NodeContext& context) {

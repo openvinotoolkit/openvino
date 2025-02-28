@@ -12,7 +12,6 @@ namespace pytorch {
 namespace op {
 
 using namespace ov::op;
-using namespace ov::frontend;
 
 OutputVector translate_atan2(const NodeContext& context) {
     // atan2(input, other, *) → Tensor
