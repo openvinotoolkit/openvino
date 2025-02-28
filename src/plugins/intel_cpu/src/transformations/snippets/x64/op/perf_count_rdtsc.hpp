@@ -12,8 +12,7 @@
 
 using namespace ov::snippets::op;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * @interface PerfCountRdtscBegin
@@ -49,7 +48,7 @@ public:
             avg = integral + static_cast<double>(accumulation - integral * iteration) / iteration;
         }
         std::cerr << "name : " << get_friendly_name() << " : acc : " << accumulation << " : num_hit : " << iteration
-                  << std::fixed << std::setprecision(4) << " : avg : " << avg << std::endl;
+                  << std::fixed << std::setprecision(4) << " : avg : " << avg << '\n';
     }
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
@@ -62,6 +61,6 @@ public:
     uint64_t iteration = 0ul;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
+
 #endif  // SNIPPETS_DEBUG_CAPS

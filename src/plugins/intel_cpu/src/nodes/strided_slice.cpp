@@ -16,14 +16,11 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool StridedSlice::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ov::is_type<ov::op::v1::StridedSlice>(op) && !ov::is_type<ov::op::v8::Slice>(op) &&
-            !ov::is_type<ov::op::v15::SliceScatter>(op)) {
+        if (!ov::is_type_any_of<ov::op::v1::StridedSlice, ov::op::v8::Slice, ov::op::v15::SliceScatter>(op)) {
             errorMessage = "Only StridedSlice from opset1, Slice from opset8 and SliceScatter from opset15 operations "
                            "are supported.";
             return false;
@@ -323,6 +320,11 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
             itr->second->createSharedDesc(dataPrecision, getOutputShapeAtPort(attrs.DATA_ID)));
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
     }
+}
+
+bool StridedSlice::neverExecute() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0) ||
+           getSelectedPrimitiveDescriptor()->hasZeroOutputDimsAtPort(0);
 }
 
 bool StridedSlice::isExecutable() const {
@@ -864,6 +866,4 @@ void StridedSlice::StridedSliceCommonExecutor::exec(const std::vector<MemoryCPtr
     }
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

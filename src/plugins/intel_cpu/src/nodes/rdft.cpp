@@ -23,9 +23,7 @@
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 static constexpr size_t DATA_INDEX = 0;
 static constexpr size_t AXES_INDEX = 1;
@@ -81,15 +79,14 @@ RDFT::RDFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    std::string errorMsgPrefix = "RDFT layer with name '" + op->get_name() + "'";
     const size_t numInputs = getOriginalInputsNumber();
     if (numInputs != 2 && numInputs != 3) {
-        OPENVINO_THROW(errorMsgPrefix, " has invalid number of input/output edges: ", numInputs);
+        THROW_CPU_NODE_ERR("has invalid number of input/output edges: ", numInputs);
     }
 
     const auto axesRank = inputShapes[AXES_INDEX].getRank();
     if (axesRank != 1) {
-        OPENVINO_THROW(errorMsgPrefix, " has invalid 'axes' input tensor with rank: ", axesRank);
+        THROW_CPU_NODE_ERR("has invalid 'axes' input tensor with rank: ", axesRank);
     }
 
     inverse = ov::is_type<ov::op::v9::IRDFT>(op);
@@ -105,7 +102,7 @@ RDFT::RDFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
     if (numInputs > 2) {
         const auto signalSizeRank = inputShapes[SIGNAL_SIZE_INDEX].getRank();
         if (signalSizeRank != 1) {
-            OPENVINO_THROW(errorMsgPrefix, " has invalid 'signalSize' input tensor with rank: ", signalSizeRank);
+            THROW_CPU_NODE_ERR("has invalid 'signalSize' input tensor with rank: ", signalSizeRank);
         }
         auto signalSizesNode = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2));
         if (!signalSizesNode) {
@@ -128,20 +125,18 @@ void RDFT::initSupportedPrimitiveDescriptors() {
 
     const auto& dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
     if (!dataPrecision.is_real()) {
-        OPENVINO_THROW(errorMsgPrefix, " has unsupported 'data' input precision: ", dataPrecision.get_type_name());
+        THROW_CPU_NODE_ERR("has unsupported 'data' input precision: ", dataPrecision.get_type_name());
     }
 
     const auto& axesPrecision = getOriginalInputPrecisionAtPort(AXES_INDEX);
     if (axesPrecision != ov::element::i32 && axesPrecision != ov::element::i64) {
-        OPENVINO_THROW(errorMsgPrefix, " has unsupported 'axes' input precision: ", axesPrecision.get_type_name());
+        THROW_CPU_NODE_ERR("has unsupported 'axes' input precision: ", axesPrecision.get_type_name());
     }
 
     if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
         const auto& signalSizePrecision = getOriginalInputPrecisionAtPort(SIGNAL_SIZE_INDEX);
         if (signalSizePrecision != ov::element::i32 && signalSizePrecision != ov::element::i64) {
-            OPENVINO_THROW(errorMsgPrefix,
-                           " has unsupported 'signalSize' input precision: ",
-                           signalSizePrecision.get_type_name());
+            THROW_CPU_NODE_ERR("has unsupported 'signalSize' input precision: ", signalSizePrecision.get_type_name());
         }
     }
 
@@ -269,17 +264,16 @@ bool RDFT::signalSizesChanged() const {
         }
         return inverse ? static_cast<size_t>(signalSizes.back()) != 2 * (inputShape[axes.back()] - 1)
                        : static_cast<size_t>(signalSizes.back()) != inputShape[axes.back()];
-    } else {
-        const auto& signalSizesMem = getSrcMemoryAtPort(SIGNAL_SIZE_INDEX);
-        auto newSize = signalSizesMem->getStaticDims()[0];
-        if (signalSizes.size() != newSize || signalSizes.size() != axes.size()) {
+    }
+    const auto& signalSizesMem = getSrcMemoryAtPort(SIGNAL_SIZE_INDEX);
+    auto newSize = signalSizesMem->getStaticDims()[0];
+    if (signalSizes.size() != newSize || signalSizes.size() != axes.size()) {
+        return true;
+    }
+    const auto& signalSizesPtr = signalSizesMem->getDataAs<const int>();
+    for (size_t i = 0; i < newSize; i++) {
+        if (signalSizesPtr[i] != signalSizes[i]) {
             return true;
-        }
-        const auto& signalSizesPtr = signalSizesMem->getDataAs<const int>();
-        for (size_t i = 0; i < newSize; i++) {
-            if (signalSizesPtr[i] != signalSizes[i]) {
-                return true;
-            }
         }
     }
     return false;
@@ -1132,6 +1126,4 @@ std::shared_ptr<RDFTExecutor> RDFTExecutor::build(bool inverse, NodeDesc* primDe
     return executor;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

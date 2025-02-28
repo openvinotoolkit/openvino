@@ -60,12 +60,12 @@ Prerequisites
 .. code:: ipython3
 
     import platform
-
+    
     %pip install -q "torch>=2.1.1" "torchvision"  --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q modelscope addict oss2 simplejson sortedcontainers pillow opencv-python "datasets<=3.0.0"
     %pip install -q "transformers>=4.45" "git+https://github.com/huggingface/optimum-intel.git"  --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -qU "openvino>=2024.5.0" "openvino-tokenizers>=2024.5.0" "openvino-genai>=2024.5.0" "nncf>=2.14.0"
-
+    
     if platform.system() == "Darwin":
         %pip install -q "numpy<2.0.0"
 
@@ -73,12 +73,17 @@ Prerequisites
 
     import requests
     from pathlib import Path
-
+    
     if not Path("notebook_utils.py").exists():
         r = requests.get(
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
         )
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("modelscope-to-openvino.ipynb")
 
 Convert models from ModelScope using OpenVINO Model Conversion API
 ------------------------------------------------------------------
@@ -94,7 +99,7 @@ by popularity and novelty.
 
 OpenVINO supports various types of models and frameworks via conversion
 to OpenVINO Intermediate Representation (IR). `OpenVINO model conversion
-API <https://docs.openvino.ai/2025/openvino-workflow/model-preparation.html#convert-a-model-with-python-convert-model>`__
+API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html#convert-a-model-with-python-convert-model>`__
 should be used for these purposes. ``ov.convert_model`` function accepts
 original model instance and example input for tracing and returns
 ``ov.Model`` representing this model in OpenVINO framework. Converted
@@ -110,17 +115,17 @@ IR and then perform image classification on specified device.
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     from modelscope.pipelines import pipeline
     from modelscope.utils.constant import Tasks
     import openvino as ov
     import torch
     import gc
-
-
+    
+    
     cls_model_id = "iic/cv_tinynas_classification"
     cls_model_path = Path(cls_model_id.split("/")[-1]) / "openvino_model.xml"
-
+    
     if not cls_model_path.exists():
         # load Modelcope pipeline with model
         image_classification = pipeline(Tasks.image_classification, model=cls_model_id)
@@ -142,7 +147,7 @@ IR and then perform image classification on specified device.
     E0000 00:00:1731424090.230976 1605757 cuda_blas.cc:1418] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
     2024-11-12 19:08:10.246563: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-
+    
 
 Select inference device for image classification
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -152,9 +157,9 @@ Select inference device for image classification
 .. code:: ipython3
 
     from notebook_utils import device_widget
-
+    
     cv_cls_device = device_widget("CPU")
-
+    
     cv_cls_device
 
 
@@ -182,25 +187,25 @@ preprocessing and postprocessing.
     from notebook_utils import download_file
     from PIL import Image
     from torchvision import transforms
-
+    
     # prepare input data and output lables
     img_url = "https://pailitao-image-recog.oss-cn-zhangjiakou.aliyuncs.com/mufan/img_data/maas_test_data/dog.png"
     img_path = Path("dog.png")
-
+    
     labels_url = "https://raw.githubusercontent.com/openvinotoolkit/open_model_zoo/master/data/dataset_classes/imagenet_2012.txt"
-
+    
     labels_path = Path("imagenet_2012.txt")
-
+    
     if not img_path.exists():
         download_file(img_url)
-
+    
     if not labels_path.exists():
         download_file(labels_url)
-
+    
     image = Image.open(img_path)
     imagenet_classes = labels_path.open("r").read().splitlines()
-
-
+    
+    
     # prepare image preprocessing
     transforms_normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     transform_list = [
@@ -210,10 +215,10 @@ preprocessing and postprocessing.
         transforms_normalize,
     ]
     transformer = transforms.Compose(transform_list)
-
+    
     # compile model
     core = ov.Core()
-
+    
     ov_model = core.compile_model(cls_model_path, cv_cls_device.value)
 
 Now, when we make all necessary preparations, we can run model
@@ -222,19 +227,19 @@ inference.
 .. code:: ipython3
 
     import numpy as np
-
+    
     # preprocess input
     image_tensor = transformer(image)
-
+    
     # run model inference
     result = ov_model(image_tensor.unsqueeze(0))[0]
-
+    
     # postprocess results
     label_id = np.argmax(result[0])
     score = result[0][label_id]
-
+    
     label = imagenet_classes[label_id]
-
+    
     # visualize results
     display(image)
     print(f"Predicted label: {label}, score {score}")
@@ -247,7 +252,7 @@ inference.
 .. parsed-literal::
 
     Predicted label: n02099601 golden retriever, score 8.060977935791016
-
+    
 
 Convert ModelScope models using Optimum Intel
 ---------------------------------------------
@@ -302,12 +307,12 @@ replace ``AutoModelForSequenceClassification`` to
 .. code:: ipython3
 
     from modelscope import snapshot_download
-
+    
     text_model_id = "iic/nlp_bert_sentiment-analysis_english-base"
     text_model_path = Path(text_model_id.split("/")[-1])
     ov_text_model_path = text_model_path / "ov"
-
-
+    
+    
     if not text_model_path.exists():
         snapshot_download(text_model_id, local_dir=text_model_path)
 
@@ -319,9 +324,9 @@ Select inference device for text classification
 .. code:: ipython3
 
     from notebook_utils import device_widget
-
+    
     text_cls_device = device_widget("CPU", "NPU")
-
+    
     text_cls_device
 
 
@@ -342,10 +347,10 @@ Perform text classification
 
     from transformers import AutoTokenizer
     from optimum.intel.openvino import OVModelForSequenceClassification
-
-
+    
+    
     tokenizer = AutoTokenizer.from_pretrained(text_model_path)
-
+    
     if not ov_text_model_path.exists():
         # model will be automatically exported to OpenVINO format during loading
         ov_model = OVModelForSequenceClassification.from_pretrained(text_model_path, text_cls_device.value)
@@ -355,25 +360,25 @@ Perform text classification
     else:
         # load converted model directly if availa ble
         ov_model = OVModelForSequenceClassification.from_pretrained(ov_text_model_path, device=text_cls_device.value)
-
+    
     # prepare input
     input_text = "Good night."
     input_data = tokenizer(input_text, return_tensors="pt")
-
+    
     # run model inference
     output = ov_model(**input_data)
     # postprocess results
     predicted_label_id = output.logits[0].argmax().item()
-
+    
     predicted_label = ov_model.config.id2label[predicted_label_id]
-
+    
     print(f"predicted label: {predicted_label}")
 
 
 .. parsed-literal::
 
     predicted label: Positive
-
+    
 
 Convert ModelScope models for usage with OpenVINO GenAI
 -------------------------------------------------------
@@ -436,7 +441,7 @@ TaskManager
 
 Additionally, you can specify weights compression using
 ``--weight-format`` argument with one of following options: ``fp32``,
-``fp16``, ``int8`` and ``int4``. Fro int8 and int4 nncf will be used for
+``fp16``, ``int8`` and ``int4``. For int8 and int4 nncf will be used for
 weight compression. For models that required remote code execution,
 ``--trust-remote-code`` flag should be provided.
 
@@ -445,15 +450,15 @@ Full list of supported arguments available via ``--help``
 .. code:: ipython3
 
     from IPython.display import Markdown, display
-
+    
     model_id = "Qwen/Qwen2.5-1.5B-Instruct"
-
+    
     llm_path = Path("Qwen2.5-1.5B-Instruct")
     ov_llm_path = llm_path / "ov"
     download_command = f"modelscope download {model_id} --local_dir {llm_path}"
     display(Markdown("**Download command:**"))
     display(Markdown(f"`{download_command}`"))
-
+    
     if not llm_path.exists():
         !{download_command}
 
@@ -471,7 +476,7 @@ Full list of supported arguments available via ``--help``
     export_command = f"optimum-cli export openvino -m {llm_path} --task text-generation-with-past --weight-format int4 {ov_llm_path}"
     display(Markdown("**Export command:**"))
     display(Markdown(f"`{export_command}`"))
-
+    
     if not ov_llm_path.exists():
         !{export_command}
 
@@ -492,9 +497,9 @@ Select inference device for text generation
 .. code:: ipython3
 
     from notebook_utils import device_widget
-
+    
     llm_device = device_widget("CPU")
-
+    
     llm_device
 
 
@@ -520,26 +525,26 @@ to use OpenVINO GenAI ``LLMPipeline`` for chatbot scenario in this
 .. code:: ipython3
 
     import openvino_genai as ov_genai
-
-
+    
+    
     def streamer(subword):
         print(subword, end="", flush=True)
         # Return flag corresponds whether generation should be stopped.
         # False means continue generation.
         return False
-
-
+    
+    
     llm_pipe = ov_genai.LLMPipeline(ov_llm_path, llm_device.value)
-
+    
     llm_pipe.generate("The Sun is yellow because", max_new_tokens=200, streamer=streamer)
 
 
 .. parsed-literal::
 
      it has a spectrum of colors, and you are also looking at it. What color would the sun be if you could see its light without being able to see any other objects? If we imagine that someone had never seen or heard about the sun before, what would they expect to see?
-
+    
     1. **Color of the Sun**: The sun appears yellow when viewed from Earth due to the way our atmosphere scatters sunlight. This phenomenon occurs as follows:
-
+    
        - **Sunlight Scattering**: When sunlight passes through the Earth's atmosphere, different wavelengths (colors) of light travel at slightly different speeds due to their varying energies.
        - **Air Mass Height**: At higher altitudes where air density decreases with altitude, shorter wavelength (blue) photons have more energy and thus escape faster into space compared to longer wavelength (red) photons which remain in the atmosphere longer.
        - **Sky Color**: As a result, blue light is scattered more than red light by molecules in the upper layers of the atmosphere
@@ -555,6 +560,6 @@ to use OpenVINO GenAI ``LLMPipeline`` for chatbot scenario in this
 .. code:: ipython3
 
     import gc
-
+    
     del llm_pipe
     gc.collect();

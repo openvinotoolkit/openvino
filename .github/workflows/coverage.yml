@@ -20,14 +20,14 @@ jobs:
 
     steps:
       - name: Setup python
-        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
         with:
           python-version: '3.10.10'
           architecture: 'x64'
 
 
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@53911442209d5c18de8a31615e0923161e435875 # v1.2.16
+        uses: hendrikmuhs/ccache-action@a1209f81afb8c005c13b4296c32e363431bffea5 # v1.2.17
         with:
           max-size: 50G
 
@@ -92,7 +92,7 @@ jobs:
         run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_proxy_plugin_tests
 
       - name: Run OV Hetero Func tests
-        run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_hetero_func_tests --gtest_filter="*smoke*"
+        run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_hetero_func_tests --gtest_filter="*smoke*" --gtest_filter=-"nightly*"
 
       - name: Run IR frontend tests
         run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_ir_frontend_tests

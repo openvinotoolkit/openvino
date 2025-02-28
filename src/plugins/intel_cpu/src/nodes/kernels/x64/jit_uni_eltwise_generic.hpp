@@ -18,9 +18,7 @@
 #include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace x64 {
+namespace ov::intel_cpu::x64 {
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public dnnl::impl::cpu::x64::jit_generator {
@@ -118,10 +116,7 @@ private:
     void store_scalar(const Xbyak::Address& op,
                       Xbyak::Xmm xmm_dst,
                       ov::element::Type src_prc,
-                      ov::element::Type dst_prc,
-                      const bool do_output_saturation);
+                      ov::element::Type dst_prc);
 };
 
-}  // namespace x64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::x64

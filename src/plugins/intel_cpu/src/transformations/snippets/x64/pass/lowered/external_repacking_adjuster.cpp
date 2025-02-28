@@ -12,8 +12,7 @@
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 const size_t BrgemmExternalRepackingAdjuster::brgemm_kernel_rank = 2;
 
@@ -57,7 +56,7 @@ VectorDims BrgemmExternalRepackingAdjuster::get_blk_shape(const VectorDims& plan
     const auto K = *++planar_shape.rbegin();
     const auto N = *planar_shape.rbegin();
     const auto new_K = snippets::utils::div_up(K, vnni_factor);
-    const auto new_N = std::max(N, brgemm_utils::repacking::compute_inner_n_block(prc));
+    const auto new_N = brgemm_utils::repacking::compute_repacked_n_dim(N, prc);
     VectorDims blk_shape(planar_shape.begin(), planar_shape.end() - brgemm_kernel_rank);
     blk_shape.insert(blk_shape.end(), {new_K, new_N, vnni_factor});
     return blk_shape;
@@ -73,7 +72,9 @@ void BrgemmExternalRepackingAdjuster::update_kernel(const RepackExecutorPtr& exe
     auto config = static_cast<BrgemmCopyBKernelConfig*>(generic_config.get());
     const auto idx = config->is_transposed_B() ? 0 : 1;
     const auto copy_wei_stride = ov::snippets::utils::get_dim_in_stride(shape, layout, idx) * prc.size();
-    config->update(N, N, K, K, copy_wei_stride, brgemm_utils::repacking::compute_LDB(N, prc));
+    const auto LDB = static_cast<int64_t>(brgemm_utils::repacking::compute_repacked_n_dim(N, prc));
+    OPENVINO_ASSERT(LDB >= 0, "Invalid LDB value (less than 0)");
+    config->update(N, N, K, K, copy_wei_stride, LDB);
     executor->update_by_config(*config);
 }
 
@@ -154,5 +155,4 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
     return true;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

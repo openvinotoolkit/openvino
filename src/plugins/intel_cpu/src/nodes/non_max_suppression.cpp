@@ -18,9 +18,7 @@
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool NonMaxSuppression::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                              std::string& errorMessage) noexcept {
@@ -54,7 +52,7 @@ NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ov::Node>& op, const 
       m_is_soft_suppressed_by_iou(false) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        OPENVINO_THROW(errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     if (one_of(op->get_type_info(), op::internal::NonMaxSuppressionIEInternal::get_type_info_static())) {
@@ -424,18 +422,17 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
 
                         if (candidateStatus == NMSCandidateStatus::SUPPRESSED) {
                             continue;
+                        }
+                        if (candidateBox.score == origScore) {
+                            selectedBoxes.push_back({candidateBox.score, batch_idx, class_idx, candidateBox.idx});
+                            int selectedSize = selectedBoxes.size();
+                            boxCoord0[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num];
+                            boxCoord1[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 1];
+                            boxCoord2[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 2];
+                            boxCoord3[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 3];
                         } else {
-                            if (candidateBox.score == origScore) {
-                                selectedBoxes.push_back({candidateBox.score, batch_idx, class_idx, candidateBox.idx});
-                                int selectedSize = selectedBoxes.size();
-                                boxCoord0[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num];
-                                boxCoord1[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 1];
-                                boxCoord2[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 2];
-                                boxCoord3[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 3];
-                            } else {
-                                candidateBox.suppress_begin_index = selectedBoxes.size();
-                                sorted_boxes.push(candidateBox);
-                            }
+                            candidateBox.suppress_begin_index = selectedBoxes.size();
+                            sorted_boxes.push(candidateBox);
                         }
                     }
 #endif  // OPENVINO_ARCH_X86_64
@@ -466,13 +463,12 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
 
                         if (candidateStatus == NMSCandidateStatus::SUPPRESSED) {
                             continue;
+                        }
+                        if (candidateBox.score == origScore) {
+                            selectedBoxes.push_back({candidateBox.score, batch_idx, class_idx, candidateBox.idx});
                         } else {
-                            if (candidateBox.score == origScore) {
-                                selectedBoxes.push_back({candidateBox.score, batch_idx, class_idx, candidateBox.idx});
-                            } else {
-                                candidateBox.suppress_begin_index = selectedBoxes.size();
-                                sorted_boxes.push(candidateBox);
-                            }
+                            candidateBox.suppress_begin_index = selectedBoxes.size();
+                            sorted_boxes.push(candidateBox);
                         }
                     }
                 }
@@ -680,9 +676,8 @@ inline size_t convexHullGraham(const NonMaxSuppression::Point2D (&p)[24],
         float temp = cross_2d(A, B);
         if (std::abs(temp) < 1e-6f) {
             return dot_2d(A, A) < dot_2d(B, B);
-        } else {
-            return temp > 0.f;
         }
+        return temp > 0.f;
     });
     // compute distance to origin after sort, since the points are now different.
     for (size_t i = 0lu; i < num_in; i++) {
@@ -762,18 +757,18 @@ inline size_t getIntersectionPoints(const NonMaxSuppression::Point2D (&pts1)[4],
         const auto& DA = vec2[3];
         auto ABdotAB = dot_2d(AB, AB);
         auto ADdotAD = dot_2d(DA, DA);
-        for (size_t i = 0lu; i < 4lu; i++) {
+        for (auto i : pts1) {
             // Assume ABCD is the rectangle, and P is the point to be judged
             // P is inside ABCD if P's projection on AB lies within AB
             // and P's projection on AD lies within AD
 
-            auto AP = pts1[i] - pts2[0];
+            auto AP = i - pts2[0];
 
             auto APdotAB = dot_2d(AP, AB);
             auto APdotAD = -dot_2d(AP, DA);
 
             if ((APdotAB >= 0) && (APdotAD >= 0) && (APdotAB <= ABdotAB) && (APdotAD <= ADdotAD)) {
-                intersections[num++] = pts1[i];
+                intersections[num++] = i;
             }
         }
     }
@@ -784,14 +779,14 @@ inline size_t getIntersectionPoints(const NonMaxSuppression::Point2D (&pts1)[4],
         const auto& DA = vec1[3];
         auto ABdotAB = dot_2d(AB, AB);
         auto ADdotAD = dot_2d(DA, DA);
-        for (size_t i = 0lu; i < 4lu; i++) {
-            auto AP = pts2[i] - pts1[0];
+        for (auto i : pts2) {
+            auto AP = i - pts1[0];
 
             auto APdotAB = dot_2d(AP, AB);
             auto APdotAD = -dot_2d(AP, DA);
 
             if ((APdotAB >= 0) && (APdotAD >= 0) && (APdotAB <= ABdotAB) && (APdotAD <= ADdotAD)) {
-                intersections[num++] = pts2[i];
+                intersections[num++] = i;
             }
         }
     }
@@ -968,6 +963,10 @@ void NonMaxSuppression::checkOutput(const Shape& shape, const std::string& name,
     }
 }
 
+bool NonMaxSuppression::neverExecute() const {
+    return !isDynamicNode() && Node::neverExecute();
+}
+
 bool NonMaxSuppression::isExecutable() const {
     return isDynamicNode() || Node::isExecutable();
 }
@@ -976,6 +975,4 @@ bool NonMaxSuppression::created() const {
     return getType() == Type::NonMaxSuppression;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

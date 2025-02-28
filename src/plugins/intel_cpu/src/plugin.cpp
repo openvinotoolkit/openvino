@@ -7,6 +7,7 @@
 #include "cpu_streams_calculation.hpp"
 #include "internal_properties.hpp"
 #include "itt.h"
+#include "openvino/core/parallel.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -31,8 +32,7 @@
 
 using namespace ov::threading;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 static std::string getDeviceFullName() {
     std::string brand_string;
@@ -218,25 +218,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // verification of supported input
     for (const auto& ii : model->inputs()) {
         auto input_precision = ii.get_element_type();
-        static const std::set<ov::element::Type_t> supported_precisions = {ov::element::Type_t::u4,
-                                                                           ov::element::Type_t::i4,
-                                                                           ov::element::Type_t::u8,
-                                                                           ov::element::Type_t::i8,
-                                                                           ov::element::Type_t::f8e4m3,
-                                                                           ov::element::Type_t::f8e5m2,
-                                                                           ov::element::Type_t::u16,
-                                                                           ov::element::Type_t::i16,
-                                                                           ov::element::Type_t::u32,
-                                                                           ov::element::Type_t::i32,
-                                                                           ov::element::Type_t::u64,
-                                                                           ov::element::Type_t::i64,
-                                                                           ov::element::Type_t::bf16,
-                                                                           ov::element::Type_t::f16,
-                                                                           ov::element::Type_t::f32,
-                                                                           ov::element::Type_t::f64,
-                                                                           ov::element::Type_t::boolean,
-                                                                           ov::element::Type_t::string,
-                                                                           ov::element::Type_t::nf4};
+        static const std::set<ov::element::Type_t> supported_precisions = {
+            ov::element::Type_t::u4,   ov::element::Type_t::i4,      ov::element::Type_t::u8,
+            ov::element::Type_t::i8,   ov::element::Type_t::f8e4m3,  ov::element::Type_t::f8e5m2,
+            ov::element::Type_t::u16,  ov::element::Type_t::i16,     ov::element::Type_t::u32,
+            ov::element::Type_t::i32,  ov::element::Type_t::u64,     ov::element::Type_t::i64,
+            ov::element::Type_t::bf16, ov::element::Type_t::f16,     ov::element::Type_t::f32,
+            ov::element::Type_t::f64,  ov::element::Type_t::boolean, ov::element::Type_t::string,
+            ov::element::Type_t::nf4,  ov::element::Type_t::dynamic};
 
         if (!supported_precisions.count(input_precision)) {
             OPENVINO_THROW_NOT_IMPLEMENTED("CPU plugin: Input image format ",
@@ -320,48 +309,64 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         const auto streams = engConfig.streamExecutorConfig.get_streams();
         return static_cast<decltype(ov::optimal_number_of_infer_requests)::value_type>(
             streams);  // ov::optimal_number_of_infer_requests has no negative values
-    } else if (name == ov::num_streams) {
+    }
+    if (name == ov::num_streams) {
         const auto streams = engConfig.streamExecutorConfig.get_streams();
         return decltype(ov::num_streams)::value_type(
             streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
-    } else if (name == ov::device::id.name()) {
+    }
+    if (name == ov::device::id.name()) {
         return decltype(ov::device::id)::value_type{engConfig.device_id};
-    } else if (name == ov::inference_num_threads) {
+    }
+    if (name == ov::inference_num_threads) {
         const auto threads = engConfig.streamExecutorConfig.get_threads();
         return static_cast<decltype(ov::inference_num_threads)::value_type>(threads);
-    } else if (name == ov::enable_profiling.name()) {
+    }
+    if (name == ov::enable_profiling.name()) {
         const bool perfCount = engConfig.collectPerfCounters;
         return static_cast<decltype(ov::enable_profiling)::value_type>(perfCount);
-    } else if (name == ov::hint::inference_precision) {
+    }
+    if (name == ov::hint::inference_precision) {
         return decltype(ov::hint::inference_precision)::value_type(engConfig.inferencePrecision);
-    } else if (name == ov::hint::performance_mode) {
+    }
+    if (name == ov::hint::performance_mode) {
         return engConfig.hintPerfMode;
-    } else if (name == ov::hint::enable_cpu_pinning) {
+    }
+    if (name == ov::hint::enable_cpu_pinning) {
         const bool pin_value = engConfig.enableCpuPinning;
         return static_cast<decltype(ov::hint::enable_cpu_pinning)::value_type>(pin_value);
-    } else if (name == ov::hint::enable_cpu_reservation) {
+    }
+    if (name == ov::hint::enable_cpu_reservation) {
         const bool reserve_value = engConfig.enableCpuReservation;
         return static_cast<decltype(ov::hint::enable_cpu_reservation)::value_type>(reserve_value);
-    } else if (name == ov::hint::scheduling_core_type) {
+    }
+    if (name == ov::hint::scheduling_core_type) {
         const auto core_type = engConfig.schedulingCoreType;
         return core_type;
-    } else if (name == ov::hint::model_distribution_policy) {
+    }
+    if (name == ov::hint::model_distribution_policy) {
         const auto& distribution_policy = engConfig.modelDistributionPolicy;
         return distribution_policy;
-    } else if (name == ov::hint::enable_hyper_threading) {
+    }
+    if (name == ov::hint::enable_hyper_threading) {
         const bool ht_value = engConfig.enableHyperThreading;
         return static_cast<decltype(ov::hint::enable_hyper_threading)::value_type>(ht_value);
-    } else if (name == ov::hint::num_requests) {
+    }
+    if (name == ov::hint::num_requests) {
         return static_cast<decltype(ov::hint::num_requests)::value_type>(engConfig.hintNumRequests);
-    } else if (name == ov::hint::execution_mode) {
+    }
+    if (name == ov::hint::execution_mode) {
         return engConfig.executionMode;
-    } else if (name == ov::internal::compiled_model_runtime_properties.name()) {
+    }
+    if (name == ov::internal::compiled_model_runtime_properties.name()) {
         auto model_runtime_properties = ov::Any(m_compiled_model_runtime_properties);
         return decltype(ov::internal::compiled_model_runtime_properties)::value_type(
             std::move(model_runtime_properties.as<std::string>()));
-    } else if (name == ov::log::level) {
+    }
+    if (name == ov::log::level) {
         return engConfig.logLevel;
-    } else if (name == ov::internal::compiled_model_runtime_properties_supported.name()) {
+    }
+    if (name == ov::internal::compiled_model_runtime_properties_supported.name()) {
         ov::Any res = true;
         auto it = options.find(ov::internal::compiled_model_runtime_properties.name());
         if (it == options.end()) {
@@ -377,7 +382,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
             }
         }
         return res;
-    } else if (name == ov::internal::exclusive_async_requests.name()) {
+    }
+    if (name == ov::internal::exclusive_async_requests.name()) {
         return engConfig.exclusiveAsyncRequests;
     } else if (name == ov::hint::dynamic_quantization_group_size) {
         return static_cast<decltype(ov::hint::dynamic_quantization_group_size)::value_type>(
@@ -448,7 +454,8 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
         supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
 
         return decltype(ov::supported_properties)::value_type(std::move(supportedProperties));
-    } else if (ov::internal::supported_properties == name) {
+    }
+    if (ov::internal::supported_properties == name) {
         return decltype(ov::internal::supported_properties)::value_type {
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
 #if !defined(OPENVINO_ARCH_ARM) && !(defined(__APPLE__) || defined(__MACOSX))
@@ -460,9 +467,11 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
                 ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO
             }
         };
-    } else if (name == ov::device::full_name) {
+    }
+    if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type(deviceFullName);
-    } else if (name == ov::available_devices) {
+    }
+    if (name == ov::available_devices) {
         const std::vector<std::string> availableDevices = {""};
         return decltype(ov::available_devices)::value_type(availableDevices);
     } else if (name == ov::device::capabilities) {
@@ -608,8 +617,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
     auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), conf, loaded_from_cache);
     return compiled_model;
 }
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 using namespace ov::intel_cpu;
 

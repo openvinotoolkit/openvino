@@ -1197,7 +1197,7 @@ TEST_P(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto past_lens = make_param(PartialShape{DYN}, element::i32, "past_lens");
         auto value_cache_0 = make_param(PartialShape{DYN, 2, 2}, element::f32, "value_cache_0");
         auto key_cache_0 = make_param(PartialShape{DYN, 2, 2}, element::f32, "key_cache_0");
-        auto inputs_embeds = make_param(PartialShape{DYN, DYN, 8}, element::f32, "inputs_embeds");
+        auto inputs_embeds = make_param(PartialShape{DYN, DYN}, element::f32, "inputs_embeds");
         auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
 
         ParameterVector params = nodes_to_params({max_context_len,
@@ -1216,8 +1216,9 @@ TEST_P(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
                       {1.000000f, 1.000000f, 1.000000f, 1.000000f, 1.000000f, 1.000000f, 1.000000f, 1.000000f});
         auto Constant_16155 = makeConst(element::f32, ov::Shape({1, 1, 1}), {1.000000f});
         auto Constant_16153 = makeConst(element::f32, ov::Shape({1, 1, 1}), {2.000000f});
+        auto unsqueezed_inputs_embeds = makeOP<opset1::Unsqueeze>({inputs_embeds, 1});
         auto __module_model_model_layers_0_input_layernorm_aten_pow_Power =
-            makeOP<opset1::Power>({inputs_embeds, Constant_16153}, {{"auto_broadcast", "numpy"}});
+            makeOP<opset1::Power>({unsqueezed_inputs_embeds, Constant_16153}, {{"auto_broadcast", "numpy"}});
         auto __module_model_model_layers_0_input_layernorm_aten_mean_ReduceMean =
             makeOP<opset1::ReduceMean>({__module_model_model_layers_0_input_layernorm_aten_pow_Power, {-1}},
                                        {{"keep_dims", true}});
@@ -1230,9 +1231,9 @@ TEST_P(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto __module_model_model_layers_0_input_layernorm_aten_rsqrt_Divide =
             makeOP<opset1::Divide>({Constant_16155, __module_model_model_layers_0_input_layernorm_aten_rsqrt_Sqrt},
                                    {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-        auto __module_model_model_layers_0_input_layernorm_aten_mul_Multiply =
-            makeOP<opset1::Multiply>({inputs_embeds, __module_model_model_layers_0_input_layernorm_aten_rsqrt_Divide},
-                                     {{"auto_broadcast", "numpy"}});
+        auto __module_model_model_layers_0_input_layernorm_aten_mul_Multiply = makeOP<opset1::Multiply>(
+            {unsqueezed_inputs_embeds, __module_model_model_layers_0_input_layernorm_aten_rsqrt_Divide},
+            {{"auto_broadcast", "numpy"}});
         auto __module_model_model_layers_0_input_layernorm_aten_mul_Multiply_1 =
             makeOP<opset1::Multiply>({Constant_16156, __module_model_model_layers_0_input_layernorm_aten_mul_Multiply},
                                      {{"auto_broadcast", "numpy"}});
@@ -1253,7 +1254,7 @@ TEST_P(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
                                     {{"output_type", "i64"}});
         auto Gather_16756 = makeOP<opset8::Gather>({ShapeOf_16753, 1, 0}, {{"batch_dims", 0}});
         auto Reshape_16764 = makeOP<opset1::Reshape>({Gather_16756, {-1}}, {{"special_zero", false}});
-        auto ShapeOf_52004 = makeOP<opset3::ShapeOf>({inputs_embeds}, {{"output_type", "i64"}});
+        auto ShapeOf_52004 = makeOP<opset3::ShapeOf>({unsqueezed_inputs_embeds}, {{"output_type", "i64"}});
         auto Gather_52005 = makeOP<opset8::Gather>({ShapeOf_52004, 1, 0}, {{"batch_dims", 0}});
         auto Convert_52006 = makeOP<opset1::Convert>({Gather_52005}, {{"destination_type", "i32"}});
         auto Subtract_52007 = makeOP<opset1::Subtract>({max_context_len, Convert_52006}, {{"auto_broadcast", "numpy"}});

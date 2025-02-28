@@ -20,9 +20,7 @@
 
 using namespace ov;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 using ngNmsSortResultType = ov::op::util::MulticlassNmsBase::SortResultType;
 
@@ -224,6 +222,10 @@ void MultiClassNms::prepareParams() {
         numPerBatch.resize(m_numClasses, 0);
     }
     m_numBoxOffset.resize(m_numBatches);
+}
+
+bool MultiClassNms::neverExecute() const {
+    return !isDynamicNode() && Node::neverExecute();
 }
 
 bool MultiClassNms::isExecutable() const {
@@ -574,9 +576,8 @@ const float* MultiClassNms::slice_class(const int batch_idx,
     if (shared) {
         if (is_boxes) {
             return dataPtr + batch_idx * dataStrides[0];
-        } else {
-            return dataPtr + batch_idx * dataStrides[0] + class_idx * dataStrides[1];
         }
+        return dataPtr + batch_idx * dataStrides[0] + class_idx * dataStrides[1];
     }
 
     // get M boxes of current class_idx : 1, M, 4
@@ -672,6 +673,4 @@ void MultiClassNms::checkPrecision(const ov::element::Type prec,
     }
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

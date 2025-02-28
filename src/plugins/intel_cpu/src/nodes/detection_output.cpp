@@ -10,9 +10,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 template <typename T>
@@ -418,9 +416,9 @@ void DetectionOutput::execute(const dnnl::stream& strm) {
             // Store the new indices. Assign to class back
             memset(detectionsData + n * classesNum, 0, classesNum * sizeof(int));
 
-            for (size_t j = 0; j < confIndicesClassMap.size(); ++j) {
-                const int cls = confIndicesClassMap[j].second.first;
-                const int pr = confIndicesClassMap[j].second.second;
+            for (auto& j : confIndicesClassMap) {
+                const int cls = j.second.first;
+                const int pr = j.second.second;
                 int* pindices = indicesData + n * classesNum * priorsNum + cls * priorsNum;
                 pindices[detectionsData[n * classesNum + cls]] = pr;
                 detectionsData[n * classesNum + cls]++;
@@ -1004,6 +1002,4 @@ bool DetectionOutput::created() const {
     return getType() == Type::DetectionOutput;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

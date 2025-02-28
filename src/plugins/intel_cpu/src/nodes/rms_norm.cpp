@@ -27,9 +27,7 @@
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 struct RMSNormKey {
     ov::element::Type precision;
@@ -122,7 +120,7 @@ RMSNorm::RMSNorm(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
     : Node(op, context, RMSNormShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        OPENVINO_THROW("CPU: " + errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto rms = ov::as_type_ptr<const ov::op::internal::RMS>(op);
     m_eps = static_cast<float>(rms->get_epsilon());
@@ -234,6 +232,4 @@ bool RMSNorm::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
     return true;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

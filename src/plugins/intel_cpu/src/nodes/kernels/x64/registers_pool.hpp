@@ -10,8 +10,7 @@
 #include "dnnl_types.h"
 #include "utils/cpu_utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * The RegistersPool is the base class for the IsaRegistersPool template:
@@ -259,12 +258,14 @@ private:
             auto idx = simdSet.getUnused(requestedIdx);
             simdSet.setAsUsed(idx);
             return idx;
-        } else if (std::is_same<TReg, Xbyak::Reg8>::value || std::is_same<TReg, Xbyak::Reg16>::value ||
-                   std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Reg64>::value) {
+        }
+        if (std::is_same<TReg, Xbyak::Reg8>::value || std::is_same<TReg, Xbyak::Reg16>::value ||
+            std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Reg64>::value) {
             auto idx = generalSet.getUnused(requestedIdx);
             generalSet.setAsUsed(idx);
             return idx;
-        } else if (std::is_same<TReg, Xbyak::Opmask>::value) {
+        }
+        if (std::is_same<TReg, Xbyak::Opmask>::value) {
             return getFreeOpmask(requestedIdx);
         }
     }
@@ -398,5 +399,4 @@ inline RegistersPool::Ptr RegistersPool::create(dnnl::impl::cpu::x64::cpu_isa_t 
 #undef ISA_SWITCH_CASE
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

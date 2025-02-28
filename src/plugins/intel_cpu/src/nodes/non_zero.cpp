@@ -12,9 +12,7 @@
 #include "openvino/opsets/opset3.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 static constexpr int blockSize = dnnl::impl::cpu::platform::get_cache_line_size() * 2;
 static constexpr int elementsStride = blockSize / sizeof(int);
@@ -66,11 +64,7 @@ void NonZero::initSupportedPrimitiveDescriptors() {
                 ov::element::u32,
                 ov::element::i8,
                 ov::element::u8)) {
-        OPENVINO_THROW("Can't create primitive descriptor for NonZero layer with name: ",
-                       getName(),
-                       " doesn't support ",
-                       inPrc.get_type_name(),
-                       " precision on 0 port");
+        THROW_CPU_NODE_ERR("doesn't support ", inPrc.get_type_name(), " precision on 0 port");
     }
 
     addSupportedPrimDesc({{LayoutType::ncsp}}, {{LayoutType::ncsp, ov::element::i32}}, impl_desc_type::ref);
@@ -179,7 +173,7 @@ void NonZero::executeSpecified() {
     case 1: {
         // if nonZeroCounts.size() > 1, then the 2nd round scan could run in parallel.
         parallel_nt(threadsCount, [&](int ithr, int nthr) {
-            size_t outputIndex = std::accumulate(nonZeroCounts.begin(), nonZeroCounts.begin() + ithr, 0);
+            size_t outputIndex = std::accumulate(nonZeroCounts.begin(), nonZeroCounts.begin() + ithr, size_t{0});
             for_1d(ithr, nthr, inShape.getElementsCount(), [&](size_t i) {
                 if (src[i] != zero) {
                     dst[outputIndex] = i;
@@ -408,6 +402,4 @@ bool NonZero::created() const {
     return getType() == Type::NonZero;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

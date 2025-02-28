@@ -29,8 +29,7 @@
 #include "transformations/transpose_sinking/ts_shape_of.hpp"
 using namespace ov::gen_pattern;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 StatefulSDPAFusion::StatefulSDPAFusion() {
     MATCHER_SCOPE(StatefulSDPAFusion);
@@ -178,8 +177,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
                 // the second one leads to Assign, and this is checked later
                 // the third child is allowed to be a ShapeOf op only, thus one of them must be ShapeOf
                 if (!std::any_of(children.begin(), children.end(), [](const ov::Input<ov::Node>& child) {
-                        return ov::is_type<ov::op::v3::ShapeOf>(child.get_node()) ||
-                               ov::is_type<ov::op::v0::ShapeOf>(child.get_node());
+                        return ov::is_type_any_of<ov::op::v3::ShapeOf, ov::op::v0::ShapeOf>(child.get_node());
                     })) {
                     return false;
                 }
@@ -320,5 +318,4 @@ bool SDPASubgraphFusion::run_on_model(const std::shared_ptr<ov::Model>& f) {
     return false;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
