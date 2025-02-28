@@ -643,4 +643,38 @@ void SyncInferRequest::sub_streams_infer() {
     }
 }
 
+void SyncInferRequest::check_tensors() const {
+    // more lightweight and straight forward version specific for cpu
+    auto check_tensor =
+        [](const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor, const std::string_view& type) {
+            OPENVINO_ASSERT(tensor);
+            OPENVINO_ASSERT(port.get_element_type() == tensor->get_element_type(),
+                            "The tensor element type is not corresponding with output element type (",
+                            tensor->get_element_type(),
+                            " != ",
+                            port.get_element_type());
+
+            const bool is_dynamic = port.get_partial_shape().is_dynamic();
+            OPENVINO_ASSERT(is_dynamic || port.get_shape() == tensor->get_shape(),
+                            "The ",
+                            type,
+                            " tensor size is not equal to the model ",
+                            type,
+                            " type: got ",
+                            tensor->get_shape(),
+                            " expecting ",
+                            port.get_shape(),
+                            ".");
+            // we don't need to perform null check, the plugin graph will do it for us
+        };
+
+    for (auto&& item : m_input_ports_map) {
+        check_tensor(item.second, get_tensor_ptr(item.second), "input");
+    }
+
+    for (auto&& item : m_output_ports_map) {
+        check_tensor(item.second, get_tensor_ptr(item.second), "output");
+    }
+}
+
 }  // namespace ov::intel_cpu
