@@ -31,11 +31,6 @@ namespace ov::intel_gpu::ocl {
 class Stage {
 public:
     Stage(std::shared_ptr<SingleKernelGenerator>&& ptr) : codegen(std::move(ptr)) {}
-
-    const ov::DiscreteTypeInfo& get_type() const {
-        return codegen->get_type_info();
-    }
-
     std::shared_ptr<SingleKernelGenerator> codegen;
     KernelData kd{};
     kernel::ptr kernel = nullptr;
@@ -86,6 +81,7 @@ struct PrimitiveImplOCL : public primitive_impl {
         return copy;
     }
 
+
     template<typename StageType, size_t stage_id, typename... Args>
     void add_stage(const kernel_impl_params& params, Args&&... args) {
         static_assert(std::is_base_of<ov::intel_gpu::ocl::KernelGeneratorBase, StageType>::value, "StageType must derive from KernelGeneratorBase");
@@ -95,17 +91,6 @@ struct PrimitiveImplOCL : public primitive_impl {
     }
 
     PrimitiveImplOCL() = default;
-
-    PrimitiveImplOCL(const PrimitiveImplOCL& other)
-    : primitive_impl(other._weights_reorder_params, other._kernel_name, other._is_dynamic)
-    , _order(other._order)
-    , m_rt_params(nullptr) {
-        // for (auto& [type, stage] : _stages) {
-        //     stage.kernel = stage.kernel->clone(other.can_share_kernels);
-        // }
-        this->m_manager = other.m_manager;
-    }
-
     PrimitiveImplOCL(const std::string& impl_name) : primitive_impl(nullptr, impl_name) {}
 
     bool is_cpu() const override { return false; }
@@ -207,7 +192,9 @@ struct PrimitiveImplOCL : public primitive_impl {
     }
 
     void update_stages_flags(const primitive_inst& instance) {
-        if (instance.get_flag(ExecutionFlags::MEMORY_CHANGED) || instance.get_flag(ExecutionFlags::IMPL_CHANGED)) {
+        if (instance.get_flag(ExecutionFlags::MEMORY_CHANGED) ||
+            instance.get_flag(ExecutionFlags::IMPL_CHANGED) ||
+            instance.get_flag(ExecutionFlags::SHAPE_CHANGED)) {
             for (auto& stage : _stages) {
                 stage->kd.need_args_update = true;
             }
@@ -237,7 +224,7 @@ struct PrimitiveImplOCL : public primitive_impl {
         const auto& gws = params.workGroups.global;
         const auto& lws = params.workGroups.local;
 
-        GPU_DEBUG_TRACE_DETAIL << "Enqueue stage " << stage.get_type().name << " kernel: gws=[" << gws[0] << ", " << gws[1] << ", " << gws[2] << "] "
+        GPU_DEBUG_TRACE_DETAIL << "Enqueue stage " << stage.kernel->get_id() << " : gws=[" << gws[0] << ", " << gws[1] << ", " << gws[2] << "] "
                                << "lws=[" << lws[0] << ", " << lws[1] << ", " << lws[2] << "]"
                                << (needs_completion_event ? " has_completion_event=true" : "") << std::endl;
 
@@ -254,7 +241,7 @@ struct PrimitiveImplOCL : public primitive_impl {
             return stream.aggregate_events(events, false, instance.is_output());
         }
 
-        update_stages_flags(instance);
+        update_rt_params(instance);
 
         std::vector<event::ptr> tmp_events(events);
         // Default impl just runs each stage in registration order
@@ -289,6 +276,11 @@ struct PrimitiveImplOCL : public primitive_impl {
     }
 
     std::pair<std::string, std::string> get_kernels_dump_info() const override { return {}; }
+
+private:
+    // Copy should be done by make_deep_copy method
+    PrimitiveImplOCL(const PrimitiveImplOCL& other) = delete;
+    PrimitiveImplOCL& operator=(const PrimitiveImplOCL&) = delete;
 };
 
 }  // namespace ov::intel_gpu::ocl

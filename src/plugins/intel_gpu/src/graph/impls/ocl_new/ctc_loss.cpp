@@ -51,13 +51,16 @@ protected:
 class CTCLossImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::CTCLossImpl)
-    CTCLossImpl(const program_node& node, const kernel_impl_params& params)
-        : PrimitiveImplOCL(CTCLoss::get_type_info_static()) {
-        add_stage<CTCLossGenerator, 0>(params);
+
+    Stage ctc_loss = make_stage<CTCLossGenerator>();
+
+    CTCLossImpl() : PrimitiveImplOCL(CTCLoss::get_type_info_static()) {}
+    CTCLossImpl(const program_node& node, const kernel_impl_params& params) : CTCLossImpl() {
+        add_stage(ctc_loss, params);
     }
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return std::make_unique<CTCLossImpl>(*this);
+        return make_deep_copy<CTCLossImpl>(this);
     }
 };
 
@@ -71,3 +74,4 @@ std::unique_ptr<primitive_impl> CTCLoss::create_impl(const program_node& node, c
 }  // namespace ov::intel_gpu::ocl
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ctc_loss)
+BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::CTCLossImpl)

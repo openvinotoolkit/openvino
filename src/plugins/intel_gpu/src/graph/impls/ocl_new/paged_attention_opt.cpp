@@ -212,7 +212,6 @@ public:
 
 class PagedAttentionGeneratorSingleToken : public PagedAttentionGeneratorBase {
 public:
-    OV_GPU_OCL_KERNEL("PagedAttentionGeneratorSingleToken")
     PagedAttentionGeneratorSingleToken() : PagedAttentionGeneratorBase() {
         m_stage_suffix = "_single_token";
     }
@@ -299,7 +298,6 @@ public:
 
 class PagedAttentionGeneratorSingleTokenFinalization : public PagedAttentionGeneratorBase {
 public:
-    OV_GPU_OCL_KERNEL("PagedAttentionGeneratorSingleTokenFinalization")
     PagedAttentionGeneratorSingleTokenFinalization() : PagedAttentionGeneratorBase() {
         m_stage_suffix = "_single_token_finalization";
     }
@@ -357,7 +355,6 @@ public:
 
 class PagedAttentionGeneratorMultiTokens : public PagedAttentionGeneratorBase {
 public:
-    OV_GPU_OCL_KERNEL("PagedAttentionGeneratorMultiTokens")
     PagedAttentionGeneratorMultiTokens() : PagedAttentionGeneratorBase() {
         m_stage_suffix = "_multi_tokens";
     }
@@ -446,7 +443,6 @@ public:
 
 class PagedAttentionGeneratorMultiTokensFinalization : public PagedAttentionGeneratorBase {
 public:
-    OV_GPU_OCL_KERNEL("PagedAttentionGeneratorMultiTokensFinalization")
     PagedAttentionGeneratorMultiTokensFinalization() : PagedAttentionGeneratorBase() {
         m_stage_suffix = "_multi_tokens_finalization";
     }
@@ -507,7 +503,6 @@ public:
 
 class PagedAttentionGeneratorScoresCalculation : public PagedAttentionGeneratorBase {
 public:
-    OV_GPU_OCL_KERNEL("PagedAttentionGeneratorScoresCalculation")
     PagedAttentionGeneratorScoresCalculation() : PagedAttentionGeneratorBase() {
         m_stage_suffix = "_scores_calculation";
     }
@@ -567,7 +562,6 @@ public:
 
 class KVCacheUpdateGenerator : public SingleKernelGenerator {
 public:
-    OV_GPU_OCL_KERNEL("KVCacheUpdateGenerator")
     KVCacheUpdateGenerator() : SingleKernelGenerator("pa_kv_cache_update_ref") {}
 
 protected:
@@ -661,7 +655,6 @@ protected:
 
 class KVCacheRotateGenerator : public SingleKernelGenerator {
 public:
-    OV_GPU_OCL_KERNEL("KVCacheRotateGenerator")
     KVCacheRotateGenerator() : SingleKernelGenerator("pa_kv_cache_rotate_ref") {}
 
 protected:
@@ -725,7 +718,6 @@ protected:
 
 class PagedAttentionSDPAOptGeneratorMultiToken : public SDPAOptGeneratorBase {
 public:
-    OV_GPU_OCL_KERNEL("PagedAttentionSDPAOptGeneratorMultiToken")
     PagedAttentionSDPAOptGeneratorMultiToken() : SDPAOptGeneratorBase("sdpa_opt", false) {
         m_stage_suffix = "_paged";
     }
@@ -896,9 +888,9 @@ public:
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         assert(rt_params != nullptr);
 
-        std::vector<event::ptr> res_event = {};
+        std::vector<event::ptr> res_event = events;
         if (has_rotated_blocks) {
-            res_event = { execute_stage(events, instance, kv_cache_rotate) };
+            res_event = { execute_stage(res_event, instance, kv_cache_rotate) };
         }
 
         res_event = { execute_stage(res_event, instance, kv_cache_update) };

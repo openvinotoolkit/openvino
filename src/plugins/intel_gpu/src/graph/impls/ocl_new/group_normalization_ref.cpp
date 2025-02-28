@@ -155,19 +155,19 @@ protected:
 class GroupNormalizationRefImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::GroupNormalizationRefImpl)
-    static constexpr size_t CALC_MEAN_STAGE = 0;
-    static constexpr size_t CALC_STD_STAGE = 1;
-    static constexpr size_t NORMALIZE_STAGE = 2;
+    Stage calc_mean = make_stage<GroupNormalizationGeneratorCalcMeanRef>();
+    Stage calc_mean_std = make_stage<GroupNormalizationGeneratorCalcStd>();
+    Stage normalize = make_stage<GroupNormalizationGeneratorNormalize>();
 
-    GroupNormalizationRefImpl(const program_node& node, const kernel_impl_params& params)
-        : PrimitiveImplOCL(GroupNormalizationRef::get_type_info_static()) {
-        add_stage<GroupNormalizationGeneratorCalcMeanRef, CALC_MEAN_STAGE>(params);
-        add_stage<GroupNormalizationGeneratorCalcStd, CALC_STD_STAGE>(params);
-        add_stage<GroupNormalizationGeneratorNormalize, NORMALIZE_STAGE>(params);
+    GroupNormalizationRefImpl() : PrimitiveImplOCL(GroupNormalizationRef::get_type_info_static()) {}
+    GroupNormalizationRefImpl(const program_node& node, const kernel_impl_params& params) : GroupNormalizationRefImpl() {
+        add_stage(calc_mean, params);
+        add_stage(calc_mean_std, params);
+        add_stage(normalize, params);
     }
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return std::make_unique<GroupNormalizationRefImpl>(*this);
+        return make_deep_copy<GroupNormalizationRefImpl>(this);
     }
 
     std::vector<layout> get_internal_buffer_layouts(const kernel_impl_params& params) const override {
@@ -188,3 +188,4 @@ std::unique_ptr<primitive_impl> GroupNormalizationRef::create_impl(const program
 }  // namespace ov::intel_gpu::ocl
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::group_normalization)
+BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::GroupNormalizationRefImpl)

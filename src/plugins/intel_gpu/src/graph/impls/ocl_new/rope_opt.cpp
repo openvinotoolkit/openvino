@@ -161,13 +161,16 @@ protected:
 class RopeOptImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::RopeOptImpl)
-    RopeOptImpl(const program_node& node, const kernel_impl_params& params)
-        : PrimitiveImplOCL(RopeOpt::get_type_info_static()) {
-        add_stage<RopeGenerator, 0>(params);
+
+    Stage rope = make_stage<RopeGenerator>();
+
+    RopeOptImpl() : PrimitiveImplOCL(RopeOpt::get_type_info_static()) {}
+    RopeOptImpl(const program_node& node, const kernel_impl_params& params) : RopeOptImpl() {
+        add_stage(rope, params);
     }
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return std::make_unique<RopeOptImpl>(*this);
+        return make_deep_copy<RopeOptImpl>(this);
     }
 
     std::vector<layout> get_internal_buffer_layouts(const kernel_impl_params& params) const override {
@@ -185,3 +188,4 @@ std::unique_ptr<primitive_impl> RopeOpt::create_impl(const program_node& node, c
 }  // namespace ov::intel_gpu::ocl
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::rope)
+BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::RopeOptImpl)

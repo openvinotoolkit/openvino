@@ -4,6 +4,7 @@
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "sdpa_opt.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "sdpa_base.hpp"
 #include "utils/jitter.hpp"
 #include "utils/kernel_base.hpp"
@@ -23,45 +24,54 @@ namespace ov::intel_gpu::ocl {
 class SDPAOptImpl : public SDPAImplBase {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::SDPAOptImpl)
-    static constexpr const size_t INDIRECT_STAGE = 10;
-    static constexpr const size_t REGULAR_STAGE = 20;
+    static constexpr bool indirect = true;
+    static constexpr bool prefill = true;
 
-    SDPAOptImpl(const kernel_impl_params& params) : SDPAImplBase(SDPAOpt::get_type_info_static()) {
-        constexpr bool prefill = true;
-        constexpr bool indirect = true;
+    Stage indirect_single_token = make_stage<SDPAOptGeneratorSingleToken>(indirect);
+    Stage regular_single_token = make_stage<SDPAOptGeneratorSingleToken>(!indirect);
+
+    Stage indirect_multi_tokens = make_stage<SDPAOptGeneratorMultiToken>(indirect);
+    Stage regular_multi_tokens = make_stage<SDPAOptGeneratorMultiToken>(!indirect);
+
+    Stage indirect_finalization = make_stage<SDPAOptGeneratorFinalization>(indirect);
+    Stage regular_finalization = make_stage<SDPAOptGeneratorFinalization>(!indirect);
+
+    Stage regular_micro = make_stage<SDPAMicroGenerator>(prefill);
+
+
+    SDPAOptImpl() : SDPAImplBase(SDPAOpt::get_type_info_static()) { }
+    SDPAOptImpl(const kernel_impl_params& params) : SDPAOptImpl() {
         if (params.is_dynamic()) {
-            add_stage<SDPAOptGeneratorSingleToken, REGULAR_STAGE + SDPAStage::SINGLE_TOKEN>(params, !indirect);
-            add_stage<SDPAOptGeneratorSingleToken, INDIRECT_STAGE + SDPAStage::SINGLE_TOKEN>(params, indirect);
+            add_stage(regular_single_token, params);
+            add_stage(indirect_single_token, params);
 
-            add_stage<SDPAOptGeneratorMultiToken, REGULAR_STAGE + SDPAStage::MULTI_TOKENS>(params, !indirect);
-            add_stage<SDPAOptGeneratorMultiToken, INDIRECT_STAGE + SDPAStage::MULTI_TOKENS>(params, indirect);
+            add_stage(regular_multi_tokens, params);
+            add_stage(indirect_multi_tokens, params);
 
-            add_stage<SDPAOptGeneratorFinalization, REGULAR_STAGE + SDPAStage::FINALIZATION>(params, !indirect);
+            add_stage(regular_finalization, params);
+            add_stage(indirect_finalization, params);
 
             if (SDPAOpt::supports_micro_sdpa(params))
-                add_stage<SDPAMicroGenerator, REGULAR_STAGE + SDPAStage::MICRO>(params, prefill);
+                add_stage(regular_micro, params);
         } else {
-            auto indirect = params.typed_desc<scaled_dot_product_attention>()->indirect_axis != -1;
+            auto is_indirect = params.typed_desc<scaled_dot_product_attention>()->indirect_axis != -1;
             if (is_prefill_stage(params)) {
                 if (indirect)
-                    add_stage<SDPAOptGeneratorMultiToken, INDIRECT_STAGE + SDPAStage::MULTI_TOKENS>(params, !indirect);
+                    add_stage(indirect_multi_tokens, params);
                 else if (SDPAOpt::supports_micro_sdpa(params))
-                    add_stage<SDPAMicroGenerator, REGULAR_STAGE + SDPAStage::MICRO>(params, prefill);
+                    add_stage(regular_micro, params);
                 else
-                    add_stage<SDPAOptGeneratorMultiToken, REGULAR_STAGE + SDPAStage::MULTI_TOKENS>(params, !indirect);
+                    add_stage(regular_multi_tokens, params);
             } else {
                 const auto& gfx_ver = params.get_program().get_engine().get_device_info().gfx_ver;
                 bool is_ARL_H = (gfx_ver.major == 12 && gfx_ver.minor == 74);
                 if (!SDPAOpt::supports_micro_sdpa(params) || is_ARL_H) {
-                    if (indirect)
-                        add_stage<SDPAOptGeneratorSingleToken, INDIRECT_STAGE + SDPAStage::SINGLE_TOKEN>(params, !indirect);
-                    else
-                        add_stage<SDPAOptGeneratorSingleToken, REGULAR_STAGE + SDPAStage::SINGLE_TOKEN>(params, indirect);
+                    add_stage(is_indirect ? indirect_single_token : regular_single_token, params);
 
                     if (get_partitions_num(params, SDPAStage::SINGLE_TOKEN) > 1)
-                        add_stage<SDPAOptGeneratorFinalization, REGULAR_STAGE + SDPAStage::FINALIZATION>(params, !indirect);
+                        add_stage(is_indirect ? indirect_finalization : regular_finalization, params);
                 } else {
-                    add_stage<SDPAMicroGenerator, REGULAR_STAGE + SDPAStage::MICRO>(params, prefill);
+                    add_stage(regular_micro, params);
                 }
             }
         }
@@ -70,23 +80,23 @@ public:
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         const auto& params = *instance.get_impl_params();
         bool is_prefill = is_prefill_stage(params);
-        auto stage_type = need_indirect_load(static_cast<scaled_dot_product_attention_inst&>(instance)) ? INDIRECT_STAGE : REGULAR_STAGE;
+        bool is_indirect = need_indirect_load(static_cast<scaled_dot_product_attention_inst&>(instance));
         const auto& gfx_ver = params.get_program().get_engine().get_device_info().gfx_ver;
         bool is_ARL_H = (gfx_ver.major == 12 && gfx_ver.minor == 74);
-        bool run_micro_sdpa = /* has_stage(REGULAR_STAGE + SDPAStage::MICRO) && */ (is_prefill || !is_ARL_H) && stage_type == REGULAR_STAGE;
+        bool run_micro_sdpa = has_stage(regular_micro) && (is_prefill || !is_ARL_H) && !is_indirect;
 
-        update_stages_flags(instance);
+        update_rt_params(instance);
 
         if (run_micro_sdpa) {
-            return execute_stage(events, instance, REGULAR_STAGE + SDPAStage::MICRO);
+            return execute_stage(events, instance, regular_micro);
         } else if (is_prefill) {
-            return execute_stage(events, instance, stage_type + SDPAStage::MULTI_TOKENS);
+            return execute_stage(events, instance, is_indirect ? indirect_multi_tokens : regular_multi_tokens);
         } else {
             const auto num_of_partitions = get_partitions_num(params, SDPAStage::SINGLE_TOKEN);
 
-            auto ev = execute_stage(events, instance, stage_type + SDPAStage::SINGLE_TOKEN);
+            auto ev = execute_stage(events, instance, is_indirect ? indirect_single_token : regular_single_token);
             if (num_of_partitions > 1) {
-                ev = execute_stage({ev}, instance, stage_type + SDPAStage::FINALIZATION);
+                ev = execute_stage({ev}, instance, is_indirect ? indirect_finalization : regular_finalization);
             }
             return ev;
         }
@@ -95,25 +105,27 @@ public:
     std::vector<layout> get_internal_buffer_layouts(const kernel_impl_params& params) const override {
         std::vector<layout> bufs;
 
+        auto desc = params.typed_desc<scaled_dot_product_attention>();
+
         const auto& q_l = params.input_layouts[0];
-        // if (!params.is_dynamic()) {
-        //     const auto& k_l = params.input_layouts[1];
 
-        //     const auto& q_shape = q_l.get_shape();
-        //     const auto& k_shape = k_l.get_shape();
-        //     const size_t buf_size = q_l.count() / q_shape[3] * k_shape[2];
+        const auto head_size = extract_channel(get_transposed_channel(ChannelName::X, desc->input_q_transpose_order), q_l);
 
-        //     bufs = { layout{ov::PartialShape{static_cast<int64_t>(buf_size)}, q_l.data_type, format::bfyx } };
-        // } else {
-            auto buf = layout{ layout{ov::PartialShape{4}, q_l.data_type, format::bfyx } };
-            bufs = { buf, buf, buf };
-        // }
+        const auto num_of_partitions = get_partitions_num(params, SDPAStage::SINGLE_TOKEN);
+        const auto is_prefill = is_prefill_stage(params);
+
+        const size_t buf_elements_count = (num_of_partitions == 1 || is_prefill) ? 1 : params.output_layouts[0].count() / head_size * num_of_partitions;
+        const size_t tmp_out_elements_count = (num_of_partitions == 1 || is_prefill) ? 1 : params.output_layouts[0].count() * num_of_partitions;
+
+        bufs.emplace_back(ov::PartialShape{static_cast<int64_t>(buf_elements_count)}, ov::element::f32, format::bfyx);
+        bufs.emplace_back(ov::PartialShape{static_cast<int64_t>(buf_elements_count)}, ov::element::f32, format::bfyx);
+        bufs.emplace_back(ov::PartialShape{static_cast<int64_t>(tmp_out_elements_count)}, params.output_layouts[0].data_type, format::bfyx);
 
         return bufs;
     }
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return std::make_unique<SDPAOptImpl>(*this);
+        return make_deep_copy<SDPAOptImpl>(this);
     }
 };
 
@@ -124,7 +136,6 @@ bool SDPAOpt::supports_micro_sdpa(const kernel_impl_params& params) {
     const auto supports_microkernels = cldnn::query_microkernels_supported(engine, params.get_program().get_config());
     if (device_info.arch < gpu_arch::xe_hpg || !supports_microkernels)
         return false;
-
 
     const auto& q_layout = params.get_input_layout(0);
     const auto& k_layout = params.get_input_layout(1);

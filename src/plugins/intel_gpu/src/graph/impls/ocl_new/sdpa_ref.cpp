@@ -113,17 +113,21 @@ protected:
 class SDPARefImpl : public SDPAImplBase {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::SDPARefImpl)
-    SDPARefImpl(const kernel_impl_params& params)
-        : SDPAImplBase(SDPARef::get_type_info_static()) {
-        add_stage<SDPARefGenerator, REGULAR_STAGE>(params, false);
-        add_stage<SDPARefGenerator, INDIRECT_STAGE>(params, true);
+    Stage indirect = make_stage<SDPARefGenerator>(true);
+    Stage regular = make_stage<SDPARefGenerator>(false);
+
+    SDPARefImpl() : SDPAImplBase(SDPARef::get_type_info_static()) {}
+    SDPARefImpl(const kernel_impl_params& params) : SDPARefImpl() {
+        add_stage(regular, params);
+        add_stage(indirect, params);
     }
 
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
+        update_rt_params(instance);
         if (need_indirect_load(static_cast<scaled_dot_product_attention_inst&>(instance))) {
-            return execute_stage(events, instance, INDIRECT_STAGE);
+            return execute_stage(events, instance, indirect);
         } else {
-            return execute_stage(events, instance, REGULAR_STAGE);
+            return execute_stage(events, instance, regular);
         }
     }
 
@@ -147,7 +151,7 @@ public:
     }
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return std::make_unique<SDPARefImpl>(*this);
+        return make_deep_copy<SDPARefImpl>(this);
     }
 };
 
@@ -159,3 +163,4 @@ std::unique_ptr<primitive_impl> SDPARef::create_impl(const program_node& node, c
 }  // namespace ov::intel_gpu::ocl
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::scaled_dot_product_attention)
+BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::SDPARefImpl)

@@ -72,7 +72,6 @@ public:
 
     virtual KernelData get_kernel_data(const kernel_impl_params& params) const = 0;
     virtual DispatchDataFunc get_dispatch_data_func() const = 0;
-    virtual const ov::DiscreteTypeInfo& get_type_info() const = 0;
 };
 
 class SingleKernelGenerator : public KernelGeneratorBase {

@@ -283,19 +283,19 @@ protected:
 class GroupNormalizationBfyxOptImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::GroupNormalizationBfyxOptImpl)
-    static constexpr size_t CALC_SQR_MEAN_STAGE = 0;
-    static constexpr size_t CALC_MEAN_VARIANCE_STAGE = 1;
-    static constexpr size_t NORMALIZE_STAGE = 2;
+    Stage calc_sqr_mean = make_stage<GroupNormalizationGeneratorCalcSQRMean>();
+    Stage calc_mean_variance = make_stage<GroupNormalizationGeneratorCalcMeanVariance>();
+    Stage normalize = make_stage<GroupNormalizationGeneratorFinalKernel>();
 
-    GroupNormalizationBfyxOptImpl(const program_node& node, const kernel_impl_params& params)
-        : PrimitiveImplOCL(GroupNormalizationBfyxOpt::get_type_info_static()) {
-        add_stage<GroupNormalizationGeneratorCalcSQRMean, CALC_SQR_MEAN_STAGE>(params);
-        add_stage<GroupNormalizationGeneratorCalcMeanVariance, CALC_MEAN_VARIANCE_STAGE>(params);
-        add_stage<GroupNormalizationGeneratorFinalKernel, NORMALIZE_STAGE>(params);
+    GroupNormalizationBfyxOptImpl() : PrimitiveImplOCL(GroupNormalizationBfyxOpt::get_type_info_static()) {}
+    GroupNormalizationBfyxOptImpl(const program_node& node, const kernel_impl_params& params) : GroupNormalizationBfyxOptImpl() {
+        add_stage(calc_sqr_mean, params);
+        add_stage(calc_mean_variance, params);
+        add_stage(normalize, params);
     }
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return std::make_unique<GroupNormalizationBfyxOptImpl>(*this);
+        return make_deep_copy<GroupNormalizationBfyxOptImpl>(this);
     }
 
     std::vector<layout> get_internal_buffer_layouts(const kernel_impl_params& params) const override {
@@ -315,3 +315,5 @@ std::unique_ptr<primitive_impl> GroupNormalizationBfyxOpt::create_impl(const pro
 }
 
 }  // namespace ov::intel_gpu::ocl
+
+BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::GroupNormalizationBfyxOptImpl)
