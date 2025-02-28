@@ -559,8 +559,7 @@ void compare(const ov::Tensor& expected,
     }
 
     // error is a place with whole data related to incorrect element in tensor
-    size_t shape_size_cnt =
-        shape_size(expected_shape) * expected.get_element_type().bitwidth() / ov::element::from<ExpectedT>().bitwidth();
+    size_t shape_size_cnt = shape_size(expected_shape);
     tensor_comparation::Error error(abs_threshold, rel_threshold, topk_threshold, mvn_threshold, shape_size_cnt);
     const auto expected_data = static_cast<ExpectedT*>(expected.data(expected.get_element_type()));
     const auto actual_data = static_cast<ActualT*>(actual.data(actual.get_element_type()));
