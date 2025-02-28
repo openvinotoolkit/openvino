@@ -299,7 +299,7 @@ void Deconvolution::createDnnlCompatibleWeights() {
     } else {
         order = {1, 0};
     }
-    for (size_t i = 2 + withGroups; i < blockedDims.size(); i++) {
+    for (size_t i = 2 + static_cast<int>(withGroups); i < blockedDims.size(); i++) {
         order.push_back(i);
     }
 

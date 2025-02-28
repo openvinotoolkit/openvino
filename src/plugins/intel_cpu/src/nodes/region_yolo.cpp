@@ -405,7 +405,7 @@ void RegionYolo::execute(const dnnl::stream& strm) {
     int end_index = 0;
     int num_ = 0;
     size_t output_size = 0;
-    if (do_softmax) {
+    if (do_softmax != 0.0f) {
         // Region layer (Yolo v2)
         end_index = IW * IH;
         num_ = num;
@@ -446,7 +446,7 @@ void RegionYolo::execute(const dnnl::stream& strm) {
         }
     }
 
-    if (do_softmax) {
+    if (do_softmax != 0.0f) {
         int index = IW * IH * (coords + 1);
         int batch_offset = inputs_size / num;
         for (size_t b = 0; b < B * num; b++) {

@@ -1798,7 +1798,7 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
     if (!inputZeroPoints.empty() || !legacyInputZeroPoints.empty()) {
         THROW_CPU_NODE_ERR("input zero point is not empty");
     }
-    if (inputZpSize) {
+    if (inputZpSize != 0u) {
         inputZeroPointType = zpType::PerTensor;
     }
     for (size_t j = 0; j < inputZpSize; j++) {

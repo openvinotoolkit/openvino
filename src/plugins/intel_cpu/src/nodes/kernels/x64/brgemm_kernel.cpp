@@ -84,7 +84,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
     // blocking K
     K_blk = isBrgWithAMX ? 32 : K;
     K_tail = K % K_blk;
-    if (isBrgWithAMX && K_tail) {
+    if (isBrgWithAMX && (K_tail != 0u)) {
         K_tail = rnd_up(K_tail, 2);
     }
     // copied K must be round up by vlen / inType.size(), otherwise copy B kernel may access wrong memory
@@ -95,15 +95,15 @@ BrgemmKernel::BrgemmKernel(size_t M,
             for (size_t n = 0; n < 2; n++) {
                 auto& brgemmCtx = brgCtxs[getBrgIdx(m, k, n)];
 
-                auto M_ = m ? M_tail : M < M_blk ? 0 : M_blk;
-                auto N_ = n ? N_tail : N - N_tail;
-                auto K_ = k ? K_tail : K - K % K_blk;
+                auto M_ = (m != 0u) ? M_tail : M < M_blk ? 0 : M_blk;
+                auto N_ = (n != 0u) ? N_tail : N - N_tail;
+                auto K_ = (k != 0u) ? K_tail : K - K % K_blk;
                 auto beta = (b_accumulate || (k && brgCtxs[getBrgIdx(m, 0, n)].K != 0)) ? 1.0f : 0.0f;
 
                 brgemmCtx.M = M_;
                 brgemmCtx.N = N_;
                 brgemmCtx.K = K_;
-                brgemmCtx.LDA = k ? K_blk : (is_avx_f16_only ? K : lda);  // f16 use f32 internally
+                brgemmCtx.LDA = (k != 0u) ? K_blk : (is_avx_f16_only ? K : lda);  // f16 use f32 internally
                 brgemmCtx.LDB =
                     (!is_f32 || b_transposed) ? rnd_up(N, N_blk) : ldb;  // bf16/fp16/b_transposed needs copy
                 brgemmCtx.LDC = ldc;

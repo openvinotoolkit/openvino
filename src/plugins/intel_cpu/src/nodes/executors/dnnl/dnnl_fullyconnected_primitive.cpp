@@ -176,7 +176,7 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
     }
 
     const size_t simdWidth = 16;
-    if (dqGroupSize % simdWidth) {
+    if ((dqGroupSize % simdWidth) != 0u) {
         return false;
     }
 

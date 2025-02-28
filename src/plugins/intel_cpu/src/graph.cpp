@@ -1595,7 +1595,7 @@ public:
     DEBUG_LOG(*node);
 
 inline void Graph::ExecuteNode(const NodePtr& node, SyncInferRequest* request, int numaId) const {
-    if (request) {
+    if (request != nullptr) {
         request->throw_if_canceled();
     }
 

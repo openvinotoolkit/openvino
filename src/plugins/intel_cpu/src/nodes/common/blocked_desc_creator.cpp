@@ -112,7 +112,7 @@ std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> Blocke
     }
 
     auto rankTypesFilter = [rank, bitMask](const CreatorsMap::value_type& item) {
-        if (!(bitMask & (1 << static_cast<unsigned>(item.first)))) {
+        if ((bitMask & (1 << static_cast<unsigned>(item.first))) == 0u) {
             return false;
         }
         if (item.second->getMinimalRank() > rank) {

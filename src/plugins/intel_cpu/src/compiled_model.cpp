@@ -226,7 +226,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     }
 
     if (name == ov::loaded_from_cache) {
-        return m_loaded_from_cache;
+        return static_cast<int>(m_loaded_from_cache);
     }
 
     Config engConfig = get_graph()._graph.getConfig();
@@ -297,7 +297,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     }
     if (name == ov::enable_profiling.name()) {
         const bool perfCount = config.collectPerfCounters;
-        return static_cast<decltype(ov::enable_profiling)::value_type>(perfCount);
+        return static_cast<decltype(ov::enable_profiling)::value_type>(static_cast<int>(perfCount));
     }
     if (name == ov::hint::inference_precision) {
         return decltype(ov::hint::inference_precision)::value_type(config.inferencePrecision);
@@ -310,11 +310,11 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     }
     if (name == ov::hint::enable_cpu_pinning.name()) {
         const bool use_pin = config.enableCpuPinning;
-        return static_cast<decltype(ov::hint::enable_cpu_pinning)::value_type>(use_pin);
+        return static_cast<decltype(ov::hint::enable_cpu_pinning)::value_type>(static_cast<int>(use_pin));
     }
     if (name == ov::hint::enable_cpu_reservation.name()) {
         const bool use_reserve = config.enableCpuReservation;
-        return static_cast<decltype(ov::hint::enable_cpu_reservation)::value_type>(use_reserve);
+        return static_cast<decltype(ov::hint::enable_cpu_reservation)::value_type>(static_cast<int>(use_reserve));
     }
     if (name == ov::hint::scheduling_core_type) {
         const auto stream_mode = config.schedulingCoreType;
@@ -326,7 +326,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     }
     if (name == ov::hint::enable_hyper_threading.name()) {
         const bool use_ht = config.enableHyperThreading;
-        return static_cast<decltype(ov::hint::enable_hyper_threading)::value_type>(use_ht);
+        return static_cast<decltype(ov::hint::enable_hyper_threading)::value_type>(static_cast<int>(use_ht));
     }
     if (name == ov::hint::execution_mode) {
         return config.executionMode;

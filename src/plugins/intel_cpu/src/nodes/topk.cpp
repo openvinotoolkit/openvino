@@ -2282,7 +2282,7 @@ void TopK::topk_process(const uint8_t* in_ptr, uint8_t* out_ptr, uint8_t* out_id
 
         size_t tail_start = I / blk_size * blk_size;
         size_t work_amount = I - tail_start;
-        if (work_amount) {
+        if (work_amount != 0u) {
             parallel_for(O, [&](size_t o) {
                 const uint8_t* in_ptr_a = in_ptr + (o * A * I + tail_start) * data_size;
                 uint8_t* process_ptr_a = process_ptr + (o * A * I + tail_start) * data_size;
@@ -2418,7 +2418,7 @@ void TopK::calc_bitonic_idx(size_t n, int& cnt, bool cmp_val) {
     int m = n - 1;
     int log_p = 0;
     int p = 1;
-    while (m) {
+    while (m != 0) {
         p <<= 1;
         m >>= 1;
         log_p++;
@@ -2527,12 +2527,12 @@ void TopK::topk_ref_process(const float* src_data,
                 }
             }
         }
-        if (dst_data) {
+        if (dst_data != nullptr) {
             for (int i2 = 0; i2 < top_k; i2++) {
                 dst_data[i0 * top_k * after_num + i2 * after_num + i1] = max_values[i2];
             }
         }
-        if (dst_idx) {
+        if (dst_idx != nullptr) {
             for (int i2 = 0; i2 < top_k; i2++) {
                 dst_idx[i0 * top_k * after_num + i2 * after_num + i1] = max_indexes[i2];
             }

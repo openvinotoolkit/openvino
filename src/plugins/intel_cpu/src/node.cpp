@@ -124,7 +124,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
     if (!primitivesPriority.empty()) {
         std::istringstream stream(primitivesPriority);
         std::string str;
-        while (getline(stream, str, ',')) {
+        while (getline(stream, str, ',').good()) {
             if (str.substr(0, 4) != "cpu:") {
                 continue;
             }
@@ -143,7 +143,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
     if (!inputMemoryFormats.empty()) {
         std::istringstream stream(inputMemoryFormats);
         std::string str;
-        while (getline(stream, str, ',')) {
+        while (getline(stream, str, ',').good()) {
             if (str.substr(0, 4) != "cpu:") {
                 continue;
             }
@@ -155,7 +155,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
     if (!outputMemoryFormats.empty()) {
         std::istringstream stream(outputMemoryFormats);
         std::string str;
-        while (getline(stream, str, ',')) {
+        while (getline(stream, str, ',').good()) {
             if (str.substr(0, 4) != "cpu:") {
                 continue;
             }
@@ -498,10 +498,10 @@ bool Node::canBeInPlace() const {
 
 void Node::resolveInPlaceEdges(Edge::LOOK look) {
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
-    if (!selected_pd) {
+    if (selected_pd == nullptr) {
         OPENVINO_THROW("Cannot find selected primitive descriptor for node: ", getName());
     }
-    if (look & Edge::LOOK_DOWN) {
+    if ((look & Edge::LOOK_DOWN) != 0) {
         for (size_t i = 0; i < getParentEdges().size() && i < selected_pd->getConfig().inConfs.size(); i++) {
             auto inplaceOutIndx = selected_pd->getConfig().inConfs[i].inPlace();
 
@@ -530,7 +530,7 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
             parentEdge->reuse(newMem);
         }
     }
-    if (look & Edge::LOOK_UP) {
+    if ((look & Edge::LOOK_UP) != 0) {
         for (size_t i = 0; i < getChildEdges().size() && i < selected_pd->getConfig().outConfs.size(); i++) {
             auto inplaceInpIndx = selected_pd->getConfig().outConfs[i].inPlace();
 
@@ -595,7 +595,7 @@ std::string Node::getPrimitiveDescriptorType() const {
     auto selectedPrimitiveDesc = getSelectedPrimitiveDescriptor();
 
     impl_desc_type type = impl_desc_type::undef;
-    if (selectedPrimitiveDesc) {
+    if (selectedPrimitiveDesc != nullptr) {
         type = selectedPrimitiveDesc->getImplementationType();
     }
 
@@ -650,7 +650,7 @@ std::string Node::getPrimitiveDescriptorType() const {
     // currently we treat a layer executing in int8 mode if its input is I8 or U8. if input is U8, we still
     // add I8 since I8 is special placeholder. The real calc precision might be quite complex and in most cases
     // it is mixed precision.
-    if (selectedPrimitiveDesc) {
+    if (selectedPrimitiveDesc != nullptr) {
         if (!selectedPrimitiveDesc->getConfig().inConfs.empty()) {
             if (selectedPrimitiveDesc->getConfig().inConfs[0].getMemDesc()->getPrecision() != ov::element::u8) {
                 str_type +=
@@ -1018,7 +1018,7 @@ void Node::filterSupportedPrimitiveDescriptors() {
 void Node::initDescriptor(const NodeConfig& config) {
     auto* selectedPD = getSelectedPrimitiveDescriptor();
 
-    if (!selectedPD) {
+    if (selectedPD == nullptr) {
         return;
     }
 
@@ -1621,7 +1621,7 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ov::Node>& op, const Grap
         }
     }
 
-    if (!newNode) {
+    if (newNode == nullptr) {
         std::string errorDetails;
         if (!errorMessage.empty()) {
             errorDetails = "\nDetails:\n" + errorMessage;
@@ -2031,7 +2031,7 @@ int Node::inPlaceInputPort(int portIdx) const {
     }
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
-    if (!selected_pd) {
+    if (selected_pd == nullptr) {
         OPENVINO_THROW("Cannot find selected primitive descriptor for node: ", getName());
     }
 
@@ -2054,7 +2054,7 @@ int Node::inPlaceOutPort(int portIdx) const {
     }
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
-    if (!selected_pd) {
+    if (selected_pd == nullptr) {
         OPENVINO_THROW("Cannot find selected primitive descriptor for node: ", getName());
     }
 

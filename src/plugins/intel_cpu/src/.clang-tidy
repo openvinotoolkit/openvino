@@ -28,7 +28,6 @@
 # -google-explicit-constructor,
 # -google-readability-casting,
 # -modernize-avoid-c-arrays,
-# -readability-implicit-bool-conversion,
 # -readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers
 # -readability-function-cognitive-complexity. Reasonable way to enforce splitting complex code into simple functions
 # Remove warning disablement after CI pipeline migrates to C++17 from C++20 for:
@@ -42,6 +41,7 @@ Checks: >
   modernize-*,
   cppcoreguidelines-prefer-member-initializer,
   readability-else-after-return,
+  readability-implicit-bool-conversion,
   -bugprone-easily-swappable-parameters,
   -bugprone-implicit-widening-of-multiplication-result,
   -bugprone-narrowing-conversions,
@@ -57,7 +57,6 @@ Checks: >
   -modernize-use-std-numbers,
   -modernize-use-trailing-return-type,
   -readability-identifier-length,
-  -readability-implicit-bool-conversion,
   -readability-magic-numbers,
   -cppcoreguidelines-avoid-magic-numbers,
   -readability-uppercase-literal-suffix,

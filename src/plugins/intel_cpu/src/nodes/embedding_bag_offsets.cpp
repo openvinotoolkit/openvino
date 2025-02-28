@@ -143,7 +143,7 @@ void EmbeddingBagOffset::getIndices(size_t embIndex,
     } else {
         // Empty or default bag
         withWeight = false;
-        if (defaultIndices_) {
+        if (defaultIndices_ != nullptr) {
             indices = defaultIndices_;
             size = 1lu;
         }

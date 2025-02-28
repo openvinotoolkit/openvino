@@ -1059,9 +1059,9 @@ void MHA::prepareParams() {
             for (size_t n = 0; n < 2; n++) {
                 auto& brgemmCtx = brgCtxs0[getBrgIdx(m, k, n)];
 
-                auto M_ = m ? M_tail : M < M_blk ? 0 : M_blk;
-                auto N_ = n ? N0_tail : N0 - N0_tail;
-                auto K_ = k ? K0_tail : K0 - K0_tail;
+                auto M_ = (m != 0u) ? M_tail : M < M_blk ? 0 : M_blk;
+                auto N_ = (n != 0u) ? N0_tail : N0 - N0_tail;
+                auto K_ = (k != 0u) ? K0_tail : K0 - K0_tail;
                 auto beta = k && brgCtxs0[getBrgIdx(m, 0, n)].K != 0 ? 1.0f : 0.0f;
 
                 brgemmCtx.M = M_;
@@ -1128,9 +1128,9 @@ void MHA::prepareParams() {
             for (size_t n = 0; n < 2; n++) {
                 auto& brgemmCtx = brgCtxs1[getBrgIdx(m, k, n)];
 
-                auto M_ = m ? M_tail : M < M_blk ? 0 : M_blk;
-                auto N_ = n ? N1_tail : N1 - N1_tail;
-                auto K_ = k ? K1_tail : K1 - K1_tail;
+                auto M_ = (m != 0u) ? M_tail : M < M_blk ? 0 : M_blk;
+                auto N_ = (n != 0u) ? N1_tail : N1 - N1_tail;
+                auto K_ = (k != 0u) ? K1_tail : K1 - K1_tail;
 
                 auto beta = k && brgCtxs1[getBrgIdx(m, 0, n)].K != 0 ? 1.0f : 0.0f;
                 brgemmCtx.M = M_;
