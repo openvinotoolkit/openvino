@@ -70,7 +70,7 @@ def parse_arguments():
     parser.add_argument("-m", "--models_path", help=models_path_help, type=str, required=False,
                         default=NO_MODEL_CONSTANT)
     parser.add_argument("-ov", "--ov_path", help=ov_help, type=str, required=False, default="")
-    parser.add_argument("-j", "--workers", help=workers_help, type=int, required=False, default=os.cpu_count())
+    parser.add_argument("-j", "--workers", help=workers_help, type=int, required=False, default=(os.cpu_count() - 1))
     parser.add_argument("-c", "--ov_config_path", help=ov_config_path_helper, type=str, required=False, default="")
     parser.add_argument("-s", "--dump_graph", help=dump_graph_help, type=int, required=False, default=0)
     parser.add_argument("-sm", "--special_mode", help=special_mode_help, type=str, required=False, default="")
