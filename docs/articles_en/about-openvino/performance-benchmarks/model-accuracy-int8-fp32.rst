@@ -66,7 +66,6 @@ the table for more information.
      - -0.09%
      - -0.02%
      - -0.04%
-
 .. list-table:: Model Accuracy for BF16, FP32 and FP16 (FP16: Arc only. BF16: Xeon® 6972P only)
    :header-rows: 1
 
@@ -126,7 +125,6 @@ the table for more information.
      - 0.01%
      - 
      - -0.03%
-
 .. list-table:: Model Accuracy for AMX-FP16, AMX-INT4, Arc-FP16 and Arc-INT4 (Arc™ B-series)
    :header-rows: 1
    

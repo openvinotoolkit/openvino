@@ -1,10 +1,17 @@
-Performance Benchmarks
-======================
+Performance Information F.A.Q.
+==============================
+
 
 .. meta::
-   :description: Use the benchmark results for Intel® Distribution of OpenVINO™
-                 toolkit, that may help you decide what hardware to use or how
-                 to plan the workload.
+   :description: Check the F.A.Q. for performance benchmarks in Intel® Distribution of OpenVINO™ toolkit.
+
+
+
+
+.. dropdown:: How often do performance benchmarks get updated?
+
+   New performance benchmarks are typically published on every
+   ``major.minor`` release of the Intel® Distribution of OpenVINO™ toolkit.
 
 .. toctree::
    :maxdepth: 1
@@ -179,10 +186,10 @@ for non-Intel products.
 
 .. raw:: html
 
-   <link rel="stylesheet" type="text/css" href="../_static/css/benchmark-banner.css">
+   <link rel="stylesheet" type="text/css" href="../../_static/css/benchmark-banner.css">
 
 .. container:: benchmark-banner
 
-   Results may vary. For more information, see
-   :doc:`F.A.Q. <./performance-benchmarks/performance-benchmarks-faq>`
-   See :doc:`Legal Information <./additional-resources/terms-of-use>`.
+   Results may vary. For more information, see:
+   :doc:`Platforms, Configurations, Methodology <../performance-benchmarks>`,
+   :doc:`Legal Information <../additional-resources/terms-of-use>`.
