@@ -139,9 +139,21 @@ Example 6 shows how *Einsum* operates on the single input with an equation conta
         [4.0, 5.0, 6.0],
         [7.0, 8.0, 9.0]]
    equation = "a...->..."
+   alternative_equation = "...a->a"
    output = [12.0, 15.0, 18.0]
 
-Example 7 shows how *Einsum* operates with broadcasting two operands:
+Example 7 shows how *Einsum* operates on the single input with an equation containing ellipsis:
+
+.. code-block:: cpp
+
+   A = [[1.0, 2.0, 3.0],
+        [4.0, 5.0, 6.0],
+        [7.0, 8.0, 9.0]]
+   equation = "a...->a"
+   alternative_equation = "...a->..."
+   output = [6.0, 15.0, 24.0]
+
+Example 8 shows how *Einsum* operates with broadcasting two operands:
 
 .. code-block:: cpp
 
@@ -162,7 +174,7 @@ For example, ``equation = "dbbc,ca"`` in implicit mode is equivalent to ``equati
 The equation in implicit mode can set up only subset of Einstein summation conventions. For example, ``equation = "kii->i"`` cannot be represented in implicit mode.
 In case ellipsis label is in the left-hand side of the equation in implicit mode, the ellipsis comes first in the output subscript for the recovery.
 
-Example 8 shows how *Einsum* operates with an equation containing both capital and lowercase letters in implicit mode
+Example 9 shows how *Einsum* operates with an equation containing both capital and lowercase letters in implicit mode
 ``equation = "AbC"`` that is the same as ``equation = "AbC->ACb"``:
 
 .. code-block:: cpp
