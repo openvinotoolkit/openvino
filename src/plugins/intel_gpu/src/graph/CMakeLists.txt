@@ -9,10 +9,8 @@ file(GLOB SUBDIRS "${CMAKE_CURRENT_SOURCE_DIR}/impls/*")
 foreach(SUBDIR IN LISTS SUBDIRS)
     if(IS_DIRECTORY ${SUBDIR})
         get_filename_component(SUBDIR_NAME ${SUBDIR} NAME)
-        if (NOT SUBDIR_NAME STREQUAL "registry")
-            list(APPEND AVAILABLE_IMPL_TYPES ${SUBDIR_NAME})
-            list(APPEND EXCLUDE_PATHS ${SUBDIR})
-        endif()
+        list(APPEND AVAILABLE_IMPL_TYPES ${SUBDIR_NAME})
+        list(APPEND EXCLUDE_PATHS ${SUBDIR})
     endif()
 endforeach()
 
@@ -21,6 +19,7 @@ set(COMMON_INCLUDE_DIRS $<BUILD_INTERFACE:${MAIN_DIR}/src>
                         $<BUILD_INTERFACE:${INCLUDE_DIR}>
                         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
                         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/impls>
 )
 
 set(COMMON_LINK_LIBRARIES openvino::shape_inference # for tensor accessor
@@ -86,6 +85,21 @@ macro(ov_gpu_add_backend_target)
     endif()
 endmacro()
 
+set(CODEGEN_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/common_utils/kernels_db_gen.py")
+set(CODEGEN_TEST_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/common_utils/test_kernels_db_gen.py")
+
+enable_testing()
+
+add_custom_target(run_codeged_test
+    COMMAND ${Python3_EXECUTABLE} -B ${CODEGEN_TEST_SCRIPT}
+    DEPENDS "${CODEGEN_SCRIPT}"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+add_test(NAME TestOCLCodePreprocessing
+         COMMAND ${Python3_EXECUTABLE} -B ${CODEGEN_TEST_SCRIPT}
+         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
 foreach(IMPL_TYPE IN LISTS AVAILABLE_IMPL_TYPES)
     add_subdirectory(impls/${IMPL_TYPE})
     if (TARGET openvino_intel_gpu_${IMPL_TYPE}_obj)
@@ -111,6 +125,8 @@ ov_add_target(
             ${COMMON_LINK_LIBRARIES}
             ${EXTRA_LINK_LIBRARIES}
             openvino::reference # for loop primitive subroutines
+    DEPENDENCIES
+        run_codeged_test
     ADD_CPPLINT
 )
 

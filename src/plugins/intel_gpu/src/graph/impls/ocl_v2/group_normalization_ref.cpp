@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "group_normalization_ref.hpp"
-#include "utils/jitter.hpp"
-#include "utils/kernel_base.hpp"
+#include "common_utils/jitter.hpp"
+#include "utils/kernel_generator.hpp"
 #include "intel_gpu/primitives/group_normalization.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "primitive_ocl_base.hpp"
@@ -44,12 +44,12 @@ protected:
 
     DispatchDataFunc get_dispatch_data_func() const override {
         static auto f = DISPATCH_DATA_FUNC(params, kd, rt_params) {
-            auto& wgs = kd.params.workGroups;
-
-            auto desc = params.typed_desc<group_normalization>();
-            auto max_wgs = params.get_program().get_engine().get_device_info().max_work_group_size;
-            size_t num_groups = static_cast<std::size_t>(desc->num_groups);
             if (params.output_layouts[0].is_static()) {
+                auto& wgs = kd.params.workGroups;
+
+                auto desc = params.typed_desc<group_normalization>();
+                auto max_wgs = params.get_program().get_engine().get_device_info().max_work_group_size;
+                size_t num_groups = static_cast<std::size_t>(desc->num_groups);
                 const auto& out_shape = params.output_layouts[0].get_shape();
                 wgs.global = { out_shape[0], num_groups, 1 };
                 wgs.local = { out_shape[0] *num_groups > max_wgs ? max_wgs / num_groups : out_shape[0], num_groups, 1 };
@@ -145,7 +145,7 @@ protected:
                     { ChannelName::X, ChannelName::Y }
                 };
 
-                wgs.local = get_optimal_lws(wgs.global, params.get_device_info(), in_l.format, out_l.format, dims_by_gws);
+                wgs.local = ov::intel_gpu::get_optimal_lws(wgs.global, params.get_device_info(), in_l.format, out_l.format, dims_by_gws);
             }
         };
         return f;

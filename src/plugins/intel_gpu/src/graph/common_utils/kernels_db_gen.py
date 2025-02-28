@@ -1,9 +1,6 @@
 #!/usr/bin/python3
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-# To add new kernel please add a .cl file to kernels directory
-# the database name will be the part of the file name up to first '.' character
-# the trailing characters are a tag to allow multiple primitive implementations
 
 import os
 import argparse
@@ -11,9 +8,11 @@ import glob
 import ntpath
 import re
 
-class OpenCL2CHeaders(object):
-    def __init__(self, kernels_folder):
+class Code2CHeaders(object):
+    def __init__(self, kernels_folder, lang):
         self.kernels_folder = os.path.abspath(kernels_folder)
+        self.language = lang
+        assert(self.language == "ocl" or self.language == "cm")
 
     def minimize_code(self, content):
         # Remove single-line comments (// ...)
@@ -171,12 +170,22 @@ class OpenCL2CHeaders(object):
         return processed_code
 
     def generate(self):
-        ocl_sources = []
-        ocl_headers = []
+        sources = []
+        headers = []
+
+        source_ext = {
+            "ocl" : (".cl"),
+            "cm" : (".cm")
+        }
+        headers_ext = {
+            "ocl" : (".cl"),
+            "cm" : (".h")
+        }
+
 
         # Process kernel files
         for filename in os.listdir(self.kernels_folder):
-            if filename.endswith(".cl"):
+            if filename.endswith(source_ext[self.language]):
                 filepath = os.path.join(self.kernels_folder, filename)
                 print('processing {}'.format(filename))
                 include_dirs = []
@@ -184,27 +193,28 @@ class OpenCL2CHeaders(object):
                 include_dirs.append(os.path.join(self.kernels_folder, "include"))
                 include_dirs.append(os.path.join(self.kernels_folder, "include/batch_headers"))
                 map_entry = self.process_file(filepath, include_dirs, is_batch_header=False)
-                ocl_sources.append(map_entry)
+                sources.append(map_entry)
 
         # Process batch header files in include directory
         include_dir = os.path.join(self.kernels_folder, 'include/batch_headers')
         if os.path.exists(include_dir):
             for filename in os.listdir(include_dir):
-                if filename.endswith(".cl"):
+                if filename.endswith(headers_ext[self.language]):
                     filepath = os.path.join(include_dir, filename)
                     map_entry = self.process_file(filepath, is_batch_header=True)
-                    ocl_headers.append(map_entry)
+                    headers.append(map_entry)
 
-        return ocl_sources, ocl_headers
+        return sources, headers
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('-in_dir', required=True, metavar='PATH', help='The absolute path to OpenCL kernels folder')
-    ap.add_argument('-out_sources', required=True, metavar='PATH', help='The absolute path to output header with ocl sources')
-    ap.add_argument('-out_headers', required=True, metavar='PATH', help='The absolute path to output header with ocl headers')
+    ap.add_argument('-in_dir', required=True, metavar='PATH', help='The absolute path to kernels folder')
+    ap.add_argument('-out_sources', required=True, metavar='PATH', help='The absolute path to output header with sources')
+    ap.add_argument('-out_headers', required=True, metavar='PATH', help='The absolute path to output header with headers')
+    ap.add_argument('-lang', required=True, help='Language of the source files. Supports `cm` and `ocl` for now')
     args = ap.parse_args()
 
-    converter = OpenCL2CHeaders(args.in_dir)
+    converter = Code2CHeaders(args.in_dir, args.lang)
     kernel_entries, header_entries = converter.generate()
 
     def write_to_file(file_path, content : list):
@@ -212,17 +222,8 @@ def main():
             for entry in content:
                 f.write(entry)
 
-    print("args.out_sources ", args.out_sources)
     write_to_file(args.out_sources, kernel_entries)
     write_to_file(args.out_headers, header_entries)
-
-    # print("Kernel Entries:")
-    # for entry in kernel_entries:
-    #     print(entry)
-
-    # print("\nHeader Entries:")
-    # for entry in header_entries:
-    #     print(entry)
 
 if __name__ == '__main__':
     main()

@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "utils/dispatch_utils.hpp"
+#include "common_utils/dispatch_utils.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "primitive_ocl_base.hpp"
 
 #include "ctc_loss.hpp"
 #include "ctc_loss_inst.hpp"
-#include "utils/kernel_base.hpp"
+#include "utils/kernel_generator.hpp"
 
 namespace ov::intel_gpu::ocl {
 namespace {
@@ -40,7 +40,7 @@ protected:
             const auto& output = params.output_layouts[0];
 
             wgs.global = {output.get_shape()[0], 1, 1};
-            wgs.local = get_optimal_lws(wgs.global, params.get_device_info());
+            wgs.local = ov::intel_gpu::get_optimal_lws(wgs.global, params.get_device_info());
         };
 
         return f;

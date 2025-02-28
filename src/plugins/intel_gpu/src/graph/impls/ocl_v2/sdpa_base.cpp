@@ -5,8 +5,8 @@
 #include "sdpa_utils.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
-#include "utils/jitter.hpp"
-#include "utils/kernel_base.hpp"
+#include "common_utils/jitter.hpp"
+#include "utils/kernel_generator.hpp"
 
 namespace ov::intel_gpu::ocl {
 namespace {

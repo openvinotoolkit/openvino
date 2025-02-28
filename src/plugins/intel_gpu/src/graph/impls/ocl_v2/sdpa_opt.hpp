@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 #include "scaled_dot_product_attention_inst.h"
 #include "intel_gpu/runtime/utils.hpp"
 #include "program_node.h"

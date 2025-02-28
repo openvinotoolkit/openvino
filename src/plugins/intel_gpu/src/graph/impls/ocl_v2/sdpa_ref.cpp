@@ -3,8 +3,8 @@
 //
 #include "sdpa_ref.hpp"
 #include "sdpa_base.hpp"
-#include "utils/jitter.hpp"
-#include "utils/kernel_base.hpp"
+#include "common_utils/jitter.hpp"
+#include "utils/kernel_generator.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 #include "primitive_ocl_base.hpp"
 #include "kv_cache_inst.h"

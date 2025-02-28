@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "common_utils/kernel_generator_base.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
@@ -14,15 +15,11 @@
 #include "intel_gpu/graph/program.hpp"
 
 #include "openvino/core/except.hpp"
-#include "openvino/core/type.hpp"
 #include "primitive_inst.h"
-#include "utils/kernel_base.hpp"
-
+#include "utils/kernel_generator.hpp"
 
 #include <algorithm>
-#include <iterator>
 #include <memory>
-#include <unordered_map>
 #include <vector>
 #include <utility>
 
@@ -30,8 +27,8 @@ namespace ov::intel_gpu::ocl {
 
 class Stage {
 public:
-    Stage(std::shared_ptr<SingleKernelGenerator>&& ptr) : codegen(std::move(ptr)) {}
-    std::shared_ptr<SingleKernelGenerator> codegen;
+    Stage(std::shared_ptr<KernelGeneratorBase>&& ptr) : codegen(std::move(ptr)) {}
+    std::shared_ptr<KernelGeneratorBase> codegen;
     KernelData kd{};
     kernel::ptr kernel = nullptr;
 };
@@ -79,15 +76,6 @@ struct PrimitiveImplOCL : public primitive_impl {
         }
 
         return copy;
-    }
-
-
-    template<typename StageType, size_t stage_id, typename... Args>
-    void add_stage(const kernel_impl_params& params, Args&&... args) {
-        static_assert(std::is_base_of<ov::intel_gpu::ocl::KernelGeneratorBase, StageType>::value, "StageType must derive from KernelGeneratorBase");
-        // auto stage = std::make_unique<StageType>(std::forward<Args>(args)...);
-        // _kernels_data.emplace(stage_id, stage->get_kernel_data(params));
-        // _stages_registration_order.push_back(stage_id);
     }
 
     PrimitiveImplOCL() = default;

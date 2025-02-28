@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2024 Intel Corporation
+﻿// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,10 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov::intel_gpu::ocl {
+namespace ov::intel_gpu {
 namespace {
+
+using namespace cldnn;
 
 std::string format_string(format fmt) {
     auto str = fmt.to_string();
@@ -912,4 +914,4 @@ std::string to_ocl_type(ov::element::Type_t et) {
     }
 }
 
-}  // namespace ov::intel_gpu::ocl
+}  // namespace ov::intel_gpu

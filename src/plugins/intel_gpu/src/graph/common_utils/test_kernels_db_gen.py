@@ -1,14 +1,11 @@
 #!/usr/bin/python3
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-# To add new kernel please add a .cl file to kernels directory
-# the database name will be the part of the file name up to first '.' character
-# the trailing characters are a tag to allow multiple primitive implementations
 
 import unittest
 import os, sys
 import argparse
-from kernels_db_gen import OpenCL2CHeaders
+from kernels_db_gen import Code2CHeaders
 
 class TestOpenCLCodePreprocessing(unittest.TestCase):
     def setUp(self):
@@ -164,7 +161,7 @@ int e=USED_REGULAR_HEADER_MACRO;
         write_to_file(self.header_path, self.regular_header)
         write_to_file(self.no_opt_header_path, self.no_opt_header)
 
-        processor = OpenCL2CHeaders(self.kernels_folder)
+        processor = Code2CHeaders(self.kernels_folder, "ocl")
         ocl_sources, ocl_headers = processor.generate()
 
         self.assertEqual(ocl_sources[0], self.expected_source)

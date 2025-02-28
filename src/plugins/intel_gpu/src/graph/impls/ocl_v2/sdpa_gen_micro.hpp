@@ -7,8 +7,8 @@
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "sdpa_base.hpp"
-#include "utils/jitter.hpp"
-#include "utils/kernel_base.hpp"
+#include "common_utils/jitter.hpp"
+#include "utils/kernel_generator.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 #include "scaled_dot_product_attention_inst.h"
 

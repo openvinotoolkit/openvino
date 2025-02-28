@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "rope_opt.hpp"
-#include "utils/dispatch_utils.hpp"
-#include "utils/jitter.hpp"
-#include "utils/kernel_base.hpp"
+#include "common_utils/dispatch_utils.hpp"
+#include "common_utils/jitter.hpp"
+#include "utils/kernel_generator.hpp"
 #include "intel_gpu/primitives/rope.hpp"
 #include "primitive_ocl_base.hpp"
 
@@ -151,7 +151,7 @@ protected:
                     wgs.global = {b, f, y * cfg.rotary_ndims / 2ul / vec_size};
                 }
 
-                wgs.local = get_optimal_lws(wgs.global, params.get_device_info(), in_l.format, out_l.format, dims_by_gws);
+                wgs.local = ov::intel_gpu::get_optimal_lws(wgs.global, params.get_device_info(), in_l.format, out_l.format, dims_by_gws);
             }
         };
         return f;

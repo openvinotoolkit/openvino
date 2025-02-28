@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 #include "program_node.h"
 
 #include <memory>

@@ -2,72 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "kernel_base.hpp"
+#include "kernel_generator.hpp"
 #include "intel_gpu/runtime/kernel_args.hpp"
 #include "kernels_db.hpp"
-#include "jitter.hpp"
-
-#ifdef ENABLE_ONEDNN_FOR_GPU
-#include "micro_utils.hpp"
-#endif
+#include "common_utils/jitter.hpp"
 
 #include <cctype>
 
 namespace ov::intel_gpu::ocl {
-
-class CodeBuilder {
-    std::ostringstream oss;
-    std::string code;
-    std::vector<std::string> defined_macroses;
-
-    CodeBuilder& register_macro(const std::string& name) {
-        assert(std::count(defined_macroses.begin(), defined_macroses.end(), name) == 0);
-        defined_macroses.push_back(name);
-        return *this;
-    }
-
-    CodeBuilder& unregister_macro(const std::string& name) {
-        assert(std::count(defined_macroses.begin(), defined_macroses.end(), name) != 0);
-        defined_macroses.erase(std::remove_if(defined_macroses.begin(), defined_macroses.end(), [&](const std::string& v) { return v == name; }));
-        return *this;
-    }
-
-public:
-    CodeBuilder& set_code(const std::string& c) {
-        assert(code.empty());
-        code = c;
-        return *this;
-    }
-
-    CodeBuilder& add_line(const std::string& line) {
-        oss << line << "\n";
-        return *this;
-    }
-
-    CodeBuilder& decoration_macro(const std::string& name,
-                                  const std::string& prefix,
-                                  const std::string& postfix,
-                                  const std::string& name_prefix = std::string()) {
-        oss << "#define " << name << "(name) " << prefix << " " + name_prefix + "_##" + "name"
-            << (postfix.empty() ? "" : "##_") << postfix << std::endl;
-        return register_macro(name);
-    }
-
-    CodeBuilder& value_macro(const std::string& name, const std::string& value) {
-        oss << "#define " << name << " " << value << std::endl;
-        return register_macro(name.substr(0, name.find('(')));
-    }
-
-    CodeBuilder& undef_macro(const std::string& name) {
-        oss << "#undef " << name.substr(0, name.find('(')) << std::endl;
-        return unregister_macro(name.substr(0, name.find('(')));
-    }
-
-    std::string str() {
-        oss << std::endl;
-        return oss.str();
-    }
-};
 
 JitConstants SingleKernelGenerator::make_tensors_jit_constants(const kernel_impl_params& params) const {
     JitConstants jit_constants;
@@ -201,56 +143,6 @@ Arguments SingleKernelGenerator::get_arguments_desc(const kernel_impl_params& pa
     }
 
     return args;
-}
-
-void KernelData::save(cldnn::BinaryOutputBuffer& ob) const {
-    ob(params.workGroups.global, params.workGroups.local);
-    ob << params.arguments.size();
-    for (const auto& arg : params.arguments) {
-        ob << make_data(&arg.t, sizeof(cldnn::argument_desc::Types)) << arg.index;
-    }
-    ob << params.scalars.size();
-    for (const auto& scalar : params.scalars) {
-        ob << make_data(&scalar.t, sizeof(cldnn::scalar_desc::Types)) << make_data(&scalar.v, sizeof(cldnn::scalar_desc::ValueT));
-    }
-    ob << params.layerID;
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    ob << micro_kernels.size();
-    for (const auto& microkernel : micro_kernels) {
-        microkernel->save(ob);
-    }
-#endif
-}
-
-void KernelData::load(cldnn::BinaryInputBuffer& ib) {
-    ib(params.workGroups.global, params.workGroups.local);
-
-    typename cldnn::arguments_desc::size_type arguments_desc_size = 0UL;
-    ib >> arguments_desc_size;
-    params.arguments.resize(arguments_desc_size);
-    for (auto& arg : params.arguments) {
-        ib >> make_data(&arg.t, sizeof(cldnn::argument_desc::Types)) >> arg.index;
-    }
-
-    typename cldnn::scalars_desc::size_type scalars_desc_size = 0UL;
-    ib >> scalars_desc_size;
-    params.scalars.resize(scalars_desc_size);
-    for (auto& scalar : params.scalars) {
-        ib >> make_data(&scalar.t, sizeof(cldnn::scalar_desc::Types)) >> make_data(&scalar.v, sizeof(cldnn::scalar_desc::ValueT));
-    }
-
-    ib >> params.layerID;
-
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    size_t n_microkernels;
-    ib >> n_microkernels;
-    micro_kernels.clear();
-    for (size_t i = 0; i < n_microkernels; i++) {
-        auto microkernel = std::make_shared<micro::MicroKernelPackage>();
-        microkernel->load(ib);
-        micro_kernels.push_back(microkernel);
-    }
-#endif
 }
 
 }  // namespace ov::intel_gpu::ocl

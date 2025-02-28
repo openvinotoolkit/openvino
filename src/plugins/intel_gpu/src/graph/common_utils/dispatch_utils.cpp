@@ -4,7 +4,7 @@
 
 #include "dispatch_utils.hpp"
 
-namespace ov::intel_gpu::ocl {
+namespace ov::intel_gpu {
 
 using namespace cldnn;
 
@@ -250,4 +250,4 @@ std::vector<size_t> get_optimal_lws(const std::vector<size_t>& gws, const cldnn:
     return lws;
 }
 
-}  // namespace ov::intel_gpu::ocl
+}  // namespace ov::intel_gpu

@@ -8,13 +8,67 @@
 #include "intel_gpu/runtime/layout.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-#include "dispatch_utils.hpp"
+#include "common_utils/dispatch_utils.hpp"
 
 #include <string>
 
-namespace ov::intel_gpu::ocl {
+namespace ov::intel_gpu {
 
 using namespace cldnn;
+
+class CodeBuilder {
+    std::ostringstream oss;
+    std::string code;
+    std::vector<std::string> defined_macroses;
+
+    CodeBuilder& register_macro(const std::string& name) {
+        assert(std::count(defined_macroses.begin(), defined_macroses.end(), name) == 0);
+        defined_macroses.push_back(name);
+        return *this;
+    }
+
+    CodeBuilder& unregister_macro(const std::string& name) {
+        assert(std::count(defined_macroses.begin(), defined_macroses.end(), name) != 0);
+        defined_macroses.erase(std::remove_if(defined_macroses.begin(), defined_macroses.end(), [&](const std::string& v) { return v == name; }));
+        return *this;
+    }
+
+public:
+    CodeBuilder& set_code(const std::string& c) {
+        assert(code.empty());
+        code = c;
+        return *this;
+    }
+
+    CodeBuilder& add_line(const std::string& line) {
+        oss << line << "\n";
+        return *this;
+    }
+
+    CodeBuilder& decoration_macro(const std::string& name,
+                                  const std::string& prefix,
+                                  const std::string& postfix,
+                                  const std::string& name_prefix = std::string()) {
+        oss << "#define " << name << "(name) " << prefix << " " + name_prefix + "_##" + "name"
+            << (postfix.empty() ? "" : "##_") << postfix << std::endl;
+        return register_macro(name);
+    }
+
+    CodeBuilder& value_macro(const std::string& name, const std::string& value) {
+        oss << "#define " << name << " " << value << std::endl;
+        return register_macro(name.substr(0, name.find('(')));
+    }
+
+    CodeBuilder& undef_macro(const std::string& name) {
+        oss << "#undef " << name.substr(0, name.find('(')) << std::endl;
+        return unregister_macro(name.substr(0, name.find('(')));
+    }
+
+    std::string str() {
+        oss << std::endl;
+        return oss.str();
+    }
+};
 
 struct JitConstant {
     std::string name;
@@ -263,4 +317,4 @@ JitConstants make_activation_jit_constants(activation_func activation_function,
                                            bool use_type_parameter,
                                            bool disable_type_conversion);
 
-}  // namespace ov::intel_gpu::ocl
+}  // namespace ov::intel_gpu
