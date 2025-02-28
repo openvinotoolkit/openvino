@@ -51,26 +51,17 @@ std::string ISTFTLayerTest::getTestCaseName(const testing::TestParamInfo<ISTFTPa
 }
 
 void ISTFTLayerTest::SetUp() {
-    std::vector<InputShape> data_shapes;
-    int64_t frame_size;          // frame size value
-    int64_t frame_step;          // frame step value
-    int64_t signal_len;          // signal length value
-    bool center;                 // center
-    bool normalized;             // normalized
-    ElementType data_type;       // data_type
-    ElementType step_size_type;  // size/step type
-    utils::InputLayerType param_type;
-
-    std::tie(data_shapes,
-             frame_size,
-             frame_step,
-             signal_len,
-             center,
-             normalized,
-             data_type,
-             step_size_type,
-             param_type,
-             targetDevice) = this->GetParam();
+    const auto& [data_shapes,
+                 frame_size,
+                 frame_step,
+                 signal_len,
+                 center,
+                 normalized,
+                 data_type,
+                 step_size_type,
+                 param_type,
+                 dev] = this->GetParam();
+    targetDevice = dev;
 
     init_input_shapes(data_shapes);
 
