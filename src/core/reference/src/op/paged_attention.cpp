@@ -108,21 +108,22 @@ void paged_attention(
     int max_context_len = max_context_len_ptr[0];
 
     // Determine dimensions.
-    int batch_tokens = q_shape[0];
-    int query_features = q_shape[1];  // equals num_heads * head_size.
-    int num_heads = query_features / head_size;
     int num_blocks = kv_cache_shape[0];
     int num_kv_heads = kv_cache_shape[1];
     int block_size = kv_cache_shape[2];
     int head_size = kv_cache_shape[3];
+
+    int batch_tokens = q_shape[0];
+    int query_features = q_shape[1];  // equals num_heads * head_size.
+    int num_heads = query_features / head_size;
     int batch_seq = past_lens_shape[0];
 
     // Process each query token.
     for (int token_idx = 0; token_idx < batch_tokens; token_idx++) {
         // Determine sequence index.
         int seq_idx = 0;
-        if (batch_size_in_sequences > 1 && subsequence_begins) {
-            for (int s = 0; s < batch_size_in_sequences; s++) {
+        if (batch_seq > 1 && subsequence_begins) {
+            for (int s = 0; s < batch_seq; s++) {
                 if (token_idx >= subsequence_begins[s] && token_idx < subsequence_begins[s + 1]) {
                     seq_idx = s;
                     break;
@@ -171,16 +172,16 @@ void paged_attention(
                         // Check for RoPE adjustment.
                         bool do_rotate = false;
                         int rotated_index = -1;
-                        int num_rotated_blocks = rotated_block_indices_shape.dims[0];
+                        int num_rotated_blocks = rotated_block_indices_shape[0];
                         if (rotated_block_indices && num_rotated_blocks > 0) {
                             if (get_rotated_index(block_id, rotated_block_indices, num_rotated_blocks, rotated_index))
                                 do_rotate = true;
                         }
                         if (do_rotate) {
                             int trig_index = 0;
-                            if (rotation_deltas_shape.rank() >= 2 && rotation_deltas_shape[1] == 1)
+                            if (rotation_deltas_shape.size() >= 2 && rotation_deltas_shape[1] == 1)
                                 trig_index = rotation_deltas[rotated_index];
-                            else if (rotation_deltas_shape.rank() >= 2 && rotation_deltas_shape[1] == block_size)
+                            else if (rotation_deltas_shape.size() >= 2 && rotation_deltas_shape[1] == block_size)
                                 trig_index = rotation_deltas[rotated_index * block_size + token_offset];
                             std::vector<T> temp_key(key_vec, key_vec + head_size);
                             apply_rope(temp_key.data(), head_size, rotation_trig_lut, trig_index);
@@ -237,16 +238,16 @@ void paged_attention(
 
                     bool do_rotate = false;
                     int rotated_index = -1;
-                    int num_rotated_blocks = rotated_block_indices_shape.dims[0];
+                    int num_rotated_blocks = rotated_block_indices_shape[0];
                     if (rotated_block_indices && num_rotated_blocks > 0) {
                         if (get_rotated_index(block_id, rotated_block_indices, num_rotated_blocks, rotated_index))
                             do_rotate = true;
                     }
                     if (do_rotate) {
                         int trig_index = 0;
-                        if (rotation_deltas_shape.rank() >= 2 && rotation_deltas_shape[1] == 1)
+                        if (rotation_deltas_shape.size() >= 2 && rotation_deltas_shape[1] == 1)
                             trig_index = rotation_deltas[rotated_index];
-                        else if (rotation_deltas_shape.rank() >= 2 && rotation_deltas_shape[1] == block_size)
+                        else if (rotation_deltas_shape.size() >= 2 && rotation_deltas_shape[1] == block_size)
                             trig_index = rotation_deltas[rotated_index * block_size + token_offset];
                         std::vector<T> temp_value(raw_val_vec, raw_val_vec + head_size);
                         apply_rope(temp_value.data(), head_size, rotation_trig_lut, trig_index);

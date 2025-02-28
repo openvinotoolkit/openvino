@@ -6,6 +6,7 @@
 
 #include "openvino/op/op.hpp"
 
+
 namespace ov {
 namespace op {
 namespace v16 {
@@ -19,17 +20,17 @@ public:
     /**
      * @brief PagedAttention operation is used as a placeholder. It copies the tensor data to the output.
      */
-    PagedAttention(const Output<Node>& data);
+    PagedAttention(const OutputVector& args);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    const ov::element::Type& get_out_type(int index) const;
+    const ov::element::Type get_out_type(int index) const;
     void set_out_type(int index, const ov::element::Type& output_type);
 
 protected:
-    std::vector<ov::element::Type> m_output_type = {ov::element::undefined, ov::element::undefined};
+    std::vector<ov::element::Type> m_output_type = {ov::element::dynamic, ov::element::dynamic};
 };
 }  // namespace v16
 }  // namespace op

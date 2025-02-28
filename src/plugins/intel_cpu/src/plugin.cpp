@@ -8,7 +8,7 @@
 #include "internal_properties.hpp"
 #include "itt.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_attention_extension.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -203,7 +203,7 @@ static Config::ModelType getModelType(const std::shared_ptr<const Model>& model)
     }
 
     if ((op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) && model->get_variables().size() > 0) ||
-        op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model)) {
+        op::util::has_op_with_type<op::PagedAttentionExtension>(model)) {
         return Config::ModelType::LLM;
     }
 

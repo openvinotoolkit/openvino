@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_attention_extension.hpp"
 
 #include "dimension_util.hpp"
 #include "itt.hpp"
@@ -10,18 +10,17 @@
 
 namespace ov {
 namespace op {
-namespace v16 {
 
-PagedAttention::PagedAttention(const ov::OutputVector& args) : ov::op::Op(args) {
+PagedAttentionExtension::PagedAttentionExtension(const ov::OutputVector& args) : ov::op::Op(args) {
     constructor_validate_and_infer_types();
 }
 
-void PagedAttention::validate_and_infer_types() {
-    OV_OP_SCOPE(PagedAttention_validate_and_infer_types);
+void PagedAttentionExtension::validate_and_infer_types() {
+    OV_OP_SCOPE(PagedAttentionExtension_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_size() == 13,
-                          "PagedAttensionExtension expects 13 inputs, but it has ",
+                          get_input_size() == 13 || get_input_size() == 16,
+                          "PagedAttensionExtension expects 13 or 16 inputs, but it has ",
                           get_input_size());
 
     NODE_VALIDATION_CHECK(
@@ -148,6 +147,43 @@ void PagedAttention::validate_and_infer_types() {
                           get_input_element_type(12),
                           ".");
 
+    if (get_input_size() == 16) {
+        NODE_VALIDATION_CHECK(
+            this,
+            get_input_partial_shape(13).rank().is_dynamic() || get_input_partial_shape(13).rank().get_length() == 1,
+            "Input `rotated_block_indices` should either have rank 1 or be omitted, but it has rank ",
+            get_input_partial_shape(13).rank().get_length(),
+            ".");
+        NODE_VALIDATION_CHECK(this,
+                              get_input_element_type(13).is_dynamic() || get_input_element_type(13) == element::i32,
+                              "Element type of `rotated_block_indices` input should be i32, but it is ",
+                              get_input_element_type(13),
+                              ".");
+        NODE_VALIDATION_CHECK(
+            this,
+            get_input_partial_shape(14).rank().is_dynamic() || get_input_partial_shape(14).rank().get_length() == 2,
+            "Input `rotation_deltas` should either have rank 2 or be omitted, but it has rank ",
+            get_input_partial_shape(14).rank().get_length(),
+            ".");
+        NODE_VALIDATION_CHECK(this,
+                              get_input_element_type(14).is_dynamic() || get_input_element_type(14) == element::i32,
+                              "Element type of `rotation_deltas` input should be i32, but it is ",
+                              get_input_element_type(14),
+                              ".");
+        NODE_VALIDATION_CHECK(
+            this,
+            get_input_partial_shape(15).rank().is_dynamic() || get_input_partial_shape(15).rank().get_length() == 2,
+            "Input `rotation_trig_lut` should either have rank 2 or be omitted, but it has rank ",
+            get_input_partial_shape(15).rank().get_length(),
+            ".");
+        NODE_VALIDATION_CHECK(this,
+                              get_input_element_type(15).is_dynamic() || get_input_element_type(15) == element::f32 ||
+                                  get_input_element_type(15) == element::f16,
+                              "Element type of `rotation_trig_lut` input should be f32 or f16, but it is ",
+                              get_input_element_type(15),
+                              ".");
+    }
+
     // value head_size may be not same with key
     auto out_ps = get_input_partial_shape(0);
     const auto& key_ps = get_input_partial_shape(1);
@@ -170,25 +206,27 @@ void PagedAttention::validate_and_infer_types() {
             out_ps[1] = Dimension::dynamic();
         }
     }
+    if (m_output_type[0].is_dynamic()) {
+        set_output_type(0, get_input_element_type(0), out_ps);
+    } else {
+        set_output_type(0, m_output_type[0], out_ps);
+    }
 
-    set_output_type(0, m_output_type[0], out_ps);
-    set_output_type(1, m_output_type[1], {Dimension::dynamic()});
+    if (m_output_type[1].is_dynamic()) {
+        set_output_type(1, get_input_element_type(0), {Dimension::dynamic()});
+    } else {
+        set_output_type(1, m_output_type[1], {Dimension::dynamic()});
+    }
 }
 
-std::shared_ptr<ov::Node> PagedAttention::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    return std::make_shared<PagedAttention>(new_args);
+std::shared_ptr<ov::Node> PagedAttentionExtension::clone_with_new_inputs(const ov::OutputVector& new_args) const {
+    return std::make_shared<PagedAttentionExtension>(new_args);
 }
 
-void PagedAttention::set_out_type(int index, const ov::element::Type& output_type) {
+void PagedAttentionExtension::set_out_type(int index, const ov::element::Type& output_type) {
     OPENVINO_ASSERT(index < 2, "Output index should be 0 or 1, but got " + std::to_string(index));
     m_output_type[index] = output_type;
 }
 
-const ov::element::Type PagedAttention::get_out_type(int index) const {
-    OPENVINO_ASSERT(index < 2, "Output index should be 0 or 1, but got " + std::to_string(index));
-    return m_output_type[index];
-}
-
-}  // namespace v16
 }  // namespace op
 }  // namespace ov
