@@ -297,3 +297,11 @@ def get_export_decomposition_list():
     except ImportError:
         pass
     return decomp
+
+
+def ops_to_not_decompose():
+    # List of operations that shouldn't be decomposed
+    return [
+        torch.ops.aten.col2im.default,
+        torch.ops.aten.upsample_nearest2d.default,
+    ]

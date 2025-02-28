@@ -166,6 +166,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
     Decoder for PyTorch FX GraphModule and Node objects to OpenVINO IR.
     """
 
+    _decomp_table = None
+
     def __init__(self, pt_module, fx_gm=None, nodes=None,
                  mark_node_callback=None, input_shapes=[], input_types=[], dynamic_shapes=False):
         super().__init__(mark_node_callback)
@@ -229,6 +231,32 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                     self._inputs.append(InlinedInput(arg))
                 self.input_types.append(
                     BaseFXDecoder.get_type_for_value(arg))
+
+    @classmethod
+    def from_exported_program(cls, exported_program: torch.export.ExportedProgram) -> 'TorchFXPythonDecoder':
+        """
+        Create a TorchFXPythonDecoder instance from an exported PyTorch program.
+        """
+        from packaging import version
+        if version.parse(torch.__version__) >= version.parse("2.6"):
+            if cls._decomp_table is None:
+                from torch.export.decomp_utils import CustomDecompTable
+                from openvino.frontend.pytorch.torchdynamo.decompositions import ops_to_not_decompose
+                cls._decomp_table = CustomDecompTable()
+                for op in ops_to_not_decompose():
+                    try:
+                        cls._decomp_table.pop(op)
+                    except KeyError as e:
+                        logging.warning("Operation %s not found in decomp table", op, exc_info=e)
+            exported_program = exported_program.run_decompositions(cls._decomp_table)
+        elif version.parse(torch.__version__) >= version.parse("2.2"):
+            from torch._decomp import get_decompositions
+            from openvino.frontend.pytorch.torchdynamo.decompositions import get_export_decomposition_list
+            decomp = get_decompositions(get_export_decomposition_list())
+            exported_program = exported_program.run_decompositions(decomp_table=decomp)
+        gm = exported_program.module()
+        logger.debug(gm.code)
+        return cls(gm, dynamic_shapes=True)
 
     @staticmethod
     def get_found_shape(value) -> str:
