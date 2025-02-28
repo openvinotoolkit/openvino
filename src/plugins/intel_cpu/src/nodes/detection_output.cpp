@@ -416,9 +416,9 @@ void DetectionOutput::execute(const dnnl::stream& strm) {
             // Store the new indices. Assign to class back
             memset(detectionsData + n * classesNum, 0, classesNum * sizeof(int));
 
-            for (size_t j = 0; j < confIndicesClassMap.size(); ++j) {
-                const int cls = confIndicesClassMap[j].second.first;
-                const int pr = confIndicesClassMap[j].second.second;
+            for (auto& j : confIndicesClassMap) {
+                const int cls = j.second.first;
+                const int pr = j.second.second;
                 int* pindices = indicesData + n * classesNum * priorsNum + cls * priorsNum;
                 pindices[detectionsData[n * classesNum + cls]] = pr;
                 detectionsData[n * classesNum + cls]++;
