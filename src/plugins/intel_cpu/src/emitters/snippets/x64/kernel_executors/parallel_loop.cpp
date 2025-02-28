@@ -23,12 +23,12 @@ void ParallelLoopExecutor::update_kernel(const ParallelLoopConfig& c, std::share
     kernel = std::make_shared<ParallelLoopKernel>();
 }
 
-void ParallelLoopExecutor::execute(const ParallelLoopExecutor* executor, int64_t* stack_ptr, loop_preamble_t preamble_ptr) {
+void ParallelLoopExecutor::execute(const ParallelLoopExecutor* executor, uintptr_t** stack_ptr, loop_preamble_t preamble_ptr) {
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
     const auto& config = static_cast<const ParallelLoopConfig&>(executor->get_config());
 
     const auto& loop_args = config.get_loop_args();
-    int nthr = 1;//config.get_num_threads();
+    int nthr = 4;//config.get_num_threads();
     // todo: it might worth to use num_ptrs as a template parameter, because it is always known in advance
     //  plus it would enable additional compiler optimizations like vectorized mem copy and for loops
     const auto num_ptrs = loop_args.m_num_data_ptrs;
@@ -38,11 +38,14 @@ void ParallelLoopExecutor::execute(const ParallelLoopExecutor* executor, int64_t
         int64_t start = 0, end = 0;
         // std::cout << ithr << "\n";
         splitter(loop_args.m_work_amount, nthr, ithr, start, end);
-        std::vector<int64_t> mem_ptrs;
+        std::vector<uintptr_t*> mem_ptrs;
         mem_ptrs.reserve(num_ptrs);
-        for (int i = 0; i < num_ptrs; i++)
-            mem_ptrs.push_back(stack_ptr[i] + ptr_increments[i] * dtype_sizes[i] * start);
-        preamble_ptr(end - start, mem_ptrs.data());
+        for (int i = 0; i < num_ptrs; i++) {
+            // Note: need to cast to char* to allow for arbitrary pointer shifts
+            mem_ptrs.push_back(reinterpret_cast<uintptr_t*>(reinterpret_cast<char*>(stack_ptr[i]) + ptr_increments[i] * dtype_sizes[i] * start));
+        }
+        void* updated_ptrs = mem_ptrs.data();
+        preamble_ptr(end - start, updated_ptrs);
     });
     // todo: we can precompute these ptr shifts when loop_info_t is created
     for (int i = 0; i < num_ptrs; i++)

@@ -51,7 +51,7 @@ public:
     ParallelLoopExecutor(ParallelLoopConfig config) : KernelExecutor(std::move(config)) {}
     typedef void(*loop_preamble_t)(int64_t, void*);
     /** Function that will be called in runtime to execute the kernel */
-    static void execute(const ParallelLoopExecutor* executor, int64_t* stack_ptr, loop_preamble_t preamble_ptr);
+    static void execute(const ParallelLoopExecutor* executor, uintptr_t** stack_ptr, loop_preamble_t preamble_ptr);
 
 protected:
     /*** Updates stored kernel config based on runtime info from expression (e.g. new input shapes). */

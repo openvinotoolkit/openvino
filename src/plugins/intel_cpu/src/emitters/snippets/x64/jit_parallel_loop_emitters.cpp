@@ -112,7 +112,7 @@ void jit_parallel_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& 
 void jit_parallel_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     Xbyak::Label loop_preamble_label;
 
-    init_binary_call_regs(3, mem_ptr_regs_idxs);
+    init_binary_call_regs(2, mem_ptr_regs_idxs);
 
     const Xbyak::Reg64& aux_reg = get_call_address_reg();
     const Xbyak::Reg64& callee_saved_reg = get_callee_saved_reg();

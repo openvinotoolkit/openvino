@@ -454,11 +454,13 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     OV_ITT_TASK_NEXT(CONTROL_FLOW, "::control_flow_transformations")
 
     // Domain optimization must be the first pass, because all other transformations may depend on PortDescriptor shapes
+    // todo: disabled for testing, a smaller batch can be used
     size_t loop_depth = m_linear_ir->get_config().m_loop_depth;
-    if (!lowered_pass_config->is_disabled<lowered::pass::OptimizeDomain>()) {
-        lowered::pass::OptimizeDomain(loop_depth).run(*m_linear_ir);
-        m_linear_ir->set_loop_depth(loop_depth);
-    }
+    // if (!lowered_pass_config->is_disabled<lowered::pass::OptimizeDomain>()) {
+    //     lowered::pass::OptimizeDomain(loop_depth).run(*m_linear_ir);
+    //     m_linear_ir->set_loop_depth(loop_depth);
+    // }
+    m_linear_ir->set_loop_depth(2);
 
     const size_t vector_size = get_generator()->get_target_machine()->get_lanes();
 
@@ -490,9 +492,6 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     validation_pipeline.register_pass<lowered::pass::ValidateBuffers>();
     validation_pipeline.register_pass<lowered::pass::Validate>();
     validation_pipeline.run(*m_linear_ir);
-
-    ov::snippets::lowered::pass::SerializeControlFlow("snsdebug_control.xml").run(*m_linear_ir);
-    ov::snippets::lowered::pass::SerializeDataFlow("snsdebug_data.xml").run(*m_linear_ir);
 
 #ifdef SNIPPETS_DEBUG_CAPS
     if (m_linear_ir->get_config().debug_config->perf_count_mode != DebugCapsConfig::PerfCountMode::Disabled) {
@@ -528,6 +527,9 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     gen_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
     gen_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
     gen_pipeline.run(*m_linear_ir);
+
+    ov::snippets::lowered::pass::SerializeControlFlow("snsdebug_control.xml").run(*m_linear_ir);
+    ov::snippets::lowered::pass::SerializeDataFlow("snsdebug_data.xml").run(*m_linear_ir);
 }
 
 snippets::Schedule Subgraph::generate(const BlockedShapeVector& blocked_input_shapes,
