@@ -151,7 +151,7 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
     const uint input2_length = tgx * tgy * tgz;
     #ifdef REDUCE_MODE
     #if REDUCE_MODE == MEAN_MODE
-        #if INPUT2_LENGTH == 0
+        #if INPUT2_LENGTH == 0 || INPUT2_LENGTH > 4096
             #define COUNT_LENGTH 4096   // Maximum number of elements to reduce in case of shape agnostic kernel
         #else
             #define COUNT_LENGTH INPUT2_LENGTH
