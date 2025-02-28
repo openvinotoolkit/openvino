@@ -68,6 +68,7 @@
 #include "interpolate_shape_inference.hpp"
 #include "inverse_shape_inference.hpp"
 #include "irdft_shape_inference.hpp"
+#include "istft_shape_inference.hpp"
 #include "lstm_cell_shape_inference.hpp"
 #include "lstm_sequence_shape_inference.hpp"
 #include "matmul_shape_inference.hpp"
@@ -438,6 +439,7 @@ using IStaticShapeInferFactory =
 template <>
 const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     // opset16
+    _OV_OP_SHAPE_INFER_MASK_REG(op::v16::ISTFT, ShapeInferTA, util::bit::mask(2, 3, 4)),
     _OV_OP_SHAPE_INFER_MASK_REG(op::v16::SegmentMax, ShapeInferTA, util::bit::mask(1, 2)),
     // opset15
     _OV_OP_SHAPE_INFER_MASK_REG(op::v15::Squeeze, ShapeInferTA, util::bit::mask(1)),
