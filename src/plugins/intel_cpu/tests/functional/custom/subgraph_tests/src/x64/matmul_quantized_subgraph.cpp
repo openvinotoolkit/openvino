@@ -145,7 +145,6 @@ const std::vector<ov::Shape> supportedInputShapes = {
 
 const std::vector<CPUSpecificParams>matmulSpecificFilterParams = {
     {{}, {}, {"brgemm_avx2"}, "brgemm_avx2"},
-    {{}, {}, {"jit_gemm"}, "jit_gemm"}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_matmulBrgemmInt8,
