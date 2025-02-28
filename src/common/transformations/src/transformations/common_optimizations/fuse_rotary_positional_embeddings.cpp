@@ -679,7 +679,6 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     auto result = cat_Concat_505;
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        std::cout << "xxxxxxxxxx" << matcher_name << "xxxxxxxxxx" << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         PatternValidator validator(m);
