@@ -87,6 +87,12 @@ ov::pass::AddAddFusion::AddAddFusion() {
         auto add1 = label_to_output[m_add1].get_node_shared_ptr();
         auto add2 = label_to_output[m_add2].get_node_shared_ptr();
 
+        for (int i = 0; i < 2; ++i) {
+            if (add1->get_input_element_type(i) == element::f64 || add2->get_input_element_type(i) == element::f64) {
+                return false;
+            }
+        }
+
         Output<Node> input = label_to_output[m_data];
         Output<Node> add1_const = label_to_output[m_add1_constant];
         Output<Node> add2_const = label_to_output[m_add2_constant];
