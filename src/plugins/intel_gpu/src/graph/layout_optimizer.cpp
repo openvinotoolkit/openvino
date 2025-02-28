@@ -3,7 +3,7 @@
 //
 
 #include "layout_optimizer.h"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "primitive_inst.h"
 #include "program_helpers.h"

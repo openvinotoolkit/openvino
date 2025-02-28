@@ -18,7 +18,7 @@
 #include "primitive_inst.h"
 #include "kernel_selector_helper.h"
 #include "register.hpp"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "concatenation_inst.h"
 #include "gather_inst.h"
 #include "permute_inst.h"
