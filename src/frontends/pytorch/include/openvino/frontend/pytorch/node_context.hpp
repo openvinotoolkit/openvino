@@ -63,7 +63,7 @@ public:
         return m_decoder->get_input_type(index);
     }
 
-    bool input_is_none(size_t index) const;
+    bool input_is_none(size_t index) const override;
 
     Any get_output_type(size_t index) const {
         return m_decoder->get_output_type(index);

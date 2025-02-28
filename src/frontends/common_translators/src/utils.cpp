@@ -26,6 +26,10 @@ void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_
             FRONT_END_OP_CONVERSION_CHECK(!complex_type_mark, "The operation doesn't allow complex type.");
         }
     }
+    // Check that additional inputs are all None, otherwise raise exception
+    for (auto i = max_inputs; i < num_inputs; i++) {
+        FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected: ", i + 1);
+    }
 }
 
 }  // namespace common_translators
