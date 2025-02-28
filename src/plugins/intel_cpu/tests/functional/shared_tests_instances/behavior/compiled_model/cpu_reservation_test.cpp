@@ -19,6 +19,7 @@ using namespace testing;
 using Device = std::string;
 using Config = ov::AnyMap;
 using CpuReservationTest = ::testing::Test;
+using DISABLED_CpuReservationTest = ::testing::Test;
 
 TEST_F(DISABLED_CpuReservationTest, Mutiple_CompiledModel_Reservation) {
     // Issue: 163348
