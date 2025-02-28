@@ -11,10 +11,8 @@
 namespace ov {
 namespace frontend {
 namespace onnx {
-class ConversionExtension : public ConversionExtensionBase {
+class ONNX_FRONTEND_API ConversionExtension : public ConversionExtensionBase {
 public:
-    OPENVINO_RTTI("frontend::onnx::ConversionExtension", "", ConversionExtensionBase);
-
     using Ptr = std::shared_ptr<ConversionExtension>;
 
     ConversionExtension(const std::string& op_type, const ov::frontend::CreatorFunction& converter)
@@ -28,6 +26,8 @@ public:
           m_domain{domain},
           m_converter(converter) {}
 
+    ~ConversionExtension() override;
+
     const std::string& get_domain() const {
         return m_domain;
     }
@@ -37,10 +37,9 @@ public:
     }
 
 private:
-    std::string m_domain;
+    std::string m_domain = "";
     ov::frontend::CreatorFunction m_converter;
 };
-
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

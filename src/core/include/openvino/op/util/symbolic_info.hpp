@@ -28,7 +28,6 @@ class OPENVINO_API SkipInvalidation : public RuntimeAttribute {
 public:
     OPENVINO_RTTI("SkipInvalidation", "0", RuntimeAttribute);
     SkipInvalidation() = default;
-    ~SkipInvalidation() override;
     bool is_copyable() const override {
         return false;
     }

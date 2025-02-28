@@ -27,8 +27,6 @@ public:
 
     PrecisionSensitive() = default;
 
-    ~PrecisionSensitive() override;
-
     bool is_copyable() const override {
         return false;
     }

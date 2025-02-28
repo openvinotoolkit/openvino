@@ -674,6 +674,7 @@ endfunction()
 # ov_target_link_libraries_as_system(<TARGET NAME> <PUBLIC | PRIVATE | INTERFACE> <target1 target2 ...>)
 #
 function(ov_target_link_libraries_as_system TARGET_NAME LINK_TYPE)
+    message("Link to ${TARGET_NAME} using ${LINK_TYPE} the following ${ARGN}")
     target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${ARGN})
 
     # include directories as SYSTEM

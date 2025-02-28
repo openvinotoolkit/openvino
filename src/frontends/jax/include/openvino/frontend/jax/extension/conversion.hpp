@@ -13,10 +13,8 @@ namespace ov {
 namespace frontend {
 namespace jax {
 
-class ConversionExtension : public ConversionExtensionBase {
+class JAX_FRONTEND_API ConversionExtension : public ConversionExtensionBase {
 public:
-    OPENVINO_RTTI("frontend::jax::ConversionExtension", "", ConversionExtensionBase);
-
     using Ptr = std::shared_ptr<ConversionExtension>;
 
     ConversionExtension() = delete;
@@ -28,6 +26,8 @@ public:
     const ov::frontend::CreatorFunction& get_converter() const {
         return m_converter;
     }
+
+    ~ConversionExtension() override;
 
 private:
     ov::frontend::CreatorFunction m_converter;

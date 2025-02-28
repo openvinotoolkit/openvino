@@ -93,3 +93,7 @@
                                                                _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT, \
                                                                _OPENVINO_RTTI_WITH_TYPE_VERSION,        \
                                                                _OPENVINO_RTTI_WITH_TYPE)(__VA_ARGS__))
+
+/// Note: Please don't use this macros for new operations
+#define BWDCMP_RTTI_DECLARATION
+#define BWDCMP_RTTI_DEFINITION(CLASS)
