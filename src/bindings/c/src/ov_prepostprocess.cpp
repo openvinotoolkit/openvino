@@ -170,10 +170,9 @@ ov_status_e ov_preprocess_preprocess_steps_scale(ov_preprocess_preprocess_steps_
     return ov_status_e::OK;
 }
 
-OPENVINO_C_API(ov_status_e)
-ov_preprocess_preprocess_steps_scale_multi_channels(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
-                                                    const float* values,
-                                                    const int32_t value_size) {
+ov_status_e ov_preprocess_preprocess_steps_scale_multi_channels(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+                                                                const float* values,
+                                                                const int32_t value_size) {
     if (!preprocess_input_process_steps || !values || value_size <= 0) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -199,10 +198,9 @@ ov_status_e ov_preprocess_preprocess_steps_mean(ov_preprocess_preprocess_steps_t
     return ov_status_e::OK;
 }
 
-OPENVINO_C_API(ov_status_e)
-ov_preprocess_preprocess_steps_mean_multi_channels(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
-                                                   const float* values,
-                                                   const int32_t value_size) {
+ov_status_e ov_preprocess_preprocess_steps_mean_multi_channels(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+                                                               const float* values,
+                                                               const int32_t value_size) {
     if (!preprocess_input_process_steps || !values || value_size <= 0) {
         return ov_status_e::INVALID_C_PARAM;
     }
