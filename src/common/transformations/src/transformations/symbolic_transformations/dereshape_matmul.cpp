@@ -182,10 +182,10 @@ void pull_reshape_through_optional_concat_and_bea(const ov::pass::pattern::Patte
 }
 }  // namespace
 
-#define IN_RESHAPE                                                                                            \
-    pattern::wrap_type<op::v1::Reshape>(pattern::op::as_value_predicate([](std::shared_ptr<Node> n) -> bool { \
-        return pattern::consumers_count(1)(n->output(0)) && reshape_keeps_last_two_dims(n);                   \
-    }));
+#define IN_RESHAPE                                                                          \
+    pattern::wrap_type<op::v1::Reshape>([](std::shared_ptr<Node> n) -> bool {               \
+        return pattern::consumers_count(1)(n->output(0)) && reshape_keeps_last_two_dims(n); \
+    });
 
 #define SCALAR_INPUT                                                                        \
     pattern::any_input([](ov::Output<Node> out) {                                           \
@@ -252,10 +252,9 @@ ov::pass::DeReshapeMatMul::DeReshapeMatMul() {
 
     auto matmul_or_add = std::make_shared<pattern::op::Or>(OutputVector{matmul, add});
     auto final_reshape =
-        pattern::wrap_type<op::v1::Reshape>({matmul_or_add, pattern::any_input()},
-                                            pattern::op::as_value_predicate([](std::shared_ptr<Node> n) -> bool {
-                                                return reshape_keeps_last_two_dims(n);
-                                            }));
+        pattern::wrap_type<op::v1::Reshape>({matmul_or_add, pattern::any_input()}, [](std::shared_ptr<Node> n) -> bool {
+            return reshape_keeps_last_two_dims(n);
+        });
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pm = m.get_pattern_map();

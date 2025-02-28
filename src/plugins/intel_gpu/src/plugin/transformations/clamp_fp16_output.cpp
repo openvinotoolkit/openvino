@@ -28,8 +28,8 @@ ClampFP16Output::ClampFP16Output() {
     using namespace ov::pass::pattern;
     using namespace ov::pass::pattern::op;
 
-    auto in0 = any_input(as_value_predicate(class_other_than<v0::Constant>()));
-    auto in1 = any_input(as_value_predicate(class_other_than<v0::Constant>()));
+    auto in0 = any_input(class_other_than<v0::Constant>());
+    auto in1 = any_input(class_other_than<v0::Constant>());
     auto matmul_m = wrap_type<v0::MatMul>({in0, in1}, type_matches(ov::element::f16) && consumers_count(1));
     auto reshape_m = wrap_type<v1::Reshape>({matmul_m, any_input()}, type_matches(ov::element::f16) && consumers_count(1));
     auto add_m = wrap_type<v1::Add>({matmul_m, any_input()}, type_matches(ov::element::f16) && consumers_count(1));

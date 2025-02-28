@@ -20,15 +20,17 @@ public:
         : Pattern(wrapped_values, Predicate(pred)) {
         set_output_type(0, type, s);
     }
-    Any(const element::Type& type, const PartialShape& s, const NodePredicate& pred, const NodeVector& wrapped_values)
-        : Any(type, s, as_value_predicate(pred), as_output_vector(wrapped_values)) {}
+    template <typename TPredicate>
+    Any(const element::Type& type, const PartialShape& s, const TPredicate& pred, const NodeVector& wrapped_values)
+        : Any(type, s, Predicate(pred), as_output_vector(wrapped_values)) {}
     /// \brief creates a Any node containing a sub-pattern described by the type and
     ///        shape of \sa node.
     template <typename TPredicate>
     Any(const Output<Node>& node, const TPredicate& pred, const OutputVector& wrapped_values)
         : Any(node.get_element_type(), node.get_partial_shape(), pred, wrapped_values) {}
-    Any(const Output<Node>& node, const NodePredicate& pred, const NodeVector& wrapped_values)
-        : Any(node, as_value_predicate(pred), as_output_vector(wrapped_values)) {}
+    template <typename TPredicate>
+    Any(const Output<Node>& node, const TPredicate& pred, const NodeVector& wrapped_values)
+        : Any(node, Predicate(pred), as_output_vector(wrapped_values)) {}
 
     bool match_value(pattern::Matcher* matcher,
                      const Output<Node>& pattern_value,
