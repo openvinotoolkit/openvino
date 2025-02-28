@@ -46,6 +46,12 @@ void jit_generator::postamble() {
 }
 
 void jit_generator::uni_li(const Reg& rd, size_t value) {
+    // We have to decompose pseudo-instruction `li` into several small instructions because
+    // the immediate field in RISC-V instructions is limited to 12 or 20 bits:
+    // - use `lui` (Load Upper Immediate) for high bits.
+    // - use `addi` (Load Upper Immediate) for low bits.
+    // - use `slli` to combine parts.
+
     // Check that value is 32-bit value
     if (static_cast<uint64_t>(static_cast<int64_t>(value << 32) >> 32) == value) {
         const uint32_t value32 = static_cast<uint32_t>(value);

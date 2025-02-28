@@ -25,9 +25,8 @@ This method provides the best performance available at the moment.
 2. The build without optimized primitives implemented with RVV intrinsics using [`riscv-gnu-toolchain`](https://github.com/riscv-collab/riscv-gnu-toolchain.git). This GNU Compiler Toolchain supports RVV 0.7.1 and ratified RVV 1.0. The vector intrinsics use the common prefix `__riscv_`. However, as mentioned earlier, this build method doesn't yet provide optimized primitives implemented using the RVV intrinsics.
 3. The build without optimized primitives using installed Linux packages. The compilers in these packages don't support RVV intrinsics.
 
-> **NOTE**: Currently CPU Plugin in OpenVINO supports [Just-In-Time (JIT) code generation](/home/a-sidorova/projects/riscv64/openvino/src/plugins/intel_cpu/src/emitters/README.md) for limited scope of Eltwise operations on devices with RVV 1.0.
+> **NOTE**: Currently CPU Plugin in OpenVINO supports [Just-In-Time (JIT) code generation](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/src/emitters/README.md) for limited scope of operations on devices with RVV 1.0.
   All three described above ways to build OpenVINO Runtime for 64-bit RISC-V supports JIT code generation.
-  It means that if the device on which inference is executed has RVV 1.0 support (GCV), there will be Just-In-Time compiled optimized kernels for some Eltwise operations for the better performance.
 
 ### Steps
 

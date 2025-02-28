@@ -28,8 +28,7 @@ enum cpu_isa_bit_t : unsigned {
 enum cpu_isa_t : unsigned {
     isa_undef = 0u,
     g = i_bit | m_bit | a_bit | f_bit | d_bit, // G = IMAFD
-    gc = g | c_bit,
-    gcv = gc | v_bit,
+    gv = g | v_bit,
     isa_all = ~0u & ~last_bit
 };
 

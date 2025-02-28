@@ -69,13 +69,12 @@ bool mayiuse(const cpu_isa_t cpu_isa) {
                        cpu.hasExtension(RISCVExtension::A) &&
                        cpu.hasExtension(RISCVExtension::F) &&
                        cpu.hasExtension(RISCVExtension::D);
-        case gc: return mayiuse(g) && cpu.hasExtension(RISCVExtension::C);
         // cpu.hasExtension(RISCVExtension::V) checks only RVV support on the device.
         // To figure out RVV version, we try to execute code with RVV1.0 instructions.
         // If there is no `SEGILL`, the device supports RVV1.0.
         // Otherwise we consider that there is no RVV support
         // [TODO] If needed, support other RVV versions
-        case gcv: return mayiuse(gc) && cpu.hasExtension(RISCVExtension::V) && can_compile_rvv100();
+        case gv: return mayiuse(g) && cpu.hasExtension(RISCVExtension::V) && can_compile_rvv100();
         case isa_all: return false;
         case isa_undef: return true;
     }
@@ -86,8 +85,7 @@ std::string isa2str(cpu_isa_t isa) {
     switch(isa) {
     case cpu_isa_t::isa_undef: return "undef";
     case cpu_isa_t::g: return "g";
-    case cpu_isa_t::gc: return "gc";
-    case cpu_isa_t::gcv: return "gcv";
+    case cpu_isa_t::gv: return "gv";
     case cpu_isa_t::isa_all: return "all";
     default: OPENVINO_THROW("Uknown ISA");
     }

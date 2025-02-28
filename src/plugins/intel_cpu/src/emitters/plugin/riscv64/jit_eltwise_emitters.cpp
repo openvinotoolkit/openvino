@@ -12,24 +12,6 @@ using namespace Xbyak_riscv;
 
 #define CONST_1_F    0x3f800000  // 1.f
 
-namespace {
-ov::element::Type get_arithmetic_binary_exec_precision(const std::shared_ptr<ov::Node>& n) {
-    std::vector<ov::element::Type> input_precisions;
-    for (const auto& input : n->inputs()) {
-        input_precisions.push_back(input.get_source_output().get_element_type());
-    }
-
-    assert(std::all_of(input_precisions.begin(),
-                       input_precisions.end(),
-                       [&input_precisions](const ov::element::Type& precision) {
-                           return precision == input_precisions[0];
-                       }));
-
-    return input_precisions[0];
-}
-}  // namespace
-
-
 /// ADD ///
 jit_add_emitter::jit_add_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                  const std::shared_ptr<ov::Node>& node)
@@ -44,8 +26,8 @@ size_t jit_add_emitter::get_inputs_num() const {
 }
 
 void jit_add_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
-    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gcv) {
-        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gcv>(in_vec_idxs, out_vec_idxs);
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
         OPENVINO_THROW("Can't create jit eltwise kernel");
     }
@@ -101,8 +83,8 @@ size_t jit_clamp_emitter::aux_fp_gprs_count() const {
 }
 
 void jit_clamp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
-    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gcv) {
-        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gcv>(in_vec_idxs, out_vec_idxs);
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
         OPENVINO_THROW("Can't create jit eltwise kernel");
     }
@@ -144,8 +126,8 @@ size_t jit_divide_emitter::get_inputs_num() const {
 }
 
 void jit_divide_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
-    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gcv) {
-        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gcv>(in_vec_idxs, out_vec_idxs);
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
         OPENVINO_THROW("Can't create jit eltwise kernel");
     }
@@ -194,8 +176,8 @@ size_t jit_exp_emitter::aux_fp_gprs_count() const {
 }
 
 void jit_exp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
-    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gcv) {
-        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gcv>(in_vec_idxs, out_vec_idxs);
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
         OPENVINO_THROW("Can't create jit eltwise kernel");
     }
@@ -323,8 +305,8 @@ size_t jit_multiply_emitter::get_inputs_num() const {
 }
 
 void jit_multiply_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
-    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gcv) {
-        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gcv>(in_vec_idxs, out_vec_idxs);
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
         OPENVINO_THROW("Can't create jit eltwise kernel");
     }
@@ -361,8 +343,8 @@ size_t jit_prelu_emitter::aux_fp_gprs_count() const {
 }
 
 void jit_prelu_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
-    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gcv) {
-        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gcv>(in_vec_idxs, out_vec_idxs);
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
         OPENVINO_THROW("Can't create jit eltwise kernel");
     }
@@ -417,8 +399,8 @@ size_t jit_relu_emitter::aux_fp_gprs_count() const {
 }
 
 void jit_relu_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
-    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gcv) {
-        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gcv>(in_vec_idxs, out_vec_idxs);
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
         OPENVINO_THROW("Can't create jit eltwise kernel");
     }
@@ -485,8 +467,8 @@ size_t jit_power_static_emitter::aux_fp_gprs_count() const {
 }
 
 void jit_power_static_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
-    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gcv) {
-        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gcv>(in_vec_idxs, out_vec_idxs);
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
         OPENVINO_THROW("Can't create jit eltwise kernel");
     }
@@ -617,23 +599,23 @@ size_t jit_sigmoid_emitter::get_inputs_num() const {
 }
 
 size_t jit_sigmoid_emitter::aux_gprs_count() const {
-    OPENVINO_ASSERT(jit_exp_emitter_, "JIT Exp emitters is missed!");
+    OPENVINO_ASSERT(jit_exp_emitter_, "JIT Exp emitter is missed!");
     return jit_exp_emitter_->aux_gprs_count();
 }
 
 size_t jit_sigmoid_emitter::aux_vecs_count() const {
-    OPENVINO_ASSERT(jit_exp_emitter_, "JIT Exp emitters is missed!");
+    OPENVINO_ASSERT(jit_exp_emitter_, "JIT Exp emitter is missed!");
     return jit_exp_emitter_->aux_vecs_count() + 1;
 }
 
 size_t jit_sigmoid_emitter::aux_fp_gprs_count() const {
-    OPENVINO_ASSERT(jit_exp_emitter_, "JIT Exp emitters is missed!");
+    OPENVINO_ASSERT(jit_exp_emitter_, "JIT Exp emitter is missed!");
     return std::max(jit_exp_emitter_->aux_fp_gprs_count(), 1lu);
 }
 
 void jit_sigmoid_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
-    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gcv) {
-        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gcv>(in_vec_idxs, out_vec_idxs);
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
         OPENVINO_THROW("Can't create jit eltwise kernel");
     }
@@ -704,8 +686,8 @@ size_t jit_subtract_emitter::get_inputs_num() const {
 }
 
 void jit_subtract_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
-    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gcv) {
-        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gcv>(in_vec_idxs, out_vec_idxs);
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
         OPENVINO_THROW("Can't create jit eltwise kernel");
     }

@@ -32,8 +32,8 @@ public:
 
     
 protected:
-    const uint8_t* getCodeTop() const override {
-        return codeTop;
+    const uint8_t* getCodeAddress() const override {
+        return code_section_address;
     }
 
 private:
@@ -190,8 +190,8 @@ private:
     std::shared_ptr<jit_emitter> eltwise_emitter = nullptr;
     std::vector<std::shared_ptr<jit_emitter>> post_op_emitters;
 
-    uint8_t* dataTop = nullptr;
-    uint8_t* codeTop = nullptr;
+    uint8_t* data_section_address = nullptr;
+    uint8_t* code_section_address = nullptr;
 };
 
 }  // ov::intel_cpu::riscv64

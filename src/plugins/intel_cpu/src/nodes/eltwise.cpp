@@ -668,9 +668,9 @@ public:
 #endif  // OPENVINO_ARCH_ARM64
 
 #if defined(OPENVINO_ARCH_RISCV64)
-        if (mayiuse(ov::intel_cpu::riscv64::gcv)) {
+        if (mayiuse(ov::intel_cpu::riscv64::gv)) {
             _pKernel.reset(
-                new ov::intel_cpu::riscv64::jit_uni_eltwise_generic<ov::intel_cpu::riscv64::gcv>(jep, eltwise_data));
+                new ov::intel_cpu::riscv64::jit_uni_eltwise_generic<ov::intel_cpu::riscv64::gv>(jep, eltwise_data));
         } else {
             OPENVINO_THROW("Can't create jit eltwise kernel");
         }
@@ -747,6 +747,20 @@ public:
                               const float beta,
                               const float gamma,
                               const std::vector<ov::element::Type>& input_precisions = {}) {
+#if defined(OPENVINO_ARCH_X86_64)
+        const auto isISASupportedByJIT = mayiuse(dnnl::impl::cpu::x64::sse41);
+#elif defined(OPENVINO_ARCH_ARM64)
+        const auto isISASupportedByJIT = mayiuse(dnnl::impl::cpu::aarch64::asimd);
+#elif defined(OPENVINO_ARCH_RISCV64)
+        const auto isISASupportedByJIT = mayiuse(ov::intel_cpu::riscv64::gv);
+#else
+        const auto isISASupportedByJIT = false;
+#endif
+        // if dim rank is greater than the maximum possible, we should not use JIT execution
+        if (!isISASupportedByJIT || node->getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK) {
+            return false;
+        }
+
         const auto algorithm = node->getAlgorithm();
         if (one_of(algorithm,
                    Algorithm::EltwiseLog,
@@ -831,7 +845,7 @@ public:
         return check_precisions(input_precisions, node->getOriginalOutputPrecisions(), supported_precisions);
 #endif
 
-        // Unsupported AArchs' should return false:
+        // Unsupported architectures should return false:
         return false;
     }
 
@@ -1425,19 +1439,8 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-#if defined(OPENVINO_ARCH_X86_64)
-    const auto isISASupportedByJIT = mayiuse(dnnl::impl::cpu::x64::sse41);
-#elif defined(OPENVINO_ARCH_ARM64)
-    const auto isISASupportedByJIT = mayiuse(dnnl::impl::cpu::aarch64::asimd);
-#elif defined(OPENVINO_ARCH_RISCV64)
-    const auto isISASupportedByJIT = mayiuse(ov::intel_cpu::riscv64::gcv);
-#else
-    const auto isISASupportedByJIT = false;
-#endif
-
     // if dim rank is greater than the maximum possible, we should use the reference execution
-    bool canUseOptimizedImpl = EltwiseJitExecutor::isSupportedOp(this, getAlpha(), getBeta(), getGamma()) &&
-                               isISASupportedByJIT && (getInputShapeAtPort(0).getRank() <= MAX_ELTWISE_DIM_RANK);
+    bool canUseOptimizedImpl = EltwiseJitExecutor::isSupportedOp(this, getAlpha(), getBeta(), getGamma());
     bool canUseOptimizedShapeAgnosticImpl = isDynamicNode() && canUseOptimizedImpl;
 
     if (!canUseOptimizedImpl && !fusedWith.empty()) {
@@ -1717,7 +1720,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             return {config, impl_type, !factory->isEmpty() ? factory : nullptr};
         }
         impl_desc_type impl_type = impl_desc_type::ref;
-        if (canUseOptimizedImpl) {
+        if (useJitExecutor) {
 #if defined(OPENVINO_ARCH_ARM64)
             if (mayiuse(dnnl::impl::cpu::aarch64::asimd)) {
                 impl_type = impl_desc_type::jit_asimd;
@@ -1725,8 +1728,8 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                 THROW_CPU_NODE_ERR("not supported architecture");
             }
 #elif defined(OPENVINO_ARCH_RISCV64)
-            if (mayiuse(ov::intel_cpu::riscv64::gcv)) {
-                impl_type = impl_desc_type::jit_rvv;
+            if (mayiuse(ov::intel_cpu::riscv64::gv)) {
+                impl_type = impl_desc_type::jit_gv;
             } else {
                 OPENVINO_THROW("not supported architecture");
             }
@@ -2357,7 +2360,7 @@ bool Eltwise::canFuseConvert(const NodePtr& convertNode) const {
     }
 // Convert can be fused into Eltwise only if jit implementation is supported
 #if defined(OPENVINO_ARCH_ARM64)
-    return jitIsSupported(this, getAlpha(), getBeta(), getGamma());
+    return EltwiseJitExecutor::isSupportedOp(this, getAlpha(), getBeta(), getGamma());
 #else
     return false;
 #endif
@@ -2383,20 +2386,6 @@ bool Eltwise::canFuse(const NodePtr& node) const {
 
         return true;
     };
-
-#if defined(OPENVINO_ARCH_X86_64)
-    const auto isISASupportedByJIT = mayiuse(dnnl::impl::cpu::x64::sse41);
-#elif defined(OPENVINO_ARCH_ARM64)
-    const auto isISASupportedByJIT = mayiuse(dnnl::impl::cpu::aarch64::asimd);
-#elif defined(OPENVINO_ARCH_RISCV64)
-    const auto isISASupportedByJIT = mayiuse(ov::intel_cpu::riscv64::gcv);
-#else
-    const auto isISASupportedByJIT = false;
-#endif
-
-    if (!isISASupportedByJIT || (getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK)) {
-        return false;
-    }
 
     if (!EltwiseJitExecutor::isSupportedOp(this, getAlpha(), getBeta(), getGamma())) {
         return false;
