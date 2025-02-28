@@ -244,10 +244,9 @@ bool ov::snippets::pass::PropagatePrecision::validate_and_infer_types_and_restor
     return was_updated;
 }
 
-bool ov::snippets::pass::PropagatePrecision::can_be_removed(
-    const element::Type& actual_before,
-    const element::Type& actual_after,
-    const element::Type& required_after) noexcept {
+bool ov::snippets::pass::PropagatePrecision::can_be_removed(const element::Type& actual_before,
+                                                            const element::Type& actual_after,
+                                                            const element::Type& required_after) {
     if (actual_before != required_after) {
         return false;
     }

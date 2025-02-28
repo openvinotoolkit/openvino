@@ -28,10 +28,9 @@ public:
 
     // if can_be_removed returns true then actual convertion (actual_before => actual_after)
     // can be replaced to required (actual_before => required_after)
-    static bool can_be_removed(
-        const element::Type& actual_before,
-        const element::Type& actual_after,
-        const element::Type& required_after) noexcept;
+    static bool can_be_removed(const element::Type& actual_before,
+                               const element::Type& actual_after,
+                               const element::Type& required_after);
 
     // if can_be_fused returns true then actual convertion can be replaced to required
     static bool can_be_fused(const element::Type& actual, const element::Type& required);
