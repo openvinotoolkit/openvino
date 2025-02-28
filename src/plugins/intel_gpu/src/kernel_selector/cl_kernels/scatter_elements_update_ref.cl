@@ -148,11 +148,10 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
         const uint tgy = INPUT2_SIZE_Z * INPUT2_SIZE_W;
     #endif
     const uint tgz = INPUT2_FEATURE_NUM * INPUT2_BATCH_NUM;
-    const uint input2_length = tgx * tgy * tgz;
     #ifdef REDUCE_MODE
     #if REDUCE_MODE == MEAN_MODE
         #if INPUT2_LENGTH == 0 || INPUT2_LENGTH > 4096
-            #define COUNT_LENGTH 4096   // Maximum number of elements to reduce in case of shape agnostic kernel
+            #define COUNT_LENGTH 4096   // Maximum number of elements to reduce in case of shape agnostic kernel or large shapes
         #else
             #define COUNT_LENGTH INPUT2_LENGTH
         #endif
@@ -162,6 +161,7 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
             count_k[i] = -1;
             count_v[i] = 0;
         }
+        const uint input2_length = tgx * tgy * tgz > COUNT_LENGTH ? COUNT_LENGTH : tgx * tgy * tgz;
     #endif
     #if USE_INIT_VAL == 0
     for (uint gx = 0; gx < tgx; gx++) {
