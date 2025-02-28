@@ -48,7 +48,7 @@ using PagedAttentionParams = std::tuple<reference_tests::Tensor,  // 0: query
                                         reference_tests::Tensor,  // 15: rotation_trig_lut
                                         reference_tests::Tensor,  // 16: output data
                                         std::string>;             // 17: targetDevice
-class ReferencePagedAttention : public testing::TestWithParam<PagedAttentionParams>,
+class ReferencePagedAttentionLayerTest : public testing::TestWithParam<PagedAttentionParams>,
                                 public reference_tests::CommonReferenceTest {
 public:
     void SetUp() override {
@@ -69,7 +69,7 @@ public:
         rotated_block_indices = std::get<13>(params).data;
         rotation_deltas = std::get<14>(params).data;
         rotation_trig_lut = std::get<15>(params).data;
-        targetDevice = std::get<17>(params).data;
+        targetDevice = std::get<17>(params);
 
         function = CreateFunction(params);
         inputData = {query,
@@ -89,7 +89,7 @@ public:
                      rotation_deltas,
                      rotation_trig_lut};
 
-        refOutData = {std::get<16>(params)};
+        refOutData = {std::get<16>(params).data};
     }
 
     static std::string tensor2str(const reference_tests::Tensor& t) {
