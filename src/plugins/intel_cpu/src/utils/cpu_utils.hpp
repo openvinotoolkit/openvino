@@ -150,7 +150,7 @@ inline ov::element::Type normalizeToSupportedPrecision(ov::element::Type precisi
  */
 inline std::vector<float> makeAlignedBuffer(size_t targetSize, const std::vector<float>& buffer, int align = -1) {
     if (buffer.empty()) {
-        OPENVINO_THROW("Can't align buffer, becuase buffer is empty");
+        OPENVINO_THROW("Can't align buffer, because buffer is empty");
     }
 
     auto alignedBuffer = buffer;
