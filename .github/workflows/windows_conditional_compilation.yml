@@ -65,7 +65,6 @@ jobs:
       CCACHE_MAXSIZE: 3G
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
-      INSTALL_PDB_DIR: "${{ github.workspace }}\\install_pdb"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       MODELS_PATH: "${{ github.workspace }}\\testdata"
       SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
@@ -197,21 +196,12 @@ jobs:
       - name: Cmake install - OpenVINO
         run: |
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
-          cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_PDB_DIR }} --component pdb
+          # cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }} --component pdb
 
       - name: Build C++ samples - OpenVINO build tree
         run: |
           cmake -G "${{ env.CMAKE_GENERATOR }}" -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
           cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
-
-      - name: Build C samples - OpenVINO install tree
-        run: |
-          & ${{ env.INSTALL_DIR }}/samples/c/build_samples.ps1 -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
-        env:
-          CXXFLAGS: "/Zi"
-          CFLAGS: "/Zi"
-          LDFLAGS: "/DEBUG"
-          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
 
       - name: Ctest - OpenVINO unit tests
         shell: cmd
@@ -256,6 +246,19 @@ jobs:
             DestinationPath = "${{ env.BUILD_DIR }}/openvino_tests.zip"
           }
           Compress-Archive @compress
+
+      # we need to clean build tree to remove PDB files; it will ensure that next step with samples build with PDB will use PDB files from install tree
+      - name: Cmake clean
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel 16 --config ${{ env.CMAKE_BUILD_TYPE }} --target clean
+
+      - name: Build C samples - OpenVINO install tree
+        run: |
+          & ${{ env.INSTALL_DIR }}/samples/c/build_samples.ps1 -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
+        env:
+          CXXFLAGS: "/Zi"
+          CFLAGS: "/Zi"
+          LDFLAGS: "/DEBUG"
+          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
 
       #
       # Upload build artifacts and logs
