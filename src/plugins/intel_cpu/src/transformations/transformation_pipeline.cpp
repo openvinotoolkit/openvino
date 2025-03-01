@@ -27,6 +27,7 @@
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/augru_cell_fusion.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
+#include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
@@ -162,7 +163,7 @@
 #include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/tokenization.hpp"
 #if defined(SNIPPETS_LIBXSMM_TPP)
-#    include "transformations/tpp/x64/pass/brgemm_to_brgemm_tpp.hpp"
+#    include "transformations/tpp/common/pass/brgemm_to_brgemm_tpp.hpp"
 #endif
 
 // Misc
@@ -446,6 +447,20 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
+    ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
+    cacheConfig.keyCachePrecision = config.keyCachePrecision;
+    cacheConfig.valueCachePrecision = config.valueCachePrecision;
+    cacheConfig.inferencePrecision = config.inferencePrecision;
+    cacheConfig.keyCacheGroupSize = config.keyCacheGroupSize;
+    cacheConfig.valueCacheGroupSize = config.valueCacheGroupSize;
+    cacheConfig.keyCacheBlockSize = 32;
+    cacheConfig.valueCacheBlockSize = 32;
+    // TODO enable quant_by_channel when available.
+    cacheConfig.keyCacheQuantBychannel = false;
+    cacheConfig.valueCacheQuantBychannel = false;
+    cacheConfig.keyCacheDimOrder = {0, 1, 2, 3};
+    cacheConfig.valueCacheDimOrder = {0, 1, 2, 3};
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPagedAttnInputs, cacheConfig);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_X64(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
     CPU_SET_CALLBACK_X64(
@@ -830,7 +845,8 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
         [&](const_node_ptr& node) -> bool {
             if (ov::is_type<ov::opset1::Multiply>(node)) {
                 return ov::is_type<ov::opset1::Multiply>(node) && is_decompression_multiply(node);
-            } else if (ov::is_type<ov::opset1::Subtract>(node)) {
+            }
+            if (ov::is_type<ov::opset1::Subtract>(node)) {
                 const auto& consumers = node->get_output_target_inputs(0);
                 if (consumers.size() == 1) {
                     const auto consumer = consumers.begin()->get_node()->shared_from_this();
@@ -1053,10 +1069,10 @@ void Transformations::MainSnippets(void) {
 #if defined(OPENVINO_ARCH_X86_64)
     // Currently, Snippets don't provide efficient execution for single token inference in LLM case.
     // To avoid performance degradations, we disable MHA tokenization into Subgraphs in LLMs'.
-    // We consider the presence of `ScaledDotProductAttentionWithKVCache` and `PagedAttentionExtension` ops
+    // We consider the presence of `ScaledDotProductAttentionWithKVCache` ops
     // in the model as a sign that this model is LLM.
-    const auto is_LLM = ov::op::util::has_op_with_type<intel_cpu::ScaledDotProductAttentionWithKVCache>(model) ||
-                        ov::op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model);
+    const auto is_LLM = ov::op::util::is_large_language_model(*model.get()) ||
+                        ov::op::util::has_op_with_type<intel_cpu::ScaledDotProductAttentionWithKVCache>(model);
 
     // CPU Plugin Subgraph supports f32, bf16, quantized and fp16(on avx_512_core_amx_fp16 target) BRGEMM
     const auto is_infer_prc_supported_by_MHA =
