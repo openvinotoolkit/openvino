@@ -228,7 +228,8 @@ macro(ov_add_frontend)
     ov_add_vs_version_file(NAME ${TARGET_NAME}
                            FILEDESCRIPTION ${OV_FRONTEND_FILEDESCRIPTION})
 
-    target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES} PUBLIC openvino::runtime)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES} openvino::frontend::common_translators
+                          PUBLIC openvino::runtime)
     ov_add_library_version(${TARGET_NAME})
 
     if(OV_FRONTEND_PROTOBUF_REQUIRED)
