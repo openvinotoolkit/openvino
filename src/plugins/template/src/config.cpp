@@ -41,7 +41,7 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
         } else if (ov::inference_num_threads.name() == key) {
             int val;
             try {
-                val = value.as<int>();
+                val = value.as<decltype(ov::inference_num_threads)::value_type>();
             } catch (const std::exception&) {
                 OPENVINO_THROW("Wrong value for property key ", key, ". Expected only positive numbers (#threads)");
             }
@@ -85,6 +85,45 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
             model_priority = value.as<ov::hint::Priority>();
         } else if (ov::cache_encryption_callbacks == key) {
             encryption_callbacks = value.as<EncryptionCallbacks>();
+        } else if (ov::hint::scheduling_core_type == key) {
+            try {
+                schedulingCoreType = value.as<ov::hint::SchedulingCoreType>();
+            } catch (const std::exception&) {
+                OPENVINO_THROW("Wrong value ", value.as<ov::hint::SchedulingCoreType>(), "for property key ", key);
+            }
+        } else if (key == ov::hint::enable_hyper_threading.name()) {
+            try {
+                enableHyperThreading = value.as<bool>();
+                changedHyperThreading = true;
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               value.as<std::string>(),
+                               "for property key ",
+                               ov::hint::enable_hyper_threading.name(),
+                               ". Expected only true/false.");
+            }
+        } else if (key == ov::hint::enable_cpu_pinning.name()) {
+            try {
+                enableCpuPinning = value.as<bool>();
+                changedCpuPinning = true;
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               value.as<std::string>(),
+                               "for property key ",
+                               ov::hint::enable_cpu_pinning.name(),
+                               ". Expected only true/false.");
+            }
+        } else if (ov::compilation_num_threads.name() == key) {
+            int val;
+            try {
+                val = value.as<decltype(ov::compilation_num_threads)::value_type>();
+            } catch (const std::exception&) {
+                OPENVINO_THROW("Wrong value for property key ", key, ". Expected only positive numbers (#threads)");
+            }
+            if (val < 0) {
+                OPENVINO_THROW("Wrong value for property key ", key, ". Expected only positive numbers (#threads)");
+            }
+            compilation_thread_num = val;
         } else if (throwOnUnsupported) {
             OPENVINO_THROW("Property was not found: ", key);
         }
@@ -118,6 +157,14 @@ ov::Any Configuration::Get(const std::string& name) const {
         return log_level;
     } else if (name == ov::hint::model_priority) {
         return model_priority;
+    } else if (name == ov::compilation_num_threads) {
+        return {std::to_string(compilation_thread_num)};
+    } else if (name == ov::hint::scheduling_core_type) {
+        return schedulingCoreType;
+    } else if (name == ov::hint::enable_cpu_pinning) {
+        return enableCpuPinning;
+    } else if (name == ov::hint::enable_hyper_threading) {
+        return enableHyperThreading;
     } else {
         OPENVINO_THROW("Property was not found: ", name);
     }
