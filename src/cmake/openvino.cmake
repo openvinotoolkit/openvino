@@ -186,7 +186,7 @@ install(EXPORT OpenVINOTargets
 # Install PDB files
 #
 
-if(WIN32)
+if(WIN32 AND NOT BUILD_SHARED_LIBS)
     # installation of compile PDB files for static libraries
     install(DIRECTORY "${OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}/"
             DESTINATION ${OV_CPACK_ARCHIVEDIR}

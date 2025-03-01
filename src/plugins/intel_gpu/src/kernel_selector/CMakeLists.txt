@@ -75,7 +75,7 @@ if(WIN32)
         COMMENT "Copying CM sources and preprocessing XeTLA headers ..."
     )
 else()
-    add_custom_command(OUTPUT "${CODEGEN_CACHE_DIR}/cm_kernels"
+    add_custom_command(OUTPUT "${XETLA_HEADER_FULL_PATH}"
         COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/" "${CODEGEN_CACHE_DIR}/cm_kernels"
         COMMAND "${CMAKE_CXX_COMPILER}" "${XETLA_HEADER_FULL_PATH}" -I ${XETLA_INCLUDE_DIR} -E -P > "${CODEGEN_CACHE_DIR}/${XETLA_HEADER}"
         COMMAND "${CMAKE_COMMAND}" -E rename "${CODEGEN_CACHE_DIR}/${XETLA_HEADER}" "${XETLA_HEADER_FULL_PATH}"
@@ -89,7 +89,7 @@ add_custom_command(OUTPUT "${CODEGEN_CACHE_DIR}/${CM_PRIM_DB}"
                                                       -out_file_name_prim_db "${CM_PRIM_DB}"
                                                       -out_file_name_batch_headers "${CM_PRIM_DB_BATCH_HEADERS}"
                                                       -kernels "${CODEGEN_CACHE_DIR}/cm_kernels" -cm
-  DEPENDS ${CM_KERNELS} "${CODEGEN_SCRIPT}" "${CODEGEN_CACHE_DIR}/cm_kernels" "${CODEGEN_INCDIR}/${PRIM_DB}"
+  DEPENDS ${CM_KERNELS} "${CODEGEN_SCRIPT}" "${XETLA_HEADER_FULL_PATH}" "${CODEGEN_INCDIR}/${PRIM_DB}"
   COMMENT "Generating ${CODEGEN_CACHE_DIR}/${CM_PRIM_DB} ..."
 )
 
