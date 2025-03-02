@@ -215,7 +215,7 @@ KERNEL(fully_connected_gpu_gemv)(
         }
 #    else
         for (int i = 0; i < 1; i++) {
-            output[cur_n + i] = sum_value[i];
+            output[cur_n + i] = ACTIVATION_TYPED(sum_value[i], ACTIVATION_PARAMS_TYPED);
         }
 #    endif
     }
@@ -386,7 +386,7 @@ KERNEL(fully_connected_gpu_gemv)(
         }
 #    else
         for (int i = 0; i < 2; i++) {
-            output[cur_n + 16 * i] = sum_value[i];
+            output[cur_n + 16 * i] = ACTIVATION_TYPED(sum_value[i], ACTIVATION_PARAMS_TYPED);
         }
 #    endif
     }
@@ -599,7 +599,7 @@ KERNEL(fully_connected_gpu_gemv)(
         }
 #    else
         for (int i = 0; i < 4; i++) {
-            output[cur_n + 16 * i] = sum_value[i];
+            output[cur_n + 16 * i] = ACTIVATION_TYPED(sum_value[i], ACTIVATION_PARAMS_TYPED);
         }
 #    endif
     }
