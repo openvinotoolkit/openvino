@@ -16,7 +16,10 @@ if(POLICY CMP0025)
     cmake_policy(SET CMP0025 NEW)
 endif()
 
-project(Samples)
+project(Samples
+        DESCRIPTION "OpenVINO Samples"
+        HOMEPAGE_URL "https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples.html"
+        LANGUAGES C CXX)
 
 get_property(OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if(CMAKE_GENERATOR STREQUAL "Ninja Multi-Config")

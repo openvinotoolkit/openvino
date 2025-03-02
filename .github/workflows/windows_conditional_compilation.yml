@@ -265,12 +265,10 @@ jobs:
           }
           Compress-Archive @compress
 
-      # we need to clean build tree to remove PDB files; it will ensure that next step with samples build with PDB will use PDB files from install tree
-      - name: Cmake clean
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel 16 --config ${{ env.CMAKE_BUILD_TYPE }} --target clean
-
       - name: Build C samples - OpenVINO install tree
         run: |
+          # we need to clean build tree to remove PDB files; it will ensure that next step with samples build with PDB will use PDB files from install tree
+          cmake --build ${{ env.BUILD_DIR }} --parallel 16 --config ${{ env.CMAKE_BUILD_TYPE }} --target clean
           & ${{ env.INSTALL_DIR }}/samples/c/build_samples.ps1 -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
         env:
           CXXFLAGS: "/Zi"
