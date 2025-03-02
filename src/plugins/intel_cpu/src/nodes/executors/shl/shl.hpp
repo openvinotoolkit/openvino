@@ -169,7 +169,11 @@ private:
 struct IShlParams {
 public:
     virtual ~IShlParams() = default;
-    virtual void* get(bool allow_empty = false) const = 0;
+    virtual void* get(bool allow_empty) const = 0;
+
+    void* get() const {
+        return get(false);
+    }
 };
 
 template <typename T, typename traits = ShlStructureTraits<T>>

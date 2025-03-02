@@ -273,10 +273,11 @@ jobs:
         run: |
           & ${{ env.INSTALL_DIR }}/samples/c/build_samples.ps1 -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
         env:
-          CXXFLAGS: "/Zi /v:diag"
-          CFLAGS: "/Zi /v:diag"
-          LDFLAGS: "/DEBUG /v:diag"
+          CXXFLAGS: "/Zi"
+          CFLAGS: "/Zi"
+          LDFLAGS: "/DEBUG"
           CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
+          CMAKE_GENERATOR: "Visual Studio 17 2022"
 
       #
       # Upload build artifacts and logs
@@ -286,7 +287,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
-          name: openvino_tests
+          name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.zip
           if-no-files-found: 'error'
 
