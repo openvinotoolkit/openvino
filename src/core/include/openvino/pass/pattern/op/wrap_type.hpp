@@ -63,24 +63,16 @@ void collect_wrap_info(std::vector<DiscreteTypeInfo>& info) {
     collect_wrap_info<Targs...>(info);
 }
 
-template <class... Args, typename TPredicate>
-std::shared_ptr<Node> wrap_type(const OutputVector& inputs, const TPredicate& pred, const Attributes& attrs = {}) {
+template <class... Args, typename TPredicate = nullptr_t>
+std::shared_ptr<Node> wrap_type(const OutputVector& inputs = {},
+                                const TPredicate& pred = nullptr,
+                                const Attributes& attrs = {}) {
     std::vector<DiscreteTypeInfo> info;
     collect_wrap_info<Args...>(info);
     return std::make_shared<op::WrapType>(
         info,
         (attrs.empty() ? op::Predicate(pred) : attrs_match(attrs) && op::Predicate(pred)),
         inputs);
-}
-
-template <class... Args>
-std::shared_ptr<Node> wrap_type(const OutputVector& inputs, const Attributes& attrs = {}) {
-    return wrap_type<Args...>(inputs, (attrs.empty() ? op::Predicate() : attrs_match(attrs)));
-}
-
-template <class... Args>
-std::shared_ptr<Node> wrap_type(const std::initializer_list<Output<Node>>& inputs = {}, const Attributes& attrs = {}) {
-    return wrap_type<Args...>(OutputVector(inputs), attrs);
 }
 
 template <class... Args,
@@ -91,7 +83,17 @@ std::shared_ptr<Node> wrap_type(const TPredicate& pred, const Attributes& attrs 
 }
 
 template <class... Args>
+std::shared_ptr<Node> wrap_type(const OutputVector& inputs, const Attributes& attrs) {
+    return wrap_type<Args...>(inputs, (attrs.empty() ? op::Predicate() : attrs_match(attrs)));
+}
+
+template <class... Args>
+std::shared_ptr<Node> wrap_type(const std::initializer_list<Output<Node>>& inputs, const Attributes& attrs = {}) {
+    return wrap_type<Args...>(OutputVector(inputs), attrs);
+}
+
+template <class... Args>
 std::shared_ptr<Node> wrap_type(const Attributes& attrs) {
-    return wrap_type<Args...>({}, attrs);
+    return wrap_type<Args...>(attrs_match(attrs));
 }
 }  // namespace ov::pass::pattern
