@@ -3,15 +3,18 @@
 //
 
 #include <algorithm>
+#include <cstring>
 #include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "gtest/gtest.h"
 #include "openvino/core/model.hpp"
+#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
@@ -100,15 +103,13 @@ public:
     static constexpr ov::element::Type ov_type = ov::element::from<element_type>();
 
     void SetUp() override {
-        shape = {1, 2, 3, 4};
+        shape = {10, 20, 30, 40};
         auto static_shape = shape.get_shape();
-        size_t elements = std::accumulate(static_shape.begin(), static_shape.end(), 1, std::multiplies<size_t>());
-        data.resize(elements);
-        element_type next_value{};
-        std::generate(data.begin(), data.end(), [&next_value]() {
-            next_value += 1;
-            return next_value;
-        });
+        initial_tensor = Tensor(ov_type, static_shape);
+        std::vector<float> init_values(initial_tensor.get_size());
+        ov::test::utils::fill_data_random(init_values.data(), initial_tensor.get_size(), 10, 0, 100);
+
+        std::copy(init_values.begin(), init_values.end(), element::iterator<ov_type>(initial_tensor.data()));
 
         file_name_str = ov::test::utils::generateTestFilePrefix();
         file_name = path_type(file_name_str.begin(), file_name_str.end());
@@ -120,7 +121,7 @@ public:
     }
 
     ov::PartialShape shape;
-    std::vector<element_type> data;
+    ov::Tensor initial_tensor;
     path_type file_name;
     std::string file_name_str;
 };
@@ -128,57 +129,40 @@ public:
 TYPED_TEST_SUITE_P(OffloadedTensorTest);
 
 TYPED_TEST_P(OffloadedTensorTest, save_tensor) {
-    using element_type = typename std::remove_reference_t<decltype(*this)>::element_type;
-    ov::Tensor tensor(this->ov_type, this->shape.get_shape());
-    size_t data_size = this->data.size() * sizeof(element_type);
-    std::memcpy(tensor.data(), this->data.data(), data_size);
-
-    EXPECT_NO_THROW(save_tensor_data(tensor, this->file_name));
+    auto data_size = this->initial_tensor.get_byte_size();
+    EXPECT_NO_THROW(save_tensor_data(this->initial_tensor, this->file_name));
     ASSERT_TRUE(std::filesystem::exists(this->file_name));
     {
         std::ifstream fin(this->file_name_str, std::ios::binary);
-        std::vector<element_type> file_data(this->data.size());
+        std::vector<char> file_data(data_size);
         fin.read(reinterpret_cast<char*>(file_data.data()), data_size);
-        EXPECT_TRUE(std::equal(this->data.begin(), this->data.end(), file_data.begin()));
+        EXPECT_EQ(0, memcmp(file_data.data(), this->initial_tensor.data(), data_size));
     }
     this->remove_file();
 }
 
 TYPED_TEST_P(OffloadedTensorTest, read_tensor) {
-    using element_type = typename std::remove_reference_t<decltype(*this)>::element_type;
-
-    size_t data_size = this->data.size() * sizeof(element_type);
+    auto data_size = this->initial_tensor.get_byte_size();
     {
         std::ofstream fout(this->file_name_str, std::ios::binary);
-        fout.write(reinterpret_cast<char*>(this->data.data()), data_size);
+        fout.write(reinterpret_cast<char*>(this->initial_tensor.data()), data_size);
     }
     ASSERT_TRUE(std::filesystem::exists(this->file_name));
 
-    ov::Tensor tensor;
-    EXPECT_NO_THROW(tensor = read_tensor_data(this->file_name, this->ov_type, this->shape, 0, true));
-
     {
-        std::vector<element_type> file_data(this->data.size());
-        std::memcpy(file_data.data(), tensor.data(), data_size);
-
-        EXPECT_TRUE(std::equal(this->data.begin(), this->data.end(), file_data.begin()));
+        ov::Tensor tensor;
+        EXPECT_NO_THROW(tensor = read_tensor_data(this->file_name, this->ov_type, this->shape, 0, true));
+        EXPECT_EQ(0, memcmp(tensor.data(), this->initial_tensor.data(), data_size));
     }
     this->remove_file();
 }
 
 TYPED_TEST_P(OffloadedTensorTest, create_mmaped_tensor) {
-    using element_type = typename std::remove_reference_t<decltype(*this)>::element_type;
-    ov::Tensor tensor(this->ov_type, this->shape.get_shape());
-    size_t data_size = this->data.size() * sizeof(element_type);
-    std::memcpy(tensor.data(), this->data.data(), data_size);
-
+    auto data_size = this->initial_tensor.get_byte_size();
     {
-        auto new_tensor = ov::create_mmaped_tensor(tensor, this->file_name);
+        auto tensor = ov::create_mmaped_tensor(this->initial_tensor, this->file_name);
         ASSERT_TRUE(std::filesystem::exists(this->file_name));
-        std::vector<element_type> file_data(this->data.size());
-        std::memcpy(file_data.data(), tensor.data(), data_size);
-
-        EXPECT_TRUE(std::equal(this->data.begin(), this->data.end(), file_data.begin()));
+        EXPECT_EQ(0, memcmp(tensor.data(), this->initial_tensor.data(), data_size));
     }
     ASSERT_FALSE(std::filesystem::exists(this->file_name));
 }
@@ -187,19 +171,54 @@ REGISTER_TYPED_TEST_CASE_P(OffloadedTensorTest, save_tensor, read_tensor, create
 
 using TypesToTest = ::testing::Types<
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
+    std::tuple<std::wstring, float>,
     std::tuple<std::wstring, double>,
-    std::tuple<std::wstring, int>,
+    std::tuple<std::wstring, int8_t>,
+    std::tuple<std::wstring, int16_t>,
+    std::tuple<std::wstring, int32_t>,
+    std::tuple<std::wstring, int64_t>,
     std::tuple<std::wstring, uint8_t>,
+    std::tuple<std::wstring, uint16_t>,
+    std::tuple<std::wstring, uint32_t>,
+    std::tuple<std::wstring, uint64_t>,
     std::tuple<std::wstring, ov::bfloat16>,
+    std::tuple<std::wstring, ov::float8_e4m3>,
+    std::tuple<std::wstring, ov::float8_e5m2>,
+    std::tuple<std::wstring, ov::float4_e2m1>,
+    std::tuple<std::wstring, ov::float8_e8m0>,
 #endif
+    std::tuple<std::string, float>,
     std::tuple<std::string, double>,
-    std::tuple<std::string, int>,
+    std::tuple<std::string, int8_t>,
+    std::tuple<std::string, int16_t>,
+    std::tuple<std::string, int32_t>,
+    std::tuple<std::string, int64_t>,
     std::tuple<std::string, uint8_t>,
+    std::tuple<std::string, uint16_t>,
+    std::tuple<std::string, uint32_t>,
+    std::tuple<std::string, uint64_t>,
     std::tuple<std::string, ov::bfloat16>,
+    std::tuple<std::string, ov::float8_e4m3>,
+    std::tuple<std::string, ov::float8_e5m2>,
+    std::tuple<std::string, ov::float4_e2m1>,
+    std::tuple<std::string, ov::float8_e8m0>,
+    std::tuple<std::filesystem::path, float>,
     std::tuple<std::filesystem::path, double>,
-    std::tuple<std::filesystem::path, int>,
+    std::tuple<std::filesystem::path, int8_t>,
+    std::tuple<std::filesystem::path, int16_t>,
+    std::tuple<std::filesystem::path, int32_t>,
+    std::tuple<std::filesystem::path, int64_t>,
     std::tuple<std::filesystem::path, uint8_t>,
-    std::tuple<std::filesystem::path, ov::bfloat16>>;
+    std::tuple<std::filesystem::path, uint16_t>,
+    std::tuple<std::filesystem::path, uint32_t>,
+    std::tuple<std::filesystem::path, uint64_t>,
+    std::tuple<std::filesystem::path, ov::bfloat16>,
+    std::tuple<std::filesystem::path, ov::float8_e4m3>,
+    std::tuple<std::filesystem::path, ov::float8_e5m2>,
+    std::tuple<std::filesystem::path, ov::float4_e2m1>,
+    std::tuple<std::filesystem::path, ov::float8_e8m0>
+>;
+
 INSTANTIATE_TYPED_TEST_SUITE_P(test_types, OffloadedTensorTest, TypesToTest);
 
 }  // namespace test
