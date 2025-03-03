@@ -37,7 +37,6 @@ class OutPyBuffer : public std::streambuf {
 public:
     OutPyBuffer(py::object bytes_io_stream) : m_py_stream{std::move(bytes_io_stream)} {}
 
-    // TODO: Flush underlying steam in ~OutPyBuffer() ???
 protected:
     std::streamsize xsputn(const char_type* s, std::streamsize n) override {
         return m_py_stream.attr("write")(py::bytes(s, n)).cast<std::streamsize>();
