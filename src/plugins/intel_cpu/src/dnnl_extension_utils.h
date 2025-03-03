@@ -83,8 +83,9 @@ public:
                 return true;
             }
 
-            if (!itpd.next_impl())
+            if (!itpd.next_impl()) {
                 break;
+            }
         }
 
         return false;
@@ -99,12 +100,14 @@ public:
 
             if (comparator(descImplType)) {
                 func(itpd);
-                if (first_match)
+                if (first_match) {
                     break;
+                }
             }
 
-            if (!itpd.next_impl())
+            if (!itpd.next_impl()) {
                 break;
+            }
         }
 
         return;
