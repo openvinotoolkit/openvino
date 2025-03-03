@@ -50,6 +50,10 @@ private:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     void implement_properties();
 
+    void serialize(std::ostream& model,
+                   bool encrypted = false,
+                   const std::function<std::string(const std::string&)>& encypt = nullptr) const;
+
     std::string m_name;
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
