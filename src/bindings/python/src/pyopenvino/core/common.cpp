@@ -689,7 +689,7 @@ ov::pass::Serialize::Version convert_to_version(const std::string& version) {
                    "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
 }
 
-std::shared_ptr<ov::Node> node_from_input_value(NodeInput input) {
+std::shared_ptr<ov::Node> node_from_input_value(NodeInput& input) {
     if (std::shared_ptr<ov::Node>* node = std::get_if<std::shared_ptr<ov::Node>>(&input)) {
         return *node;
     } else if (const int* i_val = std::get_if<int>(&input)) {

@@ -188,7 +188,7 @@ std::string get_simple_repr(const T& obj) {
 
 typedef std::variant<std::shared_ptr<ov::Node>, int, float, py::array> NodeInput;
 
-std::shared_ptr<ov::Node> node_from_input_value(NodeInput input);
+std::shared_ptr<ov::Node> node_from_input_value(NodeInput& input);
 
 // Use only with classes that are not creatable by users on Python's side, because
 // Objects created in Python that are wrapped with such wrapper will cause memory leaks.
