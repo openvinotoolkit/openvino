@@ -5,6 +5,7 @@
 #include "kernels_cache.hpp"
 #include <regex>
 
+#include "impls/cm/utils/kernels_db.hpp"
 #include "impls/ocl_v2/utils/kernels_db.hpp"
 #include "intel_gpu/runtime/kernel_args.hpp"
 #include "openvino/util/pp.hpp"
@@ -256,6 +257,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
             auto process_batch_includes = [find_and_remove_includes](kernels_cache::batch_program& prog) {
                 std::list<std::string> sources_to_process(prog.source.begin(), prog.source.end());
+
                 prog.source.clear();
                 std::list<std::string> all_headers;
                 while (!sources_to_process.empty()) {
@@ -266,14 +268,20 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                     for (auto& header : new_headers) {
                         if (std::find(all_headers.begin(), all_headers.end(), header) == all_headers.end()) {
                             all_headers.push_front(header);
-                            std::string_view header_code = ov::intel_gpu::ocl::OCLSourcesDB::get_kernel_header(header);
+                            std::string_view header_code = prog.language == kernel_language::OCLC_V2
+                                ? ov::intel_gpu::ocl::OCLSourcesDB::get_kernel_header(header)
+                                : ov::intel_gpu::cm::CMSourcesDB::get_kernel_header(header);
                             sources_to_process.push_back(std::string(header_code) + "\n");
                         }
                     }
                 }
+
+                if (prog.language == kernel_language::CM) {
+                    prog.source.insert(prog.source.begin(), "#include <cm/cm.h>\n#include <cm/cmtl.h>\n");
+                }
             };
 
-            if (b.language == kernel_language::OCLC_V2)
+            if (b.language == kernel_language::OCLC_V2 || b.language == kernel_language::CM)
                 process_batch_includes(b);
 
             std::string full_code = options + " " + _device->get_info().driver_version;

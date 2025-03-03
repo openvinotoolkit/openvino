@@ -13,7 +13,7 @@
 namespace ov::intel_gpu::cm {
 
 std::string_view CMSourcesDB::get_kernel_template(std::string_view template_name) {
-    static constexpr std::array sources = {
+    static std::array sources = {
         #include "gpu_cm_kernel_sources.inc"
     };
     for (const auto& s : sources) {
@@ -25,7 +25,7 @@ std::string_view CMSourcesDB::get_kernel_template(std::string_view template_name
 }
 
 std::string_view CMSourcesDB::get_kernel_header(std::string_view header_name) {
-    static constexpr std::array headers = {
+    static std::array headers = {
         #include "gpu_cm_kernel_headers.inc"
     };
     for (const auto& s : headers) {

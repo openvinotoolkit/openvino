@@ -11,7 +11,7 @@
 #endif
 
 #if OV_GPU_WITH_CM
-    #include "impls/cm_v2/xetla_lstm_seq.hpp"
+    #include "impls/cm/xetla_lstm_seq.hpp"
 #endif
 
 #if OV_GPU_WITH_ONEDNN

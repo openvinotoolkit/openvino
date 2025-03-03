@@ -6,7 +6,6 @@
 #include "utils/kernel_generator.hpp"
 
 #include "xetla_lstm_seq.hpp"
-#include "openvino/op/lstm_sequence.hpp"
 #include "registry/implementation_manager.hpp"
 
 namespace ov::intel_gpu::cm {
@@ -35,7 +34,7 @@ protected:
         const auto& x_shape = params.input_layouts[0].get_shape();
 
         jit_constants.add({
-            make_jit_constant("KERNEL_NAME", this->m_kernel_name),
+            make_jit_constant("KERNEL_NAME", get_entry_point(params)),
             make_jit_constant("INPUT_SIZE", x_shape[2]),
         });
 
@@ -110,7 +109,7 @@ protected:
         const auto& x_shape = params.input_layouts[0].get_shape();
 
         jit_constants.add({
-            make_jit_constant("KERNEL_NAME", this->m_kernel_name),
+            make_jit_constant("KERNEL_NAME", get_entry_point(params)),
             make_jit_constant("INPUT_SIZE", x_shape[2]),
         });
 
