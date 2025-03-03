@@ -18,7 +18,7 @@
 #include "primitive_inst.h"
 #include "kernel_selector_helper.h"
 #include "register.hpp"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "concatenation_inst.h"
 #include "gather_inst.h"
 #include "permute_inst.h"
@@ -157,7 +157,7 @@ protected:
         return _kernels;
     }
 
-    std::vector<layout> get_internal_buffer_layouts_impl() const override {
+    std::vector<layout> get_internal_buffer_layouts(const kernel_impl_params& params) const override {
         std::vector<layout> layouts;
         for (auto& kd : _kernels_data) {
             if (kd.internalBufferSizes.empty())

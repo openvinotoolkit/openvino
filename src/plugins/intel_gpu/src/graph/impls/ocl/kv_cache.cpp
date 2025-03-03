@@ -200,6 +200,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             const auto& bt_layout = instance.get_impl_params()->output_layouts[1];
             auto bt_shape = bt_layout.get_shape();
             std::swap(beam_table_prev, beam_table_new);
+            instance.set_flag(ExecutionFlags::MEMORY_CHANGED);
 
             if (!beam_table_new || beam_table_new->count() < ov::shape_size(bt_shape)) {
                 bt_shape[desc->concat_axis] += instance.get_prealloc_iter_num();

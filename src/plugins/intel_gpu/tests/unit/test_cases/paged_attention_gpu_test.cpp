@@ -829,7 +829,25 @@ public:
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
-        network::ptr network = get_network(get_test_engine(), topology, config, get_test_stream_ptr(), false);
+        network::ptr network = nullptr;
+
+        cldnn::membuf mem_buf;
+        {
+            std::ostream out_mem(&mem_buf);
+            cldnn::BinaryOutputBuffer ob = cldnn::BinaryOutputBuffer(out_mem);
+            ob.set_stream(&get_test_stream());
+            cldnn::program::build_program(engine, topology, config)->save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            cldnn::BinaryInputBuffer ib = cldnn::BinaryInputBuffer(in_mem, engine);
+            auto imported_prog = std::make_shared<cldnn::program>(engine, config);
+            imported_prog->load(ib);
+            network = std::make_shared<cldnn::network>(imported_prog);
+        }
+
+        // network::ptr network = get_network(get_test_engine(), topology, config, get_test_stream_ptr(), false);
+
         network->set_input_data("query", query_mem);
         network->set_input_data("key", key_mem);
         network->set_input_data("value", value_mem);
