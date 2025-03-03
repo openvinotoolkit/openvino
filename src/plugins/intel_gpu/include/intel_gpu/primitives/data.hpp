@@ -67,7 +67,7 @@ struct weightless_cache_manager {
     }
 
     void apply_reorder(std::shared_ptr<layout> input_layout, std::shared_ptr<reorder> reorder) {
-        reorder_rep = {input_layout, reorder};
+        reorder_rep = {std::move(input_layout), std::move(reorder)};
     }
 
     bool save(BinaryOutputBuffer& ob, size_t data_size) const {
@@ -138,9 +138,9 @@ struct weightless_cache_manager {
                                                                                   mapped_weights);
 
         if (should_run_transformations()) {
-            run_transformations(ib.get_engine(), dst_mem, shared_buf);
+            run_transformations(ib.get_engine(), std::move(dst_mem), std::move(shared_buf));
         } else {
-            copy_to_dst_mem(dst_mem, shared_buf->get_ptr<uint8_t>());
+            copy_to_dst_mem(std::move(dst_mem), shared_buf->get_ptr<uint8_t>());
         }
         return true;
     }
@@ -229,8 +229,8 @@ private:
             topology topology(input_layout("input", *reorder_rep.input_layout),
                               *reorder_rep.reorder);
             cldnn::network network(engine, topology, {});
-            network.set_input_data("input", input_mem);
-            network.set_output_memory(reorder_rep.reorder->id, dst_mem);
+            network.set_input_data("input", std::move(input_mem));
+            network.set_output_memory(reorder_rep.reorder->id, std::move(dst_mem));
             auto outputs = network.execute();
             for (const auto& output : outputs) {
                 output.second.get_event()->wait();
