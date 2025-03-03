@@ -26,6 +26,8 @@ void regclass_frontend_pytorch_decoder(py::module m) {
     // Register classes for TorchScript type system
     py::class_<type::Tensor>(type_module, "Tensor").
         def(py::init<Any>());
+    py::class_<type::Complex>(type_module, "Complex").
+        def(py::init<Any>());
     py::class_<type::List>(type_module, "List").
         def(py::init<Any>());
     py::class_<type::Str>(type_module, "Str").
