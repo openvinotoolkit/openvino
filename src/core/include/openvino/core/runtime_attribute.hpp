@@ -19,13 +19,8 @@ class Any;
 
 class OPENVINO_API RuntimeAttribute {
 public:
-    _OPENVINO_HIDDEN_METHOD static const DiscreteTypeInfo& get_type_info_static() {
-        static const ::ov::DiscreteTypeInfo type_info_static{"RuntimeAttribute"};
-        return type_info_static;
-    }
-    virtual const DiscreteTypeInfo& get_type_info() const {
-        return get_type_info_static();
-    }
+    OPENVINO_RTTI_BASE("RuntimeAttribute")
+
     using Ptr = std::shared_ptr<RuntimeAttribute>;
     using Base = std::tuple<::ov::RuntimeAttribute>;
     virtual ~RuntimeAttribute();
