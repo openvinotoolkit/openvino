@@ -1132,9 +1132,6 @@ void transpose_16NxK(TDST* dst,
         auto p_zps = p_scales + K;
         s = s + sizeof(float) * 2 * K;
         attn_dequant_u8_by_channel_kernel(s, t, N, K, K, src_stride, p_scales, p_zps);
-        for (size_t i = N; i < block_size; i++) {
-            std::memset(t + i * src_stride, 0, sizeof(TDST) * K);
-        }
     } else {
         for (size_t n = 0; n < N; n++) {
             size_t src_offset = 0;
@@ -1151,9 +1148,6 @@ void transpose_16NxK(TDST* dst,
             }
             s += src_offset;
             t += src_stride;
-        }
-        for (size_t i = N; i < block_size; i++) {
-            std::memset(t + i * src_stride, 0, sizeof(TDST) * K);
         }
     }
     transpose_16NxK<TDST, precision_of<TDST>::value>(dst,
@@ -2237,13 +2231,17 @@ struct MHA {
 
             auto ithr = parallel_get_thread_num();
             auto* k_ptr = k_cache.ptr<KEY_CACHE_TYPE>(block_number, hk);
+            size_t valid_len = _helper._block_size;
+            if constexpr (std::is_integral_v<KEY_CACHE_TYPE>) {
+                valid_len = item.valid_block_len;
+            }
             transpose_16NxK<DATA_TYPE, precision_of<KEY_CACHE_TYPE>::value>(
                 _helper._qk_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
                 k_ptr,
                 _helper._output.template ptr<DATA_TYPE>(ithr),
-                item.valid_block_len,           // N
+                valid_len,                      // N
                 _helper._S,                     // K
-                _helper._block_size,            // total_block_size
+                _helper._block_size,            // block_size
                 _helper._block_size,            // dst_stride
                 _helper._S,                     // src_stride
                 _helper._key_group_size,        // group_size
@@ -2511,19 +2509,29 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             _helper._key_group_size ? k_cache.size(3) / (_helper._key_group_size + key_params_size) : 1;
         size_t value_group_num =
             _helper._value_group_size ? v_cache.size(3) / (_helper._value_group_size + value_params_size) : 1;
-
         auto SV = v_cache.size(3) - (v_cache.get_precision().is_real() ? 0 : value_params_size * value_group_num);
         // revise group_size if it's zero.
         _helper._value_group_size = _helper._value_group_size ? _helper._value_group_size : SV;
+
+        // check by_hidden_dims parameter of value cache
+        if (!value_group_num && v_cache.get_precision().is_integral())
+            OPENVINO_THROW("PagedAttn value cache gets wrong group_size, ",
+                           _helper._value_group_size,
+                           " should be smaller than hidden_dims");
         size_t S = 0;
         if (_helper._quant_key_bychannel) {
             S = k_cache.size(3);
-            _helper._key_group_size = _helper._block_size;
         } else {
+            // check by_hidden_dims parameter of key cache
+            if (!key_group_num && k_cache.get_precision().is_integral())
+                OPENVINO_THROW("PagedAttn key cache gets wrong group_size, ",
+                               _helper._key_group_size,
+                               " should be smaller than hidden_dims");
             S = k_cache.size(3) - (k_cache.get_precision().is_real() ? 0 : key_params_size * key_group_num);
             _helper._key_group_size = _helper._key_group_size ? _helper._key_group_size : S;
         }
-        auto block_size = _helper._quant_key_bychannel ? (k_cache.size(2) - 2 * sizeof(float)) : k_cache.size(2);
+        auto block_size = _helper._quant_key_bychannel ? (k_cache.size(2) - key_params_size) : k_cache.size(2);
+        _helper._key_group_size = block_size;
         auto H = q.size(1) / S;
         auto h_each_group_len = 1;
         if (Hk != H) {
@@ -2540,7 +2548,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
         if (k_cache.m_dt == ov::element::Type_t::u8) {
             if (_helper._quant_key_bychannel) {
-                k_cache.assert_dims({0, Hk, block_size + 2 * sizeof(float), S}, true);
+                k_cache.assert_dims({0, Hk, block_size + key_params_size, S}, true);
             } else {
                 k_cache.assert_dims({0, Hk, block_size, S + key_params_size * key_group_num}, true);
             }
