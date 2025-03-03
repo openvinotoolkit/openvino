@@ -15,8 +15,8 @@ import numpy as np
 import pytest
 
 from openvino.frontend import FrontEndManager, ConversionExtension, NodeContext
-from openvino.runtime import PartialShape, Type
-import openvino.runtime.opset10 as ops
+from openvino import PartialShape, Type
+import openvino.opset10 as ops
 
 logging.basicConfig(level=logging.DEBUG)
 
