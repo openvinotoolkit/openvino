@@ -9,7 +9,7 @@
 #include "snippets/op/brgemm.hpp"
 #include "snippets/op/buffer.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/tpp/x64/op/modifiers.hpp"
+#include "transformations/tpp/common/op/modifiers.hpp"
 
 namespace ov::intel_cpu::tpp::pass {
 namespace {
