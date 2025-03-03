@@ -165,7 +165,6 @@ class TorchFXPythonDecoder (BaseFXDecoder):
     """
     Decoder for PyTorch FX GraphModule and Node objects to OpenVINO IR.
     """
-    _decomp_table = None
 
     _decomp_table = None
 
