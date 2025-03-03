@@ -109,7 +109,12 @@ public:
         std::vector<float> init_values(initial_tensor.get_size());
         ov::test::utils::fill_data_random(init_values.data(), initial_tensor.get_size(), 10, 0, 100);
 
-        std::copy(init_values.begin(), init_values.end(), element::iterator<ov_type>(initial_tensor.data()));
+        std::transform(init_values.begin(),
+                       init_values.end(),
+                       element::iterator<ov_type>(initial_tensor.data()),
+                       [](float value) {
+                           return static_cast<element_type>(value);
+                       });
 
         file_name_str = ov::test::utils::generateTestFilePrefix();
         file_name = path_type(file_name_str.begin(), file_name_str.end());
@@ -172,7 +177,7 @@ TYPED_TEST_P(ParametredOffloadTensorTest, create_mmaped_tensor) {
     ASSERT_FALSE(std::filesystem::exists(this->file_name));
 }
 
-REGISTER_TYPED_TEST_CASE_P(ParametredOffloadTensorTest, save_tensor, read_tensor, create_mmaped_tensor);
+REGISTER_TYPED_TEST_SUITE_P(ParametredOffloadTensorTest, save_tensor, read_tensor, create_mmaped_tensor);
 
 using TypesToTest = ::testing::Types<
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
@@ -221,12 +226,11 @@ using TypesToTest = ::testing::Types<
     std::tuple<std::filesystem::path, ov::float8_e4m3>,
     std::tuple<std::filesystem::path, ov::float8_e5m2>,
     std::tuple<std::filesystem::path, ov::float4_e2m1>,
-    std::tuple<std::filesystem::path, ov::float8_e8m0>
->;
+    std::tuple<std::filesystem::path, ov::float8_e8m0>>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(OffloadTensorTest, ParametredOffloadTensorTest, TypesToTest);
 
-TEST(OffloadTensorTest, string_tensor_throws){
+TEST(OffloadTensorTest, string_tensor_throws) {
     ov::Tensor str_tensor(ov::element::string, ov::Shape{1});
     auto file_name = ov::test::utils::generateTestFilePrefix();
     {
@@ -247,7 +251,6 @@ TEST(OffloadTensorTest, string_tensor_throws){
     }
 }
 
-
 class FunctionalOffloadTensorTest : public ::testing::Test {
 public:
     void SetUp() override {
@@ -264,8 +267,8 @@ public:
             std::filesystem::remove(file_name);
     }
 
-    ov::element::Type ov_type {ov::element::f32};
-    ov::PartialShape shape {1, 2, 3, 4};
+    ov::element::Type ov_type{ov::element::f32};
+    ov::PartialShape shape{1, 2, 3, 4};
     ov::Tensor initial_tensor;
     std::string file_name;
 };
@@ -336,7 +339,6 @@ TEST_F(FunctionalOffloadTensorTest, read_small_file) {
         EXPECT_THROW(tensor = read_tensor_data(file_name, ov_type, shape, 0, false), ov::Exception);
     }
     remove_file();
-
 }
 }  // namespace test
 }  // namespace ov
