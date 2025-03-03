@@ -91,6 +91,7 @@ public:
 
         std::ostringstream result;
         result << inputShape << "_" <<
+            testValues.params.deqPrecision << "_" <<
             testValues.params.updatePrecisions << "_" <<
             testValues.actual.dequantization << "_" <<
             testValues.actual.fakeQuantizeOnData << "_" <<
@@ -161,6 +162,17 @@ const std::vector<FuseMultiplyToFakeQuantizeTransformationTestValues> testValues
                 { 0.f }, { 2.55f },
                 { 0.f }, { 127.5f, 102.f, 76.5f }
             },
+            { {}, {}, {} },
+        }
+    },
+    {
+        LayerTransformation::createParamsU8I8().setDeqPrecision(ov::element::f16),
+        {
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
+            { {}, {}, { 0.5f } },
+        },
+        {
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 127.5f } },
             { {}, {}, {} },
         }
     },
