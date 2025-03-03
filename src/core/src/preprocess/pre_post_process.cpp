@@ -314,9 +314,6 @@ std::shared_ptr<Model> PrePostProcessor::build() {
     return function;
 }
 
-// ------------------ TensorInfoMemoryType ----------------
-TensorInfoMemoryType::~TensorInfoMemoryType() = default;
-
 // --------------------- InputTensorInfo ------------------
 InputTensorInfo::InputTensorInfo() : m_impl(std::unique_ptr<InputTensorInfoImpl>(new InputTensorInfoImpl())) {}
 InputTensorInfo::~InputTensorInfo() = default;

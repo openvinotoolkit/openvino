@@ -25,14 +25,6 @@ class Extension;
  */
 class OPENVINO_API Extension {
 public:
-    _OPENVINO_HIDDEN_METHOD static const DiscreteTypeInfo& get_type_info_static() {
-        static const ::ov::DiscreteTypeInfo type_info_static{"Extension"};
-        return type_info_static;
-    }
-    virtual const DiscreteTypeInfo& get_type_info() const {
-        return get_type_info_static();
-    }
-
     using Ptr = std::shared_ptr<Extension>;
 
     virtual ~Extension();
@@ -46,15 +38,15 @@ public:
 /**
  * @brief The entry point for library with OpenVINO extensions
  *
- * @param ext of extensions
+ * @param vector of extensions
  */
 OPENVINO_EXTENSION_C_API
-void OV_CREATE_EXTENSION(std::vector<ov::Extension::Ptr>& ext);
+void OV_CREATE_EXTENSION(std::vector<ov::Extension::Ptr>&);
 
 /**
  * @brief Macro generates the entry point for the library
  *
- * @param ext of extensions
+ * @param vector of extensions
  */
 #define OPENVINO_CREATE_EXTENSIONS(extensions)                                               \
     OPENVINO_EXTENSION_C_API void OV_CREATE_EXTENSION(std::vector<ov::Extension::Ptr>& ext); \

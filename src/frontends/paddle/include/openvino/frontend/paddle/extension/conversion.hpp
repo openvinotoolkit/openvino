@@ -13,10 +13,8 @@ namespace ov {
 namespace frontend {
 namespace paddle {
 
-class ConversionExtension : public ConversionExtensionBase {
+class PADDLE_FRONTEND_API ConversionExtension : public ConversionExtensionBase {
 public:
-    OPENVINO_RTTI("frontend::paddle::ConversionExtension", "", ConversionExtensionBase);
-
     using Ptr = std::shared_ptr<ConversionExtension>;
 
     ConversionExtension() = delete;
@@ -24,6 +22,8 @@ public:
     ConversionExtension(const std::string& op_type, const ov::frontend::CreatorFunctionNamed& converter)
         : ConversionExtensionBase(op_type),
           m_converter(converter) {}
+
+    ~ConversionExtension() override;
 
     const ov::frontend::CreatorFunctionNamed& get_converter() const {
         return m_converter;
