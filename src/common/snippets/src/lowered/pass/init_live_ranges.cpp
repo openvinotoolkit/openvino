@@ -17,8 +17,7 @@ inline bool pass_through_expr(const ExpressionPtr& expr) {
     const auto& node = expr->get_node();
     return op::Subgraph::is_shape_infer_op(node)
 #ifdef SNIPPETS_DEBUG_CAPS
-            || ov::is_type<op::PerfCountBeginBase>(node)
-            || ov::is_type<op::PerfCountEndBase>(node)
+            || ov::is_type_any_of<op::PerfCountBeginBase, op::PerfCountEndBase>(node)
 #endif
             || ov::is_type<BufferExpression>(expr);
 }

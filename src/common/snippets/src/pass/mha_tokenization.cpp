@@ -21,10 +21,10 @@ bool is_supported_tensor(const ov::descriptor::Tensor& t) {
 
 bool is_supported_intermediate_op(const std::shared_ptr<ov::Node>& node) {
     const auto is_intermediate_op = [](const std::shared_ptr<ov::Node>& node) {
-        return ov::is_type<ov::op::util::UnaryElementwiseArithmetic>(node) ||
-               ov::is_type<ov::op::util::BinaryElementwiseArithmetic>(node) ||
-               ov::is_type<ov::op::v0::FakeQuantize>(node) ||
-               ov::is_type<ov::op::v1::Select>(node);
+        return ov::is_type_any_of<ov::op::util::UnaryElementwiseArithmetic,
+                                  ov::op::util::BinaryElementwiseArithmetic,
+                                  ov::op::v0::FakeQuantize,
+                                  ov::op::v1::Select>(node);
     };
     return is_intermediate_op(node) && ov::snippets::pass::TokenizeSnippets::AppropriateForSubgraph(node);
 }
