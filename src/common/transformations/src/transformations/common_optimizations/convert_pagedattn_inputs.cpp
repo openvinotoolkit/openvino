@@ -140,6 +140,9 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
 
         key_cache->set_partial_shape(key_cache_shape);
         value_cache->set_partial_shape(value_cache_shape);
+
+        key_cache->validate_and_infer_types();
+        value_cache->validate_and_infer_types();
         return true;
     };
 
