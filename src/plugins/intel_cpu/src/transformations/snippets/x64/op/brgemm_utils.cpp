@@ -123,6 +123,23 @@ size_t compute_inner_k_block(const ov::element::Type& precision) {
     return brgemm_utils::get_elems_in_vec(precision);
 }
 
+ov::snippets::VectorDims compute_buffer_b_allocation_shape(size_t K,
+                                                           size_t N,
+                                                           const ov::element::Type& prc,
+                                                           bool is_transposed) {
+    const size_t new_N = compute_repacked_n_dim(N, prc);
+    //  - In case of transpose, K dimension must be rounded-up to number of elems in vector register
+    //    For the details, please see 'transpose16x8' and 'fixup16x16' implementations and usage in
+    //    onednn/src/cpu/x64/matmul/brgemm_matmul_copy_utils.cpp
+    //  - Low precision repacking writes the result by VNNIFactor * wei_n_blk blocks
+    //    despite the actual size of the input data. Because of that we have to round-up the allocation shape to always
+    //    have enough memory allocated. For the details, please see 'copy_4x64' and 'copy_2x32' implementations and
+    //    usage in onednn/src/cpu/x64/matmul/brgemm_matmul_copy_utils.cpp
+    const size_t K_alignment =
+        is_transposed ? brgemm_utils::get_elems_in_vec(prc) : brgemm_utils::compute_vnni_factor(prc);
+    return ov::snippets::VectorDims{new_N, ov::snippets::utils::div_up(K, K_alignment), K_alignment};
+}
+
 ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) {
     OPENVINO_ASSERT(ov::is_type<BrgemmCPU>(brgemm_expr->get_node()),
                     "get_copy_b_expr must be called only for BrgemmCPU node");
