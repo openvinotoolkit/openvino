@@ -709,6 +709,61 @@ TEST_F(OVTensorTest, readRangeRoiBlobStringTensor) {
     }
 }
 
+TEST_F(OVTensorTest, createTensorWithZeroDimsCheckStride) {
+    ov::Shape shape = {0, 0, 0, 0};
+    auto tensor = ov::Tensor(ov::element::f32, shape);
+    EXPECT_EQ(!!tensor, true);
+    auto stride = tensor.get_strides();
+    EXPECT_EQ(stride.size(), shape.size());
+    EXPECT_EQ(stride.back(), 0);
+    EXPECT_EQ(tensor.is_continuous(), true);
+}
+
+TEST_F(OVTensorTest, getByteSizeU2LessThanMinStorageUnit) {
+    const auto tensor = ov::Tensor(ov::element::u2, ov::Shape{3});
+    EXPECT_EQ(tensor.get_byte_size(), 1);
+}
+
+TEST_F(OVTensorTest, getByteSizeU2EvenDivByStorageUnit) {
+    const auto tensor = ov::Tensor(ov::element::u2, ov::Shape{16});
+    EXPECT_EQ(tensor.get_byte_size(), 4);
+}
+
+TEST_F(OVTensorTest, getByteSizeU2NotEvenDivByStorageUnit) {
+    const auto tensor = ov::Tensor(ov::element::u2, ov::Shape{17});
+    EXPECT_EQ(tensor.get_byte_size(), 5);
+}
+
+TEST_F(OVTensorTest, getByteSizeU3LessThanMinStorageUnit) {
+    const auto tensor = ov::Tensor(ov::element::u3, ov::Shape{3});
+    EXPECT_EQ(tensor.get_byte_size(), 3);
+}
+
+TEST_F(OVTensorTest, getByteSizeU3EvenDivByStorageUnit) {
+    const auto tensor = ov::Tensor(ov::element::u3, ov::Shape{16});
+    EXPECT_EQ(tensor.get_byte_size(), 2 * 3);
+}
+
+TEST_F(OVTensorTest, getByteSizeU3NotEvenDivByStorageUnit) {
+    const auto tensor = ov::Tensor(ov::element::u3, ov::Shape{17});
+    EXPECT_EQ(tensor.get_byte_size(), 3 + 2 * 3);
+}
+
+TEST_F(OVTensorTest, getByteSizeU6LessThanMinStorageUnit) {
+    const auto tensor = ov::Tensor(ov::element::u6, ov::Shape{3});
+    EXPECT_EQ(tensor.get_byte_size(), 3);
+}
+
+TEST_F(OVTensorTest, getByteSizeU6EvenDivByStorageUnit) {
+    const auto tensor = ov::Tensor(ov::element::u6, ov::Shape{16});
+    EXPECT_EQ(tensor.get_byte_size(), 4 * 3);
+}
+
+TEST_F(OVTensorTest, getByteSizeU6NotEvenDivByStorageUnit) {
+    const auto tensor = ov::Tensor(ov::element::u6, ov::Shape{17});
+    EXPECT_EQ(tensor.get_byte_size(), 3 + 4 * 3);
+}
+
 TEST_F(OVTensorTest, checkIsContinuousTensorScalar) {
     ov::Tensor tensor(ov::element::f32, ov::Shape{});
     auto data = tensor.data();
