@@ -181,11 +181,14 @@ OutputVector translate_linalg_vector_norm(const NodeContext& context) {
     // dtype=None) -> Tensor
     // aten::linalg_vector_norm.out(Tensor self, Scalar ord=2, int[1]? dim=None, bool
     // keepdim=False, *, ScalarType? dtype=None, Tensor(a!) out) -> Tensor(a!):
-    num_inputs_check(context, 4, 6);
+    num_inputs_check(context, 3, 6);
     auto x = context.get_input(0);
     // ord defines the vector norm that is computed.
     auto ord = context.const_input<float>(1);
-    bool keep_dim = context.const_input<bool>(3);
+    bool keep_dim = false;
+    if (!context.input_is_none(3)) {
+        keep_dim = context.const_input<bool>(3);
+    }
     Output<Node> dim;
     Output<Node> result;
     // If dim= None, x will be flattened before the norm is computed.
