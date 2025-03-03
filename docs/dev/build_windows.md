@@ -54,31 +54,30 @@ Note, that PDB symbols files are supported for both dynamic and static builds.
 
 To pack PDB files, it's essential to run cmake command to create a dedicated archive:
 
-    ```sh
-    cmake --install <build folder> --config <Release | Debug | RelWithDebInfo> --prefix <installation path> --component pdb
-    ```
+  ```sh
+  cmake --install <build folder> --config <Release | Debug | RelWithDebInfo> --prefix <installation path> --component pdb
+  ```
 
 ### Building with Python API support
 
-- To build the OpenVINO Runtime Python API:
-  1. Enable the `-DENABLE_PYTHON=ON` in the CMake (Step #3) option above. To specify an exact Python version, use the following options (requires cmake 3.16 and higher):
-     ```sh
-     -DPython3_EXECUTABLE="C:\Program Files\Python11\python.exe"
-     ```
-  2. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4), and install requirements:
-     ```sh
-     pip install -r <openvino source tree>\src\bindings\python\wheel\requirements-dev.txt
-     ```
-  3. After the build process finishes, export the newly built Python libraries to the user environment variables:
-     ```
-     set PYTHONPATH=<openvino_repo>/bin/<arch>/Release/python;<openvino_repo>/tools/ovc;%PYTHONPATH%
-     set OPENVINO_LIB_PATHS=<openvino_repo>/bin/<arch>/Release;<openvino_repo>/temp/tbb/bin
-     set PATH=<openvino_repo>/tools/ovc/openvino/tools/ovc:%PATH%
-     ```
-     or install the wheel with pip:
-     ```
-     pip install build/wheel/openvino-2023.0.0-9612-cp11-cp11-win_arm64.whl
-     ```
+1. Enable the `-DENABLE_PYTHON=ON` in the CMake (Step #3) option above. To specify an exact Python version, use the following options (requires cmake 3.16 and higher):
+    ```sh
+    -DPython3_EXECUTABLE="C:\Program Files\Python11\python.exe"
+    ```
+2. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4), and install requirements:
+    ```sh
+    pip install -r <openvino source tree>\src\bindings\python\wheel\requirements-dev.txt
+    ```
+3. After the build process finishes, export the newly built Python libraries to the user environment variables:
+    ```
+    set PYTHONPATH=<openvino_repo>/bin/<arch>/Release/python;<openvino_repo>/tools/ovc;%PYTHONPATH%
+    set OPENVINO_LIB_PATHS=<openvino_repo>/bin/<arch>/Release;<openvino_repo>/temp/tbb/bin
+    set PATH=<openvino_repo>/tools/ovc/openvino/tools/ovc:%PATH%
+    ```
+    or install the wheel with pip:
+    ```
+    pip install build/wheel/openvino-2023.0.0-9612-cp11-cp11-win_arm64.whl
+    ```
 
 ### Building OpenVINO with Ninja* Build System
 
