@@ -15,7 +15,15 @@
 #include <unordered_set>
 #include <vector>
 
-const constexpr std::array<uint8_t, 6> NPUW_SERIALIZATION_INDICATOR =
+namespace ov {
+namespace npuw {
+namespace s11n {
+using IndicatorType = std::array<uint8_t, 6>;
+}  // namespace s11n
+}  // namespace npuw
+}  // namespace ov
+
+const constexpr ov::npuw::s11n::IndicatorType NPUW_SERIALIZATION_INDICATOR =
     {char{0x13}, char{0x37}, char{0x6e}, char{0x70}, char{0x75}, char{0x77}};
 
 const constexpr char* NPUW_SERIALIZATION_VERSION = "0.1";
@@ -36,6 +44,7 @@ class Output;
 template <class>
 class SharedBuffer;
 class MappedMemory;
+enum class CacheMode;
 namespace element {
 class Type;
 }
@@ -80,6 +89,7 @@ void write(std::ostream& stream, const ::intel_npu::Config& var);
 void write(std::ostream& stream, const ov::Output<const ov::Node>& var);
 void write_any(std::ostream& stream, const ov::Any& var);
 void write(std::ostream& stream, const ov::npuw::weights::LazyTensor& var);
+void write(std::ostream& stream, const ov::CacheMode& var);
 void write(std::ostream& stream, const ov::element::Type& var);
 
 void read(std::istream& stream, std::streampos& var);
@@ -93,6 +103,7 @@ void read(std::istream& stream, std::shared_ptr<ov::op::v0::Parameter>& var);
 void read(std::istream& stream, std::shared_ptr<ov::Node>& var);
 void read_any(std::istream& stream, ov::Any& var);
 void read(std::istream& stream, ov::npuw::weights::LazyTensor& var);
+void read(std::istream& stream, ov::CacheMode& var);
 void read(std::istream& stream, ov::element::Type& var);
 
 // Weightless utils

@@ -25,6 +25,7 @@ ov_add_test_target(
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
             ${CMAKE_CURRENT_SOURCE_DIR}/npuw
+            ${CMAKE_CURRENT_SOURCE_DIR}/npuw/model_generator
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/utils/include
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include
