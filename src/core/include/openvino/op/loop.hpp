@@ -87,6 +87,7 @@ public:
         : DirectValueAccessor<op::v5::Loop::SpecialBodyPorts>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v5::Loop::SpecialBodyPorts>");
+    ~AttributeAdapter() override;
 };
 
 }  // namespace ov

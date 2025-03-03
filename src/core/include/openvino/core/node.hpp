@@ -553,6 +553,7 @@ template <>
 class OPENVINO_API AttributeAdapter<std::shared_ptr<ov::Node>> : public VisitorAdapter {
 public:
     AttributeAdapter(std::shared_ptr<ov::Node>& value);
+    ~AttributeAdapter() override;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<Node>>");
@@ -565,6 +566,7 @@ template <>
 class OPENVINO_API AttributeAdapter<ov::NodeVector> : public VisitorAdapter {
 public:
     AttributeAdapter(ov::NodeVector& ref);
+    ~AttributeAdapter() override;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 

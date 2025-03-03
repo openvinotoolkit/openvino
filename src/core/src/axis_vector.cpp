@@ -34,3 +34,5 @@ ov::AxisVector& ov::AxisVector::operator=(AxisVector&& v) noexcept {
     static_cast<std::vector<size_t>*>(this)->operator=(std::move(v));
     return *this;
 }
+
+ov::AttributeAdapter<ov::AxisVector>::~AttributeAdapter() = default;

@@ -311,4 +311,6 @@ void op::v11::Interpolate::validate_and_infer_types() {
         shape_infer(this, input_shapes, m_attrs.pads_begin, m_attrs.pads_end, make_tensor_accessor());
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
+
+AttributeAdapter<op::v0::Interpolate::InterpolateMode>::~AttributeAdapter() = default;
 }  // namespace ov

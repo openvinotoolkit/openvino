@@ -99,6 +99,7 @@ public:
         : EnumAttributeAdapterBase<op::v1::BinaryConvolution::BinaryConvolutionMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v1::BinaryConvolution::BinaryConvolutionMode>");
+    ~AttributeAdapter() override;
 };
 
 }  // namespace ov

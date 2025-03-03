@@ -76,6 +76,8 @@ class OPENVINO_API AttributeAdapter<op::GeluApproximationMode>
 public:
     AttributeAdapter(op::GeluApproximationMode& value) : EnumAttributeAdapterBase<op::GeluApproximationMode>(value) {}
 
+    ~AttributeAdapter() override;
+
     OPENVINO_RTTI("AttributeAdapter<ov::op::GeluApproximationMode>");
 };
 }  // namespace ov

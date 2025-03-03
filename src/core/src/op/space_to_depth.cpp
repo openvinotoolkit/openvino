@@ -94,4 +94,6 @@ EnumNames<op::v0::SpaceToDepth::SpaceToDepthMode>::get() {
          {"depth_first", op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST}});
     return enum_names;
 }
+
+AttributeAdapter<op::v0::SpaceToDepth::SpaceToDepthMode>::~AttributeAdapter() = default;
 }  // namespace ov

@@ -36,3 +36,5 @@ ov::CoordinateDiff& ov::CoordinateDiff::operator=(CoordinateDiff&& v) noexcept {
     static_cast<std::vector<std::ptrdiff_t>*>(this)->operator=(std::move(v));
     return *this;
 }
+
+ov::AttributeAdapter<ov::CoordinateDiff>::~AttributeAdapter() = default;

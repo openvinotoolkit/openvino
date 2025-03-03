@@ -111,4 +111,6 @@ bool AttributeAdapter<ResultVector>::visit_attributes(AttributeVisitor& visitor)
     }
     return true;
 }
+
+AttributeAdapter<ResultVector>::~AttributeAdapter() = default;
 }  // namespace ov

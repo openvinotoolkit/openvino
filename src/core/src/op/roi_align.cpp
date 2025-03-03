@@ -150,6 +150,10 @@ std::ostream& operator<<(std::ostream& s, const op::v9::ROIAlign::AlignedMode& t
     return s << as_string(type);
 }
 
+AttributeAdapter<op::v3::ROIAlign::PoolingMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::v9::ROIAlign::PoolingMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::v9::ROIAlign::AlignedMode>::~AttributeAdapter() = default;
+
 namespace op {
 namespace roi_align {
 namespace {
