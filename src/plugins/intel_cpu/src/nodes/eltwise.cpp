@@ -2277,6 +2277,23 @@ bool Eltwise::canFuseParent(const NodePtr& parentNode) const {
     return true;
 }
 
+bool Eltwise::canFuseConvert(const NodePtr& convertNode) const {
+    if (!one_of(convertNode->getOriginalOutputPrecisionAtPort(0),
+                ov::element::i8,
+                ov::element::u8,
+                ov::element::f16,
+                ov::element::bf16,
+                ov::element::f32)) {
+        return false;
+    }
+// Convert can be fused into Eltwise only if jit implementation is supported
+#if defined(OPENVINO_ARCH_ARM64)
+    return jitIsSupported(this, getAlpha(), getBeta(), getGamma());
+#else
+    return false;
+#endif
+}
+
 bool Eltwise::canFuse(const NodePtr& node) const {
     auto isIntegerComputeSupported = [](const Node* node) {
         if (!one_of(node->getAlgorithm(),
