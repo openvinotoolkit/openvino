@@ -23,7 +23,7 @@ TEST(CpuShapeInfer, FC_InputSize_2) {
     auto op = std::make_shared<ov::op::internal::FullyConnected>(
         activate,
         weight,
-        std::make_shared<ov::op::v0::Constant>(ov::element::undefined, ov::Shape{0}));
+        std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}));
     std::vector<StaticShape> static_input_shapes = {StaticShape{720, 640}, {5, 6}};
     std::vector<StaticShape> static_output_shapes = {StaticShape{720, 5}};
     unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes);
@@ -35,7 +35,7 @@ TEST(CpuShapeInfer, FC_broadcastWeights1) {
     auto op = std::make_shared<ov::op::internal::FullyConnected>(
         activate,
         weight,
-        std::make_shared<ov::op::v0::Constant>(ov::element::undefined, ov::Shape{0}));
+        std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}));
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 720, 6}, {5, 6}};
     std::vector<StaticShape> static_output_shapes = {StaticShape{1, 720, 5}};
     unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes);
@@ -47,7 +47,7 @@ TEST(CpuShapeInfer, FC_broadcastWeights2) {
     auto op = std::make_shared<ov::op::internal::FullyConnected>(
         activate,
         weight,
-        std::make_shared<ov::op::v0::Constant>(ov::element::undefined, ov::Shape{0}));
+        std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}));
     std::vector<StaticShape> static_input_shapes = {StaticShape{2, 3, 720, 6}, {5, 6}};
     std::vector<StaticShape> static_output_shapes = {StaticShape{2, 3, 720, 5}};
     unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes);
@@ -59,7 +59,7 @@ TEST(CpuShapeInfer, FC_broadcastActivations1) {
     auto op = std::make_shared<ov::op::internal::FullyConnected>(
         activate,
         weight,
-        std::make_shared<ov::op::v0::Constant>(ov::element::undefined, ov::Shape{0}));
+        std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}));
     std::vector<StaticShape> static_input_shapes = {StaticShape{720, 6}, {1, 5, 6}};
     std::vector<StaticShape> static_output_shapes = {StaticShape{1, 720, 5}};
     unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes);
@@ -71,7 +71,7 @@ TEST(CpuShapeInfer, FC_broadcastActivations2) {
     auto op = std::make_shared<ov::op::internal::FullyConnected>(
         activate,
         weight,
-        std::make_shared<ov::op::v0::Constant>(ov::element::undefined, ov::Shape{0}));
+        std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}));
     std::vector<StaticShape> static_input_shapes = {StaticShape{720, 6}, {1, 1, 5, 6}};
     std::vector<StaticShape> static_output_shapes = {StaticShape{1, 1, 720, 5}};
     unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes);

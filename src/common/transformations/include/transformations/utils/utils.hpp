@@ -193,6 +193,8 @@ TRANSFORMATIONS_API bool constantIsEqualTo(const std::shared_ptr<ov::op::v0::Con
 
 TRANSFORMATIONS_API bool has_f16_constants(const std::shared_ptr<const ov::Model>& function);
 
+TRANSFORMATIONS_API bool is_large_language_model(const ov::Model& model);
+
 /**
  * \brief Check if 'other_shape' can be broadcasted to 'ref_shape'
  *
@@ -292,8 +294,8 @@ TRANSFORMATIONS_API bool is_on_constant_path(const ov::Output<ov::Node>& output)
 TRANSFORMATIONS_API bool process_subgraph(ov::pass::ModelPass& model_pass, const std::shared_ptr<Node>& node);
 
 template <typename T>
-ov::pass::pattern::op::ValuePredicate constant_predicate(std::function<bool(const std::vector<T>&)> predicate) {
-    return pass::pattern::op::as_value_predicate([=](std::shared_ptr<Node> n) -> bool {
+ov::pass::pattern::op::Predicate constant_predicate(std::function<bool(const std::vector<T>&)> predicate) {
+    return ov::pass::pattern::op::Predicate([=](std::shared_ptr<Node> n) -> bool {
         if (auto constant = as_type_ptr<v0::Constant>(n)) {
             auto values = constant->cast_vector<T>();
             return predicate(values);

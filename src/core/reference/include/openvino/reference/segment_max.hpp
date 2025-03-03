@@ -12,9 +12,7 @@
 
 namespace ov::reference {
 
-template <typename T,
-          typename T_idx,
-          typename std::enable_if<std::is_same<typename std::decay<T_idx>::type, int64_t>::value>::type* = nullptr>
+template <typename T, typename T_idx, std::enable_if_t<std::is_same<std::decay_t<T_idx>, int64_t>::value>* = nullptr>
 void segment_max(const T* data,
                  const Shape& data_shape,
                  const T_idx* segment_ids,
@@ -43,20 +41,14 @@ void segment_max(const T* data,
     }
 }
 
-template <typename T,
-          typename T_idx,
-          typename std::enable_if<!std::is_same<typename std::decay<T_idx>::type, int64_t>::value>::type* = nullptr>
+template <typename T, typename T_idx, std::enable_if_t<!std::is_same<std::decay_t<T_idx>, int64_t>::value>* = nullptr>
 void segment_max(const T* data,
                  const Shape& data_shape,
                  const T_idx* segment_ids,
                  T* out,
                  const Shape& output_shape,
                  const T empty_segment_value) {
-    std::vector<int64_t> segment_ids_int64(data_shape[0]);
-    std::transform(segment_ids, segment_ids + data_shape[0], segment_ids_int64.begin(), [](T_idx id) {
-        return static_cast<int64_t>(id);
-    });
-
+    std::vector<int64_t> segment_ids_int64(segment_ids, segment_ids + data_shape[0]);
     segment_max(data, data_shape, segment_ids_int64.data(), out, output_shape, empty_segment_value);
 }
 
