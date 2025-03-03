@@ -36,12 +36,11 @@ public:
         cpu._sockets = cpu._numa_nodes;
         bool cpu_reservation = false;
 
-        if (!test_data.input_changed) {
-            test_data.input_cpu_pinning = ov::intel_cpu::cpu_pinning_available(cpu_reservation,
-                                                                               test_data.input_proc_type_table,
-                                                                               test_data.input_stream_info_table);
-        } else {
-            test_data.input_cpu_pinning = ov::intel_cpu::check_cpu_pinning(test_data.input_cpu_pinning);
+        test_data.input_cpu_pinning =
+                ov::intel_cpu::check_cpu_pinning(test_data.input_cpu_pinning, test_data.input_changed, cpu_reservation);
+
+        if (!test_data.input_changed && !cpu_reservation) {
+            ov::intel_cpu::update_cpu_pinning(test_data.input_cpu_pinning, test_data.input_stream_info_table);
         }
 
         ASSERT_EQ(test_data.output_cpu_pinning, test_data.input_cpu_pinning);

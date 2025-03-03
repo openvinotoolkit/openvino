@@ -107,8 +107,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::hint::enable_cpu_pinning.name()) {
             try {
-                auto cpu_pinning = val.as<bool>();
-                enableCpuPinning = check_cpu_pinning(cpu_pinning);
+                enableCpuPinning = val.as<bool>();
                 changedCpuPinning = true;
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
@@ -435,6 +434,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             valueCachePrecision = ov::element::f32;
         }
     }
+
+    enableCpuPinning = check_cpu_pinning(enableCpuPinning, changedCpuPinning, enableCpuReservation);
 
     if (!prop.empty()) {
         _config.clear();
