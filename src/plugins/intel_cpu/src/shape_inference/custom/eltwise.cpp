@@ -14,7 +14,7 @@ namespace ov::intel_cpu::node {
  *
  */
 Result EltwiseShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                                const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
+                                const std::unordered_map<size_t, MemoryPtr>& /*data_dependency*/) {
     size_t max_rank = 0;
     size_t max_rank_idx = 0;
     for (size_t i = 0; i < input_shapes.size(); ++i) {

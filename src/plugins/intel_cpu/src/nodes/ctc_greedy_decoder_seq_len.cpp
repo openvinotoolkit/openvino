@@ -77,7 +77,7 @@ void CTCGreedyDecoderSeqLen::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void CTCGreedyDecoderSeqLen::execute(const dnnl::stream& strm) {
+void CTCGreedyDecoderSeqLen::execute(const dnnl::stream& /*strm*/) {
     const float* probabilities = getSrcDataAtPortAs<const float>(DATA_INDEX);
     const int* sequenceLengths = getSrcDataAtPortAs<const int>(SEQUENCE_LENGTH_INDEX);
     int* decodedClasses = getDstDataAtPortAs<int>(DECODED_CLASSES_INDEX);

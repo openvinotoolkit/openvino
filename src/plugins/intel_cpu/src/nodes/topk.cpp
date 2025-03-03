@@ -2218,7 +2218,7 @@ void TopK::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void TopK::execute(const dnnl::stream& strm) {
+void TopK::execute(const dnnl::stream& /*strm*/) {
     auto srcMemPtr = getSrcMemoryAtPort(TOPK_DATA);
     auto dstMemPtr = getDstMemoryAtPort(TOPK_DATA);
     auto dstIndexesMemPtr = getDstMemoryAtPort(TOPK_INDEX);

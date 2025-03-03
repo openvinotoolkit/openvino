@@ -546,6 +546,7 @@ static float sum_q_head(T* a, size_t n) {
 
 template <typename TA, typename TB>
 static float dot_product(TA* a, TB* b, size_t n, float* scale, float* zp, float* head_sum) {
+    (void)scale;
     size_t i = 0;
     float sum = 0.0f;
 #if defined(HAVE_AVX512F)
@@ -868,6 +869,7 @@ static ov::float16 dot_product_fp16(ov::float16* a,
 
 template <typename TA>
 static float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, float* head_sum) {
+    (void)head_sum;
     size_t i = 0;
     float sum = 0.0f;
 #if defined(HAVE_AVX512F)

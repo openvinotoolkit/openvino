@@ -227,7 +227,8 @@ bool Lrn::created() const {
     return getType() == Type::Lrn;
 }
 
-void Lrn::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc, const std::vector<MemoryDescPtr>& outputDesc) {
+void Lrn::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
+                           const std::vector<MemoryDescPtr>& /*outputDesc*/) {
     auto inpDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
     DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
     const auto& in_candidate = definedInpMemDesc->getDnnlDesc();
