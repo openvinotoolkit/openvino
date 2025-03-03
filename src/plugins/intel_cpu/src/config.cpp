@@ -9,6 +9,7 @@
 #include <string>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu_map_scheduling.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
@@ -117,7 +118,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::hint::enable_cpu_reservation.name()) {
             try {
-                enableCpuReservation = val.as<bool>();
+                auto reservation = val.as<bool>();
+                enableCpuReservation = check_cpu_reservation(reservation);
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
@@ -432,6 +434,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             valueCachePrecision = ov::element::f32;
         }
     }
+
+    enableCpuPinning = check_cpu_pinning(enableCpuPinning, changedCpuPinning, enableCpuReservation);
 
     if (!prop.empty()) {
         _config.clear();

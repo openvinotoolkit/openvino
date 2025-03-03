@@ -69,40 +69,40 @@ std::vector<std::vector<int>> apply_hyper_threading(bool& input_ht_hint,
     return result_table;
 }
 
-bool get_cpu_pinning(bool& input_value,
-                     const bool input_changed,
-                     const bool cpu_reservation,
-                     const std::vector<std::vector<int>>& proc_type_table,
-                     const std::vector<std::vector<int>>& streams_info_table) {
+bool check_cpu_pinning(const bool cpu_pinning, const bool cpu_pinning_changed, const bool cpu_reservation) {
     bool result_value;
-
+    auto proc_type_table = get_proc_type_table();
 #if defined(__APPLE__)
     result_value = false;
 #elif defined(_WIN32)
     if (proc_type_table.size() == 1) {
-        result_value = input_changed ? input_value : cpu_reservation;
+        result_value = cpu_pinning_changed ? cpu_pinning : cpu_reservation;
     } else {
         result_value = false;
     }
 #else
-    if (input_changed) {
-        result_value = input_value;
-    } else {
-        result_value = true;
-        // The following code disables pinning in case stream contains both Pcore and Ecore
-        if (streams_info_table.size() >= 3) {
-            if ((streams_info_table[0][PROC_TYPE] == ALL_PROC) &&
-                (streams_info_table[1][PROC_TYPE] != EFFICIENT_CORE_PROC) &&
-                (streams_info_table[2][PROC_TYPE] == EFFICIENT_CORE_PROC)) {
-                result_value = cpu_reservation;
-            }
+    result_value = cpu_pinning_changed ? cpu_pinning : true;
+#endif
+    return result_value;
+}
+
+void update_cpu_pinning(bool& cpu_pinning, const std::vector<std::vector<int>>& streams_info_table) {
+    // The following code disables pinning in case stream contains both Pcore and Ecore
+    if (streams_info_table.size() >= 3) {
+        if ((streams_info_table[0][PROC_TYPE] == ALL_PROC) &&
+            (streams_info_table[1][PROC_TYPE] != EFFICIENT_CORE_PROC) &&
+            (streams_info_table[2][PROC_TYPE] == EFFICIENT_CORE_PROC)) {
+            cpu_pinning = false;
         }
     }
+}
+
+bool check_cpu_reservation(bool cpu_reservation) {
+#if defined(__APPLE__)
+    return false;
+#else
+    return cpu_reservation;
 #endif
-
-    input_value = result_value;
-
-    return result_value;
 }
 
 }  // namespace ov::intel_cpu

@@ -40,18 +40,26 @@ std::vector<std::vector<int>> apply_hyper_threading(bool& input_ht_hint,
                                                     const std::vector<std::vector<int>>& proc_type_table);
 
 /**
- * @brief      whether pinning cpu cores according to enableCpuPinning property
- * @param[in]  input_type indicate value of property enableCpuPinning.
- * @param[in]  input_changed indicate if value is set by user.
- * @param[in]  cpu_reservation indicate if cpu need to be reserved
- * @param[in]  proc_type_table indicate processors information of this platform
- * @param[in]  streams_info_table indicate streams detail of this model
+ * @brief      Check enableCpuPinning in different platform
+ * @param[in]  cpu_pinning the property enableCpuPinning set by user.
+ * @param[in]  cpu_pinning_changed the property changedCpuPinning set by user.
+ * @param[in]  cpu_reservation the property enableCpuReservation set by user.
  * @return     whether pinning threads to cpu cores
  */
-bool get_cpu_pinning(bool& input_value,
-                     const bool input_changed,
-                     const bool cpu_reservation,
-                     const std::vector<std::vector<int>>& proc_type_table,
-                     const std::vector<std::vector<int>>& streams_info_table);
+bool check_cpu_pinning(const bool cpu_pinning, const bool cpu_pinning_changed, const bool cpu_reservation);
+
+/**
+ * @brief      whether pinning cpu cores according to enableCpuPinning property
+ * @param[in,out]  cpu_pinning indicate if cpu need to be pinning
+ * @param[in]  streams_info_table indicate streams detail of this model
+ */
+void update_cpu_pinning(bool& cpu_pinning, const std::vector<std::vector<int>>& streams_info_table);
+
+/**
+ * @brief      Check enableCpuReservation in different platform
+ * @param[in]  cpu_reservation the property enableCpuReservation set by user.
+ * @return     whether to enable cpu reservation
+ */
+bool check_cpu_reservation(bool cpu_reservation);
 
 }  // namespace ov::intel_cpu
