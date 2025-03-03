@@ -221,11 +221,11 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params) const
     size_t buffer_size = num_of_images * num_classes * buffer_stride;
     size_t num_scores_size = num_of_images * (num_classes + 2) * sizeof(int);
 
-    kd.internalBufferSizes.push_back(buffer_size);
+    kd.internalBuffers.push_back(buffer_size);
     if (detectOutParams.detectOutParams.decrease_label_id) {
-        kd.internalBufferSizes.push_back(buffer_size);
+        kd.internalBuffers.push_back(buffer_size);
     }
-    kd.internalBufferSizes.push_back(num_scores_size);
+    kd.internalBuffers.push_back(num_scores_size);
     kd.internalBufferDataType = GetUnitType(detectOutParams);
 
     for (size_t i = 0; i < kKernelsNum; i++) {
