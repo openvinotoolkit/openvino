@@ -24,7 +24,7 @@
 using namespace ov;
 using namespace ov::threading;
 
-#define INIT_VAL     -100
+#define INIT_VAL     (-100)
 #define TP_CPU_LIMIT 32
 
 namespace ov::intel_cpu {

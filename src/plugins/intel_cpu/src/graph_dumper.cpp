@@ -288,7 +288,6 @@ void summary_perf(const Graph& graph) {
     for (auto& node : graph.GetNodes()) {  // important: graph.graphNodes are in topological order
         double avg = node->PerfCounter().avg();
         auto type = node->getTypeStr() + "_" + node->getPrimitiveDescriptorType();
-        auto name = node->getName();
 
         total += node->PerfCounter().count() * avg;
         total_avg += avg;

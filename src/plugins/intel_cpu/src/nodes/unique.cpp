@@ -133,7 +133,7 @@ struct Unique::slicedExec {
 };
 
 void Unique::execute(const dnnl::stream& strm) {
-    if (flattened) {
+    if (flattened) {  // NOLINT(bugprone-branch-clone)
         OV_SWITCH(intel_cpu,
                   flattenExec,
                   this,
