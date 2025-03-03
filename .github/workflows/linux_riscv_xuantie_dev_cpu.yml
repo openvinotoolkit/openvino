@@ -183,7 +183,7 @@ jobs:
         run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
         working-directory: ${{ env.INSTALL_TEST_DIR }}
         
-      - name: Upload OpenVINO package
+      - name: Upload openvino package
         if: ${{ always() }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
@@ -191,7 +191,7 @@ jobs:
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
           
-      - name: Upload OpenVINO tests package
+      - name: Upload openvino tests package
         if: ${{ always() }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
