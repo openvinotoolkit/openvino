@@ -9,6 +9,7 @@
 
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/file_path.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 namespace ov {
