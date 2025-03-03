@@ -115,15 +115,24 @@
 
 // LPT transformations
 #include "low_precision/add.hpp"
+#include "low_precision/avg_pool.hpp"
 #include "low_precision/convert_subtract_constant.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
 #include "low_precision/fold_convert.hpp"
 #include "low_precision/fuse_convert.hpp"
 #include "low_precision/group_convolution.hpp"
+#include "low_precision/interpolate.hpp"
 #include "low_precision/mat_mul.hpp"
+#include "low_precision/max_pool.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
+#include "low_precision/mvn.hpp"
 #include "low_precision/network_helper.hpp"
+#include "low_precision/normalize_l2.hpp"
 #include "low_precision/recurrent_cell.hpp"
+#include "low_precision/reduce_max.hpp"
+#include "low_precision/reduce_mean.hpp"
+#include "low_precision/reduce_min.hpp"
+#include "low_precision/reduce_sum.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
@@ -159,6 +168,7 @@
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/pass/extract_reshapes_from_mha.hpp"
 #include "snippets/pass/fc_tokenization.hpp"
+#include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/tokenization.hpp"
@@ -422,7 +432,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     if (config.inferencePrecision == ov::element::f16) {
         precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-        type_to_fuse_map fuse_map = {{ov::opset1::FakeQuantize::get_type_info_static(), fuse_type_to_fq}};
+        type_to_fuse_map fuse_map = {};
 #else
         type_to_fuse_map fuse_map = {{ov::op::PagedAttentionExtension::get_type_info_static(), fuse_type_to_pa}};
 #endif
@@ -764,12 +774,58 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     manager.run_passes(model);
 }
 
-void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecisions) {
-    CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Lpt);
-
+void Transformations::runLptPasses(const std::vector<ov::element::Type>& defaultPrecisions) {
     using namespace ov::pass::low_precision;
-    CPU_LPT_SCOPE(LowPrecisionTransformations_Part4);
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
+    ov::pass::Manager lptManager("CPU:LPT");
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    auto supportedPrecisions = std::vector<PrecisionsRestriction>({
+        PrecisionsRestriction::create<ov::opset1::MatMul>({{{0, 1}, {ov::element::i8}}}),
+    });
+
+    auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>();
+
+    CPU_REGISTER_PASS_COMMON(lptManager,
+                             LowPrecision,
+                             supportedPrecisions,
+                             quantizationRestrictions,
+                             LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
+    CPU_DISABLE_PASS_COMMON(lptManager, AvgPoolTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, ConvolutionTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, ConvolutionBackpropDataTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, InterpolateTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, GroupConvolutionTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, MaxPoolTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, MVNTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, NormalizeL2Transformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, RecurrentCellTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, ReduceMaxTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, ReduceMeanTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, ReduceMinTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, ReduceSumTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
+
+    CPU_SET_CALLBACK_COMMON(
+        lptManager,
+        [](const_node_ptr& node) -> bool {
+            return ov::marked_as_bias(node);
+        },
+        AddTransformation);
+
+    // Enable MatMulTransformation against FC nodes only
+    // int8 MatMul is disabled because acl_lowp_matmul_t supports 2D case only
+    // most models have 3D/4D cases, so fallback to jit_gemm_i8 gives worse perf than gemm_acl_f16
+    // oneDNN ticket #2696
+    CPU_SET_CALLBACK_COMMON(
+        lptManager,
+        [&](const_node_ptr& node) -> bool {
+            if (NetworkHelper::isConstantPath(node->get_input_node_shared_ptr(1)) &&
+                one_of(node->input_value(1).get_partial_shape().rank().get_length(), 2, 3)) {
+                return false;
+            }
+            return true;
+        },
+        MatMulTransformation);
+#else
     // Only enable conv/group conv signed input on AMX and avx2_vnni_2 platform.
     std::vector<ov::element::Type> input0LowPrecisionList;
     if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) ||
@@ -807,7 +863,6 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
         {QuantizationGranularityRestriction::create<ov::opset1::Convolution>({0}),
          QuantizationGranularityRestriction::create<ov::opset1::ConvolutionBackpropData>({0})});
 
-    ov::pass::Manager lptManager("CPU:LPT");
     CPU_REGISTER_PASS_COMMON(lptManager,
                              LowPrecision,
                              supportedPrecisions,
@@ -857,25 +912,18 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
         },
         FuseConvertTransformation);
 
-    // Enable MatMulTransformation against FC nodes only
-    // int8 MatMul is disabled because acl_lowp_matmul_t supports 2D case only
-    // most models have 3D/4D cases, so fallback to jit_gemm_i8 gives worse perf than gemm_acl_f16
-    // oneDNN ticket #2696
-    CPU_SET_CALLBACK_ARM(
-        lptManager,
-        [&](const_node_ptr& node) -> bool {
-            if (NetworkHelper::isConstantPath(node->get_input_node_shared_ptr(1)) &&
-                one_of(node->input_value(1).get_partial_shape().rank().get_length(), 2, 3)) {
-                return false;
-            }
-            return true;
-        },
-        MatMulTransformation);
-
-    CPU_DISABLE_PASS_ARM(lptManager, RecurrentCellTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
-
+#endif
     lptManager.run_passes(model);
+}
+
+void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecisions) {
+    CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Lpt);
+
+    CPU_LPT_SCOPE(LowPrecisionTransformations_Part4);
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
+
+    runLptPasses(defaultPrecisions);
 }
 
 void Transformations::PostLpt() {
@@ -997,6 +1045,19 @@ void Transformations::PostLpt() {
 }
 
 void Transformations::MainSnippets(void) {
+// Disable MainSnippets for int8 models on arm platforms due to performance issues
+// Ticket: 163408
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    using namespace ov::pass::low_precision;
+    static const std::set<levels>& supported_fq_levels = {levels::int4,
+                                                          levels::int4_narrow_range,
+                                                          levels::int8,
+                                                          levels::int8_narrow_range};
+    if (LowPrecision::isFunctionQuantized(model, supported_fq_levels)) {
+        return;
+    }
+#endif
+
     auto is_supported_isa = []() {
 #if defined(OPENVINO_ARCH_X86_64)
         return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
@@ -1342,7 +1403,7 @@ void Transformations::PostSnippets(void) {
     ov::pass::Manager postSnippetsManager("CPU:PostSnippets");
     postSnippetsManager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeQuantizeDecomposition);
-    CPU_SET_CALLBACK_COMMON(
+    CPU_SET_CALLBACK_X64(
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
             std::string errMsg;

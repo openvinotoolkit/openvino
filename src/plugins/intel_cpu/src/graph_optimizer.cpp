@@ -82,8 +82,8 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     FuseMultiplyAndAdd(graph);
     graph.RemoveDroppedNodes();
 
-    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "MergeConvertAndScaleShift");
-    MergeConvertAndScaleShift(graph);
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "MergeConvertAndEltwise");
+    MergeConvertAndEltwise(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndConvertOnWeights");
@@ -164,6 +164,10 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseEltwiseAndSimple");
     FuseEltwiseAndSimple(graph);
+    graph.RemoveDroppedNodes();
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "MergeEltwiseAndConvert");
+    MergeEltwiseAndConvert(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "reshapeRnnSeq");
@@ -680,12 +684,61 @@ void GraphOptimizer::FuseMultiplyAndAdd(Graph& graph) {
     }
 }
 
-void GraphOptimizer::MergeConvertAndScaleShift(Graph& graph) {
+void GraphOptimizer::MergeEltwiseAndConvert(Graph& graph) {
+// The pass is enabled on arm platforms only, however it might be usefull for other platforms as well
+// It requires additional perf validation. Ticket: 163388
+#if !defined(OPENVINO_ARCH_ARM64)
+    return;
+#endif
     auto& graphNodes = graph.GetNodes();
 
     auto parent = graphNodes.begin();
     while (parent != graphNodes.end()) {
-        CPU_GRAPH_OPTIMIZER_SCOPE(MergeConvertAndScaleShift);
+        CPU_GRAPH_OPTIMIZER_SCOPE(MergeEltwiseAndConvert);
+        auto parentNode = *parent;
+        if (parentNode->getType() != Type::Eltwise) {
+            parent++;
+            continue;
+        }
+
+        const auto& childEdges = parentNode->getChildEdges();
+        if (childEdges.size() != 1) {
+            parent++;
+            continue;
+        }
+
+        const auto edge = childEdges[0].lock();
+        auto childNode = edge->getChild();
+        if (childNode->getType() != Type::Convert) {
+            parent++;
+            continue;
+        }
+
+        const auto eltwise = dynamic_cast<ov::intel_cpu::node::Eltwise*>(parentNode.get());
+        if (!eltwise->canFuseConvert(childNode)) {
+            parent++;
+            continue;
+        }
+
+        // WA: Eltwise node uses precision of last fused node as output precision
+        auto fusedOps = parentNode->getFusedWith();
+        if (!fusedOps.empty()) {
+            fusedOps[fusedOps.size() - 1]->setOriginalOutputPrecisionAtPort(
+                0,
+                childNode->getOriginalOutputPrecisionAtPort(0));
+        }
+        parentNode->setOriginalOutputPrecisionAtPort(0, childNode->getOriginalOutputPrecisionAtPort(0));
+        parentNode->addOriginalLayer(childNode->getOriginalLayers());
+        graph.DropNode(childNode);
+    }
+}
+
+void GraphOptimizer::MergeConvertAndEltwise(Graph& graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto parent = graphNodes.begin();
+    while (parent != graphNodes.end()) {
+        CPU_GRAPH_OPTIMIZER_SCOPE(MergeConvertAndEltwise);
         auto parentNode = *parent;
         if (parentNode->getType() != Type::Convert) {
             parent++;
