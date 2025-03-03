@@ -54,9 +54,7 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(ov::pass::pattern::Matc
     auto outputLowConst_f32 = foldConvert(fakeQuantize->input_value(3), deqPrecision);
     auto outputHighConst_f32 = foldConvert(fakeQuantize->input_value(4), deqPrecision);
 
-    const auto value = multiplyConstant->get_output_element_type(0) == element::f32 ?
-        multiplyConstant :
-        foldConvert(multiplyConstant, deqPrecision);
+    const auto value = foldConvert(multiplyConstant, deqPrecision);
 
     outputLowConst_f32 = fold<ov::opset1::Multiply>(outputLowConst_f32, value);
     outputHighConst_f32 = fold<ov::opset1::Multiply>(outputHighConst_f32, value);
