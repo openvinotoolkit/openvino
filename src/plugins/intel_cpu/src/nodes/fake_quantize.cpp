@@ -1534,7 +1534,7 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
 bool FakeQuantize::needPrepareParams() const {
     if (isBinarization()) {
         auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
-        if (!selectedPrimitiveDescriptor) {
+        if (selectedPrimitiveDescriptor == nullptr) {
             THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
         }
 
@@ -1611,7 +1611,7 @@ void FakeQuantize::prepareParams() {
 void FakeQuantize::createPrimitive() {
     Node::createPrimitive();
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
-    if (!selectedPrimitiveDescriptor) {
+    if (selectedPrimitiveDescriptor == nullptr) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
     if (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref) {

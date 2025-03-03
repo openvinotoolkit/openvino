@@ -92,10 +92,10 @@ RDFT::RDFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
     inverse = ov::is_type<ov::op::v9::IRDFT>(op);
 
     auto axesNode = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(1));
-    if (axesNode) {
+    if (axesNode != nullptr) {
         axes = axesNode->cast_vector<int>();
         isAxesConstant = true;
-        auto rank = inputShapes[DATA_INDEX].getRank() - inverse;
+        auto rank = inputShapes[DATA_INDEX].getRank() - static_cast<size_t>(inverse);
         normalizeAxes(axes, rank);
     }
 
@@ -105,7 +105,7 @@ RDFT::RDFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
             THROW_CPU_NODE_ERR("has invalid 'signalSize' input tensor with rank: ", signalSizeRank);
         }
         auto signalSizesNode = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2));
-        if (!signalSizesNode) {
+        if (signalSizesNode == nullptr) {
             return;
         }
         isSignalSizesConstant = true;
@@ -158,7 +158,7 @@ void RDFT::execute(const dnnl::stream& strm) {
     auto inputPtr = inputMem.getDataAs<float>();
     auto outputPtr = outputMem.getDataAs<float>();
 
-    auto rank = inputShape.size() - inverse;
+    auto rank = inputShape.size() - static_cast<size_t>(inverse);
 
     const auto& inputStrides = inputMem.getDescWithType<BlockedMemoryDesc>()->getStrides();
     const auto& outputStrides = outputMem.getDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -191,7 +191,7 @@ void RDFT::prepareParams() {
             axes.resize(newAxesSize);
         }
         auto axesPtr = axesMem->getDataAs<const int>();
-        auto inputRank = inputShapes[DATA_INDEX].getRank() - inverse;
+        auto inputRank = inputShapes[DATA_INDEX].getRank() - static_cast<size_t>(inverse);
         for (size_t i = 0; i < axes.size(); i++) {
             axes[i] = axesPtr[i] < 0 ? axesPtr[i] + inputRank : axesPtr[i];
         }
@@ -236,7 +236,7 @@ bool RDFT::axesChanged() const {
         return true;
     }
     auto axesPtr = axesMem->getDataAs<const int>();
-    auto inputRank = inputShapes[DATA_INDEX].getRank() - inverse;
+    auto inputRank = inputShapes[DATA_INDEX].getRank() - static_cast<size_t>(inverse);
     for (size_t i = 0; i < axes.size(); i++) {
         auto newAxis = axesPtr[i] < 0 ? axesPtr[i] + inputRank : axesPtr[i];
         if (static_cast<size_t>(axes[i]) != newAxis) {
@@ -840,21 +840,21 @@ struct RDFTJitExecutor : public RDFTExecutor {
             rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx512_core>(isInverse, rdftType));
             dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx512_core>(isInverse, complex_to_complex));
             vlen = cpu_isa_traits<cpu::x64::avx512_core>::vlen;
-            if (primDesc) {
+            if (primDesc != nullptr) {
                 primDesc->setImplementationType(jit_avx512);
             }
         } else if (mayiuse(cpu::x64::avx2)) {
             rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx2>(isInverse, rdftType));
             dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx2>(isInverse, complex_to_complex));
             vlen = cpu_isa_traits<cpu::x64::avx2>::vlen;
-            if (primDesc) {
+            if (primDesc != nullptr) {
                 primDesc->setImplementationType(jit_avx2);
             }
         } else if (mayiuse(cpu::x64::sse41)) {
             rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::sse41>(isInverse, rdftType));
             dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::sse41>(isInverse, complex_to_complex));
             vlen = cpu_isa_traits<cpu::x64::sse41>::vlen;
-            if (primDesc) {
+            if (primDesc != nullptr) {
                 primDesc->setImplementationType(jit_sse42);
             }
         } else {

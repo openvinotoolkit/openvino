@@ -183,7 +183,7 @@ std::string RandomUniform::getPrimitiveDescriptorType() const {
     auto selectedPrimitiveDesc = getSelectedPrimitiveDescriptor();
 
     impl_desc_type type = impl_desc_type::undef;
-    if (selectedPrimitiveDesc) {
+    if (selectedPrimitiveDesc != nullptr) {
         type = selectedPrimitiveDesc->getImplementationType();
     }
 
@@ -217,7 +217,7 @@ std::string RandomUniform::getPrimitiveDescriptorType() const {
         str_type = "undef";
     }
 
-    if (selectedPrimitiveDesc) {
+    if (selectedPrimitiveDesc != nullptr) {
         if (selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision() != ov::element::u8) {
             str_type +=
                 "_" + static_cast<std::string>(

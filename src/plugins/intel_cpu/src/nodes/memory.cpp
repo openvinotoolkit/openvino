@@ -262,7 +262,7 @@ bool MemoryOutput::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
 }
 
 void MemoryOutput::resolveInPlaceEdges(Edge::LOOK look) {
-    if (!(look & Edge::LOOK_DOWN)) {
+    if ((look & Edge::LOOK_DOWN) == 0) {
         Node::resolveInPlaceEdges(look);
         return;
     }
@@ -345,7 +345,7 @@ void MemoryOutputStub::runDynamic(dnnl::stream strm) {
 }
 
 void MemoryOutputStub::resolveInPlaceEdges(Edge::LOOK look) {
-    if (!(look & Edge::LOOK_DOWN)) {
+    if ((look & Edge::LOOK_DOWN) == 0) {
         Node::resolveInPlaceEdges(look);
         return;
     }
@@ -860,7 +860,7 @@ void MemoryInput::runStatic(dnnl::stream strm) {
 }
 
 void MemoryInput::resolveInPlaceEdges(Edge::LOOK look) {
-    if (!(look & Edge::LOOK_UP)) {
+    if ((look & Edge::LOOK_UP) == 0) {
         Node::resolveInPlaceEdges(look);
         return;
     }

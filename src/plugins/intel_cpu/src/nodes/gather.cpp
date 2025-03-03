@@ -952,7 +952,7 @@ bool Gather::isExecutable() const {
 }
 
 void Gather::resolveInPlaceEdges(Edge::LOOK look) {
-    if (!(look & Edge::LOOK_UP) || !isInPlace()) {
+    if (((look & Edge::LOOK_UP) == 0) || !isInPlace()) {
         Node::resolveInPlaceEdges(look);
         return;
     }

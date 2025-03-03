@@ -554,11 +554,11 @@ void TensorIterator::createPrimitive() {
     }
 
     if (loopBodyConditionOutputIdx == -1) {
-        continue_cond_check.reset(new staticValueCheck(true));  // always true
+        continue_cond_check.reset(new staticValueCheck(1));  // always true
     }
     if (loopExecutionConditionIdx == -1) {
-        initial_cond_check.reset(new staticValueCheck(true));
-        lastUsedCond = initial_cond_check->getStatus();
+        initial_cond_check.reset(new staticValueCheck(1));
+        lastUsedCond = (initial_cond_check->getStatus() != 0);
     }
 
     if (runAsDynamic()) {
@@ -644,7 +644,7 @@ void TensorIterator::execute(const dnnl::stream& strm) {
 
     sub_graph.ResetInferCount();
 
-    bool continue_cond = initial_cond_check->getStatus();
+    bool continue_cond = initial_cond_check->getStatus() != 0;
     int max_num_iter = trip_count_check->getStatus();
 
     for (auto& mapper : first_mappers) {
@@ -660,7 +660,7 @@ void TensorIterator::execute(const dnnl::stream& strm) {
 
         sub_graph.Infer();
 
-        continue_cond = continue_cond_check->getStatus();
+        continue_cond = (continue_cond_check->getStatus() != 0);
 
         // copy data from subgraph iteration to outputs
         // or to the next iteration inputs
@@ -678,7 +678,7 @@ void TensorIterator::executeDynamicImpl(const dnnl::stream& strm) {
     const auto& eng = getEngine();
     sub_graph.ResetInferCount();
 
-    bool continue_cond = initial_cond_check->getStatus();
+    bool continue_cond = initial_cond_check->getStatus() != 0;
     int max_num_iter = trip_count_check->getStatus();
 
     for (auto& mapper : first_mappers) {
@@ -697,7 +697,7 @@ void TensorIterator::executeDynamicImpl(const dnnl::stream& strm) {
 
         sub_graph.Infer();
 
-        continue_cond = continue_cond_check->getStatus();
+        continue_cond = (continue_cond_check->getStatus() != 0);
 
         for (auto& buffer : buffers) {
             buffer->execute(eng, i);
@@ -805,7 +805,7 @@ void TensorIterator::prepareInitialCond(const bool compileStage) {
         auto mem = edge->getMemoryPtr();
         initial_cond_check.reset(new asBoolCheck(mem));
         if (IMPLICATION(compileStage, edge->getParent()->isConstant())) {
-            lastUsedCond = initial_cond_check->getStatus();
+            lastUsedCond = (initial_cond_check->getStatus() != 0);
         }
     }
 }

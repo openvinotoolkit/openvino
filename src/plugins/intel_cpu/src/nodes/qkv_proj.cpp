@@ -100,7 +100,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                     blkN_leftover--;
                     blkN++;
                 }
-                if (blkN) {
+                if (blkN != 0) {
                     auto& work = works[cur_work_id++];
                     work.blk_K_size = cache_blk_k_size;
                     work.n0 = (start_blkN)*REG_BLK_N_SIZE;

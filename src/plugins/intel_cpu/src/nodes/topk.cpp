@@ -340,7 +340,7 @@ private:
         L(topk_main_loop_end_label);
 
         // tail
-        if (tail_step) {
+        if (tail_step != 0) {
             Xbyak::Label topk_tail_loop_end_label;
             cmp(reg_work_amount, tail_step);
             jl(topk_tail_loop_end_label, T_NEAR);
@@ -411,7 +411,7 @@ private:
         L(topk_main_loop_end_label);
 
         // tail exists because working buffer has planar layout, though source buffer has blocked layout)
-        if (tail_step) {
+        if (tail_step != 0) {
             Xbyak::Label topk_tail_loop_end_label;
             cmp(reg_work_amount, tail_step);
             jl(topk_tail_loop_end_label, T_NEAR);
@@ -934,7 +934,7 @@ private:
 
         // tail
         if (jcp_.bubble_inplace) {
-            if (tail_step) {
+            if (tail_step != 0) {
                 Xbyak::Label topk_tail_loop_end_label;
                 cmp(reg_work_amount, tail_step);
                 jl(topk_tail_loop_end_label, T_NEAR);
@@ -2460,11 +2460,11 @@ void TopK::calc_dims_size(const VectorDims& layout_dims) {
 void TopK::topk_ref(const float* in_ptr, float* out_ptr, int32_t* dst_idx) {
     if (mode_max) {
         topk_ref_process(in_ptr, out_ptr, dst_idx, src_dims, [](float x, float y) -> float {
-            return x > y;
+            return static_cast<float>(x > y);
         });
     } else {
         topk_ref_process(in_ptr, out_ptr, dst_idx, src_dims, [](float x, float y) -> float {
-            return x < y;
+            return static_cast<float>(x < y);
         });
     }
 }
@@ -2500,7 +2500,7 @@ void TopK::topk_ref_process(const float* src_data,
         }
         for (int i2 = 0; i2 < top_k - 1; i2++) {
             for (int i3 = top_k - 1; i3 > i2; i3--) {
-                if (compare(max_values[i3], max_values[i3 - 1])) {
+                if (compare(max_values[i3], max_values[i3 - 1]) != 0.0f) {
                     swap_func(i3, i3 - 1);
                 }
             }
@@ -2509,7 +2509,7 @@ void TopK::topk_ref_process(const float* src_data,
             max_values[top_k] = src_data[s_index];
             max_indexes[top_k] = i2;
             for (int i3 = top_k; i3 > 0; i3--) {
-                if (compare(max_values[i3], max_values[i3 - 1])) {
+                if (compare(max_values[i3], max_values[i3 - 1]) != 0.0f) {
                     swap_func(i3, i3 - 1);
                 } else {
                     break;

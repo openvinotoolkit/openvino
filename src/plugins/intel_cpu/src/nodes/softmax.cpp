@@ -76,7 +76,7 @@ SoftMax::SoftMax(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
 }
 
 void SoftMax::getSupportedDescriptors() {
-    if (descs.size()) {
+    if (descs.size() != 0u) {
         return;
     }
 
@@ -89,7 +89,7 @@ void SoftMax::getSupportedDescriptors() {
     if (getParentEdges().size() != 1) {
         THROW_CPU_NODE_ERR("Incorrect number of input edges");
     }
-    if (!getChildEdges().size()) {
+    if (getChildEdges().size() == 0u) {
         THROW_CPU_NODE_ERR("Incorrect number of output edges");
     }
 
@@ -199,7 +199,7 @@ void SoftMax::prepareParams() {
                 // softmax axis is physically dense. There could be situations where it is not possible to detect the
                 // optimized case in advance in case of dynamic shapes, but in runtime the shape could be suitable for
                 // the optimized implementation, so we have to select the optimized one.
-                (ref_any == key.implType && (impl_type & jit))) {
+                (ref_any == key.implType && ((impl_type & jit) != 0))) {
                 prim_desc = itpd.get();
                 break;
             }

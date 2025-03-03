@@ -43,7 +43,7 @@ size_t replace_all(std::string& inout, const std::string& what, const std::strin
 DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line, const char* name) {
     // check ENV
     const char* p_filters = std::getenv("OV_CPU_DEBUG_LOG");
-    if (!p_filters) {
+    if (p_filters == nullptr) {
         enabled = false;
         return;
     }
@@ -102,7 +102,7 @@ DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line, c
 
 void DebugLogEnabled::break_at(const std::string& log) {
     static const char* p_brk = std::getenv("OV_CPU_DEBUG_LOG_BRK");
-    if (p_brk && log.find(p_brk) != std::string::npos) {
+    if ((p_brk != nullptr) && log.find(p_brk) != std::string::npos) {
         std::cout << "[ DEBUG ] "
                   << " Debug log breakpoint hit" << '\n';
 #    if defined(_MSC_VER)
@@ -203,7 +203,7 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
         return ret;
     };
 
-    if (num_output_port) {
+    if (num_output_port != 0) {
         if (num_output_port > 1) {
             leftside << "(";
         }
@@ -224,7 +224,7 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
                     leftside << "(empty)";
                 }
             }
-            if (!b_ouputed && nodeDesc && i < static_cast<int>(nodeDesc->getConfig().outConfs.size())) {
+            if (!b_ouputed && (nodeDesc != nullptr) && i < static_cast<int>(nodeDesc->getConfig().outConfs.size())) {
                 auto desc = nodeDesc->getConfig().outConfs[i].getMemDesc();
                 auto shape_str = desc->getShape().toString();
                 replace_all(shape_str, "0 - ?", "?");
@@ -241,7 +241,7 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
         if (num_output_port > 1) {
             leftside << ")";
         }
-    } else if (nodeDesc) {
+    } else if (nodeDesc != nullptr) {
         // output Desc is enough since input is always in consistent
         // with output.
         /*
@@ -369,7 +369,7 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
     os << " " << node.getOriginalLayers();
     os << " " << node.getParallelDomain();
 
-    if (node.PerfCounter().count()) {
+    if (node.PerfCounter().count() != 0u) {
         os << " latency:" << node.PerfCounter().avg() << "(us) x" << node.PerfCounter().count();
     }
 
@@ -428,7 +428,7 @@ public:
     }
 
     void on_adapter(const std::string& name, ov::ValueAccessor<bool>& adapter) override {
-        append_attribute(name.c_str(), std::to_string(adapter.get()).c_str());
+        append_attribute(name.c_str(), std::to_string(static_cast<int>(adapter.get())).c_str());
     }
 
     void on_adapter(const std::string& name, ov::ValueAccessor<std::string>& adapter) override {

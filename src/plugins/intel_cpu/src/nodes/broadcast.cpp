@@ -217,10 +217,10 @@ void Broadcast::plainExecute(const dnnl::stream& strm) {
     VectorDims srcStrides = srcDesc->getStrides();
     const size_t dataSize = srcDesc->getPrecision().size();
 
-    if (!dataSrcRank) {
+    if (dataSrcRank == 0u) {
         srcDims = VectorDims(1, 1);
     }
-    if (!srcStrides.size()) {
+    if (srcStrides.size() == 0u) {
         srcStrides = VectorDims(1, 1);
     }
 
@@ -253,7 +253,7 @@ void Broadcast::plainExecute(const dnnl::stream& strm) {
         }
         for (size_t iwork = start * dataSize; iwork < end * dataSize; iwork += dataSize) {
             for (i = 0lu, srcIdx = 0lu; i < dataDstRank; ++i) {
-                srcIdx += counters[i] ? ((counters[i] % srcAligned[i]) * srcStridesAligned[i]) : 0;
+                srcIdx += (counters[i] != 0u) ? ((counters[i] % srcAligned[i]) * srcStridesAligned[i]) : 0;
             }
 
             cpu_memcpy(&dstData[iwork], &srcData[srcIdx * dataSize], dataSize);

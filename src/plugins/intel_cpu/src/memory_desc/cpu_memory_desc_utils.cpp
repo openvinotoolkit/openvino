@@ -34,7 +34,7 @@ DnnlMemoryDescPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDescPtr& 
     if (MemoryDescType::Empty == desc->getType()) {
         return DnnlExtensionUtils::makeDescriptor(dnnl::memory::desc());
     }
-    if (MemoryDescType::Dnnl & desc->getType()) {
+    if ((MemoryDescType::Dnnl & desc->getType()) != 0) {
         return std::dynamic_pointer_cast<DnnlMemoryDesc>(desc);
     }
     OPENVINO_THROW("Cannot convert MemoryDesc to DnnlMemoryDesc");
@@ -58,7 +58,7 @@ DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const Memo
 }
 
 BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDescPtr& desc) {
-    if (desc->getType() & MemoryDescType::Blocked) {
+    if ((desc->getType() & MemoryDescType::Blocked) != 0) {
         return std::dynamic_pointer_cast<BlockedMemoryDesc>(desc);
     }
     OPENVINO_THROW("Cannot convert MemoryDesc to BlockedMemoryDesc");

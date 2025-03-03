@@ -60,7 +60,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
                 auto M_ = (m != 0u) ? M_tail : M < M_blk ? 0 : M_blk;
                 auto N_ = (n != 0u) ? N_tail : N - N_tail;
                 auto K_ = (k != 0u) ? K_tail : K - K % K_blk;
-                auto beta = (b_accumulate || (k && brgCtxs[getBrgIdx(m, 0, n)].K != 0)) ? 1.0f : 0.0f;
+                auto beta = (b_accumulate || ((k != 0u) && brgCtxs[getBrgIdx(m, 0, n)].K != 0)) ? 1.0f : 0.0f;
 
                 brgemmCtx.M = M_;
                 brgemmCtx.N = N_;

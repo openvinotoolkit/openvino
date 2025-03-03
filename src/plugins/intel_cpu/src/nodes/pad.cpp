@@ -56,7 +56,7 @@ Pad::Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     }
 
     auto pad = ov::as_type<const op::util::PadBase>(op.get());
-    if (!pad) {
+    if (pad == nullptr) {
         THROW_CPU_NODE_ERR("couldn't be casted to op of opset1");
     }
 

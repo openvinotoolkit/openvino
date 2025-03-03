@@ -556,14 +556,14 @@ dnnl::algorithm Pooling::getPoolingAlgorithm() const {
     if (algorithm == Algorithm::PoolingAvg) {
         bool not_zero_l = false;
         for (auto lr : poolingAttrs.data_pad_begin) {
-            if (lr) {
+            if (lr != 0) {
                 not_zero_l = true;
                 break;
             }
         }
         bool not_zero_r = false;
         for (auto pr : poolingAttrs.data_pad_end) {
-            if (pr) {
+            if (pr != 0) {
                 not_zero_r = true;
                 break;
             }
@@ -762,7 +762,7 @@ void Pooling::setPostOps(dnnl::primitive_attr& attr) {
         int channelAxis = 1;
 
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
-        if (fakeQuantizeNode) {
+        if (fakeQuantizeNode != nullptr) {
             fakeQuantizeNode->appendPostOps(ops, {}, postOpsArgs, channelAxis);
             continue;
         }

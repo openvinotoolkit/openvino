@@ -184,7 +184,7 @@ void AdaptivePooling::execute(const dnnl::stream& strm) {
         blockSize * (isBlkFmt ? srcBlockDesc->getBlockDims()[1] : srcMemory0.getShape().getStaticDims()[1]);
     const int blockCount = (isTailCFmt ? 1 : chPadding / blockSize);
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
-    if (!selectedPrimitiveDescriptor) {
+    if (selectedPrimitiveDescriptor == nullptr) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
     auto config = selectedPrimitiveDescriptor->getConfig();

@@ -574,7 +574,7 @@ static bool isReorderAvailable(const MemoryDescPtr& parentDesc,
         return false;
     }
 #endif
-    if (result) {
+    if (result != nullptr) {
         dnnl_primitive_desc_destroy(result);
     }
 
@@ -2053,7 +2053,7 @@ void Graph::EnforceInferencePrecision() {
     }
 
     for (const auto& node : graphNodes) {
-        if (nodesToSkip.count(node) && !node->enforceBF16evenForGraphTail) {
+        if ((nodesToSkip.count(node) != 0u) && !node->enforceBF16evenForGraphTail) {
             continue;
         }
 

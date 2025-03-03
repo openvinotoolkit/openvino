@@ -115,7 +115,7 @@ Memory::Memory(dnnl::engine eng, MemoryDescPtr desc, MemoryBlockPtr block)
     if (m_pMemDesc->getPrecision() == element::string) {
         OPENVINO_THROW("[CPU] Memory object can't be created for string data.");
     }
-    bool memAllocated = m_blockHandle->getRawPtr();
+    bool memAllocated = m_blockHandle->getRawPtr() != nullptr;
 
     create(m_pMemDesc, nullptr, !memAllocated);
 }
@@ -365,7 +365,7 @@ bool StringMemory::StringMemoryBlock::resize(size_t size) {
         }
         auto ptr_size = static_cast<ptrdiff_t>(size);  // WA for warning alloc-size-larger-than
         auto ptr = new OvString[ptr_size];
-        if (!ptr) {
+        if (ptr == nullptr) {
             OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");
         }
         m_str_upper_bound = size;
@@ -429,7 +429,7 @@ void DnnlMemoryBlock::unregisterMemory(Memory* memPtr) {
 
 void DnnlMemoryBlock::notifyUpdate() {
     for (auto& item : m_setMemPtrs) {
-        if (item) {
+        if (item != nullptr) {
             item->update();
         }
     }
