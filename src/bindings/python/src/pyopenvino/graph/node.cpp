@@ -21,6 +21,7 @@
 #include "pyopenvino/graph/node.hpp"
 #include "pyopenvino/graph/rt_map.hpp"
 #include "pyopenvino/utils/utils.hpp"
+#include "pyopenvino/core/common.hpp"
 
 class PyNode : public ov::Node {
 public:
@@ -44,8 +45,10 @@ void regclass_graph_Node(py::module m) {
     node.doc() = "openvino.Node wraps ov::Node";
     node.def(
         "__add__",
-        [](const std::shared_ptr<ov::Node>& a, const std::shared_ptr<ov::Node> b) {
-            return std::shared_ptr<ov::Node>(std::make_shared<ov::op::v1::Add>(a, b));
+        [](Common::NodeInput a, Common::NodeInput b) {
+            const auto left = Common::node_from_input_value(a);
+            const auto right = Common::node_from_input_value(b);
+            return std::shared_ptr<ov::Node>(std::make_shared<ov::op::v1::Add>(left, right));
         },
         py::is_operator());
     node.def(

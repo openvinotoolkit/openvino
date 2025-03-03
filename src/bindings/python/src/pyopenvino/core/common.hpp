@@ -11,7 +11,7 @@
 
 #include <string>
 #include <iterator>
-#include <climits>
+#include <variant>
 
 #include "Python.h"
 #include "openvino/core/type/element_type.hpp"
@@ -28,9 +28,9 @@ namespace py = pybind11;
 namespace Common {
 
 namespace containers {
-    using TensorIndexMap = std::map<size_t, ov::Tensor>;
+using TensorIndexMap = std::map<size_t, ov::Tensor>;
 
-    const TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs);
+const TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs);
 }; // namespace containers
 
 namespace values {
@@ -122,6 +122,8 @@ std::vector<size_t> _get_byte_strides(const ov::Shape& s) {
 
 std::vector<size_t> _get_strides(const ov::op::v0::Constant& self);
 
+std::shared_ptr<ov::op::v0::Constant> create_shared_constant_ptr(py::array& array);
+
 }; // namespace constant_helpers
 
 // Helpers for shapes
@@ -184,6 +186,10 @@ std::string get_simple_repr(const T& obj) {
     return "<" + class_name + ">";
 }
 
+typedef std::variant<std::shared_ptr<ov::Node>, int, float, py::array> NodeInput;
+
+std::shared_ptr<ov::Node> node_from_input_value(NodeInput input);
+
 // Use only with classes that are not creatable by users on Python's side, because
 // Objects created in Python that are wrapped with such wrapper will cause memory leaks.
 template <typename T>
@@ -201,7 +207,7 @@ namespace docs {
 template<typename Container, typename std::enable_if<std::is_same<typename Container::value_type, std::string>::value, bool>::type = true>
 std::string container_to_string(const Container& c, const std::string& delimiter) {
     if (c.size() == 0) {
-    	return std::string{};
+        return std::string{};
     }
 
     std::string buffer;
@@ -217,7 +223,7 @@ std::string container_to_string(const Container& c, const std::string& delimiter
 template<typename Container, typename std::enable_if<!std::is_same<typename Container::value_type, std::string>::value, bool>::type = true>
 std::string container_to_string(const Container& c, const std::string& delimiter) {
     if (c.size() == 0) {
-    	return std::string{};
+        return std::string{};
     }
 
     std::string buffer;
