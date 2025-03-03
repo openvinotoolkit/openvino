@@ -124,10 +124,6 @@ function(ov_add_target)
         # code style
         ov_add_clang_format_target(${ARG_NAME}_clang FOR_TARGETS ${ARG_NAME})
     endif()
-    if(WIN32)
-        # Provide default compile pdb name equal to target name
-        set_target_properties(${ARG_NAME} PROPERTIES COMPILE_PDB_NAME ${ARG_NAME})
-    endif()
 endfunction()
 
 #[[
