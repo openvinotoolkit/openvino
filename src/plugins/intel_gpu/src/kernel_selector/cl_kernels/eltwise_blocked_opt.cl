@@ -23,12 +23,12 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
 {
     const uint global_id = get_global_id(0);
 
-    // For double blocked formats, calculate its size of inner blocks (both batch & feature) : INNER_BLOCKS_COUNT = INNER_BATCH_SIZE * F_BLOCK_COUNT
+    // For double blocked formats, calculate its size of inner blocks (both batch & feature) : INNER_BLOCKS_COUNT = INNER_BATCH_SIZE * INNER_FEATURE_SIZE
     const uint inner_block = global_id % INNER_BLOCKS_COUNT;
     // Calculate index of feature axis inner block which is divided by vector size
-    uint inner_f = inner_block % F_BLOCK_COUNT;
+    uint inner_f = inner_block % INNER_FEATURE_SIZE;
     // Calculate index of batch axis inner block
-    uint inner_b = inner_block / F_BLOCK_COUNT;
+    uint inner_b = inner_block / INNER_FEATURE_SIZE;
 
     const uint zyx = (uint)global_id / INNER_BLOCKS_COUNT;
 
@@ -36,8 +36,8 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
     const uint yx = zyx % (uint)OUTPUT_SIZE_XY;
     const uint bfz = zyx / (uint)OUTPUT_SIZE_XY;
 
-    const uint x = yx % OUTPUT_SIZE_X;
-    const uint y = yx / OUTPUT_SIZE_X;
+    const uint x = (yx % (OUTPUT_SIZE_X / X_BLOCK_SIZE)) * X_BLOCK_SIZE;
+    const uint y = (yx / (OUTPUT_SIZE_X / X_BLOCK_SIZE)) * Y_BLOCK_SIZE;
 
     const uint z = bfz % (uint)OUTPUT_SIZE_Z;
     const uint bf = bfz / (uint)OUTPUT_SIZE_Z;
@@ -46,8 +46,8 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
     const uint outer_b = bf / (uint)OUT_F_BLOCK;
 #else
     const uint z = 0;
-    const uint x = zyx % OUTPUT_SIZE_X;
-    const uint bfy = zyx / OUTPUT_SIZE_X;
+    const uint x = (zyx % (OUTPUT_SIZE_X / X_BLOCK_SIZE)) * X_BLOCK_SIZE;
+    const uint bfy = (zyx / (OUTPUT_SIZE_X / X_BLOCK_SIZE)) * Y_BLOCK_SIZE;
 
     const uint y = bfy % OUTPUT_SIZE_Y;
     const uint bf = bfy / OUTPUT_SIZE_Y;
@@ -58,10 +58,10 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
 
     // Calculate batch and feature index for GET_INDEX_format(b, f_block, z, y, x)
     const uint b = inner_b + outer_b * INNER_BATCH_SIZE;
-    const uint f_block = (inner_f + outer_f * F_BLOCK_COUNT);
+    const uint f_block = (inner_f + outer_f * INNER_FEATURE_SIZE);
 
     // Feature axis of input tensor is smaller than inner block size : No need to calculate this block
-    if ((f_block*VEC_SIZE) > OUTPUT_FEATURE_NUM || b > OUTPUT_BATCH_NUM) {
+    if ((f_block*F_BLOCK_SIZE) > OUTPUT_FEATURE_NUM || b > OUTPUT_BATCH_NUM) {
         return;
     }
 
@@ -82,8 +82,8 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
 
 #ifdef LEFTOVERS
     // Overwrite
-    if ((f_block*VEC_SIZE + VEC_SIZE) > OUTPUT_FEATURE_NUM) {
-        for (uint fp = OUTPUT_FEATURE_NUM % VEC_SIZE; fp < VEC_SIZE; fp++) {
+    if ((f_block*F_BLOCK_SIZE + F_BLOCK_SIZE) > OUTPUT_FEATURE_NUM) {
+        for (uint fp = OUTPUT_FEATURE_NUM % F_BLOCK_SIZE; fp < F_BLOCK_SIZE; fp++) {
             out[fp] = OUTPUT_VAL_ZERO;
         }
     }
@@ -91,9 +91,9 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
 
 #if PADDED_OUTPUT
 #if OUTPUT_DIMS == 5
-    VSTORE_N(out, 0, &output[OUTPUT_GET_INDEX(b, (f_block*VEC_SIZE), z, y, x)]);
+    VSTORE_N(out, 0, &output[OUTPUT_GET_INDEX(b, (f_block*F_BLOCK_SIZE), z, y, x)]);
 #else
-    VSTORE_N(out, 0, &output[OUTPUT_GET_INDEX(b, (f_block*VEC_SIZE), y, x)]);
+    VSTORE_N(out, 0, &output[OUTPUT_GET_INDEX(b, (f_block*F_BLOCK_SIZE), y, x)]);
 #endif
 #else
     VSTORE_N(out, global_id, output);
