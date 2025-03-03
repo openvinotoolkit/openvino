@@ -2031,14 +2031,14 @@ static int runSingleImageTest() {
             auto inputsInfo = std::const_pointer_cast<ov::Model>(model)->inputs();
             InputsInfo infoMap;
 
-            for (const auto& inputInfo : inputsInfo) {
-                std::cout << "---------- Before" << std::endl;
-                std::cout << "Input name: " << inputInfo.get_any_name() << std::endl;
-                std::cout << "Input shape: " << inputInfo.get_partial_shape().to_string() << std::endl;
-                std::cout << "Input precision: " << inputInfo.get_element_type().get_type_name() << std::endl;
-                std::cout << "Input batch size: " << ov::get_batch(model) << std::endl;
-                std::cout << "----------" << std::endl;
+            try {
+                ov::Dimension modelBatchBefore = ov::get_batch(model);
+                std::cout << "Model Batch [Before] --->>> " << modelBatchBefore.to_string() << std::endl;
+            } catch (const ov::AssertFailure& e) {
+                std::cerr << "Warning: Model has no batch layout / conflicting N dimensions. Details: " << e.what() << std::endl;
             }
+            std::cout << "Printing Input and Output Info from model" << std::endl;
+            printInputAndOutputsInfoShort(*model);
 
             // Get model shape and batch size
             std::cout << "Override Model Batch Size -> " << FLAGS_override_model_batch_size << std::endl;
@@ -2048,9 +2048,12 @@ static int runSingleImageTest() {
             reshape(std::move(inputsInfo), infoMap, model, FLAGS_shape,
                     FLAGS_override_model_batch_size, FLAGS_device);
 
-            std::cout << "---------- After" << std::endl;
-            std::cout << "Input batch size: " << ov::get_batch(model) << std::endl;
-            std::cout << "----------" << std::endl;
+            try {
+                ov::Dimension modelBatchBefore = ov::get_batch(model);
+                std::cout << "Model Batch [After]  --->>> " << modelBatchBefore.to_string() << std::endl;
+            } catch (const ov::AssertFailure& e) {
+                std::cerr << "Warning: Model has no batch layout / conflicting N dimensions. Details: " << e.what() << std::endl;
+            }
 
             ov::preprocess::PrePostProcessor ppp(model);
 
