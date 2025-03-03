@@ -106,7 +106,7 @@ function(ov_download_tbb)
                     ARCHIVE_WIN "oneapi-tbb-2021.2.5-win-vcruntime.zip"
                     TARGET_PATH "${TEMP}/tbb"
                     ENVIRONMENT "TBBROOT"
-                    SHA256 "dc6d5caed18fe4a30e088d1e45f92aac8fa10f542d19019edafa6aeea4465551"
+                    SHA256 "1d861ee2ef5c783ab46de6f6426d6632d6ec1a62fd16ee102371a1562f9c2244"
                     USE_NEW_LOCATION TRUE)
         else()
             RESOLVE_DEPENDENCY(TBB
