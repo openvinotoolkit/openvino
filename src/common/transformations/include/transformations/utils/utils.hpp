@@ -195,6 +195,8 @@ TRANSFORMATIONS_API bool has_f16_constants(const std::shared_ptr<const ov::Model
 
 TRANSFORMATIONS_API bool is_large_language_model(const ov::Model& model);
 
+TRANSFORMATIONS_API bool get_optimum_intel_version(const ov::Model& model);
+
 /**
  * \brief Check if 'other_shape' can be broadcasted to 'ref_shape'
  *
