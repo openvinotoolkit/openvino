@@ -191,12 +191,6 @@ public:
     SliceLastMatmulMultiply();
 };
 
-class SliceLastMatmulMultiply2 : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::SliceLastMatmulMultiply2");
-    SliceLastMatmulMultiply2();
-};
-
 // Convolution to MatMul
 class ConvToMatmul : public ov::pass::MatcherPass {
 public:
