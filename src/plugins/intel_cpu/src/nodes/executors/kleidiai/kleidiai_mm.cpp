@@ -64,7 +64,8 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
     auto dnnlSrcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(originalWeightsDesc);
     auto dstDesc = originalWeightsDesc->cloneWithNewPrecision(memory.at(ARG_SRC)->getDescPtr()->getPrecision());
     auto dnnlDstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc);
-    if (!attrs.weightsNonTransposed) {
+    
+    if ((inferPrecision == f32) && !attrs.weightsNonTransposed) {
         dnnlDstDesc = acl_fc_executor::makeTransposedWeightDescriptor(dnnlDstDesc, dnnlSrcDesc);
         aclfcAttrs.isWeightsRepacked = true;
     }
@@ -110,8 +111,10 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
         sr = ukernel_i8.get_sr();
         
         float* bias = biasMem->getDataAs<float>();
-        float* rhs = static_cast<float*>(packedWeights->getData());
         
+        // RHS is taken from non-reordered weiMem because the quantization function 
+        // stores its results in column-major order, thus performing a transpose
+        float* rhs = static_cast<float*>(weiMem->getData());
         quant_kxn_qs8cx_f32(N, K, K, rhs, rhs_native_qs8cx, rhs_scales);
         
         const size_t rhsPackedSize = kai_get_rhs_packed_size_rhs_pack_kxn_qsi8cxp_qsi8cx_neon(N, K, nr, kr, sr);
