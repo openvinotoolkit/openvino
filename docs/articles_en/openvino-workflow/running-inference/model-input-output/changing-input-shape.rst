@@ -13,8 +13,8 @@ The following instructions are for cases where you need to change the model inpu
 .. note::
 
    If you need to do this only once, prepare a model with updated shapes via
-   :doc:`Model Conversion API <../model-preparation>`.
-   For more information, refer to the :doc:`Setting Input Shapes <../model-preparation/setting-input-shapes>` article.
+   :doc:`Model Conversion API <../../model-preparation>`.
+   For more information, refer to the :doc:`Setting Input Shapes <../../model-preparation/setting-input-shapes>` article.
 
 
 The reshape method
@@ -45,7 +45,7 @@ to set a new batch size with the ``reshape`` method:
 The diagram below presents the results of using the method, where the size of
 model input is changed with an image input:
 
-.. image:: ../../assets/images/original_vs_reshaped_model.svg
+.. image:: ../../../assets/images/original_vs_reshaped_model.svg
 
 When using the ``reshape`` method, you may take one of the approaches:
 
@@ -73,7 +73,7 @@ When using the ``reshape`` method, you may take one of the approaches:
 
 
    To do the opposite - to resize input image to match the input shapes of the model,
-   use the :doc:`pre-processing API <optimize-inference/optimize-preprocessing>`.
+   use the :doc:`pre-processing API <../optimize-inference/optimize-preprocessing>`.
 
 
 2. You can express a reshape plan, specifying the input by the port, the index, and the tensor name:
@@ -151,12 +151,12 @@ When using the ``reshape`` method, you may take one of the approaches:
 
 
 You can find the usage scenarios of the ``reshape`` method in
-:doc:`Hello Reshape SSD Samples <../../get-started/learn-openvino/openvino-samples/hello-reshape-ssd>`.
+:doc:`Hello Reshape SSD Samples <../../../get-started/learn-openvino/openvino-samples/hello-reshape-ssd>`.
 
 .. note::
 
    In some cases, models may not be ready to be reshaped. Therefore, a new input
-   shape cannot be set neither with :doc:`Model Conversion API <../model-preparation>`
+   shape cannot be set neither with :doc:`Model Conversion API <../../model-preparation>`
    nor the ``reshape`` method.
 
 The set_batch method
@@ -189,7 +189,7 @@ Once you set the input shape of the model, call the ``compile_model`` method to
 get a ``CompiledModel`` object for inference with updated shapes.
 
 There are other approaches to change model input shapes during the stage of
-:doc:`IR generation <../model-preparation/setting-input-shapes>` or :doc:`model representation <./integrate-openvino-with-your-application/model-representation>` in OpenVINO Runtime.
+:doc:`IR generation <../../model-preparation/setting-input-shapes>` or :doc:`model representation <../model-representation>` in OpenVINO Runtime.
 
 
 .. important::
@@ -205,10 +205,10 @@ There are other approaches to change model input shapes during the stage of
 Additional Resources
 ####################
 
-* :doc:`Extensibility documentation <../../documentation/openvino-extensibility>` - describes a special mechanism in OpenVINO that allows adding support of shape inference for custom operations.
+* :doc:`Extensibility documentation <../../../documentation/openvino-extensibility>` - describes a special mechanism in OpenVINO that allows adding support of shape inference for custom operations.
 * `ov::Model::reshape <https://docs.openvino.ai/2025/api/c_cpp_api/group__ov__model__c__api.html#_CPPv416ov_model_reshapePK10ov_model_tPPKcPK18ov_partial_shape_t6size_t>`__ - in OpenVINO Runtime C++ API
 * `Model.reshape <https://docs.openvino.ai/2025/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.reshape>`__ - in OpenVINO Runtime Python API.
 * :doc:`Dynamic Shapes <dynamic-shapes>`
-* :doc:`OpenVINO samples <../../get-started/learn-openvino/openvino-samples>`
-* :doc:`Preprocessing API <optimize-inference/optimize-preprocessing>`
+* :doc:`OpenVINO samples <../../../get-started/learn-openvino/openvino-samples>`
+* :doc:`Preprocessing API <../optimize-inference/optimize-preprocessing>`
 

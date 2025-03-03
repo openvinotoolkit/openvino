@@ -284,7 +284,7 @@ with the static input shape to get the best performance.
          :fragment: [static_shape]
 
 
-For more details, see the :doc:`dynamic shapes guide <../dynamic-shapes>`.
+For more details, see the :doc:`dynamic shapes guide <../model-input-output/dynamic-shapes>`.
 
 Preprocessing Acceleration
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

@@ -244,7 +244,7 @@ Dynamic Shapes
    - Dynamic rank is not supported.
 
 The general description of what dynamic shapes are and how they are used can be found in
-:doc:`dynamic shapes guide <../dynamic-shapes>`.
+:doc:`dynamic shapes guide <../model-input-output/dynamic-shapes>`.
 To support dynamic shape execution, the following basic infrastructures are implemented:
 
 - Runtime shape inference: infers output shapes of each primitive for a new input shape at runtime.

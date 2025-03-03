@@ -18,7 +18,7 @@ This configurable method of this device-side parallelism is commonly referred as
 
 .. note::
 
-   Be aware that streams are **really executing the requests in parallel, but not in the lock step** (as the batching does), which makes the streams fully compatible with :doc:`dynamically-shaped inputs <../../dynamic-shapes>`, while individual requests can have different shapes.
+   Be aware that streams are **really executing the requests in parallel, but not in the lock step** (as the batching does), which makes the streams fully compatible with :doc:`dynamically-shaped inputs <../../model-input-output/dynamic-shapes>`, while individual requests can have different shapes.
 
 .. note::
 
@@ -74,7 +74,7 @@ One possible throughput optimization strategy is to **set an upper bound for lat
 
 .. note::
 
-   When playing with :doc:`dynamically-shaped inputs <../../dynamic-shapes>`, use only the streams (no batching), as they tolerate individual requests having different shapes.
+   When playing with :doc:`dynamically-shaped inputs <../../model-input-output/dynamic-shapes>`, use only the streams (no batching), as they tolerate individual requests having different shapes.
 
 .. note::
 

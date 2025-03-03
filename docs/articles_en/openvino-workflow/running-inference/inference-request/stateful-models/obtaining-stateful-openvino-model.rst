@@ -124,7 +124,7 @@ for the ReadValue operations are set to zeros unless the user specifies otherwis
 
 To apply LowLatency2 Transformation, follow the instruction below:
 
-1. Get :doc:`ov::Model <../integrate-openvino-with-your-application/model-representation>`,
+1. Get :doc:`ov::Model <../model-representation>`,
    for example:
 
    .. tab-set::
@@ -145,7 +145,7 @@ To apply LowLatency2 Transformation, follow the instruction below:
 
 
 2. Change the number of iterations inside TensorIterator/Loop nodes in the model using the
-   :doc:`Reshape <../changing-input-shape>` feature.
+   :doc:`Reshape <../model-input-output/changing-input-shape>` feature.
 
    For example, the *sequence_lengths* dimension of the model input > 1, it means the
    TensorIterator layer has the number_of_iterations > 1. You can reshape the model
@@ -251,7 +251,7 @@ To apply LowLatency2 Transformation, follow the instruction below:
       :align: center
 
    The only way to change the number iterations of TensorIterator/Loop layer is to use the
-   :doc:`Reshape <../changing-input-shape>` feature. However, some models may be
+   :doc:`Reshape <../model-input-output/changing-input-shape>` feature. However, some models may be
    non-reshapable, typically because the value of shapes is hardcoded in a constant
    somewhere in the model.
 
@@ -285,7 +285,7 @@ Stateful Model from Scratch
 
 The main approach to obtaining stateful OpenVINO IR models is converting from other
 frameworks. Nonetheless, it is possible to create a model from scratch. Check how to
-do so in the :doc:`Build OpenVINO Model section <../integrate-openvino-with-your-application/model-representation>`.
+do so in the :doc:`Build OpenVINO Model section <../model-representation>`.
 
 Here is also an example of how ``ov::SinkVector`` is used to create ``ov::Model``. For a
 model with states, except inputs and outputs, ``Assign`` nodes should also point to ``Model``
