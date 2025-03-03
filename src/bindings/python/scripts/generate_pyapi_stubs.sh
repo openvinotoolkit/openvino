@@ -91,6 +91,7 @@ else
     echo "No stub files were generated."
     exit 1
 fi
+echo "Stub files generated in $output_dir"
 
 # Workaround for pybind11-stubgen issue where it doesn't import some modules for stubs generated from .py files
 # Ticket: 163225
@@ -102,4 +103,3 @@ else
     echo "File $pyi_file not found."
     exit 1
 fi
-echo "Stub files generated in $output_dir"
