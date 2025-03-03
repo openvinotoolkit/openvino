@@ -15,24 +15,22 @@ namespace ov {
 
 namespace {
 
-struct StaticBufferAllocator {
+class StaticBufferAllocator {
     std::shared_ptr<ov::AlignedBuffer> buffer;
     bool allocated = false;  // if buffer was returned as allocated region
 
+public:
     StaticBufferAllocator(std::shared_ptr<ov::AlignedBuffer> _buffer) : buffer(_buffer) {}
 
     void* allocate(const size_t bytes, const size_t alignment) {
-        // TODO: Add check for alignment
+        OPENVINO_ASSERT(alignment == alignof(max_align_t) || alignment == 0);
         OPENVINO_ASSERT(!allocated);
         OPENVINO_ASSERT(bytes == buffer->size());
         allocated = true;
         return buffer->get_ptr();
     }
 
-    void deallocate(void* handle, const size_t bytes, const size_t alignment) {
-        OPENVINO_ASSERT(handle == buffer->get_ptr());
-        OPENVINO_ASSERT(bytes == buffer->size());
-    }
+    void deallocate(void* handle, const size_t bytes, const size_t alignment) {}
 
     bool is_equal(const StaticBufferAllocator&) const {
         return true;
@@ -43,7 +41,7 @@ struct StaticBufferAllocator {
 void save_tensor_data(const ov::Tensor& tensor, const std::filesystem::path& file_name) {
     OPENVINO_ASSERT(tensor.get_element_type() != ov::element::string);
     const char* data = reinterpret_cast<char*>(tensor.data());
-    std::ofstream file(file_name, std::ios::binary | std::ios::out);
+    std::ofstream file(file_name, std::ios::binary);
     file.write(data, tensor.get_byte_size());
 }
 void save_tensor_data(const ov::Tensor& tensor, const std::string& file_name) {
@@ -55,7 +53,8 @@ void save_tensor_data(const Tensor& tensor, const std::wstring& file_name) {
 }
 #endif
 
-void read_tensor_data(const std::filesystem::path& file_name, Tensor& tensor, std::size_t offset) {
+void read_tensor_data(const std::filesystem::path& file_name, Tensor& tensor, size_t offset) {
+    OPENVINO_ASSERT(tensor.get_element_type() != ov::element::string);
     std::ifstream fin(file_name, std::ios::binary);
     fin.seekg(offset);
     auto bytes_to_read = tensor.get_byte_size();
@@ -66,11 +65,11 @@ void read_tensor_data(const std::filesystem::path& file_name, Tensor& tensor, st
                     "bytes from ",
                     file_name);
 }
-void read_tensor_data(const std::string& file_name, Tensor& tensor, std::size_t offset) {
+void read_tensor_data(const std::string& file_name, Tensor& tensor, size_t offset) {
     read_tensor_data(std::filesystem::path(file_name), tensor, offset);
 }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-void read_tensor_data(const std::wstring& file_name, Tensor& tensor, std::size_t offset) {
+void read_tensor_data(const std::wstring& file_name, Tensor& tensor, size_t offset) {
     read_tensor_data(std::filesystem::path(file_name), tensor, offset);
 }
 #endif
@@ -78,26 +77,26 @@ void read_tensor_data(const std::wstring& file_name, Tensor& tensor, std::size_t
 Tensor read_tensor_data(const std::filesystem::path& file_name,
                         const element::Type& element_type,
                         const PartialShape& shape,
-                        std::size_t offset,
+                        size_t offset,
                         bool mmap) {
     OPENVINO_ASSERT(element_type != ov::element::string);
     OPENVINO_ASSERT(shape.is_static(), "Cannot read dynamic shape");
     if (mmap) {
         auto mapped_memory = ov::load_mmap_object(file_name);
         auto mmaped = std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data() + offset,
-                                                                                        mapped_memory->size(),
+                                                                                        mapped_memory->size() - offset,
                                                                                         mapped_memory);
         return Tensor(element_type, shape.get_shape(), StaticBufferAllocator(mmaped));
     } else {
         ov::Tensor tensor(element_type, shape.get_shape());
-        read_tensor_data(file_name, tensor);
+        read_tensor_data(file_name, tensor, offset);
         return tensor;
     }
 }
 Tensor read_tensor_data(const std::string& file_name,
                         const element::Type& element_type,
                         const PartialShape& shape,
-                        std::size_t offset,
+                        size_t offset,
                         bool mmap) {
     return read_tensor_data(std::filesystem::path(file_name), element_type, shape, offset, mmap);
 }
@@ -105,7 +104,7 @@ Tensor read_tensor_data(const std::string& file_name,
 Tensor read_tensor_data(const std::wstring& file_name,
                         const element::Type& element_type,
                         const PartialShape& shape,
-                        std::size_t offset,
+                        size_t offset,
                         bool mmap) {
     return read_tensor_data(std::filesystem::path(file_name), element_type, shape, offset, mmap);
 }
