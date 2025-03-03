@@ -22,6 +22,7 @@
 #include "openvino/opsets/opset4.hpp"
 #include "openvino/opsets/opset5.hpp"
 #include "openvino/opsets/opset6.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 // Common transformations
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
@@ -29,6 +30,7 @@
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/convert_sinking_gather.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/lora_subgraph_fusion.hpp"
@@ -452,10 +454,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         [](const_node_ptr& node) -> bool {
             const auto consumers = node->get_output_target_inputs(0);
             return std::all_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& consumer) {
-                return !ov::is_type<ov::op::v0::MatMul>(consumer.get_node());
+                return !ov::is_type<ov::op::v0::MatMul>(consumer.get_node()) &&
+                       !ov::is_type<ov::op::v8::Gather>(consumer.get_node());
             });
         },
         ov::pass::KeepConstAndDecompression);
+    CPU_REGISTER_PASS_X64(manager, ov::pass::ConvertSinkingGather);
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
