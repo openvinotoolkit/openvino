@@ -71,9 +71,9 @@ protected:
         //    _kernels_data[1] - sdpa_opt (indirect)
         //   => use internal buffers from [1] kernel
         size_t kernel_idx = _kernels_data.size();
-        if (_kernels_data.size() >= 1 && !_kernels_data[0].internalBufferSizes.empty()) {
+        if (_kernels_data.size() >= 1 && !_kernels_data[0].internalBuffers.empty()) {
             kernel_idx = 0;
-        } else if (_kernels_data.size() >= 2 && !_kernels_data[1].internalBufferSizes.empty()) {
+        } else if (_kernels_data.size() >= 2 && !_kernels_data[1].internalBuffers.empty()) {
             kernel_idx = 1;
         }
 
@@ -81,9 +81,9 @@ protected:
         if (kernel_idx < _kernels_data.size()) {
             auto dtype = from_data_type(_kernels_data[kernel_idx].internalBufferDataType);
             const auto bpp = data_type_traits::size_of(dtype);
-            for (auto size : _kernels_data[kernel_idx].internalBufferSizes) {
+            for (const auto& buffer : _kernels_data[kernel_idx].internalBuffers) {
                 layout inbuf_layout = {dtype, format::bfyx, // simple linear format (flattern to x channel)
-                                        {1, 1, 1, (tensor::value_type)(size / bpp)}};
+                                        {1, 1, 1, (tensor::value_type)(buffer.byte_count / bpp)}};
                 layouts.push_back(inbuf_layout);
             }
         }

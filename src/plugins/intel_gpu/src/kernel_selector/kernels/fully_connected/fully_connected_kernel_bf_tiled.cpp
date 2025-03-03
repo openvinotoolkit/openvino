@@ -867,7 +867,7 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
             else
                 OPENVINO_ASSERT(input.Feature().pad.Total(true) == 0, "[GPU] Invalid padding in f axis observed in FC bf tiled.");
 
-            if (!kd.internalBufferSizes.empty()) {
+            if (!kd.internalBuffers.empty()) {
                 // Pre-quantizing kernel was generated. Update the kernel and intermediate buffers or disable it.
                 if (execute_type == KernelType::DEFAULT) {
                     kd.kernels[0].skip_execution = true;
@@ -879,13 +879,13 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
                     // half type of de_quan_scale and activation sum for each quantized group
                     size_t quan_var_size = (input_size / quantize_grp_size) * 2 * 2;
 
-                    if (kd.internalBufferSizes[0] < input_size ||
-                        kd.internalBufferSizes[1] < quan_var_size) {
-                        kd.internalBufferSizes.clear();
+                    if (kd.internalBuffers[0].byte_count < input_size ||
+                        kd.internalBuffers[1].byte_count < quan_var_size) {
+                        kd.internalBuffers.clear();
                         // quantized input is char type
-                        kd.internalBufferSizes.push_back(input_size);
+                        kd.internalBuffers.push_back(input_size);
                         // float type of de_quan_scale and activation sum for each quantized group
-                        kd.internalBufferSizes.push_back(quan_var_size);
+                        kd.internalBuffers.push_back(quan_var_size);
                     }
 
                     kd.kernels[0].params.workGroups.global = {(std::max((input_size / quantize_grp_size), (size_t)1)), 1, 1};
@@ -1096,9 +1096,9 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
         quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         // char type quantized input
-        kd.internalBufferSizes.push_back(input_size);
+        kd.internalBuffers.push_back(input_size);
         // half type of de_quan_scale and activation sum for each quantized group
-        kd.internalBufferSizes.push_back((input_size / quantize_grp_size) * 2 * 2);
+        kd.internalBuffers.push_back((input_size / quantize_grp_size) * 2 * 2);
         kernel_number++;
     }
     kd.internalBufferDataType = Datatype::F16;

@@ -157,9 +157,9 @@ void GroupNormalizationKernel_b_fs_yx_fsv16::GetUpdateDispatchDataFunc(KernelDat
         kd.kernels[2].params.workGroups.local = dispatchData.stage_final.lws;
         kd.kernels[2].skip_execution = KernelData::SkipKernelExecution(prim_params, 2);
 
-        kd.internalBufferSizes.clear();
-        kd.internalBufferSizes.push_back(prim_params.outputs[0].Batch().v * Align(prim_params.outputs[0].Feature().v, fsv) * 4);
-        kd.internalBufferSizes.push_back(prim_params.outputs[0].Batch().v * Align(prim_params.outputs[0].Feature().v, fsv) * 4);
+        kd.internalBuffers.clear();
+        kd.internalBuffers.push_back(prim_params.outputs[0].Batch().v * Align(prim_params.outputs[0].Feature().v, fsv) * 4);
+        kd.internalBuffers.push_back(prim_params.outputs[0].Batch().v * Align(prim_params.outputs[0].Feature().v, fsv) * 4);
     };
 }
 
@@ -225,8 +225,8 @@ KernelsData GroupNormalizationKernel_b_fs_yx_fsv16::GetKernelsData(const Params 
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         if (!prim_params.has_dynamic_tensors()) {
-            kd.internalBufferSizes.push_back(prim_params.outputs[0].Batch().v * Align(prim_params.outputs[0].Feature().v, fsv) * 4);
-            kd.internalBufferSizes.push_back(prim_params.outputs[0].Batch().v * Align(prim_params.outputs[0].Feature().v, fsv) * 4);
+            kd.internalBuffers.push_back(prim_params.outputs[0].Batch().v * Align(prim_params.outputs[0].Feature().v, fsv) * 4);
+            kd.internalBuffers.push_back(prim_params.outputs[0].Batch().v * Align(prim_params.outputs[0].Feature().v, fsv) * 4);
         }
     }
     {
