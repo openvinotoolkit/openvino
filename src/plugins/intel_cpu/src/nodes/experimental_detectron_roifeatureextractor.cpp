@@ -79,8 +79,8 @@ void pre_calc_for_bilinear_interpolate(const int height,
                         x = 0;
                     }
 
-                    int y_low = static_cast<int>(y);
-                    int x_low = static_cast<int>(x);
+                    auto y_low = static_cast<int>(y);
+                    auto x_low = static_cast<int>(x);
                     int y_high = 0;
                     int x_high = 0;
 

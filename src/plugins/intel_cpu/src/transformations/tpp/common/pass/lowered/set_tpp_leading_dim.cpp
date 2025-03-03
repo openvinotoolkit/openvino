@@ -110,7 +110,7 @@ size_t get_leading_dim(ExpressionPort port, const snippets::lowered::LoopManager
         }
     };
     return layout.size() == 1 ? shape.back()
-                              : std::accumulate(shape.cbegin() + dim() + 1, shape.cend(), 1, std::multiplies<size_t>());
+                              : std::accumulate(shape.cbegin() + dim() + 1, shape.cend(), 1, std::multiplies<>());
 }
 
 }  // namespace

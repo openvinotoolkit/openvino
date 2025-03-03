@@ -3,8 +3,7 @@
 //
 #include "executor_pa_common.hpp"
 
-#include <float.h>
-
+#include <cfloat>
 #include <cmath>
 #include <cstring>
 #include <iostream>

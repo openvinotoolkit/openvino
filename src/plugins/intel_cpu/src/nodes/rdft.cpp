@@ -5,6 +5,7 @@
 #include "rdft.h"
 
 #include <cmath>
+#include <memory>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/irdft.hpp>
 #include <openvino/op/rdft.hpp>
@@ -143,7 +144,7 @@ void RDFT::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> configurators(
         {{LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::i32}});
     if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
-        configurators.push_back({LayoutType::ncsp, ov::element::i32});
+        configurators.emplace_back(LayoutType::ncsp, ov::element::i32);
     }
 
     addSupportedPrimDesc(configurators, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
@@ -637,8 +638,8 @@ void RDFTExecutor::dftOnAxis(enum dft_type type,
 
     bool useFFT = canUseFFT(signalSize);
 
-    size_t totalWorkSize = std::accumulate(iterationRange.begin(), iterationRange.end(), 1, std::multiplies<size_t>()) /
-                           iterationRange[axis];
+    size_t totalWorkSize =
+        std::accumulate(iterationRange.begin(), iterationRange.end(), 1, std::multiplies<>()) / iterationRange[axis];
     bool parallelizeOuterAxes = totalWorkSize > signalSize;
 
     if (parallelizeOuterAxes) {
@@ -752,8 +753,8 @@ void RDFTExecutor::irdftNd(float* inputPtr,
 
     float* output = outputPtr;
     std::vector<float> tmp;
-    size_t inputShapeSize = std::accumulate(inputShape.begin(), inputShape.end(), 1, std::multiplies<size_t>());
-    size_t outputShapeSize = std::accumulate(outputShape.begin(), outputShape.end(), 1, std::multiplies<size_t>());
+    size_t inputShapeSize = std::accumulate(inputShape.begin(), inputShape.end(), 1, std::multiplies<>());
+    size_t outputShapeSize = std::accumulate(outputShape.begin(), outputShape.end(), 1, std::multiplies<>());
     if (inputShapeSize > outputShapeSize) {
         tmp.resize(inputShapeSize);
         output = &tmp[0];
@@ -837,22 +838,22 @@ struct RDFTJitExecutor : public RDFTExecutor {
     RDFTJitExecutor(bool inverse, NodeDesc* primDesc) : RDFTExecutor(inverse) {
         enum dft_type rdftType = isInverse ? complex_to_real : real_to_complex;
         if (mayiuse(cpu::x64::avx512_core)) {
-            rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx512_core>(isInverse, rdftType));
-            dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx512_core>(isInverse, complex_to_complex));
+            rdftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::avx512_core>>(isInverse, rdftType);
+            dftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::avx512_core>>(isInverse, complex_to_complex);
             vlen = cpu_isa_traits<cpu::x64::avx512_core>::vlen;
             if (primDesc) {
                 primDesc->setImplementationType(jit_avx512);
             }
         } else if (mayiuse(cpu::x64::avx2)) {
-            rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx2>(isInverse, rdftType));
-            dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx2>(isInverse, complex_to_complex));
+            rdftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::avx2>>(isInverse, rdftType);
+            dftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::avx2>>(isInverse, complex_to_complex);
             vlen = cpu_isa_traits<cpu::x64::avx2>::vlen;
             if (primDesc) {
                 primDesc->setImplementationType(jit_avx2);
             }
         } else if (mayiuse(cpu::x64::sse41)) {
-            rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::sse41>(isInverse, rdftType));
-            dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::sse41>(isInverse, complex_to_complex));
+            rdftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::sse41>>(isInverse, rdftType);
+            dftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::sse41>>(isInverse, complex_to_complex);
             vlen = cpu_isa_traits<cpu::x64::sse41>::vlen;
             if (primDesc) {
                 primDesc->setImplementationType(jit_sse42);

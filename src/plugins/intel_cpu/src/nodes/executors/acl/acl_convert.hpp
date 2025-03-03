@@ -18,7 +18,7 @@ public:
               const MemoryDescPtr& dstDesc,
               const dnnl::primitive_attr& attr) override;
     void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) override;
-    impl_desc_type implType() const override {
+    [[nodiscard]] impl_desc_type implType() const override {
         return impl_desc_type::acl;
     };
 
@@ -32,10 +32,10 @@ protected:
 
 class ACLConvertExecutorBuilder : public ConvertExecutorBuilder {
 public:
-    bool isSupported(const ConvertParams& convertParams,
-                     const MemoryDescPtr& srcDesc,
-                     const MemoryDescPtr& dstDesc) const override;
-    ConvertExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
+    [[nodiscard]] bool isSupported(const ConvertParams& convertParams,
+                                   const MemoryDescPtr& srcDesc,
+                                   const MemoryDescPtr& dstDesc) const override;
+    [[nodiscard]] ConvertExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
         return std::make_shared<ACLConvertExecutor>(context);
     }
 };

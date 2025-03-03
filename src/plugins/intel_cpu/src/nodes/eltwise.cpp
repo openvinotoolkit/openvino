@@ -254,8 +254,8 @@ const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getIn
         }},
         {ov::op::v0::Clamp::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
             auto clampOp = getNgraphOpAs<ov::op::v0::Clamp>(op);
-            float alpha_ = static_cast<float>(clampOp->get_min());
-            float beta_ = static_cast<float>(clampOp->get_max());
+            auto alpha_ = static_cast<float>(clampOp->get_min());
+            auto beta_ = static_cast<float>(clampOp->get_max());
             if (clampOp->get_input_element_type(0).is_integral_number()) {
                 // according to spec, when Clamp has integer element type, min and max mist be converted to integer
                 alpha_ = std::ceil(alpha_);
@@ -360,7 +360,7 @@ struct EltwiseKey {
     dnnl::post_ops postOps;
     EltwiseImplType implType;
 
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
         using namespace dnnl::impl::primitive_hashing;
         size_t seed = 0;
@@ -654,14 +654,20 @@ public:
 
 #if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
-            _pKernel.reset(
-                new jit_uni_eltwise_generic<dnnl::impl::cpu::x64::avx512_core>(jep, eltwise_data, ops_list, post_ops));
+            _pKernel = std::make_unique<jit_uni_eltwise_generic<dnnl::impl::cpu::x64::avx512_core>>(jep,
+                                                                                                    eltwise_data,
+                                                                                                    ops_list,
+                                                                                                    post_ops);
         } else if (mayiuse(dnnl::impl::cpu::x64::avx2)) {
-            _pKernel.reset(
-                new jit_uni_eltwise_generic<dnnl::impl::cpu::x64::avx2>(jep, eltwise_data, ops_list, post_ops));
+            _pKernel = std::make_unique<jit_uni_eltwise_generic<dnnl::impl::cpu::x64::avx2>>(jep,
+                                                                                             eltwise_data,
+                                                                                             ops_list,
+                                                                                             post_ops);
         } else if (mayiuse(dnnl::impl::cpu::x64::sse41)) {
-            _pKernel.reset(
-                new jit_uni_eltwise_generic<dnnl::impl::cpu::x64::sse41>(jep, eltwise_data, ops_list, post_ops));
+            _pKernel = std::make_unique<jit_uni_eltwise_generic<dnnl::impl::cpu::x64::sse41>>(jep,
+                                                                                              eltwise_data,
+                                                                                              ops_list,
+                                                                                              post_ops);
         } else {
             OPENVINO_THROW("Can't create jit eltwise kernel");
         }
@@ -732,13 +738,13 @@ public:
             });
         }
     }
-    const VectorDims& getOutDims() const override {
+    [[nodiscard]] const VectorDims& getOutDims() const override {
         if (!_pKernel) {
             OPENVINO_THROW("Can't get jit eltwise params, kernel for Eltwise executor is not compiled");
         }
         return _pKernel->jep_.dims;
     }
-    size_t getBatchDimIdx() const override {
+    [[nodiscard]] size_t getBatchDimIdx() const override {
         return _batchDimIdx;
     }
 
@@ -802,11 +808,11 @@ public:
         }
     }
 
-    const VectorDims& getOutDims() const override {
+    [[nodiscard]] const VectorDims& getOutDims() const override {
         return _dims;
     }
 
-    size_t getBatchDimIdx() const override {
+    [[nodiscard]] size_t getBatchDimIdx() const override {
         return _batchDimIdx;
     }
 
@@ -857,9 +863,7 @@ protected:
 
 /* enabled only for float at float16_t at the moment
  * can be extended in the future */
-template <typename T,
-          typename std::enable_if<std::is_same<T, float>::value ||
-                                  std::is_same<T, dnnl::impl::float16_t>::value>::type* = nullptr>
+template <typename T, std::enable_if_t<std::is_same_v<T, float> || std::is_same_v<T, dnnl::impl::float16_t>>* = nullptr>
 class EltwiseRefExecutor : public EltwiseRefBaseExecutor<T> {
 public:
     EltwiseRefExecutor(const EltwiseData& opData, const VectorDims& outBlkDims, std::vector<VectorDims> inpDims)
@@ -1059,9 +1063,8 @@ public:
 };
 
 template <typename T,
-          typename std::enable_if<std::is_same<T, int8_t>::value || std::is_same<T, uint8_t>::value ||
-                                  std::is_same<T, int16_t>::value || std::is_same<T, uint16_t>::value ||
-                                  std::is_same<T, int32_t>::value>::type* = nullptr>
+          std::enable_if_t<std::is_same_v<T, int8_t> || std::is_same_v<T, uint8_t> || std::is_same_v<T, int16_t> ||
+                           std::is_same_v<T, uint16_t> || std::is_same_v<T, int32_t>>* = nullptr>
 class BitwiseRefExecutor : public EltwiseRefBaseExecutor<T> {
 public:
     BitwiseRefExecutor(const EltwiseData& opData, const VectorDims& outBlkDims, const std::vector<VectorDims>& inpDims)

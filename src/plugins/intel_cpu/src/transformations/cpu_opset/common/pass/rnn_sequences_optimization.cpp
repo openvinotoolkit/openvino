@@ -148,6 +148,7 @@ ov::intel_cpu::OptimizeLSTMSequenceTransposes::OptimizeLSTMSequenceTransposes() 
     this->register_matcher(m, callback);
 }
 
+// NOLINTNEXTLINE(modernize-use-equals-default)
 ov::intel_cpu::OptimizeSequenceTransposes::OptimizeSequenceTransposes() {
     ADD_MATCHER_FOR_THIS(OptimizeLSTMSequenceTransposes)
     ADD_MATCHER_FOR_THIS(OptimizeRNNSequenceTransposes)

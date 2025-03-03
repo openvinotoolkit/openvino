@@ -123,7 +123,7 @@ protected:
             ov::Tensor tensor;
 
             if (funcInput.get_node()->get_friendly_name() == "data") {
-                int32_t range = std::accumulate(targetInputStaticShapes[0].begin(), targetInputStaticShapes[0].end(), 1, std::multiplies<size_t>());
+                int32_t range = std::accumulate(targetInputStaticShapes[0].begin(), targetInputStaticShapes[0].end(), 1, std::multiplies<>());
                 ov::test::utils::InputGenerateData in_data;
                 in_data.start_from = -range / 2;
                 in_data.range = range;
