@@ -36,6 +36,9 @@ class Output;
 template <class>
 class SharedBuffer;
 class MappedMemory;
+namespace element {
+class Type;
+}
 
 // Forward declaration
 namespace op {
@@ -77,6 +80,7 @@ void write(std::ostream& stream, const ::intel_npu::Config& var);
 void write(std::ostream& stream, const ov::Output<const ov::Node>& var);
 void write_any(std::ostream& stream, const ov::Any& var);
 void write(std::ostream& stream, const ov::npuw::weights::LazyTensor& var);
+void write(std::ostream& stream, const ov::element::Type& var);
 
 void read(std::istream& stream, std::streampos& var);
 void read(std::istream& stream, std::string& var);
@@ -89,6 +93,7 @@ void read(std::istream& stream, std::shared_ptr<ov::op::v0::Parameter>& var);
 void read(std::istream& stream, std::shared_ptr<ov::Node>& var);
 void read_any(std::istream& stream, ov::Any& var);
 void read(std::istream& stream, ov::npuw::weights::LazyTensor& var);
+void read(std::istream& stream, ov::element::Type& var);
 
 // Weightless utils
 void write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const Context& ctx);

@@ -3604,11 +3604,11 @@ void Reduce::reduce_ref_process(const float* in_ptr,
                                 float init_value,
                                 std::function<float(float, float)> func) {
     size_t work_amount_dst = 1, reduced_dims_work_amount = 1;
-    for (size_t i = 0; i < process_dst_dims.size(); i++) {
-        work_amount_dst *= process_dst_dims[i];
+    for (size_t process_dst_dim : process_dst_dims) {
+        work_amount_dst *= process_dst_dim;
     }
-    for (size_t i = 0; i < src_dims.size(); i++) {
-        reduced_dims_work_amount *= src_dims[i];
+    for (size_t src_dim : src_dims) {
+        reduced_dims_work_amount *= src_dim;
     }
     reduced_dims_work_amount /= work_amount_dst;
 
@@ -3641,10 +3641,9 @@ void Reduce::reduce_ref_process(const float* in_ptr,
                     if (src_counters[axes_for_reduction[j]] < src_dims[axes_for_reduction[j]]) {
                         src_idx += src_strides[axes_for_reduction[j]];
                         break;
-                    } else {
-                        src_counters[axes_for_reduction[j]] = 0;
-                        update_idx = true;
                     }
+                    src_counters[axes_for_reduction[j]] = 0;
+                    update_idx = true;
                 }
             }
             out_ptr[dst_idx] = reduce_prod;
@@ -3652,9 +3651,8 @@ void Reduce::reduce_ref_process(const float* in_ptr,
                 dst_counters[j]++;
                 if (dst_counters[j] < process_dst_dims[j]) {
                     break;
-                } else {
-                    dst_counters[j] = 0;
                 }
+                dst_counters[j] = 0;
             }
         }
     });
@@ -3798,7 +3796,8 @@ int Reduce::getFusingAxis() const {
                 // channel axis has been reduced and doesn't exist any more
                 channelAxis = -1;
                 break;
-            } else if (axis == 0) {
+            }
+            if (axis == 0) {
                 channelAxis = 0;
             }
         }

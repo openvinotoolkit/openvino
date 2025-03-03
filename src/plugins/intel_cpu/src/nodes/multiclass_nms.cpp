@@ -576,9 +576,8 @@ const float* MultiClassNms::slice_class(const int batch_idx,
     if (shared) {
         if (is_boxes) {
             return dataPtr + batch_idx * dataStrides[0];
-        } else {
-            return dataPtr + batch_idx * dataStrides[0] + class_idx * dataStrides[1];
         }
+        return dataPtr + batch_idx * dataStrides[0] + class_idx * dataStrides[1];
     }
 
     // get M boxes of current class_idx : 1, M, 4
