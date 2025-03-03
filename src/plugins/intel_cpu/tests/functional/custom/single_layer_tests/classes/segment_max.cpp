@@ -50,15 +50,34 @@ std::string SegmentMaxLayerCPUTest::getTestCaseName(testing::TestParamInfo<Segme
     }
 
 void SegmentMaxLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
-        inputs.clear();
-        const auto& funcInputs = function->inputs();
-        const auto dataType = funcInputs[0].get_element_type();
-        const auto& dataShape = targetInputStaticShapes[0];
-        ov::test::utils::InputGenerateData in_data;
-        in_data.start_from = 0;
-        in_data.range = 10;
-        const auto dataTensor = ov::test::utils::create_and_fill_tensor(dataType, dataShape, in_data);
-        inputs.insert({funcInputs[0].get_node_shared_ptr(), dataTensor});
+    std::cout << "Generating inputs..." << std::endl;
+    inputs.clear();
+    const auto& funcInputs = function->inputs();
+    const auto dataType = funcInputs[0].get_element_type();
+    const auto& dataShape = targetInputStaticShapes[0];
+    std::cout << "Data type: " << dataType << std::endl;
+    std::cout << "Data shape: " << ov::test::utils::vec2str(dataShape) << std::endl;
+
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = 0;
+    in_data.range = 10;
+    const auto dataTensor = ov::test::utils::create_and_fill_tensor(dataType, dataShape, in_data);
+    inputs.insert({funcInputs[0].get_node_shared_ptr(), dataTensor});
+    std::cout << "Data tensor created and filled." << std::endl;
+
+    const auto useNumSegments = std::get<3>(std::get<0>(this->GetParam()));
+    if (useNumSegments) {
+        const auto numSegmentsValue = std::get<2>(std::get<0>(std::get<0>(this->GetParam())));
+        std::cout << "Num segments value: " << numSegmentsValue << std::endl;
+        std::cout << "Num segments value (unsigned int): " << static_cast<unsigned int>(numSegmentsValue) << std::endl;
+        const auto numSegmentsTensor = ov::test::utils::create_and_fill_tensor(
+            funcInputs[2].get_element_type(),
+            {},
+            {static_cast<unsigned int>(numSegmentsValue)});
+        inputs.insert({funcInputs[2].get_node_shared_ptr(), numSegmentsTensor});
+        std::cout << "Num segments tensor created and filled." << std::endl;
+    }
+    std::cout << "Input generation completed." << std::endl;
 }
 
 void SegmentMaxLayerCPUTest::SetUp() {
@@ -93,13 +112,15 @@ void SegmentMaxLayerCPUTest::SetUp() {
         auto dataParameter = std::make_shared<ov::op::v0::Parameter>(inputPrecision, inputDynamicShapes[0]);
         auto segmentIdsConst = std::make_shared<ov::op::v0::Constant>(segmentIdsPrecision, ov::Shape{segmentIdsValues.size()}, segmentIdsValues);
         std::shared_ptr<ov::Node> segmentMax;
+        ov::ParameterVector params{ dataParameter };
         if (useNumSegments) {
-            auto numSegments = std::make_shared<ov::op::v0::Constant>(segmentIdsPrecision, ov::Shape{}, numSegmentsValue);
-            segmentMax = std::make_shared<ov::op::v16::SegmentMax>(dataParameter, segmentIdsConst, numSegments, fillMode);
+            //const auto numSegmentsConst = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, numSegmentsValue);
+            auto numSegmentsParameter = std::make_shared<ov::op::v0::Parameter>(segmentIdsPrecision, ov::Shape{});
+            segmentMax = std::make_shared<ov::op::v16::SegmentMax>(dataParameter, segmentIdsConst, numSegmentsParameter, fillMode);
+            params.push_back(numSegmentsParameter);
         } else {
             segmentMax = std::make_shared<ov::op::v16::SegmentMax>(dataParameter, segmentIdsConst, fillMode);
         }
-        ov::ParameterVector params{ dataParameter };
         function = makeNgraphFunction(inputPrecision, params, segmentMax, "SegmentMax");
 }
 

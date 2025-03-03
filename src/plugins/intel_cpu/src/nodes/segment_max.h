@@ -21,6 +21,7 @@ public:
     bool created() const override;
     bool needPrepareParams() const override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
+    bool needShapeInfer() const override;
 
 private:
     template <class OV_DATA_TYPE, class OV_INDEX_TYPE>
@@ -30,6 +31,7 @@ private:
     struct SegmentMaxExecute;
 
     ov::op::FillMode fillMode;
+    std::vector<int64_t> lastNumSegments;
 };
 
 }  // namespace node

@@ -64,6 +64,30 @@ bool SegmentMax::needPrepareParams() const {
 
 void SegmentMax::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
+    if (getOriginalInputsNumber() == 3) {
+        const int64_t* numSegments = getSrcDataAtPortAs<const int64_t>(2);
+        if (lastNumSegments.empty()) {
+            lastNumSegments.push_back(*numSegments);
+        } else {
+            lastNumSegments[0] = *numSegments;
+        }
+    }
+}
+
+bool SegmentMax::needShapeInfer() const {
+    if (inputShapesModified()) {
+        return true;
+    }
+    if (getOriginalInputsNumber() == 3) {
+        if (lastNumSegments.empty()) {
+            return true;
+        }
+        const int64_t* numSegments = getSrcDataAtPortAs<const int64_t>(2);
+        if (*numSegments != lastNumSegments[0]) {
+            return true;
+        }
+    }
+    return false;
 }
 
 template <class T, class T_idx>
