@@ -60,6 +60,7 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
     SEARCH_WORD(kleidiai);
     SEARCH_WORD(shl);
     SEARCH_WORD(asimd);
+    SEARCH_WORD(gv);
     if ((res & impl_desc_type::avx2) != impl_desc_type::avx2 &&
         (res & impl_desc_type::avx512) != impl_desc_type::avx512) {
         SEARCH_WORD(avx);
@@ -153,6 +154,8 @@ const char* impl_type_to_string(impl_desc_type type) {
     CASE(jit_sve512);
     CASE(shl);
     CASE(gemm_shl);
+    CASE(gv);
+    CASE(jit_gv);
     CASE(kleidiai);
     CASE(gemm_kleidiai);
 
