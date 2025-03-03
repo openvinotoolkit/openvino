@@ -4,7 +4,7 @@
 
 #include <memory>
 
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "lstm_seq_inst.h"
 namespace cldnn {
