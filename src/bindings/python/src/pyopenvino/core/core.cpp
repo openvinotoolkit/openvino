@@ -450,7 +450,6 @@ void regclass_Core(py::module m) {
            py::object weights_path,
            const std::map<std::string, py::object>& config) {
             if (py::isinstance(model_path, py::module::import("io").attr("BytesIO"))) {
-
                 model_path.attr("seek")(0);  // Always rewind stream!
                 py::buffer_info buffer_info = model_path.attr("getbuffer")().cast<py::buffer>().request();
 
@@ -500,7 +499,7 @@ void regclass_Core(py::module m) {
                             For PDPD format (*.pdmodel) weights parameter is not used.
                             For TF format (*.pb): weights parameter is not used.
                             For TFLite format (*.tflite) weights parameter is not used.
-            :type weights: pathlib.Path
+            :type weights: Union[pathlib.Path, io.BytesIO]
             :param config: Optional map of pairs: (property name, property value) relevant only for this read operation.
             :type config: dict, optional
             :return: A model.
