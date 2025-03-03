@@ -175,6 +175,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=21_.*_sort=value_modelType=f16_trgDev=CPU.*)",
         // Issue: 121812
         R"(.*ConvertCPULayerTest.*outFmts=(nhwc|nChw8c|nChw16c).*)",
+        // Issue: 123320
+        // Input precision bf16 is converted to fp32 by logic in core_config.cpp during ngraph reference test.
+        R"(.*FakeConvertLayerTest.*dataPrecision=bf16.*)",
         // Need to generate sequence exactly in the i64 data type. Enable in scope of i64 enabling.
         R"(.*RandomUniformLayerTestCPU.*OutPrc=i64.*)",
         // Issue: 123815 (Tests are sensintive to available thread count on testing machines)
@@ -488,13 +491,13 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*(BF|bf)16.*)");
         retVector.emplace_back(R"(.*bfloat16.*)");
     }
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     if (!ov::with_cpu_x86_avx2()) {
         // MatMul in Snippets uses BRGEMM that is supported only on AVX2 (and newer) platforms
         // Disabled Snippets MHA tests as well because MHA pattern contains MatMul
         retVector.emplace_back(R"(.*Snippets.*MHA.*)");
         retVector.emplace_back(R"(.*Snippets.*(MatMul|Matmul).*)");
     }
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     if (!ov::with_cpu_x86_avx512_core_fp16()) {
         // Skip fp16 tests for paltforms that don't support fp16 precision
         retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
@@ -533,6 +536,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*CompileModelWithCacheEncryptionTest.*CanImportModelWithoutException.*)");
     retVector.emplace_back(R"(.*ConcatMultiQuerySDPTest.*f16.*)");
     retVector.emplace_back(R"(.*ConcatSDPTest.*f16.*)");
+    retVector.emplace_back(R"(.*FakeConvertLayerTest.*f16.*)");
     retVector.emplace_back(R"(.*CoreThreadingTestsWithCacheEnabled.*smoke_compiled_model_cache_enabled.*)");
     retVector.emplace_back(R"(.*CoreThreadingTestsWithIter.*smoke_CompileModel.*)");
     retVector.emplace_back(R"(.*CustomOpConvertI64CPUTest.*CompareWithRefs.*)");

@@ -346,14 +346,14 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(const dnnl::stre
 
         size_t anchor_dims_size = 1;
         const auto& anchorDims = getParentEdgeAt(INPUT_ANCHORS)->getMemory().getStaticDims();
-        for (size_t i = 0; i < anchorDims.size(); i++) {
-            anchor_dims_size *= anchorDims[i];
+        for (uint64_t anchorDim : anchorDims) {
+            anchor_dims_size *= anchorDim;
         }
 
         size_t deltas_dims_size = 1;
         const auto& deltaDims = getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims();
-        for (size_t i = 0; i < deltaDims.size(); i++) {
-            deltas_dims_size *= deltaDims[i];
+        for (uint64_t deltaDim : deltaDims) {
+            deltas_dims_size *= deltaDim;
         }
         if (anchor_dims_size != deltas_dims_size) {
             THROW_CPU_NODE_ERR("'Anchors' blob size for ONNXProposal is incompatible with 'deltas' blob size!");
@@ -361,8 +361,8 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(const dnnl::stre
 
         size_t score_dims_size = 1;
         const auto& scoreDims = getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims();
-        for (size_t i = 0; i < scoreDims.size(); i++) {
-            score_dims_size *= scoreDims[i];
+        for (uint64_t scoreDim : scoreDims) {
+            score_dims_size *= scoreDim;
         }
         if (deltas_dims_size != (4 * score_dims_size)) {
             THROW_CPU_NODE_ERR("'Deltas' blob size for ONNXProposal is incompatible with 'scores' blob size!");

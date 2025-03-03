@@ -198,11 +198,11 @@ def generate_relu_compiled_model(
 
 
 def encrypt_base64(src):
-    return base64.b64encode(bytes(src, "utf-8"))
+    return base64.b64encode(src)
 
 
 def decrypt_base64(src):
-    return base64.b64decode(bytes(src, "utf-8"))
+    return base64.b64decode(src)
 
 
 def generate_relu_compiled_model_with_config(
