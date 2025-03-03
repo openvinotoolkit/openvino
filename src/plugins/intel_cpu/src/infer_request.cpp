@@ -274,10 +274,11 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
                 auto&& controlBlock = controlBlockItr->second;
 
                 std::shared_ptr<IMemoryBlock> memBlock =
-                    inputPtrs.count(controlBlock.rawPtr()) ?  // same memory is used on the input and output
+                    (inputPtrs.count(controlBlock.rawPtr()) != 0u)
+                        ?  // same memory is used on the input and output
                         controlBlock.nextMemBlock()
-                                                           :  // then swap internal buffer to avoid data corruption
-                        controlBlock.currentMemBlock();       // else reuse the existing buffer
+                        :                                // then swap internal buffer to avoid data corruption
+                        controlBlock.currentMemBlock();  // else reuse the existing buffer
 
                 outputMemBlock->setMemBlockResize(std::move(memBlock));
                 DEBUG_LOG("reset proxy ",
@@ -563,7 +564,7 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
                 ov::ISyncInferRequest::set_tensor(port, tensor);
             }
             m_outputs[port_index] = tensor;
-            if (!port_shape.is_dynamic() && !m_output_external_ptr.count(port_index)) {
+            if (!port_shape.is_dynamic() && (m_output_external_ptr.count(port_index) == 0u)) {
                 auto desc = MemoryDescUtils::generateCpuBlockedMemoryDesc(tensor);
                 if (desc->isCompatible(output->getParentEdgeAt(0)->getMemory().getDesc())) {
                     m_output_external_ptr[port_index] = tensor;

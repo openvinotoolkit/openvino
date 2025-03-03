@@ -108,7 +108,7 @@ void refine_anchors(const float* deltas,
             proposals[p_idx + 1] = y0;
             proposals[p_idx + 2] = x1;
             proposals[p_idx + 3] = y1;
-            proposals[p_idx + 4] = (min_box_W <= box_w) * (min_box_H <= box_h) * score;
+            proposals[p_idx + 4] = static_cast<int>(min_box_W <= box_w) * static_cast<int>(min_box_H <= box_h) * score;
         }
     });
 }
@@ -151,7 +151,7 @@ void nms_cpu(const int num_boxes,
 #endif
 
     for (int box = 0; box < num_boxes; ++box) {
-        if (is_dead[box]) {
+        if (is_dead[box] != 0) {
             continue;
         }
 

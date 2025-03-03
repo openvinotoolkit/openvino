@@ -74,7 +74,7 @@ void ModelDeserializer::process_mmap(std::shared_ptr<ov::Model>& model,
     bool is_valid_model = (hdr.custom_data_offset == sizeof(hdr) + hdr_pos) &&
                           (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
                           (hdr.consts_size == hdr.model_offset - hdr.consts_offset) &&
-                          (hdr.model_size = file_size - hdr.model_offset);
+                          ((hdr.model_size = file_size - hdr.model_offset) != 0u);
     if (!is_valid_model) {
         OPENVINO_THROW("[CPU] Could not deserialize by device xml header.");
     }
@@ -93,7 +93,7 @@ void ModelDeserializer::process_mmap(std::shared_ptr<ov::Model>& model,
 
     // Map blob content
     std::shared_ptr<ov::AlignedBuffer> weights_buf;
-    if (hdr.consts_size) {
+    if (hdr.consts_size != 0u) {
         weights_buf =
             std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(buffer_base + hdr.consts_offset,
                                                                                    hdr.consts_size,
@@ -136,7 +136,7 @@ void ModelDeserializer::process_stream(std::shared_ptr<ov::Model>& model) {
     bool is_valid_model = (hdr.custom_data_offset == sizeof(hdr) + hdr_pos) &&
                           (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
                           (hdr.consts_size == hdr.model_offset - hdr.consts_offset) &&
-                          (hdr.model_size = file_size - hdr.model_offset);
+                          ((hdr.model_size = file_size - hdr.model_offset) != 0u);
     if (!is_valid_model) {
         OPENVINO_THROW("[CPU] Could not deserialize by device xml header.");
     }
@@ -158,7 +158,7 @@ void ModelDeserializer::process_stream(std::shared_ptr<ov::Model>& model) {
     // read blob content
     auto data_blob = std::make_shared<ov::Tensor>(ov::element::u8, ov::Shape({hdr.consts_size}));
     m_istream.seekg(hdr.consts_offset);
-    if (hdr.consts_size) {
+    if (hdr.consts_size != 0u) {
         m_istream.read(static_cast<char*>(data_blob->data(ov::element::u8)), hdr.consts_size);
     }
 

@@ -366,7 +366,7 @@ private:
                 add(reg_dst, vector_step * jcp_.dst_data_size);
             }
             int tail_num = (jcp_.OH * jcp_.OW * jcp_.C) % vector_step;
-            if (tail_num) {
+            if (tail_num != 0) {
                 load(reg_src, vmm_val, tail_num);
                 store(vmm_val, reg_dst, tail_num);
             }
@@ -420,7 +420,7 @@ private:
                         // advance 8/16 faciliate next block
                         add(reg_src_aux, vector_step * jcp_.src_data_size);
                     }
-                    if (tail_num) {
+                    if (tail_num != 0) {
                         uni_vpxor(vmm_dst, vmm_dst, vmm_dst);
                         for (f = 0; f < filterL; f++) {
                             mov(reg_src_aux1, reg_src_aux);
@@ -468,7 +468,7 @@ private:
                         add(reg_dst, vector_step * jcp_.dst_data_size);
                         add(reg_src_aux, vector_step * jcp_.src_data_size);
                     }
-                    if (tail_num) {
+                    if (tail_num != 0) {
                         uni_vpxor(vmm_dst, vmm_dst, vmm_dst);
                         for (f = 0; f < filterL; f++) {
                             uni_vbroadcastss(vmm_weight, ptr[reg_weights + f * sizeof(float)]);
@@ -2568,13 +2568,13 @@ void Interpolate::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims)
         int channelAxis = 1;
 
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
-        if (fakeQuantizeNode) {
+        if (fakeQuantizeNode != nullptr) {
             fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs, channelAxis);
             continue;
         }
 
         auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get());
-        if (eltwiseNode) {
+        if (eltwiseNode != nullptr) {
             eltwiseNode->appendPostOps(ops, dims, postOpsDataPtrs, channelAxis);
             continue;
         }
@@ -3959,7 +3959,7 @@ void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t* in_
                         }
                     }
 
-                    if (!wsum) {
+                    if (wsum == 0.0f) {
                         setValue(out_ptr_ncdh, ox * dstDataSize, 0.f, outputPrec);
                     } else {
                         float dst_value = sum / wsum;

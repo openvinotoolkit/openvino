@@ -340,7 +340,7 @@ private:
         L(topk_main_loop_end_label);
 
         // tail
-        if (tail_step) {
+        if (tail_step != 0) {
             Xbyak::Label topk_tail_loop_end_label;
             cmp(reg_work_amount, tail_step);
             jl(topk_tail_loop_end_label, T_NEAR);
@@ -411,7 +411,7 @@ private:
         L(topk_main_loop_end_label);
 
         // tail exists because working buffer has planar layout, though source buffer has blocked layout)
-        if (tail_step) {
+        if (tail_step != 0) {
             Xbyak::Label topk_tail_loop_end_label;
             cmp(reg_work_amount, tail_step);
             jl(topk_tail_loop_end_label, T_NEAR);
@@ -934,7 +934,7 @@ private:
 
         // tail
         if (jcp_.bubble_inplace) {
-            if (tail_step) {
+            if (tail_step != 0) {
                 Xbyak::Label topk_tail_loop_end_label;
                 cmp(reg_work_amount, tail_step);
                 jl(topk_tail_loop_end_label, T_NEAR);
@@ -2281,7 +2281,7 @@ void TopK::topk_process(const uint8_t* in_ptr, uint8_t* out_ptr, uint8_t* out_id
 
         size_t tail_start = I / blk_size * blk_size;
         size_t work_amount = I - tail_start;
-        if (work_amount) {
+        if (work_amount != 0u) {
             parallel_for(O, [&](size_t o) {
                 const uint8_t* in_ptr_a = in_ptr + (o * A * I + tail_start) * data_size;
                 uint8_t* process_ptr_a = process_ptr + (o * A * I + tail_start) * data_size;
@@ -2417,7 +2417,7 @@ void TopK::calc_bitonic_idx(size_t n, int& cnt, bool cmp_val) {
     int m = n - 1;
     int log_p = 0;
     int p = 1;
-    while (m) {
+    while (m != 0) {
         p <<= 1;
         m >>= 1;
         log_p++;
@@ -2460,11 +2460,11 @@ void TopK::calc_dims_size(const VectorDims& layout_dims) {
 void TopK::topk_ref(const float* in_ptr, float* out_ptr, int32_t* dst_idx) {
     if (mode_max) {
         topk_ref_process(in_ptr, out_ptr, dst_idx, src_dims, [](float x, float y) -> float {
-            return x > y;
+            return static_cast<float>(x > y);
         });
     } else {
         topk_ref_process(in_ptr, out_ptr, dst_idx, src_dims, [](float x, float y) -> float {
-            return x < y;
+            return static_cast<float>(x < y);
         });
     }
 }
@@ -2500,7 +2500,7 @@ void TopK::topk_ref_process(const float* src_data,
         }
         for (int i2 = 0; i2 < top_k - 1; i2++) {
             for (int i3 = top_k - 1; i3 > i2; i3--) {
-                if (compare(max_values[i3], max_values[i3 - 1])) {
+                if (compare(max_values[i3], max_values[i3 - 1]) != 0.0f) {
                     swap_func(i3, i3 - 1);
                 }
             }
@@ -2509,7 +2509,7 @@ void TopK::topk_ref_process(const float* src_data,
             max_values[top_k] = src_data[s_index];
             max_indexes[top_k] = i2;
             for (int i3 = top_k; i3 > 0; i3--) {
-                if (compare(max_values[i3], max_values[i3 - 1])) {
+                if (compare(max_values[i3], max_values[i3 - 1]) != 0.0f) {
                     swap_func(i3, i3 - 1);
                 } else {
                     break;
@@ -2526,12 +2526,12 @@ void TopK::topk_ref_process(const float* src_data,
                 }
             }
         }
-        if (dst_data) {
+        if (dst_data != nullptr) {
             for (int i2 = 0; i2 < top_k; i2++) {
                 dst_data[i0 * top_k * after_num + i2 * after_num + i1] = max_values[i2];
             }
         }
-        if (dst_idx) {
+        if (dst_idx != nullptr) {
             for (int i2 = 0; i2 < top_k; i2++) {
                 dst_idx[i0 * top_k * after_num + i2 * after_num + i1] = max_indexes[i2];
             }

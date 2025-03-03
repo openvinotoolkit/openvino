@@ -1009,7 +1009,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
         }
 
         auto weightsConstant = dynamic_cast<node::Input*>(convNode->getParentEdgeAt(1)->getParent().get());
-        if (!weightsConstant || !weightsConstant->isConstant()) {
+        if ((weightsConstant == nullptr) || !weightsConstant->isConstant()) {
             return;
         }
 
@@ -1620,12 +1620,12 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
         };
 
         auto* binConvNode1 = dynamic_cast<node::BinaryConvolution*>(parent1.get());
-        if (binConvNode1) {
+        if (binConvNode1 != nullptr) {
             isSuitableParent1 = isSuitableParent1 && canFuseSum(binConvNode1, graphNode);
         }
 
         auto* binConvNode2 = dynamic_cast<node::BinaryConvolution*>(parent2.get());
-        if (binConvNode2) {
+        if (binConvNode2 != nullptr) {
             isSuitableParent2 = isSuitableParent2 && canFuseSum(binConvNode2, graphNode);
         }
 
@@ -1640,7 +1640,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
         };
 
         auto* convNode1 = dynamic_cast<Convolution*>(parent1.get());
-        if (convNode1) {
+        if (convNode1 != nullptr) {
             if (!convNode1->canBeExecutedInInt8()) {
                 isSuitableParent1 = isSuitableParent1 && convNode1->getFusedWith().empty();
             } else {
@@ -1649,7 +1649,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
         }
 
         auto* convNode2 = dynamic_cast<Convolution*>(parent2.get());
-        if (convNode2) {
+        if (convNode2 != nullptr) {
             if (!convNode2->canBeExecutedInInt8()) {
                 isSuitableParent2 = isSuitableParent2 && convNode2->getFusedWith().empty();
             } else {
@@ -1882,7 +1882,7 @@ void GraphOptimizer::FuseInterpolateAndSimpleOperation(Graph& graph) {
             return false;
         }
         auto interpolateNode = dynamic_cast<Interpolate*>(parentNode.get());
-        if (!interpolateNode) {
+        if (interpolateNode == nullptr) {
             OPENVINO_THROW("Cannot cast ", parentNode->getName(), " to Interpolate");
         }
         return interpolateNode->canFuse(childNode);
@@ -2177,7 +2177,7 @@ void GraphOptimizer::ShareReorders(Graph& graph) {
         }
 
         Reorder* reorder = getSuitableReorder(node);
-        if (!reorder) {
+        if (reorder == nullptr) {
             continue;
         }
 
@@ -2191,7 +2191,7 @@ void GraphOptimizer::ShareReorders(Graph& graph) {
                 continue;
             }
             Reorder* siblingReorder = getSuitableReorder(siblingNode);
-            if (!siblingReorder) {
+            if (siblingReorder == nullptr) {
                 continue;
             }
             if (!reorder->getOutput().isCompatible(siblingReorder->getOutput())) {
@@ -2451,7 +2451,7 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph) {
 
         const auto isSubnormal = [](const float value) {
             const uint32_t* u32data = reinterpret_cast<const uint32_t*>(&value);
-            return (*u32data) && (((*u32data) & (0xFF << 23)) == 0);
+            return ((*u32data) != 0u) && (((*u32data) & (0xFF << 23)) == 0);
         };
 
         for (size_t i = 0; i < newInputScale.size(); i++) {

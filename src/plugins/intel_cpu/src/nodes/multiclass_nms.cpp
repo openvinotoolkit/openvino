@@ -206,7 +206,7 @@ void MultiClassNms::prepareParams() {
     size_t real_num_classes = m_backgroundClass == -1                                 ? m_numClasses
                               : static_cast<size_t>(m_backgroundClass) < m_numClasses ? m_numClasses - 1
                                                                                       : m_numClasses;
-    if (m_nmsTopK) {
+    if (m_nmsTopK != 0) {
         max_output_boxes_per_class = (m_nmsTopK == -1) ? m_numBoxes : std::min(m_nmsTopK, static_cast<int>(m_numBoxes));
         m_filtBoxes.resize(max_output_boxes_per_class * m_numBatches * m_numClasses);
     }
@@ -515,7 +515,7 @@ void MultiClassNms::nmsWithEta(const float* boxes,
                 auto adaptive_threshold = m_iouThreshold;
                 int max_out_box =
                     (static_cast<size_t>(m_nmsRealTopk) > sorted_boxes.size()) ? sorted_boxes.size() : m_nmsRealTopk;
-                while (max_out_box && !sorted_boxes.empty()) {
+                while ((max_out_box != 0) && !sorted_boxes.empty()) {
                     boxInfo currBox = sorted_boxes.top();
                     float origScore = currBox.score;
                     sorted_boxes.pop();

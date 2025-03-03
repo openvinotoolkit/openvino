@@ -60,7 +60,8 @@ public:
 
         VectorDims blkDims = srcShape.getDims();
         if (Shape::UNDEFINED_DIM != blkDims[channelsPos]) {
-            blkDims[channelsPos] = blkDims[channelsPos] / _blockSize + (blkDims[channelsPos] % _blockSize ? 1 : 0);
+            blkDims[channelsPos] =
+                blkDims[channelsPos] / _blockSize + (((blkDims[channelsPos] % _blockSize) != 0u) ? 1 : 0);
         }
         blkDims.push_back(_blockSize);
 
@@ -109,7 +110,7 @@ std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> Blocke
     }
 
     auto rankTypesFilter = [rank, bitMask](const CreatorsMap::value_type& item) {
-        if (!(bitMask & (1 << static_cast<unsigned>(item.first)))) {
+        if ((bitMask & (1 << static_cast<unsigned>(item.first))) == 0u) {
             return false;
         }
         if (item.second->getMinimalRank() > rank) {

@@ -59,8 +59,8 @@ namespace ov {
 #ifdef SNIPPETS_DEBUG_CAPS
 static bool is_load_emitter(const intel_cpu::jit_emitter* emitter) {
     bool ret = false;
-    if (dynamic_cast<const intel_cpu::jit_load_memory_emitter*>(emitter) ||
-        dynamic_cast<const intel_cpu::jit_load_broadcast_emitter*>(emitter)) {
+    if ((dynamic_cast<const intel_cpu::jit_load_memory_emitter*>(emitter) != nullptr) ||
+        (dynamic_cast<const intel_cpu::jit_load_broadcast_emitter*>(emitter) != nullptr)) {
         return true;
     }
     return ret;
@@ -68,7 +68,7 @@ static bool is_load_emitter(const intel_cpu::jit_emitter* emitter) {
 
 static bool is_store_emitter(const intel_cpu::jit_emitter* emitter) {
     bool ret = false;
-    if (dynamic_cast<const intel_cpu::jit_store_memory_emitter*>(emitter)) {
+    if (dynamic_cast<const intel_cpu::jit_store_memory_emitter*>(emitter) != nullptr) {
         return true;
     }
     return ret;
@@ -78,9 +78,9 @@ static bool is_segfault_detector_emitter(const intel_cpu::jit_emitter* emitter) 
     // default active for typical tensor memory access emitters
     bool ret = false;
     ret = is_load_emitter(emitter) || is_store_emitter(emitter) ||
-          dynamic_cast<const intel_cpu::jit_brgemm_emitter*>(emitter) ||
-          dynamic_cast<const intel_cpu::jit_brgemm_copy_b_emitter*>(emitter) ||
-          dynamic_cast<const intel_cpu::jit_kernel_emitter*>(emitter);
+          (dynamic_cast<const intel_cpu::jit_brgemm_emitter*>(emitter) != nullptr) ||
+          (dynamic_cast<const intel_cpu::jit_brgemm_copy_b_emitter*>(emitter) != nullptr) ||
+          (dynamic_cast<const intel_cpu::jit_kernel_emitter*>(emitter) != nullptr);
     return ret;
     // use below code to active all emitters for extend usage
     // return !dynamic_cast<const jit_nop_emitter*>(emitter);

@@ -151,7 +151,7 @@ MemoryOutputBase::MemoryOutputBase(const std::string& id,
 }
 
 MemoryOutputBase::~MemoryOutputBase() {
-    if (inputNode) {
+    if (inputNode != nullptr) {
         inputNode->deregisterSibling(this);
     }
     context->getMemoryStatesRegister()->remove(this);
@@ -244,7 +244,7 @@ void MemoryOutputBase::registerInputNode(MemoryInputBase* node) {
     if (inputNode == node) {
         return;
     }
-    if (inputNode) {
+    if (inputNode != nullptr) {
         inputNode->deregisterSibling(this);
     }
     inputNode = node;
@@ -262,7 +262,7 @@ bool MemoryOutput::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
 }
 
 void MemoryOutput::resolveInPlaceEdges(Edge::LOOK look) {
-    if (!(look & Edge::LOOK_DOWN)) {
+    if ((look & Edge::LOOK_DOWN) == 0) {
         Node::resolveInPlaceEdges(look);
         return;
     }
@@ -345,7 +345,7 @@ void MemoryOutputStub::runDynamic(dnnl::stream strm) {
 }
 
 void MemoryOutputStub::resolveInPlaceEdges(Edge::LOOK look) {
-    if (!(look & Edge::LOOK_DOWN)) {
+    if ((look & Edge::LOOK_DOWN) == 0) {
         Node::resolveInPlaceEdges(look);
         return;
     }
@@ -444,7 +444,7 @@ MemoryInputBase::MemoryInputBase(const std::string& id,
 }
 
 MemoryInputBase::~MemoryInputBase() {
-    if (outputNode) {
+    if (outputNode != nullptr) {
         outputNode->deregisterSibling(this);
     }
     context->getMemoryStatesRegister()->remove(this);
@@ -484,7 +484,7 @@ void MemoryInputBase::registerOutputNode(MemoryOutputBase* node) {
     if (outputNode == node) {
         return;
     }
-    if (outputNode) {
+    if (outputNode != nullptr) {
         outputNode->deregisterSibling(this);
     }
     outputNode = node;
@@ -559,13 +559,13 @@ void MemoryInputBase::assignState(MemStatePtr newState) {
 }
 
 void MemoryInputBase::execute(const dnnl::stream& strm) {
-    assert(executeHook && "executeHook is not initialized!");
+    assert((executeHook != nullptr) && true);
     (this->*executeHook)();
     runStatic(strm);
 }
 
 void MemoryInputBase::executeDynamicImpl(const dnnl::stream& strm) {
-    assert(executeHook && "executeHook is not initialized!");
+    assert((executeHook != nullptr) && true);
     (this->*executeHook)();
     runDynamic(strm);
 }
@@ -860,7 +860,7 @@ void MemoryInput::runStatic(dnnl::stream strm) {
 }
 
 void MemoryInput::resolveInPlaceEdges(Edge::LOOK look) {
-    if (!(look & Edge::LOOK_UP)) {
+    if ((look & Edge::LOOK_UP) == 0) {
         Node::resolveInPlaceEdges(look);
         return;
     }

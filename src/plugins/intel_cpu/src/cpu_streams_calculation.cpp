@@ -165,7 +165,7 @@ std::vector<std::vector<int>> get_streams_info_table(
 
     auto check_threads_per_stream = [&]() {
         int count = 0;
-        while (1) {
+        while (true) {
             for (int n_type = MAIN_CORE_PROC; n_type <= HYPER_THREADING_PROC; n_type++) {
                 count += static_cast<int>(proc_type_table[0][n_type] / n_threads_per_stream);
             }
@@ -187,7 +187,7 @@ std::vector<std::vector<int>> get_streams_info_table(
     } else {
         std::unordered_set<int> socket_id_list(proc_type_table.size());
         for (size_t i = 1; i < proc_type_table.size(); i++) {
-            if (!socket_id_list.count(proc_type_table[i][PROC_SOCKET_ID])) {
+            if (socket_id_list.count(proc_type_table[i][PROC_SOCKET_ID]) == 0u) {
                 proc_socket_table.push_back(proc_type_table[i]);
                 socket_id_list.insert(proc_type_table[i][PROC_SOCKET_ID]);
             } else {
@@ -672,7 +672,7 @@ int get_model_prefer_threads(const int num_streams,
             // cores only cases except LLM.
             model_prefer = proc_type_table[0][MAIN_CORE_PROC] > (proc_type_table[0][EFFICIENT_CORE_PROC] /
                                                                  (int8_intensive ? int8_threshold : fp32_threshold))
-                               ? ((!llm_related && ov::get_number_of_blocked_cores())
+                               ? ((!llm_related && (ov::get_number_of_blocked_cores() != 0))
                                       ? proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC]
                                       : proc_type_table[0][MAIN_CORE_PROC])
                                : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];

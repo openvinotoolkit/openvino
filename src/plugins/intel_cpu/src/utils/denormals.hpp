@@ -98,7 +98,7 @@ bool denormals_as_zero(bool on) {
 
     unsigned int mxcsr = _mm_getcsr();
     if (on) {
-        if (mxcsr_mask & DAZ_FLAG) {
+        if ((mxcsr_mask & DAZ_FLAG) != 0u) {
             mxcsr |= DAZ_FLAG;
             _mm_setcsr(mxcsr);
             return true;

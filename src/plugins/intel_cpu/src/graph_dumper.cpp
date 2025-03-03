@@ -231,7 +231,7 @@ void serialize(const Graph& graph) {
 
     if (path == "cout") {
         serializeToCout(graph);
-    } else if (!path.compare(path.size() - 4, 4, ".xml")) {
+    } else if (path.compare(path.size() - 4, 4, ".xml") == 0) {
         static int g_idx = 0;
         std::string xmlPath = std::string(path, 0, path.size() - 4) + "_" + std::to_string(g_idx++) + ".xml";
         serializeToXML(graph, xmlPath);
@@ -255,7 +255,7 @@ void serializeToCout(const Graph& graph) {
     for (const auto& node : graph.GetNodes()) {
         std::cout << "name: " << node->getName() << " [ ";
         auto nodeDesc = node->getSelectedPrimitiveDescriptor();
-        if (nodeDesc) {
+        if (nodeDesc != nullptr) {
             auto& inConfs = nodeDesc->getConfig().inConfs;
             if (!inConfs.empty()) {
                 std::cout << "in: " << inConfs.front().getMemDesc()->getPrecision().get_type_name()
@@ -277,7 +277,7 @@ void summary_perf(const Graph& graph) {
     }
     const std::string& summaryPerf = graph.getConfig().debugCaps.summaryPerf;
 
-    if (summaryPerf.empty() || !std::stoi(summaryPerf)) {
+    if (summaryPerf.empty() || (std::stoi(summaryPerf) == 0)) {
         return;
     }
 
@@ -293,13 +293,13 @@ void summary_perf(const Graph& graph) {
         total += node->PerfCounter().count() * avg;
         total_avg += avg;
 
-        if (perf_by_type.count(type)) {
+        if (perf_by_type.count(type) != 0u) {
             perf_by_type[type] += avg;
         } else {
             perf_by_type[type] = avg;
         }
 
-        if (perf_by_node.count(node)) {
+        if (perf_by_node.count(node) != 0u) {
             perf_by_node[node] += avg;
         } else {
             perf_by_node[node] = avg;

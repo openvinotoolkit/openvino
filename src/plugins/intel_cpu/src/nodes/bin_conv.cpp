@@ -989,7 +989,7 @@ void BinaryConvolution::getSupportedDescriptors() {
     size_t expectedInputEdgesNum = 2;
     for (auto& i : fusedWith) {
         auto* eltwiseNode = dynamic_cast<Eltwise*>(i.get());
-        if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
+        if ((eltwiseNode != nullptr) && eltwiseNode->isSpecialConvolutionAddFusing()) {
             withSum = true;
             expectedInputEdgesNum++;
         }
@@ -1081,7 +1081,7 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
 
 void BinaryConvolution::createPrimitive() {
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
-    if (!selectedPrimitiveDescriptor) {
+    if (selectedPrimitiveDescriptor == nullptr) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
 
@@ -1103,8 +1103,8 @@ void BinaryConvolution::createPrimitive() {
     jcp.ow = dstDims[3];
 
     bool with_groups = group > 1;
-    jcp.kh = weiDims[with_groups + 2];
-    jcp.kw = weiDims[with_groups + 3];
+    jcp.kh = weiDims[static_cast<int>(with_groups) + 2];
+    jcp.kw = weiDims[static_cast<int>(with_groups) + 3];
 
     jcp.t_pad = paddingL[0];
     jcp.b_pad = paddingR[0];
@@ -1205,7 +1205,7 @@ void BinaryConvolution::setPostOps(dnnl::primitive_attr& attr) {
     for (auto& node : fusedWith) {
         auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get());
         int channelAxis = 1;
-        if (eltwiseNode) {
+        if (eltwiseNode != nullptr) {
             if (eltwiseNode->isSpecialConvolutionAddFusing()) {
                 ops.append_sum(1.0);
             } else {
@@ -1216,7 +1216,7 @@ void BinaryConvolution::setPostOps(dnnl::primitive_attr& attr) {
         }
 
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
-        if (fakeQuantizeNode) {
+        if (fakeQuantizeNode != nullptr) {
             fakeQuantizeNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), postOpsDataPtrs, channelAxis);
             continue;
         }
@@ -1413,7 +1413,7 @@ void BinaryConvolution::execute(const dnnl::stream& strm) {
     }
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
-    if (!selectedPrimitiveDescriptor) {
+    if (selectedPrimitiveDescriptor == nullptr) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
 

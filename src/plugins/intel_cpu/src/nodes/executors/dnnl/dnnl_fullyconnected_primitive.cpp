@@ -163,7 +163,7 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
     }
 
     MemoryCPtr zpPtr =
-        memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS) ? memory.at(ARG_WEI | ARG_ATTR_ZERO_POINTS) : nullptr;
+        (memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS) != 0u) ? memory.at(ARG_WEI | ARG_ATTR_ZERO_POINTS) : nullptr;
     // For dynamic quantization, VNNI accumulation requires weight to be unsigned.
     // To support dynamic quantization with weights symmetrically quantized as i8/i4
     // w/o zero-point, we will transform weight to u8/u4 weight with zp 128/8.
@@ -176,17 +176,18 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
     }
 
     const size_t simdWidth = 16;
-    if (dqGroupSize % simdWidth) {
+    if ((dqGroupSize % simdWidth) != 0u) {
         return false;
     }
 
-    MemoryCPtr scalesPtr = memory.count(ARG_WEI | ARG_ATTR_SCALES) ? memory.at(ARG_WEI | ARG_ATTR_SCALES) : nullptr;
+    MemoryCPtr scalesPtr =
+        (memory.count(ARG_WEI | ARG_ATTR_SCALES) != 0u) ? memory.at(ARG_WEI | ARG_ATTR_SCALES) : nullptr;
     int ic = weightsDesc->getShape().getStaticDims()[1];
     if (scalesPtr && scalesPtr->getShape().getRank() != 1) {
         auto scalesDims = scalesPtr->getShape().getStaticDims();
         auto groupsNum = scalesDims[1];
         size_t groupSize = ic / groupsNum;
-        if (groupsNum != 1 && groupSize % std::min(dqGroupSize, groupSize)) {
+        if (groupsNum != 1 && ((groupSize % std::min(dqGroupSize, groupSize)) != 0u)) {
             return false;
         }
     }
@@ -195,7 +196,7 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
         auto zpDims = zpPtr->getShape().getStaticDims();
         int groupsNum = zpDims[1];
         size_t groupSize = ic / groupsNum;
-        if (groupsNum != 1 && groupSize % std::min(dqGroupSize, groupSize)) {
+        if (groupsNum != 1 && ((groupSize % std::min(dqGroupSize, groupSize)) != 0u)) {
             return false;
         }
     }
@@ -222,7 +223,7 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
     DnnlPostOpsComposer
         dnnlpoc(postOps, context->getEngine(), dims, dims.size() - 1, isINT8, 1 << 0, memory, outputDataType);
 
-    if (memory.count(ARG_WEI | ARG_ATTR_SCALES)) {
+    if (memory.count(ARG_WEI | ARG_ATTR_SCALES) != 0u) {
         auto dstPrc = memory.at(ARG_WEI | ARG_ATTR_SCALES)->getPrecision();
         if (dstPrc != f8e8m0 || useDynamicQuantization) {
             dstPrc = ov::element::f32;
@@ -233,7 +234,7 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
                                                 dstPrc);
     }
 
-    if (memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS)) {
+    if (memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS) != 0u) {
         auto dstPrc = useDynamicQuantization ? ov::element::u8 : ov::element::f32;
         dnnlpoc.appendDecompressionZeroPointsLegacy(memory.at(ARG_WEI | ARG_ATTR_ZERO_POINTS),
                                                     !attrs.weightsNonTransposed,

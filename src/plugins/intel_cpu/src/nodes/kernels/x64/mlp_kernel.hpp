@@ -311,7 +311,7 @@ struct Work {
     size_t set_C(int M, float* ext_buff) {
         auto Mtails = M % 32;
         auto Mbody = M - Mtails;
-        auto C_M = Mbody + (Mtails ? 32 : 0);
+        auto C_M = Mbody + ((Mtails != 0) ? 32 : 0);
         m_C.resize<float>({static_cast<size_t>(C_M), static_cast<size_t>(BN)}, ext_buff);
         return C_M * BN * sizeof(float);
     }
@@ -323,7 +323,7 @@ struct Work {
 
         auto Mtails = M % 32;
         auto Mbody = M - Mtails;
-        auto C_M = Mbody + (Mtails ? 32 : 0);
+        auto C_M = Mbody + ((Mtails != 0) ? 32 : 0);
 
         auto C_stride_bytes = BN * sizeof(float);
         OPENVINO_ASSERT(C_M * C_stride_bytes <= m_C.stride_bytes(0) * m_C.size(0));
@@ -338,7 +338,7 @@ struct Work {
             for (size_t ki = 0; ki < num_blk_K; ki++) {
                 auto& blockB = weights[ki];
                 auto& blockB1 = weights[(ki + 1) < num_blk_K ? (ki + 1) : ki];
-                if (Mbody) {
+                if (Mbody != 0) {
                     m_tile_configer.do_config(&m_tcfg[0]);
                     mkernel.run(Mbody,
                                 pA + ki * blk_K_size * element_size,
@@ -350,7 +350,7 @@ struct Work {
                                 do_accumulation);
                 }
 
-                if (Mtails) {
+                if (Mtails != 0) {
                     m_tile_configer.do_config(&m_tcfg[Mtails]);
                     mkernel.run(Mtails,
                                 pA + ki * blk_K_size * element_size + Mbody * strideA,

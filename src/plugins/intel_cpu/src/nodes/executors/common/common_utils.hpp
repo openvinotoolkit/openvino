@@ -16,7 +16,7 @@
 namespace ov::intel_cpu {
 
 OV_CPU_MAYBE_UNUSED_FUNCTION static std::vector<float> getDeQuantizedScales(const MemoryArgs& memory) {
-    if (!memory.count(ARG_DST_DEQ_SCALE)) {
+    if (memory.count(ARG_DST_DEQ_SCALE) == 0u) {
         return {};
     }
 
@@ -24,7 +24,7 @@ OV_CPU_MAYBE_UNUSED_FUNCTION static std::vector<float> getDeQuantizedScales(cons
 
     auto scalesData = static_cast<const float*>(scalesMemory->getData());
 
-    if (!scalesData) {
+    if (scalesData == nullptr) {
         return {};
     }
 

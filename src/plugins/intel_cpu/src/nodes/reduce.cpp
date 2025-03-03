@@ -2492,7 +2492,7 @@ void Reduce::reduce_type(const uint8_t* in_ptr, uint8_t* out_ptr) {
     if (layout == ReduceLayoutType::reduce_ncsp || layout == ReduceLayoutType::reduce_nspc) {
         reduce_PLN(in_ptr, out_ptr);
     } else {
-        if (ReduceC && (IC % blk_size)) {
+        if (ReduceC && ((IC % blk_size) != 0u)) {
             reduce_BLK_concern_padding(in_ptr, out_ptr);
         } else {
             reduce_BLK(in_ptr, out_ptr);
@@ -3536,7 +3536,7 @@ inline void Reduce::reduce_ref(const float* in_ptr, float* out_ptr) {
     switch (algorithm) {
     case Algorithm::ReduceAnd:
         reduce_ref_process(in_ptr, out_ptr, 1, [](float x, float y) -> float {
-            return x && y;
+            return static_cast<float>((x != 0.0f) && (y) != 0.0f);
         });
         break;
     case Algorithm::ReduceL1:
@@ -3576,7 +3576,7 @@ inline void Reduce::reduce_ref(const float* in_ptr, float* out_ptr) {
         break;
     case Algorithm::ReduceOr:
         reduce_ref_process(in_ptr, out_ptr, 0, [](float x, float y) -> float {
-            return x || y;
+            return static_cast<float>((x != 0.0f) || (y) != 0.0f);
         });
         break;
     case Algorithm::ReduceProd:
@@ -3699,13 +3699,13 @@ void Reduce::setPostOps(dnnl::primitive_attr& attr, const VectorDims& postOpDims
         int channelAxis = 1;
 
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
-        if (fakeQuantizeNode) {
+        if (fakeQuantizeNode != nullptr) {
             fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs, channelAxis);
             continue;
         }
 
         auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get());
-        if (eltwiseNode) {
+        if (eltwiseNode != nullptr) {
             eltwiseNode->appendPostOps(ops, postOpDims, postOpsDataPtrs, getFusingAxis());
             continue;
         }

@@ -88,7 +88,7 @@ private:
             jmp(move_scale_loop_label, T_NEAR);
         }
         L(move_scale_end_label);
-        if (tail_size) {
+        if (tail_size != 0u) {
             load_scale_store(tail_size);
         }
 

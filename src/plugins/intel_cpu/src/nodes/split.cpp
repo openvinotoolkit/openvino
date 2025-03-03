@@ -494,7 +494,7 @@ std::vector<uint8_t*> Split::getRawDstMemPtrs() const {
     std::vector<uint8_t*> result(dstMemPtrs.size());
     for (size_t i = 0; i < dstMemPtrs.size(); ++i) {
         result[i] = dstMemPtrs[i].second->getDataAs<uint8_t>();
-        if (!result[i]) {
+        if (result[i] == nullptr) {
             THROW_CPU_NODE_ERR("can't get child edge indx ", dstMemPtrs[i].first, " data.");
         }
     }
@@ -558,7 +558,7 @@ void Split::SplitOptimizedExecutor::exec(const uint8_t* srcData, const std::vect
 }
 
 void Split::resolveInPlaceEdges(Edge::LOOK look) {
-    if (!(look & Edge::LOOK_UP) || !isInPlace()) {
+    if (((look & Edge::LOOK_UP) == 0) || !isInPlace()) {
         Node::resolveInPlaceEdges(look);
         return;
     }
