@@ -826,7 +826,7 @@ void SDPAKernelMicro::GetUpdateDispatchDataFunc(KernelData& kd) const {
         s_q.v.s32 = static_cast<uint32_t>(n_queries.v);
 
         // TODO: Currently 2nd token version works slower than prefill version
-        const bool is_prefill = true;//n_queries.v > 1;
+        const bool is_prefill = n_queries.v > 1;
 
         OPENVINO_ASSERT(kernel_data.kernels.size() == 2, "[GPU] Invalid kernels size for update dispatch data func");
 
