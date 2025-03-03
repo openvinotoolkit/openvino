@@ -156,25 +156,25 @@ if(ENABLE_ONEDNN_FOR_GPU)
             )
         endif()
 
-        set(LIB_INCLUDE_DIRS "${ONEDNN_INSTALL_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src")
+        set(LIB_INCLUDE_DIRS "${ONEDNN_INSTALL_DIR}/include")
+        set(LIB_INTERNAL_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src/"
+                                      "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src/gpu/intel/jit/ngen/"
+                                      "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/third_party/ngen/"
+                                      "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/third_party/")
         set(LIB_DEFINITIONS ENABLE_ONEDNN_FOR_GPU
                             DNNL_DLL
                             DNNL_DLL_EXPORTS
                             DNNL_ENABLE_CPU_ISA_HINTS
                             DNNL_ENABLE_MAX_CPU_ISA
-                            DNNL_X64=1
-                            NGEN_CPP11
-                            NGEN_NEO_INTERFACE
-                            NGEN_NO_OP_NAMES
-                            NGEN_SAFE
-                            NGEN_WINDOWS_COMPAT)
+                            DNNL_X64=1)
         add_library(onednn_gpu_tgt INTERFACE)
         set_target_properties(onednn_gpu_tgt PROPERTIES
             INTERFACE_LINK_LIBRARIES $<BUILD_INTERFACE:${ONEDNN_GPU_LIB_PATH}>
             INTERFACE_INCLUDE_DIRECTORIES "$<BUILD_INTERFACE:${LIB_INCLUDE_DIRS}>"
             INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${LIB_INCLUDE_DIRS}"
             INTERFACE_COMPILE_DEFINITIONS "${LIB_DEFINITIONS}"
-        )
+            INTERNAL_INCLUDE_DIRECTORIES "${LIB_INTERNAL_INCLUDE_DIRS}"
+            )
         add_dependencies(onednn_gpu_tgt onednn_gpu_build)
 
         if(NOT BUILD_SHARED_LIBS)

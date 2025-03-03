@@ -56,7 +56,8 @@ if(OV_COMPILER_IS_INTEL_LLVM)
 endif()
 
 if(ENABLE_ONEDNN_FOR_GPU)
-  ov_target_link_libraries_as_system(${TARGET_NAME} PUBLIC onednn_gpu_tgt)
+  ov_target_link_libraries_as_system(${TARGET_NAME} PRIVATE onednn_gpu_tgt)
+  target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt,INTERNAL_INCLUDE_DIRECTORIES>)
 endif()
 
 ov_set_threading_interface_for(${TARGET_NAME})
