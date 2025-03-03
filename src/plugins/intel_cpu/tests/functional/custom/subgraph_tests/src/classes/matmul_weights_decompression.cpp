@@ -159,9 +159,12 @@ void MatmulWeightsDecompression::check_results() {
     type = fc->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
     EXPECT_EQ(type, "FullyConnected");
 
-    const auto& expected_weights_precision = use_matmul_decompression_impl
-                                                    ? compressed_weights_precision
-                                                    : fc->get_input_element_type(0);
+    auto expected_weights_precision =
+        use_matmul_decompression_impl ? compressed_weights_precision : fc->get_input_element_type(0);
+    // FP8 test cases are used to validate disabling constant folding. Since FP8 weights is not supported by inner
+    // product primitive, it will fall back to FP32 weight.
+    if (expected_weights_precision == ov::element::f8e4m3 || expected_weights_precision == ov::element::f8e5m2)
+        expected_weights_precision = ov::element::f32;
     EXPECT_EQ(fc->get_input_element_type(1), expected_weights_precision);
 }
 
