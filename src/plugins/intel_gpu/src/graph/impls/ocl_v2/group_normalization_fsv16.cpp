@@ -284,9 +284,9 @@ class GroupNormalizationFsv16OptImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::GroupNormalizationFsv16OptImpl)
 
-    Stage calc_sqr_mean = make_stage<GroupNormalizationGeneratorCalcSQRMean>();
-    Stage calc_mean_variance = make_stage<GroupNormalizationGeneratorCalcMeanVariance>();
-    Stage final_normalize = make_stage<GroupNormalizationGeneratorFinalKernel>();
+    Stage::Ptr calc_sqr_mean = make_stage<GroupNormalizationGeneratorCalcSQRMean>();
+    Stage::Ptr calc_mean_variance = make_stage<GroupNormalizationGeneratorCalcMeanVariance>();
+    Stage::Ptr final_normalize = make_stage<GroupNormalizationGeneratorFinalKernel>();
 
     GroupNormalizationFsv16OptImpl() : PrimitiveImplOCL(GroupNormalizationFsv16Opt::get_type_info_static()) {}
     GroupNormalizationFsv16OptImpl(const program_node& node, const kernel_impl_params& params) : GroupNormalizationFsv16OptImpl() {

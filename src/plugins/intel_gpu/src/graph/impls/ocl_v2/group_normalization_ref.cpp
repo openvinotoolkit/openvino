@@ -155,9 +155,9 @@ protected:
 class GroupNormalizationRefImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::GroupNormalizationRefImpl)
-    Stage calc_mean = make_stage<GroupNormalizationGeneratorCalcMeanRef>();
-    Stage calc_mean_std = make_stage<GroupNormalizationGeneratorCalcStd>();
-    Stage normalize = make_stage<GroupNormalizationGeneratorNormalize>();
+    Stage::Ptr calc_mean = make_stage<GroupNormalizationGeneratorCalcMeanRef>();
+    Stage::Ptr calc_mean_std = make_stage<GroupNormalizationGeneratorCalcStd>();
+    Stage::Ptr normalize = make_stage<GroupNormalizationGeneratorNormalize>();
 
     GroupNormalizationRefImpl() : PrimitiveImplOCL(GroupNormalizationRef::get_type_info_static()) {}
     GroupNormalizationRefImpl(const program_node& node, const kernel_impl_params& params) : GroupNormalizationRefImpl() {

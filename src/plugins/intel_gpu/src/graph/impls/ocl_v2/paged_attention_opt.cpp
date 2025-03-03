@@ -827,14 +827,14 @@ class PagedAttentionOptImpl : public SDPAImplBase {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::PagedAttentionOptImpl)
 
-    Stage kv_cache_update = make_stage<KVCacheUpdateGenerator>();
-    Stage pa_single_token = make_stage<PagedAttentionGeneratorSingleToken>();
-    Stage pa_single_token_finalization = make_stage<PagedAttentionGeneratorSingleTokenFinalization>();
-    Stage pa_multi_token = make_stage<PagedAttentionGeneratorMultiTokens>();
-    Stage pa_multi_token_finalization = make_stage<PagedAttentionGeneratorMultiTokensFinalization>();
-    Stage pa_sdpa_opt = make_stage<PagedAttentionSDPAOptGeneratorMultiToken>();
-    Stage kv_cache_rotate = make_stage<KVCacheRotateGenerator>();
-    Stage pa_scores_calc = make_stage<PagedAttentionGeneratorScoresCalculation>();
+    Stage::Ptr kv_cache_update = make_stage<KVCacheUpdateGenerator>();
+    Stage::Ptr pa_single_token = make_stage<PagedAttentionGeneratorSingleToken>();
+    Stage::Ptr pa_single_token_finalization = make_stage<PagedAttentionGeneratorSingleTokenFinalization>();
+    Stage::Ptr pa_multi_token = make_stage<PagedAttentionGeneratorMultiTokens>();
+    Stage::Ptr pa_multi_token_finalization = make_stage<PagedAttentionGeneratorMultiTokensFinalization>();
+    Stage::Ptr pa_sdpa_opt = make_stage<PagedAttentionSDPAOptGeneratorMultiToken>();
+    Stage::Ptr kv_cache_rotate = make_stage<KVCacheRotateGenerator>();
+    Stage::Ptr pa_scores_calc = make_stage<PagedAttentionGeneratorScoresCalculation>();
 
     PagedAttentionOptImpl() : SDPAImplBase(PagedAttentionOpt::get_type_info_static()) {}
     PagedAttentionOptImpl(const kernel_impl_params& params) : PagedAttentionOptImpl() {

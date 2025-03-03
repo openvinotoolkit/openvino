@@ -27,16 +27,16 @@ public:
     static constexpr bool indirect = true;
     static constexpr bool prefill = true;
 
-    Stage indirect_single_token = make_stage<SDPAOptGeneratorSingleToken>(indirect);
-    Stage regular_single_token = make_stage<SDPAOptGeneratorSingleToken>(!indirect);
+    Stage::Ptr indirect_single_token = make_stage<SDPAOptGeneratorSingleToken>(indirect);
+    Stage::Ptr regular_single_token = make_stage<SDPAOptGeneratorSingleToken>(!indirect);
 
-    Stage indirect_multi_tokens = make_stage<SDPAOptGeneratorMultiToken>(indirect);
-    Stage regular_multi_tokens = make_stage<SDPAOptGeneratorMultiToken>(!indirect);
+    Stage::Ptr indirect_multi_tokens = make_stage<SDPAOptGeneratorMultiToken>(indirect);
+    Stage::Ptr regular_multi_tokens = make_stage<SDPAOptGeneratorMultiToken>(!indirect);
 
-    Stage indirect_finalization = make_stage<SDPAOptGeneratorFinalization>(indirect);
-    Stage regular_finalization = make_stage<SDPAOptGeneratorFinalization>(!indirect);
+    Stage::Ptr indirect_finalization = make_stage<SDPAOptGeneratorFinalization>(indirect);
+    Stage::Ptr regular_finalization = make_stage<SDPAOptGeneratorFinalization>(!indirect);
 
-    Stage regular_micro = make_stage<SDPAMicroGenerator>(prefill);
+    Stage::Ptr regular_micro = make_stage<SDPAMicroGenerator>(prefill);
 
 
     SDPAOptImpl() : SDPAImplBase(SDPAOpt::get_type_info_static()) { }

@@ -162,7 +162,7 @@ class RopeOptImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::RopeOptImpl)
 
-    Stage rope = make_stage<RopeGenerator>();
+    Stage::Ptr rope = make_stage<RopeGenerator>();
 
     RopeOptImpl() : PrimitiveImplOCL(RopeOpt::get_type_info_static()) {}
     RopeOptImpl(const program_node& node, const kernel_impl_params& params) : RopeOptImpl() {

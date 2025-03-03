@@ -27,6 +27,7 @@ namespace ov::intel_gpu::ocl {
 
 class Stage {
 public:
+    using Ptr = std::unique_ptr<Stage>;
     Stage(std::shared_ptr<KernelGeneratorBase>&& ptr) : codegen(std::move(ptr)) {}
     std::shared_ptr<KernelGeneratorBase> codegen;
     KernelData kd{};
@@ -41,17 +42,17 @@ struct PrimitiveImplOCL : public primitive_impl {
     std::unique_ptr<RuntimeParams> m_rt_params = nullptr;
 
     template<typename CodeGenType, typename... Args>
-    Stage make_stage(Args&&... args) {
-        Stage stage{std::make_shared<CodeGenType>(std::forward<Args>(args)...)};
-        _stages.push_back(&stage);
+    Stage::Ptr make_stage(Args&&... args) {
+        auto stage = std::make_unique<Stage>(std::make_shared<CodeGenType>(std::forward<Args>(args)...));
+        _stages.push_back(stage.get());
         return stage;
     }
 
-    void add_stage(Stage& stage, const kernel_impl_params& params) {
+    void add_stage(Stage::Ptr& stage, const kernel_impl_params& params) {
         for (size_t i = 0; i < _stages.size(); i++) {
-            if (&stage == _stages[i]) {
+            if (stage.get() == _stages[i]) {
                 _order.push_back(i);
-                stage.kd = stage.codegen->get_kernel_data(params);
+                stage->kd = stage->codegen->get_kernel_data(params);
                 break;
             }
         }
@@ -169,9 +170,9 @@ struct PrimitiveImplOCL : public primitive_impl {
     void set_arguments(primitive_inst& instance) override { }
     void set_arguments(primitive_inst& instance, kernel_arguments_data& args) override { }
 
-    bool has_stage(const Stage& stage) const {
+    bool has_stage(const Stage::Ptr& stage) const {
         for (size_t i = 0; i < _stages.size(); i++) {
-            if (_stages[i] == &stage) {
+            if (_stages[i] == stage.get()) {
                 return std::find(_order.begin(), _order.end(), i) != _order.end();
             }
         }
@@ -191,6 +192,10 @@ struct PrimitiveImplOCL : public primitive_impl {
 
     virtual void update_rt_params(const primitive_inst& instance) {
         update_stages_flags(instance);
+    }
+
+    event::ptr execute_stage(const std::vector<event::ptr>& events, primitive_inst& instance, Stage::Ptr& stage) {
+        return execute_stage(events, instance, *stage);
     }
 
     event::ptr execute_stage(const std::vector<event::ptr>& events, primitive_inst& instance, Stage& stage) {
@@ -217,10 +222,6 @@ struct PrimitiveImplOCL : public primitive_impl {
                                << (needs_completion_event ? " has_completion_event=true" : "") << std::endl;
 
         return stream.enqueue_kernel(*stage.kernel, params, {}, events, needs_completion_event);
-    }
-
-    event::ptr execute_stage(const std::vector<event::ptr>& events, primitive_inst& instance, size_t stage) {
-        return nullptr;
     }
 
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {

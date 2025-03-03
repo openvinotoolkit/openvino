@@ -171,8 +171,8 @@ protected:
 class LSTMImpl : public PrimitiveImplCM {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::cm::LSTMImpl)
-    Stage lstm_loop = make_stage<XetlaLSTMLoopGenerator>();
-    Stage lstm_gemm = make_stage<XetlaLSTMGemmGenerator>();
+    Stage::Ptr lstm_loop = make_stage<XetlaLSTMLoopGenerator>();
+    Stage::Ptr lstm_gemm = make_stage<XetlaLSTMGemmGenerator>();
 
     LSTMImpl() : PrimitiveImplOCL(LSTMSeqImplementationManager::get_type_info_static()) {}
     LSTMImpl(const program_node& node, const kernel_impl_params& params) : LSTMImpl() {

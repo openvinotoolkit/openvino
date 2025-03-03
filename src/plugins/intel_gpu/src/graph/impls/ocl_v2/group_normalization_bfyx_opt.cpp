@@ -283,9 +283,9 @@ protected:
 class GroupNormalizationBfyxOptImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::GroupNormalizationBfyxOptImpl)
-    Stage calc_sqr_mean = make_stage<GroupNormalizationGeneratorCalcSQRMean>();
-    Stage calc_mean_variance = make_stage<GroupNormalizationGeneratorCalcMeanVariance>();
-    Stage normalize = make_stage<GroupNormalizationGeneratorFinalKernel>();
+    Stage::Ptr calc_sqr_mean = make_stage<GroupNormalizationGeneratorCalcSQRMean>();
+    Stage::Ptr calc_mean_variance = make_stage<GroupNormalizationGeneratorCalcMeanVariance>();
+    Stage::Ptr normalize = make_stage<GroupNormalizationGeneratorFinalKernel>();
 
     GroupNormalizationBfyxOptImpl() : PrimitiveImplOCL(GroupNormalizationBfyxOpt::get_type_info_static()) {}
     GroupNormalizationBfyxOptImpl(const program_node& node, const kernel_impl_params& params) : GroupNormalizationBfyxOptImpl() {
