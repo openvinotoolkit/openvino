@@ -572,7 +572,6 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
         content = std::regex_replace(content, std::regex(dqstr.str()), "");
     }
 
-
     // NPU_DEFER_WEIGHTS_LOAD is needed at runtime only
     {
         std::ostringstream batchstr;

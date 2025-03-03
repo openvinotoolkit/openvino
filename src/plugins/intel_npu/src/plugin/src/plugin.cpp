@@ -640,16 +640,6 @@ void Plugin::reset_compiler_dependent_properties() const {
             std::get<0>(_properties[ov::intel_npu::qdq_optimization.name()]) = false;  // mark unsupported
         }
     }
-
-    // BATCH_COMPILER_MODE_SETTINGS
-    // unpublish if compiler version requirement is not met
-    if (_properties.find(ov::intel_npu::batch_compiler_mode_settings.name()) != _properties.end()) {
-        if (active_compiler_version >= ICOMPILER_MAKE_VERSION(7, 4)) {
-            std::get<0>(_properties[ov::intel_npu::batch_compiler_mode_settings.name()]) = true;  /// mark supported
-        } else {
-            std::get<0>(_properties[ov::intel_npu::batch_compiler_mode_settings.name()]) = false;  // mark unsupported
-        }
-    }
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
