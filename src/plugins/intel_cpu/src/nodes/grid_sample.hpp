@@ -19,7 +19,7 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(const dnnl::stream& strm) override;
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
 
     struct threadExecParams {
         uint64_t batchNum = 1lu;
