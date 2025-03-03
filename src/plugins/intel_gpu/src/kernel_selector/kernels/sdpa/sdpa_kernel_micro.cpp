@@ -454,7 +454,8 @@ bool SDPAKernelMicro::Validate(const Params& p) const {
     if (params.indirect_axis != -1)
         return false;
 
-    auto Q_num_heads_dim = get_num_heads(params, params.inputs[0], params.input0_order);
+    auto Q_num_heads_dim = params.conf.is_paged_attention ? params.conf.heads_num
+                                                          : get_num_heads(params, params.inputs[0], params.input0_order);
     auto K_num_heads_dim = get_num_heads(params, params.inputs[1], params.input1_order);
     auto V_num_heads_dim = get_num_heads(params, params.inputs[2], params.input2_order);
 
@@ -581,7 +582,10 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
     bool k_full = !n_keys.is_dynamic && (n_keys.v % tile_k) == 0;
     bool q_full = !n_queries.is_dynamic && (n_queries.v % tile_q) == 0;
 
-    auto Q_num_heads_dim = get_num_heads(params, Q, params.input0_order);
+    // WA for PA for Qwen model as it has shape with an upper bound [?, ..134213632]
+    // instead of ordinary fused [?, HEAD_SIZE * HEADS_NUM], so read heads_num from config
+    auto Q_num_heads_dim = params.conf.is_paged_attention ? Tensor::Dim(params.conf.heads_num)
+                                                          : get_num_heads(params, params.inputs[0], params.input0_order);
     auto K_num_heads_dim = get_num_heads(params, K, params.input1_order);
 
     jit.AddConstant(MakeJitConstant("REMAINDER_K", !k_full));

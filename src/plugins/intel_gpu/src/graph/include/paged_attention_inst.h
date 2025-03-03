@@ -61,12 +61,6 @@ public:
     memory::ptr rotated_block_indices_memory_ptr() const { return input_memory_ptr(13); }
     memory::ptr rotation_deltas_memory_ptr() const { return input_memory_ptr(14); }
     memory::ptr rotation_trig_lut_memory_ptr() const { return input_memory_ptr(15); }
-
-    bool use_micro_sdpa = false;
-    size_t query_block_size = 0;
-
-protected:
-    void on_execute() override;
 };
 
 using paged_attention_inst = typed_primitive_inst<paged_attention>;

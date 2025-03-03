@@ -58,6 +58,33 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         KV_CACHE_ROTATE,
     };
 
+    PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_param) const {
+        const auto& query_shape = impl_param.get_input_layout(0).get_partial_shape();
+        const auto& past_lens_shape = impl_param.get_input_layout(5).get_partial_shape();
+
+        if (query_shape.is_static() && past_lens_shape.is_static()) {
+            if (query_shape[0].get_length() == past_lens_shape[0].get_length()) {
+                return PagedAttentionStage::GENERATE;
+            }
+
+            const auto past_lens_idx = 5;
+            const auto& memory_deps = impl_param.memory_deps;
+            const auto past_lens_mem = memory_deps.at(past_lens_idx);
+            mem_lock<int32_t, mem_lock_type::read> past_lens_mem_lock(past_lens_mem, *impl_param.strm);
+
+            const auto past_lens_size = past_lens_mem_lock.size();
+            for (size_t i = 0; i < past_lens_size; i++) {
+                if (past_lens_mem_lock[i] != 0) {
+                    return PagedAttentionStage::MIXED;
+                }
+            }
+
+            return PagedAttentionStage::PREFILL;
+        }
+
+        return PagedAttentionStage::UNKNOWN;
+    }
+
     bool requires_update(primitive_inst& inst, const kernel_impl_params& impl_params) const override {
         const auto stage = get_paged_attention_stage(impl_params);
 
@@ -65,15 +92,6 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         // buffers reallocation even if the input shapes haven't been changed. Therefore, check the current execution
         // mode and update parameters if needed
         return stage == PagedAttentionStage::MIXED;
-    }
-
-    void update_inst_params(primitive_inst& inst) const override {
-        OPENVINO_ASSERT(inst.type() == paged_attention::type_id());
-        OPENVINO_ASSERT(inst.get_impl() == this);
-
-        auto& pa_inst = reinterpret_cast<paged_attention_inst&>(inst);
-        pa_inst.query_block_size = get_query_block_size(PagedAttentionStage::PREFILL);
-        pa_inst.use_micro_sdpa = use_micro_sdpa;
     }
 
     size_t get_query_block_size(const PagedAttentionStage& stage) const {
@@ -292,6 +310,147 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         return lockable_ids;
     };
 
+    void prepare_internal_buffers(paged_attention_inst& instance, const PagedAttentionStage& stage) {
+        const auto& desc = instance.get_impl_params()->typed_desc<paged_attention>();
+        const bool has_scores_output = desc->has_scores_output();
+
+        if ((stage == PagedAttentionStage::UNKNOWN) ||
+            (stage == PagedAttentionStage::GENERATE && !has_scores_output))
+            return;
+
+        auto& stream = instance.get_network().get_stream();
+        const auto past_lens_mem = instance.past_lens_memory_ptr();
+        const auto subsequence_begins_mem = instance.subsequence_begins_memory_ptr();
+        auto intermediates_memories = instance.get_intermediates_memories();
+        mem_lock<int32_t, mem_lock_type::read> past_lens_mem_lock(past_lens_mem, stream);
+        mem_lock<int32_t, mem_lock_type::read> subsequence_begins_mem_lock(subsequence_begins_mem, stream);
+        std::unique_ptr<mem_lock<int32_t, mem_lock_type::write>> subsequence_offsets_lock = nullptr;
+
+        if (has_scores_output) {
+            const size_t subsequence_offsets_idx = 4;
+
+            OPENVINO_ASSERT(intermediates_memories.size() > subsequence_offsets_idx,
+                            "[GPU] Unexpected number of intermediates buffers for Paged Attention for scores output calculation");
+
+            auto subsequence_offsets_mem = intermediates_memories[subsequence_offsets_idx];
+            subsequence_offsets_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(subsequence_offsets_mem, stream));
+        }
+
+        if (stage == PagedAttentionStage::GENERATE) {
+            // For the generate stage it's not necessary to configure any other intermediate
+            // buffers. Simply calculate the offsets and exit
+            size_t subsequence_offsets_acc = 0;
+            for (size_t i = 0; i < subsequence_begins_mem_lock.size() - 1; i++) {
+                const auto past_len = past_lens_mem_lock[i];
+                const auto seq_start = subsequence_begins_mem_lock[i];
+                const auto seq_end = subsequence_begins_mem_lock[i + 1];
+                const auto seq_length = seq_end - seq_start;
+
+                if (subsequence_offsets_lock) {
+                    subsequence_offsets_lock->operator[](i) = static_cast<int32_t>(subsequence_offsets_acc);
+                    subsequence_offsets_acc += seq_length + past_len;
+                }
+            }
+
+            return;
+        }
+
+        OPENVINO_ASSERT(intermediates_memories.size() >= 3, "Unexpected number of intermediates buffers for Paged Attention at prefill stage");
+
+        const auto blocks_indexes_start_idx = 0;
+        const auto blocks_indexes_end_idx = 1;
+        const auto blocked_gws_subseq_mapping_idx = 2;
+
+        auto blocks_indexes_start_mem = intermediates_memories[blocks_indexes_start_idx];
+        auto blocks_indexes_end_mem = intermediates_memories[blocks_indexes_end_idx];
+        auto blocked_gws_subseq_mapping_mem = intermediates_memories[blocked_gws_subseq_mapping_idx];
+
+        OPENVINO_ASSERT(subsequence_begins_mem->get_layout().data_type == data_types::i32);
+
+        mem_lock<int32_t, mem_lock_type::write> blocks_indexes_start_lock(blocks_indexes_start_mem, stream);
+        mem_lock<int32_t, mem_lock_type::write> blocks_indexes_end_lock(blocks_indexes_end_mem, stream);
+        mem_lock<int32_t, mem_lock_type::write> blocked_gws_subseq_mapping_mem_lock(blocked_gws_subseq_mapping_mem, stream);
+        std::unique_ptr<mem_lock<int32_t, mem_lock_type::write>> sequential_gws_subseq_mapping_lock = nullptr;
+        std::unique_ptr<mem_lock<int32_t, mem_lock_type::write>> micro_sdpa_block_starts_and_gws_mapping_lock = nullptr;
+
+        if (stage == PagedAttentionStage::MIXED) {
+            const size_t sequential_gws_subseq_mapping_idx = has_scores_output ? 8 : 6;
+
+            OPENVINO_ASSERT(intermediates_memories.size() > sequential_gws_subseq_mapping_idx,
+                            "[GPU] Unexpected number of intermediates buffers for Paged Attention for mixed stage");
+
+            auto sequential_gws_subseq_mapping_mem = intermediates_memories[sequential_gws_subseq_mapping_idx];
+            sequential_gws_subseq_mapping_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(sequential_gws_subseq_mapping_mem, stream));
+        }
+
+        if (stage == PagedAttentionStage::PREFILL && use_micro_sdpa) {
+            const auto memory_idx = intermediates_memories.size() - 1;
+
+            auto memory = intermediates_memories[memory_idx];
+            micro_sdpa_block_starts_and_gws_mapping_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(memory, stream));
+        }
+
+        size_t index = 0;
+        size_t micro_sdpa_index = 0;
+        size_t subsequence_offsets_acc = 0;
+        size_t query_block_size = get_query_block_size(stage);
+        const auto pa_block_size = static_cast<int>(paged_attention::block_size);
+        for (size_t i = 0; i < subsequence_begins_mem_lock.size() - 1; i++) {
+            const auto past_len = past_lens_mem_lock[i];
+            const auto seq_start = subsequence_begins_mem_lock[i];
+            const auto seq_end = subsequence_begins_mem_lock[i + 1];
+            const auto seq_length = seq_end - seq_start;
+
+            int32_t j = 0;
+            if (past_len != 0) {
+                auto block_start_pos = seq_start;
+                auto empty_slots = pa_block_size - (past_len % pa_block_size);
+                auto block_end_pos = seq_start + std::min(empty_slots, seq_length);
+
+                blocks_indexes_start_lock[index] = block_start_pos;
+                blocks_indexes_end_lock[index] = block_end_pos;
+                blocked_gws_subseq_mapping_mem_lock[index] = static_cast<int32_t>(i);
+
+                index++;
+
+                auto added_slots = block_end_pos - block_start_pos;
+                j += added_slots;
+            }
+
+            for (; j < seq_length; j += pa_block_size) {
+                auto block_start_pos = subsequence_begins_mem_lock[i] + j;
+                auto block_end_pos = std::min(block_start_pos + pa_block_size, seq_end);
+
+                blocks_indexes_start_lock[index] = block_start_pos;
+                blocks_indexes_end_lock[index] = block_end_pos;
+                blocked_gws_subseq_mapping_mem_lock[index] = static_cast<int32_t>(i);
+
+                index++;
+            }
+
+            if (micro_sdpa_block_starts_and_gws_mapping_lock) {
+                const auto block_size = static_cast<int>(query_block_size);
+                for (int32_t j = 0; j < seq_length; j += block_size) {
+                    auto block_start_pos = subsequence_begins_mem_lock[i] + j;
+
+                    micro_sdpa_block_starts_and_gws_mapping_lock->operator[](micro_sdpa_index++) = block_start_pos;
+                    micro_sdpa_block_starts_and_gws_mapping_lock->operator[](micro_sdpa_index++) = static_cast<int32_t>(i);
+                }
+            }
+
+            if (stage == PagedAttentionStage::MIXED) {
+                for (int32_t idx = seq_start; idx < seq_end; idx++) {
+                    sequential_gws_subseq_mapping_lock->operator[](idx) = static_cast<int32_t>(i);
+                }
+            }
+
+            if (subsequence_offsets_lock) {
+                subsequence_offsets_lock->operator[](i) = static_cast<int32_t>(subsequence_offsets_acc);
+                subsequence_offsets_acc += seq_length + past_len;
+            }
+        }
+    }
+
     void execute_stage(const std::vector<event::ptr>& events,
                        paged_attention_inst& instance,
                        std::vector<event::ptr>& all_events,
@@ -384,6 +543,8 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
     event::ptr execute_impl(const std::vector<event::ptr>& events, paged_attention_inst& instance) override {
         const auto stage = get_paged_attention_stage(*instance.get_impl_params());
         const auto is_mixed_mode = stage == PagedAttentionStage::MIXED;
+
+        prepare_internal_buffers(instance, stage);
 
         std::vector<event::ptr> res_events;
         std::vector<event::ptr> dep_events = events;

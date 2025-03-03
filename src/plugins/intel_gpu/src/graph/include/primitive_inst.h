@@ -59,7 +59,6 @@ struct primitive_impl {
     virtual std::set<size_t> get_lockable_internal_buffers() const { return {}; }
     virtual void set_node_params(const program_node&) {}
     virtual const std::string& get_type_info() const = 0;
-    virtual void update_inst_params(primitive_inst& instance) const {}
     virtual void set_arguments(primitive_inst& instance) = 0;
     virtual void set_arguments(primitive_inst& instance, kernel_arguments_data& args) = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
