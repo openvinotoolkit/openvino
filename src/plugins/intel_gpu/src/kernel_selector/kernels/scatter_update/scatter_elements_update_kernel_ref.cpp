@@ -68,6 +68,7 @@ ParamsKey ScatterElementsUpdateKernelRef::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableDifferentTypes();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
@@ -162,6 +163,20 @@ bool ScatterElementsUpdateKernelRef::Validate(const Params& p) const {
     return true;
 }
 
+void ScatterElementsUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const scatter_elements_update_params&>(params);
+        OPENVINO_ASSERT(kd.kernels.size() == 2, "[GPU] Invalid kernels size for update dispatch data func");
+
+        for (size_t i = 0; i < 2; ++i) {
+            auto dispatchData = SetDefault(prim_params, i == 1);
+            kd.kernels[i].params.workGroups.global = dispatchData.gws;
+            kd.kernels[i].params.workGroups.local = dispatchData.lws;
+            kd.kernels[i].skip_execution = KernelData::SkipKernelExecution(prim_params);
+        }
+    };
+}
+
 KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params) const {
     if (!Validate(params)) {
         return {};
@@ -170,6 +185,8 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
     KernelData kd = KernelData::Default<scatter_elements_update_params>(params, 2);
     scatter_elements_update_params& newParams = *static_cast<scatter_elements_update_params*>(kd.params.get());
     auto cldnn_jit = GetJitConstants(newParams);
+
+    GetUpdateDispatchDataFunc(kd);
 
     for (int i = 0; i < 2; i++) {
         auto dispatchData = SetDefault(newParams, (i == 1));
@@ -182,7 +199,8 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
 
         clKernelData& kernel = kd.kernels[i];
 
-        FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 3, GetFusedPrimitiveInputsCount(params));
+        FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 3, GetFusedPrimitiveInputsCount(params), 1,
+            params.is_shape_agnostic);
     }
 
     return {kd};
