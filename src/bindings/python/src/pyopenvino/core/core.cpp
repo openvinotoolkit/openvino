@@ -450,7 +450,6 @@ void regclass_Core(py::module m) {
            py::object weights_path,
            const std::map<std::string, py::object>& config) {
             if (py::isinstance(model_path, py::module::import("io").attr("BytesIO"))) {
-                std::cout << "hehe" << std::endl;
 
                 model_path.attr("seek")(0);  // Always rewind stream!
                 py::buffer_info buffer_info = model_path.attr("getbuffer")().cast<py::buffer>().request();
