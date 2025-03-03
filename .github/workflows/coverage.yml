@@ -63,7 +63,6 @@ jobs:
             -DCMAKE_VERBOSE_MAKEFILE=ON
             -DENABLE_PYTHON=ON
             -DENABLE_ONEDNN_FOR_GPU=ON
-            -DBUILD_SHARED_LIBS=ON
             -DENABLE_TESTS=ON
             -DENABLE_OV_ONNX_FRONTEND=ON
             -DENABLE_FASTER_BUILD=ON

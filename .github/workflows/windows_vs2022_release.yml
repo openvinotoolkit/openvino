@@ -66,7 +66,6 @@ jobs:
             -DENABLE_PYTHON=ON `
             -DENABLE_WHEEL=ON `
             -DENABLE_CPPLINT=OFF `
-            -DBUILD_SHARED_LIBS=ON `
             -DENABLE_TESTS=ON `
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
             -DENABLE_STRICT_DEPENDENCIES=OFF `
@@ -139,6 +138,8 @@ jobs:
       - name: Build c samples
         run: |
           & ${{ env.SAMPLES_INSTALL_DIR }}/c/build_samples.ps1 -InstallDirectory ${{ env.INSTALL_DIR }} -BuildDirectory ${{ env.BUILD_DIR }}/c_samples
+        env:
+          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
 
       # Install Python benchmark_app by installing openvino-*.whl
       - name: Install OpenVINO Python wheels
@@ -170,6 +171,8 @@ jobs:
       - name: Build c samples (bat)
         run: |
           & ${{ env.SAMPLES_INSTALL_DIR }}/c/build_samples_msvc.bat -i ${{ env.INSTALL_DIR }}/samples_bat -b ${{ env.BUILD_DIR }}/c_samples_bat
+        env:
+          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
 
   JS_API:
     name: JS API
