@@ -18,7 +18,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_attention_extension.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/relu.hpp"

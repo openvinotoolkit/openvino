@@ -14,7 +14,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_attention_extension.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"

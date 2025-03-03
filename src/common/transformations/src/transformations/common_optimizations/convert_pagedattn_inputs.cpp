@@ -12,7 +12,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_attention_extension.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
 using namespace ov::gen_pattern;

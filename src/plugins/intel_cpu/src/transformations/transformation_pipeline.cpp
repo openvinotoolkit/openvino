@@ -11,7 +11,7 @@
 #include <ov_ops/augru_sequence.hpp>
 #include <ov_ops/gather_compressed.hpp>
 
-#include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_attention_extension.hpp"
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/round.hpp"
 #include "openvino/op/sqrt.hpp"
