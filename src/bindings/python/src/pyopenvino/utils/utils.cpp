@@ -298,14 +298,14 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
                 [py_encrypt](const std::string& in_str) -> std::string {
                 // Acquire GIL, execute Python function
                 py::gil_scoped_acquire acquire;
-                return (*py_encrypt)(in_str).cast<std::string>();
+                return (*py_encrypt)(py::bytes(in_str)).cast<std::string>();
             };
 
             std::function<std::string(const std::string&)> decrypt_func =
                 [py_decrypt](const std::string& in_str) -> std::string {
                 // Acquire GIL, execute Python function
                 py::gil_scoped_acquire acquire;
-                return (*py_decrypt)(in_str).cast<std::string>();
+                return (*py_decrypt)(py::bytes(in_str)).cast<std::string>();
             };
             ov::EncryptionCallbacks encryption_callbacks{encrypt_func, decrypt_func};
             properties_to_cpp[property.first] = encryption_callbacks;
