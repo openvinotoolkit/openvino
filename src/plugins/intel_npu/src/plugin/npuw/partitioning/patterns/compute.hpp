@@ -75,6 +75,18 @@ public:
     VariadicSplit(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
+class FakeConvert : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::compute::FakeConvert");
+    FakeConvert(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
+};
+
+class FakeQuantize : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::compute::FakeQuantize");
+    FakeQuantize(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
+};
+
 }  // namespace compute
 }  // namespace patterns
 }  // namespace npuw
