@@ -40,8 +40,8 @@
 #include "dynamic_quantize_inst.h"
 #include "swiglu_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
-#include "impls/registry/implementation_manager.hpp"
-#include "impls/registry/registry.hpp"
+#include "registry/implementation_manager.hpp"
+#include "registry/registry.hpp"
 #include "graph_optimizer/prepare_buffer_fusing.h"
 
 #include "intel_gpu/plugin/common_utils.hpp"
@@ -1046,7 +1046,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
     {
         if (_impl == nullptr)
             return;
-        const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
+        const auto& ibuf_layouts = _impl->get_internal_buffer_layouts(*_impl_params);
         if (ibuf_layouts.empty())
             return;
         GPU_DEBUG_CODE(std::string memalloc_info = "");
@@ -2123,7 +2123,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
 memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
     if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
         return nullptr;
-    const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
+    const auto& ibuf_layouts = _impl->get_internal_buffer_layouts(*_impl_params);
     if (ibuf_layouts.empty())
         return nullptr;
 
@@ -2166,7 +2166,7 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
     // allocate intermediate memory for the updated layout of buffer
     auto layout = ibuf_layouts[idx];
     auto alloc_type = allocation_type::unknown;
-    const auto& lockable_buffers_indexes = _impl->get_lockable_internal_buffers();
+    const auto& lockable_buffers_indexes = _impl->get_lockable_internal_buffers(*_impl_params);
     auto need_lockable_allocation = lockable_buffers_indexes.find(idx) != lockable_buffers_indexes.end();
     GPU_DEBUG_LOG << "[" << _node->id() << ": internal buf " << idx << "] "
                   << layout.to_short_string() << " need_lockable_allocation=" << need_lockable_allocation << std::endl;
@@ -2204,7 +2204,7 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
 void primitive_inst::allocate_internal_buffers(bool reset) {
     if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
         return;
-    const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
+    const auto& ibuf_layouts = _impl->get_internal_buffer_layouts(*_impl_params);
     if (ibuf_layouts.empty())
         return;
 
@@ -2454,6 +2454,7 @@ std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* up
     outputs.reserve(get_node().get_outputs_count());
     const auto& impl_params = updated_params != nullptr ? *updated_params : *_impl_params;
     const auto& out_layouts = impl_params.output_layouts;
+    set_flag(ExecutionFlags::MEMORY_CHANGED);
     for (size_t i = 0; i < get_node().get_outputs_count(); ++i) {
         if (out_layouts[i].is_dynamic() && !out_layouts[i].has_upper_bound()) {
             outputs.push_back(memory::ptr());

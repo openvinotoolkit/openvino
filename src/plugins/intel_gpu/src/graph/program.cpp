@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/runtime/system_conf.hpp"
@@ -34,6 +34,8 @@
 #include "custom_gpu_primitive_inst.h"
 #include "resample_inst.h"
 #include "reshape_inst.h"
+#include "ctc_loss_inst.hpp"
+#include "group_normalization_inst.h"
 #include "quantize_inst.h"
 #include "activation_inst.h"
 #include "depth_to_space_inst.h"
@@ -68,6 +70,7 @@
 #include "reverse_inst.h"
 #include "unique_inst.hpp"
 #include "condition_inst.h"
+#include "scaled_dot_product_attention_inst.h"
 #include "to_string_utils.h"
 #include "intel_gpu/graph/serialization/map_serializer.hpp"
 
@@ -1798,6 +1801,7 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
         for (auto& node : processing_order) {
             if (node->get_selected_impl() != nullptr) {
                 impl_ids.emplace_back(node->id());
+                std::cerr << node->get_selected_impl()->get_type_info() << " KERNELS SIZE: " << node->get_selected_impl()->get_kernels().size() << std::endl;
                 kernels_cache.add_to_cached_kernels(node->get_selected_impl()->get_kernels());
             }
         }

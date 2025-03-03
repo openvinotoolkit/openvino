@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "impls/registry/registry.hpp"
+#include "registry/registry.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
@@ -17,7 +17,7 @@
 #include "layout_optimizer.h"
 #include "primitive_inst.h"
 #include "intel_gpu/graph/network.hpp"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 
 #include <memory>
 #include <string>
