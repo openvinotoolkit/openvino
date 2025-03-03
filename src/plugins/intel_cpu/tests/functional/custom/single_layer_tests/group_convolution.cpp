@@ -96,13 +96,8 @@ protected:
         bool foundConv = false;
         for (const auto& node : execGraph->get_ops()) {
             const auto& rtInfo = node->get_rt_info();
-            auto getExecValue = [&rtInfo](const std::string& paramName) -> std::string {
-                auto it = rtInfo.find(paramName);
-                OPENVINO_ASSERT(rtInfo.end() != it);
-                return it->second.as<std::string>();
-            };
 
-            if (getExecValue(ov::exec_model_info::LAYER_TYPE) == "Convolution") {
+            if (getRuntimeValue(rtInfo, ov::exec_model_info::LAYER_TYPE) == "Convolution") {
                 foundConv = true;
                 ASSERT_EQ(3, node->inputs().size());
                 break;
@@ -228,13 +223,8 @@ TEST_P(ExpectFallbackGroupConvolutionLayerCPUTest, CompareWithRefs) {
     auto function = compiledModel.get_runtime_model();
     for (const auto& node : function->get_ops()) {
         const auto& rtInfo = node->get_rt_info();
-        auto getExecValue = [&rtInfo](const std::string& paramName) -> std::string {
-            auto it = rtInfo.find(paramName);
-            OPENVINO_ASSERT(rtInfo.end() != it);
-            return it->second.as<std::string>();
-        };
-        if ("Convolution" == getExecValue(ov::exec_model_info::LAYER_TYPE)) {
-            auto primType = getExecValue(ov::exec_model_info::IMPL_TYPE);
+        if ("Convolution" == getRuntimeValue(rtInfo, ov::exec_model_info::LAYER_TYPE)) {
+            auto primType = getRuntimeValue(rtInfo, ov::exec_model_info::IMPL_TYPE);
             ASSERT_TRUE(selectedType != primType) << "primType is unexpected: " << primType;
         }
     }
