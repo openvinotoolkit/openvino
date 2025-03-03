@@ -74,7 +74,7 @@ struct SubgraphKey {
           in_shapes(std::move(in_shapes_)) {}
     virtual ~SubgraphKey() = default;
 
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
         using namespace dnnl::impl::primitive_hashing;
 
@@ -98,7 +98,7 @@ struct SubgraphCodeGeneratorKey {
         : attrs(std::move(attrs_)),
           broadcasting_mask(mask_) {}
 
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
         using namespace dnnl::impl::primitive_hashing;
 
@@ -119,7 +119,7 @@ struct SubgraphShapeInferResultKey {
         : in_shapes(std::move(in_shapes_)),
           body_hash(body_hash_) {}
 
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
         using namespace dnnl::impl::primitive_hashing;
 

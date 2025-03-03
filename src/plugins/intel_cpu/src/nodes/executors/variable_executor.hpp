@@ -61,7 +61,7 @@ public:
         m_executors[m_implId]->execute(memory);
     }
 
-    impl_desc_type implType() const override {
+    [[nodiscard]] impl_desc_type implType() const override {
         return m_executors[m_implId]->implType();
     }
 
@@ -86,7 +86,7 @@ private:
         return implementationRequiresFallback;
     }
 
-    size_t select(const MemoryArgs& memory, const size_t startIdx) const {
+    [[nodiscard]] size_t select(const MemoryArgs& memory, const size_t startIdx) const {
         OPENVINO_ASSERT(startIdx < m_suitableImplementations.size(),
                         "Failed to find an implementation since start indx: ",
                         startIdx,

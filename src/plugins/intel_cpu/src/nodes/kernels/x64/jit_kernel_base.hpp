@@ -196,8 +196,7 @@ public:
 
     explicit JitKernel(const char* name, const CompileParams& jcp, dnnl::impl::cpu::x64::cpu_isa_t max_cpu_isa)
         : JitKernelBase{name, max_cpu_isa},
-          m_jcp{jcp},
-          m_func{nullptr} {}
+          m_jcp{jcp} {}
 
     ~JitKernel() override = default;
 
@@ -253,7 +252,7 @@ protected:
     CompileParams m_jcp;
 
 private:
-    KernelFunc m_func;
+    KernelFunc m_func{nullptr};
 };
 
 #endif  // OPENVINO_ARCH_X86_64

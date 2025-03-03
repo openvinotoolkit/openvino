@@ -327,8 +327,8 @@ void MatrixNms::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 void MatrixNms::execute(const dnnl::stream& strm) {
-    const float* boxes = getSrcDataAtPortAs<const float>(NMS_BOXES);
-    const float* scores = getSrcDataAtPortAs<const float>(NMS_SCORES);
+    const auto* boxes = getSrcDataAtPortAs<const float>(NMS_BOXES);
+    const auto* scores = getSrcDataAtPortAs<const float>(NMS_SCORES);
 
     ov::parallel_for2d(m_numBatches, m_numClasses, [&](size_t batchIdx, size_t classIdx) {
         if (classIdx == static_cast<size_t>(m_backgroundClass)) {
@@ -424,9 +424,9 @@ void MatrixNms::execute(const dnnl::stream& strm) {
         OPENVINO_ASSERT(totalBox > 0, "Total number of boxes is less or equal than 0");
         redefineOutputMemory({{static_cast<size_t>(totalBox), 6}, {static_cast<size_t>(totalBox), 1}, {m_numBatches}});
     }
-    float* selectedOutputs = selectedOutputsMemPtr->getDataAs<float>();
-    int* selectedIndices = selectedIndicesMemPtr->getDataAs<int>();
-    int* validOutputs = validOutputsMemPtr->getDataAs<int>();
+    auto* selectedOutputs = selectedOutputsMemPtr->getDataAs<float>();
+    auto* selectedIndices = selectedIndicesMemPtr->getDataAs<int>();
+    auto* validOutputs = validOutputsMemPtr->getDataAs<int>();
     for (size_t i = 0; i < m_numPerBatch.size(); i++) {
         validOutputs[i] = static_cast<int>(m_numPerBatch[i]);
     }

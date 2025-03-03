@@ -342,7 +342,7 @@ void Transformations::UpToLpt() {
     }
 }
 
-void Transformations::CpuSpecificOpSet(void) {
+void Transformations::CpuSpecificOpSet() {
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Specific);
 
     ConvertToCPUSpecificOpset(model, config);
@@ -1044,7 +1044,7 @@ void Transformations::PostLpt() {
     postLPTPassManager.run_passes(model);
 }
 
-void Transformations::MainSnippets(void) {
+void Transformations::MainSnippets() {
 // Disable MainSnippets for int8 models on arm platforms due to performance issues
 // Ticket: 163408
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
@@ -1197,7 +1197,7 @@ void Transformations::MainSnippets(void) {
             return false;
         }
         const auto parallel_work_amount =
-            std::accumulate(shape.rbegin() + 2, shape.rend(), ov::Dimension(1), std::multiplies<ov::Dimension>());
+            std::accumulate(shape.rbegin() + 2, shape.rend(), ov::Dimension(1), std::multiplies<>());
         // Ticket 160154: enable tokenization for MHA with insufficient parallel work amount
         const auto is_unsupported_parallel_work_amount =
             static_cast<size_t>(parallel_work_amount.get_length()) < tokenization_config.get_concurrency() &&
@@ -1399,7 +1399,7 @@ void Transformations::MainSnippets(void) {
     snippetsManager.run_passes(model);
 }
 
-void Transformations::PostSnippets(void) {
+void Transformations::PostSnippets() {
     ov::pass::Manager postSnippetsManager("CPU:PostSnippets");
     postSnippetsManager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeQuantizeDecomposition);
@@ -1415,7 +1415,7 @@ void Transformations::PostSnippets(void) {
     postSnippetsManager.run_passes(model);
 }
 
-void Transformations::Snippets(void) {
+void Transformations::Snippets() {
     const bool useSnippets = config.snippetsMode != Config::SnippetsMode::Disable &&
                              CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Snippets);
     if (!useSnippets) {

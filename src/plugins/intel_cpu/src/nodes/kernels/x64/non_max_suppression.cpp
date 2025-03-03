@@ -4,6 +4,8 @@
 
 #include "non_max_suppression.hpp"
 
+#include <memory>
+
 #include "utils/general_utils.h"
 
 using namespace dnnl::impl;
@@ -15,8 +17,10 @@ namespace ov::intel_cpu::kernel {
 
 template <x64::cpu_isa_t isa>
 void NonMaxSuppression<isa>::generate() {
-    load_vector_emitter.reset(new jit_load_emitter(this, isa, ov::element::f32, ov::element::f32, vector_step));
-    load_scalar_emitter.reset(new jit_load_emitter(this, isa, ov::element::f32, ov::element::f32, scalar_step));
+    load_vector_emitter =
+        std::make_unique<jit_load_emitter>(this, isa, ov::element::f32, ov::element::f32, vector_step);
+    load_scalar_emitter =
+        std::make_unique<jit_load_emitter>(this, isa, ov::element::f32, ov::element::f32, scalar_step);
 
     exp_injector.reset(
         new x64::jit_uni_eltwise_injector<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f, data_type::f32));
@@ -442,19 +446,19 @@ void NonMaxSuppression<isa>::horizontal_mul_xmm(const Xbyak::Xmm& xmm_weight, co
 // horizontal mul for vmm_weight(Vmm(3)), temp1 and temp2 as aux
 template <x64::cpu_isa_t isa>
 inline void NonMaxSuppression<isa>::horizontal_mul() {
-    Xbyak::Xmm xmm_weight = Xbyak::Xmm(vmm_temp3.getIdx());
-    Xbyak::Xmm xmm_temp1 = Xbyak::Xmm(vmm_temp1.getIdx());
-    Xbyak::Xmm xmm_temp2 = Xbyak::Xmm(vmm_temp2.getIdx());
+    auto xmm_weight = Xbyak::Xmm(vmm_temp3.getIdx());
+    auto xmm_temp1 = Xbyak::Xmm(vmm_temp1.getIdx());
+    auto xmm_temp2 = Xbyak::Xmm(vmm_temp2.getIdx());
     if (isa == x64::sse41) {
         horizontal_mul_xmm(xmm_weight, xmm_temp1);
     } else if (isa == x64::avx2) {
-        Xbyak::Ymm ymm_weight = Xbyak::Ymm(vmm_temp3.getIdx());
+        auto ymm_weight = Xbyak::Ymm(vmm_temp3.getIdx());
         vextractf128(xmm_temp1, ymm_weight, 0);
         vextractf128(xmm_temp2, ymm_weight, 1);
         uni_vmulps(xmm_weight, xmm_temp1, xmm_temp2);
         horizontal_mul_xmm(xmm_weight, xmm_temp1);
     } else {
-        Xbyak::Zmm zmm_weight = Xbyak::Zmm(vmm_temp3.getIdx());
+        auto zmm_weight = Xbyak::Zmm(vmm_temp3.getIdx());
         vextractf32x4(xmm_temp1, zmm_weight, 0);
         vextractf32x4(xmm_temp2, zmm_weight, 1);
         uni_vmulps(xmm_temp1, xmm_temp1, xmm_temp2);

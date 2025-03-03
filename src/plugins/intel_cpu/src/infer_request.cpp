@@ -553,7 +553,7 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
 
                         tensor = control_block.tensor();
                         if (model_prec == graph_prec) {
-                            m_outputControlBlocks.emplace(std::make_pair(port_index, std::move(control_block)));
+                            m_outputControlBlocks.emplace(port_index, std::move(control_block));
                         }
                     }
                 } else {
