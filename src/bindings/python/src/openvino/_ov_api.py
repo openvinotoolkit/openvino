@@ -2,6 +2,7 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import io
 from types import TracebackType
 from typing import Any, Iterable, Union, Optional, Dict, Tuple, List
 from typing import Type as TypingType
@@ -538,8 +539,8 @@ class Core(CoreBase):
     """
     def read_model(
         self,
-        model: Union[str, bytes, object],
-        weights: Union[object, str, bytes, Tensor] = None,
+        model: Union[str, bytes, object, io.BytesIO],
+        weights: Union[object, str, bytes, Tensor, io.BytesIO] = None,
         config: Optional[dict] = None
     ) -> Model:
         config = {} if config is None else config

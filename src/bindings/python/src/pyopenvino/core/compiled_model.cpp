@@ -46,12 +46,18 @@ void regclass_CompiledModel(py::module m) {
     cls.def(
         "export_model",
         [](ov::CompiledModel& self) {
-            std::stringstream _stream;
-            {
-                py::gil_scoped_release release;
-                self.export_model(_stream);
-            }
-            return py::bytes(_stream.str());
+            py::object model_stream = py::module::import("io").attr("BytesIO")();
+
+            Common::utils::OutPyBuffer mb(model_stream);
+            std::ostream _stream(&mb);
+
+            self.export_model(_stream);
+
+            _stream.flush();
+            model_stream.attr("flush")();
+            model_stream.attr("seek")(0);  // Always rewind stream!
+
+            return model_stream;
         },
         R"(
             Exports the compiled model to bytes/output stream.
@@ -81,13 +87,14 @@ void regclass_CompiledModel(py::module m) {
                                      "`model_stream` must be an io.BytesIO object but " +
                                      (std::string)(py::repr(model_stream)) + "` provided");
             }
-            std::stringstream _stream;
-            {
-                py::gil_scoped_release release;
-                self.export_model(_stream);
-            }
+
+            Common::utils::OutPyBuffer mb(model_stream);
+            std::ostream _stream(&mb);
+
+            self.export_model(_stream);
+
+            _stream.flush();
             model_stream.attr("flush")();
-            model_stream.attr("write")(py::bytes(_stream.str()));
             model_stream.attr("seek")(0);  // Always rewind stream!
         },
         py::arg("model_stream"),
