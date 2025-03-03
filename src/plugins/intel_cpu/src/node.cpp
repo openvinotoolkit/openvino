@@ -124,7 +124,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
     if (!primitivesPriority.empty()) {
         std::istringstream stream(primitivesPriority);
         std::string str;
-        while (getline(stream, str, ',').good()) {
+        while (getline(stream, str, ',')) {  // NOLINT(readability-implicit-bool-conversion)
             if (str.substr(0, 4) != "cpu:") {
                 continue;
             }
@@ -143,7 +143,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
     if (!inputMemoryFormats.empty()) {
         std::istringstream stream(inputMemoryFormats);
         std::string str;
-        while (getline(stream, str, ',').good()) {
+        while (getline(stream, str, ',')) {  // NOLINT(readability-implicit-bool-conversion)
             if (str.substr(0, 4) != "cpu:") {
                 continue;
             }
@@ -155,7 +155,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
     if (!outputMemoryFormats.empty()) {
         std::istringstream stream(outputMemoryFormats);
         std::string str;
-        while (getline(stream, str, ',').good()) {
+        while (getline(stream, str, ',')) {  // NOLINT(readability-implicit-bool-conversion)
             if (str.substr(0, 4) != "cpu:") {
                 continue;
             }
