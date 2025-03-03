@@ -32,10 +32,11 @@ protected:
     JitConstants get_jit_constants(const kernel_impl_params& params) const override {
         auto jit_constants = SingleKernelGenerator::get_jit_constants(params);
         const auto& desc = params.typed_desc<lstm_seq>();
+        const auto& x_shape = params.input_layouts[0].get_shape();
 
         jit_constants.add({
             make_jit_constant("KERNEL_NAME", this->m_kernel_name),
-            make_jit_constant("INPUT_SIZE", 1),
+            make_jit_constant("INPUT_SIZE", x_shape[2]),
         });
 
         return jit_constants;
@@ -106,10 +107,11 @@ protected:
     JitConstants get_jit_constants(const kernel_impl_params& params) const override {
         auto jit_constants = SingleKernelGenerator::get_jit_constants(params);
         const auto& desc = params.typed_desc<lstm_seq>();
+        const auto& x_shape = params.input_layouts[0].get_shape();
 
         jit_constants.add({
             make_jit_constant("KERNEL_NAME", this->m_kernel_name),
-            make_jit_constant("INPUT_SIZE", 1),
+            make_jit_constant("INPUT_SIZE", x_shape[2]),
         });
 
         return jit_constants;
