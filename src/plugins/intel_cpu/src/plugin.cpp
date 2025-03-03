@@ -149,7 +149,7 @@ Plugin::~Plugin() {
 }
 
 static bool streamsSet(const ov::AnyMap& config) {
-    return config.count(ov::num_streams.name());
+    return config.count(ov::num_streams.name()) != 0u;
 }
 
 void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const {
@@ -229,7 +229,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             ov::element::Type_t::f64,  ov::element::Type_t::boolean, ov::element::Type_t::string,
             ov::element::Type_t::nf4,  ov::element::Type_t::dynamic};
 
-        if (!supported_precisions.count(input_precision)) {
+        if (supported_precisions.count(input_precision) == 0u) {
             OPENVINO_THROW_NOT_IMPLEMENTED("CPU plugin: Input image format ",
                                            input_precision,
                                            " is not supported yet...");
@@ -577,7 +577,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
 
     CacheDecrypt decrypt{codec_xor};
     bool decript_from_string = false;
-    if (config.count(ov::cache_encryption_callbacks.name())) {
+    if (config.count(ov::cache_encryption_callbacks.name()) != 0u) {
         const auto& encryption_callbacks = config.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>();
         decrypt.m_decrypt_str = encryption_callbacks.decrypt;
         decript_from_string = true;
@@ -585,7 +585,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
 
     auto _config = config;
     std::shared_ptr<ov::AlignedBuffer> model_buffer;
-    if (_config.count(ov::internal::cached_model_buffer.name())) {
+    if (_config.count(ov::internal::cached_model_buffer.name()) != 0u) {
         model_buffer = _config.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
         _config.erase(ov::internal::cached_model_buffer.name());
     }

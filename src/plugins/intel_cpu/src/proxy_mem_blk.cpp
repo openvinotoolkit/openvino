@@ -78,7 +78,7 @@ void ProxyMemoryBlock::unregisterMemory(Memory* memPtr) {
 
 void ProxyMemoryBlock::notifyUpdate() {
     for (auto& item : m_setMemPtrs) {
-        if (item) {
+        if (item != nullptr) {
             item->update();
         }
     }

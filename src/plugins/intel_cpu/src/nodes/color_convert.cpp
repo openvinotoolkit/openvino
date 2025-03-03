@@ -319,7 +319,7 @@ RefConverter::RefConverter(Node* node) : Converter(node) {
     if (node->getOriginalInputsNumber() != (singlePlane() ? 1 : 2)) {
         OPENVINO_THROW("NV12Converter node has incorrect number of inputs");
     }
-    if (!node->getOriginalOutputsNumber()) {
+    if (node->getOriginalOutputsNumber() == 0u) {
         OPENVINO_THROW("NV12Converter node has incorrect number of outputs");
     }
 }
@@ -648,7 +648,7 @@ RefConverter::RefConverter(Node* node) : Converter(node) {
     if (node->getOriginalInputsNumber() != (singlePlane() ? 1 : 3)) {
         OPENVINO_THROW("I420Converter node has incorrect number of inputs");
     }
-    if (!node->getOriginalOutputsNumber()) {
+    if (node->getOriginalOutputsNumber() == 0u) {
         OPENVINO_THROW("I420Converter node has incorrect number of outputs");
     }
 }
@@ -1074,7 +1074,7 @@ void ColorConvert::initSupportedI420Impls() {
 
 void ColorConvert::createPrimitive() {
     const NodeDesc* desc = getSelectedPrimitiveDescriptor();
-    if (!desc) {
+    if (desc == nullptr) {
         THROW_CPU_NODE_ERR("has no optimal primitive descriptor selected");
     }
 

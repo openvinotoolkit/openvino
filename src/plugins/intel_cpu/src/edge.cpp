@@ -112,7 +112,7 @@ bool Edge::enforceReorder() {
     auto parentSPD = parentNode->getSelectedPrimitiveDescriptor();
     auto childNode = getChild();
     auto childSPD = childNode->getSelectedPrimitiveDescriptor();
-    if (!parentSPD || !childSPD) {
+    if ((parentSPD == nullptr) || (childSPD == nullptr)) {
         OPENVINO_THROW("Cannot make a decision about reorder. Primitive descriptors weren't selected.");
     }
 

@@ -710,7 +710,7 @@ void Concat::execRef() {
 }
 
 void Concat::resolveInPlaceEdges(Edge::LOOK look) {
-    if (!(look & Edge::LOOK_DOWN) || !isInPlace()) {
+    if (((look & Edge::LOOK_DOWN) == 0) || !isInPlace()) {
         Node::resolveInPlaceEdges(look);
         return;
     }

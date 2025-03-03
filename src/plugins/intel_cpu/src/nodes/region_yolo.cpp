@@ -274,7 +274,7 @@ RegionYolo::RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::
     classes = regionYolo->get_num_classes();
     coords = regionYolo->get_num_coords();
     num = regionYolo->get_num_regions();
-    do_softmax = regionYolo->get_do_softmax();
+    do_softmax = static_cast<float>(regionYolo->get_do_softmax());
     mask = regionYolo->get_mask();
     block_size = 1;
 }

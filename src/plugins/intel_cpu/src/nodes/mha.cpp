@@ -111,7 +111,7 @@ private:
             jmp(mul_add_max_loop_label, T_NEAR);
         }
         L(mul_add_max_end_label);
-        if (tail_size) {
+        if (tail_size != 0u) {
             mul_add_max(tail_size);
         }
 
@@ -143,7 +143,7 @@ private:
             jmp(sub_exp_reduce_loop_label, T_NEAR);
         }
         L(sub_exp_reduce_end_label);
-        if (tail_size) {
+        if (tail_size != 0u) {
             sub_exp_reduce(tail_size);
         }
 
@@ -185,7 +185,7 @@ private:
             jmp(mul_loop_label, T_NEAR);
         }
         L(mul_end_label);
-        if (tail_size) {
+        if (tail_size != 0u) {
             mul_loop(tail_size);
         }
 
@@ -441,7 +441,7 @@ private:
                 jmp(convert_reorder_inner_loop_label, T_NEAR);
             }
             L(convert_reorder_inner_end_label);
-            if (tail_size) {
+            if (tail_size != 0u) {
                 convert_reorder(tail_size);
             }
 
@@ -607,7 +607,7 @@ private:
                 jmp(convert_transpose_inner_loop_label, T_NEAR);
             }
             L(convert_transpose_inner_end_label);
-            if (tail_size) {
+            if (tail_size != 0u) {
                 convert_transpose(tail_size);
             }
 
@@ -923,7 +923,7 @@ void MHA::init_brgemm_copy_a(std::unique_ptr<jit_brgemm_matmul_copy_a_t>& brgCop
     brgCopyKernelConf.K_tail = K_tail;
     brgCopyKernelConf.K_blk = K_blk;
     brgCopyKernelConf.use_buffer_a_tail_only = false;
-    brgCopyKernelConf.LDA = false;
+    brgCopyKernelConf.LDA = 0;
     brgCopyKernelConf.has_zero_point_b = false;
     brgCopyKernelConf.s8s8_compensation_required = false;
     brgCopyKernelConf.wei_zp_type = dnnl::impl::cpu::x64::none;
@@ -1062,7 +1062,7 @@ void MHA::prepareParams() {
                 auto M_ = (m != 0u) ? M_tail : M < M_blk ? 0 : M_blk;
                 auto N_ = (n != 0u) ? N0_tail : N0 - N0_tail;
                 auto K_ = (k != 0u) ? K0_tail : K0 - K0_tail;
-                auto beta = k && brgCtxs0[getBrgIdx(m, 0, n)].K != 0 ? 1.0f : 0.0f;
+                auto beta = (k != 0u) && brgCtxs0[getBrgIdx(m, 0, n)].K != 0 ? 1.0f : 0.0f;
 
                 brgemmCtx.M = M_;
                 brgemmCtx.N = N_;
@@ -1132,7 +1132,7 @@ void MHA::prepareParams() {
                 auto N_ = (n != 0u) ? N1_tail : N1 - N1_tail;
                 auto K_ = (k != 0u) ? K1_tail : K1 - K1_tail;
 
-                auto beta = k && brgCtxs1[getBrgIdx(m, 0, n)].K != 0 ? 1.0f : 0.0f;
+                auto beta = (k != 0u) && brgCtxs1[getBrgIdx(m, 0, n)].K != 0 ? 1.0f : 0.0f;
                 brgemmCtx.M = M_;
                 brgemmCtx.N = N_;
                 brgemmCtx.K = K_;

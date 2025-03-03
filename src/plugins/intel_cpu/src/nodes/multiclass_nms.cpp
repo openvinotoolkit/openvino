@@ -515,7 +515,7 @@ void MultiClassNms::nmsWithEta(const float* boxes,
                 auto adaptive_threshold = m_iouThreshold;
                 int max_out_box =
                     (static_cast<size_t>(m_nmsRealTopk) > sorted_boxes.size()) ? sorted_boxes.size() : m_nmsRealTopk;
-                while (max_out_box && !sorted_boxes.empty()) {
+                while ((max_out_box != 0) && !sorted_boxes.empty()) {
                     boxInfo currBox = sorted_boxes.top();
                     float origScore = currBox.score;
                     sorted_boxes.pop();

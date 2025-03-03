@@ -247,7 +247,7 @@ void BrgemmCopyBKernel::emit_brgemm_copy_b_kernel_call(size_t N,
     spill.preamble(get_live_regs());
 
     const auto add_offset = [&](Xbyak::Reg64 reg, size_t bytes_offset) {
-        if (bytes_offset) {
+        if (bytes_offset != 0u) {
             add(reg, bytes_offset);
         }
     };

@@ -250,7 +250,7 @@ void TileBroadcastCommon::broadcastScalar(const char* srcData, char* dstData, si
     size_t max_cnt = 1;
     auto curDstData = dstData;
     for (auto b : binary_digits) {
-        if (b) {
+        if (b != 0u) {
             if (curDstData == dstData) {
                 cpu_memcpy(curDstData, srcData, min_cnt * data_size);
             } else {
