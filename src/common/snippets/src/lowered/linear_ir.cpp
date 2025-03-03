@@ -205,7 +205,7 @@ void LinearIR::unregister_expression(const ExpressionPtr& expr) {
 
     const auto& node = expr->get_node();
     m_node2expression_map.erase(node);
-    OPENVINO_ASSERT(!ov::is_type<ov::op::v0::Parameter>(node) && !ov::is_type<ov::op::v0::Result>(node),
+    OPENVINO_ASSERT((!ov::is_type_any_of<ov::op::v0::Parameter, ov::op::v0::Result>(node)),
                     "unregister_expression mustn't be called for parameter or result expressions");
     if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(expr)) {
         const auto& it = std::find(m_buffer_expressions.cbegin(), m_buffer_expressions.cend(), buffer_expr);
