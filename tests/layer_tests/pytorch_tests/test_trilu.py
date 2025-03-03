@@ -42,8 +42,8 @@ class TestTriuTril(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
     def test_trilu(self, dtype, diagonal, op, ie_device, precision, ir_version):
-        self._test(*self.create_model(op, diagonal), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"shape": (4, 6), "dtype": dtype})
+        self._test(*self.create_model(op, diagonal), ie_device, precision, ir_version, 
+        kwargs_to_prepare_input={"shape": (4, 6), "dtype": dtype})
 
 
 class TestTriuTrilTensor(PytorchLayerTest):
@@ -90,5 +90,5 @@ class TestTriuTrilTensor(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
     def test_trilu(self, dtype, diagonal, op, ie_device, precision, ir_version):
-        self._test(*self.create_model(op, diagonal), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"shape": (4, 6), "dtype": dtype})
+        self._test(*self.create_model(op, diagonal), ie_device, precision, ir_version, 
+        kwargs_to_prepare_input={"shape": (4, 6), "dtype": dtype})

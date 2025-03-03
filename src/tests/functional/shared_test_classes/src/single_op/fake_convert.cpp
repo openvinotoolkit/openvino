@@ -4,6 +4,8 @@
 
 #include "shared_test_classes/single_op/fake_convert.hpp"
 
+#include <random>
+
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset13.hpp"
 
@@ -52,9 +54,24 @@ void FakeConvertLayerTest::SetUp() {
 
     init_input_shapes(data_shapes);
 
+    std::vector<float> scale_values(ov::shape_size(scale_shape));
+    std::vector<float> shift_values(ov::shape_size(shift_shape));
+    std::mt19937 gen(0);
+    std::uniform_real_distribution<float> dis(0, static_cast<float>(ov::shape_size(scale_shape)));
+    for (auto& scale_value : scale_values)
+        scale_value = dis(gen);
+    for (auto& shift_value : shift_values)
+        shift_value = dis(gen);
+
+    if (data_prec == ov::element::f16) {
+        configuration.insert(ov::hint::inference_precision(ov::element::f16));
+    } else if (data_prec == ov::element::bf16) {
+        configuration.insert(ov::hint::inference_precision(ov::element::bf16));
+    }
+
     const auto data = std::make_shared<opset1::Parameter>(data_prec, inputDynamicShapes.front());
-    const auto scale = std::make_shared<opset1::Constant>(data_prec, scale_shape);
-    const auto shift = std::make_shared<opset1::Constant>(data_prec, shift_shape);
+    const auto scale = std::make_shared<opset1::Constant>(data_prec, scale_shape, scale_values);
+    const auto shift = std::make_shared<opset1::Constant>(data_prec, shift_shape, shift_values);
 
     const auto fake_convert = default_shift ? std::make_shared<opset13::FakeConvert>(data, scale, dst_prec)
                                             : std::make_shared<opset13::FakeConvert>(data, scale, shift, dst_prec);

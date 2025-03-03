@@ -109,7 +109,6 @@ class TestArange(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit_torch_export
-    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("dtype", [None,
                                        skip_if_export("float32"),
                                        skip_if_export("float64"),
@@ -140,7 +139,6 @@ class TestArange(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit_torch_export
-    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("dtype", [skip_check(None),
                                        skip_if_export("float32"),
                                        skip_if_export("float64"),
@@ -154,7 +152,6 @@ class TestArange(PytorchLayerTest):
                    kwargs_to_prepare_input={"end": end, "ref_dtype": dtype})
 
     @pytest.mark.nightly
-    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("dtype", ["float32", "float64", "int32", "int64", "int8"])
     @pytest.mark.parametrize("start,end", [(0, 1), (-1, 1), (1, 5), (0.5, 2.5)])
     def test_arange_start_end_with_prim_dtype(self, dtype, end, start, ie_device, precision, ir_version):
@@ -163,7 +160,6 @@ class TestArange(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("dtype", ["float32", "float64", "int32", "int64", "int8"])
     @pytest.mark.parametrize("start,end,step", [(0, 1, 1), (-2, 1, 1.25), (1, -5, -1), (1, 10, 2), (-1, -5, -2)])
     def test_arange_start_end_step_with_prim_dtype(self, dtype, end, start, step, ie_device, precision, ir_version):

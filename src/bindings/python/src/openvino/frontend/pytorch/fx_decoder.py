@@ -167,6 +167,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
     """
     _decomp_table = None
 
+    _decomp_table = None
+
     def __init__(self, pt_module, fx_gm=None, nodes=None,
                  mark_node_callback=None, input_shapes=[], input_types=[], dynamic_shapes=False):
         super().__init__(mark_node_callback)

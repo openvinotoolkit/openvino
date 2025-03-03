@@ -53,8 +53,8 @@ static NodeConfig make_plain_config(const std::shared_ptr<ov::Node>& op) {
 
 static void redefineToMemories(const std::vector<MemoryPtr>& to_mems, const MemoryDescPtr& new_desc) {
     // TODO : check the entire dstMemPtrs usage considering the proper memory sharing
-    for (size_t j = 0; j < to_mems.size(); j++) {
-        to_mems[j]->redefineDesc(new_desc);
+    for (const auto& to_mem : to_mems) {
+        to_mem->redefineDesc(new_desc);
     }
 }
 
