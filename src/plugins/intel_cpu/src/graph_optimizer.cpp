@@ -56,7 +56,7 @@ using namespace ov::intel_cpu::node;
 
 namespace ov::intel_cpu {
 
-GraphOptimizer::GraphOptimizer() {}
+GraphOptimizer::GraphOptimizer() = default;
 
 void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     // For conv with input zp, canBeExecutedInInt8() check has dependency on input zero point check.
@@ -282,7 +282,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
         }
         auto scalesDims = getNormalizedDimsBySize(scales->getOutputShapeAtPort(0).getDims(),
                                                   node->getOutputShapeAtPort(0).getDims().size());
-        auto scaleSize = std::accumulate(scalesDims.begin(), scalesDims.end(), 1, std::multiplies<size_t>());
+        auto scaleSize = std::accumulate(scalesDims.begin(), scalesDims.end(), 1, std::multiplies<>());
         node->fuseDQScales(scalesData, scaleSize);
         return true;
     };
@@ -2155,7 +2155,7 @@ void GraphOptimizer::ShareReorders(Graph& graph) {
         if (node->getType() != Type::Reorder) {
             return nullptr;
         }
-        Reorder* reorder = dynamic_cast<Reorder*>(node.get());
+        auto* reorder = dynamic_cast<Reorder*>(node.get());
         if (reorder == nullptr) {
             OPENVINO_THROW("Cannot get reorder layer ", node->getName());
         }
@@ -2231,11 +2231,11 @@ void GraphOptimizer::DropDoubleReorders(Graph& graph) {
         if (processed.find(node) == processed.end() && node->getType() == Type::Reorder &&
             node->getChildEdges().size() == 1 && node->getChildEdgeAt(0)->getChild()->getType() == Type::Reorder) {
             auto nextNode = node->getChildEdgeAt(0)->getChild();
-            Reorder* n = dynamic_cast<Reorder*>(node.get());
+            auto* n = dynamic_cast<Reorder*>(node.get());
             if (n == nullptr) {
                 OPENVINO_THROW("Cannot get reorder layer ", node->getName());
             }
-            Reorder* nn = dynamic_cast<Reorder*>(nextNode.get());
+            auto* nn = dynamic_cast<Reorder*>(nextNode.get());
             if (nn == nullptr) {
                 OPENVINO_THROW("Cannot get reorder layer ", nextNode->getName());
             }
@@ -2450,7 +2450,7 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph) {
         std::vector<float> zeroShift(newInputScale.size(), 0.f);
 
         const auto isSubnormal = [](const float value) {
-            const uint32_t* u32data = reinterpret_cast<const uint32_t*>(&value);
+            const auto* u32data = reinterpret_cast<const uint32_t*>(&value);
             return (*u32data) && (((*u32data) & (0xFF << 23)) == 0);
         };
 

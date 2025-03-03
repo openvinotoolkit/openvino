@@ -29,7 +29,7 @@ protected:
     struct Key {
         explicit Key(Conf c) : config{std::move(c)} {}
         const Conf config;
-        size_t hash() const {
+        [[nodiscard]] size_t hash() const {
             return config.hash();
         }
         bool operator==(const Key& rhs) const {

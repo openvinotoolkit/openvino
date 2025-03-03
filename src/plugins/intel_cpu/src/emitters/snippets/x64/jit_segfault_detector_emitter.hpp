@@ -6,7 +6,7 @@
 
 #    pragma once
 
-#    include <string.h>
+#    include <cstring>
 
 #    include "emitters/plugin/x64/jit_emitter.hpp"
 #    include "openvino/runtime/threading/thread_local.hpp"

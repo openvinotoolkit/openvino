@@ -148,7 +148,7 @@ VectorDims DnnlExtensionUtils::convertToVectorDims(const memory::dims& dims) {
 }
 
 VectorDims DnnlExtensionUtils::convertToVectorDims(const dnnl::impl::dims_t dims, const int ndims) {
-    return VectorDims(dims, dims + ndims);
+    return {dims, dims + ndims};
 }
 
 memory::dims DnnlExtensionUtils::convertToDnnlDims(const VectorDims& dims) {
@@ -227,7 +227,7 @@ std::string DnnlExtensionUtils::query_impl_info_str(const const_dnnl_primitive_d
     if (status != dnnl_success) {
         OPENVINO_THROW("query_impl_info_str failed.");
     }
-    return std::string(res);
+    return res;
 }
 
 bool DnnlExtensionUtils::find_implementation(dnnl::primitive_desc& desc, impl_desc_type impl_type) {

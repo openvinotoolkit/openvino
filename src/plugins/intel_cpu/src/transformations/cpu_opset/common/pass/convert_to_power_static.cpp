@@ -78,21 +78,21 @@ std::shared_ptr<ov::Node> convert(const std::shared_ptr<BaseOp>& node) {
     std::shared_ptr<ov::opset1::Constant> powerNode =
         ov::as_type_ptr<ov::opset1::Constant>(node->get_input_node_shared_ptr(constPort));
     const float value = powerNode->cast_vector<float>()[0];
-    if (std::is_same<BaseOp, ov::opset1::Power>::value) {
+    if (std::is_same_v<BaseOp, ov::opset1::Power>) {
         return std::make_shared<ov::intel_cpu::PowerStaticNode>(node->input(nonConstPort).get_source_output(),
                                                                 value,
                                                                 1.0f,
                                                                 0.0f,
                                                                 node->output(0).get_element_type());
     }
-    if (std::is_same<BaseOp, ov::opset1::Add>::value) {
+    if (std::is_same_v<BaseOp, ov::opset1::Add>) {
         return std::make_shared<ov::intel_cpu::PowerStaticNode>(node->input(nonConstPort).get_source_output(),
                                                                 1.0f,
                                                                 1.0f,
                                                                 value,
                                                                 node->output(0).get_element_type());
     }
-    if (std::is_same<BaseOp, ov::opset1::Subtract>::value) {
+    if (std::is_same_v<BaseOp, ov::opset1::Subtract>) {
         float scale = 1.0f;
         float shift = value;
         if (constPort == 0) {
@@ -106,7 +106,7 @@ std::shared_ptr<ov::Node> convert(const std::shared_ptr<BaseOp>& node) {
                                                                 shift,
                                                                 node->output(0).get_element_type());
     }
-    if (std::is_same<BaseOp, ov::opset1::Multiply>::value) {
+    if (std::is_same_v<BaseOp, ov::opset1::Multiply>) {
         return std::make_shared<ov::intel_cpu::PowerStaticNode>(node->input(nonConstPort).get_source_output(),
                                                                 1.f,
                                                                 value,

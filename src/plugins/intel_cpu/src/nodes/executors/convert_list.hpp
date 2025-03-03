@@ -37,7 +37,7 @@ public:
         }
     }
 
-    ~ConvertExecutorFactory() = default;
+    ~ConvertExecutorFactory() override = default;
     virtual ConvertExecutorPtr makeExecutor(const ConvertParams& convertParams,
                                             const MemoryDescPtr& srcDesc,
                                             const MemoryDescPtr& dstDesc,

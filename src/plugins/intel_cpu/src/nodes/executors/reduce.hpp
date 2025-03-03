@@ -30,7 +30,7 @@ public:
                       const void* post_ops_data_) = 0;
     virtual ~ReduceExecutor() = default;
 
-    virtual impl_desc_type getImplType() const = 0;
+    [[nodiscard]] virtual impl_desc_type getImplType() const = 0;
 
 protected:
     ReduceAttrs reduceAttrs;
@@ -43,10 +43,10 @@ using ReduceExecutorCPtr = std::shared_ptr<const ReduceExecutor>;
 class ReduceExecutorBuilder {
 public:
     ~ReduceExecutorBuilder() = default;
-    virtual bool isSupported(const ReduceAttrs& reduceAttrs,
-                             const std::vector<MemoryDescPtr>& srcDescs,
-                             const std::vector<MemoryDescPtr>& dstDescs) const = 0;
-    virtual ReduceExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
+    [[nodiscard]] virtual bool isSupported(const ReduceAttrs& reduceAttrs,
+                                           const std::vector<MemoryDescPtr>& srcDescs,
+                                           const std::vector<MemoryDescPtr>& dstDescs) const = 0;
+    [[nodiscard]] virtual ReduceExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
 };
 
 using ReduceExecutorBuilderPtr = std::shared_ptr<ReduceExecutorBuilder>;

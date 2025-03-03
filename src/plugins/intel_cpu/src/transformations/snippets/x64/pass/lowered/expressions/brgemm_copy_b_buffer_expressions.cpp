@@ -4,6 +4,8 @@
 
 #include "brgemm_copy_b_buffer_expressions.hpp"
 
+#include <memory>
+
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
@@ -20,7 +22,7 @@ RepackedWeightsBufferExpression::RepackedWeightsBufferExpression(
     : BufferExpression(n, factory) {}
 
 snippets::lowered::ExpressionPtr RepackedWeightsBufferExpression::clone() const {
-    return std::shared_ptr<RepackedWeightsBufferExpression>(new RepackedWeightsBufferExpression(*this));
+    return std::make_shared<RepackedWeightsBufferExpression>(*this);
 }
 
 void RepackedWeightsBufferExpression::validate() const {
@@ -68,7 +70,7 @@ CompensationsBufferExpression::CompensationsBufferExpression(
     : BufferExpression(n, factory) {}
 
 snippets::lowered::ExpressionPtr CompensationsBufferExpression::clone() const {
-    return std::shared_ptr<CompensationsBufferExpression>(new CompensationsBufferExpression(*this));
+    return std::make_shared<CompensationsBufferExpression>(*this);
 }
 
 void CompensationsBufferExpression::validate() const {

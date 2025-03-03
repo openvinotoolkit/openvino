@@ -10,9 +10,7 @@
 #include "openvino/op/istft.hpp"
 #include "openvino/reference/istft.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool ISTFT::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -108,6 +106,4 @@ bool ISTFT::needShapeInfer() const {
            (!m_has_signal_length_input && !(m_is_frame_size_const && m_is_frame_step_const)) || Node::needShapeInfer();
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

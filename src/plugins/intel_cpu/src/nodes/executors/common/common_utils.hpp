@@ -34,7 +34,7 @@ OV_CPU_MAYBE_UNUSED_FUNCTION static std::vector<float> getDeQuantizedScales(cons
     auto scalesDims = getNormalizedDimsBySize(dqScalesShape.getDims(), dstShape.getDims().size());
 
     auto scaleSize =
-        std::accumulate(scalesDims.begin(), scalesDims.end(), static_cast<std::size_t>(1), std::multiplies<size_t>());
+        std::accumulate(scalesDims.begin(), scalesDims.end(), static_cast<std::size_t>(1), std::multiplies<>());
 
     std::vector<float> DQScales(scaleSize, 1.0);
 

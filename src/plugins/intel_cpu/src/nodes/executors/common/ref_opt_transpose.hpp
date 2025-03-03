@@ -17,16 +17,16 @@ public:
               const std::vector<MemoryDescPtr>& dstDescs,
               const dnnl::primitive_attr& attr) override;
     void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) override;
-    impl_desc_type implType() const override {
+    [[nodiscard]] impl_desc_type implType() const override {
         return impl_desc_type::ref;
     }
 };
 
 class RefOptimizedTransposeExecutorBuilder : public TransposeExecutorBuilder {
 public:
-    bool isSupported(const TransposeParams& transposeParams,
-                     const std::vector<MemoryDescPtr>& srcDescs,
-                     const std::vector<MemoryDescPtr>& dstDescs) const override {
+    [[nodiscard]] bool isSupported(const TransposeParams& transposeParams,
+                                   const std::vector<MemoryDescPtr>& srcDescs,
+                                   const std::vector<MemoryDescPtr>& dstDescs) const override {
         static const std::vector<std::vector<size_t>> optimizedOrders = {
             std::vector<size_t>{0, 3, 1, 2},
             std::vector<size_t>{0, 4, 1, 2, 3},
@@ -41,7 +41,7 @@ public:
         return false;
     }
 
-    TransposeExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
+    [[nodiscard]] TransposeExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
         return std::make_shared<RefOptimizedTransposeExecutor>(context);
     }
 };

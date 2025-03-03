@@ -29,7 +29,7 @@ class EmitABIRegSpills {
 public:
     EmitABIRegSpills(dnnl::impl::cpu::x64::jit_generator* h);
     ~EmitABIRegSpills();
-    size_t get_num_spilled_regs() const {
+    [[nodiscard]] size_t get_num_spilled_regs() const {
         return m_regs_to_spill.size();
     }
     /**

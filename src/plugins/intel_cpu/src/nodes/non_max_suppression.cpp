@@ -48,8 +48,7 @@ bool NonMaxSuppression::isSupportedOperation(const std::shared_ptr<const ov::Nod
 }
 
 NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, InternalDynShapeInferFactory()),
-      m_is_soft_suppressed_by_iou(false) {
+    : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -381,7 +380,7 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
             // include first directly
             boxInfo candidateBox = sorted_boxes.top();
             sorted_boxes.pop();
-            selectedBoxes.push_back({candidateBox.score, batch_idx, class_idx, candidateBox.idx});
+            selectedBoxes.emplace_back(candidateBox.score, batch_idx, class_idx, candidateBox.idx);
             if (maxSeletedBoxNum > 1) {
                 if (m_jit_kernel) {
 #if defined(OPENVINO_ARCH_X86_64)
@@ -424,15 +423,24 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
                             continue;
                         }
                         if (candidateBox.score == origScore) {
-                            selectedBoxes.push_back({candidateBox.score, batch_idx, class_idx, candidateBox.idx});
+                            selectedBoxes.emplace_back(candidateBox.score, batch_idx, class_idx, candidateBox.idx);
                             int selectedSize = selectedBoxes.size();
                             boxCoord0[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num];
                             boxCoord1[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 1];
                             boxCoord2[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 2];
                             boxCoord3[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 3];
                         } else {
-                            candidateBox.suppress_begin_index = selectedBoxes.size();
-                            sorted_boxes.push(candidateBox);
+                            if (candidateBox.score == origScore) {
+                                selectedBoxes.emplace_back(candidateBox.score, batch_idx, class_idx, candidateBox.idx);
+                                int selectedSize = selectedBoxes.size();
+                                boxCoord0[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num];
+                                boxCoord1[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 1];
+                                boxCoord2[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 2];
+                                boxCoord3[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 3];
+                            } else {
+                                candidateBox.suppress_begin_index = selectedBoxes.size();
+                                sorted_boxes.push(candidateBox);
+                            }
                         }
                     }
 #endif  // OPENVINO_ARCH_X86_64
@@ -465,10 +473,14 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
                             continue;
                         }
                         if (candidateBox.score == origScore) {
-                            selectedBoxes.push_back({candidateBox.score, batch_idx, class_idx, candidateBox.idx});
+                            selectedBoxes.emplace_back(candidateBox.score, batch_idx, class_idx, candidateBox.idx);
                         } else {
-                            candidateBox.suppress_begin_index = selectedBoxes.size();
-                            sorted_boxes.push(candidateBox);
+                            if (candidateBox.score == origScore) {
+                                selectedBoxes.emplace_back(candidateBox.score, batch_idx, class_idx, candidateBox.idx);
+                            } else {
+                                candidateBox.suppress_begin_index = selectedBoxes.size();
+                                sorted_boxes.push(candidateBox);
+                            }
                         }
                     }
                 }
@@ -487,7 +499,7 @@ void NonMaxSuppression::nmsWithoutSoftSigma(const float* boxes,
                                             const VectorDims& boxesStrides,
                                             const VectorDims& scoresStrides,
                                             std::vector<FilteredBox>& filtBoxes) {
-    int max_out_box = static_cast<int>(m_output_boxes_per_class);
+    auto max_out_box = static_cast<int>(m_output_boxes_per_class);
     parallel_for2d(m_batches_num, m_classes_num, [&](int batch_idx, int class_idx) {
         const float* boxesPtr = boxes + batch_idx * boxesStrides[0];
         const float* scoresPtr = scores + batch_idx * scoresStrides[0] + class_idx * scoresStrides[1];
@@ -496,7 +508,7 @@ void NonMaxSuppression::nmsWithoutSoftSigma(const float* boxes,
         sorted_boxes.reserve(m_boxes_num);
         for (size_t box_idx = 0; box_idx < m_boxes_num; box_idx++) {
             if (scoresPtr[box_idx] > m_score_threshold) {
-                sorted_boxes.emplace_back(std::make_pair(scoresPtr[box_idx], box_idx));
+                sorted_boxes.emplace_back(scoresPtr[box_idx], box_idx);
             }
         }
 
@@ -629,7 +641,7 @@ inline float polygonArea(const NonMaxSuppression::Point2D (&q)[24], const int64_
     }
 
     float area = 0.f;
-    size_t mlu = static_cast<size_t>(m - 1l);
+    auto mlu = static_cast<size_t>(m - 1l);
     for (size_t i = 1lu; i < mlu; i++) {
         area += std::abs(cross_2d(q[i] - q[0], q[i + 1] - q[0]));
     }
@@ -842,7 +854,7 @@ void NonMaxSuppression::nmsRotated(const float* boxes,
             sorted_indices.reserve(m_boxes_num);
             for (size_t box_idx = 0lu; box_idx < m_boxes_num; box_idx++, scores_ptr++) {
                 if (*scores_ptr > m_score_threshold) {
-                    sorted_indices.emplace_back(std::make_pair(*scores_ptr, box_idx));
+                    sorted_indices.emplace_back(*scores_ptr, box_idx);
                 }
             }
 

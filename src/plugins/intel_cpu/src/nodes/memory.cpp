@@ -27,7 +27,7 @@ namespace {
 class MemoryStub : public IMemory {
 public:
     class MemoryBlockStub : public IMemoryBlockObserver {
-        void* getRawPtr() const noexcept override {
+        [[nodiscard]] void* getRawPtr() const noexcept override {
             return nullptr;
         }
         void setExtBuff(void* ptr, size_t size) override {
@@ -37,7 +37,7 @@ public:
             // pass
             return false;
         }
-        bool hasExtBuffer() const noexcept override {
+        [[nodiscard]] bool hasExtBuffer() const noexcept override {
             // pass
             return false;
         }
@@ -55,27 +55,27 @@ public:
           m_pMemDesc(std::move(pMemDesc)),
           m_pMemoryBlock(std::make_shared<MemoryBlockStub>()) {}
 
-    const MemoryDesc& getDesc() const override {
+    [[nodiscard]] const MemoryDesc& getDesc() const override {
         return *m_pMemDesc;
     }
 
-    MemoryDescPtr getDescPtr() const override {
+    [[nodiscard]] MemoryDescPtr getDescPtr() const override {
         return m_pMemDesc;
     }
 
-    void* getData() const override {
+    [[nodiscard]] void* getData() const override {
         OPENVINO_THROW("Unexpected call MemoryStub::getData()");
     }
 
-    size_t getSize() const override {
+    [[nodiscard]] size_t getSize() const override {
         return 0;
     }
 
-    const Shape& getShape() const override {
+    [[nodiscard]] const Shape& getShape() const override {
         return m_pMemDesc->getShape();
     }
 
-    const VectorDims& getStaticDims() const override {
+    [[nodiscard]] const VectorDims& getStaticDims() const override {
         return m_pMemDesc->getShape().getStaticDims();
     }
 
@@ -87,11 +87,11 @@ public:
         OPENVINO_THROW("Unexpected call MemoryStub::load()");
     }
 
-    MemoryBlockPtr getMemoryBlock() const override {
+    [[nodiscard]] MemoryBlockPtr getMemoryBlock() const override {
         return m_pMemoryBlock;
     }
 
-    dnnl::memory getPrimitive() const override {
+    [[nodiscard]] dnnl::memory getPrimitive() const override {
         OPENVINO_THROW("Unexpected call MemoryStub::getPrimitive()");
     }
 
@@ -680,7 +680,7 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
         std::vector<Input::OutputConfig> graphOutputConfig;
         for (auto&& portConfig : config.outConfs) {
             auto desc = portConfig.getMemDesc();
-            graphOutputConfig.emplace_back(node::Input::OutputConfig{desc, true});
+            graphOutputConfig.emplace_back(desc, true);
         }
 
         // configure the inner graph to get the information about output memory descriptors

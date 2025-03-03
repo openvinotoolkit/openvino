@@ -45,8 +45,8 @@ void jit_broadcast_move_emitter::emit_impl(const std::vector<size_t>& in, const 
 template <cpu_isa_t isa>
 void jit_broadcast_move_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in[0]);
-    TReg dst = TReg(out[0]);
+    auto src = TReg(in[0]);
+    auto dst = TReg(out[0]);
 
     switch (byte_size) {
     case 4:
@@ -89,7 +89,7 @@ void jit_scalar_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
 template <cpu_isa_t isa>
 void jit_scalar_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg dst = TReg(out[0]);
+    auto dst = TReg(out[0]);
     AdrImm src = table_val("scalar");
 
     h->uni_ld1rw(dst.s, src.getXn(), src.getImm());

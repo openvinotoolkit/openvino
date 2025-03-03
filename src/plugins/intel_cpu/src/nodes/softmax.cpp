@@ -26,7 +26,7 @@ struct SoftmaxKey {
     size_t axis;
     dnnl::primitive_attr attr;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const SoftmaxKey& rhs) const;
 };
 

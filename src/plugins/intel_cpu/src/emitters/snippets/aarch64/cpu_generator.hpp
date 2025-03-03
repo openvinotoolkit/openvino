@@ -14,9 +14,9 @@ namespace ov::intel_cpu::aarch64 {
 class CompiledSnippetCPU : public snippets::CompiledSnippet {
 public:
     explicit CompiledSnippetCPU(std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator> h);
-    const uint8_t* get_code() const override;
-    size_t get_code_size() const override;
-    bool empty() const override;
+    [[nodiscard]] const uint8_t* get_code() const override;
+    [[nodiscard]] size_t get_code_size() const override;
+    [[nodiscard]] bool empty() const override;
 
 private:
     const std::unique_ptr<const dnnl::impl::cpu::aarch64::jit_generator> h_compiled;
@@ -25,16 +25,16 @@ private:
 class CPUTargetMachine : public snippets::TargetMachine {
 public:
     explicit CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa, ov::intel_cpu::MultiCacheWeakPtr);
-    std::shared_ptr<snippets::TargetMachine> clone() const override;
-    bool is_supported() const override;
+    [[nodiscard]] std::shared_ptr<snippets::TargetMachine> clone() const override;
+    [[nodiscard]] bool is_supported() const override;
     snippets::CompiledSnippetPtr get_snippet() override;
-    size_t get_lanes() const override;
+    [[nodiscard]] size_t get_lanes() const override;
 
-    std::vector<snippets::Reg> get_abi_arg_regs() const override;
-    std::vector<snippets::Reg> get_gp_reg_pool() const override;
-    std::vector<snippets::Reg> get_vec_reg_pool() const override;
+    [[nodiscard]] std::vector<snippets::Reg> get_abi_arg_regs() const override;
+    [[nodiscard]] std::vector<snippets::Reg> get_gp_reg_pool() const override;
+    [[nodiscard]] std::vector<snippets::Reg> get_vec_reg_pool() const override;
 
-    dnnl::impl::cpu::aarch64::cpu_isa_t get_isa() const;
+    [[nodiscard]] dnnl::impl::cpu::aarch64::cpu_isa_t get_isa() const;
 
 private:
     std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator> h;

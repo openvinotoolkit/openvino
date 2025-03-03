@@ -25,7 +25,7 @@ public:
 
     ACLFunction configureFunction(const ACLTensors& aclMemoryTensors) override;
 
-    impl_desc_type implType() const override {
+    [[nodiscard]] impl_desc_type implType() const override {
         return impl_desc_type::gemm_acl;
     }
 

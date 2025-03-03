@@ -21,7 +21,7 @@ public:
 
     void execute(const MemoryArgs& memory) override;
 
-    impl_desc_type implType() const override {
+    [[nodiscard]] impl_desc_type implType() const override {
         return impl_desc_type::gemm_mlas;
     }
 

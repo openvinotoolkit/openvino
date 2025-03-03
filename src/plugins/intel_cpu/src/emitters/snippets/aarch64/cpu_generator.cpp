@@ -4,6 +4,8 @@
 
 #include "cpu_generator.hpp"
 
+#include <memory>
+
 #include "emitters/plugin/aarch64/jit_conversion_emitters.hpp"
 #include "emitters/plugin/aarch64/jit_eltwise_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_fill_emitter.hpp"
@@ -120,7 +122,7 @@ class jit_snippet : public dnnl::impl::cpu::aarch64::jit_generator {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_snippet)
 
-    virtual ~jit_snippet() = default;
+    ~jit_snippet() override = default;
 
     jit_snippet() : jit_generator() {}
 
@@ -240,7 +242,7 @@ snippets::CompiledSnippetPtr CPUTargetMachine::get_snippet() {
     const auto& result =
         std::make_shared<CompiledSnippetCPU>(std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator>(h.release()));
     // Note that we reset all the generated code, since it was copied into CompiledSnippetCPU
-    h.reset(new jit_snippet());
+    h = std::make_unique<jit_snippet>();
     return result;
 }
 

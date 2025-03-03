@@ -24,13 +24,13 @@ namespace {
 struct jit_has_special_value_base : public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_has_special_value_base)
 
-    typedef struct {
+    using args_t = struct {
         const float* src;
         const size_t count;
         bool hasTargetValues;
-    } args_t;
+    };
 
-    typedef void (*fn_t)(const args_t*);
+    using fn_t = void (*)(const args_t*);
 
     jit_has_special_value_base() : jit_generator(jit_name()) {
         jit_ker_ = nullptr;
@@ -396,8 +396,8 @@ void Input::cloneBlobIfRequired() {
     // The presence of subnormals is better to determined at IR read time.
     auto checkSubnormalsAndBF16Overflows = [&](bool& has_subnormals, bool& has_bf16_overflows) {
         if (prec == ov::element::f32) {
-            uint32_t const* u32data = m_constOp->get_data_ptr<uint32_t>();
-            float const* f32data = m_constOp->get_data_ptr<float>();
+            auto const* u32data = m_constOp->get_data_ptr<uint32_t>();
+            auto const* f32data = m_constOp->get_data_ptr<float>();
 
             if (!size) {
                 return;
@@ -715,14 +715,14 @@ void Input::initSupportedPdDefault() {
     if (getType() == Type::Input || getType() == Type::MemoryInput) {
         auto precision = getOriginalOutputPrecisionAtPort(0);
 
-        outPortConfs.push_back({LayoutType::ncsp, precision});
+        outPortConfs.emplace_back(LayoutType::ncsp, precision);
         if (!getParentEdges().empty()) {
-            inPortConfs.push_back({LayoutType::ncsp, precision, true});
+            inPortConfs.emplace_back(LayoutType::ncsp, precision, true);
         }
     } else if (getType() == Type::Output) {
         auto precision = getOriginalInputPrecisionAtPort(0);
 
-        inPortConfs.push_back({LayoutType::ncsp, precision});
+        inPortConfs.emplace_back(LayoutType::ncsp, precision);
     }
 
     addSupportedPrimDesc(inPortConfs, outPortConfs, impl_desc_type::unknown);

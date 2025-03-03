@@ -28,7 +28,7 @@ enum emitter_in_out_map {
 
 // structure for storage of emitter parameters to hash in map
 struct emitter_params {
-    virtual size_t hash() const = 0;
+    [[nodiscard]] virtual size_t hash() const = 0;
 };
 
 class jit_emitter : public ov::snippets::Emitter {

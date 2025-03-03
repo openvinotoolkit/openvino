@@ -29,29 +29,29 @@ struct jit_args_fft {
 };
 
 struct jit_uni_dft_kernel {
-    void (*ker_)(const jit_args_dft*);
+    void (*ker_)(const jit_args_dft*){nullptr};
 
     void operator()(const jit_args_dft* args) {
         assert(ker_);
         ker_(args);
     }
 
-    jit_uni_dft_kernel() : ker_(nullptr) {}
-    virtual ~jit_uni_dft_kernel() {}
+    jit_uni_dft_kernel() = default;
+    virtual ~jit_uni_dft_kernel() = default;
 
     virtual void create_ker() = 0;
 };
 
 struct jit_uni_fft_kernel {
-    void (*ker_)(const jit_args_fft*);
+    void (*ker_)(const jit_args_fft*){nullptr};
 
     void operator()(const jit_args_fft* args) {
         assert(ker_);
         ker_(args);
     }
 
-    jit_uni_fft_kernel() : ker_(nullptr) {}
-    virtual ~jit_uni_fft_kernel() {}
+    jit_uni_fft_kernel() = default;
+    virtual ~jit_uni_fft_kernel() = default;
 
     virtual void create_ker() = 0;
 };

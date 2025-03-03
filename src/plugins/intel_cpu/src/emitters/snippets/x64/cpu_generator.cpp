@@ -4,6 +4,7 @@
 
 #include "cpu_generator.hpp"
 
+#include <memory>
 #include <openvino/opsets/opset5.hpp>
 
 #include "emitters/plugin/x64/jit_conversion_emitters.hpp"
@@ -154,7 +155,7 @@ class jit_snippet : public dnnl::impl::cpu::x64::jit_generator {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_snippet)
 
-    ~jit_snippet() = default;
+    ~jit_snippet() override = default;
 
     jit_snippet() : jit_generator(jit_name()) {}
 
@@ -397,7 +398,7 @@ snippets::CompiledSnippetPtr intel_cpu::CPUTargetMachine::get_snippet() {
     const auto& result =
         std::make_shared<CompiledSnippetCPU>(std::unique_ptr<dnnl::impl::cpu::x64::jit_generator>(h.release()));
     // Note that we reset all the generated code, since it was copied into CompiledSnippetCPU
-    h.reset(new jit_snippet());
+    h = std::make_unique<jit_snippet>();
     return result;
 }
 

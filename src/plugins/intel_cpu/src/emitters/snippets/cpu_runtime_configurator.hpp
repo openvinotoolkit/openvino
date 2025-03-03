@@ -44,7 +44,7 @@ public:
 
     // Note: This method is temporarily used only by `BrgemmExternalRepackingAdjuster` to create kernels for repacking.
     //       Please, remove this method when the adjuster is deprecated
-    const ov::intel_cpu::MultiCacheWeakPtr& get_cache() const {
+    [[nodiscard]] const ov::intel_cpu::MultiCacheWeakPtr& get_cache() const {
         return compiled_kernel_cache;
     }
 

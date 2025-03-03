@@ -27,7 +27,7 @@ static std::vector<float> generate_anchors(proposal_conf& conf) {
     auto anchors_ptr = anchors.data();
 
     // base box's width & height & center location
-    const float base_area = static_cast<float>(base_size * base_size);
+    const auto base_area = static_cast<float>(base_size * base_size);
     const float half_base_size = base_size * 0.5f;
     const float center = 0.5f * (base_size - coordinates_offset);
 
@@ -161,10 +161,10 @@ void Proposal::executeDynamicImpl(const dnnl::stream& strm) {
 
 void Proposal::execute(const dnnl::stream& strm) {
     try {
-        const float* probabilitiesData = getSrcDataAtPortAs<const float>(PROBABILITIES_IN_IDX);
-        const float* anchorsData = getSrcDataAtPortAs<const float>(ANCHORS_IN_IDX);
-        const float* imgInfoData = getSrcDataAtPortAs<const float>(IMG_INFO_IN_IDX);
-        float* outRoiData = reinterpret_cast<float*>(getDstDataAtPort(ROI_OUT_IDX));
+        const auto* probabilitiesData = getSrcDataAtPortAs<const float>(PROBABILITIES_IN_IDX);
+        const auto* anchorsData = getSrcDataAtPortAs<const float>(ANCHORS_IN_IDX);
+        const auto* imgInfoData = getSrcDataAtPortAs<const float>(IMG_INFO_IN_IDX);
+        auto* outRoiData = reinterpret_cast<float*>(getDstDataAtPort(ROI_OUT_IDX));
         float* outProbData = nullptr;
         if (store_prob) {
             outProbData = reinterpret_cast<float*>(getDstDataAtPort(PROBABILITIES_OUT_IDX));

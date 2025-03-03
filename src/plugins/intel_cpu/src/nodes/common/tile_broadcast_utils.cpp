@@ -139,7 +139,7 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node* node,
             outConf.setMemDesc(
                 std::make_shared<DnnlBlockedMemoryDesc>(node->getOutputShapeAtPort(0), dataType, outFormat));
         }
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref});
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
     };
 
     if (!repeats.empty() && inDataShape.getRank() == outDataShapeRank &&
@@ -177,7 +177,7 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node* node,
             config.outConfs[i].setMemDesc(
                 std::make_shared<CpuBlockedMemoryDesc>(precision, node->getOutputShapeAtPort(i)));
         }
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref});
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
     } else {
         pushDesc(inFmt, outFmt);
     }

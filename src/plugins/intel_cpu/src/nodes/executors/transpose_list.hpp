@@ -40,7 +40,7 @@ public:
         }
     }
 
-    ~TransposeExecutorFactory() = default;
+    ~TransposeExecutorFactory() override = default;
     virtual TransposeExecutorPtr makeExecutor(const TransposeParams& transposeParams,
                                               const std::vector<MemoryDescPtr>& srcDescs,
                                               const std::vector<MemoryDescPtr>& dstDescs,

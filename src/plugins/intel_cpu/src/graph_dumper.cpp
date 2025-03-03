@@ -320,7 +320,7 @@ void summary_perf(const Graph& graph) {
         std::vector<std::pair<std::string, double>> A;
         A.reserve(perf_by_type.size());
         for (auto& it : perf_by_type) {
-            A.push_back(it);
+            A.emplace_back(it);
         }
         sort(A.begin(), A.end(), [](std::pair<std::string, double>& a, std::pair<std::string, double>& b) {
             return a.second > b.second;
@@ -328,7 +328,7 @@ void summary_perf(const Graph& graph) {
 
         for (auto& it : A) {
             std::stringstream ss;
-            int percentage = static_cast<int>(it.second * 100 / total_avg);
+            auto percentage = static_cast<int>(it.second * 100 / total_avg);
             if (percentage == 0) {
                 break;
             }
@@ -342,7 +342,7 @@ void summary_perf(const Graph& graph) {
         std::vector<std::pair<NodePtr, double>> A;
         A.reserve(perf_by_node.size());
         for (auto& it : perf_by_node) {
-            A.push_back(it);
+            A.emplace_back(it);
         }
         sort(A.begin(), A.end(), [](std::pair<NodePtr, double>& a, std::pair<NodePtr, double>& b) {
             return a.second > b.second;

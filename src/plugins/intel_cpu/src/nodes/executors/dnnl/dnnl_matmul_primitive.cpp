@@ -211,7 +211,7 @@ static dnnl::matmul::primitive_desc createDescriptorInternal(const dnnl::memory:
 
     const dnnl::memory::desc weightsDesc = dnnl::memory::desc(weiDims, wdt, memory::format_tag::any);
 
-    return dnnl::matmul::primitive_desc(engine, inputsDesc, weightsDesc, newBiasDesc, outputsDesc, attr);
+    return {engine, inputsDesc, weightsDesc, newBiasDesc, outputsDesc, attr};
 }
 
 static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,

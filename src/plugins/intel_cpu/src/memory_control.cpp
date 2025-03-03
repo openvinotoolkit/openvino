@@ -23,7 +23,7 @@ public:
         OPENVINO_ASSERT(m_pBlock, "Memory block is uninitialized");
     }
 
-    void* getRawPtr() const noexcept override {
+    [[nodiscard]] void* getRawPtr() const noexcept override {
         return static_cast<uint8_t*>(m_pBlock->getRawPtr()) + m_offset;
     }
     void setExtBuff(void* ptr, size_t size) override {
@@ -33,7 +33,7 @@ public:
         // don't pass over as it's static memory
         return false;
     }
-    bool hasExtBuffer() const noexcept override {
+    [[nodiscard]] bool hasExtBuffer() const noexcept override {
         return m_pBlock->hasExtBuffer();
     }
     void registerMemory(Memory* memPtr) override {
@@ -56,7 +56,7 @@ public:
         m_pBlock = std::make_shared<DnnlMemoryBlock>(std::move(pInternalMem));
     }
 
-    void* getRawPtr() const noexcept override {
+    [[nodiscard]] void* getRawPtr() const noexcept override {
         return m_pBlock->getRawPtr();
     }
     void setExtBuff(void* ptr, size_t size) override {
@@ -65,7 +65,7 @@ public:
     bool resize(size_t size) override {
         return m_pBlock->resize(size);
     }
-    bool hasExtBuffer() const noexcept override {
+    [[nodiscard]] bool hasExtBuffer() const noexcept override {
         return m_pBlock->hasExtBuffer();
     }
     void registerMemory(Memory* memPtr) override {
@@ -270,7 +270,7 @@ public:
         return true;
     }
 
-    const MemoryControl::MemorySolution& lastSolution() const {
+    [[nodiscard]] const MemoryControl::MemorySolution& lastSolution() const {
         return m_memManager->lastSolution();
     }
 

@@ -10,23 +10,23 @@
 #include "utils/plain_tensor.hpp"
 
 // register blocking size for K dimension (1x2 AMX B-tiles)
-#define REG_BLK_K_SIZE    32
-#define REG_BLK_K_SIZE_I8 64
+constexpr int REG_BLK_K_SIZE = 32;
+constexpr int REG_BLK_K_SIZE_I8 = 64;
 
 // register blocking size for N dimension (1x2 AMX B-tiles)
-#define REG_BLK_N_SIZE 32
+constexpr int REG_BLK_N_SIZE = 32;
 
 // cache blocking sie for K dimension
-#define CACHE_BLK_K_SIZE 256
+constexpr int CACHE_BLK_K_SIZE = 256;
 
 // cache blocking sie for M dimension
-#define CACHE_BLK_M_SIZE 256
+constexpr int CACHE_BLK_M_SIZE = 256;
 
 namespace ov::intel_cpu {
 
 class AutoTileConfiger {
 public:
-    AutoTileConfiger() {}
+    AutoTileConfiger() = default;
     ~AutoTileConfiger() {
         do_config(nullptr);
     }

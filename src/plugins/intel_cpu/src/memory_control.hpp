@@ -37,7 +37,7 @@ public:
 
     MemorySolution solve();
 
-    bool allocated() const {
+    [[nodiscard]] bool allocated() const {
         return m_allocated;
     }
 

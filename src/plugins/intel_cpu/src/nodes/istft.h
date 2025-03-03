@@ -6,9 +6,7 @@
 
 #include "node.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class ISTFT : public Node {
 public:
@@ -47,6 +45,4 @@ private:
     static constexpr size_t SIGNAL_LENGTH_IDX = 4lu;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

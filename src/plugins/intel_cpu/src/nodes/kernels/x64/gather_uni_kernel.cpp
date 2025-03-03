@@ -303,7 +303,7 @@ void jitUniGatherKernel<isa>::generate() {
             uni_vpaddd(vmmAfterAxisPermMask, vmmAfterAxisPermMask, ptr[regAux1]);
             for (int i = 0; i < 6; i++) {
                 if (isa == x64::avx512_core) {
-                    Xbyak::Opmask kMask2 = Xbyak::Opmask(vAux2.getIdx());
+                    auto kMask2 = Xbyak::Opmask(vAux2.getIdx());
                     vpcmpgtd(kMask2, vAux0, vmmAfterAxisPermMask);
                     uni_vpsubd(vmmAfterAxisPermMask | kMask2, vmmAfterAxisPermMask, vAux1);
                 } else {
@@ -662,7 +662,7 @@ void jitUniGatherKernel<isa>::calcSrcShiftShortBlock(Vmm* vAuxPool, bool shiftFi
                     Xbyak::Xmm& xAux0 = xmmAuxContainer[vAux0.getIdx()];
                     uni_vpbroadcastd(vAux1, xAux0);
                     if (isa == x64::avx512_core) {
-                        Xbyak::Opmask kMask0 = Xbyak::Opmask(kAuxMask0.getIdx());
+                        auto kMask0 = Xbyak::Opmask(kAuxMask0.getIdx());
                         vpcmpgtd(kMask0, vAux1, vAux0);
                         uni_vmovups(vAux1, vmmSrcBeforeAxisSumB);
                         uni_vpaddd(vAux1 | kMask0, vmmSrcBeforeAxisSumB, vmmAxisAndAfterAxisSizeB);

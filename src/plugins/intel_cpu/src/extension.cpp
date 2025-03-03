@@ -44,7 +44,7 @@ public:
     TypeRelaxedExtension() : m_ext_type(Op::get_type_info_static().name, "type_relaxed_opset") {}
     ~TypeRelaxedExtension() override = default;
 
-    const ov::DiscreteTypeInfo& get_type_info() const override {
+    [[nodiscard]] const ov::DiscreteTypeInfo& get_type_info() const override {
         return m_ext_type;
     }
 
@@ -52,7 +52,7 @@ public:
         return ov::OpExtension<ov::op::TypeRelaxed<Op>>::create(inputs, visitor);
     }
 
-    std::vector<ov::Extension::Ptr> get_attached_extensions() const override {
+    [[nodiscard]] std::vector<ov::Extension::Ptr> get_attached_extensions() const override {
         return {};
     }
 

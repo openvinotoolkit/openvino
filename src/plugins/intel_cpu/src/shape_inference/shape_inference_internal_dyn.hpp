@@ -21,14 +21,14 @@ public:
         return {{}, ShapeInferStatus::skip};
     }
 
-    port_mask_t get_port_mask() const override {
+    [[nodiscard]] port_mask_t get_port_mask() const override {
         return FULL_PORT_MASK;
     }
 };
 
 class InternalDynShapeInferFactory final : public ShapeInferFactory {
 public:
-    ShapeInferPtr makeShapeInfer() const override {
+    [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<InternalDynShapeInfer>();
     }
 };

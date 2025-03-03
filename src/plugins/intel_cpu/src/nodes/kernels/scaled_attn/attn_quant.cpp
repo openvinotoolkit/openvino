@@ -1,8 +1,7 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <float.h>
-
+#include <cfloat>
 #include <cmath>
 #include <cstring>
 #include <iostream>
@@ -271,16 +270,12 @@ static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp)
     }
 }
 
-template <typename T,
-          ov::element::Type_t DST_PREC,
-          typename std::enable_if<DST_PREC == ov::element::u8, bool>::type = true>
+template <typename T, ov::element::Type_t DST_PREC, std::enable_if_t<DST_PREC == ov::element::u8, bool> = true>
 static void quantize(const T* src, uint8_t* dst, size_t n, float* scale_zp) {
     quant_u8(src, dst, n, *scale_zp, *(scale_zp + 1));
 }
 
-template <typename T,
-          ov::element::Type_t DST_PREC,
-          typename std::enable_if<DST_PREC == ov::element::u4, bool>::type = true>
+template <typename T, ov::element::Type_t DST_PREC, std::enable_if_t<DST_PREC == ov::element::u4, bool> = true>
 static void quantize(const T* src, void* dst, size_t n, float* scale_zp) {
     quant_u4(src, dst, n, *scale_zp, *(scale_zp + 1));
 }
@@ -343,7 +338,7 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
 
         for (size_t src_offset = 0, dst_offset = 0; src_offset < SV; src_offset += value_group_size,
                     dst_offset += value_group_size / sub_byte_multiplier + sizeof(float) + sizeof(float)) {
-            uint8_t* v_base = reinterpret_cast<uint8_t*>(
+            auto* v_base = reinterpret_cast<uint8_t*>(
                 v_dst.m_ptr.get() +
                 (block_number * v_dst.m_strides[0] + h * v_dst.m_strides[1] + block_offset * v_dst.m_strides[2]) /
                     sub_byte_multiplier +

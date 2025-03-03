@@ -36,7 +36,7 @@ public:
         }
     }
 
-    ~ReduceExecutorFactory() = default;
+    ~ReduceExecutorFactory() override = default;
     virtual ReduceExecutorPtr makeExecutor(const ReduceAttrs& reduceAttrs,
                                            const std::vector<MemoryDescPtr>& srcDescs,
                                            const std::vector<MemoryDescPtr>& dstDescs,
