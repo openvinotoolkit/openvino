@@ -5,7 +5,7 @@
 # mypy: ignore-errors
 
 class ModuleExtension:
-    def __init__(self, module, target_op, evaluate=None, convert=None):
+    def __init__(self, module, target_op, evaluate=None, convert=None, condition=None):
         """
         Creates an extension that replaces entire PyTorch module by a single operation.
         This functionality works with PyTorch models only. A module can be identified by
@@ -28,6 +28,9 @@ class ModuleExtension:
                             a part of the final model instead of the target module. It accepts target_op as
                             the first parameter, target_op is callable that will appear as a single node in the
                             graph, the type of the node is target_op provided as another argument above.
+
+            condition (callable with args module): a callable that return if the extension is applicable
+                            to the given module.
         """
         self.module = module
         self.target_op = target_op
@@ -37,3 +40,6 @@ class ModuleExtension:
         self.convert = convert
         if self.convert is None:
             self.convert = lambda module, target_op, *args, **kwargs: target_op(*args, **kwargs)
+        self.condition = condition
+        if self.condition is None:
+            self.condition = lambda module: True
