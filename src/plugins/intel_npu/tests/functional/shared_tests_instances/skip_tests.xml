@@ -142,7 +142,7 @@ Example:
             <filter>.*InferRequestCheckTensorPrecision.*type=boolean.*</filter>
             <filter>.*InferRequestCheckTensorPrecision.*type=bf16.*</filter>
             <filter>.*InferRequestCheckTensorPrecision.*type=f64.*</filter>
-            <filter>.*InferRequestCheckTensorPrecision.*type=u1\\D.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u1.*</filter>
             <filter>.*InferRequestCheckTensorPrecision.*type=i64.*</filter>
         </filters>
     </skip_config>
