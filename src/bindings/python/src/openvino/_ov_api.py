@@ -6,6 +6,7 @@ from types import TracebackType
 from typing import Any, Iterable, Union, Optional, Dict, Tuple, List
 from typing import Type as TypingType
 from pathlib import Path
+import traceback  # noqa: F811
 
 
 from openvino._pyopenvino import Model as ModelBase
@@ -78,7 +79,7 @@ class Model(object, metaclass=ModelMeta):
     def __enter__(self) -> "Model":
         return self
 
-    def __exit__(self, exc_type: TypingType[BaseException], exc_value: BaseException, traceback: TracebackType) -> None:
+    def __exit__(self, exc_type: TypingType[BaseException], exc_value: BaseException, traceback: TracebackType) -> None:  # noqa: F811
         del self.__model
         self.__model = None
 
@@ -540,7 +541,7 @@ class Core(CoreBase):
         self,
         model: Union[str, bytes, object],
         weights: Union[object, str, bytes, Tensor] = None,
-        config: Optional[dict] = None
+        config: Optional[Dict[str, Any]] = None
     ) -> Model:
         config = {} if config is None else config
         if isinstance(model, Model):
@@ -559,7 +560,7 @@ class Core(CoreBase):
         self,
         model: Union[Model, str, Path],
         device_name: Optional[str] = None,
-        config: Optional[dict] = None,
+        config: Optional[Dict[str, Any]] = None,
         *,
         weights: Optional[bytes] = None,
     ) -> CompiledModel:
@@ -613,7 +614,7 @@ class Core(CoreBase):
             self,
             model: Model,
             device_name: str,
-            config: Optional[dict] = None,
+            config: Optional[Dict[str, Any]] = None,
     ) -> dict:
         return super().query_model(model._Model__model,
                                    device_name,
@@ -623,7 +624,7 @@ class Core(CoreBase):
         self,
         model_stream: bytes,
         device_name: str,
-        config: Optional[dict] = None,
+        config: Optional[Dict[str, Any]] = None,
     ) -> CompiledModel:
         """Imports a compiled model from a previously exported one.
 
@@ -676,7 +677,7 @@ class Core(CoreBase):
 def compile_model(
     model: Union[Model, str, Path],
     device_name: Optional[str] = "AUTO",
-    config: Optional[dict] = None,
+    config: Optional[Dict[str, Any]] = None,
 ) -> CompiledModel:
     """Compact method to compile model with AUTO plugin.
 
