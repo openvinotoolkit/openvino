@@ -52,7 +52,7 @@ if(ENABLE_PROFILING_ITT)
     else()
         add_subdirectory(thirdparty/ittapi)
     endif()
-    add_subdirectory(thirdparty/itt_collector EXCLUDE_FROM_ALL)
+    add_subdirectory(thirdparty/itt_collector)
 endif()
 
 if(X86_64 OR X86 OR UNIVERSAL2)
