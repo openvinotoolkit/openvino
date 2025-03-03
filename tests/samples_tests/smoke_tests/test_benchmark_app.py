@@ -12,6 +12,7 @@
 """
 import json
 import os
+import platform
 import numpy as np
 import pathlib
 import pytest
@@ -64,7 +65,7 @@ def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape
 
     # No Windows support due to the lack of the ‘psutil’ module in the CI infrastructure
     # No Macos support due to no /proc/self/status file
-    if os.name == "Linux":
+    if platform.system() == "Linux":
         assert 'Compile model ram used' in output
 
     if tmp_path:

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import platform
 import sys
 from datetime import datetime
 
@@ -23,7 +24,7 @@ from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, J
     averageCntReport, detailedCntReport
 
 def get_peak_memory_usage():    
-    if os.name == "Linux":
+    if platform.system() == "Linux":
         with open("/proc/self/status", "r") as f:
             for line in f:
                 if line.startswith("VmPeak:"):
