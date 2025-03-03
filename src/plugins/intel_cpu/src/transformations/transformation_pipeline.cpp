@@ -460,8 +460,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     cacheConfig.valueCacheQuantBychannel = false;
     cacheConfig.keyCacheDimOrder = {0, 1, 2, 3};
     cacheConfig.valueCacheDimOrder = {0, 1, 2, 3};
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPagedAttnInputs, cacheConfig);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_X64(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
     CPU_SET_CALLBACK_X64(
         manager,
