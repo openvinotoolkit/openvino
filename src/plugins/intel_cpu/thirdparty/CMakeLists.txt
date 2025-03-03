@@ -9,6 +9,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND MSVC_TOOLSET_VERSION GREATER_EQUAL 
     # This flag is needed for enabling SIMD vectorization with command '#pragma omp simd'.
     # Compilation with '/openmp:experimental' key allow us to enable vectorizatikon capability in MSVC.
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /openmp:experimental")
+    # see https://github.com/openvinotoolkit/openvino/pull/4496
+    set(OpenMP_cmake_included ON)
 endif()
 
 if(ENABLE_LTO)
@@ -82,7 +84,7 @@ function(ov_add_onednn)
     endif()
 
     set(SDL_cmake_included ON)  ## to skip internal SDL flags. SDL flags are already set on OV level
-    if (ANDROID OR ((CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR OV_COMPILER_IS_CLANG) AND NOT (THREADING STREQUAL "OMP")))
+    if (ANDROID)
         set(OpenMP_cmake_included ON) ## to skip "omp simd" inside a code. Lead to some crashes inside NDK LLVM..
     endif()
 
