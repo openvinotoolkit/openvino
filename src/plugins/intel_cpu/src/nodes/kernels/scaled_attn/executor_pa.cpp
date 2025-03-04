@@ -1055,7 +1055,6 @@ void transpose_16NxK(TDST* dst,
                      TDST* tmp,
                      const size_t N,
                      const size_t K,
-                     const size_t block_size,
                      const size_t dst_stride,
                      const size_t src_stride,
                      const size_t group_size,
@@ -1087,7 +1086,6 @@ static void transpose_16NxK(T* dst,
                             T* tmp,
                             const size_t N,
                             const size_t K,
-                            const size_t block_size,
                             const size_t dst_stride,
                             const size_t src_stride,
                             const size_t group_size,
@@ -1100,7 +1098,6 @@ static void transpose_16NxK(T* dst,
                                                 reinterpret_cast<uint32_t*>(0),
                                                 N,
                                                 K >> 1,
-                                                block_size,
                                                 dst_stride,
                                                 src_stride >> 1,
                                                 group_size,
@@ -1116,7 +1113,6 @@ void transpose_16NxK(TDST* dst,
                      TDST* tmp,
                      const size_t N,
                      const size_t K,
-                     const size_t block_size,
                      const size_t dst_stride,
                      const size_t src_stride,
                      const size_t group_size,
@@ -1153,9 +1149,8 @@ void transpose_16NxK(TDST* dst,
     transpose_16NxK<TDST, precision_of<TDST>::value>(dst,
                                                      tmp,
                                                      reinterpret_cast<TDST*>(0),
-                                                     block_size,
+                                                     N,
                                                      K,
-                                                     block_size,
                                                      dst_stride,
                                                      src_stride,
                                                      0,
@@ -2099,7 +2094,6 @@ struct MHA {
         int32_t batch_in_seq;      // batch idx in sequence
         int32_t batch_in_reorder;  // which batch in reorder buffer will be used
         int32_t kv_block_id;       // block id in this kv cache seq
-        int32_t valid_block_len;
     };
     struct WorkItems {
     private:
@@ -2135,13 +2129,10 @@ struct MHA {
                     auto reorder_sub_work_count = kv_len_in_block;
                     max_kv_len_in_reorder = std::max(max_kv_len_in_reorder, kv_len);
                     for (int32_t block_id = 0; block_id < reorder_sub_work_count; block_id++) {
-                        int32_t valid_block_size =
-                            block_id == (reorder_sub_work_count - 1) ? kv_len - block_id * block_size : block_size;
                         reorder_items.emplace_back(ReorderWorkItem{
                             i,                     // batch_in_seq
                             max_batch_in_reorder,  // batch_in_reorder
-                            block_id,              // kv_block_id
-                            valid_block_size       // valid_block_size
+                            block_id               // kv_block_id
                         });
                     }
 
@@ -2231,17 +2222,13 @@ struct MHA {
 
             auto ithr = parallel_get_thread_num();
             auto* k_ptr = k_cache.ptr<KEY_CACHE_TYPE>(block_number, hk);
-            size_t valid_len = _helper._block_size;
-            if constexpr (std::is_integral_v<KEY_CACHE_TYPE>) {
-                valid_len = item.valid_block_len;
-            }
+
             transpose_16NxK<DATA_TYPE, precision_of<KEY_CACHE_TYPE>::value>(
                 _helper._qk_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
                 k_ptr,
                 _helper._output.template ptr<DATA_TYPE>(ithr),
-                valid_len,                      // N
+                _helper._block_size,            // N
                 _helper._S,                     // K
-                _helper._block_size,            // block_size
                 _helper._block_size,            // dst_stride
                 _helper._S,                     // src_stride
                 _helper._key_group_size,        // group_size

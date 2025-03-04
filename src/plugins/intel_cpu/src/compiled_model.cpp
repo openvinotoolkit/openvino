@@ -364,7 +364,8 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     }
     if (name == ov::value_cache_group_size) {
         return static_cast<decltype(ov::value_cache_group_size)::value_type>(config.valueCacheGroupSize);
-    } else if (name == ov::key_cache_quant_bychannel) {
+    }
+    if (name == ov::key_cache_quant_bychannel) {
         return static_cast<decltype(ov::key_cache_quant_bychannel)::value_type>(config.keyCacheQuantByChannel);
     }
     OPENVINO_THROW("Unsupported property: ", name);
