@@ -31,9 +31,8 @@ public:
     }
 
 private:
-    void init_tensor(const ov::Output<const ov::Node>& port);
-
     void prepare_for_new_conversation();
+    void init_tensor(const ov::Output<const ov::Node>& port);
 
     void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        ov::SoPtr<ov::ITensor> attention_mask,
@@ -53,6 +52,9 @@ private:
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_in_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_out_ports;
+
+    // NB: It can be either input_ids(LLM) or inputs_embeds(VLM)
+    std::string m_input_ids_name;
 };
 
 }  // namespace npuw
