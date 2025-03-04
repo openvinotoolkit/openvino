@@ -867,7 +867,7 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
         enforceRef = false;
     }
 
-    if (enforceRef) {
+    if (enforceRef) {  // NOLINT(bugprone-branch-clone)
         impl_type = impl_desc_type::ref;
     } else if (mayiuse(cpu::x64::avx512_core)) {
         impl_type = impl_desc_type::jit_avx512;

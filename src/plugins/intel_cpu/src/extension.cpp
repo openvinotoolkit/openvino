@@ -62,6 +62,8 @@ private:
 
 }  // namespace
 
+// NOLINTBEGIN(bugprone-macro-parentheses)
+
 #define OP_EXTENSION(NAME) std::make_shared<ov::OpExtension<NAME>>(),
 
 #define TYPE_RELAXED_OP_EXTENSION(NAME) std::make_shared<TypeRelaxedExtension<NAME>>(),
@@ -71,6 +73,8 @@ private:
 #else
 #    define OP_EXTENSION_X64(NAME)
 #endif
+
+// NOLINTEND(bugprone-macro-parentheses)
 
 #define CPU_EXTENSIONS                                                      \
     OP_EXTENSION(ov::intel_cpu::LeakyReluNode)                              \

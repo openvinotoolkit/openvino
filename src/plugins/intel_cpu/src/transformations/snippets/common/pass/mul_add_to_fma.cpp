@@ -15,7 +15,6 @@
 #include "transformations/utils/utils.hpp"
 
 ov::intel_cpu::pass::MulAddToFMA::MulAddToFMA() {
-    MATCHER_SCOPE(MulAddToFMA);
     auto is_not_memory_access = [](const Output<Node>& out) {
         return !std::dynamic_pointer_cast<const snippets::modifier::MemoryAccess>(out.get_node_shared_ptr());
     };
