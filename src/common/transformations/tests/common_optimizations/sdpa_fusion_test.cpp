@@ -283,6 +283,10 @@ TEST_F(TransformationTestsF, SDPAFusionTest9) {
     const PartialShape attention_mask_shape{10,1024,1024};
     const Shape scale_shape{1};
 
+    const PartialShape query_reshaped_shape{10, 1024, 64};
+    const PartialShape key_reshaped_shape{10, 1024, 64};
+    const PartialShape value_reshaped_shape{10, 1024, 64};
+
     const auto query = std::make_shared<ov::op::v0::Parameter>(element::f16, query_shape);
     const auto key = std::make_shared<ov::op::v0::Parameter>(element::f16, key_shape);
     const auto value = std::make_shared<ov::op::v0::Parameter>(element::f16, value_shape);
@@ -290,16 +294,16 @@ TEST_F(TransformationTestsF, SDPAFusionTest9) {
     const auto scale_const = ov::op::v0::Constant::create(element::f16, {}, std::vector<float>{1.0f});
     const auto casual = false;
     {   
-        const auto query_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{3}, {query_shape[-3].get_max_length(), query_shape[-2].get_max_length(), query_shape[-1].get_max_length()});
+        const auto query_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{query_reshaped_shape.size()}, query_reshaped_shape.to_shape());
         const auto query_reshaped = std::make_shared<ov::op::v1::Reshape>(query, query_reshape_params, true);
 
-        const auto key_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{3}, {key_shape[-3].get_max_length(), key_shape[-2].get_max_length(), key_shape[-1].get_max_length()});
+        const auto key_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{key_reshaped_shape.size()}, key_reshaped_shape.to_shape());
         const auto key_reshaped = std::make_shared<ov::op::v1::Reshape>(key, key_reshape_params, true);
 
-        const auto value_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{3}, {value_shape[-3].get_max_length(), value_shape[-2].get_max_length(), value_shape[-1].get_max_length()});
+        const auto value_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{value_reshaped_shape.size()}, value_reshaped_shape.to_shape());
         const auto value_reshaped = std::make_shared<ov::op::v1::Reshape>(value, value_reshape_params, true);
         
-        const auto transposed_key = std::make_shared<ov::op::v1::Transpose>(key_reshaped, ov::op::v0::Constant::create(element::i64, Shape{3}, {0, 2, 1}));
+        const auto transposed_key = std::make_shared<ov::op::v1::Transpose>(key_reshaped, ov::op::v0::Constant::create(element::i64, Shape{key_reshaped_shape.size()}, {0, 2, 1}));
         
         const auto qk = std::make_shared<ov::op::v0::MatMul>(query_reshaped, transposed_key, false, false);
         const auto scaled_qk = std::make_shared<ov::op::v1::Multiply>(qk, scale_const);
@@ -308,7 +312,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest9) {
         const auto softmax = std::make_shared<ov::op::v8::Softmax>(mask_add, -1);
         const auto qkv = std::make_shared<ov::op::v0::MatMul>(softmax, value_reshaped, false, false);
 
-        const auto reshape_result = ov::op::v0::Constant::create(element::i64, Shape{4}, {1, 10, 1024, 64});
+        const auto reshape_result = ov::op::v0::Constant::create(element::i64, ov::Shape{query_shape.size()}, query_shape.to_shape());
         const auto qkv_result = std::make_shared<ov::op::v1::Reshape>(qkv, reshape_result, true);
 
         model = std::make_shared<ov::Model>(NodeVector{qkv_result}, ParameterVector{query, key, value, mask});
@@ -330,19 +334,23 @@ TEST_F(TransformationTestsF, SDPAFusionTest10) {
     const PartialShape value_shape{1, 10, 77, 64};
     const Shape scale_shape{1};
 
+    const PartialShape query_reshaped_shape{10, 1024, 64};
+    const PartialShape key_reshaped_shape{10, 77, 64};
+    const PartialShape value_reshaped_shape{10, 77, 64};
+
     const auto query = std::make_shared<ov::op::v0::Parameter>(element::f16, query_shape);
     const auto key = std::make_shared<ov::op::v0::Parameter>(element::f16, key_shape);
     const auto value = std::make_shared<ov::op::v0::Parameter>(element::f16, value_shape);
     const auto scale_const = ov::op::v0::Constant::create(element::f16, {}, std::vector<float>{1.0f});
     const auto casual = false;
     {   
-        const auto query_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{3}, {query_shape[-3].get_max_length(), query_shape[-2].get_max_length(), query_shape[-1].get_max_length()});
+        const auto query_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{query_reshaped_shape.size()}, query_reshaped_shape.to_shape());
         const auto query_reshaped = std::make_shared<ov::op::v1::Reshape>(query, query_reshape_params, true);
 
-        const auto key_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{3}, {key_shape[-3].get_max_length(), key_shape[-2].get_max_length(), key_shape[-1].get_max_length()});
+        const auto key_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{key_reshaped_shape.size()}, key_reshaped_shape.to_shape());
         const auto key_reshaped = std::make_shared<ov::op::v1::Reshape>(key, key_reshape_params, true);
 
-        const auto value_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{3}, {value_shape[-3].get_max_length(), value_shape[-2].get_max_length(), value_shape[-1].get_max_length()});
+        const auto value_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{value_reshaped_shape.size()}, value_reshaped_shape.to_shape());
         const auto value_reshaped = std::make_shared<ov::op::v1::Reshape>(value, value_reshape_params, true);
         
         const auto scaled_key = std::make_shared<ov::op::v1::Multiply>(key_reshaped, scale_const);
@@ -352,7 +360,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest10) {
         const auto softmax = std::make_shared<ov::op::v8::Softmax>(qk, -1);
         
         const auto qkv = std::make_shared<ov::op::v0::MatMul>(softmax, value_reshaped, false, false);
-        const auto reshape_result = ov::op::v0::Constant::create(element::i64, Shape{4}, {query_shape[-4].get_max_length(), query_shape[-3].get_max_length(), query_shape[-2].get_max_length(), query_shape[-1].get_max_length()});
+        const auto reshape_result = ov::op::v0::Constant::create(element::i64, ov::Shape{query_shape.size()}, query_shape.to_shape());
         const auto qkv_result = std::make_shared<ov::op::v1::Reshape>(qkv, reshape_result, true);
 
         model = std::make_shared<ov::Model>(NodeVector{qkv_result}, ParameterVector{query, key, value});
@@ -377,6 +385,10 @@ TEST_F(TransformationTestsF, SDPAFusionTest11) {
     const PartialShape attention_mask_shape{10, 1024, 77};
     const Shape scale_shape{1};
 
+    const PartialShape query_reshaped_shape{10, 1024, 64};
+    const PartialShape key_reshaped_shape{10, 77, 64};
+    const PartialShape value_reshaped_shape{10, 77, 64};
+
     const auto query = std::make_shared<ov::op::v0::Parameter>(element::f16, query_shape);
     const auto key = std::make_shared<ov::op::v0::Parameter>(element::f16, key_shape);
     const auto value = std::make_shared<ov::op::v0::Parameter>(element::f16, value_shape);
@@ -384,16 +396,16 @@ TEST_F(TransformationTestsF, SDPAFusionTest11) {
     const auto scale_const = ov::op::v0::Constant::create(element::f16, {}, std::vector<float>{1.0f});
     const auto casual = false;
     {   
-        const auto query_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{3}, {query_shape[-3].get_max_length(), query_shape[-2].get_max_length(), query_shape[-1].get_max_length()});
+        const auto query_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{query_reshaped_shape.size()}, query_reshaped_shape.to_shape());
         const auto query_reshaped = std::make_shared<ov::op::v1::Reshape>(query, query_reshape_params, true);
 
-        const auto key_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{3}, {key_shape[-3].get_max_length(), key_shape[-2].get_max_length(), key_shape[-1].get_max_length()});
+        const auto key_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{key_reshaped_shape.size()}, key_reshaped_shape.to_shape());
         const auto key_reshaped = std::make_shared<ov::op::v1::Reshape>(key, key_reshape_params, true);
 
-        const auto value_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{3}, {value_shape[-3].get_max_length(), value_shape[-2].get_max_length(), value_shape[-1].get_max_length()});
+        const auto value_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{value_reshaped_shape.size()}, value_reshaped_shape.to_shape());
         const auto value_reshaped = std::make_shared<ov::op::v1::Reshape>(value, value_reshape_params, true);
 
-        const auto transposed_key = std::make_shared<ov::op::v1::Transpose>(key_reshaped, ov::op::v0::Constant::create(element::i64, Shape{3}, {0, 2, 1}));
+         const auto transposed_key = std::make_shared<ov::op::v1::Transpose>(key_reshaped, ov::op::v0::Constant::create(element::i64, Shape{key_reshaped_shape.size()}, {0, 2, 1}));
         
         const auto qk = std::make_shared<ov::op::v0::MatMul>(query_reshaped, transposed_key, false, false);
         const auto scaled_qk = std::make_shared<ov::op::v1::Multiply>(qk, scale_const);
@@ -402,7 +414,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest11) {
         const auto softmax = std::make_shared<ov::op::v8::Softmax>(mask_add, -1);
         const auto qkv = std::make_shared<ov::op::v0::MatMul>(softmax, value_reshaped, false, false);
 
-        const auto reshape_result = ov::op::v0::Constant::create(element::i64, Shape{4}, {1, 10, 1024, 64});
+        const auto reshape_result = ov::op::v0::Constant::create(element::i64, ov::Shape{query_shape.size()}, query_shape.to_shape());
         const auto qkv_result = std::make_shared<ov::op::v1::Reshape>(qkv, reshape_result, true);
 
         model = std::make_shared<ov::Model>(NodeVector{qkv_result}, ParameterVector{query, key, value, mask});
@@ -426,6 +438,11 @@ TEST_F(TransformationTestsF, SDPAFusionTest12) {
     const PartialShape attention_mask_shape{1, 1, 49, 49};
     const Shape scale_shape{1};
 
+    const PartialShape query_reshaped_shape{49, 128};
+    const PartialShape key_reshaped_shape{128, 49};
+    const PartialShape value_reshaped_shape{49, 128};
+    const PartialShape attention_mask_reshaped_shape{1, 49, 49};
+
     const auto query = std::make_shared<ov::op::v0::Parameter>(element::f16, query_shape);
     const auto key = std::make_shared<ov::op::v0::Parameter>(element::f16, key_shape);
     const auto value = std::make_shared<ov::op::v0::Parameter>(element::f16, value_shape);
@@ -433,21 +450,21 @@ TEST_F(TransformationTestsF, SDPAFusionTest12) {
     const auto scale_const = ov::op::v0::Constant::create(element::f16, {}, std::vector<float>{1.0f});
     const auto casual = false;
     {   
-        const auto query_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{2}, {query_shape[-2].get_max_length(), query_shape[-1].get_max_length()});
+        const auto query_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{query_reshaped_shape.size()}, query_reshaped_shape.to_shape());
         const auto query_reshaped = std::make_shared<ov::op::v1::Reshape>(query, query_reshape_params, true);
 
-        const auto key_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{2}, {key_shape[-3].get_max_length(), key_shape[-1].get_max_length()});
+        const auto key_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{key_reshaped_shape.size()}, key_reshaped_shape.to_shape());
         const auto key_reshaped = std::make_shared<ov::op::v1::Reshape>(key, key_reshape_params, true);
 
-        const auto value_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{2}, {value_shape[-2].get_max_length(), value_shape[-1].get_max_length()});
+        const auto value_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{value_reshaped_shape.size()}, value_reshaped_shape.to_shape());
         const auto value_reshaped = std::make_shared<ov::op::v1::Reshape>(value, value_reshape_params, true);
 
         const auto qk = std::make_shared<ov::op::v0::MatMul>(query_reshaped, key_reshaped, false, false);
-        const auto qk_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{3}, {attention_mask_shape[-3].get_max_length(), attention_mask_shape[-2].get_max_length(), attention_mask_shape[-1].get_max_length()});
+        const auto qk_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{attention_mask_reshaped_shape.size()}, attention_mask_reshaped_shape.to_shape());
         const auto qk_reshaped = std::make_shared<ov::op::v1::Reshape>(qk, qk_reshape_params, true);
 
         const auto scaled_qk = std::make_shared<ov::op::v1::Multiply>(qk_reshaped, scale_const);
-        const auto qk_scaled_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{4}, {attention_mask_shape[-4].get_max_length(), attention_mask_shape[-3].get_max_length(), attention_mask_shape[-2].get_max_length(), attention_mask_shape[-1].get_max_length()});
+        const auto qk_scaled_reshape_params = ov::op::v0::Constant::create(element::i64, Shape{attention_mask_shape.size()}, attention_mask_shape.to_shape());
         const auto scaled_qk_reshaped = std::make_shared<ov::op::v1::Reshape>(scaled_qk, qk_scaled_reshape_params, true);
         
         const auto mask_add = std::make_shared<ov::op::v1::Add>(scaled_qk_reshaped, mask);
@@ -458,7 +475,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest12) {
 
         const auto qkv = std::make_shared<ov::op::v0::MatMul>(softmax_reshaped, value_reshaped, false, false);
 
-        const auto reshape_result = ov::op::v0::Constant::create(element::i64, Shape{4}, {value_shape[-4].get_max_length(), value_shape[-3].get_max_length(), value_shape[-2].get_max_length(), value_shape[-1].get_max_length()});
+       const auto reshape_result = ov::op::v0::Constant::create(element::i64, ov::Shape{query_shape.size()}, query_shape.to_shape());
         const auto qkv_result = std::make_shared<ov::op::v1::Reshape>(qkv, reshape_result, true);
 
         model = std::make_shared<ov::Model>(NodeVector{qkv_result}, ParameterVector{query, key, value, mask});
