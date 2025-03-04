@@ -665,6 +665,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         config.is_causal = true;
         config.is_paged_attention = true;
         config.paged_attention_block_size = static_cast<int64_t>(paged_attention::block_size);
+        config.paged_attention_sliding_window = desc->sliding_window;
 
         if (desc->scale_val.has_value()) {
             config.has_const_scale_val = true;
