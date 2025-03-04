@@ -16,7 +16,13 @@ namespace snippets {
  * @interface RegType
  * @brief Register type of input and output operations
  */
-enum class RegType { gpr, vec, mask, undefined };
+enum class RegType {
+    gpr,
+    vec,
+    mask,
+    ignored,  // Used to mark regs that should be ignored by the code generation logic, as they are handled outside the snippets pipeline.
+    undefined
+};
 /**
  * @interface Reg
  * @brief Register representation: type of register and index
@@ -26,7 +32,8 @@ struct Reg {
     Reg() = default;
     Reg(RegType type_, size_t idx_) : type(type_), idx(idx_) {}
 
-    bool is_defined() const  { return  type != RegType::undefined && idx != UNDEFINED_IDX; }
+    bool is_defined() const  { return type == RegType::ignored || (type != RegType::undefined && idx != UNDEFINED_IDX); }
+    bool is_ignored() const { return type == RegType::ignored; }
     RegType type = RegType::undefined;
     size_t idx = UNDEFINED_IDX;
 

@@ -24,7 +24,7 @@ public:
     template <typename T, typename... Args>
     SubgraphStaticExecutor(T&& first, Args&&... rest)
         : SubgraphExecutor(std::forward<T>(first), std::forward<Args>(rest)...),
-          SubgraphStaticBaseExecutor() {}
+          SubgraphStaticBaseExecutor(std::forward<T>(first)) {}
 
     void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
 };
