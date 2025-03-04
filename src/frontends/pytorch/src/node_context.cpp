@@ -371,6 +371,26 @@ Any NodeContext::get_values_from_const_input(int index) const {
     return 0;
 }
 
+ov::Any NodeContext::apply_additional_conversion_rules(const ov::Any& data, const std::type_info& type_info) const {
+    if (data.is<Output<Node>>() && type_info != typeid(Output<Node>)) {
+        auto const_node = as_type_ptr<v0::Constant>(data.as<Output<Node>>().get_node_shared_ptr());
+        FRONT_END_GENERAL_CHECK(const_node, "Attribute must be const if requested as not a Node.");
+        if (type_info == typeid(bool)) {
+            bool res = const_node->cast_vector<bool>()[0];
+            return res;
+        } else if (type_info == typeid(int32_t)) {
+            int32_t res = const_node->cast_vector<int32_t>()[0];
+            return res;
+        } else {
+            FRONT_END_GENERAL_CHECK(false,
+                                    "Could not decode attribute for ",
+                                    get_name(),
+                                    " node. Provided type is not known.");
+        }
+    }
+    return data;
+}
+
 }  // namespace pytorch
 }  // namespace frontend
 }  // namespace ov

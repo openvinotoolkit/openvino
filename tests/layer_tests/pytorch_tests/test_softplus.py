@@ -19,6 +19,7 @@ class TestSoftplus(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_softplus(self, ie_device, precision, ir_version):
         self._test(aten_softplus(), None, "aten::softplus",
                    ie_device, precision, ir_version)
