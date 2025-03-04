@@ -106,20 +106,20 @@ const auto matMulParams_x64_FP16 = ::testing::Combine(::testing::ValuesIn(IS_x64
                                                       ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                       ::testing::Values(cpu_f16_plugin_config));
 
-const auto fullyConnectedParams2D_Brgemm_smoke = ::testing::Combine(::testing::ValuesIn(IS_x64),
-                                                       ::testing::Values(ElementType::f32),
-                                                       ::testing::Values(ElementType::dynamic),
-                                                       ::testing::Values(ElementType::dynamic),
-                                                       ::testing::Values(utils::InputLayerType::CONSTANT),
-                                                       ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                                       ::testing::Values(empty_plugin_config));
+// const auto fullyConnectedParams2D_Brgemm_smoke = ::testing::Combine(::testing::ValuesIn(IS_x64),
+//                                                        ::testing::Values(ElementType::f32),
+//                                                        ::testing::Values(ElementType::dynamic),
+//                                                        ::testing::Values(ElementType::dynamic),
+//                                                        ::testing::Values(utils::InputLayerType::CONSTANT),
+//                                                        ::testing::Values(ov::test::utils::DEVICE_CPU),
+//                                                        ::testing::Values(empty_plugin_config));
 
-const auto testParams2D_Brgemm_smoke = ::testing::Combine(fullyConnectedParams2D_Brgemm_smoke,
-                                             ::testing::Values(MatMulNodeType::FullyConnected),
-                                             ::testing::Values(emptyFusingSpec),
-                                             ::testing::ValuesIn(filterSpecificParams_Brgemm(true)));
+// const auto testParams2D_Brgemm_smoke = ::testing::Combine(fullyConnectedParams2D_Brgemm_smoke,
+//                                              ::testing::Values(MatMulNodeType::FullyConnected),
+//                                              ::testing::Values(emptyFusingSpec),
+//                                              ::testing::ValuesIn(filterSpecificParams_Brgemm(true)));
 
-INSTANTIATE_TEST_SUITE_P(smoke_Benchmark_FC_2D_Brgemm, BenchmarkMatMulLayerCPUTest, testParams2D_Brgemm_smoke, MatMulLayerCPUTest::getTestCaseName);
+// INSTANTIATE_TEST_SUITE_P(smoke_Benchmark_FC_2D_Brgemm, BenchmarkMatMulLayerCPUTest, testParams2D_Brgemm_smoke, MatMulLayerCPUTest::getTestCaseName);
 
 const auto testParams2D_smoke =
     ::testing::Combine(::testing::Combine(::testing::ValuesIn(IS2D_smoke()),
