@@ -70,23 +70,33 @@ OutputVector translate_to(const NodeContext& context) {
     auto dtype_fw_node = ov::as_type_ptr<PtFrameworkNode>(dtype_ext_node);
     auto data = context.get_input(0);
 
-    bool is_complex = as_type_ptr<ComplexTypeMark>(data.get_node_shared_ptr()) != nullptr;
-    if (is_complex)
-        data = data.get_node_shared_ptr()->input_value(0);
-
     Output<Node> cast;
     if (dtype_fw_node && dtype_fw_node->get_op_type() == "prim::dtype") {
         auto type_input = dtype_fw_node->input_value(0);
         cast = context.mark_node(std::make_shared<v1::ConvertLike>(data, type_input));
     } else if (const auto dtype_const = ov::as_type_ptr<v0::Constant>(dtype_ext_node)) {
         auto pt_type = dtype_const->cast_vector<int64_t>()[0];
+        bool to_complex = pt_type >= 8 && pt_type <= 10;
         auto dtype = convert_dtype(pt_type);
+
+        auto complex_mark = as_type_ptr<ComplexTypeMark>(data.get_node_shared_ptr());
+        bool is_complex = complex_mark != nullptr;
+        if (is_complex && !to_complex) {
+            data = complex_mark->get_real();
+        } else if (is_complex) {
+            data = complex_mark->get_data();
+        }
+
         cast = context.mark_node(std::make_shared<v0::Convert>(data, dtype));
+        if (to_complex && !is_complex) {
+            auto imag = context.mark_node(v0::Constant::create(dtype, Shape{}, {0}));
+            cast = context.mark_node(std::make_shared<ComplexTypeMark>(cast, imag, dtype));
+
+        } else if (to_complex) {
+            cast = context.mark_node(std::make_shared<ComplexTypeMark>(cast, cast.get_element_type()));
+        }
     } else {
         cast = context.mark_node(std::make_shared<v1::ConvertLike>(data, context.get_input(1)));
-    }
-    if (is_complex) {
-        cast = context.mark_node(std::make_shared<ComplexTypeMark>(cast, cast.get_element_type()));
     }
     return {cast};
 }
