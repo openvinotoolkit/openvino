@@ -6,6 +6,7 @@
 
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/utils/utils.hpp"
+#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 
 #ifdef OPENVINO_ARCH_X86_64
 #    include "transformations/snippets/x64/pass/lowered/brgemm_copy_b_loop_ports_adjuster.hpp"
@@ -37,6 +38,12 @@ std::string CPURuntimeConfig::to_string() const {
         }
         out << "\n";
     }
+    out << "External indices:"
+        << "\n";
+    for (const auto& idx : brgemm_external_ptrs_idces) {
+        out << idx << " ";
+    }
+    out << "\n";
     return out.str();
 }
 #endif
