@@ -188,11 +188,13 @@ jobs:
 
       - name: Build C++ samples - OpenVINO build tree
         run: |
-          cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${BUILD_DIR} -S ${INSTALL_DIR}/samples/cpp -B ${BUILD_DIR}/cpp_samples
+          cmake -G "${{ env.CMAKE_GENERATOR }}" -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DOpenVINO_DIR=${BUILD_DIR} -S ${INSTALL_DIR}/samples/cpp -B ${BUILD_DIR}/cpp_samples
           cmake --build ${BUILD_DIR}/cpp_samples --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
 
       - name: Build C samples - OpenVINO install tree
         run: ${INSTALL_DIR}/samples/c/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/c_samples
+        env:
+          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
 
       - name: Ctest - OpenVINO unit tests
         run: ctest -C ${{ env.CMAKE_BUILD_TYPE }} --test-dir ${BUILD_DIR} -V -L UNIT
@@ -236,7 +238,7 @@ jobs:
           path: ${{ env.SCCACHE_ERROR_LOG }}
           if-no-files-found: 'ignore'
 
-      - name: Upload openvino package
+      - name: Upload OpenVINO package
         if: ${{ always() }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
