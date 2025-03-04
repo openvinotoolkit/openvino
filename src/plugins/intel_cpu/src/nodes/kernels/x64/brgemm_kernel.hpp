@@ -36,16 +36,16 @@ public:
 
     void copy_buffer_b(void* b, void* scratch_b);
     // bytes needed to place scratch buffer a
-    const size_t get_scratch_a_size() const;
+    [[nodiscard]] const size_t get_scratch_a_size() const;
     // bytes needed to place scratch buffer b
-    const size_t get_scratch_b_size() const;
-    const size_t get_mblk_size() const {
+    [[nodiscard]] const size_t get_scratch_b_size() const;
+    [[nodiscard]] const size_t get_mblk_size() const {
         return matmulOptimalM;
     }
-    const size_t get_k_blk() const {
+    [[nodiscard]] const size_t get_k_blk() const {
         return K_blk;
     }
-    const size_t get_wsp_size() const {
+    [[nodiscard]] const size_t get_wsp_size() const {
         return 4 * 1024;
     }
 
