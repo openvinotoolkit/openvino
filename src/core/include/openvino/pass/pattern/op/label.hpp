@@ -34,19 +34,14 @@ public:
     ///                                                   nullptr,
     ///                                                   OutputVector{add});
     /// \endcode
-    template <typename TPredicate>
+    template <typename TPredicate, typename TArg = OutputVector>
     Label(const element::Type& type,
           const PartialShape& s,
           const TPredicate& pred,
-          const OutputVector& wrapped_values = {})
+          const TArg& wrapped_values = OutputVector{})
         : Pattern(OutputVector{wrap_values(wrapped_values)}, Predicate(pred)) {
         set_output_type(0, type, s);
     }
-    Label(const element::Type& type,
-          const PartialShape& s,
-          const NodePredicate& pred,
-          const NodeVector& wrapped_values = {})
-        : Label(type, s, as_value_predicate(pred), as_output_vector(wrapped_values)) {}
 
     /// \brief creates a Label node containing a sub-pattern described by the type and
     ///        shape of \sa node.
@@ -60,14 +55,9 @@ public:
     ///                                                   nullptr,
     ///                                                   OutputVector{add});
     /// \endcode
-    template <typename TPredicate>
-    Label(const Output<Node>& value, const TPredicate& pred, const OutputVector& wrapped_values = {})
+    template <typename TPredicate, typename TArg = OutputVector>
+    Label(const Output<Node>& value, const TPredicate& pred, const TArg& wrapped_values = OutputVector{})
         : Label(value.get_element_type(), value.get_partial_shape(), Predicate(pred), wrapped_values) {}
-    Label(const Output<Node>& node, const NodePredicate& pred, const NodeVector& wrapped_values = {})
-        : Label(node.get_element_type(),
-                node.get_partial_shape(),
-                as_value_predicate(pred),
-                as_output_vector(wrapped_values)) {}
 
     explicit Label(const element::Type& type = element::dynamic, const PartialShape& s = PartialShape::dynamic())
         : Label(type, s, nullptr, OutputVector{}) {}
@@ -78,6 +68,7 @@ public:
 
 protected:
     static Output<Node> wrap_values(const OutputVector& wrapped_values);
+    static Output<Node> wrap_values(const NodeVector& wrapped_values);
 };
 }  // namespace op
 

@@ -362,7 +362,8 @@ void PagedAttentionSDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) cons
         auto tmp_out_elements_count = total_tokens * prim_params.conf.heads_num * prim_params.conf.head_size * num_of_partitions;
         auto tmp_out_size = tmp_out_elements_count * tmp_out_dt_size;
 
-        kd.internalBufferSizes.clear();
+        const bool lockable = true;
+        kd.internalBuffers.clear();
 
         if (has_scores_output) {
             const auto& past_lens = prim_params.inputs[3];
@@ -373,9 +374,9 @@ void PagedAttentionSDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) cons
             auto softmax_buf_size = softmax_buf_elements_count * softmax_buf_dt_size;
 
             // Softmax intermediate output
-            kd.internalBufferSizes.push_back(softmax_buf_size);
+            kd.internalBuffers.emplace_back(softmax_buf_size, !lockable);
             // Precalculated accumulated sequence length offsets for each subsequence
-            kd.internalBufferSizes.push_back(subsequences_number * BytesPerElement(Datatype::INT32));
+            kd.internalBuffers.emplace_back(subsequences_number * BytesPerElement(Datatype::INT32), lockable);
 
             if (prim_params.stage == PagedAttentionStage::PREFILL) {
                 // Recalculate buf_size as in case of PREFILL stage it's not needed to allocate buffer per each input token
@@ -387,16 +388,16 @@ void PagedAttentionSDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) cons
             }
         }
 
-        kd.internalBufferSizes.push_back(buf_size); // softmax exp_sums
-        kd.internalBufferSizes.push_back(buf_size); // softmax max_logits
-        kd.internalBufferSizes.push_back(tmp_out_size); // intermediate output
+        kd.internalBuffers.emplace_back(buf_size, !lockable); // softmax exp_sums
+        kd.internalBuffers.emplace_back(buf_size, !lockable); // softmax max_logits
+        kd.internalBuffers.emplace_back(tmp_out_size, !lockable); // intermediate output
         kd.internalBufferDataType = softmax_acc_dt;
 
         if (multi_tokens_mode) {
             auto buf_dt_size = BytesPerElement(Datatype::INT32);
             auto buf_elements_count = total_tokens;
             auto buf_size = Align(buf_elements_count * buf_dt_size, BytesPerElement(softmax_acc_dt));
-            kd.internalBufferSizes.push_back(buf_size);
+            kd.internalBuffers.emplace_back(buf_size, lockable);
         }
     };
 }

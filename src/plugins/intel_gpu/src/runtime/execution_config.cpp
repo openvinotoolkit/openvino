@@ -11,6 +11,7 @@
 #include "openvino/op/search_sorted.hpp"
 #include "openvino/op/stft.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
+#include "ov_ops/rms.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/runtime/plugin_config.hpp"
@@ -46,7 +47,7 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     if (ov::is_type<ov::op::v15::SearchSorted>(op) || ov::is_type<ov::op::v15::STFT>(op))
         return true;
 
-    if (ov::is_type<ov::op::internal::DynamicQuantize>(op))
+    if (ov::is_type<ov::op::internal::DynamicQuantize>(op) || ov::is_type<ov::op::internal::RMS>(op))
         return true;
 
     if (ov::is_type<ov::op::v5::Loop>(op)) {

@@ -36,7 +36,7 @@ OutputVector translate_rsqrt_op(const NodeContext& node) {
 
     if (complex_type_mark) {
         element::Type complex_part_type = complex_type_mark->get_complex_part_type();
-        input = complex_type_mark->input_value(0);
+        input = complex_type_mark->get_data();
         // input is complex tensor representation in a form [N1, N2, ..., Nk, 2]
         // where slice [N1, N2, ..., Nk, 0] contains real part of the complex tensor
         // and slice [N1, N2, ..., Nk, 1] contains imaginary part of the complex tensor

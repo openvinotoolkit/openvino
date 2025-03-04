@@ -279,7 +279,7 @@ StreamGenerateionTestCase generation_latency_1sockets_14cores_1_unpinning = {
     {{20, 6, 8, 6, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     true,
-    false,  // param[expected out]: enableCpuPinning needs to be false becuase OS cannot support thread pinning
+    false,  // param[expected out]: enableCpuPinning needs to be false because OS cannot support thread pinning
     ov::hint::PerformanceMode::LATENCY,
     {{20, 6, 8, 6, 0, 0}},
     {{1, ALL_PROC, 20, 0, 0},

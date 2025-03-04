@@ -4,6 +4,7 @@
 
 #include "tensoriterator.h"
 
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -53,8 +54,8 @@ static NodeConfig make_plain_config(const std::shared_ptr<ov::Node>& op) {
 
 static void redefineToMemories(const std::vector<MemoryPtr>& to_mems, const MemoryDescPtr& new_desc) {
     // TODO : check the entire dstMemPtrs usage considering the proper memory sharing
-    for (size_t j = 0; j < to_mems.size(); j++) {
-        to_mems[j]->redefineDesc(new_desc);
+    for (const auto& to_mem : to_mems) {
+        to_mem->redefineDesc(new_desc);
     }
 }
 
@@ -265,9 +266,8 @@ void DynamicBuffer::init(const dnnl::engine& eng) {
     const auto& src_mem = from->getPrimitive();
     const auto& src_desc = src_mem.get_desc();
     const auto& dims = src_desc.get_dims();
-    count =
-        std::accumulate(dims.begin(), dims.begin() + map_rule.axis, static_cast<size_t>(1), std::multiplies<size_t>());
-    len = std::accumulate(dims.begin() + map_rule.axis + 1, dims.end(), elem_size, std::multiplies<size_t>());
+    count = std::accumulate(dims.begin(), dims.begin() + map_rule.axis, static_cast<size_t>(1), std::multiplies<>());
+    len = std::accumulate(dims.begin() + map_rule.axis + 1, dims.end(), elem_size, std::multiplies<>());
     chunk_unit_in_byte = abs_stride * len;
 
     if (!mem_holder_buffer) {  // else reuse buffer holder of last inference
@@ -554,10 +554,10 @@ void TensorIterator::createPrimitive() {
     }
 
     if (loopBodyConditionOutputIdx == -1) {
-        continue_cond_check.reset(new staticValueCheck(true));  // always true
+        continue_cond_check = std::make_shared<staticValueCheck>(true);  // always true
     }
     if (loopExecutionConditionIdx == -1) {
-        initial_cond_check.reset(new staticValueCheck(true));
+        initial_cond_check = std::make_shared<staticValueCheck>(true);
         lastUsedCond = initial_cond_check->getStatus();
     }
 
@@ -795,7 +795,7 @@ void TensorIterator::prepareLoopBodyCurrentIteration() {
 void TensorIterator::prepareContinueCond() {
     if (loopBodyConditionOutputIdx != -1 || !continue_cond_check) {
         auto mem = output_mem[loopBodyConditionOutputIdx];
-        continue_cond_check.reset(new asBoolCheck(mem));
+        continue_cond_check = std::make_shared<asBoolCheck>(mem);
     }
 }
 
@@ -803,7 +803,7 @@ void TensorIterator::prepareInitialCond(const bool compileStage) {
     if (loopExecutionConditionIdx != -1 || !initial_cond_check) {
         auto edge = getParentEdgeAt(loopExecutionConditionIdx);
         auto mem = edge->getMemoryPtr();
-        initial_cond_check.reset(new asBoolCheck(mem));
+        initial_cond_check = std::make_shared<asBoolCheck>(mem);
         if (IMPLICATION(compileStage, edge->getParent()->isConstant())) {
             lastUsedCond = initial_cond_check->getStatus();
         }
@@ -813,12 +813,12 @@ void TensorIterator::prepareInitialCond(const bool compileStage) {
 void TensorIterator::prepareTripCount(const bool compileStage) {
     bool read_data = false;
     if (loopTripCountIdx == -1) {
-        trip_count_check.reset(new staticValueCheck(getNumIteration(inputPortMap, outputPortMap)));
+        trip_count_check = std::make_shared<staticValueCheck>(getNumIteration(inputPortMap, outputPortMap));
         read_data = true;
     } else {
         auto edge = getParentEdgeAt(loopTripCountIdx);
         auto mem = edge->getMemoryPtr();
-        trip_count_check.reset(new asIntCheck(mem));
+        trip_count_check = std::make_shared<asIntCheck>(mem);
         read_data = IMPLICATION(compileStage, edge->getParent()->isConstant());
     }
     if (read_data) {
@@ -906,7 +906,7 @@ void TensorIterator::restoreSubgraphInputByBackEdges() {
             redefineToMemories(to_mems, desc);
 
             // update first_mappers to replace its legacy input memory addr.
-            input_map.second.reset(new BackEdgePortHelper(context->getParamsCache(), from_mem, to_mem));
+            input_map.second = std::make_shared<BackEdgePortHelper>(context->getParamsCache(), from_mem, to_mem);
         }
     }
 }
@@ -927,8 +927,8 @@ int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap,
                                " (out of range)");
         }
         const auto space = dimensions[axis];
-        const int start = static_cast<int>((rule.start < 0 ? (space + 1) : 0) + rule.start);
-        const int end = static_cast<int>((rule.end < 0 ? (space + 1) : 0) + rule.end);
+        const auto start = static_cast<int>((rule.start < 0 ? (space + 1) : 0) + rule.start);
+        const auto end = static_cast<int>((rule.end < 0 ? (space + 1) : 0) + rule.end);
 
         const auto stride = rule.stride;
         if (stride == 0) {

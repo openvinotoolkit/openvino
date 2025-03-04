@@ -54,7 +54,7 @@ KernelsData LSTMSeqKernel_CM::GetKernelsData(const Params& params) const {
     // Request temporary buffers
     kd.internalBufferDataType = Datatype::F32;
     auto temp_buffer_size = shape.num_dir * shape.seq_len * shape.batch_size * shape.hidden_size * shape.num_gates * sizeof(float);
-    kd.internalBufferSizes.push_back(temp_buffer_size);
+    kd.internalBuffers.push_back(temp_buffer_size);
 
     auto& gemm_part = kd.kernels[0];
     gemm_part.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});

@@ -36,7 +36,7 @@ public:
         }
     }
 
-    ~DeconvExecutorFactory() = default;
+    ~DeconvExecutorFactory() override = default;
     virtual DeconvExecutorPtr makeExecutor(const DeconvAttrs& deconvAttrs,
                                            const std::vector<MemoryDescPtr>& srcDescs,
                                            const std::vector<MemoryDescPtr>& dstDescs,

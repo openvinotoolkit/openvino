@@ -163,6 +163,15 @@ bool ScatterElementsUpdateKernelRef::Validate(const Params& p) const {
     return true;
 }
 
+bool ScatterElementsUpdateKernelRef::SkipKernelExecution(const scatter_elements_update_params& params, size_t kernel_id) const {
+    if (kernel_id == 0) {
+        if (params.outputs[0].LogicalSize() != 0 && params.outputs[0] != params.inputs[0]) {
+            return false;
+        }
+    }
+    return KernelData::SkipKernelExecution(params);
+}
+
 void ScatterElementsUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const scatter_elements_update_params&>(params);
@@ -172,7 +181,7 @@ void ScatterElementsUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) c
             auto dispatchData = SetDefault(prim_params, i == 1);
             kd.kernels[i].params.workGroups.global = dispatchData.gws;
             kd.kernels[i].params.workGroups.local = dispatchData.lws;
-            kd.kernels[i].skip_execution = KernelData::SkipKernelExecution(prim_params);
+            kd.kernels[i].skip_execution = SkipKernelExecution(prim_params, i);
         }
     };
 }

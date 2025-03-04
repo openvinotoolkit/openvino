@@ -86,9 +86,9 @@ std::shared_ptr<IShapeInferSnippets> make_shape_inference(const std::shared_ptr<
         return shape_infer;
     } else if (ov::is_type<ov::op::util::UnaryElementwiseArithmetic>(op)) {
         return std::make_shared<PassThroughShapeInfer>();
-    } else if (ov::is_type<ov::op::util::BinaryElementwiseArithmetic>(op) ||
-               ov::is_type<ov::op::util::BinaryElementwiseComparison>(op) ||
-               ov::is_type<ov::op::util::BinaryElementwiseLogical>(op)) {
+    } else if (ov::is_type_any_of<ov::op::util::BinaryElementwiseArithmetic,
+                                  ov::op::util::BinaryElementwiseComparison,
+                                  ov::op::util::BinaryElementwiseLogical>(op)) {
         return std::make_shared<NumpyBroadcastShapeInfer>();
     } else {
         OPENVINO_THROW("Operation type " + std::string(op->get_type_info().name) + " is not supported in Snippets shape inference pipeline");

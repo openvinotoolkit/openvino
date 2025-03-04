@@ -31,9 +31,10 @@ enum f8_type : uint8_t { none, f8e4m3, f8e5m2 };
 
 template <typename src_t, typename dst_t>
 f8_type get_f8_type() {
-    if (std::is_same<src_t, ov::float8_e4m3>::value || std::is_same<dst_t, ov::float8_e4m3>::value) {
+    if (std::is_same_v<src_t, ov::float8_e4m3> || std::is_same_v<dst_t, ov::float8_e4m3>) {
         return f8_type::f8e4m3;
-    } else if (std::is_same<src_t, ov::float8_e5m2>::value || std::is_same<dst_t, ov::float8_e5m2>::value) {
+    }
+    if (std::is_same_v<src_t, ov::float8_e5m2> || std::is_same_v<dst_t, ov::float8_e5m2>) {
         return f8_type::f8e5m2;
     }
     return f8_type::none;
@@ -122,15 +123,15 @@ class jit_convert_array : public jit_kernel {
     }
 
 public:
-    typedef struct {
+    using args_t = struct {
         const void* src;
         void* out;
         const size_t count;
-    } args_t;
+    };
 
-    typedef void (*fn_t)(const args_t*);
+    using fn_t = void (*)(const args_t*);
 
-    typedef void (*convert_vec_t)(jit_generator&, const RegExp&, const RegExp&);
+    using convert_vec_t = void (*)(jit_generator&, const RegExp&, const RegExp&);
 
     jit_convert_array(convert_vec_t convert_vec)
         : jit_kernel(jit_name()),
@@ -389,11 +390,10 @@ struct PrecisionInfo<ov::element::boolean> {
     using value_type = uint8_t;
 };
 
-template <typename T,
-          typename U = typename std::conditional<std::is_same<ov::float16, T>::value ||
-                                                     std::is_same<ov::intel_cpu::bfloat16_t, T>::value,
-                                                 float,
-                                                 T>::type>
+template <
+    typename T,
+    typename U =
+        std::conditional_t<std::is_same_v<ov::float16, T> || std::is_same_v<ov::intel_cpu::bfloat16_t, T>, float, T>>
 struct Range {
     const std::tuple<U, U>& fit(const ov::element::Type& prec);
 
@@ -485,8 +485,8 @@ const std::tuple<U, U>& Range<T, U>::fit(const ov::element::Type& prec) {
         default:
             OPENVINO_THROW("Unsupported precision");
         }
-        using ltype = typename std::conditional<std::is_floating_point<U>::value, double, int64_t>::type;
-        using utype = typename std::conditional<std::is_floating_point<U>::value, double, uint64_t>::type;
+        using ltype = std::conditional_t<std::is_floating_point<U>::value, double, int64_t>;
+        using utype = std::conditional_t<std::is_floating_point<U>::value, double, uint64_t>;
         std::get<0>(_range) =
             static_cast<U>(std::max(static_cast<ltype>(std::get<0>(_range)), static_cast<ltype>(lbound)));
         std::get<1>(_range) =
@@ -504,7 +504,7 @@ struct ConvertContext {
     bool converted;
 
     template <typename T>
-    std::tuple<T, T> range() const {
+    [[nodiscard]] std::tuple<T, T> range() const {
         Range<T> r;
         r.fit(interimPrc);
         return r.fit(dstPrc);
@@ -620,7 +620,7 @@ struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
             parallel_for(iterations, [&](size_t i) {
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
-                if (std::is_same<typename std::remove_cv<src_t>::type, float>::value) {  // fp32 -> fp16
+                if (std::is_same<std::remove_cv_t<src_t>, float>::value) {  // fp32 -> fp16
                     jit_convert(reinterpret_cast<const float*>(src) + offset, dst + offset, current_batch_size);
                 } else {
                     batch_type tmp;
@@ -673,7 +673,7 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
             parallel_for(iterations, [&](size_t i) {
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
-                if (std::is_same<typename std::remove_cv<dst_t>::type, float>::value) {  // fp16 -> fp32
+                if (std::is_same<std::remove_cv_t<dst_t>, float>::value) {  // fp16 -> fp32
                     jit_convert(src + offset, reinterpret_cast<float*>(dst) + offset, current_batch_size);
                 } else {
                     batch_type tmp;
@@ -845,16 +845,14 @@ static int8_t get_i4(const uint8_t& val, bool high) {
     if (high) {
         if (val & 0x80) {
             return static_cast<int8_t>((val >> 4) | 0xf8);
-        } else {
-            return static_cast<int8_t>(val >> 4);
         }
+        return static_cast<int8_t>(val >> 4);
     }
     if (val & 0x8) {
         // Just fill in the high 4 bits with 1
         return static_cast<int8_t>(val | 0xf8);
-    } else {
-        return static_cast<int8_t>(val & 0xF);
     }
+    return static_cast<int8_t>(val & 0xF);
 }
 
 static int8_t get_u4(const uint8_t& val, bool high) {

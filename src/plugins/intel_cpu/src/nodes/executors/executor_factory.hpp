@@ -50,7 +50,7 @@ public:
      * @note The main use case is to avoid a fallback during the creation of an executor
      *       by passing proper memory descriptors to the make() method
      */
-    MemoryDescArgs getProperMemoryDescriptors(const MemoryDescArgs& descriptors) const {
+    [[nodiscard]] MemoryDescArgs getProperMemoryDescriptors(const MemoryDescArgs& descriptors) const {
         DEBUG_LOG("Preconfiguring memory descriptors");
 
         const auto& impl = m_suitableImplementations.front();

@@ -54,8 +54,8 @@ public:
     }
 
     void wait_all() {
-        int numtasks = tasks.size();
-        for (int i = 0; i < numtasks; i++)
+        size_t numtasks = tasks.size();
+        for (size_t i = 0; i < numtasks; i++)
             if (tasks[i].first == ManagerStatus::NOT_FINISHED)
                 wait_task(i);
     }
@@ -63,8 +63,8 @@ public:
     std::vector<ManagerStatus> get_all_statuses() {
         std::vector<ManagerStatus> statuses;
 
-        int numtasks = tasks.size();
-        for (int i = 0; i < numtasks; i++)
+        size_t numtasks = tasks.size();
+        for (size_t i = 0; i < numtasks; i++)
             statuses.push_back(get_task_status(i));
         return statuses;
     }

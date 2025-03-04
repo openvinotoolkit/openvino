@@ -33,19 +33,14 @@ namespace op {
 /// \brief Root of all actual ops
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Op : public Node {
+public:
+    OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_START
+    OPENVINO_RTTI_BASE("Op", "util")
+    OPENVINO_SUPPRESS_SUGGEST_OVERRIDE_END
+
 protected:
     Op() : Node() {}
     Op(const OutputVector& arguments);
-
-public:
-    _OPENVINO_HIDDEN_METHOD static const ::ov::Node::type_info_t& get_type_info_static() {
-        static ::ov::Node::type_info_t info{"Op", "util"};
-        info.hash();
-        return info;
-    }
-    const ::ov::Node::type_info_t& get_type_info() const override {
-        return get_type_info_static();
-    }
 };
 }  // namespace op
 }  // namespace ov

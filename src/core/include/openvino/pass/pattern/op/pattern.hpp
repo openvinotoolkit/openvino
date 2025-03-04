@@ -64,15 +64,17 @@ OPENVINO_API op::Predicate all_of(const std::vector<std::function<bool(Output<No
 OPENVINO_API op::Predicate shape_matches(const std::string& shape_notation);
 
 namespace op {
-
-OPENVINO_API
-ValuePredicate as_value_predicate(NodePredicate pred);
+OPENVINO_DEPRECATED("This method is deprecated. Use constructor of ov::pass::pattern::Predicate instead")
+OPENVINO_API Predicate as_value_predicate(NodePredicate pred);
 
 class OPENVINO_API Pattern : public Node {
 public:
+    Pattern();
+    explicit Pattern(const OutputVector& patterns);
+    explicit Pattern(const NodeVector& patterns);
     /// \brief A base class for all the utility operators used to describe a pattern to match
     Pattern(const OutputVector& patterns, const Predicate& pred);
-    Pattern(const OutputVector& patterns);
+    Pattern(const NodeVector& patterns, const Predicate& pred);
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& /* new_args */) const override {
         OPENVINO_THROW("Uncopyable");

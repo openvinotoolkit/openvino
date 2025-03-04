@@ -54,9 +54,7 @@ bool InsertLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin,
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto expr = *expr_it;
         const auto& node = expr->get_node();
-        if (ov::is_type<op::LoopBase>(node) ||
-            ov::is_type<ov::op::v0::Parameter>(node) ||
-            ov::is_type<ov::op::v0::Result>(node))
+        if (ov::is_type_any_of<op::LoopBase, ov::op::v0::Parameter, ov::op::v0::Result>(node))
             continue;
 
         // Outer Loop ----> Inner Loop

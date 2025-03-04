@@ -120,6 +120,21 @@ public:
         FRONT_END_NOT_IMPLEMENTED(get_subgraph);
     }
 
+    /// \brief Returns Node object that can be with updated attributes
+    /// such node name, runtime info, etc.
+    /// By default, it returns the same node without update
+    virtual std::shared_ptr<Node> mark_node(std::shared_ptr<Node> ov_node) const {
+        return ov_node;
+    }
+
+    /// \brief PyTorch may have None inputs coming to operations
+    /// Other frontends do not have it per our observation
+    virtual bool input_is_none(size_t index) const {
+        auto num_inputs = get_input_size();
+        FRONT_END_GENERAL_CHECK(index < num_inputs, "Input index is out of allowed indices range");
+        return false;
+    }
+
 private:
     virtual ov::Any apply_additional_conversion_rules(const ov::Any& data, const std::type_info& type_info) const {
         return data;

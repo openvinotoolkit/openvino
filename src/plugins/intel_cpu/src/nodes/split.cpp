@@ -86,8 +86,8 @@ void Split::initSupportedPrimitiveDescriptors() {
 
     const auto& srcShape = getInputShapeAtPort(0);
     const auto& dstFirstDims = getOutputShapeAtPort(0).getDims();
-    for (size_t i = 0; i < outputShapes.size(); i++) {
-        const auto& o_Dims = outputShapes[i].getDims();
+    for (const auto& outputShape : outputShapes) {
+        const auto& o_Dims = outputShape.getDims();
         if (dstFirstDims.size() != o_Dims.size()) {
             THROW_CPU_NODE_ERR("only supports output blobs with equal number of dimensions");
         }
@@ -186,8 +186,8 @@ void Split::initSupportedPrimitiveDescriptors() {
         for (auto refPdIndex : pdIndexesToReuse) {
             auto config = supportedPrimitiveDescriptors[refPdIndex].getConfig();
 
-            for (size_t i = 0; i < config.outConfs.size(); i++) {
-                config.outConfs[i].inPlace(0);
+            for (auto& outConf : config.outConfs) {
+                outConf.inPlace(0);
             }
             supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
         }
@@ -224,7 +224,8 @@ void Split::initSupportedPrimitiveDescriptors() {
 bool Split::needShapeInfer() const {
     if (Node::needShapeInfer()) {
         return true;
-    } else if (!constSplitLengths) {
+    }
+    if (!constSplitLengths) {
         const auto& lengthsMemPtr = getSrcMemoryAtPort(2);
         const auto curLengthsSize = lengthsMemPtr->getStaticDims()[0];
         if (curLengthsSize != splitLengths.size()) {
@@ -315,7 +316,7 @@ void Split::execute(const dnnl::stream& strm) {
         return;
     }
 
-    uint8_t* srcData = srcMem.getDataAs<uint8_t>();
+    auto* srcData = srcMem.getDataAs<uint8_t>();
     CPU_NODE_ASSERT(execPtr != nullptr, "Split executor is not initialized");
     execPtr->exec(srcData, getRawDstMemPtrs());
 }
@@ -337,8 +338,8 @@ void Split::initOptimalPrimitiveDescriptor() {
     const auto inConfDesc = config.inConfs[0].getMemDesc();
     if (axis == 1 && one_of(inConfDesc->getShape().getRank(), 4u, 5u) && inConfDesc->hasLayoutType(LayoutType::nspc)) {
         canUseOptimizedNspc2Ncsp = true;
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
-            if (!config.outConfs[i].getMemDesc()->hasLayoutType(LayoutType::ncsp)) {
+        for (const auto& outConf : config.outConfs) {
+            if (!outConf.getMemDesc()->hasLayoutType(LayoutType::ncsp)) {
                 canUseOptimizedNspc2Ncsp = false;
             }
         }

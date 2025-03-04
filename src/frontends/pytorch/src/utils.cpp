@@ -472,6 +472,15 @@ void align_eltwise_input_types(const NodeContext& context,
                                Output<Node>& rhs,
                                const bool& is_lhs_python_scalar,
                                const bool& is_rhs_python_scalar) {
+    auto lhs_complex = as_type_ptr<ComplexTypeMark>(lhs.get_node_shared_ptr());
+    auto rhs_complex = as_type_ptr<ComplexTypeMark>(rhs.get_node_shared_ptr());
+    if (lhs_complex) {
+        lhs = lhs_complex->input_value(0);
+    }
+    if (rhs_complex) {
+        rhs = rhs_complex->input_value(0);
+    }
+
     const auto& lhs_type = lhs.get_element_type();
     const auto& rhs_type = rhs.get_element_type();
     auto const_0 = v0::Constant::create(element::i32, Shape{}, {1});
@@ -506,6 +515,14 @@ void align_eltwise_input_types(const NodeContext& context,
             rhs = context.mark_node(std::make_shared<v0::Convert>(rhs, dst_type));
         }
     }
+
+    if (lhs_complex) {
+        lhs = ComplexTypeMark::convert_like(context, lhs_complex, lhs);
+    }
+    if (rhs_complex) {
+        rhs = ComplexTypeMark::convert_like(context, rhs_complex, rhs);
+    }
+
     return;
 }
 
