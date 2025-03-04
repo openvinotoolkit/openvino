@@ -66,18 +66,13 @@ public:
         make_config(test_data, config);
 
         CPU& cpu = cpu_info();
-#if defined(__linux__) || defined(_WIN32)
         cpu._cpu_mapping_table = test_data.cpu_mapping_table;
-#else
-        cpu._cpu_mapping_table = {};
-#endif
         cpu._proc_type_table = test_data.input_proc_type_table;
         cpu._org_proc_type_table = test_data.input_proc_type_table;
         cpu._numa_nodes = cpu._proc_type_table.size() > 1 ? static_cast<int>(cpu._proc_type_table.size()) - 1 : 1;
         cpu._sockets = cpu._numa_nodes;
         std::vector<std::vector<int>> res_proc_type_table = test_data.input_proc_type_table;
 
-#if defined(__linux__) || defined(_WIN32)
         if (cpu._cpu_mapping_table.empty()) {
             EXPECT_THROW(ov::intel_cpu::generate_stream_info(test_data.input_stream,
                                                              test_data.input_numa_node_id,
@@ -87,7 +82,6 @@ public:
                                                              test_data.input_model_prefer),
                          ov::Exception);
         } else {
-#endif
             auto proc_type_table = ov::intel_cpu::generate_stream_info(test_data.input_stream,
                                                                        test_data.input_numa_node_id,
                                                                        nullptr,
@@ -131,9 +125,7 @@ public:
                 ASSERT_EQ(res_proc_type_table, cpu._proc_type_table);
             }
         }
-#if defined(__linux__) || defined(_WIN32)
     }
-#endif
 };
 
 TEST_P(StreamGenerationTests, StreamsGeneration) {}
@@ -2151,7 +2143,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_StreamsGeneration,
                                            generation_tput_2sockets_48cores_9,
                                            generation_latency_1sockets_96cores_unpinning,
                                            generation_tput_1sockets_96cores_unpinning,
-                                           generation_tput_1sockets_96cores_2_unpinning));
+                                           generation_tput_1sockets_96cores_2_unpinning,
+                                           generation_tput_1sockets_0cores_1,
+                                           generation_tput_1sockets_0cores_1_reservation));
 
 #endif
 }  // namespace
