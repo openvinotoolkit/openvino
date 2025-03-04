@@ -42,9 +42,8 @@ std::vector<std::vector<int>> apply_hyper_threading(bool& input_ht_hint,
 /**
  * @brief      Check enableCpuPinning in different platform
  * @param[in]  cpu_pinning the property enableCpuPinning set by user.
- * @param[in]  cpu_pinning_changed the property changedCpuPinning which value depends on whether user sets enableCpuPinning.
- *             true: user sets property enableCpuPinning.
- *             false: user does not set property enableCpuPinning.
+ * @param[in]  cpu_pinning_changed the property changedCpuPinning which value depends on whether user sets
+ * enableCpuPinning. true: user sets property enableCpuPinning. false: user does not set property enableCpuPinning.
  * @param[in]  cpu_reservation the property enableCpuReservation set by user. False by default
  * @param[in]  streams_info_table indicate streams detail of this model
  * @return     whether pinning threads to cpu cores
