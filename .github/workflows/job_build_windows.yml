@@ -164,7 +164,7 @@ jobs:
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
       - name: CMake configure
-        run: cmake -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} ${{ inputs.cmake-options }} -DCMAKE_CXX_FLAGS="/Zi" -DCMAKE_C_FLAGS="/Zi" -DCMAKE_SHARED_LINKER_FLAGS="/DEBUG" -DCMAKE_MODULE_LINKER_FLAGS="/DEBUG"
+        run: cmake -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} ${{ inputs.cmake-options }}
 
       - name: Clean ccache stats
         run: '& ccache --zero-stats'
