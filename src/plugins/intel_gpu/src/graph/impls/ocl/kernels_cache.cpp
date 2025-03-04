@@ -678,10 +678,8 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
             ib >> driver_version;
             current_driver_version  = downcast<ocl::ocl_device>(*_device).get_info().driver_version;
 
-            // If the driver versions don't match, the erasure will cause an assert failure in init_by_cached_kernels()
-            // and by consequence invalidate the whole cache blob.
             if (driver_version != current_driver_version) {
-                precompiled_kernels.erase(id);
+                OPENVINO_THROW("Driver version mismatch in cached patchtoken kernels");
             }
         }
     }
