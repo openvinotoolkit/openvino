@@ -474,8 +474,7 @@ CPUTestsBase::deduce_expected_precision(const ov::element::Type& opPrecision,
         inferencePrecisionSetExplicitly = true;
         if ((inferencePrecisionConfig == ov::element::bf16 &&
              (ov::with_cpu_x86_avx512_core() || ov::with_cpu_x86_avx2_vnni_2())) ||
-            (inferencePrecisionConfig == ov::element::f16 &&
-             (ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx2_vnni_2())) ||
+            (inferencePrecisionConfig == ov::element::f16 && ov::with_cpu_x86_float16()) ||
             (inferencePrecisionConfig == ov::element::f32) || (inferencePrecisionConfig == ov::element::dynamic)) {
             inferencePrecision = inferencePrecisionConfig;
         }
@@ -485,7 +484,7 @@ CPUTestsBase::deduce_expected_precision(const ov::element::Type& opPrecision,
         const auto& configIt = configuration.find(executionModeKey);
         if (configIt != configuration.end() && configIt->second.as<ov::hint::ExecutionMode>() == ov::hint::ExecutionMode::PERFORMANCE) {
             inferencePrecision = ov::element::f32;
-            if (ov::with_cpu_x86_bfloat16()) {
+            if (ov::with_cpu_x86_bfloat16() && !ov::with_cpu_x86_avx2_vnni_2()) {
                 inferencePrecision = ov::element::bf16;
             }
         } else {

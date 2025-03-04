@@ -142,9 +142,16 @@ OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_vnni();
 /**
  * @brief      Checks whether CPU supports BFloat16 capability
  * @ingroup    ov_dev_api_system_conf
- * @return     `True` is tAVX512_BF16 instructions are available, `false` otherwise
+ * @return     `True` is tAVX512_BF16 or AVX2_VNNI_2 instructions are available, `false` otherwise
  */
 OPENVINO_RUNTIME_API bool with_cpu_x86_bfloat16();
+
+/**
+ * @brief      Checks whether CPU supports Float16 capability
+ * @ingroup    ov_dev_api_system_conf
+ * @return     `True` is tAVX512_FP16 or AVX2_VNNI_2 instructions are available, `false` otherwise
+ */
+OPENVINO_RUNTIME_API bool with_cpu_x86_float16();
 
 /**
  * @brief      Checks whether CPU supports fp16 capability

@@ -156,7 +156,8 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigStreamsNum) {
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     const auto expected_precision_for_performance_mode = ov::intel_cpu::hasHardwareSupport(ov::element::f16) ? ov::element::f16 : ov::element::f32;
 #else
-    const auto expected_precision_for_performance_mode = ov::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
+const auto expected_precision_for_performance_mode =
+    (ov::with_cpu_x86_bfloat16() && !ov::with_cpu_x86_avx2_vnni_2()) ? ov::element::bf16 : ov::element::f32;
 #endif
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigHintInferencePrecision) {

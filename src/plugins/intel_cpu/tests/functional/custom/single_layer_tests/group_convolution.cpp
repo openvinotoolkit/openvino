@@ -275,7 +275,7 @@ std::vector<groupConvLayerCPUTestParamsSet> filterParamsSetForDevice(
         auto additionalConfig = std::get<configIndex>(param);
         if (additionalConfig.count(ov::hint::inference_precision.name()) &&
             ov::element::bf16 == additionalConfig[ov::hint::inference_precision.name()].as<ov::element::Type>() &&
-            !ov::with_cpu_x86_bfloat16()) {
+            (!ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx2_vnni_2())) {
             continue;
         }
         resParamsSet.push_back(param);
