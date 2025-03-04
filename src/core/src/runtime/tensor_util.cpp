@@ -61,45 +61,52 @@ void read_tensor_data(const std::filesystem::path& file_name, Tensor& tensor, si
 }
 
 namespace {
-    size_t get_element_count(const element::Type& type, const size_t mem_size) {
-        if (ov::element::is_split_bit_type(type)) {
-            constexpr size_t storage_unit_size = 24;
-            size_t integer_number_bytes = mem_size * 8 / storage_unit_size;
-            return integer_number_bytes / type.bitwidth();
-        } else {
-            return mem_size * 8 / type.bitwidth();
-        }
-    }
-    ov::Shape calc_static_shape_for_file(const std::filesystem::path& file_name, const element::Type& element_type, const PartialShape& shape, size_t offset) {
-        auto partial_shape = shape;
-        auto rank = partial_shape.rank();
-        OPENVINO_ASSERT(rank.is_static(), "Rank cannot be dynamic");
-        std::vector<size_t> dynamic_dimension_numbers;
-        size_t slice_size = 1;
-        for (size_t id = 0; id < partial_shape.size(); ++id) {
-            if (partial_shape[id].is_dynamic()) {
-                dynamic_dimension_numbers.push_back(id);
-            } else {
-                slice_size *= partial_shape[id].get_min_length();
-            }
-        }
-        OPENVINO_ASSERT(dynamic_dimension_numbers.size() == 1, "Only dynamic PartialShape with 1 dynamic dimension is supported");
-        auto& dynamic_dimension = partial_shape[dynamic_dimension_numbers[0]];
-
-        auto file_size = std::filesystem::file_size(file_name);
-        OPENVINO_ASSERT(file_size > offset, "Offset is bigger than size of file to read.");
-        auto elements_to_read = get_element_count(element_type, file_size - offset);
-
-        auto new_dimension_size = elements_to_read / slice_size;
-        OPENVINO_ASSERT(new_dimension_size * slice_size == elements_to_read, "Cannot fit file size into requested PartialShape");
-        OPENVINO_ASSERT(static_cast<int>(new_dimension_size) >= dynamic_dimension.get_min_length() &&
-                        static_cast<int>(new_dimension_size) <= dynamic_dimension.get_max_length(),
-                        "Cannot fit file size into requested PartialShape");
-
-        dynamic_dimension = Dimension(new_dimension_size);
-        return partial_shape.get_shape();
+size_t get_element_count(const element::Type& type, const size_t mem_size) {
+    if (ov::element::is_split_bit_type(type)) {
+        constexpr size_t storage_unit_size = 24;
+        size_t integer_number_bytes = mem_size * 8 / storage_unit_size;
+        return integer_number_bytes / type.bitwidth();
+    } else {
+        return mem_size * 8 / type.bitwidth();
     }
 }
+ov::Shape calc_static_shape_for_file(const std::filesystem::path& file_name,
+                                     const element::Type& element_type,
+                                     const PartialShape& shape,
+                                     size_t offset) {
+    auto partial_shape = shape;
+    auto rank = partial_shape.rank();
+    OPENVINO_ASSERT(rank.is_static(), "Rank cannot be dynamic");
+    std::vector<size_t> dynamic_dimension_numbers;
+    size_t slice_size = 1;
+    for (size_t id = 0; id < partial_shape.size(); ++id) {
+        if (partial_shape[id].is_dynamic()) {
+            dynamic_dimension_numbers.push_back(id);
+        } else {
+            slice_size *= partial_shape[id].get_min_length();
+        }
+    }
+    OPENVINO_ASSERT(dynamic_dimension_numbers.size() == 1,
+                    "Only dynamic PartialShape with 1 dynamic dimension is supported");
+    auto& dynamic_dimension = partial_shape[dynamic_dimension_numbers[0]];
+
+    auto file_size = std::filesystem::file_size(file_name);
+    OPENVINO_ASSERT(file_size > offset, "Offset is bigger than size of file to read.");
+    auto elements_to_read = get_element_count(element_type, file_size - offset);
+
+    auto new_dimension_size = elements_to_read / slice_size;
+    OPENVINO_ASSERT(new_dimension_size * slice_size == elements_to_read,
+                    "Cannot fit file size into requested PartialShape");
+
+    OPENVINO_ASSERT(static_cast<int>(new_dimension_size) >= dynamic_dimension.get_min_length() &&
+                            static_cast<int>(new_dimension_size) <= dynamic_dimension.get_max_length() ||
+                        dynamic_dimension.get_max_length() == -1,
+                    "Cannot fit file size into requested PartialShape");
+
+    dynamic_dimension = Dimension(new_dimension_size);
+    return partial_shape.get_shape();
+}
+}  // namespace
 
 Tensor read_tensor_data(const std::filesystem::path& file_name,
                         const element::Type& element_type,

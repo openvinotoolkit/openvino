@@ -18,6 +18,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
+#include "openvino/reference/convert.hpp"
 #include "openvino/runtime/tensor_util.hpp"
 
 using namespace std;
@@ -107,12 +108,9 @@ public:
         std::vector<float> init_values(initial_tensor.get_size());
         ov::test::utils::fill_data_random(init_values.data(), initial_tensor.get_size(), 10, 0, 100);
 
-        std::transform(init_values.begin(),
-                       init_values.end(),
-                       element::iterator<ov_type>(initial_tensor.data()),
-                       [](float value) {
-                           return static_cast<element_type>(value);
-                       });
+        ov::reference::convert(ov::element::iterator<ov::element::f32>(init_values.data()),
+                               ov::element::iterator<ov_type>(initial_tensor.data()),
+                               shape_size(static_shape));
 
         file_name = ov::test::utils::generateTestFilePrefix();
     }
@@ -175,22 +173,21 @@ TYPED_TEST_P(ParametredOffloadTensorTest, create_mmaped_tensor) {
 
 REGISTER_TYPED_TEST_SUITE_P(ParametredOffloadTensorTest, save_tensor, read_tensor, create_mmaped_tensor);
 
-using TypesToTest = ::testing::Types<
-    float,
-    double,
-    int8_t,
-    int16_t,
-    int32_t,
-    int64_t,
-    uint8_t,
-    uint16_t,
-    uint32_t,
-    uint64_t,
-    ov::bfloat16,
-    ov::float8_e4m3,
-    ov::float8_e5m2,
-    ov::float4_e2m1,
-    ov::float8_e8m0>;
+using TypesToTest = ::testing::Types<float,
+                                     double,
+                                     int8_t,
+                                     int16_t,
+                                     int32_t,
+                                     int64_t,
+                                     uint8_t,
+                                     uint16_t,
+                                     uint32_t,
+                                     uint64_t,
+                                     ov::bfloat16,
+                                     ov::float8_e4m3,
+                                     ov::float8_e5m2,
+                                     ov::float4_e2m1,
+                                     ov::float8_e8m0>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(OffloadTensorTest, ParametredOffloadTensorTest, TypesToTest);
 
@@ -377,8 +374,10 @@ TEST_F(FunctionalOffloadTensorTest, read_wrong_dynamic_shape) {
         auto shape_with_1_dynamic_dimension = shape;
         shape_with_1_dynamic_dimension[shape_with_1_dynamic_dimension.size() - 1] = -1;
         shape_with_1_dynamic_dimension[shape_with_1_dynamic_dimension.size() - 2] = 100;
-        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape_with_1_dynamic_dimension, 0, true), ov::Exception);
-        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape_with_1_dynamic_dimension, 0, false), ov::Exception);
+        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape_with_1_dynamic_dimension, 0, true),
+                     ov::Exception);
+        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape_with_1_dynamic_dimension, 0, false),
+                     ov::Exception);
     }
     remove_file();
 }
@@ -391,9 +390,7 @@ TEST_F(FunctionalOffloadTensorTest, read_type_doesnt_fit_file_size) {
     }
     ASSERT_TRUE(std::filesystem::exists(file_name));
 
-    {
-        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov::element::f32), ov::Exception);
-    }
+    { EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov::element::f32), ov::Exception); }
     remove_file();
 }
 }  // namespace test
