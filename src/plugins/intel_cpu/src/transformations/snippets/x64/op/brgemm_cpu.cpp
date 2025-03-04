@@ -148,7 +148,7 @@ std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_a
     check_new_args_count(this, new_args);
     std::shared_ptr<BrgemmCPU> brgemm;
     if (!with_scratchpad(m_type)) {
-        return std::make_shared<BrgemmCPU>(
+        brgemm = std::make_shared<BrgemmCPU>(
             new_args.at(0),
             new_args.at(1),
             m_type,
@@ -158,19 +158,24 @@ std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_a
             snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
             snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
             snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
+    } else {
+        brgemm = std::make_shared<BrgemmCPU>(
+            new_args.at(0),
+            new_args.at(1),
+            new_args.at(2),
+            m_type,
+            get_input_port_descriptor(0),
+            get_input_port_descriptor(1),
+            get_input_port_descriptor(2),
+            get_output_port_descriptor(0),
+            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
+            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
+            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
     }
-    return std::make_shared<BrgemmCPU>(
-        new_args.at(0),
-        new_args.at(1),
-        new_args.at(2),
-        m_type,
-        get_input_port_descriptor(0),
-        get_input_port_descriptor(1),
-        get_input_port_descriptor(2),
-        get_output_port_descriptor(0),
-        snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
-        snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
-        snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
+    for (const auto& postop : m_postops) {
+        brgemm->add_post_op(postop);
+    }
+    return brgemm;
 }
 
 size_t BrgemmCPU::get_offset_scratch() const {
@@ -183,5 +188,19 @@ bool BrgemmCPU::visit_attributes(AttributeVisitor& visitor) {
     Brgemm::visit_attributes(visitor);
     visitor.on_attribute("type", m_type);
     return true;
+}
+
+void BrgemmCPU::add_post_op(const std::shared_ptr<ov::Node>& post_op) {
+    const auto& inputs = post_op->input_values();
+    // TODO: what about scalar?
+    OPENVINO_ASSERT(inputs.size() > 1, "Post-op must have at least one input");
+    OPENVINO_ASSERT(inputs[0].get_node() == this, "First input of post-op must be Brgemm output");
+    OPENVINO_ASSERT(std::all_of(inputs.begin() + 1,
+                                inputs.end(),
+                                [&](const Output<Node>& input) {
+                                    return ov::is_type<ov::op::v0::Constant>(input.get_node());
+                                }),
+                    "All post-op inputs except 0's must be constant");
+    m_postops.push_back(post_op);
 }
 }  // namespace ov::intel_cpu

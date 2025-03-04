@@ -75,6 +75,8 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
+    void add_post_op(const std::shared_ptr<ov::Node>& post_op);
+
     constexpr static size_t SCRATCH_BYTE_SIZE = 32 * 1024;
 
 private:
@@ -85,5 +87,7 @@ private:
     void validate_inputs() const;
 
     BRGEMM_TYPE m_type = BRGEMM_TYPE::STAND_ALONE;
+
+    ov::NodeVector m_postops = {};
 };
 }  // namespace ov::intel_cpu
