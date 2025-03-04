@@ -2041,14 +2041,12 @@ void TopK::preset_params() {
     }
 
     if (isDynamicNode()) {
-        if (stable) {
+        if (stable ||
+            !((layout == TopKLayoutType::topk_ncsp || layout == TopKLayoutType::topk_nspc) && topk_innermost)) {
             algorithm = TopKAlgorithm::topk_bubble_sort;
             bubble_inplace = false;
-        } else if ((layout == TopKLayoutType::topk_ncsp || layout == TopKLayoutType::topk_nspc) && topk_innermost) {
-            algorithm = TopKAlgorithm::topk_heap_sort;
         } else {
-            algorithm = TopKAlgorithm::topk_bubble_sort;
-            bubble_inplace = false;
+            algorithm = TopKAlgorithm::topk_heap_sort;
         }
     }
 }
