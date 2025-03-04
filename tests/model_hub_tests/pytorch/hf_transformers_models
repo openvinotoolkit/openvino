@@ -88,7 +88,7 @@ hifigan,microsoft/speecht5_hifigan,xfail,Load error: The size of tensor a (100) 
 hubert,facebook/hubert-large-ls960-ft
 hybridbert,gokuls/bert_12_layer_model_v1
 ibert,DunnBC22/ibert-roberta-base-Abusive_Or_Threatening_Speech
-idefics,HuggingFaceM4/tiny-random-idefics,xfail,aten::einsum Different input dimensions indicated by the same labels for Einsum must be compatible
+idefics,HuggingFaceM4/tiny-random-idefics
 imagegpt,openai/imagegpt-small
 informer,huggingface/informer-tourism-monthly,xfail,Load error: mat1 and mat2 shapes cannot be multiplied
 instructblip,Salesforce/instructblip-vicuna-7b
@@ -106,7 +106,7 @@ levit,facebook/levit-128S,xfail,Trace error: Cannot insert a Tensor that require
 lilt,nielsr/lilt-xlm-roberta-base
 llama_with_landmark,Leooyii/Landmark_512_Slimpajama_1B
 longformer,allenai/longformer-base-4096
-longt5,pszemraj/long-t5-tglobal-base-16384-book-summary,xfail,(CVS-148676) Compile error: unsupported Einsum
+longt5,pszemraj/long-t5-tglobal-base-16384-book-summary
 luke,oshizo/sbert-jsnli-luke-japanese-base-lite
 lxmert,unc-nlp/lxmert-base-uncased
 m2m_100,facebook/nllb-200-distilled-600M
@@ -119,7 +119,7 @@ mbart,facebook/mbart-large-50-many-to-many-mmt
 mctct,speechbrain/m-ctc-t-large
 mega,Bingsu/mega-150m-arch,xfail,Trace error: Cannot insert a Tensor that requires grad as a constant
 megatron-bert,UFNLP/gatortron-base
-mgp-str,alibaba-damo/mgp-str-base,xfail,(CVS-148676) Compile error: unsupported Einsum
+mgp-str,alibaba-damo/mgp-str-base
 mobilebert,google/mobilebert-uncased
 mobilenet_v1,google/mobilenet_v1_0.75_192
 mobilenet_v2,google/mobilenet_v2_1.0_224
