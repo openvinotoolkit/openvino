@@ -75,6 +75,10 @@ std::shared_ptr<MatMulFunctionBase> MatMulBias::get_builder(const std::vector<ov
     return std::make_shared<MatMulBiasFunction>(inputDynamicShapes, types, matmul_type);
 }
 
+std::shared_ptr<MatMulFunctionBase> MatMulScaleBias::get_builder(const std::vector<ov::element::Type>& types) {
+    return std::make_shared<MatMulScaleBiasFunction>(inputDynamicShapes, types, matmul_type);
+}
+
 std::shared_ptr<MatMulFunctionBase> MatMulBiasQuantized::get_builder(const std::vector<ov::element::Type>& types) {
     return std::make_shared<MatMulBiasQuantizedFunction>(inputDynamicShapes, types, matmul_type);
 }
@@ -115,6 +119,12 @@ TEST_P(MatMulFQ, CompareWithRefImpl) {
 }
 
 TEST_P(MatMulBias, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MatMulScaleBias, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();

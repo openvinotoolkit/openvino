@@ -85,6 +85,20 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
 
+// As same as MatMulFunction but with scale and bias
+class MatMulScaleBiasFunction : public MatMulFunctionBase {
+public:
+    explicit MatMulScaleBiasFunction(const std::vector<PartialShape>& inputShapes,
+                                     const std::vector<ov::element::Type>& precisions,
+                                     MatMulType type)
+        : MatMulFunctionBase(inputShapes, type, precisions) {
+        OPENVINO_ASSERT(input_shapes.size() == 3, "Got invalid number of input shapes");
+    }
+
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
+
 //  Quantized MatMul
 //       FQ[I8]
 //        Add

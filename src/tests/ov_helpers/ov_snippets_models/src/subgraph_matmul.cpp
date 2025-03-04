@@ -167,6 +167,28 @@ std::shared_ptr<ov::Model> MatMulBiasFunction::initOriginal() const {
     auto bias = std::make_shared<op::v1::Add>(matmul, data2);
     return std::make_shared<ov::Model>(NodeVector{bias}, params);
 }
+std::shared_ptr<ov::Model> MatMulScaleBiasFunction::initOriginal() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    ParameterVector params{data0};
+    auto data1 = make_matmul_b_input(precision, input_shapes[1], matmul_type, params);
+    auto data2 = std::make_shared<op::v0::Parameter>(precision, input_shapes[2]);
+    params.push_back(data2);
+
+    std::shared_ptr<Node> matmul;
+    if (precisions[1]  == ov::element::i8) {
+        matmul = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
+                std::vector<element::Type>{ element::f32, element::f32 },
+                std::vector<element::Type>{ element::f32 },
+                ov::op::TemporaryReplaceOutputType(data0, element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(data1, element::f32).get());
+    } else {
+        matmul = std::make_shared<op::v0::MatMul>(data0, data1);
+    }
+    auto scale_value = ov::op::v0::Constant::create(matmul->get_output_element_type(0), ov::Shape{}, {4.f});
+    auto scale = std::make_shared<op::v1::Multiply>(matmul, scale_value);
+    auto bias = std::make_shared<op::v1::Add>(scale, data2);
+    return std::make_shared<ov::Model>(NodeVector{bias}, params);
+}
 std::shared_ptr<ov::Model> MatMulBiasQuantizedFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precisions[0], input_shapes[0]);
     ParameterVector params{data0};
