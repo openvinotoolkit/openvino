@@ -39,7 +39,7 @@ def segment_max(
     data: NodeInput,
     segment_ids: NodeInput,
     num_segments: Optional[NodeInput] = None,
-    fill_mode: Union[str, None] = None,
+    fill_mode: Optional[str] = None,
     name: Optional[str] = None,
 ) -> Node:
     """The SegmentMax operation finds the maximum value in each specified segment of the input tensor.
