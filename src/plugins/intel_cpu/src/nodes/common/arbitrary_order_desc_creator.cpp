@@ -28,7 +28,7 @@ CpuBlockedMemoryDesc ArbitraryOrderDescCreator::createDesc(const ov::element::Ty
         blkDims[i] = dims[m_order[i]];
     }
 
-    return CpuBlockedMemoryDesc(precision, srcShape, blkDims, m_order);
+    return {precision, srcShape, blkDims, m_order};
 }
 
 size_t ArbitraryOrderDescCreator::getMinimalRank() const {
