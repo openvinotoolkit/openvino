@@ -31,7 +31,8 @@ IncreasePositionIdsPrecision::IncreasePositionIdsPrecision() {
 
     auto gemm_or_matmul = wrap_type<ov::intel_gpu::op::Gemm, ov::op::v0::MatMul>();
     auto transpose_m = wrap_type<ov::op::v1::Transpose>({gemm_or_matmul, any_input()});
-    auto concat_input = std::make_shared<Or>(OutputVector{gemm_or_matmul, transpose_m});
+    auto reshape_m = wrap_type<ov::op::v1::Reshape>({gemm_or_matmul, any_input()});
+    auto concat_input = std::make_shared<Or>(OutputVector{gemm_or_matmul, transpose_m, reshape_m});
     auto concat = wrap_type<ov::op::v0::Concat>({concat_input, concat_input});
     auto sin = wrap_type<ov::op::v0::Sin>({concat});
     auto cos = wrap_type<ov::op::v0::Cos>({concat});

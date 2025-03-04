@@ -197,7 +197,11 @@ KERNEL(pa_sdpa_opt)(
             qk_acc += alibi_slopes[head_num_idx] * alibi_val;
 #endif
 
+#if SLIDING_WINDOW_SIZE != 0
+            if (token_idx >= seq_len || (seq_len > SLIDING_WINDOW_SIZE && token_idx < (seq_len - SLIDING_WINDOW_SIZE)))
+#else
             if (token_idx >= seq_len)
+#endif
                 qk_acc = SOFTMAX_ACCUMULATOR_VAL_MIN;
 
             qk_max = SOFTMAX_ACCUMULATOR_MAX_FUNC(qk_max, TO_SOFTMAX_ACCUMULATOR_TYPE(qk_acc));

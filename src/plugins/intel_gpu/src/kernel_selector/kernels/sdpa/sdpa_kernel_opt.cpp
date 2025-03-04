@@ -186,6 +186,7 @@ JitConstants SDPAKernelOpt::GetJitConstants(const sdpa_params& params, size_t ke
     jit.AddConstant(MakeJitConstant("SG_SCALE_FACTOR", get_sg_number_scale_factor(params, config.head_size, kernel_idx)));
 
     if (params.conf.is_paged_attention) {
+        jit.AddConstant(MakeJitConstant("SLIDING_WINDOW_SIZE", params.conf.paged_attention_sliding_window));
         if (params.conf.has_alibi_input) {
             jit.AddConstant(MakeJitConstant("HAS_ALIBI", 1));
         }

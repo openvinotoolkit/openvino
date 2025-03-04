@@ -784,7 +784,12 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
         }
     } else {
         for (uint i = 0; i < SUBGROUP_SIZE; i++) {
+#if defined(IS_PAGED_ATTENTION) && SLIDING_WINDOW_SIZE != 0
+            if ((source_seq_idx + i > target_seq_idx) ||
+                (target_seq_idx >= SLIDING_WINDOW_SIZE && source_seq_idx + i < target_seq_idx - SLIDING_WINDOW_SIZE))
+#else
             if (source_seq_idx + i > target_seq_idx)
+#endif
                 mask_vec[i] = NAN;
         }
     }
@@ -1167,7 +1172,11 @@ MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZER
                 unroll_for (uint i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
 #if IS_CAUSAL
                 // casual mask: valid only if m >= n
+#if defined(IS_PAGED_ATTENTION) && SLIDING_WINDOW_SIZE != 0
+                if ((seq_len + i <= target_seq_idx + sglid) && (target_seq_idx + sglid < SLIDING_WINDOW_SIZE || seq_len + i >= target_seq_idx + sglid - SLIDING_WINDOW_SIZE)) {
+#else
                 if (seq_len + i <= target_seq_idx + sglid) {
+#endif
 #endif  // IS_CAUSAL
 #if !APPLY_SCALES_TO_QUERY
 #if HAS_SCALE_INPUT
