@@ -230,10 +230,14 @@ std::vector<std::string> disabledTestPatterns() {
             auto skipMessageEntry = skipConfigRule.child("message").text().get();
 
             // Read enable/disable conditions:
-            // Multiple Backends, Devices, OSes can be selected
+            // Three rule categories exist:
+            //    Backends
+            //    Devices
+            //    Operating Systems
+            // There can be multiple rules for each category
             // If "!" is found, then rule is inverted
             pugi::xml_node enableRules = skipConfigRule.child("enable_rules");
-            bool ruleFlag = false;
+            bool ruleFlag = true;
             if (!enableRules.empty()) {
                 bool backendRuleFlag = false;
                 if (!enableRules.child("backend").empty()) {
@@ -241,14 +245,13 @@ std::vector<std::string> disabledTestPatterns() {
                         auto backendRule = enableRule.text().get();
 
                         std::string backendRuleString(backendRule);
-                        bool invertRule = isRuleInverted(backendRuleString);
+                        bool invert = isRuleInverted(backendRuleString);
                         // Perform logical XOR to invert condition
-                        if (!(backendRuleString == backendName.getName()) != !invertRule)
+                        if (!(backendRuleString == backendName.getName()) != !invert)
                             backendRuleFlag = true;
                     }
-                } else {
-                    // Rule empty, default to true
-                    backendRuleFlag = true;
+                    // Accumulate rule for backends
+                    ruleFlag &= backendRuleFlag;
                 }
 
                 bool deviceRuleFlag = false;
@@ -257,16 +260,15 @@ std::vector<std::string> disabledTestPatterns() {
                         auto deviceRule = enableRule.text().get();
 
                         std::string deviceRuleString(deviceRule);
-                        bool invertRule = isRuleInverted(deviceRuleString);
+                        bool invert = isRuleInverted(deviceRuleString);
                         for (auto& device : devices.getAvailableDevices()) {
                             // Perform logical XOR to invert condition
-                            if (!(deviceRuleString == device) != !invertRule)
+                            if (!(deviceRuleString == device) != !invert)
                                 deviceRuleFlag = true;
                         }
                     }
-                } else {
-                    // Rule empty, default to true
-                    deviceRuleFlag = true;
+                    // Accumulate rules for devices
+                    ruleFlag &= deviceRuleFlag;
                 }
 
                 bool operatingSystemRuleFlag = false;
@@ -277,16 +279,9 @@ std::vector<std::string> disabledTestPatterns() {
                         if (operatingSystemRule == currentOS.getName())
                             operatingSystemRuleFlag = true;
                     }
-                } else {
-                    // Rule empty, default to true
-                    operatingSystemRuleFlag = true;
+                    // Accumulate rule for operating systems
+                    ruleFlag &= operatingSystemRuleFlag;
                 }
-
-                // Combine all rules
-                ruleFlag = backendRuleFlag && deviceRuleFlag && operatingSystemRuleFlag;
-            } else {
-                // All rules are empty, default to true
-                ruleFlag = true;
             }
 
             // Select individual filters and add them to the skipRegistry
@@ -294,7 +289,7 @@ std::vector<std::string> disabledTestPatterns() {
             FOREACH_CHILD (skipFilter, skipFiltersList, "filter") {
                 auto skipFilterEntry = skipFilter.text().get();
 
-                // Add skip to regoistry
+                // Add skip to registry
                 _skipRegistry.addPatterns(ruleFlag, skipMessageEntry, {skipFilterEntry});
             }
         }
