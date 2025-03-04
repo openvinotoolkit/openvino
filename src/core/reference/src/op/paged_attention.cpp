@@ -15,17 +15,22 @@
 
 #include "openvino/core/shape.hpp"
 
-namespace {
 
-// --- Helper Functions ---
+
+namespace ov {
+namespace reference {
+
+namespace paged_attention { 
+
+// --- Helper / Unit Functions ---
 
 template <typename T>
-inline T dot_product(const T* a, const T* b, int32_t size) {
+T dot_product(const T* a, const T* b, int32_t size) {
     std::inner_product(a, a + size, b, T(0));
 }
 
 template <typename T>
-inline void softmax(std::vector<T>& scores) {
+void softmax(std::vector<T>& scores) {
     T max_score = *std::max_element(scores.begin(), scores.end());
     T sum = T(0);
     for (auto& s : scores) {
@@ -40,7 +45,7 @@ inline void softmax(std::vector<T>& scores) {
  * Apply RoPE (Rotary Positional Embedding) rotation to a vector.
  */
 template <typename T>
-inline void apply_rope(T* vec, int32_t head_size, const T* rotation_trig_lut, int32_t trig_index) {
+void apply_rope(T* vec, int32_t head_size, const T* rotation_trig_lut, int32_t trig_index) {
     int32_t half = head_size / 2;
     const float* row = reinterpret_cast<const float*>(rotation_trig_lut) + trig_index * head_size;
     for (int32_t i = 0; i < half; i++) {
@@ -57,7 +62,7 @@ inline void apply_rope(T* vec, int32_t head_size, const T* rotation_trig_lut, in
  * Look up the cached block token information.
  * Returns true if a valid cached token was found.
  */
-inline bool find_cached_token(int32_t seq_idx,
+bool find_cached_token(int32_t seq_idx,
                               int32_t token_idx,  // token index in cached keys (relative: 0..seq_past_tokens-1)
                               const int32_t* block_indices,
                               const int32_t* block_indices_begins,
@@ -83,7 +88,7 @@ inline bool find_cached_token(int32_t seq_idx,
  * Given rotation_deltas and its shape, compute the trig index for RoPE.
  * Returns 0 if rotation parameters are not available.
  */
-inline int get_trig_index(const int32_t* rotation_deltas,
+int get_trig_index(const int32_t* rotation_deltas,
                           const ov::Shape& rotation_deltas_shape,
                           int32_t rotated_index,
                           int32_t token_offset,
@@ -103,7 +108,7 @@ inline int get_trig_index(const int32_t* rotation_deltas,
  * Returns true if rotated_block_indices is not null, the number of rotated blocks is > 0,
  * and the block_id is found in the rotated list.
  */
-inline bool should_rotate(int32_t block_id,
+bool should_rotate(int32_t block_id,
                           const int32_t* rotated_block_indices,
                           const ov::Shape& rotated_block_indices_shape,
                           int32_t& rotated_index) {
@@ -119,10 +124,7 @@ inline bool should_rotate(int32_t block_id,
     return false;
 }
 
-}  // namespace
-
-namespace ov {
-namespace reference {
+}  // namespace paged_attention
 
 template <typename T>
 void paged_attention(
