@@ -47,7 +47,19 @@ Performance Information F.A.Q.
         - Public Network
         - Task
         - Input Size
-      * - `chatGLM4-9B <https://huggingface.co/THUDM/glm-4-9b-chat/tree/main>`__
+      * - `DeepSeek-R1-Distill-Llama-8B <https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Llama-8B>`__
+        - DeepSeek, HF
+        - Auto regressive language
+        - 128K
+      * - `DeepSeek-R1-Distill-Qwen-1.5B <https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B>`__
+        - DeepSeek, HF
+        - Auto regressive language
+        - 128K
+      * - `DeepSeek-R1-Distill-Qwen-7B <https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B>`__
+        - DeepSeek, HF
+        - Auto regressive language
+        - 128K
+      * - `GLM4-9B-chat <https://huggingface.co/THUDM/glm-4-9b-chat/tree/main>`__
         - THUDM
         - Transformer
         - 128K
@@ -79,7 +91,7 @@ Performance Information F.A.Q.
         - Huggingface
         - Auto regressive language
         - 128K
-      * - `Qwen-2.5-7B-Instruct <https://huggingface.co/Qwen/Qwen2.5-7B-Instruct>`__
+       * - `Qwen-2.5-7B-Instruct <https://huggingface.co/Qwen/Qwen2.5-7B-Instruct>`__
         - Huggingface
         - Auto regressive language
         - 128K
