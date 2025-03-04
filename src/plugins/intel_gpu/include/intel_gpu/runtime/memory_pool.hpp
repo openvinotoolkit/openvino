@@ -112,7 +112,7 @@ struct padded_pool_comparer {
 
 class memory_pool {
     memory_ptr alloc_memory(const layout& layout, allocation_type type, bool reset = true);
-    static bool has_conflict(const memory_set&, const std::unordered_set<size_t>&, uint32_t network_id);
+    static bool has_conflict(const memory_set&, const std::unordered_set<uint32_t>&, uint32_t network_id);
 
     std::multimap<uint64_t, memory_record> _non_padded_pool;
     std::map<layout, std::list<memory_record>, padded_pool_comparer> _padded_pool;
@@ -127,7 +127,7 @@ public:
                           const primitive_id& id,
                           size_t unique_id,
                           uint32_t network_id,
-                          const std::unordered_set<size_t>& restrictions,
+                          const std::unordered_set<uint32_t>& restrictions,
                           allocation_type type,
                           bool reusable = true,
                           bool reset = true,
@@ -137,7 +137,7 @@ public:
                                         const primitive_id& prim_id,
                                         size_t unique_id,
                                         uint32_t network_id,
-                                        const std::unordered_set<size_t>&,
+                                        const std::unordered_set<uint32_t>&,
                                         allocation_type type,
                                         bool reset = true,
                                         bool is_dynamic = false);
@@ -145,7 +145,7 @@ public:
                                     const primitive_id& prim_id,
                                     size_t unique_id,
                                     uint32_t network_id,
-                                    const std::unordered_set<size_t>& restrictions,
+                                    const std::unordered_set<uint32_t>& restrictions,
                                     allocation_type type);
     memory_ptr get_from_across_networks_pool(const layout& layout,
                                              const primitive_id& id,
