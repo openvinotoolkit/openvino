@@ -2675,33 +2675,10 @@ bool primitive_inst::is_valid_fusion() const {
         const auto& outer_dep = _deps[outer_dep_idx];
 
         const auto& outer_dep_pshape = outer_dep.first->_impl_params->get_output_layout().get_partial_shape();
-        size_t outer_dep_pshape_count = outer_dep_pshape.is_static() ? ov::shape_size(outer_dep_pshape.to_shape()) : 0;
         auto merged_shape = out_pshape;
         bool can_broadcast = true;
         if (fd.is_type<eltwise>())
             can_broadcast = ov::PartialShape::broadcast_merge_into(merged_shape, outer_dep_pshape, fd.typed_desc<eltwise>()->broadcast_spec);
-
-        // Check if broadcast happens more than single axis.
-        // Current gemm_tiled_opt kernel FUSED_OP_LOAD macro cannot support broadcast on dynamic dimension.
-        if (_node->is_type<gemm>() && can_broadcast == true && merged_shape.rank().get_length() >= outer_dep_pshape.rank().get_length() &&
-            outer_dep_pshape_count != 1) {
-            uint8_t broadcast_more_than_single_axis = 0;
-            auto updated_outer_dep_pshape = ov::PartialShape(outer_dep_pshape);
-
-            // Update outer_dep_pshape to merged_shape rank
-            if (merged_shape.rank().get_length() > outer_dep_pshape.rank().get_length()) {
-                updated_outer_dep_pshape.insert(updated_outer_dep_pshape.begin(),
-                                                merged_shape.rank().get_length() - outer_dep_pshape.rank().get_length(), ov::Dimension(1));
-            }
-
-            for (int64_t i = 0; i < merged_shape.rank().get_length(); i++) {
-                if (merged_shape[i] != updated_outer_dep_pshape[i])
-                    broadcast_more_than_single_axis++;
-            }
-
-            if (broadcast_more_than_single_axis > 1)
-                can_broadcast = false;
-        }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
         // WA for OneDNN binary add fusions: we need to broadcast batch dimension to avoid situation with
@@ -2720,7 +2697,7 @@ bool primitive_inst::is_valid_fusion() const {
                                                          cldnn::format::dimension(data_layout.format),
                                                          false);
 
-            if (gemm_dims[0] != data_dims[0] && outer_dep_pshape_count != 1)
+            if (gemm_dims[0] != data_dims[0])
                 return false;
         } else if (_node->is_type<fully_connected>() && _node->get_preferred_impl_type() == impl_types::onednn) {
             const auto& fc_layout = _impl_params->get_output_layout();
