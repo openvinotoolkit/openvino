@@ -20,7 +20,7 @@
 namespace ov {
 namespace reference {
 
-namespace paged_attention { 
+namespace paged_attention_utils { 
 
 // --- Helper / Unit Functions ---
 
@@ -124,7 +124,7 @@ bool should_rotate(int32_t block_id,
     return false;
 }
 
-}  // namespace paged_attention
+}  // namespace paged_attention_utils
 
 template <typename T>
 void paged_attention(
