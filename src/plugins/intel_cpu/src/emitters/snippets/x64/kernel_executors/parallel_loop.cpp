@@ -28,7 +28,7 @@ void ParallelLoopExecutor::execute(const ParallelLoopExecutor* executor, uintptr
     const auto& config = static_cast<const ParallelLoopConfig&>(executor->get_config());
 
     const auto& loop_args = config.get_loop_args();
-    int nthr = 4;//config.get_num_threads();
+    int nthr = config.get_num_threads();
     // todo: it might worth to use num_ptrs as a template parameter, because it is always known in advance
     //  plus it would enable additional compiler optimizations like vectorized mem copy and for loops
     const auto num_ptrs = loop_args.m_num_data_ptrs;
