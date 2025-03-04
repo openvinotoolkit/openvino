@@ -8,8 +8,7 @@
 #include "openvino/core/type/element_iterator.hpp"
 
 template <ov::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ov::op::v16::PagedAttention>& op,
-              ov::TensorVector& outputs,
+bool evaluate( ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
     using T = typename ov::element_type_traits<ET>::value_type;
 
@@ -41,19 +40,19 @@ bool evaluate(const std::shared_ptr<ov::op::v16::PagedAttention>& op,
 }
 
 template <>
-bool evaluate_node<ov::op::v16::PagedAttention>(std::shared_ptr<ov::Node> node,
+bool evaluate_node<ov::op::internal::PagedAttention>(std::shared_ptr<ov::Node> node,
                                                 ov::TensorVector& outputs,
                                                 const ov::TensorVector& inputs) {
     auto element_type = node->get_output_element_type(0);
     switch (element_type) {
     case ov::element::bf16:
-        return evaluate<ov::element::bf16>(ov::as_type_ptr<ov::op::v16::PagedAttention>(node), outputs, inputs);
+        return evaluate<ov::element::bf16>(outputs, inputs);
     case ov::element::f16:
-        return evaluate<ov::element::f16>(ov::as_type_ptr<ov::op::v16::PagedAttention>(node), outputs, inputs);
+        return evaluate<ov::element::f16>(outputs, inputs);
     case ov::element::f64:
-        return evaluate<ov::element::f64>(ov::as_type_ptr<ov::op::v16::PagedAttention>(node), outputs, inputs);
+        return evaluate<ov::element::f64>(outputs, inputs);
     case ov::element::f32:
-        return evaluate<ov::element::f32>(ov::as_type_ptr<ov::op::v16::PagedAttention>(node), outputs, inputs);
+        return evaluate<ov::element::f32>(outputs, inputs);
     default:
         OPENVINO_THROW("Unhandled data type ", node->get_element_type().get_type_name(), " in evaluate_node()");
     }

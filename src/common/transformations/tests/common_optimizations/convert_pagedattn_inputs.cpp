@@ -8,7 +8,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/op/paged_attention_extension.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 

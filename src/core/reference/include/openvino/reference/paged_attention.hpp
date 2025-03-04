@@ -29,13 +29,13 @@ void paged_attention(
     const int32_t* subsequence_begins,     // [batch_size_in_sequences + 1]: start indices of new tokens per sequence
     const int32_t* block_indices,          // [num_blocks]: block table for each sequence
     const int32_t* block_indices_begins,   // [batch_size_in_sequences + 1]: indices into block_indices per sequence
-    const T* scale,                        // attention scale factor (scalar)
-    const int32_t* sliding_window,         // sliding window parameter (scalar)
-    const T* alibi_slopes,                 // [num_kv_heads]: per-head bias slopes
+    const T* scale,                        // (optional) attention scale factor (scalar)
+    const int32_t* sliding_window,         // (optional) sliding window parameter (scalar)
+    const T* alibi_slopes,                 // (optional) [num_kv_heads]: per-head bias slopes
     const int32_t* max_context_len,        // max context length (for score output indexing) (scalar)
-    const int32_t* rotated_block_indices,  // [num_rotated_blocks]: blocks to which RoPE is applied
-    const int32_t* rotation_deltas,        // [num_rotated_blocks, block_size || 1]: indices into the trig LUT
-    const int32_t* rotation_trig_lut,      // LUT: [lut_rows, head_size] (first half: cosines, second half: sines)
+    const int32_t* rotated_block_indices,  // (optional) [num_rotated_blocks]: blocks to which RoPE is applied
+    const int32_t* rotation_deltas,        // (optional) [num_rotated_blocks, block_size || 1]: indices into the trig LUT
+    const int32_t* rotation_trig_lut,      // (optional) LUT: [lut_rows, head_size] (first half: cosines, second half: sines)
     const Shape& rotated_block_indices_shape,  // shape of rotated_block_indices (e.g. {num_rotated_blocks})
     const Shape& rotation_deltas_shape,        // shape of rotation_deltas (e.g. {num_rotated_blocks, block_size} or
                                                // {num_rotated_blocks, 1})

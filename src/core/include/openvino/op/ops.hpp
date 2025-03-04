@@ -133,7 +133,6 @@
 #include "openvino/op/nv12_to_rgb.hpp"
 #include "openvino/op/one_hot.hpp"
 #include "openvino/op/pad.hpp"
-#include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/prelu.hpp"

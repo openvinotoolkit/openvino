@@ -16,9 +16,9 @@ using namespace testing;
 namespace ov {
 namespace test {
 
-class TypePropPagedAttentionV16Test : public TypePropOpTest<op::v16::PagedAttention> {};
+class TypePropPagedAttentionInternalTest : public TypePropOpTest<op::internal::PagedAttention> {};
 
-TEST_F(TypePropPagedAttentionV16Test, paged_attention_static_13_inputs) {
+TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_13_inputs) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
@@ -33,7 +33,7 @@ TEST_F(TypePropPagedAttentionV16Test, paged_attention_static_13_inputs) {
     const auto alibi_slopes = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{9});
     const auto max_context_len = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
 
-    const auto op = std::make_shared<op::v16::PagedAttention>(query,
+    const auto op = std::make_shared<op::internal::PagedAttention>(query,
                                                               key,
                                                               value,
                                                               key_cache,
@@ -50,7 +50,7 @@ TEST_F(TypePropPagedAttentionV16Test, paged_attention_static_13_inputs) {
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 4}));
 }
 
-TEST_F(TypePropPagedAttentionV16Test, paged_attention_static_16_inputs_eviction_per_block) {
+TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_16_inputs_eviction_per_block) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
@@ -69,7 +69,7 @@ TEST_F(TypePropPagedAttentionV16Test, paged_attention_static_16_inputs_eviction_
     const auto rotation_deltas = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{12, 1});
     const auto rotation_trig_lut = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{256, 4});
 
-    const auto op = std::make_shared<op::v16::PagedAttention>(query,
+    const auto op = std::make_shared<op::internal::PagedAttention>(query,
                                                               key,
                                                               value,
                                                               key_cache,
@@ -89,7 +89,7 @@ TEST_F(TypePropPagedAttentionV16Test, paged_attention_static_16_inputs_eviction_
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 4}));
 }
 
-TEST_F(TypePropPagedAttentionV16Test, paged_attention_static_16_inputs_eviction_per_token) {
+TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_16_inputs_eviction_per_token) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
@@ -108,7 +108,7 @@ TEST_F(TypePropPagedAttentionV16Test, paged_attention_static_16_inputs_eviction_
     const auto rotation_deltas = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{12, 5});
     const auto rotation_trig_lut = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{256, 4});
 
-    const auto op = std::make_shared<op::v16::PagedAttention>(query,
+    const auto op = std::make_shared<op::internal::PagedAttention>(query,
                                                               key,
                                                               value,
                                                               key_cache,

@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace test {
-TEST_P(PagedAttentionLayerTest, Inference) {
+TEST_P(PagedAttentionExtensionLayerTest, Inference) {
     run();
 };
 }  // namespace test

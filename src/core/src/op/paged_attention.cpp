@@ -10,9 +10,13 @@
 
 namespace ov {
 namespace op {
-namespace v16 {
+namespace internal {
 
-PagedAttention::PagedAttention(const Output<Node>& query,
+PagedAttentionExtension::PagedAttentionExtension(const ov::OutputVector& args) : ov::op::Op(args) {
+    constructor_validate_and_infer_types();
+}
+
+PagedAttentionExtension::PagedAttentionExtension(const Output<Node>& query,
                                const Output<Node>& key,
                                const Output<Node>& value,
                                const Output<Node>& key_cache,
@@ -41,7 +45,7 @@ PagedAttention::PagedAttention(const Output<Node>& query,
     constructor_validate_and_infer_types();
 }
 
-PagedAttention::PagedAttention(const Output<Node>& query,
+PagedAttentionExtension::PagedAttentionExtension(const Output<Node>& query,
                                const Output<Node>& key,
                                const Output<Node>& value,
                                const Output<Node>& key_cache,
@@ -76,8 +80,8 @@ PagedAttention::PagedAttention(const Output<Node>& query,
     constructor_validate_and_infer_types();
 }
 
-void PagedAttention::validate_and_infer_types() {
-    OV_OP_SCOPE(v16_PagedAttention_validate_and_infer_types);
+void PagedAttentionExtension::validate_and_infer_types() {
+    OV_OP_SCOPE(v16_PagedAttentionExtension_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this,
                           get_input_size() == 13 || get_input_size() == 16,
@@ -235,11 +239,11 @@ void PagedAttention::validate_and_infer_types() {
     set_output_type(1, m_output_type[1], {Dimension::dynamic()});
 }
 
-std::shared_ptr<ov::Node> PagedAttention::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    OV_OP_SCOPE(v16_PagedAttention_clone_with_new_inputs);
+std::shared_ptr<ov::Node> PagedAttentionExtension::clone_with_new_inputs(const ov::OutputVector& new_args) const {
+    OV_OP_SCOPE(v16_PagedAttentionExtension_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 13) {
-        return std::make_shared<PagedAttention>(new_args.at(0),
+        return std::make_shared<PagedAttentionExtension>(new_args.at(0),
                                                 new_args.at(1),
                                                 new_args.at(2),
                                                 new_args.at(3),
@@ -253,7 +257,7 @@ std::shared_ptr<ov::Node> PagedAttention::clone_with_new_inputs(const ov::Output
                                                 new_args.at(11),
                                                 new_args.at(12));
     } else if (new_args.size() == 16) {
-        return std::make_shared<PagedAttention>(new_args.at(0),
+        return std::make_shared<PagedAttentionExtension>(new_args.at(0),
                                                 new_args.at(1),
                                                 new_args.at(2),
                                                 new_args.at(3),
@@ -270,19 +274,19 @@ std::shared_ptr<ov::Node> PagedAttention::clone_with_new_inputs(const ov::Output
                                                 new_args.at(14),
                                                 new_args.at(15));
     }
-    OPENVINO_ASSERT(false, "PagedAttention requires either 13 or 16 inputs");
+    OPENVINO_ASSERT(false, "PagedAttentionExtension requires either 13 or 16 inputs");
 }
 
-void PagedAttention::set_out_type(int index, const ov::element::Type& output_type) {
+void PagedAttentionExtension::set_out_type(int index, const ov::element::Type& output_type) {
     OPENVINO_ASSERT(index < 2, "Output index should be 0 or 1, but got " + std::to_string(index));
     m_output_type[index] = output_type;
 }
 
-const ov::element::Type PagedAttention::get_out_type(int index) const {
+const ov::element::Type PagedAttentionExtension::get_out_type(int index) const {
     OPENVINO_ASSERT(index < 2, "Output index should be 0 or 1, but got " + std::to_string(index));
     return m_output_type[index];
 }
 
-}  // namespace v16
+}  // namespace internal
 }  // namespace op
 }  // namespace ov
