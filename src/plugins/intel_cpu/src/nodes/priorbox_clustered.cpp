@@ -109,7 +109,7 @@ void PriorBoxClustered::execute(const dnnl::stream& strm) {
         step_h = static_cast<float>(img_height) / layer_height;
     }
 
-    float* dst_data = getDstDataAtPortAs<float>(0);
+    auto* dst_data = getDstDataAtPortAs<float>(0);
     const auto& out_shape = getChildEdgeAt(0)->getMemory().getShape().getStaticDims();
 
     size_t var_size = variances.size();
