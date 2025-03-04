@@ -15,12 +15,10 @@
 
 #include "openvino/core/shape.hpp"
 
-
-
 namespace ov {
 namespace reference {
 
-namespace paged_attention_utils { 
+namespace paged_attention_utils {
 
 // --- Helper / Unit Functions ---
 
@@ -63,13 +61,13 @@ void apply_rope(T* vec, int32_t head_size, const T* rotation_trig_lut, int32_t t
  * Returns true if a valid cached token was found.
  */
 bool find_cached_token(int32_t seq_idx,
-                              int32_t token_idx,  // token index in cached keys (relative: 0..seq_past_tokens-1)
-                              const int32_t* block_indices,
-                              const int32_t* block_indices_begins,
-                              int32_t num_blocks,
-                              int32_t block_size,
-                              int32_t& block_id,
-                              int32_t& token_offset) {
+                       int32_t token_idx,  // token index in cached keys (relative: 0..seq_past_tokens-1)
+                       const int32_t* block_indices,
+                       const int32_t* block_indices_begins,
+                       int32_t num_blocks,
+                       int32_t block_size,
+                       int32_t& block_id,
+                       int32_t& token_offset) {
     int32_t block_start = block_indices_begins ? block_indices_begins[seq_idx] : 0;
     int32_t block_end = block_indices_begins ? block_indices_begins[seq_idx + 1] : num_blocks;
     int32_t remaining = token_idx;
@@ -89,10 +87,10 @@ bool find_cached_token(int32_t seq_idx,
  * Returns 0 if rotation parameters are not available.
  */
 int get_trig_index(const int32_t* rotation_deltas,
-                          const ov::Shape& rotation_deltas_shape,
-                          int32_t rotated_index,
-                          int32_t token_offset,
-                          int32_t block_size) {
+                   const ov::Shape& rotation_deltas_shape,
+                   int32_t rotated_index,
+                   int32_t token_offset,
+                   int32_t block_size) {
     int trig_index = 0;
     if (rotation_deltas && !rotation_deltas_shape.empty() && rotation_deltas_shape.size() >= 2) {
         if (rotation_deltas_shape[1] == 1ul)
@@ -109,9 +107,9 @@ int get_trig_index(const int32_t* rotation_deltas,
  * and the block_id is found in the rotated list.
  */
 bool should_rotate(int32_t block_id,
-                          const int32_t* rotated_block_indices,
-                          const ov::Shape& rotated_block_indices_shape,
-                          int32_t& rotated_index) {
+                   const int32_t* rotated_block_indices,
+                   const ov::Shape& rotated_block_indices_shape,
+                   int32_t& rotated_index) {
     int32_t num_rotated_blocks = rotated_block_indices_shape.empty() ? 0 : rotated_block_indices_shape[0];
     if (rotated_block_indices && num_rotated_blocks > 0) {
         for (int32_t i = 0; i < num_rotated_blocks; i++) {
