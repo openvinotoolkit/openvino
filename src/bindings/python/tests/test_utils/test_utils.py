@@ -4,10 +4,20 @@
 
 import pytest
 import os
+import numpy as np
 from pathlib import Path
 from openvino.utils import deprecated, get_cmake_path
 from tests.utils.helpers import compare_models, get_relu_model
-
+from openvino.utils.postponed_constant import make_postponed_constant
+from openvino import (
+    Model,
+    op,
+    opset13,
+    Shape,
+    Tensor,
+    Type,
+    serialize
+)
 
 def test_compare_functions():
     try:
@@ -94,3 +104,43 @@ def test_cmake_file_not_found(monkeypatch):
     result = get_cmake_path()
 
     assert result == ""
+
+def test_postponned_constant():
+    class Maker:
+        def __init__(self):
+            self.called = False
+
+        def __call__(self) -> Tensor:
+            self.called = True
+            tensor_data = np.asarray([2, 2, 2, 2], dtype=np.float32).astype(np.float32)
+            print("create tensor")
+            return Tensor(tensor_data)
+
+        def is_called(self):
+            return self.called
+
+
+    def create_model(maker):
+        input_shape = Shape([1, 1, 2, 2])
+        param_node = op.Parameter(Type.f32, input_shape)
+
+        postponned_constant = make_postponed_constant(Type.f32, input_shape, maker)
+
+        add_1 = opset13.add(param_node, postponned_constant)
+
+        const_2 = op.Constant(Type.f32, input_shape, [1, 2, 3, 4])
+        add_2 = opset13.add(add_1, const_2)
+
+        return Model(add_2, [param_node], "test_model")
+
+    maker = Maker()
+    model = create_model(maker)
+    assert maker.is_called() is False
+
+    model_export_file_name = "out.xml"
+    weights_export_file_name = "out.bin"
+    serialize(model, model_export_file_name, weights_export_file_name)
+    assert maker.is_called() is True
+
+    os.remove(model_export_file_name)
+    os.remove(weights_export_file_name)
