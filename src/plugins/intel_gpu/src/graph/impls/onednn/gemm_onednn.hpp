@@ -62,6 +62,11 @@ struct GemmImplementationManager : public ImplementationManager {
             !one_of(out_layout.format.value, supported_formats))
             return false;
 
+        std::vector<size_t> out_transpose_order(std::begin(gemm_prim->output_transpose_order), std::end(gemm_prim->output_transpose_order));
+        if (out_transpose_order == format::traits(static_cast<format::type>(format::bxfy))._order) {
+            return false;
+        }
+
         bool f16f16_case = everyone_is(data_types::f16, in0_dt, in1_dt) && one_of(out_dt, {data_types::f16, data_types::f32, data_types::i8});
         bool u8s8_case = one_of(in0_dt, {data_types::i8, data_types::u8}) &&
                          one_of(in1_dt, {data_types::i8, data_types::u8}) &&
