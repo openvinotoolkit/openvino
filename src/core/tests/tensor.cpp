@@ -95,11 +95,9 @@ TEST(tensor, get_byte_size_u6_not_even_div_by_storage_unit) {
     EXPECT_EQ(tensor.get_byte_size(), 3 + 4 * 3);
 }
 
-template <typename TypeParam>
+template <typename element_type>
 class ParametredOffloadTensorTest : public ::testing::Test {
 public:
-    using path_type = typename std::tuple_element<0, TypeParam>::type;
-    using element_type = typename std::tuple_element<1, TypeParam>::type;
     static constexpr ov::element::Type ov_type = ov::element::from<element_type>();
 
     void SetUp() override {
@@ -116,8 +114,7 @@ public:
                            return static_cast<element_type>(value);
                        });
 
-        file_name_str = ov::test::utils::generateTestFilePrefix();
-        file_name = path_type(file_name_str.begin(), file_name_str.end());
+        file_name = ov::test::utils::generateTestFilePrefix();
     }
 
     void remove_file() {
@@ -127,8 +124,7 @@ public:
 
     ov::PartialShape shape;
     ov::Tensor initial_tensor;
-    path_type file_name;
-    std::string file_name_str;
+    std::filesystem::path file_name;
 };
 
 TYPED_TEST_SUITE_P(ParametredOffloadTensorTest);
@@ -138,7 +134,7 @@ TYPED_TEST_P(ParametredOffloadTensorTest, save_tensor) {
     EXPECT_NO_THROW(save_tensor_data(this->initial_tensor, this->file_name));
     ASSERT_TRUE(std::filesystem::exists(this->file_name));
     {
-        std::ifstream fin(this->file_name_str, std::ios::binary);
+        std::ifstream fin(this->file_name, std::ios::binary);
         std::vector<char> file_data(data_size);
         fin.read(reinterpret_cast<char*>(file_data.data()), data_size);
         EXPECT_EQ(0, memcmp(file_data.data(), this->initial_tensor.data(), data_size));
@@ -149,7 +145,7 @@ TYPED_TEST_P(ParametredOffloadTensorTest, save_tensor) {
 TYPED_TEST_P(ParametredOffloadTensorTest, read_tensor) {
     auto data_size = this->initial_tensor.get_byte_size();
     {
-        std::ofstream fout(this->file_name_str, std::ios::binary);
+        std::ofstream fout(this->file_name, std::ios::binary);
         fout.write(reinterpret_cast<char*>(this->initial_tensor.data()), data_size);
     }
     ASSERT_TRUE(std::filesystem::exists(this->file_name));
@@ -180,53 +176,21 @@ TYPED_TEST_P(ParametredOffloadTensorTest, create_mmaped_tensor) {
 REGISTER_TYPED_TEST_SUITE_P(ParametredOffloadTensorTest, save_tensor, read_tensor, create_mmaped_tensor);
 
 using TypesToTest = ::testing::Types<
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-    std::tuple<std::wstring, float>,
-    std::tuple<std::wstring, double>,
-    std::tuple<std::wstring, int8_t>,
-    std::tuple<std::wstring, int16_t>,
-    std::tuple<std::wstring, int32_t>,
-    std::tuple<std::wstring, int64_t>,
-    std::tuple<std::wstring, uint8_t>,
-    std::tuple<std::wstring, uint16_t>,
-    std::tuple<std::wstring, uint32_t>,
-    std::tuple<std::wstring, uint64_t>,
-    std::tuple<std::wstring, ov::bfloat16>,
-    std::tuple<std::wstring, ov::float8_e4m3>,
-    std::tuple<std::wstring, ov::float8_e5m2>,
-    std::tuple<std::wstring, ov::float4_e2m1>,
-    std::tuple<std::wstring, ov::float8_e8m0>,
-#endif
-    std::tuple<std::string, float>,
-    std::tuple<std::string, double>,
-    std::tuple<std::string, int8_t>,
-    std::tuple<std::string, int16_t>,
-    std::tuple<std::string, int32_t>,
-    std::tuple<std::string, int64_t>,
-    std::tuple<std::string, uint8_t>,
-    std::tuple<std::string, uint16_t>,
-    std::tuple<std::string, uint32_t>,
-    std::tuple<std::string, uint64_t>,
-    std::tuple<std::string, ov::bfloat16>,
-    std::tuple<std::string, ov::float8_e4m3>,
-    std::tuple<std::string, ov::float8_e5m2>,
-    std::tuple<std::string, ov::float4_e2m1>,
-    std::tuple<std::string, ov::float8_e8m0>,
-    std::tuple<std::filesystem::path, float>,
-    std::tuple<std::filesystem::path, double>,
-    std::tuple<std::filesystem::path, int8_t>,
-    std::tuple<std::filesystem::path, int16_t>,
-    std::tuple<std::filesystem::path, int32_t>,
-    std::tuple<std::filesystem::path, int64_t>,
-    std::tuple<std::filesystem::path, uint8_t>,
-    std::tuple<std::filesystem::path, uint16_t>,
-    std::tuple<std::filesystem::path, uint32_t>,
-    std::tuple<std::filesystem::path, uint64_t>,
-    std::tuple<std::filesystem::path, ov::bfloat16>,
-    std::tuple<std::filesystem::path, ov::float8_e4m3>,
-    std::tuple<std::filesystem::path, ov::float8_e5m2>,
-    std::tuple<std::filesystem::path, ov::float4_e2m1>,
-    std::tuple<std::filesystem::path, ov::float8_e8m0>>;
+    float,
+    double,
+    int8_t,
+    int16_t,
+    int32_t,
+    int64_t,
+    uint8_t,
+    uint16_t,
+    uint32_t,
+    uint64_t,
+    ov::bfloat16,
+    ov::float8_e4m3,
+    ov::float8_e5m2,
+    ov::float4_e2m1,
+    ov::float8_e8m0>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(OffloadTensorTest, ParametredOffloadTensorTest, TypesToTest);
 
@@ -334,9 +298,101 @@ TEST_F(FunctionalOffloadTensorTest, read_small_file) {
     ASSERT_TRUE(std::filesystem::exists(file_name));
 
     {
+        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, 0, true), ov::Exception);
+        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, 0, false), ov::Exception);
+    }
+    remove_file();
+}
+
+TEST_F(FunctionalOffloadTensorTest, read_too_big_offset) {
+    auto data_size = initial_tensor.get_byte_size();
+    {
+        std::ofstream fout(file_name, std::ios::binary);
+        fout.write(reinterpret_cast<char*>(initial_tensor.data()), data_size);
+    }
+    ASSERT_TRUE(std::filesystem::exists(file_name));
+
+    {
+        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, 1, true), ov::Exception);
+        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, 1, false), ov::Exception);
+        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size, true), ov::Exception);
+        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size, false), ov::Exception);
+        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size + 1, true), ov::Exception);
+        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size + 1, false), ov::Exception);
+    }
+    remove_file();
+}
+
+TEST_F(FunctionalOffloadTensorTest, read_dynamic_shape) {
+    auto data_size = initial_tensor.get_byte_size();
+    {
+        std::ofstream fout(file_name, std::ios::binary);
+        fout.write(reinterpret_cast<char*>(initial_tensor.data()), data_size);
+    }
+    ASSERT_TRUE(std::filesystem::exists(file_name));
+
+    {
         ov::Tensor tensor;
-        EXPECT_THROW(tensor = read_tensor_data(file_name, ov_type, shape, 0, true), ov::Exception);
-        EXPECT_THROW(tensor = read_tensor_data(file_name, ov_type, shape, 0, false), ov::Exception);
+        EXPECT_NO_THROW(tensor = read_tensor_data(file_name, ov_type, PartialShape{Dimension::dynamic()}, 0, true));
+        EXPECT_NO_THROW(tensor = read_tensor_data(file_name, ov_type, PartialShape{Dimension::dynamic()}, 0, false));
+        EXPECT_EQ(0, memcmp(tensor.data(), initial_tensor.data(), data_size));
+    }
+    {
+        ov::Tensor tensor;
+        EXPECT_NO_THROW(tensor = read_tensor_data(file_name));
+        EXPECT_EQ(0, memcmp(tensor.data(), initial_tensor.data(), data_size));
+    }
+    remove_file();
+}
+
+TEST_F(FunctionalOffloadTensorTest, read_1_dynamic_dimension) {
+    auto data_size = initial_tensor.get_byte_size();
+    {
+        std::ofstream fout(file_name, std::ios::binary);
+        fout.write(reinterpret_cast<char*>(initial_tensor.data()), data_size);
+    }
+    ASSERT_TRUE(std::filesystem::exists(file_name));
+
+    {
+        ov::Tensor tensor;
+        auto shape_with_1_dynamic_dimension = shape;
+        size_t dynamic_dimension_number = shape_with_1_dynamic_dimension.size() - 1;
+        shape_with_1_dynamic_dimension[dynamic_dimension_number] = -1;
+        EXPECT_NO_THROW(tensor = read_tensor_data(file_name, ov_type, shape_with_1_dynamic_dimension, 0, true));
+        EXPECT_EQ(tensor.get_shape()[dynamic_dimension_number], initial_tensor.get_shape()[dynamic_dimension_number]);
+        EXPECT_EQ(0, memcmp(tensor.data(), initial_tensor.data(), data_size));
+    }
+    remove_file();
+}
+
+TEST_F(FunctionalOffloadTensorTest, read_wrong_dynamic_shape) {
+    auto data_size = initial_tensor.get_byte_size();
+    {
+        std::ofstream fout(file_name, std::ios::binary);
+        fout.write(reinterpret_cast<char*>(initial_tensor.data()), data_size);
+    }
+    ASSERT_TRUE(std::filesystem::exists(file_name));
+
+    {
+        auto shape_with_1_dynamic_dimension = shape;
+        shape_with_1_dynamic_dimension[shape_with_1_dynamic_dimension.size() - 1] = -1;
+        shape_with_1_dynamic_dimension[shape_with_1_dynamic_dimension.size() - 2] = 100;
+        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape_with_1_dynamic_dimension, 0, true), ov::Exception);
+        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape_with_1_dynamic_dimension, 0, false), ov::Exception);
+    }
+    remove_file();
+}
+
+TEST_F(FunctionalOffloadTensorTest, read_type_doesnt_fit_file_size) {
+    auto data_size = initial_tensor.get_byte_size();
+    {
+        std::ofstream fout(file_name, std::ios::binary);
+        fout.write(reinterpret_cast<char*>(initial_tensor.data()), data_size - 1);
+    }
+    ASSERT_TRUE(std::filesystem::exists(file_name));
+
+    {
+        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov::element::f32), ov::Exception);
     }
     remove_file();
 }

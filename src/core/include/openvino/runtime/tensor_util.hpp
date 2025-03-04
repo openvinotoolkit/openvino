@@ -16,12 +16,6 @@ namespace ov {
 /// \param tensor Tensor which data will be serialized.
 /// \param file_name Path to the output file
 OPENVINO_API
-void save_tensor_data(const Tensor& tensor, const std::string& file_name);
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-OPENVINO_API
-void save_tensor_data(const Tensor& tensor, const std::wstring& file_name);
-#endif
-OPENVINO_API
 void save_tensor_data(const Tensor& tensor, const std::filesystem::path& file_name);
 
 /// \brief Read a tensor content from a file. Only raw data is loaded.
@@ -36,21 +30,6 @@ void save_tensor_data(const Tensor& tensor, const std::filesystem::path& file_na
 /// \param mmap Use mmap that postpones real read from file until data is accessed. If mmap is used, the file
 ///             should not be modified until returned tensor is destroyed.
 OPENVINO_API
-Tensor read_tensor_data(const std::string& file_name,
-                        const element::Type& element_type = element::u8,
-                        const PartialShape& shape = PartialShape{Dimension::dynamic()},
-                        std::size_t offset = 0,
-                        bool mmap = true);
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-OPENVINO_API
-Tensor read_tensor_data(const std::wstring& file_name,
-                        const element::Type& element_type = element::u8,
-                        const PartialShape& shape = PartialShape{Dimension::dynamic()},
-                        std::size_t offset = 0,
-                        bool mmap = true);
-#endif
-OPENVINO_API
 Tensor read_tensor_data(const std::filesystem::path& file_name,
                         const element::Type& element_type = element::u8,
                         const PartialShape& shape = PartialShape{Dimension::dynamic()},
@@ -64,12 +43,6 @@ Tensor read_tensor_data(const std::filesystem::path& file_name,
 /// \param offset Read file starting from specified offset. Default
 /// is 0. The remining part of the file should contain enough bytes to satisfy tensor size.
 OPENVINO_API
-void read_tensor_data(const std::string& file_name, Tensor& tensor, std::size_t offset = 0);
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-OPENVINO_API
-void read_tensor_data(const std::wstring& file_name, Tensor& tensor, std::size_t offset = 0);
-#endif
-OPENVINO_API
 void read_tensor_data(const std::filesystem::path& file_name, Tensor& tensor, std::size_t offset = 0);
 
 /// \brief Save given tensor data into a temporary file. Read the content from the file to a new tensor using mmap.
@@ -77,12 +50,6 @@ void read_tensor_data(const std::filesystem::path& file_name, Tensor& tensor, st
 /// \param tensor Tensor to read data to. Tensor should have correct element_type and shape set that is used to
 /// \param file_name Path to the temporary file
 
-OPENVINO_API
-Tensor create_mmaped_tensor(const Tensor& tensor, const std::string& file_name);
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-OPENVINO_API
-Tensor create_mmaped_tensor(const Tensor& tensor, const std::wstring& file_name);
-#endif
 OPENVINO_API
 Tensor create_mmaped_tensor(const Tensor& tensor, const std::filesystem::path& file_name);
 

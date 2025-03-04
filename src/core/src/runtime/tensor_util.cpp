@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 
+#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/file_path.hpp"
@@ -41,18 +42,10 @@ public:
 
 void save_tensor_data(const ov::Tensor& tensor, const std::filesystem::path& file_name) {
     OPENVINO_ASSERT(tensor.get_element_type() != ov::element::string);
-    const char* data = reinterpret_cast<char*>(tensor.data());
-    std::ofstream file(file_name, std::ios::binary);
-    file.write(data, tensor.get_byte_size());
+    const char* data = reinterpret_cast<const char*>(tensor.data());
+    std::ofstream fout(file_name, std::ios::binary);
+    fout.write(data, tensor.get_byte_size());
 }
-void save_tensor_data(const ov::Tensor& tensor, const std::string& file_name) {
-    save_tensor_data(tensor, std::filesystem::path(file_name));
-}
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-void save_tensor_data(const Tensor& tensor, const std::wstring& file_name) {
-    save_tensor_data(tensor, std::filesystem::path(file_name));
-}
-#endif
 
 void read_tensor_data(const std::filesystem::path& file_name, Tensor& tensor, size_t offset) {
     OPENVINO_ASSERT(tensor.get_element_type() != ov::element::string);
@@ -66,14 +59,47 @@ void read_tensor_data(const std::filesystem::path& file_name, Tensor& tensor, si
                     "bytes from ",
                     file_name);
 }
-void read_tensor_data(const std::string& file_name, Tensor& tensor, size_t offset) {
-    read_tensor_data(std::filesystem::path(file_name), tensor, offset);
+
+namespace {
+    size_t get_element_count(const element::Type& type, const size_t mem_size) {
+        if (ov::element::is_split_bit_type(type)) {
+            constexpr size_t storage_unit_size = 24;
+            size_t integer_number_bytes = mem_size * 8 / storage_unit_size;
+            return integer_number_bytes / type.bitwidth();
+        } else {
+            return mem_size * 8 / type.bitwidth();
+        }
+    }
+    ov::Shape calc_static_shape_for_file(const std::filesystem::path& file_name, const element::Type& element_type, const PartialShape& shape, size_t offset) {
+        auto partial_shape = shape;
+        auto rank = partial_shape.rank();
+        OPENVINO_ASSERT(rank.is_static(), "Rank cannot be dynamic");
+        std::vector<size_t> dynamic_dimension_numbers;
+        size_t slice_size = 1;
+        for (size_t id = 0; id < partial_shape.size(); ++id) {
+            if (partial_shape[id].is_dynamic()) {
+                dynamic_dimension_numbers.push_back(id);
+            } else {
+                slice_size *= partial_shape[id].get_min_length();
+            }
+        }
+        OPENVINO_ASSERT(dynamic_dimension_numbers.size() == 1, "Only dynamic PartialShape with 1 dynamic dimension is supported");
+        auto& dynamic_dimension = partial_shape[dynamic_dimension_numbers[0]];
+
+        auto file_size = std::filesystem::file_size(file_name);
+        OPENVINO_ASSERT(file_size > offset, "Offset is bigger than size of file to read.");
+        auto elements_to_read = get_element_count(element_type, file_size - offset);
+
+        auto new_dimension_size = elements_to_read / slice_size;
+        OPENVINO_ASSERT(new_dimension_size * slice_size == elements_to_read, "Cannot fit file size into requested PartialShape");
+        OPENVINO_ASSERT(static_cast<int>(new_dimension_size) >= dynamic_dimension.get_min_length() &&
+                        static_cast<int>(new_dimension_size) <= dynamic_dimension.get_max_length(),
+                        "Cannot fit file size into requested PartialShape");
+
+        dynamic_dimension = Dimension(new_dimension_size);
+        return partial_shape.get_shape();
+    }
 }
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-void read_tensor_data(const std::wstring& file_name, Tensor& tensor, size_t offset) {
-    read_tensor_data(std::filesystem::path(file_name), tensor, offset);
-}
-#endif
 
 Tensor read_tensor_data(const std::filesystem::path& file_name,
                         const element::Type& element_type,
@@ -81,35 +107,25 @@ Tensor read_tensor_data(const std::filesystem::path& file_name,
                         size_t offset,
                         bool mmap) {
     OPENVINO_ASSERT(element_type != ov::element::string);
-    OPENVINO_ASSERT(shape.is_static(), "Cannot read dynamic shape");
+    ov::Shape static_shape;
+    if (shape.is_dynamic()) {
+        static_shape = calc_static_shape_for_file(file_name, element_type, shape, offset);
+    } else {
+        static_shape = shape.get_shape();
+    }
+
     if (mmap) {
         auto mapped_memory = ov::load_mmap_object(file_name);
         auto mmaped = std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data() + offset,
                                                                                         mapped_memory->size() - offset,
                                                                                         mapped_memory);
-        return Tensor(element_type, shape.get_shape(), StaticBufferAllocator(mmaped));
+        return Tensor(element_type, static_shape, StaticBufferAllocator(mmaped));
     } else {
-        ov::Tensor tensor(element_type, shape.get_shape());
+        ov::Tensor tensor(element_type, static_shape);
         read_tensor_data(file_name, tensor, offset);
         return tensor;
     }
 }
-Tensor read_tensor_data(const std::string& file_name,
-                        const element::Type& element_type,
-                        const PartialShape& shape,
-                        size_t offset,
-                        bool mmap) {
-    return read_tensor_data(std::filesystem::path(file_name), element_type, shape, offset, mmap);
-}
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-Tensor read_tensor_data(const std::wstring& file_name,
-                        const element::Type& element_type,
-                        const PartialShape& shape,
-                        size_t offset,
-                        bool mmap) {
-    return read_tensor_data(std::filesystem::path(file_name), element_type, shape, offset, mmap);
-}
-#endif
 
 namespace {
 Tensor read_tensor_data_from_temporary_file(const std::filesystem::path& file_name,
@@ -134,12 +150,4 @@ Tensor create_mmaped_tensor(const Tensor& tensor, const std::filesystem::path& f
     save_tensor_data(tensor, file_name);
     return read_tensor_data_from_temporary_file(file_name, tensor.get_element_type(), tensor.get_shape());
 }
-Tensor create_mmaped_tensor(const Tensor& tensor, const std::string& file_name) {
-    return create_mmaped_tensor(tensor, std::filesystem::path(file_name));
-}
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-Tensor create_mmaped_tensor(const Tensor& tensor, const std::wstring& file_name) {
-    return create_mmaped_tensor(tensor, std::filesystem::path(file_name));
-}
-#endif
 }  // namespace ov
