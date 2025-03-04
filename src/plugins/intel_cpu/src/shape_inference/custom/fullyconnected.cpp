@@ -21,7 +21,7 @@ Result FCShapeInfer::infer(const std::vector<std::reference_wrapper<const Vector
     // NC           CoC       NCo
     VectorDims outputShape(out_rank, 1);
     // set Co
-    outputShape.back() = std::accumulate(weightShape.begin(), weightShape.end() - 1, 1, std::multiplies<Dim>());
+    outputShape.back() = std::accumulate(weightShape.begin(), weightShape.end() - 1, 1, std::multiplies<>());
     // set batch dims
     size_t batchRank = activationRank - channelRank;
     size_t startIdx = out_rank - batchRank - 1;
