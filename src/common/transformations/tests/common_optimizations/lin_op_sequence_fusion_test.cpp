@@ -175,7 +175,7 @@ TEST_F(TransformationTestsF, MulAddAddMulFusion) {
     }
 }
 
-TEST_F(TransformationTestsF, AddAddAddFusionNofp64) {
+TEST_F(TransformationTestsF, AddAddAddFusionF64) {
     {
         auto input = std::make_shared<opset3::Parameter>(element::f64, Shape{1, 128, 3072});
         auto add1_const = opset3::Constant::create(element::f64, Shape{128, 1}, {2});
