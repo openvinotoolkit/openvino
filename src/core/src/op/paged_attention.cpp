@@ -271,7 +271,6 @@ std::shared_ptr<ov::Node> PagedAttention::clone_with_new_inputs(const ov::Output
                                                 new_args.at(15));
     }
     OPENVINO_ASSERT(false, "PagedAttention requires either 13 or 16 inputs");
-
 }
 
 void PagedAttention::set_out_type(int index, const ov::element::Type& output_type) {
