@@ -228,7 +228,6 @@ sdpa_config_t *choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
     }
     return nullptr;
 }
-
 }  // namespace
 
 const bool kq_common_scales = false;
