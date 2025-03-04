@@ -14,7 +14,7 @@ OutputVector translate_ravel(const NodeContext& context) {
     auto input = context.get_input(0);
     
     // Create shape tensor [-1] for flattening
-    auto shape = ov::op::v0::Constant::create(element::i64, Shape{1}, {-1});
+    auto shape = ov::op::v0::Constant::create(element::i32, Shape{1}, {-1});
     
     // Reshape input tensor to a 1D tensor
     return {std::make_shared<ov::op::v1::Reshape>(input, shape, false)};
