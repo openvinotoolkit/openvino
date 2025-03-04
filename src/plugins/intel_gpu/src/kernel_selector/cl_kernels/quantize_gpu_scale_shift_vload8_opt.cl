@@ -6,7 +6,7 @@
 #define INPUT0_VEC_TYPE  MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)
 #define INPUT1_VEC_TYPE  MAKE_VECTOR_TYPE(INPUT1_TYPE, 8)
 #define OUTPUT_VEC_TYPE  MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8)
-
+#define TO_INPUT1_TYPE              CAT(convert_, INPUT1_TYPE)
 #define TO_VECTOR_TYPE_IMPL_8(elem_type)  CAT(convert_##elem_type, 8)
 #define TO_VECTOR_TYPE(elem_type, size)   CAT(TO_VECTOR_TYPE_IMPL_, size)(elem_type)
 #define TO_VECTOR_TYPE_IMPL_SAT_8(elem_type)  CAT(convert_##elem_type, 8##_sat)
@@ -85,10 +85,6 @@ KERNEL(quantize_gpu_scale_shift_vload8_opt)(OPTIONAL_SHAPE_INFO_ARG
     VLOAD_PARTIAL(8)(in0, global_id, input);
 #endif
     OUTPUT_VEC_TYPE res;
-    const INPUT1_VEC_TYPE vscale = IN_SCALE_VAL;
-    const INPUT1_VEC_TYPE vshift = IN_SHIFT_VAL;
-    const INPUT1_VEC_TYPE ovscale = OUT_SCALE_VAL;
-    const INPUT1_VEC_TYPE ovshift = OUT_SHIFT_VAL;
 #if HAS_CLAMP
 #if CAN_USE_OUTPUT_RANGE
     INPUT1_TYPE output_low_val   = OUT_LO_VAL;
@@ -106,9 +102,9 @@ KERNEL(quantize_gpu_scale_shift_vload8_opt)(OPTIONAL_SHAPE_INFO_ARG
 #if CAN_USE_OUTPUT_RANGE
 
 #if HAS_PRE_SHIFT
-    INPUT1_VEC_TYPE val = TO_VECTOR_TYPE(INPUT1_TYPE, 8)(in0) * vscale + vshift;
+    INPUT1_VEC_TYPE val = TO_VECTOR_TYPE(INPUT1_TYPE, 8)(in0) * TO_INPUT1_TYPE(IN_SCALE_VAL) + TO_INPUT1_TYPE(IN_SHIFT_VAL);
 #else
-    INPUT1_VEC_TYPE val = TO_VECTOR_TYPE(INPUT1_TYPE, 8)(in0) * vscale;
+    INPUT1_VEC_TYPE val = TO_VECTOR_TYPE(INPUT1_TYPE, 8)(in0) * TO_INPUT1_TYPE(IN_SCALE_VAL);
 #endif
 
 #if HAS_OUTPUT_RANGE_ROUND
@@ -116,11 +112,11 @@ KERNEL(quantize_gpu_scale_shift_vload8_opt)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if HAS_POST_SCALE
-    val *= ovscale;
+    val *= TO_INPUT1_TYPE(OUT_SCALE_VAL);
 #endif
 
 #if HAS_POST_SHIFT
-    val += ovshift;
+    val += TO_INPUT1_TYPE(OUT_SHIFT_VAL);
 #endif
 
 #if HAS_CLAMP
@@ -146,17 +142,17 @@ KERNEL(quantize_gpu_scale_shift_vload8_opt)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if HAS_PRE_SHIFT
-    val = round(val * vscale + vshift);
+    val = round(val * TO_INPUT1_TYPE(IN_SCALE_VAL) + TO_INPUT1_TYPE(IN_SHIFT_VAL));
 #else
-    val = round(val * vscale);
+    val = round(val * TO_INPUT1_TYPE(IN_SCALE_VAL));
 #endif
 
 #if HAS_POST_SCALE
-    val *= ovscale;
+    val *= TO_INPUT1_TYPE(OUT_SCALE_VAL);
 #endif
 
 #if HAS_POST_SHIFT
-    val += ovshift;
+    val += TO_INPUT1_TYPE(OUT_SHIFT_VAL);
 #endif
 
 #endif // CAN_USE_OUTPUT_RANGE

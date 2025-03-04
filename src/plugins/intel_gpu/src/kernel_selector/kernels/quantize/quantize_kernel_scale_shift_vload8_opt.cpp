@@ -109,7 +109,8 @@ bool QuantizeKernelScaleShift_vload8::Validate(const Params& p) const {
     if (!params.per_tensor_input_range || !params.per_tensor_output_range || !params.per_tensor_input_scale ||
         !params.per_tensor_output_scale || !params.per_tensor_output_shift ||
         (params.has_pre_shift && !params.per_tensor_input_shift) ||
-        params.outputs[0].GetLayout() != params.inputs[0].GetLayout())
+        params.outputs[0].GetLayout() != params.inputs[0].GetLayout() ||
+        params.inputs[1].GetDType() != params.inputs[3].GetDType())
         return false;
 
     // for blocked format, if extra padding exist in a block, will be opt in a seprate kernel
