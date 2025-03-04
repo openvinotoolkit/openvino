@@ -39,7 +39,6 @@ static bool chatglm_validate_reshape_symbols(PatternValidator& validator) {
     if ((A == -1 && B == head_cnt && C == 1) ||  // ChatGLM4
         (A == 1 && B == -1 && C == head_cnt) ||  // ChatGLM3
         (A == 0 && B == 0 && C == 0)) {          // ChatGLM nano
-        std::cout << A << " " << B << " " << C << std::endl;
         return true;
     }
 
