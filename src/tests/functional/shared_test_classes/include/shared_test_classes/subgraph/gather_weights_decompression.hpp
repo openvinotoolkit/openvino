@@ -57,5 +57,33 @@ protected:
     void SetUp() override;
 };
 
+/*
+ *    Weights(FP16/BF16)
+ *          |
+ *    Convert(F32) Indices(I32)
+ *          \      /
+ *           Gather
+ */
+using GatherWeightsDecompressionWithoutScaleParams = std::tuple<std::string,  // Device name
+                                                                GatherDecompressionShapeParams,
+                                                                ov::element::Type,   // data type
+                                                                ov::element::Type>;  // output type
+
+class GatherWeightsDecompressionWithoutScale
+    : public testing::WithParamInterface<GatherWeightsDecompressionWithoutScaleParams>,
+      virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string get_test_case_name(testing::TestParamInfo<GatherWeightsDecompressionWithoutScaleParams> obj);
+
+protected:
+    std::shared_ptr<ov::Model> init_subgraph(const ov::Shape& data_shape,
+                                             const ov::PartialShape& indices_shape,
+                                             const int axis,
+                                             const int64_t batch_dims,
+                                             const ov::element::Type data_precision,
+                                             const ov::element::Type output_precision);
+    void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override;
+    void SetUp() override;
+};
 }  // namespace test
 }  // namespace ov
