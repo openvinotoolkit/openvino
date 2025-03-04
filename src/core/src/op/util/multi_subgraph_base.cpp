@@ -187,3 +187,8 @@ ov::op::util::MultiSubGraphOp::OutputMap ov::op::util::MultiSubGraphOp::get_mapp
 
     return outputs_map;
 }
+
+ov::AttributeAdapter<
+    std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>>>::~AttributeAdapter() = default;
+ov::AttributeAdapter<
+    std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>>>::~AttributeAdapter() = default;

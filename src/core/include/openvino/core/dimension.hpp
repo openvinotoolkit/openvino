@@ -212,5 +212,6 @@ public:
     AttributeAdapter(ov::Dimension& value) : DirectValueAccessor<ov::Dimension>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::Dimension>");
+    ~AttributeAdapter() override;
 };
 }  // namespace ov

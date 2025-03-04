@@ -77,6 +77,7 @@ class OPENVINO_API AttributeAdapter<op::v15::ScatterNDUpdate::Reduction>
 public:
     AttributeAdapter(op::v15::ScatterNDUpdate::Reduction& value)
         : EnumAttributeAdapterBase<op::v15::ScatterNDUpdate::Reduction>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<v15::ScatterNDUpdate::Reduction>");
 };

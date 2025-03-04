@@ -117,4 +117,7 @@ OPENVINO_API EnumNames<op::v8::MatrixNms::SortResultType>& EnumNames<op::v8::Mat
                                                       {"none", op::v8::MatrixNms::SortResultType::NONE}});
     return enum_names;
 }
+
+AttributeAdapter<op::v8::MatrixNms::DecayFunction>::~AttributeAdapter() = default;
+AttributeAdapter<op::v8::MatrixNms::SortResultType>::~AttributeAdapter() = default;
 }  // namespace ov

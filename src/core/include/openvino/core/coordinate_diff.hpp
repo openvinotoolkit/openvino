@@ -41,14 +41,13 @@ std::ostream& operator<<(std::ostream& s, const CoordinateDiff& coordinate_diff)
 
 template <>
 class OPENVINO_API AttributeAdapter<CoordinateDiff>
-    : public IndirectVectorValueAccessor<CoordinateDiff, std::vector<int64_t>>
-
-{
+    : public IndirectVectorValueAccessor<CoordinateDiff, std::vector<int64_t>> {
 public:
     AttributeAdapter(CoordinateDiff& value)
         : IndirectVectorValueAccessor<CoordinateDiff, std::vector<int64_t>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<CoordinateDiff>");
+    ~AttributeAdapter() override;
 };
 
 }  // namespace ov

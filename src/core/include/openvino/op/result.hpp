@@ -103,6 +103,7 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     OPENVINO_RTTI("AttributeAdapter<ResultVector>");
+    ~AttributeAdapter() override;
 
 protected:
     ResultVector& m_ref;
