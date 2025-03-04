@@ -4,8 +4,6 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/maximum.hpp"
-#include "openvino/op/minimum.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/is_nan.hpp"
@@ -38,9 +36,10 @@ OutputVector translate_nan_to_num_fx(const NodeContext& context) {
         neginf_replacement = context.get_input(3);
     }
 
-    auto is_nan = context.mark_node(std::make_shared<v1::Equal>(x, v0::Constant::create(element::f32, Shape{}, {std::nanf("")})));
-    auto is_posinf = context.mark_node(std::make_shared<v1::Equal>(x, v0::Constant::create(element::f32, Shape{}, {std::numeric_limits<float>::infinity()})));
-    auto is_neginf = context.mark_node(std::make_shared<v1::Equal>(x, v0::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()})));
+    auto is_nan = context.mark_node(std::make_shared<v10::IsNan>(x));
+    auto is_posinf = context.mark_node(std::make_shared<v10::IsInf>(x, v10::IsInf::Attributes(/*detect_negative=*/false, /*detect_positive=*/true)));
+    auto is_neginf = context.mark_node(std::make_shared<v10::IsInf>(x, v10::IsInf::Attributes(/*detect_negative=*/true, /*detect_positive=*/false)));
+
 
     auto replaced_nan = context.mark_node(std::make_shared<v1::Select>(is_nan, nan_replacement, x));
     auto replaced_posinf = context.mark_node(std::make_shared<v1::Select>(is_posinf, posinf_replacement, replaced_nan));
