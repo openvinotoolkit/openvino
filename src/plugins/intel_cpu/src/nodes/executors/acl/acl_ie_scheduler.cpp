@@ -7,9 +7,8 @@
 #include "arm_compute/core/CPP/ICPPKernel.h"
 #include "arm_compute/core/Error.h"
 #include "arm_compute/core/Helpers.h"
-#include "src/runtime/SchedulerUtils.h"
-
 #include "openvino/core/parallel.hpp"
+#include "src/runtime/SchedulerUtils.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -30,26 +29,24 @@ void ACLScheduler::schedule_custom(ICPPKernel* kernel, const Hints& hints, const
         const std::size_t m = max_window.num_iterations(Window::DimX);
         const std::size_t n = max_window.num_iterations(Window::DimY);
         const unsigned int num_iterations = m * n;
-        #if OV_THREAD == OV_THREAD_OMP
-            // In OpenMP case parallel_get_num_threads() method returns 1 here because it's called outside parallel section
-            // This is the reason why this method isn't used to initialize _num_threads
-            const auto num_threads = num_iterations;
-        #else
-            const auto num_threads = std::min(num_iterations, static_cast<unsigned int>(parallel_get_num_threads()));
-        #endif
+#if OV_THREAD == OV_THREAD_OMP
+        // In OpenMP case parallel_get_num_threads() method returns 1 here because it's called outside parallel section
+        // This is the reason why this method isn't used to initialize _num_threads
+        const auto num_threads = num_iterations;
+#else
+        const auto num_threads = std::min(num_iterations, static_cast<unsigned int>(parallel_get_num_threads()));
+#endif
 
         unsigned m_threads, n_threads;
         std::tie(m_threads, n_threads) = scheduler_utils::split_2d(num_threads, m, n);
         unsigned int max_parallelism = std::min<unsigned int>(m, m_threads) * std::min<unsigned int>(n, n_threads);
-        if (max_parallelism < num_threads)
-        {
+        if (max_parallelism < num_threads) {
             m_threads = std::min<unsigned int>(m, m_threads);
             n_threads = std::min<unsigned int>(n, n_threads);
         }
 
         ov::parallel_for2d(m_threads, n_threads, [&](int mi, int ni) {
-            Window win = max_window.split_window(Window::DimX, mi, m_threads)
-                                   .split_window(Window::DimY, ni, n_threads);
+            Window win = max_window.split_window(Window::DimX, mi, m_threads).split_window(Window::DimY, ni, n_threads);
             win.validate();
             Window thread_locator;
             thread_locator.set(Window::DimX, Window::Dimension(mi, m_threads));
@@ -62,13 +59,13 @@ void ACLScheduler::schedule_custom(ICPPKernel* kernel, const Hints& hints, const
         });
     } else {
         const unsigned int num_iterations = max_window.num_iterations(hints.split_dimension());
-        #if OV_THREAD == OV_THREAD_OMP
-            // In OpenMP case parallel_get_num_threads() method returns 1 here because it's called outside parallel section
-            // This is the reason why this method isn't used to initialize _num_threads
-            const auto _num_threads = num_iterations;
-        #else
-            const auto _num_threads = std::min(num_iterations, static_cast<unsigned int>(parallel_get_num_threads()));
-        #endif
+#if OV_THREAD == OV_THREAD_OMP
+        // In OpenMP case parallel_get_num_threads() method returns 1 here because it's called outside parallel section
+        // This is the reason why this method isn't used to initialize _num_threads
+        const auto _num_threads = num_iterations;
+#else
+        const auto _num_threads = std::min(num_iterations, static_cast<unsigned int>(parallel_get_num_threads()));
+#endif
         std::function<void(const Window& window, const ThreadInfo& info)> main_run;
         if (tensors.empty()) {
             main_run = [&](const Window& window, const ThreadInfo& info) {
