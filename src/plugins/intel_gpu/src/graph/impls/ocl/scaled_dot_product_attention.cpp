@@ -71,9 +71,9 @@ protected:
         //    _kernels_data[1] - sdpa_opt (indirect)
         //   => use internal buffers from [1] kernel
         size_t kernel_idx = _kernels_data.size();
-        if (_kernels_data.size() >= 1 && !_kernels_data[0].internalBufferSizes.empty()) {
+        if (_kernels_data.size() >= 1 && !_kernels_data[0].internalBuffers.empty()) {
             kernel_idx = 0;
-        } else if (_kernels_data.size() >= 2 && !_kernels_data[1].internalBufferSizes.empty()) {
+        } else if (_kernels_data.size() >= 2 && !_kernels_data[1].internalBuffers.empty()) {
             kernel_idx = 1;
         }
 
@@ -81,9 +81,9 @@ protected:
         if (kernel_idx < _kernels_data.size()) {
             auto dtype = from_data_type(_kernels_data[kernel_idx].internalBufferDataType);
             const auto bpp = data_type_traits::size_of(dtype);
-            for (auto size : _kernels_data[kernel_idx].internalBufferSizes) {
+            for (const auto& buffer : _kernels_data[kernel_idx].internalBuffers) {
                 layout inbuf_layout = {dtype, format::bfyx, // simple linear format (flattern to x channel)
-                                        {1, 1, 1, (tensor::value_type)(size / bpp)}};
+                                        {1, 1, 1, (tensor::value_type)(buffer.byte_count / bpp)}};
                 layouts.push_back(inbuf_layout);
             }
         }
@@ -249,12 +249,12 @@ protected:
         const auto value_shape = transpose_pshape(impl_param.get_input_layout(2).get_partial_shape(), desc->input_v_transpose_order);
 
         OPENVINO_ASSERT(key_shape == value_shape, "[GPU] The shapes of key and value inputs are expected to be equal");
-        for (size_t i = 0; i < query_shape.size(); ++i) {
-            if (query_shape[i].is_static() && key_shape[i].is_static() && value_shape[i].is_static()) {
-                if (query_shape[i].get_length() > key_shape[i].get_length()) {
-                    config.broadcast_axis = desc->input_k_transpose_order[i];
-                    config.group_size = query_shape[i].get_length() / key_shape[i].get_length();
-                }
+
+        const auto num_heads_dim = 1;
+        if (query_shape[num_heads_dim].is_static() && key_shape[num_heads_dim].is_static() && value_shape[num_heads_dim].is_static()) {
+            if (query_shape[num_heads_dim].get_length() > key_shape[num_heads_dim].get_length()) {
+                config.broadcast_axis = desc->input_k_transpose_order[num_heads_dim];
+                config.group_size = query_shape[num_heads_dim].get_length() / key_shape[num_heads_dim].get_length();
             }
         }
 

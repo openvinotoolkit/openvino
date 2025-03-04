@@ -17,9 +17,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool Roll::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -45,16 +43,18 @@ Roll::Roll(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
         const auto& dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
 
         if (std::find(supportedPrecisionSizes.begin(), supportedPrecisionSizes.end(), dataPrecision.size()) ==
-            supportedPrecisionSizes.end())
+            supportedPrecisionSizes.end()) {
             THROW_CPU_NODE_ERR("as unsupported precision: ", dataPrecision.get_type_name());
+        }
 
         const auto dataRank = getInputShapeAtPort(DATA_INDEX).getRank();
         if (dataRank < 1) {
             THROW_CPU_NODE_ERR("doesn't support 'data' input tensor with rank: ", dataRank);
         }
 
-        if (dataRank != getOutputShapeAtPort(0).getRank())
+        if (dataRank != getOutputShapeAtPort(0).getRank()) {
             THROW_CPU_NODE_ERR("has input/output rank mismatch");
+        }
 
         /* Axes */
         const auto& axesTensorPrec = getOriginalInputPrecisionAtPort(AXES_INDEX);
@@ -85,8 +85,9 @@ Roll::Roll(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
 void Roll::getSupportedDescriptors() {}
 
 void Roll::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
 
@@ -102,16 +103,21 @@ void Roll::prepareParams() {
     const auto& axesMemPtr = getSrcMemoryAtPort(AXES_INDEX);
     const auto& dstMemPtr = getDstMemoryAtPort(0);
 
-    if (!dataMemPtr || !dataMemPtr->isDefined())
+    if (!dataMemPtr || !dataMemPtr->isDefined()) {
         THROW_CPU_NODE_ERR("has undefined input memory of 'data'");
-    if (!shiftMemPtr || !shiftMemPtr->isDefined())
+    }
+    if (!shiftMemPtr || !shiftMemPtr->isDefined()) {
         THROW_CPU_NODE_ERR("has undefined input memory of 'shift'");
-    if (!axesMemPtr || !axesMemPtr->isDefined())
+    }
+    if (!axesMemPtr || !axesMemPtr->isDefined()) {
         THROW_CPU_NODE_ERR("has undefined input memory of 'axes'");
-    if (!dstMemPtr || !dstMemPtr->isDefined())
+    }
+    if (!dstMemPtr || !dstMemPtr->isDefined()) {
         THROW_CPU_NODE_ERR("has undefined output memory");
-    if (getSelectedPrimitiveDescriptor() == nullptr)
+    }
+    if (getSelectedPrimitiveDescriptor() == nullptr) {
         THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor");
+    }
 
     const VectorDims& dataDims = dataMemPtr->getStaticDims();
     const VectorDims& shiftDims = shiftMemPtr->getStaticDims();
@@ -126,8 +132,9 @@ void Roll::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 void Roll::execute(const dnnl::stream& strm) {
-    if (!execPtr)
+    if (!execPtr) {
         THROW_CPU_NODE_ERR("has no compiled executor");
+    }
 
     const auto dataPrecision = getParentEdgeAt(DATA_INDEX)->getMemory().getDesc().getPrecision();
     const auto& dataTypeSize = dataPrecision.size();
@@ -164,15 +171,17 @@ Roll::RollExecutor::RollExecutor(const VectorDims& dataDims,
                                  const VectorDims& dstDims)
     : numOfDims{dataDims.size()},
       blockSize{dataDims.back()},
-      numOfIterations{std::accumulate(dataDims.cbegin(), dataDims.cend(), 1ul, std::multiplies<size_t>()) / blockSize},
+      numOfIterations{std::accumulate(dataDims.cbegin(), dataDims.cend(), 1ul, std::multiplies<>()) / blockSize},
       axesLength{axesDims[0]} {
     for (size_t i = 0; i < dataDims.size(); ++i) {
-        if (dataDims[i] != dstDims[i])
+        if (dataDims[i] != dstDims[i]) {
             OPENVINO_THROW("Input/output tensors dimensions mismatch");
+        }
     }
 
-    if (shiftDims[0] != axesDims[0])
+    if (shiftDims[0] != axesDims[0]) {
         OPENVINO_THROW("'shift' and 'axes' dimensions mismatch");
+    }
 }
 
 template <typename T>
@@ -219,11 +228,13 @@ void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr,
                 calculateShiftOffset(rightBlockStartOffset, shiftsVector[dim], strides[dim], dataDims[dim]);
         }
 
-        if (leftBlockSize > 0)
+        if (leftBlockSize > 0) {
             cpu_memcpy(dst + leftBlockStartOffset, data + start, leftBlockSize * elementSize);
+        }
 
-        if (rightBlockSize > 0)
+        if (rightBlockSize > 0) {
             cpu_memcpy(dst + rightBlockStartOffset, data + (start + leftBlockSize), rightBlockSize * elementSize);
+        }
     });
 }
 
@@ -233,6 +244,4 @@ bool Roll::created() const {
 
 constexpr std::array<size_t, 3> Roll::supportedPrecisionSizes;
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

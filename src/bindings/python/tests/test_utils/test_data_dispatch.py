@@ -195,7 +195,7 @@ class FakeTensor():
     def __init__(self, array):
         self.array = array
 
-    def __array__(self):
+    def __array__(self, dtype=None, copy=None):
         return self.array
 
 

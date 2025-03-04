@@ -7,9 +7,7 @@
 #include "openvino/op/search_sorted.hpp"
 #include "openvino/reference/search_sorted.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 SearchSorted::SearchSorted(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
@@ -37,8 +35,9 @@ void SearchSorted::getSupportedDescriptors() {
 }
 
 void SearchSorted::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     ov::element::Type inputPrec = getOriginalInputPrecisionAtPort(0);
     ov::element::Type outputPrec = getOriginalOutputPrecisionAtPort(0);
@@ -122,6 +121,4 @@ void SearchSorted::execute(const dnnl::stream& strm) {
 
 #undef CASE
 }
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

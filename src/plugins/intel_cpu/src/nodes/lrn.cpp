@@ -15,9 +15,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "openvino/opsets/opset1.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 struct LrnKey {
@@ -30,7 +28,7 @@ struct LrnKey {
     float beta;
     dnnl::primitive_attr attr;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const LrnKey& rhs) const;
 };
 
@@ -86,23 +84,23 @@ bool Lrn::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
         const auto dataRank = dataDims.size();
         if (axes.size() == 1 && axes[0] == 1) {
             return true;
-        } else {
-            std::vector<bool> norm(dataRank, false);
-            for (auto& axis : axes) {
-                if (axis < 0 || axis >= static_cast<int64_t>(dataRank)) {
-                    errorMessage = "Has incorrect reduction axis: " + std::to_string(axis);
-                    return false;
-                }
-                norm[axis] = true;
+        }
+        std::vector<bool> norm(dataRank, false);
+        for (auto& axis : axes) {
+            if (axis < 0 || axis >= static_cast<int64_t>(dataRank)) {
+                errorMessage = "Has incorrect reduction axis: " + std::to_string(axis);
+                return false;
             }
+            norm[axis] = true;
+        }
 
-            for (size_t i = 2; i < norm.size(); ++i) {
-                if (!norm[i]) {
-                    errorMessage = "Supports only across channels or across spatial reduction";
-                    return false;
-                }
+        for (size_t i = 2; i < norm.size(); ++i) {
+            if (!norm[i]) {
+                errorMessage = "Supports only across channels or across spatial reduction";
+                return false;
             }
         }
+
     } catch (...) {
         return false;
     }
@@ -128,17 +126,21 @@ Lrn::Lrn(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
 }
 
 void Lrn::getSupportedDescriptors() {
-    if (!descs.empty())
+    if (!descs.empty()) {
         return;
+    }
 
-    if (getParentEdges().size() != 2)
+    if (getParentEdges().size() != 2) {
         THROW_CPU_NODE_ERR("has incorrect number of input edges");
-    if (getChildEdges().empty())
+    }
+    if (getChildEdges().empty()) {
         THROW_CPU_NODE_ERR("has incorrect number of output edges");
+    }
 
     ov::element::Type precision = getOriginalOutputPrecisionAtPort(0);
-    if (precision != ov::element::f32 && precision != ov::element::bf16)
+    if (precision != ov::element::f32 && precision != ov::element::bf16) {
         precision = ov::element::f32;
+    }
     auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(precision);
 
     const auto& parentShape = getInputShapeAtPort(0);
@@ -152,25 +154,27 @@ void Lrn::getSupportedDescriptors() {
 std::shared_ptr<MemoryDesc> Lrn::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
     if (idx > 0) {
         return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx), getInputShapeAtPort(idx));
-    } else {
-        if (getInputShapeAtPort(idx).isDynamic()) {
-            return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.src_desc(idx), getInputShapeAtPort(idx));
-        }
-        return DnnlExtensionUtils::makeDescriptor(prim_desc.src_desc(idx));
     }
+    if (getInputShapeAtPort(idx).isDynamic()) {
+        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.src_desc(idx), getInputShapeAtPort(idx));
+    }
+    return DnnlExtensionUtils::makeDescriptor(prim_desc.src_desc(idx));
 }
 
 void Lrn::prepareParams() {
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!srcMemPtr || !srcMemPtr->isDefined())
+    if (!srcMemPtr || !srcMemPtr->isDefined()) {
         THROW_CPU_NODE_ERR("input memory is undefined");
-    if (!dstMemPtr || !dstMemPtr->isDefined())
+    }
+    if (!dstMemPtr || !dstMemPtr->isDefined()) {
         THROW_CPU_NODE_ERR("destination memory is undefined");
+    }
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
+    if (selected_pd == nullptr) {
         THROW_CPU_NODE_ERR("preferable primitive descriptor did not set");
+    }
 
     auto inpDesc = getParentEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
 
@@ -194,8 +198,9 @@ void Lrn::prepareParams() {
 
         const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
 
-        if (!found)
+        if (!found) {
             return nullptr;
+        }
 
         return std::make_shared<DnnlExecutor>(prim_desc);
     };
@@ -204,7 +209,7 @@ void Lrn::prepareParams() {
     auto result = cache->getOrCreate(key, builder);
     execPtr = result.first;
     if (!execPtr) {
-        OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
+        THROW_CPU_NODE_ERR("Primitive descriptor was not found.");
     }
 
     auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
@@ -252,6 +257,4 @@ void Lrn::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

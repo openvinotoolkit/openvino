@@ -12,3 +12,10 @@ def test_model_pass():
     manager.run_passes(get_relu_model())
 
     assert model_pass.model_changed
+
+
+def test_model_pass_run_on_model():
+    model_pass = MyModelPass()
+    model_pass.run_on_model(get_relu_model())
+
+    assert model_pass.model_changed

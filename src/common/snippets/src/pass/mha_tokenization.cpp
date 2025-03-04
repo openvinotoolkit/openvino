@@ -21,10 +21,10 @@ bool is_supported_tensor(const ov::descriptor::Tensor& t) {
 
 bool is_supported_intermediate_op(const std::shared_ptr<ov::Node>& node) {
     const auto is_intermediate_op = [](const std::shared_ptr<ov::Node>& node) {
-        return ov::is_type<ov::op::util::UnaryElementwiseArithmetic>(node) ||
-               ov::is_type<ov::op::util::BinaryElementwiseArithmetic>(node) ||
-               ov::is_type<ov::op::v0::FakeQuantize>(node) ||
-               ov::is_type<ov::op::v1::Select>(node);
+        return ov::is_type_any_of<ov::op::util::UnaryElementwiseArithmetic,
+                                  ov::op::util::BinaryElementwiseArithmetic,
+                                  ov::op::v0::FakeQuantize,
+                                  ov::op::v1::Select>(node);
     };
     return is_intermediate_op(node) && ov::snippets::pass::TokenizeSnippets::AppropriateForSubgraph(node);
 }
@@ -209,7 +209,7 @@ bool ov::snippets::pass::TokenizeMHASnippets::is_matmul0_supported(const std::sh
         return false;
 
     const auto matmul_prc = op::Brgemm::get_output_type(matmul->get_input_element_type(0), matmul->get_input_element_type(1));
-    return matmul_prc != element::undefined;
+    return matmul_prc != element::dynamic;
 }
 
 ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsTokenization::Config& config) {
@@ -311,8 +311,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
 
         const auto matmul1_out_type = op::Brgemm::get_output_type(matmul1->get_input_element_type(0),
                                                                   matmul1->get_input_element_type(1));
-        if (matmul1_out_type == element::undefined ||
-            !is_supported_tensor(matmul1->get_input_tensor(0)) ||
+        if (matmul1_out_type == element::dynamic || !is_supported_tensor(matmul1->get_input_tensor(0)) ||
             !is_supported_tensor(matmul1->get_input_tensor(1)))
             return false;
 

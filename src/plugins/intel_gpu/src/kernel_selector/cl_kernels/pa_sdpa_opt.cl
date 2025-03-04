@@ -107,7 +107,7 @@ KERNEL(pa_sdpa_opt)(
 #endif
 
     // SLM for intermediate QK results
-    __local OUTPUT_TYPE slm_qk_vals[SEQ_LEN_PARTITION_SIZE];
+    __local SOFTMAX_ACCUMULATOR_TYPE slm_qk_vals[SEQ_LEN_PARTITION_SIZE];
 
     // SLM buffers for SoftMax calculation and qk_max/qk_sums results aggregation across all WGs
     __local SOFTMAX_ACCUMULATOR_TYPE slm_qk_max_vals[SUBGROUPS_PER_WG];
@@ -118,7 +118,8 @@ KERNEL(pa_sdpa_opt)(
     {
 #if STORE_QUERY_TO_SLM
         const uint query_idx_local = sgid * SUBGROUP_SIZE + sglid;
-        const uint query_idx = seq_idx * HEAD_SIZE * HEADS_NUM +
+        const uint query_idx = INPUT0_OFFSET +
+                               seq_idx * (HEAD_SIZE * HEADS_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM + INPUT0_PAD_AFTER_FEATURE_NUM) +
                                head_num_idx * HEAD_SIZE +
                                query_idx_local;
 
@@ -137,7 +138,8 @@ KERNEL(pa_sdpa_opt)(
 #else
         INPUT0_TYPE q_val[HEAD_SIZE / SUBGROUP_SIZE];
         unroll_for (uint i = 0; i < HEAD_SIZE / SUBGROUP_SIZE; i++) {
-            const uint query_idx = seq_idx * HEAD_SIZE * HEADS_NUM +
+            const uint query_idx = INPUT0_OFFSET +
+                                   seq_idx * (HEAD_SIZE * HEADS_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM + INPUT0_PAD_AFTER_FEATURE_NUM) +
                                    head_num_idx * HEAD_SIZE +
                                    i * SUBGROUP_SIZE;
             q_val[i] = BLOCK_READN(INPUT0_TYPE, 1, query, query_idx);
@@ -166,7 +168,7 @@ KERNEL(pa_sdpa_opt)(
 #endif
             const uint block_offset = block_indices[start_block_idx + block_num * SUBGROUPS_PER_WG] * HEAD_SIZE * KV_HEADS_NUM * SUBGROUP_SIZE + head_idx * HEAD_SIZE * SUBGROUP_SIZE;
 
-            INPUT0_TYPE qk_acc = INPUT0_VAL_ZERO;
+            SOFTMAX_ACCUMULATOR_TYPE qk_acc = SOFTMAX_ACCUMULATOR_VAL_ZERO;
 
             #define KEY_VEC_SIZE SUBGROUP_SIZE
             unroll_for (uint qk_idx = 0; qk_idx < HEAD_SIZE / KEY_VEC_SIZE; qk_idx++) {
@@ -181,9 +183,9 @@ KERNEL(pa_sdpa_opt)(
 
                 unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
 #if STORE_QUERY_TO_SLM
-                    qk_acc = mad(sub_group_broadcast(q_val, i), k_vals[i], qk_acc);
+                    qk_acc = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(sub_group_broadcast(q_val, i)), TO_SOFTMAX_ACCUMULATOR_TYPE(k_vals[i]), qk_acc);
 #else
-                    qk_acc = mad(sub_group_broadcast(q_val[qk_idx], i), k_vals[i], qk_acc);
+                    qk_acc = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(sub_group_broadcast(q_val[qk_idx], i)), TO_SOFTMAX_ACCUMULATOR_TYPE(k_vals[i]), qk_acc);
 #endif
                 }
             }
@@ -195,8 +197,12 @@ KERNEL(pa_sdpa_opt)(
             qk_acc += alibi_slopes[head_num_idx] * alibi_val;
 #endif
 
+#if SLIDING_WINDOW_SIZE != 0
+            if (token_idx >= seq_len || (seq_len > SLIDING_WINDOW_SIZE && token_idx < (seq_len - SLIDING_WINDOW_SIZE)))
+#else
             if (token_idx >= seq_len)
-                qk_acc = INPUT0_VAL_MIN;
+#endif
+                qk_acc = SOFTMAX_ACCUMULATOR_VAL_MIN;
 
             qk_max = SOFTMAX_ACCUMULATOR_MAX_FUNC(qk_max, TO_SOFTMAX_ACCUMULATOR_TYPE(qk_acc));
 
@@ -235,7 +241,7 @@ KERNEL(pa_sdpa_opt)(
             if (global_data_idx < seq_len && local_data_idx < SEQ_LEN_PARTITION_SIZE) {
 #endif
                 SOFTMAX_ACCUMULATOR_TYPE qk_new = native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(slm_qk_vals[local_data_idx]) - qk_max);
-                slm_qk_vals[local_data_idx] = TO_OUTPUT_TYPE(qk_new);
+                slm_qk_vals[local_data_idx] = qk_new;
 
                 exp_sum += qk_new;
             }
@@ -266,7 +272,7 @@ KERNEL(pa_sdpa_opt)(
             if (global_data_idx < seq_len && local_data_idx < SEQ_LEN_PARTITION_SIZE) {
 #endif
                 SOFTMAX_ACCUMULATOR_TYPE qk_new = TO_SOFTMAX_ACCUMULATOR_TYPE(slm_qk_vals[local_data_idx]) / exp_sum;
-                slm_qk_vals[local_data_idx] = TO_OUTPUT_TYPE(qk_new);
+                slm_qk_vals[local_data_idx] = qk_new;
             }
         }
 

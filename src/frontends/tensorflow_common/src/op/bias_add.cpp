@@ -27,8 +27,8 @@ OutputVector translate_bias_add_op(const NodeContext& node) {
     // validations prior to processing
     if (complex_type_inputs) {
         // extractions for complex processing
-        bias = complex_type_mark_bias->input_value(0);
-        value = complex_type_mark_value->input_value(0);
+        bias = complex_type_mark_bias->get_data();
+        value = complex_type_mark_value->get_data();
     }
 
     // retrieve optional attributes
