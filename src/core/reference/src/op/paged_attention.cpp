@@ -20,12 +20,12 @@ namespace {
 // --- Helper Functions ---
 
 template <typename T>
-T dot_product(const T* a, const T* b, int32_t size) {
+inline T dot_product(const T* a, const T* b, int32_t size) {
     std::inner_product(a, a + size, b, T(0));
 }
 
 template <typename T>
-void softmax(std::vector<T>& scores) {
+inline void softmax(std::vector<T>& scores) {
     T max_score = *std::max_element(scores.begin(), scores.end());
     T sum = T(0);
     for (auto& s : scores) {
@@ -40,7 +40,7 @@ void softmax(std::vector<T>& scores) {
  * Apply RoPE (Rotary Positional Embedding) rotation to a vector.
  */
 template <typename T>
-void apply_rope(T* vec, int32_t head_size, const T* rotation_trig_lut, int32_t trig_index) {
+inline void apply_rope(T* vec, int32_t head_size, const T* rotation_trig_lut, int32_t trig_index) {
     int32_t half = head_size / 2;
     const float* row = reinterpret_cast<const float*>(rotation_trig_lut) + trig_index * head_size;
     for (int32_t i = 0; i < half; i++) {
@@ -57,7 +57,7 @@ void apply_rope(T* vec, int32_t head_size, const T* rotation_trig_lut, int32_t t
  * Look up the cached block token information.
  * Returns true if a valid cached token was found.
  */
-bool find_cached_token(int32_t seq_idx,
+inline bool find_cached_token(int32_t seq_idx,
                        int32_t token_idx,  // token index in cached keys (relative: 0..seq_past_tokens-1)
                        const int32_t* block_indices,
                        const int32_t* block_indices_begins,
@@ -83,7 +83,7 @@ bool find_cached_token(int32_t seq_idx,
  * Given rotation_deltas and its shape, compute the trig index for RoPE.
  * Returns 0 if rotation parameters are not available.
  */
-int get_trig_index(const int32_t* rotation_deltas,
+inline int get_trig_index(const int32_t* rotation_deltas,
                    const ov::Shape& rotation_deltas_shape,
                    int32_t rotated_index,
                    int32_t token_offset,
@@ -103,7 +103,7 @@ int get_trig_index(const int32_t* rotation_deltas,
  * Returns true if rotated_block_indices is not null, the number of rotated blocks is > 0,
  * and the block_id is found in the rotated list.
  */
-bool should_rotate(int32_t block_id,
+inline bool should_rotate(int32_t block_id,
                    const int32_t* rotated_block_indices,
                    const ov::Shape& rotated_block_indices_shape,
                    int32_t& rotated_index) {
