@@ -4,6 +4,8 @@
 
 #include "rms_kernel.hpp"
 
+#include <memory>
+
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
@@ -230,8 +232,14 @@ void jit_rms_kernel<isa>::load(const Vmm& vmm_dst,
                                size_t offset) {
     const auto seed = load_emitter_params(src_prc, ov::element::f32, elt_num, fill, "float_min").hash();
     if (!emitters[seed]) {
-        emitters[seed].reset(
-            new jit_load_emitter(this, isa, src_prc, ov::element::f32, elt_num, ov::element::f32, fill, "float_min"));
+        emitters[seed] = std::make_unique<jit_load_emitter>(this,
+                                                            isa,
+                                                            src_prc,
+                                                            ov::element::f32,
+                                                            elt_num,
+                                                            ov::element::f32,
+                                                            fill,
+                                                            "float_min");
     }
     emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), offset},
                               {static_cast<size_t>(vmm_dst.getIdx())},
@@ -247,7 +255,7 @@ void jit_rms_kernel<isa>::store(const Xbyak::Reg64& reg_dst,
                                 size_t offset) {
     const auto seed = store_emitter_params(ov::element::f32, dst_prc, elt_num).hash();
     if (!emitters[seed]) {
-        emitters[seed].reset(new jit_store_emitter(this, isa, ov::element::f32, dst_prc, elt_num));
+        emitters[seed] = std::make_unique<jit_store_emitter>(this, isa, ov::element::f32, dst_prc, elt_num);
     }
     emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx())},
                               {static_cast<size_t>(reg_dst.getIdx()), offset},
