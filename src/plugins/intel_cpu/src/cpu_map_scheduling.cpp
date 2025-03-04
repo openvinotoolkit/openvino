@@ -84,9 +84,8 @@ bool check_cpu_pinning(const bool cpu_pinning,
                 (streams_info_table[2][PROC_TYPE] == EFFICIENT_CORE_PROC)) {
                 return true;
             }
-        } else {
-            return false;
         }
+        return false;
     };
 
 #if defined(__APPLE__)
