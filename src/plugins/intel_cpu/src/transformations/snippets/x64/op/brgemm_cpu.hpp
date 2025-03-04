@@ -30,7 +30,8 @@ public:
               const size_t offset_c = 0,
               const std::vector<size_t>& layout_a = {},
               const std::vector<size_t>& layout_b = {},
-              const std::vector<size_t>& layout_c = {});
+              const std::vector<size_t>& layout_c = {},
+              ov::NodeVector post_ops = {});
     BrgemmCPU(const Output<Node>& A,
               const Output<Node>& B,
               const Output<Node>& scratch,
@@ -41,7 +42,8 @@ public:
               const size_t offset_c = 0,
               const std::vector<size_t>& layout_a = {},
               const std::vector<size_t>& layout_b = {},
-              const std::vector<size_t>& layout_c = {});
+              const std::vector<size_t>& layout_c = {},
+              ov::NodeVector post_ops = {});
     BrgemmCPU(const Output<Node>& A,
               const Output<Node>& B,
               BRGEMM_TYPE type,
@@ -50,7 +52,8 @@ public:
               const PortDescriptor& desc_c,
               const std::vector<size_t>& layout_a = {},
               const std::vector<size_t>& layout_b = {},
-              const std::vector<size_t>& layout_c = {});
+              const std::vector<size_t>& layout_c = {},
+              ov::NodeVector post_ops = {});
     BrgemmCPU(const Output<Node>& A,
               const Output<Node>& B,
               const Output<Node>& scratch,
@@ -61,7 +64,8 @@ public:
               const PortDescriptor& desc_c,
               const std::vector<size_t>& layout_a = {},
               const std::vector<size_t>& layout_b = {},
-              const std::vector<size_t>& layout_c = {});
+              const std::vector<size_t>& layout_c = {},
+              ov::NodeVector post_ops = {});
     BrgemmCPU() = default;
 
     void validate_and_infer_types() override;
@@ -73,7 +77,13 @@ public:
 
     size_t get_offset_scratch() const;
 
+    const ov::NodeVector& get_postops() const {
+        return m_post_ops;
+    }
+
     bool visit_attributes(AttributeVisitor& visitor) override;
+
+    void add_post_op(const std::shared_ptr<ov::Node>& post_op);
 
     constexpr static size_t SCRATCH_BYTE_SIZE = 32 * 1024;
 
@@ -83,7 +93,10 @@ private:
                                                      const std::vector<size_t>& layout_c);
     void validate_with_scratchpad() const;
     void validate_inputs() const;
+    ov::element::Type get_output_type() const override;
 
     BRGEMM_TYPE m_type = BRGEMM_TYPE::STAND_ALONE;
+
+    ov::NodeVector m_post_ops = {};
 };
 }  // namespace ov::intel_cpu

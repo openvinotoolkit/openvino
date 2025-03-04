@@ -35,6 +35,7 @@
 #    include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
 #    include "transformations/snippets/x64/pass/eliminate_brgemm_copy_b.hpp"
 #    include "transformations/snippets/x64/pass/enforce_precision.hpp"
+#    include "transformations/snippets/x64/pass/fuse_brgemm_cpu_postops.hpp"
 #    include "transformations/snippets/x64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
 #    include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
 #    include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
@@ -515,6 +516,21 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
                                            ov::snippets::pass::PropagatePrecision,
                                            ov::intel_cpu::pass::BrgemmToBrgemmCPU);
+    if (subgraph_attrs->snippet->has_domain_sensitive_ops() && !std::getenv("REF")) {
+        SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                               ov::intel_cpu::pass::BrgemmToBrgemmCPU,
+                                               ov::intel_cpu::pass::FuseBrgemmCPUPostops);
+        SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
+                                               ov::intel_cpu::pass::FuseBrgemmCPUPostops,
+                                               ov::pass::Serialize,
+                                               std::string("before_FuseBrgemmCPUPostops.xml"),
+                                               std::string(""));
+        SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                               ov::intel_cpu::pass::FuseBrgemmCPUPostops,
+                                               ov::pass::Serialize,
+                                               std::string("after_FuseBrgemmCPUPostops.xml"),
+                                               std::string(""));
+    }
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                            ov::intel_cpu::pass::BrgemmToBrgemmCPU,
                                            ov::intel_cpu::pass::EliminateBrgemmCopyB,
