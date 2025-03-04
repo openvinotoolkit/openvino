@@ -166,7 +166,7 @@ private:
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(input.get_element_type(), input.get_shape()));
         }
 
-        auto paged_attn = std::make_shared<ov::op::internal::PagedAttention>();
+        auto paged_attn = std::make_shared<ov::op::internal::PagedAttentionExtension>();
         return std::make_shared<ov::Model>(paged_attn->outputs(), inputParams);
     }
 

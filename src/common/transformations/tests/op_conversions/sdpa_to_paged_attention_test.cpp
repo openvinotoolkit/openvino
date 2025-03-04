@@ -568,19 +568,19 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         auto scale = std::make_shared<v0::Constant>(element::f32, Shape{}, MOCK_VALUE);
 
         // PagedAttention:
-        auto pa = std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
-                                                                             K,
-                                                                             V,
-                                                                             key_cache_0,
-                                                                             value_cache_0,
-                                                                             past_lens,
-                                                                             subsequence_begins,
-                                                                             block_indices,
-                                                                             block_indices_begins,
-                                                                             scale,
-                                                                             sliding_window,
-                                                                             alibi_slopes,
-                                                                             max_context_len});
+        auto pa = std::make_shared<op::internal::PagedAttentionExtension>(OutputVector{Q,
+                                                                                       K,
+                                                                                       V,
+                                                                                       key_cache_0,
+                                                                                       value_cache_0,
+                                                                                       past_lens,
+                                                                                       subsequence_begins,
+                                                                                       block_indices,
+                                                                                       block_indices_begins,
+                                                                                       scale,
+                                                                                       sliding_window,
+                                                                                       alibi_slopes,
+                                                                                       max_context_len});
         pa->set_out_type(0, element::i64);
         auto pa_aligned = Qwen7bChatPA::align_pa_layout(pa, head_size_2);
         auto res = makeOP<v0::Result>({pa_aligned});
@@ -872,19 +872,19 @@ TEST_P(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
         auto c1 = makeConst(element::f32, {}, {0.088388f});
         auto c2 = makeConst(element::i32, {}, {0});
         auto PagedAttentionExtension168 =
-            std::make_shared<ov::op::PagedAttentionExtension>(ov::OutputVector{Reshape138,
-                                                                               Reshape147,
-                                                                               Reshape156,
-                                                                               key_cache_0,
-                                                                               value_cache_0,
-                                                                               past_lens,
-                                                                               subsequence_begins,
-                                                                               block_indices,
-                                                                               block_indices_begins,
-                                                                               c1,
-                                                                               c2,
-                                                                               Reshape166,
-                                                                               max_context_len});
+            std::make_shared<ov::op::internal::PagedAttentionExtension>(ov::OutputVector{Reshape138,
+                                                                                         Reshape147,
+                                                                                         Reshape156,
+                                                                                         key_cache_0,
+                                                                                         value_cache_0,
+                                                                                         past_lens,
+                                                                                         subsequence_begins,
+                                                                                         block_indices,
+                                                                                         block_indices_begins,
+                                                                                         c1,
+                                                                                         c2,
+                                                                                         Reshape166,
+                                                                                         max_context_len});
         auto ShapeOf172 = makeOP<opset3::ShapeOf>({Transpose154}, {{"output_type", "i64"}});
         auto Gather175 = makeOP<opset8::Gather>({ShapeOf172, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze177 = makeOP<opset1::Unsqueeze>({Gather175, 0});
@@ -1378,19 +1378,19 @@ TEST_P(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         // an empty Constant needs to be created in a usual way, not using makeConst()
         auto c3 = v0::Constant::create(element::f32, {0}, {});
         auto PagedAttentionExtension_51962 =
-            std::make_shared<ov::op::PagedAttentionExtension>(ov::OutputVector{Reshape_51953,
-                                                                               Reshape_51957,
-                                                                               Reshape_51959,
-                                                                               key_cache_0,
-                                                                               value_cache_0,
-                                                                               past_lens,
-                                                                               subsequence_begins,
-                                                                               block_indices,
-                                                                               block_indices_begins,
-                                                                               c1,
-                                                                               c2,
-                                                                               c3,
-                                                                               max_context_len});
+            std::make_shared<ov::op::internal::PagedAttentionExtension>(ov::OutputVector{Reshape_51953,
+                                                                                         Reshape_51957,
+                                                                                         Reshape_51959,
+                                                                                         key_cache_0,
+                                                                                         value_cache_0,
+                                                                                         past_lens,
+                                                                                         subsequence_begins,
+                                                                                         block_indices,
+                                                                                         block_indices_begins,
+                                                                                         c1,
+                                                                                         c2,
+                                                                                         c3,
+                                                                                         max_context_len});
         auto ShapeOf_51965 = makeOP<opset3::ShapeOf>({Transpose_51955}, {{"output_type", "i64"}});
         auto Gather_51966 = makeOP<opset8::Gather>({ShapeOf_51965, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze_51971 = makeOP<opset1::Unsqueeze>({Gather_51966, 0});

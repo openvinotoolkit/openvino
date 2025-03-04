@@ -11,7 +11,7 @@
 namespace py = pybind11;
 
 void regclass_graph_op_PagedAttentionExtension(py::module m) {
-    using ov::op::PagedAttentionExtension;
+    using ov::op::internal::PagedAttentionExtension;
     py::class_<PagedAttentionExtension, std::shared_ptr<PagedAttentionExtension>, ov::Node> cls(
         m,
         "_PagedAttentionExtension");

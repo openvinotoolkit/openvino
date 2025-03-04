@@ -520,7 +520,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             rotation_deltas_inputs_for_each_layer.push_back(rotation_deltas);
         }
 
-        auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
+        auto paged_attention = std::make_shared<ov::op::internal::PagedAttentionExtension>(pa_arguments);
 
         // The output shape of PagedAttention will be converted to [batch, 1, head_num, head_size_v], the head_size_v
         // may be different from head_size_q/head_size_k. The head_size_v could be got from the shape of value input

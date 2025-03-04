@@ -8,8 +8,7 @@
 #include "openvino/core/type/element_iterator.hpp"
 
 template <ov::element::Type_t ET>
-bool evaluate( ov::TensorVector& outputs,
-              const ov::TensorVector& inputs) {
+bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) {
     using T = typename ov::element_type_traits<ET>::value_type;
 
     ov::reference::paged_attention(outputs[0].data<T>(),
@@ -40,9 +39,9 @@ bool evaluate( ov::TensorVector& outputs,
 }
 
 template <>
-bool evaluate_node<ov::op::internal::PagedAttention>(std::shared_ptr<ov::Node> node,
-                                                ov::TensorVector& outputs,
-                                                const ov::TensorVector& inputs) {
+bool evaluate_node<ov::op::internal::PagedAttentionExtension>(std::shared_ptr<ov::Node> node,
+                                                              ov::TensorVector& outputs,
+                                                              const ov::TensorVector& inputs) {
     auto element_type = node->get_output_element_type(0);
     switch (element_type) {
     case ov::element::bf16:

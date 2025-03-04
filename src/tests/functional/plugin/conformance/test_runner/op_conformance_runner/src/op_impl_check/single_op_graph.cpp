@@ -7,6 +7,8 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 
+#include "openvino/op/paged_attention.hpp"
+
 namespace ov {
 namespace test {
 namespace op_conformance {
@@ -854,7 +856,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v12::Pad> &nod
     return std::make_shared<ov::Model>(results, params, "Pad-12");
 }
 
-std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::internal::PagedAttention>& node) {
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::internal::PagedAttentionExtension>& node) {
     const auto data1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
     const auto data2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
     const auto data3 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
@@ -882,7 +884,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::internal::Page
         data12,
         data13};
 
-    const auto paged_attention = std::make_shared<ov::op::internal::PagedAttention>(data1,
+    const auto paged_attention = std::make_shared<ov::op::internal::PagedAttentionExtension>(data1,
                                                                   data2,
                                                                   data3,
                                                                   data4,

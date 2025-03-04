@@ -10,13 +10,15 @@ namespace op {
 namespace internal {
 
 /// \brief PagedAttentionExtension operation implements paged attention for memory-efficient sequence processing.
-/// 
+///
 /// \ingroup ov_ops_cpp_api
 ///
 /// This operation computes attention using a paged memory model, allowing efficient handling of long sequences.
 class OPENVINO_API PagedAttentionExtension : public ov::op::Op {
 public:
     OPENVINO_OP("PagedAttentionExtension");
+
+    PagedAttentionExtension() = default;
 
     /// \brief Constructs a PagedAttentionExtension operation.
     ///
@@ -39,7 +41,7 @@ public:
     ///             - (optional) rotation_trig_lut
     PagedAttentionExtension(const ov::OutputVector& args);
 
-    /// \brief Constructs a PagedAttentionExtension operation.
+    /// \brief Constructs a PagedAttentionExtension operation. (13 parameter constructor)
     ///
     /// \param query                Query tensor.
     /// \param key                  Key tensor.
@@ -68,7 +70,7 @@ public:
                             const Output<Node>& alibi_slopes,
                             const Output<Node>& max_context_len);
 
-    /// \brief Constructs a PagedAttentionExtension operation with rotation support.
+    /// \brief Constructs a PagedAttentionExtension operation with rotation support. (16 parameter constructor)
     ///
     /// \param query                Query tensor.
     /// \param key                  Key tensor.

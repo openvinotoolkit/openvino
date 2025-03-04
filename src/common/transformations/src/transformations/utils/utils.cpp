@@ -156,7 +156,7 @@ bool is_large_language_model(const ov::Model& model) {
     const auto kvcache_matcher = std::make_shared<ov::pass::pattern::Matcher>(present, "KVCacheMatcher");
 
     for (const auto& op : model.get_ops()) {
-        if (kvcache_matcher->match(op->output(0)) || ov::is_type<ov::op::PagedAttentionExtension>(op))
+        if (kvcache_matcher->match(op->output(0)) || ov::is_type<ov::op::internal::PagedAttentionExtension>(op))
             return true;
     }
     return false;
