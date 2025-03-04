@@ -407,16 +407,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     std::list<DeviceInformation> devices_with_priority(support_devices.begin(), support_devices.end());
     std::shared_ptr<ov::Model> cloned_model;
 
-    bool has_optimum_intel_version;
+    bool is_LLM_model;
     if (model_path.empty()) {
         support_devices = filter_device_by_model(support_devices_by_property, model, load_config);
         cloned_model = model->clone();
-        has_optimum_intel_version = ov::op::util::get_optimum_intel_version(*cloned_model);
+        is_LLM_model = ov::op::util::is_large_language_model(*cloned_model);
     } else {
         // AUTO / MULTI don't support caching explicitly, but can redirect this functionality to actual HW plugin
         LOG_INFO_TAG("compile model with model path: %s", model_path.c_str());
         auto m_model = get_core()->read_model(model_path, std::string{}, {});
-        has_optimum_intel_version = ov::op::util::get_optimum_intel_version(*m_model);
+        is_LLM_model = ov::op::util::is_large_language_model(*m_model);
     }
     if (!is_cumulative) {
         devices_with_priority = get_valid_device(support_devices, model_precision);
@@ -448,7 +448,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto_s_context->m_log_tag = get_device_name();
     auto_s_context->m_model_precision = model_precision;
     // if is LLM, disable CPU helper
-    auto_s_context->m_startup_fallback = has_optimum_intel_version ? false : load_config.get_property(ov::intel_auto::enable_startup_fallback);
+    auto_s_context->m_startup_fallback = is_LLM_model ? false : load_config.get_property(ov::intel_auto::enable_startup_fallback);
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
     auto_s_context->m_bind_buffer = load_config.get_property(ov::intel_auto::device_bind_buffer);
     auto_s_context->m_schedule_policy = load_config.get_property(ov::intel_auto::schedule_policy);

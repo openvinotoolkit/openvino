@@ -162,16 +162,6 @@ bool is_large_language_model(const ov::Model& model) {
     return false;
 }
 
-bool get_optimum_intel_version(const ov::Model& model) {
-    if (model.has_rt_info("optimum")) {
-        auto optimum_info = model.get_rt_info<ov::AnyMap>("optimum");
-        if (optimum_info.count("optimum_intel_version") > 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
 bool check_for_broadcast(const ov::PartialShape& ref_shape, const ov::PartialShape& other_shape) {
     if (ref_shape.rank().is_dynamic() || other_shape.rank().is_dynamic()) {
         return false;
