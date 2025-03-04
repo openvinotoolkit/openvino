@@ -238,7 +238,7 @@ void PagedAttention::validate_and_infer_types() {
 std::shared_ptr<ov::Node> PagedAttention::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     OV_OP_SCOPE(v16_PagedAttention_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    if (new_args.size() == 16) {
+    if (new_args.size() == 13) {
         return std::make_shared<PagedAttention>(new_args.at(0),
                                                 new_args.at(1),
                                                 new_args.at(2),
@@ -252,7 +252,7 @@ std::shared_ptr<ov::Node> PagedAttention::clone_with_new_inputs(const ov::Output
                                                 new_args.at(10),
                                                 new_args.at(11),
                                                 new_args.at(12));
-    } else {
+    } else if (new_args.size() == 16) {
         return std::make_shared<PagedAttention>(new_args.at(0),
                                                 new_args.at(1),
                                                 new_args.at(2),
@@ -270,6 +270,8 @@ std::shared_ptr<ov::Node> PagedAttention::clone_with_new_inputs(const ov::Output
                                                 new_args.at(14),
                                                 new_args.at(15));
     }
+    OPENVINO_ASSERT(false, "PagedAttention requires either 13 or 16 inputs");
+
 }
 
 void PagedAttention::set_out_type(int index, const ov::element::Type& output_type) {

@@ -4,18 +4,21 @@
 
 #include "openvino/reference/paged_attention.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
-#include <ctime>
+#include <limits>
 #include <memory>
-#include <random>
 #include <stdexcept>
 #include <vector>
 
 #include "openvino/core/shape.hpp"
 
-// ==== HELPER FUNCS ====
+namespace {
+
+// --- Helper Functions ---
+
 template <typename T>
 T dot_product(const T* a, const T* b, int32_t size) {
     T sum = T(0);
@@ -42,34 +45,84 @@ void softmax(std::vector<T>& scores) {
 template <typename T>
 void apply_rope(T* vec, int32_t head_size, const T* rotation_trig_lut, int32_t trig_index) {
     int32_t half = head_size / 2;
-    // Each row is of length head_size.
-    const float* row = rotation_trig_lut + trig_index * head_size;
+    const float* row = reinterpret_cast<const float*>(rotation_trig_lut) + trig_index * head_size;
     for (int32_t i = 0; i < half; i++) {
         T x0 = vec[2 * i];
         T x1 = vec[2 * i + 1];
         T cos_val = row[i];
         T sin_val = row[half + i];
-        vec[2 * i] = x0 * cos_val - x1 * sin_val;
+        vec[2 * i]     = x0 * cos_val - x1 * sin_val;
         vec[2 * i + 1] = x0 * sin_val + x1 * cos_val;
     }
 }
 
 /*
- * Helper to check whether a given block_id is present in rotated_block_indices.
- * If found, returns true and sets rotated_index to the position within rotated_block_indices.
+ * Look up the cached block token information.
+ * Returns true if a valid cached token was found.
  */
-bool get_rotated_index(int32_t block_id,
-                       const int32_t* rotated_block_indices,
-                       int32_t num_rotated_blocks,
-                       int32_t& rotated_index) {
-    for (int32_t i = 0; i < num_rotated_blocks; i++) {
-        if (rotated_block_indices[i] == block_id) {
-            rotated_index = i;
+bool find_cached_token(int32_t seq_idx,
+                         int32_t token_idx, // token index in cached keys (relative: 0..seq_past_tokens-1)
+                         const int32_t* block_indices,
+                         const int32_t* block_indices_begins,
+                         int32_t num_blocks,
+                         int32_t block_size,
+                         int32_t& block_id,
+                         int32_t& token_offset) {
+    int32_t block_start = block_indices_begins ? block_indices_begins[seq_idx] : 0;
+    int32_t block_end   = block_indices_begins ? block_indices_begins[seq_idx + 1] : num_blocks;
+    int32_t remaining   = token_idx;
+    for (int32_t b = block_start; b < block_end; b++) {
+        if (remaining < block_size) {
+            block_id = block_indices[b];
+            token_offset = remaining;
             return true;
+        }
+        remaining -= block_size;
+    }
+    return false;
+}
+
+/*
+ * Given rotation_deltas and its shape, compute the trig index for RoPE.
+ * Returns 0 if rotation parameters are not available.
+ */
+int get_trig_index(const int32_t* rotation_deltas,
+                   const ov::Shape& rotation_deltas_shape,
+                   int32_t rotated_index,
+                   int32_t token_offset,
+                   int32_t block_size) {
+    int trig_index = 0;
+    if (rotation_deltas && !rotation_deltas_shape.empty() && rotation_deltas_shape.size() >= 2) {
+        if (rotation_deltas_shape[1] == 1)
+            trig_index = rotation_deltas[rotated_index];
+        else if (rotation_deltas_shape[1] == block_size)
+            trig_index = rotation_deltas[rotated_index * block_size + token_offset];
+    }
+    return trig_index;
+}
+
+/*
+ * Check if rotation should be applied.
+ * Returns true if rotated_block_indices is not null, the number of rotated blocks is > 0,
+ * and the block_id is found in the rotated list.
+ */
+bool should_rotate(int32_t block_id,
+                   const int32_t* rotated_block_indices,
+                   const ov::Shape& rotated_block_indices_shape,
+                   int32_t& rotated_index) {
+    int32_t num_rotated_blocks = rotated_block_indices_shape.empty() ? 0 : rotated_block_indices_shape[0];
+    if (rotated_block_indices && num_rotated_blocks > 0) {
+        for (int32_t i = 0; i < num_rotated_blocks; i++) {
+            if (rotated_block_indices[i] == block_id) {
+                rotated_index = i;
+                return true;
+            }
         }
     }
     return false;
 }
+
+} // namespace
 
 namespace ov {
 namespace reference {
@@ -91,21 +144,22 @@ void paged_attention(
     const int32_t* subsequence_begins,         // [batch_seq + 1]: start indices of new tokens per sequence
     const int32_t* block_indices,              // [num_blocks]: block table for each sequence
     const int32_t* block_indices_begins,       // [batch_seq + 1]: indices into block_indices per sequence
-    const T* scale_ptr,                        // attention scale factor
-    const int32_t* sliding_window_ptr,         // sliding window parameter
-    const T* alibi_slopes,                     // [num_kv_heads]: per-head bias slopes
+    const T* scale_ptr,                        // attention scale factor (can be nullptr; default = 1)
+    const int32_t* sliding_window_ptr,         // sliding window parameter (can be nullptr; default = 0)
+    const T* alibi_slopes,                     // [num_kv_heads]: per-head bias slopes (can be nullptr; default = 0)
     const int32_t* max_context_len_ptr,        // max context length (for score output indexing)
+    // Rotation parameters (if any is nullptr, rotation is skipped)
     const int32_t* rotated_block_indices,      // [num_rotated_blocks]: blocks to which RoPE is applied
     const int32_t* rotation_deltas,            // [num_rotated_blocks, block_size || 1]: indices into the trig LUT
     const float* rotation_trig_lut,            // LUT: [lut_rows, head_size] (first half: cosines, second half: sines)
     const Shape& rotated_block_indices_shape,  // shape of rotated_block_indices (e.g. {num_rotated_blocks})
-    const Shape& rotation_deltas_shape,        // shape of rotation_deltas (e.g. {num_rotated_blocks, block_size} or
-                                               // {num_rotated_blocks, 1})
+    const Shape& rotation_deltas_shape,        // shape of rotation_deltas (e.g. {num_rotated_blocks, block_size} or {num_rotated_blocks, 1})
     const Shape& rotation_trig_lut_shape) {    // shape of rotation_trig_lut
 
-    T scale = scale_ptr[0];
-    int sliding_window = sliding_window_ptr[0];
-    int max_context_len = max_context_len_ptr[0];
+    // Use default values if pointers are null.
+    T scale = scale_ptr ? scale_ptr[0] : T(1);
+    int sliding_window = sliding_window_ptr ? sliding_window_ptr[0] : 0;
+    int max_context_len = max_context_len_ptr ? max_context_len_ptr[0] : 0;
 
     // Determine dimensions.
     int num_blocks = kv_cache_shape[0];
@@ -116,11 +170,11 @@ void paged_attention(
     int batch_tokens = q_shape[0];
     int query_features = q_shape[1];  // equals num_heads * head_size.
     int num_heads = query_features / head_size;
-    int batch_seq = past_lens_shape[0];
+    int batch_seq = past_lens_shape.empty() ? 1 : past_lens_shape[0];
 
     // Process each query token.
     for (int token_idx = 0; token_idx < batch_tokens; token_idx++) {
-        // Determine sequence index.
+        // Determine sequence index using subsequence_begins if available.
         int seq_idx = 0;
         if (batch_seq > 1 && subsequence_begins) {
             for (int s = 0; s < batch_seq; s++) {
@@ -130,61 +184,45 @@ void paged_attention(
                 }
             }
         }
-        // Process each query head.
+        // Process each head.
         for (int h = 0; h < num_heads; h++) {
             const T* q_vec = query + token_idx * query_features + h * head_size;
 
-            int seq_new_tokens =
-                subsequence_begins ? (subsequence_begins[seq_idx + 1] - subsequence_begins[seq_idx]) : 0;
+            int seq_new_tokens = subsequence_begins ? (subsequence_begins[seq_idx + 1] - subsequence_begins[seq_idx]) : 0;
             int seq_past_tokens = past_lens ? past_lens[seq_idx] : 0;
             int total_keys = seq_past_tokens + seq_new_tokens;
             std::vector<T> scores(total_keys, T(0));
 
-            // Compute raw attention scores.
+            // --- Compute raw attention scores ---
             for (int k = 0; k < total_keys; k++) {
                 T score_val = T(0);
                 if (k < seq_past_tokens) {
                     // Retrieve key from cache.
-                    int block_start = block_indices_begins ? block_indices_begins[seq_idx] : 0;
-                    int block_end = block_indices_begins ? block_indices_begins[seq_idx + 1] : num_blocks;
-                    int remaining = k;
-                    int block_id = -1;
-                    int token_offset = 0;
-                    for (int b = block_start; b < block_end; b++) {
-                        if (remaining < block_size) {
-                            block_id = block_indices[b];
-                            token_offset = remaining;
-                            break;
-                        }
-                        remaining -= block_size;
-                    }
-                    if (block_id < 0)
+                    int block_id = -1, token_offset = 0;
+                    bool found = find_cached_token(seq_idx, k, block_indices, block_indices_begins,
+                                                   num_blocks, block_size, block_id, token_offset);
+                    if (!found)
                         continue;
-                    // Determine if this token falls in the sliding window of the first block.
-                    int first_block_for_seq =
-                        (block_indices_begins ? block_indices[block_indices_begins[seq_idx]] : -1);
+
+                    // If token falls within the sliding window of the first block, set score to -∞.
+                    int first_block_for_seq = (block_indices_begins ? block_indices[block_indices_begins[seq_idx]] : -1);
                     if (first_block_for_seq >= 0 && block_id == first_block_for_seq && token_offset < sliding_window) {
                         score_val = -std::numeric_limits<T>::infinity();
                     } else {
                         int kv_head = h % num_kv_heads;
-                        const T* key_vec =
-                            key_cache + (((block_id * num_kv_heads + kv_head) * block_size + token_offset) * head_size);
+                        const T* key_vec = key_cache +
+                            (((block_id * num_kv_heads + kv_head) * block_size + token_offset) * head_size);
+
                         // Check for RoPE adjustment.
                         bool do_rotate = false;
                         int rotated_index = -1;
-                        int num_rotated_blocks = rotated_block_indices_shape[0];
-                        if (rotated_block_indices && num_rotated_blocks > 0) {
-                            if (get_rotated_index(block_id, rotated_block_indices, num_rotated_blocks, rotated_index))
-                                do_rotate = true;
+                        if (rotated_block_indices && rotation_deltas && rotation_trig_lut) {
+                            do_rotate = should_rotate(block_id, rotated_block_indices, rotated_block_indices_shape, rotated_index);
                         }
                         if (do_rotate) {
-                            int trig_index = 0;
-                            if (rotation_deltas_shape.size() >= 2 && rotation_deltas_shape[1] == 1)
-                                trig_index = rotation_deltas[rotated_index];
-                            else if (rotation_deltas_shape.size() >= 2 && rotation_deltas_shape[1] == block_size)
-                                trig_index = rotation_deltas[rotated_index * block_size + token_offset];
+                            int trig_index = get_trig_index(rotation_deltas, rotation_deltas_shape, rotated_index, token_offset, block_size);
                             std::vector<T> temp_key(key_vec, key_vec + head_size);
-                            apply_rope(temp_key.data(), head_size, rotation_trig_lut, trig_index);
+                            apply_rope(temp_key.data(), head_size, reinterpret_cast<const T*>(rotation_trig_lut), trig_index);
                             score_val = dot_product(q_vec, temp_key.data(), head_size);
                         } else {
                             score_val = dot_product(q_vec, key_vec, head_size);
@@ -198,59 +236,43 @@ void paged_attention(
                     const T* key_vec = key + new_token_idx * kv_shape[1] + kv_head * head_size;
                     score_val = dot_product(q_vec, key_vec, head_size);
                 }
-                // Scale and add alibi bias (indexed by kv head).
-                score_val *= static_cast<T>(scale);
-                score_val += alibi_slopes[(h % num_kv_heads)] * static_cast<T>(k);
+                // Apply scale and add alibi bias.
+                score_val *= scale;
+                T alibi = (alibi_slopes) ? alibi_slopes[h % num_kv_heads] : T(0);
+                score_val += alibi * static_cast<T>(k);
                 scores[k] = score_val;
             }
 
             softmax(scores);
 
-            // Compute weighted sum over value vectors.
+            // --- Compute weighted sum over value vectors ---
             std::vector<T> out_vec(head_size, T(0));
             for (int k = 0; k < total_keys; k++) {
                 T weight = scores[k];
                 if (k < seq_past_tokens) {
-                    int block_start = block_indices_begins ? block_indices_begins[seq_idx] : 0;
-                    int block_end = block_indices_begins ? block_indices_begins[seq_idx + 1] : num_blocks;
-                    int remaining = k;
-                    int block_id = -1;
-                    int token_offset = 0;
-                    for (int b = block_start; b < block_end; b++) {
-                        if (remaining < block_size) {
-                            block_id = block_indices[b];
-                            token_offset = remaining;
-                            break;
-                        }
-                        remaining -= block_size;
-                    }
-                    if (block_id < 0)
+                    int block_id = -1, token_offset = 0;
+                    bool found = find_cached_token(seq_idx, k, block_indices, block_indices_begins,
+                                                   num_blocks, block_size, block_id, token_offset);
+                    if (!found)
                         continue;
-                    // If token is in the sliding window region, skip accumulation.
-                    int first_block_for_seq =
-                        (block_indices_begins ? block_indices[block_indices_begins[seq_idx]] : -1);
+                    // Skip accumulation for tokens in the sliding window region.
+                    int first_block_for_seq = (block_indices_begins ? block_indices[block_indices_begins[seq_idx]] : -1);
                     if (first_block_for_seq >= 0 && block_id == first_block_for_seq && token_offset < sliding_window)
                         continue;
 
                     int kv_head = h % num_kv_heads;
-                    const T* raw_val_vec =
-                        value_cache + (((block_id * num_kv_heads + kv_head) * block_size + token_offset) * head_size);
+                    const T* raw_val_vec = value_cache +
+                        (((block_id * num_kv_heads + kv_head) * block_size + token_offset) * head_size);
 
                     bool do_rotate = false;
                     int rotated_index = -1;
-                    int num_rotated_blocks = rotated_block_indices_shape[0];
-                    if (rotated_block_indices && num_rotated_blocks > 0) {
-                        if (get_rotated_index(block_id, rotated_block_indices, num_rotated_blocks, rotated_index))
-                            do_rotate = true;
+                    if (rotated_block_indices && rotation_deltas && rotation_trig_lut) {
+                        do_rotate = should_rotate(block_id, rotated_block_indices, rotated_block_indices_shape, rotated_index);
                     }
                     if (do_rotate) {
-                        int trig_index = 0;
-                        if (rotation_deltas_shape.size() >= 2 && rotation_deltas_shape[1] == 1)
-                            trig_index = rotation_deltas[rotated_index];
-                        else if (rotation_deltas_shape.size() >= 2 && rotation_deltas_shape[1] == block_size)
-                            trig_index = rotation_deltas[rotated_index * block_size + token_offset];
+                        int trig_index = get_trig_index(rotation_deltas, rotation_deltas_shape, rotated_index, token_offset, block_size);
                         std::vector<T> temp_value(raw_val_vec, raw_val_vec + head_size);
-                        apply_rope(temp_value.data(), head_size, rotation_trig_lut, trig_index);
+                        apply_rope(temp_value.data(), head_size, reinterpret_cast<const T*>(rotation_trig_lut), trig_index);
                         for (int d = 0; d < head_size; d++) {
                             out_vec[d] += weight * temp_value[d];
                         }
@@ -278,5 +300,6 @@ void paged_attention(
         }
     }
 }
+
 }  // namespace reference
 }  // namespace ov
