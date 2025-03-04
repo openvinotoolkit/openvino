@@ -1406,8 +1406,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM4_PagedAttention) {
         auto aten_select_Gather = makeOP<ov::opset8::Gather>({aten_reshape_Reshape, 0, -1}, {{"batch_dims", 0}});
         auto aten_mul_Multiply_1 =
             makeOP<ov::opset1::Multiply>({aten_select_Gather, aten_select_Gather_1}, {{"auto_broadcast", "numpy"}});
-        auto aten_select_Gather_2 =
-            makeOP<ov::opset8::Gather>({aten_reshape_Reshape, 1, -1}, {{"batch_dims", 0}});
+        auto aten_select_Gather_2 = makeOP<ov::opset8::Gather>({aten_reshape_Reshape, 1, -1}, {{"batch_dims", 0}});
         auto aten_mul_Multiply_2 =
             makeOP<ov::opset1::Multiply>({aten_select_Gather_2, aten_select_Gather_3}, {{"auto_broadcast", "numpy"}});
         auto Multiply_45963 =
