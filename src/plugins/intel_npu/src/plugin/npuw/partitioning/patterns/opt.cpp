@@ -1551,7 +1551,7 @@ SliceLastMatmulTranspose::SliceLastMatmulTranspose() {
 
 SliceLastMatmulMultiply::SliceLastMatmulMultiply() {
     auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
-    auto div = opp::wrap_type<ov::op::v1::Divide>({matmul, opp::any_input()});
+    auto div = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({matmul, opp::any_input()});
     auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
     auto multiply = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
     auto res = opp::wrap_type<ov::op::v0::Result>({multiply});
