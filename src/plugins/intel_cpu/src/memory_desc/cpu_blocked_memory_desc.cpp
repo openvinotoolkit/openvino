@@ -356,7 +356,7 @@ size_t CpuBlockedMemoryDesc::getPaddedElementsCount() const {
         })) {
         OPENVINO_THROW("Can't compute padded elements count for non undefined blocked dims");
     }
-    return std::accumulate(blockedDims.begin(), blockedDims.end(), size_t{1}, std::multiplies<size_t>());
+    return std::accumulate(blockedDims.begin(), blockedDims.end(), size_t{1}, std::multiplies<>());
 }
 
 MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewPrecision(const ov::element::Type prec) const {

@@ -310,7 +310,7 @@ static void initFCAttrs(const FCAttrs& attrs,
 }
 
 arm_compute::TensorShape acl_fc_executor::normalizeDimsTo2D(const arm_compute::TensorShape shape) {
-    size_t norm_dim = std::accumulate(shape.begin() + 1, shape.end(), 1, std::multiplies<size_t>());
+    size_t norm_dim = std::accumulate(shape.begin() + 1, shape.end(), 1, std::multiplies<>());
     return arm_compute::TensorShape(shape[0], norm_dim);
 }
 
