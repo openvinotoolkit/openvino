@@ -276,7 +276,7 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
 ov::element::Type PagedAttention::getRuntimePrecision() const {
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
     // bf16 should be enabled only when platform supports
-    if (rtPrecision == ov::element::bf16 && ov::with_cpu_x86_bfloat16()) {
+    if (rtPrecision == ov::element::bf16 && ov::with_cpu_x86_bfloat16() && !ov::with_cpu_x86_avx2_vnni_2()) {
         rtPrecision = ov::element::bf16;
     } else if (rtPrecision == ov::element::f16 && ov::with_cpu_x86_avx512_core_fp16()) {
         rtPrecision = ov::element::f16;

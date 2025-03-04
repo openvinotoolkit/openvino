@@ -70,7 +70,7 @@ void run_test(ov::element::Type rtPrec) {
 
 TEST_P(BrgemmKernelTest, simpleGemmTest) {
     ov::element::Type rtPrec = this->GetParam();
-    if (rtPrec == ov::element::bf16 && !ov::with_cpu_x86_bfloat16())
+    if (rtPrec == ov::element::bf16 && (!ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx2_vnni_2()))
         GTEST_SKIP();
     if (rtPrec == ov::element::f32 && !ov::with_cpu_x86_avx512_core())
         GTEST_SKIP();
