@@ -36,20 +36,21 @@ SDPAFusion::SDPAFusion() {
     auto k_reshaped = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({k_base, k_shape});
     auto k = k_reshaped | k_base;
 
-    // Optional k scale
-    auto attn_scale = ov::pass::pattern::any_input();
-    auto k_opt_scaled = optional<ov::op::v1::Multiply>({k, attn_scale});
-    // K transpose + optional scale
-    auto k_trans_dims = ov::pass::pattern::any_input();
-    auto k_transposed = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({k, k_trans_dims});
-    auto k_transposed_opt_scaled = optional<ov::op::v1::Multiply>({k_transposed, attn_scale});
-    auto k_opt_transposed_opt_scaled = k_transposed_opt_scaled | k_opt_scaled;
-    
     auto v_base = makePattern(ov::Rank(4));
     auto v_proj_shape_m = ov::pass::pattern::any_input();
     auto v_reshaped = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({v_base, v_proj_shape_m});
     auto v = v_reshaped | v_base;
 
+    // Optional k scale
+    auto attn_scale = ov::pass::pattern::any_input();
+    // auto k_opt_scaled = optional<ov::op::v1::Multiply>({k, attn_scale});
+    // K transpose + optional scale
+    auto k_trans_dims = ov::pass::pattern::any_input();
+    auto k_opt_transposed = optional<ov::op::v1::Transpose>({k, k_trans_dims});
+    // auto k_transposed_opt_scaled = optional<ov::op::v1::Multiply>({_optk_transposed, attn_scale});
+    auto k_opt_transposed_scaled = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({k_opt_transposed, attn_scale});
+    auto k_opt_transposed_opt_scaled = k_opt_transposed_scaled | k_opt_transposed;
+    
     // No transpose check here, there are scenarios where k is not transposed and that uses equation (A*B)^T = B^T * A^T
     auto qk = makePattern<ov::op::v0::MatMul>({q, k_opt_transposed_opt_scaled});
 
@@ -58,7 +59,8 @@ SDPAFusion::SDPAFusion() {
     auto qk_unsqueeze = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({qk, unsqueeze_axis});
     auto qk_opt_unsqueeze = qk_unsqueeze | qk;
 
-    auto qk_opt_scaled = optional<ov::op::v1::Multiply>({qk_opt_unsqueeze, attn_scale});
+    auto qk_scaled = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({qk_opt_unsqueeze, attn_scale});
+    auto qk_opt_scaled = qk_scaled | qk_opt_unsqueeze;
 
     // optional mask add, there are patterns where before or/and after mask add buffer is reshaped
     auto mask = makePattern();
@@ -126,7 +128,7 @@ SDPAFusion::SDPAFusion() {
                 ov::copy_runtime_info(m.get_matched_nodes(), k_transpose);
                 k_node = k_transpose;
                 k_node_ps = k_node.get_partial_shape();
-            }
+        }
 
         if (k_node_ps[-1].is_dynamic() || k_node_ps[-3].is_dynamic())
             return false;
@@ -181,8 +183,8 @@ SDPAFusion::SDPAFusion() {
                                                      pattern_map.at(mask).get_partial_shape().size() > 4)) {
             return false;
         }
-         ov::Output<ov::Node> scale_node;
-        
+
+        ov::Output<ov::Node> scale_node;
         if (pattern_map.count(attn_scale) > 0) {
             scale_node = pattern_map.at(attn_scale);
             auto attn_scale_out_ps = scale_node.get_partial_shape();
@@ -201,7 +203,7 @@ SDPAFusion::SDPAFusion() {
         } else {
             scale_node = ov::op::v0::Constant::create(T, ov::Shape{}, {1.0});
         }
-        
+
         Output<ov::Node> mask_input;
         if (pattern_map.count(mask) > 0) {
             // for some reason line below doesn't work for all cases,

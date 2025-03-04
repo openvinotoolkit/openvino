@@ -14,10 +14,13 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/split.hpp"
 
+#include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/opsets/opset13.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
+#include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "openvino/pass/manager.hpp"
-
+#include "common_test_utils/ov_test_utils.hpp"
+#include  <iostream>
 namespace {
 // validate the batch axis padding for sdpa_micro kernel.
 class SDPA : virtual public ov::test::SubgraphBaseStaticTest {
@@ -62,7 +65,78 @@ protected:
     }
 };
 
+class SDPAFusion : virtual public ov::test::SubgraphBaseStaticTest,
+public testing::WithParamInterface<std::tuple<ov::PartialShape, // querry shape
+                                              ov::PartialShape, // key shape
+                                              ov::PartialShape, // value shape
+                                              ov::PartialShape, // mask shape
+                                              float, // scale value
+                                              float, // abs_threshold
+                                              float> // rel_threshold
+                                              >  {
+protected:
+    void create_model()  {
+
+        auto params = GetParam();
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        auto inType = ov::element::f16;
+
+        const ov::PartialShape query_shape = std::get<0>(params);
+        const ov::PartialShape key_shape = std::get<1>(params);
+        const ov::PartialShape value_shape = std::get<2>(params);
+        const ov::PartialShape attention_mask_shape = std::get<3>(params);
+        const ov::Shape scale_shape{1};
+
+        const auto query = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, query_shape);
+        const auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, key_shape);
+        const auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, value_shape);
+        const auto mask = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, attention_mask_shape);
+        const auto scale_const = ov::op::v0::Constant::create(ov::element::f16, {}, std::vector<float>{std::get<4>(params)});
+
+        const auto qk = std::make_shared<ov::op::v0::MatMul>(query, key, false, true);
+        const auto scaled_qk = std::make_shared<ov::op::v1::Multiply>(qk, scale_const);
+        const auto mask_add = std::make_shared<ov::op::v1::Add>(scaled_qk, mask);
+        const auto softmax = std::make_shared<ov::op::v8::Softmax>(mask_add, -1);
+        const auto qkv = std::make_shared<ov::op::v0::MatMul>(softmax, value, false, false);
+
+        auto output = std::make_shared<ov::op::v0::Result>(qkv->output(0));
+        function = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{query, key, value, mask}, "sdpa_model");
+
+        functionRefs = function->clone();
+
+        abs_threshold = std::get<5>(params);
+        rel_threshold = std::get<6>(params);
+    }
+
+    void check_results() {
+        auto exec_model = compiledModel.get_runtime_model();
+
+        int fused_node_found = 0;
+        for (const auto& n : exec_model->get_ordered_ops()) {
+            auto layer_type = n->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
+            if (layer_type == "scaled_dot_product_attention")
+                fused_node_found++;
+        }
+        ASSERT_EQ(fused_node_found, 1);
+    }
+};
+
 TEST_F(SDPA, Inference) {
+    std::cout<<"TEST SDPA"<<std::endl;
     run();
 }
+
+TEST_P(SDPAFusion, Inference) {
+    std::cout<<"TEST SDPAFusion"<<std::endl;
+    create_model();
+    run();
+
+    check_results();
+}
+
+INSTANTIATE_TEST_SUITE_P(SDPAFusionTests, SDPAFusion, ::testing::Values(std::make_tuple(ov::PartialShape{1, 10, 1024, 64},
+                                                                                        ov::PartialShape{1, 10, 1024, 64},
+                                                                                        ov::PartialShape{1, 10, 1024, 64},
+                                                                                        ov::PartialShape{10, 1024, 1024},
+                                                                                        1.0f, 0.025f, 0.025f)));
 }  // namespace
