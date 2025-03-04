@@ -56,6 +56,11 @@ protected:
     std::shared_ptr<MatMulFunctionBase> get_builder(const std::vector<ov::element::Type>& types) override;
 };
 
+class MatMulScaleBias : public MatMul {
+protected:
+    std::shared_ptr<MatMulFunctionBase> get_builder(const std::vector<ov::element::Type>& types) override;
+};
+
 class MatMulBiasQuantized : public MatMul {
 protected:
     std::shared_ptr<MatMulFunctionBase> get_builder(const std::vector<ov::element::Type>& types) override;

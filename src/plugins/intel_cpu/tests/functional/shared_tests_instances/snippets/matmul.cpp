@@ -137,6 +137,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulBias, MatMulBias,
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MatMul::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulScaleBias,
+                         MatMulScaleBias,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_bias),
+                                            ::testing::ValuesIn(precisions()),
+                                            ::testing::Values(MatMulType::MatMul),
+                                            ::testing::Values(1),  // Subgraph;
+                                            ::testing::Values(1),  // Tokenized MatMul+Bias
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         MatMul::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulBiasQuantized, MatMulBiasQuantized,
                          ::testing::Combine(
                                  ::testing::ValuesIn(input_shapes_bias),
