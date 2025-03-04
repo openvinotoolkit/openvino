@@ -90,9 +90,9 @@ inline int get_trig_index(const int32_t* rotation_deltas,
                           int32_t block_size) {
     int trig_index = 0;
     if (rotation_deltas && !rotation_deltas_shape.empty() && rotation_deltas_shape.size() >= 2) {
-        if (rotation_deltas_shape[1] == 1)
+        if (rotation_deltas_shape[1] == 1ul)
             trig_index = rotation_deltas[rotated_index];
-        else if (rotation_deltas_shape[1] == block_size)
+        else if (rotation_deltas_shape[1] == static_cast<size_t>(block_size))
             trig_index = rotation_deltas[rotated_index * block_size + token_offset];
     }
     return trig_index;
