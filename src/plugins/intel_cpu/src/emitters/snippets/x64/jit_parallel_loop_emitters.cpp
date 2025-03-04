@@ -129,10 +129,10 @@ void jit_parallel_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, c
     h->mov(aux_reg, reinterpret_cast<uintptr_t>(ParallelLoopExecutor::execute));
     h->mov(abi_param1, reinterpret_cast<uintptr_t>(m_parallel_loop_executor.get()));
     h->mov(abi_param2, h->rsp);
-//    h->mov(abi_param3, reinterpret_cast<const ParallelLoopExecutor::loop_preamble_t>(loop_begin_label->getAddress()));
     h->mov(abi_param3, loop_preamble_label);
 
     spill.rsp_align(callee_saved_reg.getIdx());
+    // Note: we will return from this call only when the parallel region is finished (return from jit_parallel_loop_end_emitter)
     h->call(aux_reg);
     spill.rsp_restore();
 
@@ -146,6 +146,7 @@ void jit_parallel_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, c
 
     h->jmp(*loop_end_label, Xbyak::CodeGenerator::T_NEAR);
 
+    // Note: parallel region starts here. The only legal entry point is from ParallelLoopExecutor::execute(...)
     h->L(loop_preamble_label);
 
     std::set<snippets::Reg> loop_premble_spill;
@@ -254,6 +255,7 @@ void jit_parallel_loop_end_emitter::emit_impl(const std::vector<size_t>& in, con
     h->jge(*loop_begin_label, Xbyak::CodeGenerator::T_NEAR);
     m_loop_reg_spiller->postamble();
     // todo: we can return at the end of the tail processing loop instead
+    // Note: parallel region ends here:
     h->ret();
     h->L(*loop_end_label);
 }
