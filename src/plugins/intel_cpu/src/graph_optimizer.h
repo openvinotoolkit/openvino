@@ -23,7 +23,8 @@ private:
     void FuseConvolutionMatMulDeconvAndBias(Graph& graph);
     void FuseDeconvolutionAndSimpleOperation(Graph& graph);
     void FuseMultiplyAndAdd(Graph& graph);
-    void MergeConvertAndScaleShift(Graph& graph);
+    void MergeEltwiseAndConvert(Graph& graph);
+    void MergeConvertAndEltwise(Graph& graph);
     void FuseFCAndConvertOnWeights(Graph& graph);
     void FuseFCAndTransposeOnWeights(Graph& graph);
     void FuseFullyConnectedAndSimpleOperation(Graph& graph);

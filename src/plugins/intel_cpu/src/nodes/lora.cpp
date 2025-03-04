@@ -10,9 +10,7 @@
 #include "shape_inference/shape_inference_pass_through.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool LoRA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -33,7 +31,7 @@ LoRA::LoRA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto& loraModel = ov::as_type_ptr<ov::op::internal::LoraSubgraph>(op);
-    OPENVINO_ASSERT(loraModel,
+    CPU_NODE_ASSERT(loraModel,
                     "Attempt to create LoRA node from an invalid op type: ",
                     op,
                     " with name ",
@@ -63,7 +61,7 @@ void LoRA::selectOptimalPrimitiveDescriptor() {
 
     std::vector<Input::OutputConfig> graphOutputConfig;
     // enforce the same memory descriptor on the output as on the input to allow inPlace memory
-    graphOutputConfig.emplace_back(node::Input::OutputConfig{inConfs.front().getMemDesc(), isInPlace});
+    graphOutputConfig.emplace_back(inConfs.front().getMemDesc(), isInPlace);
 
     // configure the inner graph to get the information about output memory descriptors
     m_graph.Init(m_body, context, graphInputConfig, graphOutputConfig);
@@ -96,7 +94,7 @@ int LoRA::registerToAllocationContext(int offset, AllocationContext& context) {
         auto parentEdge = getParentEdgeAt(i);
         auto inputEdges = m_graph.getInputNodeByIndex(i)->getChildEdgesAtPort(0);
         for (const auto& inputEdge : inputEdges) {
-            OPENVINO_ASSERT(inputEdge->getStatus() == Edge::Status::Uninitialized,
+            CPU_NODE_ASSERT(inputEdge->getStatus() == Edge::Status::Uninitialized,
                             "Expected Uninitialized Edge instead of: ",
                             static_cast<int>(inputEdge->getStatus()));
             inputEdge->sharedMemFrom(parentEdge);
@@ -144,6 +142,4 @@ void LoRA::prepareParams() {
     }
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

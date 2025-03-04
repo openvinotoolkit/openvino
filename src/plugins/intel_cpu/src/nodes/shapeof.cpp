@@ -7,9 +7,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include "shape_inference/custom/shapeof.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool ShapeOf::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -61,20 +59,15 @@ void ShapeOf::initOptimalPrimitiveDescriptor() {
     auto parentEdge = getParentEdgeAt(0);
     auto parent = parentEdge->getParent();
     auto parentPd = parent->getSelectedPrimitiveDescriptor();
-    OPENVINO_ASSERT(parentPd,
-                    parent->getTypeStr(),
-                    " ",
-                    parent->getName(),
+    CPU_NODE_ASSERT(parentPd,
                     "failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
     const auto& parentConfig = parentPd->getConfig();
     auto mem_desc = parentConfig.outConfs[parentEdge->getInputNum()].getMemDesc();
 
     auto selected_pd = getSelectedPrimitiveDescriptor();
-    OPENVINO_ASSERT(selected_pd,
-                    "ShapeOf ",
-                    getName(),
-                    " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+    CPU_NODE_ASSERT(selected_pd,
+                    "failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
     auto config = selected_pd->getConfig();
     config.inConfs.front().setMemDesc(mem_desc);
@@ -102,6 +95,4 @@ bool ShapeOf::created() const {
     return getType() == Type::ShapeOf;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

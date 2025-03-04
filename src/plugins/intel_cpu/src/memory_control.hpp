@@ -6,8 +6,7 @@
 
 #include "edge.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using EdgeCluster = std::vector<EdgePtr>;
 using EdgeClusters = std::vector<EdgeCluster>;
@@ -38,7 +37,7 @@ public:
 
     MemorySolution solve();
 
-    bool allocated() const {
+    [[nodiscard]] bool allocated() const {
         return m_allocated;
     }
 
@@ -73,5 +72,4 @@ private:
     std::vector<MemoryControl::Ptr> m_controlUnits;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

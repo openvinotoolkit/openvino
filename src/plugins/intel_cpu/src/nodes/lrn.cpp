@@ -15,9 +15,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "openvino/opsets/opset1.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 struct LrnKey {
@@ -30,7 +28,7 @@ struct LrnKey {
     float beta;
     dnnl::primitive_attr attr;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const LrnKey& rhs) const;
 };
 
@@ -86,23 +84,23 @@ bool Lrn::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
         const auto dataRank = dataDims.size();
         if (axes.size() == 1 && axes[0] == 1) {
             return true;
-        } else {
-            std::vector<bool> norm(dataRank, false);
-            for (auto& axis : axes) {
-                if (axis < 0 || axis >= static_cast<int64_t>(dataRank)) {
-                    errorMessage = "Has incorrect reduction axis: " + std::to_string(axis);
-                    return false;
-                }
-                norm[axis] = true;
+        }
+        std::vector<bool> norm(dataRank, false);
+        for (auto& axis : axes) {
+            if (axis < 0 || axis >= static_cast<int64_t>(dataRank)) {
+                errorMessage = "Has incorrect reduction axis: " + std::to_string(axis);
+                return false;
             }
+            norm[axis] = true;
+        }
 
-            for (size_t i = 2; i < norm.size(); ++i) {
-                if (!norm[i]) {
-                    errorMessage = "Supports only across channels or across spatial reduction";
-                    return false;
-                }
+        for (size_t i = 2; i < norm.size(); ++i) {
+            if (!norm[i]) {
+                errorMessage = "Supports only across channels or across spatial reduction";
+                return false;
             }
         }
+
     } catch (...) {
         return false;
     }
@@ -156,12 +154,11 @@ void Lrn::getSupportedDescriptors() {
 std::shared_ptr<MemoryDesc> Lrn::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
     if (idx > 0) {
         return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx), getInputShapeAtPort(idx));
-    } else {
-        if (getInputShapeAtPort(idx).isDynamic()) {
-            return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.src_desc(idx), getInputShapeAtPort(idx));
-        }
-        return DnnlExtensionUtils::makeDescriptor(prim_desc.src_desc(idx));
     }
+    if (getInputShapeAtPort(idx).isDynamic()) {
+        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.src_desc(idx), getInputShapeAtPort(idx));
+    }
+    return DnnlExtensionUtils::makeDescriptor(prim_desc.src_desc(idx));
 }
 
 void Lrn::prepareParams() {
@@ -260,6 +257,4 @@ void Lrn::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

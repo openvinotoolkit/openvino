@@ -18,8 +18,7 @@
 #include "nodes/executors/variable_executor.hpp"
 #include "post_ops.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 template <typename Attrs>
 class ExecutorFactory {
@@ -51,7 +50,7 @@ public:
      * @note The main use case is to avoid a fallback during the creation of an executor
      *       by passing proper memory descriptors to the make() method
      */
-    MemoryDescArgs getProperMemoryDescriptors(const MemoryDescArgs& descriptors) const {
+    [[nodiscard]] MemoryDescArgs getProperMemoryDescriptors(const MemoryDescArgs& descriptors) const {
         DEBUG_LOG("Preconfiguring memory descriptors");
 
         const auto& impl = m_suitableImplementations.front();
@@ -163,5 +162,4 @@ using ExecutorFactoryPtr = std::shared_ptr<ExecutorFactory<Attrs>>;
 template <typename Attrs>
 using ExecutorFactoryCPtr = std::shared_ptr<const ExecutorFactory<Attrs>>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

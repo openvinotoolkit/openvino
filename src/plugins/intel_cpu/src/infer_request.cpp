@@ -20,8 +20,7 @@
 
 using OvString = ov::element_type_traits<ov::element::string>::value_type;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 SyncInferRequest::SyncInferRequest(CompiledModelHolder compiled_model)
     : ov::ISyncInferRequest(compiled_model.compiled_model()),
       m_compiled_model(std::move(compiled_model)) {
@@ -335,9 +334,8 @@ const ov::Output<const ov::Node>& SyncInferRequest::get_internal_port(const ov::
     OPENVINO_ASSERT(port_find.found(), "Can not find port: ", port.get_any_name());
     if (port_find.is_input()) {
         return m_input_ports_map.at(port_find.idx);
-    } else {
-        return m_output_ports_map.at(port_find.idx);
     }
+    return m_output_ports_map.at(port_find.idx);
 }
 
 void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, const ov::SoPtr<ov::ITensor>& in_tensor) {
@@ -555,7 +553,7 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
 
                         tensor = control_block.tensor();
                         if (model_prec == graph_prec) {
-                            m_outputControlBlocks.emplace(std::make_pair(port_index, std::move(control_block)));
+                            m_outputControlBlocks.emplace(port_index, std::move(control_block));
                         }
                     }
                 } else {
@@ -644,5 +642,4 @@ void SyncInferRequest::sub_streams_infer() {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

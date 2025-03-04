@@ -40,9 +40,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 struct ConvKey {
@@ -61,7 +59,7 @@ struct ConvKey {
 
     bool constWeight;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const ConvKey& rhs) const;
 };
 
@@ -117,7 +115,7 @@ bool ConvKey::operator==(const ConvKey& rhs) const {
 class Convolution::FusedSubgraph {
 public:
     FusedSubgraph(const std::vector<NodePtr>& opList, const Convolution& conv, const GraphContext::CPtr& context) {
-        _graph = std::unique_ptr<Graph>(new Graph());
+        _graph = std::make_unique<Graph>();
 
         std::unordered_set<NodePtr> nodesSet;
         std::vector<EdgePtr> edges;
@@ -193,26 +191,24 @@ public:
         _graph->Activate();
     }
 
-    std::shared_ptr<Input> getInput(size_t idx) const {
+    [[nodiscard]] std::shared_ptr<Input> getInput(size_t idx) const {
         if (idx < inputs.size()) {
             return inputs[idx];
-        } else {
-            OPENVINO_THROW("OutOfBounds: Unexpected input index in Convolution::fusedSubgraph::getInput idx=",
-                           idx,
-                           " inputs.size()=",
-                           inputs.size());
         }
+        OPENVINO_THROW("OutOfBounds: Unexpected input index in Convolution::fusedSubgraph::getInput idx=",
+                       idx,
+                       " inputs.size()=",
+                       inputs.size());
     }
 
-    std::shared_ptr<Input> getOutput(size_t idx) const {
+    [[nodiscard]] std::shared_ptr<Input> getOutput(size_t idx) const {
         if (idx < outputs.size()) {
             return outputs[idx];
-        } else {
-            OPENVINO_THROW("OutOfBounds: Unexpected output index in Convolution::fusedSubgraph::getInput idx=",
-                           idx,
-                           " inputs.size()=",
-                           outputs.size());
         }
+        OPENVINO_THROW("OutOfBounds: Unexpected output index in Convolution::fusedSubgraph::getInput idx=",
+                       idx,
+                       " inputs.size()=",
+                       outputs.size());
     }
 
     void infer() {
@@ -228,7 +224,7 @@ private:
 
 bool Convolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ov::is_type<ov::op::v1::Convolution>(op) && !ov::is_type<ov::op::v1::GroupConvolution>(op)) {
+        if (!ov::is_type_any_of<ov::op::v1::Convolution, ov::op::v1::GroupConvolution>(op)) {
             errorMessage = "Only opset1 Convolution and GroupConvolution operations are supported";
             return false;
         }
@@ -285,11 +281,11 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
 
         expectedBiasDims = {groupOC};
 
-        for (size_t i = 0; i < convolutionOp->get_strides().size(); i++) {
-            stride.push_back(convolutionOp->get_strides()[i]);
+        for (size_t i : convolutionOp->get_strides()) {
+            stride.push_back(i);
         }
-        for (size_t i = 0; i < convolutionOp->get_dilations().size(); i++) {
-            dilation.push_back(static_cast<ptrdiff_t>(convolutionOp->get_dilations()[i]) - 1);
+        for (size_t i : convolutionOp->get_dilations()) {
+            dilation.push_back(static_cast<ptrdiff_t>(i) - 1);
         }
         paddingL = convolutionOp->get_pads_begin();
         paddingR = convolutionOp->get_pads_end();
@@ -308,11 +304,11 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
 
         expectedBiasDims = {groupOC * groupNum};
 
-        for (size_t i = 0; i < groupConvolutionOp->get_strides().size(); i++) {
-            stride.push_back(groupConvolutionOp->get_strides()[i]);
+        for (size_t i : groupConvolutionOp->get_strides()) {
+            stride.push_back(i);
         }
-        for (size_t i = 0; i < groupConvolutionOp->get_dilations().size(); i++) {
-            dilation.push_back(static_cast<ptrdiff_t>(groupConvolutionOp->get_dilations()[i]) - 1);
+        for (size_t i : groupConvolutionOp->get_dilations()) {
+            dilation.push_back(static_cast<ptrdiff_t>(i) - 1);
         }
         paddingL = groupConvolutionOp->get_pads_begin();
         paddingR = groupConvolutionOp->get_pads_end();
@@ -342,7 +338,7 @@ bool Convolution::canBeExecutedInInt8() const {
 }
 
 ov::element::Type Convolution::fusedEltwisePrecision(const NodePtr& fusingNode) const {
-    if (sumPrc != ov::element::undefined) {
+    if (sumPrc != ov::element::dynamic) {
         return sumPrc;
     }
 
@@ -434,14 +430,14 @@ void Convolution::getSupportedDescriptors() {
     attrs.reserve(2);
     withBiases = getOriginalInputsNumber() == 3;
 
-    int expectedInputEdgesNum = static_cast<int>(getOriginalInputsNumber());
-    for (size_t i = 0; i < fusedWith.size(); i++) {
-        if (fusedWith[i]->getType() == Type::Convolution) {
-            expectedInputEdgesNum += static_cast<int>(fusedWith[i]->getOriginalInputsNumber()) - 1;
+    auto expectedInputEdgesNum = static_cast<int>(getOriginalInputsNumber());
+    for (auto& i : fusedWith) {
+        if (i->getType() == Type::Convolution) {
+            expectedInputEdgesNum += static_cast<int>(i->getOriginalInputsNumber()) - 1;
         }
 
-        if (fusedWith[i]->getAlgorithm() == Algorithm::EltwiseAdd) {
-            auto* eltwiseNode = dynamic_cast<Eltwise*>(fusedWith[i].get());
+        if (i->getAlgorithm() == Algorithm::EltwiseAdd) {
+            auto* eltwiseNode = dynamic_cast<Eltwise*>(i.get());
             if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
                 expectedInputEdgesNum++;
             }
@@ -466,11 +462,11 @@ void Convolution::getSupportedDescriptors() {
     // to FP32.
     if (outputDataType != memory::data_type::f32 && outputDataType != memory::data_type::bf16 &&
         outputDataType != memory::data_type::f16 && withSum) {
-        for (size_t i = 0; i < fusedWith.size(); i++) {
-            if (fusedWith[i]->getAlgorithm() == Algorithm::EltwiseAdd) {
-                auto* eltwiseNode = dynamic_cast<Eltwise*>(fusedWith[i].get());
+        for (auto& i : fusedWith) {
+            if (i->getAlgorithm() == Algorithm::EltwiseAdd) {
+                auto* eltwiseNode = dynamic_cast<Eltwise*>(i.get());
                 if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
-                    eltwisePrecision = fusedEltwisePrecision(fusedWith[i]);
+                    eltwisePrecision = fusedEltwisePrecision(i);
                     if (DnnlExtensionUtils::DataTypeToElementType(outputDataType).size() != eltwisePrecision.size()) {
                         eltwisePrecision = ov::element::f32;
                         outputDataType = memory::data_type::f32;
@@ -584,11 +580,11 @@ void Convolution::getSupportedDescriptors() {
     outputDataType = getSupportedDataType(getOriginalOutputPrecisionAtPort(0));
 
     eltwisePrecision = ov::element::f32;
-    for (size_t i = 0; i < fusedWith.size(); i++) {
-        if (fusedWith[i]->getAlgorithm() == Algorithm::EltwiseAdd) {
-            auto* eltwiseNode = dynamic_cast<Eltwise*>(fusedWith[i].get());
+    for (auto& i : fusedWith) {
+        if (i->getAlgorithm() == Algorithm::EltwiseAdd) {
+            auto* eltwiseNode = dynamic_cast<Eltwise*>(i.get());
             if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
-                eltwisePrecision = fusedEltwisePrecision(fusedWith[i]);
+                eltwisePrecision = fusedEltwisePrecision(i);
                 // TODO(amalyshe): there might be situation when convolution can be executed in BF16,
                 // output is required in FP32 but eltwise inplace tensor would be in BF16
                 // currently we forcedly change output to the BF16 that will add reoreder after the node
@@ -707,7 +703,8 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
                         continue;
                     }
                     DEBUG_LOG(getName(), ": Append ", node->getName(), " as legacy post op");
-                    eltwiseNode->appendPostOps(ops, dims, args);
+                    int channelAxis = 1;
+                    eltwiseNode->appendPostOps(ops, dims, args, channelAxis);
                 } else {
                     DEBUG_LOG(getName(), ": Append ", node->getName(), " as original post op with binary");
                     eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType);
@@ -749,7 +746,8 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
                 }
                 // fallback to legacy
                 DEBUG_LOG(getName(), ": Append ", node->getName(), " as legacy post op");
-                fakeQuantizeNode->appendPostOps(ops, dims, args);
+                int channelAxis = 1;
+                fakeQuantizeNode->appendPostOps(ops, dims, args, channelAxis);
             } else {
                 DEBUG_LOG(getName(), ": Append ", node->getName(), " as original post op with binary");
                 fakeQuantizeNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, true, do_rounding);
@@ -969,20 +967,19 @@ dnnl::convolution_forward::primitive_desc createDescriptorInternal(const dnnl::e
                                                          dnnl::memory::dims(paddingR.begin(), paddingR.end()),
                                                          attr,
                                                          true);  // allow_empty
-    } else {
-        return dnnl::convolution_forward::primitive_desc(engine,
-                                                         prop_kind::forward_inference,
-                                                         alg,
-                                                         inputDesc,
-                                                         weightDesc,
-                                                         outputDesc,
-                                                         dnnl::memory::dims(stride.begin(), stride.end()),
-                                                         dnnl::memory::dims(dilation.begin(), dilation.end()),
-                                                         dnnl::memory::dims(paddingL.begin(), paddingL.end()),
-                                                         dnnl::memory::dims(paddingR.begin(), paddingR.end()),
-                                                         attr,
-                                                         true);  // allow_empty
     }
+    return dnnl::convolution_forward::primitive_desc(engine,
+                                                     prop_kind::forward_inference,
+                                                     alg,
+                                                     inputDesc,
+                                                     weightDesc,
+                                                     outputDesc,
+                                                     dnnl::memory::dims(stride.begin(), stride.end()),
+                                                     dnnl::memory::dims(dilation.begin(), dilation.end()),
+                                                     dnnl::memory::dims(paddingL.begin(), paddingL.end()),
+                                                     dnnl::memory::dims(paddingR.begin(), paddingR.end()),
+                                                     attr,
+                                                     true);  // allow_empty
 }
 }  // namespace
 
@@ -1102,7 +1099,8 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
         attr.set_input_zero_points(legacyInputZeroPoints.size(), 1 << 1 /*through C dim*/);
         if (!legacyInputZeroPointsMemPtr) {
             DnnlBlockedMemoryDesc memoryDesc(ov::element::u8, {legacyInputZeroPoints.size()});
-            legacyInputZeroPointsMemPtr.reset(new Memory(getEngine(), memoryDesc, legacyInputZeroPoints.data()));
+            legacyInputZeroPointsMemPtr =
+                std::make_shared<Memory>(getEngine(), memoryDesc, legacyInputZeroPoints.data());
         }
     }
 
@@ -1687,7 +1685,7 @@ void Convolution::executeDynamicImpl(const dnnl::stream& strm) {
         const auto& outMem = out->getParentEdgeAt(0)->getMemory();
         auto convOutMem = getDstMemoryAtPort(0);
         Node::redefineOutputMemory({outMem.getStaticDims()});
-        convOutMem->load(outMem);
+        convOutMem->load(outMem, true, false);
     }
 }
 
@@ -1714,9 +1712,8 @@ void Convolution::redefineOutputMemory(const std::vector<VectorDims>& newOutputS
             // here we postpone output memory reallocation due to the fact that it is the same memory with the sum
             // second input
             return;
-        } else {
-            withSumBroadcast = false;
         }
+        withSumBroadcast = false;
     }
     Node::redefineOutputMemory(newOutputShapes);
 }
@@ -1754,9 +1751,8 @@ MemoryPtr Convolution::getOutputMemory() const {
         }
         auto inp0 = subgraph->getInput(0);
         return inp0->getDstMemoryAtPort(0);
-    } else {
-        return getDstMemoryAtPort(0);
     }
+    return getDstMemoryAtPort(0);
 }
 
 void Convolution::addFusedNode(const NodePtr& fusingNode) {
@@ -1856,6 +1852,4 @@ VectorDims Convolution::outputStaticShape() const {
     return outputShape.getStaticDims();
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -10,8 +10,7 @@
 
 #include "support/Mutex.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace arm_compute;
 
@@ -19,7 +18,7 @@ class ACLScheduler final : public IScheduler {
 public:
     ACLScheduler();
     ~ACLScheduler() override = default;
-    std::uint32_t num_threads() const override;
+    [[nodiscard]] std::uint32_t num_threads() const override;
     void set_num_threads(unsigned int num_threads) override;
     void schedule(ICPPKernel* kernel, const Hints& hints) override;
     void schedule_op(ICPPKernel* kernel, const Hints& hints, const Window& window, ITensorPack& tensors) override;
@@ -30,5 +29,4 @@ protected:
 private:
     void schedule_custom(ICPPKernel* kernel, const Hints& hints, const Window& window, ITensorPack& tensors);
 };
-}  //  namespace intel_cpu
-}  //  namespace ov
+}  // namespace ov::intel_cpu

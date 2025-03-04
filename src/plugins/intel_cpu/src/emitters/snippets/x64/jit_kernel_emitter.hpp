@@ -7,8 +7,7 @@
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 ///
 /// \brief    Kernel is the only entry point to Codogen Jit compilation. Kernel perform abstract-to-physical register
@@ -37,10 +36,6 @@ public:
     size_t get_inputs_num() const override {
         return 0;
     }
-    void emit_code(const std::vector<size_t>& in_idxs,
-                   const std::vector<size_t>& out_idxs,
-                   const std::vector<size_t>& pool_vec_idxs,
-                   const std::vector<size_t>& pool_gpr_idxs) const override;
 
 protected:
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
@@ -50,6 +45,11 @@ protected:
                                     const std::vector<Xbyak::Reg64>& aux_gprs) const = 0;
 
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
+
+    void emit_code_impl(const std::vector<size_t>& in_idxs,
+                        const std::vector<size_t>& out_idxs,
+                        const std::vector<size_t>& pool_vec_idxs,
+                        const std::vector<size_t>& pool_gpr_idxs) const override;
 
     jit_snippets_compile_args jcp;
     // gpr's used to store data pointers, track them to apply offsets in Kernel
@@ -106,5 +106,4 @@ private:
 #endif
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

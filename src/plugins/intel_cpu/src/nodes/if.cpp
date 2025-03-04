@@ -14,9 +14,7 @@
 #include "openvino/op/if.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 If::PortMapHelper::PortMapHelper(MemoryPtr from, std::deque<MemoryPtr> to, const dnnl::engine& eng)
     : srcMemPtr(std::move(from)),
@@ -74,7 +72,7 @@ bool If::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::st
 If::If(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, InternalDynShapeInferFactory()),
       m_op(ov::as_type_ptr<ov::op::v8::If>(op)) {
-    OPENVINO_ASSERT(m_op, "'If' operation is expected");
+    CPU_NODE_ASSERT(m_op, "'If' operation is expected");
 
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -242,7 +240,7 @@ std::deque<MemoryPtr> If::getToMemories(const Node* node, const size_t port) con
 }
 
 void If::execute(const dnnl::stream& strm) {
-    const bool condition = static_cast<const bool>((getSrcDataAtPortAs<const uint8_t>(0))[0]);
+    const auto condition = static_cast<const bool>((getSrcDataAtPortAs<const uint8_t>(0))[0]);
 
     auto& beforeMappers = condition ? beforeThenMappers : beforeElseMappers;
     auto& afterMappers = condition ? afterThenMappers : afterElseMappers;
@@ -268,6 +266,4 @@ bool If::created() const {
     return getType() == Type::If;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -4,12 +4,12 @@
 
 #include "fake_quantize.h"
 
-#include <math.h>
 #include <memory_desc/cpu_memory_desc_utils.h>
 
 #include <algorithm>
 #include <cmath>
 #include <common/dnnl_thread.hpp>
+#include <memory>
 #include <set>
 #include <shape_inference/shape_inference_pass_through.hpp>
 #include <string>
@@ -40,9 +40,7 @@ using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 #if defined(OPENVINO_ARCH_X86_64)
 #    define GET_OFF(field) offsetof(jit_quantize_call_args, field)
 
@@ -915,7 +913,7 @@ private:
     }
 
     inline void store_vector(const Xbyak::Address& op, Ymm ymm_dst, ov::element::Type dst_prc) {
-        Xmm xmm_dst = Xmm(ymm_dst.getIdx());
+        auto xmm_dst = Xmm(ymm_dst.getIdx());
 
         if (dst_prc != ov::element::f32) {
             uni_vcvtps2dq(ymm_dst, ymm_dst);
@@ -1067,7 +1065,7 @@ bool FakeQuantize::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
 namespace {
 struct FakeQuantKey {
     jit_quantize_params jqp;
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl::primitive_hashing;
         size_t seed = 0;
         seed = hash_combine(seed, jqp.is_planar);
@@ -1217,7 +1215,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
             if (isInputLowBroadcasted) {
                 binarizationThresholds.push_back(inputLowData[0]);
             } else {
-                OPENVINO_ASSERT(axisSize != -1);
+                CPU_NODE_ASSERT(axisSize != -1, "axisSize is not set");
                 binarizationThresholds.resize(rnd_up(axisSize, 16));
                 for (int i = 0; i < axisSize; i++) {
                     binarizationThresholds[i] = inputLowData[i];
@@ -1227,7 +1225,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
             if (isOutputHighBroadcasted) {
                 binarizationOutputMask.push_back(outputHighData[0] == 1.f ? 0xffffffff : 0x00000000);
             } else {
-                OPENVINO_ASSERT(axisSize != -1);
+                CPU_NODE_ASSERT(axisSize != -1, "axisSize is not set");
                 binarizationOutputMask.resize(rnd_up(axisSize, 16));
                 for (int i = 0; i < axisSize; i++) {
                     binarizationOutputMask[i] = outputHighData[i] == 1.f ? 0xffffffff : 0x00000000;
@@ -1411,22 +1409,18 @@ std::vector<LayoutType> FakeQuantize::getDataFormats() const {
     const auto& dims = getInputShapeAtPort(0).getDims();
     if (dims[getAxis()] == 3) {
         return {LayoutType::ncsp};
-    } else {
-        if (isBinarization()) {
-            return {LayoutType::nspc};
-        } else {
-            if (one_of(dims.size(), 4u, 5u)) {
-                if (getAxis() == 1) {
-                    auto blkFormat = mayiuse(cpu::x64::avx512_core) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
-                    return {blkFormat, LayoutType::nspc, LayoutType::ncsp};
-                } else {
-                    return {LayoutType::ncsp};
-                }
-            } else {
-                return {LayoutType::ncsp};
-            }
-        }
     }
+    if (isBinarization()) {
+        return {LayoutType::nspc};
+    }
+    if (one_of(dims.size(), 4u, 5u)) {
+        if (getAxis() == 1) {
+            auto blkFormat = mayiuse(cpu::x64::avx512_core) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
+            return {blkFormat, LayoutType::nspc, LayoutType::ncsp};
+        }
+        return {LayoutType::ncsp};
+    }
+    return {LayoutType::ncsp};
 }
 
 void FakeQuantize::init() {
@@ -1533,7 +1527,7 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
         dataConfig.setMemDesc(descCreator->createSharedDesc(getOutputPrecision(), getOutputShapeAtPort(0)));
         config.outConfs.push_back(dataConfig);
 
-        supportedPrimitiveDescriptors.push_back({config, impl_type});
+        supportedPrimitiveDescriptors.emplace_back(config, impl_type);
     }
 }
 
@@ -1563,7 +1557,7 @@ void FakeQuantize::prepareParams() {
     if (isBinarization()) {
         const size_t axisSize = getParentEdgeAt(0)->getMemory().getShape().getStaticDims()[getAxis()];
         const size_t newPaddedSize = rnd_up(axisSize, 16);
-        OPENVINO_ASSERT(newPaddedSize != 0);
+        CPU_NODE_ASSERT(newPaddedSize != 0, "newPaddedSize is 0");
 
         if (internalBlobMemory.empty() || newPaddedSize != rnd_up(currentAxisSize, 16) ||
             ((isInputLowBroadcasted || isOutputHighBroadcasted) && axisSize != currentAxisSize)) {
@@ -2140,7 +2134,7 @@ void FakeQuantize::appendPostOps(dnnl::post_ops& ops,
     std::vector<MemoryPtr> postOpsMemPtrs;
     appendPostOpsImpl(ops, postOpDims, postOpsMemPtrs);
 
-    OPENVINO_ASSERT(postOpsMemPtrs.size() <= 1, "at most 1 post ops memory args can be appended.");
+    CPU_NODE_ASSERT(postOpsMemPtrs.size() <= 1, "at most 1 post ops memory args can be appended.");
 
     if (!postOpsMemPtrs.empty()) {
         postOpsMem[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = postOpsMemPtrs[0];
@@ -2187,12 +2181,12 @@ void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
                           outputScale.size(),
                           outputShift.size()});
 
-    OPENVINO_ASSERT(inputScale.size() == 1 || inputScale.size() == OC);
-    OPENVINO_ASSERT(inputShift.size() == 1 || inputShift.size() == OC);
-    OPENVINO_ASSERT(cropLow.size() == 1 || cropLow.size() == OC);
-    OPENVINO_ASSERT(cropHigh.size() == 1 || cropHigh.size() == OC);
-    OPENVINO_ASSERT(outputScale.size() == 1 || outputScale.size() == OC);
-    OPENVINO_ASSERT(outputShift.size() == 1 || outputShift.size() == OC);
+    CPU_NODE_ASSERT(inputScale.size() == 1 || inputScale.size() == OC, "inputScale.size() == ", inputScale.size());
+    CPU_NODE_ASSERT(inputShift.size() == 1 || inputShift.size() == OC, "inputShift.size() == ", inputShift.size());
+    CPU_NODE_ASSERT(cropLow.size() == 1 || cropLow.size() == OC, "cropLow.size() == ", cropLow.size());
+    CPU_NODE_ASSERT(cropHigh.size() == 1 || cropHigh.size() == OC, "cropHigh.size() == ", cropHigh.size());
+    CPU_NODE_ASSERT(outputScale.size() == 1 || outputScale.size() == OC, "outputScale.size() == ", outputScale.size());
+    CPU_NODE_ASSERT(outputShift.size() == 1 || outputShift.size() == OC, "outputShift.size() == ", outputShift.size());
 
     // WA: a per-Tensor input shift may little drift away randomly
     //     from it's orginal value when FQ was fused with any
@@ -2378,21 +2372,21 @@ FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor(const jit_quantiz
     bool isBinarization = _jqp.op_type == Algorithm::FQBinarization;
     if (mayiuse(cpu::x64::avx512_core)) {
         if (isBinarization) {
-            pKernel.reset(new jit_uni_binarization_kernel<cpu::x64::avx512_core>(_jqp));
+            pKernel = std::make_unique<jit_uni_binarization_kernel<cpu::x64::avx512_core>>(_jqp);
         } else {
-            pKernel.reset(new jit_uni_quantization_kernel<cpu::x64::avx512_core>(_jqp));
+            pKernel = std::make_unique<jit_uni_quantization_kernel<cpu::x64::avx512_core>>(_jqp);
         }
     } else if (mayiuse(cpu::x64::avx2)) {
         if (isBinarization) {
-            pKernel.reset(new jit_uni_binarization_kernel<cpu::x64::avx2>(_jqp));
+            pKernel = std::make_unique<jit_uni_binarization_kernel<cpu::x64::avx2>>(_jqp);
         } else {
-            pKernel.reset(new jit_uni_quantization_kernel<cpu::x64::avx2>(_jqp));
+            pKernel = std::make_unique<jit_uni_quantization_kernel<cpu::x64::avx2>>(_jqp);
         }
     } else if (mayiuse(cpu::x64::sse41)) {
         if (isBinarization) {
-            pKernel.reset(new jit_uni_binarization_kernel<cpu::x64::sse41>(_jqp));
+            pKernel = std::make_unique<jit_uni_binarization_kernel<cpu::x64::sse41>>(_jqp);
         } else {
-            pKernel.reset(new jit_uni_quantization_kernel<cpu::x64::sse41>(_jqp));
+            pKernel = std::make_unique<jit_uni_quantization_kernel<cpu::x64::sse41>>(_jqp);
         }
     } else {
         OPENVINO_THROW("Can't create jit fake quantize kernel");
@@ -2419,6 +2413,4 @@ bool FakeQuantize::created() const {
     return getType() == Type::FakeQuantize;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

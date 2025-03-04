@@ -39,9 +39,7 @@ using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 #if defined(OPENVINO_ARCH_X86_64)
 #    define GET_OFF(field) offsetof(jit_bin_conv_call_args, field)
 
@@ -225,7 +223,7 @@ private:
     nstl::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
 
     void cvt2ps(dnnl::memory::data_type type_in, Vmm vmm_in, const Xbyak::Operand& op, bool scalar_load) {
-        Xmm xmm_in = Xmm(vmm_in.getIdx());
+        auto xmm_in = Xmm(vmm_in.getIdx());
 
         switch (type_in) {
         case memory::data_type::f32:
@@ -263,8 +261,8 @@ private:
     }
 
     void store_dst(const Xbyak::Address& op, Vmm vmm_dst, bool scalar_store) {
-        Ymm ymm_dst = Ymm(vmm_dst.getIdx());
-        Xmm xmm_dst = Xmm(vmm_dst.getIdx());
+        auto ymm_dst = Ymm(vmm_dst.getIdx());
+        auto xmm_dst = Xmm(vmm_dst.getIdx());
 
         switch (jcp_.dst_dt) {
         case memory::data_type::f32:
@@ -636,7 +634,7 @@ private:
                 } else if (post_op.is_sum(false)) {
                     for (int ii = 0; ii < oc_blocks; ii++) {
                         for (int jj = 0; jj < ur_w; jj++) {
-                            Vmm vmm_dst = Vmm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + ur_w * ii + jj);
+                            auto vmm_dst = Vmm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + ur_w * ii + jj);
 
                             if (is_scalar_store) {
                                 if (isa == x64::avx512_core) {
@@ -656,7 +654,7 @@ private:
                                         if (oc < jcp_.oc_block / 2) {
                                             uni_vpslldq(vmm_sum, vmm_sum, oc * sizeof(float));
                                         } else {
-                                            Ymm ymm_prev_dst = Ymm(vmm_sum.getIdx());
+                                            auto ymm_prev_dst = Ymm(vmm_sum.getIdx());
                                             vperm2i128(ymm_prev_dst, ymm_prev_dst, ymm_prev_dst, 0x01);
                                             uni_vpslldq(vmm_sum, vmm_sum, (oc - jcp_.oc_block / 2) * sizeof(float));
                                         }
@@ -704,7 +702,7 @@ private:
                             vmm_out_mask,
                             ptr[reg_b_out_mask + (ii * jcp_.oc_block + r * (jcp_.oc_block / 2)) * sizeof(float)]);
 
-                        Vmm vmm_dst = Vmm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + ur_w * ii + jj);
+                        auto vmm_dst = Vmm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + ur_w * ii + jj);
 
                         if (isa == x64::avx512_core) {
                             vcmpps(bin_mask0, vmm_dst, vmm_thr, _cmp_gt_os);
@@ -748,7 +746,7 @@ private:
                 bool is_scalar_store = isa == x64::sse41 ? tail_size < jcp_.oc_block / 2 : tail_size < jcp_.oc_block;
                 if (is_scalar_store) {
                     for (int jj = 0; jj < ur_w; jj++) {
-                        Vmm vmm_dst = Vmm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + jj);
+                        auto vmm_dst = Vmm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + jj);
 
                         if (isa == x64::avx512_core) {
                             size_t o_off;
@@ -773,7 +771,7 @@ private:
                                 if (isa == x64::sse41) {
                                     psrldq(vmm_dst, jcp_.typesize_out);
                                 } else {
-                                    Ymm ymm_dst = Ymm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + jj);
+                                    auto ymm_dst = Ymm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + jj);
 
                                     vperm2i128(ymm_tmp, ymm_dst, ymm_dst, 0x01);
                                     vpalignr(ymm_dst, vmm_tmp, ymm_dst, jcp_.typesize_out);
@@ -784,7 +782,7 @@ private:
                 } else {
                     for (int ii = 0; ii < oc_blocks; ii++) {
                         for (int jj = 0; jj < ur_w; jj++) {
-                            Vmm vmm_dst = Vmm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + ur_w * ii + jj);
+                            auto vmm_dst = Vmm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + ur_w * ii + jj);
 
                             size_t o_off;
                             if (jcp_.with_dw_conv) {
@@ -962,11 +960,11 @@ BinaryConvolution::BinaryConvolution(const std::shared_ptr<ov::Node>& op, const 
         const auto binConv = ov::as_type_ptr<const ov::opset1::BinaryConvolution>(op);
 
         pad_value = binConv->get_pad_value();
-        for (size_t i = 0; i < binConv->get_strides().size(); i++) {
-            stride.push_back(static_cast<ptrdiff_t>(binConv->get_strides()[i]));
+        for (uint64_t i : binConv->get_strides()) {
+            stride.push_back(static_cast<ptrdiff_t>(i));
         }
-        for (size_t i = 0; i < binConv->get_dilations().size(); i++) {
-            dilation.push_back(static_cast<ptrdiff_t>(binConv->get_dilations()[i]) - 1);
+        for (uint64_t i : binConv->get_dilations()) {
+            dilation.push_back(static_cast<ptrdiff_t>(i) - 1);
         }
         paddingL = binConv->get_pads_begin();
         paddingR = binConv->get_pads_end();
@@ -989,8 +987,8 @@ void BinaryConvolution::getSupportedDescriptors() {
     withBinarization = isFusedWith(Type::FakeQuantize);
     withSum = false;
     size_t expectedInputEdgesNum = 2;
-    for (size_t i = 0; i < fusedWith.size(); i++) {
-        auto* eltwiseNode = dynamic_cast<Eltwise*>(fusedWith[i].get());
+    for (auto& i : fusedWith) {
+        auto* eltwiseNode = dynamic_cast<Eltwise*>(i.get());
         if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
             withSum = true;
             expectedInputEdgesNum++;
@@ -1068,7 +1066,7 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
             config.inConfs.push_back(config.outConfs[0]);
             config.outConfs[0].inPlace(2);
         }
-        supportedPrimitiveDescriptors.push_back({config, implType});
+        supportedPrimitiveDescriptors.emplace_back(config, implType);
     } else {
         // reference implementation
         auto weiCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
@@ -1077,7 +1075,7 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
         config.inConfs[0].setMemDesc(nspcCreator->createSharedDesc(ov::element::u1, getInputShapeAtPort(0)));
         config.inConfs[1].setMemDesc(weiCreator->createSharedDesc(ov::element::u1, getInputShapeAtPort(1)));
         config.outConfs[0].setMemDesc(nspcCreator->createSharedDesc(ov::element::f32, getOutputShapeAtPort(0)));
-        supportedPrimitiveDescriptors.push_back({config, implType});
+        supportedPrimitiveDescriptors.emplace_back(config, implType);
     }
 }
 
@@ -1168,11 +1166,12 @@ void BinaryConvolution::createPrimitive() {
 #if defined(OPENVINO_ARCH_X86_64)
     jit_dw_conv_params jcp_dw_conv = {};
     if (implType == impl_desc_type::jit_avx512) {
-        bin_conv_kernel.reset(new jit_uni_bin_conv_kernel_f32<x64::avx512_core>(jcp, jcp_dw_conv, *attr.get()));
+        bin_conv_kernel =
+            std::make_shared<jit_uni_bin_conv_kernel_f32<x64::avx512_core>>(jcp, jcp_dw_conv, *attr.get());
     } else if (implType == impl_desc_type::jit_avx2) {
-        bin_conv_kernel.reset(new jit_uni_bin_conv_kernel_f32<x64::avx2>(jcp, jcp_dw_conv, *attr.get()));
+        bin_conv_kernel = std::make_shared<jit_uni_bin_conv_kernel_f32<x64::avx2>>(jcp, jcp_dw_conv, *attr.get());
     } else if (implType == impl_desc_type::sse42) {
-        bin_conv_kernel.reset(new jit_uni_bin_conv_kernel_f32<x64::sse41>(jcp, jcp_dw_conv, *attr.get()));
+        bin_conv_kernel = std::make_shared<jit_uni_bin_conv_kernel_f32<x64::sse41>>(jcp, jcp_dw_conv, *attr.get());
     }
     if (bin_conv_kernel) {
         bin_conv_kernel->create_ker();
@@ -1196,9 +1195,8 @@ bool BinaryConvolution::canFuse(const NodePtr& node) const {
             ret &= node->getParentEdgeAt(i)->getParent()->getChildEdges().size() == 1;
         }
         return ret;
-    } else {
-        return canFuseSimpleOperation(node);
     }
+    return canFuseSimpleOperation(node);
 }
 
 void BinaryConvolution::setPostOps(dnnl::primitive_attr& attr) {
@@ -1207,19 +1205,20 @@ void BinaryConvolution::setPostOps(dnnl::primitive_attr& attr) {
     postOpsDataPtrs.clear();
     for (auto& node : fusedWith) {
         auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get());
+        int channelAxis = 1;
         if (eltwiseNode) {
             if (eltwiseNode->isSpecialConvolutionAddFusing()) {
                 ops.append_sum(1.0);
             } else {
                 // TODO [DS]: change to shape from memory
-                eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), postOpsDataPtrs);
+                eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), postOpsDataPtrs, channelAxis);
             }
             continue;
         }
 
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), postOpsDataPtrs);
+            fakeQuantizeNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), postOpsDataPtrs, channelAxis);
             continue;
         }
 
@@ -1347,9 +1346,9 @@ void BinaryConvolution::executeReference(const uint8_t* src,
                     if (ih < 0 || ih >= IH || iw < 0 || iw >= IW) {
                         if (pad_value == 0) {
                             continue;
-                        } else {
-                            s = pad_value == 1.0f ? static_cast<uint8_t>(1) : static_cast<uint8_t>(0);
                         }
+                        s = pad_value == 1.0f ? static_cast<uint8_t>(1) : static_cast<uint8_t>(0);
+
                     } else {
                         s = extract_bit(src[iidx / nbits], static_cast<uint8_t>(iidx % nbits));
                     }
@@ -1431,6 +1430,4 @@ bool BinaryConvolution::created() const {
     return getType() == Type::BinaryConvolution;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

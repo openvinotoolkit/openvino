@@ -8,8 +8,7 @@
 #include <string>
 #include <vector>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 impl_desc_type parse_impl_name(std::string impl_desc_name) {
     impl_desc_type res = impl_desc_type::unknown;
@@ -58,6 +57,7 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
     SEARCH_WORD(reorder);
     SEARCH_WORD(sparse);
     SEARCH_WORD(acl);
+    SEARCH_WORD(kleidiai);
     SEARCH_WORD(shl);
     SEARCH_WORD(asimd);
     if ((res & impl_desc_type::avx2) != impl_desc_type::avx2 &&
@@ -153,6 +153,8 @@ const char* impl_type_to_string(impl_desc_type type) {
     CASE(jit_sve512);
     CASE(shl);
     CASE(gemm_shl);
+    CASE(kleidiai);
+    CASE(gemm_kleidiai);
 
 #undef CASE
     return "unknown";
@@ -162,5 +164,4 @@ bool contains(const std::vector<impl_desc_type>& priorities, const impl_desc_typ
     return std::find(priorities.begin(), priorities.end(), impl_type_str) != priorities.end();
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

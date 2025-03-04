@@ -9,9 +9,7 @@
 #include "openvino/op/tile.hpp"
 #include "utils/ngraph_utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool Tile::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -121,7 +119,7 @@ void Tile::prepareParams() {
     if (!constMap[TILE_REPEATS]) {
         const auto& repeatsMem = getParentEdgeAt(TILE_REPEATS)->getMemory();
 
-        const int32_t* repeatsData = repeatsMem.getDataAs<const int32_t>();
+        const auto* repeatsData = repeatsMem.getDataAs<const int32_t>();
         originRepeats.assign(repeatsData, repeatsData + repeatsMem.getStaticDims()[0]);
 
         repeats.assign(std::max(originRepeats.size(), getInputShapeAtPort(TILE_INPUT).getRank()), 1lu);
@@ -146,7 +144,7 @@ bool Tile::needShapeInfer() const {
         if (originRepeats.empty()) {
             return true;
         }
-        const int32_t* repeatsData = getSrcDataAtPortAs<const int32_t>(TILE_REPEATS);
+        const auto* repeatsData = getSrcDataAtPortAs<const int32_t>(TILE_REPEATS);
         for (size_t i = 0lu; i < originRepeats.size(); i++) {
             if (originRepeats[i] != static_cast<size_t>(repeatsData[i])) {
                 return true;
@@ -176,8 +174,8 @@ void Tile::plainExecute(const dnnl::stream& strm) {
 
     auto& srcMemory = getParentEdgeAt(TILE_INPUT)->getMemory();
 
-    const uint8_t* src_ptr = srcMemory.getDataAs<const uint8_t>();
-    uint8_t* dst_ptr = getDstDataAtPortAs<uint8_t>(0);
+    const auto* src_ptr = srcMemory.getDataAs<const uint8_t>();
+    auto* dst_ptr = getDstDataAtPortAs<uint8_t>(0);
 
     int m_inner_dim = 1;
     int m_outer_dim = 1;
@@ -226,6 +224,4 @@ bool Tile::created() const {
     return getType() == Type::Tile;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

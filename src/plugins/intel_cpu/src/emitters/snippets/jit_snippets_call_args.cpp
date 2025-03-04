@@ -8,8 +8,7 @@
 
 #include "emitters/utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 jit_snippets_call_args::~jit_snippets_call_args() {
     delete[] loop_args;
@@ -65,5 +64,4 @@ void swap(jit_snippets_call_args::loop_args_t& first, jit_snippets_call_args::lo
     std::swap(first.m_finalization_offsets, second.m_finalization_offsets);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
