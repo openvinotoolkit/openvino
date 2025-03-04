@@ -152,7 +152,6 @@ sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
             return &xehpg_q_h32;
         }
         if (thin_q) return &xehpg_h32_2nd;
-        if (seq <= 0) return &xehpg_h32;
         if (seq <= 32) return &xehpg_h32_s32;
         if (seq <= 64) return &xehpg_h32_s64;
         if (seq <= 256) return &xehpg_h32_s256;
@@ -163,7 +162,6 @@ sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
             return &xehpg_q_h64;
         }
         if (thin_q) return &xehpg_h64_2nd;
-        if (seq <= 0) return &xehpg_h64;
         if (seq <= 64) return &xehpg_h64_s64;
         if (seq <= 128) return &xehpg_h64_s128;
         return &xehpg_h64;
@@ -180,7 +178,6 @@ sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
             if (seq <= 256) return &xehpg_h128_s256_2nd;
             return &xehpg_h128_2nd;
         }
-        if (seq <= 0) return &xehpg_h128;
         if (seq <= 32) return &xehpg_h128_s32;
         return &xehpg_h128;
     } else if (head_size <= 256) {
@@ -189,7 +186,6 @@ sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
             if (seq <= 64) return &xehpg_h256_s64_2nd;
             return &xehpg_h256_2nd;
         }
-        if (seq <= 0) return &xehpg_h256;
         if (seq <= 32) return &xehpg_h256_s32;
         if (seq <= 128) return &xehpg_h256_s128;
         return &xehpg_h256;
@@ -200,7 +196,6 @@ sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
 sdpa_config_t *choose_config_xehpc(int head_size, int seq, bool thin_q, bool quantized) {
     if (head_size <= 32) {
         if (thin_q) return &xehpc_h32_2nd;
-        if (seq <= 0) return &xehpc_h32;
         if (seq <= 32) return &xehpc_h32_s32;
         return &xehpc_h32;
     } else if (head_size <= 64) {
@@ -209,7 +204,6 @@ sdpa_config_t *choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
             return &xehpc_h64_2nd;
         }
         if (quantized && seq >= 256) return &xehpc_q_h64;
-        if (seq <= 0) return &xehpc_h64;
         if (seq <= 32) return &xehpc_h64_s32;
         if (seq <= 64) return &xehpc_h64_s64;
         return &xehpc_h64;
@@ -224,13 +218,11 @@ sdpa_config_t *choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
             return &xehpc_q_h128;
         }
         if (thin_q) return &xehpc_h128_2nd;
-        if (seq <= 0) return &xehpc_h128;
         if (seq <= 32) return &xehpc_h128_s32;
         if (seq <= 64) return &xehpc_h128_s64;
         return &xehpc_h128;
     } else if (head_size <= 256) {
         if (thin_q) return &xehpc_h256_2nd;
-        if (seq <= 0) return &xehpc_h256;
         if (seq <= 64) return &xehpc_h256_s64;
         return &xehpc_h256;
     }
