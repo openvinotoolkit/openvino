@@ -196,22 +196,6 @@ Plugin::~Plugin() {
     }
 }
 
-void Plugin::set_cache_info(const std::shared_ptr<const ov::Model>& model, ExecutionConfig& config) const {
-    // WEIGHTS_PATH is used for the weightless cache mechanism which is used only with
-    // ov::CacheMode::OPTIMIZE_SIZE setting. Not setting WEIGHTS_PATH will result in not
-    // using that mechanism.
-    if (config.get_property(ov::cache_mode) != ov::CacheMode::OPTIMIZE_SIZE) {
-        return;
-    }
-
-    const auto& rt_info = model->get_rt_info();
-    auto weights_path = rt_info.find("__weights_path");
-    if (weights_path != rt_info.end()) {
-        ov::AnyMap weights_path_property{{"WEIGHTS_PATH", weights_path->second}};
-        config.set_property(weights_path_property);
-    }
-}
-
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model");
     std::string device_id = get_device_id(orig_config);
