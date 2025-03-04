@@ -3569,10 +3569,13 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_big_scale_1) {
     EXPECT_EQ(result.get_element_type(), et);
     EXPECT_EQ(result.get_shape(), data_shape);
 
-    constexpr auto inf = std::numeric_limits<float>::infinity();
-    EXPECT_THAT(
-        read_vector<float>(result),
-        Pointwise(FloatEq(), std::vector<float>{fp8::MAX_F8E5M2 / 2.f, fp8::MAX_F8E5M2, fp8::MAX_F8E5M2, inf, inf}));
+    EXPECT_THAT(read_vector<float>(result),
+                Pointwise(FloatEq(),
+                          std::vector<float>{fp8::MAX_F8E5M2 / 2.f,
+                                             fp8::MAX_F8E5M2,
+                                             fp8::MAX_F8E5M2,
+                                             fp8::MAX_F8E5M2,
+                                             fp8::MAX_F8E5M2}));
 }
 
 TEST(eval, evaluate_fake_convert_f32_matching_f8_to_f8e5m2_scale_1) {
