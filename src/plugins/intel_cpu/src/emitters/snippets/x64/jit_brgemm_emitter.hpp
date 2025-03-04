@@ -50,12 +50,14 @@ private:
     // Note: cluster ids order: A, B, C (+ scratchpad, if needed). Values can be dynamic_value if there is no buffer
     std::vector<size_t> m_buffer_ids{};
     std::shared_ptr<x64::BrgemmBaseKernelExecutor> m_kernel_executor = nullptr;
+    std::optional<size_t> m_binary_postops_offset = std::nullopt;
+
+    bool m_with_scratchpad = false;
+    size_t m_gemm_inputs_count = 0;
 
 #ifdef SNIPPETS_DEBUG_CAPS
     friend std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter* emitter);
 #endif
-
-    bool m_is_with_amx{false};
 };
 
 }  // namespace ov::intel_cpu
