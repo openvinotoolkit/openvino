@@ -321,10 +321,12 @@ public:
         }
 
         if ((node->can_be_optimized() && !node->is_runtime_skippable()) || !dep->can_be_optimized()) {
-            node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
+            if (!node->is_type<data>() && !dep->is_type<data>())
+                node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
         } else {
             if (node->is_runtime_skippable() || dep->is_runtime_skippable() || dep->can_be_optimized()) {
-                node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
+                if (!node->is_type<data>() && !dep->is_type<data>())
+                    node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
             }
 
             for (const auto& subdep : dep->get_dependencies()) {

@@ -745,7 +745,8 @@ void program::prepare_memory_dependencies() {
     if (!_config.get_enable_memory_pool())
         return;
     for (auto& node : get_processing_order()) {
-        node->add_memory_dependency(node->get_unique_id());
+        if (!node->is_constant())
+            node->add_memory_dependency(node->get_unique_id());
     }
     // printf("Size of size_t: %zu bytes\n", sizeof(size_t));
     // printf("Size of uint32_t: %zu bytes\n", sizeof(uint32_t));
