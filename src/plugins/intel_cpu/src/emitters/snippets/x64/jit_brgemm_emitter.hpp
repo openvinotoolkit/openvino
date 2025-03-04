@@ -41,8 +41,6 @@ private:
 #ifdef SNIPPETS_DEBUG_CAPS
     friend std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter* emitter);
 #endif
-
-    bool m_is_with_amx{false};
 };
 
 }  // namespace ov::intel_cpu

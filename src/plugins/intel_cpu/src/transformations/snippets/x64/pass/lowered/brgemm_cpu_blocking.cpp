@@ -60,7 +60,7 @@ std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
     //         the low precision cases (ticket: 156014)
     //         Please note that FP32 MatMul with `transposed_b=true` has type `with_repacking` despite the precision.
     const auto precision = brgemm_expr->get_node()->get_input_element_type(1);
-    if (with_repacking(brgemm->get_type()) && precision != element::f32) {
+    if (!std::getenv("ENABLE_BLOCKING") && with_repacking(brgemm->get_type()) && precision != element::f32) {
         n_blk = get_full_dim_value();
         k_blk = get_full_dim_value();
     }
