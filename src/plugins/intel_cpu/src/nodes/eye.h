@@ -43,7 +43,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    ov::element::Type outType = ov::element::Type_t::undefined;
+    ov::element::Type outType = ov::element::Type_t::dynamic;
     template <typename inputType>
     void executeSpecified();
     template <typename T>
@@ -86,7 +86,7 @@ private:
     }
 
     inline const size_t getBatchVolume(const std::vector<int>& batchShape) {
-        return std::accumulate(begin(batchShape), end(batchShape), 1, std::multiplies<size_t>());
+        return std::accumulate(begin(batchShape), end(batchShape), 1, std::multiplies<>());
     }
     bool withBatchShape = false;
 };

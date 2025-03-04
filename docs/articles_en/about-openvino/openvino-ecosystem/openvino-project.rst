@@ -38,7 +38,7 @@ and TensorFlow models during training.
 
 | **OpenVINO Model Server**
 | :bdg-link-dark:`GitHub <https://github.com/openvinotoolkit/model_server>`
-  :bdg-link-success:`User Guide <https://docs.openvino.ai/2025/openvino-workflow/model-server/ovms_what_is_openvino_model_server.html>`
+  :bdg-link-success:`User Guide <https://docs.openvino.ai/2025/model-server/ovms_what_is_openvino_model_server.html>`
 
 A high-performance system that can be used to access the host models via request to the model
 server.
