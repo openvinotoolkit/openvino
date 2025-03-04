@@ -225,3 +225,47 @@ TEST_F(TransformationTestsF, ConvertGatherToCompressedMultiOutput) {
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{gather_compressed}, ov::ParameterVector{input1, input2});
     }
 }
+
+TEST_F(TransformationTestsF, ConvertGatherToCompressedFP16Weight) {
+    {
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 16});
+        auto axis_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
+        auto weights_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{32, 16}, {1});
+        auto convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
+        auto gather = std::make_shared<ov::op::v8::Gather>(convert, input1, axis_const);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{gather}, ov::ParameterVector{input1});
+        manager.register_pass<ConvertGatherToGatherCompressed>();
+    }
+    {
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 16});
+        auto axis_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
+        auto weights_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{32, 16}, {1});
+        auto gather = std::make_shared<ov::op::v8::Gather>(weights_const, input1, axis_const);
+        auto convert = std::make_shared<ov::op::v0::Convert>(gather, ov::element::f32);
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{convert}, ov::ParameterVector{input1});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertGatherToCompressedBF16Weight) {
+    {
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 16});
+        auto axis_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
+        auto weights_const = ov::op::v0::Constant::create(ov::element::bf16, ov::Shape{32, 16}, {1});
+        auto convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
+        auto gather = std::make_shared<ov::op::v8::Gather>(convert, input1, axis_const);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{gather}, ov::ParameterVector{input1});
+        manager.register_pass<ConvertGatherToGatherCompressed>();
+    }
+    {
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 16});
+        auto axis_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
+        auto weights_const = ov::op::v0::Constant::create(ov::element::bf16, ov::Shape{32, 16}, {1});
+        auto gather = std::make_shared<ov::op::v8::Gather>(weights_const, input1, axis_const);
+        auto convert = std::make_shared<ov::op::v0::Convert>(gather, ov::element::f32);
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{convert}, ov::ParameterVector{input1});
+    }
+}
