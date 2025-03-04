@@ -296,6 +296,86 @@ OP_CONVERTER(translate_log_sigmoid_fx);
 OP_CONVERTER(translate_log_softmax_fx);
 OP_CONVERTER(translate_max_dim_fx);
 OP_CONVERTER(translate_max_pool2d_fx);
+OP_CONVERTER(translate_max_pool3d_fx);
+OP_CONVERTER(translate_mean_fx);
+OP_CONVERTER(translate_min_dim_fx);
+OP_CONVERTER(translate_nan_to_num_fx);
+OP_CONVERTER(translate_new_full_fx);
+OP_CONVERTER(translate_new_ones_fx);
+OP_CONVERTER(translate_new_zeros_fx);
+OP_CONVERTER(translate_ones_fx);
+OP_CONVERTER(translate_ones_like_fx);
+OP_CONVERTER(translate_reflection_pad_nd_fx);
+OP_CONVERTER(translate_repeat_fx);
+OP_CONVERTER(translate_rsub_fx);
+OP_CONVERTER(translate_scalar_tensor_fx);
+OP_CONVERTER(translate_scaled_dot_product_attention_fx);
+OP_CONVERTER(translate_search_sorted);
+OP_CONVERTER(translate_select_scatter_fx);
+OP_CONVERTER(translate_slice_fx);
+OP_CONVERTER(translate_slice_scatter_fx);
+OP_CONVERTER(translate_softmax_fx);
+OP_CONVERTER(translate_sort_fx);
+OP_CONVERTER(translate_split_with_sizes_fx);
+OP_CONVERTER(translate_stack_fx);
+OP_CONVERTER(translate_sub_fx);
+OP_CONVERTER(translate_sum_fx);
+OP_CONVERTER(translate_std_fx);
+OP_CONVERTER(translate_topk_fx);
+OP_CONVERTER(translate_to_fx);
+OP_CONVERTER(translate_transpose_fx);
+OP_CONVERTER(translate_quantize_per_channel_fx);
+OP_CONVERTER(translate_quantize_per_tensor_fx);
+OP_CONVERTER(translate_var_fx);
+OP_CONVERTER(translate_var_mean_fx);
+OP_CONVERTER(translate_unbind_int_fx);
+OP_CONVERTER(translate_unique2);
+OP_CONVERTER(translate_zeros_fx);
+OP_CONVERTER(translate_zeros_like_fx);
+// Extensions
+OP_CONVERTER(translate_conv1d_ext);
+OP_CONVERTER(translate_embedding_ext);
+OP_CONVERTER(translate_linear_awq);
+
+}  // namespace op
+
+// Supported ops for TorchScript
+const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
+    return {
+         {"aten::__and__", op::translate_bitwise_and},
+        {"aten::__iand__", op::inplace_op<op::translate_bitwise_and>},
+        {"aten::__derive_index", op::translate_derive_index},
+        {"aten::__getitem__", op::translate_getitem},
+        {"aten::__not__", op::translate_1to1_match_1_inputs<opset10::LogicalNot>},
+        {"aten::__or__", op::translate_bitwise_or},
+        {"aten::__ior__", op::inplace_op<op::translate_bitwise_or>},
+        {"aten::__range_length", op::translate_range_length},
+        {"aten::__xor__", op::translate_bitwise_xor},
+        {"aten::__ixor__", op::inplace_op<op::translate_bitwise_xor>},
+        {"aten::_convolution", op::translate_convolution},
+        {"aten::_convolution_mode", op::translate_convolution_mode},
+        {"aten::_native_multi_head_attention", op::translate_native_multi_head_attention},
+        {"aten::_pack_padded_sequence", op::translate_pack_padded_sequence},
+        {"aten::_pad_packed_sequence", op::translate_pad_packed_sequence},
+        {"aten::_set_item", op::translate_set_item},
+        {"aten::_shape_as_tensor", op::translate_shape_as_tensor},
+        {"aten::_unique2", op::translate_unique2},
+        {"aten::_upsample_bicubic2d_aa", op::translate_upsample_bicubic2d_aa},
+        {"aten::_upsample_bilinear2d_aa", op::translate_upsample_bilinear2d_aa},
+        {"aten::_weight_norm", op::translate_weight_norm},
+        {"aten::abs", op::optional_out<op::translate_1to1_match_1_inputs<opset10::Abs>, 1>},
+        {"aten::abs_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Abs>>},
+        {"aten::acos", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Acos>, 1>},
+        {"aten::acos_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Acos>>},
+        {"aten::acosh",
+         op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Acosh>, 1>},
+        {"aten::acosh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Acosh>>},
+        {"aten::adaptive_avg_pool1d", op::quantizable_op<op::translate_adaptive_avg_pool1d>},
+        {"aten::adaptive_avg_pool2d", op::quantizable_op<op::translate_adaptive_avg_pool2d>},
+        {"aten::adaptive_avg_pool3d", op::quantizable_op<op::translate_adaptive_avg_pool3d>},
+        {"aten::adaptive_max_pool1d", op::quantizable_op<op::translate_adaptive_max_pool1d>},
+        {"aten::adaptive_max_pool2d", op::quantizable_op<op::translate_adaptive_max_pool2d>},
+        {"aten::adaptive_max_pool3d", op::quantizable_op<op::translate_adaptive_max_pool3d>},   
 
         {"aten::add_", op::translate_add_},
         {"aten::addcmul", op::translate_addcmul},
