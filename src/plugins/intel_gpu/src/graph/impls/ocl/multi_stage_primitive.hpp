@@ -157,7 +157,7 @@ protected:
         return _kernels;
     }
 
-    std::vector<BufferDescriptor> get_internal_buffer_descs_impl(const kernel_impl_params&) const override {
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
         std::vector<BufferDescriptor> internal_buffers;
         for (auto& kd : _kernels_data) {
             if (kd.internalBuffers.empty())

@@ -42,7 +42,12 @@ template <class PType>
 class typed_primitive_inst;
 
 struct ImplementationManager;
-struct BufferDescriptor;
+
+struct BufferDescriptor {
+    explicit BufferDescriptor(const layout& l, bool lockable = false) : m_lockable(lockable), m_layout(l) {}
+    bool m_lockable = false;
+    layout m_layout;
+};
 
 /*
     Base class for all implementations.
@@ -146,12 +151,6 @@ struct ImplementationsFactory {
 
     std::shared_ptr<primitive_impl> get_primitive_impl_for_params(primitive_inst& inst, const kernel_impl_params& params, bool use_async_compilation);
     bool has(impl_types impl_type) const;
-};
-
-struct BufferDescriptor {
-    explicit BufferDescriptor(const layout& l, bool lockable = false) : m_lockable(lockable), m_layout(l) {}
-    bool m_lockable = false;
-    layout m_layout;
 };
 
 /*
@@ -522,10 +521,6 @@ private:
     }
 
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& impl_params) const override {
-        return get_internal_buffer_descs_impl(impl_params);
-    }
-
-    virtual std::vector<BufferDescriptor> get_internal_buffer_descs_impl(const kernel_impl_params&) const {
         return {};
     }
 

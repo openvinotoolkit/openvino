@@ -141,7 +141,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         ob << make_data(&use_micro_sdpa, sizeof(bool));
     }
 
-    std::vector<BufferDescriptor> get_internal_buffer_descs_impl(const kernel_impl_params&) const override {
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
         /*
         * Internal buffers allocation owners and users:
         * +--------------------------------------+--------------------+--------------------+

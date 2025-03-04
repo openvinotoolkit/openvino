@@ -56,7 +56,7 @@ struct scaled_dot_product_attention_impl : multi_stage_primitive<scaled_dot_prod
     }
 
 protected:
-    std::vector<BufferDescriptor> get_internal_buffer_descs_impl(const kernel_impl_params&) const override {
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
         // Look for the first sdpa_opt kernel entry. Currently, it can be used as default sdpa, indirect sdpa, or for both default
         // and indirect cases. All of sdpa_opt kernels use the same internal buffers, so we can find the first sdpa_opt and
         // use its` internal buffers configuration. The following scenarios are possible:

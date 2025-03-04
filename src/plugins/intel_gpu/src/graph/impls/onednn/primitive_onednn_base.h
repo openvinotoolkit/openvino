@@ -572,7 +572,7 @@ protected:
         return event;
     }
 
-    std::vector<BufferDescriptor> get_internal_buffer_descs_impl(const kernel_impl_params&) const override {
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
         if (_scratchpad_md.get_size() == 0)
             return {};
         return {BufferDescriptor({ov::PartialShape{static_cast<int64_t>(_scratchpad_md.get_size())},
