@@ -50,34 +50,26 @@ std::string SegmentMaxLayerCPUTest::getTestCaseName(testing::TestParamInfo<Segme
     }
 
 void SegmentMaxLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
-    std::cout << "Generating inputs..." << std::endl;
     inputs.clear();
     const auto& funcInputs = function->inputs();
     const auto dataType = funcInputs[0].get_element_type();
     const auto& dataShape = targetInputStaticShapes[0];
-    std::cout << "Data type: " << dataType << std::endl;
-    std::cout << "Data shape: " << ov::test::utils::vec2str(dataShape) << std::endl;
 
     ov::test::utils::InputGenerateData in_data;
     in_data.start_from = 0;
     in_data.range = 10;
     const auto dataTensor = ov::test::utils::create_and_fill_tensor(dataType, dataShape, in_data);
     inputs.insert({funcInputs[0].get_node_shared_ptr(), dataTensor});
-    std::cout << "Data tensor created and filled." << std::endl;
 
     const auto useNumSegments = std::get<3>(std::get<0>(this->GetParam()));
     if (useNumSegments) {
         const auto numSegmentsValue = std::get<2>(std::get<0>(std::get<0>(this->GetParam())));
-        std::cout << "Num segments value: " << numSegmentsValue << std::endl;
-        std::cout << "Num segments value (unsigned int): " << static_cast<unsigned int>(numSegmentsValue) << std::endl;
         const auto numSegmentsTensor = ov::test::utils::create_and_fill_tensor(
-            funcInputs[2].get_element_type(),
+            funcInputs[1].get_element_type(),
             {},
-            {static_cast<unsigned int>(numSegmentsValue)});
-        inputs.insert({funcInputs[2].get_node_shared_ptr(), numSegmentsTensor});
-        std::cout << "Num segments tensor created and filled." << std::endl;
+            static_cast<unsigned int>(numSegmentsValue));
+        inputs.insert({funcInputs[1].get_node_shared_ptr(), numSegmentsTensor});
     }
-    std::cout << "Input generation completed." << std::endl;
 }
 
 void SegmentMaxLayerCPUTest::SetUp() {

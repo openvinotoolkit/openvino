@@ -39,7 +39,6 @@ void SegmentMax::initSupportedPrimitiveDescriptors() {
     }
     ov::element::Type dataPrecision = getOriginalInputPrecisionAtPort(0);
     ov::element::Type segmentIdsPrecision = getOriginalInputPrecisionAtPort(1);
-
     if (getOriginalInputsNumber() == 2) {
         addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision}, {LayoutType::ncsp, segmentIdsPrecision}},
                              {{LayoutType::ncsp, dataPrecision}},
