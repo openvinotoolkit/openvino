@@ -47,7 +47,7 @@ TEST(SerializationTest, BasicTypes_bool) {
 TEST(SerializationTest, BasicTypes_float) {
     using namespace ov::npuw::s11n;
 
-    float var = 3.1415;
+    float var = 3.1415f;
     float res;
 
     std::stringstream ss;
