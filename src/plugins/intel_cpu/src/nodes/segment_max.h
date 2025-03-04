@@ -24,13 +24,14 @@ public:
     bool needShapeInfer() const override;
 
 private:
-    template <class OV_DATA_TYPE, class OV_INDEX_TYPE>
+    template <class OV_DATA_TYPE>
     void executeImpl();
 
-    template <typename T>
+    template <class T>
     struct SegmentMaxExecute;
 
     ov::op::FillMode fillMode;
+    std::vector<int64_t> lastSegmentIds;
     std::vector<int64_t> lastNumSegments;
 };
 

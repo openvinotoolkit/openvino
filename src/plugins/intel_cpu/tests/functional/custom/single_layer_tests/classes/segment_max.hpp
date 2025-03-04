@@ -23,8 +23,8 @@ using SegmentMaxSpecificParams =  std::tuple<
 using SegmentMaxLayerTestParams = std::tuple<
         SegmentMaxSpecificParams,
         ElementType,
-        ElementType,
         bool,
+        ov::test::utils::InputLayerType,
         ov::test::TargetDevice
 >;
 
@@ -41,12 +41,8 @@ protected:
    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 };
 
-const std::vector<ElementType> indexPrecisions = {
-        ElementType::i32,
-        ElementType::i64
-};
-
 extern const std::vector<SegmentMaxSpecificParams> SegmentMaxParamsVector;
+extern const std::vector<ov::test::utils::InputLayerType> secondaryInputTypes;
 }  // namespace SegmentMax
 }  // namespace test
 }  // namespace ov

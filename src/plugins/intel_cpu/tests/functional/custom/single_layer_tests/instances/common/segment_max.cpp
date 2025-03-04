@@ -16,8 +16,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_SegmentMaxLayoutTestF32, SegmentMaxLayerCPUTest,
                 ::testing::Combine(
                         ::testing::ValuesIn(SegmentMaxParamsVector),
                         ::testing::ValuesIn(std::vector<ElementType>{ElementType::f32, ElementType::f16}),
-                        ::testing::ValuesIn(indexPrecisions),
                         ::testing::Bool(),
+                        ::testing::ValuesIn(secondaryInputTypes),
                         ::testing::Values(ov::test::utils::DEVICE_CPU)),
                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_f32"})),
                 SegmentMaxLayerCPUTest::getTestCaseName);
@@ -27,8 +27,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_SegmentMaxLayoutTestI32, SegmentMaxLayerCPUTest,
                 ::testing::Combine(
                         ::testing::ValuesIn(SegmentMaxParamsVector),
                         ::testing::Values(ElementType::i32),
-                        ::testing::ValuesIn(indexPrecisions),
                         ::testing::Bool(),
+                        ::testing::ValuesIn(secondaryInputTypes),
                         ::testing::Values(ov::test::utils::DEVICE_CPU)),
                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_i32"})),
                 SegmentMaxLayerCPUTest::getTestCaseName);
@@ -38,8 +38,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_SegmentMaxLayoutTestUI8, SegmentMaxLayerCPUTest,
                 ::testing::Combine(
                         ::testing::ValuesIn(SegmentMaxParamsVector),
                         ::testing::Values(ElementType::u8, ElementType::i8),
-                        ::testing::ValuesIn(indexPrecisions),
                         ::testing::Bool(),
+                        ::testing::ValuesIn(secondaryInputTypes),
                         ::testing::Values(ov::test::utils::DEVICE_CPU)),
                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_i8"})),
                 SegmentMaxLayerCPUTest::getTestCaseName);

@@ -20,9 +20,9 @@ std::string SegmentMaxLayerCPUTest::getTestCaseName(testing::TestParamInfo<Segme
         std::tie(basicParamsSet, cpuParams) = obj.param;
         std::string td;
         ElementType dataPrecision;
-        ElementType segmentIdsPrecision;
         bool useNumSegments;
-        std::tie(SegmentMaxPar, dataPrecision, segmentIdsPrecision, useNumSegments, td) = basicParamsSet;
+        ov::test::utils::InputLayerType secondaryInputType;
+        std::tie(SegmentMaxPar, dataPrecision, useNumSegments, secondaryInputType, td) = basicParamsSet;
 
         InputShape dataShape;
         std::vector<int64_t> segmentIdsValues;
@@ -43,7 +43,7 @@ std::string SegmentMaxLayerCPUTest::getTestCaseName(testing::TestParamInfo<Segme
             result << "_numSegments=" << numSegments;
         }
         result << "_dataPrecision=" << dataPrecision;
-        result << "_segmentIdsPrecision=" << segmentIdsPrecision;
+        result << "_secondaryInputType=" << secondaryInputType;
         result << CPUTestsBase::getTestCaseName(cpuParams);
 
         return result.str();
@@ -61,14 +61,24 @@ void SegmentMaxLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
     const auto dataTensor = ov::test::utils::create_and_fill_tensor(dataType, dataShape, in_data);
     inputs.insert({funcInputs[0].get_node_shared_ptr(), dataTensor});
 
-    const auto useNumSegments = std::get<3>(std::get<0>(this->GetParam()));
-    if (useNumSegments) {
-        const auto numSegmentsValue = std::get<2>(std::get<0>(std::get<0>(this->GetParam())));
-        const auto numSegmentsTensor = ov::test::utils::create_and_fill_tensor(
-            funcInputs[1].get_element_type(),
-            {},
-            static_cast<unsigned int>(numSegmentsValue));
-        inputs.insert({funcInputs[1].get_node_shared_ptr(), numSegmentsTensor});
+    const auto secondaryInputType = std::get<3>(std::get<0>(this->GetParam()));
+    if (secondaryInputType == ov::test::utils::InputLayerType::PARAMETER) {
+            const auto segmentIdsTensor = ov::test::utils::create_and_fill_tensor(
+                ov::element::i32,
+                {dataShape[0]},
+                0,
+                20);
+            inputs.insert({funcInputs[1].get_node_shared_ptr(), segmentIdsTensor});
+
+        const auto useNumSegments = std::get<2>(std::get<0>(this->GetParam()));
+        if (useNumSegments) {
+            const auto numSegmentsValue = std::get<2>(std::get<0>(std::get<0>(this->GetParam())));
+            const auto numSegmentsTensor = ov::test::utils::create_and_fill_tensor(
+                funcInputs[2].get_element_type(),
+                {},
+                static_cast<unsigned int>(numSegmentsValue));
+            inputs.insert({funcInputs[2].get_node_shared_ptr(), numSegmentsTensor});
+        }
     }
 }
 
@@ -80,9 +90,9 @@ void SegmentMaxLayerCPUTest::SetUp() {
 
         SegmentMaxSpecificParams SegmentMaxParams;
         ElementType inputPrecision;
-        ElementType segmentIdsPrecision;
         bool useNumSegments;
-        std::tie(SegmentMaxParams, inputPrecision, segmentIdsPrecision, useNumSegments, targetDevice) = basicParamsSet;
+        ov::test::utils::InputLayerType secondaryInputType;
+        std::tie(SegmentMaxParams, inputPrecision, useNumSegments, secondaryInputType, targetDevice) = basicParamsSet;
 
         InputShape dataShape;
         std::vector<int64_t> segmentIdsValues;
@@ -102,16 +112,27 @@ void SegmentMaxLayerCPUTest::SetUp() {
         }
         init_input_shapes(input_shapes);
         auto dataParameter = std::make_shared<ov::op::v0::Parameter>(inputPrecision, inputDynamicShapes[0]);
-        auto segmentIdsConst = std::make_shared<ov::op::v0::Constant>(segmentIdsPrecision, ov::Shape{segmentIdsValues.size()}, segmentIdsValues);
-        std::shared_ptr<ov::Node> segmentMax;
         ov::ParameterVector params{ dataParameter };
-        if (useNumSegments) {
-            //const auto numSegmentsConst = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, numSegmentsValue);
-            auto numSegmentsParameter = std::make_shared<ov::op::v0::Parameter>(segmentIdsPrecision, ov::Shape{});
-            segmentMax = std::make_shared<ov::op::v16::SegmentMax>(dataParameter, segmentIdsConst, numSegmentsParameter, fillMode);
-            params.push_back(numSegmentsParameter);
+        std::shared_ptr<ov::Node> segmentMax;
+        if (secondaryInputType == ov::test::utils::InputLayerType::CONSTANT) {
+            auto segmentIdsConst = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{segmentIdsValues.size()}, segmentIdsValues);
+            if (useNumSegments) {
+                auto numSegmentsConst = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, numSegmentsValue);
+                segmentMax = std::make_shared<ov::op::v16::SegmentMax>(dataParameter, segmentIdsConst, numSegmentsConst, fillMode);
+            } else {
+                segmentMax = std::make_shared<ov::op::v16::SegmentMax>(dataParameter, segmentIdsConst, fillMode);
+            }
+
         } else {
-            segmentMax = std::make_shared<ov::op::v16::SegmentMax>(dataParameter, segmentIdsConst, fillMode);
+            auto segmentIdsParameter = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{segmentIdsValues.size()});
+            params.push_back(segmentIdsParameter);
+            if (useNumSegments) {
+                auto numSegmentsParameter = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{});
+                segmentMax = std::make_shared<ov::op::v16::SegmentMax>(dataParameter, segmentIdsParameter, numSegmentsParameter, fillMode);
+                params.push_back(numSegmentsParameter);
+            } else {
+                segmentMax = std::make_shared<ov::op::v16::SegmentMax>(dataParameter, segmentIdsParameter, fillMode);
+            }
         }
         function = makeNgraphFunction(inputPrecision, params, segmentMax, "SegmentMax");
 }
@@ -120,6 +141,9 @@ TEST_P(SegmentMaxLayerCPUTest, CompareWithRefs) {
     run();
     CheckPluginRelatedResults(compiledModel, "SegmentMax");
 }
+
+const std::vector<ov::test::utils::InputLayerType> secondaryInputTypes = {ov::test::utils::InputLayerType::CONSTANT,
+                                                                          ov::test::utils::InputLayerType::PARAMETER};
 
 const std::vector<SegmentMaxSpecificParams> SegmentMaxParamsVector = {
     // Simple test case
