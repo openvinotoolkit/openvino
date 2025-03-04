@@ -10,6 +10,14 @@
 namespace ov {
 namespace test {
 
+static ov::Tensor index_tensor_generator(const ov::Shape shape, const ov::element::Type element_type) {
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = -1;
+    in_data.range = 2;
+    in_data.resolution = 10000;
+    return ov::test::utils::create_and_fill_tensor(element_type, shape, in_data);
+}
+
 std::string GatherWeightsDecompression::get_test_case_name(
     testing::TestParamInfo<GatherWeightsDecompressionParams> obj) {
     std::string target_device;
@@ -74,13 +82,7 @@ void GatherWeightsDecompression::generate_inputs(const std::vector<ov::Shape>& t
     const auto& model_inputs = function->inputs();
     for (size_t i = 0; i < model_inputs.size(); ++i) {
         const auto& model_input = model_inputs[i];
-        ov::test::utils::InputGenerateData in_data;
-        in_data.start_from = -1;
-        in_data.range = 2;
-        in_data.resolution = 10000;
-        ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(),
-                                                                    target_input_static_shapes[i],
-                                                                    in_data);
+        ov::Tensor tensor = index_tensor_generator(target_input_static_shapes[i], model_input.get_element_type());
         inputs.insert({model_input.get_node_shared_ptr(), tensor});
     }
 }
@@ -141,6 +143,73 @@ void GatherWeightsDecompression::SetUp() {
     } else {
         abs_threshold = 1e-4f;
     }
+}
+
+// fp16/bf16 constant + convert(16bit to f32) + gather case
+std::string GatherWeightsDecompressionWithoutScale::get_test_case_name(
+    testing::TestParamInfo<GatherWeightsDecompressionWithoutScaleParams> obj) {
+    std::string target_device;
+    GatherDecompressionShapeParams shape_params;
+    ov::element::Type data_precision;
+    ov::element::Type output_precision;
+
+    std::tie(target_device, shape_params, data_precision, output_precision) = obj.param;
+
+    std::ostringstream result;
+    result << "target_device=" << target_device << "_";
+    result << shape_params << "_";
+    result << "data_precision=" << data_precision << "_";
+    result << "output_precision=" << output_precision;
+
+    return result.str();
+}
+
+std::shared_ptr<ov::Model> GatherWeightsDecompressionWithoutScale::init_subgraph(
+    const ov::Shape& data_shape,
+    const ov::PartialShape& indices_shape,
+    const int axis,
+    const int64_t batch_dims,
+    const ov::element::Type data_precision,
+    const ov::element::Type output_precision) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::i32, indices_shape)};
+    auto axis_const = ov::op::v0::Constant::create(ov::element::i32, {1}, {axis});
+    ov::test::utils::InputGenerateData generator(-10, 20);
+    auto weights_tensor = ov::test::utils::create_and_fill_tensor(data_precision, data_shape, generator);
+    auto weights_const = std::make_shared<ov::op::v0::Constant>(weights_tensor);
+    auto convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
+    auto gather = std::make_shared<ov::op::v8::Gather>(convert, params[0], axis_const, batch_dims);
+    gather->set_friendly_name("gather_node");
+    return std::make_shared<ov::Model>(ov::NodeVector{gather}, params, "GatherDataDecompression");
+}
+
+void GatherWeightsDecompressionWithoutScale::generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) {
+    inputs.clear();
+    const auto& model_inputs = function->inputs();
+    for (size_t i = 0; i < model_inputs.size(); ++i) {
+        const auto& model_input = model_inputs[i];
+        ov::Tensor tensor = index_tensor_generator(target_input_static_shapes[i], model_input.get_element_type());
+        inputs.insert({model_input.get_node_shared_ptr(), tensor});
+    }
+}
+
+void GatherWeightsDecompressionWithoutScale::SetUp() {
+    GatherDecompressionShapeParams shape_params;
+    ov::element::Type data_precision;
+    ov::element::Type output_precision;
+
+    std::tie(targetDevice, shape_params, data_precision, output_precision) = GetParam();
+
+    init_input_shapes({shape_params.indices_shape, {{}, {{shape_params.data_shape}}}});
+
+    inType = ov::element::i32;
+    outType = output_precision;
+
+    function = init_subgraph(shape_params.data_shape,
+                             inputDynamicShapes[0],
+                             shape_params.axis,
+                             shape_params.batch_dims,
+                             data_precision,
+                             output_precision);
 }
 
 }  // namespace test
