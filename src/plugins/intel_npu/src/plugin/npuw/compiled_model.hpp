@@ -173,7 +173,9 @@ private:
         execution_stats stat;
 
         void serialize(std::ostream& stream, const ov::npuw::s11n::Context& ctx) const;
-        void deserialize(std::istream& stream, const ov::npuw::s11n::Weights& weights);
+        void deserialize(std::istream& stream,
+                         const ov::npuw::s11n::Weights& weights,
+                         const std::shared_ptr<const ov::Model>& model);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 
@@ -184,7 +186,7 @@ private:
 
     std::shared_ptr<weights::Bank> m_weights_bank = nullptr;
 
-    std::unordered_map<const void*, std::size_t> m_const_to_offset;
+    std::unordered_map<const void*, std::pair<std::size_t, std::string>> m_const_to_offset_name;
 };
 }  // namespace npuw
 }  // namespace ov

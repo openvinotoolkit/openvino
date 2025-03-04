@@ -36,6 +36,7 @@ class Output;
 template <class>
 class SharedBuffer;
 class MappedMemory;
+class Model;
 namespace element {
 class Type;
 }
@@ -60,11 +61,12 @@ class LazyTensor;
 namespace s11n {
 
 struct Context {
-    explicit Context(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset)
+    explicit Context(bool _is_weightless,
+                     const std::unordered_map<const void*, std::pair<std::size_t, std::string>>& _const_to_offset_name)
         : is_weightless(_is_weightless),
-          const_to_offset(_const_to_offset) {}
+          const_to_offset_name(_const_to_offset_name) {}
     bool is_weightless;
-    const std::unordered_map<const void*, std::size_t>& const_to_offset;
+    const std::unordered_map<const void*, std::pair<std::size_t, std::string>>& const_to_offset_name;
 };
 
 using Weights = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>;
@@ -99,6 +101,7 @@ void read(std::istream& stream, ov::element::Type& var);
 void write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const Context& ctx);
 // No allocation needed
 void read_weightless(std::istream& stream, std::vector<ov::Tensor>& var, const Weights& weights);
+void read_weightless(std::istream& stream, std::vector<ov::Tensor>& var, const std::shared_ptr<const ov::Model>& model);
 
 // Forward declaration
 template <typename T1, typename T2>

@@ -10,6 +10,7 @@
 
 #include "logging.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "util.hpp"
 
@@ -27,6 +28,7 @@ struct Const {
     std::size_t m_offset = 0;
     std::size_t m_byte_size = 0;
     ov::Tensor m_read_from_bin;
+    std::string m_cached_name;
 
     Const() = default;
 
@@ -35,6 +37,7 @@ struct Const {
         m_cached_shape = m_node->get_shape();
         m_cached_ptr = m_node->get_data_ptr();
         m_byte_size = m_node->get_byte_size();
+        m_cached_name = m_node->get_friendly_name();
 
         auto rt_info = m_node->get_rt_info();
         auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
@@ -68,6 +71,24 @@ struct Const {
         m_read_from_bin = ov::Tensor(m_cached_type, m_cached_shape);
         std::memcpy(m_read_from_bin.data(), weights->get_ptr(m_offset), m_byte_size);
     }
+    void read_weight(const std::shared_ptr<const ov::Model>& model) {
+        NPUW_ASSERT(!m_node &&
+                    "LazyTensor can only read weight when it's being deserialized and not created from a Constant!");
+        m_read_from_bin = ov::Tensor(m_cached_type, m_cached_shape);
+        bool was_read = false;
+        for (const auto& node : model->get_ordered_ops()) {
+            if (ov::op::util::is_constant(node) && node->get_friendly_name() == m_cached_name) {
+                was_read = true;
+                auto tensor = ov::npuw::util::tensor_from_const(node);
+                NPUW_ASSERT(tensor.get_byte_size() == m_byte_size && tensor.get_shape() == m_cached_shape &&
+                            tensor.get_element_type() == m_cached_type);
+                tensor.copy_to(m_read_from_bin);
+                break;
+            }
+        }
+        // Sanity check
+        NPUW_ASSERT(was_read);
+    }
     void detach() {
         m_node.reset();
         m_read_from_bin = ov::Tensor();
@@ -78,6 +99,7 @@ struct Const {
         write(stream, m_cached_shape);
         write(stream, m_offset);
         write(stream, m_byte_size);
+        write(stream, m_cached_name);
     }
     static Const deserialize(std::istream& stream) {
         using namespace ov::npuw::s11n;
@@ -88,6 +110,7 @@ struct Const {
         read(stream, c.m_cached_shape);
         read(stream, c.m_offset);
         read(stream, c.m_byte_size);
+        read(stream, c.m_cached_name);
         return c;
     }
 };
@@ -117,6 +140,11 @@ struct Concat {
     void read_weight(const ov::npuw::s11n::Weights& weights) {
         for (auto& lt : tensors) {
             lt.read_weight(weights);
+        }
+    }
+    void read_weight(const std::shared_ptr<const ov::Model>& model) {
+        for (auto& lt : tensors) {
+            lt.read_weight(model);
         }
     }
     void detach() {
@@ -178,6 +206,11 @@ struct Unpack {
         z.read_weight(weights);
         s.read_weight(weights);
     }
+    void read_weight(const std::shared_ptr<const ov::Model>& model) {
+        w.read_weight(model);
+        z.read_weight(model);
+        s.read_weight(model);
+    }
     void detach() {
         w.detach();
         z.detach();
@@ -226,6 +259,9 @@ struct Permute {
     void read_weight(const ov::npuw::s11n::Weights& weights) {
         tensor.read_weight(weights);
     }
+    void read_weight(const std::shared_ptr<const ov::Model>& model) {
+        tensor.read_weight(model);
+    }
     void detach() {
         tensor.detach();
     }
@@ -262,6 +298,9 @@ struct Convert {
     }
     void read_weight(const ov::npuw::s11n::Weights& weights) {
         tensor.read_weight(weights);
+    }
+    void read_weight(const std::shared_ptr<const ov::Model>& model) {
+        tensor.read_weight(model);
     }
     void detach() {
         tensor.detach();
@@ -301,6 +340,7 @@ public:
     void serialize(std::ostream& stream) const;
     static std::shared_ptr<LazyTensorImpl> deserialize(std::istream& stream);
     void read_weight(const ov::npuw::s11n::Weights& weights);
+    void read_weight(const std::shared_ptr<const ov::Model>& model);
 
     Transform m_transform;
     std::size_t m_hash = 0;
@@ -352,6 +392,13 @@ ov::Tensor LazyTensorImpl::eval() const {
 void LazyTensorImpl::read_weight(const ov::npuw::s11n::Weights& weights) {
     std::visit(overloaded{[&weights](auto& op) {
                    return op.read_weight(weights);
+               }},
+               m_transform);
+}
+
+void LazyTensorImpl::read_weight(const std::shared_ptr<const ov::Model>& model) {
+    std::visit(overloaded{[&model](auto& op) {
+                   return op.read_weight(model);
                }},
                m_transform);
 }
@@ -470,6 +517,11 @@ ov::Tensor LazyTensor::eval() const {
 void LazyTensor::read_weight(const ov::npuw::s11n::Weights& weights) {
     NPUW_ASSERT(m_impl && "Trying to read weights into uninitialized tensor!");
     m_impl->read_weight(weights);
+}
+
+void LazyTensor::read_weight(const std::shared_ptr<const ov::Model>& model) {
+    NPUW_ASSERT(m_impl && "Trying to read weights into uninitialized tensor!");
+    m_impl->read_weight(model);
 }
 
 std::size_t LazyTensor::get_hash() const {
