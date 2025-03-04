@@ -43,13 +43,8 @@ struct StreamGenerateionTestCase {
 
 void make_config(StreamGenerateionTestCase& test_data, ov::intel_cpu::Config& config) {
     config.schedulingCoreType = test_data.input_type;
-
-    config.enableCpuReservation = ov::intel_cpu::check_cpu_reservation(test_data.input_cpu_reservation);
-    config.enableCpuPinning = ov::intel_cpu::check_cpu_pinning(test_data.input_cpu_value,
-                                                               test_data.input_cpu_changed,
-                                                               config.enableCpuReservation);
-    // config.enableCpuReservation = test_data.input_cpu_reservation;
-    // config.enableCpuPinning = test_data.input_cpu_value;
+    config.enableCpuReservation = test_data.input_cpu_reservation;
+    config.enableCpuPinning = test_data.input_cpu_value;
     config.changedCpuPinning = test_data.input_cpu_changed;
     config.enableHyperThreading = test_data.input_ht_value;
     config.changedHyperThreading = test_data.input_ht_changed;

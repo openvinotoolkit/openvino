@@ -118,8 +118,11 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::hint::enable_cpu_reservation.name()) {
             try {
-                auto reservation = val.as<bool>();
-                enableCpuReservation = check_cpu_reservation(reservation);
+#if defined(__APPLE__)
+                enableCpuReservation = false;
+#else
+                enableCpuReservation = val.as<bool>();
+#endif
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
@@ -434,8 +437,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             valueCachePrecision = ov::element::f32;
         }
     }
-
-    enableCpuPinning = check_cpu_pinning(enableCpuPinning, changedCpuPinning, enableCpuReservation);
 
     if (!prop.empty()) {
         _config.clear();
