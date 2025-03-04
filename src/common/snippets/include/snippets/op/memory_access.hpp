@@ -74,6 +74,11 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor);
 
+    const PortDescriptor& get_input_port_descriptor(const size_t i) const;
+    const PortDescriptor& get_output_port_descriptor(const size_t i) const;
+    const std::vector<PortDescriptor> get_input_port_descriptors() const;
+    const std::vector<PortDescriptor> get_output_port_descriptors() const;
+
 protected:
     explicit MemoryAccess(size_t input_count, size_t output_count = 0);
     explicit MemoryAccess(const std::set<size_t>& input_ports, const std::set<size_t>& output_ports);
@@ -85,8 +90,6 @@ protected:
 
     void set_input_port_descriptor(const PortDescriptor& desc, const size_t i);
     void set_output_port_descriptor(const PortDescriptor& desc, const size_t i);
-    const PortDescriptor& get_input_port_descriptor(const size_t i) const;
-    const PortDescriptor& get_output_port_descriptor(const size_t i) const;
     PortDescriptor& get_input_port_descriptor(const size_t i);
     PortDescriptor& get_output_port_descriptor(const size_t i);
 
