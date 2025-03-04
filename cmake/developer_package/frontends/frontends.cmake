@@ -338,6 +338,8 @@ macro(ov_add_frontend)
                     LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${lib_component} ${frontend_exclude_from_all}
                     ${namelink})
 
+            ov_install_pdb(${TARGET_NAME})
+
             # export to build tree
             # Note: we keep this even with passed DISABLE_CPP_INSTALL to ensure that Python API can be built
             if(OV_FRONTEND_LINKABLE_FRONTEND)

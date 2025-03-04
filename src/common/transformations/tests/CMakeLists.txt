@@ -23,8 +23,3 @@ ov_add_test_target(
     LABELS
         OV UNIT TRANSFORMATIONS
 )
-
-if(WIN32)
-    string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
-    string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
-endif()

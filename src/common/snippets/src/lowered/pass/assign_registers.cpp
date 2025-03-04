@@ -51,7 +51,7 @@ AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& li
             for (const auto& pd : buffer->get_output_port_descriptors())
                 all_equal &= pd->get_reg() == out_reg;
             OPENVINO_ASSERT(all_equal, "Buffer must have same register on all inputs and outputs");
-        } else if (ov::is_type<op::HorizonMax>(op) || ov::is_type<op::HorizonSum>(op)) {
+        } else if (ov::is_type_any_of<op::HorizonMax, op::HorizonSum>(op)) {
             // Only in ReduceDecomposition Reduce ops use HorizonMax/HorizonSum and VectorBuffer.
             // We should manually set the one vector register for VectorBuffer and Max/Sum output to simulate a accumulator
             // TODO [96351]: We should rewrite accumulator pattern using another way

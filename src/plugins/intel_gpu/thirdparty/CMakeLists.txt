@@ -49,7 +49,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
 
         foreach(cmake_var IN ITEMS CMAKE_SYSTEM_NAME CMAKE_SYSTEM_VERSION
                                    CMAKE_SYSTEM_PROCESSOR CMAKE_TOOLCHAIN_FILE
-                                   CMAKE_VERBOSE_MAKEFILE)
+                                   CMAKE_VERBOSE_MAKEFILE CMAKE_GENERATOR)
             if(${cmake_var})
                 list(APPEND cmake_extra_args "-D${cmake_var}=${${cmake_var}}")
             endif()
@@ -143,6 +143,17 @@ if(ENABLE_ONEDNN_FOR_GPU)
             # Target Options:
             EXCLUDE_FROM_ALL ON
         )
+
+        if(WIN32 AND NOT BUILD_SHARED_LIBS)
+            ExternalProject_Add_Step(onednn_gpu_build post-build
+                COMMAND ${CMAKE_COMMAND}
+                    -D "BUILD_DIR=${ONEDNN_BUILD_DIR}/src"
+                    -D "OUTPUT_DIR=${OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}"
+                    -P "${CMAKE_CURRENT_SOURCE_DIR}/copy_pdb.cmake"
+                COMMENT "Copy oneDNN for GPU PDB files"
+                DEPENDEES install  # Ensures this runs after install
+            )
+        endif()
 
         set(LIB_INCLUDE_DIRS "${ONEDNN_INSTALL_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src")
         set(LIB_DEFINITIONS ENABLE_ONEDNN_FOR_GPU

@@ -33,7 +33,7 @@ public:
         }
     }
 
-    ~PoolingExecutorFactory() = default;
+    ~PoolingExecutorFactory() override = default;
     virtual PoolingExecutorPtr makeExecutor(const PoolingAttrs& poolingAttrs,
                                             const std::vector<MemoryDescPtr>& srcDescs,
                                             const std::vector<MemoryDescPtr>& dstDescs,

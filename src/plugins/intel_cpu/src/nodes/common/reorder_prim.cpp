@@ -19,7 +19,7 @@ namespace ov::intel_cpu {
 struct ReorderKey {
     dnnl::memory::desc src;
     dnnl::memory::desc dest;
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const ReorderKey& rhs) const;
 };
 

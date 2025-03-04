@@ -316,7 +316,7 @@ void Split::execute(const dnnl::stream& strm) {
         return;
     }
 
-    uint8_t* srcData = srcMem.getDataAs<uint8_t>();
+    auto* srcData = srcMem.getDataAs<uint8_t>();
     CPU_NODE_ASSERT(execPtr != nullptr, "Split executor is not initialized");
     execPtr->exec(srcData, getRawDstMemPtrs());
 }
