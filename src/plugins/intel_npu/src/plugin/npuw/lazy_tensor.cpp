@@ -175,7 +175,7 @@ struct Unpack {
     }
     void read_weight(const ov::npuw::s11n::Weights& weights) {
         w.read_weight(weights);
-        if (z) { // could be empty
+        if (z) {  // could be empty
             z.read_weight(weights);
         }
         s.read_weight(weights);
