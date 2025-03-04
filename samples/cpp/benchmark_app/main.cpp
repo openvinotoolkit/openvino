@@ -36,20 +36,24 @@
 #include "statistics_report.hpp"
 #include "utils.hpp"
 
-#if defined _WIN32
+#if defined(_WIN32)
 #include <windows.h>
 #include <psapi.h>
-#else
+#elif defined(__APPLE__)
+#include <sys/resource.h>
+#elif defined(__linux__)
 #include <fstream>
 #include <regex>
 #include <sstream>
+#else
+#error "unsupported OS"
 #endif
 
 // clang-format on
 
 namespace {
 
-#if defined _WIN32
+#if defined(_WIN32)
 
 int64_t get_peak_memory_usage() {
     PROCESS_MEMORY_COUNTERS mem_counters;
@@ -69,6 +73,22 @@ int64_t get_peak_memory_usage() {
     // please note then we calculate difference
     // to get peak memory increment value, so we return int64, not size_t
     return static_cast<int64_t>(std::round(mem_counters.PeakWorkingSetSize / bytes_in_kilobyte));
+}
+
+#elif defined(__APPLE__)
+
+int64_t get_peak_memory_usage() {
+    struct rusage usage;
+    // There is no VmPeak on macOS, so the only way is to use ru_maxrss.
+    // Please note, there's a difference between ru_maxrss and VmPeak:
+    // ru_maxrss is the maximum amount of physical memory (RAM) occupied by the process
+    // which, does not include memory-mapped files, pages reserved but not used, etc.
+    if (getrusage(RUSAGE_SELF, &usage) != 0) {
+        throw std::runtime_error("Can't get system memory values");
+    }
+
+    // in kilobytes
+    return static_cast<int64_t>(usage.ru_maxrss);
 }
 
 #else

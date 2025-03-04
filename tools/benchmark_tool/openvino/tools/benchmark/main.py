@@ -3,6 +3,7 @@
 
 import os
 import sys
+import platform
 from datetime import datetime
 
 from openvino import Dimension, properties
@@ -23,7 +24,7 @@ from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, J
     averageCntReport, detailedCntReport
 
 def get_peak_memory_usage():    
-    if os.name == "posix":
+    if platform.system() == "Linux":
         with open("/proc/self/status", "r") as f:
             for line in f:
                 if line.startswith("VmPeak:"):
@@ -31,6 +32,7 @@ def get_peak_memory_usage():
         raise RuntimeError("VmPeak attribute not found. Unable to determine peak memory usage.")
     
     # No Windows support due to the lack of the ‘psutil’ module in the CI infrastructure
+    # No Macos support due to no /proc/self/status file
     return None
 
 def log_memory_usage(logger, start_mem_usage, end_mem_usage, action_name):
