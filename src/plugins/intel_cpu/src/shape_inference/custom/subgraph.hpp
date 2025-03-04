@@ -28,7 +28,7 @@ public:
         return {snippets_result.dims, m_status_map.at(snippets_result.status)};
     }
 
-    port_mask_t get_port_mask() const override {
+    [[nodiscard]] port_mask_t get_port_mask() const override {
         return EMPTY_PORT_MASK;
     }
 
@@ -43,7 +43,7 @@ public:
         m_subgraph = ov::as_type_ptr<snippets::op::Subgraph>(op);
         OPENVINO_ASSERT(m_subgraph, "Invalid node type detected in SnippetShapeInferFactory");
     }
-    ShapeInferPtr makeShapeInfer() const override {
+    [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<SnippetShapeInfer>(m_subgraph);
     }
 
