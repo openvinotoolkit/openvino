@@ -21,9 +21,11 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const size_t offset_c,
                      const std::vector<size_t>& layout_a,
                      const std::vector<size_t>& layout_b,
-                     const std::vector<size_t>& layout_c)
+                     const std::vector<size_t>& layout_c,
+                     ov::NodeVector post_ops)
     : Brgemm(),
-      m_type(type) {
+      m_type(type),
+      m_post_ops(std::move(post_ops)) {
     // We call default ctor of Brgemm class to avoid incorrect shape infer in constructor_validate_and_type_infer() call
     set_arguments({A, B});
     set_output_size(1);
@@ -44,9 +46,11 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const size_t offset_c,
                      const std::vector<size_t>& layout_a,
                      const std::vector<size_t>& layout_b,
-                     const std::vector<size_t>& layout_c)
+                     const std::vector<size_t>& layout_c,
+                     ov::NodeVector post_ops)
     : Brgemm(),
-      m_type(type) {
+      m_type(type),
+      m_post_ops(std::move(post_ops)) {
     set_arguments({A, B, scratch});
     set_output_size(1);
     ctor_initialize(std::set<size_t>{0, 1, 2}, std::set<size_t>{0});
@@ -65,9 +69,11 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const PortDescriptor& desc_c,
                      const std::vector<size_t>& layout_a,
                      const std::vector<size_t>& layout_b,
-                     const std::vector<size_t>& layout_c)
+                     const std::vector<size_t>& layout_c,
+                     ov::NodeVector post_ops)
     : Brgemm(),
-      m_type(type) {
+      m_type(type),
+      m_post_ops(std::move(post_ops)) {
     set_arguments({A, B});
     set_output_size(1);
     m_input_ports = {{0, desc_a}, {1, desc_b}};
@@ -85,9 +91,11 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const PortDescriptor& desc_c,
                      const std::vector<size_t>& layout_a,
                      const std::vector<size_t>& layout_b,
-                     const std::vector<size_t>& layout_c)
+                     const std::vector<size_t>& layout_c,
+                     ov::NodeVector post_ops)
     : Brgemm(),
-      m_type(type) {
+      m_type(type),
+      m_post_ops(std::move(post_ops)) {
     set_arguments({A, B, scratch});
     set_output_size(1);
     m_input_ports = {{0, desc_a}, {1, desc_b}, {2, desc_scratch}};
@@ -146,9 +154,8 @@ void BrgemmCPU::validate_inputs() const {
 std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(BrgemmCPU_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    std::shared_ptr<BrgemmCPU> brgemm;
     if (!with_scratchpad(m_type)) {
-        brgemm = std::make_shared<BrgemmCPU>(
+        return std::make_shared<BrgemmCPU>(
             new_args.at(0),
             new_args.at(1),
             m_type,
@@ -157,25 +164,22 @@ std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_a
             get_output_port_descriptor(0),
             snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
             snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
-            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
-    } else {
-        brgemm = std::make_shared<BrgemmCPU>(
-            new_args.at(0),
-            new_args.at(1),
-            new_args.at(2),
-            m_type,
-            get_input_port_descriptor(0),
-            get_input_port_descriptor(1),
-            get_input_port_descriptor(2),
-            get_output_port_descriptor(0),
-            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
-            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
-            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
+            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout(),
+            m_post_ops);
     }
-    for (const auto& postop : m_postops) {
-        brgemm->add_post_op(postop);
-    }
-    return brgemm;
+    return std::make_shared<BrgemmCPU>(
+        new_args.at(0),
+        new_args.at(1),
+        new_args.at(2),
+        m_type,
+        get_input_port_descriptor(0),
+        get_input_port_descriptor(1),
+        get_input_port_descriptor(2),
+        get_output_port_descriptor(0),
+        snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
+        snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
+        snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout(),
+        m_post_ops);
 }
 
 size_t BrgemmCPU::get_offset_scratch() const {
@@ -201,6 +205,11 @@ void BrgemmCPU::add_post_op(const std::shared_ptr<ov::Node>& post_op) {
                                     return ov::is_type<ov::op::v0::Constant>(input.get_node());
                                 }),
                     "All post-op inputs except 0's must be constant");
-    m_postops.push_back(post_op);
+    m_post_ops.push_back(post_op);
+    validate_and_infer_types();
+}
+
+ov::element::Type BrgemmCPU::get_output_type() const {
+    return m_post_ops.empty() ? Brgemm::get_output_type() : m_post_ops.back()->get_output_element_type(0);
 }
 }  // namespace ov::intel_cpu
