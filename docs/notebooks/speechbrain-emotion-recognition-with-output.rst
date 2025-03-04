@@ -53,25 +53,6 @@ Installations
     %pip install -q "transformers>=4.30.0" "huggingface_hub>=0.8.0" "SoundFile"
     %pip install -q "openvino>=2024.1.0"
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    altair 5.4.1 requires typing-extensions>=4.10.0; python_version < "3.13", but you have typing-extensions 4.9.0 which is incompatible.
-    descript-audiotools 0.7.2 requires protobuf<3.20,>=3.9.2, but you have protobuf 3.20.3 which is incompatible.
-    detectron2 0.6 requires iopath<0.1.10,>=0.1.7, but you have iopath 0.1.10 which is incompatible.
-    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.19.1+cpu which is incompatible.
-    modelscope-studio 0.5.0 requires gradio<5.0,>=4.0, but you have gradio 3.43.1 which is incompatible.
-    openvino-dev 2024.4.0 requires openvino==2024.4.0, but you have openvino 2024.5.0.dev20241014 which is incompatible.
-    parler-tts 0.2 requires transformers<=4.43.3,>=4.43.0, but you have transformers 4.45.2 which is incompatible.
-    tensorflow 2.12.0 requires numpy<1.24,>=1.22, but you have numpy 1.24.4 which is incompatible.
-    typeguard 4.3.0 requires typing-extensions>=4.10.0, but you have typing-extensions 4.9.0 which is incompatible.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
-
 Imports
 ~~~~~~~
 
@@ -82,8 +63,23 @@ Imports
     import torch
     import torchaudio
     from speechbrain.inference.interfaces import foreign_class
+    from huggingface_hub import hf_hub_download
     
     import openvino as ov
+    
+    import requests
+    from pathlib import Path
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("speechbrain-emotion-recognition.ipynb")
 
 Prepare base model
 ~~~~~~~~~~~~~~~~~~
@@ -117,6 +113,19 @@ SpeechBrain codebase.
     )
 
 
+.. parsed-literal::
+
+    INFO:speechbrain.utils.fetching:Fetch hyperparams.yaml: Fetching from HuggingFace Hub 'speechbrain/emotion-recognition-wav2vec2-IEMOCAP' if not cached
+    INFO:speechbrain.utils.fetching:Fetch custom_interface.py: Fetching from HuggingFace Hub 'speechbrain/emotion-recognition-wav2vec2-IEMOCAP' if not cached
+    2024-11-05 19:56:33.843411: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-11-05 19:56:33.855243: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:477] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+    WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+    E0000 00:00:1730822193.869707   99152 cuda_dnn.cc:8310] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+    E0000 00:00:1730822193.873697   99152 cuda_blas.cc:1418] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+    2024-11-05 19:56:33.888531: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    
+
 
 .. parsed-literal::
 
@@ -125,9 +134,9 @@ SpeechBrain codebase.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/configuration_utils.py:302: UserWarning: Passing `gradient_checkpointing` to a config initialization is deprecated and will be removed in v5 Transformers. Using `model.gradient_checkpointing_enable()` instead, or if you are using the `Trainer` API, pass `gradient_checkpointing=True` in your `TrainingArguments`.
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/configuration_utils.py:306: UserWarning: Passing `gradient_checkpointing` to a config initialization is deprecated and will be removed in v5 Transformers. Using `model.gradient_checkpointing_enable()` instead, or if you are using the `Trainer` API, pass `gradient_checkpointing=True` in your `TrainingArguments`.
       warnings.warn(
-
+    
 
 
 .. parsed-literal::
@@ -137,8 +146,8 @@ SpeechBrain codebase.
 
 .. parsed-literal::
 
-    speechbrain.lobes.models.huggingface_transformers.huggingface - Wav2Vec2Model is frozen.
-
+    WARNING:speechbrain.lobes.models.huggingface_transformers.huggingface:speechbrain.lobes.models.huggingface_transformers.huggingface - Wav2Vec2Model is frozen.
+    
 
 
 .. parsed-literal::
@@ -148,9 +157,49 @@ SpeechBrain codebase.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/speechbrain/utils/checkpoints.py:194: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
-      state_dict = torch.load(path, map_location=device)
+    INFO:speechbrain.utils.fetching:Fetch wav2vec2.ckpt: Fetching from HuggingFace Hub 'speechbrain/emotion-recognition-wav2vec2-IEMOCAP' if not cached
+    
 
+
+.. parsed-literal::
+
+    wav2vec2.ckpt:   0%|          | 0.00/378M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    model.safetensors:   0%|          | 0.00/380M [00:00<?, ?B/s]
+
+
+.. parsed-literal::
+
+    INFO:speechbrain.utils.fetching:Fetch model.ckpt: Fetching from HuggingFace Hub 'speechbrain/emotion-recognition-wav2vec2-IEMOCAP' if not cached
+    
+
+
+.. parsed-literal::
+
+    model.ckpt:   0%|          | 0.00/13.2k [00:00<?, ?B/s]
+
+
+.. parsed-literal::
+
+    INFO:speechbrain.utils.fetching:Fetch label_encoder.txt: Fetching from HuggingFace Hub 'speechbrain/emotion-recognition-wav2vec2-IEMOCAP' if not cached
+    
+
+
+.. parsed-literal::
+
+    label_encoder.txt:   0%|          | 0.00/83.0 [00:00<?, ?B/s]
+
+
+.. parsed-literal::
+
+    INFO:speechbrain.utils.parameter_transfer:Loading pretrained files for: wav2vec2, model, label_encoder
+    /home/ea/work/py311/lib/python3.11/site-packages/speechbrain/utils/checkpoints.py:200: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+      state_dict = torch.load(path, map_location=device)
+    
 
 Initialize model
 ~~~~~~~~~~~~~~~~
@@ -181,14 +230,28 @@ Perform emotion recognition on the sample audio file.
 
 .. code:: ipython3
 
-    out_prob, score, index, text_lab = classifier.classify_file("speechbrain/emotion-recognition-wav2vec2-IEMOCAP/anger.wav")
+    hf_hub_download(repo_id="speechbrain/emotion-recognition-wav2vec2-IEMOCAP", filename="anger.wav", local_dir="data")
+    
+    
+    out_prob, score, index, text_lab = classifier.classify_file("data/anger.wav")
     print(f"Emotion Recognition with SpeechBrain PyTorch model: {text_lab}")
+
 
 
 .. parsed-literal::
 
-    Emotion Recognition with SpeechBrain PyTorch model: ['ang']
+    anger.wav:   0%|          | 0.00/201k [00:00<?, ?B/s]
 
+
+.. parsed-literal::
+
+    WARNING:speechbrain.dataio.encoder:CategoricalEncoder.expect_len was never called: assuming category count of 4 to be correct! Sanity check your encoder using `.expect_len`. Ensure that downstream code also uses the correct size. If you are sure this does not apply to you, use `.ignore_len`.
+    
+
+.. parsed-literal::
+
+    Emotion Recognition with SpeechBrain PyTorch model: ['ang']
+    
 
 SpeechBrain model optimization with Intel OpenVINO
 --------------------------------------------------
@@ -205,7 +268,7 @@ Step 1: Prepare input tensor
     # Using sample audio file
     signals = []
     batch_size = 1
-    signal, sr = torchaudio.load(str("./anger.wav"), channels_first=False)
+    signal, sr = torchaudio.load(str("data/anger.wav"), channels_first=False)
     norm_audio = classifier.audio_normalizer(signal, sr)
     signals.append(norm_audio)
     
@@ -228,11 +291,12 @@ Step 2: Convert model to OpenVINO IR
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4779: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/modeling_utils.py:5006: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/wav2vec2/modeling_wav2vec2.py:871: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    `loss_type=None` was set in the config but it is unrecognised.Using the default loss: `ForCausalLMLoss`.
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/models/wav2vec2/modeling_wav2vec2.py:872: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attn_output.size() != (bsz, self.num_heads, tgt_len, self.head_dim):
-
+    
 
 Step 3: OpenVINO model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -241,13 +305,6 @@ Step 3: OpenVINO model inference
 
 .. code:: ipython3
 
-    import requests
-    
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
-    
     from notebook_utils import device_widget
     
     device = device_widget()
@@ -288,4 +345,4 @@ Step 3: OpenVINO model inference
 .. parsed-literal::
 
     Emotion Recognition with OpenVINO Model: ['ang']
-
+    

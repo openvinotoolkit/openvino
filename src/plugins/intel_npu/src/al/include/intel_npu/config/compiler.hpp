@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,6 @@ namespace ov {
 namespace intel_npu {
 
 std::string_view stringifyEnum(CompilerType val);
-std::string_view stringifyEnum(ElfCompilerBackend val);
 
 }  // namespace intel_npu
 
@@ -309,34 +308,6 @@ struct DMA_ENGINES final : OptionBase<DMA_ENGINES, int64_t> {
 };
 
 //
-// USE_ELF_COMPILER_BACKEND
-//
-
-struct USE_ELF_COMPILER_BACKEND final : OptionBase<USE_ELF_COMPILER_BACKEND, ov::intel_npu::ElfCompilerBackend> {
-    static std::string_view key() {
-        return ov::intel_npu::use_elf_compiler_backend.name();
-    }
-
-    static constexpr std::string_view getTypeName() {
-        return "ov::intel_npu::ElfCompilerBackend";
-    }
-
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
-    static std::string_view envVar() {
-        return "IE_NPU_USE_ELF_COMPILER_BACKEND";
-    }
-#endif
-
-    static ov::intel_npu::ElfCompilerBackend defaultValue() {
-        return ov::intel_npu::ElfCompilerBackend::AUTO;
-    }
-
-    static ov::intel_npu::ElfCompilerBackend parse(std::string_view val);
-
-    static std::string toString(const ov::intel_npu::ElfCompilerBackend& val);
-};
-
-//
 // BACKEND_COMPILATION_PARAMS
 //
 
@@ -383,6 +354,28 @@ struct COMPILATION_NUM_THREADS final : OptionBase<COMPILATION_NUM_THREADS, int32
 
     static bool isPublic() {
         return false;
+    }
+};
+
+//
+// NPU_COMPILER_DYNAMIC_QUANTIZATION
+//
+
+struct COMPILER_DYNAMIC_QUANTIZATION final : OptionBase<COMPILER_DYNAMIC_QUANTIZATION, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::compiler_dynamic_quantization.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+
+    static bool isPublic() {
+        return true;
     }
 };
 

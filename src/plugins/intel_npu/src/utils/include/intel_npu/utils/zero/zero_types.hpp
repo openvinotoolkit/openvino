@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -70,7 +70,7 @@ public:
     }
     ~ze_graph_dditable_ext_decorator() = default;
 
-    inline const uint32_t version() const {
+    inline uint32_t version() const {
         return _driverExtVersion;
     }
 
@@ -202,7 +202,7 @@ public:
           _commandQueueExtVersion(commandQueueExtVersion) {}
     ~ze_command_queue_npu_dditable_ext_decorator() = default;
 
-    inline const uint32_t version() const {
+    inline uint32_t version() const {
         return _commandQueueExtVersion;
     }
 

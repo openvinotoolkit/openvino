@@ -1,38 +1,37 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "rope.h"
 
-#include "common/bfloat16.hpp"
-#include "common/cpu_memcpy.h"
-#include "cpu/x64/cpu_isa_traits.hpp"
-#include "shape_inference/shape_inference_internal_dyn.hpp"
-#include "utils/plain_tensor.hpp"
-#include "kernels/x64/rope_kernel.hpp"
-
 #include <chrono>
 #include <string>
 #include <vector>
 
+#include "common/bfloat16.hpp"
+#include "common/cpu_memcpy.h"
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "kernels/x64/rope_kernel.hpp"
+#include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "utils/plain_tensor.hpp"
+
 using namespace ov::intel_cpu::kernel;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
-RoPE::RoPE(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+RoPE::RoPE(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        OPENVINO_THROW("CPU: " + errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto node = std::dynamic_pointer_cast<const op::internal::RoPE>(op);
+    const auto node = ov::as_type_ptr<const op::internal::RoPE>(op);
     m_config = node->get_config();
 }
 
-static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const jit_rotary_compile_params& param, bool check_vec_size2 = false) {
+static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const jit_rotary_compile_params& param,
+                                                              bool check_vec_size2 = false) {
     std::shared_ptr<kernel::JitKernelBase> res;
 
     MAYBE_UNUSED(param);
@@ -44,31 +43,40 @@ static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const jit_rotary_c
         bool flag = true;
         if (check_vec_size2) {
             auto vec_size = jit_rotary_kernel<dnnl::impl::cpu::x64::avx512_core>::vec_size;
-            if (param.rotary_ndims % (vec_size * 2) != 0)
+            if (param.rotary_ndims % (vec_size * 2) != 0) {
                 flag = false;
+            }
         }
-        if (flag)
+        if (flag) {
             res = std::make_shared<jit_rotary_kernel<dnnl::impl::cpu::x64::avx512_core>>(param);
+        }
     } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
         bool flag = true;
         if (check_vec_size2) {
             auto vec_size = jit_rotary_kernel<dnnl::impl::cpu::x64::avx2>::vec_size;
-            if (param.rotary_ndims % (vec_size * 2) != 0)
+            if (param.rotary_ndims % (vec_size * 2) != 0) {
                 flag = false;
+            }
         }
-        if (flag)
+        if (flag) {
             res = std::make_shared<jit_rotary_kernel<dnnl::impl::cpu::x64::avx2>>(param);
+        }
     }
 
-    if (res)
+    if (res) {
         res->create_kernel();
+    }
 
-#endif // OPENVINO_ARCH_X86_64
+#endif  // OPENVINO_ARCH_X86_64
 
     return res;
 }
 
-static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker, const void* src, void* dst, const float* cos, const float* sin) {
+static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker,
+                          const void* src,
+                          void* dst,
+                          const float* cos,
+                          const float* sin) {
     MAYBE_UNUSED(ker);
     MAYBE_UNUSED(src);
     MAYBE_UNUSED(dst);
@@ -84,7 +92,7 @@ static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker, con
     call_args.dst = dst;
     (*ker)(&call_args);
 
-#endif // OPENVINO_ARCH_X86_64
+#endif  // OPENVINO_ARCH_X86_64
 }
 
 template <typename T>
@@ -101,7 +109,7 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
         m_rotaryKernel = createJitKernel(jcp);
     }
 
-    void execute(dnnl::stream strm,
+    void execute(const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
@@ -139,10 +147,11 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
         parallel_for3d(batch_size, head_cnt, seq_len, [&](size_t b, size_t h, size_t p) {
             auto cos_pos = p;
             if (gather) {
-                if (gather.m_rank == 4)
+                if (gather.m_rank == 4) {
                     cos_pos = gather.at<int32_t>({b, h, p, 0}, true);
-                else
+                } else {
                     cos_pos = gather.at<int32_t>({b, p}, true);
+                }
             }
             auto* src = t_src.ptr<T>(b, h, p);
             auto* cos = &t_cos.at<float>({b, h, cos_pos, 0}, true);
@@ -183,7 +192,7 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
         m_rotaryKernel = createJitKernel(jcp, true);
     }
 
-    void execute(dnnl::stream strm,
+    void execute(const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
@@ -202,7 +211,7 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
             auto* x = t_src.ptr<T>(b, p, h);
             float* sin = &t_sin_cos.at<float>({b, p, 0}, true);
             float* cos = &t_sin_cos.at<float>({b, p, half_rotary_dims}, true);
-            auto* dst = t_dst.ptr<T>(b, h, p);
+            auto* dst = m_config.output_trans0213 ? t_dst.ptr<T>(b, h, p) : t_dst.ptr<T>(b, p, h);
 
             if (m_rotaryKernel) {
                 execJitKernel(m_rotaryKernel, x, dst, cos, sin);
@@ -233,7 +242,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
         m_rotaryKernel = createJitKernel(jcp, true);
     }
 
-    void execute(dnnl::stream strm,
+    void execute(const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
@@ -322,17 +331,22 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
         m_rotaryKernel = createJitKernel(jcp);
     }
 
-    void execute(dnnl::stream strm,
+    void execute(const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
-        ov::intel_cpu::PlainTensor t_src(inputs[0]);    // [batch, length, head_cnt*head_size * 3]
-        ov::intel_cpu::PlainTensor t_cos(inputs[1]);    // [1, present-kv-length, 1, rotary_dims]
-        ov::intel_cpu::PlainTensor t_sin(inputs[2]);    // [1, present-kv-length, 1, rotary_dims]
-        ov::intel_cpu::PlainTensor t_dst(outputs[0]);   // [batch, length, head_cnt, head_size]>
+        ov::intel_cpu::PlainTensor t_src(inputs[0]);   // [batch, length, head_cnt*head_size * 3]
+        ov::intel_cpu::PlainTensor t_cos(inputs[1]);   // [1, present-kv-length, 1, rotary_dims]
+        ov::intel_cpu::PlainTensor t_sin(inputs[2]);   // [1, present-kv-length, 1, rotary_dims]
+        ov::intel_cpu::PlainTensor t_dst(outputs[0]);  // [batch, length, head_cnt, head_size]>
+        ov::intel_cpu::PlainTensor gather;
+
         auto rotary_dims = t_cos.size(3);
 
         if (m_config.slice_stop - m_config.slice_start > 0) {
             t_src = t_src.slice(2, m_config.slice_start, m_config.slice_stop);
+        }
+        if (m_config.gather_position_arg_id > 0) {
+            gather.reset(inputs[m_config.gather_position_arg_id]);
         }
 
         auto batch_size = t_src.size(0);
@@ -342,9 +356,20 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
         auto present_kv_len = t_cos.size(1);
 
         parallel_for3d(batch_size, seq_len, head_cnt, [&](size_t b, size_t p, size_t h) {
+            size_t sincos_pos;
+            if (gather) {
+                if (gather.m_rank == 4) {
+                    sincos_pos = gather.at<int32_t>({b, h, p, 0}, true);
+                } else {
+                    sincos_pos = gather.at<int32_t>({b, p}, true);
+                }
+            } else {
+                sincos_pos = present_kv_len - seq_len + p;
+            }
+
             auto* src = t_src.ptr<T>(b, p, h * head_size);
-            auto* cos = &t_cos.at<float>({b, present_kv_len - seq_len + p, h, 0}, true);
-            auto* sin = &t_sin.at<float>({b, present_kv_len - seq_len + p, h, 0}, true);
+            auto* cos = &t_cos.at<float>({b, sincos_pos, h, 0}, true);
+            auto* sin = &t_sin.at<float>({b, sincos_pos, h, 0}, true);
             auto* dst = t_dst.ptr<T>(b, p, h);
 
             if (m_rotaryKernel) {
@@ -366,8 +391,9 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
 };
 
 void RoPE::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
     auto srcPrecision = getOriginalInputPrecisionAtPort(0);
 
     auto rtPrecision = srcPrecision;
@@ -393,10 +419,9 @@ void RoPE::initSupportedPrimitiveDescriptors() {
             rtPrecision = ov::element::f32;
         }
     } else if (m_config.is_interleaved) {
-        OPENVINO_ASSERT(m_config.input_trans0213 == false);
-        OPENVINO_ASSERT(m_config.slice_start == 0);
-        OPENVINO_ASSERT(m_config.slice_stop == 0);
-        OPENVINO_ASSERT(m_config.gather_position_arg_id == 0);
+        CPU_NODE_ASSERT(m_config.slice_start == 0, "slice_start must be 0 for interleaved mode");
+        CPU_NODE_ASSERT(m_config.slice_stop == 0, "slice_stop must be 0 for interleaved mode");
+        CPU_NODE_ASSERT(m_config.gather_position_arg_id == 0, "gather_position_arg_id must be 0 for interleaved mode");
         if (rtPrecision == ov::element::f16) {
             m_executor = std::make_shared<RoPEExecutorInterleaved<ov::float16>>(m_config);
         } else if (rtPrecision == ov::element::bf16) {
@@ -415,8 +440,9 @@ void RoPE::initSupportedPrimitiveDescriptors() {
             m_executor = std::make_shared<RoPEExecutorRotateHalf<float>>(m_config);
             rtPrecision = ov::element::f32;
         }
-        if (m_config.slice_stop - m_config.slice_start > 0 || m_config.input_trans0213)
+        if (m_config.slice_stop - m_config.slice_start > 0 || m_config.input_trans0213) {
             can_inplace = false;
+        }
     }
 
     // initialize input ports
@@ -439,7 +465,7 @@ void RoPE::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
-void RoPE::execute(dnnl::stream strm) {
+void RoPE::execute(const dnnl::stream& strm) {
     std::vector<MemoryPtr> inputs(getParentEdges().size()), outputs(getChildEdges().size());
     for (size_t i = 0; i < inputs.size(); i++) {
         inputs[i] = getSrcMemoryAtPort(i);
@@ -452,7 +478,7 @@ void RoPE::execute(dnnl::stream strm) {
 
 bool RoPE::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto node = std::dynamic_pointer_cast<const op::internal::RoPE>(op);
+        const auto node = ov::as_type_ptr<const op::internal::RoPE>(op);
         if (!node) {
             errorMessage = "Only RoPE operation is supported";
             return false;
@@ -463,6 +489,4 @@ bool RoPE::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
     return true;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

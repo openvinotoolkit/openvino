@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,4 +67,5 @@ TEST(op, opset_multi_thread) {
     doTest(ov::get_opset13);
     doTest(ov::get_opset14);
     doTest(ov::get_opset15);
+    doTest(ov::get_opset16);
 }

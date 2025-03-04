@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,8 +44,10 @@ std::shared_ptr<Node> makeElementwise(const std::shared_ptr<ov::Node> data, cons
         description.values);
 
     std::shared_ptr<Operation> operation;
-    if ((description.outPrecision == ov::element::undefined) ||
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    if ((description.outPrecision == ov::element::undefined) || (description.outPrecision == ov::element::dynamic) ||
         (description.outPrecision == data->get_output_element_type(0))) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         operation = std::make_shared<Operation>(data, operationConst);
     } else {
         operation = std::make_shared<ov::op::TypeRelaxed<Operation>>(

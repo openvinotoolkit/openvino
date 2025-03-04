@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <string>
@@ -134,7 +134,7 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
         out_fmt = node.get_preferred_output_fmt();
     }
 
-    if (desc->with_output_size) {
+    if (!node.get_program().is_new_shape_infer() && desc->with_output_size) {
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                        "User-defined output spatial X",
                                        desc->output_size.spatial[0],
@@ -207,7 +207,7 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
             op.set_output_shape(output_partial_shape.to_shape());
             input_shapes.push_back(ov::Shape{output_partial_shape.size()});
             output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
-        } else if (memory_deps.count(2)) {
+        } else if ((desc->output_shape_id != "" || desc->output_partial_shape.size() > 0) && memory_deps.count(2)) {
             auto mem = memory_deps.at(2);
             auto dims = read_vector<int64_t>(mem, impl_param.get_stream());
             auto dims_shape = ov::Shape{dims.size()};
@@ -275,19 +275,20 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
                           "output size",
                           output_layout.get_rank(),
                           "Input/output number of dimension does not match.");
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
-                          "Stride size",
-                          stride.size(),
-                          "output size",
-                          output_layout.get_spatial_rank(),
-                          "Stride/output number of dimension does not match.");
-
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
-                          "Input offset size",
-                          pad.size(),
-                          "input number of dimensions",
-                          output_layout.get_spatial_rank(),
-                          "");
+    if (!node.get_program().is_new_shape_infer()) {
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
+                            "Stride size",
+                            stride.size(),
+                            "output size",
+                            output_layout.get_spatial_rank(),
+                            "Stride/output number of dimension does not match.");
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
+                            "Input offset size",
+                            pad.size(),
+                            "input number of dimensions",
+                            output_layout.get_spatial_rank(),
+                            "");
+    }
 
     auto filter_inst = node.weights().get_output_layout().convert_to_weights_layout(argument->grouped_weights_shape);
 

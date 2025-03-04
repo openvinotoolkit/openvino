@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,10 +10,7 @@
 #endif
 #include "../scaled_attn/transpose_kernel.hpp"
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace ov::Extensions::Cpu::XARCH {
 
 void llm_mlp_transpose_epi32_16x16(void* dst, void* src, int stride) {
     transpose_16x16_kernel(reinterpret_cast<uint32_t*>(dst),
@@ -34,10 +31,12 @@ void llm_mlp_quantize_to_i8(T* psrc,
                             bool asym) {
     auto clamp_i8 = [](float x) {
         auto v = static_cast<int>(std::round(x));
-        if (v < -128)
+        if (v < -128) {
             return -128;
-        if (v > 127)
+        }
+        if (v > 127) {
             return 127;
+        }
         return v;
     };
 
@@ -81,7 +80,8 @@ void llm_mlp_quantize_to_i8(T* psrc,
                 pdst[x] = 1;
             }
             continue;
-        } else if (asym) {
+        }
+        if (asym) {
             scale = (f_max - f_min) / 255.0f;
             zp = 127 - (f_max / scale);
         } else {
@@ -190,7 +190,4 @@ void llm_mlp_dequantize_i32_f32(int Batch,
     }
 }
 
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu::XARCH

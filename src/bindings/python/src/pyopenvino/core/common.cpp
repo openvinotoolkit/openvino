@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -118,35 +118,48 @@ const TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs) {
 
 namespace string_helpers {
 
+namespace {
+const char* find_last_not_null(const char* str, size_t length) {
+    return std::find_if(std::make_reverse_iterator(str + length),
+                        std::make_reverse_iterator(str),
+                        [](const auto& c) {
+                            return c != '\0';
+                        })
+        .base();
+}
+}  // namespace
+
 py::array bytes_array_from_tensor(ov::Tensor&& t) {
     if (t.get_element_type() != ov::element::string) {
         OPENVINO_THROW("Tensor's type must be a string!");
     }
     auto data = t.data<std::string>();
+
     auto max_element = std::max_element(data, data + t.get_size(), [](const std::string& x, const std::string& y) {
         return x.length() < y.length();
     });
     auto max_stride = max_element->length();
     auto dtype = py::dtype("|S" + std::to_string(max_stride));
+
     // Adjusting strides to follow the numpy convention:
-    py::array array;
-    auto new_strides = t.get_strides();
-    if (new_strides.size() == 0) {
-        array = py::array(dtype, t.get_shape(), {});
-    } else {
-        auto element_stride = new_strides[new_strides.size() - 1];
-        for (size_t i = 0; i < new_strides.size(); ++i) {
-            new_strides[i] = (new_strides[i] / element_stride) * max_stride;
+    const auto py_array_strides = [&t, &max_stride] {
+        auto new_strides = t.get_strides();
+        if (!new_strides.empty()) {
+            const auto& element_stride = new_strides.back();
+            for (auto&& stride : new_strides) {
+                stride = (stride / element_stride) * max_stride;
+            }
         }
-        array = py::array(dtype, t.get_shape(), new_strides);
-    }
+        return new_strides;
+    };
+
     // Create an empty array and populate it with utf-8 encoded strings:
-    auto ptr = array.data();
+    auto array = py::array(dtype, t.get_shape(), py_array_strides());
+    auto ptr = reinterpret_cast<char*>(array.mutable_data());
     for (size_t i = 0; i < t.get_size(); ++i) {
-        auto start = &data[i][0];
-        auto length = data[i].length();
-        auto end = std::copy(start, start + length, (char*)ptr + i * max_stride);
-        std::fill_n(end, max_stride - length, 0);
+        const auto length = data[i].length();
+        ptr = std::copy_n(data[i].begin(), length, ptr);
+        ptr = std::fill_n(ptr, max_stride - length, '\0');
     }
     return array;
 }
@@ -177,7 +190,8 @@ void fill_tensor_from_bytes(ov::Tensor& tensor, py::array& array) {
     auto data = tensor.data<std::string>();
     for (size_t i = 0; i < tensor.get_size(); ++i) {
         const char* ptr = reinterpret_cast<const char*>(buf.ptr) + (i * buf.itemsize);
-        data[i] = std::string(ptr, buf.ndim == 0 ? buf.itemsize : buf.strides[0]);
+        auto first_not_null = find_last_not_null(ptr, buf.itemsize);
+        data[i] = std::string(ptr, first_not_null);
     }
 }
 
@@ -185,18 +199,20 @@ void fill_tensor_from_strings(ov::Tensor& tensor, py::array& array) {
     if (tensor.get_size() != static_cast<size_t>(array.size())) {
         OPENVINO_THROW("Passed array must have the same size (number of elements) as the Tensor!");
     }
-    py::buffer_info buf = array.request();
+
+    const py::buffer_info buf = array.request();
     auto data = tensor.data<std::string>();
-    for (size_t i = 0; i < tensor.get_size(); ++i) {
-        char* ptr = reinterpret_cast<char*>(buf.ptr) + (i * buf.itemsize);
+
+    for (auto a_first = reinterpret_cast<const uint8_t*>(buf.ptr), a_last = a_first + array.nbytes(); a_first < a_last;
+         a_first += array.itemsize(), ++data) {
         // TODO: check other unicode kinds? 2BYTE and 1BYTE?
-        PyObject* _unicode_obj =
-            PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, reinterpret_cast<void*>(ptr), buf.itemsize / 4);
-        PyObject* _utf8_obj = PyUnicode_AsUTF8String(_unicode_obj);
-        const char* _tmp_str = PyBytes_AsString(_utf8_obj);
-        data[i] = std::string(_tmp_str);
+        auto _unicode_obj = PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, a_first, array.itemsize() / 4);
+
+        Py_ssize_t utf8_size = 0;
+        const auto utf8_str = PyUnicode_AsUTF8AndSize(_unicode_obj, &utf8_size);
+
+        *data = std::string(utf8_str, find_last_not_null(utf8_str, utf8_size));
         Py_XDECREF(_unicode_obj);
-        Py_XDECREF(_utf8_obj);
     }
 }
 
@@ -358,10 +374,14 @@ py::array array_from_constant_copy(ov::op::v0::Constant&& c, py::dtype& dst_dtyp
 py::array array_from_constant_view(ov::op::v0::Constant&& c) {
     const auto& ov_type = c.get_element_type();
     const auto dtype = Common::type_helpers::get_dtype(ov_type);
+    py::array data;
     if (ov_type.bitwidth() < Common::values::min_bitwidth) {
-        return py::array(dtype, c.get_byte_size(), c.get_data_ptr(), py::cast(c));
+        data = py::array(dtype, c.get_byte_size(), c.get_data_ptr(), py::cast(c));
+    } else {
+        data = py::array(dtype, c.get_shape(), constant_helpers::_get_strides(c), c.get_data_ptr(), py::cast(c));
     }
-    return py::array(dtype, c.get_shape(), constant_helpers::_get_strides(c), c.get_data_ptr(), py::cast(c));
+    data.attr("flags").attr("writeable") = false;
+    return data;
 }
 
 };  // namespace array_helpers
@@ -490,8 +510,7 @@ ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const o
     if (type_helpers::get_ov_type(array) == ov::element::string) {
         OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! String types can be only copied.");
     }
-
-    auto element_type = (type == ov::element::undefined) ? Common::type_helpers::get_ov_type(array) : type;
+    auto element_type = (type == ov::element::dynamic) ? Common::type_helpers::get_ov_type(array) : type;
 
     if (array_helpers::is_contiguous(array)) {
         return ov::Tensor(element_type, shape, const_cast<void*>(array.data(0)), {});
@@ -558,7 +577,7 @@ ov::PartialShape partial_shape_from_list(const py::list& shape) {
         } else {
             throw py::type_error("Incorrect type " + std::string(py::str(dim.get_type())) +
                                  " for dimension. Expected types are: "
-                                 "int, str, openvino.runtime.Dimension, list/tuple with lower and upper values for "
+                                 "int, str, openvino.Dimension, list/tuple with lower and upper values for "
                                  "dynamic dimension.");
         }
     }

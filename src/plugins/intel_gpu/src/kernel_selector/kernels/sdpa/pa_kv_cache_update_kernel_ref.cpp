@@ -167,13 +167,14 @@ void KVCacheUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
 
         const auto indexes_dt = Datatype::INT32;
         const auto target_seq_len_block_size = 16;
-        const auto target_seq_len = prim_params.conf.paged_attention_aligned_seq_len;
+        const auto target_seq_len = std::max(prim_params.conf.paged_attention_aligned_seq_len, static_cast<int64_t>(1));
         const auto indexes_buf_size = CeilDiv(target_seq_len, target_seq_len_block_size) * BytesPerElement(indexes_dt);
 
-        kd.internalBufferSizes.clear();
-        kd.internalBufferSizes.push_back(indexes_buf_size);
-        kd.internalBufferSizes.push_back(indexes_buf_size);
-        kd.internalBufferSizes.push_back(indexes_buf_size);
+        const bool lockable = true;
+        kd.internalBuffers.clear();
+        kd.internalBuffers.emplace_back(indexes_buf_size, lockable);
+        kd.internalBuffers.emplace_back(indexes_buf_size, lockable);
+        kd.internalBuffers.emplace_back(indexes_buf_size, lockable);
         kd.internalBufferDataType = indexes_dt;
 
         kd.kernels[0].params.scalars[0].v.s32 = static_cast<int32_t>(prim_params.is_prefill);

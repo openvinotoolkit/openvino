@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     std::vector<kernel::ptr> _kernels;
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<custom_gpu_primitive_impl>(*this);
+        return std::make_unique<custom_gpu_primitive_impl>(*this);
     }
 
     custom_gpu_primitive_impl()
@@ -90,10 +90,6 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         }
         args.outputs = { instance.output_memory_ptr() };
         return stream.enqueue_kernel(*_kernels.front(), cl_kernel.get()->params, args, events, instance.is_output());
-    }
-
-    std::vector<kernel::ptr> get_kernels() override {
-        return _kernels;
     }
 
     std::vector<kernel::ptr> get_kernels() const override {
@@ -259,7 +255,7 @@ static std::unique_ptr<primitive_impl> create(const custom_gpu_primitive_node& a
         cl_kernel->params.arguments.push_back(get_arg(p));
     }
 
-    return cldnn::make_unique<custom_gpu_primitive_impl>(arg, cl_kernel);
+    return std::make_unique<custom_gpu_primitive_impl>(arg, cl_kernel);
 }
 
 namespace detail {

@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "intel_gpu/runtime/execution_config.hpp"
 #include "layout.hpp"
 #include "memory_caps.hpp"
 #include "utils.hpp"
@@ -110,8 +111,6 @@ struct padded_pool_comparer {
 // - Improve memory consumption
 
 class memory_pool {
-    memory_pool();
-
     memory_ptr alloc_memory(const layout& layout, allocation_type type, bool reset = true);
     static bool has_conflict(const memory_set&, const std::unordered_set<size_t>&, uint32_t network_id);
 
@@ -119,9 +118,10 @@ class memory_pool {
     std::map<layout, std::list<memory_record>, padded_pool_comparer> _padded_pool;
     std::multimap<uint64_t, memory_record> _no_reusable_pool;
     engine* _engine;
+    const ExecutionConfig& _config;
 
 public:
-    explicit memory_pool(engine& engine);
+    explicit memory_pool(engine& engine, const ExecutionConfig& config);
     ~memory_pool();
     memory_ptr get_memory(const layout& layout,
                           const primitive_id& id,

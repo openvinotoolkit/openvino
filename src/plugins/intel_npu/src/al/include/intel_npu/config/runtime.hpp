@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -199,6 +199,27 @@ struct NUM_STREAMS final : OptionBase<NUM_STREAMS, ov::streams::Num> {
 };
 
 //
+// WEIGHTS_PATH
+//
+struct WEIGHTS_PATH final : OptionBase<WEIGHTS_PATH, std::string> {
+    static std::string_view key() {
+        return ov::weights_path.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "std::string";
+    }
+
+    static std::string defaultValue() {
+        return "";
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
+//
 // ENABLE_CPU_PINNING
 //
 struct ENABLE_CPU_PINNING final : OptionBase<ENABLE_CPU_PINNING, bool> {
@@ -270,4 +291,22 @@ struct BYPASS_UMD_CACHING final : OptionBase<BYPASS_UMD_CACHING, bool> {
         return OptionMode::RunTime;
     }
 };
+
+//
+// RUN_INFERENCES_SEQUENTIALLY
+//
+struct RUN_INFERENCES_SEQUENTIALLY final : OptionBase<RUN_INFERENCES_SEQUENTIALLY, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::run_inferences_sequentially.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
 }  // namespace intel_npu

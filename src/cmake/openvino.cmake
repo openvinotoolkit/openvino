@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -30,14 +30,24 @@ add_library(${TARGET_NAME}
 add_library(openvino::runtime ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime)
 
-target_compile_features(${TARGET_NAME} PUBLIC cxx_std_11)
+target_compile_features(${TARGET_NAME} PUBLIC cxx_std_17)
 
 ov_add_vs_version_file(NAME ${TARGET_NAME} FILEDESCRIPTION "OpenVINO runtime library")
 
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/common/include>)
+
+# to be aligned with OpenVINO archive, where all headers are located in the same folder and
+# exposed via openvino::runtime
+target_include_directories(${TARGET_NAME} INTERFACE
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/common/include>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include>)
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/onnx/frontend/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/paddle/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/pytorch/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/tensorflow/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/tensorflow_lite/include>)
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::reference
                                              openvino::shape_inference
@@ -55,10 +65,6 @@ endif()
 
 if(DEFINED OV_GLIBCXX_USE_CXX11_ABI)
     target_compile_definitions(${TARGET_NAME} PUBLIC _GLIBCXX_USE_CXX11_ABI=${OV_GLIBCXX_USE_CXX11_ABI})
-endif()
-
-if(WIN32)
-    set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 endif()
 
 if(RISCV64)
@@ -102,6 +108,8 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${OV_CPACK_COMP_CORE} ${OV_CPACK_COMP_CORE_EXCLUDE_ALL}
         NAMELINK_COMPONENT ${OV_CPACK_COMP_LINKS} ${OV_CPACK_COMP_LINKS_EXCLUDE_ALL}
         INCLUDES DESTINATION ${OV_CPACK_INCLUDEDIR})
+
+ov_install_pdb(${TARGET_NAME})
 
 # OpenVINO runtime library dev
 
@@ -173,6 +181,18 @@ install(EXPORT OpenVINOTargets
         DESTINATION ${OV_CPACK_OPENVINO_CMAKEDIR}
         COMPONENT ${OV_CPACK_COMP_CORE_DEV}
         ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
+
+#
+# Install PDB files
+#
+
+if(WIN32 AND NOT BUILD_SHARED_LIBS)
+    # installation of compile PDB files for static libraries
+    install(DIRECTORY "${OPENVINO_STATIC_PDB_OUTPUT_DIRECTORY}/"
+            DESTINATION ${OV_CPACK_ARCHIVEDIR}
+            COMPONENT pdb
+            EXCLUDE_FROM_ALL)
+endif()
 
 # build tree
 

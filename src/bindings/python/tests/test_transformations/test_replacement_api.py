@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino import Model, PartialShape
-from openvino.runtime import opset13 as ops
-from openvino.runtime.utils import replace_node, replace_output_update_name
+from openvino import opset13 as ops
+from openvino.utils import replace_node, replace_output_update_name
 
 
 def get_relu_model():

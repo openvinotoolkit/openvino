@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,36 +21,9 @@ enum KernelsTypes {
 constexpr size_t subgroup_size = 16;
 }  // namespace
 
-static size_t get_sg_number_scale_factor(const sdpa_params& sdpa_params, size_t kernel_type) {
-    const size_t optimal_scale_factor = 2;
-    if (kernel_type == KernelsTypes::MULTI_TOKENS) {
-        if (sdpa_params.conf.head_size * optimal_scale_factor <= sdpa_params.engineInfo.maxWorkGroupSize) {
-            return optimal_scale_factor;
-        }
-    } else if (kernel_type == KernelsTypes::SINGLE_TOKEN) {
-        if (sdpa_params.conf.head_size * optimal_scale_factor <= sdpa_params.engineInfo.maxWorkGroupSize &&
-            sdpa_params.conf.head_size * optimal_scale_factor / subgroup_size <= subgroup_size) {
-            return optimal_scale_factor;
-        }
-    }
-
-    return 1;
-}
-
 static size_t get_target_seq_len_block_size() {
     const size_t block_size = 16;
     return block_size;
-}
-
-static size_t get_seq_len_partition_size(const sdpa_params& sdpa_params, size_t kernel_type) {
-    size_t seq_len = 0;
-    if (kernel_type == KernelsTypes::MULTI_TOKENS) {
-        seq_len = sdpa_params.conf.head_size * get_sg_number_scale_factor(sdpa_params, kernel_type);
-    } else {
-        seq_len = 256;
-    }
-
-    return seq_len;
 }
 
 static Datatype get_softmax_acc_type() {
@@ -71,7 +44,7 @@ static size_t get_partitions_num(const sdpa_params& sdpa_params, size_t kernel_t
     TransposedDimensionAccessHelperBase dims_k(sdpa_params.inputs[1], sdpa_params.input1_order);
     auto source_seq_len = dims_k.y_dim().v;
 
-    return CeilDiv(source_seq_len, get_seq_len_partition_size(sdpa_params, kernel_type));
+    return CeilDiv(source_seq_len, SDPAKernelOpt::get_seq_len_partition_size(sdpa_params, sdpa_params.conf.head_size, kernel_type));
 }
 
 static std::vector<size_t> get_internal_buffer_sizes(const sdpa_params& sdpa_params, size_t kernel_type) {
@@ -130,6 +103,33 @@ static std::string GetKernelName(std::string base_name, KernelsTypes type, const
     return kernel_name;
 }
 
+size_t SDPAKernelOpt::get_sg_number_scale_factor(const Params& params, size_t head_size, size_t kernel_type) {
+    const size_t optimal_scale_factor = 2;
+    if (kernel_type == KernelsTypes::MULTI_TOKENS) {
+        if (head_size * optimal_scale_factor <= params.engineInfo.maxWorkGroupSize) {
+            return optimal_scale_factor;
+        }
+    } else if (kernel_type == KernelsTypes::SINGLE_TOKEN) {
+        if (head_size * optimal_scale_factor <= params.engineInfo.maxWorkGroupSize &&
+            head_size * optimal_scale_factor / subgroup_size <= subgroup_size) {
+            return optimal_scale_factor;
+        }
+    }
+
+    return 1;
+}
+
+size_t SDPAKernelOpt::get_seq_len_partition_size(const Params& params, size_t head_size, size_t kernel_type) {
+    size_t seq_len = 0;
+    if (kernel_type == KernelsTypes::MULTI_TOKENS) {
+        seq_len = head_size * get_sg_number_scale_factor(params, head_size, kernel_type);
+    } else {
+        seq_len = 256;
+    }
+
+    return seq_len;
+}
+
 ParamsKey SDPAKernelOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT8);
@@ -176,16 +176,17 @@ JitConstants SDPAKernelOpt::GetJitConstants(const sdpa_params& params, size_t ke
     const auto& config = params.conf;
     jit.AddConstant(MakeJitConstant("SUBGROUP_SIZE", subgroup_size));
     jit.AddConstant(MakeJitConstant("HEAD_SIZE", config.head_size));
-    jit.AddConstant(MakeJitConstant("SEQ_LEN_PARTITION_SIZE", get_seq_len_partition_size(params, kernel_idx)));
+    jit.AddConstant(MakeJitConstant("SEQ_LEN_PARTITION_SIZE", get_seq_len_partition_size(params, config.head_size, kernel_idx)));
 
     auto target_seq_len_block_size = kernel_idx == KernelsTypes::SINGLE_TOKEN ? 1 : get_target_seq_len_block_size();
     jit.AddConstant(MakeJitConstant("TARGET_SEQ_LEN_BLOCK_SIZE", target_seq_len_block_size));
 
     auto sdpa_stage = kernel_idx == KernelsTypes::FINALIZATION ? 1 : 0;
     jit.AddConstant(MakeJitConstant("SDPA_STAGE_" + std::to_string(sdpa_stage), 1));
-    jit.AddConstant(MakeJitConstant("SG_SCALE_FACTOR", get_sg_number_scale_factor(params, kernel_idx)));
+    jit.AddConstant(MakeJitConstant("SG_SCALE_FACTOR", get_sg_number_scale_factor(params, config.head_size, kernel_idx)));
 
     if (params.conf.is_paged_attention) {
+        jit.AddConstant(MakeJitConstant("SLIDING_WINDOW_SIZE", params.conf.paged_attention_sliding_window));
         if (params.conf.has_alibi_input) {
             jit.AddConstant(MakeJitConstant("HAS_ALIBI", 1));
         }
@@ -195,6 +196,10 @@ JitConstants SDPAKernelOpt::GetJitConstants(const sdpa_params& params, size_t ke
             jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE", params.conf.scale_val));
         } else {
             jit.AddConstant(MakeJitConstant("HAS_SCALE_INPUT", 1));
+        }
+
+        if (params.outputs.size() > 1) {
+            jit.AddConstant(MakeJitConstant("PAGED_ATTENTION_SCORES_OUTPUT", 1));
         }
     } else if (params.inputs.size() <= 4) {
         jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE_INV", std::sqrt(static_cast<float>(params.conf.head_size))));
@@ -218,11 +223,11 @@ CommonDispatchData SDPAKernelOpt::SetDefault(const sdpa_params& params, size_t k
         if (params.conf.is_paged_attention) {
             OPENVINO_ASSERT(kernel_idx == KernelsTypes::MULTI_TOKENS);
 
-            const size_t sg_num_scale = get_sg_number_scale_factor(params, kernel_idx);
             const size_t heads_num = static_cast<size_t>(params.conf.heads_num);
+            const size_t head_size = static_cast<size_t>(params.conf.head_size);
+            const size_t sg_num_scale = get_sg_number_scale_factor(params, head_size, kernel_idx);
             const size_t target_seq_len_block_size = get_target_seq_len_block_size();
             const size_t target_seq_len = static_cast<size_t>(params.conf.paged_attention_aligned_seq_len);
-            const size_t head_size = static_cast<size_t>(params.conf.head_size);
 
             dispatch_data.gws = { heads_num,
                                   CeilDiv(target_seq_len, target_seq_len_block_size),
@@ -243,13 +248,13 @@ CommonDispatchData SDPAKernelOpt::SetDefault(const sdpa_params& params, size_t k
         const size_t target_seq_len_block_size = kernel_idx == 1 ? get_target_seq_len_block_size() : 1;
 
         if (kernel_idx == KernelsTypes::SINGLE_TOKEN) {
-            const size_t sg_num_scale = get_sg_number_scale_factor(params, kernel_idx);
+            const size_t sg_num_scale = get_sg_number_scale_factor(params, head_size, kernel_idx);
             dispatch_data.gws = { batch_size * heads_num,
                                   CeilDiv(target_seq_len, target_seq_len_block_size),
                                   head_size * num_of_partitions * sg_num_scale };
             dispatch_data.lws = { 1, 1, head_size * sg_num_scale };
         } else if (kernel_idx == KernelsTypes::MULTI_TOKENS) {
-            const size_t sg_num_scale = get_sg_number_scale_factor(params, kernel_idx);
+            const size_t sg_num_scale = get_sg_number_scale_factor(params, head_size, kernel_idx);
             dispatch_data.gws = { batch_size * heads_num,
                                   CeilDiv(target_seq_len, target_seq_len_block_size),
                                   head_size * sg_num_scale };
@@ -257,8 +262,8 @@ CommonDispatchData SDPAKernelOpt::SetDefault(const sdpa_params& params, size_t k
         } else if (kernel_idx == KernelsTypes::FINALIZATION) {
             dispatch_data.gws = { batch_size * heads_num,
                                   target_seq_len,
-                                  subgroup_size };
-            dispatch_data.lws = { 1, 1, subgroup_size };
+                                  head_size };
+            dispatch_data.lws = { 1, 1, head_size };
         }
     }
 
@@ -317,7 +322,7 @@ KernelsData SDPAKernelOpt::GetKernelsData(const Params& params) const {
                          false,
                          inputs_num,
                          GetFusedPrimitiveInputsCount(params),
-                         static_cast<int>(prim_params.outputs.size()),
+                         1 /* number_of_outputs */,
                          prim_params.is_shape_agnostic);
 
         auto beam_table_idx = prim_params.inputs.size();
@@ -339,12 +344,25 @@ KernelsData SDPAKernelOpt::GetKernelsData(const Params& params) const {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
 
+        if (prim_params.conf.is_paged_attention && prim_params.outputs.size() > 1) {
+            // Intermediate buffers for PagedAttention scores calculation:
+            // softmax_results, subsequence_offsets, exp_sums, max_logits, tmp_out
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 5});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 6});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 7});
+
+            // Scalar used for proper offset calculation of intermediate data buffers
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
+        }
+
         const auto buf_sizes = get_internal_buffer_sizes(prim_params, kernel_idx);
         if (!prim_params.conf.is_paged_attention) {
-            kd.internalBufferSizes.clear();
-            kd.internalBufferSizes.push_back(buf_sizes[0]);
-            kd.internalBufferSizes.push_back(buf_sizes[0]);
-            kd.internalBufferSizes.push_back(buf_sizes[1]);
+            kd.internalBuffers.clear();
+            kd.internalBuffers.push_back(buf_sizes[0]);
+            kd.internalBuffers.push_back(buf_sizes[0]);
+            kd.internalBuffers.push_back(buf_sizes[1]);
             kd.internalBufferDataType = prim_params.inputs[0].GetDType();
         }
 
@@ -379,6 +397,15 @@ void SDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
             kernel_data.kernels[0].params.workGroups.global = dispatch_data.gws;
             kernel_data.kernels[0].params.workGroups.local = dispatch_data.lws;
             kernel_data.kernels[0].skip_execution = false;
+
+            if (prim_params.outputs.size() > 1) {
+                const auto max_seq_len = prim_params.conf.paged_attention_max_len;
+                const auto seq_len_partition_size = get_seq_len_partition_size(params, prim_params.conf.head_size, KernelsTypes::MULTI_TOKENS);
+
+                kernel_data.kernels[0].params.scalars.resize(1);
+                kernel_data.kernels[0].params.scalars[0].t = ScalarDescriptor::Types::UINT32;
+                kernel_data.kernels[0].params.scalars[0].v.u32 = static_cast<uint32_t>(Align(max_seq_len, seq_len_partition_size));
+            }
         } else {
             const auto num_of_partitions = get_partitions_num(prim_params, KernelsTypes::SINGLE_TOKEN);
             const auto buf_sizes = get_internal_buffer_sizes(prim_params, KernelsTypes::SINGLE_TOKEN);
@@ -406,10 +433,10 @@ void SDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
             kernel_data.kernels[KernelsTypes::FINALIZATION].params.scalars.clear();
             kernel_data.kernels[KernelsTypes::FINALIZATION].params.scalars.push_back(num_of_partitions_scalar);
 
-            kernel_data.internalBufferSizes.clear();
-            kernel_data.internalBufferSizes.push_back(buf_sizes[0]);
-            kernel_data.internalBufferSizes.push_back(buf_sizes[0]);
-            kernel_data.internalBufferSizes.push_back(buf_sizes[1]);
+            kernel_data.internalBuffers.clear();
+            kernel_data.internalBuffers.push_back(buf_sizes[0]);
+            kernel_data.internalBuffers.push_back(buf_sizes[0]);
+            kernel_data.internalBuffers.push_back(buf_sizes[1]);
             kernel_data.internalBufferDataType = prim_params.inputs[0].GetDType();
         }
     };

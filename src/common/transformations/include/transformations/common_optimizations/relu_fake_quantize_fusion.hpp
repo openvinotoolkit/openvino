@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,6 @@ class TRANSFORMATIONS_API ReluFakeQuantizeFusion;
 
 class ov::pass::ReluFakeQuantizeFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ReluFakeQuantizeFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ReluFakeQuantizeFusion");
     ReluFakeQuantizeFusion();
 };

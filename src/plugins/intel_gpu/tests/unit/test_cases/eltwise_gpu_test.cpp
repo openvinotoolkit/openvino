@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,9 +10,11 @@
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/gather.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
 #include "eltwise_inst.h"
+#include "reshape_inst.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -1751,11 +1753,12 @@ TEST(eltwise_gpu_f32, add_basic_8d) {
     }
 }
 
-TEST(eltwise_cpu_impl_f32, add_basic_8d) {
-    auto& engine = get_test_engine();
+void eltwise_cpu_impl_f32(bool disable_usm = false);
+void eltwise_cpu_impl_f32(bool disable_usm) {
+    auto engine = create_test_engine(engine_types::ocl, runtime_types::ocl, !disable_usm);
 
-    auto input1 = engine.allocate_memory({{1, 3, 2, 2, 2, 3, 2, 3}, data_types::f32, format::bfvuwzyx });
-    auto input2 = engine.allocate_memory({{1, 3, 2, 2, 2, 3, 2, 3}, data_types::f32, format::bfvuwzyx });
+    auto input1 = engine->allocate_memory({{1, 3, 2, 2, 2, 3, 2, 3}, data_types::f32, format::bfvuwzyx });
+    auto input2 = engine->allocate_memory({{1, 3, 2, 2, 2, 3, 2, 3}, data_types::f32, format::bfvuwzyx });
 
     topology topology;
     topology.add(input_layout("input1", input1->get_layout()));
@@ -1770,11 +1773,11 @@ TEST(eltwise_cpu_impl_f32, add_basic_8d) {
         std::iota(lock2.begin(), lock2.end(), 0);
     }
 
-    auto config = get_test_default_config(engine);
+    auto config = get_test_default_config(*engine);
     auto forcing_map = ov::intel_gpu::ImplForcingMap{ {"eltwise", {format::bfvuwzyx, "", impl_types::cpu}} };
     config.set_property(ov::intel_gpu::force_implementations(forcing_map));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    network network(engine, topology, config);
+    network network(*engine, topology, config);
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -1792,6 +1795,14 @@ TEST(eltwise_cpu_impl_f32, add_basic_8d) {
     for (size_t i = 0; i < output->count(); i++) {
         ASSERT_EQ(2.f*i, output_ptr[i]) << " i = " << i;
     }
+}
+
+TEST(eltwise_cpu_impl_f32, add_basic_8d) {
+    eltwise_cpu_impl_f32();
+}
+
+TEST(eltwise_cpu_impl_f32, add_basic_8d_disable_usm) {
+    eltwise_cpu_impl_f32(true);
 }
 
 TEST(eltwise_gpu_f32, add_basic_in4x4x2x2) {
@@ -3814,7 +3825,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding) {
 
     auto golden_outputs = golden_network.execute();
     auto golden_output = golden_outputs.at("eltwise").get_memory();
-    cldnn::mem_lock<ov::float16> golden_ptr(golden_output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> golden_ptr(golden_output, get_test_stream());
     // GOLDEN BFYX ELTWISE - END
     // MIXED INPUT, FS_B_YX_FSV32 OUTPUT
     topology FS_B_YX_FSV32_OUTPUT_topology;
@@ -3834,7 +3845,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding) {
 
     auto FS_B_YX_FSV32_OUTPUT_outputs = FS_B_YX_FSV32_OUTPUT_network.execute();
     auto FS_B_YX_FSV32_OUTPUT_output = FS_B_YX_FSV32_OUTPUT_outputs.at("reorderOutput").get_memory();
-    cldnn::mem_lock<ov::float16> FS_B_YX_FSV32_OUTPUT_ptr(FS_B_YX_FSV32_OUTPUT_output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> FS_B_YX_FSV32_OUTPUT_ptr(FS_B_YX_FSV32_OUTPUT_output, get_test_stream());
     // MIXED INPUT, FS_B_YX_FSV32 OUTPUT - END
     // MIXED INPUT, BYXF OUTPUT
     topology BYXF_OUTPUT_topology;
@@ -3854,7 +3865,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding) {
 
     auto BYXF_OUTPUT_outputs = BYXF_OUTPUT_network.execute();
     auto BYXF_OUTPUT_output = BYXF_OUTPUT_outputs.at("reorderOutput").get_memory();
-    cldnn::mem_lock<ov::float16> BYXF_OUTPUT_ptr(BYXF_OUTPUT_output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> BYXF_OUTPUT_ptr(BYXF_OUTPUT_output, get_test_stream());
     // MIXED INPUT, BYXF OUTPUT - END
 
     ASSERT_EQ(golden_ptr.size(), FS_B_YX_FSV32_OUTPUT_ptr.size());
@@ -4711,6 +4722,11 @@ struct eltwise_layout_test_params {
 #define CASE_ELTWISE_TEST7  eltwise_mode::sum, {4, 5, 4, 1}, {4, 1, 4, 1}, format::bfyx, format::b_fs_yx_fsv16, "generic_eltwise_ref"
 #define CASE_ELTWISE_TEST8  eltwise_mode::sum, {4, 2, 4, 4}, {1, 1, 1, 1}, format::bfyx, format::b_fs_yx_fsv16, "generic_eltwise_ref"
 #define CASE_ELTWISE_TEST9  eltwise_mode::eq,  {4, 2, 4, 4}, {1, 1, 1, 1}, format::b_fs_yx_fsv16, format::bfyx, "generic_eltwise_ref"
+#define CASE_ELTWISE_TEST10 eltwise_mode::sum, {4, 8, 1, 1}, {1, 8, 1, 1}, format::b_fs_yx_fsv32, format::bfyx, "eltwise_blocked_opt"
+#define CASE_ELTWISE_TEST11 eltwise_mode::sum, {4, 8, 1, 1}, {1, 8, 1, 1}, format::b_fs_yx_fsv16, format::bfyx, "eltwise_blocked_opt"
+#define CASE_ELTWISE_TEST12 eltwise_mode::sum, {4, 16, 4, 4}, {1, 16, 1, 1}, format::b_fs_yx_fsv16, format::bfyx, "eltwise_blocked_opt"
+#define CASE_ELTWISE_TEST13 eltwise_mode::sum, {4, 7, 4, 4}, {1, 7, 1, 1}, format::b_fs_yx_fsv16, format::bfyx, "generic_eltwise_ref"
+#define CASE_ELTWISE_TEST14 eltwise_mode::sum, {1, 8, 1, 1}, {4, 8, 1, 1}, format::bfyx, format::b_fs_yx_fsv32, "generic_eltwise_ref"
 
 class eltwise_layout_test : public BaseEltwiseTest<eltwise_layout_test_params> {
 public:
@@ -4800,6 +4816,11 @@ INSTANTIATE_TEST_SUITE_P(eltwise, eltwise_test_mixed_layout,
                             eltwise_layout_test_params{CASE_ELTWISE_TEST7},
                             eltwise_layout_test_params{CASE_ELTWISE_TEST8},
                             eltwise_layout_test_params{CASE_ELTWISE_TEST9},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST10},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST11},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST12},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST13},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST14},
                         }));
 
 //

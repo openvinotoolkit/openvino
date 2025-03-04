@@ -4,10 +4,8 @@ action-recognition-webcam
 async-api
 auto-device
 convert-to-openvino
-cross-lingual-books-alignment
 depth-anything
 detectron2-to-openvino
-distilbert-sequence-classification
 fast-segment-anything
 handwritten-ocr
 hello-detection

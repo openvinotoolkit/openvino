@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,15 +10,15 @@
 
 namespace intel_npu {
 
-RemoteTensor::RemoteTensor(std::shared_ptr<ov::IRemoteContext> context,
+RemoteTensor::RemoteTensor(const std::shared_ptr<ov::IRemoteContext>& context,
                            const ov::element::Type& element_type,
                            const ov::Shape& shape)
-    : _context(std::move(context)),
+    : _context(context),
       _element_type(element_type),
       _shape(shape),
       _capacity(shape) {
     OPENVINO_ASSERT(shape_size(_shape) != 0);
-    OPENVINO_ASSERT(_element_type != ov::element::undefined && _element_type.is_static());
+    OPENVINO_ASSERT(_element_type.is_static());
 }
 
 RemoteTensor::~RemoteTensor() = default;
@@ -40,19 +40,18 @@ const ov::AnyMap& RemoteTensor::get_properties() const {
 }
 
 void RemoteTensor::set_shape(ov::Shape new_shape) {
+    if (_shape == new_shape) {
+        return;
+    }
+
     _shape = std::move(new_shape);
 
     if (ov::shape_size(_shape) > ov::shape_size(_capacity)) {
-        if (!deallocate()) {
-            OPENVINO_THROW("Cannot deallocate tensor while an attempt to enlarge tensor area in set_shape.");
-        }
-
-        const auto byte_size = ov::element::get_memory_size(_element_type, shape_size(_shape));
-        allocate(byte_size);
-    } else {
-        _strides.clear();
-        update_strides();
+        OPENVINO_THROW("Cannot set a new bigger shape to this tensor.");
     }
+
+    _strides.clear();
+    update_strides();
 }
 
 void RemoteTensor::update_strides() {

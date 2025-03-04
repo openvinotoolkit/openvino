@@ -16,9 +16,9 @@ namespace pass {
  * @brief Base class for LinearIR serialization passes
  * @ingroup snippets
  */
-class SerializeBase : public Pass {
+class SerializeBase : public ConstPass {
 public:
-    OPENVINO_RTTI("SerializeBase", "Pass")
+    OPENVINO_RTTI("SerializeBase", "", ConstPass)
     SerializeBase(const std::string& xml_path);
 
 protected:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,8 @@ public:
     const cl::UsmHelper& get_usm_helper() const { return *_usm_helper; }
 
     bool is_same(const device::ptr other) override;
+
+    void set_mem_caps(memory_capabilities memory_capabilities) override;
 
     ~ocl_device() = default;
 

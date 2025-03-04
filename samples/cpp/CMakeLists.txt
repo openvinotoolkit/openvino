@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -16,7 +16,10 @@ if(POLICY CMP0025)
     cmake_policy(SET CMP0025 NEW)
 endif()
 
-project(Samples)
+project(Samples
+        DESCRIPTION "OpenVINO Samples"
+        HOMEPAGE_URL "https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples.html"
+        LANGUAGES C CXX)
 
 get_property(OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if(CMAKE_GENERATOR STREQUAL "Ninja Multi-Config")
@@ -65,7 +68,6 @@ endif()
 
 set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OV_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OV_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
-set (CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OV_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 set (CMAKE_PDB_OUTPUT_DIRECTORY ${OV_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OV_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 
@@ -95,7 +97,7 @@ endif()
 ####################################
 ## to use C++11; can overwritten via cmake command line
 if(NOT DEFINED CMAKE_CXX_STANDARD)
-    set (CMAKE_CXX_STANDARD 11)
+    set (CMAKE_CXX_STANDARD 17)
     set (CMAKE_CXX_EXTENSIONS OFF)
     set (CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
@@ -195,7 +197,6 @@ macro(ov_add_sample)
     endif()
 
     set_target_properties(${SAMPLE_NAME} PROPERTIES FOLDER ${folder_name}
-                                                    COMPILE_PDB_NAME ${SAMPLE_NAME}
                                                     # to ensure out of box LC_RPATH on macOS with SIP
                                                     INSTALL_RPATH_USE_LINK_PATH ON)
 

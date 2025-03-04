@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,20 +10,20 @@
 
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "ze_graph_ext_wrappers_interface.hpp"
+#include "ze_graph_ext_wrappers.hpp"
 
 namespace intel_npu {
 
 class DriverGraph final : public IGraph {
 public:
-    DriverGraph(const std::shared_ptr<ZeGraphExtWrappersInterface>& zeGraphExt,
+    DriverGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
                 const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                 ze_graph_handle_t graphHandle,
                 NetworkMetadata metadata,
                 const Config& config,
-                std::optional<std::vector<uint8_t>> blob);
+                std::unique_ptr<BlobContainer> blobPtr);
 
-    void export_blob(std::ostream& stream) const override;
+    size_t export_blob(std::ostream& stream) const override;
 
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                             const Config& config) const override;
@@ -37,7 +37,7 @@ public:
 private:
     bool release_blob(const Config& config);
 
-    std::shared_ptr<ZeGraphExtWrappersInterface> _zeGraphExt;
+    std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
     Logger _logger;

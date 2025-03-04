@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -118,8 +118,8 @@ public:
 
         runtimeType = getNetType();
         auto it = configuration.find(ov::hint::inference_precision.name());
-        ov::element::Type inference_precision = (it != configuration.end()) ?
-                                                it->second.as<ov::element::Type>() : ov::element::undefined;
+        ov::element::Type inference_precision =
+            (it != configuration.end()) ? it->second.as<ov::element::Type>() : ov::element::dynamic;
         if (inference_precision == ov::element::bf16) {
             runtimeType = ov::element::Type_t::bf16;
         } else if (inference_precision == ov::element::f16) {

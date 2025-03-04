@@ -3,20 +3,18 @@
 //
 
 #include "jit_eltwise.hpp"
+
+#include <utility>
 #include <vector>
 
-namespace ov {
-namespace intel_cpu {
-namespace executors {
-namespace aarch64 {
+namespace ov::intel_cpu::executors::aarch64 {
 
-bool JitEltwiseExecutor::isSupported(
-    const Algorithm& algorithm,
-    const std::vector<ov::element::Type>& input_precisions,
-    const std::vector<ov::element::Type>& output_precisions,
-    const float alpha,
-    const float beta,
-    const float gamma) {
+bool JitEltwiseExecutor::isSupported(const Algorithm& algorithm,
+                                     const std::vector<ov::element::Type>& input_precisions,
+                                     const std::vector<ov::element::Type>& output_precisions,
+                                     const float alpha,
+                                     const float beta,
+                                     const float gamma) {
     const auto is_supported = one_of(algorithm,
                                      Algorithm::EltwiseAbs,
                                      Algorithm::EltwiseAdd,
@@ -26,6 +24,9 @@ bool JitEltwiseExecutor::isSupported(
                                      Algorithm::EltwiseEqual,
                                      Algorithm::EltwiseExp,
                                      Algorithm::EltwiseFloor,
+                                     Algorithm::EltwiseFloorMod,
+                                     Algorithm::EltwiseCeiling,
+                                     Algorithm::EltwiseNegative,
                                      Algorithm::EltwiseGeluErf,
                                      Algorithm::EltwiseGeluTanh,
                                      Algorithm::EltwiseGreater,
@@ -34,7 +35,10 @@ bool JitEltwiseExecutor::isSupported(
                                      Algorithm::EltwiseIsFinite,
                                      Algorithm::EltwiseIsInf,
                                      Algorithm::EltwiseIsNaN,
+                                     Algorithm::EltwiseLess,
                                      Algorithm::EltwiseLessEqual,
+                                     Algorithm::EltwiseLogicalAnd,
+                                     Algorithm::EltwiseLogicalOr,
                                      Algorithm::EltwiseLogicalNot,
                                      Algorithm::EltwiseLogicalXor,
                                      Algorithm::EltwiseMaximum,
@@ -43,13 +47,17 @@ bool JitEltwiseExecutor::isSupported(
                                      Algorithm::EltwiseMod,
                                      Algorithm::EltwiseMultiply,
                                      Algorithm::EltwiseMulAdd,
+                                     Algorithm::EltwiseNotEqual,
                                      Algorithm::EltwisePowerStatic,
                                      Algorithm::EltwisePrelu,
                                      Algorithm::EltwiseRelu,
+                                     Algorithm::EltwiseRoundHalfAwayFromZero,
+                                     Algorithm::EltwiseRoundHalfToEven,
                                      Algorithm::EltwiseSelect,
                                      Algorithm::EltwiseSigmoid,
                                      Algorithm::EltwiseSoftSign,
                                      Algorithm::EltwiseSqrt,
+                                     Algorithm::EltwiseSquaredDifference,
                                      Algorithm::EltwiseSubtract,
                                      Algorithm::EltwiseSwish,
                                      Algorithm::EltwiseTanh);
@@ -61,10 +69,9 @@ bool JitEltwiseExecutor::isSupported(
         return false;
     }
 
-    const auto check_precisions = [](
-            const std::vector<ov::element::Type>& input_precisions,
-            const std::vector<ov::element::Type>& output_precisions,
-            const std::set<ov::element::Type>& supported_precisions) {
+    const auto check_precisions = [](const std::vector<ov::element::Type>& input_precisions,
+                                     const std::vector<ov::element::Type>& output_precisions,
+                                     const std::set<ov::element::Type>& supported_precisions) {
         if (std::any_of(input_precisions.begin(),
                         input_precisions.end(),
                         [&supported_precisions](const ov::element::Type& precision) {
@@ -86,15 +93,13 @@ bool JitEltwiseExecutor::isSupported(
 
     const std::set<ov::element::Type> supported_precisions =
         // Divide and Floor (issue #138629) operations are supported for fp32 and fp16 only.
-        ((algorithm == Algorithm::EltwiseDivide) || (algorithm == Algorithm::EltwiseFloor)) ?
-            std::set<ov::element::Type> { ov::element::f16, ov::element::f32 } :
-            std::set<ov::element::Type> {
-                ov::element::f16,
-                ov::element::f32,
-                ov::element::i32,
-                ov::element::i8,
-                ov::element::u8
-            };
+        ((algorithm == Algorithm::EltwiseDivide) || (algorithm == Algorithm::EltwiseFloor))
+            ? std::set<ov::element::Type>{ov::element::f16, ov::element::f32}
+            : std::set<ov::element::Type>{ov::element::f16,
+                                          ov::element::f32,
+                                          ov::element::i32,
+                                          ov::element::i8,
+                                          ov::element::u8};
 
     if (!check_precisions(input_precisions, output_precisions, supported_precisions)) {
         return false;
@@ -103,22 +108,19 @@ bool JitEltwiseExecutor::isSupported(
     return true;
 }
 
-JitEltwiseExecutor::JitEltwiseExecutor(const ExecutorContext::CPtr context) : EltwiseExecutor(context) {}
+JitEltwiseExecutor::JitEltwiseExecutor(ExecutorContext::CPtr context) : EltwiseExecutor(std::move(context)) {}
 
-bool JitEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs,
-                              const std::vector<MemoryDescPtr> &srcDescs,
-                              const std::vector<MemoryDescPtr> &dstDescs,
-                              const std::vector<EltwisePostOp> &postOps) {
+bool JitEltwiseExecutor::init(const EltwiseAttrs& eltwiseAttrs,
+                              const std::vector<MemoryDescPtr>& srcDescs,
+                              const std::vector<MemoryDescPtr>& dstDescs,
+                              const std::vector<EltwisePostOp>& postOps) {
     return true;
 }
 
-void JitEltwiseExecutor::exec(const std::vector<MemoryCPtr> &src,
-                              const std::vector<MemoryPtr> &dst,
-                              const void *post_ops_data_) {
+void JitEltwiseExecutor::exec(const std::vector<MemoryCPtr>& src,
+                              const std::vector<MemoryPtr>& dst,
+                              const void* post_ops_data_) {
     exec_func();
 }
 
-}   // namespace aarch64
-}   // namespace executors
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu::executors::aarch64

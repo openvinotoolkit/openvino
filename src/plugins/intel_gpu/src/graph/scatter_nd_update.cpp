@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,18 +64,18 @@ std::string scatter_nd_update_inst::to_string(scatter_nd_update_node const& node
     return primitive_description.str();
 }
 
-scatter_nd_update_inst::typed_primitive_inst(network& network, scatter_nd_update_node const& node) : parent(network, node) {}
+scatter_nd_update_inst::typed_primitive_inst(network& network, scatter_nd_update_node const& node) : parent(network, node) {
+    update_output_memory();
+}
 
 void scatter_nd_update_inst::on_execute() {
-    auto input1_shape = _impl_params->input_layouts[1].get_partial_shape();
-    auto input2_shape = _impl_params->input_layouts[2].get_partial_shape();
-    auto same_layouts = _impl_params->input_layouts[0] == _impl_params->output_layouts[0];
-
-    if (same_layouts && ((ov::shape_size(input1_shape.to_shape()) == 0) || (ov::shape_size(input2_shape.to_shape()) == 0)))
-        update_output_memory();
+    update_output_memory();
 }
 
 void scatter_nd_update_inst::update_output_memory() {
+    if (!can_be_optimized() || _impl_params->is_dynamic())
+        return;
+
     if (_outputs.size() > 0 && static_cast<bool>(_outputs[0])
         && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
@@ -86,7 +86,7 @@ void scatter_nd_update_inst::update_output_memory() {
     // Can_be_optimized nodes are allocating from memory_pool too. In this case,
     // we need release the legacy output memory from memory pool explicitly.
     if (static_cast<bool>(_outputs[0]) &&
-        _node->get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool)) {
+        _node->get_program().get_config().get_enable_memory_pool()) {
         _network.get_memory_pool().release_memory(_outputs[0].get(), _node->get_unique_id(), _node->id(), _network.get_id());
     }
     _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout())};

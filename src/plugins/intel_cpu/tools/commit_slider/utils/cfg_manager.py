@@ -10,16 +10,21 @@ class CfgManager():
         self.cfg = cfg
 
     @staticmethod
-    def multistepStrFormat(input: str, placeholder: str, substitution: str):
+    def singlestepStrFormat(input: str, placeholder: str, substitution: str):
         return input.replace(
             '{}{}{}'.format('{', placeholder, '}'),
             substitution
         )
 
+    @staticmethod
+    def multistepStrFormat(input: str, placeholderSubstPairArr):
+        for ps in placeholderSubstPairArr:
+            input = CfgManager.singlestepStrFormat(input, ps['p'], ps['s'])
+        return input
+
     def applyTemplate(self):
         if not "template" in self.cfg:
             return self.cfg
-        logPath = self.cfg["logPath"]
         tmplName = self.cfg["template"]["name"]
         fullCfg = {}
         # todo: generalize tmplcfg generator
@@ -29,16 +34,18 @@ class CfgManager():
             fullCfg = self.generateE2ETemplate()
         elif tmplName == "bm_functional":
             fullCfg = self.generatebmFunctionalTemplate()
+        elif tmplName == "bm_arm_mac":
+            fullCfg = self.generateArmBmTemplate()
         else:
             raise Exception(
                 "Unknown template '{}'".format(tmplName)
             )
-        fullCfg["logPath"] = logPath
         return fullCfg
     
     def readJsonTmpl(self, tmplFileName: str):
+        smplPath = os.path.dirname(os.path.realpath(__file__))
         tmplFileName = os.path.join(
-            "utils/cfg_samples/", tmplFileName
+            smplPath, "cfg_samples/", tmplFileName
         )
         with open(tmplFileName) as cfgFile:
             tmplJSON = json.load(cfgFile)
@@ -54,7 +61,7 @@ class CfgManager():
             tmpJSON["runConfig"]["stopPattern"] = tmpl["errorPattern"]
             tmpJSON["dlbConfig"]["commonPath"] = tmpl["precommitPath"]
             tmpJSON["cachedPathConfig"]["commonPath"] = tmpl["precommitPath"]
-            tmpJSON["appCmd"] = CfgManager.multistepStrFormat(
+            tmpJSON["appCmd"] = CfgManager.singlestepStrFormat(
                 tmpJSON["appCmd"],
                 tmpl["appCmd"],
                 "testCmd"
@@ -99,3 +106,107 @@ class CfgManager():
         else:
             tmpJSON["runConfig"]["traversal"] = "firstFailedVersion"
         return tmpJSON
+
+    def generateArmBmTemplate(self):
+        tmpl = self.cfg["template"]
+        tmpJSON = self.readJsonTmpl("bm_arm_mac.json")
+        # handle syntactic sugar: logs, models, intervals
+        isMultimodel = False
+        if isinstance(tmpl['model'], list):
+            isMultimodel = True
+            tmpJSON['clearCache'] = True
+            appCmdList = []
+            logPathList = []
+            for model in tmpl['model']:
+                appCmdList.append(
+                    CfgManager.singlestepStrFormat(
+                        tmpJSON['appCmd'], 'model', model
+                    )
+                )
+                logPathList.append(
+                    CfgManager.singlestepStrFormat(
+                        "{workPath}/log/sublog/{model}",
+                        'model',
+                        model
+                        ))
+            tmpJSON['appCmd'] = appCmdList
+        if 'interval' in tmpl:
+            runCfgList = []
+            for interval in tmpl['interval']:
+                runCfg = tmpJSON['runConfig']
+                cmtList = "\"commitList\" : {\
+                    \"getCommitListCmd\" : \"git log {interval} \
+                    --boundary --pretty=\\\"%h\\\"\"}"
+                CfgManager.singlestepStrFormat(
+                        cmtList, 'interval', interval)
+                runCfg['commitList'] = cmtList
+                runCfgList.append(runCfg)
+            tmpJSON['runConfig'] = runCfgList
+
+        devParam = "perfAppropriateDeviation"
+        isFirstFixed = "isFirstFixed"
+        if isMultimodel:
+            pass
+        elif "appCmd" in tmpl:
+            tmpJSON["appCmd"] = tmpl["appCmd"]
+        elif 'model' in tmpl: # check if model param separated
+            newCmd = CfgManager.singlestepStrFormat(
+                tmpJSON['appCmd'], "model", tmpl['model']
+            )
+            tmpJSON['appCmd'] = newCmd
+        else:
+            raise Exception("No 'appcmd' in template")
+        if devParam in tmpl:
+            tmpJSON["runConfig"][devParam] = tmpl[devParam]
+        if isFirstFixed in tmpl and tmpl[isFirstFixed]:
+            tmpJSON["runConfig"]["traversal"] = "firstFixedVersion"
+        else:
+            tmpJSON["runConfig"]["traversal"] = "firstFailedVersion"
+        return tmpJSON
+
+# Example 1
+# {
+#    "template": {
+#       "name":"bm_arm_mac",
+#       "buildEnvVars" : [
+#          {"name" : "ALL_PROXY", "val" : "<path_1>"},
+#          {"name" : "http_proxy", "val" : "<path_2>"},
+#          {"name" : "https_proxy", "val" : "<path_3>"}
+#       ],
+#       "model":["path_0", "path_1", "path_2"]
+#    }
+# }
+
+# Example 2
+# {
+#    "template": {
+#       "name":"bm_arm_mac",
+#       "buildEnvVars" : [
+#          {"name" : "ALL_PROXY", "val" : "<path_1>"},
+#          {"name" : "http_proxy", "val" : "<path_2>"},
+#          {"name" : "https_proxy", "val" : "<path_3>"}
+#       ],
+#       "appCmd":"./benchmark_app -m {model} <other_parameters>",
+#       "model":["path_0", "path_1", "path_2"],
+#       "traversal":"firstFixedVersion",
+#       "perfAppropriateDeviation": 0.2,
+#       "interval":["hash_00..hash_01", "hash_10..hash_11", "hash_20..hash_21"]
+#    }
+# }
+
+# Example 3
+# {
+#    "template": {
+#       "name":"bm_arm_mac",
+#       "buildEnvVars" : [
+#          {"name" : "ALL_PROXY", "val" : "<path_1>"},
+#          {"name" : "http_proxy", "val" : "<path_2>"},
+#          {"name" : "https_proxy", "val" : "<path_3>"}
+#       ],
+#       "appCmd":[
+#           "./benchmark_app -m <model_path_0> <other_parameters_0>",
+#           "./benchmark_app -m <model_path_1> <other_parameters_1>",
+#           "./benchmark_app -m <model_path_2> <other_parameters_2>",
+#        ]
+#    }
+# }

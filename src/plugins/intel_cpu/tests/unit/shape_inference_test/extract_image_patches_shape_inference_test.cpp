@@ -1,5 +1,5 @@
 
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ TEST_F(StaticShapeExtractImagePatchesV3Test, default_ctor_no_args) {
     op->set_rates({1, 1});
     op->set_auto_pad(pad_type);
 
-    input_shapes = ShapeVector{{10, 8, 12, 6}};
+    input_shapes = StaticShapeVector{{10, 8, 12, 6}};
     output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
@@ -35,7 +35,7 @@ TEST_F(StaticShapeExtractImagePatchesV3Test, data_input_is_dynamic_rank) {
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape::dynamic());
     op = make_op(data, ov::Shape{3, 3}, ov::Strides{5, 5}, ov::Shape{2, 2}, op::PadType::VALID);
 
-    input_shapes = ShapeVector{{2, 2, 23, 24}};
+    input_shapes = StaticShapeVector{{2, 2, 23, 24}};
     output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
@@ -46,7 +46,7 @@ TEST_F(StaticShapeExtractImagePatchesV3Test, data_input_is_static_rank) {
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape::dynamic(4));
     op = make_op(data, ov::Shape{3, 3}, ov::Strides{5, 5}, ov::Shape{1, 1}, op::PadType::SAME_UPPER);
 
-    input_shapes = ShapeVector{{2, 2, 43, 34}};
+    input_shapes = StaticShapeVector{{2, 2, 43, 34}};
     output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
@@ -57,7 +57,7 @@ TEST_F(StaticShapeExtractImagePatchesV3Test, data_shape_not_compatible_rank_4) {
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape::dynamic(4));
     op = make_op(data, ov::Shape{3, 3}, ov::Strides{5, 5}, ov::Shape{1, 1}, op::PadType::SAME_UPPER);
 
-    OV_EXPECT_THROW(shape_inference(op.get(), ShapeVector{{2, 20, 12, 24, 1}}),
+    OV_EXPECT_THROW(shape_inference(op.get(), StaticShapeVector{{2, 20, 12, 24, 1}}),
                     NodeValidationFailure,
                     HasSubstr("input tensor must be 4D tensor"));
 }

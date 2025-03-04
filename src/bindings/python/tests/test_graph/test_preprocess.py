@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
-import openvino.runtime.opset13 as ops
+import openvino.opset13 as ops
 
 from openvino import Core, Layout, Model, Shape, Tensor, Type
-from openvino.runtime.utils.decorators import custom_preprocess_function
-from openvino.runtime import Output
+from openvino.utils.decorators import custom_preprocess_function
+from openvino import Output
 from openvino.preprocess import PrePostProcessor, ColorFormat, ResizeAlgorithm, PaddingMode
 
 
@@ -72,7 +72,8 @@ def test_graph_preprocess_scale_vector():
     assert list(model.get_output_shape(0)) == [2, 2]
     assert model.get_output_element_type(0) == Type.f32
     assert "Constant" in model_operators
-    assert "Divide" in model_operators
+    # Div will be converted to Mul in the transformations
+    assert "Multiply" in model_operators
 
 
 def test_graph_preprocess_mean_scale_convert():
@@ -95,12 +96,13 @@ def test_graph_preprocess_mean_scale_convert():
     model = ppp.build()
 
     model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
+    # Div will be converted to Mul in the transformations
     expected_ops = [
         "Parameter",
         "Convert",
         "Constant",
         "Subtract",
-        "Divide",
+        "Multiply",
         "Result",
         "Abs",
     ]
@@ -137,12 +139,13 @@ def test_graph_preprocess_input_output_by_name():
     model = ppp.build()
 
     model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
+    # Div will be converted to Mul in the transformations
     expected_ops = [
         "Parameter",
         "Convert",
         "Constant",
         "Subtract",
-        "Divide",
+        "Multiply",
         "Result",
         "Abs",
     ]
@@ -404,7 +407,7 @@ def test_graph_preprocess_steps(algorithm, color_format1, color_format2, is_fail
             "Gather",
             "Interpolate",
         ]
-        assert len(model_operators) == 15
+        assert len(model_operators) == 12
         assert model.get_output_size() == 1
         assert list(model.get_output_shape(0)) == [1, 3, 3, 3]
         assert model.get_output_element_type(0) == Type.f32
@@ -456,10 +459,9 @@ def test_graph_preprocess_postprocess_layout():
         "Constant",
         "Result",
         "Gather",
-        "Range",
         "Transpose",
     ]
-    assert len(model_operators) == 14
+    assert len(model_operators) == 11
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == [1, 1, 3, 3]
     assert model.get_output_element_type(0) == Type.f32
@@ -486,9 +488,8 @@ def test_graph_preprocess_reverse_channels():
         "Constant",
         "Result",
         "Gather",
-        "Range",
     ]
-    assert len(model_operators) == 10
+    assert len(model_operators) == 7
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == [1, 2, 2, 2]
     assert model.get_output_element_type(0) == Type.f32
@@ -628,6 +629,7 @@ def test_graph_preprocess_model():
     model = ppp.build()
 
     model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
+    # Div will be converted to Mul in the transformations
     expected_ops = [
         "Parameter",
         "Constant",
@@ -636,7 +638,7 @@ def test_graph_preprocess_model():
         "Convert",
         "Abs",
         "Add",
-        "Divide",
+        "Multiply",
     ]
     assert len(model_operators) == 13
     assert model.get_output_size() == 1

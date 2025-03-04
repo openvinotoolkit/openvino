@@ -1,19 +1,18 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include "openvino/op/proposal.hpp"
 
 #include <string>
 #include <vector>
 
-#include "openvino/op/proposal.hpp"
 #include "openvino/core/parallel.hpp"
 #include "proposal.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
-static std::vector<float> generate_anchors(proposal_conf &conf) {
+static std::vector<float> generate_anchors(proposal_conf& conf) {
     auto base_size = conf.base_size_;
     auto coordinates_offset = conf.coordinates_offset;
     auto round_ratios = conf.round_ratios;
@@ -28,7 +27,7 @@ static std::vector<float> generate_anchors(proposal_conf &conf) {
     auto anchors_ptr = anchors.data();
 
     // base box's width & height & center location
-    const float base_area = static_cast<float>(base_size * base_size);
+    const auto base_area = static_cast<float>(base_size * base_size);
     const float half_base_size = base_size * 0.5f;
     const float center = 0.5f * (base_size - coordinates_offset);
 
@@ -45,10 +44,10 @@ static std::vector<float> generate_anchors(proposal_conf &conf) {
             ratio_h = ratio_w * ratios[ratio];
         }
 
-        float * const p_anchors_wm = anchors_ptr + 0 * num_ratios * num_scales + ratio * num_scales;
-        float * const p_anchors_hm = anchors_ptr + 1 * num_ratios * num_scales + ratio * num_scales;
-        float * const p_anchors_wp = anchors_ptr + 2 * num_ratios * num_scales + ratio * num_scales;
-        float * const p_anchors_hp = anchors_ptr + 3 * num_ratios * num_scales + ratio * num_scales;
+        float* const p_anchors_wm = anchors_ptr + 0 * num_ratios * num_scales + ratio * num_scales;
+        float* const p_anchors_hm = anchors_ptr + 1 * num_ratios * num_scales + ratio * num_scales;
+        float* const p_anchors_wp = anchors_ptr + 2 * num_ratios * num_scales + ratio * num_scales;
+        float* const p_anchors_hp = anchors_ptr + 3 * num_ratios * num_scales + ratio * num_scales;
 
         for (size_t scale = 0; scale < num_scales; ++scale) {
             // transformed width & height for given scale factors
@@ -80,7 +79,7 @@ bool Proposal::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, s
             errorMessage = "Node is not an instance of the Proposal from the operations set v0 or v4.";
             return false;
         }
-        auto proposalOp = std::dynamic_pointer_cast<const ov::op::v0::Proposal>(op);
+        auto proposalOp = ov::as_type_ptr<const ov::op::v0::Proposal>(op);
         if (proposalOp->get_attrs().framework != "tensorflow" && !proposalOp->get_attrs().framework.empty()) {
             errorMessage = "Unsupported framework attribute: " + proposalOp->get_attrs().framework;
             return false;
@@ -91,14 +90,14 @@ bool Proposal::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, s
     return true;
 }
 
-Proposal::Proposal(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+Proposal::Proposal(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    auto proposalOp = std::dynamic_pointer_cast<const ov::op::v0::Proposal>(op);
+    auto proposalOp = ov::as_type_ptr<const ov::op::v0::Proposal>(op);
     auto proposalAttrs = proposalOp->get_attrs();
 
     conf.feat_stride_ = proposalAttrs.feat_stride;
@@ -137,15 +136,15 @@ Proposal::Proposal(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
 }
 
 void Proposal::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     if (store_prob) {
         addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
                               {LayoutType::ncsp, ov::element::f32},
                               {LayoutType::ncsp, ov::element::f32}},
-                             {{LayoutType::ncsp, ov::element::f32},
-                              {LayoutType::ncsp, ov::element::f32}},
+                             {{LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::f32}},
                              impl_desc_type::ref_any);
     } else {
         addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
@@ -156,19 +155,20 @@ void Proposal::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void Proposal::executeDynamicImpl(dnnl::stream strm) {
+void Proposal::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Proposal::execute(dnnl::stream strm) {
+void Proposal::execute(const dnnl::stream& strm) {
     try {
-        const float* probabilitiesData = getSrcDataAtPortAs<const float>(PROBABILITIES_IN_IDX);
-        const float* anchorsData = getSrcDataAtPortAs<const float>(ANCHORS_IN_IDX);
-        const float* imgInfoData = getSrcDataAtPortAs<const float>(IMG_INFO_IN_IDX);
-        float* outRoiData = reinterpret_cast <float *>(getDstDataAtPort(ROI_OUT_IDX));
+        const auto* probabilitiesData = getSrcDataAtPortAs<const float>(PROBABILITIES_IN_IDX);
+        const auto* anchorsData = getSrcDataAtPortAs<const float>(ANCHORS_IN_IDX);
+        const auto* imgInfoData = getSrcDataAtPortAs<const float>(IMG_INFO_IN_IDX);
+        auto* outRoiData = reinterpret_cast<float*>(getDstDataAtPort(ROI_OUT_IDX));
         float* outProbData = nullptr;
-        if (store_prob)
-            outProbData = reinterpret_cast <float *>(getDstDataAtPort(PROBABILITIES_OUT_IDX));
+        if (store_prob) {
+            outProbData = reinterpret_cast<float*>(getDstDataAtPort(PROBABILITIES_OUT_IDX));
+        }
 
         auto inProbDims = getParentEdgeAt(0)->getMemory().getStaticDims();
         const size_t imgInfoSize = getParentEdgeAt(2)->getMemory().getStaticDims()[0];
@@ -177,21 +177,27 @@ void Proposal::execute(dnnl::stream strm) {
         const float imgHeight = imgInfoData[0];
         const float imgWidth = imgInfoData[1];
         if (!std::isnormal(imgHeight) || !std::isnormal(imgWidth) || (imgHeight < 0.f) || (imgWidth < 0.f)) {
-            OPENVINO_THROW("Proposal operation image info input must have positive image height and width.");
+            THROW_CPU_NODE_ERR("image info input must have positive image height and width.");
         }
 
         // scale factor for height & width
         const float scaleHeight = imgInfoData[2];
         const float scaleWidth = imgInfoSize == 4 ? imgInfoData[3] : scaleHeight;
         if (!std::isfinite(scaleHeight) || !std::isfinite(scaleWidth) || (scaleHeight < 0.f) || (scaleWidth < 0.f)) {
-            OPENVINO_THROW("Proposal operation image info input must have non negative scales.");
+            THROW_CPU_NODE_ERR("image info input must have non negative scales.");
         }
 
-        ov::Extensions::Cpu::XARCH::proposal_exec(probabilitiesData, anchorsData, inProbDims,
-                {imgHeight, imgWidth, scaleHeight, scaleWidth}, anchors.data(), roi_indices.data(), outRoiData, outProbData, conf);
+        ov::Extensions::Cpu::XARCH::proposal_exec(probabilitiesData,
+                                                  anchorsData,
+                                                  inProbDims,
+                                                  {imgHeight, imgWidth, scaleHeight, scaleWidth},
+                                                  anchors.data(),
+                                                  roi_indices.data(),
+                                                  outRoiData,
+                                                  outProbData,
+                                                  conf);
     } catch (const ov::Exception& e) {
-        std::string errorMsg = e.what();
-        OPENVINO_THROW(errorMsg);
+        THROW_CPU_NODE_ERR(e.what());
     }
 }
 
@@ -199,6 +205,4 @@ bool Proposal::created() const {
     return getType() == Type::Proposal;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu::node

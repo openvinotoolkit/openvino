@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -252,6 +252,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"EmptyTensorList", CreatorFunction(translate_empty_tensor_list_op)},
         {"EnsureShape", CreatorFunction(translate_identity_op)},
         {"ExpandDims", CreatorFunction(translate_expand_dims_op)},
+        {"Expm1", CreatorFunction(translate_expm1_op)},
         {"ExtractImagePatches", CreatorFunction(translate_extract_image_patches_op)},
         {"FakeQuantWithMinMaxVars", CreatorFunction(translate_fake_quant_op)},
         {"FakeQuantWithMinMaxVarsPerChannel", CreatorFunction(translate_fake_quant_op)},
@@ -413,6 +414,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"TensorListReserve", CreatorFunction(translate_tensor_list_reserve_op)},
         {"TensorListResize", CreatorFunction(translate_tensor_list_resize_op)},
         {"TensorListConcatV2", CreatorFunction(translate_tensor_list_concat_v2_op)},
+        {"TensorScatterAdd", CreatorFunction(translate_tensor_scatter_add_op)},
         {"TensorScatterUpdate", CreatorFunction(translate_tensor_scatter_update_op)},
         {"Tile", CreatorFunction(translate_tile_op)},
         {"ToBool", CreatorFunction(translate_tobool_op)},

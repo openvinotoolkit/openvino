@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,114 +91,36 @@ std::string ov::util::get_file_ext(const std::string& s) {
     return rc;
 }
 
-std::string ov::util::get_directory(const std::string& s) {
-    // Linux-style separator
-    auto pos = s.find_last_of('/');
-    if (pos != std::string::npos) {
-        return s.substr(0, pos ? pos : 1);
-    }
-    // Windows-style separator
-    pos = s.find_last_of('\\');
-    if (pos != std::string::npos) {
-        return s.substr(0, pos);
-    } else if (s.empty()) {
+ov::util::Path ov::util::get_directory(const ov::util::Path& path) {
+    if (path.empty()) {
         return {};
+    } else if (const auto& parent_path = path.parent_path(); parent_path.empty()) {
+        return {"."};
     } else {
-        return {'.'};
+        return parent_path;
     }
 }
 
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-std::wstring ov::util::get_directory(const std::wstring& s) {
-    auto pos = s.find_last_of(ov::util::FileTraits<wchar_t>::file_separator);
-    if (pos != std::wstring::npos) {
-        return s.substr(0, pos);
-    } else if (s.empty()) {
-        return {};
-    } else {
-        return {L'.'};
-    }
-}
-#endif
+template <class Container = std::initializer_list<ov::util::Path>>
+ov::util::Path path_join(Container&& paths) {
+    ov::util::Path joined_path{};
 
-namespace {
-
-std::string join_paths(const std::string& s1, const std::string& s2) {
-    std::string rc;
-    if (s2.size() > 0) {
-        if (s2[0] == '/') {
-            rc = s2;
-        } else if (s1.size() > 0) {
-            rc = s1;
-            if (rc[rc.size() - 1] != '/') {
-#ifndef _WIN32
-                rc += '/';
-#else
-                rc += '\\';
-#endif
-            }
-            rc += s2;
-        } else {
-            rc = s2;
+    for (auto&& path : paths) {
+        if (!path.empty()) {
+            joined_path /= path;
         }
-    } else {
-        rc = s1;
     }
-    return rc;
+    return joined_path;
 }
 
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-std::wstring join_paths(const std::wstring& s1, const std::wstring& s2) {
-    std::wstring rc;
-    if (s2.size() > 0) {
-        if (s2[0] == '/') {
-            rc = s2;
-        } else if (s1.size() > 0) {
-            rc = s1;
-            if (rc[rc.size() - 1] != '/') {
-#    ifndef _WIN32
-                rc += '/';
-#    else
-                rc += '\\';
-#    endif
-            }
-            rc += s2;
-        } else {
-            rc = s2;
-        }
-    } else {
-        rc = s1;
-    }
-    return rc;
-}
-#endif
-}  // namespace
-
-std::string ov::util::path_join(const std::vector<std::string>& paths) {
-    std::string result;
-    if (paths.empty()) {
-        return result;
-    }
-    result = paths[0];
-    for (size_t i = 1; i < paths.size(); i++) {
-        result = join_paths(result, paths[i]);
-    }
-    return result;
+// TODO: Remove string() / wstring() casts on function call site
+ov::util::Path ov::util::path_join(std::initializer_list<ov::util::Path>&& paths) {
+    return ::path_join<>(std::move(paths));
 }
 
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-std::wstring ov::util::path_join_w(const std::vector<std::wstring>& paths) {
-    std::wstring result;
-    if (paths.empty()) {
-        return result;
-    }
-    result = paths[0];
-    for (size_t i = 1; i < paths.size(); i++) {
-        result = join_paths(result, paths[i]);
-    }
-    return result;
+std::wstring ov::util::path_join_w(std::initializer_list<std::wstring>&& paths) {
+    return ::path_join<>(std::move(paths)).wstring();
 }
-#endif
 
 #ifndef _WIN32
 static void iterate_files_worker(const std::string& path,
@@ -338,46 +260,6 @@ void ov::util::convert_path_win_style(std::string& path) {
     std::replace(path.begin(), path.end(), '/', '\\');
 }
 
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
-#    ifdef __clang__
-#        pragma clang diagnostic push
-#        pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#    endif
-
-std::string ov::util::wstring_to_string(const std::wstring& wstr) {
-#    ifdef _WIN32
-    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
-    std::string strTo(size_needed, 0);
-    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
-    return strTo;
-#    else
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_decoder;
-    return wstring_decoder.to_bytes(wstr);
-#    endif
-}
-
-std::wstring ov::util::string_to_wstring(const std::string& string) {
-    const char* str = string.c_str();
-#    ifdef _WIN32
-    int strSize = static_cast<int>(std::strlen(str));
-    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, strSize, NULL, 0);
-    std::wstring wstrTo(size_needed, 0);
-    MultiByteToWideChar(CP_UTF8, 0, str, strSize, &wstrTo[0], size_needed);
-    return wstrTo;
-#    else
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_encoder;
-    std::wstring result = wstring_encoder.from_bytes(str);
-    return result;
-#    endif
-}
-
-#    ifdef __clang__
-#        pragma clang diagnostic pop
-#    endif
-
-#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
 std::string ov::util::get_absolute_file_path(const std::string& path) {
     std::string absolutePath;
     absolutePath.resize(MAX_ABS_PATH);
@@ -443,29 +325,9 @@ void ov::util::create_directory_recursive(const std::string& path) {
     }
 }
 
-bool ov::util::directory_exists(const std::string& path) {
-    struct stat sb;
-
-    if (stat(path.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
-        return true;
-    }
-    return false;
+bool ov::util::directory_exists(const ov::util::Path& path) {
+    return std::filesystem::is_directory(std::filesystem::status(path));
 }
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-bool ov::util::directory_exists(const std::wstring& path) {
-#    ifdef _WIN32
-    struct stat sb;
-
-    if (wstat(path.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
-        return true;
-    }
-    return false;
-#    else
-    return directory_exists(wstring_to_string(path));
-#    endif
-}
-#endif
 
 namespace {
 
@@ -578,12 +440,12 @@ ov::util::FilePath ov::util::get_compiled_plugin_path(const std::string& plugin)
     str << "openvino-" << OpenVINO_VERSION;
     const auto sub_folder = str.str();
 
-    std::string abs_file_path = ov::util::path_join({ov_library_path, sub_folder, plugin});
+    std::string abs_file_path = ov::util::path_join({ov_library_path, sub_folder, plugin}).string();
     if (ov::util::file_exists(abs_file_path))
         return ov::util::to_file_path(abs_file_path);
 
     // 2. in the openvino.so location
-    abs_file_path = ov::util::path_join({ov_library_path, plugin});
+    abs_file_path = ov::util::path_join({ov_library_path, plugin}).string();
     if (ov::util::file_exists(abs_file_path))
         return ov::util::to_file_path(abs_file_path);
 
@@ -613,11 +475,11 @@ ov::util::FilePath ov::util::get_plugin_path(const std::string& plugin, const st
 
     auto xml_path_ = xml_path;
     if (xml_path.find(ov::util::FileTraits<char>::file_separator) == std::string::npos)
-        xml_path_ = ov::util::path_join({std::string("."), xml_path});  // treat plugins.xml as CWD/plugins.xml
+        xml_path_ = ov::util::path_join({".", xml_path}).string();  // treat plugins.xml as CWD/plugins.xml
 
     // For 2nd case
     if (plugin.find(ov::util::FileTraits<char>::file_separator) != std::string::npos) {
-        auto path_ = ov::util::path_join({ov::util::get_directory(xml_path_), plugin});
+        auto path_ = ov::util::path_join({ov::util::get_directory(xml_path_), plugin}).string();
         return ov::util::to_file_path(ov::util::get_absolute_file_path(path_));  // canonicalize path
     }
 
@@ -627,7 +489,7 @@ ov::util::FilePath ov::util::get_plugin_path(const std::string& plugin, const st
         lib_file_name = ov::util::make_plugin_library_name({}, plugin);
 
     // For 4th case
-    auto lib_path = ov::util::path_join({ov::util::get_directory(xml_path_), lib_file_name});
+    auto lib_path = ov::util::path_join({ov::util::get_directory(xml_path_), lib_file_name}).string();
     lib_path = ov::util::get_absolute_file_path(lib_path);  // canonicalize path
     if (as_abs_only || ov::util::file_exists(lib_path))
         return ov::util::to_file_path(lib_path);

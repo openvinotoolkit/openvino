@@ -1,15 +1,16 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <node.h>
-#include "kernels/x64/gather_uni_kernel.hpp"
 
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "kernels/x64/gather_uni_kernel.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -17,13 +18,14 @@ namespace node {
 
 class Gather : public Node {
 public:
-    Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
+    bool neverExecute() const override;
     bool isExecutable() const override;
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
@@ -55,7 +57,7 @@ public:
     void execCompressed4Bit();
 
 protected:
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
     bool needPrepareParams() const override;
     void prepareParams() override;
 
@@ -115,6 +117,6 @@ private:
     std::shared_ptr<jitGatherKernelBase> jitKernel;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

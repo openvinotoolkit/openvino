@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2023-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,11 @@
 #include "intel_npu/config/npuw.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "partitioning/partitioning.hpp"
+#include "serialization.hpp"
 #include "spatial.hpp"
 #include "weights_bank.hpp"
 
@@ -22,10 +25,16 @@ class Plugin;
 
 namespace ov {
 namespace npuw {
+class ICompiledModel : public ov::ICompiledModel {
+public:
+    static std::shared_ptr<ov::npuw::ICompiledModel> create(const std::shared_ptr<ov::Model>& model,
+                                                            const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                            const ov::AnyMap& properties);
+    ICompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin);
+};
 
 class InferRequest;
-
-class CompiledModel : public ov::ICompiledModel {
+class CompiledModel : public ov::npuw::ICompiledModel {
     using DevList = std::vector<std::string>;
     using GetPropertiesMap =
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
@@ -34,6 +43,9 @@ public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const ov::AnyMap& properties);
+    CompiledModel(const std::shared_ptr<ov::Model>& model,
+                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                  const bool serialized);
 
     void export_model(std::ostream& model) const override;
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
@@ -47,8 +59,10 @@ private:
     // FIXME: This class has many friends..
     friend class IBaseInferRequest;
     friend class JustInferRequest;
+    friend class UnfoldInferRequest;
     friend class MemAccessSim;
     friend class FuncMemMgr;
+    friend class LLMCompiledModel;
 
     bool compile_for_success(std::size_t id);
     bool compile_for_device(std::size_t id, const std::string& device_to_try);
@@ -57,28 +71,38 @@ private:
 
     void dump_on_fail(std::size_t id, const std::string& device_to_stry, const char* extra);
 
-    bool m_finalized = false;
-    void reset_io();
+    void report_io() const;
+
+    void serialize(std::ostream& stream) const;
+    static std::shared_ptr<CompiledModel> deserialize(std::istream& stream,
+                                                      const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                      const ov::AnyMap& properties);
 
     // This is used for removing too long output tensor names to fix some compilation issues
+    // NB: These two methods has nothing to do with this particular class and should be
+    // moved elsewhere
     void remove_long_output_names(const std::shared_ptr<ov::Model>& model);
     void fill_empty_tensor_names(const std::shared_ptr<ov::Model>& model);
 
     std::shared_ptr<const ::intel_npu::Plugin> get_npuw_plugin() const;
-
-    std::shared_ptr<ov::ISyncInferRequest> create_just_sync_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
     std::string submodel_device(const std::size_t idx) const;
+    bool is_gather_closure(const std::size_t idx, const std::size_t cidx) const;
+    bool unpack_required(const std::size_t idx) const;
+    bool unpack_required(const std::size_t idx, const std::size_t cidx) const;
 
     void log_device_dist() const;
-
     void implement_properties();
 
+    // For full deserialization flow with weights
+    void reconstruct_closure();
+    // For weightless serialization flow
+    void store_const_offsets(const std::shared_ptr<ov::Model>& model);
+
     void finalize_weights_bank();
-
+    void detach_memory();
     std::string global_mem_device() const;
-
     std::string funcall_mem_device(const std::size_t idx) const;
 
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
@@ -134,6 +158,7 @@ private:
         //     lazy_closure is used for weights sharing and allocating device memory.
         std::vector<ov::Tensor> closure;
         std::vector<weights::LazyTensor> lazy_closure;
+        std::vector<int64_t> closure_uid;  // Note: value -1 is considered uninitialized
         std::vector<ov::Tensor> scales;
         std::vector<ov::Tensor> zerops;
         std::vector<bool> is_remote;
@@ -146,6 +171,9 @@ private:
 
         // Metrics
         execution_stats stat;
+
+        void serialize(std::ostream& stream, const ov::npuw::s11n::Context& ctx) const;
+        void deserialize(std::istream& stream, const ov::npuw::s11n::Weights& weights);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 
@@ -155,6 +183,8 @@ private:
     execution_stats m_total_stat;
 
     std::shared_ptr<weights::Bank> m_weights_bank = nullptr;
+
+    std::unordered_map<const void*, std::size_t> m_const_to_offset;
 };
 }  // namespace npuw
 }  // namespace ov

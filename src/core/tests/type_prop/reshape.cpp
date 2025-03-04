@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1332,4 +1332,25 @@ TEST(type_prop, reshape_pattern_dim_has_invalid_bound) {
     const auto reshape = make_shared<op::v1::Reshape>(p, output_pattern, false);
 
     EXPECT_EQ(reshape->get_output_partial_shape(0), ov::PartialShape({7, -1, 1, 2}));
+}
+
+TEST(type_prop, reshape_symbol_deducing) {
+    auto A = std::make_shared<ov::Symbol>();
+    auto B = std::make_shared<ov::Symbol>();
+    auto C = std::make_shared<ov::Symbol>();
+
+    auto in_shape = ov::PartialShape({-1, -1, 768});
+    in_shape[0].set_symbol(A);
+    in_shape[1].set_symbol(B);
+
+    auto out_shape = ov::PartialShape({-1, -1, 12, 64});
+    out_shape[0].set_symbol(A);
+    out_shape[1].set_symbol(C);
+
+    const auto in = std::make_shared<op::v0::Parameter>(element::f32, in_shape);
+    const auto out = std::make_shared<op::v3::ShapeOf>(std::make_shared<op::v0::Parameter>(element::f32, out_shape));
+    const auto reshape = std::make_shared<op::v1::Reshape>(in, out, false);
+
+    EXPECT_EQ(reshape->get_output_partial_shape(0), ov::PartialShape({-1, -1, 12, 64}));
+    EXPECT_TRUE(ov::symbol::are_equal(B, C));
 }

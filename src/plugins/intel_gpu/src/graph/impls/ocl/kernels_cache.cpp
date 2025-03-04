@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -111,7 +111,7 @@ namespace cldnn {
 std::mutex kernels_cache::_mutex;
 
 std::string kernels_cache::get_cache_path() const {
-    auto path = _config.get_property(ov::cache_dir);
+    auto path = _config.get_cache_dir();
     if (path.empty()) {
         return {};
     }
@@ -123,20 +123,12 @@ std::string kernels_cache::get_cache_path() const {
 }
 
 bool kernels_cache::is_cache_enabled() const {
-    if (!_config.get_property(ov::intel_gpu::allow_new_shape_infer) &&
-        (_config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SPEED)) {
+    if (!_config.get_allow_new_shape_infer() &&
+        (_config.get_cache_mode() == ov::CacheMode::OPTIMIZE_SPEED)) {
         return false;
     }
 
-    return !_config.get_property(ov::cache_dir).empty();
-}
-
-size_t kernels_cache::get_max_kernels_per_batch() const {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->max_kernels_per_batch >= 1) {
-        return static_cast<size_t>(debug_config->max_kernels_per_batch);
-    }
-    return _config.get_property(ov::intel_gpu::max_kernels_per_batch);
+    return !_config.get_cache_dir().empty();
 }
 
 void kernels_cache::get_program_source(const kernels_code& kernels_source_code, std::vector<kernels_cache::batch_program>* all_batches) const {
@@ -153,8 +145,12 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             std::string entry_point = kernel_string->entry_point;
             std::string options = kernel_string->options;
             bool batch_compilation = kernel_string->batch_compilation;
+            bool is_cm = kernel_string->language == kernel_language::CM;
 
-            if (batch_compilation) {
+            auto& headers = is_cm ? cm_batch_headers : batch_headers;
+
+            // Order matters for cm options
+            if (batch_compilation && !is_cm) {
                 options = reorder_options(options);
             }
 
@@ -174,7 +170,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                 const auto& batch_id = 0;
                 // increase bucket id if and only if new bucket comes
                 bucket_id = static_cast<int32_t>(program_buckets.size() - 1);
-                current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_headers));
+                current_bucket.push_back(batch_program(bucket_id, batch_id, options, headers, is_cm));
             }
 
             // This is a temporary walk-around to avoid severe performance drop.
@@ -201,11 +197,11 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
             // Create new kernels batch when the limit is reached
             // and current kernel's entry_point is duplicated in this kernels batch
-            if (current_bucket.back().kernels_counter >= get_max_kernels_per_batch()
+            if (current_bucket.back().kernels_counter >= _config.get_max_kernels_per_batch()
                 || current_bucket.back().entry_point_to_id.find(entry_point) != current_bucket.back().entry_point_to_id.end()
                 || need_separate_batch(entry_point)) {
                 const auto& batch_id = static_cast<int32_t>(current_bucket.size());
-                current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_headers));
+                current_bucket.push_back(batch_program(bucket_id, batch_id, options, headers, is_cm));
             }
 
             auto& current_batch = current_bucket.back();
@@ -242,16 +238,12 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
             b.hash_value = std::hash<std::string>()(full_code);
 
-            std::string dump_sources_dir = "";
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(!debug_config->dump_sources.empty()) {
-                dump_sources_dir = debug_config->dump_sources;
-            }
+            std::string dump_sources_dir = GPU_DEBUG_VALUE_OR(_config.get_dump_sources_path(), "");
 
             // Add -g -s to build options to allow IGC assembly dumper to associate assembler sources with corresponding OpenCL kernel code lines
             // Should be used with the IGC_ShaderDump option
             if (!dump_sources_dir.empty()) {
-                std::string current_dump_file_name = dump_sources_dir;
+                std::string current_dump_file_name = std::move(dump_sources_dir);
                 if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
                     current_dump_file_name += '/';
 
@@ -270,12 +262,14 @@ kernels_cache::kernels_cache(engine& engine,
                              const ExecutionConfig& config,
                              uint32_t prog_id,
                              std::shared_ptr<ov::threading::ITaskExecutor> task_executor,
-                             const std::map<std::string, std::string>& batch_headers)
+                             const std::map<std::string, std::string>& batch_headers,
+                             const std::map<std::string, std::string>& cm_batch_headers)
     : _device(get_target_device(engine))
     , _task_executor(task_executor)
     , _config(config)
     , _prog_id(prog_id)
-    , batch_headers(std::move(batch_headers)) { }
+    , batch_headers(std::move(batch_headers))
+    , cm_batch_headers(std::move(cm_batch_headers)) { }
 
 static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
     // Get the size of the program binary in bytes.
@@ -300,18 +294,16 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
     auto& cl_build_device = dynamic_cast<const ocl::ocl_device&>(*_device);
 
     bool dump_sources = batch.dump_custom_program;
-    std::string dump_sources_dir = "";
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(!debug_config->dump_sources.empty()) {
+    std::string dump_sources_dir = GPU_DEBUG_VALUE_OR(_config.get_dump_sources_path(), "");
+    GPU_DEBUG_IF(!dump_sources_dir.empty()) {
         dump_sources = true;
-        dump_sources_dir = debug_config->dump_sources;
     }
 
     std::string err_log;  // accumulated build log from all program's parts (only contains messages from parts which
 
     std::string current_dump_file_name = "";
     if (dump_sources) {
-        current_dump_file_name = dump_sources_dir;
+        current_dump_file_name = std::move(dump_sources_dir);
         if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
             current_dump_file_name += '/';
 
@@ -379,10 +371,10 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
             if (is_cache_enabled()) {
                 // If kernels caching is enabled, then we save compiled bucket to binary file with name ${code_hash_value}.cl_cache
                 // Note: Bin file contains full bucket, not separate kernels, so kernels reuse across different models is quite limited
-                // Bucket size can be changed in get_max_kernels_per_batch() method, but forcing it to 1 will lead to much longer
+                // Bucket size can be changed by max_kernels_per_batch config option, but forcing it to 1 will lead to much longer
                 // compile time.
                 std::lock_guard<std::mutex> lock(cacheAccessMutex);
-                ov::intel_gpu::save_binary(cached_bin_name, getProgramBinaries(program));
+                ov::intel_gpu::save_binary(cached_bin_name, getProgramBinaries(std::move(program)));
             }
         } else {
             cl::Program program(cl_build_device.get_context(), {cl_build_device.get_device()}, precompiled_kernels);
@@ -602,7 +594,7 @@ std::string kernels_cache::get_cached_kernel_id(kernel::ptr kernel) const {
     auto ocl_kernel = std::static_pointer_cast<cldnn::ocl::ocl_kernel>(kernel);
     const auto& entry_point = ocl_kernel->get_handle().getInfo<CL_KERNEL_FUNCTION_NAME>();
     auto program = ocl_kernel->get_handle().getInfo<CL_KERNEL_PROGRAM>();
-    cl::vector<unsigned char> program_binaries = getProgramBinaries(program);
+    cl::vector<unsigned char> program_binaries = getProgramBinaries(std::move(program));
 
     auto iter = _cached_binaries.find(program_binaries);
     OPENVINO_ASSERT(iter != _cached_binaries.end(), "[GPU] Not found cached kernel binaries");
@@ -627,7 +619,7 @@ void kernels_cache::add_to_cached_kernels(const std::vector<kernel::ptr>& kernel
     for (auto& kernel : kernels) {
         auto ocl_kernel = std::static_pointer_cast<cldnn::ocl::ocl_kernel>(kernel);
         auto program = ocl_kernel->get_handle().getInfo<CL_KERNEL_PROGRAM>();
-        cl::vector<unsigned char> program_binaries = getProgramBinaries(program);
+        cl::vector<unsigned char> program_binaries = getProgramBinaries(std::move(program));
 
         std::lock_guard<std::mutex> lock(_mutex);
         auto iter = _cached_binaries.find(program_binaries);

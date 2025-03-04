@@ -98,8 +98,8 @@ KernelsData SDPAKernelRef::GetKernelsData(const Params& params) const {
 
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
 
-    kd.internalBufferSizes.clear();
-    kd.internalBufferSizes.push_back(prim_params.inputs[0].ElementSize());
+    kd.internalBuffers.clear();
+    kd.internalBuffers.push_back(prim_params.inputs[0].ElementSize());
     kd.internalBufferDataType = prim_params.inputs[0].GetDType();
 
     return { kd };
@@ -121,8 +121,8 @@ void SDPAKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
 
         auto elem_size = in_q.ElementSize();
         auto batch_size = in_q.LogicalSize() / dims_q.x_dim().v / dims_q.y_dim().v;
-        kernel_data.internalBufferSizes.clear();
-        kernel_data.internalBufferSizes.push_back(batch_size * dims_q.y_dim().v * dims_k.y_dim().v * elem_size);
+        kernel_data.internalBuffers.clear();
+        kernel_data.internalBuffers.push_back(batch_size * dims_q.y_dim().v * dims_k.y_dim().v * elem_size);
 
         kernel_data.internalBufferDataType = in_q.GetDType();
     };

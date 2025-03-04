@@ -76,7 +76,7 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
         ob << _kernels_data.size();
         for (auto& kd : _kernels_data) {
             ob << make_data(&kd.internalBufferDataType, sizeof(kernel_selector::Datatype));
-            ob << kd.internalBufferSizes;
+            ob << kd.internalBuffers;
             ob << kd.kernels;
             ob << kd.kernelName;
         }
@@ -90,7 +90,7 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
         for (size_t i = 0; i < kernels_size; i++) {
             kernel_selector::kernel_data kd;
             ib >> make_data(&kd.internalBufferDataType, sizeof(kernel_selector::Datatype));
-            ib >> kd.internalBufferSizes;
+            ib >> kd.internalBuffers;
             ib >> kd.kernels;
             ib >> kd.kernelName;
             _kernels_data[i] = kd;
@@ -141,6 +141,18 @@ protected:
         return {kernels_cache.get_cached_kernel_ids(_kernels)};
     }
 
+    template<typename ImplType, typename KernelParamsType>
+    static std::unique_ptr<primitive_impl> make_deep_copy(const ImplType& impl_ocl) {
+        auto prim_impl = std::make_unique<ImplType>(impl_ocl);
+        for (auto& _kernel_data : (*prim_impl)._kernels_data) {
+            KernelParamsType* params_ptr = dynamic_cast<KernelParamsType*>(_kernel_data.params.get());
+            if (params_ptr != nullptr) {
+                _kernel_data.params = std::make_unique<KernelParamsType>(*params_ptr);
+            }
+        }
+        return prim_impl;
+    }
+
     std::vector<kernel::ptr> get_kernels() const override {
         return _kernels;
     }
@@ -148,14 +160,14 @@ protected:
     std::vector<layout> get_internal_buffer_layouts_impl() const override {
         std::vector<layout> layouts;
         for (auto& kd : _kernels_data) {
-            if (kd.internalBufferSizes.empty())
+            if (kd.internalBuffers.empty())
                 continue;
 
             auto dtype = from_data_type(kd.internalBufferDataType);
             const auto bpp = data_type_traits::size_of(dtype);
-            for (auto size : kd.internalBufferSizes) {
+            for (const auto& buffer : kd.internalBuffers) {
                 layout inbuf_layout = {dtype, format::bfyx, // simple linear format (flattern to x channel)
-                                        {1, 1, 1, (tensor::value_type)(size / bpp)}};
+                                        {1, 1, 1, (tensor::value_type)(buffer.byte_count / bpp)}};
                 layouts.push_back(inbuf_layout);
             }
         }
@@ -218,10 +230,6 @@ protected:
             auto sub_kernel_idx = k.second;
             _kernels[sub_kernel_idx] = k.first;
         }
-    }
-
-    std::vector<kernel::ptr> get_kernels() override {
-        return _kernels;
     }
 
     std::pair<std::string, std::string> get_kernels_dump_info() const override {

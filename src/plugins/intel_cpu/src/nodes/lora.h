@@ -21,21 +21,20 @@ public:
         return getType() == Type::LoRA;
     }
 
-    bool needPrepareParams() const override {
-        return false;
-    }
-
     void getSupportedDescriptors() override{};
     void selectOptimalPrimitiveDescriptor() override;
+    int registerToAllocationContext(int offset, AllocationContext& context) override;
     void createPrimitive() override;
-    void execute(dnnl::stream) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void prepareParams() override;
+    void execute(const dnnl::stream&) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
 
 private:
     std::shared_ptr<const ov::Model> m_body;
+    std::vector<MemoryPtr> subgraphMemoryPtrs;
     Graph m_graph;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

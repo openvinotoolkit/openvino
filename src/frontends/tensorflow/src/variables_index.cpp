@@ -128,7 +128,7 @@ void VariablesIndex::read_bundle_header() {
     auto item = m_variables_index.find("");
     FRONT_END_GENERAL_CHECK(item != m_variables_index.end(), "Bundle Header isn't found in index");
 
-    ::tensorflow::BundleHeaderProto bundleHeader;
+    ::tensorflow::BundleHeaderProto bundleHeader{};
     FRONT_END_GENERAL_CHECK(bundleHeader.ParseFromArray(item->second.data(), static_cast<int>(item->second.size())),
                             "Bundle Header: Cannot parse Bundle Header");
     FRONT_END_GENERAL_CHECK(bundleHeader.version().producer() == 1, "Bundle Header: Unsupported producer version");
@@ -147,7 +147,7 @@ void VariablesIndex::read_checkpointable_object_graph() {
         return;
     }
 
-    ::tensorflow::BundleEntryProto entry;
+    ::tensorflow::BundleEntryProto entry{};
     FRONT_END_GENERAL_CHECK(entry.ParseFromArray(item->second.data(), static_cast<int>(item->second.size())),
                             "CMO: Cannot parse Bundle Entry");
 
@@ -195,7 +195,7 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::string&
         std::snprintf(suffix.data(), suffix.size(), "data-%05d-of-%05d", shard, m_total_shards);
         std::string fullPath;
         if (is_saved_model) {
-            fullPath = ov::util::path_join({path, "variables", std::string("variables.") + suffix.data()});
+            fullPath = ov::util::path_join({path, "variables", std::string("variables.") + suffix.data()}).string();
         } else {
             fullPath = path + "." + suffix.data();
         }

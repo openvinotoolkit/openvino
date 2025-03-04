@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,12 @@
 #include "common_test_utils/test_common.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/util/common_util.hpp"
 #include "read_ir.hpp"
+
+namespace ov::test {
+using op::v0::Parameter, op::v0::Result, op::v0::Relu;
+using testing::UnorderedElementsAre;
 
 class TensorNameSerializationTest : public ov::test::TestsCommon {
 protected:
@@ -55,3 +60,37 @@ TEST_F(TensorNameSerializationTest, SerializeFunctionWithTensorNames) {
     const auto res = fc.compare(result, model);
     EXPECT_TRUE(res.valid) << res.message;
 }
+
+TEST_F(TensorNameSerializationTest, model_with_specific_output_names) {
+    const auto make_test_model = [] {
+        auto input = std::make_shared<Parameter>(element::f32, Shape{1, 3, 10, 10});
+        input->set_friendly_name("input");
+        input->output(0).set_names({"input"});
+        auto relu = std::make_shared<Relu>(input);
+        relu->set_friendly_name("relu");
+        relu->output(0).set_names({"relu"});
+        auto result = std::make_shared<Result>(relu);
+        result->set_friendly_name("output");
+        result->output(0).set_names({"output", "identity,output"});
+        return std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{input}, "Specific output names");
+    };
+    const auto model_comparator = FunctionsComparator::with_default()
+                                      .enable(FunctionsComparator::ATTRIBUTES)
+                                      .enable(FunctionsComparator::CONST_VALUES);
+
+    const auto ref_model = make_test_model();
+    ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(ref_model);
+    const auto read_model = ov::test::readModel(m_out_xml_path, m_out_bin_path);
+
+    // Check explicitly output names
+    EXPECT_THAT(ref_model->output(0).get_node()->get_input_tensor(0).get_names(),
+                UnorderedElementsAre("output", "identity,output", "relu"));
+    EXPECT_THAT(ref_model->output(0).get_names(), UnorderedElementsAre("output", "identity,output"));
+    EXPECT_THAT(read_model->output(0).get_node()->get_input_tensor(0).get_names(),
+                UnorderedElementsAre("output", "identity,output", "relu"));
+    EXPECT_THAT(read_model->output(0).get_names(), UnorderedElementsAre("output", "identity,output"));
+
+    const auto res = model_comparator.compare(read_model, ref_model);
+    EXPECT_TRUE(res.valid) << res.message;
+}
+}  // namespace ov::test

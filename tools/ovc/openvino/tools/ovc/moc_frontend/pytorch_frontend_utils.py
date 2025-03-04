@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -8,7 +8,7 @@ import sys
 import numpy as np
 
 # pylint: disable=no-name-in-module,import-error
-from openvino.runtime import Tensor, PartialShape
+from openvino import Tensor, PartialShape
 from openvino.tools.ovc.cli_parser import single_input_to_input_cut_info, _InputCutInfo
 from openvino.tools.ovc.error import Error
 
@@ -19,22 +19,6 @@ def extract_module_extensions(args):
     if not isinstance(extensions, (list, tuple)):
         extensions = [extensions]
     return {extension.module: extension for extension in extensions if isinstance(extension, ModuleExtension)}
-
-
-def get_decoder_for_exported_program(model):
-    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
-    import torch
-
-    from packaging import version
-    if version.parse(torch.__version__) >= version.parse("2.2"):
-        from torch._decomp import get_decompositions
-        from openvino.frontend.pytorch.torchdynamo.decompositions import get_export_decomposition_list
-        decomp = get_decompositions(get_export_decomposition_list())
-        model = model.run_decompositions(decomp_table=decomp)
-    gm = model.module()
-    log.debug(gm.code)
-    decoder = TorchFXPythonDecoder(gm, dynamic_shapes=True)
-    return decoder
 
 
 def get_pytorch_decoder(model, example_inputs, args):
@@ -65,7 +49,7 @@ def get_pytorch_decoder(model, example_inputs, args):
     inputs = prepare_torch_inputs(example_inputs)
     if not isinstance(model, (TorchScriptPythonDecoder, TorchFXPythonDecoder)):
         if hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram)):
-            decoder = get_decoder_for_exported_program(model)
+            decoder = TorchFXPythonDecoder.from_exported_program(model)
         else:
             decoder = TorchScriptPythonDecoder(
                 model,
@@ -75,7 +59,11 @@ def get_pytorch_decoder(model, example_inputs, args):
     else:
         decoder = model
     args['input_model'] = decoder
-    args["example_input"] = inputs
+    ei = getattr(decoder, "_example_input", None)
+    if ei is not None:
+        args["example_input"] = ei
+    else:
+        args["example_input"] = inputs
 
     return args
 
@@ -119,7 +107,7 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
     try:
         exported_program = torch.export.load(input_model)
         if hasattr(torch, "export") and isinstance(exported_program, (torch.export.ExportedProgram)):
-            argv.input_model = get_decoder_for_exported_program(exported_program)
+            argv.input_model = TorchFXPythonDecoder.from_exported_program(exported_program)
             argv.framework = 'pytorch'
             return True
     except:
@@ -250,6 +238,8 @@ def to_torch_tensor(tensor):
         return tuple(to_torch_tensor(x) for x in tensor)
     if isinstance(tensor, dict) and all(isinstance(k, str) for k in tensor.keys()):
         return dict((k, to_torch_tensor(x)) for k, x in tensor.items())
+    if tensor is None:
+        return None
     else:
         raise Error("Unexpected type of example_input. Supported types torch.Tensor, np.array or ov.Tensor. "
                     "Got {}".format(type(tensor)))

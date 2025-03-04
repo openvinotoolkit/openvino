@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,6 +47,14 @@ int32_t OptionParser<int32_t>::parse(std::string_view val) {
         return std::stol(val.data());
     } catch (...) {
         OPENVINO_THROW("Value '%s' is not a valid INT32 option", val.data());
+    }
+}
+
+uint32_t OptionParser<uint32_t>::parse(std::string_view val) {
+    try {
+        return std::stoul(val.data());
+    } catch (...) {
+        OPENVINO_THROW("Value '%s' is not a valid UINT32 option", val.data());
     }
 }
 
@@ -234,6 +242,31 @@ std::string Config::toString() const {
     }
 
     return resultStream.str();
+}
+
+void Config::fromString(const std::string& str) {
+    std::map<std::string, std::string> config;
+    std::string str_cfg(str);
+
+    auto parse_token = [&](const std::string& token) {
+        auto pos_eq = token.find('=');
+        auto key = token.substr(0, pos_eq);
+        auto value = token.substr(pos_eq + 2, token.size() - pos_eq - 3);
+        config[key] = std::move(value);
+    };
+
+    size_t pos = 0;
+    std::string token, key, value;
+    while ((pos = str_cfg.find(' ')) != std::string::npos) {
+        token = str_cfg.substr(0, pos);
+        parse_token(token);
+        str_cfg.erase(0, pos + 1);
+    }
+
+    // Process tail
+    parse_token(str_cfg);
+
+    update(config);
 }
 
 //

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -584,12 +584,12 @@ public:
         }
     }
 
-    void test_2x2x1x1(bool is_caching_test, impl_types impl_type = impl_types::any) {
+    void test_2x2x1x1(bool is_caching_test, impl_types impl_type = impl_types::any, bool disable_usm = false) {
         // Input (BFYX): 2x2x1x1
         // Output (BFYX): 2x2x1x1
 
-        auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } });
+        auto engine = create_test_engine(engine_types::ocl, runtime_types::ocl, !disable_usm);
+        auto input = engine->allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } });
 
         set_values(input, {
                 0.0f, 1.0f, 2.0f, 3.0f
@@ -602,11 +602,11 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {1, 0}, {}, {}, {}, {}, {2, 2, 1, 1}));
 
-        auto config = get_test_default_config(engine);
+        auto config = get_test_default_config(*engine);
         if (impl_type != impl_types::any)
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"strided_slice", {format::bfyx, "", impl_types::cpu}} }));
 
-        cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(*engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -2756,6 +2756,10 @@ TEST_F(strided_slice_cpu_impl, test_2x2x2_all_dynamic_bcast) {
 
 TEST_F(strided_slice_cpu_impl, test_2x2x1x1) {
     this->test_2x2x1x1(false, impl_types::cpu);
+}
+
+TEST_F(strided_slice_cpu_impl, test_2x2x1x1_disable_usm) {
+    this->test_2x2x1x1(false, impl_types::cpu, true);
 }
 
 TEST_F(strided_slice_cpu_impl, test_2x2x2x1x1_2) {

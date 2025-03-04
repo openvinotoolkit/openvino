@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shape_validation.hpp"
 #include "static_shape.hpp"
+
+#include "shape_validation.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -18,8 +19,9 @@ template <class T>
 bool merge_into(StaticShape& dst, const T& src) {
     auto success = (dst.size() == src.size());
 
-    for (size_t i = 0; success && (i < dst.size()); ++i)
+    for (size_t i = 0; success && (i < dst.size()); ++i) {
         success = StaticDimension::merge(dst[i], dst[i], src[i]);
+    }
 
     return success;
 }
@@ -98,17 +100,20 @@ bool StaticShape::broadcast_merge_into(StaticShape& dst,
         // PDPD broadcast rule.
 
         int64_t axis = autob.m_axis;
-        if (src_rank > dst_rank || axis < -1)
+        if (src_rank > dst_rank || axis < -1) {
             return false;
+        }
 
         axis = (axis == -1) ? (dst_rank - src_rank) : axis;
-        if (src_rank + axis > dst_rank)
+        if (src_rank + axis > dst_rank) {
             return false;
+        }
 
         bool success = true;
         for (int64_t i = 0; i < src_rank; ++i) {
-            if (src[i].get_length() > dst[axis + i].get_length())
+            if (src[i].get_length() > dst[axis + i].get_length()) {
                 return false;
+            }
 
             success &= StaticDimension::broadcast_merge(dst[axis + i], dst[axis + i], src[i]);
         }
@@ -123,7 +128,7 @@ bool StaticShape::broadcast_merge_into(StaticShape& dst,
 
 //-- Shape as reference
 StaticShapeRef::StaticShapeAdapter(const StaticShape& shape) : m_dims{&(*shape)} {}
-StaticShapeRef::StaticShapeAdapter(const ov::PartialShape&) : m_dims{} {
+StaticShapeRef::StaticShapeAdapter(const ov::PartialShape&) {
     partial_shape_convert_throw();
 }
 
@@ -155,7 +160,7 @@ ov::Shape StaticShapeRef::get_shape() const {
     return to_shape();
 }
 
-}   // namespace intel_cpu
+}  // namespace intel_cpu
 
 template <>
 void NodeValidationFailure::create(const char* file,
@@ -182,4 +187,4 @@ void NodeValidationFailure::create(const char* file,
                                               node_validation_failure_loc_string(ctx.first),
                                               ov::op::validate::shape_infer_explanation_str(*ctx.second, explanation)));
 }
-}   // namespace ov
+}  // namespace ov

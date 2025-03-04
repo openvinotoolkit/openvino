@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,12 +20,12 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::mvn_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<mvn_impl>(*this);
+        return make_deep_copy<mvn_impl, kernel_params_t>(*this);
     }
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic()) {
+        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -63,7 +63,18 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
             ov::PartialShape shape = ov::PartialShape::dynamic(new_rank);
 
             auto& output_layout = updated_impl_params.output_layouts[0];
+
             if (input_pshape.is_static()) {
+                size_t flatten_axis = 0;
+                // Change flatten axis if the format is single fsv.
+                auto block_sizes = format::block_sizes(input_layout.format);
+                if (block_sizes.size() == 1
+                    && (input_pshape[block_sizes[0].first].get_length() % block_sizes[0].second == 0)
+                    && (std::count(axes.begin(), axes.end(), block_sizes[0].first) == 0)
+                    && block_sizes[0].first == 1) {
+                    flatten_axis = 1;
+                }
+
                 for (size_t i = 0; i < new_rank; i++) {
                     shape[i] = 1;
                 }
@@ -72,7 +83,7 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
                 // 1. normalized dimensions which are flattened and written to the last dim
                 // 2. not normalized dims which are flattened and written to the first dim
                 for (size_t i = 0; i < input_rank; i++) {
-                    shape[static_cast<int64_t>(i) < min ? 0 : (new_rank - 1)] *= input_pshape[i];
+                    shape[static_cast<int64_t>(i) < min ? flatten_axis : (new_rank - 1)] *= input_pshape[i];
                 }
             }
 

@@ -4,14 +4,13 @@
 
 #pragma once
 
-#include "nodes/executors/deconv.hpp"
-#include "arm_compute/runtime/NEON/NEFunctions.h"
-#include "utils/debug_capabilities.h"
 #include "acl_utils.hpp"
+#include "arm_compute/runtime/NEON/NEFunctions.h"
+#include "nodes/executors/deconv.hpp"
 #include "src/cpu/CpuTypes.h"
+#include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct ACLDeconvTensorInfo {
     arm_compute::TensorInfo srcTensorInfo;
@@ -22,8 +21,8 @@ struct ACLDeconvTensorInfo {
 };
 
 ACLDeconvTensorInfo getACLDeconvTensorInfo(const DeconvAttrs& deconvAttrs,
-                                       const std::vector<MemoryDescPtr>& srcDescs,
-                                       const std::vector<MemoryDescPtr>& dstDescs);
+                                           const std::vector<MemoryDescPtr>& srcDescs,
+                                           const std::vector<MemoryDescPtr>& dstDescs);
 
 class AclDeconvExecutor : public DeconvExecutor {
 public:
@@ -31,12 +30,12 @@ public:
     bool init(const DeconvAttrs& deconvAttrs,
               const std::vector<MemoryDescPtr>& srcDescs,
               const std::vector<MemoryDescPtr>& dstDescs,
-              const dnnl::primitive_attr &attr) override;
+              const dnnl::primitive_attr& attr) override;
     void exec(const std::vector<MemoryCPtr>& src,
               const std::vector<MemoryPtr>& dst,
-              const void *post_ops_data_) override;
+              const void* post_ops_data_) override;
 
-    impl_desc_type getImplType() const override {
+    [[nodiscard]] impl_desc_type getImplType() const override {
         return implType;
     }
 
@@ -57,16 +56,15 @@ public:
                                   const std::vector<MemoryDescPtr>& srcDescs,
                                   const std::vector<MemoryDescPtr>& dstDescs);
 
-    bool isSupported(const DeconvAttrs& deconvAttrs,
-                     const std::vector<MemoryDescPtr>& srcDescs,
-                     const std::vector<MemoryDescPtr>& dstDescs) const override {
+    [[nodiscard]] bool isSupported(const DeconvAttrs& deconvAttrs,
+                                   const std::vector<MemoryDescPtr>& srcDescs,
+                                   const std::vector<MemoryDescPtr>& dstDescs) const override {
         return customIsSupported(deconvAttrs, srcDescs, dstDescs);
     }
 
-    DeconvExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
+    [[nodiscard]] DeconvExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
         return std::make_shared<AclDeconvExecutor>(context);
     }
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu

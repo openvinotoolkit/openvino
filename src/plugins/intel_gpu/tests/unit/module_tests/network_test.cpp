@@ -95,7 +95,7 @@ TEST(network_test, has_proper_event_for_in_order_queue) {
     net.set_input_data("input1", input_mem);
     net.execute();
 
-    ASSERT_FALSE(net.has_event("activation1"));
+    ASSERT_TRUE(net.has_event("activation1"));
     ASSERT_TRUE(net.has_event("concat"));
     ASSERT_TRUE(net.has_event("reorder"));
     ASSERT_TRUE(net.has_event("activation2"));

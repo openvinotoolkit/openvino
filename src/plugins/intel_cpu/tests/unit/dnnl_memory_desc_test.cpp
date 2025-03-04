@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -283,7 +283,7 @@ TEST(MemDescTest, MemSize) {
     ASSERT_EQ(blockedDescDefUpper.getCurrentMemSize(), undefSize);
     auto maxElementsCount = std::accumulate(pluginShapeDefUpperBound.getMaxDims().begin(),
                                             pluginShapeDefUpperBound.getMaxDims().end(),
-                                            1, std::multiplies<size_t>());
+                                            1, std::multiplies<>());
     ASSERT_EQ(blockedDescDefUpper.getMaxMemSize(), maxElementsCount * iePrc.size());
 
     DnnlBlockedMemoryDesc memDescDefUpper(pluginShapeDefUpperBound, dnnlDataType, dnnl::memory::format_tag::nhwc);

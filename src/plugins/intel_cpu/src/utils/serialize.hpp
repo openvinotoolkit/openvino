@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -11,12 +11,11 @@
 #include "openvino/util/mmap_object.hpp"
 #include "utils/codec_xor.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class ModelSerializer {
 public:
-    typedef std::function<std::string(const std::string&)> CacheEncrypt;
+    using CacheEncrypt = std::function<std::string(const std::string&)>;
 
     ModelSerializer(std::ostream& ostream, CacheEncrypt encrypt_fn = {});
 
@@ -29,9 +28,14 @@ private:
 
 class ModelDeserializer {
 public:
-    typedef std::function<std::shared_ptr<ov::Model>(const std::shared_ptr<ov::AlignedBuffer>&, const std::shared_ptr<ov::AlignedBuffer>&)> ModelBuilder;
+    using ModelBuilder = std::function<std::shared_ptr<ov::Model>(const std::shared_ptr<ov::AlignedBuffer>&,
+                                                                  const std::shared_ptr<ov::AlignedBuffer>&)>;
 
-    ModelDeserializer(std::istream& model, ModelBuilder fn, const CacheDecrypt& encrypt_fn, bool decript_from_string);
+    ModelDeserializer(std::istream& model,
+                      std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                      ModelBuilder fn,
+                      const CacheDecrypt& encrypt_fn,
+                      bool decript_from_string);
 
     virtual ~ModelDeserializer() = default;
 
@@ -48,7 +52,7 @@ protected:
     ModelBuilder m_model_builder;
     CacheDecrypt m_cache_decrypt;
     bool m_decript_from_string;
+    std::shared_ptr<ov::AlignedBuffer> m_model_buffer;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu

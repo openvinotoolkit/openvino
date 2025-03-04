@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,10 +10,9 @@
 
 namespace ov {
 namespace op {
-namespace v1 {
-
+namespace variadic_split {
 template <typename T, class TRShape = result_shape_t<T>>
-std::vector<TRShape> shape_infer(const VariadicSplit* op,
+std::vector<TRShape> shape_infer(const Node* op,
                                  const std::vector<T>& input_shapes,
                                  const ITensorAccessor& ta = make_tensor_accessor()) {
     constexpr bool is_dynamic_shape = std::is_base_of<ov::PartialShape, T>::value;
@@ -119,6 +118,15 @@ std::vector<TRShape> shape_infer(const VariadicSplit* op,
         // just leave output_shapes as empty.
     }
     return output_shapes;
+}
+}  // namespace variadic_split
+
+namespace v1 {
+template <typename T, class TRShape = result_shape_t<T>>
+std::vector<TRShape> shape_infer(const VariadicSplit* op,
+                                 const std::vector<T>& input_shapes,
+                                 const ITensorAccessor& ta = make_tensor_accessor()) {
+    return op::variadic_split::shape_infer(op, input_shapes, ta);
 }
 
 }  // namespace v1

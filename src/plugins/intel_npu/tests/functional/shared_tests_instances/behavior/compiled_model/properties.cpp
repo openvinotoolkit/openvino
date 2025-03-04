@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,6 @@ const std::vector<std::pair<std::string, ov::Any>> compiledModelProperties = {
     {ov::hint::model_priority.name(), ov::Any(ov::hint::Priority::HIGH)},
     {ov::intel_npu::tiles.name(), ov::Any(2)},
     {ov::intel_npu::profiling_type.name(), ov::Any(ov::intel_npu::ProfilingType::INFER)},
-    {ov::intel_npu::use_elf_compiler_backend.name(), ov::Any(ov::intel_npu::ElfCompilerBackend::NO)},
     {ov::intel_npu::defer_weights_load.name(), ov::Any(false)}};
 
 const std::string& expectedModelName = []() -> std::string {

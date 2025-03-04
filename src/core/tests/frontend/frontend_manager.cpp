@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ using namespace ov::frontend;
 
 static std::string mock_fe_path() {
     static auto lib_name = std::string(FRONTEND_LIB_PREFIX) + "mock1" + std::string(FRONTEND_LIB_SUFFIX);
-    return ov::util::path_join({ov::test::utils::getExecutableDirectory(), lib_name});
+    return ov::util::path_join({ov::test::utils::getExecutableDirectory(), lib_name}).string();
 }
 
 TEST(FrontEndManagerTest, testAvailableFrontEnds) {
@@ -478,4 +478,28 @@ TEST(FrontEndManagerTest, Exception_Safety_Input_Model_set_tensor_value) {
 
 TEST(FrontEndManagerTest, Exception_Safety_Input_Model_set_tensor_partial_value) {
     CHECK_EXCEPTION_INPUT_MODEL(input_model->set_tensor_partial_value({}, {}, {}))
+}
+
+
+TEST(FrontEndManagerTest, testFEMDestroy_InputModelHolderUsingPath) {
+    InputModel::Ptr input_model;
+    {
+        std::shared_ptr<ov::Model> model;
+        FrontEndManager fem;
+        fem.register_front_end("mock1", mock_fe_path());
+        auto fe = fem.load_by_framework("mock1");
+        input_model = fe->load(std::filesystem::path("test"));
+        model = fe->convert(input_model);
+        EXPECT_EQ(model->get_friendly_name(), "mock1_model");
+    }
+    ASSERT_TRUE(input_model);
+}
+
+TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Supported_By_Path) {
+    EXPECT_ANY_THROW({
+        FrontEndManager fem;
+        fem.register_front_end("mock1", mock_fe_path());
+        auto fe = fem.load_by_framework("mock1");
+        fe->supported(std::filesystem::path("throw_now"));
+    });
 }

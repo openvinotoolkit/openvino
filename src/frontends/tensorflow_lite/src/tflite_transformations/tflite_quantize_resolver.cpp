@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,9 +7,16 @@
 #include <memory>
 
 #include "openvino/core/validation_util.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "tflite_ops/tflite_quantize.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
@@ -17,19 +24,19 @@
 
 using namespace std;
 using namespace ov::pass;
-using namespace ov::opset10;
+using namespace ov::op;
 using namespace ov::pass::pattern;
 using namespace ov::frontend::tensorflow_lite;
 
 pass::TFLQuantizeConvert::TFLQuantizeConvert() {
     auto tfl_quantize_label = wrap_type<tensorflow_lite::TFLQuantize>();
-    auto convert_label = wrap_type<opset10::Convert>({tfl_quantize_label});
+    auto convert_label = wrap_type<v0::Convert>({tfl_quantize_label});
 
     matcher_pass_callback callback = [=](Matcher& m) {
         auto pattern_map = m.get_pattern_map();
         auto tfl_quantize_node = pattern_map.at(tfl_quantize_label);
         auto convert_node = pattern_map.at(convert_label);
-        auto convert = ov::as_type_ptr<opset10::Convert>(convert_node);
+        auto convert = ov::as_type_ptr<v0::Convert>(convert_node);
         if (!convert)
             return false;
         auto type = convert->get_destination_type();
@@ -74,14 +81,14 @@ void fuse_zp_to_weights(ov::Output<ov::Node>& output, std::vector<int64_t>& zero
     vector<int64_t> axes_vec(rank);
     std::iota(axes_vec.begin(), axes_vec.end(), 0);
 
-    auto axes = Constant::create(ov::element::i64, {axes_vec.size()}, axes_vec);
-    auto max_value = make_shared<ReduceMax>(output, axes, false)->output(0);
-    auto min_value = make_shared<ReduceMin>(output, axes, false)->output(0);
+    auto axes = v0::Constant::create(ov::element::i64, {axes_vec.size()}, axes_vec);
+    auto max_value = make_shared<v1::ReduceMax>(output, axes, false)->output(0);
+    auto min_value = make_shared<v1::ReduceMin>(output, axes, false)->output(0);
 
     auto check_in_bounds = [&](ov::Output<ov::Node>& value) -> bool {
-        shared_ptr<ov::opset10::Constant> constant;
+        shared_ptr<v0::Constant> constant;
         if (rank == 0) {
-            constant = ov::as_type_ptr<ov::opset10::Constant>(output.get_node_shared_ptr());
+            constant = ov::as_type_ptr<v0::Constant>(output.get_node_shared_ptr());
         } else {
             constant = ov::util::get_constant_from_source(value);
         }
@@ -95,31 +102,32 @@ void fuse_zp_to_weights(ov::Output<ov::Node>& output, std::vector<int64_t>& zero
     };
     if (!check_in_bounds(min_value) || !check_in_bounds(max_value))
         return;
-    output = std::make_shared<Convert>(output, ov::element::i32);
-    auto zp_node = ov::opset10::Constant::create(ov::element::i32, zp_shape, zero_point);
-    output = std::make_shared<ov::opset10::Subtract>(output, zp_node);
-    output = std::make_shared<ov::opset10::Convert>(output, ov::element::i8);
+    output = std::make_shared<v0::Convert>(output, ov::element::i32);
+    auto zp_node = v0::Constant::create(ov::element::i32, zp_shape, zero_point);
+    output = std::make_shared<v1::Subtract>(output, zp_node);
+    output = std::make_shared<v0::Convert>(output, ov::element::i8);
     output = ov::util::get_constant_from_source(output);  // TODO: Check Me
     zero_point = {0};
 }
 
 pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
-    auto tfl_quantize_label = wrap_type<tensorflow_lite::TFLQuantize>();
+    const auto tfl_quantize_label = wrap_type<tensorflow_lite::TFLQuantize>();
     matcher_pass_callback callback = [=](Matcher& m) {
         auto pattern_map = m.get_pattern_map();
-        auto tfl_quantize_node = pattern_map.at(tfl_quantize_label);
-        auto tfl_quantize = ov::as_type_ptr<TFLQuantize>(tfl_quantize_node);
+        const auto& tfl_quantize_node = pattern_map.at(tfl_quantize_label);
+        const auto& tfl_quantize = ov::as_type_ptr<TFLQuantize>(tfl_quantize_node);
         if (!tfl_quantize)
             return false;
-        auto quantization = tfl_quantize->get_info();
+        const auto& quantization = tfl_quantize->get_info();
         FRONT_END_GENERAL_CHECK(
             quantization != nullptr,
             "Internal operation TFLQuantized representing quantized tensor doesn't have quantization details");
 
-        auto in_type = tfl_quantize->get_input_element_type(0);
-        auto out_type = tfl_quantize->get_type();
+        const auto in_type = tfl_quantize->get_input_element_type(0);
+        const auto out_type = tfl_quantize->get_type();
 
-        auto is_constant = ov::is_type<Constant>(tfl_quantize->get_input_node_shared_ptr(0));  // for Constant case
+        const auto is_constant =
+            ov::is_type<v0::Constant>(tfl_quantize->get_input_node_shared_ptr(0));  // for Constant case
 
         FRONT_END_GENERAL_CHECK(in_type == out_type || in_type == element::f32 || out_type == element::f32,
                                 "TFLQuantized types do not match: in_type = ",
@@ -131,62 +139,67 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
         Output<Node> output = tfl_quantize->get_input_source_output(0);
 
         auto zp = quantization->get_zero_point();
-        auto scale = quantization->get_scale();
+        const auto& scale = quantization->get_scale();
 
-        auto zp_shape = get_quant_shape(output, quantization, zp.size());
-        auto scale_shape = get_quant_shape(output, quantization, scale.size());
+        const auto& zp_shape = get_quant_shape(output, quantization, zp.size());
+        const auto& scale_shape = get_quant_shape(output, quantization, scale.size());
 
-        auto zp_node = ov::opset10::Constant::create(element::f32, zp_shape, zp);
-        auto scale_node = ov::opset10::Constant::create(element::f32, scale_shape, scale);
+        const auto& zp_node = v0::Constant::create(element::f32, zp_shape, zp);
+        const auto& scale_node = v0::Constant::create(element::f32, scale_shape, scale);
 
         if (is_constant) {
             fuse_zp_to_weights(output, zp, zp_shape);
-            output = make_shared<Convert>(output, element::f32);
+            output = make_shared<v0::Convert>(output, element::f32);
             disable_constant_folding(output.get_node_shared_ptr());
             if (std::any_of(zp.begin(), zp.end(), [](const int64_t& i) {
                     return i != 0;
                 }))
-                output = std::make_shared<ov::opset10::Subtract>(output, zp_node);
-            output = std::make_shared<ov::opset10::Multiply>(output, scale_node);
+                output = std::make_shared<v1::Subtract>(output, zp_node);
+            output = std::make_shared<v1::Multiply>(output, scale_node);
             tfl_quantize->output(0).replace(output);
             return true;
         }
         if (in_type != element::f32) {
-            output = make_shared<Convert>(output, element::f32);
+            output = make_shared<v0::Convert>(output, element::f32);
         }
 
-        auto levels = 1 << tfl_quantize->get_original_type().bitwidth();
-        auto is_signed = tfl_quantize->get_original_type().is_signed();
+        const auto levels = 1 << tfl_quantize->get_original_type().bitwidth();
+        const auto is_signed = tfl_quantize->get_original_type().is_signed();
+
+        const auto low = is_signed ? (-levels / 2) : 0;
+        const auto high = (is_signed ? levels / 2 : levels) - 1;
 
         Output<Node> input_low, input_high, output_low, output_high;
-        output_low = std::make_shared<opset10::Multiply>(std::make_shared<opset10::Negative>(scale_node), zp_node);
-        output_high = std::make_shared<opset10::Multiply>(
-            scale_node,
-            std::make_shared<opset10::Subtract>(ov::opset10::Constant::create(element::f32, {}, {levels - 1}),
-                                                zp_node));
-        if (in_type != element::f32) {
-            auto low = is_signed ? (-levels / 2) : 0;
-            auto high = levels - low - 1;
-            input_low = ov::opset10::Constant::create(element::f32, {}, {low});
-            input_high = ov::opset10::Constant::create(element::f32, {}, {high});
-        } else {
-            input_low = output_low;
-            input_high = output_high;
-        }
+
         if (out_type != element::f32) {
-            auto low = is_signed ? (-levels / 2) : 0;
-            auto high = levels - low - 1;
-            output_low = ov::opset10::Constant::create(element::f32, {}, {low});
-            output_high = ov::opset10::Constant::create(element::f32, {}, {high});
+            output_low = v0::Constant::create(element::f32, {}, {low});
+            output_high = v0::Constant::create(element::f32, {}, {high});
+            input_low = std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(output_low, zp_node), scale_node);
+            input_high =
+                std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(output_high, zp_node), scale_node);
+        } else if (in_type != element::f32) {
+            input_low = v0::Constant::create(element::f32, {}, {low});
+            input_high = v0::Constant::create(element::f32, {}, {high});
+            output_low = std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(input_low, zp_node), scale_node);
+            output_high =
+                std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(input_high, zp_node), scale_node);
+        } else {
+            output_low = v0::Constant::create(element::f32, {}, {low});
+            output_high = v0::Constant::create(element::f32, {}, {high});
+            input_low = std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(output_low, zp_node), scale_node);
+            input_high =
+                std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(output_high, zp_node), scale_node);
+            output_low = input_low;
+            output_high = input_high;
         }
+
         input_low = ov::util::get_constant_from_source(input_low);
         input_high = ov::util::get_constant_from_source(input_high);
         output_low = ov::util::get_constant_from_source(output_low);
         output_high = ov::util::get_constant_from_source(output_high);
-        output =
-            std::make_shared<opset10::FakeQuantize>(output, input_low, input_high, output_low, output_high, levels);
+        output = std::make_shared<v0::FakeQuantize>(output, input_low, input_high, output_low, output_high, levels);
         if (out_type != element::f32) {
-            output = make_shared<Convert>(output, out_type);
+            output = make_shared<v0::Convert>(output, out_type);
         }
         tfl_quantize->output(0).replace(output);
         return true;

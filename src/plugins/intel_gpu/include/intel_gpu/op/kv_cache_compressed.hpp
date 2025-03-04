@@ -7,15 +7,13 @@
 #include "intel_gpu/op/kv_cache.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 /// \brief Operator that implements Key-Values cache subgraph for large language models.
 /// This operation updates data of the corresponding Variable
 class KVCacheCompressed : public ov::intel_gpu::op::KVCache {
 public:
-    OPENVINO_OP("KVCacheCompressed", "gpu_opset");
+    OPENVINO_OP("KVCacheCompressed", "gpu_opset", ov::intel_gpu::op::KVCache);
 
     using QuantizationAttrs = ov::op::internal::DynamicQuantize::Attributes;
 
@@ -26,7 +24,7 @@ public:
                       int64_t concat_axis,
                       int64_t gather_axis,
                       const QuantizationAttrs& quantization_attrs,
-                      const ov::element::Type output_type = ov::element::undefined);
+                      const ov::element::Type output_type = ov::element::dynamic);
 
     void validate_and_infer_types() override;
 
@@ -51,6 +49,4 @@ private:
 std::vector<ov::PartialShape> shape_infer(const KVCacheCompressed* op,
                                           const std::vector<ov::PartialShape>& input_shapes);
 
-}   // namespace op
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu::op

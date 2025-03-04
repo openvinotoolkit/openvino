@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,7 +49,7 @@ OutputVector translate_segment_sum_op(const NodeContext& node) {
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(data.get_node_shared_ptr());
     if (complex_type_mark) {
         element::Type complex_part_type = complex_type_mark->get_complex_part_type();
-        data = complex_type_mark->input_value(0);
+        data = complex_type_mark->get_data();
         auto emb_segment_sum_complex = make_shared<v3::EmbeddingSegmentsSum>(data, indices, segment_ids, num_segments);
         auto emb_segment_sum_complex_output =
             make_shared<ComplexTypeMark>(emb_segment_sum_complex->output(0), complex_part_type);

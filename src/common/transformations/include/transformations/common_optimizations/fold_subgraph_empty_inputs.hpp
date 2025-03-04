@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,13 +34,13 @@ TRANSFORMATIONS_API bool fold_subgraph_empty_inputs_is_disabled(const std::share
 
 class ov::pass::FoldSubgraphEmptyInputs : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("FoldSubgraphEmptyInputs", "0");
+    OPENVINO_MATCHER_PASS_RTTI("FoldSubgraphEmptyInputs");
     FoldSubgraphEmptyInputs();
 };
 
 class ov::pass::DisableFoldSubgraphEmptyInputs : public ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("DisableFoldSubgraphEmptyInputs");
+    OPENVINO_RTTI("DisableFoldSubgraphEmptyInputs", "0", ov::RuntimeAttribute);
     DisableFoldSubgraphEmptyInputs() = default;
     bool is_copyable() const override {
         return false;

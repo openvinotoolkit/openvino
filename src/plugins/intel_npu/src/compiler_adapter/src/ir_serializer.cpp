@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ IRSerializer::IRSerializer(const std::shared_ptr<const ov::Model>& origModel, co
 void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weights) {
     _logger.debug("serializeModelToStream");
     const auto passConfig = std::make_shared<ov::pass::PassConfig>();
-    ov::pass::Manager manager(passConfig, "NPU:serializeModelToStream");
+    ov::pass::Manager manager(std::move(passConfig), "NPU:serializeModelToStream");
 
     if (_supportedOpset < 11) {
         // Downgrade to opset10

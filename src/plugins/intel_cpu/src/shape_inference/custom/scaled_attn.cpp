@@ -1,21 +1,20 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "scaled_attn.hpp"
 
-#include "shape_inference/shape_inference_cpu.hpp"
-#include "shape_inference/shape_inference_ngraph.hpp"
+#include <utility>
+
+#include "shape_inference/shape_inference.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class SDPAShapeInfer : public ShapeInferEmptyPads {
 public:
-    SDPAShapeInfer(const ScaledDotProductAttentionWithKVCache::Config& config) : m_config(config) {}
+    SDPAShapeInfer(ScaledDotProductAttentionWithKVCache::Config config) : m_config(std::move(config)) {}
 
     IShapeInfer::Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                               const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
@@ -29,8 +28,9 @@ public:
             present_v_dims[0] = beam_idx_dims[0];
             present_v_dims[2] += query_dims[2];
             // normal and fast path
-            if (present_v_dims[3] == query_dims[3])
+            if (present_v_dims[3] == query_dims[3]) {
                 return {{query_dims, present_v_dims, present_v_dims}, ShapeInferStatus::success};
+            }
 
             // diff kv feature size
             auto output_dims = query_dims;
@@ -53,8 +53,9 @@ public:
         }
 
         // normal and fast path
-        if (present_v_dims[3] == query_dims[3])
+        if (present_v_dims[3] == query_dims[3]) {
             return {{output_dims, present_v_dims, present_v_dims}, ShapeInferStatus::success};
+        }
 
         // diff kv feature size
         output_dims[3] = present_v_dims[3];
@@ -63,7 +64,7 @@ public:
         return {{output_dims, present_k_dims, present_v_dims}, ShapeInferStatus::success};
     }
 
-    port_mask_t get_port_mask() const override {
+    [[nodiscard]] port_mask_t get_port_mask() const override {
         return EMPTY_PORT_MASK;
     }
 
@@ -72,15 +73,14 @@ private:
 };
 
 ShapeInferPtr SDPAShapeInferFactory::makeShapeInfer() const {
-    if (auto sdpa = std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(m_op)) {
+    if (auto sdpa = ov::as_type_ptr<const ScaledDotProductAttentionWithKVCache>(m_op)) {
         const auto& config = sdpa->get_config();
-        if (config.output_BLHxS == false)
+        if (config.output_BLHxS == false) {
             return std::make_shared<SDPAShapeInfer>(config);
+        }
     }
     // fallback to ngraph shape infer on non-perf-critical case
-    return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), EMPTY_PORT_MASK);
+    return make_shape_inference(m_op);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

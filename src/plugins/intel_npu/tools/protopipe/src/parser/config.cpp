@@ -166,10 +166,23 @@ struct convert<std::map<K, V>> {
 template <typename T>
 struct convert<LayerVariantAttr<T>> {
     static bool decode(const Node& node, LayerVariantAttr<T>& layer_attr) {
-        if (node.IsMap()) {
-            layer_attr = node.as<std::map<std::string, T>>();
+        // Note: "metric" and "random" entries in config are always presented
+        //       as maps.
+        //       To differ passed variants for them between "one value for all layers"
+        //       and "map of layers to values", it is needed to check that map of maps
+        //       is passed for them.
+        if constexpr (std::is_same_v<IAccuracyMetric::Ptr, T> || std::is_same_v<IRandomGenerator::Ptr, T>) {
+            if (node.IsMap() && (node.size() > 0) && node.begin()->second.IsMap()) {
+                layer_attr = node.as<std::map<std::string, T>>();
+            } else {
+                layer_attr = node.as<T>();
+            }
         } else {
-            layer_attr = node.as<T>();
+            if (node.IsMap()) {
+                layer_attr = node.as<std::map<std::string, T>>();
+            } else {
+                layer_attr = node.as<T>();
+            }
         }
         return true;
     }
@@ -343,6 +356,10 @@ struct convert<OpenVINOParams> {
 
         if (node["oml"]) {
             params.output_model_layout = node["oml"].as<LayerVariantAttr<std::string>>();
+        }
+
+        if (node["reshape"]) {
+            params.reshape = node["reshape"].as<LayerVariantAttr<std::vector<size_t>>> ();
         }
 
         if (node["config"]) {

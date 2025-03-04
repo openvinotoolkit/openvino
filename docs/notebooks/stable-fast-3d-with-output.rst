@@ -78,53 +78,46 @@ Prerequisites
 .. code:: ipython3
 
     import requests
+    from pathlib import Path
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/pip_helper.py",
-    )
-    open("pip_helper.py", "w").write(r.text)
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+        )
+        open("cmd_helper.py", "w").write(r.text)
     
-    from pip_helper import pip_install
     
+    %pip install -q "gradio>=4.19" "openvino>=2024.3.0" wheel "gradio-litmodel3d==0.0.1"
+    %pip install -q "torch>=2.2.2" torchvision "transformers>=4.42.3" "open_clip_torch==2.24.0" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "omegaconf==2.4.0.dev3"
+    %pip install -q "git+https://github.com/vork/PyNanoInstantMeshes.git"
+    %pip install -q jaxtyping gpytoolbox trimesh einops
+    # rembg requires opencv-python-headless that can't be installed with opencv-python. So, we install rembg without dependencies and install its requirements
+    %pip install -q rembg --no-deps
+    %pip install -q onnxruntime "opencv-python" pymatting pooch pynim
     
-    pip_install("-q", "gradio>=4.19", "openvino>=2024.3.0", "wheel", "gradio-litmodel3d==0.0.1")
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
     
-    pip_install(
-        "-q",
-        "torch>=2.2.2",
-        "torchvision",
-        "transformers>=4.42.3",
-        "rembg==2.0.57",
-        "trimesh==4.4.1",
-        "einops==0.7.0",
-        "omegaconf==2.4.0.dev3",
-        "jaxtyping==0.2.31",
-        "gpytoolbox==0.3.2",
-        "open_clip_torch==2.24.0",
-        "git+https://github.com/vork/PyNanoInstantMeshes.git",
-        "--extra-index-url",
-        "https://download.pytorch.org/whl/cpu",
-    )
+    collect_telemetry("stable-fast-3d.ipynb")
 
 .. code:: ipython3
 
-    import sys
     from pathlib import Path
     
-    if not Path("stable-fast-3d").exists():
-        !git clone https://github.com/Stability-AI/stable-fast-3d
-        %cd stable-fast-3d
-        !git checkout "4a8597ad34e5101f307aa8f443b4ce830b205aa8"  # to avoid breaking changes
-        %cd ..
+    from cmd_helper import clone_repo
     
-    sys.path.append("stable-fast-3d")
-    pip_install("-q", "stable-fast-3d/texture_baker/")
-    pip_install("-q", "stable-fast-3d/uv_unwrapper/")
+    
+    clone_repo("https://github.com/Stability-AI/stable-fast-3d", "2b35658e6fa41df4171f15d8696102c62845f16a")
+    
+    %pip install -q {Path("stable-fast-3d/texture_baker/")}
+    %pip install -q {Path("stable-fast-3d/uv_unwrapper/")}
 
 Get the original model
 ----------------------

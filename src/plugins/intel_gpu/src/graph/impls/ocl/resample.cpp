@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -137,7 +137,7 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::resample_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<resample_impl>(*this);
+        return make_deep_copy<resample_impl, kernel_params_t>(*this);
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {

@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/op/reshape.hpp"
 
+#include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -15,38 +16,33 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
+using namespace ov::op;
+
 OutputVector translate_reshape(const NodeContext& context) {
     // Translation is used by both aten::view and aten::reshape.
     // Schema: aten::view(Tensor input, int[] shape) -> Tensor
     // Schema: aten::reshape(Tensor input, int[] shape) -> Tensor
     // For shape parameter, int[] is converted into single dimensional Tensor.
-    num_inputs_check(context, 2, 2);
+    num_inputs_check(context, 2, 2, true);
+    auto tensor = context.get_input(0);
     auto shape = get_input_concat_if_list(context, 1);
-    auto reshape = std::make_shared<ov::op::v1::Reshape>(context.get_input(0), shape, false);
-    return {context.mark_node(reshape)};
-};
 
-OutputVector translate_reshape_fx(const NodeContext& context) {
-    // Schema: aten.view.default(Tensor input, int[] shape) -> Tensor
-    auto num_inputs = context.get_input_size();
-    num_inputs_check(context, 2, num_inputs);
-    std::vector<int32_t> shape_vec;
-    if (context.get_input_type(1).is<type::List>()) {
-        auto concat = concat_list_from_inputs(context, 1, num_inputs);
-        auto reshape = std::make_shared<ov::op::v1::Reshape>(context.get_input(0), concat, true);
-        return {context.mark_node(reshape)};
+    auto complex_type_mark = as_type_ptr<ComplexTypeMark>(tensor.get_node_shared_ptr());
+    if (complex_type_mark) {
+        tensor = complex_type_mark->get_data();
+        auto const_2 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {2}));
+        const_2 = context.mark_node(std::make_shared<v1::ConvertLike>(const_2, shape));
+
+        shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{shape, const_2}, 0));
+    }
+
+    auto reshape = context.mark_node(std::make_shared<v1::Reshape>(tensor, shape, false));
+
+    if (complex_type_mark) {
+        const auto& complex_dtype = complex_type_mark->get_complex_part_type();
+        return {context.mark_node(std::make_shared<ComplexTypeMark>(reshape, complex_dtype))};
     } else {
-        auto shape_input = context.get_input(1);
-        if (shape_input.get_partial_shape().rank().is_dynamic() ||
-            shape_input.get_partial_shape().rank().get_length() == 0) {
-            shape_vec.push_back(0);
-            auto shape_const = ov::op::v0::Constant::create(element::i32, Shape{1}, shape_vec);
-            auto result =
-                context.mark_node(std::make_shared<ov::op::v1::Reshape>(context.get_input(0), shape_const, true));
-            return {result};
-        }
-        auto reshape = std::make_shared<ov::op::v1::Reshape>(context.get_input(0), context.get_input(1), true);
-        return {context.mark_node(reshape)};
+        return {reshape};
     }
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ OutputVector translate_cumsum_op(const NodeContext& node) {
 
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
     if (complex_type_mark) {
-        x = complex_type_mark->input_value(0);
+        x = complex_type_mark->get_data();
         auto zero = create_same_type_const_scalar<int32_t>(axis, 0);
         auto less_than_zero = make_shared<v1::Less>(axis, zero);
         auto const_one = create_same_type_const_scalar<int32_t>(axis, 1);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,10 +49,13 @@ bool memory_pool::has_conflict(const memory_set& mem_cand,
 void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive_id prim_id, uint32_t network_id) {
     // check non padded pool first
     auto _layout = mem->get_layout();
+    if (_layout.is_dynamic()) {
+        const auto max_shape = _layout.get_partial_shape().get_max_shape();
+        _layout = _layout.clone_with_other_shape(max_shape);
+    }
     auto type = mem->get_allocation_type();
     const auto _layout_bytes_count = _layout.bytes_count();
 
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     {
         auto it = _non_padded_pool.lower_bound(_layout_bytes_count);
 
@@ -67,7 +70,7 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
                 }
                 if (it->second._users.empty()) {
 #ifdef GPU_DEBUG_CONFIG
-                    GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+                    GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
                         auto released_mem_size = it->first;
                         total_mem_size_non_padded_pool -= released_mem_size;
                         if (type == allocation_type::usm_host)
@@ -104,7 +107,7 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
                     }
                     if (list_itr->_users.empty()) {
 #ifdef GPU_DEBUG_CONFIG
-                        GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+                        GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
                             auto released_mem_size = mem->size();
                             total_mem_size_padded_pool -= released_mem_size;
                             if (type == allocation_type::usm_host)
@@ -128,14 +131,14 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
         }
     }
 #ifdef GPU_DEBUG_CONFIG
-    GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+    GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
         auto iter = std::find_if(_no_reusable_mems.begin(), _no_reusable_mems.end(), [&](const cldnn::memory_record& r) {
             return (network_id == r._network_id
                 && type == r._type
                 && mem->get_internal_params().mem == r._memory->get_internal_params().mem);
         });
         if (iter != _no_reusable_mems.end()) {
-            GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+            GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
                 auto released_mem_size = iter->_users.begin()->_mem_size;
                 total_mem_size_no_reusable -= released_mem_size;
                 if (type == allocation_type::usm_host)
@@ -183,8 +186,7 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
                                  memory_record({{MEM_USER(unique_id, network_id, prim_id, layout_bytes_count)}}, mem, network_id, type));
 #ifdef GPU_DEBUG_CONFIG
         {
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+            GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
                 total_mem_size_non_padded_pool += layout_bytes_count;
                 if (type == allocation_type::usm_host)
                     mem_size_non_padded_pool_host += layout_bytes_count;
@@ -225,8 +227,7 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
             memory_record({{MEM_USER(unique_id, network_id, prim_id, mem->size())}}, mem, network_id, type));
 #ifdef GPU_DEBUG_CONFIG
         {
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+            GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
                 const auto allocated_mem_size = mem->size();
                 total_mem_size_padded_pool += allocated_mem_size;
                 if (type == allocation_type::usm_host)
@@ -242,8 +243,7 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
     _padded_pool.emplace(layout, std::move(list));
 #ifdef GPU_DEBUG_CONFIG
     {
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+        GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
             const auto allocated_mem_size = mem->size();
             total_mem_size_padded_pool += allocated_mem_size;
             if (type == allocation_type::usm_host)
@@ -300,8 +300,7 @@ memory::ptr memory_pool::get_memory(const layout& layout,
                                     bool reset,
                                     bool is_dynamic) {
     bool do_reuse = reusable_across_network;
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->disable_memory_reuse) {
+    GPU_DEBUG_IF(_config.get_disable_memory_reuse()) {
         do_reuse = false;
     }
     if (do_reuse) {
@@ -316,7 +315,7 @@ memory::ptr memory_pool::get_memory(const layout& layout,
             // images (reuse not yet implemented)
             auto mem = alloc_memory(layout, type, reset);
 #ifdef GPU_DEBUG_CONFIG
-            GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+            GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
                 auto allocated_mem_size = mem->size();
                 _no_reusable_mems.push_back(
                                         memory_record({{MEM_USER(unique_id, network_id, prim_id, allocated_mem_size)}}, mem, network_id, type));
@@ -330,7 +329,7 @@ memory::ptr memory_pool::get_memory(const layout& layout,
     } else {
         auto mem = alloc_memory(layout, type, reset);
 #ifdef GPU_DEBUG_CONFIG
-        GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+        GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
             auto allocated_mem_size = mem->size();
             _no_reusable_mems.push_back(
                                     memory_record({{MEM_USER(unique_id, network_id, prim_id, allocated_mem_size)}}, mem, network_id, type));
@@ -344,7 +343,6 @@ memory::ptr memory_pool::get_memory(const layout& layout,
 }
 
 void memory_pool::clear_pool_for_network(uint32_t network_id) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     // free up _non_padded_pool for this network
     {
         auto itr = _non_padded_pool.begin();
@@ -354,7 +352,7 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
 
             if (record._network_id == network_id) {
 #ifdef GPU_DEBUG_CONFIG
-                GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+                GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
                     auto released_mem_size = itr->first;
                     total_mem_size_non_padded_pool -= released_mem_size;
                     if (record._type == allocation_type::usm_host)
@@ -388,7 +386,7 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
 
             if (list.empty()) {
 #ifdef GPU_DEBUG_CONFIG
-                GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+                GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
                     auto released_mem_size = itr->first.bytes_count();
                     total_mem_size_padded_pool -= released_mem_size;
                     if (type == allocation_type::usm_host)
@@ -404,12 +402,12 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
 
 #ifdef GPU_DEBUG_CONFIG
     // free up _no_reusable_mems for this network
-    GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+    GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
         auto itr = _no_reusable_mems.begin();
         while (itr != _no_reusable_mems.end()) {
             auto& record = *itr;
             if (itr->_network_id == network_id) {
-                GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+                GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
                     auto released_mem_size = itr->_users.begin()->_mem_size;
                     total_mem_size_no_reusable -= released_mem_size;
                     if (record._type == allocation_type::usm_host)
@@ -439,7 +437,9 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
     }
 }
 
-memory_pool::memory_pool(engine& engine) : _engine(&engine) { }
+memory_pool::memory_pool(engine& engine, const ExecutionConfig& config) : _engine(&engine), _config(config) {
+    (void)(_config); // Silence unused warning
+}
 
 #ifdef GPU_DEBUG_CONFIG
 inline std::string get_mb_size(size_t size) {

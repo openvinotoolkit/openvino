@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/sync_infer_request.hpp"
 #include "intel_npu/config/config.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -47,22 +48,14 @@ public:
     virtual void* getContext() const;
     /** @brief Update backend and device info */
     virtual void updateInfo(const Config& config) = 0;
+    /** @brief Get LevelZero structures */
+    virtual const std::shared_ptr<ZeroInitStructsHolder> getInitStructs() const;
 
 protected:
     virtual ~IEngineBackend() = default;
 };
 
 //------------------------------------------------------------------------------
-
-class ICompilerAdapter {
-public:
-    virtual std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
-                                            const Config& config) const = 0;
-    virtual std::shared_ptr<IGraph> parse(std::vector<uint8_t> network, const Config& config) const = 0;
-    virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
-
-    virtual ~ICompilerAdapter() = default;
-};
 
 //------------------------------------------------------------------------------
 
@@ -97,10 +90,12 @@ public:
         ov::intel_npu::MemType mem_type = ov::intel_npu::MemType::L0_INTERNAL_BUF,
         void* mem = nullptr);
 
-    virtual ov::SoPtr<ov::ITensor> createHostTensor(std::shared_ptr<ov::IRemoteContext> context,
-                                                    const ov::element::Type& element_type,
-                                                    const ov::Shape& shape,
-                                                    const Config& config);
+    virtual ov::SoPtr<ov::ITensor> createHostTensor(
+        std::shared_ptr<ov::IRemoteContext> context,
+        const ov::element::Type& element_type,
+        const ov::Shape& shape,
+        const Config& config,
+        ov::intel_npu::TensorType tensor_type = ov::intel_npu::TensorType::BINDED);
 
 protected:
     virtual ~IDevice() = default;

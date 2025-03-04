@@ -100,9 +100,9 @@ Install prerequisites
 
 .. code:: ipython3
 
-    # %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1" "torchvision" "diffusers>=0.24.0" "invisible-watermark>=0.2.0" "transformers>=4.33.0" "accelerate" "onnx!=1.16.2" "peft>=0.6.2"
-    # %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
-    # %pip install -q "openvino>=2023.1.0" "gradio>=4.19" "nncf>=2.9.0"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1" "torchvision" "diffusers>=0.24.0" "invisible-watermark>=0.2.0" "transformers>=4.33.0" "accelerate" "onnx!=1.16.2" "peft>=0.6.2"
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
+    %pip install -q "openvino>=2023.1.0" "gradio>=4.19" "nncf>=2.9.0"
 
 SDXL Base model
 ---------------
@@ -133,6 +133,19 @@ You can save the model on disk using the ``save_pretrained`` method.
     
     model_id = "stabilityai/stable-diffusion-xl-base-1.0"
     model_dir = Path("openvino-sd-xl-base-1.0")
+    
+    import requests
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("stable-diffusion-xl.ipynb")
 
 
 .. parsed-literal::
@@ -153,13 +166,6 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import requests
-    
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
-    
     from notebook_utils import device_widget
     
     device = device_widget()

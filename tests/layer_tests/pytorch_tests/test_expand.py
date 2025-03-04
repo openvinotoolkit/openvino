@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -40,6 +40,31 @@ class TestExpand(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     def test_expand(self, dims, op_type, ie_device, precision, ir_version):
         self._test(*self.create_model(dims, op_type), ie_device, precision, ir_version)
+
+class TestExpandCopy(PytorchLayerTest):
+    def _prepare_input(self):
+        import numpy as np
+        return (np.random.randn(1, 3).astype(np.float32),)
+
+    def create_model(self, dim):
+        import torch
+
+        class aten_expand_copy(torch.nn.Module):
+            def __init__(self, dims):
+                super(aten_expand_copy, self).__init__()
+                self.dims = dims
+
+            def forward(self, x):
+                return torch.expand_copy(x, self.dims)
+
+        ref_net = None
+
+        return aten_expand_copy(dim), ref_net, f"aten::expand_copy"
+
+    @pytest.mark.parametrize("dims", [(4, 3), (-1, -1), (1, 2, 3), (1, 2, 2, 3)])
+    @pytest.mark.precommit_fx_backend
+    def test_expand_copy(self, dims, ie_device, precision, ir_version):
+        self._test(*self.create_model(dims), ie_device, precision, ir_version)
 
 class TestExpandList(PytorchLayerTest):
     def _prepare_input(self, broadcast_shape):

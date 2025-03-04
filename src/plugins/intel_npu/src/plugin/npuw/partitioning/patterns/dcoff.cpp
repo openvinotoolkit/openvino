@@ -16,6 +16,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 
@@ -74,6 +75,8 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
         LOG_DEBUG("Checking the function parameter " << param);
         LOG_BLOCK();
 
+        auto cindex = i - fbody._param_offset;
+
         // First find among scale factors...
         auto pscale_iter = params_to.scales.find(param);
         auto pzerop_iter = params_to.zerops_asymm.find(param);
@@ -82,20 +85,27 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
             auto& pscale_weight_param = pscale_iter->second;
             auto pscale_weight_pindex = fbody._model->get_parameter_index(pscale_weight_param);
             auto pscale_weight_cindex = pscale_weight_pindex - fbody._param_offset;
-            m.scale_remap[pscale_weight_cindex] = i - fbody._param_offset;
+            m.scale_remap[pscale_weight_cindex] = cindex;
             m.params_to_remove.push_back(param);
         } else if (pzerop_iter != params_to.zerops_asymm.end()) {
             LOG_DEBUG("There is an Asymmetric zero point corresponding to this parameter, it will be removed");
             auto zerop_pindex = fbody._model->get_parameter_index(pzerop_iter->second);
             auto zerop_cindex = zerop_pindex - fbody._param_offset;
-            m.zerop_remap[i - fbody._param_offset] = zerop_cindex;
+            m.zerop_remap[cindex] = zerop_cindex;
             m.params_to_remove.push_back(pzerop_iter->second);
-            m.closure_remap.push_back(i - fbody._param_offset);
+            m.closure_remap.push_back(cindex);
         } else if (ban_list.find(param) == ban_list.end()) {
             // If it's not in the ban list, it's an OK parameter and should be kept
             LOG_DEBUG("This is an OK parameter, will be kept");
-            m.weights_to_unpack.insert(i - fbody._param_offset);
-            m.closure_remap.push_back(i - fbody._param_offset);
+            m.closure_remap.push_back(cindex);
+
+            // FIXME: type should be queried from a lazy tensor
+            // and compared against param->get_element_type()
+            // to decide 100%
+            // FIXME: workaround, in case of lazy unpack do not do unpack here
+            if (fbody._idx_lazy_unpack.find(cindex) == fbody._idx_lazy_unpack.end()) {
+                m.weights_to_unpack.insert(cindex);
+            }
         }
 
         // Process zero points for parameters
@@ -248,7 +258,7 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
 
     auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
     auto element_type = matched_paramA->get_element_type();
-    if (element_type == ov::element::i4 || element_type == ov::element::i8) {
+    if (element_type == ov::element::i4 || element_type == ov::element::i8 || element_type == ov::element::nf4) {
         LOG_DEBUG("Matched: " << matched_paramA << ", set element type to " << m_dcoff_type);
         matched_paramA->set_element_type(m_dcoff_type);
 
@@ -296,7 +306,8 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
 void DCOFFPassMatMul::build() {
     DCOFFPassBase::build();
     auto _mmin1 = opp::any_input();
-    matmul = opp::wrap_type<ov::op::v0::MatMul>({_mmin1, mulply});
+    cvtopt = opp::optional<ov::op::v0::Convert>({mulply->output(0)});
+    matmul = opp::wrap_type<ov::op::v0::MatMul>({_mmin1, cvtopt});
     register_matcher(std::make_shared<opp::Matcher>(matmul, "TagDCOFFMatMul"),
                      std::bind(&DCOFFPassMatMul::matcher_callback, this, std::placeholders::_1));
 }
@@ -306,6 +317,13 @@ void DCOFFPassMatMul::reconnect_root_to_convert(ov::pass::pattern::Matcher& m) {
     auto& node_to_output = m.get_pattern_value_map();
     auto matched_convrt = node_to_output.at(toFP32).get_node_shared_ptr();
     auto matched_matmul = node_to_output.at(matmul).get_node_shared_ptr();
+
+    auto cvt = std::static_pointer_cast<ov::op::v0::Convert>(matched_convrt);
+    auto matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_matmul);
+
+    // NB: In case convert and matmul types don't match
+    cvt->set_destination_type(matmul->inputs()[1].get_element_type());
+
     matched_matmul->input(1).replace_source_output(matched_convrt);
 }
 
@@ -694,7 +712,7 @@ DCOFFPassReshape4::DCOFFPassReshape4(DCOffMode dcoff_mode, ov::element::Type dco
         auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
         auto matched_paramC = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeC);
 
-        auto matched_out_mulply = node_to_output.at(mulply);
+        const auto& matched_out_mulply = node_to_output.at(mulply);
 
         if (ov::element::i4 == matched_paramA->get_element_type() &&
             (ov::element::f16 == matched_paramC->get_element_type() ||
@@ -877,7 +895,8 @@ CWAI3::CWAI3(CWAI3::Results scales) {
         auto matched_valueA = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeA);
         auto matched_valueC = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeC);
 
-        if (ov::element::i4 == matched_valueA->get_element_type() &&
+        if ((ov::element::i4 == matched_valueA->get_element_type() ||
+             ov::element::nf4 == matched_valueA->get_element_type()) &&
             (ov::element::f16 == matched_valueC->get_element_type() ||
              ov::element::f32 == matched_valueC->get_element_type())) {
             LOG_DEBUG("Matched: " << matched_valueC);

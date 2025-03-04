@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,6 +31,6 @@ class LP_TRANSFORMATIONS_API ConvertSubtractConstant;
  */
 class ov::pass::low_precision::ConvertSubtractConstant : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertSubtractConstant", "0");
+    OPENVINO_MATCHER_PASS_RTTI("low_precision::ConvertSubtractConstant");
     ConvertSubtractConstant(const std::vector<ov::element::Type>& constantPrecisions = {});
 };

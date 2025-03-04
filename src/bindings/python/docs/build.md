@@ -18,14 +18,14 @@ To learn more about wheels and their use cases, check out the article [What Are 
 
 OpenVINO can be built based on specific virtual environments such as [venv](https://docs.python.org/3/tutorial/venv.html), [virtualenv](https://virtualenv.pypa.io/en/latest/) or [pyenv](https://github.com/pyenv/pyenv). It is highly recommended to use virtual environments during development. They improve development process and allow better management of Python versions and packages.
 
-*Note: Supported Python versions can be found in ["System Requirements" section](../../../../docs/install_guides/pypi-openvino-dev.md#system-requirements).*
+*Note: Supported Python versions can be found in ["System Requirements"](https://docs.openvino.ai/2025/about-openvino/release-notes-openvino/system-requirements.html).*
 
 ### Example: using pyenv with OpenVINO™ on Linux based system
 
 1. First, set up the `pyenv` project. Please follow [official instructions of the pyenv project](https://github.com/pyenv/pyenv#installation) for any additional information.
 
 
-2. Install a desired Python version. Following example will use Python in version 3.10.7. To correctly link libraries, an installed Python version must match OpenVINO™: 
+2. Install a desired Python version. Following example will use Python in version 3.10.7. To correctly link libraries, an installed Python version must match OpenVINO™:
     * Python with a shared library for a dynamically linked OpenVINO™:
     ```shell
     env PYTHON_CONFIGURE_OPTS="--enable-shared" pyenv install --verbose 3.10.7

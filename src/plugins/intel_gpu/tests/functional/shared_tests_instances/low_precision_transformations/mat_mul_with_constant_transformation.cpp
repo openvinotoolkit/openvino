@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ const std::vector<ov::element::Type> precisions = {
     ov::element::f16
 };
 
-//transpose_a = false, transpose_b = true
+// transpose_a = false, transpose_b = true
 std::vector<MatMulWithConstantTransformationTestValues> testValues = {
     {
         { 2, 3, 4 },
@@ -87,7 +87,16 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { ov::element::f32, {}, {0.1f} },
         "FullyConnected",
         "U8"
-    }
+    },
+    {
+        { 2, 3 },
+        { 256ul, {{1, 1}, {1, 1}, {1, 1}, {1, 1}}, {-128.f}, {383.f}, {0.5f}, {1.5f} },
+        { std::vector<float>{1, 2, 3, 4, 5, 6}, ov::element::i8, ov::Shape{ 2, 3 } },
+        {},
+        { ov::element::f32, {}, {0.1f} },
+        "FullyConnected",
+        "U8"
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, MatMulWithConstantTransformation,

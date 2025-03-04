@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,7 @@
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 class CompiledModel : public ov::ICompiledModel {
 public:
@@ -61,6 +60,8 @@ public:
     const std::vector<std::shared_ptr<Graph>>& get_graphs() const;
     std::shared_ptr<Graph> get_graph(size_t n) const;
 
+    void release_memory() override;
+
 private:
     RemoteContextImpl::Ptr m_context;
     ExecutionConfig m_config;
@@ -72,5 +73,4 @@ private:
     bool m_loaded_from_cache;
 };
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

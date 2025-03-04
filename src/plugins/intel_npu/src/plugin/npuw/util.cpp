@@ -9,6 +9,7 @@
 #include <openvino/core/parallel.hpp>
 #include <openvino/core/type/bfloat16.hpp>
 #include <openvino/core/type/float16.hpp>
+#include <openvino/core/type/nf4.hpp>
 #include <sstream>
 
 #include "logging.hpp"
@@ -17,12 +18,19 @@
 #include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
 #include "util_xarch.hpp"
 
-bool ov::npuw::util::is_set(const std::size_t sub_idx, const std::string& opt, const std::size_t end_idx) {
+bool ov::npuw::util::is_set(const std::size_t sub_idx,
+                            const std::string& opt,
+                            const std::size_t real_idx,
+                            const std::size_t end_idx) {
     if (opt.empty() || opt == "NO") {
         return false;
     }
     if (opt == "YES") {
         return true;
+    }
+
+    if (opt == "MIN") {
+        return sub_idx == real_idx;
     }
 
     std::string str(opt);
@@ -50,13 +58,66 @@ inline uint8_t hi4(uint8_t x) {
 inline uint8_t lo4(uint8_t x) {
     return x & 0xF;
 }
+
+void unpack_nf4f16(const ov::SoPtr<ov::ITensor>& from,
+                   const ov::SoPtr<ov::ITensor>& scale,
+                   const ov::SoPtr<ov::ITensor>& to,
+                   const ov::npuw::util::UnpackOptions& unpack_options) {
+    auto from_shape = from->get_shape();
+    auto scale_shape = scale->get_shape();
+
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(scale->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+    NPUW_ASSERT(from_shape[0] == scale_shape[0]);
+
+    const auto* from_ptr = static_cast<const uint8_t*>(from->data());
+    const auto* scale_ptr = scale->data<ov::float16>();
+    auto* to_ptr = to->data<ov::float16>();
+
+    const auto size = from->get_size();
+    ov::parallel_for(size / 2, [&](size_t idx) {
+        const uint8_t nf4_2xval = from_ptr[idx];
+        const float low_scale = scale_ptr[(idx * 2) / from_shape[1]];
+        const float high_scale = scale_ptr[(idx * 2 + 1) / from_shape[1]];
+        to_ptr[idx * 2] = ov::ConvertNF4::dequantize(lo4(nf4_2xval)) * low_scale;
+        to_ptr[idx * 2 + 1] = ov::ConvertNF4::dequantize(hi4(nf4_2xval)) * high_scale;
+    });
+    if (size % 2 != 0) {
+        const float low_scale = scale_ptr[size - 1 / from_shape[1]];
+        to_ptr[size - 1] = ov::ConvertNF4::dequantize(lo4(from_ptr[size / 2 + 1])) * low_scale;
+    }
+}
+
+void unpack_nf4f16(const ov::SoPtr<ov::ITensor>& from,
+                   const ov::SoPtr<ov::ITensor>& to,
+                   const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+
+    const auto* from_ptr = static_cast<const uint8_t*>(from->data());
+    auto* to_ptr = to->data<ov::float16>();
+
+    const auto size = from->get_size();
+    ov::parallel_for(size / 2, [&](size_t idx) {
+        const uint8_t nf4_2xval = from_ptr[idx];
+        to_ptr[idx * 2] = ov::ConvertNF4::dequantize(lo4(nf4_2xval));
+        to_ptr[idx * 2 + 1] = ov::ConvertNF4::dequantize(hi4(nf4_2xval));
+    });
+    if (size % 2 != 0) {
+        to_ptr[size - 1] = ov::ConvertNF4::dequantize(lo4(from_ptr[size / 2 + 1]));
+    }
+}
+
 }  // namespace
 
 ov::Tensor ov::npuw::util::tensor_from_const(const std::shared_ptr<ov::Node>& node) {
     NPUW_ASSERT(ov::op::util::is_constant(node));
     NPUW_ASSERT(node->outputs().size() == 1);
     const auto port = node->output(0);
-    auto cnst_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+    auto cnst_node = ov::as_type_ptr<ov::op::v0::Constant>(node);
     return ov::Tensor(port.get_element_type(), port.get_shape(), const_cast<void*>(cnst_node->get_data_ptr()));
 }
 
@@ -80,6 +141,12 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
     // This is in fact a weight decompression procedure
     auto type_from = from->get_element_type();
     auto type_to = to->get_element_type();
+
+    // FIXME: Move under common switch when XARCH::unpack is implemented
+    if (type_from == ov::element::nf4 && type_to == ov::element::f16) {
+        unpack_nf4f16(from, to, unpack_options);
+        return;
+    }
 
     namespace ove = ov::element;
 #define CAST(x)    static_cast<int>((x).operator ove::Type_t())
@@ -128,6 +195,8 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         }
     } else if (type_from == ov::element::i8) {
         ov::npuw::util::XARCH::unpack_i8f16_scale(from, scale, to, unpack_options);
+    } else if (type_from == ov::element::nf4) {
+        unpack_nf4f16(from, scale, to, unpack_options);
     } else {
         NPUW_ASSERT(false && "Unsupported combination");
     }
@@ -274,7 +343,7 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
         view_shape.push_back(to[d] - from[d]);
     }
 
-    const auto strides = src->get_strides();
+    const auto& strides = src->get_strides();
     uint8_t* ptr = static_cast<uint8_t*>(src->data());
 
     // Shift PTR according to the strides
@@ -290,12 +359,35 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
                                             std::size_t dim,
                                             std::size_t offset,
                                             std::size_t len) {
-    const auto shape = src->get_shape();
+    const auto& shape = src->get_shape();
+    NPUW_ASSERT(dim < shape.size());
     View view_start = View(shape.size(), 0u);
     View view_end = shape;
     view_start[dim] = offset;
     view_end[dim] = offset + len;
-    return ov::npuw::util::view(src, view_start, view_end);
+
+    auto ret_view = ov::npuw::util::view(src, view_start, view_end);
+
+    // Check if a tensor view can be faked as "continuous"
+    // FIXME: This trick should be removed after strided tensor
+    // checks are relaxed
+    if (std::all_of(shape.begin(), shape.begin() + dim, [](std::size_t d) {
+            return d == 1u;
+        })) {
+        // If all dimensions up to the sub-ranged dimension are 1s,
+        // This tensor can be faked as continuous
+        const auto type = src->get_element_type();
+        const auto view_shape = ret_view->get_shape();
+        ov::Strides fake_strides(shape.size());
+        fake_strides.back() = type.size();
+        std::transform(view_shape.crbegin(),
+                       view_shape.crend() - 1,
+                       fake_strides.rbegin(),
+                       fake_strides.rbegin() + 1,
+                       std::multiplies<size_t>());
+        return ov::get_tensor_impl(ov::Tensor(type, view_shape, ret_view->data(), fake_strides));
+    }
+    return ret_view;
 }
 
 template <typename InT>
@@ -377,6 +469,14 @@ inline uint8_t tread_4b(const ov::Tensor& t, std::size_t r, std::size_t c, std::
     return hi4(*telem);
 }
 
+template <typename T>
+inline T tread(const ov::Tensor& t, std::size_t r, std::size_t c, std::size_t COLS) {
+    const T* tdata = static_cast<T*>(t.data());
+    const T* trow = tdata + r * COLS;
+    const T* telem = trow + c;
+    return *telem;
+}
+
 inline void twrite_4b(ov::Tensor& t, uint8_t value, std::size_t r, std::size_t c, std::size_t COLS) {
     uint8_t* tdata = static_cast<uint8_t*>(t.data());
     uint8_t* trow = tdata + r * COLS / 2;
@@ -388,10 +488,18 @@ inline void twrite_4b(ov::Tensor& t, uint8_t value, std::size_t r, std::size_t c
     }
 }
 
+template <typename T>
+inline void twrite(ov::Tensor& t, T value, std::size_t r, std::size_t c, std::size_t COLS) {
+    T* tdata = static_cast<T*>(t.data());
+    T* trow = tdata + r * COLS;
+    T* telem = trow + c;
+    *telem = value;
+}
+
 ov::Tensor ov::npuw::util::transpose(const ov::Tensor& t) {
     ov::Shape shape = t.get_shape();
     NPUW_ASSERT(shape.size() == 3);  // Yes, so far only transpose 3D tensors
-    NPUW_ASSERT(t.get_element_type() == ov::element::i4);
+    NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::f32);
 
     ov::Shape tshape = {shape[2], shape[0], shape[1]};
     ov::Tensor tnew(t.get_element_type(), tshape);
@@ -400,8 +508,16 @@ ov::Tensor ov::npuw::util::transpose(const ov::Tensor& t) {
     const auto IN_COLS = shape[2];
     for (std::size_t i = 0; i < IN_ROWS; i++) {
         for (std::size_t j = 0; j < IN_COLS; j++) {
-            uint8_t value = tread_4b(t, i, j, IN_COLS);
-            twrite_4b(tnew, value, j, i, IN_ROWS);
+            switch (t.get_element_type()) {
+            case ov::element::i4:
+                twrite_4b(tnew, tread_4b(t, i, j, IN_COLS), j, i, IN_ROWS);
+                break;
+            case ov::element::f32:
+                twrite<float>(tnew, tread<float>(t, i, j, IN_COLS), j, i, IN_ROWS);
+                break;
+            default:
+                NPUW_ASSERT(false && "Element type is not supported yet");
+            }
         }
     }
     return tnew;
@@ -436,21 +552,33 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
     if (axes[0] == 2 && axes[1] == 0 && axes[2] == 1) {
         return transpose(t);
     } else if (axes[0] == 0 && axes[1] == 2 && axes[2] == 1) {
-        NPUW_ASSERT(t.get_element_type() == ov::element::i4);  // 4bit only here
+        NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::f32);
         ov::Shape tshape = {shape[0], shape[2], shape[1]};
         ov::Tensor tnew(t.get_element_type(), tshape);
 
         for (std::size_t p = 0; p < shape[0]; p++) {
             for (std::size_t r = 0; r < shape[1]; r++) {
                 for (std::size_t c = 0; c < shape[2]; c++) {
-                    uint8_t value = tread_4b(t, p * shape[1] + r, c, shape[2]);
-                    twrite_4b(tnew, value, p * shape[2] + c, r, shape[1]);
+                    switch (t.get_element_type()) {
+                    case ov::element::i4:
+                        twrite_4b(tnew, tread_4b(t, p * shape[1] + r, c, shape[2]), p * shape[2] + c, r, shape[1]);
+                        break;
+                    case ov::element::f32:
+                        twrite<float>(tnew,
+                                      tread<float>(t, p * shape[1] + r, c, shape[2]),
+                                      p * shape[2] + c,
+                                      r,
+                                      shape[1]);
+                        break;
+                    default:
+                        NPUW_ASSERT(false && "Element type is not supported yet");
+                    }
                 }
             }
         }
         return tnew;
     } else if (axes[0] == 1 && axes[1] == 0 && axes[2] == 2) {
-        NPUW_ASSERT(t.get_element_type() == ov::element::i4);  // 4bit only here too
+        NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::f16);
         ov::Shape tshape = {shape[1], shape[0], shape[2]};
         ov::Tensor tnew(t.get_element_type(), tshape);
 
@@ -458,8 +586,24 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
         for (std::size_t p = 0; p < tshape[0]; p++) {
             for (std::size_t r = 0; r < tshape[1]; r++) {
                 for (std::size_t c = 0; c < tshape[2]; c++) {
-                    uint8_t value = tread_4b(t, r, p * shape[2] + c, shape[1] * shape[2]);
-                    twrite_4b(tnew, value, p * tshape[1] + r, c, tshape[2]);
+                    switch (t.get_element_type()) {
+                    case ov::element::i4:
+                        twrite_4b(tnew,
+                                  tread_4b(t, r, p * shape[2] + c, shape[1] * shape[2]),
+                                  p * tshape[1] + r,
+                                  c,
+                                  tshape[2]);
+                        break;
+                    case ov::element::f16:
+                        twrite<uint16_t>(tnew,
+                                         tread<uint16_t>(t, r, p * shape[2] + c, shape[1] * shape[2]),
+                                         p * tshape[1] + r,
+                                         c,
+                                         tshape[2]);
+                        break;
+                    default:
+                        NPUW_ASSERT(false && "Element type is not supported yet");
+                    }
                 }
             }
         }
@@ -475,7 +619,7 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
             permute120<uint16_t>(t, tnew);
             break;
         default:
-            NPUW_ASSERT("Element type is not supported yet");
+            NPUW_ASSERT(false && "Element type is not supported yet");
         }
         return tnew;
     } else {

@@ -1,41 +1,40 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "openvino/core/node.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 
-namespace ov {
-namespace pass {
-namespace pattern {
+namespace ov::pass::pattern {
 namespace op {
 class OPENVINO_API WrapType : public Pattern {
 public:
-    OPENVINO_RTTI("patternAnyType");
+    OPENVINO_RTTI("WrapType");
 
-    explicit WrapType(
-        NodeTypeInfo wrapped_type,
-        const ValuePredicate& pred =
-            [](const Output<Node>& output) {
-                return true;
-            },
-        const OutputVector& input_values = {})
-        : Pattern(input_values, pred),
-          m_wrapped_types({wrapped_type}) {
+    explicit WrapType(const std::vector<NodeTypeInfo>& wrapped_types) : Pattern(), m_wrapped_types(wrapped_types) {
         set_output_type(0, element::Type_t::dynamic, PartialShape::dynamic());
     }
 
-    explicit WrapType(
-        std::vector<NodeTypeInfo> wrapped_types,
-        const ValuePredicate& pred =
-            [](const Output<Node>& output) {
-                return true;
-            },
-        const OutputVector& input_values = {})
-        : Pattern(input_values, pred),
-          m_wrapped_types(std::move(wrapped_types)) {
+    template <typename TPredicate>
+    WrapType(const std::vector<NodeTypeInfo>& wrapped_types,
+             const TPredicate& pred,
+             const OutputVector& input_values = {})
+        : Pattern(input_values, Predicate(pred)),
+          m_wrapped_types(wrapped_types) {
+        set_output_type(0, element::Type_t::dynamic, PartialShape::dynamic());
+    }
+
+    explicit WrapType(NodeTypeInfo wrapped_type) : Pattern(), m_wrapped_types({wrapped_type}) {
+        set_output_type(0, element::Type_t::dynamic, PartialShape::dynamic());
+    }
+
+    template <typename TPredicate>
+    WrapType(NodeTypeInfo wrapped_type, const TPredicate& pred, const OutputVector& input_values = {})
+        : Pattern(input_values, Predicate(pred)),
+          m_wrapped_types({wrapped_type}) {
         set_output_type(0, element::Type_t::dynamic, PartialShape::dynamic());
     }
 
@@ -64,24 +63,20 @@ void collect_wrap_info(std::vector<DiscreteTypeInfo>& info) {
     collect_wrap_info<Targs...>(info);
 }
 
-template <class... Args>
-std::shared_ptr<Node> wrap_type(const OutputVector& inputs, const pattern::op::ValuePredicate& pred) {
+template <class... Args, typename TPredicate>
+std::shared_ptr<Node> wrap_type(const OutputVector& inputs, const TPredicate& pred) {
     std::vector<DiscreteTypeInfo> info;
     collect_wrap_info<Args...>(info);
-    return std::make_shared<op::WrapType>(info, pred, inputs);
+    return std::make_shared<op::WrapType>(info, op::Predicate(pred), inputs);
 }
 
 template <class... Args>
 std::shared_ptr<Node> wrap_type(const OutputVector& inputs = {}) {
-    return wrap_type<Args...>(inputs, [](const Output<Node>& output) {
-        return true;
-    });
+    return wrap_type<Args...>(inputs, op::Predicate());
 }
 
-template <class... Args>
-std::shared_ptr<Node> wrap_type(const pattern::op::ValuePredicate& pred) {
-    return wrap_type<Args...>({}, pred);
+template <class... Args, typename TPredicate>
+std::shared_ptr<Node> wrap_type(const TPredicate& pred) {
+    return wrap_type<Args...>({}, op::Predicate(pred));
 }
-}  // namespace pattern
-}  // namespace pass
-}  // namespace ov
+}  // namespace ov::pass::pattern

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,17 @@ typedef std::tuple<std::vector<InputShape>,
 class STFTLayerTest : public testing::WithParamInterface<STFTParams>, virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<STFTParams>& obj);
+    using TGenData =
+        testing::internal::CartesianProductHolder<testing::internal::ParamGenerator<std::vector<ov::test::InputShape>>,
+                                                  testing::internal::ParamGenerator<int64_t>,
+                                                  testing::internal::ParamGenerator<int64_t>,
+                                                  testing::internal::ParamGenerator<bool>,
+                                                  testing::internal::ParamGenerator<ov::element::Type>,
+                                                  testing::internal::ParamGenerator<ov::element::Type>,
+                                                  testing::internal::ParamGenerator<ov::test::utils::InputLayerType>,
+                                                  testing::internal::ValueArray<const char*>>;
+
+    static const TGenData GetTestDataForDevice(const char* deviceName);
 
 protected:
     void SetUp() override;

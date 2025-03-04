@@ -1,10 +1,8 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "plugin_compiler_adapter.hpp"
-
-#include <ze_graph_ext.h>
 
 #include <memory>
 #include <string>
@@ -19,7 +17,6 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "plugin_graph.hpp"
-#include "ze_graph_ext_wrappers.hpp"
 
 namespace {
 std::shared_ptr<void> loadLibrary(const std::string& libpath) {
@@ -70,29 +67,7 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 
     _logger.info("PluginCompilerAdapter creating adapter using graphExtVersion");
 
-    switch (graphExtVersion) {
-    case ZE_GRAPH_EXT_VERSION_1_3:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_3>>(_zeroInitStruct);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_4:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_4>>(_zeroInitStruct);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_5:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_5>>(_zeroInitStruct);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_6:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_6>>(_zeroInitStruct);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_7:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_7>>(_zeroInitStruct);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_8:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_8>>(_zeroInitStruct);
-        break;
-    default:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_2>>(_zeroInitStruct);
-        break;
-    }
+    _zeGraphExt = std::make_shared<ZeGraphExtWrappers>(_zeroInitStruct);
 
     _logger.info("initialize PluginCompilerAdapter complete, using graphExtVersion: %d.%d",
                  ZE_MAJOR_VERSION(graphExtVersion),
@@ -105,6 +80,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 
     _logger.debug("compile start");
     auto networkDesc = _compiler->compile(model, config);
+    auto blobPtr = std::make_unique<BlobContainerVector>(std::move(networkDesc.compiledNetwork));
     _logger.debug("compile end");
 
     ze_graph_handle_t graphHandle = nullptr;
@@ -112,7 +88,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     if (_zeGraphExt) {
         // Depending on the config, we may get an error when trying to get the graph handle from the compiled network
         try {
-            graphHandle = _zeGraphExt->getGraphHandle(networkDesc.compiledNetwork);
+            graphHandle =
+                _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()), blobPtr->size());
         } catch (...) {
             _logger.info("Failed to obtain the level zero graph handle. Inference requests for this model are not "
                          "allowed. Only exports are available");
@@ -124,21 +101,28 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                          _zeroInitStruct,
                                          graphHandle,
                                          std::move(networkDesc.metadata),
-                                         std::move(networkDesc.compiledNetwork),
+                                         std::move(blobPtr),
                                          config);
 }
 
-std::shared_ptr<IGraph> PluginCompilerAdapter::parse(std::vector<uint8_t> network, const Config& config) const {
+std::shared_ptr<IGraph> PluginCompilerAdapter::parse(std::unique_ptr<BlobContainer> blobPtr,
+                                                     const Config& config) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
     _logger.debug("parse start");
+    std::vector<uint8_t> network(blobPtr->size());
+    network.assign(reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()),
+                   reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()) + blobPtr->size());
     auto networkMeta = _compiler->parse(network, config);
+    network.clear();
+    network.shrink_to_fit();
     _logger.debug("parse end");
 
     ze_graph_handle_t graphHandle = nullptr;
 
     if (_zeGraphExt) {
-        graphHandle = _zeGraphExt->getGraphHandle(network);
+        graphHandle =
+            _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()), blobPtr->size());
     }
 
     return std::make_shared<PluginGraph>(_zeGraphExt,
@@ -146,7 +130,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(std::vector<uint8_t> networ
                                          _zeroInitStruct,
                                          graphHandle,
                                          std::move(networkMeta),
-                                         std::move(network),
+                                         std::move(blobPtr),
                                          config);
 }
 
@@ -155,6 +139,10 @@ ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov:
     OV_ITT_TASK_CHAIN(QUERY_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "query");
 
     return _compiler->query(model, config);
+}
+
+uint32_t PluginCompilerAdapter::get_version() const {
+    return _compiler->get_version();
 }
 
 }  // namespace intel_npu

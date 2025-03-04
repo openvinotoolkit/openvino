@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ TEST(test_select_preferred_formats, setting_target_conv_format) {
 
     auto prog = program::build_program(engine, topology, config, false, true);
     if (engine.get_device_info().supports_immad) {
-        prog->get_layout_optimizer().set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
+        prog->get_layout_optimizer().add_all_onednn_impls_optimization_attribute();
     }
 
     // It initializes output_layout.
@@ -90,7 +90,7 @@ TEST(test_select_preferred_formats, fsv2_fallback_to_byxf) {
 
     auto prog = program::build_program(engine, topology, config, false, true);
     if (engine.get_device_info().supports_immad) {
-        prog->get_layout_optimizer().set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
+        prog->get_layout_optimizer().add_all_onednn_impls_optimization_attribute();
     }
 
     // It initializes output_layout.

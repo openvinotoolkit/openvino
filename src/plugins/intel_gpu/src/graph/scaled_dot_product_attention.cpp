@@ -60,7 +60,7 @@ std::vector<layout> scaled_dot_product_attention_inst::calc_output_layouts(scale
 
     std::vector<ShapeType> input_shapes;
     for (size_t i = 0; i < impl_param.input_layouts.size(); i++) {
-        input_shapes.push_back(impl_param.get_input_layout(0).get<ShapeType>());
+        input_shapes.push_back(impl_param.get_input_layout(i).get<ShapeType>());
     }
 
     std::vector<ShapeType> output_shapes = ov::intel_gpu::op::shape_infer(&op,

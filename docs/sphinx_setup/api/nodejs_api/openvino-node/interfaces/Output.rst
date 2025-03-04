@@ -14,7 +14,7 @@ Interface Output
    }
 
 * **Defined in:**
-  `addon.ts:566 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L566>`__
+  `addon.ts:584 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L584>`__
 
 
 Properties
@@ -31,7 +31,7 @@ Properties
       anyName: string
 
    -  **Defined in:**
-      `addon.ts:567 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L567>`__
+      `addon.ts:585 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L585>`__
 
 
 
@@ -44,7 +44,7 @@ Properties
       shape: number[]
 
    -  **Defined in:**
-      `addon.ts:568 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L568>`__
+      `addon.ts:586 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L586>`__
 
 
 Methods
@@ -62,7 +62,7 @@ Methods
    * **Returns:** string
 
    * **Defined in:**
-     `addon.ts:570 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L570>`__
+     `addon.ts:588 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L588>`__
 
 .. rubric:: getPartialShape
 
@@ -75,7 +75,7 @@ Methods
    * **Returns:** :doc:`PartialShape <PartialShape>`
 
    * **Defined in:**
-     `addon.ts:572 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L572>`__
+     `addon.ts:590 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L590>`__
 
 .. rubric:: getShape
 
@@ -88,7 +88,7 @@ Methods
    * **Returns:** number[]
 
    * **Defined in:**
-     `addon.ts:571 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L571>`__
+     `addon.ts:589 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L589>`__
 
 .. rubric:: toString
 
@@ -101,5 +101,5 @@ Methods
    * **Returns:** string
 
    * **Defined in:**
-     `addon.ts:569 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L569>`__
+     `addon.ts:587 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L587>`__
 

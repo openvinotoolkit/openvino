@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,20 +26,20 @@ FoldFakeQuantizeTransformation::FoldFakeQuantizeTransformation(const Params& par
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(fakeQuantize, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool FoldFakeQuantizeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool FoldFakeQuantizeTransformation::transform(ov::pass::pattern::Matcher &m) {
     const auto fakeQuantize = ov::as_type_ptr<ov::opset1::FakeQuantize>(m.get_match_root());
     if (fakeQuantize == nullptr) {
         return false;
     }
 
-    if (!canBeTransformed(context, fakeQuantize)) {
+    if (!canBeTransformed(fakeQuantize)) {
         return false;
     }
 
@@ -76,7 +76,7 @@ bool FoldFakeQuantizeTransformation::isConstantOutput(std::shared_ptr<ov::Node> 
     return vecLow == vecHigh;
 }
 
-bool FoldFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
+bool FoldFakeQuantizeTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const {
     if (!NetworkHelper::isConstantPath(op) && !isConstantOutput(op)) {
         return false;
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 
 using namespace ov::test::behavior;
 
-const std::vector<ov::AnyMap> remoteConfigs = {{ov::log::level(ov::log::Level::INFO)}};
+const std::vector<ov::AnyMap> remoteConfigs = {{}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          RemoteRunTests,

@@ -5,7 +5,8 @@ PyTorch Deployment via "torch.compile"
 
 The ``torch.compile`` feature enables you to use OpenVINO for PyTorch-native applications.
 It speeds up PyTorch code by JIT-compiling it into optimized kernels.
-By default, Torch code runs in eager-mode, but with the use of ``torch.compile`` it goes through the following steps:
+By default, Torch code runs in eager-mode, but with the use of ``torch.compile`` it goes
+through the following steps:
 
 1. **Graph acquisition** - the model is rewritten as blocks of subgraphs that are either:
 
@@ -288,7 +289,7 @@ PyTorch supports ``torch.compile`` officially on Windows from version 2.3.0 onwa
 For PyTorch versions below 2.3.0, the ``torch.compile`` feature is not supported on Windows
 officially. However, it can be accessed by running the following instructions:
 
-1. Install the PyTorch nightly wheel file - `2.1.0.dev20230713 <https://download.pytorch.org/whl/nightly/cpu/torch-2.1.0.dev20230713%2Bcpu-cp38-cp38-win_amd64.whl>`__ ,
+1. Install the PyTorch nightly wheel file - `2.1.0.dev20230713 <https://download.pytorch.org/whl/cpu/torch-2.1.0%2Bcpu-cp38-cp38-win_amd64.whl>`__ ,
 2. Update the file at ``<python_env_root>/Lib/site-packages/torch/_dynamo/eval_frames.py``
 3. Find the function called ``check_if_dynamo_supported()``:
 
@@ -310,10 +311,84 @@ officially. However, it can be accessed by running the following instructions:
        if sys.version_info >= (3, 11):
            `raise RuntimeError("Python 3.11+ not yet supported for torch.compile")
 
+TorchServe Integration
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+TorchServe is a performant, flexible, and easy to use tool for serving PyTorch models in production. For more information on the details of TorchServe,
+you can refer to `TorchServe github repository. <https://github.com/pytorch/serve>`__. With OpenVINO ``torch.compile`` integration into TorchServe you can serve
+PyTorch models in production and accelerate them with OpenVINO on various Intel hardware. Detailed instructions on how to use OpenVINO with TorchServe are
+available in `TorchServe examples. <https://github.com/pytorch/serve/tree/master/examples/pt2/torch_compile_openvino>`__ and in a `use case app <https://github.com/pytorch/serve/tree/master/examples/usecases/llm_diffusion_serving_app>`__.
+
+Support for Automatic1111 Stable Diffusion WebUI
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Automatic1111 Stable Diffusion WebUI is an open-source repository that hosts a browser-based interface for the Stable Diffusion
+based image generation. It allows users to create realistic and creative images from text prompts.
+Stable Diffusion WebUI is supported on Intel CPUs, Intel integrated GPUs, and Intel discrete GPUs by leveraging OpenVINO
+``torch.compile`` capability. Detailed instructions are available in
+`Stable Diffusion WebUI repository. <https://github.com/openvinotoolkit/stable-diffusion-webui/wiki/Installation-on-Intel-Silicon>`__
+
+
+Model Quantization and Weights Compression
+#############################################
+
+Model quantization and weights compression are effective methods for accelerating model inference and reducing memory consumption, with minimal impact on model accuracy. The `torch.compile` OpenVINO backend supports two key model optimization APIs:
+
+1. Neural Network Compression Framework (`NNCF <https://docs.openvino.ai/2025/openvino-workflow/model-optimization.html>`__). NNCF offers advanced algorithms for post-training quantization and weights compression in the OpenVINO toolkit.
+
+2. PyTorch 2 export quantization. A general-purpose API designed for quantizing models captured by ``torch.export``.
+
+NNCF is the recommended approach for model quantization and weights compression. NNCF specifically optimizes models for the OpenVINO backend, providing optimal results in terms of inference speed and accuracy.
+
+
+NNCF Model Optimization Support (Preview)
++++++++++++++++++++++++++++++++++++++++++++++
+
+The Neural Network Compression Framework (`NNCF <https://docs.openvino.ai/2025/openvino-workflow/model-optimization.html>`__) implements advanced quantization and weights compression algorithms, which can be applied to ``torch.fx.GraphModule`` to speed up inference
+and decrease memory consumption.
+
+Model quantization example:
+
+.. code-block:: python
+
+   import nncf
+   import openvino.torch
+   import torch
+
+   calibration_loader = torch.utils.data.DataLoader(...)
+
+   def transform_fn(data_item):
+       images, _ = data_item
+       return images
+
+   # Model quantization
+   quantized_model = nncf.quantize(model, calibration_dataset)
+
+   quantized_model = torch.compile(quantized_model, backend="openvino")
+
+Model weights compression example:
+
+.. code-block:: python
+
+   import nncf
+   import openvino.torch
+   import torch
+
+   # Weights compression
+   compressed_model = nncf.compress_model(model)
+
+   compressed_model = torch.compile(compressed_model, backend="openvino")
+
+NNCF unlocks the full potential of low-precision OpenVINO kernels due to the placement of quantizers designed specifically for the OpenVINO.
+Advanced algorithms like ``SmoothQuant`` or ``BiasCorrection`` allow further metrics improvement while minimizing the outputs discrepancies between the original and compressed models.
+For further details, please see the `documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimization.html>`__
+and a `tutorial <https://github.com/openvinotoolkit/nncf/tree/develop/examples/post_training_quantization/torch_fx/resnet18>`__.
+
 Support for PyTorch 2 export quantization (Preview)
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-PyTorch 2 export quantization is supported by OpenVINO backend in ``torch.compile``. To be able
+NNCF is the default way to compress models for the OpenVINO backend, however
+PyTorch 2 export quantization is supported by OpenVINO backend in ``torch.compile`` as well. To be able
 to access this feature, follow the steps provided in
 `PyTorch 2 Export Post Training Quantization with X86 Backend through Inductor <https://pytorch.org/tutorials/prototype/pt2e_quant_ptq_x86_inductor.html>`__
 and update the provided sample as explained below.
@@ -347,24 +422,6 @@ and update the provided sample as explained below.
 
       optimized_model = torch.compile(converted_model, backend="openvino")
 
-TorchServe Integration
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-TorchServe is a performant, flexible, and easy to use tool for serving PyTorch models in production. For more information on the details of TorchServe,
-you can refer to `TorchServe github repository. <https://github.com/pytorch/serve>`__. With OpenVINO ``torch.compile`` integration into TorchServe you can serve
-PyTorch models in production and accelerate them with OpenVINO on various Intel hardware. Detailed instructions on how to use OpenVINO with TorchServe are
-available in `TorchServe examples. <https://github.com/pytorch/serve/tree/master/examples/pt2/torch_compile_openvino>`__
-
-Support for Automatic1111 Stable Diffusion WebUI
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-Automatic1111 Stable Diffusion WebUI is an open-source repository that hosts a browser-based interface for the Stable Diffusion
-based image generation. It allows users to create realistic and creative images from text prompts.
-Stable Diffusion WebUI is supported on Intel CPUs, Intel integrated GPUs, and Intel discrete GPUs by leveraging OpenVINO
-``torch.compile`` capability. Detailed instructions are available in
-`Stable Diffusion WebUI repository. <https://github.com/openvinotoolkit/stable-diffusion-webui/wiki/Installation-on-Intel-Silicon>`__
-
-
 Architecture
 #################
 
@@ -374,7 +431,7 @@ The ``torch.compile`` feature is part of PyTorch 2.0, and is based on:
   (PEP 523) to dynamically modify Python bytecode right before it is executed (PyTorch operators
   that cannot be extracted to FX graph are executed in the native Python environment).
   It maintains the eager-mode capabilities using
-  `Guards <https://pytorch.org/docs/stable/torch.compiler_guards_overview.html>`__ to ensure the
+  `Guards <https://pytorch.org/docs/2.0/dynamo/guards-overview.html>`__ to ensure the
   generated graphs are valid.
 
 * **AOTAutograd** - generates the backward graph corresponding to the forward graph captured by TorchDynamo.

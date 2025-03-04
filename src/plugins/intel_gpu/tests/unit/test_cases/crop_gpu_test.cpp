@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "test_utils.h"
@@ -97,7 +97,6 @@ TEST(crop_gpu, basic_in2x2x2x3_crop_all) {
     auto output = outputs.at("crop").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    printf("Results:\n");
     for (int b = 0; b < crop_batch_num; ++b) { //B
         for (int f = 0; f < crop_feature_num; ++f) { //F
             for (int y = 0; y < crop_y_size; ++y) { //Y
@@ -1317,7 +1316,6 @@ TEST_P(crop_gpu_dynamic, i32_in2x3x2x2_crop_offsets) {
             }
         }
     }
-    config2.set_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape(true));
     network network2(engine, topology, config2); // run with static kernel
     network2.set_input_data("input", input);
     auto outputs2 = network2.execute();
@@ -1341,6 +1339,59 @@ INSTANTIATE_TEST_SUITE_P(crop_test, crop_gpu_dynamic,
                         ::testing::Combine(
                                 ::testing::ValuesIn(impls)
                                 ));
+
+TEST(crop_cpu, basic_in2x3x2x2_crop_all_bfyx_disable_usm) {
+    //  Reference  : 3x1x2x2
+    //  Input      : 6x2x4x3
+    //  Output     : 3x1x2x2
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto engine = create_test_engine(engine_types::ocl, runtime_types::ocl, false);
+
+    auto batch_num = 6;
+    auto feature_num = 2;
+    auto x_size = 4;
+    auto y_size = 3;
+
+    auto crop_batch_num = batch_num - 3;
+    auto crop_feature_num = feature_num - 1;
+    auto crop_x_size = x_size - 2;
+    auto crop_y_size = y_size - 1;
+
+    auto input = engine->allocate_memory({ data_types::f32,format::bfyx,{ batch_num, feature_num, x_size, y_size } });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(crop("crop", input_info("input"), { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, {0, 0, 0, 0} ));
+
+    std::vector<float> input_vec = rg.generate_random_1d<float>(input->count(), -10, 10);
+    set_values(input, input_vec);
+
+    ExecutionConfig config = get_test_default_config(*engine);
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"crop", {format::bfyx, "", impl_types::cpu}} }));
+
+    network network(*engine, topology, config);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("crop").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    std::vector<float> a;
+    for (int b = 0; b < crop_batch_num; ++b) { //B
+        for (int f = 0; f < crop_feature_num; ++f) { //F
+            for (int y = 0; y < crop_y_size; ++y) { //Y
+                for (int x = 0; x < crop_x_size; ++x) { //X
+                    int linear_id = x + x_size * (y + y_size * (f + feature_num * b));
+                    int output_linear_id = x + crop_x_size * (y + crop_y_size * (f + crop_feature_num * b));
+                    a.push_back(output_ptr[output_linear_id]);
+                    ASSERT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                }
+            }
+        }
+    }
+}
 
 TEST(crop_gpu, dynamic_in1x4x1x1_split) {
     auto& engine = get_test_engine();
@@ -1475,6 +1526,96 @@ TEST(crop_gpu, dynamic_in1x4x1x1_varaidic_split) {
 
     for (size_t i = 0; i < out2.size(); i++)
         ASSERT_EQ(output_ptr_2[i], out2[i]);
+}
+
+TEST(crop_gpu, dynamic_input_padding_varaidic_split) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    auto batch_num = 1;
+    auto feature_num = 4;
+    auto y_size = 128;
+    auto x_size = 4;
+
+    auto split_axis = 2;
+    auto data_y_pad_axis = 2;
+    auto data_x_pad_axis = 3;
+    auto input_y_pad_before = 64;
+    auto input_y_pad_after = 32;
+    auto input_x_pad_before = 8;
+    auto input_x_pad_after = 2;
+
+    auto input_dyn_layout = layout{ ov::PartialShape{-1, feature_num, y_size, x_size}, data_types::f32, format::bfyx };
+    input_dyn_layout.data_padding._dynamic_dims_mask[data_y_pad_axis] = 1;
+    input_dyn_layout.data_padding._lower_size[data_x_pad_axis] = input_x_pad_before;
+    input_dyn_layout.data_padding._upper_size[data_x_pad_axis] = input_x_pad_after;
+
+    auto input_actual_layout = layout{ ov::PartialShape{batch_num, feature_num, y_size, x_size}, data_types::f32, format::bfyx };
+    input_actual_layout.data_padding._lower_size[data_y_pad_axis] = input_y_pad_before;
+    input_actual_layout.data_padding._upper_size[data_y_pad_axis] = input_y_pad_after;
+    input_actual_layout.data_padding._lower_size[data_x_pad_axis] = input_x_pad_before;
+    input_actual_layout.data_padding._upper_size[data_x_pad_axis] = input_x_pad_after;
+
+    auto input_mem = engine.allocate_memory(input_actual_layout);
+    auto axis_mem = engine.allocate_memory({ {}, data_types::i64, format::bfyx });
+    auto splits_length_mem = engine.allocate_memory({ {2}, data_types::i64, format::bfyx });
+
+    auto elements_count = input_mem->size() / sizeof(float);
+    auto input_data = rg.generate_random_1d<float>(elements_count, -10, 10);
+
+    cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    topology topology;
+    topology.add(input_layout("input", input_dyn_layout));
+    topology.add(data("split_axis", axis_mem));
+    topology.add(data("splits_length", splits_length_mem));
+    topology.add(crop("variadic_split.out0", { input_info("input"), input_info("split_axis"), input_info("splits_length") }, tensor(1), tensor(0), op_mode, 0, split_axis));
+    topology.add(crop("variadic_split.out1", { input_info("input"), input_info("split_axis"), input_info("splits_length") }, tensor(1), tensor(0), op_mode, 1, split_axis));
+
+    std::vector<int64_t> splits_vec = { 64, 64 };
+
+    set_values(input_mem, input_data);
+    set_values(splits_length_mem, splits_vec);
+    set_values<int64_t>(axis_mem, {split_axis});
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::custom_outputs(topology.get_primitives_ids()));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto check_output = [&](size_t output_idx, cldnn::network_output output) {
+        auto y_start = std::accumulate(splits_vec.begin(), splits_vec.begin() + output_idx, 0);
+        auto y_size_output = splits_vec[output_idx];
+
+        auto output_layout = output.get_layout();
+        auto output_mem = output.get_memory();
+        cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
+        for (size_t b = 0; b < static_cast<size_t>(batch_num); b++) {
+            for (size_t f = 0; f < static_cast<size_t>(feature_num); f++) {
+                for (size_t y = 0; y < static_cast<size_t>(y_size_output); y++) {
+                    for (size_t x = 0; x < static_cast<size_t>(x_size); x++) {
+                        auto input_offset = input_actual_layout.get_linear_offset(cldnn::tensor(static_cast<int32_t>(b),
+                                                                                                static_cast<int32_t>(f),
+                                                                                                static_cast<int32_t>(x),
+                                                                                                static_cast<int32_t>(y + y_start), 0, 0));
+                        auto output_offset = output_layout.get_linear_offset(cldnn::tensor(static_cast<int32_t>(b),
+                                                                                           static_cast<int32_t>(f),
+                                                                                           static_cast<int32_t>(x),
+                                                                                           static_cast<int32_t>(y), 0, 0));
+
+                        ASSERT_EQ(input_data[input_offset], output_ptr[output_offset]);
+                    }
+                }
+            }
+        }
+    };
+
+    auto outputs = network.execute();
+
+    check_output(0, outputs.at("variadic_split.out0"));
+    check_output(1, outputs.at("variadic_split.out1"));
 }
 
 TEST(crop_gpu, static_split_batch) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,7 @@
 
 #include "intel_gpu/primitives/crop.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static bool IsDynamic(const std::shared_ptr<ov::Node>& op) {
     if (op->is_dynamic()) {
@@ -59,7 +58,7 @@ static void CreateCommonSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::Nod
         }
 
         int64_t axis = -1;
-        auto const_axis = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+        auto const_axis = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
         if (const_axis) {
             axis = ov::util::try_normalize_axis(const_axis->cast_vector<int64_t>()[0],
                                                 op->get_input_partial_shape(0).rank(),
@@ -93,20 +92,25 @@ static void CreateCommonSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::Nod
         for (size_t i = 0; i < op->get_output_size(); i++) {
             const auto outPartialShape = op->get_output_partial_shape(i);
             if (outPartialShape.size() != start_offset.size()) {
-                OPENVINO_THROW("Invalid dimesions in split layer: ", op->get_friendly_name(),
+                OPENVINO_THROW("Invalid dimensions in split layer: ", op->get_friendly_name(),
                                " output: ", op->get_output_tensor(i).get_any_name());
             }
             for (size_t idx = 0; idx < input_pshape.size(); idx++) {
                 if ((outPartialShape[idx].get_length() + static_cast<ov::Dimension::value_type>(start_offset[idx])) > input_pshape[idx].get_length()) {
-                    OPENVINO_THROW("Invalid dimesions in split layer: ", op->get_friendly_name(),
+                    OPENVINO_THROW("Invalid dimensions in split layer: ", op->get_friendly_name(),
                                    " output: ", op->get_output_tensor(idx).get_any_name());
                 }
             }
 
             auto offsetTensor = tensor_from_dims(start_offset, 0);
             auto outTensor = tensor_from_dims(op->get_output_shape(i), 1);
-            auto cropPrim = cldnn::crop(get_layer_name(i), inputs[0], outTensor, offsetTensor);
-            p.add_primitive(*op, cropPrim);
+
+            const auto& users = op->get_output_target_inputs(i);
+            // don't add crop primitive if port is not used by anyone
+            if (users.size() != 0) {
+                auto cropPrim = cldnn::crop(get_layer_name(i), inputs[0], outTensor, offsetTensor);
+                p.add_primitive(*op, cropPrim);
+            }
 
             for (size_t idx = 0; idx < input_pshape.size(); idx++) {
                 if (outPartialShape[idx] != input_pshape[idx]) {
@@ -130,5 +134,4 @@ static void CreateVariadicSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::o
 REGISTER_FACTORY_IMPL(v1, Split);
 REGISTER_FACTORY_IMPL(v1, VariadicSplit);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,12 +12,12 @@ namespace node {
 
 class PSROIPooling : public Node {
 public:
-    PSROIPooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    PSROIPooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
-    void execute(dnnl::stream strm) override;
+    void createPrimitive() override{};
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
@@ -46,37 +46,53 @@ private:
     int partSize = 1;
     float transStd = 1.f;
 
-    std::string errorPrefix;
-
-    void unpackParams(const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc,
-                      int& hInputStride, int& wInputStride,
-                      int& hOutputStride, int& wOutputStride,
-                      int& inBlockSize, int& outBlockSize,
+    void unpackParams(const BlockedMemoryDesc& srcDesc,
+                      const BlockedMemoryDesc& dstDesc,
+                      int& hInputStride,
+                      int& wInputStride,
+                      int& hOutputStride,
+                      int& wOutputStride,
+                      int& inBlockSize,
+                      int& outBlockSize,
                       int& outBlockCount,
-                      unsigned long& inputChannelsPadding, unsigned long& outputChannelsPadding);
+                      uint64_t& inputChannelsPadding,
+                      uint64_t& outputChannelsPadding);
 
     template <typename inputType, typename outputType>
-    void executeAverage(const inputType *srcData, outputType *dstData, const float *bottomRois,
-                        const int n, const int roiBatchInd,
-                        const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc);
+    void executeAverage(const inputType* srcData,
+                        outputType* dstData,
+                        const float* bottomRois,
+                        const int n,
+                        const int roiBatchInd,
+                        const BlockedMemoryDesc& srcDesc,
+                        const BlockedMemoryDesc& dstDesc);
 
     template <typename inputType, typename outputType>
-    void executeBilinear(const inputType *srcData, outputType *dstData, const float *bottomRois,
-                         const int currentRoi, const int roiBatchInd,
-                         const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc);
+    void executeBilinear(const inputType* srcData,
+                         outputType* dstData,
+                         const float* bottomRois,
+                         const int currentRoi,
+                         const int roiBatchInd,
+                         const BlockedMemoryDesc& srcDesc,
+                         const BlockedMemoryDesc& dstDesc);
 
     template <typename inputType, typename outputType>
-    void executeBilinearDeformable(const inputType *srcData, outputType *dstData, const float *bottomRois,
-                                   const float *bottomTrans, const int numClasses, const int channelsEachClass,
-                                   const int currentRoi, const int roiBatchInd);
+    void executeBilinearDeformable(const inputType* srcData,
+                                   outputType* dstData,
+                                   const float* bottomRois,
+                                   const float* bottomTrans,
+                                   const int numClasses,
+                                   const int channelsEachClass,
+                                   const int currentRoi,
+                                   const int roiBatchInd);
 
     template <typename inputType, typename outputType>
     void executeSpecified();
 
-    template<typename T>
+    template <typename T>
     struct PSROIPoolingExecute;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,14 +17,13 @@ class FakeQuantizeOnWeights: public FakeQuantizeOnData {
 public:
     FakeQuantizeOnWeights();
 
-    FakeQuantizeOnWeights(
-        const uint64_t quantizationLevel,
-        const ov::Shape& constantShape,
-        const std::vector<float>& inputLowValues,
-        const std::vector<float>& inputHighValues,
-        const std::vector<float>& outputLowValues,
-        const std::vector<float>& outputHighValues,
-        const ov::element::Type outputPrecision = ov::element::undefined);
+    FakeQuantizeOnWeights(const uint64_t quantizationLevel,
+                          const ov::Shape& constantShape,
+                          const std::vector<float>& inputLowValues,
+                          const std::vector<float>& inputHighValues,
+                          const std::vector<float>& outputLowValues,
+                          const std::vector<float>& outputHighValues,
+                          const ov::element::Type outputPrecision = ov::element::dynamic);
 
     virtual ~FakeQuantizeOnWeights();
 

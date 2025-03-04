@@ -11,22 +11,25 @@
 #include "openvino/core/type/element_type.hpp"
 #include "precision_matcher.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
-InOutTypes getTypeConfiguration(const MemoryDescArgs& descriptors, const TypeMapping& mapping, const MappingNotation& notation) {
+InOutTypes getTypeConfiguration(const MemoryDescArgs& descriptors,
+                                const TypeMapping& mapping,
+                                const MappingNotation& notation) {
     InOutTypes types;
     std::transform(notation.begin(), notation.end(), std::back_inserter(types), [&descriptors](int id) {
         return descriptors.at(id)->getPrecision();
     });
 
     for (const auto& entry : mapping) {
-        if (!entry.enabled())
+        if (!entry.enabled()) {
             continue;
+        }
 
         const auto& pattern = entry.mask();
-        if (!match(pattern, types))
+        if (!match(pattern, types)) {
             continue;
+        }
 
         return entry.translate(types);
     }
@@ -34,5 +37,4 @@ InOutTypes getTypeConfiguration(const MemoryDescArgs& descriptors, const TypeMap
     OPENVINO_THROW("Failed to create a type configuration for the provided memory descriptors");
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

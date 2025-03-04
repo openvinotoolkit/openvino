@@ -3,22 +3,25 @@
 # optimum still requires numpy<2.0.0
 numpy==1.26.4; python_version < "3.12"
 numpy==2.1.1; python_version >= "3.12"
-torch==2.5.1; platform_system != "Darwin" or platform_machine != "x86_64"
+torch==2.6.0; platform_system != "Darwin" or platform_machine != "x86_64"
 torch==2.2.2; platform_system == "Darwin" and platform_machine == "x86_64"
 --extra-index-url https://download.pytorch.org/whl/cpu
 
-torchvision==0.20.1; platform_system != "Darwin" or platform_machine != "x86_64"
+torchvision==0.21.0; platform_system != "Darwin" or platform_machine != "x86_64"
 torchvision==0.17.2; platform_system == "Darwin" and platform_machine == "x86_64"
-torchaudio==2.5.1; platform_system != "Darwin" or platform_machine != "x86_64"
+torchaudio==2.6.0; platform_system != "Darwin" or platform_machine != "x86_64"
 torchaudio==2.2.2; platform_system == "Darwin" and platform_machine == "x86_64"
-# transformers 4.45.1 is available
-# but optimum still requires <4.45.0
-transformers==4.44.2
-pytest==7.0.1
+# before updating transformers version, make sure no tests (esp. sdpa2pa) are failing
+transformers==4.47.1
+pytest==7.0.1; python_version < '3.10'
+pytest==7.2.0; python_version >= '3.10'
 pytest-html==4.1.1
 pytest-xdist[psutil]==3.6.1
 defusedxml==0.7.1
 
+autoawq==0.2.7; platform_system == "Linux" and platform_machine == "x86_64"
+# triton is a dependency of autoawq, newer versions lead to TorchFX test failures
+triton==3.1.0; platform_system == "Linux" and platform_machine == "x86_64"
 auto-gptq==0.7.1; platform_system == "Linux" and platform_machine == "x86_64" and python_version < "3.12"
 av==13.0.0
 basicsr==1.4.2; python_version < "3.12"
@@ -42,8 +45,9 @@ super-image==0.1.7
 # huggingface-hub required for super-image
 huggingface-hub==0.25.2
 
-# use latest released version once it's available
-git+https://github.com/huggingface/optimum-intel.git@main; python_version < "3.12"
+# For now, we decided to pin a specific working version of optimum-intel.
+# It will be discussed in the future how to manage versioning of the components properly.
+git+https://github.com/huggingface/optimum-intel.git@190ae8737db68a826a86e48a709b41ae51d2e3ee; python_version < "3.12"
 # set 'export HF_HUB_ENABLE_HF_TRANSFER=1' to benefits from hf_transfer
 hf_transfer==0.1.8
 

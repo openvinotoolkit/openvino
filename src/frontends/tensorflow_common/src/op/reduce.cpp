@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,7 @@ OutputVector translate_prod_op(const NodeContext& node) {
 
     if (complex_type_mark) {
         element::Type complex_part_type = complex_type_mark->get_complex_part_type();
-        input = complex_type_mark->input_value(0);
+        input = complex_type_mark->get_data();
 
         auto gather_index_real = make_shared<v0::Constant>(element::i64, Shape{}, 0);
         auto gather_index_imag = make_shared<v0::Constant>(element::i64, Shape{}, 1);
@@ -80,7 +80,7 @@ OutputVector translate_prod_op(const NodeContext& node) {
         auto is_complex_number_zero = make_shared<v1::LogicalAnd>(is_real_part_zero, is_imag_part_zero);
 
         Output<Node> r, theta;
-        std::tie(r, theta) = complex_rectangular_to_polar(real_part, imag_part);
+        std::tie(r, theta) = complex_rectangular_to_polar(node, real_part, imag_part);
 
         // theta for 0+0j will be nan but to make formula work properly it should be 0
         theta = make_shared<v1::Select>(is_complex_number_zero, const_zero, theta);

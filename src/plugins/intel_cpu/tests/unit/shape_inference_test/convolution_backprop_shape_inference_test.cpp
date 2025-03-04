@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ TEST_F(ConvolutionBackpropDataV1StaticShapeInferenceTest, default_ctor_direct_in
     auto pads_begin = CoordinateDiff{1, 1};
     auto pads_end = CoordinateDiff{1, 1};
 
-    input_shapes = ShapeVector{{1, 20, 224, 224}, {20, 10, 3, 3}, {spatial_shape.size()}};
+    input_shapes = StaticShapeVector{{1, 20, 224, 224}, {20, 10, 3, 3}, {spatial_shape.size()}};
 
     output_shapes = ov::op::v1::shape_infer(op.get(), input_shapes, pads_begin, pads_end);
 
@@ -55,7 +55,7 @@ TEST_F(ConvolutionBackpropDataV1StaticShapeInferenceTest, default_ctor_with_outp
     op->set_auto_pad(op::PadType::EXPLICIT);
     op->set_output_shape(spatial_shape.to_shape());
 
-    input_shapes = ShapeVector{{1, 20, 224, 224}, {20, 10, 3, 3}, {spatial_shape.size()}};
+    input_shapes = StaticShapeVector{{1, 20, 224, 224}, {20, 10, 3, 3}, {spatial_shape.size()}};
     auto shape_infer = make_shape_inference(op);
     const auto input_shape_refs = make_static_shape_refs(input_shapes);
     output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
@@ -75,7 +75,7 @@ TEST_F(ConvolutionBackpropDataV1StaticShapeInferenceTest, default_ctor) {
     op->set_output_padding({1, 1});
     op->set_auto_pad(op::PadType::VALID);
 
-    input_shapes = ShapeVector{{1, 3, 10, 12}, {3, 3, 5, 5}};
+    input_shapes = StaticShapeVector{{1, 3, 10, 12}, {3, 3, 5, 5}};
     auto shape_infer = make_shape_inference(op);
     const auto input_shape_refs = make_static_shape_refs(input_shapes);
     output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
@@ -98,7 +98,7 @@ TEST_F(ConvolutionBackpropDataV1StaticShapeInferenceTest, default_ctor_more_inpu
     op->set_auto_pad(op::PadType::EXPLICIT);
     op->set_output_shape(spatial_shape.to_shape());
 
-    input_shapes = ShapeVector{{1, 20, 224, 224}, {20, 10, 3, 3}, {spatial_shape.size()}, {0}};
+    input_shapes = StaticShapeVector{{1, 20, 224, 224}, {20, 10, 3, 3}, {spatial_shape.size()}, {0}};
     auto shape_infer = make_shape_inference(op);
     const auto input_shape_refs = make_static_shape_refs(input_shapes);
     output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
@@ -121,7 +121,7 @@ TEST_F(ConvolutionBackpropDataV1StaticShapeInferenceTest, 2d_inputs_dynamic_rank
 
     op = make_op(data, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
-    input_shapes = ShapeVector{{3, 6, 5, 5}, {6, 1, 3, 3}};
+    input_shapes = StaticShapeVector{{3, 6, 5, 5}, {6, 1, 3, 3}};
     output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
@@ -137,11 +137,11 @@ TEST_F(ConvolutionBackpropDataV1StaticShapeInferenceTest, 3d_auto_pad_same_lower
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(5));
     const auto filters = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(5));
-    const auto out_spatial = op::v0::Constant::create(element::i64, Shape{3}, {2, 1, 3});
+    const auto out_spatial = op::v0::Constant::create(element::i64, ov::Shape{3}, {2, 1, 3});
 
     op = make_op(data, filters, out_spatial, strides, pads_begin, pads_end, dilations, auto_pad);
 
-    input_shapes = ShapeVector{{3, 6, 5, 5, 5}, {6, 2, 3, 3, 3}, {3}};
+    input_shapes = StaticShapeVector{{3, 6, 5, 5, 5}, {6, 2, 3, 3, 3}, {3}};
     output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
@@ -161,9 +161,9 @@ TEST_F(ConvolutionBackpropDataV1StaticShapeInferenceTest, 3d_auto_pad_same_upper
 
     op = make_op(data, filters, out_spatial, strides, pads_begin, pads_end, dilations, auto_pad);
     int32_t spatial_dims[] = {2, 6, 1};
-    const auto const_map = std::unordered_map<size_t, ov::Tensor>{{2, {element::i32, Shape{3}, spatial_dims}}};
+    const auto const_map = std::unordered_map<size_t, ov::Tensor>{{2, {element::i32, ov::Shape{3}, spatial_dims}}};
 
-    input_shapes = ShapeVector{{3, 5, 5, 5, 5}, {5, 7, 3, 3, 3}, {3}};
+    input_shapes = StaticShapeVector{{3, 5, 5, 5, 5}, {5, 7, 3, 3, 3}, {3}};
     output_shapes = shape_inference(op.get(), input_shapes, const_map);
 
     EXPECT_EQ(output_shapes.size(), 1);

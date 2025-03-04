@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,18 +47,18 @@ public:
         ov::intel_npu::MemType mem_type = ov::intel_npu::MemType::L0_INTERNAL_BUF,
         void* mem = nullptr) override;
 
-    ov::SoPtr<ov::ITensor> createHostTensor(std::shared_ptr<ov::IRemoteContext> context,
-                                            const ov::element::Type& element_type,
-                                            const ov::Shape& shape,
-                                            const Config& config) override;
+    ov::SoPtr<ov::ITensor> createHostTensor(
+        std::shared_ptr<ov::IRemoteContext> context,
+        const ov::element::Type& element_type,
+        const ov::Shape& shape,
+        const Config& config,
+        ov::intel_npu::TensorType tensor_type = ov::intel_npu::TensorType::BINDED) override;
 
     ZeroDevice& operator=(const ZeroDevice&) = delete;
     ZeroDevice(const ZeroDevice&) = delete;
 
 private:
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
-
-    ze_graph_dditable_ext_curr_t& _graph_ddi_table_ext;
 
     ze_device_properties_t device_properties = {};
 

@@ -18,8 +18,7 @@
 
 using namespace ov::pass::pattern;
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 namespace {
 
 template <typename T>
@@ -128,7 +127,7 @@ BroadcastAndPadZeroPointBuffers::BroadcastAndPadZeroPointBuffers(size_t pad_size
             return false;
         }
 
-        auto conv = std::dynamic_pointer_cast<op::Convolution>(m.get_match_root());
+        auto conv = ov::as_type_ptr<op::Convolution>(m.get_match_root());
         auto in_shape = conv->get_input_partial_shape(0);
         auto out_shape = conv->get_output_partial_shape(0);
         const size_t channel_idx = 1;
@@ -137,7 +136,7 @@ BroadcastAndPadZeroPointBuffers::BroadcastAndPadZeroPointBuffers(size_t pad_size
             return false;
         }
 
-        if (auto azp = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(azp_m).get_node_shared_ptr())) {
+        if (auto azp = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(azp_m).get_node_shared_ptr())) {
             auto target_shape = azp->get_shape();
             const size_t azp_c_idx = target_shape.size() == in_shape.size() ? 1 : 0;
             auto aligned_azp = pad_quantization_parameter(azp, in_shape[channel_idx].get_length(), azp_c_idx, pad_size);
@@ -146,7 +145,7 @@ BroadcastAndPadZeroPointBuffers::BroadcastAndPadZeroPointBuffers(size_t pad_size
             conv->input(op::Convolution::Args::AZP).replace_source_output(aligned_azp);
         }
 
-        if (auto wzp = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(wzp_m).get_node_shared_ptr())) {
+        if (auto wzp = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(wzp_m).get_node_shared_ptr())) {
             auto target_shape = wzp->get_shape();
 
             std::shared_ptr<ov::Node> aligned_wzp;
@@ -165,7 +164,7 @@ BroadcastAndPadZeroPointBuffers::BroadcastAndPadZeroPointBuffers(size_t pad_size
             conv->input(op::Convolution::Args::WZP).replace_source_output(aligned_wzp);
         }
 
-        if (auto cmp = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(cmp_m).get_node_shared_ptr())) {
+        if (auto cmp = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(cmp_m).get_node_shared_ptr())) {
             auto target_shape = cmp->get_shape();
             const size_t cmp_c_idx = target_shape.size() == out_shape.size() ? 1 : 0;
             auto aligned_cmp = pad_quantization_parameter(cmp, out_shape[channel_idx].get_length(), cmp_c_idx, pad_size);
@@ -181,5 +180,4 @@ BroadcastAndPadZeroPointBuffers::BroadcastAndPadZeroPointBuffers(size_t pad_size
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

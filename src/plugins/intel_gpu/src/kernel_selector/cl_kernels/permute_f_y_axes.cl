@@ -40,10 +40,10 @@ KERNEL (permute_f_y_axes)(
         OUT_VEC_TYPE result;
         IN_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
         FUSED_OPS_VEC;
-        result = FUSED_OPS_RESULT_VEC;
+        result = TO_OUT_VEC_TYPE(FUSED_OPS_RESULT_VEC);
 #else
         IN_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
-        OUT_VEC_TYPE result = ACTIVATION(res, ACTIVATION_PARAMS);
+        OUT_VEC_TYPE result = TO_OUT_VEC_TYPE(ACTIVATION(res, ACTIVATION_PARAMS));
 #endif
         const int output_idx = OUTPUT_GET_INDEX(b_idx, f_out_idx, y_out_idx, x_idx);
         WRITE_VEC(result, 0, &output[output_idx]);
@@ -122,7 +122,7 @@ KERNEL (permute_f_y_axes)(
 #endif
     )
 {
-    __local OUTPUT_TYPE transpose_buf[TILE_SIZE][TILE_SIZE+1];
+    __local ACCUMULATOR_TYPE transpose_buf[TILE_SIZE][TILE_SIZE+1];
 
     const int bf = get_global_id(2);
     const int b_idx = bf / INPUT0_FEATURE_NUM;
@@ -154,7 +154,7 @@ KERNEL (permute_f_y_axes)(
     __attribute__((opencl_unroll_hint(J_TIMES)))
     for (int j = 0; j < J_TIMES; ++j) {
         const int j_vec = j * VEC_SIZE;
-        OUT_VEC_TYPE res = READ_VEC(0, &transpose_buf[bf_local][j_vec]);
+        ACC_VEC_TYPE res = READ_VEC(0, &transpose_buf[bf_local][j_vec]);
         const int f_out_idx = y_begin + bf_local;
         const int y_out_idx = (f_begin + j_vec) % INPUT0_FEATURE_NUM;;
         FUSED_OPS_VEC;
@@ -169,7 +169,7 @@ KERNEL (permute_f_y_axes)(
         const int f = (f_begin + j_vec) % INPUT0_FEATURE_NUM;;
         const int y_idx = y_begin + bf_local;
         const int output_idx = OUTPUT_GET_INDEX(b_idx, y_idx, f, x_idx);
-        WRITE_VEC(READ_VEC(0, &transpose_buf[bf_local][j_vec]), 0, &output[output_idx]);
+        WRITE_VEC(TO_OUT_VEC_TYPE(READ_VEC(0, &transpose_buf[bf_local][j_vec])), 0, &output[output_idx]);
     }
 #endif
 

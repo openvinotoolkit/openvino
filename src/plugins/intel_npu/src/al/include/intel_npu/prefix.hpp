@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,9 +11,9 @@ namespace intel_npu {
 //
 // Prefix for ReadValue and Assign operations in compiler.
 //
-#define READVALUE_PREFIX    std::string("vpux_ie_read_value_")
-#define ASSIGN_PREFIX       std::string("vpux_ie_assign_")
-#define SHAPE_TENSOR_PREFIX std::string("vpux_ie_shape_")
+constexpr std::string_view READVALUE_PREFIX = "vpux_ie_read_value_";
+constexpr std::string_view ASSIGN_PREFIX = "vpux_ie_assign_";
+constexpr std::string_view SHAPE_TENSOR_PREFIX = "vpux_ie_shape_";
 
 inline bool isStateInputName(const std::string& name) {
     return !name.compare(0, READVALUE_PREFIX.length(), READVALUE_PREFIX);
@@ -23,10 +23,6 @@ inline bool isStateOutputName(const std::string& name) {
 }
 inline bool isShapeTensorName(const std::string& name) {
     return !name.compare(0, SHAPE_TENSOR_PREFIX.length(), SHAPE_TENSOR_PREFIX);
-}
-
-inline std::string stateOutputToStateInputName(const std::string& name) {
-    return READVALUE_PREFIX + name.substr(ASSIGN_PREFIX.length());
 }
 
 }  // namespace intel_npu

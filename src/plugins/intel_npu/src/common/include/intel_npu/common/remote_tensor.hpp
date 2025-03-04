@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,11 +20,9 @@ namespace intel_npu {
  */
 class RemoteTensor : public ov::IRemoteTensor {
 public:
-    RemoteTensor(std::shared_ptr<ov::IRemoteContext> context,
+    RemoteTensor(const std::shared_ptr<ov::IRemoteContext>& context,
                  const ov::element::Type& element_type,
                  const ov::Shape& shape);
-
-    ~RemoteTensor() override;
 
     /**
      * @brief Returns additional information associated with tensor
@@ -40,7 +38,7 @@ public:
 
     /**
      * @brief Set new shape for tensor
-     * @note Memory allocation may happen
+     * @note Allocation of a bigger tensor is not possible
      * @param shape A new shape
      */
     void set_shape(ov::Shape shape) override;
@@ -69,6 +67,8 @@ protected:
     virtual void allocate(const size_t bytes) = 0;
     virtual bool deallocate() noexcept = 0;
     void update_strides();
+
+    virtual ~RemoteTensor();
 
     std::shared_ptr<ov::IRemoteContext> _context;
 

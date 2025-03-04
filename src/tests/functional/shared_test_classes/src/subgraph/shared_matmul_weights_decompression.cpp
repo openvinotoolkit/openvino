@@ -16,7 +16,7 @@ std::string SharedMatmulWeightsDecompression::getTestCaseName(testing::TestParam
     ov::test::ElementType weights_precision;
     ov::test::ElementType decompression_precision;
     bool transpose;
-    DecompressionSubtractType decompression_subtract_type;
+    DecompressionType decompression_subtract_type;
     bool use_decompression_impl;
 
     std::tie(target_device,
@@ -46,14 +46,15 @@ std::shared_ptr<ov::Model> SharedMatmulWeightsDecompression::initSubgraph(
     const ov::element::Type weights_precision,
     const ov::element::Type decompression_precision,
     const bool transpose_weights,
-    const DecompressionSubtractType decompression_subtract_type) {
+    const DecompressionType decompression_subtract_type) {
     const auto weights_subgraph = initMatMulDecompressionSubgraph(weights_shape,
                                                                   group_size,
                                                                   data_precision,
                                                                   weights_precision,
                                                                   decompression_precision,
-                                                                  ov::element::undefined,
+                                                                  ov::element::dynamic,
                                                                   transpose_weights,
+                                                                  DecompressionType::full,
                                                                   decompression_subtract_type,
                                                                   false);
     ov::ParameterVector params;
@@ -85,7 +86,7 @@ void SharedMatmulWeightsDecompression::SetUp() {
     ov::test::ElementType weights_precision;
     ov::test::ElementType decompression_precision;
     bool transpose_weights;
-    DecompressionSubtractType decompression_subtract_type;
+    DecompressionType decompression_subtract_type;
     bool use_decompression_impl;
 
     std::tie(targetDevice,

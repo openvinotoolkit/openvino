@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,9 +46,9 @@ bool FakeQuantizeOnData::empty() const {
         outputHighValues.empty();
 }
 
-FakeQuantizeOnDataWithConstant::FakeQuantizeOnDataWithConstant() :
-    quantizationLevel(0),
-    outputPrecision(ov::element::undefined) {}
+FakeQuantizeOnDataWithConstant::FakeQuantizeOnDataWithConstant()
+    : quantizationLevel(0),
+      outputPrecision(ov::element::dynamic) {}
 
 FakeQuantizeOnDataWithConstant::FakeQuantizeOnDataWithConstant(
     const uint64_t quantizationLevel,

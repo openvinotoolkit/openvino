@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,6 +65,7 @@ static ov::Shape broadcast_shape_to_rank(ov::Shape shape_to_broadcast, int64_t d
 
 class ov::pass::mask_propagation::MatMul : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::MatMul");
     MatMul() {
         auto a = pattern::any_input(pattern::has_static_shape());
         auto b = pattern::any_input(pattern::has_static_shape());
@@ -99,7 +100,7 @@ public:
                 a_mask_row = a_mask.get();
             auto b_mask_row = b_mask.get();
 
-            const auto matmul_op = std::dynamic_pointer_cast<opset10::MatMul>(m_matmul.get_node_shared_ptr());
+            const auto matmul_op = ov::as_type_ptr<opset10::MatMul>(m_matmul.get_node_shared_ptr());
             const auto transpose_a = matmul_op->get_transpose_a();
             const auto transpose_b = matmul_op->get_transpose_b();
 
@@ -201,6 +202,7 @@ public:
 
 class ov::pass::mask_propagation::Convolution : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::Convolution");
     Convolution() {
         auto input = pattern::any_input();
         auto weights = pattern::any_input(pattern::has_static_shape());
@@ -280,6 +282,7 @@ public:
 
 class ov::pass::mask_propagation::GroupConvolution : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::GroupConvolution");
     GroupConvolution() {
         auto input = pattern::any_input(pattern::has_static_dim(1));
         auto weights = pattern::any_input(pattern::has_static_shape());
@@ -366,6 +369,7 @@ public:
 
 class ov::pass::mask_propagation::GroupConvolutionReshape : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::GroupConvolutionReshape");
     GroupConvolutionReshape() {
         auto input = pattern::any_input(pattern::has_static_shape());
         auto shape = pattern::any_input();
@@ -456,6 +460,7 @@ public:
 
 class ov::pass::mask_propagation::Elementwise : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::Elementwise");
     Elementwise() {
         auto input = pattern::any_input();
         auto weights = pattern::any_input();
@@ -646,6 +651,7 @@ private:
 
 class ov::pass::mask_propagation::FakeQuantize : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::FakeQuantize");
     FakeQuantize() {
         auto input = pattern::any_input(pattern::has_static_shape());
         auto input_low = pattern::any_input(pattern::has_static_shape());
@@ -711,13 +717,13 @@ public:
                                        m_input_high.get_node_shared_ptr(),
                                        m_output_low.get_node_shared_ptr(),
                                        m_output_high.get_node_shared_ptr()};
-            auto fq_node = std::dynamic_pointer_cast<opset10::FakeQuantize>(m_output.get_node_shared_ptr());
+            auto fq_node = ov::as_type_ptr<opset10::FakeQuantize>(m_output.get_node_shared_ptr());
             if (!fq_node)
                 return false;
             size_t idx = 0;
             if (fq_node->get_auto_broadcast() != ov::op::AutoBroadcastType::NONE) {
                 for (const auto& node : fq_params_nodes) {
-                    auto const_node = std::dynamic_pointer_cast<op::v0::Constant>(node);
+                    auto const_node = ov::as_type_ptr<op::v0::Constant>(node);
                     if (!const_node)
                         OPENVINO_THROW("Unexpected operation type.");
                     auto new_shape = broadcast_shape_to_rank(const_node->get_shape(),
@@ -758,13 +764,14 @@ public:
 
 class ov::pass::mask_propagation::Concat : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::Concat");
     Concat() {
         auto concat = pattern::wrap_type<opset10::Concat>(pattern::has_static_shape());
 
         ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& m_output = pattern_map.at(concat);
-            auto concat_ptr = std::dynamic_pointer_cast<opset10::Concat>(m_output.get_node_shared_ptr());
+            auto concat_ptr = ov::as_type_ptr<opset10::Concat>(m_output.get_node_shared_ptr());
             if (!concat_ptr) {
                 return false;
             }
@@ -864,6 +871,7 @@ public:
 
 class ov::pass::mask_propagation::PassThrough : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::PassThrough");
     PassThrough() {
         auto unary_op = pattern::wrap_type<op::util::UnaryElementwiseArithmetic,
                                            opset10::Clamp,
@@ -906,6 +914,7 @@ public:
 
 class ov::pass::mask_propagation::Reduce : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::Reduce");
     Reduce() {
         auto inputs = pattern::any_input();
         auto weights = pattern::wrap_type<opset10::Constant>();
@@ -921,7 +930,7 @@ public:
             // Check reduce operation reduces only dimension without masks
             if (auto input_mask = getMask(m_input)) {
                 auto output_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length());
-                const auto constant = std::dynamic_pointer_cast<opset10::Constant>(m_weights.get_node_shared_ptr());
+                const auto constant = ov::as_type_ptr<opset10::Constant>(m_weights.get_node_shared_ptr());
                 OPENVINO_ASSERT(!!constant, "Dynamic cast returned a nullptr");
                 const auto reduce_dims = constant->cast_vector<int64_t>();
 
@@ -1117,6 +1126,7 @@ static std::vector<DimsAttr> collect_dims_attrs(const std::vector<dims_vec> dims
 
 class ov::pass::mask_propagation::Reshape : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::Reshape");
     Reshape() {
         auto inputs = pattern::any_input(pattern::has_static_shape());
         auto weights = pattern::any_input();
@@ -1134,7 +1144,7 @@ public:
                 if (is_type<opset10::GroupConvolution>(inp.get_node()))
                     return true;
 
-            auto constant = std::dynamic_pointer_cast<opset10::Constant>(m_weights.get_node_shared_ptr());
+            auto constant = ov::as_type_ptr<opset10::Constant>(m_weights.get_node_shared_ptr());
             if (!constant) {
                 constant = ov::util::get_constant_from_source(m_weights.get_node_shared_ptr());
                 if (!constant) {
@@ -1373,6 +1383,7 @@ public:
 
 class ov::pass::mask_propagation::Transpose : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::Transpose");
     Transpose() {
         auto input = pattern::any_input();
         auto weights = pattern::any_input();
@@ -1480,6 +1491,7 @@ static ov::Mask::Ptr create_connect_split_output_mask(ov::Mask::Ptr input_mask,
 
 class ov::pass::mask_propagation::VariadicSplit : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::VariadicSplit");
     VariadicSplit() {
         auto input_pattern = pattern::any_input(pattern::has_static_rank());
         auto axis_pattern = pattern::wrap_type<ov::opset10::Constant>();
@@ -1547,6 +1559,7 @@ public:
 
 class ov::pass::mask_propagation::Split : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::Split");
     Split() {
         auto input_pattern = pattern::any_input(pattern::has_static_rank());
         auto axis_pattern = pattern::wrap_type<ov::opset10::Constant>();
@@ -1597,6 +1610,7 @@ public:
 
 class ov::pass::mask_propagation::StopPropagation : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::StopPropagation");
     StopPropagation() {
         auto any_node = pattern::any_input();
 
@@ -1654,6 +1668,7 @@ public:
 
 class ov::pass::mask_propagation::SkipPropagation : public MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::SkipPropagation");
     SkipPropagation() {
         // Skip mask propagation for ShapeOf operation to prevent this opearation to be
         // processed as stop op.

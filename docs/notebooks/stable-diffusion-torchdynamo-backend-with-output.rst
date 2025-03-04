@@ -71,6 +71,20 @@ Prerequisites
 
     from diffusers import StableDiffusionPipeline
 
+    import requests
+    from pathlib import Path
+
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+
+    collect_telemetry("stable-diffusion-torchdynamo-backend.ipynb")
+
 Stable Diffusion with Diffusers library
 ---------------------------------------
 
@@ -133,13 +147,6 @@ Variables
 options <https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html#options>`__
 
 .. code:: ipython3
-
-    import requests
-
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
 
     from notebook_utils import device_widget
 

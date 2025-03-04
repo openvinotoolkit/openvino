@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -113,7 +113,7 @@ protected:
         };
 
         // net_type=undifined means mixed type test
-        if (net_type == ov::element::undefined) {
+        if (net_type == ov::element::dynamic) {
             generate_input(0, ov::element::f32);
             generate_input(1, ov::element::i32);
             generate_input(2, ov::element::f32);
@@ -137,7 +137,7 @@ protected:
 
         init_input_shapes(inputShapes);
 
-        if (model_type == ov::element::undefined) {
+        if (model_type == ov::element::dynamic) {
             std::vector<ov::element::Type> types = { ov::element::f32, ov::element::i32, ov::element::f32 };
             for (size_t i = 0; i < types.size(); i++) {
                 auto paramNode = std::make_shared<ov::op::v0::Parameter>(types[i], inputDynamicShapes[i]);
@@ -230,9 +230,7 @@ const std::vector<std::vector<float>> inputMixedValues = {
 
 const std::vector<ov::element::Type> netMixedPrecisions = {
     // Mixed type test(start/step:fp32, end:i32)
-    ov::element::undefined
-};
-
+    ov::element::dynamic};
 
 const auto testMixedParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputShapes),
                                                       ::testing::ValuesIn(inputMixedValues),

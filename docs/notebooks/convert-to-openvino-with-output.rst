@@ -39,14 +39,46 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 .. code:: ipython3
 
     # Required imports. Please execute this cell first.
+    %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64'"
+    %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64'"
+    %pip install -q "tensorflow>=2.5; sys_platform != 'darwin'"
+    %pip install -q --no-deps "tensorflow-hub"
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu \
-    "openvino>=2024.4.0" "requests" "tqdm" "transformers>=4.31" "onnx!=1.16.2" "torch>=2.1" "torchvision" "tensorflow_hub" "tensorflow"
+    "openvino>=2024.4.0" "requests" "tqdm" "transformers>=4.31" "onnx!=1.16.2" "torch>=2.1" "torchvision" "tf_keras"
 
 
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    fastapi 0.115.8 requires typing-extensions>=4.8.0, but you have typing-extensions 4.5.0 which is incompatible.
+    mypy 1.14.1 requires typing-extensions>=4.6.0, but you have typing-extensions 4.5.0 which is incompatible.
+    pydantic 2.10.6 requires typing-extensions>=4.12.2, but you have typing-extensions 4.5.0 which is incompatible.
+    pydantic-core 2.27.2 requires typing-extensions!=4.7.0,>=4.6.0, but you have typing-extensions 4.5.0 which is incompatible.
+    torch 2.4.1+cpu requires typing-extensions>=4.8.0, but you have typing-extensions 4.5.0 which is incompatible.
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    tensorflow 2.13.1 requires typing-extensions<4.6.0,>=3.6.6, but you have typing-extensions 4.12.2 which is incompatible.
+    Note: you may need to restart the kernel to use updated packages.
 
+
+.. code:: ipython3
+
+    import requests
+    from pathlib import Path
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("convert-to-openvino.ipynb")
 
 OpenVINO IR format
 ------------------
@@ -163,7 +195,7 @@ NLP model from Hugging Face and export it in ONNX format:
 .. code:: ipython3
 
     from transformers import AutoModelForSequenceClassification, AutoTokenizer
-    from transformers.onnx import export, FeaturesManager
+    import torch
     
     ONNX_NLP_MODEL_PATH = MODEL_DIRECTORY_PATH / "distilbert.onnx"
     
@@ -172,37 +204,27 @@ NLP model from Hugging Face and export it in ONNX format:
     # initialize tokenizer
     tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english")
     
-    # get model onnx config function for output feature format sequence-classification
-    model_kind, model_onnx_config = FeaturesManager.check_supported_model_or_raise(hf_model, feature="sequence-classification")
-    # fill onnx config based on pytorch model config
-    onnx_config = model_onnx_config(hf_model.config)
-    
-    # export to onnx format
-    export(
-        preprocessor=tokenizer,
-        model=hf_model,
-        config=onnx_config,
-        opset=onnx_config.default_onnx_opset,
-        output=ONNX_NLP_MODEL_PATH,
-    )
+    if not ONNX_NLP_MODEL_PATH.exists():
+        inputs = tokenizer("Hi, how are you?", return_tensors="pt")
+        input_names = list(inputs.keys())
+        dynamic_axes = {input_name: {0: "batch_size", 1: "seq_length"} for input_name in input_names}
+        torch.onnx.export(
+            hf_model, args=dict(inputs), input_names=input_names, output_names=["logits"], dynamic_axes=dynamic_axes, f=ONNX_NLP_MODEL_PATH, opset_version=14
+        )
+        print(f"ONNX model exported to {ONNX_NLP_MODEL_PATH}")
 
 
 .. parsed-literal::
 
-    2024-10-22 22:40:21.522113: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-10-22 22:40:21.555890: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2025-02-03 23:50:32.463242: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2025-02-03 23:50:32.496498: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-10-22 22:40:22.084160: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/distilbert/modeling_distilbert.py:215: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
-      mask, torch.tensor(torch.finfo(scores.dtype).min)
-
-
+    2025-02-03 23:50:33.168481: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
 
-    (['input_ids', 'attention_mask'], ['logits'])
-
+    ONNX model exported to model/distilbert.onnx
 
 
 Fetch
@@ -670,7 +692,7 @@ frameworks conversion guides.
 
 .. parsed-literal::
 
-    2024-10-22 22:40:40.138322: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
+    2025-02-03 23:50:49.384602: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1960] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
     Skipping registering GPU devices...
 
 

@@ -99,11 +99,17 @@ Imports
     # Fetch `notebook_utils` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
     import notebook_utils as utils
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("action-recognition-webcam.ipynb")
 
 The models
 ----------
@@ -153,13 +159,13 @@ and the system automatically downloads the two models
 
 .. parsed-literal::
 
-    model/intel/action-recognition-0001/action-recognition-0001-decoder/FP16/action-recognition-0001-decoder.bin: …
+    action-recognition-0001-decoder.bin:   0%|          | 0.00/14.4M [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    model/intel/action-recognition-0001/action-recognition-0001-encoder/FP16/action-recognition-0001-encoder.bin: …
+    action-recognition-0001-encoder.bin:   0%|          | 0.00/40.6M [00:00<?, ?B/s]
 
 
 Load your labels
@@ -178,10 +184,12 @@ also provides the text file embedded into this notebook.
 .. code:: ipython3
 
     # Download the text from the openvino_notebooks storage
-    vocab_file_path = utils.download_file(
-        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/text/kinetics.txt",
-        directory="data",
-    )
+    
+    if not (Path("data") / "kinetics.txt").exists():
+        vocab_file_path = utils.download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/text/kinetics.txt",
+            directory="data",
+        )
     
     with vocab_file_path.open(mode="r") as f:
         labels = [line.strip() for line in f]
@@ -192,7 +200,7 @@ also provides the text file embedded into this notebook.
 
 .. parsed-literal::
 
-    data/kinetics.txt:   0%|          | 0.00/5.82k [00:00<?, ?B/s]
+    kinetics.txt:   0%|          | 0.00/5.82k [00:00<?, ?B/s]
 
 
 .. parsed-literal::
@@ -676,7 +684,11 @@ multi-camera systems).
     USE_WEBCAM = False
     
     cam_id = 0
-    video_file = "https://archive.org/serve/ISSVideoResourceLifeOnStation720p/ISS%20Video%20Resource_LifeOnStation_720p.mp4"
+    video_url = "https://archive.org/serve/ISSVideoResourceLifeOnStation720p/ISS%20Video%20Resource_LifeOnStation_720p.mp4"
+    video_file = Path("ISS%20Video%20Resource_LifeOnStation_720p.mp4")
+    
+    if not USE_WEBCAM and video_file.exists():
+        utils.download_file(video_url, filename=video_file.name)
     
     source = cam_id if USE_WEBCAM else video_file
     additional_options = {"skip_first_frames": 600, "flip": False} if not USE_WEBCAM else {"flip": True}
@@ -685,14 +697,14 @@ multi-camera systems).
 
 .. parsed-literal::
 
-    Cannot open  https://archive.org/serve/ISSVideoResourceLifeOnStation720p/ISS%20Video%20Resource_LifeOnStation_720p.mp4
+    Cannot open  ISS%20Video%20Resource_LifeOnStation_720p.mp4
 
 
 .. parsed-literal::
 
-    [ WARN:0@6.113] global cap.cpp:164 open VIDEOIO(CV_IMAGES): raised OpenCV exception:
+    [ WARN:0@4.819] global cap.cpp:175 open VIDEOIO(CV_IMAGES): raised OpenCV exception:
     
-    OpenCV(4.10.0) /io/opencv/modules/videoio/src/cap_images.cpp:244: error: (-5:Bad argument) CAP_IMAGES: error, expected '0?[1-9][du]' pattern, got: https://archive.org/serve/ISSVideoResourceLifeOnStation720p/ISS%20Video%20Resource_LifeOnStation_720p.mp4 in function 'icvExtractPattern'
+    OpenCV(4.11.0) /io/opencv/modules/videoio/src/cap_images.cpp:237: error: (-5:Bad argument) CAP_IMAGES: error, expected '0?[1-9][du]' pattern, got: ISS%20Video%20Resource_LifeOnStation_720p.mp4 in function 'icvExtractPattern'
     
     
 

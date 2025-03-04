@@ -1,10 +1,8 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "driver_compiler_adapter.hpp"
-
-#include <ze_graph_ext.h>
 
 #include <regex>
 #include <string_view>
@@ -21,7 +19,6 @@
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "ir_serializer.hpp"
 #include "openvino/core/model.hpp"
-#include "ze_graph_ext_wrappers.hpp"
 
 namespace {
 
@@ -71,8 +68,6 @@ void checkedMemcpy(void* destination, size_t destinationSize, void const* source
  */
 std::string ovPrecisionToLegacyPrecisionString(const ov::element::Type& precision) {
     switch (precision) {
-    case ov::element::Type_t::undefined:
-        return "UNSPECIFIED";
     case ov::element::Type_t::f16:
         return "FP16";
     case ov::element::Type_t::f32:
@@ -81,6 +76,8 @@ std::string ovPrecisionToLegacyPrecisionString(const ov::element::Type& precisio
         return "FP64";
     case ov::element::Type_t::bf16:
         return "BF16";
+    case ov::element::Type_t::nf4:
+        return "NF4";
     case ov::element::Type_t::i4:
         return "I4";
     case ov::element::Type_t::i8:
@@ -148,36 +145,11 @@ DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 
     uint32_t graphExtVersion = _zeroInitStruct->getGraphDdiTable().version();
 
-    _deviceGraphProperties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
-    auto result = _zeroInitStruct->getGraphDdiTable().pfnDeviceGetGraphProperties(_zeroInitStruct->getDevice(),
-                                                                                  &_deviceGraphProperties);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnDeviceGetGraphProperties", result, _zeroInitStruct->getGraphDdiTable());
+    _compilerProperties = _zeroInitStruct->getCompilerProperties();
 
     _logger.info("DriverCompilerAdapter creating adapter using graphExtVersion");
 
-    switch (graphExtVersion) {
-    case ZE_GRAPH_EXT_VERSION_1_3:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_3>>(_zeroInitStruct);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_4:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_4>>(_zeroInitStruct);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_5:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_5>>(_zeroInitStruct);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_6:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_6>>(_zeroInitStruct);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_7:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_7>>(_zeroInitStruct);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_8:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_8>>(_zeroInitStruct);
-        break;
-    default:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_2>>(_zeroInitStruct);
-        break;
-    }
+    _zeGraphExt = std::make_shared<ZeGraphExtWrappers>(_zeroInitStruct);
 
     _logger.info("initialize DriverCompilerAdapter complete, using graphExtVersion: %d.%d",
                  ZE_MAJOR_VERSION(graphExtVersion),
@@ -188,8 +160,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                                        const Config& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compile");
 
-    const ze_graph_compiler_version_info_t& compilerVersion = _deviceGraphProperties.compilerVersion;
-    const auto maxOpsetVersion = _deviceGraphProperties.maxOVOpsetVersionSupported;
+    const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
+    const auto maxOpsetVersion = _compilerProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
     _logger.debug("serialize IR");
@@ -225,14 +197,16 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                          graphHandle,
                                          std::move(networkMeta),
                                          config,
-                                         std::nullopt);
+                                         nullptr);
 }
 
-std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::vector<uint8_t> network, const Config& config) const {
+std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::unique_ptr<BlobContainer> blobPtr,
+                                                     const Config& config) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
     _logger.debug("parse start");
-    ze_graph_handle_t graphHandle = _zeGraphExt->getGraphHandle(network);
+    ze_graph_handle_t graphHandle =
+        _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()), blobPtr->size());
     _logger.debug("parse end");
 
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
@@ -243,15 +217,15 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::vector<uint8_t> networ
                                          graphHandle,
                                          std::move(networkMeta),
                                          config,
-                                         std::optional<std::vector<uint8_t>>(std::move(network)));
+                                         std::move(blobPtr));
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
                                                  const Config& config) const {
     OV_ITT_TASK_CHAIN(query_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "query");
 
-    const ze_graph_compiler_version_info_t& compilerVersion = _deviceGraphProperties.compilerVersion;
-    const auto maxOpsetVersion = _deviceGraphProperties.maxOVOpsetVersionSupported;
+    const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
+    const auto maxOpsetVersion = _compilerProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
     _logger.debug("serialize IR");
@@ -276,6 +250,10 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
 
     _logger.debug("query end");
     return result;
+}
+
+uint32_t DriverCompilerAdapter::get_version() const {
+    return _zeroInitStruct->getCompilerVersion();
 }
 
 /**
@@ -447,10 +425,10 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
             optLevelStr << keyOfOptL << KEY_VALUE_SEPARATOR << "\\d+";
             std::ostringstream perfHintStr;
             perfHintStr << keyOfPerfHO << KEY_VALUE_SEPARATOR << "\\S+";
-            logger.warning("%s property is not suppored by this compiler version. Removing from parameters",
+            logger.warning("%s property is not supported by this compiler version. Removing from parameters",
                            keyOfOptL.c_str());
             valueOfParams = std::regex_replace(valueOfParams, std::regex(optLevelStr.str()), "");
-            logger.warning("%s property is not suppored by this compiler version. Removing from parameters",
+            logger.warning("%s property is not supported by this compiler version. Removing from parameters",
                            keyOfPerfHO.c_str());
             valueOfParams = std::regex_replace(valueOfParams, std::regex(perfHintStr.str()), "");
 
@@ -508,7 +486,7 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
         pinningstr << ov::hint::enable_cpu_pinning.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                    << VALUE_DELIMITER;
         logger.warning(
-            "ENABLE_CPU_PINNING property is not suppored by this compiler version. Removing from parameters");
+            "ENABLE_CPU_PINNING property is not supported by this compiler version. Removing from parameters");
         content = std::regex_replace(content, std::regex(pinningstr.str()), "");
     }
 
@@ -520,9 +498,9 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
         std::ostringstream maxtilestr;
         maxtilestr << ov::intel_npu::max_tiles.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\d+"
                    << VALUE_DELIMITER;
-        logger.warning("NPU_STEPPING property is not suppored by this compiler version. Removing from parameters");
+        logger.warning("NPU_STEPPING property is not supported by this compiler version. Removing from parameters");
         content = std::regex_replace(content, std::regex(stepstr.str()), "");
-        logger.warning("NPU_MAX_TILES property is not suppored by this compiler version. Removing from parameters");
+        logger.warning("NPU_MAX_TILES property is not supported by this compiler version. Removing from parameters");
         content = std::regex_replace(content, std::regex(maxtilestr.str()), "");
     }
 
@@ -532,13 +510,13 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
         precstr << ov::hint::inference_precision.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                 << VALUE_DELIMITER;
         logger.warning(
-            "INFERENCE_PRECISION_HINT property is not suppored by this compiler version. Removing from parameters");
+            "INFERENCE_PRECISION_HINT property is not supported by this compiler version. Removing from parameters");
         content = std::regex_replace(content, std::regex(precstr.str()), "");
     }
 
     /// Replacing NPU_TILES (for all versions) with NPU_DPU_GROUPS for backwards compatibility
     if (std::regex_search(content, std::regex(ov::intel_npu::tiles.name()))) {
-        logger.warning("NPU_TILES property is not suppored by this compiler version. Swaping it to "
+        logger.warning("NPU_TILES property is not supported by this compiler version. Swaping it to "
                        "NPU_DPU_GROUPS (obsolete)");
         content = std::regex_replace(content, std::regex(ov::intel_npu::tiles.name()), "NPU_DPU_GROUPS");
     }
@@ -549,7 +527,7 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
         batchstr << ov::intel_npu::batch_mode.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                  << VALUE_DELIMITER;
 
-        logger.warning("NPU_BATCH_MODE property is not suppored by this compiler version. Removing from parameters");
+        logger.warning("NPU_BATCH_MODE property is not supported by this compiler version. Removing from parameters");
         content = std::regex_replace(content, std::regex(batchstr.str()), "");
     }
 
@@ -559,17 +537,36 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
         batchstr << ov::hint::execution_mode.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                  << VALUE_DELIMITER;
         logger.warning(
-            "EXECUTION_MODE_HINT property is not suppored by this compiler version. Removing from parameters");
+            "EXECUTION_MODE_HINT property is not supported by this compiler version. Removing from parameters");
         content = std::regex_replace(content, std::regex(batchstr.str()), "");
     }
 
-    // NPU_DEFER_WEIGHTS_LOAD is not supported in versions < 6.2 - need to remove it
-    if ((compilerVersion.major < 6) || (compilerVersion.major == 6 && compilerVersion.minor < 2)) {
+    // COMPILER_DYNAMIC_QUANTIZATION is not supported in versions < 7.1 - need to remove it
+    if ((compilerVersion.major < 7) || (compilerVersion.major == 7 && compilerVersion.minor < 1)) {
+        std::ostringstream dqstr;
+        dqstr << ov::intel_npu::compiler_dynamic_quantization.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+              << VALUE_DELIMITER;
+        logger.warning(
+            "COMPILER_DYNAMIC_QUANTIZATION property is not supported by this compiler version. Removing from "
+            "parameters");
+        content = std::regex_replace(content, std::regex(dqstr.str()), "");
+    }
+
+    // NPU_DEFER_WEIGHTS_LOAD is needed at runtime only
+    {
         std::ostringstream batchstr;
         batchstr << ov::intel_npu::defer_weights_load.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                  << VALUE_DELIMITER;
-        logger.warning(
-            "NPU_DEFER_WEIGHTS_LOAD property is not suppored by this compiler version. Removing from parameters");
+        logger.info("NPU_DEFER_WEIGHTS_LOAD property is needed at runtime only. Removing from parameters");
+        content = std::regex_replace(content, std::regex(batchstr.str()), "");
+    }
+
+    // NPU_RUN_INFERENCES_SEQUENTIALLY is needed at runtime only
+    {
+        std::ostringstream batchstr;
+        batchstr << ov::intel_npu::run_inferences_sequentially.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER
+                 << "\\S+" << VALUE_DELIMITER;
+        logger.info("NPU_RUN_INFERENCES_SEQUENTIALLY property is needed at runtime only. Removing from parameters");
         content = std::regex_replace(content, std::regex(batchstr.str()), "");
     }
 
@@ -581,6 +578,10 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
     std::ostringstream turbostring;
     turbostring << ov::intel_npu::turbo.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
     content = std::regex_replace(content, std::regex(turbostring.str()), "");
+    // Remove weights path property as it is not used by compiler
+    std::ostringstream weightspathstream;
+    weightspathstream << ov::weights_path.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
+    content = std::regex_replace(content, std::regex(weightspathstream.str()), "");
     // Remove Bypass UMD Caching propery
     std::ostringstream umdcachestring;
     umdcachestring << ov::intel_npu::bypass_umd_caching.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"

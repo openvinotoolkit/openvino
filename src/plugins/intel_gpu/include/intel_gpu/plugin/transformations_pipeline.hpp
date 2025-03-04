@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,9 +11,9 @@
 
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/device.hpp"
+#include "transformations/convert_precision.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 class TransformationsPipeline {
 public:
@@ -22,10 +22,11 @@ public:
     void apply(std::shared_ptr<ov::Model> func);
 
 private:
+    static bool fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
+
     const ExecutionConfig& config;
     std::shared_ptr<RemoteContextImpl> m_context;
     cldnn::device_info device_info;
 };
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

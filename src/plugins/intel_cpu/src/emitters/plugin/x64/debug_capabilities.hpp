@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,10 +6,9 @@
 
 #ifdef CPU_DEBUG_CAPS
 
-#include "cpu/x64/jit_generator.hpp"
+#    include "cpu/x64/jit_generator.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 // Usage
 // 1. Include this headfile where JIT kennels of CPU plugin are implemented for Register printing
@@ -56,42 +55,39 @@ namespace intel_cpu {
 class RegPrinter {
 public:
     using jit_generator = dnnl::impl::cpu::x64::jit_generator;
-    template <typename PRC_T, typename REG_T,
-    typename std::enable_if<std::is_base_of<Xbyak::Xmm, REG_T>::value, int>::type = 0>
-    static void print(jit_generator &h, REG_T reg, const char *name = nullptr) {
+    template <typename PRC_T, typename REG_T, std::enable_if_t<std::is_base_of_v<Xbyak::Xmm, REG_T>, int> = 0>
+    static void print(jit_generator& h, REG_T reg, const char* name = nullptr) {
         print_vmm<PRC_T, REG_T>(h, reg, name);
     }
-    template <typename PRC_T, typename REG_T,
-    typename std::enable_if<!std::is_base_of<Xbyak::Xmm, REG_T>::value, int>::type = 0>
-    static void print(jit_generator &h, REG_T reg, const char *name = nullptr) {
+    template <typename PRC_T, typename REG_T, std::enable_if_t<!std::is_base_of_v<Xbyak::Xmm, REG_T>, int> = 0>
+    static void print(jit_generator& h, REG_T reg, const char* name = nullptr) {
         print_reg<PRC_T, REG_T>(h, reg, name);
     }
 
 private:
     RegPrinter() {}
     template <typename PRC_T, typename REG_T>
-    static void print_vmm(jit_generator &h, REG_T vmm, const char *name);
+    static void print_vmm(jit_generator& h, REG_T vmm, const char* name);
     template <typename PRC_T, typename REG_T>
-    static void print_reg(jit_generator &h, REG_T reg, const char *name);
+    static void print_reg(jit_generator& h, REG_T reg, const char* name);
     template <typename PRC_T, size_t vlen>
-    static void print_vmm_prc(const char *name, const char *ori_name, PRC_T *ptr);
+    static void print_vmm_prc(const char* name, const char* ori_name, PRC_T* ptr);
     template <typename T>
-    static void print_reg_prc(const char *name, const char *ori_name, T *val);
-    static void preamble(jit_generator &h);
-    static void postamble(jit_generator &h);
+    static void print_reg_prc(const char* name, const char* ori_name, T* val);
+    static void preamble(jit_generator& h);
+    static void postamble(jit_generator& h);
     template <typename T>
-    static void save_vmm(jit_generator &h);
+    static void save_vmm(jit_generator& h);
     template <typename T>
-    static void restore_vmm(jit_generator &h);
-    static void save_reg(jit_generator &h);
-    static void restore_reg(jit_generator &h);
-    static void align_rsp(jit_generator &h);
-    static void restore_rsp(jit_generator &h);
+    static void restore_vmm(jit_generator& h);
+    static void save_reg(jit_generator& h);
+    static void restore_reg(jit_generator& h);
+    static void align_rsp(jit_generator& h);
+    static void restore_rsp(jit_generator& h);
     static constexpr size_t reg_len = 8;
     static constexpr size_t reg_cnt = 16;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu
 
-#endif // CPU_DEBUG_CAPS
+#endif  // CPU_DEBUG_CAPS

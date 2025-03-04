@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,20 +14,20 @@ namespace ov {
 
 namespace intel_cpu {
 
-using ShapeVector = std::vector<ov::intel_cpu::StaticShape>;
+using StaticShapeVector = std::vector<ov::intel_cpu::StaticShape>;
 
-std::vector<StaticShapeRef> make_static_shape_refs(const ShapeVector& shapes);
+std::vector<StaticShapeRef> make_static_shape_refs(const StaticShapeVector& shapes);
 
-ShapeVector shape_inference(ov::Node* op,
-                            const ShapeVector& input_shapes,
-                            const std::unordered_map<size_t, Tensor>& constant_data = {});
+StaticShapeVector shape_inference(ov::Node* op,
+                                  const StaticShapeVector& input_shapes,
+                                  const std::unordered_map<size_t, Tensor>& constant_data = {});
 
 template <class TOp>
 class OpStaticShapeInferenceTest : public testing::Test {
 protected:
     using op_type = TOp;
 
-    ShapeVector input_shapes, output_shapes;
+    StaticShapeVector input_shapes, output_shapes;
     ov::intel_cpu::StaticShape exp_shape;
     std::shared_ptr<TOp> op;
 

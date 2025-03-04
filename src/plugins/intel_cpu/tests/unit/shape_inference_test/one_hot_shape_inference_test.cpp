@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,9 +14,9 @@ using namespace testing;
 
 TEST(StaticShapeInferenceTest, OneHotTestConstantInput) {
     auto indices = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{-1});
-    auto depth = op::v0::Constant::create(element::i64, Shape{}, {2});
-    auto on_value = op::v0::Constant::create(element::u32, Shape{}, {5});
-    auto off_value = op::v0::Constant::create(element::u32, Shape{}, {10});
+    auto depth = op::v0::Constant::create(element::i64, ov::Shape{}, {2});
+    auto on_value = op::v0::Constant::create(element::u32, ov::Shape{}, {5});
+    auto off_value = op::v0::Constant::create(element::u32, ov::Shape{}, {10});
     int64_t axis = -1;
     auto ont_hot = std::make_shared<op::v1::OneHot>(indices, depth, on_value, off_value, axis);
     // Test StaticShape
@@ -27,9 +27,9 @@ TEST(StaticShapeInferenceTest, OneHotTestConstantInput) {
 
 TEST(StaticShapeInferenceTest, OneHotTestConstantMap) {
     auto indices = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{-1});
-    auto depth = std::make_shared<op::v0::Parameter>(element::i64, Shape{});
-    auto on_param = std::make_shared<op::v0::Parameter>(element::i32, Shape{});
-    auto off_param = std::make_shared<op::v0::Parameter>(element::i32, Shape{});
+    auto depth = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{});
+    auto on_param = std::make_shared<op::v0::Parameter>(element::i32, ov::Shape{});
+    auto off_param = std::make_shared<op::v0::Parameter>(element::i32, ov::Shape{});
     int64_t axis = -1;
     auto ont_hot = std::make_shared<op::v1::OneHot>(indices, depth, on_param, off_param, axis);
 
@@ -67,9 +67,9 @@ TEST(StaticShapeInferenceTest, OneHotTestConstantMapDefaultCtor) {
 
 TEST(StaticShapeInferenceTest, OneHotTestConstantMapNegativeDepth) {
     auto indices = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{-1});
-    auto depth = std::make_shared<op::v0::Parameter>(element::i64, Shape{});
-    auto on_param = std::make_shared<op::v0::Parameter>(element::i32, Shape{});
-    auto off_param = std::make_shared<op::v0::Parameter>(element::i32, Shape{});
+    auto depth = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{});
+    auto on_param = std::make_shared<op::v0::Parameter>(element::i32, ov::Shape{});
+    auto off_param = std::make_shared<op::v0::Parameter>(element::i32, ov::Shape{});
     int64_t axis = -1;
     auto ont_hot = std::make_shared<op::v1::OneHot>(indices, depth, on_param, off_param, axis);
 
