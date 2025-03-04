@@ -29,7 +29,7 @@ public:
     virtual void updateTensorsShapes(ACLShapes& aclMemoryShapes) = 0;
     virtual arm_compute::Status validateTensorsInfo(const ACLInfos& aclMemoryInfos) = 0;
     virtual ACLFunction configureFunction(const ACLTensors& aclMemoryTensors) = 0;
-    impl_desc_type implType() const override {
+    [[nodiscard]] impl_desc_type implType() const override {
         return impl_desc_type::acl;
     }
     void execute(const MemoryArgs& memory) override;
@@ -37,7 +37,7 @@ public:
     arm_compute::TensorInfo& getTensorInfo(ACLArgs index) {
         return *aclMemoryInfos[index].get();
     }
-    ~ACLCommonExecutor();
+    ~ACLCommonExecutor() override;
 
 protected:
     ACLTensorAttrs aclTensorAttrs;
