@@ -4,7 +4,7 @@
 
 include(options)
 include(target_flags)
-include(compile_flags/os_flags)
+include(compile_flags/functions)
 
 if(WIN32)
     set (CPACK_GENERATOR "ZIP" CACHE STRING "Cpack generator for OpenVINO")
@@ -116,6 +116,6 @@ if(ENABLE_SVE)
     ov_check_compiler_supports_sve("-march=armv8-a+sve")
 
     if(NOT CXX_HAS_SVE)
-        set(ENABLE_SVE OFF CACHE BOOL "" FORCE)
+        set(ENABLE_SVE OFF CACHE BOOL "Enables ARM64 SVE support" FORCE)
     endif()
 endif()

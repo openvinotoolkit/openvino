@@ -358,10 +358,10 @@ KernelsData SDPAKernelOpt::GetKernelsData(const Params& params) const {
 
         const auto buf_sizes = get_internal_buffer_sizes(prim_params, kernel_idx);
         if (!prim_params.conf.is_paged_attention) {
-            kd.internalBufferSizes.clear();
-            kd.internalBufferSizes.push_back(buf_sizes[0]);
-            kd.internalBufferSizes.push_back(buf_sizes[0]);
-            kd.internalBufferSizes.push_back(buf_sizes[1]);
+            kd.internalBuffers.clear();
+            kd.internalBuffers.push_back(buf_sizes[0]);
+            kd.internalBuffers.push_back(buf_sizes[0]);
+            kd.internalBuffers.push_back(buf_sizes[1]);
             kd.internalBufferDataType = prim_params.inputs[0].GetDType();
         }
 
@@ -432,10 +432,10 @@ void SDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
             kernel_data.kernels[KernelsTypes::FINALIZATION].params.scalars.clear();
             kernel_data.kernels[KernelsTypes::FINALIZATION].params.scalars.push_back(num_of_partitions_scalar);
 
-            kernel_data.internalBufferSizes.clear();
-            kernel_data.internalBufferSizes.push_back(buf_sizes[0]);
-            kernel_data.internalBufferSizes.push_back(buf_sizes[0]);
-            kernel_data.internalBufferSizes.push_back(buf_sizes[1]);
+            kernel_data.internalBuffers.clear();
+            kernel_data.internalBuffers.push_back(buf_sizes[0]);
+            kernel_data.internalBuffers.push_back(buf_sizes[0]);
+            kernel_data.internalBuffers.push_back(buf_sizes[1]);
             kernel_data.internalBufferDataType = prim_params.inputs[0].GetDType();
         }
     };

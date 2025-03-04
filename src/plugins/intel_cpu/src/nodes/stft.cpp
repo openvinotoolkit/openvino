@@ -100,9 +100,9 @@ static void transpose_out4d(const uint8_t* in,
 }  // namespace
 
 void STFT::execute(const dnnl::stream& strm) {
-    const float* signal = getSrcDataAtPortAs<const float>(DATA_IDX);
-    const float* window = getSrcDataAtPortAs<const float>(WINDOW_IDX);
-    float* rdft_result = getDstDataAtPortAs<float>(0);
+    const auto* signal = getSrcDataAtPortAs<const float>(DATA_IDX);
+    const auto* window = getSrcDataAtPortAs<const float>(WINDOW_IDX);
+    auto* rdft_result = getDstDataAtPortAs<float>(0);
     const VectorDims& signal_shape = getSrcMemoryAtPort(DATA_IDX)->getStaticDims();
     const VectorDims& window_shape = getSrcMemoryAtPort(WINDOW_IDX)->getStaticDims();
     const int64_t frame_size = (getSrcDataAtPortAs<const int32_t>(FRAME_SIZE_IDX))[0];
@@ -142,7 +142,7 @@ void STFT::execute(const dnnl::stream& strm) {
                        signal_slice.end(),
                        pad_window.begin(),
                        signal_slice.begin(),
-                       std::multiplies<float>());
+                       std::multiplies<>());
 
         const auto result_idx = (batch_frames_out + frame_idx) * fft_out_shape_size;
         auto twiddles = rdft_executor->generateTwiddles({static_cast<int>(signal_slice.size())}, fft_out_shape, {0});

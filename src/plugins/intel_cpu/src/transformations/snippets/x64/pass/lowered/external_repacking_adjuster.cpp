@@ -98,7 +98,7 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
         // src data + dst data per kernel call
         const auto src_data = N * K * prc.size();
         const auto dst_data =
-            std::accumulate(blk_shape.rbegin(), blk_shape.rbegin() + 3, prc.size(), std::multiplies<size_t>());
+            std::accumulate(blk_shape.rbegin(), blk_shape.rbegin() + 3, prc.size(), std::multiplies<>());
         data_size += src_data + dst_data;
 
         update_kernel(p.second, shape, layout, N, K, prc);
