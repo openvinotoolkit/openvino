@@ -199,14 +199,14 @@ void paged_attention(
                 if (k < seq_past_tokens) {
                     // Retrieve key from cache.
                     int block_id = -1, token_offset = 0;
-                    bool found = find_cached_token(seq_idx,
-                                                   k,
-                                                   block_indices,
-                                                   block_indices_begins,
-                                                   num_blocks,
-                                                   block_size,
-                                                   block_id,
-                                                   token_offset);
+                    bool found = paged_attention_utils::find_cached_token(seq_idx,
+                                                                          k,
+                                                                          block_indices,
+                                                                          block_indices_begins,
+                                                                          num_blocks,
+                                                                          block_size,
+                                                                          block_id,
+                                                                          token_offset);
                     if (!found)
                         continue;
 
@@ -224,25 +224,25 @@ void paged_attention(
                         bool do_rotate = false;
                         int rotated_index = -1;
                         if (rotated_block_indices && rotation_deltas && rotation_trig_lut) {
-                            do_rotate = should_rotate(block_id,
-                                                      rotated_block_indices,
-                                                      rotated_block_indices_shape,
-                                                      rotated_index);
+                            do_rotate = paged_attention_utils::should_rotate(block_id,
+                                                                             rotated_block_indices,
+                                                                             rotated_block_indices_shape,
+                                                                             rotated_index);
                         }
                         if (do_rotate) {
-                            int trig_index = get_trig_index(rotation_deltas,
-                                                            rotation_deltas_shape,
-                                                            rotated_index,
-                                                            token_offset,
-                                                            block_size);
+                            int trig_index = paged_attention_utils::get_trig_index(rotation_deltas,
+                                                                                   rotation_deltas_shape,
+                                                                                   rotated_index,
+                                                                                   token_offset,
+                                                                                   block_size);
                             std::vector<T> temp_key(key_vec, key_vec + head_size);
-                            apply_rope(temp_key.data(),
-                                       head_size,
-                                       reinterpret_cast<const T*>(rotation_trig_lut),
-                                       trig_index);
-                            score_val = dot_product(q_vec, temp_key.data(), head_size);
+                            paged_attention_utils::apply_rope(temp_key.data(),
+                                                              head_size,
+                                                              reinterpret_cast<const T*>(rotation_trig_lut),
+                                                              trig_index);
+                            score_val = paged_attention_utils::dot_product(q_vec, temp_key.data(), head_size);
                         } else {
-                            score_val = dot_product(q_vec, key_vec, head_size);
+                            score_val = paged_attention_utils::dot_product(q_vec, key_vec, head_size);
                         }
                     }
                 } else {
@@ -251,7 +251,7 @@ void paged_attention(
                                                            : (k - seq_past_tokens);
                     int kv_head = h % num_kv_heads;
                     const T* key_vec = key + new_token_idx * kv_shape[1] + kv_head * head_size;
-                    score_val = dot_product(q_vec, key_vec, head_size);
+                    score_val = paged_attention_utils::dot_product(q_vec, key_vec, head_size);
                 }
                 // Apply scale and add alibi bias.
                 score_val *= scale;
@@ -260,7 +260,7 @@ void paged_attention(
                 scores[k] = score_val;
             }
 
-            softmax(scores);
+            paged_attention_utils::softmax(scores);
 
             // --- Compute weighted sum over value vectors ---
             std::vector<T> out_vec(head_size, T(0));
@@ -268,14 +268,14 @@ void paged_attention(
                 T weight = scores[k];
                 if (k < seq_past_tokens) {
                     int block_id = -1, token_offset = 0;
-                    bool found = find_cached_token(seq_idx,
-                                                   k,
-                                                   block_indices,
-                                                   block_indices_begins,
-                                                   num_blocks,
-                                                   block_size,
-                                                   block_id,
-                                                   token_offset);
+                    bool found = paged_attention_utils::find_cached_token(seq_idx,
+                                                                          k,
+                                                                          block_indices,
+                                                                          block_indices_begins,
+                                                                          num_blocks,
+                                                                          block_size,
+                                                                          block_id,
+                                                                          token_offset);
                     if (!found)
                         continue;
                     // Skip accumulation for tokens in the sliding window region.
@@ -291,20 +291,22 @@ void paged_attention(
                     bool do_rotate = false;
                     int rotated_index = -1;
                     if (rotated_block_indices && rotation_deltas && rotation_trig_lut) {
-                        do_rotate =
-                            should_rotate(block_id, rotated_block_indices, rotated_block_indices_shape, rotated_index);
+                        do_rotate = paged_attention_utils::should_rotate(block_id,
+                                                                         rotated_block_indices,
+                                                                         rotated_block_indices_shape,
+                                                                         rotated_index);
                     }
                     if (do_rotate) {
-                        int trig_index = get_trig_index(rotation_deltas,
-                                                        rotation_deltas_shape,
-                                                        rotated_index,
-                                                        token_offset,
-                                                        block_size);
+                        int trig_index = paged_attention_utils::get_trig_index(rotation_deltas,
+                                                                               rotation_deltas_shape,
+                                                                               rotated_index,
+                                                                               token_offset,
+                                                                               block_size);
                         std::vector<T> temp_value(raw_val_vec, raw_val_vec + head_size);
-                        apply_rope(temp_value.data(),
-                                   head_size,
-                                   reinterpret_cast<const T*>(rotation_trig_lut),
-                                   trig_index);
+                        paged_attention_utils::apply_rope(temp_value.data(),
+                                                          head_size,
+                                                          reinterpret_cast<const T*>(rotation_trig_lut),
+                                                          trig_index);
                         for (int d = 0; d < head_size; d++) {
                             out_vec[d] += weight * temp_value[d];
                         }
