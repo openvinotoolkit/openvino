@@ -17,6 +17,5 @@ class TestRavel(PytorchLayerTest):
 
     @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.parametrize("device", ["CPU", "GPU"])
     def test_ravel(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version)
