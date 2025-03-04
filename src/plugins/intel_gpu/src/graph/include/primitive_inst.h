@@ -42,6 +42,7 @@ template <class PType>
 class typed_primitive_inst;
 
 struct ImplementationManager;
+struct BufferDescriptor;
 
 /*
     Base class for all implementations.
@@ -55,8 +56,7 @@ struct primitive_impl {
         primitive_impl(nullptr, std::move(kernel_name), is_dynamic) {}
     virtual ~primitive_impl() = default;
 
-    virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
-    virtual std::set<size_t> get_lockable_internal_buffers() const { return {}; }
+    virtual std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& impl_params) const = 0;
     virtual void set_node_params(const program_node&) {}
     virtual const std::string& get_type_info() const = 0;
     virtual void set_arguments(primitive_inst& instance) = 0;
@@ -146,6 +146,12 @@ struct ImplementationsFactory {
 
     std::shared_ptr<primitive_impl> get_primitive_impl_for_params(primitive_inst& inst, const kernel_impl_params& params, bool use_async_compilation);
     bool has(impl_types impl_type) const;
+};
+
+struct BufferDescriptor {
+    explicit BufferDescriptor(const layout& l, bool lockable = false) : m_lockable(lockable), m_layout(l) {}
+    bool m_lockable = false;
+    layout m_layout;
 };
 
 /*
@@ -515,11 +521,11 @@ private:
         return execute_impl(event, reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
 
-    std::vector<layout> get_internal_buffer_layouts() const override {
-        return get_internal_buffer_layouts_impl();
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& impl_params) const override {
+        return get_internal_buffer_descs_impl(impl_params);
     }
 
-    virtual std::vector<layout> get_internal_buffer_layouts_impl() const {
+    virtual std::vector<BufferDescriptor> get_internal_buffer_descs_impl(const kernel_impl_params&) const {
         return {};
     }
 
