@@ -663,6 +663,8 @@ void kernels_cache::save(BinaryOutputBuffer& ob) const {
 void kernels_cache::load(BinaryInputBuffer& ib) {
     std::unordered_map<uint32_t, std::vector<unsigned char>> precompiled_kernels;
 
+    const auto& build_device = downcast<ocl::ocl_device>(*_device);
+
     size_t num_cached_binaries;
     ib >> num_cached_binaries;
     for (size_t i = 0; i < num_cached_binaries; ++i) {
@@ -676,15 +678,13 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
             // Legacy patchtoken path
             std::string driver_version, current_driver_version;
             ib >> driver_version;
-            current_driver_version  = downcast<ocl::ocl_device>(*_device).get_info().driver_version;
+            current_driver_version = build_device.get_info().driver_version;
 
             if (driver_version != current_driver_version) {
                 OPENVINO_THROW("Driver version mismatch in cached patchtoken kernels");
             }
         }
     }
-
-    const auto& build_device = downcast<ocl::ocl_device>(*_device);
 
     try {
         std::lock_guard<std::mutex> lock(_mutex);
