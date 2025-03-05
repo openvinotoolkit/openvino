@@ -34,9 +34,9 @@ public:
     LLMCompiledModel() = delete;
 
     void export_model(std::ostream& model) const override;
-    static std::shared_ptr<LLMCompiledModel> deserialize(std::istream& stream,
-                                                         const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                         const ov::AnyMap& properties);
+    static std::shared_ptr<LLMCompiledModel> import_model(std::istream& stream,
+                                                          const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                          const ov::AnyMap& properties);
 
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
 
@@ -50,9 +50,15 @@ private:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     void implement_properties();
 
-    void serialize(std::ostream& model,
+    void serialize(std::ostream& stream,
                    bool encrypted = false,
                    const std::function<std::string(const std::string&)>& encypt = nullptr) const;
+    static std::shared_ptr<LLMCompiledModel> deserialize(
+        std::istream& stream,
+        const std::shared_ptr<const ov::IPlugin>& plugin,
+        const ov::AnyMap& properties,
+        bool encrypted = false,
+        const std::function<std::string(const std::string&)>& decrypt = nullptr);
 
     std::string m_name;
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;

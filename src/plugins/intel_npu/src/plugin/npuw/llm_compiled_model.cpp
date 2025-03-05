@@ -770,7 +770,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream,
     LOG_INFO("Done.");
 }
 
-std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserialize(
+std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_model(
     std::istream& stream,
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& properties) {
@@ -818,6 +818,70 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     bool is_weightless = true;
     read(stream, is_weightless);
 
+    if (!encrypted) {
+        auto compiled_model = deserialize(stream, plugin, properties, false, nullptr);
+        LOG_INFO("Done.");
+        return compiled_model;
+    }
+
+    EncryptionCallbacks enc_callbacks;
+    NPUW_ASSERT(properties.count(ov::cache_encryption_callbacks.name()) &&
+                properties.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>().decrypt &&
+                "Model is encrypted but no decrypt function was provided!");
+    enc_callbacks.decrypt = properties.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>().decrypt;
+
+    LOG_INFO("Decryption will be done via the function provided.");
+
+    std::shared_ptr<ov::npuw::LLMCompiledModel> compiled_model = nullptr;
+
+    // Model is encrypted
+    if (is_weightless) {
+        std::string encrypted_str;
+        read(stream, encrypted_str);
+        std::istringstream decrypted_stream(enc_callbacks.decrypt(encrypted_str));
+        compiled_model =
+            deserialize(decrypted_stream, plugin, properties, false, nullptr);  // convert string to ifstream
+    } else {
+        compiled_model = deserialize(stream, plugin, properties, true, enc_callbacks.decrypt);
+    }
+
+    // Deserialize weights bank name
+    std::string bank_name;
+    read(stream, bank_name);
+
+    if (is_weightless) {
+        auto bank = ov::npuw::weights::bank(bank_name, compiled_model->get_plugin()->get_core(), "");
+
+        compiled_model->m_kvcache_compiled->m_weights_bank = bank;
+        compiled_model->m_prefill_compiled->m_weights_bank = bank;
+
+        compiled_model->m_kvcache_compiled->finalize_weights_bank();
+        compiled_model->m_prefill_compiled->finalize_weights_bank();
+    } else {
+        auto bank = ov::npuw::weights::Bank::deserialize(stream, compiled_model->get_plugin()->get_core(), bank_name);
+
+        compiled_model->m_kvcache_compiled->m_weights_bank = bank;
+        compiled_model->m_prefill_compiled->m_weights_bank = bank;
+
+        compiled_model->m_kvcache_compiled->reconstruct_closure();
+        compiled_model->m_prefill_compiled->reconstruct_closure();
+    }
+
+    NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
+
+    LOG_INFO("Done.");
+
+    return compiled_model;
+}
+
+std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserialize(
+    std::istream& stream,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& properties,
+    bool encrypted,
+    const std::function<std::string(const std::string&)>& decrypt) {
+    using namespace ov::npuw::s11n;
+
     auto read_model_meta = [&](std::istream& model_stream) {
         // Deserialize model name first
         std::string model_name;
@@ -853,77 +917,19 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         return compiled;
     };
 
-    auto create_compiled = [&](std::istream& model_stream,
-                               bool encrypted_flag,
-                               const std::function<std::string(const std::string&)>& decrypt) {
-        std::shared_ptr<ov::npuw::LLMCompiledModel> compiled = nullptr;
-        if (encrypted_flag) {
-            std::string encrypted_string;
-            read(model_stream, encrypted_string);
-            std::istringstream decrypted_stream(decrypt(encrypted_string));
-            compiled = read_model_meta(decrypted_stream);
-        } else {
-            compiled = read_model_meta(model_stream);
-        }
-
-        NPUW_ASSERT(compiled && "Couldn't create NPUW compiled model!");
-
-        // Deserialize weights bank name
-        std::string bank_name;
-        read(stream, bank_name);
-
-        if (is_weightless) {
-            auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
-
-            compiled->m_kvcache_compiled->m_weights_bank = bank;
-            compiled->m_prefill_compiled->m_weights_bank = bank;
-
-            compiled->m_kvcache_compiled->finalize_weights_bank();
-            compiled->m_prefill_compiled->finalize_weights_bank();
-        } else {
-            auto bank = ov::npuw::weights::Bank::deserialize(stream, compiled->get_plugin()->get_core(), bank_name);
-
-            compiled->m_kvcache_compiled->m_weights_bank = bank;
-            compiled->m_prefill_compiled->m_weights_bank = bank;
-
-            compiled->m_kvcache_compiled->reconstruct_closure();
-            compiled->m_prefill_compiled->reconstruct_closure();
-        }
-
-        return compiled;
-    };
-
-    if (!encrypted) {
-        auto compiled_model = create_compiled(stream, false, nullptr);
-        LOG_INFO("Done.");
-        return compiled_model;
-    }
-
-    EncryptionCallbacks enc_callbacks;
-    NPUW_ASSERT(properties.count(ov::cache_encryption_callbacks.name()) &&
-                properties.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>().decrypt &&
-                "Model is encrypted but no decrypt function was provided!");
-    enc_callbacks.decrypt = properties.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>().decrypt;
-
-    LOG_INFO("Decryption will be done via the function provided.");
-
-    std::shared_ptr<ov::npuw::LLMCompiledModel> compiled_model = nullptr;
-
-    // Model is encrypted
-    if (is_weightless) {
-        std::string encrypted_str;
-        read(stream, encrypted_str);
-        std::istringstream decrypted_stream(enc_callbacks.decrypt(encrypted_str));
-        compiled_model = create_compiled(decrypted_stream, false, nullptr);  // convert string to ifstream
+    std::shared_ptr<ov::npuw::LLMCompiledModel> compiled = nullptr;
+    if (encrypted) {
+        std::string encrypted_string;
+        read(stream, encrypted_string);
+        std::istringstream decrypted_stream(decrypt(encrypted_string));
+        compiled = read_model_meta(decrypted_stream);
     } else {
-        compiled_model = create_compiled(stream, true, enc_callbacks.decrypt);
+        compiled = read_model_meta(stream);
     }
 
-    NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
+    NPUW_ASSERT(compiled && "Couldn't create NPUW compiled model!");
 
-    LOG_INFO("Done.");
-
-    return compiled_model;
+    return compiled;
 }
 
 std::shared_ptr<const ov::Model> ov::npuw::LLMCompiledModel::get_runtime_model() const {
