@@ -14,6 +14,8 @@ namespace descriptor {
 
 /// @brief Defines tensor name port separator.
 inline constexpr auto port_separator = ':';
+/// @brief Defines unique name separator.
+inline constexpr auto unique_name_sep = '_';
 
 class Tensor;
 class Input;
