@@ -6,7 +6,7 @@
 #include "data_inst.h"
 #include "prior_box_inst.h"
 #include "input_layout_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "register.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include <vector>
@@ -32,7 +32,7 @@ public:
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
     void set_arguments(primitive_inst& /*instance*/) override {}
     void set_arguments(primitive_inst& /*instance*/, kernel_arguments_data& /*args*/) override {}
-    std::vector<layout> get_internal_buffer_layouts() const override { return {}; }
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override { return {}; }
 
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         auto& stream = instance.get_network().get_stream();

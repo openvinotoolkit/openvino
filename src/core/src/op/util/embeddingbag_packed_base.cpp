@@ -84,4 +84,5 @@ EnumNames<op::util::EmbeddingBagPackedBase::Reduction>::get() {
     return enum_names;
 }
 
+AttributeAdapter<op::util::EmbeddingBagPackedBase::Reduction>::~AttributeAdapter() = default;
 }  // namespace ov

@@ -636,24 +636,55 @@ void kernels_cache::add_to_cached_kernels(const std::vector<kernel::ptr>& kernel
 
 void kernels_cache::save(BinaryOutputBuffer& ob) const {
     ob << _cached_binaries.size();
+
+    auto is_zebin = [](const std::vector<unsigned char>& bin) {
+        constexpr uint32_t ELF_MAGIC = 0x464C457F;
+
+        if (bin.size() < sizeof(uint32_t)) {
+            return false;
+        }
+        auto magic = reinterpret_cast<const uint32_t*>(bin.data())[0];
+        return magic == ELF_MAGIC;
+    };
+
     for (auto& cached_binary : _cached_binaries) {
+        auto is_zebin_binary = is_zebin(cached_binary.first);
+
         ob << cached_binary.second;
         ob << cached_binary.first;
+        ob << is_zebin_binary;
+        if (!is_zebin_binary) {
+            auto driver_version = downcast<ocl::ocl_device>(*_device).get_info().driver_version;
+            ob << driver_version;
+        }
     }
 }
 
 void kernels_cache::load(BinaryInputBuffer& ib) {
     std::unordered_map<uint32_t, std::vector<unsigned char>> precompiled_kernels;
 
+    const auto& build_device = downcast<ocl::ocl_device>(*_device);
+
     size_t num_cached_binaries;
     ib >> num_cached_binaries;
     for (size_t i = 0; i < num_cached_binaries; ++i) {
+        bool is_zebin_binary = true;
+
         uint32_t id;
         ib >> id;
         ib >> precompiled_kernels[id];
-    }
+        ib >> is_zebin_binary;
+        if (!is_zebin_binary) {
+            // Legacy patchtoken path
+            std::string driver_version, current_driver_version;
+            ib >> driver_version;
+            current_driver_version = build_device.get_info().driver_version;
 
-    const auto& build_device = downcast<ocl::ocl_device>(*_device);
+            if (driver_version != current_driver_version) {
+                OPENVINO_THROW("Driver version mismatch in cached patchtoken kernels");
+            }
+        }
+    }
 
     try {
         std::lock_guard<std::mutex> lock(_mutex);

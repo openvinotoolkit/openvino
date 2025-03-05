@@ -381,14 +381,12 @@ struct EngineInfo {
     bool supports_intel_subgroups_short = false;
     bool supports_intel_subgroups_char = false;
     bool supports_intel_required_subgroup_size = false;
-    bool supports_local_block_io = false;
     bool supports_queue_families = false;
     bool supports_image = false;
     bool supports_imad = false;
     bool supports_immad = false;
     bool enable_sub_groups_emulation = false;
     bool bOptHintsSupport = false;
-    bool bLocalBlockIOSupport = false;
     bool supports_microkernels = false;
     uint32_t vendor_id = 0x0;
     dev_type deviceType = dev_type::integrated_gpu;

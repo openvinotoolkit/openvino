@@ -76,6 +76,7 @@ public:
         : EnumAttributeAdapterBase<op::v0::DepthToSpace::DepthToSpaceMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v0::DepthToSpace::DepthToSpaceMode>");
+    ~AttributeAdapter() override;
 };
 
 }  // namespace ov

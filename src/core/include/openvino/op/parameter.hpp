@@ -76,6 +76,8 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
+    ~AttributeAdapter() override;
+
     OPENVINO_RTTI("AttributeAdapter<ParameterVector>");
 
 protected:
