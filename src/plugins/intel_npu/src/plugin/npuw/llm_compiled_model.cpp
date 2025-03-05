@@ -818,9 +818,36 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
     bool is_weightless = true;
     read(stream, is_weightless);
 
+    auto read_and_finalize_banks = [&](std::istream& model_stream,
+                                       const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
+        // Deserialize weights bank name
+        std::string bank_name;
+        read(model_stream, bank_name);
+
+        if (is_weightless) {
+            auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
+
+            compiled->m_kvcache_compiled->m_weights_bank = bank;
+            compiled->m_prefill_compiled->m_weights_bank = bank;
+
+            compiled->m_kvcache_compiled->finalize_weights_bank();
+            compiled->m_prefill_compiled->finalize_weights_bank();
+        } else {
+            auto bank =
+                ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
+
+            compiled->m_kvcache_compiled->m_weights_bank = bank;
+            compiled->m_prefill_compiled->m_weights_bank = bank;
+
+            compiled->m_kvcache_compiled->reconstruct_closure();
+            compiled->m_prefill_compiled->reconstruct_closure();
+        }
+    };
+
     if (!encrypted) {
         auto compiled_model = ov::npuw::LLMCompiledModel::deserialize(stream, plugin, properties, false, nullptr);
         NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
+        read_and_finalize_banks(stream, compiled_model);
         LOG_INFO("Done.");
         return compiled_model;
     }
@@ -851,28 +878,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
     }
 
     NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
-
-    // Deserialize weights bank name
-    std::string bank_name;
-    read(stream, bank_name);
-
-    if (is_weightless) {
-        auto bank = ov::npuw::weights::bank(bank_name, compiled_model->get_plugin()->get_core(), "");
-
-        compiled_model->m_kvcache_compiled->m_weights_bank = bank;
-        compiled_model->m_prefill_compiled->m_weights_bank = bank;
-
-        compiled_model->m_kvcache_compiled->finalize_weights_bank();
-        compiled_model->m_prefill_compiled->finalize_weights_bank();
-    } else {
-        auto bank = ov::npuw::weights::Bank::deserialize(stream, compiled_model->get_plugin()->get_core(), bank_name);
-
-        compiled_model->m_kvcache_compiled->m_weights_bank = bank;
-        compiled_model->m_prefill_compiled->m_weights_bank = bank;
-
-        compiled_model->m_kvcache_compiled->reconstruct_closure();
-        compiled_model->m_prefill_compiled->reconstruct_closure();
-    }
+    read_and_finalize_banks(stream, compiled_model);
 
     LOG_INFO("Done.");
 
