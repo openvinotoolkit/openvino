@@ -916,7 +916,7 @@ public:
     }
 
     bool data_is_temporary() const {
-        return bool(m_constant);
+        return m_constant != nullptr;
     }
 
     PostponedConstantReplacer(ov::Node* node) : m_node(node) {
