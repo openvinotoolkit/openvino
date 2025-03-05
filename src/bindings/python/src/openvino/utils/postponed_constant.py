@@ -17,12 +17,18 @@ class PostponedConstant(openvino.Op):
         self.constructor_validate_and_infer_types()
 
     def evaluate(self, outputs: List[openvino.Tensor], _: List[openvino.Tensor]) -> bool:
-        #self.m_maker().copy_to(outputs[0])
-        outputs[0] = self.m_maker()
+        self.m_maker().copy_to(outputs[0])
+        #TODO: change to outputs[0] = self.m_maker()
         return True
 
     def validate_and_infer_types(self) -> None:
         self.set_output_type(0, self.m_element_type, openvino.PartialShape(self.m_shape))
+
+    def clone_with_new_inputs(self, new_inputs):
+        return PostponedConstant(self.m_element_type, self.m_shape, self.m_maker)
+
+    def has_evaluate(self):
+        return True
 
 # `maker` is a function that returns ov.Tensor that represents a target Constant
 def make_postponed_constant(element_type: openvino.Type, shape: openvino.Shape, maker: Callable[[], openvino.Tensor]) -> openvino.Op:
