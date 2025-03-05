@@ -1021,6 +1021,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
         manager.register_pass<ov::pass::Validate>();
 
+        manager.register_pass<ov::pass::GLUFusion>();
+
         float activations_scale_factor = config.get_activations_scale_factor();
 
         if (activations_scale_factor > 0.f && infer_precision == ov::element::f16) {
@@ -1123,7 +1125,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
         manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeSDPAFusion>();
 
-        manager.register_pass<ov::pass::GLUFusion>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
 
         auto kv_cache_compression_dt = config.get_kv_cache_precision();
@@ -1144,6 +1145,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::SinkReshape>();
 
         manager.register_pass<ov::intel_gpu::SwapMulTranspose>();
+
+        manager.register_pass<ov::intel_gpu::VariadicSplitMulFusion>();
 
         if (device_info.supports_immad) {
             bool asymmetric_dyn_quant = GPU_DEBUG_VALUE_OR(config.get_asym_dynamic_quantization(), false);
