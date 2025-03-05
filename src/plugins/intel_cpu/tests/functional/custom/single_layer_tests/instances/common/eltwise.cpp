@@ -27,6 +27,7 @@ const auto params_4D =
                        ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_MemOrder, EltwiseLayerCPUTest, params_4D, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Benchmark_4D_MemOrder, BenchmarkEltwiseLayerCPUTest, params_4D, EltwiseLayerCPUTest::getTestCaseName);
 
 const auto params_4D_Snippets =
     ::testing::Combine(::testing::Combine(::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D())),
