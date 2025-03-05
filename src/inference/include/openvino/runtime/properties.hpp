@@ -1346,4 +1346,10 @@ static constexpr Property<uint64_t, PropertyMutability::RW> key_cache_group_size
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<uint64_t, PropertyMutability::RW> value_cache_group_size{"VALUE_CACHE_GROUP_SIZE"};
+
+/**
+ * @brief Hint for device to use by channel quantization for key cache compression
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<bool, PropertyMutability::RW> key_cache_quant_bychannel{"KEY_CACHE_QUANT_BYCHANNEL"};
 }  // namespace ov

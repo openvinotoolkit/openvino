@@ -967,6 +967,14 @@ MemStatePtr MemoryInputSDPA::makeState() const {
     // retrieve the internal precision and axis order from the SDPA node
     CPU_NODE_ASSERT(node, "SDPA node is not available");
     auto kv_precision = node->getKVCachePrecision();
+    ScaledDotProductAttention::SDPAQuantParam quant_param;
+    if (kv_precision == ov::element::u8) {
+        const auto& edges_to_past_key = node->getParentEdgeAt(node->getParentEdges().size() - 2);
+        const auto& past_key = std::dynamic_pointer_cast<node::MemoryInputBase>(edges_to_past_key->getParent());
+        OPENVINO_ASSERT(past_key);
+        quant_param = past_key->getId() == state_name ? node->getKeyQuantParam() : node->getValueQuantParam();
+    }
+
     VectorDims order = {2, 0, 1, 3};
     if (!node->getKVCacheOrder().empty()) {
         order = node->getKVCacheOrder();
@@ -974,7 +982,11 @@ MemStatePtr MemoryInputSDPA::makeState() const {
 
     auto internal_desc = ArbitraryOrderDescCreator(order).createSharedDesc(kv_precision, outputShapes.at(0));
 
-    return std::make_shared<VariableStateKVcache>(state_name, original_desc, internal_desc);
+    return std::make_shared<VariableStateKVcache>(state_name,
+                                                  original_desc,
+                                                  internal_desc,
+                                                  quant_param.isByChannel,
+                                                  quant_param.groupSize);
 }
 
 void MemoryInputSDPA::runStatic(dnnl::stream strm) {

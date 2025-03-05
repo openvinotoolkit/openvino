@@ -374,6 +374,17 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                key,
                                ". Expected only unsinged integer numbers");
             }
+        } else if (key == ov::key_cache_quant_bychannel.name()) {
+            try {
+                auto const quantByChannel = val.as<bool>();
+                keyCacheQuantByChannel = quantByChannel;
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<bool>(),
+                               " for property key ",
+                               key,
+                               ". Expected only unsinged integer numbers");
+            }
         } else if (key == ov::cache_encryption_callbacks.name()) {
             try {
                 const auto& encryption_callbacks = val.as<EncryptionCallbacks>();
