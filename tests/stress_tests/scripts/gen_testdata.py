@@ -65,23 +65,9 @@ def get_args(parser):
     parser.add_argument('--test_conf', required=True, type=Path,
                         help='Path to a test config .xml file containing models '
                              'which will be downloaded and converted to IRs via OMZ.')
-    parser.add_argument('--omz_repo', required=False,
-                        help='Path to Open Model Zoo (OMZ) repository. It will be used to skip cloning step.')
-    parser.add_argument('--mo_tool', type=Path,
-                        help='Path to Model Optimizer (MO) runner. Required for OMZ converter.py only.')
-    parser.add_argument('--omz_models_out_dir', type=Path,
-                        default=abs_path('../_omz_out/models'),
-                        help='Directory to put test data into. Required for OMZ downloader.py and converter.py.')
-    parser.add_argument('--omz_irs_out_dir', type=Path,
-                        default=abs_path('../_omz_out/irs'),
-                        help='Directory to put test data into. Required for OMZ converter.py only.')
     parser.add_argument('--omz_cache_dir', type=Path,
                         default=abs_path('../_omz_out/cache'),
                         help='Directory with test data cache. Required for OMZ downloader.py only.')
-    parser.add_argument('--no_venv', action="store_true",
-                        help='Skip preparation and use of virtual environment to convert models via OMZ converter.py.')
-    parser.add_argument('--skip_omz_errors', action="store_true",
-                        help='Skip errors caused by OMZ while downloading and converting.')
     parser.add_argument('--ir_cache_dir', type=Path,
                         default=abs_path('../ir_cache'),
                         help='Directory with IR data cache.')
