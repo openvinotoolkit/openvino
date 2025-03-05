@@ -51,6 +51,27 @@ void regclass_graph_Node(py::module m) {
             return std::shared_ptr<ov::Node>(std::make_shared<ov::op::v1::Add>(left, right));
         },
         py::is_operator());
+
+    node.def("__array_ufunc__",
+             [](py::object self, py::object ufunc, const char* method, py::args inputs, py::kwargs kwargs) {
+                 py::object result = py::none();
+                 if (std::strcmp(method, "__call__") == 0) {
+                     if (ufunc.is(py::module::import("numpy").attr("add"))) {
+                         result = self.attr("__radd__")(inputs[0]);
+                     } else if (ufunc.is(py::module::import("numpy").attr("subtract"))) {
+                         result = self.attr("__rsub__")(inputs[0]);
+                     } else if (ufunc.is(py::module::import("numpy").attr("multiply"))) {
+                         result = self.attr("__rmul__")(inputs[0]);
+                     } else if (ufunc.is(py::module::import("numpy").attr("divide"))) {
+                         result = self.attr("__rtruediv__")(inputs[0]);
+                     }
+                     if (result.is_none()) {
+                         throw py::type_error("Unsupported __array_ufunc__ operation between ov.Node and np.array.");
+                     }
+                 }
+                 return result;
+             });
+
     node.def(
         "__radd__",
         [](Common::NodeInput& a, Common::NodeInput& b) {

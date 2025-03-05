@@ -116,9 +116,15 @@ def test_binary_logical_op_with_scalar(graph_api_helper):
         (operator.truediv, "Divide", Type.f32),
     ],
 )
-def test_binary_operators(operator, expected_ov_str, expected_type):
-    value_b = np.array([[4, 5], [1, 7]], dtype=np.float32)
-
+@pytest.mark.parametrize(
+    "value_b",
+    [
+        np.array([[4, 5], [1, 7]], dtype=np.float32),
+        np.array([[5, 6], [7, 8]], dtype=np.float32),
+        ov.parameter([2, 2], name="B", dtype=np.float32),
+    ],
+)
+def test_binary_operators(operator, expected_ov_str, expected_type, value_b):
     shape = [2, 2]
     parameter_a = ov.parameter(shape, name="A", dtype=np.float32)
 
@@ -131,21 +137,27 @@ def test_binary_operators(operator, expected_ov_str, expected_type):
 
 
 @pytest.mark.parametrize(
-    ("operator", "expected_ov_str", "expected_type"),
+    ("operator", "expected_ov_str"),
     [
-        (operator.add, "Add", Type.f32),
-        (operator.sub, "Subtract", Type.f32),
-        (operator.mul, "Multiply", Type.f32),
-        (operator.truediv, "Divide", Type.f32),
+        (operator.add, "Add"),
+        (operator.sub, "Subtract"),
+        (operator.mul, "Multiply"),
+        (operator.truediv, "Divide"),
     ],
 )
-def test_binary_operators_with_scalar(operator, expected_ov_str, expected_type):
-    value_b = np.array([[5, 6], [7, 8]], dtype=np.float32)
-
+@pytest.mark.parametrize(
+    ("expected_type", "value_a", "value_b"),
+    [
+        (Type.f64, ov.parameter([2, 2], name="A", dtype=np.float64), 3.12),
+        (Type.i64, ov.parameter([2, 2], name="A", dtype=np.int64), 2),
+        (Type.f64, 3.12, ov.parameter([2, 2], name="A", dtype=np.float64)),
+        (Type.i64, 2, ov.parameter([2, 2], name="A", dtype=np.int64)),
+        (Type.f32, np.array([[4, 5], [1, 7]], dtype=np.float32), ov.parameter([2, 2], name="B", dtype=np.float32)),
+    ],
+)
+def test_binary_operators_rside(operator, expected_ov_str, expected_type, value_a, value_b):
     shape = [2, 2]
-    parameter_a = ov.parameter(shape, name="A", dtype=np.float32)
-
-    model = operator(parameter_a, value_b)
+    model = operator(value_a, value_b)
 
     assert model.get_type_name() == expected_ov_str
     assert model.get_output_size() == 1
