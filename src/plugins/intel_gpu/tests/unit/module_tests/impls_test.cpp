@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/runtime/layout.hpp"
@@ -11,7 +11,7 @@
 #include "openvino/core/except.hpp"
 #include "primitive_inst.h"
 #include "test_utils.h"
-#include "impls/registry/registry.hpp"
+#include "registry/registry.hpp"
 #include "primitive_type_base.h"
 #include <memory>
 
