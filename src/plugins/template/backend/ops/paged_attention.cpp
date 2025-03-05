@@ -11,7 +11,7 @@ template <ov::element::Type_t ET>
 bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) {
     using T = typename ov::element_type_traits<ET>::value_type;
 
-    ov::reference::paged_attention(outputs[0].data<T>(),
+    ov::reference::paged_attention<T>(outputs[0].data<T>(),
                                    outputs[1].data<T>(),
                                    inputs[0].data<T>(),         // q
                                    inputs[1].data<T>(),         // k
