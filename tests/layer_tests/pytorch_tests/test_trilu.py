@@ -69,13 +69,13 @@ class TestTriuTrilTensor(PytorchLayerTest):
 
             def tril(self, x):
                 return x.tril(self.diagonal), x
-            
+
             def tril_(self, x):
                 return x.tril_(self.diagonal), x
-            
+
             def triu(self, x):
                 return x.triu(self.diagonal), x
-            
+
             def triu_(self, x):
                 return x.triu_(self.diagonal), x
 

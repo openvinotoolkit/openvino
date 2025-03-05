@@ -248,3 +248,5 @@ std::shared_ptr<ov::Symbol> Dimension::get_symbol() const {
 void Dimension::set_symbol(const std::shared_ptr<ov::Symbol>& s) {
     m_symbol = s;
 }
+
+AttributeAdapter<Dimension>::~AttributeAdapter() = default;
