@@ -893,12 +893,11 @@ pass::EliminateScatterUpdate::EliminateScatterUpdate() {
 
 ov::pass::EliminateNopBroadcast::EliminateNopBroadcast() {
     MATCHER_SCOPE(EliminateNopBroadcast);
-    auto root = pattern::wrap_type<op::v1::Broadcast, op::v3::Broadcast, op::v0::Tile>(
-        pattern::op::as_value_predicate([](std::shared_ptr<Node> node) {
-            auto input_rank = node->get_input_partial_shape(0).rank();
-            auto output_rank = node->get_output_partial_shape(0).rank();
-            return input_rank.is_static() && output_rank.is_static() && input_rank == output_rank;
-        }));
+    auto root = pattern::wrap_type<op::v1::Broadcast, op::v3::Broadcast, op::v0::Tile>([](std::shared_ptr<Node> node) {
+        auto input_rank = node->get_input_partial_shape(0).rank();
+        auto output_rank = node->get_output_partial_shape(0).rank();
+        return input_rank.is_static() && output_rank.is_static() && input_rank == output_rank;
+    });
 
     ov::matcher_pass_callback matcher_pass_callback = [](pattern::Matcher& m) {
         const auto& op = m.get_match_root();
