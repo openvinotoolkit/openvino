@@ -20,6 +20,7 @@ def test_compare_functions():
     except RuntimeError:
         print("openvino.test_utils.compare_functions is not available")  # noqa: T201
 
+
 def test_compare_models_pass():
     model = get_relu_model()
     assert compare_models(model, model)
@@ -101,11 +102,11 @@ class Maker:
     def __init__(self):
         self.calls_count = 0
 
-    def __call__(self) -> ov.Tensor:
+    def __call__(self, tensor : ov.Tensor) -> None:
         self.calls_count += 1
-        tensor_data = np.array([2, 2, 2, 2], dtype=np.float32).reshape(1, 1, 2, 2).astype(np.float32)
+        tensor_data = np.array([2, 2, 2, 2], dtype=np.float32).reshape(1, 1, 2, 2)
         print("create tensor")
-        return ov.Tensor(tensor_data)
+        ov.Tensor(tensor_data).copy_to(tensor)
 
     def called_times(self):
         return self.calls_count
@@ -124,6 +125,7 @@ def create_model(maker):
 
     return ov.Model(add_2, [param_node], "test_model")
 
+
 def test_save_postponned_constant():
     maker = Maker()
     model = create_model(maker)
@@ -137,6 +139,7 @@ def test_save_postponned_constant():
 
     os.remove(model_export_file_name)
     os.remove(weights_export_file_name)
+
 
 def test_save_postponned_constant_twice():
     maker = Maker()
@@ -152,6 +155,7 @@ def test_save_postponned_constant_twice():
 
     os.remove(model_export_file_name)
     os.remove(weights_export_file_name)
+
 
 def test_serialize_postponned_constant():
     maker = Maker()
