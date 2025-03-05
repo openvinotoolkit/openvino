@@ -125,9 +125,9 @@ private:
     }
 
     inline Xbyak_riscv::VReg aux_vec(const int idx = 0) const {
-        const auto vstart = src_vec(0).getIdx() + jep_.inputs_number;
+        const auto vstart = src_vec(jep_.inputs_number + 1).getIdx();
         const auto lmul_v = static_cast<int>(lmul2float(exec_lmul));
-        const auto vec_idx = (vstart + idx) * (lmul_v == 0 ? 1 : lmul_v);
+        const auto vec_idx = vstart + idx * (lmul_v == 0 ? 1 : lmul_v);
         OPENVINO_ASSERT(static_cast<size_t>(vec_idx) < (vec_count - lmul_v + 1),
                         "aux vector reg " + std::to_string(vec_idx) + " is not supported");
         return Xbyak_riscv::VReg(vec_idx);
@@ -160,6 +160,7 @@ private:
     // Store vector with pointer increment
     void store_vector(const Xbyak_riscv::Reg& gpr_work_amount, const ov::element::Type& src_prc, const ov::element::Type& dst_prc);
 
+    Xbyak_riscv::LMUL compute_exec_lmul(const ov::element::Type& exec_prc) const;
     Xbyak_riscv::LMUL get_max_lmul(const ov::element::Type& exec_prc) const;
 
     Xbyak_riscv::Reg reg_const_params = Xbyak_riscv::a0;

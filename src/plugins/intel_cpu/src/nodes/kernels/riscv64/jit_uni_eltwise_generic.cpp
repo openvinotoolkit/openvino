@@ -90,10 +90,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
         uni_li(reg_work_amount, static_cast<int>(jep.work_amount));
     }
 
-    // TODO: Support any LMUL values: get_max_lmul(exec_prc)
-    //       Currenly only aux_vec registers don't support any LMUL values (only m1):
-    //       jit emitters should known exact value of LMUL to preserve vec regs with correct idxs
-    exec_lmul = LMUL::m1;
+    exec_lmul = compute_exec_lmul(exec_prc);
     exec_sew = bytes2sew(exec_prc.size());
     OPENVINO_ASSERT(lmul2float(exec_lmul) <= lmul2float(get_max_lmul(exec_prc)),
                     "Unsupported LMUL configuration for the kernel");
@@ -318,6 +315,18 @@ void jit_uni_eltwise_generic<isa>::store_vector(const Xbyak_riscv::Reg& gpr_work
         OPENVINO_THROW("dst " + dst_prc.to_string() + " is not supported, src is " + src_prc.to_string());
     }
     }
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+Xbyak_riscv::LMUL jit_uni_eltwise_generic<isa>::compute_exec_lmul(const ov::element::Type& exec_prc) const {
+    // TODO: Support any LMUL values
+    if (!eltwise_emitter->is_lmul_supported())
+        return LMUL::m1;
+    for (const auto& post_op_emitter : post_op_emitters) {
+        if (!post_op_emitter->is_lmul_supported())
+            return LMUL::m1;
+    }
+    return get_max_lmul(exec_prc);
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>

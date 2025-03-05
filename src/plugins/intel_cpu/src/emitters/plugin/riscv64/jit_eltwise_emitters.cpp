@@ -454,6 +454,10 @@ size_t jit_power_static_emitter::aux_gprs_count() const {
     return 1;
 }
 
+bool jit_power_static_emitter::is_lmul_supported() const {
+    return jit_emitter::is_lmul_supported() && (is_int_pow() || is_sqrt());
+}
+
 size_t jit_power_static_emitter::aux_vecs_count() const {
     if (is_scale_shift())
         return 2;
