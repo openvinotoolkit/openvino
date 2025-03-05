@@ -111,51 +111,11 @@ def main():
                 aa.tail = '\n\t'
                 aa.attrib["precision"] = a[-4] if a[-2]!="optimized" else a[-5]
                 aa.attrib["framework"] = a[-6] if a[-2]!="optimized" else a[-8]
-                #aa.attrib["subdirectory"] = subdirectory
                 aa.attrib["path"] = subdirectory
                 aa.attrib["full_path"] = full_path
                 model_recs.append(aa)
 
     test_conf_obj.write(args.test_conf, xml_declaration=True)
-    exit(0)
-    for model_rec in model_recs:
-        '''
-        if "name" not in model_rec.attrib or model_rec.attrib.get("source") != "omz":
-            continue
-        '''
-        print("I m here")
-
-'''
-        model_name = model_rec.attrib["name"]
-        precision = model_rec.attrib["precision"]
-
- # TODO: FILL THIS DICTIONARY:
-        model_info = {"framework": "TF", "subdirectory": "subdirectory", "precisions": ["FP32", "FP16", "INT8"]}
-
-        # update model record from test config with Open Model Zoo info
-        fields_to_add = ["framework", "subdirectory"]
-        info_to_add = {key: model_info[key] for key in fields_to_add}
-        # check selected precision with model info from Open Model Zoo
-
-        if precision not in model_info['precisions']:
-            log.warning("Please specify precision for the model "
-                        f"{model_name} from the list: {model_info['precisions']}")
-            model_recs.remove(model_rec)
-            continue
-        model_rec.attrib.update(info_to_add)
-        model_rec.attrib["path"] = str(
-            Path(model_rec.attrib["subdirectory"]) / precision / (model_rec.attrib["name"] + ".xml"))
-        model_rec.attrib["full_path"] = str(
-            args.omz_irs_out_dir / model_rec.attrib["subdirectory"] / precision / (model_rec.attrib["name"] + ".xml"))
-
-    for model_rec in model_recs:
-        if model_rec.attrib.get("full_path") is None:
-            log.warning(f"Model {model_rec.attrib['name']} does not have 'full_path' attribute! "
-                        f"This model will not be verified in this run.")
-            model_recs.remove(model_rec)
-'''
-    # rewrite test config with updated records
-    # test_conf_obj.write(args.test_conf)
 
 if __name__ == "__main__":
     main()
