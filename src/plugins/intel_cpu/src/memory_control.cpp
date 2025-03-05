@@ -80,7 +80,7 @@ public:
         m_pInternalMem->free();
     }
 
-    size_t size() const {
+    [[nodiscard]] size_t size() const {
         return m_pInternalMem->size();
     }
 
@@ -94,7 +94,7 @@ class IndividualMemoryBlockWithRelease : public IMemoryBlockObserver {
 public:
     IndividualMemoryBlockWithRelease(std::shared_ptr<MemoryBlockWithRelease> pBlock) : m_pBlock(std::move(pBlock)) {}
 
-    void* getRawPtr() const noexcept override {
+    [[nodiscard]] void* getRawPtr() const noexcept override {
         return m_pBlock->getRawPtr();
     }
     void setExtBuff(void* ptr, size_t size) override {
@@ -105,7 +105,7 @@ public:
         m_max_requested_size = std::max(m_max_requested_size, size);
         return m_pBlock->resize(size);
     }
-    bool hasExtBuffer() const noexcept override {
+    [[nodiscard]] bool hasExtBuffer() const noexcept override {
         return m_pBlock->hasExtBuffer();
     }
     void registerMemory(Memory* memPtr) override {
@@ -121,11 +121,11 @@ public:
         }
     }
 
-    size_t size() const {
+    [[nodiscard]] size_t size() const {
         return m_max_requested_size;
     }
 
-    std::shared_ptr<const MemoryBlockWithRelease> getParentBlock() const {
+    [[nodiscard]] std::shared_ptr<const MemoryBlockWithRelease> getParentBlock() const {
         return m_pBlock;
     }
 
@@ -164,7 +164,7 @@ public:
     void insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) override {
         (void)syncInds;
         auto block = make_unique<BlockType>();
-        CPU_DEBUG_CAP_ENABLE(m_blocks.push_back(*block);)
+        CPU_DEBUG_CAP_ENABLE(m_blocks.emplace_back(*block);)
         m_solution.insert({reg.id, makeDnnlMemoryBlock(std::move(block))});
     }
 
@@ -413,7 +413,7 @@ MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerStatic& obj) {
 }
 
 MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerNonOverlappingSets& obj) {
-    static_assert(std::is_same<MemoryManagerNonOverlappingSets::InternalBlock, IndividualMemoryBlockWithRelease>::value,
+    static_assert(std::is_same_v<MemoryManagerNonOverlappingSets::InternalBlock, IndividualMemoryBlockWithRelease>,
                   "Unexpected block type");
 
     MemoryStatisticsRecord retVal;
@@ -479,7 +479,7 @@ public:
     }
 
 #ifdef CPU_DEBUG_CAPS
-    MemoryStatisticsRecord dumpStatistics() const {
+    [[nodiscard]] MemoryStatisticsRecord dumpStatistics() const {
         return m_statDumper(m_memManager);
     }
 
@@ -620,7 +620,7 @@ std::vector<std::pair<std::string, MemoryStatistics>> NetworkMemoryControl::dump
     std::vector<std::pair<std::string, MemoryStatistics>> retVal;
     retVal.reserve(m_controlUnits.size());
     for (auto&& item : m_controlUnits) {
-        retVal.emplace_back(std::make_pair(item->getId(), item->dumpStatistics()));
+        retVal.emplace_back(item->getId(), item->dumpStatistics());
     }
     return retVal;
 #else
