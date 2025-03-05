@@ -819,7 +819,8 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
     read(stream, is_weightless);
 
     if (!encrypted) {
-        auto compiled_model = deserialize(stream, plugin, properties, false, nullptr);
+        auto compiled_model = ov::npuw::LLMCompiledModel::deserialize(stream, plugin, properties, false, nullptr);
+        NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
         LOG_INFO("Done.");
         return compiled_model;
     }
@@ -839,11 +840,17 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
         std::string encrypted_str;
         read(stream, encrypted_str);
         std::istringstream decrypted_stream(enc_callbacks.decrypt(encrypted_str));
-        compiled_model =
-            deserialize(decrypted_stream, plugin, properties, false, nullptr);  // convert string to ifstream
+        compiled_model = ov::npuw::LLMCompiledModel::deserialize(decrypted_stream,
+                                                                 plugin,
+                                                                 properties,
+                                                                 false,
+                                                                 nullptr);  // convert string to ifstream
     } else {
-        compiled_model = deserialize(stream, plugin, properties, true, enc_callbacks.decrypt);
+        compiled_model =
+            ov::npuw::LLMCompiledModel::deserialize(stream, plugin, properties, true, enc_callbacks.decrypt);
     }
+
+    NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
 
     // Deserialize weights bank name
     std::string bank_name;
@@ -866,8 +873,6 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
         compiled_model->m_kvcache_compiled->reconstruct_closure();
         compiled_model->m_prefill_compiled->reconstruct_closure();
     }
-
-    NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
 
     LOG_INFO("Done.");
 
