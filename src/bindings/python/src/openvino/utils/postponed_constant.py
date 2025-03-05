@@ -3,22 +3,23 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from typing import Callable, List
+from typing import Callable, List, Optional
 import openvino
 
 """Postponed Constant is a way to materialize a big constant only when it is going to be serialized to IR and then immediately dispose."""
 class PostponedConstant(openvino.Op):
-    def __init__(self, element_type: openvino.Type, shape: openvino.Shape, maker: Callable[[], openvino.Tensor]) -> None:
+    def __init__(self, element_type: openvino.Type, shape: openvino.Shape, maker: Callable[[openvino.Tensor], None], name : Optional[str] = None) -> None:
         super().__init__(self)
         self.get_rt_info()["postponed_constant"] = True  # value doesn't matter
         self.m_element_type = element_type
         self.m_shape = shape
         self.m_maker = maker
+        if name is not None:
+            self.friendly_name = name
         self.constructor_validate_and_infer_types()
 
     def evaluate(self, outputs: List[openvino.Tensor], _: List[openvino.Tensor]) -> bool:
-        self.m_maker().copy_to(outputs[0])
-        #TODO: change to outputs[0] = self.m_maker()
+        self.m_maker(outputs[0])
         return True
 
     def validate_and_infer_types(self) -> None:
@@ -31,5 +32,5 @@ class PostponedConstant(openvino.Op):
         return True
 
 # `maker` is a function that returns ov.Tensor that represents a target Constant
-def make_postponed_constant(element_type: openvino.Type, shape: openvino.Shape, maker: Callable[[], openvino.Tensor]) -> openvino.Op:
-    return PostponedConstant(element_type, shape, maker)
+def make_postponed_constant(element_type: openvino.Type, shape: openvino.Shape, maker: Callable[[openvino.Tensor], None], name : Optional[str] = None) -> openvino.Op:
+    return PostponedConstant(element_type, shape, maker, name)
