@@ -56,7 +56,7 @@ SwapMulTranspose::SwapMulTranspose() {
 
         auto sdpa_out = multiply->input(0).get_source_output();
         transpose->input(0).replace_source_output(sdpa_out);
-        for (auto& target: transpose->get_output_target_inputs(0)) {
+        for (auto& target : transpose->get_output_target_inputs(0)) {
             target.replace_source_output(multiply->output(0));
         }
         multiply->input(0).replace_source_output(transpose->output(0));
