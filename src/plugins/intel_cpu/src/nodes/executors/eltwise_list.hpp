@@ -40,7 +40,7 @@ public:
         }
     }
 
-    ~EltwiseExecutorFactory() = default;
+    ~EltwiseExecutorFactory() override = default;
     virtual EltwiseExecutorPtr makeExecutor(const EltwiseAttrs& eltwiseAttrs,
                                             const std::vector<MemoryDescPtr>& srcDescs,
                                             const std::vector<MemoryDescPtr>& dstDescs,

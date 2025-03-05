@@ -41,13 +41,14 @@ template <>
 class OPENVINO_API AttributeAdapter<ov::AxisSet> : public ValueAccessor<std::vector<int64_t>> {
 public:
     AttributeAdapter(ov::AxisSet& value) : m_ref(value) {}
+    OPENVINO_RTTI("AttributeAdapter<AxisSet>");
+    ~AttributeAdapter() override;
 
     const std::vector<int64_t>& get() override;
     void set(const std::vector<int64_t>& value) override;
     operator ov::AxisSet&() {
         return m_ref;
     }
-    OPENVINO_RTTI("AttributeAdapter<AxisSet>");
 
 protected:
     ov::AxisSet& m_ref;
