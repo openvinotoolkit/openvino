@@ -12,11 +12,11 @@
 
 ov::snippets::pass::TransformConvertToConvertTruncation::TransformConvertToConvertTruncation() {
     MATCHER_SCOPE(TransformConvertToConvertTruncation);
-    auto convert = std::make_shared<ov::pass::pattern::op::Label>(ov::pass::pattern::any_input(),
-        [](const std::shared_ptr<const Node> &n) {
+    auto convert = std::make_shared<ov::pass::pattern::op::Label>(
+        ov::pass::pattern::any_input(),
+        [](const std::shared_ptr<const Node>& n) {
             return ov::is_type<ov::opset1::Convert>(n) &&
-                !ov::is_type<op::ConvertTruncation>(n) &&
-                !ov::is_type<op::ConvertSaturation>(n);
+                   !ov::is_type_any_of<op::ConvertTruncation, op::ConvertSaturation>(n);
         });
 
     register_matcher(std::make_shared<ov::pass::pattern::Matcher>(

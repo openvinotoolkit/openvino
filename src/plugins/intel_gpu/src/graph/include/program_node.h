@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "intel_gpu/graph/program.hpp"
