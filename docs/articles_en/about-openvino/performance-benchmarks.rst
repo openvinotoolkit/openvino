@@ -160,10 +160,10 @@ For a listing of all platforms and configurations used for testing, refer to the
 **Disclaimers**
 
 * Intel® Distribution of OpenVINO™ toolkit performance results are based on release
-  2025.0 as of January 28, 2025.
+  2025.0, as of February 13, 2025.
 
 * OpenVINO Model Server performance results are based on release
-  2024.5, as of November 20, 2024.
+  2025.0, as of February 13, 2025.
 
 The results may not reflect all publicly available updates. Intel technologies' features and
 benefits depend on system configuration and may require enabled hardware, software, or service
