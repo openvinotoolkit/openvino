@@ -135,7 +135,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
                     }
                 }
                 assign = ov::as_type<opset6::Assign>(to_node);
-                if (assign) {
+                if (assign != nullptr) {
                     return true;
                 }
             }
@@ -205,7 +205,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
         auto is_optional_one_child = [&pattern_map](const std::vector<std::shared_ptr<Node>>& nodes) {
             for (auto&& node : nodes) {
-                if (pattern_map.count(node)) {
+                if (pattern_map.count(node) != 0u) {
                     auto p = pattern_map.at(node).get_node_shared_ptr();
                     if (p->get_output_target_inputs(0).size() != 1) {
                         return false;
@@ -257,7 +257,8 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         config.is_causal = sdp_node->get_causal();
         config.fuse_concat = true;
 
-        if (pattern_map.count(order_q) && pattern_map.count(order_k) && pattern_map.count(order_v)) {
+        if ((pattern_map.count(order_q) != 0u) && (pattern_map.count(order_k) != 0u) &&
+            (pattern_map.count(order_v) != 0u)) {
             const auto order_q_node = ov::as_type_ptr<opset6::Constant>(pattern_map.at(order_q).get_node_shared_ptr());
             const auto order_k_node = ov::as_type_ptr<opset6::Constant>(pattern_map.at(order_k).get_node_shared_ptr());
             const auto order_v_node = ov::as_type_ptr<opset6::Constant>(pattern_map.at(order_v).get_node_shared_ptr());
@@ -278,13 +279,13 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         new_node->set_friendly_name(old_node->get_friendly_name());
         copy_runtime_info(old_node, new_node);
         ov::replace_node(old_node, {new_node->output(0)});
-        if (assign_cvt_k_node) {
+        if (assign_cvt_k_node != nullptr) {
             assign_cvt_k_node->set_arguments({new_node->output(1)});
         } else {
             assign_k_node->set_arguments({new_node->output(1)});
         }
 
-        if (assign_cvt_v_node) {
+        if (assign_cvt_v_node != nullptr) {
             assign_cvt_v_node->set_arguments({new_node->output(2)});
         } else {
             assign_v_node->set_arguments({new_node->output(2)});

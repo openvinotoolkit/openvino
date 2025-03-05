@@ -102,7 +102,7 @@ bool pass::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& li
             if (!uni_loop) {
                 uni_loop = ov::as_type_ptr<snippets::lowered::ExpandedLoopInfo>(loop)->get_unified_loop_info();
             }
-            if (!m_affected_loops.count(uni_loop) && update_loop_info(uni_loop)) {
+            if ((m_affected_loops.count(uni_loop) == 0u) && update_loop_info(uni_loop)) {
                 m_affected_loops.insert(uni_loop);
                 modified = true;
             }

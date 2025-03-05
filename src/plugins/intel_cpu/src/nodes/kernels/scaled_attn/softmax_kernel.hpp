@@ -1105,7 +1105,8 @@ inline void attn_softmax_kernel<float>(float* a,
                                                   scale_add2_reduce_max<true, false, true>,
                                                   scale_add2_reduce_max<true, true, false>,
                                                   scale_add2_reduce_max<true, true, true>};
-    int dispatch = (alibi ? 0b100 : 0) | (attn_mask ? 0b010 : 0) | (causal_mask ? 0b001 : 0);
+    int dispatch = ((alibi != nullptr) ? 0b100 : 0) | ((attn_mask != nullptr) ? 0b010 : 0) |
+                   ((causal_mask != nullptr) ? 0b001 : 0);
     float max = std::numeric_limits<float>::lowest();
     if (attn_mask_prec == ov::element::f32) {
         funcs_fp32[dispatch](a,

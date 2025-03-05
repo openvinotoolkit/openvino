@@ -372,7 +372,7 @@ bool FullyConnected::canFuse(const NodePtr& node) const {
 #endif
     if (node->getType() == Type::FakeQuantize) {
         auto* fq = dynamic_cast<FakeQuantize*>(node.get());
-        if (!fq) {
+        if (fq == nullptr) {
             DEBUG_LOG("Invalid dynamic_cast FakeQuantize pointer");
             return false;
         }
@@ -552,7 +552,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     nodeConfig.inConfs.resize(srcDescs.size());
 
     for (const auto& desc : nodeDescriptors) {
-        if (m_atoi.count(desc.first)) {
+        if (m_atoi.count(desc.first) != 0u) {
             nodeConfig.inConfs[m_atoi[desc.first]] = desc.second;
         }
     }

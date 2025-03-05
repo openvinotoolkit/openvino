@@ -24,7 +24,7 @@ BrgemmCopyBLoopPortsAdjuster::BrgemmCopyBLoopPortsAdjuster(const ov::snippets::l
     for (const auto& p : loop_map) {
         if (const auto& exp_loop = ov::as_type_ptr<snippets::lowered::ExpandedLoopInfo>(p.second)) {
             const auto& uni_loop = exp_loop->get_unified_loop_info();
-            if (affected_uni_loops.count(uni_loop)) {
+            if (affected_uni_loops.count(uni_loop) != 0u) {
                 m_affected_uni2exp_map[uni_loop].push_back(exp_loop);
             }
         }

@@ -911,7 +911,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         attn_buf.resize<float>(attn_input->getStaticDims());
         auto p = attn_input->getDataAs<uint8_t>();
         for (size_t i = 0; i < attn_input->getSize(); i++) {
-            attn_buf.ptr<float>()[i] = p[i] ? 0.0f : -FLT_MAX;
+            attn_buf.ptr<float>()[i] = (p[i] != 0u) ? 0.0f : -FLT_MAX;
         }
     }
 

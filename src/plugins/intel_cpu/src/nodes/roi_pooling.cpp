@@ -76,12 +76,12 @@ struct jit_uni_roi_pooling_kernel_f32 : public jit_uni_roi_pooling_kernel, publi
 
         int nb_c_tail = jpp_.nb_c % jpp_.nb_c_blocking;
         cmp(reg_c_blocks, jpp_.nb_c_blocking);
-        jne(nb_c_tail ? tail_label : exit_label, T_NEAR);
+        jne((nb_c_tail != 0) ? tail_label : exit_label, T_NEAR);
 
         loop_body(jpp_.nb_c_blocking);
         jmp(exit_label, T_NEAR);
 
-        if (nb_c_tail) {
+        if (nb_c_tail != 0) {
             L(tail_label);
             loop_body(nb_c_tail);
         }
@@ -482,7 +482,7 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
 
 void ROIPooling::createPrimitive() {
     auto selectedPD = getSelectedPrimitiveDescriptor();
-    if (!selectedPD) {
+    if (selectedPD == nullptr) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
 

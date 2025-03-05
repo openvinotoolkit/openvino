@@ -210,10 +210,10 @@ void Reorder::prepareParams() {
         if (!desc.isDefined()) {
             return false;
         }
-        if (!(desc.getType() & MemoryDescType::Blocked)) {
+        if ((desc.getType() & MemoryDescType::Blocked) == 0) {
             return false;
         }
-        if ((desc.getType() & MemoryDescType::Dnnl) && !desc.as<const DnnlMemoryDesc>()->hasEmptyExtraData()) {
+        if (((desc.getType() & MemoryDescType::Dnnl) != 0) && !desc.as<const DnnlMemoryDesc>()->hasEmptyExtraData()) {
             return false;
         }
         return true;
@@ -277,7 +277,7 @@ void Reorder::prepareParams() {
 
 void Reorder::createReorderPrimitive(const DnnlMemoryDescPtr& srcDesc, const DnnlMemoryDescPtr& dstDesc) {
     auto selectedPD = getSelectedPrimitiveDescriptor();
-    if (!selectedPD) {
+    if (selectedPD == nullptr) {
         THROW_CPU_NODE_ERR("does not have preferable primitive descriptor.");
     }
 

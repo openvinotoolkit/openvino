@@ -67,7 +67,7 @@ public:
                 blkN_leftover--;
                 blkN++;
             }
-            if (blkN) {
+            if (blkN != 0) {
                 auto shared_atomic = std::make_shared<std::atomic_int>(0);
 
                 // split K dimension in unit of 32 evenly among 2 worker-threads
@@ -151,8 +151,8 @@ public:
 
                 auto sync_id = work.sync_flag->fetch_add(1);
                 // (0,1) (2,3)
-                if (sync_id & 1) {
-                    auto peer_ithr = (ithr & 1) ? (ithr - 1) : (ithr + 1);
+                if ((sync_id & 1) != 0) {
+                    auto peer_ithr = ((ithr & 1) != 0u) ? (ithr - 1) : (ithr + 1);
                     auto* p_peerC = works[peer_ithr].m_C.template ptr<float>();
                     // the other one has finished, we can do the reduce sum
                     auto* p_curC = workC.template ptr<float>();
@@ -223,7 +223,7 @@ public:
                 blkN_leftover--;
                 blkN++;
             }
-            if (blkN) {
+            if (blkN != 0) {
                 auto& work = works[ithr];
                 work.sync_flag = std::make_shared<std::atomic_int>(0);
                 work.blk_K_size = cache_blk_k_size;
@@ -625,11 +625,11 @@ bool LLMMLP::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                 return false;
             }
 
-            if (down_size % REG_BLK_K_SIZE) {
+            if ((down_size % REG_BLK_K_SIZE) != 0) {
                 errorMessage = "LLMMLPNode down_proj size is not multiple of register blocking size";
                 return false;
             }
-            if (up_size % REG_BLK_N_SIZE) {
+            if ((up_size % REG_BLK_N_SIZE) != 0) {
                 errorMessage = "LLMMLPNode up_proj size is not multiple of register blocking size";
                 return false;
             }

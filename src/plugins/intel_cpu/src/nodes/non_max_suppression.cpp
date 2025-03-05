@@ -70,7 +70,7 @@ NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ov::Node>& op, const 
         m_sort_result_descending = nms9->get_sort_result_descending();
         m_coord_num = 4lu;
     } else if (auto nmsIe = as_type<const op::internal::NonMaxSuppressionIEInternal>(op.get())) {
-        boxEncodingType = nmsIe->m_center_point_box ? NMSBoxEncodeType::CENTER : NMSBoxEncodeType::CORNER;
+        boxEncodingType = (nmsIe->m_center_point_box != 0) ? NMSBoxEncodeType::CENTER : NMSBoxEncodeType::CORNER;
         m_sort_result_descending = nmsIe->m_sort_result_descending;
         m_coord_num = 4lu;
     } else if (auto nms = as_type<const op::v13::NMSRotated>(op.get())) {

@@ -105,7 +105,7 @@ void TppEmitter::emit_impl(const std::vector<size_t>& in, const std::vector<size
 
     const auto data_ptr_reg = [&](Xmm xmm, Xbyak::Reg64 reg, size_t bytes_offset) {
         h->uni_vmovq(reg, xmm);
-        if (bytes_offset) {
+        if (bytes_offset != 0u) {
             h->add(reg, bytes_offset);
         }
     };

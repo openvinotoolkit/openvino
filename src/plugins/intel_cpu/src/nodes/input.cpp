@@ -37,7 +37,7 @@ struct jit_has_special_value_base : public jit_generator {
     }
 
     fn_t get() {
-        return jit_ker() || create_kernel() == dnnl::impl::status::success ? (fn_t)jit_ker() : nullptr;
+        return (jit_ker() != nullptr) || create_kernel() == dnnl::impl::status::success ? (fn_t)jit_ker() : nullptr;
     }
 
 protected:
@@ -399,7 +399,7 @@ void Input::cloneBlobIfRequired() {
             auto const* u32data = m_constOp->get_data_ptr<uint32_t>();
             auto const* f32data = m_constOp->get_data_ptr<float>();
 
-            if (!size) {
+            if (size == 0u) {
                 return;
             }
             // Only bf16 inferencePrecision cases need to be checked for saturation
@@ -409,7 +409,7 @@ void Input::cloneBlobIfRequired() {
 #if defined(OPENVINO_ARCH_X86_64)
             auto fn = jit_has_subnormals_function();
             auto fn_bf16_check = jit_has_bf16_overflows_function();
-            if (fn && fn_bf16_check) {
+            if ((fn != nullptr) && (fn_bf16_check != nullptr)) {
                 static const size_t batch_size = 2048;
                 const size_t iterations_num = size / batch_size + 1;
 
@@ -746,7 +746,7 @@ void Input::resolveInPlaceEdges(Edge::LOOK look) {
         return Node::resolveInPlaceEdges(look);
     }
 
-    if (look & Edge::LOOK_UP) {
+    if ((look & Edge::LOOK_UP) != 0) {
         auto edges = getChildEdgesAtPort(0);
         for (const auto& edge : edges) {
             EdgePtr sharedEdge = edge;
@@ -759,7 +759,7 @@ void Input::resolveInPlaceEdges(Edge::LOOK look) {
         }
     }
 
-    if (look & Edge::LOOK_DOWN) {
+    if ((look & Edge::LOOK_DOWN) != 0) {
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             auto edge = getParentEdgeAt(i);
             EdgePtr sharedEdge = edge;

@@ -227,7 +227,7 @@ public:
     StaticShapeAdapter(const ov::PartialShape&);
 
     operator StaticShape() const {
-        return m_dims ? StaticShape(*m_dims) : StaticShape();
+        return (m_dims != nullptr) ? StaticShape(*m_dims) : StaticShape();
     }
 
     const TDims& operator*() const& noexcept {
@@ -269,7 +269,7 @@ public:
 
     //-- Container functions
     [[nodiscard]] const_iterator cbegin() const noexcept {
-        return m_dims ? m_dims->cbegin() : const_iterator{};
+        return (m_dims != nullptr) ? m_dims->cbegin() : const_iterator{};
     }
 
     [[nodiscard]] const_iterator begin() const noexcept {
@@ -277,7 +277,7 @@ public:
     }
 
     [[nodiscard]] const_iterator cend() const noexcept {
-        return m_dims ? m_dims->cend() : const_iterator{};
+        return (m_dims != nullptr) ? m_dims->cend() : const_iterator{};
     }
 
     [[nodiscard]] const_iterator end() const noexcept {
@@ -285,11 +285,11 @@ public:
     }
 
     [[nodiscard]] size_t size() const noexcept {
-        return m_dims ? m_dims->size() : 0;
+        return (m_dims != nullptr) ? m_dims->size() : 0;
     }
 
     [[nodiscard]] bool empty() const {
-        return m_dims ? m_dims->empty() : true;
+        return (m_dims != nullptr) ? m_dims->empty() : true;
     }
 
 private:

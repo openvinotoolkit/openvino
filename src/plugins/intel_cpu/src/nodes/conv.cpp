@@ -406,7 +406,7 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
     static const std::vector<impl_desc_type> priorities_wo_brgemm = [&] {
         std::vector<impl_desc_type> result;
         std::copy_if(priorities.begin(), priorities.end(), std::back_inserter(result), [](impl_desc_type type) {
-            return !(type & impl_desc_type::brgconv);
+            return (type & impl_desc_type::brgconv) == 0;
         });
         return result;
     }();
@@ -438,7 +438,7 @@ void Convolution::getSupportedDescriptors() {
 
         if (i->getAlgorithm() == Algorithm::EltwiseAdd) {
             auto* eltwiseNode = dynamic_cast<Eltwise*>(i.get());
-            if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
+            if ((eltwiseNode != nullptr) && eltwiseNode->isSpecialConvolutionAddFusing()) {
                 expectedInputEdgesNum++;
             }
         }
@@ -465,7 +465,7 @@ void Convolution::getSupportedDescriptors() {
         for (auto& i : fusedWith) {
             if (i->getAlgorithm() == Algorithm::EltwiseAdd) {
                 auto* eltwiseNode = dynamic_cast<Eltwise*>(i.get());
-                if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
+                if ((eltwiseNode != nullptr) && eltwiseNode->isSpecialConvolutionAddFusing()) {
                     eltwisePrecision = fusedEltwisePrecision(i);
                     if (DnnlExtensionUtils::DataTypeToElementType(outputDataType).size() != eltwisePrecision.size()) {
                         eltwisePrecision = ov::element::f32;
@@ -496,7 +496,7 @@ void Convolution::getSupportedDescriptors() {
 
     for (size_t i = 0; i < fusedWith.size(); i++) {
         auto* convolutionNode = dynamic_cast<Convolution*>(fusedWith[i].get());
-        if (convolutionNode) {
+        if (convolutionNode != nullptr) {
             auto& inActivationDims = convolutionNode->inputShapes[0].getStaticDims();
             dw_conv_ih = inActivationDims[convolutionNode->inputShapes[0].getRank() - 2];
             dw_conv_iw = inActivationDims[convolutionNode->inputShapes[0].getRank() - 1];
@@ -583,7 +583,7 @@ void Convolution::getSupportedDescriptors() {
     for (auto& i : fusedWith) {
         if (i->getAlgorithm() == Algorithm::EltwiseAdd) {
             auto* eltwiseNode = dynamic_cast<Eltwise*>(i.get());
-            if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
+            if ((eltwiseNode != nullptr) && eltwiseNode->isSpecialConvolutionAddFusing()) {
                 eltwisePrecision = fusedEltwisePrecision(i);
                 // TODO(amalyshe): there might be situation when convolution can be executed in BF16,
                 // output is required in FP32 but eltwise inplace tensor would be in BF16
@@ -724,12 +724,12 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
                     auto& nextNode = fusedWith[j];
 
                     auto* nextEltwiseNode = dynamic_cast<Eltwise*>(nextNode.get());
-                    if (nextEltwiseNode && nextEltwiseNode->isSpecialConvolutionAddFusing()) {
+                    if ((nextEltwiseNode != nullptr) && nextEltwiseNode->isSpecialConvolutionAddFusing()) {
                         hasSubsequentSum = true;
                     }
 
                     auto* nextQuantizeNode = dynamic_cast<FakeQuantize*>(nextNode.get());
-                    if (nextQuantizeNode) {
+                    if (nextQuantizeNode != nullptr) {
                         hasSubsequentFQ = true;
                     }
                 }
@@ -756,7 +756,7 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
         }
 
         auto* convolutionNode = dynamic_cast<Convolution*>(node.get());
-        if (convolutionNode) {
+        if (convolutionNode != nullptr) {
             if (initWeights) {
                 args[DNNL_ARG_ATTR_POST_OP_DW | DNNL_ARG_WEIGHTS] = getSrcMemoryAtPort(getOriginalInputsNumber() + 0);
                 args[DNNL_ARG_ATTR_POST_OP_DW | DNNL_ARG_BIAS] = getSrcMemoryAtPort(getOriginalInputsNumber() + 1);
@@ -800,7 +800,7 @@ void Convolution::initSupportedPrimitiveDescriptors() {
     }
 
     auto getBlockedMask = [](const std::shared_ptr<MemoryDesc>& memDesc, const bool isGrouped) {
-        if (memDesc->getType() & MemoryDescType::Blocked && !isGrouped) {
+        if (((memDesc->getType() & MemoryDescType::Blocked) != 0) && !isGrouped) {
             return BlockedMemoryDesc::EMPTY_MASK;
         }
         return BlockedMemoryDesc::FULL_MASK;
@@ -1179,7 +1179,7 @@ void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr>& att
 void Convolution::initDescriptor(const NodeConfig& config) {
     auto* selectedPD = getSelectedPrimitiveDescriptor();
 
-    if (!selectedPD) {
+    if (selectedPD == nullptr) {
         return;
     }
 
@@ -1363,7 +1363,7 @@ bool Convolution::isNspcAvailable() const {
         if (!mayiuse(impl::cpu::x64::avx)) {
             // SSE41 nspc convolutions do not support ic and oc tails yet and the blocked implementation will be much
             // better than gemm
-            if ((IC % 8) || (OC % 8)) {
+            if (((IC % 8) != 0u) || ((OC % 8) != 0u)) {
                 return false;
             }
         }
@@ -1530,7 +1530,7 @@ void Convolution::prepareParams() {
             return nullptr;
         }
 
-        if (key.attr.get()->post_ops_.count(dnnl::impl::primitive_kind::sum)) {
+        if (key.attr.get()->post_ops_.count(dnnl::impl::primitive_kind::sum) != 0) {
             return std::make_shared<ConvolutionSumExecutor>(reorderConvDesc,
                                                             key.inp0->getDnnlDesc(),
                                                             key.inp1->getDnnlDesc(),
@@ -1645,7 +1645,7 @@ void Convolution::ConvolutionSumExecutor::reorder_exec(std::unordered_map<int, d
                                                        const dnnl::stream& strm) {
     auto outputMem = primArgs.at(DNNL_ARG_DST);
     for (auto& inReorder : inputReorders) {
-        if (primArgs.count(inReorder.first)) {
+        if (primArgs.count(inReorder.first) != 0u) {
             dnnl::memory memDst(inReorder.second.getDstDesc(), strm.get_engine());
             inReorder.second.exec(primArgs[inReorder.first], memDst, strm);
             primArgs[inReorder.first] = memDst;
@@ -1798,7 +1798,7 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
     if (!inputZeroPoints.empty() || !legacyInputZeroPoints.empty()) {
         THROW_CPU_NODE_ERR("input zero point is not empty");
     }
-    if (inputZpSize) {
+    if (inputZpSize != 0u) {
         inputZeroPointType = zpType::PerTensor;
     }
     for (size_t j = 0; j < inputZpSize; j++) {

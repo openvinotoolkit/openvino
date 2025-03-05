@@ -290,7 +290,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
 
             BlockedMemoryDesc::CmpMask inputMask = BlockedMemoryDesc::SKIP_OFFSET_MASK;
             PortConfig portConfig;
-            portConfig.inPlace((!i && canBeInPlace() && equalPrecisions) ? 0 : -1);
+            portConfig.inPlace(((i == 0u) && canBeInPlace() && equalPrecisions) ? 0 : -1);
             portConfig.constant(false);
             if (inputShapes[i].getDims()[0] == 1) {
                 inputMask.reset(0);  // accepts any stride on batch axis

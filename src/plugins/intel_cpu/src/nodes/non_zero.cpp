@@ -44,7 +44,7 @@ void NonZero::getSupportedDescriptors() {
     if (getParentEdges().size() != 1) {
         THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
     }
-    if (!getChildEdges().size()) {
+    if (getChildEdges().size() == 0u) {
         THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getChildEdges().size());
     }
 }

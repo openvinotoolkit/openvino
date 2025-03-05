@@ -1250,7 +1250,7 @@ void DeformableConvolution::prepareParams() {
     }
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
-    if (!selectedPrimitiveDescriptor) {
+    if (selectedPrimitiveDescriptor == nullptr) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
     auto config = selectedPrimitiveDescriptor->getConfig();
@@ -1360,7 +1360,7 @@ void DeformableConvolution::execute(const dnnl::stream& strm) {
     auto* dst = dstMemory.getDataAs<float>();
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
-    if (!selectedPrimitiveDescriptor) {
+    if (selectedPrimitiveDescriptor == nullptr) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
     auto config = selectedPrimitiveDescriptor->getConfig();
