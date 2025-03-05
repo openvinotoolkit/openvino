@@ -408,7 +408,7 @@ protected:
             if (n->get_friendly_name() == "Compressed_weights") {
                 ASSERT_EQ(n->get_output_element_type(0), weights_precision);
             }
-            if (n->get_friendly_name().find("fused_3_MatMuls") != std::string::npos) {
+            if (n->get_friendly_name().find("fused_3_LoRA") != std::string::npos) {
                 is_lora_fused = true;
             }
         }
