@@ -10,7 +10,6 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/constant_folding.hpp"
@@ -68,7 +67,7 @@ std::shared_ptr<GroupConvolution> create_group_conv_with_gather(Output<Node> inp
                                            Constant::create(element::i64, Shape{order.size()}, order),
                                            Constant::create(element::i64, Shape{1}, {0}));
     return std::make_shared<GroupConvolution>(input,
-                                              ov::util::get_constant_from_source(gather),
+                                              gather,
                                               ov::Strides{1, 1},
                                               ov::CoordinateDiff{0, 0},
                                               ov::CoordinateDiff{0, 0},
@@ -82,7 +81,7 @@ std::shared_ptr<Convolution> create_conv_with_gather(Output<Node> input,
                                            Constant::create(element::i64, Shape{order.size()}, order),
                                            Constant::create(element::i64, Shape{1}, {1}));
     return std::make_shared<Convolution>(input,
-                                         ov::util::get_constant_from_source(gather),
+                                         gather,
                                          ov::Strides{1, 1},
                                          ov::CoordinateDiff{0, 0},
                                          ov::CoordinateDiff{0, 0},
@@ -133,8 +132,9 @@ TEST_F(TransformationTestsF, RICFusionSimple) {
         auto conv = create_conv(relu, {6, 3, 3, 3});
 
         model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
+
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -173,8 +173,9 @@ TEST_F(TransformationTestsF, RICFusionHard) {
 
         model = std::make_shared<Model>(NodeVector{conv, conv2}, ParameterVector{input, input2});
 
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
+
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
     {
         auto input = create_param({-1, -1, -1, -1});
@@ -231,8 +232,9 @@ TEST_F(TransformationTestsF, RICFusionHardNegativePad12) {
 
         model = std::make_shared<Model>(NodeVector{conv, conv2}, ParameterVector{input, input2});
 
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
+
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
     {
         auto input = create_param({-1, -1, -1, -1});
@@ -273,8 +275,9 @@ TEST_F(TransformationTestsF, RICFusionDynamic) {
         auto conv = create_conv(relu, {6, 3, 3, 3});
 
         model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
+
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -295,14 +298,15 @@ TEST_F(TransformationTestsF, RICFusionEltwise1) {
         auto conv = create_conv(add, {6, 3, 3, 3});
 
         model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
+
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
         auto input = create_param({1, 3, 64, 64});
         auto gather = create_gather(Constant::create(element::f32, Shape{3, 1, 1}, {0.1, 0.2, 0.3}), {2, 1, 0}, 0);
-        auto add = std::make_shared<Add>(input, ov::util::get_constant_from_source(gather));
+        auto add = std::make_shared<Add>(input, gather);
         auto conv = create_conv_with_gather(add, {6, 3, 3, 3}, {2, 1, 0});
         model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
     }
@@ -319,8 +323,9 @@ TEST_F(TransformationTestsF, RICFusionEltwise2) {
         auto conv = create_conv(add, {6, 3, 3, 3});
 
         model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
+
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -342,8 +347,9 @@ TEST_F(TransformationTestsF, RICFusionEltwise3) {
         auto conv = create_conv(add, {6, 3, 3, 3});
 
         model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
+
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -365,14 +371,15 @@ TEST_F(TransformationTestsF, RICFusionEltwise4) {
         auto conv = create_conv(add, {6, 3, 3, 3});
 
         model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
+
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
         auto input = create_param({1, 3, 64, 64});
         auto gather = create_gather(create_weights({3, 1, 1}), {2, 1, 0}, 0);
-        auto add = std::make_shared<Add>(ov::util::get_constant_from_source(gather), input);
+        auto add = std::make_shared<Add>(gather, input);
         auto conv = create_conv_with_gather(add, {6, 3, 3, 3}, {2, 1, 0});
         model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
     }
@@ -389,14 +396,15 @@ TEST_F(TransformationTestsF, RICFusionEltwise5) {
         auto conv = create_conv(add, {6, 3, 3, 3});
 
         model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
+
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
         auto input = create_param({1, 3, 64, 64});
         auto gather = create_gather(create_weights({1, 3, 1, 1}), {2, 1, 0}, 1);
-        auto add = std::make_shared<Add>(ov::util::get_constant_from_source(gather), input);
+        auto add = std::make_shared<Add>(gather, input);
         auto conv = create_conv_with_gather(add, {6, 3, 3, 3}, {2, 1, 0});
         model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
     }
@@ -414,8 +422,9 @@ TEST_F(TransformationTestsF, RICFusionEltwiseNegative) {
         auto conv = create_conv(add, {6, 3, 3, 3});
 
         model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input, input2});
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
+
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
@@ -427,8 +436,9 @@ TEST_F(TransformationTestsF, RICFusionEltwiseTwoRIC) {
         auto conv = create_conv(add, {6, 3, 3, 3});
 
         model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input, input2});
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}, {1, "NCHW"}});
+
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
     {
         auto input = create_param({1, 3, 64, 64});
@@ -450,8 +460,9 @@ TEST_F(TransformationTestsF, RICFusionEltwiseNegative3) {
         auto shapeof = std::make_shared<ShapeOf>(add);
 
         model = std::make_shared<Model>(NodeVector{shapeof}, ParameterVector{input});
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
+
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
@@ -463,8 +474,9 @@ TEST_F(TransformationTestsF, RICFusionGroupConv) {
         auto conv = create_conv(relu, {3, 6, 3, 3});
 
         model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
+
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
     {
         auto input = create_param({1, 3, 64, 64});
@@ -489,8 +501,9 @@ TEST_F(TransformationTestsF, RICFusionGroupConvNegative) {
         auto conv = create_conv(relu, {6, 3, 3, 3});
 
         model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
+
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
@@ -502,14 +515,15 @@ TEST_F(TransformationTestsF, RICFusionTranspose) {
         auto conv = create_conv(transpose, {6, 3, 3, 3});
 
         model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NHWC"}});
+
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
         auto input = create_param({1, 64, 64, 3});
         auto gather = create_gather(create_weights({3}), {2, 1, 0}, 0);
-        auto add = std::make_shared<Add>(input, ov::util::get_constant_from_source(gather));
+        auto add = std::make_shared<Add>(input, gather);
         auto transpose = std::make_shared<Transpose>(add, Constant::create(element::i64, Shape{4}, {0, 3, 1, 2}));
         auto conv = create_conv_with_gather(transpose, {6, 3, 3, 3}, {2, 1, 0});
         model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
@@ -527,15 +541,15 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay) {
         auto conv = create_conv(fq, create_fq(create_weights({6, 3, 3, 3})));
 
         model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
+
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
         auto input = create_param({1, 3, 64, 64});
         auto fq = create_fq(input);
-        auto weights = ov::util::get_constant_from_source(create_gather(create_weights({6, 3, 3, 3}), {2, 1, 0}, 1));
-        auto conv = create_conv(fq, create_fq(weights));
+        auto conv = create_conv(fq, create_fq(create_gather(create_weights({6, 3, 3, 3}), {2, 1, 0}, 1)));
 
         model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
     }
@@ -559,21 +573,21 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay2) {
         auto conv = create_conv(fq, fq_weights);
 
         model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
+
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
         auto input = create_param({1, 3, 64, 64});
         auto fq = create_fq(input);
         auto weights_const = create_weights({6, 3, 3, 3});
-        auto fq_weights = std::make_shared<FakeQuantize>(
-            ov::util::get_constant_from_source(create_gather(weights_const, {2, 1, 0}, 1)),
-            ov::util::get_constant_from_source(create_gather(create_weights({1, 3, 1, 1}), {2, 1, 0}, 1)),
-            create_weights({1, 1, 1}),
-            create_weights({1}),
-            ov::util::get_constant_from_source(create_gather(create_weights({3, 1, 1}), {2, 1, 0}, 0)),
-            255);
+        auto fq_weights = std::make_shared<FakeQuantize>(create_gather(weights_const, {2, 1, 0}, 1),
+                                                         create_gather(create_weights({1, 3, 1, 1}), {2, 1, 0}, 1),
+                                                         create_weights({1, 1, 1}),
+                                                         create_weights({1}),
+                                                         create_gather(create_weights({3, 1, 1}), {2, 1, 0}, 0),
+                                                         255);
         auto conv = create_conv(fq, fq_weights);
 
         model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
@@ -599,21 +613,21 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay3) {
         auto conv = create_conv(gconv, {6, 3, 1, 1});
 
         model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
+
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
         auto input = create_param({1, 3, 64, 64});
         auto fq = create_fq(input);
         auto weights_const = create_weights({3, 1, 1, 3, 3});
-        auto fq_weights = std::make_shared<FakeQuantize>(
-            ov::util::get_constant_from_source(create_gather(weights_const, {2, 1, 0}, 0)),
-            ov::util::get_constant_from_source(create_gather(create_weights({3, 1, 1, 1, 1}), {2, 1, 0}, 0)),
-            create_weights({1, 1, 1}),
-            create_weights({1}),
-            create_weights({1}),
-            255);
+        auto fq_weights = std::make_shared<FakeQuantize>(create_gather(weights_const, {2, 1, 0}, 0),
+                                                         create_gather(create_weights({3, 1, 1, 1, 1}), {2, 1, 0}, 0),
+                                                         create_weights({1, 1, 1}),
+                                                         create_weights({1}),
+                                                         create_weights({1}),
+                                                         255);
         auto gconv = create_group_conv(fq, fq_weights);
         auto conv = create_conv_with_gather(gconv, {6, 3, 1, 1}, {2, 1, 0});
 
@@ -632,8 +646,9 @@ TEST_F(TransformationTestsF, RICFusionShapeOf) {
         auto shape_of = std::make_shared<ShapeOf>(relu);
 
         model = std::make_shared<Model>(NodeVector{shape_of}, ParameterVector{input});
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
+
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -874,9 +889,9 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiply) {
                                                           CoordinateDiff{0, 0},
                                                           Strides{1, 1});
         model = std::make_shared<ov::Model>(conv, ParameterVector{parameter});
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
     }
+    manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     {
         auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
         std::shared_ptr<Node> activations =
@@ -897,7 +912,7 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiply) {
         std::shared_ptr<Node> weights = opset8::Constant::create(element::i8, Shape{4, 3, 1, 1}, {-2});
         {
             auto scale = opset8::Constant::create(element::f32, Shape{}, {0.2});
-            auto gather = ov::util::get_constant_from_source(create_gather(weights, {2, 1, 0}, 1));
+            auto gather = create_gather(weights, {2, 1, 0}, 1);
             auto convert = std::make_shared<opset8::Convert>(gather, element::f32);
             auto multiply = std::make_shared<opset8::Multiply>(convert, scale);
             weights = multiply;
@@ -932,16 +947,16 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyGroupConv) {
         auto relu = std::make_shared<Relu>(group_conv);
         auto conv = create_conv(relu, {6, 9, 3, 3});
         model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data});
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
     }
+    manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     {
         auto data = std::make_shared<opset8::Parameter>(element::f32, data_shape);
         std::shared_ptr<Node> weights = opset8::Constant::create(element::f32, Shape{3, 3, 1, 4, 4}, {-2});
         auto gather = create_gather(weights, {2, 1, 0}, 1);
         auto convert = std::make_shared<opset8::Convert>(gather, element::f32);
         auto scale = opset8::Constant::create(element::f32, Shape{}, {0.2});
-        auto multiply = ov::util::get_constant_from_source(std::make_shared<opset8::Multiply>(convert, scale));
+        auto multiply = std::make_shared<opset8::Multiply>(convert, scale);
 
         auto group_conv = std::make_shared<opset8::GroupConvolution>(data,
                                                                      multiply,
@@ -952,7 +967,7 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyGroupConv) {
                                                                      op::PadType::EXPLICIT);
         auto relu = std::make_shared<Relu>(group_conv);
         std::shared_ptr<Node> weights2 = opset8::Constant::create(element::f32, Shape{6, 9, 3, 3}, {-2});
-        auto gather2 = ov::util::get_constant_from_source(create_gather(weights2, {6, 7, 8, 3, 4, 5, 0, 1, 2}, 1));
+        auto gather2 = create_gather(weights2, {6, 7, 8, 3, 4, 5, 0, 1, 2}, 1);
         auto conv = std::make_shared<opset8::Convolution>(relu,
                                                           gather2,
                                                           ov::Strides{1, 1},
@@ -997,9 +1012,9 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyNegative1) {
                                                           CoordinateDiff{0, 0},
                                                           Strides{1, 1});
         model = std::make_shared<ov::Model>(conv, ParameterVector{parameter});
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
     }
+    manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     {
         auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
         std::shared_ptr<Node> activations =
@@ -1019,7 +1034,7 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyNegative1) {
 
         std::shared_ptr<Node> weights = opset8::Constant::create(element::i8, Shape{4, 3, 1, 1}, {-2});
         {
-            auto gather = ov::util::get_constant_from_source(create_gather(weights, {2, 1, 0}, 1));
+            auto gather = create_gather(weights, {2, 1, 0}, 1);
             auto convert = std::make_shared<opset8::Convert>(gather, element::f32);
             auto scale = opset8::Constant::create(element::f32, Shape{1, 1, 1, 1}, {0.2});
             auto multiply = std::make_shared<opset8::Multiply>(convert, scale);
@@ -1070,9 +1085,9 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyNegativeBroadcast) {
                                                           CoordinateDiff{0, 0},
                                                           Strides{1, 1});
         model = std::make_shared<ov::Model>(conv, ParameterVector{parameter});
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
     }
+    manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     {
         auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
         std::shared_ptr<Node> activations =
@@ -1092,10 +1107,10 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyNegativeBroadcast) {
 
         std::shared_ptr<Node> weights = opset8::Constant::create(element::i8, Shape{3, 1, 1}, {-2});
         {
-            auto gather = ov::util::get_constant_from_source(create_gather(weights, {2, 1, 0}, 0));
+            auto gather = create_gather(weights, {2, 1, 0}, 0);
             auto convert = std::make_shared<opset8::Convert>(gather, element::f32);
             auto scale = opset8::Constant::create(element::f32, Shape{4, 3, 1, 1}, {0.2});
-            auto gather2 = ov::util::get_constant_from_source(create_gather(scale, {2, 1, 0}, 1));
+            auto gather2 = create_gather(scale, {2, 1, 0}, 1);
             auto multiply = std::make_shared<opset8::Multiply>(convert, gather2);
             weights = multiply;
         }
@@ -1169,16 +1184,16 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyNonScalarFQInput) {
                                                           CoordinateDiff{0, 0},
                                                           Strides{1, 1});
         model = std::make_shared<ov::Model>(conv, ParameterVector{parameter});
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
     }
+    manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     {
         auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
         auto gather =
             create_gather(std::make_shared<opset8::Constant>(element::f32, Shape{1, 3, 14, 14}), {2, 1, 0}, 1);
         std::shared_ptr<Node> activations =
             std::make_shared<opset8::FakeQuantize>(parameter,
-                                                   ov::util::get_constant_from_source(gather),
+                                                   gather,
                                                    opset8::Constant::create(element::f32, Shape{}, {20}),
                                                    opset8::Constant::create(element::f32, Shape{}, {0}),
                                                    opset8::Constant::create(element::f32, Shape{}, {254}),
@@ -1194,7 +1209,7 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyNonScalarFQInput) {
         std::shared_ptr<Node> weights = opset8::Constant::create(element::i8, Shape{4, 3, 1, 1}, {-2});
         {
             auto scale = opset8::Constant::create(element::f32, Shape{}, {0.2});
-            auto gather = ov::util::get_constant_from_source(create_gather(weights, {2, 1, 0}, 1));
+            gather = create_gather(weights, {2, 1, 0}, 1);
             auto convert = std::make_shared<opset8::Convert>(gather, element::f32);
             auto multiply = std::make_shared<opset8::Multiply>(convert, scale);
             weights = multiply;
@@ -1255,8 +1270,9 @@ TEST_F(TransformationTestsF, RICFusionTwoConvolutions) {
         auto conv1 = create_conv(input, create_weights({3, 3, 1, 1}));
         auto conv2 = create_conv(conv1, create_weights({3, 3, 1, 1}));
         model = std::make_shared<Model>(NodeVector{conv2}, ParameterVector{input});
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
+
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
     {
         auto conv1_with_gather = create_conv_with_gather(input, create_weights({3, 3, 1, 1}), {2, 1, 0});
@@ -1273,9 +1289,9 @@ TEST_F(TransformationTestsF, RICFusionTwoConvolutionsTheSameWeights) {
         auto conv1 = create_conv(input, weights);
         auto conv2 = create_conv(conv1, weights);
         model = std::make_shared<Model>(NodeVector{conv2}, ParameterVector{input});
-
-        // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
+
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
     {
         auto conv1_with_gather = create_conv_with_gather(input, weights, {2, 1, 0});
