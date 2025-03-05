@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/runtime/system_conf.hpp"
@@ -154,13 +154,13 @@ program::program(engine& engine_ref,
       _is_body_program(is_body_program),
       _compilation_context(compilation_context) {
     init_primitives();
+    _config.finalize(_engine);
     GPU_DEBUG_INFO << "Program config\n" << _config.to_string();
     init_program();
     prepare_nodes(topology);
     program_node::reset_unique_id();
     if (no_optimizations) {
         init_graph();
-        _config.finalize(_engine);
     } else {
         build_program(is_internal);
         if (_is_body_program) {
@@ -1403,7 +1403,6 @@ void program::apply_opt_pass(base_pass& pass) { pm->run(*this, pass); }
 void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     lo.set_implementation_forcing(_config.get_force_implementations());
 
-
     // first pass to set layout optimization_attributes for topology
     bool can_use_fsv16 = true;
     bool can_use_bs_fs_yx_bsv16_fsv16 = true;
@@ -1520,7 +1519,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::convert_color::type_id() &&
             prim.type() != cldnn::unique_count::type_id() &&
             prim.type() != cldnn::unique_gather::type_id() &&
-            prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id()) {
+            prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id() &&
+            prim.type() != cldnn::scaled_dot_product_attention::type_id()) {
             can_use_fsv16 = false;
         }
 

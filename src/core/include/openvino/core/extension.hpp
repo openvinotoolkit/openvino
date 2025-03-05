@@ -25,13 +25,7 @@ class Extension;
  */
 class OPENVINO_API Extension {
 public:
-    _OPENVINO_HIDDEN_METHOD static const DiscreteTypeInfo& get_type_info_static() {
-        static const ::ov::DiscreteTypeInfo type_info_static{"Extension"};
-        return type_info_static;
-    }
-    virtual const DiscreteTypeInfo& get_type_info() const {
-        return get_type_info_static();
-    }
+    OPENVINO_RTTI_BASE("Extension")
 
     using Ptr = std::shared_ptr<Extension>;
 
