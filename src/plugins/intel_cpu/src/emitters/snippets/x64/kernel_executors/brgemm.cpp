@@ -19,18 +19,20 @@ namespace ov::intel_cpu::x64 {
 
 BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype,
                                        const element::Type& in1_dtype,
+                                       const element::Type& out_dtype,
                                        bool is_with_comp,
                                        dnnl::impl::cpu::x64::cpu_isa_t primitive_isa)
     : BrgemmBaseKernelConfig(),
-      m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, is_with_comp, primitive_isa)) {
+      m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, out_dtype, is_with_comp, primitive_isa)) {
     m_hash = compute_hash();
 }
 
 BrgemmKernelConfig::StaticParams::StaticParams(const element::Type& in0_dtype,
                                                const element::Type& in1_dtype,
+                                               const element::Type& out_dtype,
                                                bool is_with_comp,
                                                dnnl::impl::cpu::x64::cpu_isa_t primitive_isa)
-    : StaticBaseParams(in0_dtype, in1_dtype, primitive_isa, compute_hash(is_with_comp)),
+    : StaticBaseParams(in0_dtype, in1_dtype, out_dtype, primitive_isa, compute_hash(is_with_comp)),
       is_with_comp(is_with_comp) {}
 
 bool BrgemmKernelConfig::StaticParams::operator==(const StaticParams& rhs) const {
@@ -64,6 +66,7 @@ std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelExecutor::compile_kernel(const
     create_brgemm_kernel(compiled_kernel->brgemm_kernel,
                          config.get_dt_in0(),
                          config.get_dt_in1(),
+                         config.get_dt_out(),
                          config.get_isa(),
                          config.get_M(),
                          config.get_N(),
@@ -106,9 +109,10 @@ std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelReferenceExecutor::compile_ker
 
 brgemm_ref_kernel::brgemm_ref_kernel(BrgemmKernelConfig c) : m_config(std::move(c)) {
     OV_CPU_JIT_EMITTER_ASSERT(!m_config.is_with_comp(), "brgemm_ref_kernel doesn't currently support compensations");
-    OV_CPU_JIT_EMITTER_ASSERT(
-        m_config.get_dt_in0() == m_config.get_dt_in1() && m_config.get_dt_in0() == dnnl_data_type_t::dnnl_f32,
-        "brgemm_ref_kernel currently supports only fp32 inputs");
+    OV_CPU_JIT_EMITTER_ASSERT(m_config.get_dt_in0() == dnnl_data_type_t::dnnl_f32 &&
+                                  m_config.get_dt_in1() == dnnl_data_type_t::dnnl_f32 &&
+                                  m_config.get_dt_out() == dnnl_data_type_t::dnnl_f32,
+                              "brgemm_ref_kernel currently supports only fp32 precisions");
 }
 
 void brgemm_ref_kernel::operator()(dnnl::impl::cpu::x64::brgemm_kernel_params_t* args) const {

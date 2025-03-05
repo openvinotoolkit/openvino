@@ -44,24 +44,28 @@ void BrgemmBaseKernelConfig::update(int64_t M,
 
 BrgemmBaseKernelConfig::StaticBaseParams::StaticBaseParams(const element::Type& in0_dtype,
                                                            const element::Type& in1_dtype,
+                                                           const element::Type& out_dtype,
                                                            cpu_isa_t primitive_isa,
                                                            size_t hash_seed)
     : dt_in0(DTYPE_CAST(in0_dtype)),
       dt_in1(DTYPE_CAST(in1_dtype)),
+      dt_out(DTYPE_CAST(out_dtype)),
       isa(primitive_isa),
-      m_hash(compute_hash(hash_seed, dt_in0, dt_in1, isa)) {}
+      m_hash(compute_hash(hash_seed, dt_in0, dt_in1, dt_out, isa)) {}
 
 bool BrgemmBaseKernelConfig::StaticBaseParams::operator==(const StaticBaseParams& rhs) const {
-    return EQ(hash()) && EQ(dt_in0) && EQ(dt_in1) && EQ(isa);
+    return EQ(hash()) && EQ(dt_in0) && EQ(dt_in1) && EQ(dt_out) && EQ(isa);
 }
 
 size_t BrgemmBaseKernelConfig::StaticBaseParams::compute_hash(size_t hash_seed,
                                                               dnnl_data_type_t dt_in0,
                                                               dnnl_data_type_t dt_in1,
+                                                              dnnl_data_type_t dt_out,
                                                               cpu_isa_t isa) {
     size_t seed = hash_seed;
     HASH(dt_in0);
     HASH(dt_in1);
+    HASH(dt_out);
     HASH(isa);
     return seed;
 }
@@ -71,6 +75,7 @@ std::string BrgemmBaseKernelConfig::StaticBaseParams::to_string() const {
     std::stringstream ss;
     PRINT(dt_in0);
     PRINT(dt_in1);
+    PRINT(dt_out);
     PRINT(isa);
     return ss.str();
 }
@@ -105,8 +110,9 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
 }
 
 void BrgemmBaseKernelExecutor::create_brgemm_kernel(std::shared_ptr<brgemm_kernel_t>& kernel,
-                                                    dnnl_data_type_t dt0,
-                                                    dnnl_data_type_t dt1,
+                                                    dnnl_data_type_t dt_in0,
+                                                    dnnl_data_type_t dt_in1,
+                                                    dnnl_data_type_t dt_out,
                                                     cpu_isa_t isa,
                                                     dnnl_dim_t M,
                                                     dnnl_dim_t N,
@@ -117,12 +123,16 @@ void BrgemmBaseKernelExecutor::create_brgemm_kernel(std::shared_ptr<brgemm_kerne
                                                     float beta,
                                                     bool with_amx,
                                                     char* palette) {
+    std::cout << "[ INFO ] Brgemm kernel params:" << std::endl;
+    std::cout << "\t dt_in0: " << dt_in0 << std::endl;
+    std::cout << "\t dt_in1: " << dt_in1 << std::endl;
+    std::cout << "\t dt_out: " << dt_out << std::endl;
     cpu::x64::brgemm_desc_t desc;
     OV_CPU_JIT_EMITTER_ASSERT(brgemm_desc_init(&desc,
                                                isa,
                                                cpu::x64::brgemm_strd,
-                                               dt0,
-                                               dt1,
+                                               dt_in0,
+                                               dt_in1,
                                                false,
                                                false,
                                                cpu::x64::brgemm_row_major,
@@ -136,6 +146,19 @@ void BrgemmBaseKernelExecutor::create_brgemm_kernel(std::shared_ptr<brgemm_kerne
                                                K,
                                                nullptr) == dnnl_success,
                               "Cannot initialize brgemm descriptor due to invalid params");
+
+    // TODO: place postops fusion here
+    const dnnl::memory::dims dst_dims{M, N};
+    dnnl::memory::data_type type = static_cast<dnnl::memory::data_type>(dt_out);
+    dnnl::memory::format_tag tag = dnnl::memory::format_tag::any;
+    dnnl::memory::desc dst_desc(dst_dims, type, tag);
+    brgemm_desc_set_postops(&desc, nullptr, 0, LDC);
+
+    std::cout << "[ INFO ] Brgemm desc creation:" << std::endl;
+    std::cout << "\t desc.dt_a: " << desc.dt_a << std::endl;
+    std::cout << "\t desc.dt_b: " << desc.dt_b << std::endl;
+    std::cout << "\t desc.dt_c: " << desc.dt_c << std::endl;
+    std::cout << "\t desc.dt_d: " << desc.dt_d << std::endl;
 
     if (with_amx) {
         OV_CPU_JIT_EMITTER_ASSERT(palette && brgemm_init_tiles(desc, palette) == dnnl_success,

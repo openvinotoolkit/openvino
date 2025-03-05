@@ -33,6 +33,9 @@ public:
     [[nodiscard]] dnnl_data_type_t get_dt_in1() const {
         return get_static_params()->dt_in1;
     }
+    dnnl_data_type_t get_dt_out() const {
+        return get_static_params()->dt_out;
+    }
 
     [[nodiscard]] dnnl::impl::cpu::x64::cpu_isa_t get_isa() const {
         return get_static_params()->isa;
@@ -46,11 +49,12 @@ protected:
     struct StaticBaseParams {
         StaticBaseParams(const element::Type& in0_dtype,
                          const element::Type& in1_dtype,
+                         const element::Type& out_dtype,
                          dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
                          size_t hash_seed);
         virtual ~StaticBaseParams() = default;
 
-        const dnnl_data_type_t dt_in0{dnnl_f32}, dt_in1{dnnl_f32};
+        const dnnl_data_type_t dt_in0{dnnl_f32}, dt_in1{dnnl_f32}, dt_out{dnnl_f32};
         const dnnl::impl::cpu::x64::cpu_isa_t isa{dnnl::impl::cpu::x64::isa_undef};
 
         [[nodiscard]] size_t hash() const {
@@ -68,6 +72,7 @@ protected:
         static size_t compute_hash(size_t hash_seed,
                                    dnnl_data_type_t dt_in0,
                                    dnnl_data_type_t dt_in1,
+                                   dnnl_data_type_t dt_out,
                                    dnnl::impl::cpu::x64::cpu_isa_t isa);
 
         const size_t m_hash{0};
@@ -91,8 +96,9 @@ protected:
                               BrgemmBaseKernelConfig& config);
 
     static void create_brgemm_kernel(std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& kernel,
-                                     dnnl_data_type_t dt0,
-                                     dnnl_data_type_t dt1,
+                                     dnnl_data_type_t dt_in0,
+                                     dnnl_data_type_t dt_in1,
+                                     dnnl_data_type_t dt_out,
                                      dnnl::impl::cpu::x64::cpu_isa_t isa,
                                      dnnl_dim_t M,
                                      dnnl_dim_t N,

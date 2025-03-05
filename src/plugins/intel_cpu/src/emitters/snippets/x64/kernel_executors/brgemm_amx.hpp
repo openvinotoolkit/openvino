@@ -17,6 +17,7 @@ struct BrgemmAMXKernelConfig : public x64::BrgemmBaseKernelConfig {
 public:
     BrgemmAMXKernelConfig(const element::Type& in0_dtype,
                           const element::Type& in1_dtype,
+                          const element::Type& out_dtype,
                           dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
     BrgemmAMXKernelConfig() = delete;
 
@@ -37,6 +38,7 @@ private:
     struct StaticParams : StaticBaseParams {
         StaticParams(const element::Type& in0_dtype,
                      const element::Type& in1_dtype,
+                     const element::Type& out_dtype,
                      dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
 
         const dnnl_dim_t inner_k_blk{0};

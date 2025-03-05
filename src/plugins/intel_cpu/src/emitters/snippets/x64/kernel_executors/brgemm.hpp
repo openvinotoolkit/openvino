@@ -14,6 +14,7 @@ struct BrgemmKernelConfig : public BrgemmBaseKernelConfig {
 public:
     BrgemmKernelConfig(const element::Type& in0_dtype,
                        const element::Type& in1_dtype,
+                       const element::Type& out_dtype,
                        bool is_with_comp,
                        dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
     BrgemmKernelConfig() = delete;
@@ -30,6 +31,7 @@ private:
     struct StaticParams : StaticBaseParams {
         StaticParams(const element::Type& in0_dtype,
                      const element::Type& in1_dtype,
+                     const element::Type& out_dtype,
                      bool is_with_comp,
                      dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
 
