@@ -66,8 +66,18 @@ FakeQuantize::FakeQuantize(const Output<Node>& data,
 void FakeQuantize::validate_and_infer_types() {
     OV_OP_SCOPE(v0_FakeQuantize_validate_and_infer_types);
     auto data_pshape = get_input_partial_shape(0);
+    auto result_et = get_input_element_type(0);
 
     for (auto i = 1; i <= 4; i++) {
+        NODE_VALIDATION_CHECK(this,
+                              element::Type::merge(result_et, result_et, get_input_element_type(i)),
+                              "Arguments do not have the same element type (arg0 element type: ",
+                              result_et,
+                              ", arg",
+                              i,
+                              " element type: ",
+                              get_input_element_type(i),
+                              ").");
         if (m_auto_broadcast.m_type == op::AutoBroadcastType::NONE) {
             NODE_VALIDATION_CHECK(this,
                                   PartialShape::merge_into(data_pshape, get_input_partial_shape(i)),
@@ -82,7 +92,7 @@ void FakeQuantize::validate_and_infer_types() {
             NODE_VALIDATION_CHECK(this, false, "Unsupported auto broadcast specification");
         }
     }
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    set_output_type(0, result_et, data_pshape);
 }
 
 bool FakeQuantize::visit_attributes(AttributeVisitor& visitor) {
