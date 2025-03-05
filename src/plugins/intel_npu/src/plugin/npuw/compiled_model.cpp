@@ -632,7 +632,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
 
         // Also read weights into LazyTensors
         for (std::size_t cidx = 0; cidx < closure.size(); ++cidx) {
-            if (closure_uid[cidx] != -1) {  // previously registered before serialization
+            if (closure_uid[cidx] != -1 && lazy_closure[cidx]) {  // previously registered before serialization
                 lazy_closure[cidx].read_weight(weights);
             }
         }
