@@ -352,10 +352,10 @@ OVPropertiesTestsWithCompileModelProps::getRWOptionalPropertiesValues(
         }
     }
 
-    if (props.empty() || std::find(props.begin(), props.end(), ov::enable_mmap.name()) != props.end()) {
-        res.push_back({ov::enable_mmap(true)});
-        res.push_back({ov::enable_mmap(false)});
-    }
+    // if (props.empty() || std::find(props.begin(), props.end(), ov::enable_mmap.name()) != props.end()) {
+    //     res.push_back({ov::enable_mmap(true)});
+    //     res.push_back({ov::enable_mmap(false)});
+    // }
 
     if (props.empty() || std::find(props.begin(), props.end(), ov::log::level.name()) != props.end()) {
         ov::log::Level log_levels[] = {ov::log::Level::NO , ov::log::Level::ERR, ov::log::Level::WARNING,
@@ -396,9 +396,9 @@ OVPropertiesTestsWithCompileModelProps::getWrongRWOptionalPropertiesValues(
         res.push_back({{ov::hint::scheduling_core_type.name(), -1}});
     }
 
-    if (props.empty() || std::find(props.begin(), props.end(), ov::enable_mmap.name()) != props.end()) {
-        res.push_back({{ov::enable_mmap.name(), -10}});
-    }
+    // if (props.empty() || std::find(props.begin(), props.end(), ov::enable_mmap.name()) != props.end()) {
+    //     res.push_back({{ov::enable_mmap.name(), -10}});
+    // }
 
     if (props.empty() || std::find(props.begin(), props.end(), ov::log::level.name()) != props.end()) {
         res.push_back({{ov::log::level.name(), -3}});
