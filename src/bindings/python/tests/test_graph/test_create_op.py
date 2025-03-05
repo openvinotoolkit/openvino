@@ -13,6 +13,7 @@ import openvino.opset1 as ov_opset1
 import openvino.opset5 as ov_opset5
 import openvino.opset10 as ov_opset10
 import openvino.opset15 as ov_opset15
+import openvino.opset16 as ov_opset16
 import openvino.opset11 as ov
 from openvino.op.util import VariableInfo, Variable
 
@@ -2250,6 +2251,42 @@ def test_stft():
     assert op.get_output_size() == 1
     assert op.get_output_element_type(0) == Type.f32
     assert op.get_output_shape(0) == [4, 6, 13, 2]
+
+
+def test_istft():
+    data_shape = [4, 6, 13, 2]
+    data = ov.parameter(data_shape, name="input", dtype=np.float32)
+    window = ov.parameter([7], name="window", dtype=np.float32)
+    frame_size = ov.constant(np.array(11, dtype=np.int32))
+    frame_step = ov.constant(np.array(3, dtype=np.int32))
+
+    center = False
+    normalized = True
+    op = ov_opset16.istft(data, window, frame_size, frame_step, center, normalized)
+
+    assert op.get_type_name() == "ISTFT"
+    assert op.get_output_size() == 1
+    assert op.get_output_element_type(0) == Type.f32
+    assert op.get_output_shape(0) == [4, 47]
+
+    center = True
+    normalized = False
+    op = ov_opset16.istft(data, window, frame_size, frame_step, center, normalized)
+
+    assert op.get_type_name() == "ISTFT"
+    assert op.get_output_size() == 1
+    assert op.get_output_element_type(0) == Type.f32
+    assert op.get_output_shape(0) == [4, 37]
+
+    signal_length = ov.constant(np.array(48, dtype=np.int32))
+    center = False
+    normalized = False
+    op = ov_opset16.istft(data, window, frame_size, frame_step, center, normalized, signal_length)
+
+    assert op.get_type_name() == "ISTFT"
+    assert op.get_output_size() == 1
+    assert op.get_output_element_type(0) == Type.f32
+    assert op.get_output_shape(0) == [4, 48]
 
 
 def test_search_sorted():
