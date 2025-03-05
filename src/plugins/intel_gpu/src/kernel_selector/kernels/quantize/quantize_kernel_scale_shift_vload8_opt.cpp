@@ -12,6 +12,10 @@
 static const size_t vec_size = 8;
 
 namespace kernel_selector {
+static inline int GetInnerFeatureBlockSize(const DataTensor&);
+static inline int GetInnerBatchBlockSize(const DataTensor&);
+static inline size_t CalculateTotalWorkItemCount(const quantize_params& params);
+
 ParamsKey QuantizeKernelScaleShift_vload8::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::UINT8);
@@ -24,46 +28,17 @@ ParamsKey QuantizeKernelScaleShift_vload8::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
-    k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableDifferentTypes();
     k.EnableQuantizeScaleShiftOpt();
     return k;
 }
 
-auto parse_block_size = [](int index, DataLayout dl) {
-    std::string format_str = toString(dl);
-    auto get_block_size = [&] (std::string substr) {
-        auto start_pos = format_str.find(substr);
-        if (start_pos != std::string::npos) {
-            auto end_pos = format_str.find("_", start_pos);
-            auto sub_string = format_str.substr(start_pos + strlen(substr.c_str()) , end_pos);
-            return std::atoi(sub_string.c_str());
-        }
-        return 1;
-    };
-    return index == 0 ? get_block_size("BSV") : (index == 1 ? get_block_size("FSV") : 1);
-};
-
-auto get_total_size = [](const quantize_params& params) {
-    const auto input = params.inputs[0];
-    size_t totalSize = input.LogicalSize();
-    auto feature_block_size = parse_block_size(1, input.GetLayout());
-    auto feature_division = feature_block_size > 1 ? (input.Feature().v ? input.Feature().v : 1) : 1;
-    auto feature_align_multiplexer = feature_block_size > 1 ? Align(input.Feature().v, feature_block_size) : 1;
-    auto batch_block_size = parse_block_size(0, input.GetLayout());
-    auto batch_divsion = batch_block_size > 1 ? (input.Batch().v ? input.Batch().v : 1) : 1;
-    auto batch_align_multiplexer = batch_block_size > 1 ? Align(input.Batch().v, batch_block_size) : 1;
-    return (totalSize / (feature_division * batch_divsion)) * feature_align_multiplexer * batch_align_multiplexer;
-};
-
 CommonDispatchData QuantizeKernelScaleShift_vload8::SetDefault(const quantize_params& params) const {
     CommonDispatchData dispatchData;
-    if (true) {
-        dispatchData.gws[0] = CeilDiv(get_total_size(params), vec_size);
-        dispatchData.gws[1] = 1;
-        dispatchData.gws[2] = 1;
-    }
+    dispatchData.gws[0] = CeilDiv(CalculateTotalWorkItemCount(params), vec_size);
+    dispatchData.gws[1] = 1;
+    dispatchData.gws[2] = 1;
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
     return dispatchData;
 }
@@ -92,10 +67,11 @@ JitConstants QuantizeKernelScaleShift_vload8::GetJitConstants(const quantize_par
     jit.AddConstant(MakeJitConstant("OUT_SHIFT_VAL", params.out_shift));
     jit.AddConstant(MakeJitConstant("CAN_USE_OUTPUT_RANGE", can_use_output_range));
     jit.AddConstant(MakeJitConstant("HAS_OUTPUT_RANGE_ROUND", has_output_range_round));
-    if (get_total_size(params) % vec_size) {
+    auto total_size = CalculateTotalWorkItemCount(params);
+    if (total_size % vec_size) {
         // handle some leftovers
-        jit.AddConstant(MakeJitConstant("LAST_ACCESSED_X", get_total_size(params) - vec_size));
-        jit.AddConstant(MakeJitConstant("LEFT_OVERS", get_total_size(params) % vec_size));
+        jit.AddConstant(MakeJitConstant("LAST_ACCESSED_X", total_size - vec_size));
+        jit.AddConstant(MakeJitConstant("LEFT_OVERS", total_size % vec_size));
     }
     return jit;
 }
@@ -139,9 +115,95 @@ bool QuantizeKernelScaleShift_vload8::Validate(const Params& p) const {
                  (feature_size % 32 != 0 || batch_size % 16 != 0)))
                 return false;
     }
-    if (get_total_size(params) < vec_size)
+    if (CalculateTotalWorkItemCount(params) < vec_size)
         return false;
+
     return true;
+}
+
+static inline size_t CalculateTotalWorkItemCount(const quantize_params& params) {
+    if (!params.outputs[0].SimpleLayout()) {
+        auto feature = Align(params.outputs[0].Feature().v, GetInnerFeatureBlockSize(params.outputs[0]));
+        auto batch = Align(params.outputs[0].Batch().v, GetInnerBatchBlockSize(params.outputs[0]));
+        size_t spatial = 0;
+        if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5)
+            spatial = params.outputs[0].X().v * params.outputs[0].Y().v * params.outputs[0].Z().v;
+        else
+            spatial = params.outputs[0].X().v * params.outputs[0].Y().v;
+
+        return (feature * batch * spatial);
+    } else {
+        return params.outputs[0].LogicalSize();
+    }
+}
+
+static inline int GetInnerBatchBlockSize(const DataTensor& tensor) {
+    auto layout = tensor.GetLayout();
+    switch (layout) {
+    case DataLayout::bfyx:
+    case DataLayout::byxf:
+    case DataLayout::yxfb:
+    case DataLayout::bfzyx:
+    case DataLayout::b_fs_yx_fsv4:
+    case DataLayout::b_fs_yx_fsv16:
+    case DataLayout::b_fs_yx_fsv32:
+    case DataLayout::fs_b_yx_fsv32:
+    case DataLayout::b_fs_zyx_fsv32:
+    case DataLayout::b_fs_zyx_fsv16:
+    case DataLayout::bfwzyx:
+    case DataLayout::bfuwzyx:
+    case DataLayout::bfvuwzyx:
+        return 1;
+    case DataLayout::bs_fs_yx_bsv16_fsv32:
+    case DataLayout::bs_fs_yx_bsv16_fsv16:
+    case DataLayout::bs_fs_zyx_bsv16_fsv32:
+    case DataLayout::bs_fs_zyx_bsv16_fsv16:
+        return 16;
+    case DataLayout::bs_fs_yx_bsv32_fsv32:
+    case DataLayout::bs_fs_yx_bsv32_fsv16:
+    case DataLayout::bs_fs_zyx_bsv32_fsv32:
+    case DataLayout::bs_fs_zyx_bsv32_fsv16:
+        return 32;
+    default:
+        OPENVINO_THROW("GetInnerBatchBlockSize : Unexpected format for quantize_vload8 opt kernel.");
+    }
+
+    return 1;
+}
+
+static inline int GetInnerFeatureBlockSize(const DataTensor& tensor) {
+    auto layout = tensor.GetLayout();
+    switch (layout) {
+    case DataLayout::bfyx:
+    case DataLayout::byxf:
+    case DataLayout::yxfb:
+    case DataLayout::bfzyx:
+    case DataLayout::bfwzyx:
+    case DataLayout::bfuwzyx:
+    case DataLayout::bfvuwzyx:
+        return 1;
+    case DataLayout::b_fs_yx_fsv4:
+        return 4;
+    case DataLayout::b_fs_yx_fsv16:
+    case DataLayout::b_fs_zyx_fsv16:
+    case DataLayout::bs_fs_yx_bsv32_fsv16:
+    case DataLayout::bs_fs_yx_bsv16_fsv16:
+    case DataLayout::bs_fs_zyx_bsv32_fsv16:
+    case DataLayout::bs_fs_zyx_bsv16_fsv16:
+        return 16;
+    case DataLayout::b_fs_yx_fsv32:
+    case DataLayout::fs_b_yx_fsv32:
+    case DataLayout::b_fs_zyx_fsv32:
+    case DataLayout::bs_fs_yx_bsv32_fsv32:
+    case DataLayout::bs_fs_yx_bsv16_fsv32:
+    case DataLayout::bs_fs_zyx_bsv32_fsv32:
+    case DataLayout::bs_fs_zyx_bsv16_fsv32:
+        return 32;
+    default:
+        OPENVINO_THROW("GetInnerFeatureBlockSize : Unexpected format for quantize_vload8 opt kernel.");
+    }
+
+    return 1;
 }
 
 KernelsPriority QuantizeKernelScaleShift_vload8::GetKernelsPriority(const Params& /*params*/) const {
