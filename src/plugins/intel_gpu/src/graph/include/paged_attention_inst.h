@@ -61,11 +61,6 @@ public:
     memory::ptr rotated_block_indices_memory_ptr() const { return input_memory_ptr(13); }
     memory::ptr rotation_deltas_memory_ptr() const { return input_memory_ptr(14); }
     memory::ptr rotation_trig_lut_memory_ptr() const { return input_memory_ptr(15); }
-
-    std::shared_ptr<network> prefill_network;
-
-protected:
-    void on_execute() override;
 };
 
 using paged_attention_inst = typed_primitive_inst<paged_attention>;

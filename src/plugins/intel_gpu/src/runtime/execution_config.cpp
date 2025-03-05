@@ -6,23 +6,17 @@
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/lstm_sequence.hpp"
-#include "openvino/op/paged_attention.hpp"
 #include "openvino/op/search_sorted.hpp"
 #include "openvino/op/stft.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/label.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
+#include "ov_ops/rms.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "transformations/utils/utils.hpp"
 
 
 namespace ov::intel_gpu {
@@ -53,7 +47,7 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     if (ov::is_type<ov::op::v15::SearchSorted>(op) || ov::is_type<ov::op::v15::STFT>(op))
         return true;
 
-    if (ov::is_type<ov::op::internal::DynamicQuantize>(op))
+    if (ov::is_type<ov::op::internal::DynamicQuantize>(op) || ov::is_type<ov::op::internal::RMS>(op))
         return true;
 
     if (ov::is_type<ov::op::v5::Loop>(op)) {
@@ -81,32 +75,6 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     for (size_t i = 0; i < op->get_input_size(); i++) {
         if (op->get_input_partial_shape(i).size() > 6)
             return true;
-    }
-
-    return false;
-}
-
-bool is_llm(const ov::Model& model) {
-    using namespace ov::pass::pattern;
-
-    auto past = wrap_type<ov::op::v6::ReadValue>();
-    auto convert_past = wrap_type<ov::op::v0::Convert>({past});
-    auto gather_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past});
-    auto beam_idx = wrap_type<ov::op::v0::Parameter>();
-    auto gather_past = wrap_type<ov::op::v8::Gather>({gather_input, beam_idx, wrap_type<ov::op::v0::Constant>()});
-    auto gather_convert = wrap_type<ov::op::v0::Convert>({gather_past});
-    auto concat_past_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past, gather_past, gather_convert});
-    auto concat = wrap_type<ov::op::v0::Concat>({concat_past_input, any_input()});
-    auto convert_present = wrap_type<ov::op::v0::Convert>({concat});
-    auto present_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{concat, convert_present});
-    auto present = wrap_type<ov::op::v6::Assign>({present_input});
-
-    auto kvcache_matcher = std::make_shared<ov::pass::pattern::Matcher>(present, "KVCacheMatcher");
-
-    for (auto& op : model.get_ordered_ops()) {
-        if (kvcache_matcher->match(op) || ov::is_type<ov::op::PagedAttentionExtension>(op)) {
-            return true;
-        }
     }
 
     return false;
@@ -163,7 +131,7 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
 }
 
 void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) {
-    apply_rt_info(context, get_rt_info(model), is_llm(model));
+    apply_rt_info(context, get_rt_info(model), ov::op::util::is_large_language_model(model));
 
     const auto& ops = model.get_ops();
 
@@ -217,7 +185,7 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
         m_queue_type = QueueTypes::in_order;
     }
 
-    if (!is_set_by_user(ov::hint::kv_cache_precision) || get_kv_cache_precision() == ov::element::undefined) {
+    if (!is_set_by_user(ov::hint::kv_cache_precision) || get_kv_cache_precision() == ov::element::dynamic) {
         if (info.supports_immad) {  // MFDNN-11755
             m_kv_cache_precision = get_inference_precision();
         } else {
@@ -253,7 +221,7 @@ void ExecutionConfig::apply_execution_hints(const cldnn::device_info& info) {
         const auto mode = get_execution_mode();
         if (!is_set_by_user(ov::hint::inference_precision)) {
             if (mode == ov::hint::ExecutionMode::ACCURACY) {
-                m_inference_precision = ov::element::undefined;
+                m_inference_precision = ov::element::dynamic;
             } else if (mode == ov::hint::ExecutionMode::PERFORMANCE) {
                 if (info.supports_fp16)
                     m_inference_precision = ov::element::f16;
