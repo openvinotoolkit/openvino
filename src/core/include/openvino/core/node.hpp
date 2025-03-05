@@ -115,8 +115,6 @@ class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
     friend class Output;
 
     friend class Model;
-    // To fix collisions in generated friendly name
-    friend class pass::ResolveNameCollisions;
 
 protected:
     descriptor::Input& get_input_descriptor(size_t position);
