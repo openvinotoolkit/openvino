@@ -820,7 +820,7 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
         } else if (val == ov::intel_npu::CompilerType::DRIVER) {
             strStream << "DRIVER";
         } else {
-            OPENVINO_THROW("No valid string for current LOG_LEVEL option");
+            OPENVINO_THROW("No valid string for current COMPILER_TYPE option");
         }
 
         return strStream.str();

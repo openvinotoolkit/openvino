@@ -148,35 +148,6 @@ void update_log_level(const std::map<std::string, std::string>& propertiesMap) {
 
 namespace intel_npu {
 
-static Config merge_configs(const Config& globalConfig,
-                            std::map<std::string, std::string>& rawConfig,
-                            const std::shared_ptr<NPUBackends>& backends,
-                            OptionMode mode = OptionMode::Both) {
-    update_log_level(rawConfig);
-    Config localConfig = globalConfig;
-
-    // Filtering compiler internals
-    for (auto&& cfg : rawConfig) {
-        if (!localConfig.hasOpt(cfg.first)) {
-            // found config option which is not registered
-            // checking if compiler supports it
-            CompilerAdapterFactory compiler_adapter;
-            auto compiler = compiler_adapter.getCompiler(backends->getIEngineBackend(), localConfig);
-            if (compiler->is_option_supported(cfg.first)) {
-                // supported by compiler, register in internal anonymous config
-                localConfig.addOrUpdateInternal(cfg.first, cfg.second);
-                rawConfig.erase(cfg.first);
-            } else {
-                // key not found anywhere to be supported
-                OPENVINO_THROW("[ NOT_FOUND ] Option '", cfg.first, "' is not supported for current configuration");
-            }
-        }
-    }
-
-    localConfig.update(rawConfig, mode);
-    return localConfig;
-}
-
 static auto get_specified_device_name(const Config config) {
     if (config.has<DEVICE_ID>()) {
         return config.get<DEVICE_ID>();
@@ -219,7 +190,7 @@ Plugin::Plugin()
 
     /// Init and register properties
     OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
-    _properties = std::make_unique<Properties>(PropertiesType::PLUGIN, _globalConfig, _metrics, _backends);
+    _properties = std::make_unique<Properties>(PropertiesType::PLUGIN, _globalConfig, _metrics, _backend);
     _properties->registerProperties();
 }
 
@@ -227,14 +198,75 @@ void Plugin::init_options() {
     OV_ITT_TASK_NEXT(PLUGIN, "initOptions");
     // Initialize (note: it will reset registered options)
     _options->reset();
-    bool offline = false;
+
+#define REGISTER_OPTION(OPT_TYPE)                             \
+    do {                                                      \
+        auto dummyopt = details::makeOptionModel<OPT_TYPE>(); \
+        std::string o_name = dummyopt.key().data();           \
+        _options->add<OPT_TYPE>();                            \
+        _globalConfig.enable(o_name, false);                  \
+    } while (0)
+
+    REGISTER_OPTION(LOG_LEVEL);
+    REGISTER_OPTION(CACHE_DIR);
+    REGISTER_OPTION(DEVICE_ID);
+    REGISTER_OPTION(NUM_STREAMS);
+    REGISTER_OPTION(PERF_COUNT);
+    REGISTER_OPTION(LOADED_FROM_CACHE);
+    REGISTER_OPTION(COMPILATION_NUM_THREADS);
+    REGISTER_OPTION(PERFORMANCE_HINT);
+    REGISTER_OPTION(EXECUTION_MODE_HINT);
+    REGISTER_OPTION(PERFORMANCE_HINT_NUM_REQUESTS);
+    REGISTER_OPTION(ENABLE_CPU_PINNING);
+    REGISTER_OPTION(INFERENCE_PRECISION_HINT);
+    REGISTER_OPTION(MODEL_PRIORITY);
+    REGISTER_OPTION(EXCLUSIVE_ASYNC_REQUESTS);
+    REGISTER_OPTION(COMPILATION_MODE_PARAMS);
+    REGISTER_OPTION(DMA_ENGINES);
+    REGISTER_OPTION(TILES);
+    REGISTER_OPTION(DPU_GROUPS);
+    REGISTER_OPTION(COMPILATION_MODE);
+    REGISTER_OPTION(COMPILER_TYPE);
+    REGISTER_OPTION(PLATFORM);
+    REGISTER_OPTION(CREATE_EXECUTOR);
+    REGISTER_OPTION(DYNAMIC_SHAPE_TO_STATIC);
+    REGISTER_OPTION(PROFILING_TYPE);
+    REGISTER_OPTION(BACKEND_COMPILATION_PARAMS);
+    REGISTER_OPTION(BATCH_MODE);
+    REGISTER_OPTION(BYPASS_UMD_CACHING);
+    REGISTER_OPTION(DEFER_WEIGHTS_LOAD);
+    REGISTER_OPTION(RUN_INFERENCES_SEQUENTIALLY);
+    REGISTER_OPTION(COMPILER_DYNAMIC_QUANTIZATION);
+    REGISTER_OPTION(QDQ_OPTIMIZATION);
+    REGISTER_OPTION(STEPPING);
+    REGISTER_OPTION(MAX_TILES);
+    REGISTER_OPTION(DISABLE_VERSION_CHECK);
+    if (_backend) {
+        if (_backend->isCommandQueueExtSupported()) {
+            REGISTER_OPTION(TURBO);
+            REGISTER_OPTION(WORKLOAD_TYPE);
+        }
+    }
+
+    recheck_compiler_support(_globalConfig);
+
+    if (_backend) {
+        _backend->registerOptions(*_options);
+    }
+
+    // parse again env_variables after backend is initialized to get backend proprieties
+    _globalConfig.parseEnvVars();
+}
+
+void Plugin::recheck_compiler_support(Config& cfg) const {
     bool legacy = false;
-    uint32_t compiler_version = 0;
+    CompilerAdapterFactory compilerAdapterFactory;
     std::vector<std::string> compiler_support_list{};
+    uint32_t compiler_version = 0;
     // create a dummy compiler to fetch version and supported options
+
     try {
-        CompilerAdapterFactory compilerAdapterFactory;
-        auto dummyCompiler = compilerAdapterFactory.getCompiler(_backend, _globalConfig);
+        auto dummyCompiler = compilerAdapterFactory.getCompiler(_backend, cfg);
         compiler_version = dummyCompiler->get_version();
         compiler_support_list = dummyCompiler->get_supported_options();
         if (compiler_support_list.size() == 0) {
@@ -243,7 +275,6 @@ void Plugin::init_options() {
         }
     } catch (...) {
         _logger.warning("No available compiler. Registering only legacy options with no compiler version requirement");
-        offline = true;
         legacy = true;
     }
 
@@ -253,114 +284,89 @@ void Plugin::init_options() {
     for (const auto& str : compiler_support_list) {
         _logger.debug("    %s ", str.c_str());
     }
-    _logger.debug("Offline registration: %s Legacy registration: %s",
-                  offline ? "true" : "false",
-                  legacy ? "true" : "false");
+    _logger.debug("Legacy registration: %s", legacy ? "true" : "false");
 
-#define TRY_REGISTER_OPTION(OPT_NAME, OPT_TYPE)                                                                 \
-    do {                                                                                                        \
-        std::string o_name = OPT_NAME.name();                                                                   \
-        auto dummyopt = details::makeOptionModel<OPT_TYPE>();                                                   \
-        if (dummyopt.mode() == OptionMode::RunTime) {                                                           \
-            if (!offline) {                                                                                     \
-                _options->add<OPT_TYPE>();                                                                      \
-            } else {                                                                                            \
-                _logger.debug("Option %s not registered! Requirements not met.", o_name.c_str());               \
-            }                                                                                                   \
-        } else {                                                                                                \
-            if (legacy) {                                                                                       \
-                if (compiler_version >= dummyopt.compilerSupportVersion()) {                                    \
-                    _options->add<OPT_TYPE>();                                                                  \
-                } else {                                                                                        \
-                    _logger.debug("Option %s not registered! Requirements not met.", o_name.c_str());           \
-                }                                                                                               \
-            } else {                                                                                            \
-                auto it = std::find(compiler_support_list.begin(), compiler_support_list.end(), o_name);        \
-                if (it != compiler_support_list.end()) {                                                        \
-                    _options->add<OPT_TYPE>();                                                                  \
-                } else {                                                                                        \
-                    CompilerAdapterFactory compilerAdapter;                                                     \
-                    auto compiler = compilerAdapter.getCompiler(_backends->getIEngineBackend(), _globalConfig); \
-                    if (compiler->is_option_supported(o_name)) {                                                \
-                        _options->add<OPT_TYPE>();                                                              \
-                    } else {                                                                                    \
-                        _logger.debug("Option %s not registered! Requirements not met.", o_name.c_str());       \
-                    }                                                                                           \
-                }                                                                                               \
-            }                                                                                                   \
-        }                                                                                                       \
-    } while (0)
-
-    TRY_REGISTER_OPTION(ov::log::level, LOG_LEVEL);
-    TRY_REGISTER_OPTION(ov::cache_dir, CACHE_DIR);
-    TRY_REGISTER_OPTION(ov::device::id, DEVICE_ID);
-    TRY_REGISTER_OPTION(ov::num_streams, NUM_STREAMS);
-    TRY_REGISTER_OPTION(ov::enable_profiling, PERF_COUNT);
-    TRY_REGISTER_OPTION(ov::loaded_from_cache, LOADED_FROM_CACHE);
-    TRY_REGISTER_OPTION(ov::compilation_num_threads, COMPILATION_NUM_THREADS);
-    TRY_REGISTER_OPTION(ov::hint::performance_mode, PERFORMANCE_HINT);
-    TRY_REGISTER_OPTION(ov::hint::execution_mode, EXECUTION_MODE_HINT);
-    TRY_REGISTER_OPTION(ov::hint::num_requests, PERFORMANCE_HINT_NUM_REQUESTS);
-    TRY_REGISTER_OPTION(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
-    TRY_REGISTER_OPTION(ov::hint::inference_precision, INFERENCE_PRECISION_HINT);
-    TRY_REGISTER_OPTION(ov::hint::model_priority, MODEL_PRIORITY);
-    TRY_REGISTER_OPTION(ov::internal::exclusive_async_requests, EXCLUSIVE_ASYNC_REQUESTS);
-    TRY_REGISTER_OPTION(ov::intel_npu::compilation_mode_params, COMPILATION_MODE_PARAMS);
-    TRY_REGISTER_OPTION(ov::intel_npu::dma_engines, DMA_ENGINES);
-    TRY_REGISTER_OPTION(ov::intel_npu::tiles, TILES);
-    TRY_REGISTER_OPTION(ov::intel_npu::dpu_groups, DPU_GROUPS);
-    TRY_REGISTER_OPTION(ov::intel_npu::compilation_mode, COMPILATION_MODE);
-    TRY_REGISTER_OPTION(ov::intel_npu::compiler_type, COMPILER_TYPE);
-    TRY_REGISTER_OPTION(ov::intel_npu::platform, PLATFORM);
-    TRY_REGISTER_OPTION(ov::intel_npu::create_executor, CREATE_EXECUTOR);
-    TRY_REGISTER_OPTION(ov::intel_npu::dynamic_shape_to_static, DYNAMIC_SHAPE_TO_STATIC);
-    TRY_REGISTER_OPTION(ov::intel_npu::profiling_type, PROFILING_TYPE);
-    TRY_REGISTER_OPTION(ov::intel_npu::backend_compilation_params, BACKEND_COMPILATION_PARAMS);
-    TRY_REGISTER_OPTION(ov::intel_npu::batch_mode, BATCH_MODE);
-    TRY_REGISTER_OPTION(ov::intel_npu::bypass_umd_caching, BYPASS_UMD_CACHING);
-    TRY_REGISTER_OPTION(ov::intel_npu::defer_weights_load, DEFER_WEIGHTS_LOAD);
-    TRY_REGISTER_OPTION(ov::intel_npu::run_inferences_sequentially, RUN_INFERENCES_SEQUENTIALLY);
-    TRY_REGISTER_OPTION(ov::intel_npu::compiler_dynamic_quantization, COMPILER_DYNAMIC_QUANTIZATION);
-    TRY_REGISTER_OPTION(ov::intel_npu::qdq_optimization, QDQ_OPTIMIZATION);
-    TRY_REGISTER_OPTION(ov::intel_npu::disable_version_check, DISABLE_VERSION_CHECK);
-    TRY_REGISTER_OPTION(ov::intel_npu::stepping, STEPPING);
-    TRY_REGISTER_OPTION(ov::intel_npu::max_tiles, MAX_TILES);
-    if (_backend) {
-        if (_backend->isCommandQueueExtSupported()) {
-            TRY_REGISTER_OPTION(ov::intel_npu::turbo, TURBO);
-            TRY_REGISTER_OPTION(ov::workload_type, WORKLOAD_TYPE);
+    // Parse enables
+    cfg.walkEnables([&](const std::string& key) {
+        bool isEnabled = false;
+        auto opt = cfg.getOpt(key);
+        if (opt.mode() == OptionMode::RunTime) {
+            isEnabled = true;
+        } else {
+            if (legacy) {
+                if (compiler_version >= opt.compilerSupportVersion()) {
+                    isEnabled = true;
+                }
+            } else {
+                auto it = std::find(compiler_support_list.begin(), compiler_support_list.end(), key);
+                if (it != compiler_support_list.end()) {
+                    isEnabled = true;
+                } else {
+                    auto compiler = compilerAdapterFactory.getCompiler(_backend, cfg);
+                    if (compiler->is_option_supported(key)) {
+                        isEnabled = true;
+                    }
+                }
+            }
         }
-        _backend->registerOptions(*_options);
-    }
-
-    // parse again env_variables after backend is initialized to get backend proprieties
-    _globalConfig.parseEnvVars();
+        if (!isEnabled) {
+            _logger.debug("Config option %s not supported! Requirements not met.", key.c_str());
+        } else {
+            _logger.debug("Enabled config option %s", key.c_str());
+        }
+        // update enable flag
+        cfg.enable(key, isEnabled);
+    });
 }
 
-void Plugin::compiler_change() {
-    // Changes we need to do in case of a compiler change
-    // 1. Reset options for the new compiler
-    init_options();
-    // 2. Reset properties for the new options
-    _properties->registerProperties();
+Config Plugin::fork_local_config(std::map<std::string, std::string>& rawConfig, OptionMode mode) const {
+    update_log_level(rawConfig);
+    // create a copy of the global config
+    Config localConfig = _globalConfig;
+
+    // Check if compiler was changed
+    // 1. Check for compiler change
+    auto it = rawConfig.find(std::string(COMPILER_TYPE::key()));
+    if (it != rawConfig.end()) {
+        if (localConfig.getString<COMPILER_TYPE>() != it->second) {
+            // Compiler type has changed!
+            // Set new compiler type
+            localConfig.update({{std::string(COMPILER_TYPE::key()), it->second}});
+            // enable/disable config keys based on what the new compiler supports
+            recheck_compiler_support(localConfig);
+        }
+    }
+
+    localConfig.update(rawConfig, mode);
+    return localConfig;
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
-    // 1. Set the property via Properties interface
+    // 1. Check for compiler change
+    if (properties.count(std::string(COMPILER_TYPE::key())) != 0) {
+        // Compiler change detected
+        // Set new compiler in _globalConfig
+        auto it = properties.find(std::string(COMPILER_TYPE::key()));
+        if (it != properties.end()) {
+            _globalConfig.update({{std::string(COMPILER_TYPE::key()), it->second.as<std::string>()}});
+            // enable/disable config keys based on what the new compiler supports
+            recheck_compiler_support(_globalConfig);
+            // 2. Reset properties for the new options
+            _properties->registerProperties();
+        }
+    }
+
+    // 2. Set the property via Properties interface
     _properties->set_property(properties);
 
-    // 2. Extra hooks
+    // 3. Extra hooks
     // Update log level if it was provided
     if (properties.count(std::string(LOG_LEVEL::key())) != 0) {
         Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
     }
     // Init backends if needed
-    if (_backends != nullptr) {
-        _backends->setup(_globalConfig);
-    }
-    // Reset options and properties if compiler got changed
-    if (properties.count(std::string(COMPILER_TYPE::key())) != 0) {
-        compiler_change();
+    if (_backend != nullptr) {
+        _backend->setup(_globalConfig);
     }
 }
 
@@ -371,7 +377,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::compile_model");
-    OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "merge_configs");
+    OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
 
     // Before going any further: if
     // ... 1 - NPUW mode is activated
@@ -389,7 +395,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
-    auto localConfig = merge_configs(_globalConfig, localPropertiesMap, _backends);
+    auto localConfig = fork_local_config(localPropertiesMap);
     update_log_level(localPropertiesMap);
 
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
@@ -497,7 +503,7 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) con
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
-    OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "merge_configs");
+    OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "fork_local_config");
 
     // If was exported via NPUW
     auto stream_start_pos = stream.tellg();
@@ -532,7 +538,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
     const auto propertiesMap = any_copy(npu_plugin_properties);
 
-    auto localConfig = merge_configs(_globalConfig, propertiesMap, _backends, OptionMode::RunTime);
+    auto localConfig = fork_local_config(propertiesMap, OptionMode::RunTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
         utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
@@ -618,7 +624,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
                                         const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
     std::map<std::string, std::string> propertiesMap = any_copy(properties);
-    auto localConfig = merge_configs(_globalConfig, propertiesMap, _backends, OptionMode::CompileTime);
+    auto localConfig = fork_local_config(propertiesMap, OptionMode::CompileTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
         utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
