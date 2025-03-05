@@ -281,20 +281,25 @@ void BrgemmAMXKernelExecutor::execute(const BrgemmAMXKernelExecutor* executor, c
     const auto K_tail = config.get_K() % config.get_inner_K_blk();
     const auto K_body = config.get_K() - K_tail;
 
-    if (K_body != 0) {
+    const bool execute_main_body = K_body != 0;
+    const bool execute_tail = K_tail != 0;
+
+    if (execute_main_body) {
         const auto& K_body_kernel = kernel->K_body_kernel;
         configure_tiles_if_needed(args->amx_tile_config,
                                   K_body_kernel->palette,
                                   config.get_M(),
                                   config.get_N(),
                                   K_body);
-        execute_brgemm_kernel(K_body_kernel->brgemm_kernel, src_ptr, wei_ptr, args->C, scratch, false);
+        // Post ops are applied only on last iteration, so they mustn't be applied if tail is present
+        const bool apply_post_ops = !execute_tail;
+        execute_brgemm_kernel(K_body_kernel->brgemm_kernel, src_ptr, wei_ptr, args->C, scratch, false, apply_post_ops);
 
         src_ptr = src_ptr + K_body * dnnl_data_type_size(config.get_dt_in0());
         wei_ptr = wei_ptr + (K_body * config.get_LDB()) * dnnl_data_type_size(config.get_dt_in1());
     }
 
-    if (K_tail != 0) {
+    if (execute_tail) {
         if (config.need_copy_a(K_tail)) {
             auto* tr_src = scratch + BrgemmCPU::SCRATCH_BYTE_SIZE;
 
@@ -308,7 +313,7 @@ void BrgemmAMXKernelExecutor::execute(const BrgemmAMXKernelExecutor* executor, c
                                   config.get_M(),
                                   config.get_N(),
                                   K_tail);
-        execute_brgemm_kernel(K_tail_kernel->brgemm_kernel, src_ptr, wei_ptr, args->C, scratch, false);
+        execute_brgemm_kernel(K_tail_kernel->brgemm_kernel, src_ptr, wei_ptr, args->C, scratch, false, true);
     }
 }
 

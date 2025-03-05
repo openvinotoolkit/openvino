@@ -115,7 +115,8 @@ protected:
                                       const void* wei,
                                       void* dst,
                                       void* scratch,
-                                      bool with_comp);
+                                      bool with_comp,
+                                      bool apply_post_ops);
 };
 
 }  // namespace ov::intel_cpu::x64

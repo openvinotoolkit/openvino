@@ -93,7 +93,9 @@ void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, call_ar
 
     // Note: compensations should be applied only once, so we do it only on the first iteration, when beta == 0
     const auto is_with_comp = config.get_beta() == 0 && config.is_with_comp();
-    execute_brgemm_kernel(kernel->brgemm_kernel, args->A, args->B, args->C, args->scratch, is_with_comp);
+    // TODO: most likely should be fixed
+    const auto apply_post_ops = config.get_beta() == 1.f;
+    execute_brgemm_kernel(kernel->brgemm_kernel, args->A, args->B, args->C, args->scratch, is_with_comp, apply_post_ops);
 }
 
 #ifdef SNIPPETS_DEBUG_CAPS

@@ -148,11 +148,8 @@ void BrgemmBaseKernelExecutor::create_brgemm_kernel(std::shared_ptr<brgemm_kerne
                               "Cannot initialize brgemm descriptor due to invalid params");
 
     // TODO: place postops fusion here
-    const dnnl::memory::dims dst_dims{M, N};
-    dnnl::memory::data_type type = static_cast<dnnl::memory::data_type>(dt_out);
-    dnnl::memory::format_tag tag = dnnl::memory::format_tag::any;
-    dnnl::memory::desc dst_desc(dst_dims, type, tag);
-    brgemm_desc_set_postops(&desc, nullptr, 0, LDC);
+    dnnl::memory::desc dst_desc({M, N}, static_cast<dnnl::memory::data_type>(dt_out), dnnl::memory::format_tag::any);
+    brgemm_desc_set_postops(&desc, nullptr, dst_desc.get(), LDC);
 
     std::cout << "[ INFO ] Brgemm desc creation:" << std::endl;
     std::cout << "\t desc.dt_a: " << desc.dt_a << std::endl;
@@ -177,7 +174,8 @@ void BrgemmBaseKernelExecutor::execute_brgemm_kernel(
     const void* wei,
     void* dst,
     void* scratch,
-    bool with_comp) {
+    bool with_comp,
+    bool apply_post_ops) {
     cpu::x64::brgemm_kernel_params_t brgemm_p;
     brgemm_p.batch = nullptr;  // default value
     brgemm_p.ptr_A = src;
@@ -186,7 +184,7 @@ void BrgemmBaseKernelExecutor::execute_brgemm_kernel(
     brgemm_p.ptr_D = dst;
     brgemm_p.ptr_buf = scratch;
     brgemm_p.ptr_bias = nullptr;
-    brgemm_p.do_post_ops = with_comp;
+    brgemm_p.do_post_ops = apply_post_ops;
     brgemm_p.do_apply_comp = with_comp;
     brgemm_p.skip_accm = 0;
     brgemm_p.BS = 1;  // default value
