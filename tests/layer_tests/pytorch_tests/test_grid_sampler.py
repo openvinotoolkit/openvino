@@ -37,6 +37,7 @@ class TestGridSampler(PytorchLayerTest):
     @pytest.mark.parametrize("align_corners", [True, False, None])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
