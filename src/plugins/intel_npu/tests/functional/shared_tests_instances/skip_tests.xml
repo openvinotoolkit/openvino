@@ -177,14 +177,6 @@ Example:
         </filters>
     </skip_config>
     <skip_config>
-        <!-- EISW 67741 -->
-        <message>Cannot call setShape for Blobs</message>
-        <filters>
-            <filter>.*(smoke_Behavior|smoke_Auto_Behavior|smoke_Multi_Behavior).*OVInferRequestIOTensorTest.*canInferAfterIOBlobReallocation.*</filter>
-            <filter>.*(smoke_Behavior|smoke_Auto_Behavior|smoke_Multi_Behavior).*OVInferRequestIOTensorTest.*InferStaticNetworkSetChangedInputTensorThrow.*targetDevice=(NPU_|MULTI_configItem=MULTI_DEVICE_PRIORITIES_NPU).*</filter>
-        </filters>
-    </skip_config>
-    <skip_config>
         <!-- EISW 67749 -->
         <message>Can't loadNetwork without cache for ReadConcatSplitAssign with precision f32</message>
         <filters>
@@ -444,7 +436,7 @@ Example:
         <!-- EISW 83423 -->
         <message>Tests enabled only for L0 NPU3720</message>
         <enable_rules>
-            <backend>!LEVEL0</backend>
+            <backend>LEVEL0</backend>
             <device>!3720</device>
         </enable_rules>
         <filters>
