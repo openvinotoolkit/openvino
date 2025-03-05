@@ -211,6 +211,6 @@ Additional Resources
 
 * :doc:`Troubleshooting Guide for OpenVINO Installation & Configuration <../install-openvino>`
 * :doc:`Convert models for use with OpenVINO™ <../../../openvino-workflow/model-preparation/convert-model-to-ir>`
-* :doc:`Write your own OpenVINO™ applications <../../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
+* :doc:`Write your own OpenVINO™ applications <../../../openvino-workflow/running-inference>`
 * Sample applications: :doc:`OpenVINO™ Toolkit Samples Overview <../../../get-started/learn-openvino/openvino-samples>`
 * Pre-trained deep learning models on `Hugging Face <https://huggingface.co/OpenVINO>`__.

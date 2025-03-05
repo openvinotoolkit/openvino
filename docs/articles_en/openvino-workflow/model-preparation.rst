@@ -29,7 +29,7 @@ The easiest way to obtain a model is to download it from an online database, suc
 `Kaggle <https://www.kaggle.com/models>`__, `Hugging Face <https://huggingface.co/>`__, and
 `Torchvision models <https://pytorch.org/hub/>`__. Now you have two options:
 
-* Skip model conversion and :doc:`run inference <running-inference/integrate-openvino-with-your-application>`
+* Skip model conversion and :doc:`run inference <running-inference>`
   directly from the **TensorFlow, TensorFlow Lite, ONNX, or PaddlePaddle** source format.
   Conversion will still be performed but it will happen automatically and "under the hood".
   This option, while convenient, offers lower performance and stability, as well as fewer
@@ -51,7 +51,7 @@ The easiest way to obtain a model is to download it from an online database, suc
   Once saved as :doc:`OpenVINO IR <model-preparation/convert-model-to-ir>`
   (a set of ``.xml`` and ``.bin`` files), the model may be deployed with maximum performance.
   Because it is already optimized for
-  :doc:`OpenVINO inference <running-inference/integrate-openvino-with-your-application>`,
+  :doc:`OpenVINO inference <running-inference>`,
   it can be read, compiled, and inferred with no additional delay.
 
 .. note::
