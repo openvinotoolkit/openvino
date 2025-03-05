@@ -370,10 +370,6 @@ void SubgraphBaseTest::update_ref_model() {
             }
         } else {
             std::stringstream errMsg;
-            errMsg << "Available inputs are: ";
-            for (const auto& input : inputs) {
-                errMsg << "Input: " << input.first->get_friendly_name() << "; ";
-            }
             errMsg << "Couldn't find input with name " << inputNodes[i].get_node_shared_ptr()->get_friendly_name();
             errMsg << " in the inputs map";
             throw std::runtime_error(errMsg.str());
