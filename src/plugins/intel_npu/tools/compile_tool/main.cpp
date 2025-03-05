@@ -450,7 +450,7 @@ int main(int argc, char* argv[]) {
             ov::Dimension modelBatchBefore = ov::get_batch(model);
             std::cout << "Model Batch [Before] --->>> " << modelBatchBefore.to_string() << std::endl;
         } catch (const ov::AssertFailure& e) {
-            std::cerr << "Warning: Model has no batch layout / conflicting N dimensions. Details: " << e.what() << std::endl;
+            std::cout << "Warning: Model has no batch layout / conflicting N dimensions. Details: " << e.what() << std::endl;
         }
 
         std::cout << "Performing reshape" << std::endl;
@@ -460,7 +460,7 @@ int main(int argc, char* argv[]) {
             ov::Dimension modelBatchAfter = ov::get_batch(model);
             std::cout << "Model Batch [After]  --->>> " << modelBatchAfter.to_string() << std::endl;
         } catch (const ov::AssertFailure& e) {
-            std::cerr << "Warning: Model has no batch layout / conflicting N dimensions. Details: " << e.what() << std::endl;
+            std::cout << "Warning: Model has no batch layout / conflicting N dimensions. Details: " << e.what() << std::endl;
         }
 
         std::cout << "Configuring model pre & post processing" << std::endl;

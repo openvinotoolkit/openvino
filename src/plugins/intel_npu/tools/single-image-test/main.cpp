@@ -2052,7 +2052,7 @@ static int runSingleImageTest() {
                 ov::Dimension modelBatchBefore = ov::get_batch(model);
                 std::cout << "Model Batch [After]  --->>> " << modelBatchBefore.to_string() << std::endl;
             } catch (const ov::AssertFailure& e) {
-                std::cout << "Warning: Model has no batch layout / conflicting N dimensions. Details: " << e.what() << std::endl;
+                std::cout << "Warning: Model has no batch layout / conflicting N dimensions." << std::endl;
             }
 
             ov::preprocess::PrePostProcessor ppp(model);
@@ -2085,10 +2085,6 @@ static int runSingleImageTest() {
 
                 ov::Layout modelLayout = ov::layout::get_layout(model->input(i));;
                 std::cout << "Model Layout --->>> " << modelLayout.to_string() << std::endl;
-
-                // Get the batch number from model
-                ov::Dimension modelBatch = ov::get_batch(model);
-                std::cout << "Model Batch  --->>> " << modelBatch.to_string() << std::endl;
 
                 if (std::optional<ov::Layout> inUserLayout =
                             getRegexSubstitutionIfExist(inputInfo[i].get_any_name(), inUserLayouts);
