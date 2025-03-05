@@ -157,8 +157,8 @@ protected:
         return _kernels;
     }
 
-    std::vector<layout> get_internal_buffer_layouts_impl() const override {
-        std::vector<layout> layouts;
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
+        std::vector<BufferDescriptor> internal_buffers;
         for (auto& kd : _kernels_data) {
             if (kd.internalBuffers.empty())
                 continue;
@@ -168,10 +168,10 @@ protected:
             for (const auto& buffer : kd.internalBuffers) {
                 layout inbuf_layout = {dtype, format::bfyx, // simple linear format (flattern to x channel)
                                         {1, 1, 1, (tensor::value_type)(buffer.byte_count / bpp)}};
-                layouts.push_back(inbuf_layout);
+                internal_buffers.emplace_back(inbuf_layout, buffer.lockable);
             }
         }
-        return layouts;
+        return internal_buffers;
     }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
