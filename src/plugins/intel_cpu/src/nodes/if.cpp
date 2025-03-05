@@ -13,6 +13,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/op/if.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -80,37 +81,123 @@ If::If(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     }
 }
 
-void If::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty()) {
-        return;
+void If::selectOptimalPrimitiveDescriptor() {
+    // for the input configuration, just always use the parent configuration
+    auto ifOp = ov::as_type_ptr<ov::op::v8::If>(m_op);
+    const auto numThenParameters = ifOp->get_then_body()->get_parameters().size();
+    const auto numThenResults = ifOp->get_then_body()->get_results().size();
+    const auto numElseParameters = ifOp->get_else_body()->get_parameters().size();
+    const auto numElseResults = ifOp->get_else_body()->get_results().size();
+
+    std::vector<PortConfig> inConfs(inputShapes.size());
+    std::vector<PortConfig> outConfs(outputShapes.size());
+
+    std::vector<Input::InputConfig> thenInputConfig(numThenParameters);
+    std::vector<Input::InputConfig> elseInputConfig(numElseParameters);
+
+    bool isInPlace = true;
+
+    std::vector<Input::OutputConfig> thenOutputConfig(numThenResults, node::Input::OutputConfig{true, isInPlace});
+    std::vector<Input::OutputConfig> elseOutputConfig(numElseResults, node::Input::OutputConfig{true, isInPlace});
+
+    auto thenInputDescriptions = ifOp->get_input_descriptions(0);
+    auto elseInputDescriptions = ifOp->get_input_descriptions(1);
+
+    auto conditionDesc = getParentOutputMemDesc(getParentEdgeAt(0));
+    inConfs.at(0) = PortConfig(conditionDesc);
+
+    for (const auto& description : thenInputDescriptions) {
+        const auto inIdx = description->m_input_index;
+        const auto paramIdx = description->m_body_parameter_index;
+        auto desc = getParentOutputMemDesc(getParentEdgeAt(inIdx));
+        inConfs.at(inIdx) = PortConfig(desc);
+        thenInputConfig.at(paramIdx) = node::Input::InputConfig{desc, isInPlace};
     }
 
-    m_thenGraph.Init(m_op->get_then_body(), context);
-    m_elseGraph.Init(m_op->get_else_body(), context);
-
-    NodeConfig config;
-    config.inConfs.reserve(getParentEdges().size());
-    config.outConfs.reserve(getChildEdges().size());
-
-    for (size_t i = 0; i < inputShapes.size(); i++) {
-        PortConfig dataConf{};
-        auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
-        dataConf.setMemDesc(descCreator->createSharedDesc(getOriginalInputPrecisionAtPort(i), getInputShapeAtPort(i)));
-        config.inConfs.emplace_back(dataConf);
+    for (const auto& description : elseInputDescriptions) {
+        const auto inIdx = description->m_input_index;
+        const auto paramIdx = description->m_body_parameter_index;
+        auto desc = getParentOutputMemDesc(getParentEdgeAt(inIdx));
+        inConfs.at(inIdx) = PortConfig(desc);
+        elseInputConfig.at(paramIdx) = node::Input::InputConfig{desc, isInPlace};
     }
 
-    for (size_t i = 0; i < outputShapes.size(); i++) {
-        PortConfig dataConf{};
-        auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
-        dataConf.setMemDesc(
-            descCreator->createSharedDesc(getOriginalOutputPrecisionAtPort(i), getOutputShapeAtPort(i)));
-        config.outConfs.push_back(dataConf);
+    // configure the inner graph to get the information about output memory descriptors
+    m_thenGraph.Init(ifOp->get_then_body(), context, thenInputConfig, thenOutputConfig);
+    m_elseGraph.Init(ifOp->get_else_body(), context, elseInputConfig, elseOutputConfig);
+
+    // for the output descriptors, use the configuration of the graph's output nodes
+    auto thenOutputDescriptors = m_thenGraph.getOutputMemoryDescriptors();
+    auto elseOutputDescriptors = m_elseGraph.getOutputMemoryDescriptors();
+    auto thenOutputDescriptions = ifOp->get_output_descriptions(0);
+    auto elseOutputDescriptions = ifOp->get_output_descriptions(1);
+
+    for (const auto& description : thenOutputDescriptions) {
+        auto outIdx = description->m_output_index;
+        auto resultIdx = description->m_body_value_index;
+        outConfs.at(outIdx) = PortConfig(thenOutputDescriptors.at(resultIdx));
     }
 
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+    for (const auto& description : elseOutputDescriptions) {
+        auto outIdx = description->m_output_index;
+        auto resultIdx = description->m_body_value_index;
+        outConfs.at(outIdx) = PortConfig(elseOutputDescriptors.at(resultIdx));
+    }
+
+    const NodeConfig config(inConfs, outConfs);
+
+    supportedPrimitiveDescriptors.clear();
+
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::undef);
+
+    selectPrimitiveDescriptorByIndex(0);
 }
 
 int If::registerToAllocationContext(int offset, AllocationContext& context) {
+    auto shareOuterGraphInputMem =
+        [&](const Graph& graph,
+            const op::util::MultiSubGraphOp::MultiSubgraphInputDescriptionVector& inputDescriptions) {
+            for (const auto& description : inputDescriptions) {
+                const auto inIdx = description->m_input_index;
+                const auto paramIdx = description->m_body_parameter_index;
+                auto parentEdge = getParentEdgeAt(inIdx);
+                auto inputEdges = graph.getInputNodeByIndex(paramIdx)->getChildEdgesAtPort(0);
+                for (const auto& inputEdge : inputEdges) {
+                    OPENVINO_ASSERT(inputEdge->getStatus() == Edge::Status::Uninitialized,
+                                    "Expected Uninitialized state for edge: ",
+                                    *this);
+                    inputEdge->sharedMemFrom(parentEdge);
+                }
+            }
+        };
+
+    auto shareOuterGraphOutputMem =
+        [&](const Graph& graph,
+            const op::util::MultiSubGraphOp::MultiSubgraphOutputDescriptionVector& outputDescriptions) {
+            for (const auto& description : outputDescriptions) {
+                auto outIdx = description->m_output_index;
+                auto resultIdx = description->m_body_value_index;
+
+                auto childEdge = getChildEdgeAt(outIdx);
+                auto outputEdge = graph.getOutputNodeByIndex(resultIdx)->getParentEdgeAt(0);
+                OPENVINO_ASSERT(outputEdge->getStatus() == Edge::Status::Uninitialized,
+                                "Expected Uninitialized state for edge: ",
+                                *outputEdge);
+                outputEdge->sharedMemFrom(childEdge);
+            }
+        };
+
+    auto thenInputDescriptions = m_op->get_input_descriptions(0);
+    auto elseInputDescriptions = m_op->get_input_descriptions(1);
+    auto thenOutputDescriptions = m_op->get_output_descriptions(0);
+    auto elseOutputDescriptions = m_op->get_output_descriptions(1);
+
+    shareOuterGraphInputMem(m_thenGraph, thenInputDescriptions);
+    shareOuterGraphOutputMem(m_thenGraph, thenOutputDescriptions);
+
+    shareOuterGraphInputMem(m_elseGraph, elseInputDescriptions);
+    shareOuterGraphOutputMem(m_elseGraph, elseOutputDescriptions);
+
     // take into account an offset of the both subgraphs
     const int thenOffset = m_thenGraph.RegisterToAllocationContext(offset, context);
     const int elseOffset = m_elseGraph.RegisterToAllocationContext(thenOffset, context);
@@ -155,34 +242,34 @@ void If::createPrimitive() {
         }
     }
 
-    // Port map: outputs
-    for (const auto& desc : m_op->get_output_descriptions(0)) {
-        auto body_output_idx = desc->m_body_value_index;
-        thenOutputPortMap.emplace_back(
-            PortMap{static_cast<int>(desc->m_output_index), static_cast<int>(body_output_idx)});
-    }
-    for (const auto& desc : m_op->get_output_descriptions(1)) {
-        auto body_output_idx = desc->m_body_value_index;
-        elseOutputPortMap.emplace_back(
-            PortMap{static_cast<int>(desc->m_output_index), static_cast<int>(body_output_idx)});
-    }
+    // // Port map: outputs
+    // for (const auto& desc : m_op->get_output_descriptions(0)) {
+    //     auto body_output_idx = desc->m_body_value_index;
+    //     thenOutputPortMap.emplace_back(
+    //         PortMap{static_cast<int>(desc->m_output_index), static_cast<int>(body_output_idx)});
+    // }
+    // for (const auto& desc : m_op->get_output_descriptions(1)) {
+    //     auto body_output_idx = desc->m_body_value_index;
+    //     elseOutputPortMap.emplace_back(
+    //         PortMap{static_cast<int>(desc->m_output_index), static_cast<int>(body_output_idx)});
+    // }
 
-    for (const auto& desc : m_op->get_input_descriptions(0)) {
-        auto body_input_index = desc->m_body_parameter_index;
-        thenInputPortMap.emplace_back(
-            PortMap{static_cast<int>(desc->m_input_index), static_cast<int>(body_input_index)});
-    }
-    for (const auto& desc : m_op->get_input_descriptions(1)) {
-        auto body_input_index = desc->m_body_parameter_index;
-        elseInputPortMap.emplace_back(
-            PortMap{static_cast<int>(desc->m_input_index), static_cast<int>(body_input_index)});
-    }
+    // for (const auto& desc : m_op->get_input_descriptions(0)) {
+    //     auto body_input_index = desc->m_body_parameter_index;
+    //     thenInputPortMap.emplace_back(
+    //         PortMap{static_cast<int>(desc->m_input_index), static_cast<int>(body_input_index)});
+    // }
+    // for (const auto& desc : m_op->get_input_descriptions(1)) {
+    //     auto body_input_index = desc->m_body_parameter_index;
+    //     elseInputPortMap.emplace_back(
+    //         PortMap{static_cast<int>(desc->m_input_index), static_cast<int>(body_input_index)});
+    // }
 
-    const auto& eng = getEngine();
-    prepareBeforeMappers(true, eng);
-    prepareBeforeMappers(false, eng);
-    prepareAfterMappers(true, eng);
-    prepareAfterMappers(false, eng);
+    // const auto& eng = getEngine();
+    // prepareBeforeMappers(true, eng);
+    // prepareBeforeMappers(false, eng);
+    // prepareAfterMappers(true, eng);
+    // prepareAfterMappers(false, eng);
 
     if (inputShapesDefined()) {
         updateLastInputDims();
@@ -242,20 +329,10 @@ std::deque<MemoryPtr> If::getToMemories(const Node* node, const size_t port) con
 void If::execute(const dnnl::stream& strm) {
     const auto condition = static_cast<const bool>((getSrcDataAtPortAs<const uint8_t>(0))[0]);
 
-    auto& beforeMappers = condition ? beforeThenMappers : beforeElseMappers;
-    auto& afterMappers = condition ? afterThenMappers : afterElseMappers;
     auto& subGraph = condition ? m_thenGraph : m_elseGraph;
-
-    for (auto& mapper : beforeMappers) {
-        mapper->execute(strm);
-    }
 
     subGraph.ResetInferCount();
     subGraph.Infer();
-
-    for (auto& mapper : afterMappers) {
-        mapper->execute(strm);
-    }
 }
 
 void If::executeDynamicImpl(const dnnl::stream& strm) {
