@@ -329,6 +329,7 @@ def test_memory_release(device):
     compiled_model.release_memory()
     request.infer({0: input_tensor, 1: input_tensor})
 
+
 def test_set_property_set_type():
     model = get_relu_model([1, 3, 32, 32])
     core = Core()
