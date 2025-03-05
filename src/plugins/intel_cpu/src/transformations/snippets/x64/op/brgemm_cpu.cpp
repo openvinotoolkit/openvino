@@ -197,7 +197,7 @@ bool BrgemmCPU::visit_attributes(AttributeVisitor& visitor) {
 void BrgemmCPU::add_post_op(const std::shared_ptr<ov::Node>& post_op) {
     const auto& inputs = post_op->input_values();
     // TODO: what about activations?
-    OPENVINO_ASSERT(inputs.size() > 1, "Post-op must have at least one input");
+    OPENVINO_ASSERT(inputs.size() >= 1, "Post-op must have at least one input");
     // TODO: Should we even check postop parent?
     const auto in_node = inputs[0].get_node();
     if (ov::is_type<ov::snippets::op::ConvertSaturation>(in_node)) {
