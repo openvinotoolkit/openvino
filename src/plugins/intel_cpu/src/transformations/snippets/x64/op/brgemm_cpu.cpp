@@ -196,9 +196,15 @@ bool BrgemmCPU::visit_attributes(AttributeVisitor& visitor) {
 
 void BrgemmCPU::add_post_op(const std::shared_ptr<ov::Node>& post_op) {
     const auto& inputs = post_op->input_values();
-    // TODO: what about scalar?
+    // TODO: what about activations?
     OPENVINO_ASSERT(inputs.size() > 1, "Post-op must have at least one input");
-    OPENVINO_ASSERT(inputs[0].get_node() == this, "First input of post-op must be Brgemm output");
+    // TODO: Should we even check postop parent?
+    const auto in_node = inputs[0].get_node();
+    if (ov::is_type<ov::snippets::op::ConvertSaturation>(in_node)) {
+        OPENVINO_ASSERT(in_node->get_input_node_ptr(0) == this, "First input of post-op must be Brgemm output");
+    } else {
+        OPENVINO_ASSERT(in_node == this, "First input of post-op must be Brgemm output");
+    }
     OPENVINO_ASSERT(std::all_of(inputs.begin() + 1,
                                 inputs.end(),
                                 [&](const Output<Node>& input) {
