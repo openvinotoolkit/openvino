@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "impls/registry/predicates.hpp"
+#include "registry/predicates.hpp"
 #include "registry.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
 #include "primitive_inst.h"

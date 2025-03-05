@@ -3,7 +3,7 @@
 //
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "loop_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "register.hpp"
 #include "mutable_data_inst.h"
 #include "input_layout_inst.h"

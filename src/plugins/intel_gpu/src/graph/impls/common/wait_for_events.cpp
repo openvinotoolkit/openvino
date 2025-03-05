@@ -6,7 +6,7 @@
 #include "data_inst.h"
 #include "prior_box_inst.h"
 #include "input_layout_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "register.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include <vector>
