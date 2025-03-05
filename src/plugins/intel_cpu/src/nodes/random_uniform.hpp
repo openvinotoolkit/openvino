@@ -10,9 +10,7 @@
 
 #include "kernels/x64/random_uniform.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class RandomUniform : public Node {
 public:
@@ -33,7 +31,7 @@ public:
 
     void initSupportedPrimitiveDescriptors() override;
 
-    bool needPrepareParams() const override;
+    [[nodiscard]] bool needPrepareParams() const override;
 
     void prepareParams() override;
 
@@ -41,23 +39,23 @@ public:
 
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
-    bool neverExecute() const override;
-    bool isExecutable() const override;
+    [[nodiscard]] bool neverExecute() const override;
+    [[nodiscard]] bool isExecutable() const override;
 
     void createPrimitive() override;
 
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
 
-    bool canBeInPlace() const override {
+    [[nodiscard]] bool canBeInPlace() const override {
         return false;
     }
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    std::string getPrimitiveDescriptorType() const override;
+    [[nodiscard]] std::string getPrimitiveDescriptorType() const override;
 
 protected:
-    bool needShapeInfer() const override;
+    [[nodiscard]] bool needShapeInfer() const override;
 
 private:
     void evalRange();
@@ -158,6 +156,4 @@ private:
     void computeStl(void* out, size_t work_amount);
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

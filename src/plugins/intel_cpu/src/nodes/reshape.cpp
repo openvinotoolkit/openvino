@@ -13,9 +13,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool Reshape::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -64,7 +62,7 @@ bool Reshape::needShapeInfer() const {
     if (lastSecondInputValues.empty()) {
         lastSecondInputValues.resize(mem.getStaticDims()[0], 0);
     }
-    const int32_t* sndInput = mem.getDataAs<const int32_t>();
+    const auto* sndInput = mem.getDataAs<const int32_t>();
     for (size_t i = 0; i < lastSecondInputValues.size(); i++) {
         if (lastSecondInputValues[i] != sndInput[i]) {
             for (size_t i = 0; i < lastSecondInputValues.size(); i++) {
@@ -161,6 +159,4 @@ bool Reshape::created() const {
     return getType() == Type::Reshape;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -14,8 +14,7 @@
 #include "dnnl_extension_utils.h"
 #include "utils/bfloat16.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 // IEB file format routine
 static const unsigned char IEB_MAGIC[4] = {'I', 'E', 'B', '0'};
@@ -197,7 +196,7 @@ void BlobDumper::dumpAsTxt(std::ostream& stream) const {
     case ov::element::bf16: {
         auto* blob_ptr = reinterpret_cast<const bfloat16_t*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
-            float fn = static_cast<float>(blob_ptr[desc.getElementOffset(i)]);
+            auto fn = static_cast<float>(blob_ptr[desc.getElementOffset(i)]);
             stream << fn << '\n';
         }
         break;
@@ -304,5 +303,4 @@ void BlobDumper::dumpAsTxt(const std::string& dump_path) const {
     dump_file.close();
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

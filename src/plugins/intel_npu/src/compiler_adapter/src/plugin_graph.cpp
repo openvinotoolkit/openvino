@@ -119,7 +119,7 @@ void PluginGraph::initialize(const Config& config) {
         set_workload_type(config.get<WORKLOAD_TYPE>());
     }
 
-    _zeGraphExt->initializeGraph(_handle, config);
+    _zeGraphExt->initializeGraph(_handle);
 
     if (config.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER) {
         _batch_size = get_batch_size(_metadata);
@@ -135,12 +135,21 @@ void PluginGraph::initialize(const Config& config) {
 }
 
 PluginGraph::~PluginGraph() {
+    // make sure all the context-dependent components are destroyed before the zero context is destroyed
     if (_handle != nullptr) {
         auto result = _zeGraphExt->destroyGraph(_handle);
 
         if (ZE_RESULT_SUCCESS == result) {
             _handle = nullptr;
         }
+    }
+
+    if (_last_submitted_event.size()) {
+        _last_submitted_event.clear();
+    }
+
+    if (_command_queue != nullptr) {
+        _command_queue.reset();
     }
 }
 

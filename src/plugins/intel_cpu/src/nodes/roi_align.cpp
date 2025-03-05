@@ -4,8 +4,8 @@
 
 #include "roi_align.h"
 
-#include <math.h>
-
+#include <cmath>
+#include <memory>
 #include <openvino/opsets/opset9.hpp>
 #include <string>
 #include <utils/bfloat16.hpp>
@@ -26,9 +26,7 @@ using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 using ngPoolingMode = ov::opset9::ROIAlign::PoolingMode;
 using ngAlignedMode = ov::opset9::ROIAlign::AlignedMode;
@@ -190,7 +188,7 @@ private:
                           const int offset = 0) {
         const auto seed = load_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num));
+            emitters[seed] = std::make_unique<jit_load_emitter>(this, isa, src_prc, dst_prc, elt_num);
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), static_cast<size_t>(offset)},
@@ -207,7 +205,7 @@ private:
                            const int offset = 0) {
         const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_store_emitter(this, isa, src_prc, dst_prc, elt_num));
+            emitters[seed] = std::make_unique<jit_store_emitter>(this, isa, src_prc, dst_prc, elt_num);
         }
 
         // for cases when Store emitter need 2 aux vmm we can use vmm_dst as second aux vmm
@@ -648,19 +646,19 @@ private:
 
     // horizontal add for vmm_dst, temp1 and temp2 as aux
     inline void horizontal_add() {
-        Xbyak::Xmm xmm_dst = Xbyak::Xmm(vmm_dst.getIdx());
-        Xbyak::Xmm xmm_temp1 = Xbyak::Xmm(vmm_temp1.getIdx());
-        Xbyak::Xmm xmm_temp2 = Xbyak::Xmm(vmm_temp2.getIdx());
+        auto xmm_dst = Xbyak::Xmm(vmm_dst.getIdx());
+        auto xmm_temp1 = Xbyak::Xmm(vmm_temp1.getIdx());
+        auto xmm_temp2 = Xbyak::Xmm(vmm_temp2.getIdx());
         if (isa == cpu::x64::sse41) {
             horizontal_add_xmm(xmm_dst, xmm_temp1);
         } else if (isa == cpu::x64::avx2) {
-            Xbyak::Ymm ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
+            auto ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
             vextractf128(xmm_temp1, ymm_dst, 0);
             vextractf128(xmm_temp2, ymm_dst, 1);
             uni_vaddps(xmm_dst, xmm_temp1, xmm_temp2);
             horizontal_add_xmm(xmm_dst, xmm_temp1);
         } else {
-            Xbyak::Zmm zmm_dst = Xbyak::Zmm(vmm_dst.getIdx());
+            auto zmm_dst = Xbyak::Zmm(vmm_dst.getIdx());
             vextractf32x4(xmm_temp1, zmm_dst, 0);
             vextractf32x4(xmm_temp2, zmm_dst, 1);
             uni_vaddps(xmm_temp1, xmm_temp1, xmm_temp2);
@@ -776,11 +774,11 @@ void ROIAlign::createJitKernel(const ov::element::Type& dataPrec, const ROIAlign
     jcp.pooled_w = pooledW;
 #if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
-        roi_align_kernel.reset(new jit_uni_roi_align_kernel_f32<cpu::x64::avx512_core>(jcp));
+        roi_align_kernel = std::make_shared<jit_uni_roi_align_kernel_f32<cpu::x64::avx512_core>>(jcp);
     } else if (mayiuse(cpu::x64::avx2)) {
-        roi_align_kernel.reset(new jit_uni_roi_align_kernel_f32<cpu::x64::avx2>(jcp));
+        roi_align_kernel = std::make_shared<jit_uni_roi_align_kernel_f32<cpu::x64::avx2>>(jcp);
     } else if (mayiuse(cpu::x64::sse41)) {
-        roi_align_kernel.reset(new jit_uni_roi_align_kernel_f32<cpu::x64::sse41>(jcp));
+        roi_align_kernel = std::make_shared<jit_uni_roi_align_kernel_f32<cpu::x64::sse41>>(jcp);
     }
     if (roi_align_kernel) {
         roi_align_kernel->create_ker();
@@ -821,11 +819,11 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
     std::vector<std::pair<LayoutType, LayoutType>> supportedFormats{{LayoutType::ncsp, LayoutType::ncsp}};
 
     if (mayiuse(cpu::x64::sse41)) {
-        supportedFormats.push_back(std::make_pair(LayoutType::nspc, LayoutType::nspc));
+        supportedFormats.emplace_back(LayoutType::nspc, LayoutType::nspc);
         if (impl_desc_type::jit_avx512 == impl_type) {
-            supportedFormats.push_back(std::make_pair(LayoutType::nCsp16c, LayoutType::nCsp16c));
+            supportedFormats.emplace_back(LayoutType::nCsp16c, LayoutType::nCsp16c);
         } else {
-            supportedFormats.push_back(std::make_pair(LayoutType::nCsp8c, LayoutType::nCsp8c));
+            supportedFormats.emplace_back(LayoutType::nCsp8c, LayoutType::nCsp8c);
         }
     }
 
@@ -911,9 +909,9 @@ void ROIAlign::executeSpecified() {
     auto nominalRoiCount = static_cast<int>(srcMemory1.getStaticDims()[0]);
     int realRois = 0;
     auto inputDimVector = srcMemory0.getStaticDims();
-    const int C = static_cast<int>(inputDimVector[1]);
-    const int H = static_cast<int>(inputDimVector[2]);
-    const int W = static_cast<int>(inputDimVector[3]);
+    const auto C = static_cast<int>(inputDimVector[1]);
+    const auto H = static_cast<int>(inputDimVector[2]);
+    const auto W = static_cast<int>(inputDimVector[3]);
 
     const int binCount = pooledH * pooledW;
 
@@ -1121,7 +1119,7 @@ void ROIAlign::executeSpecified() {
                 arg.num_samples = numSamplesROI;
                 float numSamplesInBinInvert = 1.f / numSamplesROI;
                 arg.scale = static_cast<const float*>(&numSamplesInBinInvert);
-                float* threadBuf = static_cast<float*>(
+                auto* threadBuf = static_cast<float*>(
                     &workingBuf[static_cast<size_t>(parallel_get_thread_num()) * static_cast<size_t>(bufSize)]);
                 memset(threadBuf, 0, bufSize * sizeof(float));
                 arg.buffer = threadBuf;
@@ -1206,6 +1204,4 @@ void ROIAlign::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -11,9 +11,7 @@
 #include "openvino/op/embeddingbag_offsets.hpp"
 #include "openvino/op/embeddingbag_offsets_sum.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool EmbeddingBagOffset::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                               std::string& errorMessage) noexcept {
@@ -94,10 +92,10 @@ void EmbeddingBagOffset::initSupportedPrimitiveDescriptors() {
                                                        {LayoutType::ncsp, ov::element::i32},
                                                        {LayoutType::ncsp, ov::element::i32}});
     if (inputShapes.size() > DEFAULT_INDEX_IDX) {
-        inDataConfigurators.push_back({LayoutType::ncsp, ov::element::i32});
+        inDataConfigurators.emplace_back(LayoutType::ncsp, ov::element::i32);
     }
     if (inputShapes.size() > PER_SAMPLE_WEIGHTS_IDX) {
-        inDataConfigurators.push_back({LayoutType::ncsp, inDataPrecision});
+        inDataConfigurators.emplace_back(LayoutType::ncsp, inDataPrecision);
     }
 
     addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, inDataPrecision}}, impl_desc_type::ref_any);
@@ -188,6 +186,4 @@ bool EmbeddingBagOffset::created() const {
     return getType() == Type::EmbeddingBagOffsets;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

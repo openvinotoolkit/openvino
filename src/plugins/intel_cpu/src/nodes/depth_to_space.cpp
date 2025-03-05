@@ -5,6 +5,7 @@
 #include "depth_to_space.h"
 
 #include <cmath>
+#include <memory>
 #include <string>
 
 #include "common/blocked_desc_creator.h"
@@ -16,9 +17,7 @@
 
 using namespace dnnl::impl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 size_t DepthToSpace::DepthToSpaceAttrs::hash() const {
     using namespace dnnl::impl;
@@ -303,7 +302,7 @@ DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs
         params.dst_block_dims[i] = params.src_block_dims[params.order[i]];
     }
 
-    permuteKernel = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
+    permuteKernel = std::make_unique<PermuteKernel>(params);
 }
 
 void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, const int MB) {
@@ -311,8 +310,8 @@ void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr, const 
         OPENVINO_THROW("Could not execute. Kernel for Transpose node was not compiled.");
     }
 
-    const uint8_t* srcData = srcMemPtr->getDataAs<const uint8_t>();
-    uint8_t* dstData = dstMemPtr->getDataAs<uint8_t>();
+    const auto* srcData = srcMemPtr->getDataAs<const uint8_t>();
+    auto* dstData = dstMemPtr->getDataAs<uint8_t>();
 
     permuteKernel->execute(srcData, dstData, MB);
 }
@@ -334,6 +333,4 @@ bool DepthToSpace::created() const {
     return getType() == Type::DepthToSpace;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

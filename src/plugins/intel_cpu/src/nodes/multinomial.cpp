@@ -10,9 +10,7 @@
 #include "openvino/op/multinomial.hpp"
 #include "utils/bfloat16.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 Multinomial::Multinomial(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
@@ -185,7 +183,7 @@ void Multinomial::execute_convert_type() {
     // TODO RandomUniform - should use RandomUniform kernel to match other frameworks' seed results
     std::mt19937 gen;
     if (m_global_seed == 0 && m_op_seed == 0) {
-        gen.seed(std::time(NULL));
+        gen.seed(std::time(nullptr));
     } else {
         std::seed_seq seed{m_global_seed, m_op_seed};
         gen.seed(seed);
@@ -259,6 +257,4 @@ void Multinomial::execute_convert_type() {
     }
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

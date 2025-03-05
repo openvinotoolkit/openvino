@@ -28,14 +28,12 @@ using namespace ov::Extensions::Cpu::XARCH;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 struct PagedAttentionKey {
     ov::element::Type rtPrecision;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const PagedAttentionKey& rhs) const;
 };
 
@@ -83,7 +81,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
-    OPENVINO_ASSERT(orgInputNumber == 13 || orgInputNumber == 16,
+    CPU_NODE_ASSERT(orgInputNumber == 13 || orgInputNumber == 16,
                     "The input number of PagedAttention should be 13 or 16.");
     // kvcache, float, []
     auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
@@ -244,7 +242,7 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
                 return false;
             }
         }
-        int orgInput = static_cast<int>(op->get_input_size());
+        auto orgInput = static_cast<int>(op->get_input_size());
         if (op->get_type_name() == std::string("PagedAttentionExtension") &&
             orgInput == PagedAttentionExecutor::ID_SLIDING_WINDOW + 1) {
             return true;
@@ -268,6 +266,4 @@ ov::element::Type PagedAttention::getRuntimePrecision() const {
     return rtPrecision;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

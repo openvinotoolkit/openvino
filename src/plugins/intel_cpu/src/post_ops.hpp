@@ -12,8 +12,7 @@
 #include "node.h"
 #include "nodes/executors/executor.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct PostOp;
 using PostOps = std::vector<std::shared_ptr<PostOp>>;
@@ -62,19 +61,19 @@ struct ActivationPostOp : PostOp {
           m_beta(beta),
           m_gamma(gamma) {}
 
-    float alpha() const {
+    [[nodiscard]] float alpha() const {
         return m_alpha;
     }
 
-    float beta() const {
+    [[nodiscard]] float beta() const {
         return m_beta;
     }
 
-    float gamma() const {
+    [[nodiscard]] float gamma() const {
         return m_gamma;
     }
 
-    Type type() const {
+    [[nodiscard]] Type type() const {
         return m_type;
     }
 
@@ -101,15 +100,15 @@ struct ScaleShiftPostOp : PostOp {
           m_scales(std::move(_scales)),
           m_shifts(std::move(_shifts)) {}
 
-    const std::vector<float>& scales() const {
+    [[nodiscard]] const std::vector<float>& scales() const {
         return m_scales;
     }
 
-    const std::vector<float>& shifts() const {
+    [[nodiscard]] const std::vector<float>& shifts() const {
         return m_shifts;
     }
 
-    Type type() const {
+    [[nodiscard]] Type type() const {
         return m_type;
     }
 
@@ -135,31 +134,31 @@ struct FakeQuantizePostOp : PostOp {
           m_outputShift(std::move(outputShift)),
           m_levels(levels) {}
 
-    const std::vector<float>& cropLow() const {
+    [[nodiscard]] const std::vector<float>& cropLow() const {
         return m_cropLow;
     }
 
-    const std::vector<float>& cropHigh() const {
+    [[nodiscard]] const std::vector<float>& cropHigh() const {
         return m_cropHigh;
     }
 
-    const std::vector<float>& inputScale() const {
+    [[nodiscard]] const std::vector<float>& inputScale() const {
         return m_inputScale;
     }
 
-    const std::vector<float>& inputShift() const {
+    [[nodiscard]] const std::vector<float>& inputShift() const {
         return m_inputShift;
     }
 
-    const std::vector<float>& outputScale() const {
+    [[nodiscard]] const std::vector<float>& outputScale() const {
         return m_outputScale;
     }
 
-    const std::vector<float>& outputShift() const {
+    [[nodiscard]] const std::vector<float>& outputShift() const {
         return m_outputShift;
     }
 
-    size_t levels() const {
+    [[nodiscard]] size_t levels() const {
         return m_levels;
     }
 
@@ -190,5 +189,4 @@ ActivationPostOp::Type convertToActivationPostOpt(const Algorithm alg);
 Algorithm convertToEltwiseAlgorithm(const ActivationPostOp::Type m_type);
 
 PostOps getPostOps(const std::vector<NodePtr>& fused);
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

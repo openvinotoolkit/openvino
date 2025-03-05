@@ -19,8 +19,7 @@
 #    include "memory_desc/cpu_memory_desc_utils.h"
 #    include "verbose.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 bool Verbose::shouldBePrinted() const {
     if (lvl < 1) {
@@ -105,30 +104,34 @@ void Verbose::printInfo() {
         written_total += size;
     };
 
+    auto getFormatAndDims = [](const MemoryDescPtr& desc) -> std::pair<std::string, std::string> {
+        if (DnnlExtensionUtils::ElementTypeToDataType(desc->getPrecision(), DnnlExtensionUtils::nothrow_tag{})) {
+            if (auto dnnl_desc = MemoryDescUtils::convertToDnnlMemoryDesc(desc)->getDnnlDesc()) {
+                using namespace dnnl::impl;
+                auto fmt_str = md2fmt_str("", dnnl_desc.get(), format_kind_t::dnnl_format_kind_undef);
+                auto dim_str = md2dim_str(dnnl_desc.get());
+                return {fmt_str, dim_str};
+            }
+            return {"empty", {}};
+        }
+        auto fmt_str = desc->getPrecision().to_string();
+        if (const auto& dims = desc->getShape().getDims(); !dims.empty()) {
+            auto dim_str = dim2str(dims.front());
+            std::for_each(++(dims.begin()), dims.end(), [&dim_str](size_t dim) {
+                dim_str.append("x" + dim2str(dim));
+            });
+            return {fmt_str, dim_str};
+        }
+        return {fmt_str, {}};
+    };
+
     auto formatMemDesc = [&](const MemoryDescPtr& desc, std::string& prefix) {
         prefix = colorize(BLUE, prefix);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, " ");
         shift(written);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", prefix.c_str());
         shift(written);
-        std::string fmt_str = {};
-        std::string dim_str = {};
-        if (DnnlExtensionUtils::ElementTypeToDataType(desc->getPrecision(), DnnlExtensionUtils::nothrow_tag{})) {
-            if (auto dnnl_desc = MemoryDescUtils::convertToDnnlMemoryDesc(desc)->getDnnlDesc()) {
-                fmt_str = dnnl::impl::md2fmt_str("", dnnl_desc.get(), dnnl::impl::format_kind_t::dnnl_format_kind_undef);
-                std::string dim_str = dnnl::impl::md2dim_str(dnnl_desc.get());
-            } else {
-                fmt_str = "empty";
-            }
-        } else {
-            fmt_str = desc->getPrecision().to_string();
-            if (const auto& dims = desc->getShape().getDims(); !dims.empty()) {
-                dim_str = dim2str(dims.front());
-                std::for_each(++(dims.begin()), dims.end(), [&dim_str](size_t dim) {
-                    dim_str.append("x" + std::to_string(dim));
-                });
-            }
-        }
+        const auto [fmt_str, dim_str] = getFormatAndDims(desc);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", fmt_str.c_str());
         shift(written);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, ":");
@@ -187,7 +190,6 @@ void Verbose::flush() const {
     std::cout << stream.rdbuf() << "\n";
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 #endif  // CPU_DEBUG_CAPS

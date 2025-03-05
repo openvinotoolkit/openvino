@@ -9,9 +9,7 @@
 
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool LogSoftmax::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -96,8 +94,8 @@ void LogSoftmax::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 void LogSoftmax::execute(const dnnl::stream& strm) {
-    const float* srcData = getSrcDataAtPortAs<const float>(0);
-    float* dstData = getDstDataAtPortAs<float>(0);
+    const auto* srcData = getSrcDataAtPortAs<const float>(0);
+    auto* dstData = getDstDataAtPortAs<float>(0);
 
     if (isLastDim) {
         parallel_for(axisStep, [&](size_t i) {
@@ -144,6 +142,4 @@ bool LogSoftmax::created() const {
     return getType() == Type::LogSoftmax;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
