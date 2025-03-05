@@ -34,12 +34,16 @@ pass::FuseBrgemmCPUPostops::FuseBrgemmCPUPostops() {
 
         // Note: due to specific handling of commutative ops in matcher,
         // 0's input is not always brgemm (even if it is 0's in the matcher)
-        if (post_op->get_input_node_shared_ptr(0).get() != brgemm.get()) {
+        const auto op_after_brgemm = pattern_map.count(m_convert) ? pattern_map.at(m_convert).get_node_shared_ptr() : post_op;
+        if (op_after_brgemm->get_input_node_shared_ptr(0).get() != brgemm.get()) {
+            std::cout << "Post operation's input node: " << op_after_brgemm->get_input_node_shared_ptr(0)
+                      << "\n is not BrgemmCPU: " << brgemm << ". Skipping fusion." << std::endl;
             return false;
         }
 
         // Note: currently, only post ops which don't change the shape are supported
         if (brgemm->get_output_partial_shape(0) != post_op->get_output_partial_shape(0)) {
+            std::cout << "Output shape of BrgemmCPU and post operation do not match. Skipping fusion." << std::endl;
             return false;
         }
 
