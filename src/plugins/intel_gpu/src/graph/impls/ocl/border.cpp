@@ -156,8 +156,7 @@ protected:
 
         if ((_kernel_data.params == nullptr && zero_input) ||
             (_kernel_data.params != nullptr && prim_params.inputs[0].LogicalSize() == 0)) {
-            layout any_layout = {data_types::u8, format::bfyx, {1, 1, 1, 1}};
-            internal_buffers.emplace_back(any_layout);
+            internal_buffers.emplace_back(1, ov::element::u8);
         }
 
         return internal_buffers;

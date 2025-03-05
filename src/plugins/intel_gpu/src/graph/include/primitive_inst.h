@@ -45,6 +45,10 @@ struct ImplementationManager;
 
 struct BufferDescriptor {
     explicit BufferDescriptor(const layout& l, bool lockable = false) : m_lockable(lockable), m_layout(l) {}
+    BufferDescriptor(const ov::PartialShape& shape, ov::element::Type type, bool lockable = false)
+        : BufferDescriptor(layout(shape, type, format::bfyx), lockable) {}
+    BufferDescriptor(size_t elements_count, ov::element::Type type, bool lockable = false)
+        : BufferDescriptor(layout({static_cast<int64_t>(elements_count)}, type, format::bfyx), lockable) {}
     bool m_lockable = false;
     layout m_layout;
 };
@@ -311,7 +315,7 @@ public:
                                        memory* curr_memory = nullptr,
                                        bool runtime_alloc = false);
 
-    std::vector<memory::ptr> get_intermediates_memories() const { return _intermediates_memory; }
+    const std::vector<memory::ptr>& get_intermediates_memories() const { return _intermediates_memory; }
 
     std::string get_implementation_name() const;
 

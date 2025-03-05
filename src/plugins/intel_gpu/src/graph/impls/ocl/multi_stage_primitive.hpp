@@ -166,9 +166,7 @@ protected:
             auto dtype = from_data_type(kd.internalBufferDataType);
             const auto bpp = data_type_traits::size_of(dtype);
             for (const auto& buffer : kd.internalBuffers) {
-                layout inbuf_layout = {dtype, format::bfyx, // simple linear format (flattern to x channel)
-                                        {1, 1, 1, (tensor::value_type)(buffer.byte_count / bpp)}};
-                internal_buffers.emplace_back(inbuf_layout, buffer.lockable);
+                internal_buffers.emplace_back(buffer.byte_count / bpp, dtype, buffer.lockable);
             }
         }
         return internal_buffers;

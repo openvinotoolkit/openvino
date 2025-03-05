@@ -575,9 +575,7 @@ protected:
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
         if (_scratchpad_md.get_size() == 0)
             return {};
-        return {BufferDescriptor({ov::PartialShape{static_cast<int64_t>(_scratchpad_md.get_size())},
-                                  cldnn::data_types::u8,
-                                  format::bfyx})};
+        return {BufferDescriptor(_scratchpad_md.get_size(), cldnn::data_types::u8)};
     }
 };
 
