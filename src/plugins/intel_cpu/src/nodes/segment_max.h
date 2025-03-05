@@ -31,8 +31,8 @@ private:
     struct SegmentMaxExecute;
 
     ov::op::FillMode fillMode;
-    std::vector<int64_t> lastSegmentIds;
-    std::vector<int64_t> lastNumSegments;
+    std::vector<int32_t> lastSegmentIds;
+    std::vector<int32_t> lastNumSegments;
 };
 
 }  // namespace node

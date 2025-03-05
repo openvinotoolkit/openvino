@@ -38,16 +38,14 @@ void SegmentMax::initSupportedPrimitiveDescriptors() {
         return;
     }
     ov::element::Type dataPrecision = getOriginalInputPrecisionAtPort(0);
-    ov::element::Type segmentIdsPrecision = getOriginalInputPrecisionAtPort(1);
     if (getOriginalInputsNumber() == 2) {
-        addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision}, {LayoutType::ncsp, segmentIdsPrecision}},
+        addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision}, {LayoutType::ncsp, ov::element::i32}},
                              {{LayoutType::ncsp, dataPrecision}},
                              impl_desc_type::ref);
     } else {
-        ov::element::Type numSegmentsPrecision = getOriginalInputPrecisionAtPort(2);
         addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
-                              {LayoutType::ncsp, segmentIdsPrecision},
-                              {LayoutType::ncsp, numSegmentsPrecision}},
+                              {LayoutType::ncsp, ov::element::i32},
+                              {LayoutType::ncsp, ov::element::i32}},
                              {{LayoutType::ncsp, dataPrecision}},
                              impl_desc_type::ref);
     }
@@ -65,34 +63,16 @@ void SegmentMax::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 
     // Update lastSegmentIds
-    std::vector<int64_t> segmentIds(getSrcMemoryAtPort(1)->getSize());
-    auto segmentIdsPrecision = getOriginalInputPrecisionAtPort(1);
-    if (segmentIdsPrecision == ov::element::i32) {
-        const int32_t* srcSegmentIds = getSrcDataAtPortAs<const int32_t>(1);
-        std::copy(srcSegmentIds, srcSegmentIds + segmentIds.size(), segmentIds.begin());
-    } else if (segmentIdsPrecision == ov::element::i64) {
-        const int64_t* srcSegmentIds = getSrcDataAtPortAs<const int64_t>(1);
-        std::copy(srcSegmentIds, srcSegmentIds + segmentIds.size(), segmentIds.begin());
-    } else {
-        OPENVINO_THROW("Unsupported index type for segment_ids input");
-    }
-    lastSegmentIds.assign(segmentIds.begin(), segmentIds.end());
+    const auto* srcSegmentIds = getSrcDataAtPortAs<const int32_t>(1);
+    lastSegmentIds.assign(srcSegmentIds, srcSegmentIds + getSrcMemoryAtPort(1)->getSize());
 
     // Update lastNumSegments
     if (getOriginalInputsNumber() == 3) {
-        const auto& numSegmentsPrecision = getOriginalInputPrecisionAtPort(2);
-        int64_t numSegmentsValue;
-        if (numSegmentsPrecision == ov::element::i64) {
-            numSegmentsValue = *getSrcDataAtPortAs<const int64_t>(2);
-        } else if (numSegmentsPrecision == ov::element::i32) {
-            numSegmentsValue = static_cast<int64_t>(*getSrcDataAtPortAs<const int32_t>(2));
-        } else {
-            OPENVINO_THROW("Unsupported index type for num_segments input");
-        }
+        const auto* numSegmentsValue = getSrcDataAtPortAs<const int32_t>(2);
         if (lastNumSegments.empty()) {
-            lastNumSegments.push_back(numSegmentsValue);
+            lastNumSegments.push_back(*numSegmentsValue);
         } else {
-            lastNumSegments[0] = numSegmentsValue;
+            lastNumSegments[0] = *numSegmentsValue;
         }
     }
 }
