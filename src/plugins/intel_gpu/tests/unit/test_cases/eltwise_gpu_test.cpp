@@ -4728,21 +4728,21 @@ struct eltwise_layout_test_params {
 #define CASE_ELTWISE_TEST13 eltwise_mode::sum, {4, 7, 4, 4}, {1, 7, 1, 1}, format::b_fs_yx_fsv16, format::bfyx, "generic_eltwise_ref"
 #define CASE_ELTWISE_TEST14 eltwise_mode::sum, {1, 8, 1, 1}, {4, 8, 1, 1}, format::bfyx, format::b_fs_yx_fsv32, "generic_eltwise_ref"
 
-#define CASE_ELTWISE_TEST1_POS eltwise_mode::sum, {4, 2, 4, 4}, {1, 1, 1, 1}, format::bfyx, format::bfyx, "eltwise_blocked_opt"
-#define CASE_ELTWISE_TEST2_POS eltwise_mode::sum, {4, 8, 1, 8}, {4, 8, 1, 8}, format::bfyx, format::bfyx, "eltwise_simple_vload8"
-#define CASE_ELTWISE_TEST3_POS eltwise_mode::sum, {4, 8, 1, 2}, {4, 8, 1, 2}, format::bfyx, format::bfyx, "eltwise_simple_vload8"
-#define CASE_ELTWISE_TEST4_POS eltwise_mode::sum, {4, 16, 1, 1}, {4, 16, 1, 1}, format::bfyx, format::bfyx, "eltwise_simple_vload8"
-#define CASE_ELTWISE_TEST5_POS eltwise_mode::sum, {1, 2, 1, 4}, {4, 2, 4, 4}, format::bfyx, format::bfyx, "generic_eltwise_ref"
-#define CASE_ELTWISE_TEST6_POS eltwise_mode::sum, {4, 1, 4, 4}, {1, 5, 1, 1}, format::bfyx, format::bfyx, "generic_eltwise_ref"
-#define CASE_ELTWISE_TEST7_POS eltwise_mode::sum, {4, 5, 4, 4}, {4, 1, 4, 4}, format::bfyx, format::bfyx, "generic_eltwise_ref"
-#define CASE_ELTWISE_TEST8_POS eltwise_mode::sum, {1, 2, 4, 4}, {4, 2, 4, 4}, format::bfyx, format::bfyx, "generic_eltwise_ref"
-#define CASE_ELTWISE_TEST9_POS eltwise_mode::sum, {4, 1, 4, 4}, {1, 5, 1, 1}, format::bfyx, format::bfyx, "generic_eltwise_ref"
+#define CASE_ELTWISE_TEST1_SIMPLE eltwise_mode::sum, {4, 2, 4, 4}, {1, 1, 1, 1}, format::bfyx, format::bfyx, "eltwise_blocked_opt"
+#define CASE_ELTWISE_TEST2_SIMPLE eltwise_mode::sum, {4, 8, 1, 8}, {4, 8, 1, 8}, format::bfyx, format::bfyx, "eltwise_simple_vload8"
+#define CASE_ELTWISE_TEST3_SIMPLE eltwise_mode::sum, {4, 8, 1, 2}, {4, 8, 1, 2}, format::bfyx, format::bfyx, "eltwise_simple_vload8"
+#define CASE_ELTWISE_TEST4_SIMPLE eltwise_mode::sum, {4, 16, 1, 1}, {4, 16, 1, 1}, format::bfyx, format::bfyx, "eltwise_simple_vload8"
+#define CASE_ELTWISE_TEST5_SIMPLE eltwise_mode::sum, {1, 2, 1, 4}, {4, 2, 4, 4}, format::bfyx, format::bfyx, "generic_eltwise_ref"
+#define CASE_ELTWISE_TEST6_SIMPLE eltwise_mode::sum, {4, 1, 4, 4}, {1, 5, 1, 1}, format::bfyx, format::bfyx, "generic_eltwise_ref"
+#define CASE_ELTWISE_TEST7_SIMPLE eltwise_mode::sum, {4, 5, 4, 4}, {4, 1, 4, 4}, format::bfyx, format::bfyx, "generic_eltwise_ref"
+#define CASE_ELTWISE_TEST8_SIMPLE eltwise_mode::sum, {1, 2, 4, 4}, {4, 2, 4, 4}, format::bfyx, format::bfyx, "generic_eltwise_ref"
+#define CASE_ELTWISE_TEST9_SIMPLE eltwise_mode::sum, {4, 1, 4, 4}, {1, 5, 1, 1}, format::bfyx, format::bfyx, "generic_eltwise_ref"
 
-#define CASE_ELTWISE_TEST10_POS eltwise_mode::sum, {4, 5, 4, 4}, {4, 1, 4, 4}, format::bfyx, format::bfyx, "generic_eltwise_ref"
-#define CASE_ELTWISE_TEST11_POS eltwise_mode::sum, {4, 2, 4, 4}, {1, 1, 1, 1}, format::bfyx, format::bfyx, "eltwise_blocked_opt"
-#define CASE_ELTWISE_TEST12_POS eltwise_mode::eq,  {4, 2, 4, 4}, {1, 1, 1, 1}, format::bfyx, format::bfyx, "generic_eltwise_ref"
-#define CASE_ELTWISE_TEST13_POS eltwise_mode::sum, {4, 7, 4, 4}, {1, 7, 4, 4}, format::bfyx, format::bfyx, "generic_eltwise_ref"
-#define CASE_ELTWISE_TEST14_POS eltwise_mode::sum, {1, 8, 1, 4}, {4, 8, 1, 4}, format::bfyx, format::bfyx, "generic_eltwise_ref"
+#define CASE_ELTWISE_TEST10_SIMPLE eltwise_mode::sum, {4, 5, 4, 4}, {4, 1, 4, 4}, format::bfyx, format::bfyx, "generic_eltwise_ref"
+#define CASE_ELTWISE_TEST11_SIMPLE eltwise_mode::sum, {4, 2, 4, 4}, {1, 1, 1, 1}, format::bfyx, format::bfyx, "eltwise_blocked_opt"
+#define CASE_ELTWISE_TEST12_SIMPLE eltwise_mode::eq,  {4, 2, 4, 4}, {1, 1, 1, 1}, format::bfyx, format::bfyx, "generic_eltwise_ref"
+#define CASE_ELTWISE_TEST13_SIMPLE eltwise_mode::sum, {4, 7, 4, 4}, {1, 7, 4, 4}, format::bfyx, format::bfyx, "generic_eltwise_ref"
+#define CASE_ELTWISE_TEST14_SIMPLE eltwise_mode::sum, {1, 8, 1, 4}, {4, 8, 1, 4}, format::bfyx, format::bfyx, "generic_eltwise_ref"
 
 
 class eltwise_layout_test : public BaseEltwiseTest<eltwise_layout_test_params> {
@@ -4842,20 +4842,20 @@ INSTANTIATE_TEST_SUITE_P(eltwise_mixed, eltwise_test_different_layout,
 
 INSTANTIATE_TEST_SUITE_P(eltwise_simple, eltwise_test_different_layout,
                         ::testing::ValuesIn(std::vector<eltwise_layout_test_params>{
-                            eltwise_layout_test_params{CASE_ELTWISE_TEST1_POS},
-                            eltwise_layout_test_params{CASE_ELTWISE_TEST2_POS},
-                            eltwise_layout_test_params{CASE_ELTWISE_TEST3_POS},
-                            eltwise_layout_test_params{CASE_ELTWISE_TEST4_POS},
-                            eltwise_layout_test_params{CASE_ELTWISE_TEST5_POS},
-                            eltwise_layout_test_params{CASE_ELTWISE_TEST6_POS},
-                            eltwise_layout_test_params{CASE_ELTWISE_TEST7_POS},
-                            eltwise_layout_test_params{CASE_ELTWISE_TEST8_POS},
-                            eltwise_layout_test_params{CASE_ELTWISE_TEST9_POS},
-                            eltwise_layout_test_params{CASE_ELTWISE_TEST10_POS},
-                            eltwise_layout_test_params{CASE_ELTWISE_TEST11_POS},
-                            eltwise_layout_test_params{CASE_ELTWISE_TEST12_POS},
-                            eltwise_layout_test_params{CASE_ELTWISE_TEST13_POS},
-                            eltwise_layout_test_params{CASE_ELTWISE_TEST14_POS},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST1_SIMPLE},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST2_SIMPLE},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST3_SIMPLE},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST4_SIMPLE},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST5_SIMPLE},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST6_SIMPLE},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST7_SIMPLE},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST8_SIMPLE},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST9_SIMPLE},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST10_SIMPLE},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST11_SIMPLE},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST12_SIMPLE},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST13_SIMPLE},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST14_SIMPLE},
                             }));
 
 //
@@ -5086,6 +5086,18 @@ TEST_P(eltwise_random_test, random) {
     auto param = GetParam();
     execute_compare(param, true);
 }
+
+INSTANTIATE_TEST_SUITE_P(eltwise_smoke_simple,
+                        eltwise_random_test,
+                        testing::ValuesIn(
+                            eltwise_random_test_param_generator()
+                            .broadcast_params(data_types::f32, format::bfyx, format::bfyx)
+                            .broadcast_params(data_types::f16, format::bfyx, format::bfyx)
+                            .broadcast_params(data_types::i8, format::bfyx, format::bfyx)
+                            .simple_params(data_types::f32, format::bfyx, format::bfyx)
+                            .simple_params(data_types::f16, format::bfyx, format::bfyx)
+                            .simple_params(data_types::u8, format::bfyx, format::bfyx)
+                        ));
 
 INSTANTIATE_TEST_SUITE_P(eltwise_smoke_fsv4,
                         eltwise_random_test,
