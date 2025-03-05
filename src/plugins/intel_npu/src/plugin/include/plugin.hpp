@@ -54,7 +54,8 @@ public:
 
 private:
     void init_options();
-    void compiler_change();
+    void recheck_compiler_support(Config& cfg) const;
+    Config fork_local_config(std::map<std::string, std::string>& rawConfig, OptionMode mode = OptionMode::Both) const;
 
     std::shared_ptr<NPUBackends> _backends;
 

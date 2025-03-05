@@ -294,8 +294,12 @@ void Config::update(const ConfigMap& options, OptionMode mode) {
     for (const auto& p : options) {
         log.trace("Update option '%s' to value '%s'", p.first.c_str(), p.second.c_str());
 
-        const auto opt = _desc->get(p.first, mode);
-        _impl[opt.key().data()] = opt.validateAndParse(p.second);
+        if (isAvailable(p.first)) {
+            const auto opt = _desc->get(p.first, mode);
+            _impl[opt.key().data()] = opt.validateAndParse(p.second);
+        } else {
+            OPENVINO_ASSERT("[ NOT_FOUND ] Option '", p.first.c_str(), "' is not supported for current configuration");
+        }
     }
 }
 
@@ -324,14 +328,43 @@ void Config::fromString(const std::string& str) {
     update(config);
 }
 
+bool Config::isAvailable(std::string key) const {
+    auto it = _enabled.find(key);
+    if (it != _enabled.end()) {
+        return it->second;
+    }
+    // if doesnt exist = not available
+    return false;
+};
+
+void Config::enable(std::string key, bool enabled) {
+    // we insert for all cases - no need to check if exists
+    _enabled[key] = enabled;
+};
+
+void Config::enableAll() {
+    _desc->walk([&](const details::OptionConcept& opt) {
+        enable(opt.key().data(), true);
+    });
+}
+
+void Config::walkEnables(std::function<void(const std::string&)> cb) const {
+    for (const auto& itr : _enabled) {
+        cb(itr.first);
+    }
+}
+
 std::string Config::toString() const {
     std::stringstream resultStream;
     for (auto it = _impl.cbegin(); it != _impl.cend(); ++it) {
         const auto& key = it->first;
 
-        resultStream << key << "=\"" << it->second->toString() << "\"";
-        if (std::next(it) != _impl.end()) {
-            resultStream << " ";
+        // include only enabled configs
+        if (isAvailable(key)) {
+            resultStream << key << "=\"" << it->second->toString() << "\"";
+            if (std::next(it) != _impl.end()) {
+                resultStream << " ";
+            }
         }
     }
 
@@ -343,12 +376,14 @@ std::string Config::toStringForCompiler() const {
     for (auto it = _impl.cbegin(); it != _impl.cend(); ++it) {
         const auto& key = it->first;
 
-        // Only include configs which options have OptionMode::Compile or OptionMode::Both
-        if (_desc->has(key)) {
-            if (_desc->get(key).mode() != OptionMode::RunTime) {
-                resultStream << key << "=\"" << it->second->toString() << "\"";
-                if (std::next(it) != _impl.end()) {
-                    resultStream << " ";
+        // Only include available configs which options have OptionMode::Compile or OptionMode::Both
+        if (isAvailable(key)) {
+            if (_desc->has(key)) {
+                if (_desc->get(key).mode() != OptionMode::RunTime) {
+                    resultStream << key << "=\"" << it->second->toString() << "\"";
+                    if (std::next(it) != _impl.end()) {
+                        resultStream << " ";
+                    }
                 }
             }
         }
