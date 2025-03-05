@@ -42,6 +42,22 @@ struct lora_impl : typed_primitive_impl_ocl<lora> {
         return params;
     }
 
+    static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
+        auto updated_impl_params = impl_params;
+        for (size_t i = 0; i < 2; ++i) {
+            if (impl_params.get_input_layout(i).get_partial_shape().size() == 2) {
+                auto input_pshape = impl_params.input_layouts[i].get_partial_shape();
+                input_pshape.insert(input_pshape.begin(), 1);
+                updated_impl_params.input_layouts[i].set_partial_shape(input_pshape);
+            }
+        }
+        return primitive_impl::static_canonicalize_shapes(updated_impl_params);
+    }
+
+    kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
+        return static_canonicalize_shapes(impl_params);
+    }
+
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
         if (_kernel_data.params == nullptr) {
