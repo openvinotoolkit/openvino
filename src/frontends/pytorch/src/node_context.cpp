@@ -6,6 +6,7 @@
 
 #include "helper_ops/internal_op.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
 #include "openvino/op/constant.hpp"
@@ -44,6 +45,10 @@ OutputVector NodeContext::as_constant() const {
     } else {
         auto c_outs = m_decoder->as_constant();
         FRONT_END_OP_CONVERSION_CHECK(c_outs.size() == 1, "Constant must have exactly one output.");
+        if (dtype.is<type::Tensor>() && dtype.as<type::Tensor>().element_type.is<type::Complex>()) {
+            // Add complex mark to complex constant
+            c_outs = {mark_node(std::make_shared<ComplexTypeMark>(c_outs[0], c_outs[0].get_element_type()))};
+        }
         return c_outs;
     }
 }

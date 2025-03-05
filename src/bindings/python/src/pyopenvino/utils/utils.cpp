@@ -261,6 +261,8 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::frontend::type::List>());
     } else if (any.is<ov::frontend::type::Tensor>()) {
         return py::cast(any.as<ov::frontend::type::Tensor>());
+    } else if (any.is<ov::frontend::type::Complex>()) {
+        return py::cast(any.as<ov::frontend::type::Complex>());
     } else if (any.is<ov::frontend::type::Str>()) {
         return py::cast(any.as<ov::frontend::type::Str>());
     } else if (any.is<ov::frontend::type::PyNone>()) {
@@ -485,6 +487,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         // Custom FrontEnd Types
     } else if (py::isinstance<ov::frontend::type::Tensor>(py_obj)) {
         return py::cast<ov::frontend::type::Tensor>(py_obj);
+    } else if (py::isinstance<ov::frontend::type::Complex>(py_obj)) {
+        return py::cast<ov::frontend::type::Complex>(py_obj);
     } else if (py::isinstance<ov::frontend::type::List>(py_obj)) {
         return py::cast<ov::frontend::type::List>(py_obj);
     } else if (py::isinstance<ov::frontend::type::Str>(py_obj)) {
