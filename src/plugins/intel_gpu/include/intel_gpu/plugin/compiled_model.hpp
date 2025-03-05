@@ -32,6 +32,10 @@ public:
                   RemoteContextImpl::Ptr context,
                   const ExecutionConfig& config,
                   const bool loaded_from_cache);
+    ~CompiledModel() {
+        auto streams_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(get_task_executor());
+        streams_executor->cpu_reset();
+    }
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
