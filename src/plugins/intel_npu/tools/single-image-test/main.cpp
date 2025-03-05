@@ -2035,7 +2035,7 @@ static int runSingleImageTest() {
                 ov::Dimension modelBatchBefore = ov::get_batch(model);
                 std::cout << "Model Batch [Before] --->>> " << modelBatchBefore.to_string() << std::endl;
             } catch (const ov::AssertFailure& e) {
-                std::cerr << "Warning: Model has no batch layout / conflicting N dimensions. Details: " << e.what() << std::endl;
+                std::cout << "Warning: Model has no batch layout / conflicting N dimensions." << std::endl;
             }
             std::cout << "Printing Input and Output Info from model" << std::endl;
             printInputAndOutputsInfoShort(*model);
@@ -2052,7 +2052,7 @@ static int runSingleImageTest() {
                 ov::Dimension modelBatchBefore = ov::get_batch(model);
                 std::cout << "Model Batch [After]  --->>> " << modelBatchBefore.to_string() << std::endl;
             } catch (const ov::AssertFailure& e) {
-                std::cerr << "Warning: Model has no batch layout / conflicting N dimensions. Details: " << e.what() << std::endl;
+                std::cout << "Warning: Model has no batch layout / conflicting N dimensions. Details: " << e.what() << std::endl;
             }
 
             ov::preprocess::PrePostProcessor ppp(model);
