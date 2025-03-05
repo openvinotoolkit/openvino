@@ -303,6 +303,7 @@ OP_CONVERTER(translate_max_pool2d_fx);
 OP_CONVERTER(translate_max_pool3d_fx);
 OP_CONVERTER(translate_mean_fx);
 OP_CONVERTER(translate_min_dim_fx);
+OP_CONVERTER(translate_nan_to_num_fx);
 OP_CONVERTER(translate_new_full_fx);
 OP_CONVERTER(translate_new_ones_fx);
 OP_CONVERTER(translate_new_zeros_fx);
@@ -345,7 +346,7 @@ OP_CONVERTER(translate_linear_awq);
 // Supported ops for TorchScript
 const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
     return {
-        {"aten::__and__", op::translate_bitwise_and},
+         {"aten::__and__", op::translate_bitwise_and},
         {"aten::__iand__", op::inplace_op<op::translate_bitwise_and>},
         {"aten::__derive_index", op::translate_derive_index},
         {"aten::__getitem__", op::translate_getitem},
@@ -378,8 +379,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::adaptive_avg_pool3d", op::quantizable_op<op::translate_adaptive_avg_pool3d>},
         {"aten::adaptive_max_pool1d", op::quantizable_op<op::translate_adaptive_max_pool1d>},
         {"aten::adaptive_max_pool2d", op::quantizable_op<op::translate_adaptive_max_pool2d>},
-        {"aten::adaptive_max_pool3d", op::quantizable_op<op::translate_adaptive_max_pool3d>},
-        {"aten::add", op::translate_add},
+        {"aten::adaptive_max_pool3d", op::quantizable_op<op::translate_adaptive_max_pool3d>},   
         {"aten::add_", op::translate_add_},
         {"aten::addcmul", op::translate_addcmul},
         {"aten::addmm", op::translate_addmm},
@@ -588,6 +588,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::multiply", op::translate_mul},
         {"aten::multiply_", op::translate_mul_},
         {"aten::multinomial", op::translate_multinomial},
+        {"aten::nan_to_num", op::translate_nan_to_num_fx},
+        {"aten::nan_to_num_", op::inplace_op<op::translate_nan_to_num_fx>},
         {"aten::narrow", op::translate_narrow},
         {"aten::ne", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
         {"aten::neg", op::translate_neg},
