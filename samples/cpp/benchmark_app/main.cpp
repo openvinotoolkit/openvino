@@ -1165,7 +1165,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        warming up - out of scope
+        // warming up - out of scope
         auto inferRequest = inferRequestsQueue.get_idle_request();
         if (!inferRequest) {
             OPENVINO_THROW("No idle Infer Requests!");
