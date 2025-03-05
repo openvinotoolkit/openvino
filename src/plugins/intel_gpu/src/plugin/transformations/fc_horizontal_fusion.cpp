@@ -15,13 +15,11 @@
 #include "intel_gpu/op/placeholder.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swiglu) {
     using namespace ov::pass::pattern;
 
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     // Three FCs connected to the same input
     size_t min_num_fcs_to_fuse = 3;
     // Note:
@@ -300,6 +298,70 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             }
             org_fc->clear_control_dependencies();
         }
+
+        // Merge scalar multiply layers into one when all scalar constants have the same value.
+        //
+        //          FusedFC                     FusedFC
+        //             |                           |
+        //       VariadicSplit      ==>         new_Mul  (to be fused with FusedFC)
+        //      /      |      \                    |
+        //    Mul     Mul     Mul            VariadicSplit
+        //     |       |       |             |     |     |
+        const auto is_scalar_const = [](const ov::Output<ov::Node>& output) -> bool {
+            if (!ov::is_type<ov::op::v0::Constant>(output.get_node()))
+                return false;
+            const auto shape = output.get_partial_shape();
+            if (shape.is_dynamic())
+                return false;
+            return ov::shape_size(shape.to_shape()) == 1;
+        };
+
+        std::vector<float> const_values;
+        bool can_be_merged = true;
+        std::shared_ptr<ov::op::v0::Constant> const_node = nullptr;
+        for (auto& output : output_split->outputs()) {
+            if (output.get_target_inputs().size() != 1) {
+                can_be_merged = false;
+                break;
+            }
+            auto target_node = output.get_target_inputs().begin()->get_node();
+            if (!ov::is_type<ov::op::v1::Multiply>(target_node)) {
+                can_be_merged = false;
+                break;
+            }
+
+            for (auto& input : target_node->inputs()) {
+                if (input.get_source_output() != output) {
+                    if (is_scalar_const(input.get_source_output())) {
+                        const_node = ov::as_type_ptr<ov::op::v0::Constant>(
+                            input.get_source_output().get_node_shared_ptr());
+                        const_values.emplace_back(const_node->cast_vector<float>()[0]);
+                    } else {
+                        can_be_merged = false;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (const_values.size() != split_size ||
+            !std::equal(const_values.begin() + 1, const_values.end(), const_values.begin())) {
+            can_be_merged = false;
+        }
+
+        if (can_be_merged) {
+            auto new_mul = std::make_shared<ov::op::v1::Multiply>(new_fc, const_node);
+            new_mul->set_friendly_name(new_fc->get_friendly_name() + "_mul");
+            ov::NodeVector fused_mul_nodes;
+            output_split->input(0).replace_source_output(new_mul);
+            for (auto& output : output_split->outputs()) {
+                auto target_node = output.get_target_inputs().begin()->get_node();
+                fused_mul_nodes.push_back(target_node->shared_from_this());
+                ov::replace_output_update_name(target_node->output(0), output);
+            }
+            ov::copy_runtime_info(fused_mul_nodes, new_mul);
+        }
+
         GPU_DEBUG_TRACE_DETAIL << "Created a new fused FC " << new_fc_name << std::endl;
         return true;
     };
@@ -308,5 +370,4 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

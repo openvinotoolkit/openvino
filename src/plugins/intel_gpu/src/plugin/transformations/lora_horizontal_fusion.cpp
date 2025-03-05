@@ -11,8 +11,7 @@
 
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 LoRAHorizontalFusion::LoRAHorizontalFusion() {
     using namespace ov::pass::pattern;
@@ -59,7 +58,7 @@ LoRAHorizontalFusion::LoRAHorizontalFusion() {
 
     auto axis_const = wrap_type<ov::op::v0::Constant>();
     auto split_const = wrap_type<ov::op::v0::Constant>();
-    auto split = wrap_type<ov::op::v1::VariadicSplit>({main_flow, axis_const, split_const}, ov::pass::pattern::op::as_value_predicate(is_target_pattern));
+    auto split = wrap_type<ov::op::v1::VariadicSplit>({main_flow, axis_const, split_const}, is_target_pattern);
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -161,5 +160,4 @@ LoRAHorizontalFusion::LoRAHorizontalFusion() {
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

@@ -16,15 +16,14 @@
 #include "nodes/executors/mlas/mlas_gemm.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace executor;
 using namespace dnnl;
 using namespace ov::element;
 
 static Dim batchDim(const VectorDims& dims) {
-    return std::accumulate(dims.begin(), dims.end() - 1, 1, std::multiplies<Dim>());
+    return std::accumulate(dims.begin(), dims.end() - 1, 1, std::multiplies<>());
 }
 
 static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory,
@@ -41,12 +40,12 @@ static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory,
     auto packedBsize = mlas_sgemm_pack_get_size(N, K);
 
     auto create = [&]() {
-        float* weightPtr = weightsMemory->getDataAs<float>();
+        auto* weightPtr = weightsMemory->getDataAs<float>();
         size_t ldb = weightsTransposed ? K : N;
 
         MemoryPtr _ptr = std::make_shared<Memory>(context->getEngine(),
                                                   intel_cpu::CpuBlockedMemoryDesc(i8, intel_cpu::Shape{packedBsize}));
-        float* prepackedDst = _ptr->getDataAs<float>();
+        auto* prepackedDst = _ptr->getDataAs<float>();
         DEBUG_LOG("MlasGemmExecutor: cache miss, perform packing");
         mlas_sgemm_pack(weightsTransposed ? "T" : "F", N, K, ldb, weightPtr, prepackedDst);
         return _ptr;
@@ -103,6 +102,7 @@ MlasGemmExecutor::MlasGemmExecutor(const FCAttrs& attrs,
     : m_attrs(attrs),
       m_memoryArgs(memory),
       packedWeights(prepareWeightMemory(memory.at(ARG_WEI), context, !attrs.weightsNonTransposed)),
+      M(0),
       N(batchDim(memory.at(ARG_WEI)->getStaticDims())),
       K(memory.at(ARG_WEI)->getStaticDims().back()) {}
 
@@ -142,8 +142,9 @@ void MlasGemmExecutor::execute(const MemoryArgs& memory) {
 }
 
 void MlasGemmExecutor::moveMemToNumaNode(int numaNodeID) {
-    if (curNumaNode == numaNodeID)
+    if (curNumaNode == numaNodeID) {
         return;
+    }
     curNumaNode = numaNodeID;
     mbind_move(packedWeights, numaNodeID);
     if (m_attrs.withBias) {
@@ -151,5 +152,4 @@ void MlasGemmExecutor::moveMemToNumaNode(int numaNodeID) {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -8,8 +8,7 @@
 #include "nodes/common/cpu_memcpy.h"
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 template <typename T>
 struct has_mlas_transpose : std::false_type {};
@@ -24,7 +23,7 @@ template <>
 struct has_mlas_transpose<uint32_t> : std::true_type {};
 
 template <typename T>
-typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisOutwards(
+std::enable_if_t<!has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisOutwards(
     const T* input_data,
     T* output_data,
     int64_t num_loops,
@@ -49,7 +48,7 @@ typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTranspo
 }
 
 template <typename T>
-typename std::enable_if<has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisOutwards(
+std::enable_if_t<has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisOutwards(
     const T* input_data,
     T* output_data,
     int64_t num_loops,
@@ -67,7 +66,7 @@ typename std::enable_if<has_mlas_transpose<T>::value, void>::type SimpleTranspos
 }
 
 template <typename T>
-typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisInwards(
+std::enable_if_t<!has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisInwards(
     const T* input_data,
     T* output_data,
     int64_t num_loops,
@@ -92,7 +91,7 @@ typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTranspo
 }
 
 template <typename T>
-typename std::enable_if<has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisInwards(
+std::enable_if_t<has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisInwards(
     const T* input_data,
     T* output_data,
     int64_t num_loops,
@@ -189,8 +188,8 @@ void MlasTransposeExecutor::TransposeSingleAxisOutwards(const MemoryCPtr& input,
     auto num_loops = calcShapeSize(input_shape, 0, to);
     auto num_writers = input_dims[from];
     auto block_size = calcShapeSize(input_shape, from + 1, input_shape.getRank());
-    auto writes_per_loop = int64_t(input_shape.getElementsCount() / num_loops / block_size);
-    auto writes_per_writer_per_loop = int64_t(writes_per_loop / num_writers);
+    auto writes_per_loop = static_cast<int64_t>(input_shape.getElementsCount() / num_loops / block_size);
+    auto writes_per_writer_per_loop = static_cast<int64_t>(writes_per_loop / num_writers);
     // TODO: check integer overflow
     const size_t bytes_per_write = static_cast<size_t>(block_size) * element_size;
 
@@ -267,8 +266,8 @@ void MlasTransposeExecutor::TransposeSingleAxisInwards(const MemoryCPtr& input,
     auto num_loops = calcShapeSize(input_shape, 0, from);
     auto num_readers = input_dims[from];
     auto block_size = calcShapeSize(input_shape, to + 1, input_shape.getRank());
-    auto reads_per_loop = int64_t(input_shape.getElementsCount() / num_loops / block_size);
-    auto reads_per_reader_per_loop = int64_t(reads_per_loop / num_readers);
+    auto reads_per_loop = static_cast<int64_t>(input_shape.getElementsCount() / num_loops / block_size);
+    auto reads_per_reader_per_loop = static_cast<int64_t>(reads_per_loop / num_readers);
     // TODO: check integer overflow
     const size_t bytes_per_read = static_cast<size_t>(block_size) * element_size;
 
@@ -366,5 +365,4 @@ TransposeExecutorPtr MlasTransposeExecutorBuilder::makeExecutor(const ExecutorCo
     return std::make_shared<MlasTransposeExecutor>(context);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

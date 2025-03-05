@@ -53,7 +53,6 @@ public:
         return get_ptr<T>();
     }
 
-private:
     AlignedBuffer(const AlignedBuffer&) = delete;
     AlignedBuffer& operator=(const AlignedBuffer&) = delete;
 
@@ -68,7 +67,7 @@ class OPENVINO_API AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>
     : public DirectValueAccessor<std::shared_ptr<ov::AlignedBuffer>> {
 public:
     AttributeAdapter(std::shared_ptr<ov::AlignedBuffer>& value);
-
+    ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>");
 };
 

@@ -23,8 +23,7 @@ using Convolution = ov::intel_gpu::op::Convolution;
 }  // namespace op
 }  // namespace ov
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 
 static void CreateConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::Convolution>& op) {
@@ -133,7 +132,7 @@ static void CreateConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared
     auto pads_end = op->get_pads_end();
     auto output_padding = op->get_output_padding();
 
-    if (!op->is_dynamic()) {
+    if (!op->is_dynamic() && !p.use_new_shape_infer()) {
         // Extend 1d vectors to 2d as 1d can't be handled properly by the graph optimizer for now
         strides.resize(std::max<size_t>(2, strides.size()), 1);
         dilations.resize(std::max<size_t>(2, strides.size()), 1);
@@ -339,5 +338,4 @@ REGISTER_FACTORY_IMPL(v1, GroupConvolutionBackpropData);
 REGISTER_FACTORY_IMPL(v1, DeformableConvolution);
 REGISTER_FACTORY_IMPL(v8, DeformableConvolution);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

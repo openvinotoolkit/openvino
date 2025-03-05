@@ -5,7 +5,7 @@
 #include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "reduce_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_sum.hpp"
@@ -43,7 +43,7 @@ struct reduce_impl : public typed_primitive_impl<reduce> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::reduce_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<reduce_impl>(*this);
+        return std::make_unique<reduce_impl>(*this);
     }
 
     reduce_impl() : parent("reduce_cpu_impl") {}
@@ -148,7 +148,7 @@ struct reduce_impl : public typed_primitive_impl<reduce> {
 
 public:
     static std::unique_ptr<primitive_impl> create(const reduce_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<reduce_impl>();
+        return std::make_unique<reduce_impl>();
     }
 };
 

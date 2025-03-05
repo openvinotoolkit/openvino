@@ -96,7 +96,6 @@ TEST_P(FrontEndConversionExtensionTest, TestConversionExtensionViaSO) {
     ASSERT_NE(model, nullptr);
 }
 
-#ifdef OPENVINO_CPP_VER_AT_LEAST_17
 TEST_P(FrontEndConversionExtensionTest, TestConversionExtensionViaSOByPath) {
     auto frontend = m_param.m_frontend;
     const std::filesystem::path lib_path = get_lib_path("test_builtin_extensions");
@@ -108,4 +107,3 @@ TEST_P(FrontEndConversionExtensionTest, TestConversionExtensionViaSOByPath) {
     OV_ASSERT_NO_THROW(model = frontend->convert(input_model));
     ASSERT_NE(model, nullptr);
 }
-#endif

@@ -5,6 +5,7 @@
 #include "space_to_depth.h"
 
 #include <cmath>
+#include <memory>
 #include <string>
 
 #include "common/blocked_desc_creator.h"
@@ -18,9 +19,7 @@
 using namespace dnnl;
 using namespace dnnl::impl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 size_t SpaceToDepth::SpaceToDepthAttrs::hash() const {
     using namespace dnnl::impl;
@@ -73,12 +72,14 @@ SpaceToDepth::SpaceToDepth(const std::shared_ptr<ov::Node>& op, const GraphConte
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    if (inputShapes.size() != 1 || outputShapes.size() != 1)
+    if (inputShapes.size() != 1 || outputShapes.size() != 1) {
         THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
+    }
 
     auto spaceToDepth = ov::as_type_ptr<const ov::opset1::SpaceToDepth>(op);
-    if (!spaceToDepth)
+    if (!spaceToDepth) {
         THROW_CPU_NODE_ERR("supports only opset1");
+    }
 
     const auto modeNgraph = spaceToDepth->get_mode();
     if (modeNgraph == ov::op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST) {
@@ -90,17 +91,21 @@ SpaceToDepth::SpaceToDepth(const std::shared_ptr<ov::Node>& op, const GraphConte
     }
 
     attrs.blockSize = spaceToDepth->get_block_size();
-    if (attrs.blockSize == 0)
+    if (attrs.blockSize == 0) {
         THROW_CPU_NODE_ERR("has incorrect block_size parameter is zero!");
+    }
 
     const size_t srcRank = getInputShapeAtPort(0).getRank();
     const size_t dstRank = getOutputShapeAtPort(0).getRank();
-    if (srcRank < 3)
+    if (srcRank < 3) {
         THROW_CPU_NODE_ERR("has incorrect number of input dimensions");
-    if (srcRank > 5)
+    }
+    if (srcRank > 5) {
         THROW_CPU_NODE_ERR("doesn't support dimensions with rank greater than 5");
-    if (srcRank != dstRank)
+    }
+    if (srcRank != dstRank) {
         THROW_CPU_NODE_ERR("has incorrect number of input/output dimensions");
+    }
     attrs.nSpatialDims = srcRank - 2;
     attrs.blockStep = static_cast<size_t>(std::pow(attrs.blockSize, attrs.nSpatialDims));
 }
@@ -108,8 +113,9 @@ SpaceToDepth::SpaceToDepth(const std::shared_ptr<ov::Node>& op, const GraphConte
 void SpaceToDepth::getSupportedDescriptors() {}
 
 void SpaceToDepth::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
 
@@ -142,10 +148,12 @@ void SpaceToDepth::initSupportedPrimitiveDescriptors() {
         };
 
         supportedTypes.push_back(LayoutType::nspc);
-        if (canUseBlocked(8lu))
+        if (canUseBlocked(8lu)) {
             supportedTypes.push_back(LayoutType::nCsp8c);
-        if (canUseBlocked(16lu))
+        }
+        if (canUseBlocked(16lu)) {
             supportedTypes.push_back(LayoutType::nCsp16c);
+        }
     }
     supportedTypes.push_back(LayoutType::ncsp);
     auto creators = BlockedDescCreator::getCommonCreators();
@@ -161,12 +169,15 @@ void SpaceToDepth::initSupportedPrimitiveDescriptors() {
 void SpaceToDepth::createPrimitive() {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(0);
-    if (!dstMemPtr)
+    if (!dstMemPtr) {
         THROW_CPU_NODE_ERR("has null destination memory");
-    if (!srcMemPtr)
+    }
+    if (!srcMemPtr) {
         THROW_CPU_NODE_ERR("has null input memory");
-    if (getSelectedPrimitiveDescriptor() == nullptr)
+    }
+    if (getSelectedPrimitiveDescriptor() == nullptr) {
         THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor");
+    }
 
     const auto& memoryDesc = srcMemPtr->getDesc();
     attrs.dataSize = memoryDesc.getPrecision().size();
@@ -176,8 +187,9 @@ void SpaceToDepth::createPrimitive() {
                                                                       : LayoutType::ncsp;
 
     if (inputShapesDefined() && isExecutable()) {
-        if (needPrepareParams())
+        if (needPrepareParams()) {
             prepareParams();
+        }
         updateLastInputDims();
     }
 }
@@ -192,16 +204,17 @@ void SpaceToDepth::prepareParams() {
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(attrs, builder);
     if (!result.first) {
-        OPENVINO_THROW("SpaceToDepthExecutor was not found for node ", getName(), ".");
+        THROW_CPU_NODE_ERR("executor was not found.");
     }
 
     execPtr = result.first;
 }
 
 SpaceToDepth::SpaceToDepthExecutor::SpaceToDepthExecutor(const SpaceToDepthAttrs& attrs) {
-    if (!one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp))
+    if (!one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp)) {
         OPENVINO_THROW("SpaceToDepth executor supports only 'nCsp16c', 'nCsp8c', "
                        "'nspc' or 'ncsp' layouts.");
+    }
 
     const bool isBlocked = one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
     const bool isChannelsFirst = attrs.layoutType == LayoutType::nspc;
@@ -285,15 +298,17 @@ SpaceToDepth::SpaceToDepthExecutor::SpaceToDepthExecutor(const SpaceToDepthAttrs
 
     std::iota(params.src_block_order.begin(), params.src_block_order.end(), 0);
     std::iota(params.dst_block_order.begin(), params.dst_block_order.end(), 0);
-    for (size_t i = 0; i < reshapedRank; i++)
+    for (size_t i = 0; i < reshapedRank; i++) {
         params.dst_block_dims[i] = params.src_block_dims[params.order[i]];
+    }
 
-    permuteKernel = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
+    permuteKernel = std::make_unique<PermuteKernel>(params);
 }
 
 void SpaceToDepth::SpaceToDepthExecutor::exec(const uint8_t* srcData, uint8_t* dstData, const int MB) {
-    if (!permuteKernel)
+    if (!permuteKernel) {
         OPENVINO_THROW("Could not execute. Kernel for Transpose node was not compiled.");
+    }
     permuteKernel->execute(srcData, dstData, MB);
 }
 
@@ -301,8 +316,8 @@ void SpaceToDepth::execute(const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("doesn't have a compiled executor.");
     }
-    const uint8_t* srcData = getSrcDataAtPortAs<const uint8_t>(0);
-    uint8_t* dstData = getDstDataAtPortAs<uint8_t>(0);
+    const auto* srcData = getSrcDataAtPortAs<const uint8_t>(0);
+    auto* dstData = getDstDataAtPortAs<uint8_t>(0);
     const int MB = getSrcMemoryAtPort(0)->getStaticDims()[0];
     execPtr->exec(srcData, dstData, MB);
 }
@@ -315,6 +330,4 @@ bool SpaceToDepth::created() const {
     return getType() == Type::SpaceToDepth;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
