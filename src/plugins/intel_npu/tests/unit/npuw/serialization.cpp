@@ -151,7 +151,7 @@ TEST(SerializationTest, OVTypes_Any) {
     std::vector<ov::Any> var;
     var.push_back(42);
     var.push_back("42");
-    var.push_back(float(3.14));
+    var.push_back(3.14f);
     var.push_back(true);
     std::vector<ov::Any> res;
     res.resize(var.size());
@@ -181,7 +181,7 @@ TEST(SerializationTest, BasicTypes_Indicator) {
 TEST(SerializationTest, BasicTypes_pair) {
     using namespace ov::npuw::s11n;
 
-    std::pair<int, float> var{42, 3.14};
+    std::pair<int, float> var{42, 3.14f};
     std::pair<int, float> res;
 
     std::stringstream ss;
