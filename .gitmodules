@@ -90,3 +90,6 @@
 [submodule "src/plugins/intel_cpu/thirdparty/kleidiai"]
 	path = src/plugins/intel_cpu/thirdparty/kleidiai
 	url = https://github.com/ARM-software/kleidiai.git
+[submodule "src/plugins/intel_cpu/thirdparty/xbyak_riscv"]
+	path = src/plugins/intel_cpu/thirdparty/xbyak_riscv
+	url = https://github.com/herumi/xbyak_riscv.git

@@ -6,6 +6,9 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "utils/precision_support.h"
+#if defined(OPENVINO_ARCH_RISCV64)
+#   include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
+#endif
 
 #include <string>
 #include <vector>
@@ -451,9 +454,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(nightly_/NmsRotatedOpTest.CompareWithRefs/IS=\(\[\?.\?.5\]_\[\?.\?.\?\]\)_TS=\{\(7.35.5\)_\(7.30.35\)\}_\{\(7.35.5\)_\(7.100.35\)\}_\{\(7.35.5\)_\(7.133.35\)\}__BoxPrc=f16_MaxPrc=i64_ThrPrc=f16_OutPrc=i64_MaxBox=10_IouThr=0.5_ScoreThr=0.4_SortDesc=False_Clockwise=True_ConstIn=\{True,True,True,True,True\}_Device=CPU)");
     // Accuracy problem
     retVector.emplace_back(R"(.*InterpolateCubic_Layout_Test.*)");
-    retVector.emplace_back(R"(.*smoke_EltwiseChain/EltwiseChainTest.CompareWithRefs.*InPRC3=i32_Op0=Div_Op1.*)");
     retVector.emplace_back(R"(.*nightly_(static|dynamic)/UniqueLayerTestCPU.*dataPrc=i8.*)");
-    retVector.emplace_back(R"(.*smoke_CompareWithRefs_static.*eltwise_op_type=Div.*model_type=i32.*)");
     retVector.emplace_back(R"(.*smoke_Interpolate_Basic/InterpolateLayerTest.Inference/IS=\(\[\]\)_TS=\{\(1.4.6.6\)\}_TS=\(1.4.8.8\)_InterpolateMode=cubic_ShapeCalcMode=sizes_CoordinateTransformMode=tf_half_pixel_for_nn_NearestMode=round_prefer_floor_cube_coef=-0.75_Antialias=0_PB=\(0.0.0.0\)_PE=\(0.0.1.1\)_Axes=\(0.1.2.3\)_Scales=\(1.1.1.33333.1.33333\)_netType=f32_trgDev=CPU.*)");
     retVector.emplace_back(R"(.*smoke_MaxPool_ExplicitPad_CeilRounding.*K\(3.3\)_S\(\d.2\).*PE\(0.2\).*)");
     // Incorrect number of input or output memory formats
@@ -482,6 +483,13 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*proposal_params/.*)");
     // Quantized models unsupported
     retVector.emplace_back(R"(.*Quantized.*)");
+
+    if (!ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
+        // Integer division is supported only by JIT Executor which is available on platforms with GV instruction sets.
+        // In other cases there might be accuracy problems.
+        retVector.emplace_back(R"(.*smoke_EltwiseChain/EltwiseChainTest.CompareWithRefs.*InPRC3=i32_Op0=Div_Op1.*)");
+        retVector.emplace_back(R"(.*smoke_CompareWithRefs_static.*eltwise_op_type=Div.*model_type=i32.*)");
+    }
 #endif
 
 #if !defined(OPENVINO_ARCH_X86_64)

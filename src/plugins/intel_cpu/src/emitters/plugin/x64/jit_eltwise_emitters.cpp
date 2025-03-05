@@ -18,24 +18,6 @@ enum {
 
 namespace ov::intel_cpu {
 
-namespace {
-ov::element::Type get_arithmetic_binary_exec_precision(const std::shared_ptr<ov::Node>& n) {
-    std::vector<ov::element::Type> input_precisions;
-    for (const auto& input : n->inputs()) {
-        input_precisions.push_back(input.get_source_output().get_element_type());
-    }
-
-    OV_CPU_JIT_EMITTER_ASSERT(std::all_of(input_precisions.cbegin(),
-                                          input_precisions.cend(),
-                                          [&input_precisions](const ov::element::Type& precision) {
-                                              return precision == input_precisions[0];
-                                          }),
-                              "Arithmetic binary node has not equal input precisions");
-
-    return input_precisions[0];
-}
-}  // namespace
-
 /// ADD ///
 jit_add_emitter::jit_add_emitter(x64::jit_generator* host,
                                  x64::cpu_isa_t host_isa,

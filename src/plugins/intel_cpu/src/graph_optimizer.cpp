@@ -550,6 +550,10 @@ void GraphOptimizer::FuseDeconvolutionAndSimpleOperation(Graph& graph) {
 }
 
 void GraphOptimizer::FuseMultiplyAndAdd(Graph& graph) {
+#if defined(OPENVINO_ARCH_RISCV64)
+    // TODO: Add JIT emitter for FMA
+    return;
+#endif
     auto& graphNodes = graph.GetNodes();
 
     auto isSuitableSecondInput = [](const NodePtr& node, VectorDims dataDims) {
