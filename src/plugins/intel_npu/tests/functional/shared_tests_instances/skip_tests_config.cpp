@@ -188,10 +188,7 @@ bool isRuleInverted(std::string& rule) {
     if (pos != std::string::npos) {
         // Extract negation character from rule string
         rule.erase(pos, 1);
-        
         return true;
-        // Extract negation character from rule string
-        rule.erase(pos, 1);
     }
     return false;
 }
