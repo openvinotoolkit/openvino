@@ -16,6 +16,8 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -50,7 +52,7 @@ SwapMulTranspose::SwapMulTranspose() {
         if (transformation_callback(transpose)) {
             return false;
         }
-        // std::cout << "SwapMulTranspose: " << transpose->get_friendly_name() << std::endl;
+        std::cout << "SwapMulTranspose: " << transpose->get_friendly_name() << std::endl;
 
         auto multiply = ov::as_type_ptr<v1::Multiply>(pattern_map.at(multiply_m).get_node_shared_ptr());
 
@@ -75,6 +77,86 @@ SwapMulTranspose::SwapMulTranspose() {
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_m, "SwapMulTranspose");
+    this->register_matcher(m, callback);
+}
+
+VariadicSplitMulFusion::VariadicSplitMulFusion() {
+    using namespace ov::op;
+    using namespace ov::pass::pattern;
+    using namespace ov::pass::pattern::op;
+
+    const auto is_scalar_const = [](const ov::Output<ov::Node>& output) -> bool {
+        if (!ov::is_type<ov::op::v0::Constant>(output.get_node()))
+            return false;
+        const auto shape = output.get_partial_shape();
+        if (shape.is_dynamic())
+            return false;
+        return ov::shape_size(shape.to_shape()) == 1;
+    };
+
+    auto variadic_split_m = wrap_type<v1::VariadicSplit>({any_input(), any_input(), any_input()});
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto variadic_split = ov::as_type_ptr<v1::VariadicSplit>(pattern_map.at(variadic_split_m).get_node_shared_ptr());
+        
+        if (transformation_callback(variadic_split)) {
+            return false;
+        }
+
+        std::vector<float> const_values;
+        bool can_be_merged = true;
+        std::shared_ptr<ov::op::v0::Constant> const_node = nullptr;
+        for (auto& output : variadic_split->outputs()) {
+            if (output.get_target_inputs().size() != 1) {
+                can_be_merged = false;
+                break;
+            }
+            auto target_node = output.get_target_inputs().begin()->get_node();
+            if (!ov::is_type<ov::op::v1::Multiply>(target_node)) {
+                can_be_merged = false;
+                break;
+            }
+
+            for (auto& input : target_node->inputs()) {
+                if (input.get_source_output() != output) {
+                    if (is_scalar_const(input.get_source_output())) {
+                        const_node = ov::as_type_ptr<ov::op::v0::Constant>(
+                            input.get_source_output().get_node_shared_ptr());
+                        const_values.emplace_back(const_node->cast_vector<float>()[0]);
+                    } else {
+                        can_be_merged = false;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!const_values.empty() &&
+            !std::equal(const_values.begin() + 1, const_values.end(), const_values.begin())) {
+            can_be_merged = false;
+        }
+
+        if (can_be_merged) {
+            std::cout << "VariadicSplitMulFusion: " << variadic_split->get_friendly_name() << std::endl;
+
+            auto new_mul = std::make_shared<ov::op::v1::Multiply>(
+                variadic_split->input(0).get_source_output(), const_node);
+            new_mul->set_friendly_name(variadic_split->get_friendly_name() + "_mul");
+            ov::NodeVector fused_mul_nodes;
+            variadic_split->input(0).replace_source_output(new_mul);
+            for (auto& output : variadic_split->outputs()) {
+                auto target_node = output.get_target_inputs().begin()->get_node();
+                fused_mul_nodes.push_back(target_node->shared_from_this());
+                ov::replace_output_update_name(target_node->output(0), output);
+            }
+            ov::copy_runtime_info(fused_mul_nodes, new_mul);
+        }
+
+        return false;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(variadic_split_m, "VariadicSplitMulFusion");
     this->register_matcher(m, callback);
 }
 

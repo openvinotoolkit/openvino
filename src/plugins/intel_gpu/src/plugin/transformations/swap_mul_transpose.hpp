@@ -15,4 +15,10 @@ public:
     SwapMulTranspose();
 };
 
+class VariadicSplitMulFusion: public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::intel_gpu::VariadicSplitMulFusion");
+    VariadicSplitMulFusion();
+};
+
 }   // namespace ov::intel_gpu
