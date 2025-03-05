@@ -77,6 +77,7 @@ bool get_cpu_pinning(bool& input_value,
     bool result_value;
 
 #if defined(__APPLE__)
+    (void)proc_type_table;
     result_value = false;
 #elif defined(_WIN32)
     if (proc_type_table.size() == 1) {
@@ -85,6 +86,7 @@ bool get_cpu_pinning(bool& input_value,
         result_value = false;
     }
 #else
+    (void)proc_type_table;
     if (input_changed) {
         result_value = input_value;
     } else {

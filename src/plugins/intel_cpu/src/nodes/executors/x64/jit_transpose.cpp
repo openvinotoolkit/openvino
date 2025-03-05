@@ -23,16 +23,16 @@ void JitTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::v
 }
 
 bool JitTransposeExecutor::init(const TransposeParams& transposeParams,
-                                const std::vector<MemoryDescPtr>& srcDescs,
-                                const std::vector<MemoryDescPtr>& dstDescs,
-                                const dnnl::primitive_attr& attr) {
+                                const std::vector<MemoryDescPtr>& /*srcDescs*/,
+                                const std::vector<MemoryDescPtr>& /*dstDescs*/,
+                                const dnnl::primitive_attr& /*attr*/) {
     pKernel = std::make_shared<PermuteKernel>(transposeParams.permuteParams);
     return true;
 }
 
-bool JitTransposeExecutorBuilder::isSupported(const TransposeParams& transposeParams,
-                                              const std::vector<MemoryDescPtr>& srcDescs,
-                                              const std::vector<MemoryDescPtr>& dstDescs) const {
+bool JitTransposeExecutorBuilder::isSupported(const TransposeParams& /*transposeParams*/,
+                                              const std::vector<MemoryDescPtr>& /*srcDescs*/,
+                                              const std::vector<MemoryDescPtr>& /*dstDescs*/) const {
 #if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(x64::sse41)) {
         return true;

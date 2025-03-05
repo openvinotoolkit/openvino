@@ -393,7 +393,7 @@ inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_
     }
 }
 
-void RegionYolo::execute(const dnnl::stream& strm) {
+void RegionYolo::execute(const dnnl::stream& /*strm*/) {
     const auto& inShape = getParentEdgeAt(0)->getMemory().getShape();
     const auto& inDims = inShape.getStaticDims();
     size_t B = (inShape.getRank() > 0) ? inDims[0] : 1;

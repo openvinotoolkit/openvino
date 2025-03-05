@@ -65,7 +65,7 @@ void Math::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Math::execute(const dnnl::stream& strm) {
+void Math::execute(const dnnl::stream& /*strm*/) {
     size_t dataSize = getChildEdgeAt(0)->getMemory().getShape().getElementsCount();
     const auto* src_data = getSrcDataAtPortAs<const float>(0);
     auto* dst_data = getDstDataAtPortAs<float>(0);
@@ -204,43 +204,43 @@ Math::getInitializers() {
     static std::map<const ov::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ov::Node>&, Math& node)>>
         initializers{
             {ov::op::v0::Abs::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             [](const std::shared_ptr<ov::Node>& /*op*/, Math& node) {
                  node.algorithm = Algorithm::MathAbs;
              }},
             {ov::op::v0::Acos::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             [](const std::shared_ptr<ov::Node>& /*op*/, Math& node) {
                  node.algorithm = Algorithm::MathAcos;
              }},
             {ov::op::v3::Acosh::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             [](const std::shared_ptr<ov::Node>& /*op*/, Math& node) {
                  node.algorithm = Algorithm::MathAcosh;
              }},
             {ov::op::v0::Asin::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             [](const std::shared_ptr<ov::Node>& /*op*/, Math& node) {
                  node.algorithm = Algorithm::MathAsin;
              }},
             {ov::op::v3::Asinh::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             [](const std::shared_ptr<ov::Node>& /*op*/, Math& node) {
                  node.algorithm = Algorithm::MathAsinh;
              }},
             {ov::op::v0::Atan::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             [](const std::shared_ptr<ov::Node>& /*op*/, Math& node) {
                  node.algorithm = Algorithm::MathAtan;
              }},
             {ov::op::v0::Ceiling::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             [](const std::shared_ptr<ov::Node>& /*op*/, Math& node) {
                  node.algorithm = Algorithm::MathCeiling;
              }},
             {ov::op::v0::Cos::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             [](const std::shared_ptr<ov::Node>& /*op*/, Math& node) {
                  node.algorithm = Algorithm::MathCos;
              }},
             {ov::op::v0::Cosh::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             [](const std::shared_ptr<ov::Node>& /*op*/, Math& node) {
                  node.algorithm = Algorithm::MathCosh;
              }},
             {ov::op::v0::Floor::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             [](const std::shared_ptr<ov::Node>& /*op*/, Math& node) {
                  node.algorithm = Algorithm::MathFloor;
              }},
             {ov::op::v0::HardSigmoid::get_type_info_static(),
@@ -252,7 +252,7 @@ Math::getInitializers() {
                      ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<float>()[0];
              }},
             {ov::op::v0::Negative::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             [](const std::shared_ptr<ov::Node>& /*op*/, Math& node) {
                  node.algorithm = Algorithm::MathNegative;
              }},
             {ov::op::v0::Selu::get_type_info_static(),
@@ -264,26 +264,26 @@ Math::getInitializers() {
                      ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<float>()[0];
              }},
             {ov::op::v0::Sign::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             [](const std::shared_ptr<ov::Node>& /*op*/, Math& node) {
                  node.algorithm = Algorithm::MathSign;
              }},
             {ov::op::v0::Sin::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             [](const std::shared_ptr<ov::Node>& /*op*/, Math& node) {
                  node.algorithm = Algorithm::MathSin;
              }},
             {ov::op::v0::Sinh::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             [](const std::shared_ptr<ov::Node>& /*op*/, Math& node) {
                  node.algorithm = Algorithm::MathSinh;
              }},
             {ov::op::v4::SoftPlus::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             [](const std::shared_ptr<ov::Node>& /*op*/, Math& node) {
                  node.algorithm = Algorithm::MathSoftPlus;
              }},
             {ov::op::v0::Tan::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Math& node) {
+             [](const std::shared_ptr<ov::Node>& /*op*/, Math& node) {
                  node.algorithm = Algorithm::MathTan;
              }},
-            {ov::op::v3::Atanh::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Math& node) {
+            {ov::op::v3::Atanh::get_type_info_static(), [](const std::shared_ptr<ov::Node>& /*op*/, Math& node) {
                  node.algorithm = Algorithm::MathAtanh;
              }}};
     return initializers;
