@@ -108,58 +108,46 @@ def test_binary_logical_op_with_scalar(graph_api_helper):
 
 
 @pytest.mark.parametrize(
-    ("operator", "expected_type", "warning_type"),
+    ("operator", "expected_ov_str", "expected_type"),
     [
-        (operator.add, Type.f32, warnings.catch_warnings(record=True)),
-        (operator.sub, Type.f32, warnings.catch_warnings(record=True)),
-        (operator.mul, Type.f32, warnings.catch_warnings(record=True)),
-        (operator.truediv, Type.f32, warnings.catch_warnings(record=True)),
-        (operator.eq, Type.boolean, pytest.warns(DeprecationWarning)),
-        (operator.ne, Type.boolean, pytest.warns(DeprecationWarning)),
-        (operator.gt, Type.boolean, pytest.warns(DeprecationWarning)),
-        (operator.ge, Type.boolean, pytest.warns(DeprecationWarning)),
-        (operator.lt, Type.boolean, pytest.warns(DeprecationWarning)),
-        (operator.le, Type.boolean, pytest.warns(DeprecationWarning)),
+        (operator.add, "Add", Type.f32),
+        (operator.sub, "Subtract", Type.f32),
+        (operator.mul, "Multiply", Type.f32),
+        (operator.truediv, "Divide", Type.f32),
     ],
 )
-def test_binary_operators(operator, expected_type, warning_type):
+def test_binary_operators(operator, expected_ov_str, expected_type):
     value_b = np.array([[4, 5], [1, 7]], dtype=np.float32)
 
     shape = [2, 2]
     parameter_a = ov.parameter(shape, name="A", dtype=np.float32)
 
-    with warning_type:
-        model = operator(parameter_a, value_b)
+    model = operator(parameter_a, value_b)
 
+    assert model.get_type_name() == expected_ov_str
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == shape
     assert model.get_output_element_type(0) == expected_type
 
 
 @pytest.mark.parametrize(
-    ("operator", "expected_type", "warning_type"),
+    ("operator", "expected_ov_str", "expected_type"),
     [
-        (operator.add, Type.f32, warnings.catch_warnings(record=True)),
-        (operator.sub, Type.f32, warnings.catch_warnings(record=True)),
-        (operator.mul, Type.f32, warnings.catch_warnings(record=True)),
-        (operator.truediv, Type.f32, warnings.catch_warnings(record=True)),
-        (operator.eq, Type.boolean, pytest.warns(DeprecationWarning)),
-        (operator.ne, Type.boolean, pytest.warns(DeprecationWarning)),
-        (operator.gt, Type.boolean, pytest.warns(DeprecationWarning)),
-        (operator.ge, Type.boolean, pytest.warns(DeprecationWarning)),
-        (operator.lt, Type.boolean, pytest.warns(DeprecationWarning)),
-        (operator.le, Type.boolean, pytest.warns(DeprecationWarning)),
+        (operator.add, "Add", Type.f32),
+        (operator.sub, "Subtract", Type.f32),
+        (operator.mul, "Multiply", Type.f32),
+        (operator.truediv, "Divide", Type.f32),
     ],
 )
-def test_binary_operators_with_scalar(operator, expected_type, warning_type):
+def test_binary_operators_with_scalar(operator, expected_ov_str, expected_type):
     value_b = np.array([[5, 6], [7, 8]], dtype=np.float32)
 
     shape = [2, 2]
     parameter_a = ov.parameter(shape, name="A", dtype=np.float32)
 
-    with warning_type:
-        model = operator(parameter_a, value_b)
+    model = operator(parameter_a, value_b)
 
+    assert model.get_type_name() == expected_ov_str
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == shape
     assert model.get_output_element_type(0) == expected_type
