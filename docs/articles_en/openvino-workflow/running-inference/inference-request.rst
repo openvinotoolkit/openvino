@@ -194,7 +194,7 @@ Note that a similar logic is applied to retrieving data using the ``ov::Model`` 
 
 ``get_input_tensor``, ``set_input_tensor``, ``get_output_tensor``, ``set_output_tensor``
 
-.. container:: m-4
+.. rst-class:: m-4
 
    * for a model with only one input/output, no arguments are required
 
@@ -237,7 +237,7 @@ Note that a similar logic is applied to retrieving data using the ``ov::Model`` 
 
 ``ov::InferRequest::get_tensor``, ``ov::InferRequest::set_tensor``
 
-.. container:: m-4
+.. rst-class:: m-4
 
    * to select an input/output tensor by tensor name, provide it as a parameter
 
