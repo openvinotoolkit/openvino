@@ -106,7 +106,7 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
         auto sliding_window = std::make_shared<v0::Constant>(element::i32, Shape{}, 0);
         auto alibi_slopes = std::make_shared<v0::Constant>(element::f32, Shape{0});
 
-        auto pa = std::make_shared<op::internal::PagedAttentionExtension>(OutputVector{Q,
+        auto pa = std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
                                                                                        K,
                                                                                        V,
                                                                                        key_cache_0,
@@ -200,7 +200,7 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
         auto sliding_window = std::make_shared<v0::Constant>(element::i32, Shape{}, 0);
         auto alibi_slopes = std::make_shared<v0::Constant>(element::f32, Shape{0});
 
-        auto pa = std::make_shared<op::internal::PagedAttentionExtension>(OutputVector{Q,
+        auto pa = std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
                                                                                        K,
                                                                                        V,
                                                                                        key_cache_0,

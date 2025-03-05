@@ -568,7 +568,7 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         auto scale = std::make_shared<v0::Constant>(element::f32, Shape{}, MOCK_VALUE);
 
         // PagedAttention:
-        auto pa = std::make_shared<op::internal::PagedAttentionExtension>(OutputVector{Q,
+        auto pa = std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
                                                                                        K,
                                                                                        V,
                                                                                        key_cache_0,

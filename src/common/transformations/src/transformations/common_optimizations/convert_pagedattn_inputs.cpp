@@ -37,7 +37,7 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
     auto rotation_deltas = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
     auto rotation_trig_lut = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
 
-    auto pa_1 = makePattern<op::internal::PagedAttentionExtension>({Q,
+    auto pa_1 = makePattern<op::PagedAttentionExtension>({Q,
                                                                     K,
                                                                     V,
                                                                     key_cache_0,
@@ -51,7 +51,7 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
                                                                     alibi_slopes,
                                                                     max_context_len});
 
-    auto pa_2 = makePattern<op::internal::PagedAttentionExtension>({Q,
+    auto pa_2 = makePattern<op::PagedAttentionExtension>({Q,
                                                                     K,
                                                                     V,
                                                                     key_cache_0,
