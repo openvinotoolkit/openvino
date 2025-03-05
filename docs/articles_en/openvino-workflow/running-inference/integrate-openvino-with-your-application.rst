@@ -438,7 +438,7 @@ To build your project using CMake with the default build tools currently availab
 Additional Resources
 ####################
 
-* `OpenVINO™ Runtime API Tutorial <./../../notebooks/openvino-api-with-output.html>`__
+* `OpenVINO™ Runtime API Tutorial <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/openvino-api>`__
 * See the :doc:`OpenVINO Samples <../../get-started/learn-openvino/openvino-samples>` page for specific examples of how OpenVINO pipelines are implemented for applications like image classification, text prediction, and many others.
 * Models in the OpenVINO IR format on `Hugging Face <https://huggingface.co/models>`__.
 * :doc:`OpenVINO™ Runtime Preprocessing <optimize-inference/optimize-preprocessing>`

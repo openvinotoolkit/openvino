@@ -9,9 +9,9 @@ and returns the generated content. For a quickstart guide, refer to the
 :doc:`GenAI API Guide <../../openvino-workflow-generative/inference-with-genai>`.
 
 To see OpenVINO GenAI in action, check these Jupyter notebooks:
-`LLM-powered Chatbot <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-chatbot/README.md>`__
+`LLM-powered Chatbot <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/llm-chatbot>`__
 and
-`LLM Instruction-following pipeline <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-question-answering/README.md>`__.
+`LLM Instruction-following pipeline <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/llm-question-answering>`__.
 
 OpenVINO GenAI is available for installation via PyPI and Archive distributions.
 A `detailed guide <https://github.com/openvinotoolkit/openvino.genai/blob/releases/2025/0/src/docs/BUILD.md>`__
