@@ -74,8 +74,17 @@ bool check_cpu_pinning(const bool cpu_pinning,
                        const bool cpu_reservation,
                        const std::vector<std::vector<int>>& streams_info_table) {
     bool result_value;
-    auto proc_type_table = get_proc_type_table();
 
+#if defined(__APPLE__)
+    result_value = false;
+#elif defined(_WIN32)
+    auto proc_type_table = get_proc_type_table();
+    if (proc_type_table.size() == 1) {
+        result_value = cpu_pinning_changed ? cpu_pinning : cpu_reservation;
+    } else {
+        result_value = false;
+    }
+#else
     // The following code disables pinning in case stream contains both Pcore and Ecore
     auto hyper_cores_in_stream = [&]() {
         if (streams_info_table.size() >= 3) {
@@ -88,15 +97,6 @@ bool check_cpu_pinning(const bool cpu_pinning,
         return false;
     };
 
-#if defined(__APPLE__)
-    result_value = false;
-#elif defined(_WIN32)
-    if (proc_type_table.size() == 1) {
-        result_value = cpu_pinning_changed ? cpu_pinning : cpu_reservation;
-    } else {
-        result_value = false;
-    }
-#else
     result_value = cpu_pinning_changed ? cpu_pinning : true;
     if (!cpu_pinning_changed && !cpu_reservation) {
         if (hyper_cores_in_stream()) {
