@@ -165,7 +165,12 @@ void PagedAttention::createPrimitive() {
 
         size_t key_group_size = cpuConfig.keyCacheGroupSize;
         size_t value_group_size = cpuConfig.valueCacheGroupSize;
-        return make_pa_executor(rtPrecision, kCachePrecision, vCachePrecision, key_group_size, value_group_size);
+        return make_pa_executor(rtPrecision,
+                                kCachePrecision,
+                                vCachePrecision,
+                                key_group_size,
+                                value_group_size,
+                                cpuConfig.keyCacheQuantByChannel);
 #else
         return nullptr;
 #endif
