@@ -3,8 +3,11 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-""" Script to acquire model IRs for stress tests.
-Usage: ./scrips/get_testdata.py
+""" Script to generate XML cohfig file with the list of IR models
+Usage: 
+  python get_testdata.py  --test_conf <name_test_config>.xml  --ir_cache_dir <path_to_ir_cache>
+or:
+  python get_testdata.py  --test_conf <name_test_config>.xml --omz_cache_dir <path_to_ir_cache>
 """
 # pylint:disable=line-too-long
 
