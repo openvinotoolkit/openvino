@@ -95,6 +95,7 @@ void Squeeze::validate_and_infer_types() {
     const auto output_shapes = shape_infer(this, input_shapes);
 
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
+    get_rt_info().erase(output_rt_info_name);
 }
 
 bool Squeeze::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
