@@ -37,7 +37,7 @@ Install OpenVINO™ 2023.3
 
 .. tip::
 
-   OpenVINO 2025.0, described here, is not a Long-Term-Support version! All currently supported versions are:
+   OpenVINO 2023.3, described here, is a Long-Term-Support version. All currently supported versions are:
 
    * 2025 (development)
    * 2024.6 (maintenance)
