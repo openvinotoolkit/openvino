@@ -384,6 +384,10 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputOutputRemoteTensor) {
     cl_int err;
 
     auto allocated_out_shape = output_shape;
+    if (is_dynamic) {
+        // In dynamic case we allocate more than required to check that out tensor is reshaped correctly
+        allocated_out_shape[1]++;
+    }
 
     auto in_size = ov::shape_size(input_shape);
     auto out_size = ov::shape_size(output_shape) * output->get_output_element_type(0).bitwidth() / 8;

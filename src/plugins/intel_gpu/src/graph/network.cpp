@@ -511,7 +511,7 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
         if (!prim->is_dynamic() && mem_new && prim->output_memory_ptr())
             mem = eng.reinterpret_buffer(*mem_new, prim->output_memory().get_layout());
 
-        ret_ev.push_back(prim->set_output_memory(mem));
+        ret_ev.push_back(prim->set_output_memory(mem, !is_remote));
         if (!_reset_arguments &&
             (prim->type() != cldnn::data::type_id() && !(prim->type() == cldnn::mutable_data::type_id() && prim->dependencies().empty()))) {
             prim->set_arguments();
@@ -714,6 +714,12 @@ bool network::has_output_remote_memory_ptr(const primitive_id& id) const {
         return true;
     else
         return false;
+}
+
+void network::reset_output_remote_memory_ptrs() {
+    if (!_output_remote_mem_ptrs.empty()) {
+        _output_remote_mem_ptrs.clear();
+    }
 }
 
 void network::add_to_exec_order(const primitive_id& id) {
