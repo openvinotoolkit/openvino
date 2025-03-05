@@ -755,13 +755,13 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream,
         write_model_meta(stream);
     }
 
+    // Serialize bank name
+    const auto& kv_bank = m_kvcache_compiled->m_weights_bank;
+    const auto& p_bank = m_prefill_compiled->m_weights_bank;
+    NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank && "Prefill and KVCache models' weight bank should be shared!");
+    write(stream, kv_bank->get_name());
+
     if (!is_weightless) {
-        // Serialize bank name
-        const auto& kv_bank = m_kvcache_compiled->m_weights_bank;
-        const auto& p_bank = m_prefill_compiled->m_weights_bank;
-        NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank &&
-                    "Prefill and KVCache models' weight bank should be shared!");
-        write(stream, kv_bank->get_name());
         // Serialize weights bank
         // Note: no need to encrypt weights in full flow
         kv_bank->serialize(stream);
