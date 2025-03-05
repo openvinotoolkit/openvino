@@ -59,7 +59,8 @@ FakeQuantizeOnDataWithConstant::FakeQuantizeOnDataWithConstant(
     const std::vector<float>& outputHighValues,
     const ov::element::Type outputPrecision,
     const std::vector<ov::Any>& attributes,
-    const bool addConverts) :
+    const bool addConverts,
+    const ov::element::Type constantPrecision) :
     quantizationLevel(quantizationLevel),
     constantShapes(constantShapes),
     inputLowValues(inputLowValues),
@@ -68,8 +69,8 @@ FakeQuantizeOnDataWithConstant::FakeQuantizeOnDataWithConstant(
     outputHighValues(outputHighValues),
     outputPrecision(outputPrecision),
     attributes(attributes),
-    addConverts(addConverts)
-{}
+    addConverts(addConverts),
+    constantPrecision(constantPrecision) {}
 
 FakeQuantizeOnDataWithConstant::~FakeQuantizeOnDataWithConstant() {}
 
