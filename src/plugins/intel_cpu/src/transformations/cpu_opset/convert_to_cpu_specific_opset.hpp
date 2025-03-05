@@ -22,8 +22,10 @@
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/defs.hpp"
+#include "transformations/op_conversions/convert_convolution.hpp"
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"
 #include "transformations/op_conversions/convert_fc_to_quantized_legacy.hpp"
+#include "transformations/op_conversions/fuse_bias.hpp"
 
 namespace ov::intel_cpu {
 
@@ -35,6 +37,8 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
 
     CPU_REGISTER_PASS_COMMON(manager, ConvertMatMulToFC);
     CPU_REGISTER_PASS_COMMON(manager, FullyConnectedBiasFusion);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertConvolution);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::FuseBias);
 
     CPU_REGISTER_PASS_COMMON(
         manager,
