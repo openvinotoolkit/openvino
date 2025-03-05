@@ -163,7 +163,7 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
             output = make_shared<v0::Convert>(output, element::f32);
         }
 
-        // Amount of layers for quantized original type, for example, for u/int8 - 256
+        // Amount of levels for quantized original type, for example, for u/int8 - 256
         const auto levels = 1 << tfl_quantize->get_original_type().bitwidth();
         const auto is_signed = tfl_quantize->get_original_type().is_signed();
 
@@ -180,8 +180,8 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
                 Calculating default values for input/output low/high (example calculations for int8):
                 output_low = lower bound for original type (-128)
                 output_high = upper bound for original type (127)
-                imput_low = (lower bound for original type - zero point) * scale ((-128 - 16) * 0.25 = -36.0)
-                imput_high = (upper bound for original type - zero point) * scale ((127 - 16) * 0.25 = 27.75)
+                input_low = (lower bound for original type - zero point) * scale ((-128 - 16) * 0.25 = -36.0)
+                input_high = (upper bound for original type - zero point) * scale ((127 - 16) * 0.25 = 27.75)
             */
             output_low = v0::Constant::create(element::f32, {}, {low});
             output_high = v0::Constant::create(element::f32, {}, {high});
@@ -192,8 +192,8 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
             /*
                 Dequantize case when it must accept non-float32 input
                 Calculating default values for input/output low/high (example calculations for int8):
-                imput_low = lower bound for original type (-128)
-                imput_high = upper bound for original type (127)
+                input_low = lower bound for original type (-128)
+                input_high = upper bound for original type (127)
                 output_low = (lower bound for original type - zero point) * scale ((-128 - 16) * 0.25 = -36.0)
                 output_high = (upper bound for original type - zero point) * scale ((127 - 16) * 0.25 = 27.75)
             */
@@ -206,8 +206,8 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
             /*
                 Requantize (QDQ) case when it accepts float32 for input and output
                 Calculating default values for input/output low/high (example calculations for int8):
-                imput_low = (lower bound for original type - zero point) * scale ((-128 - 16) * 0.25 = -36.0)
-                imput_high = (upper bound for original type - zero point) * scale ((127 - 16) * 0.25 = 27.75)
+                input_low = (lower bound for original type - zero point) * scale ((-128 - 16) * 0.25 = -36.0)
+                input_high = (upper bound for original type - zero point) * scale ((127 - 16) * 0.25 = 27.75)
                 output_low = (lower bound for original type - zero point) * scale ((-128 - 16) * 0.25 = -36.0)
                 output_high = (upper bound for original type - zero point) * scale ((127 - 16) * 0.25 = 27.75)
             */
