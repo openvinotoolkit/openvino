@@ -130,21 +130,18 @@ dnnl::memory::format_tag str2fmt(const char* str) {
 unsigned get_cache_size(int level, bool per_core) {
     if (per_core) {
         return dnnl::impl::cpu::platform::get_per_core_cache_size(level);
-    } else {
-        using namespace dnnl::impl::cpu::x64;
-        if (cpu().getDataCacheLevels() == 0) {
-            // this function can return stub values in case of unknown CPU type
-            return dnnl::impl::cpu::platform::get_per_core_cache_size(level);
-        }
-
-        if (level > 0 && static_cast<unsigned>(level) <= cpu().getDataCacheLevels()) {
-            unsigned l = level - 1;
-            return cpu().getDataCacheSize(l);
-        } else {
-            return 0U;
-        }
     }
-    DNNL_THROW_ERROR(dnnl_unimplemented, "get_cache_size has no mode per_core == false");
+    using namespace dnnl::impl::cpu::x64;
+    if (cpu().getDataCacheLevels() == 0) {
+        // this function can return stub values in case of unknown CPU type
+        return dnnl::impl::cpu::platform::get_per_core_cache_size(level);
+    }
+
+    if (level > 0 && static_cast<unsigned>(level) <= cpu().getDataCacheLevels()) {
+        unsigned l = level - 1;
+        return cpu().getDataCacheSize(l);
+    }
+    return 0U;
 }
 
 }  // namespace dnnl::utils

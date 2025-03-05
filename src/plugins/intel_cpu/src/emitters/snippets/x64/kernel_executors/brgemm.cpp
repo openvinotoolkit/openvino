@@ -4,9 +4,10 @@
 
 #include "brgemm.hpp"
 
+#include <memory>
+
 #include "common/utils.hpp"
 #include "dnnl_extension_utils.h"
-#include "snippets/lowered/pass/insert_specific_iterations.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
@@ -14,7 +15,7 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov::intel_cpu {
+namespace ov::intel_cpu::x64 {
 
 BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype,
                                        const element::Type& in1_dtype,
@@ -99,7 +100,7 @@ BrgemmKernelReferenceExecutor::BrgemmKernelReferenceExecutor(ov::intel_cpu::Mult
 
 std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelReferenceExecutor::compile_kernel(const BrgemmKernelConfig& c) const {
     const auto& res = std::make_shared<BrgemmCompiledKernel>();
-    res->brgemm_kernel.reset(new brgemm_ref_kernel(c));
+    res->brgemm_kernel = std::make_shared<brgemm_ref_kernel>(c);
     return res;
 }
 
@@ -128,4 +129,4 @@ void brgemm_ref_kernel::operator()(dnnl::impl::cpu::x64::brgemm_kernel_params_t*
 }
 #endif
 
-}  // namespace ov::intel_cpu
+}  // namespace ov::intel_cpu::x64
