@@ -899,6 +899,37 @@ TEST(reorder_gpu, basic_convert_f16_f32_f16) {
     }
 }
 
+TEST(reorder_gpu, basic_convert_i4_to_fp16) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    layout in_layout = layout{ ov::PartialShape{ 1, 1, 3, 3 }, data_types::i4, format::bfyx };
+    layout out_layout = layout{ ov::PartialShape{ 1, 1, 3, 3 }, data_types::f16, format::bfyx };
+
+    auto input = rg.generate_random_1d<int8_t>(9, -7, 7);
+    auto input_mem = engine.allocate_memory(in_layout);
+    set_values(input_mem, input);
+
+    topology topology(
+        input_layout("input", in_layout),
+        reorder("convert", input_info("input"), out_layout)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+    for (size_t i = 0; i < output_ptr.size(); ++i) {
+        ASSERT_EQ(output_ptr[i], input[i]);
+    }
+}
+
 TEST(reorder_gpu, basic_convert_int8) {
 
     auto& engine = get_test_engine();
