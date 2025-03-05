@@ -29,15 +29,17 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
     const auto& brg0Prc = brgemm_node->get_input_element_type(0);
     const auto& brg1Prc = brgemm_node->get_input_element_type(1);
+    const auto& brgOutPrc = brgemm_node->get_output_element_type(0);
     const auto brgemm_type = brgemm_node->get_type();
     m_is_with_amx = brgemm_utils::with_amx(brgemm_type);
     if (m_is_with_amx) {
-        BrgemmAMXKernelConfig kernel_config(brg0Prc, brg1Prc, brgemm_utils::get_primitive_isa(brg0Prc, true));
+        BrgemmAMXKernelConfig kernel_config(brg0Prc, brg1Prc, brgOutPrc, brgemm_utils::get_primitive_isa(brg0Prc, true));
         m_kernel_executor =
             kernel_table->register_kernel<BrgemmAMXKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
     } else {
         BrgemmKernelConfig kernel_config(brg0Prc,
                                          brg1Prc,
+                                         brgOutPrc,
                                          with_compensations(brgemm_type),
                                          brgemm_utils::get_primitive_isa(brg0Prc, false));
         m_kernel_executor =
