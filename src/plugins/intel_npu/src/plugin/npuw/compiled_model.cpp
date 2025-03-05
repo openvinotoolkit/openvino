@@ -681,6 +681,11 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
     write(stream, m_non_npuw_props.size());
     for (const auto& p : m_non_npuw_props) {
         write(stream, p.first);
+        // Skip properties which don't need to/can't be serialized
+        // FIXME: extend the logic
+        if (p.first == ov::cache_encryption_callbacks.name()) {
+            continue;
+        }
         write_any(stream, p.second);
     }
 
@@ -762,6 +767,11 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     for (std::size_t i = 0; i < props_size; ++i) {
         std::string key;
         read(stream, key);
+        // Skip properties which don't need to/can't be deserialized
+        // FIXME: extend the logic
+        if (key == ov::cache_encryption_callbacks.name()) {
+            continue;
+        }
         ov::Any val;
         read_any(stream, val);
         compiled->m_non_npuw_props[key] = std::move(val);
