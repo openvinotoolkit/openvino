@@ -274,6 +274,7 @@ public:
     bool operator<(const Symbol& rhs) const {
         return get_id() < rhs.get_id();
     }
+    bool validate = true;
 };
 
 inline Symbol operator-(const Symbol& lhs) {
@@ -1398,7 +1399,7 @@ public:
             if (sym.is_independent_var()) {
                 auto id = sym.get_id();
                 if (symbol_value_map.count(id)) {
-                    if (symbol_value_map[id] != value) {
+                    if (sym.validate && symbol_value_map[id] != value) {
                         _VERBOSE_LOG(" in-consistency between multiple references of same symbol(",
                                      sym.get_name(),
                                      "): ",
