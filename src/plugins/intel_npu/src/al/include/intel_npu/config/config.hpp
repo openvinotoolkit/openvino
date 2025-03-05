@@ -436,6 +436,7 @@ class Config final {
 public:
     using ConfigMap = std::map<std::string, std::string>;
     using ImplMap = std::unordered_map<std::string, std::shared_ptr<details::OptionValue>>;
+    using EnableMap = std::unordered_map<std::string, bool>;
 
     explicit Config(const std::shared_ptr<const OptionsDesc>& desc);
 
@@ -456,6 +457,11 @@ public:
     template <class Opt>
     typename std::string getString() const;
 
+    bool isAvailable(std::string key) const;
+    void enable(std::string key, bool enable);
+    void enableAll();
+    void walkEnables(std::function<void(const std::string&)> cb) const;
+
     void fromString(const std::string& str);
 
     // Returns a string with all config keys which have set values
@@ -472,6 +478,7 @@ public:
 private:
     std::shared_ptr<const OptionsDesc> _desc;
     ImplMap _impl;
+    EnableMap _enabled;
     ConfigMap _internal_compiler_configs;
 };
 
