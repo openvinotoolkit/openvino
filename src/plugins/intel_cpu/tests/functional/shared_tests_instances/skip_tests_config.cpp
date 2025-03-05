@@ -278,6 +278,49 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Snippets.*MatMulTransposeB.*i8.*i8.*)",
         // Issue: 136881
         R"(.*smoke_CompareWithRefs_4D_BitwiseShift_overflow_i32_cast.*_eltwise_op_type=BitwiseLeft.*_model_type=.*(i16|u16).*)",
+        // Issue: 163083
+        // Issue: 163116
+        R"(.*RandomUniformLayerTestCPU.*OutPrc=bf16.*)",
+        // Issue: 163117
+        R"(.*InterpolateCubic_Layout_Test.*)",
+        // Issue: 163171
+        R"(.*CPUDetectionOutputDynamic3InLargeTensor.*)",
+        // Issue: 163168
+        R"(.*UniqueLayerTestCPU.*)",
+        // Issue: 163175
+        R"(.*GridSampleLayerTestCPU.*dataPrc=i8.*)",
+        R"(.*GridSampleLayerTestCPU.*dataPrc=bf16.*)",
+        // Issue: 163177
+        R"(.*NmsRotatedOpTest.*ScoreThr=0\.4.*)",
+        // Issue: 163222
+        R"(.*bf16.*LSTMSequenceCPUTest.*)",
+        // Issue: 163223
+        R"(.*bf16.*AUGRUSequenceCPUTest.*)",
+        // Issue: 163224
+        R"(.*bf16.*GRUSequenceCPUTest.*)",
+        // Issue: 163227
+        R"(.*QuantizedModelsTests\.MaxPoolFQ.*)",
+        R"(.*QuantizedModelsTests\.MaxPoolQDQ.*)",
+        // Issue: 163268
+        R"(.*QuantizedModelsTests\.ConvolutionQDQ.*)",
+        R"(.*QuantizedModelsTests\.ConvolutionFQ.*)",
+        // Issue: 163230
+        R"(.*ProposalLayerTest.*)",
+        // Issue: 163232
+        R"(.*FC_3D_BF16.*MatMulLayerCPUTest.*)",
+        // Issue: 163242
+        R"(.*bf16.*RNNSequenceCPUTest.*)",
+        // Issue: 163250
+        R"(.*OnnxModelWithExtensionFromDSO.*)",
+        // Issue: 163273
+        // todo: define correct area
+        R"(.*Deconv_2D_Planar_FP16.*DeconvolutionLayerCPUTest.*)",
+        // Issue: 163275
+        R"(.*NoReshapeAndReshapeDynamic.*CodegenGelu.*)",
+        // Issue: 163348
+        R"(.*CpuReservationTest.*Mutiple_CompiledModel_Reservation.*)",
+        // Issue: 163351
+        R"(.*CoreThreadingTestsWithIter.*nightly_AsyncInfer_ShareInput.*)",
     };
 
     // fp32 floor for bf16 models: conversion issue

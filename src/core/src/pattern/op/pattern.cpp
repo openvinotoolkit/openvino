@@ -11,30 +11,16 @@
 
 namespace ov::pass::pattern {
 namespace op {
-namespace {
-constexpr bool value_true_predicate(const Output<Node>&) {
-    return true;
-}
-}  // namespace
 
-struct NodeValuePredicate {
-    bool operator()(const Output<Node>& value) const {
-        return pred(value.get_node_shared_ptr());
-    }
-
-    NodePredicate pred;
-};
-
+Pattern::Pattern() : Node(), m_predicate() {}
 Pattern::Pattern(const OutputVector& patterns) : Node(patterns), m_predicate() {}
+Pattern::Pattern(const NodeVector& patterns) : Pattern(as_output_vector(patterns)) {}
 
 Pattern::Pattern(const OutputVector& patterns, const op::Predicate& pred) : Node(patterns), m_predicate(pred) {}
+Pattern::Pattern(const NodeVector& patterns, const op::Predicate& pred) : Pattern(as_output_vector(patterns), pred) {}
 
-ValuePredicate as_value_predicate(NodePredicate pred) {
-    if (pred) {
-        return NodeValuePredicate{std::move(pred)};
-    } else {
-        return value_true_predicate;
-    }
+Predicate as_value_predicate(NodePredicate pred) {
+    return Predicate(pred);
 }
 
 std::ostream& Pattern::write_type_description(std::ostream& out) const {

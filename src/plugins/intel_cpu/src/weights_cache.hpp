@@ -29,7 +29,7 @@ namespace ov::intel_cpu {
  */
 class WeightsSharing {
     struct MemoryInfo {
-        typedef std::shared_ptr<MemoryInfo> Ptr;
+        using Ptr = std::shared_ptr<MemoryInfo>;
 
         MemoryInfo(const MemoryPtr& memoryPtr, bool valid) : sharedMemory(memoryPtr), valid(valid) {}
 
@@ -39,16 +39,16 @@ class WeightsSharing {
     };
 
 public:
-    typedef std::shared_ptr<WeightsSharing> Ptr;
+    using Ptr = std::shared_ptr<WeightsSharing>;
 
     class SharedMemory {
     public:
-        typedef std::shared_ptr<SharedMemory> Ptr;
+        using Ptr = std::shared_ptr<SharedMemory>;
 
         SharedMemory(std::unique_lock<std::mutex>&& lock, MemoryInfo::Ptr memory, MemoryPtr newPtr = nullptr);
 
         operator MemoryPtr() const;
-        bool isValid() const;
+        [[nodiscard]] bool isValid() const;
         void valid(bool b);
 
     private:
