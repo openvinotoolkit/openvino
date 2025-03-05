@@ -74,10 +74,9 @@ ov::pass::AddMultiplyFusion::AddMultiplyFusion() {
 
 ov::pass::AddAddFusion::AddAddFusion() {
     MATCHER_SCOPE(AddAddFusion);
-    // Create Add->Add pattern where first Add has exactly one consumer
     auto m_data = pass::pattern::any_input();
     auto m_add1_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto m_add1 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({m_data, m_add1_constant}, pattern::consumers_count(1));
+    auto m_add1 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({m_data, m_add1_constant});
     auto m_add2_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto m_add2 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({m_add1, m_add2_constant});
 
@@ -139,5 +138,55 @@ ov::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(m_mul2, matcher_name);
+    this->register_matcher(m, callback);
+}
+
+ov::pass::EliminateAddZero::EliminateAddZero() {
+    MATCHER_SCOPE(EliminateAddZero);
+    auto m_data = pass::pattern::any_input();
+    auto m_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto m_add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({m_data, m_constant});
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) -> bool {
+        auto pattern_map = m.get_pattern_map();
+        auto data_node = pattern_map.at(m_add);
+        auto add_node = std::dynamic_pointer_cast<ov::op::v1::Add>(pattern_map.at(m_add));
+        auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(m_constant));
+        if (ov::shape_size(const_node->get_shape()) != 1)
+            return false;
+
+        bool is_zero = false;
+        switch (const_node->get_element_type()) {
+        case ov::element::i64: {
+            int64_t value = *const_node->get_data_ptr<int64_t>();
+            is_zero = (value == 0);
+            break;
+        }
+        case ov::element::i32: {
+            int32_t value = *const_node->get_data_ptr<int32_t>();
+            is_zero = (value == 0);
+            break;
+        }
+        case ov::element::f32: {
+            float value = *const_node->get_data_ptr<float>();
+            is_zero = (value == 0.f);
+            break;
+        }
+        case ov::element::f16: {
+            auto value = *const_node->get_data_ptr<ov::float16>();
+            is_zero = (value == ov::float16(0));
+            break;
+        }
+        default:
+            return false;
+        }
+        if (!is_zero)
+            return false;
+
+        replace_output_update_name(add_node->output(0), add_node->input_value(0));
+        return true;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(m_add, matcher_name);
     this->register_matcher(m, callback);
 }
