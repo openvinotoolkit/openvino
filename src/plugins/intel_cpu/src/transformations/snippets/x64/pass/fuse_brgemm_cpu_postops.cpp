@@ -79,4 +79,32 @@ pass::FuseBrgemmCPUPostops::FuseBrgemmCPUPostops() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(m_postop, matcher_name);
     register_matcher(m, callback);
 }
+
+pass::FuseBrgemmOutConvert::FuseBrgemmOutConvert() {
+    MATCHER_SCOPE(FuseBrgemmOutConvert);
+    auto m_brgemm = ov::pass::pattern::wrap_type<BrgemmCPU>();
+    auto m_convert = ov::pass::pattern::wrap_type<ov::snippets::op::ConvertSaturation>({m_brgemm});
+
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseBrgemmOutConvert")
+        const auto& pattern_map = m.get_pattern_value_map();
+        const auto brgemm = ov::as_type_ptr<BrgemmCPU>(pattern_map.at(m_brgemm).get_node_shared_ptr());
+        const auto convert = pattern_map.at(m_convert).get_node_shared_ptr();
+
+        // Log the addition of the convert operation
+        std::cout << "Adding convert operation: " << convert->get_friendly_name()
+                  << " to BrgemmCPU: " << brgemm->get_friendly_name() << std::endl;
+        brgemm->add_post_op(convert);
+
+        // Log the replacement output
+        auto replacement_output = convert->input_value(0);
+        std::cout << "Replacing output of convert operation: " << convert->get_friendly_name()
+                  << " with: " << replacement_output.get_node()->get_friendly_name() << std::endl;
+        return ov::replace_output_update_name(convert->output(0), replacement_output);
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(m_convert, matcher_name);
+    register_matcher(m, callback);
+}
+
 }  // namespace ov::intel_cpu
