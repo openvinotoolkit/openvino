@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,9 +33,9 @@ bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) {
                                       inputs[13].data<int32_t>(),  // rbi
                                       inputs[14].data<int32_t>(),  // rd
                                       inputs[15].data<T>(),        // trl
-                                      inputs[13].get_shape(),      // kvcs
-                                      inputs[14].get_shape(),      // kvcs
-                                      inputs[15].get_shape());     // kvcs
+                                      inputs[13].get_shape(),      // rbis
+                                      inputs[14].get_shape(),      // rds
+                                      inputs[15].get_shape());     // trls
     return true;
 }
 
