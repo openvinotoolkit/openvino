@@ -697,7 +697,7 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     if (is_weightless) {
         non_encrypted_stream.copyfmt(stream);
         serialize(non_encrypted_stream, false, nullptr);
-        std::string encrypted = std::move(enc_callbacks.encrypt(non_encrypted_stream.str()));
+        std::string encrypted = enc_callbacks.encrypt(non_encrypted_stream.str());
         write(stream, encrypted);
     } else {
         // In case of blob with weights only encrypt XML part of the model
@@ -749,7 +749,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream,
         NPUW_ASSERT(encrypt && "Encryption function isn't provided!");
         non_encrypted_stream.copyfmt(stream);
         write_model_meta(non_encrypted_stream);
-        std::string encrypted_str = std::move(encrypt(non_encrypted_stream.str()));
+        std::string encrypted_str = encrypt(non_encrypted_stream.str());
         write(stream, encrypted_str);
     } else {
         write_model_meta(stream);
