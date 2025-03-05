@@ -510,14 +510,14 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
     if (subgraph_attrs->snippet->has_domain_sensitive_ops() && !std::getenv("REF")) {
         SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                                ov::intel_cpu::pass::BrgemmToBrgemmCPU,
-                                               ov::intel_cpu::pass::FuseBrgemmCPUPostops);
+                                               ov::intel_cpu::pass::FuseBrgemmOutConvert);
         SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
-                                               ov::intel_cpu::pass::FuseBrgemmCPUPostops,
+                                               ov::intel_cpu::pass::FuseBrgemmOutConvert,
                                                ov::pass::Serialize,
                                                std::string("before_FuseBrgemmCPUPostops.xml"),
                                                std::string(""));
         SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
-                                               ov::intel_cpu::pass::FuseBrgemmCPUPostops,
+                                               ov::intel_cpu::pass::FuseBrgemmOutConvert,
                                                ov::pass::Serialize,
                                                std::string("after_FuseBrgemmCPUPostops.xml"),
                                                std::string(""));
