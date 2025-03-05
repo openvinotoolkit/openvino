@@ -19,16 +19,16 @@ namespace ov::intel_cpu::kernel::random_uniform {
     func(vector, aux_register);
 
 #define BROADCAST_PARAM(func, vector, aux_register, param_args_offset) \
-    mov(aux_register, ptr[r64_params + param_args_offset]);            \
+    mov(aux_register, ptr[r64_params + (param_args_offset)]);          \
     func(vector, ptr[aux_register]);
 
-#define INIT_ARR(A, V, R, T)                                                               \
-    static const T A[8] = {V, V, V, V, V, V, V, V};                                        \
-    if (isa == x64::avx2) {                                                                \
-        mov(R, reinterpret_cast<uintptr_t>(A));                                            \
-    } else {                                                                               \
-        static const T* A##_aligned = A + (reinterpret_cast<int64_t>(A) % 16) / sizeof(T); \
-        mov(R, reinterpret_cast<uintptr_t>(A##_aligned));                                  \
+#define INIT_ARR(A, V, R, T)                                                                 \
+    static const T A[8] = {V, V, V, V, V, V, V, V};                                          \
+    if (isa == x64::avx2) {                                                                  \
+        mov(R, reinterpret_cast<uintptr_t>(A));                                              \
+    } else {                                                                                 \
+        static const T* A##_aligned = (A) + (reinterpret_cast<int64_t>(A) % 16) / sizeof(T); \
+        mov(R, reinterpret_cast<uintptr_t>(A##_aligned));                                    \
     }
 
 union FloatAsBits {
