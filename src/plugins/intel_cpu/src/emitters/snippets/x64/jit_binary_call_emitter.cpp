@@ -20,8 +20,7 @@ jit_binary_call_emitter::jit_binary_call_emitter(dnnl::impl::cpu::x64::jit_gener
                                                  dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                  std::set<snippets::Reg> live_regs)
     : jit_emitter(h, isa),
-      m_regs_to_spill(std::move(live_regs)),
-      m_regs_initialized(false) {}
+      m_regs_to_spill(std::move(live_regs)) {}
 
 void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
                                                     const std::vector<size_t>& in,

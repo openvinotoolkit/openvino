@@ -4,6 +4,7 @@
 
 #include "permute_kernel.h"
 
+#include <memory>
 #include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
@@ -172,11 +173,11 @@ PermuteKernel::PermuteKernel(const PermuteParams& params) : params(params) {
     jcp = TransposeExecutor::prepareParams(params);
 #if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
-        permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::avx512_core>(jcp));
+        permute_kernel = std::make_shared<jit_uni_permute_kernel_f32<cpu::x64::avx512_core>>(jcp);
     } else if (mayiuse(cpu::x64::avx2)) {
-        permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::avx2>(jcp));
+        permute_kernel = std::make_shared<jit_uni_permute_kernel_f32<cpu::x64::avx2>>(jcp);
     } else if (mayiuse(cpu::x64::sse41)) {
-        permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::sse41>(jcp));
+        permute_kernel = std::make_shared<jit_uni_permute_kernel_f32<cpu::x64::sse41>>(jcp);
     }
 #endif  // OPENVINO_ARCH_X86_64
 

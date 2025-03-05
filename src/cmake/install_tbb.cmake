@@ -140,7 +140,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
             file(TO_CMAKE_PATH $ENV{TBBROOT} TBBROOT)
         endif()
         # sometimes TBBROOT can be set with relative paths inside (e.g. oneAPI package)
-        if (DEFINED TBBROOT)
+        if(DEFINED TBBROOT)
             get_filename_component(TBBROOT "${TBBROOT}" ABSOLUTE)
         endif()
         if(NOT DEFINED TBBROOT)

@@ -5,9 +5,10 @@
 #pragma once
 
 #include "snippets/lowered/pass/brgemm_blocking.hpp"
-#include "transformations/tpp/x64/op/brgemm.hpp"
+#include "transformations/tpp/common/op/brgemm.hpp"
 
 namespace ov::intel_cpu::tpp::pass {
+
 /**
  * @interface BrgemmTPPBlocking
  * @brief Covers BrgemmTPP with blocking loops
@@ -38,10 +39,11 @@ public:
     };
 
 private:
-    std::tuple<size_t, size_t, size_t> get_blocking_params(
+    [[nodiscard]] std::tuple<size_t, size_t, size_t> get_blocking_params(
         const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const override;
-    ov::snippets::lowered::SpecificIterationHandlers get_k_loop_handlers(size_t work_amount,
-                                                                         size_t block_size) const override;
+    [[nodiscard]] ov::snippets::lowered::SpecificIterationHandlers get_k_loop_handlers(
+        size_t work_amount,
+        size_t block_size) const override;
 };
 
 }  // namespace ov::intel_cpu::tpp::pass
