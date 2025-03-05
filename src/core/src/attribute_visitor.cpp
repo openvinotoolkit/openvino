@@ -10,8 +10,6 @@
 
 using namespace std;
 
-ov::ValueAccessor<void>::~ValueAccessor() = default;
-
 ov::AttributeVisitor::~AttributeVisitor() = default;
 
 void ov::AttributeVisitor::start_structure(const string& name) {
