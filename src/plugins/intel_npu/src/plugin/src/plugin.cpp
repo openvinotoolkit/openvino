@@ -800,7 +800,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
     // If was exported via NPUW
     auto stream_start_pos = stream.tellg();
-    std::array<uint8_t, 6> serialization_indicator;
+    ov::npuw::s11n::IndicatorType serialization_indicator;
     ov::npuw::s11n::read(stream, serialization_indicator);
     if (serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
         stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);

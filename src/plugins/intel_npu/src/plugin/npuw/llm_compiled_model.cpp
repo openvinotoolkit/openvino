@@ -717,7 +717,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     using namespace ov::npuw::s11n;
 
     // Sanity check magic number
-    std::array<uint8_t, 6> serialization_indicator;
+    ov::npuw::s11n::IndicatorType serialization_indicator;
     read(stream, serialization_indicator);
     NPUW_ASSERT(serialization_indicator == NPUW_SERIALIZATION_INDICATOR && "This blob wasn't serialized via NPUW!");
 
