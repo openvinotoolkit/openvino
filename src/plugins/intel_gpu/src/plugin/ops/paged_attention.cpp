@@ -12,15 +12,13 @@
 
 namespace ov {
 namespace op {
-namespace internal {
-using PagedAttentionExtension = ov::op::internal::PagedAttentionExtension;
-}  // namespace internal
+using PagedAttentionExtension = ov::op::PagedAttentionExtension;
 }  // namespace op
 }  // namespace ov
 
 namespace ov::intel_gpu {
 
-static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::PagedAttentionExtension>& op) {
+static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared_ptr<ov::op::PagedAttentionExtension>& op) {
     validate_inputs_count(op, {13, 16});
     auto inputs = p.GetInputInfo(op);
     auto prim = cldnn::paged_attention(layer_type_name_ID(op), inputs);

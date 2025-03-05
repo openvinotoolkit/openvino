@@ -10,7 +10,6 @@
 
 namespace ov {
 namespace op {
-namespace internal {
 
 PagedAttentionExtension::PagedAttentionExtension(const ov::OutputVector& args) : ov::op::Op(args) {
     constructor_validate_and_infer_types();
@@ -287,6 +286,5 @@ const ov::element::Type PagedAttentionExtension::get_out_type(int index) const {
     return m_output_type[index];
 }
 
-}  // namespace internal
 }  // namespace op
 }  // namespace ov

@@ -266,7 +266,7 @@ bool Transformations::fuse_type_to_fq(const std::shared_ptr<ov::Node>& node, con
 }
 
 bool Transformations::fuse_type_to_pa(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
-    auto pa = ov::as_type_ptr<ov::op::internal::PagedAttentionExtension>(node);
+    auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node);
     if (!pa) {
         return false;
     }
@@ -434,8 +434,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
         type_to_fuse_map fuse_map = {};
 #else
-        type_to_fuse_map fuse_map = {
-            {ov::op::internal::PagedAttentionExtension::get_type_info_static(), fuse_type_to_pa}};
+        type_to_fuse_map fuse_map = {{ov::op::PagedAttentionExtension::get_type_info_static(), fuse_type_to_pa}};
 #endif
         const bool keep_precision_sensitive_in_fp32 = true;
         CPU_REGISTER_PASS_COMMON(manager,

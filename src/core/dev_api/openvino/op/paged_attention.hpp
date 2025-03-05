@@ -7,7 +7,6 @@
 
 namespace ov {
 namespace op {
-namespace internal {
 
 /// \brief PagedAttentionExtension operation implements paged attention for memory-efficient sequence processing.
 ///
@@ -118,6 +117,5 @@ protected:
     std::vector<ov::element::Type> m_output_type = {ov::element::dynamic, ov::element::dynamic};
 };
 
-}  // namespace internal
 }  // namespace op
 }  // namespace ov

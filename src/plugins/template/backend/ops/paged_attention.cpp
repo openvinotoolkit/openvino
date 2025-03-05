@@ -40,9 +40,9 @@ bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) {
 }
 
 template <>
-bool evaluate_node<ov::op::internal::PagedAttentionExtension>(std::shared_ptr<ov::Node> node,
-                                                              ov::TensorVector& outputs,
-                                                              const ov::TensorVector& inputs) {
+bool evaluate_node<ov::op::PagedAttentionExtension>(std::shared_ptr<ov::Node> node,
+                                                    ov::TensorVector& outputs,
+                                                    const ov::TensorVector& inputs) {
     auto element_type = node->get_output_element_type(0);
     switch (element_type) {
     case ov::element::bf16:
