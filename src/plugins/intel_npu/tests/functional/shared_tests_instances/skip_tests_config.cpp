@@ -184,14 +184,16 @@ std::string getCurrentTestName() {
 bool isRuleInverted(std::string& rule);
 
 bool isRuleInverted(std::string& rule) {
-    bool invertRule = false;
     auto pos = rule.find("!");
     if (pos != std::string::npos) {
-        invertRule = true;
+        // Extract negation character from rule string
+        rule.erase(pos, 1);
+        
+        return true;
         // Extract negation character from rule string
         rule.erase(pos, 1);
     }
-    return invertRule;
+    return false;
 }
 
 std::vector<std::string> disabledTestPatterns();
