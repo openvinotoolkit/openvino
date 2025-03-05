@@ -149,7 +149,7 @@ void paged_attention(
     // Rotation parameters (if any is nullptr, rotation is skipped)
     const int32_t* rotated_block_indices,  // (Optional) [num_rotated_blocks]: blocks to which RoPE is applied
     const int32_t* rotation_deltas,  // (Optional) [num_rotated_blocks, block_size || 1]: indices into the trig LUT
-    const float* rotation_trig_lut,  // (Optional) LUT: [lut_rows, head_size] (first half: cosines, second half: sines)
+    const T* rotation_trig_lut,      // (Optional) LUT: [lut_rows, head_size] (first half: cosines, second half: sines)
     const Shape& rotated_block_indices_shape,  // shape of rotated_block_indices (e.g. {num_rotated_blocks})
     const Shape& rotation_deltas_shape,        // shape of rotation_deltas (e.g. {num_rotated_blocks, block_size} or
                                                // {num_rotated_blocks, 1})
@@ -238,7 +238,7 @@ void paged_attention(
                             std::vector<T> temp_key(key_vec, key_vec + head_size);
                             paged_attention_utils::apply_rope(temp_key.data(),
                                                               head_size,
-                                                              reinterpret_cast<const T*>(rotation_trig_lut),
+                                                              rotation_trig_lut,
                                                               trig_index);
                             score_val = paged_attention_utils::dot_product(q_vec, temp_key.data(), head_size);
                         } else {
@@ -303,10 +303,7 @@ void paged_attention(
                                                                                token_offset,
                                                                                block_size);
                         std::vector<T> temp_value(raw_val_vec, raw_val_vec + head_size);
-                        paged_attention_utils::apply_rope(temp_value.data(),
-                                                          head_size,
-                                                          reinterpret_cast<const T*>(rotation_trig_lut),
-                                                          trig_index);
+                        paged_attention_utils::apply_rope(temp_value.data(), head_size, rotation_trig_lut, trig_index);
                         for (int d = 0; d < head_size; d++) {
                             out_vec[d] += weight * temp_value[d];
                         }

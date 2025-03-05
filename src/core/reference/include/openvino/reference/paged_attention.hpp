@@ -83,8 +83,7 @@ void paged_attention(
     const int32_t* max_context_len,        // max context length (for score output indexing) (scalar)
     const int32_t* rotated_block_indices,  // (optional) [num_rotated_blocks]: blocks to which RoPE is applied
     const int32_t* rotation_deltas,  // (optional) [num_rotated_blocks, block_size || 1]: indices into the trig LUT
-    const int32_t*
-        rotation_trig_lut,  // (optional) LUT: [lut_rows, head_size] (first half: cosines, second half: sines)
+    const T* rotation_trig_lut,      // (optional) LUT: [lut_rows, head_size] (first half: cosines, second half: sines)
     const Shape& rotated_block_indices_shape,  // shape of rotated_block_indices (e.g. {num_rotated_blocks})
     const Shape& rotation_deltas_shape,        // shape of rotation_deltas (e.g. {num_rotated_blocks, block_size} or
                                                // {num_rotated_blocks, 1})

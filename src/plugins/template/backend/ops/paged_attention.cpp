@@ -31,7 +31,7 @@ bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) {
                                       inputs[12].data<int32_t>(),  // mcl --
                                       inputs[13].data<int32_t>(),  // rbi
                                       inputs[14].data<int32_t>(),  // rd
-                                      inputs[15].data<int32_t>(),  // trl
+                                      inputs[15].data<T>(),        // trl
                                       inputs[13].get_shape(),      // kvcs
                                       inputs[14].get_shape(),      // kvcs
                                       inputs[15].get_shape());     // kvcs
