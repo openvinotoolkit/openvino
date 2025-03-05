@@ -213,6 +213,46 @@ StreamGenerateionTestCase generation_latency_1sockets_14cores_2_pinning = {
     {{1, ALL_PROC, 14, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
 };
 
+StreamGenerateionTestCase generation_latency_1sockets_14cores_linux_unpinning = {
+    1,
+    false,
+    0,
+    0,
+    0,
+    0,
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    true,
+    true,
+    false,
+    false,
+    false,
+    ov::hint::PerformanceMode::LATENCY,
+    {},
+    {
+        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
+        {2, 0, 0, 2, MAIN_CORE_PROC, 2, -1},
+        {3, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
+        {4, 0, 0, 4, MAIN_CORE_PROC, 4, -1},
+        {5, 0, 0, 5, MAIN_CORE_PROC, 5, -1},
+        {6, 0, 0, 6, EFFICIENT_CORE_PROC, 6, -1},
+        {7, 0, 0, 7, EFFICIENT_CORE_PROC, 7, -1},
+        {8, 0, 0, 8, EFFICIENT_CORE_PROC, 8, -1},
+        {9, 0, 0, 9, EFFICIENT_CORE_PROC, 9, -1},
+        {10, 0, 0, 10, EFFICIENT_CORE_PROC, 10, -1},
+        {11, 0, 0, 11, EFFICIENT_CORE_PROC, 11, -1},
+        {12, 0, 0, 12, EFFICIENT_CORE_PROC, 12, -1},
+        {13, 0, 0, 13, EFFICIENT_CORE_PROC, 13, -1},
+    },
+    {{14, 6, 8, 0, 0, 0}},
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    false,
+    false,
+    ov::hint::PerformanceMode::LATENCY,
+    {{14, 6, 8, 0, 0, 0}},
+    {{1, ALL_PROC, 14, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
+};
+
 StreamGenerateionTestCase generation_tput_1sockets_14cores_1_pinning = {
     0,
     false,
@@ -2062,6 +2102,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_StreamsGeneration,
                                            generation_latency_2sockets_48cores_11,
                                            generation_latency_1sockets_14cores_1_pinning,
                                            generation_latency_1sockets_14cores_2_pinning,
+                                           generation_latency_1sockets_14cores_linux_unpinning,
                                            generation_tput_1sockets_14cores_1_pinning,
                                            generation_tput_1sockets_14cores_2,
                                            generation_tput_1sockets_14cores_3,
@@ -2102,7 +2143,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_StreamsGeneration,
                                            generation_tput_2sockets_48cores_9,
                                            generation_latency_1sockets_96cores_unpinning,
                                            generation_tput_1sockets_96cores_unpinning,
-                                           generation_tput_1sockets_96cores_2_unpinning));
+                                           generation_tput_1sockets_96cores_2_unpinning,
+                                           generation_tput_1sockets_0cores_1,
+                                           generation_tput_1sockets_0cores_1_reservation));
 
 #endif
 }  // namespace
