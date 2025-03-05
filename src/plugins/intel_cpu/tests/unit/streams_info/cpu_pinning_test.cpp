@@ -73,7 +73,7 @@ CpuPinningTestCase cpu_pinning_win_mock_set_true_2 = {
     true,
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 24, 0, 0}},
-    false,
+    true,
 };
 CpuPinningTestCase cpu_pinning_win_mock_set_false = {
     false,
