@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,8 +62,10 @@ struct GemmImplementationManager : public ImplementationManager {
             !one_of(out_layout.format.value, supported_formats))
             return false;
 
+        //format bxfy not on whitelist for fusable_output_order_onednn in gemm_inst.h what makes assert error later
+        //skipped onednn implementation as ocl is faster
         std::vector<size_t> out_transpose_order(std::begin(gemm_prim->output_transpose_order), std::end(gemm_prim->output_transpose_order));
-        if (out_transpose_order == format::traits(static_cast<format::type>(format::bxfy))._order) {
+        if (out_transpose_order == format::traits(format::bxfy)._order) {
             return false;
         }
 
