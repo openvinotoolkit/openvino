@@ -44,7 +44,7 @@ Feature Support and API Coverage
  :doc:`Model caching <../../openvino-workflow/running-inference/optimize-inference/optimizing-latency/model-caching-overview>`            Yes     Partial    Yes
  :doc:`Dynamic shapes <../../openvino-workflow/running-inference/model-input-output/dynamic-shapes>`                                      Yes     Partial    No
  :doc:`Preprocessing acceleration <../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing>`                  Yes     Yes        No
- :doc:`Stateful models <../../openvino-workflow/running-inference/stateful-models>`                                                       Yes     Yes        Yes
+ :doc:`Stateful models <../../openvino-workflow/running-inference/inference-request/stateful-models>`                                     Yes     Yes        Yes
  :doc:`Extensibility <../../documentation/openvino-extensibility>`                                                                        Yes     Yes        No
 ======================================================================================================================================== ======= ========== ===========
 

@@ -173,7 +173,7 @@ Both are thread-safe.
 
 
 For more information, see the
-:doc:`Classification Async Sample <../../learn-openvino/openvino-samples/image-classification-async>`,
+:doc:`Classification Async Sample <../../get-started/learn-openvino/openvino-samples/image-classification-async>`,
 as well as the articles on
 :doc:`synchronous <../../documentation/openvino-extensibility/openvino-plugin-library/synch-inference-request>`
 and
