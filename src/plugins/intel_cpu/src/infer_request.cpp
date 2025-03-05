@@ -672,7 +672,7 @@ void SyncInferRequest::check_tensors() const {
     }
 
     for (auto&& item : m_output_ports_map) {
-        check_tensor(item.second, get_tensor_ptr(item.second), "output");
+        check_tensor(item.second, m_outputs.at(item.first), "output");
     }
 }
 
