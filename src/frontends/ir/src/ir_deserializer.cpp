@@ -1034,11 +1034,7 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
         // assume all names from parent node are Result's (model's) tensor names.
         if (auto result = ov::as_type<ov::op::v0::Result>(ovNode.get())) {
             if (const auto names = node.attribute("output_names"); names.empty()) {
-                if (!ov::op::util::is_parameter(result->get_input_source_output(0).get_node())) {
-                    // Copy names if parent node is not parameter, model's input names should not be dedicated
-                    // output names as they could be removed from Parameter's tensor during model transformations.
-                    result->get_output_tensor(0).add_names(result->get_input_tensor(0).get_names());
-                }
+                descriptor::add_not_parameter_names(result->get_output_tensor(0), result->get_input_tensor(0));
             } else {
                 result->get_output_tensor(0).set_names(deserialize_tensor_names(names.value()));
             }
