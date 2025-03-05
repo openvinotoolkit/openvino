@@ -114,7 +114,7 @@ std::vector<std::pair<int, WeightsSharing::Statistics>> SocketsWeights::dumpStat
     std::vector<std::pair<int, WeightsSharing::Statistics>> retVal;
     for (const auto& item : _cache_map) {
         if (item.second) {
-            retVal.push_back({item.first, item.second->dumpStatistics()});
+            retVal.emplace_back(item.first, item.second->dumpStatistics());
         }
     }
 
