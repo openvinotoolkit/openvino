@@ -107,18 +107,18 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
         auto alibi_slopes = std::make_shared<v0::Constant>(element::f32, Shape{0});
 
         auto pa = std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
-                                                                                       K,
-                                                                                       V,
-                                                                                       key_cache_0,
-                                                                                       value_cache_0,
-                                                                                       past_lens,
-                                                                                       subsequence_begins,
-                                                                                       block_indices,
-                                                                                       block_indices_begins,
-                                                                                       scale,
-                                                                                       sliding_window,
-                                                                                       alibi_slopes,
-                                                                                       max_context_len});
+                                                                             K,
+                                                                             V,
+                                                                             key_cache_0,
+                                                                             value_cache_0,
+                                                                             past_lens,
+                                                                             subsequence_begins,
+                                                                             block_indices,
+                                                                             block_indices_begins,
+                                                                             scale,
+                                                                             sliding_window,
+                                                                             alibi_slopes,
+                                                                             max_context_len});
         pa->get_rt_info()["num_k_heads"] = numKeyHeads;
         pa->get_rt_info()["k_head_size"] = keyHeadSize;
         pa->get_rt_info()["num_v_heads"] = numValueHeads;
@@ -201,18 +201,18 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
         auto alibi_slopes = std::make_shared<v0::Constant>(element::f32, Shape{0});
 
         auto pa = std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
-                                                                                       K,
-                                                                                       V,
-                                                                                       key_cache_0,
-                                                                                       value_cache_0,
-                                                                                       past_lens,
-                                                                                       subsequence_begins,
-                                                                                       block_indices,
-                                                                                       block_indices_begins,
-                                                                                       scale,
-                                                                                       sliding_window,
-                                                                                       alibi_slopes,
-                                                                                       max_context_len});
+                                                                             K,
+                                                                             V,
+                                                                             key_cache_0,
+                                                                             value_cache_0,
+                                                                             past_lens,
+                                                                             subsequence_begins,
+                                                                             block_indices,
+                                                                             block_indices_begins,
+                                                                             scale,
+                                                                             sliding_window,
+                                                                             alibi_slopes,
+                                                                             max_context_len});
         pa->get_rt_info()["num_k_heads"] = numKeyHeads;
         pa->get_rt_info()["k_head_size"] = keyHeadSize;
         pa->get_rt_info()["num_v_heads"] = numValueHeads;

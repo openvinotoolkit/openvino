@@ -7,8 +7,6 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 
-#include "openvino/op/paged_attention.hpp"
-
 namespace ov {
 namespace test {
 namespace op_conformance {

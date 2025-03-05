@@ -12,7 +12,9 @@
 
 namespace ov {
 namespace op {
+namespace internal {
 using PagedAttentionExtension = ov::op::PagedAttentionExtension;
+}  // namespace internal
 }  // namespace op
 }  // namespace ov
 

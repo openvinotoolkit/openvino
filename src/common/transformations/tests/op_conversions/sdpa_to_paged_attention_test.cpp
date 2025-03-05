@@ -569,18 +569,18 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
 
         // PagedAttention:
         auto pa = std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
-                                                                                       K,
-                                                                                       V,
-                                                                                       key_cache_0,
-                                                                                       value_cache_0,
-                                                                                       past_lens,
-                                                                                       subsequence_begins,
-                                                                                       block_indices,
-                                                                                       block_indices_begins,
-                                                                                       scale,
-                                                                                       sliding_window,
-                                                                                       alibi_slopes,
-                                                                                       max_context_len});
+                                                                             K,
+                                                                             V,
+                                                                             key_cache_0,
+                                                                             value_cache_0,
+                                                                             past_lens,
+                                                                             subsequence_begins,
+                                                                             block_indices,
+                                                                             block_indices_begins,
+                                                                             scale,
+                                                                             sliding_window,
+                                                                             alibi_slopes,
+                                                                             max_context_len});
         pa->set_out_type(0, element::i64);
         auto pa_aligned = Qwen7bChatPA::align_pa_layout(pa, head_size_2);
         auto res = makeOP<v0::Result>({pa_aligned});

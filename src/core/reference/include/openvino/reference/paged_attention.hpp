@@ -44,11 +44,11 @@ bool find_cached_token(int32_t seq_idx,
  * Given rotation_deltas and its shape, compute the trig index for RoPE.
  * Returns 0 if rotation parameters are not available.
  */
-int get_trig_index(const int32_t* rotation_deltas,
-                   const ov::Shape& rotation_deltas_shape,
-                   int32_t rotated_index,
-                   int32_t token_offset,
-                   int32_t block_size);
+int32_t get_trig_index(const int32_t* rotation_deltas,
+                       const ov::Shape& rotation_deltas_shape,
+                       int32_t rotated_index,
+                       int32_t token_offset,
+                       int32_t block_size);
 /*
  * Check if rotation should be applied.
  * Returns true if rotated_block_indices is not null, the number of rotated blocks is > 0,
