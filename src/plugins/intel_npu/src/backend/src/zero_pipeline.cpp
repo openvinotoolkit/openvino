@@ -24,8 +24,7 @@ Pipeline::Pipeline(const Config& config,
                    zeroProfiling::ProfilingQuery& profiling_query,
                    const std::shared_ptr<zeroProfiling::NpuInferProfiling>& npu_profiling,
                    const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors,
-                   const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors,
-                   uint32_t group_ordinal)
+                   const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors)
     : _graph(graph),
       _config(config),
       _id(_graph->get_unique_id()),
@@ -60,7 +59,8 @@ Pipeline::Pipeline(const Config& config,
 
     _command_lists.reserve(_number_of_command_lists);
     for (size_t i = 0; i < _number_of_command_lists; i++) {
-        _command_lists.emplace_back(std::make_unique<CommandList>(init_structs, group_ordinal));
+        _command_lists.emplace_back(
+            std::make_unique<CommandList>(init_structs, _graph->get_command_queue_group_ordinal()));
     }
 
     if (_sync_output_with_fences) {

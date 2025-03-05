@@ -85,7 +85,6 @@ private:
     mutable std::vector<std::vector<std::shared_ptr<ov::ITensor>>> _levelZeroInputTensors;
     mutable std::vector<std::shared_ptr<ov::ITensor>> _levelZeroOutputTensors;
 
-    ze_device_properties_t _properties = {};
     std::shared_ptr<const zeroMemory::HostMemAllocator> _inputAllocator;
     std::shared_ptr<const zeroMemory::HostMemAllocator> _outputAllocator;
 

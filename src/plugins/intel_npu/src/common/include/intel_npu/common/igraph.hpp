@@ -42,6 +42,7 @@ public:
     const std::vector<ArgumentDescriptor>& get_input_descriptors() const;
     const std::vector<ArgumentDescriptor>& get_output_descriptors() const;
     const std::shared_ptr<CommandQueue>& get_command_queue() const;
+    uint32_t get_command_queue_group_ordinal() const;
 
     void set_workload_type(const ov::WorkloadType workloadType) const;
 
@@ -83,6 +84,7 @@ protected:
     std::vector<ArgumentDescriptor> _output_descriptors;
 
     std::shared_ptr<CommandQueue> _command_queue;
+    uint32_t _command_queue_group_ordinal = 0;
     std::vector<std::shared_ptr<Event>> _last_submitted_event;
 
     // Used to protect zero pipeline creation in the graph. The pipeline should be created only once per graph when the
