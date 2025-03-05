@@ -49,7 +49,7 @@ def parse_arguments():
     ov_help = "OV binary path. The default way is to find the absolute path of latest bin in the repo (by using script path)"
     working_dir_help = "Specify a working directory to save a run artifacts"
     type_help = "Specify conformance type: `OP` or `API`. The default value is `OP`"
-    workers_help = "Specify number of workers to run in parallel. The default value is `CPU_count-1`"
+    workers_help = "Specify number of workers to run in parallel. The default value is `CPU_count`"
     gtest_filter_helper = "Specify gtest filter to apply for a test run. E.g. *Add*:*BinaryConv*. The default value is None"
     ov_config_path_helper = "Specify path to a plugin config file as `.lst` file. Default value is ``"
     special_mode_help = "Specify shape mode (`static`, `dynamic` or ``) for Opset conformance or API scope type (`mandatory` or ``). Default value is ``"
@@ -70,7 +70,7 @@ def parse_arguments():
     parser.add_argument("-m", "--models_path", help=models_path_help, type=str, required=False,
                         default=NO_MODEL_CONSTANT)
     parser.add_argument("-ov", "--ov_path", help=ov_help, type=str, required=False, default="")
-    parser.add_argument("-j", "--workers", help=workers_help, type=int, required=False, default=(os.cpu_count() - 1))
+    parser.add_argument("-j", "--workers", help=workers_help, type=int, required=False, default=(os.cpu_count()))
     parser.add_argument("-c", "--ov_config_path", help=ov_config_path_helper, type=str, required=False, default="")
     parser.add_argument("-s", "--dump_graph", help=dump_graph_help, type=int, required=False, default=0)
     parser.add_argument("-sm", "--special_mode", help=special_mode_help, type=str, required=False, default="")
