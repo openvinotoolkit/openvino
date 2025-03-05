@@ -126,18 +126,12 @@ LinearIR::constExprIt InsertBuffers::insertion_position(const LinearIR& linear_i
     // If upper expression is inside Loop, we should insert Buffer after this Loop
     if (loop_idx < up_loop_count) {
         const auto up_loop_id = up_loops[loop_idx];
-        const auto loop_info = loop_manager->get_loop_info(up_loop_id);
-        LinearIR::constExprIt loop_begin_pos, loop_end_pos;
-        loop_manager->get_loop_bounds(linear_ir, up_loop_id, loop_begin_pos, loop_end_pos);
-        return loop_end_pos;
+        return loop_manager->get_loop_bounds(linear_ir, up_loop_id).second;
     }
     // If lower expression is inside Loop, we should insert Buffer before this Loop
     if (loop_idx < down_loop_count) {
         const auto down_loop_id = down_loops[loop_idx];
-        const auto loop_info = loop_manager->get_loop_info(down_loop_id);
-        LinearIR::constExprIt loop_begin_pos, loop_end_pos;
-        loop_manager->get_loop_bounds(linear_ir, down_loop_id, loop_begin_pos, loop_end_pos);
-        return loop_begin_pos;
+        return loop_manager->get_loop_bounds(linear_ir, down_loop_id).first;
     }
     OPENVINO_THROW("Incorrect configuration for Buffer insertion!");
 }

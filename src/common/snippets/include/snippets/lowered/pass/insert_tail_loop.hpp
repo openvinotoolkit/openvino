@@ -24,7 +24,7 @@ class InsertTailLoop : public Pass {
 public:
     OPENVINO_RTTI("InsertTailLoop", "Pass")
     bool run(LinearIR& linear_ir) override;
-    static LinearIR::container copy_loop(const LinearIR& linear_ir, const size_t loop_id);
+    static LinearIR::constExprIt insert_copy_loop(LinearIR& linear_ir, const size_t loop_id, const LinearIR::constExprIt& insert_pos);
 
     static constexpr size_t existing_subtensor_value = SIZE_MAX;
     static void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
