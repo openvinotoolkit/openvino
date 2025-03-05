@@ -485,6 +485,10 @@ bool SDPAKernelMicro::Validate(const Params& p) const {
     if (params.conf.is_paged_attention && params.outputs.size() > 1)
         return false;
 
+    if (params.conf.is_paged_attention && params.conf.paged_attention_sliding_window != 0) {
+        return false;
+    }
+
     // Alibi is not supported
     if (params.conf.is_paged_attention && params.conf.has_alibi_input)
         return false;

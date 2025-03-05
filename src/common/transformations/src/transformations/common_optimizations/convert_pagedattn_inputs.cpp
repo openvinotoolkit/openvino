@@ -17,7 +17,9 @@
 #include "transformations/utils/utils.hpp"
 using namespace ov::gen_pattern;
 
-ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config) : m_config(config) {
+ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, UpdateShapeFunc func)
+    : m_config(config),
+      m_update_shape_func(std::move(func)) {
     MATCHER_SCOPE(ConvertPagedAttnInputs);
 
     auto Q = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
@@ -83,7 +85,7 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
                                     const size_t group_size,
                                     const bool bychannel,
                                     const std::vector<size_t>& orders) {
-            size_t _block_size = block_size;
+            ov::Dimension::value_type _block_size = block_size;
             ov::Dimension::value_type _head_nums = head_nums;
             ov::Dimension::value_type _head_size = head_size;
             ov::Dimension::value_type _group_size = group_size;
@@ -94,17 +96,9 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
                 }
             }
             size_t group_num = _head_size / _group_size;
-            if (precision == ov::element::u8) {
-                if (bychannel) {
-                    _block_size += 2 * sizeof(float);
-                } else {
-                    _head_size += sizeof(float) * 2 * group_num;
-                }
-            } else if (precision == ov::element::u4) {
-                _head_size += sizeof(float) * 2 * group_num * 2;
-            }
-            auto block_shape = ov::PartialShape::dynamic(4);
+            m_update_shape_func(precision, bychannel, group_num, _head_size, _block_size);
 
+            auto block_shape = ov::PartialShape::dynamic(4);
             block_shape[orders[0]] = -1;
             block_shape[orders[1]] = _head_nums;
             block_shape[orders[2]] = _block_size;

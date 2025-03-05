@@ -670,6 +670,11 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
             config.paged_attention_max_len = max_context_len_mem_lock[0];
         }
 
+        if (data_type_traits::is_i8_u8(impl_param.get_input_layout(3).data_type)) {
+            config.is_kv_compressed = true;
+            config.use_asymmetric_quantization = true;
+        }
+
         return config;
     }
 
@@ -692,6 +697,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         params.inputs[2] = rotation_trig_lut_tensor;
         params.outputs[0] = key_cache_tensor;
 
+        params.original_cache_dt = to_data_type(impl_param.get_input_layout(1).data_type);
         params.conf = get_sdpa_configuration(impl_param, is_dynamic);
 
         const auto& in_offsets_map = impl_param.in_port_to_shape_info_offset;
@@ -808,6 +814,11 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         }
 
         params.conf = get_sdpa_configuration(impl_param, is_dynamic);
+
+        // Currently, for the processing of the 1st token, plain SDPA kernels are used, which expect
+        // uncompressed plain QKV inputs. Therefore, set is_kv_compressed=false
+        params.conf.is_kv_compressed = false;
+        params.conf.use_asymmetric_quantization = false;
 
         const std::vector<int64_t> default_order = {0, 1, 2, 3};
         params.input0_order = default_order;
@@ -974,6 +985,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         auto kv_cache_update_kernel_params = get_kv_cache_update_kernel_params(impl_param, stage, input_tensors, impl_param.is_dynamic());
         auto& kv_cache_update_kernel_selector = kv_cache_update_kernel_selector_t::Instance();
         kernels_data.push_back(kv_cache_update_kernel_selector.get_best_kernel(kv_cache_update_kernel_params));
+
         auto sdpa_kernel_params = get_sdpa_kernel_params(impl_param, stage, input_tensors, 0, impl_param.is_dynamic());
         auto& sdpa_kernel_selector = sdpa_kernel_selector_t::Instance();
         kernels_data.push_back(sdpa_kernel_selector.get_best_kernel(sdpa_kernel_params));
