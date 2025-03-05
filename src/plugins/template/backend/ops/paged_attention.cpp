@@ -22,6 +22,7 @@ bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) {
                                       inputs[1].get_shape(),       // kvs
                                       inputs[3].get_shape(),       // kvcs
                                       inputs[5].data<int32_t>(),   // pl
+                                      inputs[5].get_shape(),       // pls
                                       inputs[6].data<int32_t>(),   // sb
                                       inputs[7].data<int32_t>(),   // bi
                                       inputs[8].data<int32_t>(),   // bib

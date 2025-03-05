@@ -74,6 +74,7 @@ void paged_attention(
     const Shape& kv_shape,                 // e.g. {batch_tokens, num_kv_heads * head_size}
     const Shape& kv_cache_shape,           // e.g. {num_blocks, num_kv_heads, block_size, head_size}
     const int32_t* past_lens,              // [batch_size_in_sequences]: past tokens per sequence
+    const Shape& past_lens_shape,          // e.g. {batch_seq}
     const int32_t* subsequence_begins,     // [batch_size_in_sequences + 1]: start indices of new tokens per sequence
     const int32_t* block_indices,          // [num_blocks]: block table for each sequence
     const int32_t* block_indices_begins,   // [batch_size_in_sequences + 1]: indices into block_indices per sequence
