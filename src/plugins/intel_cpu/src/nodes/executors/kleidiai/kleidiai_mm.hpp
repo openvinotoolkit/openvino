@@ -71,16 +71,18 @@ private:
     };
 
     const FCAttrs& m_attrs;
-    ACLFCAttrs aclfcAttrs;
     const MemoryArgs& m_memoryArgs;
+    const ExecutorContext::CPtr& m_context;
+    ACLFCAttrs aclfcAttrs;
     MemoryPtr biasMem;
     MemoryPtr rhsPackedMem;
+    MemoryPtr lhsPackedMem;
     MemoryCPtr packedWeights;
     size_t M, N, K;
     size_t mr, nr, kr, sr;
     size_t BLOCK_SIZE = 8;
-    ov::element::Type inferPrecision = ov::element::i8;
     int curNumaNode = -1;
+    bool hasDynQuant = false;
 };
 
 using MatMulKleidiAIExecutorPtr = std::shared_ptr<MatMulKleidiAIExecutor>;
