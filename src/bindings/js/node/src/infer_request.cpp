@@ -138,33 +138,15 @@ Napi::Value InferRequestWrap::get_output_tensor(const Napi::CallbackInfo& info) 
     return TensorWrap::wrap(info.Env(), tensor);
 }
 
-std::map<std::string, ov::Tensor> get_js_infer_result(ov::InferRequest* infer_request) {
-    auto model_outputs = infer_request->get_compiled_model().outputs();
-    std::map<std::string, ov::Tensor> outputs;
-    for (auto& output : model_outputs) {
-        const auto& tensor = infer_request->get_tensor(output);
-        auto new_tensor = ov::Tensor(tensor.get_element_type(), tensor.get_shape());
-        tensor.copy_to(new_tensor);
-        const auto name = output.get_names().empty() ? output.get_node()->get_name() : output.get_any_name();
-
-        auto key = name;
-        int counter = 1;
-        while (outputs.find(key) != outputs.end()) {
-            key = name + std::to_string(counter);
-            ++counter;
-        }
-
-        outputs.insert({key, new_tensor});
-    }
-    return outputs;
-}
-
 Napi::Value InferRequestWrap::get_output_tensors(const Napi::CallbackInfo& info) {
-    auto output_map = get_js_infer_result(&_infer_request);
+    auto compiled_model = _infer_request.get_compiled_model().outputs();
     auto outputs_obj = Napi::Object::New(info.Env());
 
-    for (const auto& [key, tensor] : output_map) {
-        outputs_obj.Set(key, TensorWrap::wrap(info.Env(), tensor));
+    for (auto& node : compiled_model) {
+        auto tensor = _infer_request.get_tensor(node);
+        auto new_tensor = ov::Tensor(tensor.get_element_type(), tensor.get_shape());
+        tensor.copy_to(new_tensor);
+        outputs_obj.Set(node.get_any_name(), TensorWrap::wrap(info.Env(), new_tensor));
     }
     return outputs_obj;
 }
@@ -226,8 +208,17 @@ void performInferenceThread(TsfnContext* context) {
         }
         context->_ir->infer();
 
-        auto model_outputs = context->_ir->get_compiled_model().outputs();
-        context->result = get_js_infer_result(context->_ir);
+        auto compiled_model = context->_ir->get_compiled_model().outputs();
+        std::map<std::string, ov::Tensor> outputs;
+
+        for (auto& node : compiled_model) {
+            const auto& tensor = context->_ir->get_tensor(node);
+            auto new_tensor = ov::Tensor(tensor.get_element_type(), tensor.get_shape());
+            tensor.copy_to(new_tensor);
+            outputs.insert({node.get_any_name(), new_tensor});
+        }
+
+        context->result = outputs;
     }
 
     auto callback = [](Napi::Env env, Napi::Function, TsfnContext* context) {

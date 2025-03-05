@@ -4,6 +4,7 @@
 #include "node/include/async_reader.hpp"
 
 #include "node/include/model_wrap.hpp"
+#include "openvino/core/model_util.hpp"
 
 void ReaderWorker::Execute() {
     if (_args->model_str.empty())
