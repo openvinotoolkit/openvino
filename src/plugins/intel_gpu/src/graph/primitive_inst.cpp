@@ -40,8 +40,8 @@
 #include "dynamic_quantize_inst.h"
 #include "swiglu_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
-#include "impls/registry/implementation_manager.hpp"
-#include "impls/registry/registry.hpp"
+#include "registry/implementation_manager.hpp"
+#include "registry/registry.hpp"
 #include "graph_optimizer/prepare_buffer_fusing.h"
 
 #include "intel_gpu/plugin/common_utils.hpp"
