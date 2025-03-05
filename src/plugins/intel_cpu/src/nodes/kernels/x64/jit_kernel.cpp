@@ -442,7 +442,7 @@ const jit_kernel::reg_indices& jit_kernel::free_rmmregs() const {
 }
 
 jit_kernel::stack_frame jit_kernel::stack(size_t size, uint32_t alignment) {
-    return stack_frame(*this, size, alignment);
+    return {*this, size, alignment};
 }
 
 void jit_kernel::uni_vpermps(const Xmm& x1, const uint8_t mask[4], const Operand& op) {

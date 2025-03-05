@@ -20,7 +20,7 @@ public:
                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         OPENVINO_THROW("TODO: Support parameterized Order input for dynamic shapes.");
     }
-    port_mask_t get_port_mask() const override {
+    [[nodiscard]] port_mask_t get_port_mask() const override {
         return EMPTY_PORT_MASK;
     }
 
@@ -34,7 +34,7 @@ public:
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
 
-    port_mask_t get_port_mask() const override {
+    [[nodiscard]] port_mask_t get_port_mask() const override {
         return EMPTY_PORT_MASK;
     }
 
@@ -48,7 +48,7 @@ private:
 class TransposeShapeInferFactory : public ShapeInferFactory {
 public:
     TransposeShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
-    ShapeInferPtr makeShapeInfer() const override;
+    [[nodiscard]] ShapeInferPtr makeShapeInfer() const override;
 
 private:
     const std::shared_ptr<ov::Node> m_op;
