@@ -18,9 +18,9 @@ JitConstants STFTKernelBase::GetJitConstants(const STFT_params& params) const {
 }
 
 void STFTKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
-    kd.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const STFT_params&>(params);
-        auto dispatchData = SetDefault(prim_params);
+        auto dispatchData = CalcLaunchConfig(prim_params);
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
@@ -28,7 +28,7 @@ void STFTKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-STFTKernelBase::DispatchData STFTKernelBase::SetDefault(const STFT_params& params) {
+CommonDispatchData STFTKernelBase::CalcLaunchConfig(const STFT_params& params) const {
     CommonDispatchData dispatchData;
     const auto inLayout = params.inputs.front().GetLayout();
     const auto& output = params.outputs.front();
@@ -57,11 +57,13 @@ STFTKernelBase::DispatchData STFTKernelBase::SetDefault(const STFT_params& param
 }
 
 KernelsData STFTKernelBase::GetCommonKernelsData(const Params& params) const {
-    assert(params.GetType() == KernelType::STFT);
+    if (!Validate(params)) {
+        return {};
+    }
 
     const auto& prim_params = static_cast<const STFT_params&>(params);
 
-    auto dispatchData = SetDefault(prim_params);
+    auto dispatchData = CalcLaunchConfig(prim_params);
     KernelData k_data = KernelData::Default<STFT_params>(params);
 
     auto cldnn_jit = GetJitConstants(prim_params);
@@ -87,4 +89,9 @@ KernelsData STFTKernelBase::GetCommonKernelsData(const Params& params) const {
 
     return {k_data};
 }
+
+bool STFTKernelBase::Validate(const Params& p) const {
+    return p.GetType() == KernelType::STFT;
+}
+
 }  // namespace kernel_selector

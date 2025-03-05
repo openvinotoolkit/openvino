@@ -33,7 +33,8 @@ void istft(const float* in_data,
     const auto num_frames = data_shape[frames_axis];
 
     const auto signal_length = (num_frames - 1) * frame_step + frame_size;
-    const int64_t final_signal_length = length > 0 ? length : (center ? (signal_length - frame_size) : signal_length);
+    const int64_t final_signal_length =
+        length > 0 ? length : (center ? (signal_length - (frame_size & ~1)) : signal_length);
     std::fill(final_result, final_result + batch_size * final_signal_length, 0.f);
 
     std::vector<float> mid_result(batch_size * signal_length, 0.f);

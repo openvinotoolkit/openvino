@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <type_traits>
+
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -62,9 +64,8 @@ size_t compute_inner_n_block(const ov::element::Type& precision);
 size_t compute_inner_k_block(const ov::element::Type& precision);
 
 /// \brief  Computes N dim in output blocked shape of BrgemmCopyB. Depends on tensor precision
-template <
-    typename T,
-    typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
+template <typename T,
+          typename = typename std::enable_if_t<(std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>), bool>>
 inline T compute_repacked_n_dim(T n, const ov::element::Type& precision) {
     return ov::snippets::utils::rnd_up(n, static_cast<T>(compute_inner_n_block(precision)));
 }

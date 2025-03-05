@@ -141,7 +141,7 @@ public:
     using iface_type = IStaticShapeInfer;
 
     ShapeInferBase(std::shared_ptr<Node> node) : m_input_ranks{}, m_node{std::move(node)} {
-        static_assert(std::is_same<int64_t, Dimension::value_type>::value, "Rank type not match to input_ranks type.");
+        static_assert(std::is_same_v<int64_t, Dimension::value_type>, "Rank type not match to input_ranks type.");
         for (size_t i = 0; i < m_node->get_input_size(); ++i) {
             const auto& shape = m_node->get_input_partial_shape(i);
             const auto& rank_length = shape.rank().is_static() ? shape.rank().get_length() : -1;
@@ -184,7 +184,7 @@ public:
         return m_input_ranks;
     }
 
-    port_mask_t get_port_mask() const override {
+    [[nodiscard]] port_mask_t get_port_mask() const override {
         return EMPTY_PORT_MASK;
     }
 
@@ -243,12 +243,12 @@ public:
         ov::OutputVector new_inputs;
         for (size_t i = 0; i < op->get_input_size(); ++i) {
             if (auto t = tensor_accessor(i)) {
-                new_inputs.push_back(std::make_shared<ov::opset1::Constant>(t));
+                new_inputs.emplace_back(std::make_shared<ov::opset1::Constant>(t));
             } else if (auto c = ov::as_type<const op::v0::Constant>(op->get_input_node_ptr(i))) {
-                new_inputs.push_back(c->clone_with_new_inputs(ov::OutputVector{}));
+                new_inputs.emplace_back(c->clone_with_new_inputs(ov::OutputVector{}));
             } else {
-                new_inputs.push_back(std::make_shared<op::v0::Parameter>(op->get_input_element_type(i),
-                                                                         input_shapes[i].to_partial_shape()));
+                new_inputs.emplace_back(std::make_shared<op::v0::Parameter>(op->get_input_element_type(i),
+                                                                            input_shapes[i].to_partial_shape()));
             }
         }
         local_op = op->clone_with_new_inputs(new_inputs);
@@ -268,7 +268,7 @@ public:
         return {std::move(output_shapes)};
     }
 
-    port_mask_t get_port_mask() const override {
+    [[nodiscard]] port_mask_t get_port_mask() const override {
         // For fallback return full port mask to try get data for all node's inputs
         return FULL_PORT_MASK;
     }
@@ -284,7 +284,7 @@ public:
         return {shape_infer(static_cast<TOp*>(m_node.get()), input_shapes, tensor_accessor)};
     }
 
-    port_mask_t get_port_mask() const override {
+    [[nodiscard]] port_mask_t get_port_mask() const override {
         return MASK;
     }
 };
@@ -340,7 +340,7 @@ public:
         return {shape_infer(static_cast<TOp*>(m_node.get()), input_shapes, m_pads_begin, m_pads_end, tensor_accessor)};
     }
 
-    port_mask_t get_port_mask() const override {
+    [[nodiscard]] port_mask_t get_port_mask() const override {
         return MASK;
     }
 };

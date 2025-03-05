@@ -135,4 +135,6 @@ EnumNames<op::util::EmbeddingBagOffsetsBase::Reduction>::get() {
 std::ostream& operator<<(std::ostream& s, const op::util::EmbeddingBagOffsetsBase::Reduction& reduction) {
     return s << as_string(reduction);
 }
+
+AttributeAdapter<op::util::EmbeddingBagOffsetsBase::Reduction>::~AttributeAdapter() = default;
 }  // namespace ov
