@@ -905,6 +905,8 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
                 "Model is encrypted but no decrypt function was provided!");
     enc_callbacks.decrypt = properties.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>().decrypt;
 
+    LOG_INFO("Decryption will be done via the function provided.");
+
     std::shared_ptr<ov::npuw::LLMCompiledModel> compiled_model = nullptr;
 
     // Model is encrypted
