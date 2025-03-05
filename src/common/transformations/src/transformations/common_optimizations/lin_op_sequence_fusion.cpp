@@ -58,11 +58,10 @@ ov::pass::AddMultiplyFusion::AddMultiplyFusion() {
         auto new_mul = register_new_node<ov::op::v1::Multiply>(input, mul_const);
 
         // Add two constants using opset3::Add constant folding and create new Add operation
-        auto new_add =
-            std::make_shared<ov::op::v1::Add>(new_mul,
-                                              op::util::eltwise_fold<ov::op::v1::Multiply>(add_const, mul_const));
+        auto new_const = op::util::make_try_fold<ov::op::v1::Multiply>(add_const, mul_const);
+        auto new_add = std::make_shared<ov::op::v1::Add>(new_mul, new_const);
 
-        copy_runtime_info({add, mul}, {new_mul, new_add});
+        copy_runtime_info({add, mul}, {new_mul, new_add, new_const});
         new_add->set_friendly_name(mul->get_friendly_name());
         replace_node(mul, new_add);
         return true;
@@ -128,11 +127,10 @@ ov::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
 
         // Replace Multiply->Multiply with single Multiply
         // Multiply operation will be added to the list of ops requested for pattern matching
-        auto new_mul = register_new_node<ov::op::v1::Multiply>(
-            input,
-            op::util::eltwise_fold<ov::op::v1::Multiply>(mul1_const, mul2_const));
+        auto new_const = op::util::make_try_fold<ov::op::v1::Multiply>(mul1_const, mul2_const);
+        auto new_mul = register_new_node<ov::op::v1::Multiply>(input, new_const);
 
-        copy_runtime_info({mul1, mul2}, new_mul);
+        copy_runtime_info({mul1, mul2}, {new_mul, new_const});
         new_mul->set_friendly_name(mul2->get_friendly_name());
         replace_node(mul2, new_mul);
         return true;
