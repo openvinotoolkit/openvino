@@ -527,7 +527,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_RDFT_CPU_1D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\(126\)\)_constAxes=true_axes=\(\(0\)\)_isInverse=false.*)");
     retVector.emplace_back(R"(.*smoke_RDFT_CPU_2D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\(16.38\)\)_constAxes=true_axes=\(\(0.1\)\)_isInverse=false.*)");
 #endif
-    if (!ov::with_cpu_x86_avx512_core()) {
+    if (!ov::intel_cpu::hasHardwareSupport(ov::element::bf16)) {
         // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
         // tests are useless on such platforms
         retVector.emplace_back(R"(.*(BF|bf)16.*)");
@@ -540,7 +540,7 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*Snippets.*MHA.*)");
         retVector.emplace_back(R"(.*Snippets.*(MatMul|Matmul).*)");
     }
-    if (!ov::with_cpu_x86_avx512_core_fp16()) {
+    if (!ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
         // Skip fp16 tests for paltforms that don't support fp16 precision
         retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
         retVector.emplace_back(R"(.*ConcatMultiQuerySDPTest.*f16.*)");
@@ -615,7 +615,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 92895
         // on platforms which do not support AMX, we are disabling I8 input tests
         retVector.emplace_back(R"(smoke_LPT/FakeQuantizeWithNotOptimalTransformation.CompareWithRefImpl.*CPU.*i8.*)");
-    if (!ov::with_cpu_x86_avx512_core_amx_bf16() && !ov::with_cpu_x86_bfloat16()) {
+    if ((!ov::with_cpu_x86_avx512_core_amx_bf16() && !ov::with_cpu_x86_bfloat16()) || ov::with_cpu_x86_avx2_vnni_2()) {
         // ignored for not supported bf16 platforms
         retVector.emplace_back(R"(.*smoke_Snippets_EnforcePrecision_bf16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
@@ -674,7 +674,7 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_Deconv_(2|3)D_NSPC_INT8_AMX/DeconvolutionLayerCPUTest.*)");
     }
 
-    if (ov::with_cpu_x86_avx512_core_fp16()) {
+    if (ov::with_cpu_x86_float16()) {
         // Issue: 143852
         retVector.emplace_back(R"(smoke_ConvertRangeSubgraphCPUTest/ConvertRangeSubgraphCPUTest\.CompareWithRefs.*Prc=f16.*)");
         retVector.emplace_back(R"((smoke|nightly)_FC_3D_FP16/.*_Fused=Multiply\(PerChannel\).*)");
@@ -683,6 +683,20 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke_MM_Brgemm_Dynamic_Fusing_FP16/.*TS=\(\(16\.12\)_\(33\.7\)_\(16\.12\)\).*_Fused=Multiply\(PerChannel\).*)");
         retVector.emplace_back(R"(smoke_Conv_.*_FP16/.*_Fused=PRelu1D\.Multiply\(PerChannel\)\.Add\(PerChannel\).*)");
         retVector.emplace_back(R"(smoke_Conv_Sum_Broadcast_FP16/ConvSumInPlaceTest.*Relu\.Multiply\(PerChannel\)\.Add\(PerChannel\).*)");
+    }
+
+    if (ov::with_cpu_x86_avx2_vnni_2()) {
+        // jit_gemm_BF16 kernels are not supported for conv,inner_product,matmul on avx2_vnni_2 platforms
+        retVector.emplace_back(R"(smoke_Conv_.*D_GEMM_BF16.*)");
+        retVector.emplace_back(
+            R"(smoke_GroupConv_.*D_Gemm_BF16/GroupConvolutionLayerCPUTest.CompareWithRefs.*primitive=jit_gemm.*)");
+        retVector.emplace_back(R"(smoke_.*MatMulLayerCPUTest.*INFERENCE_PRECISION_HINT=bf16.*_primitive=jit_gemm.*)");
+        // Issue: 163147
+        retVector.emplace_back(
+            R"(smoke_CompareWithRefs_4D.*[Ff]using.*EltwiseLayerCPUTest\.CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*enforceSnippets=1.*)");
+        // Issue: 163144
+        retVector.emplace_back(
+            R"(smoke_ScaledAttn_CPU/ScaledAttnLayerCPUTest.CompareWithRefs/netPRC=bf16.*_TS=\(2\.8\.16\.32\)_\(2\.8\.16\.32\)_\(2\.8\.16\.32\)_\(1\.8\.48\.32\)_\(1\.8\.48\.32\)_\(1\.8\.48\.32\)_\(16\.48\)_\(16\.1\)_\(1\.48\).*)");
     }
 
     return retVector;
