@@ -181,6 +181,12 @@ public:
         m_options_map.emplace(name, ptr);
     }
 
+    // TODO: move to protected
+    template <typename T, PropertyMutability mutability>
+    bool is_set_by_user(const ov::Property<T, mutability>& property) const {
+        return m_user_properties.find(property.name()) != m_user_properties.end();
+    }
+
 protected:
     template <typename OptionType>
     class GlobalOptionInitializer {
@@ -203,11 +209,7 @@ protected:
     void apply_config_options(std::string_view device_name, std::filesystem::path config_path = "");
     virtual void finalize_impl(const IRemoteContext* context) {}
 
-    template <typename T, PropertyMutability mutability>
-    bool is_set_by_user(const ov::Property<T, mutability>& property) const {
-        return m_user_properties.find(property.name()) != m_user_properties.end();
-    }
-
+protected:
     ConfigOptionBase* get_option_ptr(const std::string& name) const {
         auto it = m_options_map.find(name);
         OPENVINO_ASSERT(it != m_options_map.end(), "Option not found: ", name);

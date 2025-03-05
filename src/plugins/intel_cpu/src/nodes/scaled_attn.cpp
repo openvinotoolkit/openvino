@@ -1084,8 +1084,8 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ov::N
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto& cpuConfig = context->getConfig();
-    const auto& keyCachePrecision = cpuConfig.keyCachePrecision;
-    const auto& valueCachePrecision = cpuConfig.valueCachePrecision;
+    const auto& keyCachePrecision = cpuConfig.get_key_cache_precision();
+    const auto& valueCachePrecision = cpuConfig.get_value_cache_precision();
     const auto keyDims = getInputShapeAtPort(1).getDims();
     const auto valueDims = getInputShapeAtPort(2).getDims();
     const auto keyS = *(keyDims.end() - 1);
@@ -1094,13 +1094,13 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ov::N
     CPU_NODE_ASSERT(one_of(keyCachePrecision, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8),
                     "supports key/value cache precision f32, f16, bf16, u8 but gets ",
                     keyCachePrecision);
-    m_key_quant_param.groupSize = (cpuConfig.keyCacheGroupSize == 0 || keyS % cpuConfig.keyCacheGroupSize != 0)
+    m_key_quant_param.groupSize = (cpuConfig.get_key_cache_group_size() == 0 || keyS % cpuConfig.get_key_cache_group_size() != 0)
                                       ? keyS
-                                      : cpuConfig.keyCacheGroupSize;
+                                      : cpuConfig.get_key_cache_group_size();
     m_key_quant_param.precision = keyCachePrecision;
-    m_value_quant_param.groupSize = (cpuConfig.valueCacheGroupSize == 0 || valueS % cpuConfig.valueCacheGroupSize != 0)
+    m_value_quant_param.groupSize = (cpuConfig.get_value_cache_group_size()== 0 || valueS % cpuConfig.get_value_cache_group_size() != 0)
                                         ? valueS
-                                        : cpuConfig.valueCacheGroupSize;
+                                        : cpuConfig.get_value_cache_group_size();
     m_key_quant_param.precision = valueCachePrecision;
 
     if (const auto node = ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(op)) {
@@ -1879,8 +1879,8 @@ ov::element::Type ScaledDotProductAttention::getKVCachePrecision() {
     ov::element::Type kvcache_precision;
     // TODO: SDPA only supports same key/value cache precision.
     auto rtPrecision = getRuntimePrecision();
-    auto keyCachePrecisionHint = context->getConfig().keyCachePrecision;
-    auto valueCachePrecisionHint = context->getConfig().valueCachePrecision;
+    auto keyCachePrecisionHint = context->getConfig().get_key_cache_precision();
+    auto valueCachePrecisionHint = context->getConfig().get_value_cache_precision();
     bool enableKVCacheFP16 = m_config.config.fuse_concat && mayiuse(cpu_isa_t::avx2) &&
                              rtPrecision != ov::element::bf16 &&
                              (keyCachePrecisionHint == ov::element::f16 && valueCachePrecisionHint == ov::element::f16);

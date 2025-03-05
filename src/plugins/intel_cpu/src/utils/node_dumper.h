@@ -12,20 +12,20 @@
 namespace ov {
 namespace intel_cpu {
 
-void dumpInputBlobs(const NodePtr& node, const DebugCapsConfig& config, int count = -1);
-void dumpOutputBlobs(const NodePtr& node, const DebugCapsConfig& config, int count = -1);
+void dumpInputBlobs(const NodePtr& node, const Config& config, int count = -1);
+void dumpOutputBlobs(const NodePtr& node, const Config& config, int count = -1);
 
 class DumpHelper {
     const NodePtr& node;
     const int count;
-    const DebugCapsConfig& config;
+    const Config& config;
 
 public:
-    explicit DumpHelper(const NodePtr& _node, const DebugCapsConfig& _config, int _count = -1)
+    explicit DumpHelper(const NodePtr& _node, const Config& _config, int _count = -1)
         : node(_node),
           count(_count),
           config(_config) {
-        ov::util::create_directory_recursive(config.blobDumpDir);
+        ov::util::create_directory_recursive(config.get_blob_dump_dir());
         dumpInputBlobs(node, config, count);
     }
 

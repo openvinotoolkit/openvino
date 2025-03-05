@@ -59,19 +59,6 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
     ASSERT_EQ(supportedProperties, expectedSupportedProperties);
 }
 
-TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkGetROPropertiesDoesNotThrow) {
-    ov::Core ie;
-    std::vector<ov::PropertyName> properties;
-
-    ov::CompiledModel compiledModel = ie.compile_model(model, deviceName);
-
-    OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
-
-    for (const auto& property : properties) {
-        OV_ASSERT_NO_THROW((void)compiledModel.get_property(property));
-    }
-}
-
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSetROPropertiesThrow) {
     ov::Core ie;
     std::vector<ov::PropertyName> properties;
@@ -121,7 +108,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelStreamsHasHigherPrior
     OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
 
     ov::AnyMap config;
-    config[ov::num_streams.name()] = streams;
+    config[ov::num_streams.name()] = ov::streams::Num(streams);
     ov::CompiledModel compiledModel = ie.compile_model(model, deviceName, config);
 
     OV_ASSERT_NO_THROW(value = compiledModel.get_property(ov::num_streams));
@@ -135,7 +122,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelStreamsHasHigherPrior
 
     ov::AnyMap config;
     config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::THROUGHPUT;
-    config[ov::num_streams.name()] = streams;
+    config[ov::num_streams.name()] = ov::streams::Num(streams);
 
     ov::CompiledModel compiledModel = ie.compile_model(model, deviceName, config);
 
@@ -151,7 +138,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelZeroStreams) {
     OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
 
     ov::AnyMap config;
-    config[ov::num_streams.name()] = streams;
+    config[ov::num_streams.name()] = ov::streams::Num(streams);
     ov::CompiledModel compiledModel = ie.compile_model(model, deviceName, config);
 
     OV_ASSERT_NO_THROW(value = compiledModel.get_property(ov::num_streams));

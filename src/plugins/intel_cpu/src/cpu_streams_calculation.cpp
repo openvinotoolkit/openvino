@@ -694,13 +694,20 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
     if (proc_type_table.empty() || proc_type_table[0][ALL_PROC] == 0) {
         OPENVINO_THROW("proc_type_table is empty. No CPU resources available!");
     }
-    int model_prefer_threads = preferred_nthreads_per_stream;
-    proc_type_table = apply_scheduling_core_type(config.schedulingCoreType, proc_type_table);
+    auto threadsPerStream = config.streamExecutorConfig.get_threads_per_stream();
 
-    proc_type_table = apply_hyper_threading(config.enableHyperThreading,
-                                            config.changedHyperThreading,
-                                            ov::util::to_string(config.hintPerfMode),
+    int model_prefer_threads = preferred_nthreads_per_stream;
+    auto core_type = config.get_scheduling_core_type();
+    proc_type_table = apply_scheduling_core_type(core_type, proc_type_table);
+    config.set_property(ov::hint::scheduling_core_type(core_type));
+
+    auto enable_hyper_threading = config.get_enable_hyper_threading();
+    proc_type_table = apply_hyper_threading(enable_hyper_threading,
+                                            config.is_set_by_user(ov::hint::enable_hyper_threading),
+                                            ov::util::to_string(config.get_performance_mode()),
                                             proc_type_table);
+    config.set_property(ov::hint::enable_hyper_threading(enable_hyper_threading));
+
     if (-1 == preferred_nthreads_per_stream) {
         model_prefer_threads = get_model_prefer_threads(streams, proc_type_table, model, config);
     }
@@ -712,34 +719,36 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
     if (proc_type_table.empty() || proc_type_table[0][ALL_PROC] == 0) {
         OPENVINO_THROW("proc_type_table is empty. No valid CPU resources available!");
     }
-    auto streams_info_table = get_streams_info_table(config.streams,
-                                                     config.streamsChanged,
-                                                     config.threads,
-                                                     config.hintNumRequests,
+    auto streams_info_table = get_streams_info_table(config.get_num_streams(),
+                                                     config.is_set_by_user(ov::num_streams),
+                                                     config.get_inference_num_threads(),
+                                                     config.get_num_requests(),
                                                      model_prefer_threads,
-                                                     ov::util::to_string(config.hintPerfMode),
-                                                     config.modelDistributionPolicy,
+                                                     ov::util::to_string(config.get_performance_mode()),
+                                                     config.get_model_distribution_policy(),
                                                      proc_type_table);
     if (streams_info_table.empty()) {
         OPENVINO_THROW("streams_info_table is empty!");
     }
-    if (config.modelDistributionPolicy.find(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) !=
-        config.modelDistributionPolicy.end()) {
+    auto modelDistributionPolicy = config.get_model_distribution_policy();
+    if (modelDistributionPolicy.find(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) != modelDistributionPolicy.end()) {
         config.streamsRankTable =
             get_streams_rank_table(streams_info_table, config.streamsRankLevel, config.numSubStreams);
     }
 
-    auto cpu_pinning = get_cpu_pinning(config.enableCpuPinning,
-                                       config.changedCpuPinning,
-                                       config.enableCpuReservation,
+    bool enable_cpu_pinning = config.get_enable_cpu_pinning();
+    auto cpu_pinning = get_cpu_pinning(enable_cpu_pinning,
+                                       config.is_set_by_user(ov::hint::enable_cpu_pinning),
+                                       config.get_enable_cpu_reservation(),
                                        proc_type_table,
                                        streams_info_table);
+    config.set_property(ov::hint::enable_cpu_pinning(enable_cpu_pinning));
 
     config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor",
-                                                           config.streams,
-                                                           config.threadsPerStream,
+                                                           config.get_num_streams(),
+                                                           threadsPerStream,
                                                            ov::hint::SchedulingCoreType::ANY_CORE,
-                                                           config.enableCpuReservation,
+                                                           config.get_enable_cpu_reservation(),
                                                            cpu_pinning,
                                                            true,
                                                            std::move(streams_info_table),
