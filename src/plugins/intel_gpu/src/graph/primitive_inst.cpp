@@ -1046,34 +1046,33 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
     {
         if (_impl == nullptr)
             return;
-        const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
-        if (ibuf_layouts.empty())
+        const auto& buffer_descs = _impl->get_internal_buffer_descs(*_impl_params);
+        if (buffer_descs.empty())
             return;
         GPU_DEBUG_CODE(std::string memalloc_info = "");
-        const auto& lockable_buffers_indexes = _impl->get_lockable_internal_buffers();
-        for (size_t i = 0; i < ibuf_layouts.size(); ++i) {
-            auto need_lockable = lockable_buffers_indexes.find(i) != lockable_buffers_indexes.end();
+        for (size_t i = 0; i < buffer_descs.size(); ++i) {
+            auto need_lockable = buffer_descs[i].m_lockable;
             auto alloc_type = i < _intermediates_memory.size() ? _intermediates_memory[i]->get_allocation_type()
                                                                : allocation_type::unknown;
             bool can_reuse = true;
             can_reuse &= alloc_type != allocation_type::unknown &&
-                         ibuf_layouts[i].bytes_count() <= max_intermediates_memory_sizes[i];
+                         buffer_descs[i].m_layout.bytes_count() <= max_intermediates_memory_sizes[i];
             can_reuse &= (need_lockable && alloc_type != cldnn::allocation_type::usm_device) ||
                          (!need_lockable && alloc_type != cldnn::allocation_type::usm_host);
 
             if (can_reuse) {
-                _intermediates_memory[i] = _network.get_engine().reinterpret_buffer(*_intermediates_memory[i], ibuf_layouts[i]);
+                _intermediates_memory[i] = _network.get_engine().reinterpret_buffer(*_intermediates_memory[i], buffer_descs[i].m_layout);
                GPU_DEBUG_CODE(memalloc_info += ((_intermediates_memory.size() > 1) ? ("i" + to_string(i) + ":") : "") + "reuse_buffer");
             } else {
                 // TODO: If there is a kernel which requires reset internal buffer in the future,
                 // we'll need additional handle for that purpose like need_reset_output_memory
                 const bool need_reset = false;
                 if (i < _intermediates_memory.size()) {
-                    _intermediates_memory[i] = allocate_internal_buffer(ibuf_layouts[i], i, need_reset, need_lockable);
+                    _intermediates_memory[i] = allocate_internal_buffer(buffer_descs[i].m_layout, i, need_reset, need_lockable);
                     max_intermediates_memory_sizes[i] = _intermediates_memory[i]->size();
                 } else {
                     // i-th layout has not been allocated yet
-                    _intermediates_memory.push_back(allocate_internal_buffer(ibuf_layouts[i], i, need_reset, need_lockable));
+                    _intermediates_memory.push_back(allocate_internal_buffer(buffer_descs[i].m_layout, i, need_reset, need_lockable));
                     max_intermediates_memory_sizes.push_back(_intermediates_memory[i]->size());
                 }
                 GPU_DEBUG_CODE(memalloc_info +=
@@ -2207,16 +2206,16 @@ memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_
 void primitive_inst::allocate_internal_buffers(bool reset) {
     if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
         return;
-    const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
-    if (ibuf_layouts.empty())
+    const auto& buffer_descs = _impl->get_internal_buffer_descs(*_impl_params);
+    if (buffer_descs.empty())
         return;
 
     // allocate intermediate memory for the updated layout of buffer
     std::vector<memory::ptr> intermediates_memory;
-    for (size_t i = 0; i < ibuf_layouts.size(); ++i) {
-        if (ibuf_layouts[i].get_linear_size() == 0)
+    for (size_t i = 0; i < buffer_descs.size(); ++i) {
+        if (buffer_descs[i].m_layout.get_linear_size() == 0)
             continue;
-        intermediates_memory.push_back(allocate_internal_buffer(ibuf_layouts[i], i, reset));
+        intermediates_memory.push_back(allocate_internal_buffer(buffer_descs[i].m_layout, i, reset));
         max_intermediates_memory_sizes.push_back(intermediates_memory[i]->size());
     }
     _intermediates_memory = intermediates_memory;

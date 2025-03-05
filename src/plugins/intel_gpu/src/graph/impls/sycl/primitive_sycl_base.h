@@ -51,7 +51,7 @@ protected:
         }
     }
 
-    std::vector<layout> get_internal_buffer_layouts_impl() const override {
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
         return {};
     }
 };
