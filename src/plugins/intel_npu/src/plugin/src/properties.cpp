@@ -44,7 +44,7 @@ namespace intel_npu {
 #define TRY_REGISTER_SIMPLE_PROPERTY(OPT_NAME, OPT_TYPE)                                                \
     do {                                                                                                \
         std::string o_name = OPT_NAME.name();                                                           \
-        if (_config.hasOpt(o_name)) {                                                                   \
+        if (_config.isAvailable(o_name)) {                                                              \
             bool isPublic = _config.getOpt(o_name).isPublic();                                          \
             ov::PropertyMutability isMutable = _config.getOpt(o_name).mutability();                     \
             if (_pType == PropertiesType::COMPILED_MODEL) {                                             \
@@ -77,7 +77,7 @@ namespace intel_npu {
 #define TRY_REGISTER_VARPUB_PROPERTY(OPT_NAME, OPT_TYPE, PROP_VISIBILITY)                                      \
     do {                                                                                                       \
         std::string o_name = OPT_NAME.name();                                                                  \
-        if (_config.hasOpt(o_name)) {                                                                          \
+        if (_config.isAvailable(o_name)) {                                                                     \
             ov::PropertyMutability isMutable = _config.getOpt(o_name).mutability();                            \
             if (_pType == PropertiesType::COMPILED_MODEL) {                                                    \
                 if (_config.has<OPT_TYPE>()) {                                                                 \
@@ -108,7 +108,7 @@ namespace intel_npu {
 #define TRY_REGISTER_CUSTOMFUNC_PROPERTY(OPT_NAME, OPT_TYPE, PROP_RETFUNC)                   \
     do {                                                                                     \
         std::string o_name = OPT_NAME.name();                                                \
-        if (_config.hasOpt(o_name)) {                                                        \
+        if (_config.isAvailable(o_name)) {                                                   \
             bool isPublic = _config.getOpt(o_name).isPublic();                               \
             ov::PropertyMutability isMutable = _config.getOpt(o_name).mutability();          \
             if (_pType == PropertiesType::COMPILED_MODEL) {                                  \
@@ -146,7 +146,7 @@ namespace intel_npu {
 #define TRY_REGISTER_CUSTOM_PROPERTY(OPT_NAME, OPT_TYPE, PROP_VISIBILITY, PROP_MUTABILITY, PROP_RETFUNC)  \
     do {                                                                                                  \
         std::string o_name = OPT_NAME.name();                                                             \
-        if (_config.hasOpt(o_name)) {                                                                     \
+        if (_config.isAvailable(o_name)) {                                                                \
             _properties.emplace(o_name, std::make_tuple(PROP_VISIBILITY, PROP_MUTABILITY, PROP_RETFUNC)); \
         }                                                                                                 \
     } while (0)
