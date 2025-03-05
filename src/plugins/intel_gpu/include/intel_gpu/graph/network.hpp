@@ -185,6 +185,7 @@ public:
     bool contains_state(const std::string& variable_id);
     memory& get_output_remote_memory(const primitive_id& id) const;
     bool has_output_remote_memory_ptr(const primitive_id& id) const;
+    void reset_output_remote_memory_ptrs();
 
     memory_pool& get_memory_pool() const {
         return *_memory_pool;

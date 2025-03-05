@@ -444,8 +444,7 @@ void SyncInferRequest::wait() {
             auto& stream = m_graph->get_network()->get_stream();
             auto user_mem = remote_tensor_impl_ptr->get_original_memory();
             if (!m_graph->get_engine().is_the_same_buffer(*output_memory, *user_mem)) {
-                auto blocking = (stream.get_queue_type() == QueueTypes::in_order) ? false : true;
-                copy_events.push_back(output_memory->copy_to(stream, *user_mem, blocking));
+                copy_events.push_back(output_memory->copy_to(stream, *user_mem, false));
             }
         }
     }
@@ -459,6 +458,8 @@ void SyncInferRequest::wait() {
             stream.wait_for_events(copy_events);
         }
     }
+
+    network.reset_output_remote_memory_ptrs();
 
     // finally collect profiling info
     if (m_enable_profiling) {
