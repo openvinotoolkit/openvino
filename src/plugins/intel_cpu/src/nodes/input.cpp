@@ -182,7 +182,7 @@ struct jit_has_subnormals : public jit_has_special_value_base {
     const Vmm rmm6 = Vmm(6);
     const int length = isa == sse41 ? 4 : 8;
 
-    void generate() override final {  // NOLINT
+    void generate() override final {
         size_t const vlen = length;
         const int sh_bits = std::ilogb(vlen);
 
@@ -256,7 +256,7 @@ struct jit_has_bf16_overflows : public jit_has_special_value_base {
     const Vmm rmm6 = Vmm(6);
     const int length = isa == sse41 ? 4 : 8;
 
-    void generate() override final {  // NOLINT
+    void generate() override final {
         size_t const vlen = length;
         const int sh_bits = std::ilogb(vlen);
 
@@ -596,21 +596,20 @@ Input::Input(const MemoryDescPtr& memDesc,
              const std::string& type,
              const GraphContext::CPtr& context)
     : Input(memDesc->getShape(), memDesc->getPrecision(), name, type, context) {
-    extMemDesc = memDesc;  // NOLINT(cppcoreguidelines-prefer-member-initializer) fixed in clang-tidy-18
+    extMemDesc = memDesc;
 }
 
 Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context, const InputConfig& config)
     : Input(op, context) {
-    extMemDesc = config.desc;      // NOLINT(cppcoreguidelines-prefer-member-initializer) fixed in clang-tidy-18
-    m_isInPlace = config.inPlace;  // NOLINT(cppcoreguidelines-prefer-member-initializer) fixed in clang-tidy-18
+    extMemDesc = config.desc;
+    m_isInPlace = config.inPlace;
 }
 
 Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context, const OutputConfig& config)
     : Input(op, context) {
-    extMemDesc = config.desc;         // NOLINT(cppcoreguidelines-prefer-member-initializer) fixed in clang-tidy-18
-    m_useParentMemoryDescForOutput =  // NOLINT(cppcoreguidelines-prefer-member-initializer)
-        config.useParentMemoryDescForOutput;
-    m_isInPlace = config.inPlace;  // NOLINT(cppcoreguidelines-prefer-member-initializer) fixed in clang-tidy-18
+    extMemDesc = config.desc;
+    m_useParentMemoryDescForOutput = config.useParentMemoryDescForOutput;
+    m_isInPlace = config.inPlace;
 }
 
 MemoryCPtr Input::getMemoryPtr() const {

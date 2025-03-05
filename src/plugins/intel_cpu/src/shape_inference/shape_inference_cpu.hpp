@@ -65,10 +65,10 @@ public:
  */
 class ShapeInferEmptyPads : public IShapeInfer {
 public:
-    const ov::CoordinateDiff& get_pads_begin() override final {  // NOLINT
+    const ov::CoordinateDiff& get_pads_begin() override final {
         return m_emptyVec;
     }
-    const ov::CoordinateDiff& get_pads_end() override final {  // NOLINT
+    const ov::CoordinateDiff& get_pads_end() override final {
         return m_emptyVec;
     }
 
