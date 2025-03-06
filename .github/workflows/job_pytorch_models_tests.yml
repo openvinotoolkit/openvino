@@ -37,19 +37,6 @@ jobs:
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
       USE_SYSTEM_CACHE: False # Using remote HuggingFace cache
     steps:
-      - name: Check sudo
-        if: ${{ runner.os == 'Linux' }}
-        run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
-
-      - name: Set apt retries
-        if: runner.os == 'Linux'
-        run: |
-          if [ "$(id -u)" -eq 0 ]; then
-            echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
-          else
-            sudo sh -c "echo 'Acquire::Retries \"10\";' >> /etc/apt/apt.conf.d/80-retries"
-          fi
-
       - name: Download OpenVINO artifacts (tarballs)
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
@@ -91,13 +78,6 @@ jobs:
             .github/actions/setup_python/action.yml
           sparse-checkout-cone-mode: false
           path: 'openvino'
-
-      - name: Install dependencies
-        if: ${{ runner.os == 'Linux' }}
-        run: |
-          # install git (required to build pip deps from the sources)
-          # install 'g++' to build 'detectron2' and 'natten' wheels
-          sudo apt-get install --assume-yes --no-install-recommends g++ git ca-certificates
 
       - name: Setup Python 3.11
         uses: ./openvino/.github/actions/setup_python
