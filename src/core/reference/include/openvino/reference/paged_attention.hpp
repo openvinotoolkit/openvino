@@ -18,7 +18,7 @@ namespace paged_attention_utils {
 
 template <typename T>
 T dot_product(const T* a, const T* b, int32_t size) {
-    std::inner_product(a, a + size, b, T(0));
+    return std::inner_product(a, a + size, b, T(0));
 }
 
 template <typename T>
