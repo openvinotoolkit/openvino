@@ -96,8 +96,14 @@ void ModelDeserializer::process_mmap(std::shared_ptr<ov::Model>& model,
     if (hdr.consts_size) {
         weights_buf =
             std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(buffer_base + hdr.consts_offset,
-                                                                                   hdr.consts_size,
-                                                                                   mmemory);
+                                                                                hdr.consts_size,
+                                                                                mmemory);
+    }
+    std::shared_ptr<ov::AlignedBuffer> origin_weights_buf;
+    if (!m_weights_path.empty()) {
+        auto mmap = ov::load_mmap_object(m_weights_path);
+        origin_weights_buf =
+            std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mmap->data(), mmap->size(), mmap);
     }
 
     // XML content
@@ -116,7 +122,7 @@ void ModelDeserializer::process_mmap(std::shared_ptr<ov::Model>& model,
     std::shared_ptr<ov::AlignedBuffer> model_buf =
         std::make_shared<ov::SharedBuffer<std::shared_ptr<std::string>>>(&((*xml_buff)[0]), hdr.model_size, xml_buff);
 
-    model = m_model_builder(model_buf, weights_buf);
+    model = m_model_builder(model_buf, weights_buf, origin_weights_buf);
 
     // Set Info
     pugi::xml_node root = xml_in_out_doc.child("cnndata");
@@ -161,6 +167,12 @@ void ModelDeserializer::process_stream(std::shared_ptr<ov::Model>& model) {
     if (hdr.consts_size) {
         m_istream.read(static_cast<char*>(data_blob->data(ov::element::u8)), hdr.consts_size);
     }
+    std::shared_ptr<ov::AlignedBuffer> origin_weights_buf;
+    if (!m_weights_path.empty()) {
+        // auto mmap = ov::load_mmap_object(m_weights_path);
+        // origin_weights_buf =
+        //     std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mmap->data(), mmap->size(), mmap);
+    }
 
     // read XML content
     auto xml_string = std::make_shared<std::string>();
@@ -186,7 +198,7 @@ void ModelDeserializer::process_stream(std::shared_ptr<ov::Model>& model) {
         hdr.consts_size,
         data_blob);
 
-    model = m_model_builder(model_buf, weights_buf);
+    model = m_model_builder(model_buf, weights_buf, origin_weights_buf);
 
     // Set Info
     pugi::xml_node root = xmlInOutDoc.child("cnndata");
