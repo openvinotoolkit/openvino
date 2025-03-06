@@ -189,7 +189,7 @@ void OptionsDesc::reset() {
 
 bool OptionsDesc::has(std::string_view key) const {
     std::string searchKey{key};
-    const auto itDeprecated = _deprecated.find(std::string(key));
+    const auto itDeprecated = _deprecated.find(searchKey);
     if (itDeprecated != _deprecated.end()) {
         return true;
     }
@@ -303,6 +303,23 @@ void Config::update(const ConfigMap& options, OptionMode mode) {
     }
 }
 
+std::string Config::toString() const {
+    std::stringstream resultStream;
+    for (auto it = _impl.cbegin(); it != _impl.cend(); ++it) {
+        const auto& key = it->first;
+
+        // include only enabled configs
+        if (isAvailable(key)) {
+            resultStream << key << "=\"" << it->second->toString() << "\"";
+            if (std::next(it) != _impl.end()) {
+                resultStream << " ";
+            }
+        }
+    }
+
+    return resultStream.str();
+}
+
 void Config::fromString(const std::string& str) {
     std::map<std::string, std::string> config;
     std::string str_cfg(str);
@@ -326,6 +343,27 @@ void Config::fromString(const std::string& str) {
     parse_token(str_cfg);
 
     update(config);
+}
+
+std::string Config::toStringForCompiler() const {
+    std::stringstream resultStream;
+    for (auto it = _impl.cbegin(); it != _impl.cend(); ++it) {
+        const auto& key = it->first;
+
+        // Only include available configs which options have OptionMode::Compile or OptionMode::Both
+        if (isAvailable(key)) {
+            if (_desc->has(key)) {
+                if (_desc->get(key).mode() != OptionMode::RunTime) {
+                    resultStream << key << "=\"" << it->second->toString() << "\"";
+                    if (std::next(it) != _impl.end()) {
+                        resultStream << " ";
+                    }
+                }
+            }
+        }
+    }
+
+    return resultStream.str();
 }
 
 bool Config::isAvailable(std::string key) const {
@@ -354,57 +392,14 @@ void Config::walkEnables(std::function<void(const std::string&)> cb) const {
     }
 }
 
-std::string Config::toString() const {
-    std::stringstream resultStream;
-    for (auto it = _impl.cbegin(); it != _impl.cend(); ++it) {
-        const auto& key = it->first;
-
-        // include only enabled configs
-        if (isAvailable(key)) {
-            resultStream << key << "=\"" << it->second->toString() << "\"";
-            if (std::next(it) != _impl.end()) {
-                resultStream << " ";
-            }
-        }
-    }
-
-    return resultStream.str();
-}
-
-std::string Config::toStringForCompiler() const {
-    std::stringstream resultStream;
-    for (auto it = _impl.cbegin(); it != _impl.cend(); ++it) {
-        const auto& key = it->first;
-
-        // Only include available configs which options have OptionMode::Compile or OptionMode::Both
-        if (isAvailable(key)) {
-            if (_desc->has(key)) {
-                if (_desc->get(key).mode() != OptionMode::RunTime) {
-                    resultStream << key << "=\"" << it->second->toString() << "\"";
-                    if (std::next(it) != _impl.end()) {
-                        resultStream << " ";
-                    }
-                }
-            }
-        }
-    }
-
-    return resultStream.str();
-}
-
 void Config::addOrUpdateInternal(std::string key, std::string value) {
     auto log = Logger::global().clone("Config");
     if (_internal_compiler_configs.count(key) != 0) {
         log.warning("Internal compiler option '%s' was already registered! Updating value only!", key.c_str());
         _internal_compiler_configs.at(key) = value;
     } else {
-        // manual insert_or_assign
-        auto it = _internal_compiler_configs.find(key);
-        if (it != _internal_compiler_configs.end()) {
-            it->second = value;  // only update
-        } else {
+        // manual insert
             _internal_compiler_configs.insert(std::make_pair(key, value));  // insert new
-        }
     }
 };
 
