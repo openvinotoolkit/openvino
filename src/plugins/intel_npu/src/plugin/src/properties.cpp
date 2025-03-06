@@ -378,6 +378,10 @@ void Properties::registerProperties() {
                                    const auto specifiedDeviceName = get_specified_device_name(config);
                                    return _metrics->GetFullDeviceName(specifiedDeviceName);
                                });
+        REGISTER_CUSTOM_METRIC(ov::device::luid, _backends->isLUIDExtSupported(), [&](const Config& config) {
+            const auto specifiedDeviceName = get_specified_device_name(config);
+            return _metrics->GetDeviceLUID(specifiedDeviceName);
+        });
         REGISTER_CUSTOM_METRIC(ov::device::uuid, true, [&](const Config& config) {
             const auto specifiedDeviceName = get_specified_device_name(config);
             auto devUuid = _metrics->GetDeviceUuid(specifiedDeviceName);
