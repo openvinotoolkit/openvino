@@ -57,10 +57,6 @@ void get_cur_stream_info(const int stream_id,
 
 #if defined(__APPLE__)
     pinning = false;
-#elif defined(_WIN32)
-    if (proc_type_table.size() > 1) {
-        pinning = false;
-    }
 #endif
     if (pinning) {
         stream_type = STREAM_WITH_OBSERVE;
