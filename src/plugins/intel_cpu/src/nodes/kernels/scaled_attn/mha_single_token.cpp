@@ -1,8 +1,7 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <float.h>
-
+#include <cfloat>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -1160,7 +1159,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     auto SV = present_value.size(3);
     auto h_group_num = present_value.size(1);
     auto precision = ov::element::f32;
-    if (std::is_same<T3, ov::float16>::value) {
+    if (std::is_same_v<T3, ov::float16>) {
         precision = ov::element::f16;
     }
     size_t h_each_group_len = 1;
