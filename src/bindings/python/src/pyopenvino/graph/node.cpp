@@ -49,6 +49,15 @@ void regclass_graph_Node(py::module m) {
             return std::shared_ptr<ov::Node>(
                 std::make_shared<ov::op::v1::Add>(left, Common::node_from_input_value(right)));
         },
+        py::arg("right"),
+        R""(
+            Return node which applies f(A,B) = A+B to the input nodes element-wise.
+
+            :param right: The right operand.
+            :type right: Union[openvino.Node, int, float, ndarray]
+            :return: The node performing element-wise addition.
+            :rtype: openvino.Node
+        )"",
         py::is_operator());
     node.def(
         "__radd__",
@@ -63,6 +72,15 @@ void regclass_graph_Node(py::module m) {
             return std::shared_ptr<ov::Node>(
                 std::make_shared<ov::op::v1::Subtract>(left, Common::node_from_input_value(right)));
         },
+        py::arg("right"),
+        R""(
+            Return node which applies f(A,B) = A-B to the input nodes element-wise.
+
+            :param right: The right operand.
+            :type right: Union[openvino.Node, int, float, ndarray]
+            :return: The node performing element-wise subtraction.
+            :rtype: openvino.Node
+        )"",
         py::is_operator());
     node.def(
         "__rsub__",
@@ -77,6 +95,15 @@ void regclass_graph_Node(py::module m) {
             return std::shared_ptr<ov::Node>(
                 std::make_shared<ov::op::v1::Multiply>(left, Common::node_from_input_value(right)));
         },
+        py::arg("right"),
+        R""(
+            Return node which applies f(A,B) = A*B to the input nodes element-wise.
+
+            :param right: The right operand.
+            :type right: Union[openvino.Node, int, float, ndarray]
+            :return: The node performing element-wise multiplication.
+            :rtype: openvino.Node
+        )"",
         py::is_operator());
     node.def(
         "__rmul__",
@@ -91,6 +118,15 @@ void regclass_graph_Node(py::module m) {
             return std::shared_ptr<ov::Node>(
                 std::make_shared<ov::op::v1::Divide>(left, Common::node_from_input_value(right)));
         },
+        py::arg("right"),
+        R""(
+            Return node which applies f(A,B) = A/B to the input nodes element-wise.
+
+            :param right: The right operand.
+            :type right: Union[openvino.Node, int, float, ndarray]
+            :return: The node performing element-wise division.
+            :rtype: openvino.Node
+        )"",
         py::is_operator());
     node.def(
         "__rtruediv__",
@@ -100,25 +136,26 @@ void regclass_graph_Node(py::module m) {
         },
         py::is_operator());
 
-    node.def("__array_ufunc__",
-             [](py::object self, py::object ufunc, const char* method, py::args inputs, py::kwargs kwargs) {
-                 py::object result = py::none();
-                 if (std::strcmp(method, "__call__") == 0) {
-                     if (ufunc.is(py::module::import("numpy").attr("add"))) {
-                         result = self.attr("__radd__")(inputs[0]);
-                     } else if (ufunc.is(py::module::import("numpy").attr("subtract"))) {
-                         result = self.attr("__rsub__")(inputs[0]);
-                     } else if (ufunc.is(py::module::import("numpy").attr("multiply"))) {
-                         result = self.attr("__rmul__")(inputs[0]);
-                     } else if (ufunc.is(py::module::import("numpy").attr("divide"))) {
-                         result = self.attr("__rtruediv__")(inputs[0]);
-                     }
-                     if (result.is_none()) {
-                         throw py::type_error("Unsupported __array_ufunc__ operation between openvino.Node and np.array.");
-                     }
-                 }
-                 return result;
-             });
+    node.def(
+        "__array_ufunc__",
+        [](py::object self, py::object ufunc, const char* method, py::args inputs, py::kwargs kwargs) {
+            py::object result = py::none();
+            if (std::strcmp(method, "__call__") == 0) {
+                if (ufunc.is(py::module::import("numpy").attr("add"))) {
+                    result = self.attr("__radd__")(inputs[0]);
+                } else if (ufunc.is(py::module::import("numpy").attr("subtract"))) {
+                    result = self.attr("__rsub__")(inputs[0]);
+                } else if (ufunc.is(py::module::import("numpy").attr("multiply"))) {
+                    result = self.attr("__rmul__")(inputs[0]);
+                } else if (ufunc.is(py::module::import("numpy").attr("divide"))) {
+                    result = self.attr("__rtruediv__")(inputs[0]);
+                }
+                if (result.is_none()) {
+                    throw py::type_error("Unsupported __array_ufunc__ operation between openvino.Node and np.array.");
+                }
+            }
+            return result;
+        });
 
     node.def("__repr__", [](const ov::Node& self) {
         std::string type_name = self.get_type_name();
