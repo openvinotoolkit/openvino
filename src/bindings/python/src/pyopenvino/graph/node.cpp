@@ -45,10 +45,58 @@ void regclass_graph_Node(py::module m) {
     node.doc() = "openvino.Node wraps ov::Node";
     node.def(
         "__add__",
-        [](Common::NodeInput& a, Common::NodeInput& b) {
-            const auto left = Common::node_from_input_value(a);
-            const auto right = Common::node_from_input_value(b);
-            return std::shared_ptr<ov::Node>(std::make_shared<ov::op::v1::Add>(left, right));
+        [](const std::shared_ptr<ov::Node>& left, Common::NodeInput& right) {
+            return std::shared_ptr<ov::Node>(
+                std::make_shared<ov::op::v1::Add>(left, Common::node_from_input_value(right)));
+        },
+        py::is_operator());
+    node.def(
+        "__radd__",
+        [](const std::shared_ptr<ov::Node>& right, Common::NodeInput& left) {
+            return std::shared_ptr<ov::Node>(
+                std::make_shared<ov::op::v1::Add>(Common::node_from_input_value(left), right));
+        },
+        py::is_operator());
+    node.def(
+        "__sub__",
+        [](const std::shared_ptr<ov::Node>& left, Common::NodeInput& right) {
+            return std::shared_ptr<ov::Node>(
+                std::make_shared<ov::op::v1::Subtract>(left, Common::node_from_input_value(right)));
+        },
+        py::is_operator());
+    node.def(
+        "__rsub__",
+        [](const std::shared_ptr<ov::Node>& right, Common::NodeInput& left) {
+            return std::shared_ptr<ov::Node>(
+                std::make_shared<ov::op::v1::Subtract>(Common::node_from_input_value(left), right));
+        },
+        py::is_operator());
+    node.def(
+        "__mul__",
+        [](const std::shared_ptr<ov::Node>& left, Common::NodeInput& right) {
+            return std::shared_ptr<ov::Node>(
+                std::make_shared<ov::op::v1::Multiply>(left, Common::node_from_input_value(right)));
+        },
+        py::is_operator());
+    node.def(
+        "__rmul__",
+        [](const std::shared_ptr<ov::Node>& right, Common::NodeInput& left) {
+            return std::shared_ptr<ov::Node>(
+                std::make_shared<ov::op::v1::Multiply>(Common::node_from_input_value(left), right));
+        },
+        py::is_operator());
+    node.def(
+        "__truediv__",
+        [](const std::shared_ptr<ov::Node>& left, Common::NodeInput& right) {
+            return std::shared_ptr<ov::Node>(
+                std::make_shared<ov::op::v1::Divide>(left, Common::node_from_input_value(right)));
+        },
+        py::is_operator());
+    node.def(
+        "__rtruediv__",
+        [](const std::shared_ptr<ov::Node>& right, Common::NodeInput& left) {
+            return std::shared_ptr<ov::Node>(
+                std::make_shared<ov::op::v1::Divide>(Common::node_from_input_value(left), right));
         },
         py::is_operator());
 
@@ -66,68 +114,11 @@ void regclass_graph_Node(py::module m) {
                          result = self.attr("__rtruediv__")(inputs[0]);
                      }
                      if (result.is_none()) {
-                         throw py::type_error("Unsupported __array_ufunc__ operation between ov.Node and np.array.");
+                         throw py::type_error("Unsupported __array_ufunc__ operation between openvino.Node and np.array.");
                      }
                  }
                  return result;
              });
-
-    node.def(
-        "__radd__",
-        [](Common::NodeInput& a, Common::NodeInput& b) {
-            const auto left = Common::node_from_input_value(b);
-            const auto right = Common::node_from_input_value(a);
-            return std::shared_ptr<ov::Node>(std::make_shared<ov::op::v1::Add>(left, right));
-        },
-        py::is_operator());
-    node.def(
-        "__sub__",
-        [](Common::NodeInput& a, Common::NodeInput& b) {
-            const auto left = Common::node_from_input_value(a);
-            const auto right = Common::node_from_input_value(b);
-            return std::shared_ptr<ov::Node>(std::make_shared<ov::op::v1::Subtract>(left, right));
-        },
-        py::is_operator());
-    node.def(
-        "__rsub__",
-        [](Common::NodeInput& a, Common::NodeInput& b) {
-            const auto left = Common::node_from_input_value(b);
-            const auto right = Common::node_from_input_value(a);
-            return std::shared_ptr<ov::Node>(std::make_shared<ov::op::v1::Subtract>(left, right));
-        },
-        py::is_operator());
-    node.def(
-        "__mul__",
-        [](Common::NodeInput& a, Common::NodeInput& b) {
-            const auto left = Common::node_from_input_value(a);
-            const auto right = Common::node_from_input_value(b);
-            return std::shared_ptr<ov::Node>(std::make_shared<ov::op::v1::Multiply>(left, right));
-        },
-        py::is_operator());
-    node.def(
-        "__rmul__",
-        [](Common::NodeInput& a, Common::NodeInput& b) {
-            const auto left = Common::node_from_input_value(b);
-            const auto right = Common::node_from_input_value(a);
-            return std::shared_ptr<ov::Node>(std::make_shared<ov::op::v1::Multiply>(left, right));
-        },
-        py::is_operator());
-    node.def(
-        "__truediv__",
-        [](Common::NodeInput& a, Common::NodeInput& b) {
-            const auto left = Common::node_from_input_value(a);
-            const auto right = Common::node_from_input_value(b);
-            return std::shared_ptr<ov::Node>(std::make_shared<ov::op::v1::Divide>(left, right));
-        },
-        py::is_operator());
-    node.def(
-        "__rtruediv__",
-        [](Common::NodeInput& a, Common::NodeInput& b) {
-            const auto left = Common::node_from_input_value(b);
-            const auto right = Common::node_from_input_value(a);
-            return std::shared_ptr<ov::Node>(std::make_shared<ov::op::v1::Divide>(left, right));
-        },
-        py::is_operator());
 
     node.def("__repr__", [](const ov::Node& self) {
         std::string type_name = self.get_type_name();
