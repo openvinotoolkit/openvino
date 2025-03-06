@@ -77,27 +77,24 @@ def main():
     test_conf_obj = ET.parse(str(args.test_conf))
     model_recs = get_model_recs(test_conf_obj.getroot()) # <class 'xml.etree.ElementTree.Element'>
 
-    if not os.path.exists(args.ir_cache_dir) and not os.path.exists(args.omz_cache_dir):
+    if not os.path.exists(args.ir_cache_dir):
         raise FileNotFoundError("Directory 'ir_cache_dir' was not found.")
     
-    if os.path.exists(args.ir_cache_dir):
-        subdirectory = str(args.ir_cache_dir)
-    else:
-        subdirectory = str(args.omz_cache_dir)
+    subdirectory = str(args.ir_cache_dir)
 
     for root, dirs, files in os.walk(subdirectory):
         for file in files:
             if file.endswith(".xml"):
                 full_path = os.path.join(root, file)
-                a = os.path.normpath(full_path).split(os.path.sep)
-                aa = eET.Element("model")
-                aa.attrib["name"] = a[-1]
-                aa.tail = '\n\t'
-                aa.attrib["precision"] = a[-4] if a[-2]!="optimized" else a[-5]
-                aa.attrib["framework"] = a[-6] if a[-2]!="optimized" else a[-8]
-                aa.attrib["path"] = subdirectory
-                aa.attrib["full_path"] = full_path
-                model_recs.append(aa)
+                path_parts = os.path.normpath(full_path).split(os.path.sep)
+                model_element = eET.Element("model")
+                model_element.attrib["name"] = path_parts[-1]
+                model_element.tail = '\n\t'
+                model_element.attrib["precision"] = path_parts[-4] if path_parts[-2]!="optimized" else path_parts[-5]
+                model_element.attrib["framework"] = path_parts[-6] if path_parts[-2]!="optimized" else path_parts[-8]
+                model_element.attrib["path"] = subdirectory
+                model_element.attrib["full_path"] = full_path
+                model_recs.append(model_element)
 
     test_conf_obj.write(args.test_conf, xml_declaration=True)
 
