@@ -22,7 +22,7 @@ def patch_model(model, module_extensions, orig_forward_name):
         elif name in module_extensions:
             extension = module_extensions[name]
 
-        if extension:
+        if extension and extension.condition(m):
             log.debug("Patching module %s", m)
             # The Trampoline class is instantiated for every module replacement, so we can use
             # class members individually for each module.
@@ -82,6 +82,11 @@ def __make_16bit_traceable(model: torch.nn.Module):
      - Replace known list of modules with ModuleExtension.
      - Convert other modules with weights to FP32.
     """
+    def patch_condition(module):
+        supported = [torch.float32, torch.float16, torch.bfloat16]
+        return (hasattr(module, "weight")
+                and getattr(module.weight, "dtype", None) in supported)
+
     extensions = {
         torch.nn.Linear: ModuleExtension(
             torch.nn.Linear, "ov_ext::linear",
@@ -89,7 +94,8 @@ def __make_16bit_traceable(model: torch.nn.Module):
                                                                          module.weight,
                                                                          module.bias),
             evaluate=lambda module, *args, **kwargs: torch.full(
-                list(args[0].shape[:-1]) + [module.out_features], 0.5, dtype=torch.float32)),
+                list(args[0].shape[:-1]) + [module.out_features], 0.5, dtype=torch.float32),
+            condition=patch_condition),
         torch.nn.Embedding: ModuleExtension(
             torch.nn.Embedding, "ov_ext::embedding",
             convert=lambda module, target_op, *args, **kwargs: target_op(module.weight,
@@ -98,7 +104,8 @@ def __make_16bit_traceable(model: torch.nn.Module):
                                                                          module.scale_grad_by_freq,
                                                                          module.sparse),
             evaluate=lambda module, *args, **kwargs: torch.full(
-                list(args[1].shape) + [module.embedding_dim], 0.5, dtype=torch.float32)),
+                list(args[1].shape) + [module.embedding_dim], 0.5, dtype=torch.float32),
+            condition=patch_condition),
     }
     try:
         from transformers.pytorch_utils import Conv1D
@@ -108,7 +115,8 @@ def __make_16bit_traceable(model: torch.nn.Module):
                                                                          module.weight,
                                                                          module.bias),
             evaluate=lambda module, *args, **kwargs: torch.full(
-                list(args[0].shape[:-1]) + [module.nf], 0.5, dtype=torch.float32))
+                list(args[0].shape[:-1]) + [module.nf], 0.5, dtype=torch.float32),
+            condition=patch_condition)
     except ImportError:
         pass
     patch_model(model, extensions,
