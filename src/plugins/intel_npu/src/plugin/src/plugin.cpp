@@ -281,7 +281,9 @@ void Plugin::recheck_compiler_support(Config& cfg) const {
             legacy = true;
         }
     } catch (...) {
-        _logger.warning("No available compiler. Registering only legacy options with no compiler version requirement");
+        // assuming getCompiler failed, meaning we are offline
+        _logger.warning("No available or legacy compiler. Registering only legacy options with no compiler "
+                        "version requirement");
         legacy = true;
     }
 
@@ -309,9 +311,12 @@ void Plugin::recheck_compiler_support(Config& cfg) const {
                 if (it != compiler_support_list.end()) {
                     isEnabled = true;
                 } else {
-                    auto compiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), cfg);
-                    if (compiler->is_option_supported(key)) {
-                        isEnabled = true;
+                    try {
+                        auto compiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), cfg);
+                        isEnabled = compiler->is_option_supported(key);
+                    } catch (...) {
+                        _logger.debug("Could not determine if option %s is supported!", key.c_str());
+                        isEnabled = false;
                     }
                 }
             }
