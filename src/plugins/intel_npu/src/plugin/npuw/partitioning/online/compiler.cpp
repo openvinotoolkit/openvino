@@ -309,6 +309,14 @@ class Compiler {
         }
     }
 
+    std::vector<Isolate> getAllIsolates() {
+        auto isolates = detail::getIsolates(detail::ISOL_PRESETS.at("COMPUTE"));
+        for (const auto& isol : detail::getIsolates(detail::ISOL_PRESETS.at("FAKE"))) {
+            isolates.push_back(isol);
+        }
+        return isolates;
+    }
+
     // Compiler pipelines
     void none() {
         LOG_INFO("Online partitioning: compiling single group pipeline...");
@@ -417,10 +425,7 @@ public:
             // Only get isolates here.
             // NB: We ignore NO_FOLD everywhere except pipeline COMPUTE - this needs
             // to be aligned in the future
-            ctx.isolates = detail::getIsolates(detail::ISOL_PRESETS.at("COMPUTE"));
-            for (const auto& isol : detail::getIsolates(detail::ISOL_PRESETS.at("FAKE"))) {
-                ctx.isolates.push_back(isol);
-            }
+            ctx.isolates = getAllIsolates();
             m_snapshot->setCtx(ctx);
             reg();
             break;
@@ -430,10 +435,7 @@ public:
 
             // Manually set predefined isolates and nofolds then do rep() pipeline
             // FIXME: initialize via a dedicated function instead of parsing
-            ctx.isolates = detail::getIsolates(detail::ISOL_PRESETS.at("COMPUTE"));
-            for (const auto& isol : detail::getIsolates(detail::ISOL_PRESETS.at("FAKE"))) {
-                ctx.isolates.push_back(isol);
-            }
+            ctx.isolates = getAllIsolates();
             ctx.nofolds = detail::getNoFolds("compute");
             m_snapshot->setCtx(ctx);
             rep();
@@ -444,10 +446,7 @@ public:
 
             // Manually set predefined isolates and nofolds then do rep() pipeline
             // FIXME: initialize via a dedicated function instead of parsing
-            ctx.isolates = detail::getIsolates(detail::ISOL_PRESETS.at("COMPUTE"));
-            for (const auto& isol : detail::getIsolates(detail::ISOL_PRESETS.at("FAKE"))) {
-                ctx.isolates.push_back(isol);
-            }
+            ctx.isolates = getAllIsolates();
             m_snapshot->setCtx(ctx);
             rep();
             break;

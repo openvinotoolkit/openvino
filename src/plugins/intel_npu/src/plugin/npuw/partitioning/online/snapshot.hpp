@@ -76,7 +76,6 @@ private:
     void cleanUpUniques();
     void afterUniques();
     void markInternalCompute();
-    void stripNonComputeForBlocks();
     void resetExcludedRep();
     bool cleanUpUniquesImpl(const detail::GPtrSet& gset);
     std::shared_ptr<Repeated> tryGrowRepeatingGroups(const detail::GPtrSet& repeating_groups);

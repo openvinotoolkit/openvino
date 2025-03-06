@@ -139,7 +139,10 @@ DQMatMulGQi4::DQMatMulGQi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
     auto qreshp = opp::wrap_type<ov::op::v1::Reshape>({qmuls, opp::any_input()});
     auto qcvtr = opp::optional<ov::op::v0::Convert>({qreshp->output(0)});
-    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), qcvtr});
+    auto fake_input = opp::any_input();
+    auto fake_convert =
+        opp::optional<ov::op::v13::FakeConvert>({fake_input->output(0), opp::any_input(), opp::any_input()});
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({fake_convert, qcvtr});
 
     auto node_to_gptr = snapshot->getNodeToGroupMap();
 
@@ -157,7 +160,9 @@ DQMatMulGQi4::DQMatMulGQi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qcoeff);
 
         if ((ov::element::i4 == matched_qweight->get_element_type() ||
-             ov::element::i8 == matched_qweight->get_element_type()) &&
+             ov::element::i8 == matched_qweight->get_element_type() ||
+             ov::element::f8e4m3 == matched_qweight->get_element_type() ||
+             ov::element::nf4 == matched_qweight->get_element_type()) &&
             (ov::element::f16 == matched_qcoeff->get_element_type() ||
              ov::element::f32 == matched_qcoeff->get_element_type())) {
             // Partitioning ignores Const->Convert nodes, so qcvtw is not used
@@ -173,6 +178,14 @@ DQMatMulGQi4::DQMatMulGQi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
             if (qcvtr_iter != node_to_output.end()) {
                 auto matched_qcvtr = qcvtr_iter->second.get_node_shared_ptr();
                 node_to_gptr->at(matched_qcvtr)->isolate(isol_tag);
+            }
+
+            auto fake_convert_iter = node_to_output.find(fake_convert);
+            if (fake_convert_iter != node_to_output.end()) {
+                auto matched_fake_convert = fake_convert_iter->second.get_node_shared_ptr();
+                auto matched_fake_convert_input = node_to_output.at(fake_input).get_node_shared_ptr();
+                node_to_gptr->at(matched_fake_convert)->isolate(isol_tag);
+                node_to_gptr->at(matched_fake_convert_input)->isolate(isol_tag);
             }
         }
 
@@ -190,8 +203,11 @@ DQMatMulCWi4::DQMatMulCWi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
 
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
 
-    auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
-    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), qcvtm});
+    auto qcvtr = opp::optional<ov::op::v0::Convert>({qmuls->output(0)});
+    auto fake_input = opp::any_input();
+    auto fake_convert =
+        opp::optional<ov::op::v13::FakeConvert>({fake_input->output(0), opp::any_input(), opp::any_input()});
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({fake_convert, qcvtr});
 
     auto node_to_gptr = snapshot->getNodeToGroupMap();
 
@@ -209,16 +225,31 @@ DQMatMulCWi4::DQMatMulCWi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qcoeff);
 
         if ((ov::element::i4 == matched_qweight->get_element_type() ||
-             ov::element::i8 == matched_qweight->get_element_type()) &&
-            ov::element::f16 == matched_qcoeff->get_element_type()) {
+             ov::element::i8 == matched_qweight->get_element_type() ||
+             ov::element::f8e4m3 == matched_qweight->get_element_type() ||
+             ov::element::nf4 == matched_qweight->get_element_type()) &&
+            (ov::element::f16 == matched_qcoeff->get_element_type() ||
+             ov::element::f32 == matched_qcoeff->get_element_type())) {
             // Partitioning ignores Const->Convert nodes, so qcvtw is not used
             auto matched_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
-            auto matched_qcvtm = node_to_output.at(qcvtm).get_node_shared_ptr();
             auto matched_qmm = node_to_output.at(qmm).get_node_shared_ptr();
 
             node_to_gptr->at(matched_qmuls)->isolate(isol_tag);
-            node_to_gptr->at(matched_qcvtm)->isolate(isol_tag);
             node_to_gptr->at(matched_qmm)->isolate(isol_tag);
+
+            auto qcvtr_iter = node_to_output.find(qcvtr);
+            if (qcvtr_iter != node_to_output.end()) {
+                auto matched_qcvtr = qcvtr_iter->second.get_node_shared_ptr();
+                node_to_gptr->at(matched_qcvtr)->isolate(isol_tag);
+            }
+
+            auto fake_convert_iter = node_to_output.find(fake_convert);
+            if (fake_convert_iter != node_to_output.end()) {
+                auto matched_fake_convert = fake_convert_iter->second.get_node_shared_ptr();
+                auto matched_fake_convert_input = node_to_output.at(fake_input).get_node_shared_ptr();
+                node_to_gptr->at(matched_fake_convert)->isolate(isol_tag);
+                node_to_gptr->at(matched_fake_convert_input)->isolate(isol_tag);
+            }
         }
 
         return false;  // root hasn't changed
