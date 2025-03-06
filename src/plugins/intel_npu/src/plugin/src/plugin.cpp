@@ -325,7 +325,7 @@ void Plugin::recheck_compiler_support(Config& cfg) const {
     });
 }
 
-Config Plugin::fork_local_config(std::map<std::string, std::string>& rawConfig, OptionMode mode) const {
+Config Plugin::fork_local_config(const std::map<std::string, std::string>& rawConfig, OptionMode mode) const {
     update_log_level(rawConfig);
     // create a copy of the global config
     Config localConfig = _globalConfig;
