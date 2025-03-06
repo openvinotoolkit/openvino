@@ -313,7 +313,7 @@ void regclass_graph_Model(py::module m) {
                 Reshape model inputs using a list of shapes.
             
                 Example:
-                    model.reshape([[2,2], [1, 3, 224, 244], [10]])
+                    model.reshape([[2, 2], [1, 3, 224, 244], [10]])
             
                 :param input_shapes: List of shapes for each input.
                 :type input_shapes: List[List[int]]
