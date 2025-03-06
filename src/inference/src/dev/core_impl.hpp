@@ -161,6 +161,7 @@ private:
         std::shared_ptr<ov::ICacheManager> cacheManager;
         std::string blobId = {};
         std::string modelPath = {};
+        std::shared_ptr<ov::Model> model = nullptr;
         bool mmap_enabled = false;
     };
 
