@@ -164,7 +164,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
 
         if (pattern_map.count(mul2_m)) {
             auto mul2_op_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(mul2_const_m).get_node_shared_ptr());
-            fc_input_scale = ov::op::util::eltwise_fold<ov::op::v1::Multiply>(fc_input_scale, mul2_op_const).get_node_shared_ptr();
+            fc_input_scale = ov::op::util::make_try_fold<ov::op::v1::Multiply>(fc_input_scale, mul2_op_const);
         }
 
         std::shared_ptr<ov::Node> new_fc = nullptr;
