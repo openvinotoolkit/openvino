@@ -24,11 +24,9 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
 
     auto unsqueeze_predicate = rank_equals(5) && consumers_count(1);
 
-    auto broadcast_predicate = [](const ov::Output<ov::Node>& output) -> bool {
+    auto broadcast_predicate = unsqueeze_predicate && [](const ov::Output<ov::Node>& output) -> bool {
         const auto broadcast = ov::as_type_ptr<ov::op::v3::Broadcast>(output.get_node_shared_ptr());
-        if (!broadcast || broadcast->get_broadcast_spec().m_type != ov::op::BroadcastType::BIDIRECTIONAL)
-            return false;
-        return rank_equals(5)(output) && consumers_count(1)(output);
+        return broadcast && broadcast->get_broadcast_spec().m_type == ov::op::BroadcastType::BIDIRECTIONAL;
     };
 
     auto reshape_predicate = rank_equals(4) && consumers_count(1);

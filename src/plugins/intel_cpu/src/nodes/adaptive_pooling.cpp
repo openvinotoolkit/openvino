@@ -4,8 +4,7 @@
 
 #include "adaptive_pooling.h"
 
-#include <math.h>
-
+#include <cmath>
 #include <openvino/opsets/opset8.hpp>
 #include <string>
 #include <utils/bfloat16.hpp>
@@ -22,9 +21,7 @@
 using namespace dnnl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool AdaptivePooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                            std::string& errorMessage) noexcept {
@@ -169,15 +166,15 @@ void AdaptivePooling::execute(const dnnl::stream& strm) {
     }
 
     auto inputDimVector = srcMemory0.getStaticDims();
-    const int N = static_cast<int>(inputDimVector[0]);
-    const int C = static_cast<int>(inputDimVector[1]);
-    const int ID = static_cast<int>(spatialDimsCount == 3 ? inputDimVector[2] : 1);
-    const int IH = static_cast<int>(spatialDimsCount >= 2 ? inputDimVector[spatialDimsCount] : 1);
-    const int IW = static_cast<int>(inputDimVector[spatialDimsCount + 1]);
+    const auto N = static_cast<int>(inputDimVector[0]);
+    const auto C = static_cast<int>(inputDimVector[1]);
+    const auto ID = static_cast<int>(spatialDimsCount == 3 ? inputDimVector[2] : 1);
+    const auto IH = static_cast<int>(spatialDimsCount >= 2 ? inputDimVector[spatialDimsCount] : 1);
+    const auto IW = static_cast<int>(inputDimVector[spatialDimsCount + 1]);
 
-    const int OD = static_cast<int>(spatialDimsCount == 3 ? srcPooledSpatialShapes[0] : 1);
-    const int OH = static_cast<int>(spatialDimsCount >= 2 ? srcPooledSpatialShapes[spatialDimsCount - 2] : 1);
-    const int OW = static_cast<int>(srcPooledSpatialShapes[spatialDimsCount - 1]);
+    const auto OD = static_cast<int>(spatialDimsCount == 3 ? srcPooledSpatialShapes[0] : 1);
+    const auto OH = static_cast<int>(spatialDimsCount >= 2 ? srcPooledSpatialShapes[spatialDimsCount - 2] : 1);
+    const auto OW = static_cast<int>(srcPooledSpatialShapes[spatialDimsCount - 1]);
 
     const int iHW = IH * IW;
     const int oDHW = OD * OH * OW, oHW = OH * OW;
@@ -288,6 +285,4 @@ inline void AdaptivePooling::setBinBorders(size_t* startPtr,
     *(endPtr) = ceil(static_cast<float>((idx + 1) * inputLength) / outputLength);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

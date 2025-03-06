@@ -141,4 +141,6 @@ OPENVINO_API EnumNames<op::GeluApproximationMode>& EnumNames<op::GeluApproximati
 std::ostream& op::operator<<(std::ostream& s, const op::GeluApproximationMode& type) {
     return s << as_string(type);
 }
+
+AttributeAdapter<op::GeluApproximationMode>::~AttributeAdapter() = default;
 }  // namespace ov

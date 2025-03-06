@@ -86,6 +86,8 @@ Discontinued:
    |   *Old solution:* discontinued with OpenVINO 2023.0
    |      If you need to compile a model for inference on a specific device, use the following script:
 
+   .. rst-class:: m-4
+
       .. tab-set::
 
          .. tab-item:: Python
@@ -101,6 +103,7 @@ Discontinued:
             .. doxygensnippet:: docs/articles_en/assets/snippets/export_compiled_model.cpp
                :language: cpp
                :fragment: [export_compiled_model]
+
 
 .. dropdown:: TensorFlow integration (OVTF)
 

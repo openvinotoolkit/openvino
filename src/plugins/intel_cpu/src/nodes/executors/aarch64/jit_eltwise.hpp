@@ -8,10 +8,7 @@
 #include "node.h"
 #include "nodes/executors/eltwise.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace executors {
-namespace aarch64 {
+namespace ov::intel_cpu::executors::aarch64 {
 
 class JitEltwiseExecutor : public EltwiseExecutor {
 public:
@@ -33,7 +30,7 @@ public:
               const std::vector<MemoryPtr>& dst,
               const void* post_ops_data_) override;
 
-    impl_desc_type getImplType() const override {
+    [[nodiscard]] impl_desc_type getImplType() const override {
         return impl_desc_type::asimd;
     }
 
@@ -41,7 +38,4 @@ private:
     std::function<void()> exec_func;
 };
 
-}  // namespace aarch64
-}  // namespace executors
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::executors::aarch64

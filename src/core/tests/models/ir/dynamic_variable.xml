@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+<net name="my_model" version="11">
+	<layers>
+		<layer id="0" name="Parameter_1" type="Parameter" version="opset1">
+			<data shape="1,1,128" element_type="f32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>128</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="Relu_2" type="ReLU" version="opset1">
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>128</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>128</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="ReadValue_3" type="ReadValue" version="opset6">
+			<data variable_id="my_var" variable_type="dynamic" variable_shape="..." />
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>128</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>128</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="Squeeze_4" type="Squeeze" version="opset1">
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>128</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32">
+					<dim>128</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="4" name="Result_5" type="Result" version="opset1">
+			<input>
+				<port id="0" precision="FP32">
+					<dim>128</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="0" />
+		<edge from-layer="2" from-port="1" to-layer="3" to-port="0" />
+		<edge from-layer="3" from-port="1" to-layer="4" to-port="0" />
+	</edges>
+	<rt_info />
+</net>

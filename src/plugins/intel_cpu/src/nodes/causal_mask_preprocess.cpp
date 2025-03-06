@@ -14,9 +14,7 @@
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/plain_tensor.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 /*
 CausalMaskPreprocess:
@@ -103,7 +101,7 @@ CausalMaskPreprocess::CausalMaskPreprocess(const std::shared_ptr<ov::Node>& op, 
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        OPENVINO_THROW("CPU: " + errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     const auto node = ov::as_type_ptr<const intel_cpu::CausalMaskPreprocessNode>(op);
@@ -146,7 +144,7 @@ void CausalMaskPreprocess::initSupportedPrimitiveDescriptors() {
             prec = ov::element::i32;
         }
     } else {
-        OPENVINO_THROW("CPU: CausalMaskPreprocess type not supported : " + m_config.type);
+        THROW_CPU_NODE_ERR("type not supported : " + m_config.type);
     }
 
     std::vector<PortConfigurator> inPortConfigs;
@@ -166,6 +164,4 @@ void CausalMaskPreprocess::execute(const dnnl::stream& strm) {
     m_executor->execute(strm, this, m_config);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
