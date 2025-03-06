@@ -207,7 +207,7 @@ public:
     size_t get_dependency_index(const program_node& node) const;
     size_t get_user_index(const program_node& node) const;
 
-    std::unordered_set<uint32_t> get_memory_dependencies() const;
+    const std::unordered_set<uint32_t>& get_memory_dependencies() const;
     void add_memory_dependency(size_t);
     void add_memory_dependency(std::vector<size_t>);
 

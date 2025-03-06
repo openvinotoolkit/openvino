@@ -766,7 +766,7 @@ std::string program::get_memory_dependencies_string() const {
                          .append("(unique_id:")
                          .append(std::to_string(node->get_unique_id()))
                          .append(") restricted list: ");
-        for (auto it : node->get_memory_dependencies())
+        for (const auto& it : node->get_memory_dependencies())
             mem_dep = mem_dep.append(std::to_string(it)).append(",");
         mem_dep = mem_dep.append("\n");
     }
@@ -1708,7 +1708,7 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
                                                                       pool,
                                                                       *node,
                                                                       *node->get_kernel_impl_params(),
-                                                                      node->get_memory_dependencies(),
+                                                                      memory_restricter<uint32_t>(node->get_memory_dependencies()),
                                                                       0,
                                                                       false,
                                                                       0,

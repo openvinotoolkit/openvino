@@ -37,10 +37,10 @@ memory::ptr memory_pool::alloc_memory(const layout& layout, allocation_type type
 memory_pool::~memory_pool() {}
 
 bool memory_pool::has_conflict(const memory_set& mem_cand,
-                               const std::unordered_set<uint32_t>& restrictions,
+                               const memory_restricter<uint32_t>& restrictions,
                                uint32_t b_network_id) {
     for (const auto& mem_usr : mem_cand) {
-        if (restrictions.find(mem_usr._unique_id) != restrictions.end())
+        if (restrictions.contains(mem_usr._unique_id))
             return true;
     }
     return false;
@@ -151,7 +151,7 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
                                                   const primitive_id& prim_id,
                                                   size_t unique_id,
                                                   uint32_t network_id,
-                                                  const std::unordered_set<uint32_t>& restrictions,
+                                                  const memory_restricter<uint32_t>& restrictions,
                                                   allocation_type type,
                                                   bool reset,
                                                   bool is_dynamic) {
@@ -197,7 +197,7 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
                                               const primitive_id& prim_id,
                                               size_t unique_id,
                                               uint32_t network_id,
-                                              const std::unordered_set<uint32_t>& restrictions,
+                                              const memory_restricter<uint32_t>& restrictions,
                                               allocation_type type) {
     auto first_level_cache = _padded_pool.find(layout);
     if (first_level_cache != _padded_pool.end()) {
@@ -250,38 +250,6 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
     return mem;
 }
 
-/*
-        This is not reusable within one network or it's internal micro networks. But we can use this memory records
-   between networks.
-    */
-memory::ptr memory_pool::get_from_across_networks_pool(const layout& layout,
-                                                       const primitive_id& prim_id,
-                                                       size_t unique_id,
-                                                       uint32_t network_id,
-                                                       allocation_type type) {
-    const auto layout_bytes_count = layout.bytes_count();
-    auto it = _no_reusable_pool.lower_bound(layout_bytes_count);
-
-    while (it != _no_reusable_pool.end()) {
-        if (it->second._network_id != network_id &&
-            it->second._type == type) {  // don't use non reusable resources within the same network
-            if (!has_conflict(it->second._users, {}, network_id)) {
-                it->second._users.insert(memory_user(MEM_USER(unique_id, network_id, prim_id, layout_bytes_count)));
-                auto ret_mem = _engine->reinterpret_buffer(*it->second._memory, layout);
-                GPU_DEBUG_CODE(ret_mem->from_memory_pool = true);
-                return ret_mem;
-            }
-        }
-        ++it;
-    }
-    auto mem = alloc_memory(layout, type);
-    {
-        _no_reusable_pool.emplace(layout_bytes_count,
-                                  memory_record({{MEM_USER(unique_id, network_id, prim_id, layout_bytes_count)}}, mem, network_id, type));
-    }
-    return mem;
-}
-
 memory::ptr memory_pool::get_memory(const layout& layout, allocation_type type, bool reset) {
     return alloc_memory(layout, type, reset);
 }
@@ -290,7 +258,7 @@ memory::ptr memory_pool::get_memory(const layout& layout,
                                     const primitive_id& prim_id,
                                     const size_t unique_id,
                                     uint32_t network_id,
-                                    const std::unordered_set<uint32_t>& restrictions,
+                                    const memory_restricter<uint32_t>& restrictions,
                                     allocation_type type,
                                     bool reusable_across_network,
                                     bool reset,

@@ -195,7 +195,7 @@ void program_node::remove_dependency(size_t idx) {
     dependencies.erase(dependencies.begin() + idx);
 }
 
-std::unordered_set<uint32_t> program_node::get_memory_dependencies() const {
+const std::unordered_set<uint32_t>& program_node::get_memory_dependencies() const {
     // Monitor performance
     // if (org_id.find("split:Multiply_31737_fused_3_Multiply_split.out2") != std::string::npos) {
     //     std::cout << "#########caught split:Multiply_31737_fused_3_Multiply_split.out2 here2!\n\n";
