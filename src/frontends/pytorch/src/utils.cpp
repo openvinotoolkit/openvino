@@ -219,6 +219,8 @@ const std::unordered_map<int64_t, element::Type> TORCH_TO_OV_TYPE{
     {15, element::bf16},
 };
 
+const std::vector<int64_t> COMPLEX_TYPE = {8, 9, 10};
+
 const std::unordered_map<std::string, PadType> TORCH_AUTO_PAD_TO_OV{{"valid", PadType::VALID},
                                                                     {"same", PadType::SAME_UPPER}};
 }  // namespace
@@ -226,6 +228,10 @@ const std::unordered_map<std::string, PadType> TORCH_AUTO_PAD_TO_OV{{"valid", Pa
 element::Type convert_dtype(int64_t pt_type) {
     FRONT_END_OP_CONVERSION_CHECK(TORCH_TO_OV_TYPE.count(pt_type), "Unknown type: ", pt_type);
     return TORCH_TO_OV_TYPE.at(pt_type);
+};
+
+bool is_complex_dtype(int64_t pt_type) {
+    return std::find(COMPLEX_TYPE.begin(), COMPLEX_TYPE.end(), pt_type) != COMPLEX_TYPE.end();
 };
 
 Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Output<Node>& input_tensor) {
