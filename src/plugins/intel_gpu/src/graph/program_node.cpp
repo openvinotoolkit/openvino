@@ -1579,15 +1579,19 @@ void program_node::create_onednn_primitive_attributes(
                     if (is_type<fully_connected>()) {
                         auto prim = this->as<fully_connected>().get_primitive();
                         if (prim->input_size == in_pshape.size()) {
-                            if (prim->input_size == 3 && !fc_needs_full_tensor()) {
+                            if (prim->input_size >= 3 && !fc_needs_full_tensor()) {
                                 cldnn::onednn::combine_bf_with_first_spatial_dim(in);
                                 in_pshape = in.get_partial_shape();
                             }
                             ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
                         } else {
-                            if (prim->input_size == 3)
+                            if (prim->input_size >= 3) {
                                 cldnn::onednn::combine_bf_with_first_spatial_dim(in);
-                            ones_to_add = std::max(in_pshape.size(), prim->input_size) - std::min(in_pshape.size(), prim->input_size);
+                                in_pshape = in.get_partial_shape();
+                                ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
+                            } else {
+                                ones_to_add = 2;
+                            }
                         }
                         if (ones_to_add > 0) {
                             layout new_layout = in;
