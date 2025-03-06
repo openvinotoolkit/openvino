@@ -142,15 +142,20 @@ ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov:
 }
 
 uint32_t PluginCompilerAdapter::get_version() const {
-    return -1U;
+    // returning max val as PluginCompiler supports all features and options the plugin is aware of
+    return 0xFFFFFFFF;
 }
 
 std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
+    // PluginCompiler has all the same options as plugin
+    // Returing empty string to let the plugin fallback to legacy registration
     return {};
 }
 
 bool PluginCompilerAdapter::is_option_supported(std::string optname) const {
-    return true;
+    // This functions has no utility in PluginCompiler
+    // returning false for any request to avoid the option of spaming the plugin
+    return false;
 }
 
 }  // namespace intel_npu
