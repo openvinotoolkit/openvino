@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -368,7 +368,7 @@ std::string Config::toStringForCompiler() const {
 
 bool Config::isAvailable(std::string key) const {
     auto it = _enabled.find(key);
-    if (it != _enabled.end()) {
+    if (it != _enabled.end() && hasOpt(key)) {
         return it->second;
     }
     // if doesnt exist = not available
@@ -399,7 +399,7 @@ void Config::addOrUpdateInternal(std::string key, std::string value) {
         _internal_compiler_configs.at(key) = value;
     } else {
         // manual insert
-            _internal_compiler_configs.insert(std::make_pair(key, value));  // insert new
+        _internal_compiler_configs.insert(std::make_pair(key, value));  // insert new
     }
 };
 
