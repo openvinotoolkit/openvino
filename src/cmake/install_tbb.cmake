@@ -127,6 +127,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
 
         set(TBB_LIB_INSTALL_DIR "runtime/3rdparty/tbb/lib" CACHE PATH "TBB library install directory" FORCE)
     elseif(tbb_custom)
+        message(STATUS "tbb_custom is ON")
         ov_cpack_add_component(tbb HIDDEN)
         list(APPEND core_components tbb)
 
@@ -239,6 +240,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
 
         set(TBB_LIB_INSTALL_DIR "${OV_TBB_DIR_INSTALL}/${tbb_libs_dir}" CACHE PATH "TBB library install directory" FORCE)
     elseif(tbb_downloaded)
+        message(STATUS "tbb_downloaded is ON")
         ov_cpack_add_component(tbb HIDDEN)
         list(APPEND core_components tbb)
 
