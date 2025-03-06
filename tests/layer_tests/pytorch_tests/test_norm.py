@@ -376,10 +376,17 @@ class TestRMSNorm(PytorchLayerTest):
         return (np.random.randn(2, 5, 10, 10).astype(np.float32),)
 
     def create_model(self, normalized_shape, eps, gamma):
-        m = torch.nn.RMSNorm(normalized_shape,
-                             eps=eps,
-                             elementwise_affine=gamma)
-        return m, None, "aten::rms_norm"
+        class aten_rms_norm(torch.nn.Module):
+            def __init__(self, normalized_shape, eps, gamma) -> None:
+                super().__init__()
+                self.rms = torch.nn.RMSNorm(normalized_shape,
+                                            eps=eps,
+                                            elementwise_affine=gamma)
+
+            def forward(self, input_data):
+                return self.rms(input_data)
+
+        return aten_rms_norm(normalized_shape, eps, gamma), None, "aten::rms_norm"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
