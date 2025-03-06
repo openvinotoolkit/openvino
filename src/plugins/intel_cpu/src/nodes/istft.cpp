@@ -211,13 +211,13 @@ void istft_impl(const float* in_data,
                            frame_signal.end(),
                            mid_result.begin() + out_frame_start,
                            mid_result.begin() + out_frame_start,
-                           std::plus());
+                           std::plus<float>());
 
             std::transform(window_sum.begin() + out_frame_start,
                            window_sum.begin() + out_frame_end,
                            pad_window.begin(),
                            window_sum.begin() + out_frame_start,
-                           std::plus());
+                           std::plus<float>());
         }
         float* result = mid_result.data() + (batch * signal_length);
         std::transform(result,
