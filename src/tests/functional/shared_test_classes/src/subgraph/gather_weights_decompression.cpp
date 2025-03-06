@@ -10,12 +10,39 @@
 namespace ov {
 namespace test {
 
-static ov::Tensor index_tensor_generator(const ov::Shape shape, const ov::element::Type element_type) {
-    ov::test::utils::InputGenerateData in_data;
-    in_data.start_from = -1;
-    in_data.range = 2;
-    in_data.resolution = 10000;
-    return ov::test::utils::create_and_fill_tensor(element_type, shape, in_data);
+void GatherWeightsDecompressionBase::generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) {
+    inputs.clear();
+    const auto& model_inputs = function->inputs();
+    for (size_t i = 0; i < model_inputs.size(); ++i) {
+        const auto& model_input = model_inputs[i];
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = -1;
+        in_data.range = 2;
+        in_data.resolution = 10000;
+        ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(),
+                                                                    target_input_static_shapes[i],
+                                                                    in_data);
+        inputs.insert({model_input.get_node_shared_ptr(), tensor});
+    }
+}
+
+void GatherWeightsDecompressionBase::check_results(const ov::element::Type& weights_precision) {
+    size_t num_exec_ops = 0;
+
+    for (const auto& n : compiledModel.get_runtime_model()->get_ordered_ops()) {
+        if (n->get_friendly_name() == "Compressed_weights") {
+            ASSERT_EQ(n->get_output_element_type(0), weights_precision);
+        }
+        if (n->get_input_size() > 0) {
+            num_exec_ops += 1;
+        }
+    }
+
+    if (weights_precision == ov::element::Type_t::f16 || weights_precision == ov::element::Type_t::bf16) {
+        EXPECT_LE(num_exec_ops, 4u);
+    } else {
+        EXPECT_LE(num_exec_ops, 3u);
+    }
 }
 
 std::string GatherWeightsDecompression::get_test_case_name(
@@ -77,30 +104,11 @@ std::shared_ptr<ov::Model> GatherWeightsDecompression::init_subgraph(const ov::S
     gather->set_friendly_name("gather_node");
     return std::make_shared<ov::Model>(ov::NodeVector{gather}, params, "GatherDataDecompression");
 }
-void GatherWeightsDecompression::generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) {
-    inputs.clear();
-    const auto& model_inputs = function->inputs();
-    for (size_t i = 0; i < model_inputs.size(); ++i) {
-        const auto& model_input = model_inputs[i];
-        ov::Tensor tensor = index_tensor_generator(target_input_static_shapes[i], model_input.get_element_type());
-        inputs.insert({model_input.get_node_shared_ptr(), tensor});
-    }
-}
+
 void GatherWeightsDecompression::check_results() {
     const auto& test_param = GetParam();
-    ov::element::Type weights_precision = std::get<2>(test_param);
-    size_t num_exec_ops = 0;
-
-    for (const auto& n : compiledModel.get_runtime_model()->get_ordered_ops()) {
-        if (n->get_friendly_name() == "Compressed_weights") {
-            ASSERT_EQ(n->get_output_element_type(0), weights_precision);
-        }
-        if (n->get_input_size() > 0) {
-            num_exec_ops += 1;
-        }
-    }
-
-    EXPECT_LE(num_exec_ops, 3u);
+    const ov::element::Type& weights_precision = std::get<2>(test_param);
+    GatherWeightsDecompressionBase::check_results(weights_precision);
 }
 
 void GatherWeightsDecompression::SetUp() {
@@ -176,20 +184,12 @@ std::shared_ptr<ov::Model> GatherWeightsDecompressionWithoutScale::init_subgraph
     ov::test::utils::InputGenerateData generator(-10, 20);
     auto weights_tensor = ov::test::utils::create_and_fill_tensor(data_precision, data_shape, generator);
     auto weights_const = std::make_shared<ov::op::v0::Constant>(weights_tensor);
+    weights_const->set_friendly_name("Compressed_weights");
     auto convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
     auto gather = std::make_shared<ov::op::v8::Gather>(convert, params[0], axis_const, batch_dims);
     gather->set_friendly_name("gather_node");
-    return std::make_shared<ov::Model>(ov::NodeVector{gather}, params, "GatherDataDecompression");
-}
-
-void GatherWeightsDecompressionWithoutScale::generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) {
-    inputs.clear();
-    const auto& model_inputs = function->inputs();
-    for (size_t i = 0; i < model_inputs.size(); ++i) {
-        const auto& model_input = model_inputs[i];
-        ov::Tensor tensor = index_tensor_generator(target_input_static_shapes[i], model_input.get_element_type());
-        inputs.insert({model_input.get_node_shared_ptr(), tensor});
-    }
+    auto convert_to_output_precision = std::make_shared<ov::op::v0::Convert>(gather, output_precision);
+    return std::make_shared<ov::Model>(ov::NodeVector{convert_to_output_precision}, params, "GatherDataDecompression");
 }
 
 void GatherWeightsDecompressionWithoutScale::SetUp() {
@@ -210,6 +210,12 @@ void GatherWeightsDecompressionWithoutScale::SetUp() {
                              shape_params.batch_dims,
                              data_precision,
                              output_precision);
+}
+
+void GatherWeightsDecompressionWithoutScale::check_results() {
+    const auto& test_param = GetParam();
+    const ov::element::Type& weights_precision = std::get<2>(test_param);
+    GatherWeightsDecompressionBase::check_results(weights_precision);
 }
 
 }  // namespace test

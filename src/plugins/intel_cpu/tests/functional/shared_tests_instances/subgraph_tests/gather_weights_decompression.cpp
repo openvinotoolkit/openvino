@@ -49,9 +49,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherCompressedWeights_basic,
 TEST_P(GatherWeightsDecompressionWithoutScale, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
+    check_results();
 }
 const std::vector<ov::element::Type> weights_precisions_wo_scale = {ov::element::f16, ov::element::bf16};
-const std::vector<ov::element::Type> output_precisions_wo_scale = {ov::element::f32};
+const std::vector<ov::element::Type> output_precisions_wo_scale = {ov::element::f32, ov::element::f16, ov::element::bf16};
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherCompressedWeightsWithoutScale_basic,
                          GatherWeightsDecompressionWithoutScale,
