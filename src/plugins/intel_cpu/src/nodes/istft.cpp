@@ -13,9 +13,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/istft.hpp"
 #include "openvino/reference/add.hpp"
-#include "openvino/reference/irdft.hpp"
-#include "openvino/reference/istft.hpp"
-#include "openvino/reference/transpose.hpp"
 
 namespace ov::intel_cpu::node {
 
