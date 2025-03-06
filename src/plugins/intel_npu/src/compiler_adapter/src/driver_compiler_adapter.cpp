@@ -498,7 +498,13 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
 }
 
 std::vector<std::string> DriverCompilerAdapter::get_supported_options() const {
-    std::string compilerOptionsStr = _zeGraphExt->getCompilerSupportedOptions();
+    std::string compilerOptionsStr;
+    try {
+        compilerOptionsStr = _zeGraphExt->getCompilerSupportedOptions();
+    } catch (...) {
+        _logger.warning("get_supported_options API not supported. Skipping!");
+        return {};
+    }
     // vectorize string
     std::istringstream suppstream(compilerOptionsStr);
     std::vector<std::string> compilerOpts;
@@ -510,7 +516,13 @@ std::vector<std::string> DriverCompilerAdapter::get_supported_options() const {
 }
 
 bool DriverCompilerAdapter::is_option_supported(std::string optname) const {
-    return _zeGraphExt->isOptionSupported(optname);
+    try {
+        bool rc = _zeGraphExt->isOptionSupported(optname);
+        return rc;
+    } catch (...) {
+        _logger.warning("is_option_supported API not supported. Skipping!");
+        return false;
+    }
 }
 
 }  // namespace intel_npu
