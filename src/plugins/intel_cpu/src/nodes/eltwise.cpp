@@ -804,6 +804,7 @@ public:
                     Algorithm::EltwiseClamp,
                     Algorithm::EltwiseDivide,
                     Algorithm::EltwiseExp,
+                    Algorithm::EltwiseMulAdd,
                     Algorithm::EltwiseMultiply,
                     Algorithm::EltwisePowerStatic,
                     Algorithm::EltwisePrelu,

@@ -291,6 +291,54 @@ void jit_exp_emitter::register_table_entries() {
     push_arg_entry_of("exponent_bias", 0x0000007f);
 }
 
+/// MUL_ADD ///
+jit_mul_add_emitter::jit_mul_add_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+    const std::shared_ptr<ov::Node>& node)
+: jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
+
+jit_mul_add_emitter::jit_mul_add_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+    const ov::element::Type exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {}
+
+size_t jit_mul_add_emitter::get_inputs_num() const {
+    return 3;
+}
+
+void jit_mul_add_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OPENVINO_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_mul_add_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    VReg src0 = VReg(in_vec_idxs[0]);
+    VReg src1 = VReg(in_vec_idxs[1]);
+    VReg src2 = VReg(in_vec_idxs[2]);
+    VReg dst = VReg(out_vec_idxs[0]);
+
+    if (src1.getIdx() == dst.getIdx()) {
+        h->vfmadd_vv(dst, src0, src2);
+        return;
+    }
+
+    if (src2.getIdx() == dst.getIdx()) {
+        h->vfmacc_vv(dst, src0, src1);
+        return;
+    }
+
+    if (src0.getIdx() != dst.getIdx()) {
+        h->vmv_v_v(dst, src0);
+    }
+    h->vfmadd_vv(dst, src1, src2);
+}
+
+std::set<std::vector<element::Type>> jit_mul_add_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32, element::f32, element::f32}};
+}
+
 /// MUL ///
 jit_multiply_emitter::jit_multiply_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                            const std::shared_ptr<ov::Node>& node)
