@@ -19,19 +19,13 @@ namespace intel_npu {
 void registerNPUWOptions(OptionsDesc& desc);
 void registerNPUWLLMOptions(OptionsDesc& desc);
 
-#define DEFINE_OPT(Name, Type, DefaultValue, PropertyKey, Mode) \
-    struct Name final : OptionBase<Name, Type> {                \
-        static std::string_view key() {                         \
-            return ov::intel_npu::PropertyKey.name();           \
-        }                                                       \
-                                                                \
-        static Type defaultValue() {                            \
-            return DefaultValue;                                \
-        }                                                       \
-                                                                \
-        static OptionMode mode() {                              \
-            return OptionMode::Mode;                            \
-        }                                                       \
+#define DEFINE_OPT(Name, Type, DefaultValue, PropertyKey, Mode)                     \
+    struct Name final : OptionBase<Name, Type> {                                    \
+        static std::string_view key() { return ov::intel_npu::PropertyKey.name(); } \
+                                                                                    \
+        static Type defaultValue() { return DefaultValue; }                         \
+                                                                                    \
+        static OptionMode mode() { return OptionMode::Mode; }                       \
     };
 
 DEFINE_OPT(NPU_USE_NPUW, bool, false, use_npuw, CompileTime);
