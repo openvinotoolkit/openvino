@@ -12,7 +12,9 @@
 
 namespace ov::reference {
 
-template <typename T, typename T_idx, std::enable_if_t<std::is_same<std::decay_t<T_idx>, int64_t>::value>* = nullptr>
+template <typename T,
+          typename T_idx,
+          typename std::enable_if_t<std::is_same_v<typename std::decay_t<T_idx>, int64_t>>* = nullptr>
 void segment_max(const T* data,
                  const Shape& data_shape,
                  const T_idx* segment_ids,
@@ -41,7 +43,9 @@ void segment_max(const T* data,
     }
 }
 
-template <typename T, typename T_idx, std::enable_if_t<!std::is_same<std::decay_t<T_idx>, int64_t>::value>* = nullptr>
+template <typename T,
+          typename T_idx,
+          typename std::enable_if_t<!std::is_same_v<typename std::decay_t<T_idx>, int64_t>>* = nullptr>
 void segment_max(const T* data,
                  const Shape& data_shape,
                  const T_idx* segment_ids,
