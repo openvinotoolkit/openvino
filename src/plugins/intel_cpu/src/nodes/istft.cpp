@@ -120,7 +120,8 @@ void istft_impl(const float* in_data,
                 const int64_t frame_step,
                 const int64_t length,
                 const bool center,
-                const bool normalized) {
+                const bool normalized,
+                std::shared_ptr<RDFTExecutor> rdft_executor) {
     using namespace ov;
     using namespace ov::reference;
     const auto is_data_3D = data_shape.size() == 3;
@@ -197,13 +198,18 @@ void istft_impl(const float* in_data,
             const auto out_frame_end = out_frame_start + frame_size;
 
             std::vector<float> frame_data(data_t.data() + in_frame_start, data_t.data() + in_frame_end);
-            reference::irdft(frame_data,
-                             fft_out_shape,
-                             {0},
-                             frame_signal.data(),
-                             frame_size_dim_shape_out,
-                             frame_size_dim_shape,
-                             frame_size);
+
+            auto twiddles = rdft_executor->generateTwiddles({static_cast<int>(frame_size)}, fft_out_shape, {0});
+            rdft_executor->execute(frame_data.data(),
+                                   frame_signal.data(),
+                                   twiddles,
+                                   1,
+                                   {0},
+                                   {static_cast<int>(frame_size)},
+                                   {frame_size_dim, 2},
+                                   fft_out_shape,
+                                   {2, 1},
+                                   {1});
 
             std::transform(frame_signal.begin(),
                            frame_signal.end(),
@@ -243,7 +249,8 @@ void ISTFT::execute(const dnnl::stream& strm) {
                (getSrcDataAtPortAs<const int32_t>(FRAME_STEP_IDX))[0],
                signal_length,
                m_center,
-               m_normalized);
+               m_normalized,
+               rdft_executor);
 }
 
 void ISTFT::executeDynamicImpl(const dnnl::stream& strm) {
