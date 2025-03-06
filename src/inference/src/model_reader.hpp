@@ -38,6 +38,7 @@ std::shared_ptr<ov::Model> read_model(const std::string& modelPath,
  */
 std::shared_ptr<ov::Model> read_model(const std::shared_ptr<ov::AlignedBuffer>& model,
                                       const std::shared_ptr<ov::AlignedBuffer>& weights,
+                                      const std::shared_ptr<ov::AlignedBuffer>& origin_weights,
                                       const std::vector<ov::Extension::Ptr>& extensions);
 
 /**

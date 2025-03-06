@@ -429,30 +429,29 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
             RO_property(ov::device::architecture.name()),
         };
         // the whole config is RW before model is loaded.
-        std::vector<ov::PropertyName> rwProperties{
-            RW_property(ov::num_streams.name()),
-            RW_property(ov::inference_num_threads.name()),
-            RW_property(ov::enable_profiling.name()),
-            RW_property(ov::hint::inference_precision.name()),
-            RW_property(ov::hint::performance_mode.name()),
-            RW_property(ov::hint::execution_mode.name()),
-            RW_property(ov::hint::num_requests.name()),
-            RW_property(ov::hint::enable_cpu_pinning.name()),
-            RW_property(ov::hint::enable_cpu_reservation.name()),
-            RW_property(ov::hint::scheduling_core_type.name()),
-            RW_property(ov::hint::model_distribution_policy.name()),
-            RW_property(ov::hint::enable_hyper_threading.name()),
-            RW_property(ov::device::id.name()),
-            RW_property(ov::intel_cpu::denormals_optimization.name()),
-            RW_property(ov::log::level.name()),
-            RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
-            RW_property(ov::hint::dynamic_quantization_group_size.name()),
-            RW_property(ov::hint::kv_cache_precision.name()),
-            RW_property(ov::key_cache_precision.name()),
-            RW_property(ov::value_cache_precision.name()),
-            RW_property(ov::key_cache_group_size.name()),
-            RW_property(ov::value_cache_group_size.name()),
-        };
+        std::vector<ov::PropertyName> rwProperties{RW_property(ov::num_streams.name()),
+                                                   RW_property(ov::inference_num_threads.name()),
+                                                   RW_property(ov::enable_profiling.name()),
+                                                   RW_property(ov::hint::inference_precision.name()),
+                                                   RW_property(ov::hint::performance_mode.name()),
+                                                   RW_property(ov::hint::execution_mode.name()),
+                                                   RW_property(ov::hint::num_requests.name()),
+                                                   RW_property(ov::hint::enable_cpu_pinning.name()),
+                                                   RW_property(ov::hint::enable_cpu_reservation.name()),
+                                                   RW_property(ov::hint::scheduling_core_type.name()),
+                                                   RW_property(ov::hint::model_distribution_policy.name()),
+                                                   RW_property(ov::hint::enable_hyper_threading.name()),
+                                                   RW_property(ov::device::id.name()),
+                                                   RW_property(ov::intel_cpu::denormals_optimization.name()),
+                                                   RW_property(ov::log::level.name()),
+                                                   RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+                                                   RW_property(ov::hint::dynamic_quantization_group_size.name()),
+                                                   RW_property(ov::hint::kv_cache_precision.name()),
+                                                   RW_property(ov::key_cache_precision.name()),
+                                                   RW_property(ov::value_cache_precision.name()),
+                                                   RW_property(ov::key_cache_group_size.name()),
+                                                   RW_property(ov::value_cache_group_size.name()),
+                                                   RW_property(ov::weights_path.name())};
 
         std::vector<ov::PropertyName> supportedProperties;
         supportedProperties.reserve(roProperties.size() + rwProperties.size());
@@ -597,14 +596,30 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
         _config.erase(blob_it);
     }
 
+    ov::CacheMode cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
+    std::string origin_weights_path;
+    auto cm_it = _config.find(ov::cache_mode.name());
+    if (cm_it != _config.end()) {
+        cache_mode = cm_it->second.as<ov::CacheMode>();
+    }
+    if (cache_mode == ov::CacheMode::OPTIMIZE_SIZE) {
+        auto wp_it = _config.find(ov::weights_path.name());
+        if (wp_it != _config.end()) {
+            origin_weights_path = wp_it->second.as<std::string>();
+        }
+    }
+
     ModelDeserializer deserializer(
         model_stream,
         model_buffer,
-        [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
-            return get_core()->read_model(model, weights);
+        [this](const std::shared_ptr<ov::AlignedBuffer>& model,
+               const std::shared_ptr<ov::AlignedBuffer>& weights,
+               const std::shared_ptr<ov::AlignedBuffer>& origin_weights) {
+            return get_core()->read_model(model, weights, origin_weights);
         },
         decrypt,
-        decript_from_string);
+        decript_from_string,
+        origin_weights_path);
 
     std::shared_ptr<ov::Model> model;
     deserializer >> model;

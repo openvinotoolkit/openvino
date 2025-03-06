@@ -159,6 +159,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     std::istream* provided_model_stream = nullptr;
     std::shared_ptr<ov::AlignedBuffer> model_buf;
     std::shared_ptr<ov::AlignedBuffer> weights;
+    std::shared_ptr<ov::AlignedBuffer> origin_weights;
 
     auto create_extensions_map = [&]() -> std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> {
         std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> exts;
@@ -169,7 +170,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         return exts;
     };
 
-    auto create_input_model = [&](std::string weights_path) -> std::shared_ptr<InputModel> {
+    auto create_input_model = [&](const std::string& weights_path) -> std::shared_ptr<InputModel> {
         if (provided_model_stream) {
             return std::make_shared<InputModel>(*provided_model_stream,
                                                 weights,
@@ -183,7 +184,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
             local_model_stream.close();
             return input_model;
         } else if (model_buf) {
-            return std::make_shared<InputModel>(model_buf, weights, create_extensions_map(), std::move(weights_path));
+            return std::make_shared<InputModel>(model_buf, weights, origin_weights, create_extensions_map());
         }
         return nullptr;
     };
@@ -233,8 +234,10 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         } else if (variant.is<std::wstring>()) {
             weights_path = variant.as<std::wstring>();
 #endif
-        } else if (variant.is<std::shared_ptr<ov::AlignedBuffer>>()) {
+        } else if (variant.is<std::shared_ptr<ov::AlignedBuffer>>() && !weights) {
             weights = variant.as<std::shared_ptr<ov::AlignedBuffer>>();
+        } else if (variant.is<std::shared_ptr<ov::AlignedBuffer>>() && !origin_weights) {
+            origin_weights = variant.as<std::shared_ptr<ov::AlignedBuffer>>();
         }
     }
     bool enable_mmap = variants[variants.size() - 1].is<bool>() ? variants[variants.size() - 1].as<bool>() : false;
