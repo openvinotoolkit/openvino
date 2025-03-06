@@ -17,23 +17,6 @@ using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
 using namespace Xbyak_aarch64;
 
-namespace {
-ov::element::Type get_arithmetic_binary_exec_precision(const std::shared_ptr<ov::Node>& n) {
-    std::vector<ov::element::Type> input_precisions;
-    for (const auto& input : n->inputs()) {
-        input_precisions.push_back(input.get_source_output().get_element_type());
-    }
-
-    assert(std::all_of(input_precisions.begin(),
-                       input_precisions.end(),
-                       [&input_precisions](const ov::element::Type& precision) {
-                           return precision == input_precisions[0];
-                       }));
-
-    return input_precisions[0];
-}
-}  // namespace
-
 /// ABS ///
 jit_abs_emitter::jit_abs_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                  dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
