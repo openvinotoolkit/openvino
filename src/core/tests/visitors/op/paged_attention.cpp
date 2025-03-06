@@ -12,36 +12,47 @@ using ov::test::NodeBuilder;
 
 TEST(attributes, paged_attention) {
     NodeBuilder::opset().insert<ov::op::PagedAttentionExtension>();
-    const auto data1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
-    const auto data2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
-    const auto data3 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
-    const auto data4 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
-    const auto data5 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
-    const auto data6 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
-    const auto data7 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
-    const auto data8 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
-    const auto data9 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
-    const auto data10 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
-    const auto data11 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
-    const auto data12 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
-    const auto data13 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
+    const auto query = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{10, 16});
+    const auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{10, 16});
+    const auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{10, 16});
+    const auto key_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{10, 4, 10, 4});
+    const auto value_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{10, 4, 10, 4});
+    const auto past_lens = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{4});
+    const auto subsequence_begins = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{5});
+    const auto block_indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{10});
+    const auto block_indices_begins = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{5});
+    const auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{});
+    const auto sliding_window = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{});
+    const auto alibi_slopes = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4});
+    const auto max_context_len = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{});
 
-    const auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(data1,
-                                                                                   data2,
-                                                                                   data3,
-                                                                                   data4,
-                                                                                   data5,
-                                                                                   data6,
-                                                                                   data7,
-                                                                                   data8,
-                                                                                   data9,
-                                                                                   data10,
-                                                                                   data11,
-                                                                                   data12,
-                                                                                   data13);
-    NodeBuilder builder(
-        paged_attention,
-        {data1, data2, data3, data4, data5, data6, data7, data8, data9, data10, data11, data12, data13});
+    const auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(query,
+                                                                                   key,
+                                                                                   value,
+                                                                                   key_cache,
+                                                                                   value_cache,
+                                                                                   past_lens,
+                                                                                   subsequence_begins,
+                                                                                   block_indices,
+                                                                                   block_indices_begins,
+                                                                                   scale,
+                                                                                   sliding_window,
+                                                                                   alibi_slopes,
+                                                                                   max_context_len);
+    NodeBuilder builder(paged_attention,
+                        {query,
+                         key,
+                         value,
+                         key_cache,
+                         value_cache,
+                         past_lens,
+                         subsequence_begins,
+                         block_indices,
+                         block_indices_begins,
+                         scale,
+                         sliding_window,
+                         alibi_slopes,
+                         max_context_len});
     auto g_paged_attention = ov::as_type_ptr<ov::op::PagedAttentionExtension>(builder.create());
 
     constexpr auto expected_attr_count = 1;
