@@ -31,8 +31,8 @@ inline size_t get_rhs_scale_stride(size_t k, size_t bl) {
 /**
  *  TODO: Some docstring here
  */
-void quant_kxn_qs8cx_f32(int64_t n, 
-                         int64_t k, 
+void quant_kxn_qs8cx_f32(size_t n, 
+                         size_t k, 
                          uint32_t bl, 
                          const float* rhs_f32, 
                          int8_t* rhs_qs8cx, 
