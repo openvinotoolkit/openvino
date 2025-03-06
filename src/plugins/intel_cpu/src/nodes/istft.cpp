@@ -153,12 +153,11 @@ void istft_impl(const float* in_data,
 
     std::vector<float> data_t(in_data, in_data + shape_size(data_shape));
     const auto stft_transp_out_shape = ov::Shape{batch_size, num_frames, fft_out_shape[0], fft_out_shape[1]};
-    transpose(reinterpret_cast<const char*>(in_data),
-              reinterpret_cast<char*>(data_t.data()),
-              ov::Shape{batch_size, fft_out_shape[0], num_frames, fft_out_shape[1]},
-              sizeof(float),
-              {0, 2, 1, 3},
-              stft_transp_out_shape);
+    transpose_out4d(reinterpret_cast<const uint8_t*>(in_data),
+                    reinterpret_cast<uint8_t*>(data_t.data()),
+                    ov::Shape{batch_size, fft_out_shape[0], num_frames, fft_out_shape[1]},
+                    stft_transp_out_shape,
+                    sizeof(float));
 
     // Setting function for the result postprocessing
     const auto norm_window_div = [sqrt_frame_size](float a, float b) {
@@ -210,6 +209,14 @@ void istft_impl(const float* in_data,
                                    fft_out_shape,
                                    {2, 1},
                                    {1});
+
+            reference::irdft(frame_data,
+                             fft_out_shape,
+                             {0},
+                             frame_signal.data(),
+                             frame_size_dim_shape_out,
+                             frame_size_dim_shape,
+                             frame_size);
 
             std::transform(frame_signal.begin(),
                            frame_signal.end(),
