@@ -3,6 +3,7 @@
 //
 
 #include "openvino/runtime/make_tensor.hpp"
+#include "openvino/core/layout.hpp"
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -126,6 +127,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     const auto& port_info = find_port(port);
     size_t port_index = port_info.idx;
     const auto& shape = port.get_partial_shape();
+    const auto& layout = ov::layout::get_layout(port);
 
     OPENVINO_ASSERT(tensor != nullptr, "[GPU] Failed to set empty tensor to port with index: \'", port_index, "\'");
     OPENVINO_ASSERT(port.get_element_type() == tensor->get_element_type(),
@@ -138,6 +140,18 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
                     ") and tensor (shape=",
                     tensor->get_shape(),
                     ") are incompatible");
+    if (shape.rank().is_static() && shape.rank().get_length() != 0 && ov::layout::has_batch(layout)) {
+        const auto batch_idx = ov::layout::batch_idx(layout);
+        const auto& batch_dim = shape[batch_idx];
+        if (batch_dim.is_dynamic()) {
+            auto batch_num = tensor->get_shape().at(batch_idx);
+            OPENVINO_ASSERT(batch_num,
+                            "Batch size must be a positive value for input '",
+                            port,
+                            "', but has got: ",
+                            batch_num);
+        }
+    }
 
     auto update_tensors_maps = [](size_t port_index,
                                   std::unordered_map<size_t, ov::intel_gpu::TensorWrapper>& user_tensors,
