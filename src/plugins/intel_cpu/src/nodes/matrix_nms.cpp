@@ -154,33 +154,30 @@ namespace {
 static inline float boxArea(const float* bbox, const bool normalized) {
     if (bbox[2] < bbox[0] || bbox[3] < bbox[1]) {
         return static_cast<float>(0.);
-    } else {
-        const float width = bbox[2] - bbox[0];
-        const float height = bbox[3] - bbox[1];
-        if (normalized) {
-            return width * height;
-        } else {
-            return (width + 1) * (height + 1);
-        }
     }
+    const float width = bbox[2] - bbox[0];
+    const float height = bbox[3] - bbox[1];
+    if (normalized) {
+        return width * height;
+    }
+    return (width + 1) * (height + 1);
 }
 
 static inline float intersectionOverUnion(const float* bbox1, const float* bbox2, const bool normalized) {
     if (bbox2[0] > bbox1[2] || bbox2[2] < bbox1[0] || bbox2[1] > bbox1[3] || bbox2[3] < bbox1[1]) {
         return static_cast<float>(0.);
-    } else {
-        const float xMin = std::max(bbox1[0], bbox2[0]);
-        const float yMin = std::max(bbox1[1], bbox2[1]);
-        const float xMax = std::min(bbox1[2], bbox2[2]);
-        const float yMax = std::min(bbox1[3], bbox2[3]);
-        float norm = normalized ? static_cast<float>(0.) : static_cast<float>(1.);
-        float width = xMax - xMin + norm;
-        float height = yMax - yMin + norm;
-        const float interArea = width * height;
-        const float bbox1Area = boxArea(bbox1, normalized);
-        const float bbox2Area = boxArea(bbox2, normalized);
-        return interArea / (bbox1Area + bbox2Area - interArea);
     }
+    const float xMin = std::max(bbox1[0], bbox2[0]);
+    const float yMin = std::max(bbox1[1], bbox2[1]);
+    const float xMax = std::min(bbox1[2], bbox2[2]);
+    const float yMax = std::min(bbox1[3], bbox2[3]);
+    float norm = normalized ? static_cast<float>(0.) : static_cast<float>(1.);
+    float width = xMax - xMin + norm;
+    float height = yMax - yMin + norm;
+    const float interArea = width * height;
+    const float bbox1Area = boxArea(bbox1, normalized);
+    const float bbox2Area = boxArea(bbox2, normalized);
+    return interArea / (bbox1Area + bbox2Area - interArea);
 }
 }  // namespace
 
@@ -330,8 +327,8 @@ void MatrixNms::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 void MatrixNms::execute(const dnnl::stream& strm) {
-    const float* boxes = getSrcDataAtPortAs<const float>(NMS_BOXES);
-    const float* scores = getSrcDataAtPortAs<const float>(NMS_SCORES);
+    const auto* boxes = getSrcDataAtPortAs<const float>(NMS_BOXES);
+    const auto* scores = getSrcDataAtPortAs<const float>(NMS_SCORES);
 
     ov::parallel_for2d(m_numBatches, m_numClasses, [&](size_t batchIdx, size_t classIdx) {
         if (classIdx == static_cast<size_t>(m_backgroundClass)) {
@@ -423,12 +420,13 @@ void MatrixNms::execute(const dnnl::stream& strm) {
     // NMS-alike nodes are always transformed to NMSIEInternal node in case of legacy api, for compatibility.
     // And on the other hand in case of api 2.0, keep them internal dynamic for better performance and functionality.
     if (!m_outStaticShape) {
-        size_t totalBox = std::accumulate(m_numPerBatch.begin(), m_numPerBatch.end(), static_cast<size_t>(0));
-        redefineOutputMemory({{totalBox, 6}, {totalBox, 1}, {m_numBatches}});
+        auto totalBox = std::accumulate(m_numPerBatch.begin(), m_numPerBatch.end(), int64_t{0});
+        OPENVINO_ASSERT(totalBox > 0, "Total number of boxes is less or equal than 0");
+        redefineOutputMemory({{static_cast<size_t>(totalBox), 6}, {static_cast<size_t>(totalBox), 1}, {m_numBatches}});
     }
-    float* selectedOutputs = selectedOutputsMemPtr->getDataAs<float>();
-    int* selectedIndices = selectedIndicesMemPtr->getDataAs<int>();
-    int* validOutputs = validOutputsMemPtr->getDataAs<int>();
+    auto* selectedOutputs = selectedOutputsMemPtr->getDataAs<float>();
+    auto* selectedIndices = selectedIndicesMemPtr->getDataAs<int>();
+    auto* validOutputs = validOutputsMemPtr->getDataAs<int>();
     for (size_t i = 0; i < m_numPerBatch.size(); i++) {
         validOutputs[i] = static_cast<int>(m_numPerBatch[i]);
     }

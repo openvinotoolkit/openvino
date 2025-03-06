@@ -66,7 +66,7 @@ public:
         m_primitive->execute(m_primArgs);
     }
 
-    impl_desc_type implType() const override {
+    [[nodiscard]] impl_desc_type implType() const override {
         return m_primitive ? m_primitive->implType() : undef;
     }
 

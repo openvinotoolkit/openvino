@@ -50,7 +50,7 @@ namespace ov::intel_cpu::node {
 struct ScaledDotProductAttentionKey {
     ov::element::Type rtPrecision;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const ScaledDotProductAttentionKey& rhs) const;
 };
 
@@ -234,7 +234,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         size_t ldc;
         bool b_transposed;
         ov::element::Type in_type;
-        size_t hash() const {
+        [[nodiscard]] size_t hash() const {
             using namespace dnnl::impl;
             using namespace dnnl::impl::primitive_hashing;
             size_t seed = 0;
@@ -387,7 +387,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             auto m_cnt = m_end - m_start;
             size_t tid = parallel_get_thread_num();
             T* q_ptr = &query.at<T>({b, h, m_start, 0});
-            float* c_ptr = weight_score.ptr<float>(ithr, h, 0, 0);
+            auto* c_ptr = weight_score.ptr<float>(ithr, h, 0, 0);
             T* k_ptr = &qk_scratch_b.at<T>({b, h / h_each_group_len, 0});
             qk_gemm_ptr->executeGemm(m_cnt < m_block_size,
                                      q_ptr,
@@ -683,8 +683,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
     explicit MHAKernel(GraphContext::CPtr ctx)
         : context(std::move(ctx)),
           m_block_size(4),
-          m_threads_num(parallel_get_max_threads()),
-          select_nfltmax_at_0(false) {
+          m_threads_num(parallel_get_max_threads()) {
         qk_buffers.resize(m_threads_num);
     }
 
@@ -851,7 +850,7 @@ struct MHASingleToken {
     PlainTensor m_temp;
     PlainTensor m_head_sum;
 
-    MHASingleToken() {}
+    MHASingleToken() = default;
 
     // Q, K, V is ready, do attention
     // query         [B, H, q_len, S]
@@ -1292,7 +1291,7 @@ bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const
             }
         }
 
-        int orgSDPAInput = static_cast<int>(op->get_input_size());
+        auto orgSDPAInput = static_cast<int>(op->get_input_size());
         const auto node = ov::as_type_ptr<const ScaledDotProductAttentionWithKVCache>(op);
         if (node) {
             if (node->get_config().fuse_concat) {
