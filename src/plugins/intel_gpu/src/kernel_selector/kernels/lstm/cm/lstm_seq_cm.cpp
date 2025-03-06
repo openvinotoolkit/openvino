@@ -33,8 +33,7 @@ KernelsData LSTMSeqKernel_CM::GetKernelsData(const Params& params) const {
     KernelData kd = KernelData::Default<lstm_params>(params, 2);
     auto options = std::string(" -Qxcm_jit_option=-DPASTokenReduction "
               " -mllvm --vc-disable-indvars-opt=true "
-              " /Qxcm_jit_option=-enableBCR "
-              " -fcm-pointer /Qxcm_doubleGRF "
+              " /Qxcm_jit_option=-enableBCR /Qxcm_doubleGRF "
               " -DXETLA_CODE_BASE=__CM__ ");
     auto shape_key = std::string {"is"} + std::to_string(shape.input_size);
     auto gemm_entry_point = std::string {"xetla_lstm_gemm_"} + shape_key;
