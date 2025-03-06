@@ -49,22 +49,34 @@ def get_type_from_py_type(value):
     return OVType.dynamic
 
 
+F8_DTYPE_MAP = {
+    torch.float8_e4m3fn: OVType.f8e4m3,
+    torch.float8_e5m2: OVType.f8e5m2,
+}
+
+
 def torch_tensor_to_ov_const(torch_t: torch.Tensor, shared_memory=True):
-    is_fake_tensor = False
     try:
         from torch._prims import FakeTensor
-        is_fake_tensor = isinstance(torch_t, FakeTensor)
-    except:
+        if isinstance(torch_t, FakeTensor):
+            raise AssertionError("`FakeTensor` detected. Infer the "
+                                 "model before exporting to avoid this.")
+    except ImportError:
         pass
-    assert not is_fake_tensor, '`FakeTensor` is found in the graph during conversion. ' \
-                               'In order to avoid `FakeTensor` in the traced model, ' \
-                               'try to infer the model before exporting.'
+
+    dtype = torch_t.dtype
     torch_t = torch_t.contiguous()
-    if torch_t.dtype == torch.bfloat16:
+    if dtype == torch.bfloat16:
         # reinterpret bfloat16 data as float16 to allow conversion to numpy
         torch_t = torch_t.view(torch.float16)
         narr = torch_t.numpy(force=True)
         tensor = Tensor(narr, torch_t.shape, OVType.bf16)
+        ov_const = op.Constant(tensor, shared_memory=shared_memory)
+    elif dtype in F8_DTYPE_MAP:
+        # reinterpret f8 data as u8 to allow conversion to numpy
+        torch_t = torch_t.view(torch.uint8)
+        narr = torch_t.numpy(force=True)
+        tensor = Tensor(narr, torch_t.shape, F8_DTYPE_MAP[dtype])
         ov_const = op.Constant(tensor, shared_memory=shared_memory)
     else:
         narr = torch_t.numpy(force=True)
@@ -126,6 +138,8 @@ pt_to_ov_type_map = {
     "float": OVType.f32,
     "int": OVType.i64,
     "bool": OVType.boolean,
+    "torch.float8_e4m3fn": OVType.f8e4m3,
+    "torch.float8_e5m2": OVType.f8e5m2,
     "torch.bfloat16": OVType.bf16,
     "torch.float16": OVType.f16,
     "torch.float32": OVType.f32,
