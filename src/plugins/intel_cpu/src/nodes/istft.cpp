@@ -218,10 +218,6 @@ void istft_impl(const float* in_data,
                            window_sum.begin() + out_frame_start,
                            func::add<float>);
         }
-    });
-
-    // Postprocessing
-    parallel_for(batch_size, [&](size_t batch) {
         float* result = mid_result.data() + (batch * signal_length);
         std::transform(result,
                        result + signal_length,
