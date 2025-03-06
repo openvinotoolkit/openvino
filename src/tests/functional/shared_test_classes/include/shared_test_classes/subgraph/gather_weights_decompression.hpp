@@ -11,6 +11,12 @@
 namespace ov {
 namespace test {
 
+class GatherWeightsDecompressionBase : virtual public ov::test::SubgraphBaseTest {
+protected:
+    void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override;
+    void check_results(const ov::element::Type& weights_precision);
+};
+
 /*
  *                        Subtract_const(U8/NF4/U4/I4)
  *                             /
@@ -36,7 +42,7 @@ using GatherWeightsDecompressionParams = std::tuple<std::string,        // Devic
                                                     bool>;              // per-tensor zero-point
 
 class GatherWeightsDecompression : public testing::WithParamInterface<GatherWeightsDecompressionParams>,
-                                   virtual public ov::test::SubgraphBaseTest {
+                                   virtual public ov::test::GatherWeightsDecompressionBase {
 public:
     static std::string get_test_case_name(testing::TestParamInfo<GatherWeightsDecompressionParams> obj);
 
@@ -52,7 +58,6 @@ protected:
                                              const bool reshape_on_decompression,
                                              const bool per_tensor_zp,
                                              const bool per_tensor_scale);
-    void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override;
     void check_results();
     void SetUp() override;
 };
@@ -71,7 +76,7 @@ using GatherWeightsDecompressionWithoutScaleParams = std::tuple<std::string,  //
 
 class GatherWeightsDecompressionWithoutScale
     : public testing::WithParamInterface<GatherWeightsDecompressionWithoutScaleParams>,
-      virtual public ov::test::SubgraphBaseTest {
+      virtual public ov::test::GatherWeightsDecompressionBase {
 public:
     static std::string get_test_case_name(testing::TestParamInfo<GatherWeightsDecompressionWithoutScaleParams> obj);
 
@@ -82,7 +87,7 @@ protected:
                                              const int64_t batch_dims,
                                              const ov::element::Type data_precision,
                                              const ov::element::Type output_precision);
-    void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override;
+    void check_results();
     void SetUp() override;
 };
 }  // namespace test
