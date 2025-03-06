@@ -44,6 +44,7 @@ bool has_optimized_version(const ov::Output<ov::Node>& output, bool supports_imm
     static const std::vector<std::vector<size_t>> allowed_orders = {
         {0, 1, 2, 3},
         {0, 1, 3, 2},
+        {1, 2, 3, 0},
         {0, 2, 1, 3},
         {0, 3, 1, 2},
         {1, 2, 0, 3},
