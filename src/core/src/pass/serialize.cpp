@@ -1185,7 +1185,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
     // Serialize rt info
     pugi::xml_node rt_info_node = netXml.append_child("rt_info");
     for (const auto& it : model.get_rt_info()) {
-        // Skip IR version
+        // Skip IR version and Weights path.
         if (it.first == "version" || it.first == "__weights_path")
             continue;
         serialize_rt_info(rt_info_node, it.first, it.second);
@@ -1373,7 +1373,7 @@ bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model
 
     // Blobs
     hdr.consts_offset = m_stream.tellp();
-    std::string name = "net";
+    const std::string name = "net";
     pugi::xml_document xml_doc;
     pugi::xml_node net_node = xml_doc.append_child(name.c_str());
     ConstantWriter constant_write_handler(m_stream);

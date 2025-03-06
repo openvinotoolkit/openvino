@@ -41,6 +41,10 @@ public:
 
     void operator>>(std::shared_ptr<ov::Model>& model);
 
+    void set_weights_path(std::string& weights_path) {
+        m_weights_path = weights_path;
+    }
+
 protected:
     static void set_info(pugi::xml_node& root, std::shared_ptr<ov::Model>& model);
 
@@ -53,6 +57,7 @@ protected:
     CacheDecrypt m_cache_decrypt;
     bool m_decript_from_string;
     std::shared_ptr<ov::AlignedBuffer> m_model_buffer;
+    std::string m_weights_path;
 };
 
 }  // namespace ov::intel_cpu

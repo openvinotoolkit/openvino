@@ -211,7 +211,7 @@ public:
     InputModelIRImpl(std::istream& model,
                      const std::shared_ptr<ov::AlignedBuffer>& weights,
                      const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                     std::string weights_path)
+                     const std::string& weights_path)
         : m_weights(weights),
           m_extensions(extensions),
           m_weights_path(std::move(weights_path)) {
@@ -223,7 +223,7 @@ public:
     InputModelIRImpl(const std::shared_ptr<ov::AlignedBuffer>& model,
                      const std::shared_ptr<ov::AlignedBuffer>& weights,
                      const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                     std::string weights_path)
+                     const std::string& weights_path)
         : m_weights(weights),
           m_extensions(extensions),
           m_weights_path(std::move(weights_path)) {
@@ -246,14 +246,14 @@ private:
 InputModel::InputModel(std::istream& model,
                        const std::shared_ptr<ov::AlignedBuffer>& weights,
                        const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                       std::string weights_path) {
+                       const std::string& weights_path) {
     _impl = std::make_shared<InputModelIRImpl>(model, weights, extensions, std::move(weights_path));
 }
 
 InputModel::InputModel(const std::shared_ptr<ov::AlignedBuffer>& model,
                        const std::shared_ptr<ov::AlignedBuffer>& weights,
                        const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                       std::string weights_path) {
+                       const std::string& weights_path) {
     _impl = std::make_shared<InputModelIRImpl>(model, weights, extensions, std::move(weights_path));
 }
 
