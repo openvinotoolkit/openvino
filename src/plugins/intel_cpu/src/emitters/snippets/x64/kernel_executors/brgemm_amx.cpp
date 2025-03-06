@@ -23,20 +23,23 @@ namespace ov::intel_cpu::x64 {
 BrgemmAMXKernelConfig::BrgemmAMXKernelConfig(const element::Type& in0_dtype,
                                              const element::Type& in1_dtype,
                                              const element::Type& out_dtype,
-                                             dnnl::impl::cpu::x64::cpu_isa_t primitive_isa)
+                                             dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
+                                             const dnnl_post_ops& post_ops)
     : BrgemmBaseKernelConfig(),
-      m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, out_dtype, primitive_isa)) {
+      m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, out_dtype, primitive_isa, post_ops)) {
     m_hash = compute_hash();
 }
 
 BrgemmAMXKernelConfig::StaticParams::StaticParams(const element::Type& in0_dtype,
                                                   const element::Type& in1_dtype,
                                                   const element::Type& out_dtype,
-                                                  dnnl::impl::cpu::x64::cpu_isa_t primitive_isa)
+                                                  dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
+                                                  const dnnl_post_ops& post_ops)
     : StaticBaseParams(in0_dtype,
                        in1_dtype,
                        out_dtype,
                        primitive_isa,
+                       post_ops,
                        compute_hash(INNER_K_BLK(in0_dtype), VNNI_FACTOR(in0_dtype))),
       inner_k_blk(INNER_K_BLK(in0_dtype)),
       vnni_factor(VNNI_FACTOR(in0_dtype)) {}
@@ -141,6 +144,7 @@ std::shared_ptr<BrgemmAMXCompiledKernel> BrgemmAMXKernelExecutor::compile_kernel
                              k.get_LDB(),
                              k.get_LDC(),
                              k.get_beta(),
+                             k.get_post_ops(),
                              true,
                              ker->palette);
         return ker;

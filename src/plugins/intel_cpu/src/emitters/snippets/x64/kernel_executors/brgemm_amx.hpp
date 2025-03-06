@@ -17,7 +17,8 @@ public:
     BrgemmAMXKernelConfig(const element::Type& in0_dtype,
                           const element::Type& in1_dtype,
                           const element::Type& out_dtype,
-                          dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
+                          dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
+                          const dnnl_post_ops& post_ops);
     BrgemmAMXKernelConfig() = delete;
 
     std::unique_ptr<GenericConfig> get_clone_ptr() const override {
@@ -38,7 +39,8 @@ private:
         StaticParams(const element::Type& in0_dtype,
                      const element::Type& in1_dtype,
                      const element::Type& out_dtype,
-                     dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
+                     dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
+                     const dnnl_post_ops& post_ops);
 
         const dnnl_dim_t inner_k_blk{0};
         const dnnl_dim_t vnni_factor{0};

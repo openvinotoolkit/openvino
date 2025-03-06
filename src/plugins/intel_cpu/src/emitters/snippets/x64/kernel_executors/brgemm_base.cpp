@@ -46,27 +46,39 @@ BrgemmBaseKernelConfig::StaticBaseParams::StaticBaseParams(const element::Type& 
                                                            const element::Type& in1_dtype,
                                                            const element::Type& out_dtype,
                                                            cpu_isa_t primitive_isa,
+                                                           const dnnl_post_ops& post_ops,
                                                            size_t hash_seed)
     : dt_in0(DTYPE_CAST(in0_dtype)),
       dt_in1(DTYPE_CAST(in1_dtype)),
       dt_out(DTYPE_CAST(out_dtype)),
       isa(primitive_isa),
-      m_hash(compute_hash(hash_seed, dt_in0, dt_in1, dt_out, isa)) {}
+      post_ops(post_ops),
+      m_hash(compute_hash(hash_seed, dt_in0, dt_in1, dt_out, isa, post_ops)) {}
 
 bool BrgemmBaseKernelConfig::StaticBaseParams::operator==(const StaticBaseParams& rhs) const {
-    return EQ(hash()) && EQ(dt_in0) && EQ(dt_in1) && EQ(dt_out) && EQ(isa);
+    return EQ(hash()) && EQ(dt_in0) && EQ(dt_in1) && EQ(dt_out) && EQ(isa) && EQ(post_ops);
 }
 
 size_t BrgemmBaseKernelConfig::StaticBaseParams::compute_hash(size_t hash_seed,
                                                               dnnl_data_type_t dt_in0,
                                                               dnnl_data_type_t dt_in1,
                                                               dnnl_data_type_t dt_out,
-                                                              cpu_isa_t isa) {
+                                                              cpu_isa_t isa,
+                                                              const dnnl_post_ops& post_ops) {
     size_t seed = hash_seed;
     HASH(dt_in0);
     HASH(dt_in1);
     HASH(dt_out);
     HASH(isa);
+    // for (int i = 0; i < post_ops.len(); i++) {
+    //     const auto& entry = post_ops.entry_[i];
+    //     HASH(entry.kind);
+    //     if (entry.kind == dnnl::primitive_kind::eltwise) {
+    //         HASH(entry.eltwise.alg);
+    //         HASH(entry.eltwise.alpha);
+    //         HASH(entry.eltwise.beta);
+    //     }
+    // }
     return seed;
 }
 
@@ -77,6 +89,15 @@ std::string BrgemmBaseKernelConfig::StaticBaseParams::to_string() const {
     PRINT(dt_in1);
     PRINT(dt_out);
     PRINT(isa);
+    // ss << "post_ops = ";
+    // for (int i = 0; i < post_ops.len(); i++) {
+    //     const auto& entry = post_ops.entry_[i];
+    //     ss << entry.kind << " ";
+    //     if (entry.kind == dnnl::primitive_kind::eltwise) {
+    //         ss << entry.eltwise.alg << " " << entry.eltwise.alpha << " " << entry.eltwise.beta << " ";
+    //     }
+    // }
+    // ss << "\n";
     return ss.str();
 }
 
@@ -121,6 +142,7 @@ void BrgemmBaseKernelExecutor::create_brgemm_kernel(std::shared_ptr<brgemm_kerne
                                                     dnnl_dim_t LDB,
                                                     dnnl_dim_t LDC,
                                                     float beta,
+                                                    const dnnl_post_ops& post_ops,
                                                     bool with_amx,
                                                     char* palette) {
     std::cout << "[ INFO ] Brgemm kernel params:" << std::endl;
@@ -148,8 +170,10 @@ void BrgemmBaseKernelExecutor::create_brgemm_kernel(std::shared_ptr<brgemm_kerne
                               "Cannot initialize brgemm descriptor due to invalid params");
 
     // TODO: place postops fusion here
+    primitive_attr_t attr;
+    attr.set_post_ops(post_ops);
     dnnl::memory::desc dst_desc({M, N}, static_cast<dnnl::memory::data_type>(dt_out), dnnl::memory::format_tag::any);
-    brgemm_desc_set_postops(&desc, nullptr, dst_desc.get(), LDC);
+    brgemm_desc_set_postops(&desc, &attr, dst_desc.get(), LDC);
 
     std::cout << "[ INFO ] Brgemm desc creation:" << std::endl;
     std::cout << "\t desc.dt_a: " << desc.dt_a << std::endl;
