@@ -97,7 +97,7 @@ void LayoutJitter::make_definitions(const layout& l, size_t shape_info_offset) {
             vals_ordered.push_back(ov::Dimension(1));
         else
             vals_ordered.push_back(pshape[axis_order[i]]);
-    };
+    }
 
     ov::Strides strides{};
     if (is_static) {
@@ -470,45 +470,6 @@ JitConstants make_layout_jit_constants(const std::string& name, const cldnn::lay
     };
 
     definitions.add(make_type_jit_constants(name, value.data_type));
-
-
-    if (value.is_static()) {
-
-        // definitions.push_back(
-        //     {name + "_SIZES_DATA",
-        //     toVectorString(t.GetDims(), "", KERNEL_SELECTOR_TENSOR_DIM_MAX, 1, [](const Tensor::Dim& d) { return d.v; })});
-        // definitions.push_back(
-        //     {name + "_PITCHES",
-        //     toVectorString(t.GetDims(), "size_t", KERNEL_SELECTOR_TENSOR_DIM_MAX, 1, [](const Tensor::Dim& d) { return d.pitch; })});
-    } else {
-        // calculate tensor offset
-        // std::vector<std::string> padded_pitches = {
-        //     toVectorMulString({name + "_X_PITCH", name + "_PAD_BEFORE_SIZE_X"}),
-        //     toVectorMulString({name + "_Y_PITCH", name + "_PAD_BEFORE_SIZE_Y"}),
-        //     toVectorMulString({name + "_Z_PITCH", name + "_PAD_BEFORE_SIZE_Z"}),
-        //     toVectorMulString({name + "_W_PITCH", name + "_PAD_BEFORE_SIZE_W"}),
-        //     toVectorMulString({name + "_FEATURE_PITCH", name + "_PAD_BEFORE_FEATURE_NUM"}),
-        //     toVectorMulString({name + "_BATCH_PITCH", name + "_PAD_BEFORE_BATCH_NUM"})};
-        // std::string offset_str = "(";
-        // for (size_t i = 0; i < padded_pitches.size(); ++i) {
-        //     offset_str += padded_pitches[i];
-        //     if (i < padded_pitches.size() - 1)
-        //         offset_str += " + ";
-        // }
-        // offset_str += ")";
-        // definitions.push_back({name + "_OFFSET", offset_str});
-    }
-    // definitions.push_back(
-    //     {name + "_PAD_BEFORE",
-    //         toVectorString(t.GetDims(), "size_t", layout::max_rank(), 0, [](const Tensor::Dim& d) {
-    //             return d.pad.before;
-    //         })});
-    // definitions.push_back(
-    //     {name + "_PAD_AFTER",
-    //         toVectorString(t.GetDims(), "size_t", layout::max_rank(), 0, [](const Tensor::Dim& d) {
-    //             return d.pad.after;
-    //         })});
-
 
     if (format::is_weights_format(value.format)) {
         LayoutJitter jitter(value, shape_info_offset);
