@@ -195,27 +195,9 @@ void program_node::remove_dependency(size_t idx) {
     dependencies.erase(dependencies.begin() + idx);
 }
 
-const std::unordered_set<uint32_t>& program_node::get_memory_dependencies() const {
-    // Monitor performance
-    // if (org_id.find("split:Multiply_31737_fused_3_Multiply_split.out2") != std::string::npos) {
-    //     std::cout << "#########caught split:Multiply_31737_fused_3_Multiply_split.out2 here2!\n\n";
-    // }
-    std::cout << this->org_id << " type " << cldnn::prim_map_storage::instance().get_type_string(type())
-        << ", program id: " << get_program().get_id()
-        << ", likely from memory pool: " << likely_from_mempool()
-        << ", set size: " << memory_dependencies.size()
-        << ", Bucket count: " << memory_dependencies.bucket_count()
-        << ", Load factor: " << memory_dependencies.load_factor() << std::endl;
-    return memory_dependencies;
-}
+const std::unordered_set<uint32_t>& program_node::get_memory_dependencies() const { return memory_dependencies; }
 
-void program_node::add_memory_dependency(size_t prim) { 
-    // if (org_id.find("constant:self.model.layers.28.self_attn.o_proj.weight") != std::string::npos) {
-    //     std::cout << "#########caught Constant node " << org_id << " type " << cldnn::prim_map_storage::instance().get_type_string(type())
-    //     << ", program id: " << get_program().get_id() << " which tries to insert " << prim << "\n\n";
-    // }
-    memory_dependencies.insert(prim);
-}
+void program_node::add_memory_dependency(size_t prim) { memory_dependencies.insert(prim); }
 
 void program_node::add_memory_dependency(std::vector<size_t> prim_list) {
     memory_dependencies.insert(prim_list.begin(), prim_list.end());

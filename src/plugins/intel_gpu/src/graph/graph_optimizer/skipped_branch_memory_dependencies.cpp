@@ -19,7 +19,7 @@ void skipped_branch_memory_dependencies::run(program& p) {
     while (itrB != processing_order.end()) {
         auto& nodeB = *itrB;
         auto itrA = ++itrB;
-        if (nodeB->is_type<data>())
+        if (!nodeB->likely_from_mempool())
             continue;
         if (nodeB->get_users().size() == 0)
             continue;

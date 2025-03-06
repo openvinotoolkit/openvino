@@ -61,8 +61,6 @@ public:
             buffer >> el;
             set.insert(el);
         }
-        // Monitor performance
-        // std::cout << "load(): set size: " << set.size() << ", Bucket count: " << set.bucket_count() << ", Load factor: " << set.load_factor() << std::endl;
     }
 };
 
