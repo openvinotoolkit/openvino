@@ -1412,7 +1412,7 @@ void rotate_kv_cache(PlainTensor& key_cache,
     }
 }
 
-template <typename DATA_TYPE, typename KEY_CACHE_TYPE, ov::element::Type_t VALUE_PREC>
+template <typename DATA_TYPE, ov::element::Type_t KEY_PREC, ov::element::Type_t VALUE_PREC>
 struct MHAHelper {
     // initialize once
     size_t _H;
@@ -1559,12 +1559,12 @@ struct MHAHelper {
 #    if defined(OPENVINO_ARCH_X86_64)
             if ((S % 32 == 0) && (block_size % 16 == 0) && (S <= 32 * 6)) {
                 if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16) &&
-                    precision_of<DATA_TYPE>::value == ov::element::bf16 &&
-                    precision_of<KEY_CACHE_TYPE>::value == ov::element::bf16 && VALUE_PREC == ov::element::bf16) {
+                    precision_of<DATA_TYPE>::value == ov::element::bf16 && KEY_PREC == ov::element::bf16 &&
+                    VALUE_PREC == ov::element::bf16) {
                     _fastpath_valid_prec = ov::element::bf16;
                 } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_fp16) &&
-                           precision_of<DATA_TYPE>::value == ov::element::f16 &&
-                           precision_of<KEY_CACHE_TYPE>::value == ov::element::f16 && VALUE_PREC == ov::element::f16) {
+                           precision_of<DATA_TYPE>::value == ov::element::f16 && KEY_PREC == ov::element::f16 &&
+                           VALUE_PREC == ov::element::f16) {
                     _fastpath_valid_prec = ov::element::f16;
                 }
             }
@@ -1786,9 +1786,10 @@ struct MHAHelper {
                 auto block_number = block_table[i];
                 for (size_t pq = 0; pq < q_len; pq++) {
                     for (size_t h = hq_beg; h < hq_end; h++) {
-                        (*_gemv)(query.ptr<DATA_TYPE>(h, pq),
-                                 present_key.ptr<KEY_CACHE_TYPE>(block_number, hk),
-                                 _weight.ptr<float>(ithr, h, pq) + pk);
+                        (*_gemv)(
+                            query.ptr<DATA_TYPE>(h, pq),
+                            present_key.ptr<typename ov::element_type_traits<KEY_PREC>::value_type>(block_number, hk),
+                            _weight.ptr<float>(ithr, h, pq) + pk);
                     }
                 }
             }
@@ -1799,19 +1800,21 @@ struct MHAHelper {
                 auto block_number = block_table[i];
                 for (size_t pq = 0; pq < q_len; pq++) {
                     for (size_t h = hq_beg; h < hq_end; h++) {
-                        if (precision_of<KEY_CACHE_TYPE>::value == ov::element::u8 && _quant_key_bychannel) {
+                        if (KEY_PREC == ov::element::u8 && _quant_key_bychannel) {
                             dot_product_block_by_channel(query.ptr<DATA_TYPE>(h, pq),
                                                          present_key.ptr<uint8_t>(block_number, hk),
                                                          _weight.ptr<float>(ithr, h, pq) + pk,
                                                          _S,
                                                          std::min(_block_size, cur_kv_len - pk));
                         } else {
-                            dot_product_block(query.ptr<DATA_TYPE>(h, pq),
-                                              present_key.ptr<KEY_CACHE_TYPE>(block_number, hk),
-                                              _weight.ptr<float>(ithr, h, pq) + pk,
-                                              _S,
-                                              std::min(_block_size, cur_kv_len - pk),
-                                              _key_group_size);
+                            dot_product_block(
+                                query.ptr<DATA_TYPE>(h, pq),
+                                present_key.ptr<typename ov::element_type_traits<KEY_PREC>::value_type>(block_number,
+                                                                                                        hk),
+                                _weight.ptr<float>(ithr, h, pq) + pk,
+                                _S,
+                                std::min(_block_size, cur_kv_len - pk),
+                                _key_group_size);
                         }
                     }
                 }
@@ -1945,9 +1948,10 @@ struct MHAHelper {
                     _gemv->tile_config();
                     for (size_t pq = 0; pq < q_len; pq++) {
                         for (size_t h = hq_beg; h < hq_end; h++) {
-                            (*_gemv)(query.ptr<DATA_TYPE>(b, h, pq),
-                                     key_cache.ptr<KEY_CACHE_TYPE>(block_number, hk),
-                                     _weight_bhl.ptr<float>(b, h, pq) + pk);
+                            (*_gemv)(
+                                query.ptr<DATA_TYPE>(b, h, pq),
+                                key_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type>(block_number, hk),
+                                _weight_bhl.ptr<float>(b, h, pq) + pk);
                         }
                     }
                     _gemv->tile_release();
@@ -1955,19 +1959,21 @@ struct MHAHelper {
 #    endif
                     for (size_t pq = 0; pq < q_len; pq++) {
                         for (size_t h = hq_beg; h < hq_end; h++) {
-                            if (precision_of<KEY_CACHE_TYPE>::value == ov::element::u8 && _quant_key_bychannel) {
+                            if (KEY_PREC == ov::element::u8 && _quant_key_bychannel) {
                                 dot_product_block_by_channel(query.ptr<DATA_TYPE>(b, h, pq),
                                                              key_cache.ptr<uint8_t>(block_number, hk),
                                                              _weight_bhl.ptr<float>(b, h, pq) + pk,
                                                              _S,
                                                              std::min(_block_size, context_len - pk));
                             } else {
-                                dot_product_block(query.ptr<DATA_TYPE>(b, h, pq),
-                                                  key_cache.ptr<KEY_CACHE_TYPE>(block_number, hk),
-                                                  _weight_bhl.ptr<float>(b, h, pq) + pk,
-                                                  _S,
-                                                  std::min(_block_size, context_len - pk),
-                                                  _key_group_size);
+                                dot_product_block(
+                                    query.ptr<DATA_TYPE>(b, h, pq),
+                                    key_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type>(block_number,
+                                                                                                          hk),
+                                    _weight_bhl.ptr<float>(b, h, pq) + pk,
+                                    _S,
+                                    std::min(_block_size, context_len - pk),
+                                    _key_group_size);
                             }
                         }
                     }
@@ -2071,9 +2077,9 @@ struct MHAHelper {
     }
 };
 
-template <typename DATA_TYPE, typename KEY_CACHE_TYPE, ov::element::Type_t VALUE_PREC>
+template <typename DATA_TYPE, ov::element::Type_t KEY_PREC, ov::element::Type_t VALUE_PREC>
 struct MHA {
-    MHAHelper<DATA_TYPE, KEY_CACHE_TYPE, VALUE_PREC>& _helper;
+    MHAHelper<DATA_TYPE, KEY_PREC, VALUE_PREC>& _helper;
     struct AttnWorkItem {
         int32_t batch_in_reorder;  // which batch in reorder buffer will be used
         int32_t batch_in_seq;      // batch idx in sequence
@@ -2173,7 +2179,7 @@ struct MHA {
 
     WorkItems _workitems;
 
-    MHA(MHAHelper<DATA_TYPE, KEY_CACHE_TYPE, VALUE_PREC>& helper) : _helper(helper) {}
+    MHA(MHAHelper<DATA_TYPE, KEY_PREC, VALUE_PREC>& helper) : _helper(helper) {}
 
     // one loop to handle first and second tokens
     void exec_loop_mixed(const PlainTensor& q,
@@ -2211,9 +2217,9 @@ struct MHA {
             }
 
             auto ithr = parallel_get_thread_num();
-            auto* k_ptr = k_cache.ptr<KEY_CACHE_TYPE>(block_number, hk);
+            auto* k_ptr = k_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type>(block_number, hk);
 
-            transpose_16NxK<DATA_TYPE, precision_of<KEY_CACHE_TYPE>::value>(
+            transpose_16NxK<DATA_TYPE, KEY_PREC>(
                 _helper._qk_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
                 k_ptr,
                 _helper._output.template ptr<DATA_TYPE>(ithr),
@@ -2401,17 +2407,16 @@ struct MHA {
     }
 };
 
-template <typename DATA_TYPE, typename KEY_CACHE_TYPE, ov::element::Type_t VALUE_PREC>
+template <typename DATA_TYPE, ov::element::Type_t KEY_PREC, ov::element::Type_t VALUE_PREC>
 struct AttentionExecutor : public PagedAttentionExecutor {
-    MHAHelper<DATA_TYPE, KEY_CACHE_TYPE, VALUE_PREC> _helper;
-    MHA<DATA_TYPE, KEY_CACHE_TYPE, VALUE_PREC> _kernel;
+    MHAHelper<DATA_TYPE, KEY_PREC, VALUE_PREC> _helper;
+    MHA<DATA_TYPE, KEY_PREC, VALUE_PREC> _kernel;
     PlainTensor _slot_mapping;
 
     AttentionExecutor() : _kernel(_helper) {}
 
     explicit AttentionExecutor(size_t key_group_size, size_t value_group_size, bool quant_key_bychannel)
-        : _helper(
-              MHAHelper<DATA_TYPE, KEY_CACHE_TYPE, VALUE_PREC>(key_group_size, value_group_size, quant_key_bychannel)),
+        : _helper(MHAHelper<DATA_TYPE, KEY_PREC, VALUE_PREC>(key_group_size, value_group_size, quant_key_bychannel)),
           _kernel(_helper) {}
 
     void init(const std::vector<MemoryPtr>& inputs,
@@ -2699,11 +2704,12 @@ struct AttentionExecutor : public PagedAttentionExecutor {
              output_score);
 
         if (rotated_block_indices) {
-            rotate_kv_cache<KEY_CACHE_TYPE>(k_cache,
-                                            rotated_block_indices,
-                                            rotation_deltas,
-                                            rotation_trig_lut,
-                                            _helper._block_rotation_coefficient_scratch);
+            rotate_kv_cache<typename ov::element_type_traits<KEY_PREC>::value_type>(
+                k_cache,
+                rotated_block_indices,
+                rotation_deltas,
+                rotation_trig_lut,
+                _helper._block_rotation_coefficient_scratch);
         }
 
         concat_pastkv(k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins);
@@ -2735,15 +2741,15 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
 #    if defined(HAVE_AVX512F)
         if (key_cache_type == ov::element::u8) {
             if (value_cache_type == ov::element::u4) {
-                executor =
-                    std::make_shared<AttentionExecutor<ov::bfloat16, uint8_t, ov::element::u4>>(key_group_size,
-                                                                                                value_group_size,
-                                                                                                quant_key_bychannel);
+                executor = std::make_shared<AttentionExecutor<ov::bfloat16, ov::element::u8, ov::element::u4>>(
+                    key_group_size,
+                    value_group_size,
+                    quant_key_bychannel);
             } else if (value_cache_type == ov::element::u8) {
-                executor =
-                    std::make_shared<AttentionExecutor<ov::bfloat16, uint8_t, ov::element::u8>>(key_group_size,
-                                                                                                value_group_size,
-                                                                                                quant_key_bychannel);
+                executor = std::make_shared<AttentionExecutor<ov::bfloat16, ov::element::u8, ov::element::u8>>(
+                    key_group_size,
+                    value_group_size,
+                    quant_key_bychannel);
             } else {
                 OPENVINO_THROW("make_pa_executor: key_cache_type u8 with value_cache_type ",
                                value_cache_type.to_string(),
@@ -2752,7 +2758,7 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
 
         } else {
             OPENVINO_ASSERT(key_cache_type == ov::element::bf16, "expect kvcache type bf16, current: ", key_cache_type);
-            executor = std::make_shared<AttentionExecutor<ov::bfloat16, ov::bfloat16, ov::element::bf16>>();
+            executor = std::make_shared<AttentionExecutor<ov::bfloat16, ov::element::bf16, ov::element::bf16>>();
         }
 #    else
         OPENVINO_THROW("make_pa_executor: bf16 needs avx512+ hardware.");
@@ -2761,15 +2767,15 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
 #    if defined(HAVE_AVX512F)
         if (key_cache_type == ov::element::u8) {
             if (value_cache_type == ov::element::u4) {
-                executor =
-                    std::make_shared<AttentionExecutor<ov::float16, uint8_t, ov::element::u4>>(key_group_size,
-                                                                                               value_group_size,
-                                                                                               quant_key_bychannel);
+                executor = std::make_shared<AttentionExecutor<ov::float16, ov::element::u8, ov::element::u4>>(
+                    key_group_size,
+                    value_group_size,
+                    quant_key_bychannel);
             } else if (value_cache_type == ov::element::u8) {
-                executor =
-                    std::make_shared<AttentionExecutor<ov::float16, uint8_t, ov::element::u8>>(key_group_size,
-                                                                                               value_group_size,
-                                                                                               quant_key_bychannel);
+                executor = std::make_shared<AttentionExecutor<ov::float16, ov::element::u8, ov::element::u8>>(
+                    key_group_size,
+                    value_group_size,
+                    quant_key_bychannel);
             } else {
                 OPENVINO_THROW("make_pa_executor: key_cache_type u8 with value_cache_type ",
                                value_cache_type.to_string(),
@@ -2777,7 +2783,7 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
             }
         } else {
             OPENVINO_ASSERT(key_cache_type == ov::element::f16, "expect kvcache type f16, current: ", key_cache_type);
-            executor = std::make_shared<AttentionExecutor<ov::float16, ov::float16, ov::element::f16>>();
+            executor = std::make_shared<AttentionExecutor<ov::float16, ov::element::f16, ov::element::f16>>();
         }
 #    else
         OPENVINO_THROW("make_pa_executor: f16 needs avx512+ hardware.");
@@ -2785,27 +2791,31 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
     } else if (data_type == ov::element::f32) {
         if (key_cache_type == ov::element::u8) {
             if (value_cache_type == ov::element::u4) {
-                executor = std::make_shared<AttentionExecutor<float, uint8_t, ov::element::u4>>(key_group_size,
-                                                                                                value_group_size,
-                                                                                                quant_key_bychannel);
+                executor =
+                    std::make_shared<AttentionExecutor<float, ov::element::u8, ov::element::u4>>(key_group_size,
+                                                                                                 value_group_size,
+                                                                                                 quant_key_bychannel);
             } else if (value_cache_type == ov::element::u8) {
-                executor = std::make_shared<AttentionExecutor<float, uint8_t, ov::element::u8>>(key_group_size,
-                                                                                                value_group_size,
-                                                                                                quant_key_bychannel);
+                executor =
+                    std::make_shared<AttentionExecutor<float, ov::element::u8, ov::element::u8>>(key_group_size,
+                                                                                                 value_group_size,
+                                                                                                 quant_key_bychannel);
             } else {
                 OPENVINO_THROW("make_pa_executor: key_cache_type u8 with value_cache_type ",
                                value_cache_type.to_string(),
                                " is not support");
             }
         } else if (key_cache_type == ov::element::f16) {
-            executor = std::make_shared<AttentionExecutor<float, ov::float16, ov::element::f16>>(key_group_size,
-                                                                                                 value_group_size,
-                                                                                                 quant_key_bychannel);
+            executor =
+                std::make_shared<AttentionExecutor<float, ov::element::f16, ov::element::f16>>(key_group_size,
+                                                                                               value_group_size,
+                                                                                               quant_key_bychannel);
         } else {
             OPENVINO_ASSERT(key_cache_type == ov::element::f32, "expect kvcache type f32, current: ", key_cache_type);
-            executor = std::make_shared<AttentionExecutor<float, float, ov::element::f32>>(key_group_size,
-                                                                                           value_group_size,
-                                                                                           quant_key_bychannel);
+            executor =
+                std::make_shared<AttentionExecutor<float, ov::element::f32, ov::element::f32>>(key_group_size,
+                                                                                               value_group_size,
+                                                                                               quant_key_bychannel);
         }
     } else {
         OPENVINO_THROW("make_pa_executor: unsupported precision: ", data_type);
@@ -2813,9 +2823,10 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
 #elif (defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE))
     if (data_type == ov::element::f32) {
         if (key_cache_type == ov::element::u8 && value_cache_type == ov::element::u8) {
-            executor = std::make_shared<AttentionExecutor<float, uint8_t, ov::element::u8>>(key_group_size,
-                                                                                            value_group_size,
-                                                                                            quant_key_bychannel);
+            executor =
+                std::make_shared<AttentionExecutor<float, ov::element::u8, ov::element::u8>>(key_group_size,
+                                                                                             value_group_size,
+                                                                                             quant_key_bychannel);
         } else {
             OPENVINO_THROW("make_pa_executor: key_cache_type and value_cache_type of u8 is only support");
         }
