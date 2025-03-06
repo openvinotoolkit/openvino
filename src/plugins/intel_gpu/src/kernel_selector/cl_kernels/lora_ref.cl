@@ -37,9 +37,11 @@ KERNEL(lora_ref)(OPTIONAL_SHAPE_INFO_ARG
     barrier(CLK_LOCAL_MEM_FENCE);
 
     ACCUMULATOR_TYPE final_acc = ACCUMULATOR_VAL_ZERO;
-    uint processing_size = INPUT0_SIZE_Y * INPUT0_SIZE_X / LORA_RANK;
-    uint leftover = (INPUT0_SIZE_Y * INPUT0_SIZE_X) % LORA_RANK;
-    uint new_yx = yx + processing_size * local_id;
+    uint new_yx = yx * LORA_RANK + local_id;
+
+    if (new_yx >= INPUT0_SIZE_Y * INPUT0_SIZE_X) {
+        return;
+    }
 
     for (uint ki = 0; ki < LORA_RANK; ++ki) {
         uint state_b_idx = new_yx * LORA_RANK + ki;
@@ -48,19 +50,6 @@ KERNEL(lora_ref)(OPTIONAL_SHAPE_INFO_ARG
     }
     uint output_idx = bf * INPUT0_SIZE_Y * INPUT0_SIZE_X + new_yx;
     output[output_idx] = TO_OUTPUT_TYPE(final_acc) + main_input[output_idx];
-
-    if (local_id < leftover) {
-        uint offset = processing_size * LORA_RANK;
-        final_acc = ACCUMULATOR_VAL_ZERO;
-
-        for (uint ki = 0; ki < LORA_RANK; ++ki) {
-            uint state_b_idx = (offset + local_id) * LORA_RANK + ki;
-
-            final_acc = mad(tmp_buf[ki], TO_ACCUMULATOR_TYPE(state_b[state_b_idx]), final_acc);
-        }
-        output_idx = bf * INPUT0_SIZE_Y * INPUT0_SIZE_X + offset + local_id;
-        output[output_idx] = TO_OUTPUT_TYPE(final_acc) + main_input[output_idx];
-    }
 }
 
 #else
@@ -148,6 +137,7 @@ KERNEL(lora_ref)(OPTIONAL_SHAPE_INFO_ARG
 #endif
     };
 
+    __attribute__((opencl_unroll_hint(LORA_COUNT)))
     for (uint i = 0; i < LORA_COUNT; ++i) {
         uint tmp_offset = i * LORA_RANK;
 

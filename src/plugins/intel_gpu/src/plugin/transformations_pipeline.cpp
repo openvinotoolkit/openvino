@@ -871,6 +871,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         manager.register_pass<ov::pass::LoraSubgraphFusion>();
+        pass_config->set_callback<ov::pass::LoraSubgraphFusion>(
+            [](const_node_ptr& add) -> bool {
+                auto first_dep = add->get_input_node_shared_ptr(0);
+                auto second_dep = add->get_input_node_shared_ptr(1);
+                return ov::is_type<ov::op::v1::Convolution>(first_dep) ||
+                       ov::is_type<ov::op::v1::Convolution>(second_dep);
+        });
 
         manager.run_passes(func);
     }
