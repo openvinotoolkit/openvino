@@ -565,7 +565,7 @@ void Concat::exec1DCase() {
 void Concat::execNspcSpecCase() {
     const auto& dst_memory = getChildEdgeAt(0)->getMemory();
     const size_t num_src = getParentEdges().size();
-    uint8_t* dst_ptr = dst_memory.getDataAs<uint8_t>();
+    auto* dst_ptr = dst_memory.getDataAs<uint8_t>();
     const size_t dataSize = DnnlExtensionUtils::sizeOfDataType(dst_memory.getDataType());
 
     std::vector<size_t> channelsDataSize;
@@ -607,7 +607,7 @@ void Concat::execNspcSpecCase() {
 void Concat::execRef() {
     const size_t numSrc = getParentEdges().size();
     const auto& dstMemory = getChildEdgeAt(0)->getMemory();
-    uint8_t* dstPtr = dstMemory.getDataAs<uint8_t>();
+    auto* dstPtr = dstMemory.getDataAs<uint8_t>();
     for (size_t i = 0; i < numSrc; i++) {
         const auto& srcMem = getParentEdgeAt(i)->getMemory();
         srcPtrs[i] = srcMem.getDataAs<const uint8_t>();

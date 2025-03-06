@@ -53,15 +53,15 @@ struct jit_eltwise_call_args_indexes {
 };
 
 struct jit_uni_eltwise_kernel {
-    void (*ker_)(const jit_eltwise_call_args_ptrs*, const jit_eltwise_call_args_indexes*);
+    void (*ker_)(const jit_eltwise_call_args_ptrs*, const jit_eltwise_call_args_indexes*){nullptr};
 
     void operator()(const jit_eltwise_call_args_ptrs* const_args, const jit_eltwise_call_args_indexes* indexes) {
         assert(ker_);
         ker_(const_args, indexes);
     }
 
-    explicit jit_uni_eltwise_kernel(jit_eltwise_params jep) : ker_(nullptr), jep_(std::move(jep)) {}
-    virtual ~jit_uni_eltwise_kernel() {}
+    explicit jit_uni_eltwise_kernel(jit_eltwise_params jep) : jep_(std::move(jep)) {}
+    virtual ~jit_uni_eltwise_kernel() = default;
 
     virtual void create_ker() = 0;
 
