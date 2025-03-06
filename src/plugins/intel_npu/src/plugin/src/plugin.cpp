@@ -183,7 +183,6 @@ Plugin::Plugin()
 }
 
 void Plugin::init_options() {
-    OV_ITT_TASK_NEXT(PLUGIN, "initOptions");
     // Initialize (note: it will reset registered options)
     _options->reset();
 
