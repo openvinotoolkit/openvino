@@ -45,7 +45,6 @@ public:
 
     bool isOptionSupported(std::string optname) const;
 
-
     void getGraphBinary(ze_graph_handle_t graphHandle,
                         std::vector<uint8_t>& blob,
                         const uint8_t*& blobPtr,
