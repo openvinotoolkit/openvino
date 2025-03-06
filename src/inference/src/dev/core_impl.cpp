@@ -29,6 +29,7 @@
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/log.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "openvino/util/variant_visitor.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
@@ -841,6 +842,13 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
         cacheContent.model = model;
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
+
+        const auto& rt_info = model->get_rt_info();
+        auto weights_path = rt_info.find("__weights_path");
+        if (weights_path != rt_info.end()) {
+            parsed._config[ov::weights_path.name()] = weights_path->second;
+        }
+
         res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
             return compile_model_and_cache(plugin,
                                            model,
@@ -1593,9 +1601,11 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
         // throw;
     }
 
-    // fallback scenario
-    if (!compiled_model)
+    // Fallback scenario
+    if (!compiled_model) {
+        OPENVINO_WARN("Could not load model from cache.");
         compiled_model = compile_model_lambda();
+    }
 
     return compiled_model;
 }
@@ -1771,9 +1781,10 @@ std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& model,
 }
 
 std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::shared_ptr<AlignedBuffer>& model,
-                                                    const std::shared_ptr<AlignedBuffer>& weights) const {
+                                                    const std::shared_ptr<AlignedBuffer>& weights,
+                                                    const std::shared_ptr<AlignedBuffer>& origin_weights) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from memory");
-    return ov::util::read_model(model, weights, get_extensions_copy());
+    return ov::util::read_model(model, weights, origin_weights, get_extensions_copy());
 }
 
 std::map<std::string, ov::Version> ov::CoreImpl::get_versions(const std::string& deviceName) const {

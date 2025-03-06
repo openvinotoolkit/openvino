@@ -36,11 +36,13 @@ ModelDeserializer::ModelDeserializer(std::istream& model_stream,
                                      std::shared_ptr<ov::AlignedBuffer> model_buffer,
                                      ModelBuilder fn,
                                      const CacheDecrypt& decrypt_fn,
-                                     bool decript_from_string)
+                                     bool decript_from_string,
+                                     const std::string& origin_weights_path)
     : m_istream(model_stream),
       m_model_builder(std::move(fn)),
       m_decript_from_string(decript_from_string),
-      m_model_buffer(std::move(model_buffer)) {
+      m_model_buffer(std::move(model_buffer)),
+      m_origin_weights_path(origin_weights_path) {
     if (m_decript_from_string) {
         m_cache_decrypt.m_decrypt_str = decrypt_fn.m_decrypt_str;
     } else {
@@ -99,6 +101,12 @@ void ModelDeserializer::process_mmap(std::shared_ptr<ov::Model>& model,
                                                                                    hdr.consts_size,
                                                                                    mmemory);
     }
+    std::shared_ptr<ov::AlignedBuffer> origin_weights_buf;
+    if (!m_origin_weights_path.empty()) {
+        auto mmap = ov::load_mmap_object(m_origin_weights_path);
+        origin_weights_buf =
+            std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mmap->data(), mmap->size(), mmap);
+    }
 
     // XML content
     auto xml_buff = std::make_shared<std::string>();
@@ -116,7 +124,7 @@ void ModelDeserializer::process_mmap(std::shared_ptr<ov::Model>& model,
     std::shared_ptr<ov::AlignedBuffer> model_buf =
         std::make_shared<ov::SharedBuffer<std::shared_ptr<std::string>>>(&((*xml_buff)[0]), hdr.model_size, xml_buff);
 
-    model = m_model_builder(model_buf, weights_buf);
+    model = m_model_builder(model_buf, weights_buf, origin_weights_buf);
 
     // Set Info
     pugi::xml_node root = xml_in_out_doc.child("cnndata");
@@ -161,6 +169,12 @@ void ModelDeserializer::process_stream(std::shared_ptr<ov::Model>& model) {
     if (hdr.consts_size) {
         m_istream.read(static_cast<char*>(data_blob->data(ov::element::u8)), hdr.consts_size);
     }
+    std::shared_ptr<ov::AlignedBuffer> origin_weights_buf;
+    if (!m_origin_weights_path.empty()) {
+        auto mmap = ov::load_mmap_object(m_origin_weights_path);
+        origin_weights_buf =
+            std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mmap->data(), mmap->size(), mmap);
+    }
 
     // read XML content
     auto xml_string = std::make_shared<std::string>();
@@ -186,7 +200,7 @@ void ModelDeserializer::process_stream(std::shared_ptr<ov::Model>& model) {
         hdr.consts_size,
         data_blob);
 
-    model = m_model_builder(model_buf, weights_buf);
+    model = m_model_builder(model_buf, weights_buf, origin_weights_buf);
 
     // Set Info
     pugi::xml_node root = xmlInOutDoc.child("cnndata");

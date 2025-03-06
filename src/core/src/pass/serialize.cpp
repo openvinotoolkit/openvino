@@ -18,6 +18,7 @@
 #include "openvino/core/meta_data.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/binary_convolution.hpp"
 #include "openvino/op/constant.hpp"
@@ -329,6 +330,7 @@ class XmlSerializer : public ov::AttributeVisitor {
     bool m_compress_to_fp16;
     ov::element::Type m_output_element_type;
     bool m_data_is_temporary;
+    bool m_weightless_const;
 
     template <typename T>
     std::string create_atribute_list(ov::ValueAccessor<std::vector<T>>& adapter) {
@@ -448,7 +450,8 @@ public:
                   bool deterministic = false,
                   bool compress_to_fp16 = false,
                   ov::element::Type output_element_type = ov::element::dynamic,
-                  bool data_is_temporary = false)
+                  bool data_is_temporary = false,
+                  bool weightless_const = false)
         : m_xml_node(data),
           m_node_type_name(node_type_name),
           m_constant_write_handler(constant_write_handler),
@@ -456,7 +459,8 @@ public:
           m_deterministic(deterministic),
           m_compress_to_fp16(compress_to_fp16),
           m_output_element_type(output_element_type),
-          m_data_is_temporary(data_is_temporary) {}
+          m_data_is_temporary(data_is_temporary),
+          m_weightless_const(weightless_const) {}
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         using BodyTargetNames = std::tuple<std::string, std::string, std::vector<std::string>>;
@@ -591,8 +595,8 @@ public:
             }
         } else if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
             if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
-                const int64_t size = a->get()->size();
-                size_t new_size;
+                const size_t size = m_weightless_const ? 0lu : a->get()->size();
+                size_t new_size = 0lu;
                 int64_t offset = m_constant_write_handler.write(static_cast<const char*>(a->get()->get_ptr()),
                                                                 size,
                                                                 new_size,
@@ -695,7 +699,7 @@ public:
             OPENVINO_THROW("Unsupported Model name.");
         }
     }
-};
+};  // class XmlSerializer
 
 const std::unordered_map<ov::Node*, int> create_layer_ids(const ov::Model& model) {
     std::unordered_map<ov::Node*, int> layer_ids;
@@ -1071,8 +1075,9 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
 
         // <layers/data> general attributes
         pugi::xml_node data = layer.append_child("data");
+        bool weightless_const = false;
 
-        auto append_runtime_info = [](pugi::xml_node& node, ov::RTMap& attributes) {
+        auto append_runtime_info = [&weightless_const](pugi::xml_node& node, ov::RTMap& attributes) {
             pugi::xml_node rt_node = node.append_child("rt_info");
             bool has_attrs = false;
             for (auto& item : attributes) {
@@ -1087,6 +1092,9 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                         rt_node.remove_child(attribute_node);
                     } else {
                         has_attrs = true;
+                        if (strcmp(type_info.name, ov::WeightlessCacheAttribute::get_type_info_static().name) == 0) {
+                            weightless_const = true;
+                        }
                     }
                 }
             }
@@ -1210,7 +1218,8 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                                   deterministic,
                                   compress_to_fp16,
                                   output_element_type,
-                                  modified_node.data_is_temporary());
+                                  modified_node.data_is_temporary(),
+                                  weightless_const);
             OPENVINO_ASSERT(fixed_node.get_node()->visit_attributes(visitor), "Visitor API is not supported in ", node);
         }
         rt_info::XmlSerializer{data}.serialize(node->get_rt_info());
@@ -1246,7 +1255,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
     // Serialize rt info
     pugi::xml_node rt_info_node = netXml.append_child("rt_info");
     for (const auto& it : model.get_rt_info()) {
-        // Skip IR version
+        // Skip IR version and Weights path.
         if (it.first == "version" || it.first == "__weights_path")
             continue;
         serialize_rt_info(rt_info_node, it.first, it.second);
@@ -1434,7 +1443,7 @@ bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model
 
     // Blobs
     hdr.consts_offset = m_stream.tellp();
-    std::string name = "net";
+    const std::string name = "net";
     pugi::xml_document xml_doc;
     pugi::xml_node net_node = xml_doc.append_child(name.c_str());
     ConstantWriter constant_write_handler(m_stream);
