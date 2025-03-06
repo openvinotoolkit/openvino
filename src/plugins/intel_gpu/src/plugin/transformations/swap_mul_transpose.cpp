@@ -99,7 +99,7 @@ VariadicSplitMulFusion::VariadicSplitMulFusion() {
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto variadic_split = ov::as_type_ptr<v1::VariadicSplit>(pattern_map.at(variadic_split_m).get_node_shared_ptr());
-        
+
         if (transformation_callback(variadic_split)) {
             return false;
         }
