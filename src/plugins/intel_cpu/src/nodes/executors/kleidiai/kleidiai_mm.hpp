@@ -72,7 +72,7 @@ private:
 
     const FCAttrs& m_attrs;
     const MemoryArgs& m_memoryArgs;
-    const ExecutorContext::CPtr& m_context;
+    DnnlScratchPadPtr scratchPad;
     ACLFCAttrs aclfcAttrs;
     MemoryPtr biasMem;
     MemoryPtr rhsPackedMem;

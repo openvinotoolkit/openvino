@@ -40,8 +40,7 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
                                                const MemoryArgs& memory,
                                                const ExecutorContext::CPtr& context)
     : m_attrs(attrs),
-      m_memoryArgs(memory),
-      m_context(context) {
+      m_memoryArgs(memory) {
     auto srcMem = memory.at(ARG_SRC);
     auto weiMem = memory.at(ARG_WEI);
     auto weiDims = weiMem->getDesc().getShape().getDims();
@@ -121,10 +120,10 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
         float* rhs = static_cast<float*>(weiMem->getData());
         float* rhs_scales = static_cast<float*>(rhsScalesMem->getData());
         int8_t* rhs_native_qs8cx = static_cast<int8_t*>(rhsQuantMem->getData());
-        
+
         quant_kxn_qs8cx_f32(
             N, K,                                   // Dimensions 
-            attrs.dynamicQuantizationGroupSize,     // Quantization block size
+            K,                                      // Quantization block size
             rhs,                                    // RHS (F32)
             rhs_native_qs8cx,                       // RHS (int8)
             rhs_scales                              // RHS scales (FP32)
@@ -147,6 +146,9 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
             rhs_packed_qs8cx,
             0, &params
         );
+
+        // Create scratchpad to initialize memory for LHS in update()
+        scratchPad = context->getScratchPad();
     }
 }
 
@@ -170,7 +172,7 @@ bool MatMulKleidiAIExecutor::update(const MemoryArgs& memory) {
     if (hasDynQuant) {
         const size_t lhsPackedSize = kai_get_lhs_packed_size_lhs_quant_pack_qai8dxp_f32(M, K, mr, kr, sr);
         auto lhsPackedDesc = std::make_shared<CpuBlockedMemoryDesc>(i8, Shape({lhsPackedSize}));
-        lhsPackedMem = m_context->getScratchPad()->createScratchPadMem(lhsPackedDesc);
+        lhsPackedMem = scratchPad->createScratchPadMem(lhsPackedDesc);
     }
     return true;
 }
