@@ -292,6 +292,34 @@ void regclass_graph_Model(py::module m) {
             :param name: String to set as model's friendly name.
             :type name: str
             )");
+        
+            model.def("reshape",
+                [](ov::Model& self, const std::vector<std::vector<int64_t>>& input_shapes) {
+                    auto inputs = self.inputs();
+                    if (inputs.size() != input_shapes.size()) {
+                        throw std::runtime_error("Number of provided shapes does not match number of model inputs.");
+                    }
+            
+                    std::map<ov::Output<ov::Node>, ov::PartialShape> shape_map;
+                    for (size_t i = 0; i < inputs.size(); ++i) {
+                        shape_map[inputs[i]] = ov::PartialShape(input_shapes[i]);
+                    }
+            
+                
+                    self.reshape(shape_map);  
+                },
+                py::arg("input_shapes"),
+                R"(
+                Reshape model inputs using a list of shapes.
+            
+                Example:
+                    model.reshape([[2,2], [1, 3, 224, 244], [10]])
+            
+                :param input_shapes: List of shapes for each input.
+                :type input_shapes: List[List[int]]
+                )"
+            );
+            
 
     model.def(py::init([](const ov::OutputVector& results,
                           const ov::OutputVector& nodes,
