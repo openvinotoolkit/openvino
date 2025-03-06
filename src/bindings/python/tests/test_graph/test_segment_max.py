@@ -30,7 +30,7 @@ def test_segment_max_with_num_segments(dtype_segment_ids, dtype_num_segments, da
     assert node.get_type_name() == "SegmentMax"
     assert node.get_output_size() == 1
     assert node.get_output_element_type(0) == Type.f32
-    assert node.get_output_shape(0) == PartialShape([Dimension.dynamic(), *data_shape[1:]])
+    assert node.get_output_partial_shape(0) == PartialShape([Dimension.dynamic(), *data_shape[1:]])
 
 
 @pytest.mark.parametrize("dtype_segment_ids", [
@@ -50,4 +50,4 @@ def test_segment_max_without_num_segments(dtype_segment_ids, data_shape, segment
     assert node.get_type_name() == "SegmentMax"
     assert node.get_output_size() == 1
     assert node.get_output_element_type(0) == Type.f32
-    assert node.get_output_shape(0) == PartialShape([Dimension.dynamic(), *data_shape[1:]])
+    assert node.get_output_partial_shape(0) == PartialShape([Dimension.dynamic(), *data_shape[1:]])
