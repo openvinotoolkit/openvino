@@ -175,13 +175,6 @@ OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx_fp16();
 OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx();
 
 /**
- * @brief      Checks whether cpu_mapping Available
- * @ingroup    ov_dev_api_system_conf
- * @return     `True` is CPU mapping is available, `false` otherwise
- */
-OPENVINO_RUNTIME_API bool is_cpu_map_available();
-
-/**
  * @brief      Get number of numa nodes
  * @ingroup    ov_dev_api_system_conf
  * @return     Number of numa nodes
