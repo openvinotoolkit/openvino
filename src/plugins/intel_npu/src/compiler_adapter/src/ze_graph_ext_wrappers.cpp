@@ -524,8 +524,10 @@ std::string ZeGraphExtWrappers::getCompilerSupportedOptions() const {
     // 1. ask driver for size of compiler supported options list
     _logger.debug("pfnCompilerGetSupportedOptions - obtain string size");
     size_t str_size = 0;
-    auto result =
-        _zeroInitStruct->getGraphDdiTable().pfnCompilerGetSupportedOptions(ZE_NPU_COMPILER_OPTIONS, &str_size, nullptr);
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnCompilerGetSupportedOptions(_zeroInitStruct->getDevice(),
+                                                                                     ZE_NPU_COMPILER_OPTIONS,
+                                                                                     &str_size,
+                                                                                     nullptr);
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerGetSupportedOptions", result, _zeroInitStruct->getGraphDdiTable())
 
     if (str_size > 0) {
@@ -533,7 +535,8 @@ std::string ZeGraphExtWrappers::getCompilerSupportedOptions() const {
         // 2. allocate buffer for it
         char* supported_options_list_chr = (char*)malloc(str_size);
         // 3. ask driver to populate char list
-        auto result = _zeroInitStruct->getGraphDdiTable().pfnCompilerGetSupportedOptions(ZE_NPU_COMPILER_OPTIONS,
+        auto result = _zeroInitStruct->getGraphDdiTable().pfnCompilerGetSupportedOptions(_zeroInitStruct->getDevice(),
+                                                                                         ZE_NPU_COMPILER_OPTIONS,
                                                                                          &str_size,
                                                                                          supported_options_list_chr);
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerGetSupportedOptions", result, _zeroInitStruct->getGraphDdiTable())
@@ -550,8 +553,10 @@ std::string ZeGraphExtWrappers::getCompilerSupportedOptions() const {
 
 bool ZeGraphExtWrappers::isOptionSupported(std::string optname) const {
     const char* optname_ch = optname.c_str();
-    auto result =
-        _zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(ZE_NPU_COMPILER_OPTIONS, optname_ch, nullptr);
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(_zeroInitStruct->getDevice(),
+                                                                                   ZE_NPU_COMPILER_OPTIONS,
+                                                                                   optname_ch,
+                                                                                   nullptr);
     if (result == ZE_RESULT_SUCCESS) {
         return true;
     } else if (result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) {
