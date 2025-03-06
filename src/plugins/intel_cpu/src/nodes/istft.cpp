@@ -12,7 +12,6 @@
 #include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/istft.hpp"
-#include "openvino/reference/add.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -119,8 +118,6 @@ void istft_impl(const float* in_data,
                 const bool center,
                 const bool normalized,
                 std::shared_ptr<RDFTExecutor> rdft_executor) {
-    using namespace ov;
-    using namespace ov::reference;
     const auto is_data_3D = data_shape.size() == 3;
     const size_t frames_axis = 1 + (is_data_3D ? 0 : 1);
     const size_t batch_size = is_data_3D ? 1 : data_shape[0];
@@ -210,13 +207,13 @@ void istft_impl(const float* in_data,
                            frame_signal.end(),
                            mid_result.begin() + out_frame_start,
                            mid_result.begin() + out_frame_start,
-                           func::add<float>);
+                           std::plus());
 
             std::transform(window_sum.begin() + out_frame_start,
                            window_sum.begin() + out_frame_end,
                            pad_window.begin(),
                            window_sum.begin() + out_frame_start,
-                           func::add<float>);
+                           std::plus());
         }
         float* result = mid_result.data() + (batch * signal_length);
         std::transform(result,
