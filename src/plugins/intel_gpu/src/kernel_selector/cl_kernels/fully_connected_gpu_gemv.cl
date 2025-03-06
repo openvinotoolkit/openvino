@@ -16,6 +16,9 @@
 #define KERNEL_LAYOUT_OS_IS_YX_OSV32_ISV2 (FILTER_LAYOUT_OS_IS_YX_TYPE == 1)
 #define KERNEL_LAYOUT_OS_IS_YX_OSV64_ISV2 (FILTER_LAYOUT_OS_IS_YX_TYPE == 2)
 #define SUBGROUP_SIZE                     SIMD
+#ifndef DECOMPRESSION_SCALE_GROUP_SIZE
+#define DECOMPRESSION_SCALE_GROUP_SIZE    128
+#endif
 #define DECOMPRESSION_GROUP_SIZE_SRC      DECOMPRESSION_SCALE_GROUP_SIZE
 
 // Verify JIT parameters.
@@ -25,10 +28,10 @@
 
 #ifdef DECOMPRESSION_SCALE_TERM
 #if DECOMPRESSION_GROUP_SIZE_SRC < 32
-#   error "fully_connected_gpu_gemv.cl - DECOMPRESSION_GROUP_SIZE must >= 32"
+#   error "fully_connected_gpu_gemv.cl - DECOMPRESSION_GROUP_SIZE_SRC must be >= 32"
 #endif
 // CW
-#if WEIGHTS_K==DECOMPRESSION_GROUP_SIZE_SRC && WEIGHTS_K > 128
+#if WEIGHTS_K == DECOMPRESSION_GROUP_SIZE_SRC && WEIGHTS_K > 128
 #define SINGLE_GROUP_NUM
 #endif
 #ifdef SINGLE_GROUP_NUM
@@ -46,6 +49,32 @@
 #if KERNEL_LAYOUT_OS_IS_YX_OSV16 && WEIGHTS_K % 32 != 0
 #   error "fully_connected_gpu_gemv.cl - KERNEL_LAYOUT_OS_IS_YX_OSV16 must be WEIGHTS_K % 32 != 0"
 #endif
+
+#if KERNEL_LAYOUT_OS_IS_YX_OSV16
+#define INPUT_TILE_SIZE 2
+#elif KERNEL_LAYOUT_OS_IS_YX_OSV32_ISV2
+#define INPUT_TILE_SIZE 1
+#elif KERNEL_LAYOUT_OS_IS_YX_OSV64_ISV2
+#define INPUT_TILE_SIZE 1
+#else
+#   error "fully_connected_gpu_gemv.cl - Unsupported layout!"
+#endif
+
+// Macros for vectorized types.
+#define INPUT_VEC_TYPE             MAKE_VECTOR_TYPE(INPUT0_TYPE, INPUT_TILE_SIZE)
+#define ACCUMULATOR_VEC_TYPE       MAKE_VECTOR_TYPE(float, 8)
+#define FILTER_VEC_TYPE            MAKE_VECTOR_TYPE(half, 16)
+#define FILTER_PACKED_VEC_TYPE     MAKE_VECTOR_TYPE(char, 16)
+#define OUTPUT_VEC_TYPE            MAKE_VECTOR_TYPE(OUTPUT_TYPE, 1)
+#define ACTIVATION_VEC_TYPE        MAKE_VECTOR_TYPE(ACTIVATION_TYPE, 1)
+#define TO_OUTPUT_VEC_TYPE(x)      CAT(convert_, OUTPUT_VEC_TYPE)(x)
+#define TO_ACTIVATION_VEC_TYPE(x)  CAT(convert_, ACTIVATION_VEC_TYPE)(x)
+#define TO_FILTER_VEC_TYPE(x)      CAT(convert_, FILTER_VEC_TYPE)(x)
+#define TO_ACCUMULATOR_VEC_TYPE(x) CAT(convert_, ACCUMULATOR_VEC_TYPE)(x)
+#define TO_FILTER_PACKED_VEC_TYPE(x)  CAT(convert_, FILTER_PACKED_VEC_TYPE)(x)
+
+#define INPUT_BLOCK_READ(ptr, offset)        BLOCK_READN(INPUT0_TYPE, INPUT_TILE_SIZE, ptr, offset)
+#define FILTER_BLOCK_READ(ptr, offset)       BLOCK_READN(FILTER_TYPE, 16, ptr, offset)
 
 inline int get_4bit_weight_index(int k, int n, int K, int N, int OSV) {
     return (n / OSV) * (OSV * K / 2) + (n % OSV) + (k / 2) * OSV;
@@ -74,17 +103,17 @@ inline void thread_task_splitter(const int group_num, const int thr_num, const i
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 KERNEL(fully_connected_gpu_gemv)(
     OPTIONAL_SHAPE_INFO_ARG
-    __global half* input,
+    __global INPUT0_TYPE* input,
 #    if DECOMPRESSION_SCALE_TERM
-    const __global half* scales,
+    const __global DECOMPRESSION_SCALE_TYPE* scales,
 #    endif
 #    if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
-    const __global half* zps,
+    const __global DECOMPRESSION_ZP_TYPE* zps,
 #    endif
-    __global half* output,
-    const __global uchar* weights
+    __global OUTPUT_TYPE* output,
+    const __global FILTER_TYPE* weights
 #    if BIAS_TERM
-    , const __global half* bias
+    , const __global BIAS_TYPE* bias
 #    endif
 #    if HAS_FUSED_OPS_DECLS
     , FUSED_OPS_DECLS
@@ -115,11 +144,11 @@ KERNEL(fully_connected_gpu_gemv)(
 
     float sum_all = 0;
     for (int gk = gk0; gk < gk1; gk++) {
-        __global half* A = input + gk * DECOMPRESSION_GROUP_SIZE;
-        const __global uchar* B =
+        __global INPUT0_TYPE* A = input + gk * DECOMPRESSION_GROUP_SIZE;
+        const __global FILTER_TYPE* B =
             weights + get_4bit_weight_index_no_isv(gk * DECOMPRESSION_GROUP_SIZE, n, WEIGHTS_K, WEIGHTS_N, 16);
 
-        float8 sum = 0;
+        ACCUMULATOR_VEC_TYPE sum = 0;
         #ifdef SINGLE_GROUP_NUM
         float scale_1 = convert_float(scales[0]);
         #else
@@ -128,32 +157,32 @@ KERNEL(fully_connected_gpu_gemv)(
 
 #    if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
      #ifdef SINGLE_GROUP_NUM
-        half16 zpx16 = (half16)(zps[0]);
+        FILTER_VEC_TYPE zpx16 = (FILTER_VEC_TYPE)(zps[0]);
      #else
-        half16 zpx16 = (half16)(zps[gk * WEIGHTS_N]);
+        FILTER_VEC_TYPE zpx16 = (FILTER_VEC_TYPE)(zps[gk * WEIGHTS_N]);
      #endif
 #    elif DECOMPRESSION_ZP_SCALAR
-        half16 zpx16 = (half16)(zp_scalar_value);
+        FILTER_VEC_TYPE zpx16 = (FILTER_VEC_TYPE)(zp_scalar_value);
 #    else
-        half16 zpx16 = (half16)0;
+        FILTER_VEC_TYPE zpx16 = (FILTER_VEC_TYPE)0;
 #    endif
-        char16 mask16 = (char16)0xF;
 
         __attribute__((opencl_unroll_hint(4))) for (int g = 0; g < DECOMPRESSION_GROUP_SIZE; g += 32, B += 16 * 16) {
-            // read 16 elements of A
-            ushort2 input_value = intel_sub_group_block_read_us2((const __global ushort*)(A + g));            
-            char16 bx16 = as_char16(intel_sub_group_block_read_uc16(B));
+            // ushort2 input_value = intel_sub_group_block_read_us2((const __global ushort*)(A + g));
+            INPUT_VEC_TYPE input_value = INPUT_BLOCK_READ(A, g);
+            // char16 bx16 = as_char16(intel_sub_group_block_read_uc16(B));
+            FILTER_PACKED_VEC_TYPE bx16 = TO_FILTER_PACKED_VEC_TYPE(FILTER_BLOCK_READ(B, 0));
 
 #if WEI_UINT4
-            half16 i4x16_even = convert_half16((bx16 & mask16)) - zpx16;
-            half16 i4x16_odd = convert_half16(as_char16(as_uchar16(bx16) >> 4)) - zpx16;
+            FILTER_VEC_TYPE i4x16_even = TO_FILTER_VEC_TYPE((bx16 & (char16)0xF)) - zpx16;
+            FILTER_VEC_TYPE i4x16_odd = TO_FILTER_VEC_TYPE(as_char16(as_uchar16(bx16) >> 4)) - zpx16;
 #else
             char16 i4x16_even_c16 = (bx16 & (char16)0xF);
             char16 i4x16_odd_c16 = (as_char16(as_uchar16(bx16) >> 4));
             i4x16_even_c16 = select(i4x16_even_c16, i4x16_even_c16 - (char16)16, i4x16_even_c16 > (char16)7);
             i4x16_odd_c16 = select(i4x16_odd_c16, i4x16_odd_c16 - (char16)16, i4x16_odd_c16 > (char16)7);
-            half16 i4x16_even = convert_half16(i4x16_even_c16) - zpx16;
-            half16 i4x16_odd = convert_half16(i4x16_odd_c16) - zpx16;
+            FILTER_VEC_TYPE i4x16_even = TO_FILTER_VEC_TYPE(i4x16_even_c16) - zpx16;
+            FILTER_VEC_TYPE i4x16_odd = TO_FILTER_VEC_TYPE(i4x16_odd_c16) - zpx16;
 #endif
 
             sum[0] += as_half(sub_group_broadcast(input_value.s0, 0)) * i4x16_even.s0 +
@@ -215,7 +244,7 @@ KERNEL(fully_connected_gpu_gemv)(
         }
 #    else
         for (int i = 0; i < 1; i++) {
-            output[cur_n + i] = ACTIVATION_TYPED(sum_value[i], ACTIVATION_PARAMS_TYPED);
+            output[cur_n + i] = TO_OUTPUT_VEC_TYPE(ACTIVATION_TYPED(sum_value[i], ACTIVATION_PARAMS_TYPED));
         }
 #    endif
     }
@@ -224,17 +253,18 @@ KERNEL(fully_connected_gpu_gemv)(
 #elif KERNEL_LAYOUT_OS_IS_YX_OSV32_ISV2
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 KERNEL(fully_connected_gpu_gemv)(
-    OPTIONAL_SHAPE_INFO_ARG __global half* input,
+    OPTIONAL_SHAPE_INFO_ARG
+    __global INPUT0_TYPE* input,
 #    if DECOMPRESSION_SCALE_TERM
-    const __global half* scales,
+    const __global DECOMPRESSION_SCALE_TYPE* scales,
 #    endif
 #    if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
-    const __global half* zps,
+    const __global DECOMPRESSION_ZP_TYPE* zps,
 #    endif
     __global half* output,
-    const __global uchar* weights
+    const __global FILTER_TYPE* weights
 #    if BIAS_TERM
-    , const __global half* bias
+    , const __global BIAS_TYPE* bias
 #    endif
 #    if HAS_FUSED_OPS_DECLS
     , FUSED_OPS_DECLS
@@ -265,17 +295,17 @@ KERNEL(fully_connected_gpu_gemv)(
 
     float2 sum_all = 0;
     for (int gk = gk0; gk < gk1; gk++) {
-        __global half* A = input + gk * DECOMPRESSION_GROUP_SIZE;
-        const __global uchar* B =
+        __global INPUT0_TYPE* A = input + gk * DECOMPRESSION_GROUP_SIZE;
+        const __global FILTER_TYPE* B =
             weights + get_4bit_weight_index(gk * DECOMPRESSION_GROUP_SIZE, n, WEIGHTS_K, WEIGHTS_N, 32);
 
-        float8 sum = 0;
+        ACCUMULATOR_VEC_TYPE sum = 0;
         #ifdef SINGLE_GROUP_NUM
-        half scale_0 = scales[0];
-        half scale_1 = scales[16];
+        float scale_0 = convert_float(scales[0]);
+        float scale_1 = convert_float(scales[16]);
         #else
-        half scale_0 = scales[gk * WEIGHTS_N];
-        half scale_1 = scales[gk * WEIGHTS_N + 16];
+        float scale_0 = convert_float(scales[gk * WEIGHTS_N]);
+        float scale_1 = convert_float(scales[gk * WEIGHTS_N + 16]);
         #endif
 
 #    if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
@@ -286,32 +316,33 @@ KERNEL(fully_connected_gpu_gemv)(
         half zp0 = zps[gk * WEIGHTS_N];
         half zp1 = zps[gk * WEIGHTS_N + 16];
         #endif
-        half16 zpx16 = {zp0, zp1, zp0, zp1, zp0, zp1, zp0, zp1, zp0, zp1, zp0, zp1, zp0, zp1, zp0, zp1};
+        FILTER_VEC_TYPE zpx16 = {zp0, zp1, zp0, zp1, zp0, zp1, zp0, zp1, zp0, zp1, zp0, zp1, zp0, zp1, zp0, zp1};
 #    elif DECOMPRESSION_ZP_SCALAR
-        half16 zpx16 = (half16)(zp_scalar_value);
+        FILTER_VEC_TYPE zpx16 = (FILTER_VEC_TYPE)(zp_scalar_value);
 #    else
-        half16 zpx16 = (half16)0;
+        FILTER_VEC_TYPE zpx16 = (FILTER_VEC_TYPE)0;
 #    endif
-        char16 mask16 = (char16)0xF;
 
         __attribute__((opencl_unroll_hint(4)))
         for (int g = 0; g < DECOMPRESSION_GROUP_SIZE; g += 16, B += 16 * 16) {
             // read 16 elements of A
-            ushort input_value = intel_sub_group_block_read_us((const __global ushort*)(A + g));
+            // ushort input_value = intel_sub_group_block_read_us((const __global ushort*)(A + g));
+            INPUT_VEC_TYPE input_value = INPUT_BLOCK_READ(A, g);
 
             // read 16x16 int8 = (16x2)x16 int4
-            char16 bx16 = as_char16(intel_sub_group_block_read_uc16(B));
+            // char16 bx16 = as_char16(intel_sub_group_block_read_uc16(B));
+            FILTER_PACKED_VEC_TYPE bx16 = TO_FILTER_PACKED_VEC_TYPE(FILTER_BLOCK_READ(B, 0));
 
 #if WEI_UINT4
-            half16 i4x16_even = convert_half16(bx16 & mask16) - zpx16;
-            half16 i4x16_odd = convert_half16(as_char16(as_uchar16(bx16) >> 4)) - zpx16;
+            FILTER_VEC_TYPE i4x16_even = TO_FILTER_VEC_TYPE(bx16 & (char16)0xF) - zpx16;
+            FILTER_VEC_TYPE i4x16_odd = TO_FILTER_VEC_TYPE(as_char16(as_uchar16(bx16) >> 4)) - zpx16;
 #else
             char16 i4x16_even_c16 = (bx16 & (char16)0xF);
             char16 i4x16_odd_c16 = (as_char16(as_uchar16(bx16) >> 4));
             i4x16_even_c16 = select(i4x16_even_c16, i4x16_even_c16 - (char16)16, i4x16_even_c16 > (char16)7);
             i4x16_odd_c16 = select(i4x16_odd_c16, i4x16_odd_c16 - (char16)16, i4x16_odd_c16 > (char16)7);
-            half16 i4x16_even = convert_half16(i4x16_even_c16) - zpx16;
-            half16 i4x16_odd = convert_half16(i4x16_odd_c16) - zpx16;
+            FILTER_VEC_TYPE i4x16_even = TO_FILTER_VEC_TYPE(i4x16_even_c16) - zpx16;
+            FILTER_VEC_TYPE i4x16_odd = TO_FILTER_VEC_TYPE(i4x16_odd_c16) - zpx16;
 #endif
 
             sum[0] += as_half(sub_group_broadcast(input_value, 0)) * i4x16_even.s0 +
@@ -386,7 +417,7 @@ KERNEL(fully_connected_gpu_gemv)(
         }
 #    else
         for (int i = 0; i < 2; i++) {
-            output[cur_n + 16 * i] = ACTIVATION_TYPED(sum_value[i], ACTIVATION_PARAMS_TYPED);
+            output[cur_n + 16 * i] = TO_OUTPUT_VEC_TYPE(ACTIVATION_TYPED(sum_value[i], ACTIVATION_PARAMS_TYPED));
         }
 #    endif
     }
@@ -394,17 +425,18 @@ KERNEL(fully_connected_gpu_gemv)(
 #elif KERNEL_LAYOUT_OS_IS_YX_OSV64_ISV2
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 KERNEL(fully_connected_gpu_gemv)(
-    OPTIONAL_SHAPE_INFO_ARG __global half* input,
+    OPTIONAL_SHAPE_INFO_ARG
+    __global INPUT0_TYPE* input,
 #    if DECOMPRESSION_SCALE_TERM
-    const __global half* scales,
+    const __global DECOMPRESSION_SCALE_TYPE* scales,
 #    endif
 #    if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
-    const __global half* zps,
+    const __global DECOMPRESSION_ZP_TYPE* zps,
 #    endif
-    __global half* output,
-    const __global uchar* weights
+    __global OUTPUT_TYPE* output,
+    const __global FILTER_TYPE* weights
 #    if BIAS_TERM
-    , const __global half* bias
+    , const __global BIAS_TYPE* bias
 #    endif
 #    if HAS_FUSED_OPS_DECLS
     , FUSED_OPS_DECLS
@@ -432,21 +464,21 @@ KERNEL(fully_connected_gpu_gemv)(
 
     float4 sum_all = 0;
     for (int gk = gk0; gk < gk1; gk++) {
-        __global half* A = input + gk * DECOMPRESSION_GROUP_SIZE;
-        const __global uchar* B =
+        __global INPUT0_TYPE* A = input + gk * DECOMPRESSION_GROUP_SIZE;
+        const __global FILTER_TYPE* B =
             weights + get_4bit_weight_index(gk * DECOMPRESSION_GROUP_SIZE, n, WEIGHTS_K, WEIGHTS_N, 64);
 
-        float8 sum = 0;
+        ACCUMULATOR_VEC_TYPE sum = 0;
         #ifdef SINGLE_GROUP_NUM
-        half scale_0 = scales[0];
-        half scale_1 = scales[16];
-        half scale_2 = scales[2 * 16];
-        half scale_3 = scales[3 * 16];
+        float scale_0 = convert_float(scales[0]);
+        float scale_1 = convert_float(scales[16]);
+        float scale_2 = convert_float(scales[2 * 16]);
+        float scale_3 = convert_float(scales[3 * 16]);
         #else
-        half scale_0 = scales[gk * WEIGHTS_N];
-        half scale_1 = scales[gk * WEIGHTS_N + 1 * 16];
-        half scale_2 = scales[gk * WEIGHTS_N + 2 * 16];
-        half scale_3 = scales[gk * WEIGHTS_N + 3 * 16];
+        float scale_0 = convert_float(scales[gk * WEIGHTS_N]);
+        float scale_1 = convert_float(scales[gk * WEIGHTS_N + 1 * 16]);
+        float scale_2 = convert_float(scales[gk * WEIGHTS_N + 2 * 16]);
+        float scale_3 = convert_float(scales[gk * WEIGHTS_N + 3 * 16]);
         #endif
 #    if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
         #ifdef SINGLE_GROUP_NUM
@@ -460,26 +492,28 @@ KERNEL(fully_connected_gpu_gemv)(
         half zp2 = zps[gk * WEIGHTS_N + 2 * 16];
         half zp3 = zps[gk * WEIGHTS_N + 3 * 16];
         #endif
-        half16 zpx16 = {zp0, zp1, zp2, zp3, zp0, zp1, zp2, zp3, zp0, zp1, zp2, zp3, zp0, zp1, zp2, zp3};
+        FILTER_VEC_TYPE zpx16 = {zp0, zp1, zp2, zp3, zp0, zp1, zp2, zp3, zp0, zp1, zp2, zp3, zp0, zp1, zp2, zp3};
 #    elif DECOMPRESSION_ZP_SCALAR
         half zp_scalar_value = (half)(DECOMPRESSION_ZP_VALUE);
-        half16 zpx16 = (half16)(zp_scalar_value);
+        FILTER_VEC_TYPE zpx16 = (FILTER_VEC_TYPE)(zp_scalar_value);
 #    else
-        half16 zpx16 = (half16)0;
+        FILTER_VEC_TYPE zpx16 = (FILTER_VEC_TYPE)0;
 #    endif
-        char16 mask16 = (char16)0xF;
 
         __attribute__((opencl_unroll_hint(2))) for (int g = 0; g < DECOMPRESSION_GROUP_SIZE; g += 16, B += 16 * 32) {
             // read 16 elements of A
-            ushort input_value = intel_sub_group_block_read_us((const __global ushort*)(A + g));
-            char16 bx16 = as_char16(intel_sub_group_block_read_uc16(B));
-            char16 bx16_second = as_char16(intel_sub_group_block_read_uc16(B + 16 * 16));
+            // ushort input_value = intel_sub_group_block_read_us((const __global ushort*)(A + g));
+            INPUT_VEC_TYPE input_value = INPUT_BLOCK_READ(A, g);
+            // char16 bx16 = as_char16(intel_sub_group_block_read_uc16(B));
+            // char16 bx16_second = as_char16(intel_sub_group_block_read_uc16(B + 16 * 16));
+            FILTER_PACKED_VEC_TYPE bx16 = TO_FILTER_PACKED_VEC_TYPE(FILTER_BLOCK_READ(B, 0));
+            FILTER_PACKED_VEC_TYPE bx16_second = TO_FILTER_PACKED_VEC_TYPE(FILTER_BLOCK_READ(B, 16 * 16));
 
 #if WEI_UINT4
-            half16 i4x16_even = convert_half16((bx16 & mask16)) - zpx16;
-            half16 i4x16_odd = convert_half16(as_char16(as_uchar16(bx16) >> 4)) - zpx16;
-            half16 i4x16_even_second = convert_half16((bx16_second & mask16)) - zpx16;
-            half16 i4x16_odd_second = convert_half16(as_char16(as_uchar16(bx16_second) >> 4)) - zpx16;
+            FILTER_VEC_TYPE i4x16_even = convert_half16((bx16 & (char16)0xF)) - zpx16;
+            FILTER_VEC_TYPE i4x16_odd = convert_half16(as_char16(as_uchar16(bx16) >> 4)) - zpx16;
+            FILTER_VEC_TYPE i4x16_even_second = convert_half16((bx16_second & (char16)0xF)) - zpx16;
+            FILTER_VEC_TYPE i4x16_odd_second = convert_half16(as_char16(as_uchar16(bx16_second) >> 4)) - zpx16;
 #else
             char16 i4x16_even_c16 = (bx16 & (char16)0xF);
             char16 i4x16_odd_c16 = (as_char16(as_uchar16(bx16) >> 4));
@@ -491,10 +525,10 @@ KERNEL(fully_connected_gpu_gemv)(
             i4x16_even_c16_second = select(i4x16_even_c16_second, i4x16_even_c16_second - (char16)16, i4x16_even_c16_second > (char16)7);
             i4x16_odd_c16_second = select(i4x16_odd_c16_second, i4x16_odd_c16_second - (char16)16, i4x16_odd_c16_second > (char16)7);
 
-            half16 i4x16_even = convert_half16(i4x16_even_c16) - zpx16;
-            half16 i4x16_odd = convert_half16(i4x16_odd_c16) - zpx16;
-            half16 i4x16_even_second = convert_half16(i4x16_even_c16_second) - zpx16;
-            half16 i4x16_odd_second = convert_half16(i4x16_odd_c16_second) - zpx16;
+            FILTER_VEC_TYPE i4x16_even = convert_half16(i4x16_even_c16) - zpx16;
+            FILTER_VEC_TYPE i4x16_odd = convert_half16(i4x16_odd_c16) - zpx16;
+            FILTER_VEC_TYPE i4x16_even_second = convert_half16(i4x16_even_c16_second) - zpx16;
+            FILTER_VEC_TYPE i4x16_odd_second = convert_half16(i4x16_odd_c16_second) - zpx16;
 #endif
 
             sum[0] += as_half(sub_group_broadcast(input_value, 0)) * i4x16_even.s0 +
@@ -599,7 +633,7 @@ KERNEL(fully_connected_gpu_gemv)(
         }
 #    else
         for (int i = 0; i < 4; i++) {
-            output[cur_n + 16 * i] = ACTIVATION_TYPED(sum_value[i], ACTIVATION_PARAMS_TYPED);
+            output[cur_n + 16 * i] = TO_OUTPUT_VEC_TYPE(ACTIVATION_TYPED(sum_value[i], ACTIVATION_PARAMS_TYPED));
         }
 #    endif
     }
