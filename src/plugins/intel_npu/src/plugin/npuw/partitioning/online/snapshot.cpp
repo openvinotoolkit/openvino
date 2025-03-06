@@ -459,6 +459,7 @@ void Snapshot::earlyRegroup() {
     LOG_BLOCK();
 
     ov::pass::GraphRewrite rewr;
+    ov::pass::GraphRewrite rewr_fake;
     bool handle_patterns = false;
 
     for (const auto& isolate : m_ctx.isolates) {
@@ -480,8 +481,11 @@ void Snapshot::earlyRegroup() {
         rewr.add_matcher<ov::npuw::patterns::compute::p>(shared_from_this(), isolate.tag); \
         handle_patterns = true;                                                            \
     }
-            HNDL(FakeConvert);
-            HNDL(FakeQuantize);
+#define HNDL_FAKE(p)                                                                            \
+    if (isolate.pattern == #p) {                                                                \
+        rewr_fake.add_matcher<ov::npuw::patterns::compute::p>(shared_from_this(), isolate.tag); \
+        handle_patterns = true;                                                                 \
+    }
             HNDL(RMSNorm);
             HNDL(RMSNorm2);
             HNDL(DQMatMulCWu4);
@@ -491,6 +495,9 @@ void Snapshot::earlyRegroup() {
             HNDL(DQMatMulConv);
             HNDL(VocabMatMul);
             HNDL(VariadicSplit);
+            HNDL_FAKE(FakeConvert);
+            HNDL_FAKE(FakeQuantize);
+#undef HNDL_FAKE
 #undef HNDL
         }
         }
@@ -498,6 +505,8 @@ void Snapshot::earlyRegroup() {
 
     if (handle_patterns) {
         // Check the model for all specified patterns
+        // Note: it's important to run Fake patterns first so it won't mix with the compute ones
+        rewr_fake.run_on_model(m_model);
         rewr.run_on_model(m_model);
     }
 
