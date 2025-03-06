@@ -93,10 +93,10 @@ ov::pass::AddAddFusion::AddAddFusion() {
 
         // Replace Add->Add with single Add
         // Add operation will be added to the list of ops requested for pattern matching
-        auto new_add =
-            register_new_node<ov::op::v1::Add>(input, op::util::eltwise_fold<ov::op::v1::Add>(add1_const, add2_const));
+        auto new_const = op::util::make_try_fold<ov::op::v1::Add>(add1_const, add2_const);
+        auto new_add = register_new_node<ov::op::v1::Add>(input, new_const);
 
-        copy_runtime_info({add1, add2}, new_add);
+        copy_runtime_info({add1, add2}, {new_add, new_const});
         new_add->set_friendly_name(add2->get_friendly_name());
         replace_node(add2, new_add);
         return true;
