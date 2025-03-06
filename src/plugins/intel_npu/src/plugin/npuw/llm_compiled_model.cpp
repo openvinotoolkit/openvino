@@ -359,6 +359,7 @@ std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::M
     return model;
 }
 
+// testability - should we have interface for that or move matchers to another file?
 bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ScaledDotProductAttentionDecomposition>();
@@ -382,7 +383,7 @@ bool remove_empty_kv_inputs(std::shared_ptr<ov::Model> model) {
         model->remove_parameter(old_param);
     }
     ov::pass::Validate().run_on_model(model);
-    // NB: if new_params is not empty - pass has been applied
+    // NB: if old_params is not empty - pass has been applied
     return !ctx.old_params.empty();
 }
 
