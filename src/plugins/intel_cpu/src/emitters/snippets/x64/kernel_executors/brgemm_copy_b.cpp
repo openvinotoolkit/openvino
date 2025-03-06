@@ -209,6 +209,9 @@ void BrgemmCopyBKernel::init_brgemm_copy_b_kernel(
     brgCopyKernelConf.has_zero_point_b = false;
     brgCopyKernelConf.src_zp_type = dnnl::impl::cpu::x64::none;
 
+    brgCopyKernelConf.apply_scales_in_buffer_b = false;
+    brgCopyKernelConf.with_wei_decompression = false;
+
     OV_CPU_JIT_EMITTER_ASSERT(matmul::create_brgemm_matmul_copy_b(kernel, &brgCopyKernelConf) == dnnl_success,
                               "cannot create kernel due to invalid params");
 }

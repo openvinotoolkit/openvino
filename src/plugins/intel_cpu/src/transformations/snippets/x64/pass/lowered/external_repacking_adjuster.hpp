@@ -31,7 +31,7 @@ public:
 private:
     using RepackExecutorPtr = std::shared_ptr<BrgemmCopyBKernelExecutor>;
     static VectorDims get_blk_order(size_t shape_rank);
-    static VectorDims get_blk_shape(const VectorDims& planar_shape, ov::element::Type prc);
+    static VectorDims get_blk_shape(const VectorDims& planar_shape, ov::element::Type prc, bool is_transposed);
 
     void update_kernel(const RepackExecutorPtr& executor,
                        const VectorDims& shape,
