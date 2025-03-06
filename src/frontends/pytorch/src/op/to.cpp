@@ -95,7 +95,7 @@ OutputVector translate_to(const NodeContext& context) {
         }
     } else if (const auto dtype_const = ov::as_type_ptr<v0::Constant>(dtype_ext_node)) {
         auto pt_type = dtype_const->cast_vector<int64_t>()[0];
-        bool to_complex = pt_type >= 8 && pt_type <= 10;
+        bool to_complex = is_complex_dtype(pt_type);
         auto dtype = convert_dtype(pt_type);
 
         bool is_complex = complex_mark != nullptr;
