@@ -154,16 +154,20 @@ void istft_impl(const float* in_data,
 
     // Setting function for the result postprocessing
     const auto norm_window_div = [sqrt_frame_size](float a, float b) {
-        if (b != 0.f)
+        if (b != 0.f) {
             return (a * sqrt_frame_size) / b;
-        else
+
+        } else {
             return 0.f;
+        }
     };
     const auto window_div = [](float a, float b) {
-        if (b != 0.f)
+        if (b != 0.f) {
             return a / b;
-        else
+
+        } else {
             return 0.f;
+        }
     };
     std::function<float(float, float)> postprocess_func;
     if (normalized) {
