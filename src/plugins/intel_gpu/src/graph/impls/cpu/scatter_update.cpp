@@ -5,7 +5,7 @@
 #include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "scatter_update_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 
 #include "openvino/op/scatter_update.hpp"
 
@@ -23,7 +23,7 @@ struct scatter_update_impl : public typed_primitive_impl<scatter_update> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::scatter_update_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<scatter_update_impl>(*this);
+        return std::make_unique<scatter_update_impl>(*this);
     }
 
     scatter_update_impl() : parent("scatter_update_cpu_impl") {}
@@ -71,7 +71,7 @@ struct scatter_update_impl : public typed_primitive_impl<scatter_update> {
 
         auto output_mem_ptr = instance.output_memory_ptr();
 
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> output_lock(output_mem_ptr, stream);
+        cldnn::mem_lock<uint8_t, mem_lock_type::read_write> output_lock(output_mem_ptr, stream);
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
             input_host_tensors.push_back(make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
@@ -103,7 +103,7 @@ struct scatter_update_impl : public typed_primitive_impl<scatter_update> {
 
 public:
     static std::unique_ptr<primitive_impl> create(const scatter_update_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<scatter_update_impl>();
+        return std::make_unique<scatter_update_impl>();
     }
 };
 

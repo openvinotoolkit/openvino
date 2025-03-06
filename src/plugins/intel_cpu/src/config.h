@@ -89,7 +89,7 @@ struct Config {
     bool enableNodeSplit = false;
     bool enableHyperThreading = true;
     bool changedHyperThreading = false;
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
 #else
     // Currently INT8 mode is not optimized on ARM / RISCV or other non-x86 platforms, fallback to FP32 mode.

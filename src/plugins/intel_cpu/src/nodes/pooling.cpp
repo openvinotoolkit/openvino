@@ -32,9 +32,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 struct PoolingKey {
@@ -55,7 +53,7 @@ struct PoolingKey {
     dnnl::algorithm alg;
     impl_desc_type implType;
 
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
         using namespace dnnl::impl::primitive_hashing;
         size_t seed = 0;
@@ -147,17 +145,28 @@ dnnl::pooling_forward::primitive_desc createDescriptorHelper(const dnnl::engine&
 
 bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (ov::is_type<const ov::op::v8::MaxPool>(op) || ov::is_type<const ov::op::v14::MaxPool>(op)) {
+        if (ov::is_type_any_of<const ov::op::v8::MaxPool, const ov::op::v14::MaxPool>(op)) {
             if (!op->get_output_target_inputs(1).empty()) {
                 errorMessage = "MaxPool from opset8 and opset14 is supported only with one output";
                 return false;
             }
-        } else if (!ov::is_type<const ov::op::v1::MaxPool>(op) && !ov::is_type<const ov::op::v8::MaxPool>(op) &&
-                   !ov::is_type<const ov::op::v14::MaxPool>(op) && !ov::is_type<const ov::op::v1::AvgPool>(op) &&
-                   !ov::is_type<const ov::op::v14::AvgPool>(op)) {
+        } else if (!ov::is_type_any_of<const ov::op::v1::MaxPool,
+                                       const ov::op::v8::MaxPool,
+                                       const ov::op::v14::MaxPool,
+                                       const ov::op::v1::AvgPool,
+                                       const ov::op::v14::AvgPool>(op)) {
             errorMessage = "Supported ops are MaxPool-1, MaxPool-8, MaxPool-14, AvgPool-1 and AvgPool-14";
             return false;
         }
+#if defined(OV_CPU_WITH_ACL)
+        if (ov::is_type_any_of<const ov::op::v8::MaxPool, const ov::op::v14::MaxPool>(op)) {
+            if (ov::as_type_ptr<const ov::op::util::MaxPoolBase>(op)->get_kernel() != ov::Shape(2, 2)) {
+                errorMessage =
+                    "Pooling indices returning source tensor coordinates is only supported for pool size 2x2";
+                return false;
+            }
+        }
+#endif
     } catch (...) {
         return false;
     }
@@ -173,8 +182,8 @@ Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
 
     auto get_attributes = [](std::vector<ptrdiff_t>& internal_attribute,
                              const std::vector<size_t>& external_attribute) {
-        for (size_t i = 0; i < external_attribute.size(); i++) {
-            internal_attribute.push_back(static_cast<ptrdiff_t>(external_attribute[i]));
+        for (uint64_t i : external_attribute) {
+            internal_attribute.push_back(static_cast<ptrdiff_t>(i));
         }
     };
 
@@ -215,28 +224,30 @@ Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
 }
 
 std::vector<memory::format_tag> Pooling::getAvailableFormatsForDims(const Shape& dims) const {
-    if (dims.getRank() == 0)
+    switch (dims.getRank()) {
+    case 0:
+    case 1:
         return {memory::format_tag::x};
-    else if (dims.getRank() == 1)
-        return {memory::format_tag::x};
-    else if (dims.getRank() == 2)
+    case 2:
         return {memory::format_tag::nc};
-    else if (dims.getRank() == 3)
+    case 3:
         return {memory::format_tag::nCw8c,
                 memory::format_tag::nCw16c,
                 memory::format_tag::nwc,
                 memory::format_tag::ncw};
-    else if (dims.getRank() == 4)
+    case 4:
         return {memory::format_tag::nChw8c,
                 memory::format_tag::nChw16c,
                 memory::format_tag::nhwc,
                 memory::format_tag::nchw};
-    else if (dims.getRank() == 5)
+    case 5:
         return {memory::format_tag::nCdhw8c,
                 memory::format_tag::nCdhw16c,
                 memory::format_tag::ndhwc,
                 memory::format_tag::ncdhw};
-    return {memory::format_tag::any};
+    default:
+        return {memory::format_tag::any};
+    }
 }
 
 void Pooling::initEffectiveAttributes(const Shape& inShape, const Shape& outShape) {
@@ -260,13 +271,16 @@ void Pooling::initEffectiveAttributes(const Shape& inShape, const Shape& outShap
 }
 
 void Pooling::getSupportedDescriptors() {
-    if (!descs.empty())
+    if (!descs.empty()) {
         return;
+    }
 
-    if (getParentEdges().size() != 1)
-        OPENVINO_THROW("Incorrect number of input edges for layer ", getName());
-    if (getChildEdges().empty())
-        OPENVINO_THROW("Incorrect number of output edges for layer ", getName());
+    if (getParentEdges().size() != 1) {
+        THROW_CPU_NODE_ERR("Incorrect number of input edges");
+    }
+    if (getChildEdges().empty()) {
+        THROW_CPU_NODE_ERR("Incorrect number of output edges");
+    }
 
     ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(0);
     ov::element::Type outputPrecision = getOriginalOutputPrecisionAtPort(0);
@@ -323,8 +337,9 @@ void Pooling::getSupportedDescriptors() {
                   "getSupportedDescriptors()");
     }
 #endif
-    if (useACL)
+    if (useACL) {
         return;
+    }
 
     // WA: LPT transformation has WA which allows average pooling has I8/U8 output precision instead of FP32,
     // so we explicitly set output precision as FP32
@@ -347,15 +362,17 @@ void Pooling::getSupportedDescriptors() {
     auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(inputPrecision);
     auto outputDataType = DnnlExtensionUtils::ElementTypeToDataType(outputPrecision);
 
-    if ((inputRank < 3) || (inputRank > 5))
-        OPENVINO_THROW("Pooling layer. Unsupported mode. Only 3D, 4D and 5D blobs are supported as input.");
+    if ((inputRank < 3) || (inputRank > 5)) {
+        THROW_CPU_NODE_ERR("Unsupported mode. Only 3D, 4D and 5D blobs are supported as input.");
+    }
 
     initEffectiveAttributes(inShape, MemoryDescUtils::makeDummyShape(childShape));
 
     if (inputPrecision == ov::element::i8 || inputPrecision == ov::element::u8) {
         //  We have to extend i8i8_pooling_fwd_t from oneDNN to support BF16 output data type
-        if (one_of(outputDataType, memory::data_type::bf16, memory::data_type::f16))
+        if (one_of(outputDataType, memory::data_type::bf16, memory::data_type::f16)) {
             outputDataType = memory::data_type::f32;
+        }
         // i8 layers supports only ndhwc and nhwc layouts
         const auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(
             parentShape,
@@ -397,8 +414,9 @@ void Pooling::getSupportedDescriptors() {
 
 void Pooling::prepareParams() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
-        OPENVINO_THROW("Pooling node with name '", getName(), "' did not set preferable primitive descriptor");
+    if (selected_pd == nullptr) {
+        THROW_CPU_NODE_ERR("did not set preferable primitive descriptor");
+    }
 
     AttrPtr attr;
     if (isDynamicNode()) {
@@ -418,10 +436,12 @@ void Pooling::prepareParams() {
     if (useACL) {
         auto dstMemPtr = getDstMemoryAtPort(0);
         auto srcMemPtr = getSrcMemoryAtPort(0);
-        if (!dstMemPtr || !dstMemPtr->isDefined())
-            OPENVINO_THROW("Destination memory is undefined.");
-        if (!srcMemPtr || !srcMemPtr->isDefined())
-            OPENVINO_THROW("Input memory is undefined.");
+        if (!dstMemPtr || !dstMemPtr->isDefined()) {
+            THROW_CPU_NODE_ERR("Destination memory is undefined.");
+        }
+        if (!srcMemPtr || !srcMemPtr->isDefined()) {
+            THROW_CPU_NODE_ERR("Input memory is undefined.");
+        }
 
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
@@ -474,8 +494,9 @@ void Pooling::prepareParams() {
             auto first_desc = dnnl::pooling_forward::primitive_desc(prim_desc.get());
             const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
 
-            if (found)
+            if (found) {
                 return std::make_shared<DnnlExecutor>(prim_desc);
+            }
 
             // use the first available
             return std::make_shared<DnnlExecutor>(first_desc);
@@ -487,7 +508,7 @@ void Pooling::prepareParams() {
         dnnlExecPtr = result.first;
 
         if (!dnnlExecPtr) {
-            OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
+            THROW_CPU_NODE_ERR("Primitive descriptor was not found.");
         }
 
         auto scratchpadMem = getScratchPadMem(dnnlExecPtr->getScratchPadDesc());
@@ -519,7 +540,7 @@ void Pooling::execute(const dnnl::stream& strm) {
 
         execPtr->exec(srcMemory, dstMemory, postOpsArgs);
     } else {
-        OPENVINO_THROW("Pooling node with name '", getName(), "' doesn't have an initialized executor");
+        THROW_CPU_NODE_ERR("doesn't have an initialized executor");
     }
 }
 
@@ -547,15 +568,15 @@ dnnl::algorithm Pooling::getPoolingAlgorithm() const {
                 break;
             }
         }
-        if (!poolingAttrs.exclude_pad && (not_zero_l || not_zero_r))
+        if (!poolingAttrs.exclude_pad && (not_zero_l || not_zero_r)) {
             return dnnl::algorithm::pooling_avg_include_padding;
-        else
-            return dnnl::algorithm::pooling_avg_exclude_padding;
-    } else if (algorithm == Algorithm::PoolingMax) {
-        return dnnl::algorithm::pooling_max;
-    } else {
-        return dnnl::algorithm::undef;
+        }
+        return dnnl::algorithm::pooling_avg_exclude_padding;
     }
+    if (algorithm == Algorithm::PoolingMax) {
+        return dnnl::algorithm::pooling_max;
+    }
+    return dnnl::algorithm::undef;
 }
 
 dnnl::pooling_forward::primitive_desc Pooling::createDescriptorInternal(const dnnl::memory::desc& in_candidate,
@@ -597,13 +618,15 @@ void Pooling::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
 
     auto desc = createDescriptorInternal(in_candidate, out_candidate, getPoolingAlgorithm());
 
-    if (desc)
+    if (desc) {
         descs.emplace_back(desc);
+    }
 }
 
 void Pooling::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     if (useACL) {
         auto& creatorsMap = BlockedDescCreator::getCommonCreators();
@@ -708,14 +731,16 @@ void Pooling::initSupportedPrimitiveDescriptors() {
 
         // fallback. if none of the primitive types is present in the priority list just add first implementation
         // @todo this fallback is not necessary if primitive priority list is filled correctly
-        if (supportedPrimitiveDescriptors.empty())
+        if (supportedPrimitiveDescriptors.empty()) {
             addSupportedPrimitiveDescriptor(first_desc);
+        }
     }
 }
 
 void Pooling::initDescriptor(const NodeConfig& config) {
-    if (useACL)
+    if (useACL) {
         return;
+    }
 
     Node::initDescriptor(config);
 }
@@ -734,22 +759,22 @@ void Pooling::setPostOps(dnnl::primitive_attr& attr) {
     dnnl::post_ops ops;
 
     for (auto& node : fusedWith) {
+        int channelAxis = 1;
+
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, {}, postOpsArgs);
+            fakeQuantizeNode->appendPostOps(ops, {}, postOpsArgs, channelAxis);
             continue;
         }
 
-        OPENVINO_THROW("Fusing of ",
-                       NameFromType(node->getType()),
-                       " operation to ",
-                       NameFromType(this->getType()),
-                       " node is not implemented");
+        THROW_CPU_NODE_ERR("Fusing of ",
+                           NameFromType(node->getType()),
+                           " operation to ",
+                           NameFromType(this->getType()),
+                           " node is not implemented");
     }
 
     attr.set_post_ops(ops);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

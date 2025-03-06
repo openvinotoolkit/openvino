@@ -5,7 +5,7 @@
 #include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "tile_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 
 #include "openvino/op/tile.hpp"
 
@@ -23,7 +23,7 @@ struct tile_impl : public typed_primitive_impl<tile> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::tile_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<tile_impl>(*this);
+        return std::make_unique<tile_impl>(*this);
     }
 
     tile_impl() : parent("tile_cpu_impl") {}
@@ -83,7 +83,7 @@ struct tile_impl : public typed_primitive_impl<tile> {
 
         auto output_mem_ptr = instance.output_memory_ptr();
 
-        cldnn::mem_lock<int32_t, mem_lock_type::read> output_lock(output_mem_ptr, stream);
+        cldnn::mem_lock<int32_t, mem_lock_type::read_write> output_lock(output_mem_ptr, stream);
         output_host_tensors.push_back(make_tensor(params->output_layouts[0], output_lock.data()));
 
         OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
@@ -105,7 +105,7 @@ struct tile_impl : public typed_primitive_impl<tile> {
 
 public:
     static std::unique_ptr<primitive_impl> create(const tile_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<tile_impl>();
+        return std::make_unique<tile_impl>();
     }
 };
 

@@ -1,8 +1,10 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "cpu_generator.hpp"
+
+#include <memory>
 
 #include "emitters/plugin/aarch64/jit_conversion_emitters.hpp"
 #include "emitters/plugin/aarch64/jit_eltwise_emitters.hpp"
@@ -10,6 +12,7 @@
 #include "emitters/snippets/aarch64/jit_kernel_emitter.hpp"
 #include "emitters/snippets/aarch64/jit_loop_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_memory_emitters.hpp"
+#include "emitters/snippets/cpu_kernel_executor_table.hpp"
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "emitters/utils.hpp"
 #include "jit_snippets_emitters.hpp"
@@ -24,12 +27,17 @@
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 
+#ifdef SNIPPETS_LIBXSMM_TPP
+#    include "emitters/tpp/aarch64/jit_brgemm_emitter.hpp"
+#    include "transformations/tpp/common/op/brgemm.hpp"
+#endif
+
 namespace ov {
 
-#define CREATE_SNIPPETS_EMITTER(e_type)                                                              \
+#define CREATE_SNIPPETS_EMITTER(e_type, ...)                                                         \
     {                                                                                                \
         [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-            return std::make_shared<e_type>(h.get(), isa, expr);                                     \
+            return std::make_shared<e_type>(h.get(), isa, expr, ##__VA_ARGS__);                      \
         },                                                                                           \
             [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {         \
                 return e_type::get_supported_precisions(n);                                          \
@@ -114,15 +122,14 @@ class jit_snippet : public dnnl::impl::cpu::aarch64::jit_generator {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_snippet)
 
-    virtual ~jit_snippet() = default;
+    ~jit_snippet() override = default;
 
     jit_snippet() : jit_generator() {}
 
     void generate() override {}
 };
 
-namespace intel_cpu {
-namespace aarch64 {
+namespace intel_cpu::aarch64 {
 
 CompiledSnippetCPU::CompiledSnippetCPU(std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator> h)
     : h_compiled(std::move(h)) {
@@ -202,6 +209,12 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[ov::intel_cpu::SwishNode::get_type_info_static()] = CREATE_CPU_EMITTER(jit_swish_emitter);
     jitters[ov::op::v0::Tanh::get_type_info_static()] = CREATE_CPU_EMITTER(jit_tanh_emitter);
 
+#ifdef SNIPPETS_LIBXSMM_TPP
+    // brgemm
+    jitters[ov::intel_cpu::tpp::op::BrgemmTPP::get_type_info_static()] =
+        CREATE_SNIPPETS_EMITTER(jit_brgemm_emitter, configurator->get_kernel_executor_table(), compiled_kernel_cache);
+#endif
+
     // control flow
     jitters[snippets::op::KernelStatic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_kernel_static_emitter);
     jitters[snippets::op::KernelDynamic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_kernel_dynamic_emitter);
@@ -229,7 +242,7 @@ snippets::CompiledSnippetPtr CPUTargetMachine::get_snippet() {
     const auto& result =
         std::make_shared<CompiledSnippetCPU>(std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator>(h.release()));
     // Note that we reset all the generated code, since it was copied into CompiledSnippetCPU
-    h.reset(new jit_snippet());
+    h = std::make_unique<jit_snippet>();
     return result;
 }
 
@@ -246,8 +259,9 @@ std::vector<snippets::Reg> CPUTargetMachine::get_abi_arg_regs() const {
     using namespace dnnl::impl::cpu::aarch64;
     std::vector<snippets::Reg> res;
     for (const auto& r :
-         {abi_param1, abi_param2, abi_param3, abi_param4, abi_param5, abi_param6, abi_param7, abi_param8})
+         {abi_param1, abi_param2, abi_param3, abi_param4, abi_param5, abi_param6, abi_param7, abi_param8}) {
         res.emplace_back(snippets::RegType::gpr, r.getIdx());
+    }
     return res;
 }
 
@@ -257,8 +271,9 @@ std::vector<snippets::Reg> CPUTargetMachine::get_gp_reg_pool() const {
     std::vector<snippets::Reg> reg_pool;
     for (size_t i = 0; i < num_gp_regs; i++) {
         // Note: more details on the usage of reserved registers in aarch64/jit_kernel_emitter.cpp
-        if (!one_of(i, Operand::SP, Operand::X18, Operand::X23, Operand::X24, Operand::X28, Operand::X29))
+        if (!one_of(i, Operand::SP, Operand::X18, Operand::X23, Operand::X24, Operand::X28, Operand::X29)) {
             reg_pool.emplace_back(snippets::RegType::gpr, i);
+        }
     }
     return reg_pool;
 }
@@ -273,8 +288,10 @@ std::vector<snippets::Reg> CPUTargetMachine::get_vec_reg_pool() const {
         }
     }();
     std::vector<snippets::Reg> reg_pool;
-    for (int i = 0; i < num_vec_regs; i++)
+    reg_pool.reserve(num_vec_regs);
+    for (int i = 0; i < num_vec_regs; i++) {
         reg_pool.emplace_back(snippets::RegType::vec, static_cast<size_t>(i));
+    }
     return reg_pool;
 }
 
@@ -295,16 +312,16 @@ std::shared_ptr<snippets::Generator> CPUGenerator::clone() const {
 
 ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const {
     const auto op = out.get_node_shared_ptr();
-    if (ov::as_type_ptr<intel_cpu::FusedMulAdd>(op) || ov::as_type_ptr<intel_cpu::SwishNode>(op))
+    if (ov::as_type_ptr<intel_cpu::FusedMulAdd>(op) || ov::as_type_ptr<intel_cpu::SwishNode>(op)) {
         return ov::snippets::RegType::vec;
-    else
-        return ov::snippets::RegType::undefined;
+    }
+    return ov::snippets::RegType::undefined;
 }
 
 bool CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& e) const {
     return false;
 }
 
-}  // namespace aarch64
-}  // namespace intel_cpu
+}  // namespace intel_cpu::aarch64
+
 }  // namespace ov

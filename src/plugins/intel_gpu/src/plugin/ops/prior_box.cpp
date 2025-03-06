@@ -10,8 +10,7 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/prior_box.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreatePriorBoxClusteredOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::PriorBoxClustered>& op) {
     OPENVINO_ASSERT(false, "[GPU] PriorBoxClustered op is not supported in GPU plugin yet.");
@@ -255,5 +254,4 @@ REGISTER_FACTORY_IMPL(v0, PriorBoxClustered);
 REGISTER_FACTORY_IMPL(v0, PriorBox);
 REGISTER_FACTORY_IMPL(v8, PriorBox);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

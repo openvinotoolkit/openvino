@@ -41,8 +41,7 @@ void replace_node_unsafe(const std::shared_ptr<ov::Node>& target, const std::sha
 
 }  // namespace
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 IndirectGemmOpt::IndirectGemmOpt() {
     using namespace ov::pass::pattern;
@@ -228,5 +227,4 @@ IndirectKVCache::IndirectKVCache() {
     add_matcher<IndirectGemmOpt>();
     add_matcher<IndirectSDPAOpt>();
 }
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

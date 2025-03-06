@@ -9,9 +9,7 @@
 
 using namespace Xbyak_aarch64;
 
-namespace ov {
-namespace intel_cpu {
-namespace aarch64 {
+namespace ov::intel_cpu::aarch64 {
 
 using jit_generator = dnnl::impl::cpu::aarch64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
@@ -27,15 +25,17 @@ jit_fill_emitter::jit_fill_emitter(jit_generator* h, cpu_isa_t isa, const Expres
 
     offset = fill->get_offset();
     fill_value = fill->get_fill_value();
-    if (!is_optimized())
+    if (!is_optimized()) {
         push_arg_entry_of("value", fill_value, true);
+    }
     prepare_table();
 }
 
 size_t jit_fill_emitter::get_aux_gprs_count() const {
     // Optimized version (fill full vector by zero) doesn't need additional register
-    if (is_optimized())
+    if (is_optimized()) {
         return 0;
+    }
 
     return 1;
 }
@@ -50,16 +50,17 @@ void jit_fill_emitter::emit_impl(const std::vector<size_t>& in, const std::vecto
 
 template <cpu_isa_t isa>
 void jit_fill_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    if (is_full_reg())
+    if (is_full_reg()) {
         fill_full<isa>(out);
-    else
+    } else {
         fill_tail<isa>(in, out);
+    }
 }
 
 template <cpu_isa_t isa>
 void jit_fill_emitter::fill_full(const std::vector<size_t>& out) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg dst = TReg(out[0]);
+    auto dst = TReg(out[0]);
 
     // Optimized impl for zero
     if (is_optimized()) {
@@ -74,7 +75,7 @@ void jit_fill_emitter::fill_full(const std::vector<size_t>& out) const {
 template <cpu_isa_t isa>
 void jit_fill_emitter::fill_tail(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg dst = TReg(out[0]);
+    auto dst = TReg(out[0]);
 
     switch (offset) {
     case 1:
@@ -94,6 +95,4 @@ void jit_fill_emitter::fill_tail(const std::vector<size_t>& in, const std::vecto
     }
 }
 
-}  // namespace aarch64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::aarch64

@@ -5,7 +5,7 @@
 #include "lstm_seq_inst.h"
 #include "primitive_onednn_base.h"
 #include "lstm_seq_onednn.hpp"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 
 #include "kernel_selector_common.h"
 
@@ -24,7 +24,7 @@ struct lstm_seq_onednn : typed_primitive_onednn_impl<lstm_seq> {
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<lstm_seq_onednn>(*this);
+        return std::make_unique<lstm_seq_onednn>(*this);
     }
 
     std::unordered_map<int, dnnl::memory> get_arguments(lstm_seq_inst& instance) const override {
@@ -202,7 +202,7 @@ public:
         auto attr = impl_params.attrs_onednn;
         auto direction = arg.direction();
         auto prim_desc = get_lstm_primitive_descriptor(impl_params, engine, *attr, direction);
-        return cldnn::make_unique<lstm_seq_onednn>(engine, config, attr, *prim_desc, get_weights_reorder(impl_params, *prim_desc));
+        return std::make_unique<lstm_seq_onednn>(engine, config, attr, *prim_desc, get_weights_reorder(impl_params, *prim_desc));
     }
 };
 

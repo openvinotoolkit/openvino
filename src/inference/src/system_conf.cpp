@@ -271,9 +271,6 @@ std::vector<std::vector<int>> get_proc_type_table() {
 std::vector<std::vector<int>> get_org_proc_type_table() {
     return {{-1}};
 }
-bool is_cpu_map_available() {
-    return false;
-}
 int get_num_numa_nodes() {
     return -1;
 }
@@ -284,10 +281,6 @@ void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_tab
                             std::vector<std::vector<int>>& stream_processors,
                             const int cpu_status) {}
 void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {}
-
-int get_socket_by_numa_node(int numa_node_id) {
-    return -1;
-};
 
 int get_org_socket_id(int socket_id) {
     return -1;
@@ -315,11 +308,6 @@ int get_number_of_logical_cpu_cores(bool) {
 int get_number_of_blocked_cores() {
     CPU& cpu = cpu_info();
     return cpu._blocked_cores;
-}
-
-bool is_cpu_map_available() {
-    CPU& cpu = cpu_info();
-    return cpu._proc_type_table.size() > 0;
 }
 
 int get_current_socket_id() {
@@ -351,16 +339,6 @@ void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_tab
                             std::vector<std::vector<int>>& stream_processors,
                             const int cpu_status) {}
 void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {}
-
-int get_socket_by_numa_node(int numa_node_id) {
-    CPU& cpu = cpu_info();
-    for (size_t i = 0; i < cpu._proc_type_table.size(); i++) {
-        if (cpu._proc_type_table[i][PROC_NUMA_NODE_ID] == numa_node_id) {
-            return cpu._proc_type_table[i][PROC_SOCKET_ID];
-        }
-    }
-    return -1;
-};
 
 int get_org_socket_id(int socket_id) {
     CPU& cpu = cpu_info();
@@ -407,6 +385,7 @@ std::vector<int> get_available_numa_nodes() {
     return nodes;
 }
 #        endif
+
 int get_current_socket_id() {
     CPU& cpu = cpu_info();
     int cur_processor_id = sched_getcpu();
@@ -433,6 +412,7 @@ int get_current_numa_node_id() {
     return 0;
 }
 #    else
+
 int get_current_socket_id() {
     CPU& cpu = cpu_info();
     int cur_processor_id = GetCurrentProcessorNumber();
@@ -469,11 +449,6 @@ std::vector<std::vector<int>> get_proc_type_table() {
 std::vector<std::vector<int>> get_org_proc_type_table() {
     CPU& cpu = cpu_info();
     return cpu._org_proc_type_table;
-}
-
-bool is_cpu_map_available() {
-    CPU& cpu = cpu_info();
-    return cpu._cpu_mapping_table.size() > 0;
 }
 
 int get_num_numa_nodes() {
@@ -520,16 +495,6 @@ void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
         }
         ov::threading::update_proc_type_table(cpu._cpu_mapping_table, cpu._numa_nodes, cpu._proc_type_table);
     }
-}
-
-int get_socket_by_numa_node(int numa_node_id) {
-    CPU& cpu = cpu_info();
-    for (int i = 0; i < cpu._processors; i++) {
-        if (cpu._cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] == numa_node_id) {
-            return cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID];
-        }
-    }
-    return -1;
 }
 
 int get_number_of_logical_cpu_cores(bool bigCoresOnly) {
