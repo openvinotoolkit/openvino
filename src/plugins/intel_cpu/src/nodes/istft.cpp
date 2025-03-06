@@ -196,10 +196,8 @@ void istft_impl(const float* in_data,
             const auto out_frame_start = batch_out_start + frame_idx * frame_step;
             const auto out_frame_end = out_frame_start + frame_size;
 
-            std::vector<float> frame_data(data_t.data() + in_frame_start, data_t.data() + in_frame_end);
-
             auto twiddles = rdft_executor->generateTwiddles({static_cast<int>(frame_size)}, fft_out_shape, {0});
-            rdft_executor->execute(frame_data.data(),
+            rdft_executor->execute(data_t.data() + in_frame_start,
                                    frame_signal.data(),
                                    twiddles,
                                    1,
@@ -209,14 +207,6 @@ void istft_impl(const float* in_data,
                                    fft_out_shape,
                                    {2, 1},
                                    {1});
-
-            reference::irdft(frame_data,
-                             fft_out_shape,
-                             {0},
-                             frame_signal.data(),
-                             frame_size_dim_shape_out,
-                             frame_size_dim_shape,
-                             frame_size);
 
             std::transform(frame_signal.begin(),
                            frame_signal.end(),
