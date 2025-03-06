@@ -745,11 +745,9 @@ void program::prepare_memory_dependencies() {
     if (!_config.get_enable_memory_pool())
         return;
     for (auto& node : get_processing_order()) {
-        if (!node->is_constant())
+        if (node->likely_from_mempool())
             node->add_memory_dependency(node->get_unique_id());
     }
-    // printf("Size of size_t: %zu bytes\n", sizeof(size_t));
-    // printf("Size of uint32_t: %zu bytes\n", sizeof(uint32_t));
     apply_opt_pass<basic_memory_dependencies>();
     apply_opt_pass<skipped_branch_memory_dependencies>();
     apply_opt_pass<oooq_memory_dependencies>();

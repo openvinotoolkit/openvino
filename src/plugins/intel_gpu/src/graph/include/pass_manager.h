@@ -321,11 +321,11 @@ public:
         }
 
         if ((node->can_be_optimized() && !node->is_runtime_skippable()) || !dep->can_be_optimized()) {
-            if (!node->is_type<data>() && !dep->is_type<data>())
+            if (node->likely_from_mempool() && dep->likely_from_mempool())
                 node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
         } else {
             if (node->is_runtime_skippable() || dep->is_runtime_skippable() || dep->can_be_optimized()) {
-                if (!node->is_type<data>() && !dep->is_type<data>())
+                if (node->likely_from_mempool() && dep->likely_from_mempool())
                     node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
             }
 

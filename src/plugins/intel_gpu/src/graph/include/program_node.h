@@ -12,6 +12,7 @@
 #include "intel_gpu/graph/fused_primitive_desc.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/read_value.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 
 #include <set>
@@ -210,6 +211,11 @@ public:
     const std::unordered_set<uint32_t>& get_memory_dependencies() const;
     void add_memory_dependency(size_t);
     void add_memory_dependency(std::vector<size_t>);
+
+    // At least the following scenarios are not allocating from memory pool:
+    // 1. constant nodes
+    // 2. read_value nodes that are optimized out to reuse from Variables.
+    bool likely_from_mempool() const { return !(is_constant() || (is_type<read_value>() && optimized)); }
 
     template <class PType>
     bool have_user_with_type() const {

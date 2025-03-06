@@ -200,11 +200,12 @@ const std::unordered_set<uint32_t>& program_node::get_memory_dependencies() cons
     // if (org_id.find("split:Multiply_31737_fused_3_Multiply_split.out2") != std::string::npos) {
     //     std::cout << "#########caught split:Multiply_31737_fused_3_Multiply_split.out2 here2!\n\n";
     // }
-    // std::cout << this->org_id << " type " << cldnn::prim_map_storage::instance().get_type_string(type())
-    //     << ", program id: " << get_program().get_id()
-    //     << ", set size: " << memory_dependencies.size()
-    //     << ", Bucket count: " << memory_dependencies.bucket_count()
-    //     << ", Load factor: " << memory_dependencies.load_factor() << std::endl;
+    std::cout << this->org_id << " type " << cldnn::prim_map_storage::instance().get_type_string(type())
+        << ", program id: " << get_program().get_id()
+        << ", likely from memory pool: " << likely_from_mempool()
+        << ", set size: " << memory_dependencies.size()
+        << ", Bucket count: " << memory_dependencies.bucket_count()
+        << ", Load factor: " << memory_dependencies.load_factor() << std::endl;
     return memory_dependencies;
 }
 
