@@ -60,8 +60,7 @@ public:
           m_shape_info{shape},
           m_names{names},
           m_name_it{find_new_any_name(m_names)},
-          m_rt_map{},
-          m_legacy_name{} {}
+          m_rt_map{} {}
 
     virtual const element::Type& get_element_type() const override {
         return m_element_type;
@@ -121,7 +120,6 @@ private:
     std::unordered_set<std::string> m_names;
     std::unordered_set<std::string>::const_iterator m_name_it;
     RTMap m_rt_map;
-    std::string m_legacy_name;
 
     static decltype(m_name_it) find_new_any_name(const decltype(m_names)& names) {
         return std::min_element(names.begin(), names.end());
