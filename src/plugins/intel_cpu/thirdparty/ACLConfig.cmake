@@ -119,8 +119,6 @@ elseif(NOT TARGET arm_compute::arm_compute)
 
     set(extra_cxx_flags "${CMAKE_CXX_FLAGS} -Wno-undef")
     if(MSVC64)
-        # Recommended Win ARM arch build in https://arm-software.github.io/ComputeLibrary/latest/how_to_build.xhtml
-        set(OV_CPU_ARM_TARGET_ARCH armv8a)
         # clang-cl does not recognize /MP option
         string(REPLACE "/MP " "" extra_cxx_flags "${extra_cxx_flags}")
     elseif(CMAKE_POSITION_INDEPENDENT_CODE)
@@ -241,13 +239,6 @@ elseif(NOT TARGET arm_compute::arm_compute)
 
         set(extra_link_flags "${extra_link_flags} ${extra_flags}")
         set(extra_cxx_flags "${extra_cxx_flags} ${extra_flags}")
-
-        set(cmake_build_env
-            SHCXXCOMSTR="Building $TARGET"
-            SHCCCOMSTR="Building $TARGET"
-            CCCOMSTR="Compiling $TARGET"
-            CXXCOMSTR="Compiling $TARGET"
-            LINKCOMSTR="Linking $TARGET")
     elseif(LINUX)
         # we need to bypass this information in case of custom compiler is passed
         # to cmake call. Such compiler and compiler prefix need to be passed to scons
@@ -347,9 +338,9 @@ elseif(NOT TARGET arm_compute::arm_compute)
         list(APPEND ARM_COMPUTE_OPTIONS extra_cxx_flags=${extra_cxx_flags})
     endif()
 
-    #if(NOT CMAKE_VERBOSE_MAKEFILE)
-    #    list(APPEND ARM_COMPUTE_OPTIONS --silent)
-    #endif()
+    if(NOT CMAKE_VERBOSE_MAKEFILE)
+        list(APPEND ARM_COMPUTE_OPTIONS --silent)
+    endif()
 
     if(MSVC64)
         set(arm_compute build/arm_compute-static.lib)
@@ -359,16 +350,6 @@ elseif(NOT TARGET arm_compute::arm_compute)
     set(arm_compute_full_path "${ARM_COMPUTE_SOURCE_DIR}/${arm_compute}")
 
     list(APPEND ARM_COMPUTE_OPTIONS fixed_format_kernels=True)
-
-    add_custom_command(
-        OUTPUT clang_targets.txt
-        COMMAND /deps/android_tools/ndk-bundle/toolchains/llvm/prebuilt/linux-x86_64/bin/clang -print-targets > clang_targets.txt
-        COMMENT "clang targets")
-
-    add_custom_target(run_clang_targets
-        DEPENDS clang_targets.txt
-        COMMAND ${CMAKE_COMMAND} -E cat clang_targets.txt
-    )
 
     add_custom_command(
         OUTPUT
@@ -389,7 +370,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
 
     # Import targets
 
-    add_custom_target(arm_compute_static_libs DEPENDS ${arm_compute_full_path} run_clang_targets)
+    add_custom_target(arm_compute_static_libs DEPENDS ${arm_compute_full_path})
 
     add_library(arm_compute::arm_compute STATIC IMPORTED GLOBAL)
     set_target_properties(arm_compute::arm_compute PROPERTIES
