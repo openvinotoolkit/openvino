@@ -49,10 +49,8 @@ Node::NodesFactory& Node::factory() {
 }
 
 Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory)
-    : selectedPrimitiveDescriptorIndex(-1),
-      constant(ConstantType::NoConst),
-      context(std::move(ctx)),
-      algorithm(Algorithm::Default),
+    : context(std::move(ctx)),
+
       fusingPort(-1),
       engine(context->getEngine()),
       name(op->get_friendly_name()),
@@ -183,8 +181,7 @@ Node::Node(const std::string& type,
            const GraphContext::CPtr& ctx)
     : inputShapes(std::move(inShapes)),
       outputShapes(std::move(outShapes)),
-      selectedPrimitiveDescriptorIndex(-1),
-      constant(ConstantType::NoConst),
+
       context(ctx),
       originalInputPrecisions(std::move(inputPrecisions)),
       originalOutputPrecisions(std::move(outputPrecisions)),
@@ -341,7 +338,7 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
 
 bool Node::isOneDimShape(const ov::PartialShape& pshape) {
     int value_1_num = 0;
-    int sz = static_cast<int>(pshape.size());
+    auto sz = static_cast<int>(pshape.size());
     for (const auto& s : pshape) {
         if (s.is_static() && s.get_length() == 1) {
             value_1_num++;
@@ -723,29 +720,25 @@ std::vector<EdgePtr> Node::getChildEdgesAtPort(int inputNum) const {
 }
 
 std::vector<memory::format_tag> Node::getAvailableFormatsForDims(const Shape& dims) const {
-    if (dims.getRank() == 0) {
+    switch (dims.getRank()) {
+    case 0:
+    case 1:
         return {memory::format_tag::x};
-    }
-    if (dims.getRank() == 1) {
-        return {memory::format_tag::x};
-    }
-    if (dims.getRank() == 2) {
+    case 2:
         return {memory::format_tag::nc};
-    }
-    if (dims.getRank() == 3) {
+    case 3:
         return {memory::format_tag::tnc,
                 memory::format_tag::ntc,
                 memory::format_tag::ncw,
                 memory::format_tag::nCw8c,
                 memory::format_tag::nCw16c};
-    }
-    if (dims.getRank() == 4) {
+    case 4:
         return {memory::format_tag::nchw, memory::format_tag::nChw8c, memory::format_tag::nChw16c};
-    }
-    if (dims.getRank() == 5) {
+    case 5:
         return {memory::format_tag::ncdhw, memory::format_tag::nCdhw8c, memory::format_tag::nCdhw16c};
+    default:
+        return {memory::format_tag::any};
     }
-    return {memory::format_tag::any};
 }
 
 static void fetchRawMemory(const MemoryPtr& mem) {
@@ -829,9 +822,8 @@ void Node::updateDynamicParams() {
 void Node::execute(const dnnl::stream& strm, int numaId) {
     if (isDynamicNode()) {
         return executeDynamic(strm, numaId);
-    } else {
-        return executeStatic(strm, numaId);
     }
+    return executeStatic(strm, numaId);
 }
 
 void Node::executeStatic(const dnnl::stream& strm, int numaId) {

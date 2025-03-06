@@ -15,9 +15,8 @@ inline std::string getRTInfoValue(const std::map<std::string, ov::Any>& rtInfo, 
     auto it = rtInfo.find(paramName);
     if (it != rtInfo.end()) {
         return it->second.as<std::string>();
-    } else {
-        return {};
     }
+    return {};
 }
 
 inline std::string getImplPriorityValue(const std::shared_ptr<ov::Node>& node) {

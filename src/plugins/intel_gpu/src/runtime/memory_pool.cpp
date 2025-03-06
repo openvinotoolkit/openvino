@@ -49,6 +49,10 @@ bool memory_pool::has_conflict(const memory_set& mem_cand,
 void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive_id prim_id, uint32_t network_id) {
     // check non padded pool first
     auto _layout = mem->get_layout();
+    if (_layout.is_dynamic()) {
+        const auto max_shape = _layout.get_partial_shape().get_max_shape();
+        _layout = _layout.clone_with_other_shape(max_shape);
+    }
     auto type = mem->get_allocation_type();
     const auto _layout_bytes_count = _layout.bytes_count();
 

@@ -224,7 +224,8 @@ void Split::initSupportedPrimitiveDescriptors() {
 bool Split::needShapeInfer() const {
     if (Node::needShapeInfer()) {
         return true;
-    } else if (!constSplitLengths) {
+    }
+    if (!constSplitLengths) {
         const auto& lengthsMemPtr = getSrcMemoryAtPort(2);
         const auto curLengthsSize = lengthsMemPtr->getStaticDims()[0];
         if (curLengthsSize != splitLengths.size()) {
@@ -315,7 +316,7 @@ void Split::execute(const dnnl::stream& strm) {
         return;
     }
 
-    uint8_t* srcData = srcMem.getDataAs<uint8_t>();
+    auto* srcData = srcMem.getDataAs<uint8_t>();
     CPU_NODE_ASSERT(execPtr != nullptr, "Split executor is not initialized");
     execPtr->exec(srcData, getRawDstMemPtrs());
 }

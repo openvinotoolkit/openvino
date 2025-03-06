@@ -195,3 +195,5 @@ bool ov::op::util::FrameworkNode::visit_attributes(AttributeVisitor& visitor) {
 
 ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>::AttributeAdapter(ov::op::util::FrameworkNodeAttrs& value)
     : DirectValueAccessor<ov::op::util::FrameworkNodeAttrs>(value) {}
+
+ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>::~AttributeAdapter() = default;

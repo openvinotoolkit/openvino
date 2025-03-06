@@ -302,36 +302,22 @@ size_t Type::bitwidth() const {
 namespace ov {
 template <>
 OPENVINO_API EnumNames<element::Type_t>& EnumNames<element::Type_t>::get() {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    static auto enum_names = EnumNames<element::Type_t>("element::Type_t",
-                                                        {{"undefined", element::Type_t::undefined},
-                                                         {"dynamic", element::Type_t::dynamic},
-                                                         {"boolean", element::Type_t::boolean},
-                                                         {"bf16", element::Type_t::bf16},
-                                                         {"f16", element::Type_t::f16},
-                                                         {"f32", element::Type_t::f32},
-                                                         {"f64", element::Type_t::f64},
-                                                         {"i4", element::Type_t::i4},
-                                                         {"i8", element::Type_t::i8},
-                                                         {"i16", element::Type_t::i16},
-                                                         {"i32", element::Type_t::i32},
-                                                         {"i64", element::Type_t::i64},
-                                                         {"u1", element::Type_t::u1},
-                                                         {"u2", element::Type_t::u2},
-                                                         {"u3", element::Type_t::u3},
-                                                         {"u4", element::Type_t::u4},
-                                                         {"u6", element::Type_t::u6},
-                                                         {"u8", element::Type_t::u8},
-                                                         {"u16", element::Type_t::u16},
-                                                         {"u32", element::Type_t::u32},
-                                                         {"u64", element::Type_t::u64},
-                                                         {"nf4", element::Type_t::nf4},
-                                                         {"f8e4m3", element::Type_t::f8e4m3},
-                                                         {"f8e5m2", element::Type_t::f8e5m2},
-                                                         {"string", element::Type_t::string},
-                                                         {"f4e2m1", element::Type_t::f4e2m1},
-                                                         {"f8e8m0", element::Type_t::f8e8m0}});
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    static auto enum_names =
+        EnumNames<element::Type_t>("element::Type_t",
+                                   {{"dynamic", element::Type_t::dynamic}, {"undefined", element::Type_t::dynamic},
+                                    {"boolean", element::Type_t::boolean}, {"bf16", element::Type_t::bf16},
+                                    {"f16", element::Type_t::f16},         {"f32", element::Type_t::f32},
+                                    {"f64", element::Type_t::f64},         {"i4", element::Type_t::i4},
+                                    {"i8", element::Type_t::i8},           {"i16", element::Type_t::i16},
+                                    {"i32", element::Type_t::i32},         {"i64", element::Type_t::i64},
+                                    {"u1", element::Type_t::u1},           {"u2", element::Type_t::u2},
+                                    {"u3", element::Type_t::u3},           {"u4", element::Type_t::u4},
+                                    {"u6", element::Type_t::u6},           {"u8", element::Type_t::u8},
+                                    {"u16", element::Type_t::u16},         {"u32", element::Type_t::u32},
+                                    {"u64", element::Type_t::u64},         {"nf4", element::Type_t::nf4},
+                                    {"f8e4m3", element::Type_t::f8e4m3},   {"f8e5m2", element::Type_t::f8e5m2},
+                                    {"string", element::Type_t::string},   {"f4e2m1", element::Type_t::f4e2m1},
+                                    {"f8e8m0", element::Type_t::f8e8m0}});
     return enum_names;
 }
 
@@ -342,4 +328,8 @@ const std::string& AttributeAdapter<element::Type>::get() {
 void AttributeAdapter<element::Type>::set(const std::string& value) {
     m_ref = as_enum<element::Type_t>(value);
 }
+
+AttributeAdapter<ov::element::Type_t>::~AttributeAdapter() = default;
+AttributeAdapter<ov::element::Type>::~AttributeAdapter() = default;
+AttributeAdapter<ov::element::TypeVector>::~AttributeAdapter() = default;
 }  // namespace ov
