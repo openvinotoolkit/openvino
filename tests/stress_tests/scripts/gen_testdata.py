@@ -3,11 +3,9 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-""" Script to generate XML cohfig file with the list of IR models
+""" Script to generate XML config file with the list of IR models
 Usage: 
   python get_testdata.py  --test_conf <name_test_config>.xml  --ir_cache_dir <path_to_ir_cache>
-or:
-  python get_testdata.py  --test_conf <name_test_config>.xml --omz_cache_dir <path_to_ir_cache>
 """
 # pylint:disable=line-too-long
 
@@ -63,11 +61,8 @@ def get_args(parser):
     """Parse command line options
     """
     parser.add_argument('--test_conf', required=True, type=Path,
-                        help='Path to a test config .xml file containing models '
-                             'which will be downloaded and converted to IRs via OMZ.')
-    parser.add_argument('--omz_cache_dir', type=Path,
-                        default=abs_path('../_omz_out/cache'),
-                        help='Directory with test data cache. Required for OMZ downloader.py only.')
+                        help='Path to a test config .xml file to generate IR-models '
+                             'list from the directory with IR data cache.')
     parser.add_argument('--ir_cache_dir', type=Path,
                         default=abs_path('../ir_cache'),
                         help='Directory with IR data cache.')
@@ -83,7 +78,7 @@ def main():
     model_recs = get_model_recs(test_conf_obj.getroot()) # <class 'xml.etree.ElementTree.Element'>
 
     if not os.path.exists(args.ir_cache_dir) and not os.path.exists(args.omz_cache_dir):
-        raise Exception("No \"ir_cache_dir\" or \"omz_cache_dir\" was not found")
+        raise FileNotFoundError("Directory 'ir_cache_dir' was not found.")
     
     if os.path.exists(args.ir_cache_dir):
         subdirectory = str(args.ir_cache_dir)
