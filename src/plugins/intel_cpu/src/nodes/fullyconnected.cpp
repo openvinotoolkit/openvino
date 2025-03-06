@@ -47,13 +47,12 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes() {
 
     if (useMatmulPrim) {
         return {Type_t::u8, Type_t::i8};
-    } else {
-#if defined(OPENVINO_ARCH_X86_64)
-        return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::nf4, Type_t::f4e2m1};
-#else
-        return {};
-#endif
     }
+#if defined(OPENVINO_ARCH_X86_64)
+    return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::nf4, Type_t::f4e2m1};
+#else
+    return {};
+#endif
 }
 
 ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes() {
@@ -64,23 +63,20 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes()
 
     if (useMatmulPrim) {
         return {Type_t::f32, Type_t::f16};
-    } else {
-#if defined(OPENVINO_ARCH_X86_64)
-        // @todo enable for bf16 as well
-        // after EnforceInferencePrecision is replaced with ConvertPrecision
-        return {Type_t::f32};
-#else
-        return {};
-#endif
     }
+#if defined(OPENVINO_ARCH_X86_64)
+    // @todo enable for bf16 as well
+    // after EnforceInferencePrecision is replaced with ConvertPrecision
+    return {Type_t::f32};
+#else
+    return {};
+#endif
 }
 
 bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                           std::string& errorMessage) noexcept {
     try {
-        if (!ov::is_type<const ov::op::internal::FullyConnected>(op) &&
-            !ov::is_type<const ov::op::internal::FullyConnectedQuantizedLegacy>(op) &&
-            !ov::is_type<const ov::op::internal::FullyConnectedCompressed>(op)) {
+        if (!ov::is_type<const ov::op::internal::FullyConnected>(op)) {
             return false;
         }
 

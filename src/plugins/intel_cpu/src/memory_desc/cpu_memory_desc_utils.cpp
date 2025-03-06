@@ -30,38 +30,38 @@ DnnlMemoryDescPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDescPtr& 
                                                                                 cpuDesc->getOffsetPadding(),
                                                                                 cpuDesc->getOffsetPaddingToData(),
                                                                                 cpuDesc->getStrides()));
-    } else if (MemoryDescType::Empty == desc->getType()) {
-        return DnnlExtensionUtils::makeDescriptor(dnnl::memory::desc());
-    } else if (MemoryDescType::Dnnl & desc->getType()) {
-        return std::dynamic_pointer_cast<DnnlMemoryDesc>(desc);
-    } else {
-        OPENVINO_THROW("Cannot convert MemoryDesc to DnnlMemoryDesc");
     }
+    if (MemoryDescType::Empty == desc->getType()) {
+        return DnnlExtensionUtils::makeDescriptor(dnnl::memory::desc());
+    }
+    if (MemoryDescType::Dnnl & desc->getType()) {
+        return std::dynamic_pointer_cast<DnnlMemoryDesc>(desc);
+    }
+    OPENVINO_THROW("Cannot convert MemoryDesc to DnnlMemoryDesc");
 }
 
 DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const MemoryDesc& desc) {
     if (MemoryDescType::DnnlBlocked == desc.getType()) {
-        return DnnlBlockedMemoryDesc(*desc.as<DnnlBlockedMemoryDesc>());
-    } else if (MemoryDescType::Blocked == desc.getType()) {
-        const auto cpuDesc = desc.as<CpuBlockedMemoryDesc>();
-        return DnnlBlockedMemoryDesc(cpuDesc->getPrecision(),
-                                     cpuDesc->getShape(),
-                                     cpuDesc->getBlockDims(),
-                                     cpuDesc->getOrder(),
-                                     cpuDesc->getOffsetPadding(),
-                                     cpuDesc->getOffsetPaddingToData(),
-                                     cpuDesc->getStrides());
-    } else {
-        OPENVINO_THROW("Cannot convert MemoryDesc to DnnlBlockedMemoryDesc");
+        return {*desc.as<DnnlBlockedMemoryDesc>()};
     }
+    if (MemoryDescType::Blocked == desc.getType()) {
+        const auto cpuDesc = desc.as<CpuBlockedMemoryDesc>();
+        return {cpuDesc->getPrecision(),
+                cpuDesc->getShape(),
+                cpuDesc->getBlockDims(),
+                cpuDesc->getOrder(),
+                cpuDesc->getOffsetPadding(),
+                cpuDesc->getOffsetPaddingToData(),
+                cpuDesc->getStrides()};
+    }
+    OPENVINO_THROW("Cannot convert MemoryDesc to DnnlBlockedMemoryDesc");
 }
 
 BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDescPtr& desc) {
     if (desc->getType() & MemoryDescType::Blocked) {
         return std::dynamic_pointer_cast<BlockedMemoryDesc>(desc);
-    } else {
-        OPENVINO_THROW("Cannot convert MemoryDesc to BlockedMemoryDesc");
     }
+    OPENVINO_THROW("Cannot convert MemoryDesc to BlockedMemoryDesc");
 }
 
 CpuBlockedMemoryDescPtr MemoryDescUtils::generateCpuBlockedMemoryDesc(const ov::SoPtr<ov::ITensor>& tensor) {

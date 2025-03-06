@@ -37,7 +37,7 @@ OutputVector translate_squeeze_op(const NodeContext& node) {
 
     if (complex_type_mark) {
         element::Type complex_part_type = complex_type_mark->get_complex_part_type();
-        input = complex_type_mark->input_value(0);
+        input = complex_type_mark->get_data();
 
         auto input_rank = compute_subgraph_scalar_rank(input, element::i32, true);
         auto const_one = make_shared<v0::Constant>(element::i32, Shape{}, 1);

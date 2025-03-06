@@ -46,6 +46,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_Conv_1D_1x1_BF16/ConvolutionLayerCPUTest\.CompareWithRefs/IS=\[1\.\.200\.64\.\?\]_TS=\(\(2\.64\.7\)_\(1\.64\.5\)_\)_K\(1\)_S\(1\)_PB\(0\)_PE\(0\)_D=\(1\)_O=63_AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=nhwc_outFmts=nhwc_primitive=jit_avx512_1x1_.*PluginConf_INFERENCE_PRECISION_HINT=bf16)",
         R"(smoke_Conv_1D_1x1_BF16/ConvolutionLayerCPUTest\.CompareWithRefs/IS=\[\?\.6(4|7)\.1\.\.200\]_TS=\(\(2\.6(4|7)\.7\)_\(1\.6(4|7)\.9\)_\)_K\(1\)_S\(1\)_PB\(0\)_PE\(0\)_D=\(1\)_O=63_AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=nhwc_outFmts=nhwc_primitive=jit_avx512_1x1_.*PluginConf_INFERENCE_PRECISION_HINT=bf16)",
         R"(smoke_GroupConv_brgemm_2D_BF16/GroupConvolutionLayerCPUTest\.CompareWithRefs/IS=\[\]_TS=\(\(1\.64\.7\.7\)_\)_K\(3\.3\)_S\(2\.2\)_PB\((0|1)\.(0|1)\)_PE\(0\.0\)_D=\(2\.2\)_O=64_G=2_AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=nhwc_outFmts=nhwc_primitive=brgconv_avx512_amx_.*PluginConf_INFERENCE_PRECISION_HINT=bf16)",
+        R"(smoke_JIT_AVX512_DW_GroupConv/GroupConvolutionLayerCPUTest.*inFmts=nCdhw16c.*INFERENCE_PRECISION_HINT=bf16.*)",
+        R"(smoke_Conv_1D_BF16/ConvolutionLayerCPUTest.*IS=\[\].*K\(3\).*S\(2\).*PE\(0\).*D=\(1\).*O=6(3|4).*brgconv_avx512_amx.*)",
         // TODO: 56827. Sporadic test failures
         R"(.*smoke_Conv.+_FP32.ConvolutionLayerCPUTest\.CompareWithRefs.*TS=\(\(.\.67.+\).*inFmts=n.+c.*_primitive=jit_avx2.*)",
         // incorrect jit_uni_planar_convolution with dilation = {1, 2, 1} and output channel 1
@@ -173,6 +175,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=21_.*_sort=value_modelType=f16_trgDev=CPU.*)",
         // Issue: 121812
         R"(.*ConvertCPULayerTest.*outFmts=(nhwc|nChw8c|nChw16c).*)",
+        // Issue: 123320
+        // Input precision bf16 is converted to fp32 by logic in core_config.cpp during ngraph reference test.
+        R"(.*FakeConvertLayerTest.*dataPrecision=bf16.*)",
         // Need to generate sequence exactly in the i64 data type. Enable in scope of i64 enabling.
         R"(.*RandomUniformLayerTestCPU.*OutPrc=i64.*)",
         // Issue: 123815 (Tests are sensintive to available thread count on testing machines)
@@ -273,6 +278,49 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Snippets.*MatMulTransposeB.*i8.*i8.*)",
         // Issue: 136881
         R"(.*smoke_CompareWithRefs_4D_BitwiseShift_overflow_i32_cast.*_eltwise_op_type=BitwiseLeft.*_model_type=.*(i16|u16).*)",
+        // Issue: 163083
+        // Issue: 163116
+        R"(.*RandomUniformLayerTestCPU.*OutPrc=bf16.*)",
+        // Issue: 163117
+        R"(.*InterpolateCubic_Layout_Test.*)",
+        // Issue: 163171
+        R"(.*CPUDetectionOutputDynamic3InLargeTensor.*)",
+        // Issue: 163168
+        R"(.*UniqueLayerTestCPU.*)",
+        // Issue: 163175
+        R"(.*GridSampleLayerTestCPU.*dataPrc=i8.*)",
+        R"(.*GridSampleLayerTestCPU.*dataPrc=bf16.*)",
+        // Issue: 163177
+        R"(.*NmsRotatedOpTest.*ScoreThr=0\.4.*)",
+        // Issue: 163222
+        R"(.*bf16.*LSTMSequenceCPUTest.*)",
+        // Issue: 163223
+        R"(.*bf16.*AUGRUSequenceCPUTest.*)",
+        // Issue: 163224
+        R"(.*bf16.*GRUSequenceCPUTest.*)",
+        // Issue: 163227
+        R"(.*QuantizedModelsTests\.MaxPoolFQ.*)",
+        R"(.*QuantizedModelsTests\.MaxPoolQDQ.*)",
+        // Issue: 163268
+        R"(.*QuantizedModelsTests\.ConvolutionQDQ.*)",
+        R"(.*QuantizedModelsTests\.ConvolutionFQ.*)",
+        // Issue: 163230
+        R"(.*ProposalLayerTest.*)",
+        // Issue: 163232
+        R"(.*FC_3D_BF16.*MatMulLayerCPUTest.*)",
+        // Issue: 163242
+        R"(.*bf16.*RNNSequenceCPUTest.*)",
+        // Issue: 163250
+        R"(.*OnnxModelWithExtensionFromDSO.*)",
+        // Issue: 163273
+        // todo: define correct area
+        R"(.*Deconv_2D_Planar_FP16.*DeconvolutionLayerCPUTest.*)",
+        // Issue: 163275
+        R"(.*NoReshapeAndReshapeDynamic.*CodegenGelu.*)",
+        // Issue: 163348
+        R"(.*CpuReservationTest.*Mutiple_CompiledModel_Reservation.*)",
+        // Issue: 163351
+        R"(.*CoreThreadingTestsWithIter.*nightly_AsyncInfer_ShareInput.*)",
     };
 
     // fp32 floor for bf16 models: conversion issue
@@ -485,13 +533,13 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*(BF|bf)16.*)");
         retVector.emplace_back(R"(.*bfloat16.*)");
     }
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     if (!ov::with_cpu_x86_avx2()) {
         // MatMul in Snippets uses BRGEMM that is supported only on AVX2 (and newer) platforms
         // Disabled Snippets MHA tests as well because MHA pattern contains MatMul
         retVector.emplace_back(R"(.*Snippets.*MHA.*)");
         retVector.emplace_back(R"(.*Snippets.*(MatMul|Matmul).*)");
     }
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     if (!ov::with_cpu_x86_avx512_core_fp16()) {
         // Skip fp16 tests for paltforms that don't support fp16 precision
         retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
@@ -530,6 +578,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*CompileModelWithCacheEncryptionTest.*CanImportModelWithoutException.*)");
     retVector.emplace_back(R"(.*ConcatMultiQuerySDPTest.*f16.*)");
     retVector.emplace_back(R"(.*ConcatSDPTest.*f16.*)");
+    retVector.emplace_back(R"(.*FakeConvertLayerTest.*f16.*)");
     retVector.emplace_back(R"(.*CoreThreadingTestsWithCacheEnabled.*smoke_compiled_model_cache_enabled.*)");
     retVector.emplace_back(R"(.*CoreThreadingTestsWithIter.*smoke_CompileModel.*)");
     retVector.emplace_back(R"(.*CustomOpConvertI64CPUTest.*CompareWithRefs.*)");
@@ -611,16 +660,6 @@ std::vector<std::string> disabledTestPatterns() {
 #endif
 
     if (ov::with_cpu_x86_avx512_core_amx()) {
-        // Issue: 130463
-        retVector.emplace_back(R"(smoke_Conv_1D_GEMM_BF16/ConvolutionLayerCPUTest.*K\(1\)_S\(1\)_PB\(0\)_PE\(0\).*O=6.*_Fused=Add\(PerChannel\).*)");
-        // Issue: 130466
-        retVector.emplace_back(R"(smoke_Conv_1D_BF16/ConvolutionLayerCPUTest.*IS=\[\].*K\(3\).*S\(2\).*PE\(0\).*D=\(1\).*O=6(3|4).*brgconv_avx512_amx.*)");
-        // Issue: 130467
-        retVector.emplace_back(R"(smoke_MM_Brgemm_Amx_.*/MatMulLayerCPUTest.*TS=\(\(10\.10\.10\)\).*bf16.*_primitive=brgemm_avx512_amx.*)");
-        retVector.emplace_back(R"(smoke_MM_Brgemm_Amx_.*/MatMulLayerCPUTest.*IS=\[1.*TS=\(\(10\.10\.10\).*bf16.*_primitive=brgemm_avx512_amx.*)");
-        retVector.emplace_back(R"(smoke_MM_Brgemm_Amx_.*/MatMulLayerCPUTest.*TS=\(\(55\.12\)\).*bf16.*_primitive=brgemm_avx512_amx.*)");
-        // Issue: 130471
-        retVector.emplace_back(R"(smoke_JIT_AVX512_DW_GroupConv/GroupConvolutionLayerCPUTest.*inFmts=nCdhw16c.*INFERENCE_PRECISION_HINT=bf16.*)");
         // Issue: 131475
         retVector.emplace_back(R"(smoke_ExportImportTest/ExportOptimalNumStreams.OptimalNumStreams/.*)");
         // by calc abs_threshold with expected value
@@ -636,11 +675,8 @@ std::vector<std::string> disabledTestPatterns() {
     }
 
     if (ov::with_cpu_x86_avx512_core_fp16()) {
-        // Issue: 130473
-        retVector.emplace_back(R"(smoke_CompareWithRefs_4D.*/EltwiseLayerCPUTest.*Sub_secondary.*INFERENCE_PRECISION_HINT=f16.*FakeQuantize.*enforceSnippets=1.*)");
-        retVector.emplace_back(R"(smoke_Reduce.*/ReduceCPULayerTest.*axes=\((0.1|1)\).*Prod_KeepDims.*INFERENCE_PRECISION_HINT=f16.*)");
-        retVector.emplace_back(R"(smoke_ConvertRangeSubgraphCPUTest/ConvertRangeSubgraphCPUTest\.CompareWithRefs.*Prc=f16.*)");
         // Issue: 143852
+        retVector.emplace_back(R"(smoke_ConvertRangeSubgraphCPUTest/ConvertRangeSubgraphCPUTest\.CompareWithRefs.*Prc=f16.*)");
         retVector.emplace_back(R"((smoke|nightly)_FC_3D_FP16/.*_Fused=Multiply\(PerChannel\).*)");
         retVector.emplace_back(R"((smoke|nightly)_MM_Brgemm_Static_FP16.*TS=\(\(55\.12\)\).*_Fused=Multiply\(PerChannel\).*)");
         retVector.emplace_back(R"(smoke_MM_Dynamic_Fusing_FP16/.*TS=\(\(16\.12\)_\(33\.7\)_\(16\.12\)\).*_Fused=Multiply\(PerChannel\).*)");
