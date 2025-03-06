@@ -48,30 +48,30 @@ pass::FuseBrgemmCPUPostops::FuseBrgemmCPUPostops() {
         }
 
         // Log the addition of the post operation
-        std::cout << "Adding post operation: " << post_op->get_friendly_name()
+        std::cout << "[ INFO ] Adding post operation: " << post_op->get_friendly_name()
                   << " to BrgemmCPU: " << brgemm->get_friendly_name() << std::endl;
         brgemm->add_post_op(post_op);
 
         // Log the replacement output
         auto replacement_output = post_op->input_value(0);
-        std::cout << "Initial replacement output set to input value of post operation: "
+        std::cout << "\t Initial replacement output set to input value of post operation: "
                   << replacement_output.get_node()->get_friendly_name() << std::endl;
 
         if (pattern_map.count(m_convert)) {
             const auto convert = pattern_map.at(m_convert).get_node_shared_ptr();
-            std::cout << "Convert operation found: " << convert->get_friendly_name() << std::endl;
+            std::cout << "\t Convert operation found: " << convert->get_friendly_name() << std::endl;
 
             OPENVINO_ASSERT(convert->get_output_element_type(0) == brgemm->get_output_element_type(0),
                             "Unexpected type for brgemm output conversion: ",
                             convert->get_output_element_type(0));
 
             replacement_output = convert->input_value(0);
-            std::cout << "Replacement output updated to input value of convert operation: "
+            std::cout << "\t Replacement output updated to input value of convert operation: "
                       << replacement_output.get_node()->get_friendly_name() << std::endl;
         }
 
         // Log the output replacement
-        std::cout << "Replacing output of post operation: " << post_op->get_friendly_name()
+        std::cout << "\t Replacing output of post operation: " << post_op->get_friendly_name()
                   << " with: " << replacement_output.get_node()->get_friendly_name() << std::endl;
         return ov::replace_output_update_name(post_op->output(0), replacement_output);
     };
@@ -92,13 +92,13 @@ pass::FuseBrgemmOutConvert::FuseBrgemmOutConvert() {
         const auto convert = pattern_map.at(m_convert).get_node_shared_ptr();
 
         // Log the addition of the convert operation
-        std::cout << "Adding convert operation: " << convert->get_friendly_name()
+        std::cout << " [ INFO ] Adding convert operation: " << convert->get_friendly_name()
                   << " to BrgemmCPU: " << brgemm->get_friendly_name() << std::endl;
         brgemm->add_post_op(convert);
 
         // Log the replacement output
         auto replacement_output = convert->input_value(0);
-        std::cout << "Replacing output of convert operation: " << convert->get_friendly_name()
+        std::cout << "\t Replacing output of convert operation: " << convert->get_friendly_name()
                   << " with: " << replacement_output.get_node()->get_friendly_name() << std::endl;
         return ov::replace_output_update_name(convert->output(0), replacement_output);
     };

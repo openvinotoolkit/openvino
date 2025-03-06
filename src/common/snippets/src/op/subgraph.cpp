@@ -417,6 +417,7 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
     if (config.m_has_domain_sensitive_ops) {
         manager.register_pass<snippets::pass::MatMulToBrgemm>();
         manager.register_pass<snippets::pass::FuseTransposeBrgemm>();
+        manager.register_pass<ov::pass::Serialize>(std::string("before.xml"), std::string(""));
         manager.register_pass<snippets::pass::TransposeDecomposition>();
         manager.register_pass<snippets::pass::SoftmaxDecomposition>();
         manager.register_pass<snippets::pass::GNDecomposition>();
@@ -431,6 +432,9 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
 
     manager.register_positioned_passes(backend_passes);
+    if (config.m_has_domain_sensitive_ops) {
+        manager.register_pass<ov::pass::Serialize>(std::string("after.xml"), std::string(""));
+    }
     manager.run_passes(body_ptr());
 }
 
