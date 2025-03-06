@@ -11,8 +11,8 @@ from openvino._pyopenvino import Tensor
 from openvino._pyopenvino import PartialShape
 
 
-"""Postponed Constant is a way to materialize a big constant only when it is going to be serialized to IR and then immediately dispose."""
 class PostponedConstant(Op):
+    """Postponed Constant is a way to materialize a big constant only when it is going to be serialized to IR and then immediately dispose."""
     def __init__(self, element_type: Type, shape: Shape, maker: Callable[[Tensor], None], name: Optional[str] = None) -> None:
         super().__init__(self)
         self.get_rt_info()["postponed_constant"] = True  # value doesn't matter
