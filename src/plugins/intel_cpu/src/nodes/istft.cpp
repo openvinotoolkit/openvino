@@ -183,39 +183,41 @@ void istft_impl(const float* in_data,
 
     std::vector<float> window_sum(batch_size * signal_length);
 
-    parallel_for2d(batch_size, num_frames, [&](size_t batch, size_t frame_idx) {
-        size_t batch_in_start = batch * in_batch_single_step;
-        size_t batch_out_start = batch * signal_length;
+    parallel_for(batch_size, [&](size_t batch) {
+        for (size_t frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
+            size_t batch_in_start = batch * in_batch_single_step;
+            size_t batch_out_start = batch * signal_length;
 
-        const auto in_frame_start = batch_in_start + frame_idx * fft_out_shape_size;
+            const auto in_frame_start = batch_in_start + frame_idx * fft_out_shape_size;
 
-        const auto out_frame_start = batch_out_start + frame_idx * frame_step;
-        const auto out_frame_end = out_frame_start + frame_size;
+            const auto out_frame_start = batch_out_start + frame_idx * frame_step;
+            const auto out_frame_end = out_frame_start + frame_size;
 
-        std::vector<float> frame_signal(frame_size);
-        auto twiddles = rdft_executor->generateTwiddles({static_cast<int>(frame_size)}, fft_out_shape, {0});
-        rdft_executor->execute(data_t.data() + in_frame_start,
-                               frame_signal.data(),
-                               twiddles,
-                               1,
-                               {0},
-                               {static_cast<int>(frame_size)},
-                               {frame_size_dim, 2},
-                               fft_out_shape,
-                               {2, 1},
-                               {1});
+            std::vector<float> frame_signal(frame_size);
+            auto twiddles = rdft_executor->generateTwiddles({static_cast<int>(frame_size)}, fft_out_shape, {0});
+            rdft_executor->execute(data_t.data() + in_frame_start,
+                                   frame_signal.data(),
+                                   twiddles,
+                                   1,
+                                   {0},
+                                   {static_cast<int>(frame_size)},
+                                   {frame_size_dim, 2},
+                                   fft_out_shape,
+                                   {2, 1},
+                                   {1});
 
-        std::transform(frame_signal.begin(),
-                       frame_signal.end(),
-                       mid_result.begin() + out_frame_start,
-                       mid_result.begin() + out_frame_start,
-                       func::add<float>);
+            std::transform(frame_signal.begin(),
+                           frame_signal.end(),
+                           mid_result.begin() + out_frame_start,
+                           mid_result.begin() + out_frame_start,
+                           func::add<float>);
 
-        std::transform(window_sum.begin() + out_frame_start,
-                       window_sum.begin() + out_frame_end,
-                       pad_window.begin(),
-                       window_sum.begin() + out_frame_start,
-                       func::add<float>);
+            std::transform(window_sum.begin() + out_frame_start,
+                           window_sum.begin() + out_frame_end,
+                           pad_window.begin(),
+                           window_sum.begin() + out_frame_start,
+                           func::add<float>);
+        }
     });
 
     // Postprocessing
