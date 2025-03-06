@@ -31,9 +31,23 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
     const auto& brg1Prc = brgemm_node->get_input_element_type(1);
     const auto& brgOutPrc = brgemm_node->get_output_element_type(0);
     const auto brgemm_type = brgemm_node->get_type();
-    m_is_with_amx = brgemm_utils::with_amx(brgemm_type);
-    if (m_is_with_amx) {
-        BrgemmAMXKernelConfig kernel_config(brg0Prc, brg1Prc, brgOutPrc, brgemm_utils::get_primitive_isa(brg0Prc, true));
+
+    // Create helper which will compose postops based on the node configuration
+    const auto& fused_ops = brgemm_node->get_postops();
+    dnnl_post_ops post_ops;
+    for (const auto& op : fused_ops) {
+        if (ov::is_type<ov::op::v1::Multiply>(op)) {
+            const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+            OPENVINO_ASSERT(constant);
+            const auto values = constant->cast_vector<float>();
+            OPENVINO_ASSERT(values.size() == 1);
+            post_ops.append_eltwise(values[0], dnnl::impl::alg_kind_t::dnnl_eltwise_linear, 0, 0);
+            std::cout << "[ INFO ] Postop scale was successfully added: " << values[0] << std::endl;
+        }
+    }
+
+    if (brgemm_utils::with_amx(brgemm_type)) {
+        BrgemmAMXKernelConfig kernel_config(brg0Prc, brg1Prc, brgOutPrc, brgemm_utils::get_primitive_isa(brg0Prc, true), post_ops);
         m_kernel_executor =
             kernel_table->register_kernel<BrgemmAMXKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
     } else {
@@ -41,7 +55,8 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
                                          brg1Prc,
                                          brgOutPrc,
                                          with_compensations(brgemm_type),
-                                         brgemm_utils::get_primitive_isa(brg0Prc, false));
+                                         brgemm_utils::get_primitive_isa(brg0Prc, false),
+                                         post_ops);
         m_kernel_executor =
             kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
     }

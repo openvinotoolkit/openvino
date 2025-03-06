@@ -21,9 +21,10 @@ BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype,
                                        const element::Type& in1_dtype,
                                        const element::Type& out_dtype,
                                        bool is_with_comp,
-                                       dnnl::impl::cpu::x64::cpu_isa_t primitive_isa)
+                                       dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
+                                       const dnnl_post_ops& post_ops)
     : BrgemmBaseKernelConfig(),
-      m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, out_dtype, is_with_comp, primitive_isa)) {
+      m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, out_dtype, is_with_comp, primitive_isa, post_ops)) {
     m_hash = compute_hash();
 }
 
@@ -31,8 +32,9 @@ BrgemmKernelConfig::StaticParams::StaticParams(const element::Type& in0_dtype,
                                                const element::Type& in1_dtype,
                                                const element::Type& out_dtype,
                                                bool is_with_comp,
-                                               dnnl::impl::cpu::x64::cpu_isa_t primitive_isa)
-    : StaticBaseParams(in0_dtype, in1_dtype, out_dtype, primitive_isa, compute_hash(is_with_comp)),
+                                               dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
+                                               const dnnl_post_ops& post_ops)
+    : StaticBaseParams(in0_dtype, in1_dtype, out_dtype, primitive_isa, post_ops, compute_hash(is_with_comp)),
       is_with_comp(is_with_comp) {}
 
 bool BrgemmKernelConfig::StaticParams::operator==(const StaticParams& rhs) const {
@@ -74,7 +76,8 @@ std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelExecutor::compile_kernel(const
                          config.get_LDA(),
                          config.get_LDB(),
                          config.get_LDC(),
-                         config.get_beta());
+                         config.get_beta(),
+                         config.get_post_ops());
 
     return compiled_kernel;
 }

@@ -8,6 +8,7 @@
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "emitters/snippets/brgemm_generic.hpp"
+#include "onednn/dnnl.h"
 
 namespace ov::intel_cpu::x64 {
 
@@ -41,6 +42,10 @@ public:
         return get_static_params()->isa;
     }
 
+    const dnnl_post_ops& get_post_ops() const {
+        return get_static_params()->post_ops;
+    }
+
 #ifdef SNIPPETS_DEBUG_CAPS
     [[nodiscard]] std::string to_string() const override;
 #endif
@@ -51,11 +56,13 @@ protected:
                          const element::Type& in1_dtype,
                          const element::Type& out_dtype,
                          dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
+                         const dnnl_post_ops& post_ops,
                          size_t hash_seed);
         virtual ~StaticBaseParams() = default;
 
         const dnnl_data_type_t dt_in0{dnnl_f32}, dt_in1{dnnl_f32}, dt_out{dnnl_f32};
         const dnnl::impl::cpu::x64::cpu_isa_t isa{dnnl::impl::cpu::x64::isa_undef};
+        const dnnl_post_ops post_ops;
 
         [[nodiscard]] size_t hash() const {
             return m_hash;
@@ -73,7 +80,8 @@ protected:
                                    dnnl_data_type_t dt_in0,
                                    dnnl_data_type_t dt_in1,
                                    dnnl_data_type_t dt_out,
-                                   dnnl::impl::cpu::x64::cpu_isa_t isa);
+                                   dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                   const dnnl_post_ops& post_ops);
 
         const size_t m_hash{0};
     };
@@ -107,6 +115,7 @@ protected:
                                      dnnl_dim_t LDB,
                                      dnnl_dim_t LDC,
                                      float beta,
+                                     const dnnl_post_ops& post_ops,
                                      bool with_amx = false,
                                      char* palette = nullptr);
 

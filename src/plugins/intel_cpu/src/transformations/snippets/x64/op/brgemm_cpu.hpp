@@ -77,6 +77,10 @@ public:
 
     size_t get_offset_scratch() const;
 
+    const ov::NodeVector& get_postops() const {
+        return m_post_ops;
+    }
+
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     void add_post_op(const std::shared_ptr<ov::Node>& post_op);
