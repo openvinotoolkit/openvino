@@ -630,7 +630,7 @@ void SyncInferRequest::sub_streams_infer() {
                 requests[i]->set_tensor(input, tensor);
             }
 
-            requests[i]->set_callback([message](const std::exception_ptr& ptr) {
+            requests[i]->set_callback([message](const std::exception_ptr& /*ptr*/) {
                 ov::threading::MessageInfo msg_info;
                 msg_info.msg_type = ov::threading::MsgType::CALL_BACK;
                 message->send_message(msg_info);

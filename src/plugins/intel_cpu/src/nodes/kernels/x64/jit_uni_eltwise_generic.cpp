@@ -864,6 +864,7 @@ struct SupportedPrecisions {
 }  // namespace
 
 std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_precisions(const Algorithm& algo) {
+    (void)algo;
     std::set<std::vector<element::Type>> precisions;
 
     OV_SWITCH(intel_cpu,

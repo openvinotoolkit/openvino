@@ -18,7 +18,7 @@ public:
         return 1;
     }
     static std::set<std::vector<element::Type>> get_supported_precisions(
-        const std::shared_ptr<ov::Node>& node = nullptr) {
+        const std::shared_ptr<ov::Node>& /*node*/ = nullptr) {
         return {{element::f32}};
     }
 
