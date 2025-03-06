@@ -137,7 +137,6 @@ void istft_impl(const float* in_data,
     std::fill(final_result, final_result + batch_size * final_signal_length, 0.f);
 
     std::vector<float> mid_result(batch_size * signal_length, 0.f);
-    float* result = mid_result.data();
 
     const auto fft_results_dim = data_shape[data_shape.size() - 3];
     OPENVINO_ASSERT(fft_results_dim == static_cast<size_t>((frame_size / 2) + 1));
@@ -186,51 +185,54 @@ void istft_impl(const float* in_data,
     const int64_t copy_end = final_signal_length < data_end ? final_signal_length : data_end;
 
     std::vector<float> window_sum(batch_size * signal_length);
-    std::vector<float> frame_signal(frame_size);
 
-    for (size_t batch = 0, batch_in_start = 0, batch_out_start = 0; batch < batch_size; ++batch) {
-        for (size_t frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
-            const auto in_frame_start = batch_in_start + frame_idx * fft_out_shape_size;
-            const auto in_frame_end = in_frame_start + fft_out_shape_size;
+    parallel_for2d(batch_size, num_frames, [&](size_t batch, size_t frame_idx) {
+        size_t batch_in_start = batch * in_batch_single_step;
+        size_t batch_out_start = batch * signal_length;
 
-            const auto out_frame_start = batch_out_start + frame_idx * frame_step;
-            const auto out_frame_end = out_frame_start + frame_size;
+        const auto in_frame_start = batch_in_start + frame_idx * fft_out_shape_size;
 
-            auto twiddles = rdft_executor->generateTwiddles({static_cast<int>(frame_size)}, fft_out_shape, {0});
-            rdft_executor->execute(data_t.data() + in_frame_start,
-                                   frame_signal.data(),
-                                   twiddles,
-                                   1,
-                                   {0},
-                                   {static_cast<int>(frame_size)},
-                                   {frame_size_dim, 2},
-                                   fft_out_shape,
-                                   {2, 1},
-                                   {1});
+        const auto out_frame_start = batch_out_start + frame_idx * frame_step;
+        const auto out_frame_end = out_frame_start + frame_size;
 
-            std::transform(frame_signal.begin(),
-                           frame_signal.end(),
-                           mid_result.begin() + out_frame_start,
-                           mid_result.begin() + out_frame_start,
-                           func::add<float>);
+        std::vector<float> frame_signal(frame_size);
+        auto twiddles = rdft_executor->generateTwiddles({static_cast<int>(frame_size)}, fft_out_shape, {0});
+        rdft_executor->execute(data_t.data() + in_frame_start,
+                               frame_signal.data(),
+                               twiddles,
+                               1,
+                               {0},
+                               {static_cast<int>(frame_size)},
+                               {frame_size_dim, 2},
+                               fft_out_shape,
+                               {2, 1},
+                               {1});
 
-            std::transform(window_sum.begin() + out_frame_start,
-                           window_sum.begin() + out_frame_end,
-                           pad_window.begin(),
-                           window_sum.begin() + out_frame_start,
-                           func::add<float>);
-        }
+        std::transform(frame_signal.begin(),
+                       frame_signal.end(),
+                       mid_result.begin() + out_frame_start,
+                       mid_result.begin() + out_frame_start,
+                       func::add<float>);
 
-        std::transform(result, result + signal_length, window_sum.begin() + batch_out_start, result, postprocess_func);
+        std::transform(window_sum.begin() + out_frame_start,
+                       window_sum.begin() + out_frame_end,
+                       pad_window.begin(),
+                       window_sum.begin() + out_frame_start,
+                       func::add<float>);
+    });
+
+    // Postprocessing
+    parallel_for(batch_size, [&](size_t batch) {
+        float* result = mid_result.data() + (batch * signal_length);
+        std::transform(result,
+                       result + signal_length,
+                       window_sum.begin() + batch * signal_length,
+                       result,
+                       postprocess_func);
 
         const auto result_start = result + margin;
-        std::copy(result_start, result_start + copy_end, final_result);
-
-        batch_in_start += in_batch_single_step;
-        batch_out_start += signal_length;
-        result += signal_length;
-        final_result += final_signal_length;
-    }
+        std::copy(result_start, result_start + copy_end, final_result + batch * final_signal_length);
+    });
 }
 }  // namespace
 
