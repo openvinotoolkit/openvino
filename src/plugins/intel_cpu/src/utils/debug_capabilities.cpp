@@ -157,7 +157,7 @@ std::ostream& operator<<(std::ostream& os, const NodeDesc& desc) {
 }
 
 std::ostream& operator<<(std::ostream& os, const Node& c_node) {
-    Node& node = const_cast<Node&>(c_node);
+    auto& node = const_cast<Node&>(c_node);
     const int align_col = 50;
     const char* comma = "";
     auto node_id = [](Node& node) {
@@ -662,7 +662,7 @@ std::string to_string(const T* values, size_t N, size_t maxsize) {
             ss << "..." << N << "in total";
             break;
         }
-        if (std::is_same<T, int8_t>::value || std::is_same<T, uint8_t>::value) {
+        if (std::is_same_v<T, int8_t> || std::is_same_v<T, uint8_t>) {
             ss << static_cast<int>(values[i]);
         } else {
             ss << values[i];
