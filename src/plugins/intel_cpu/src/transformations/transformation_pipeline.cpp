@@ -788,7 +788,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
                              LowPrecision,
                              supportedPrecisions,
                              quantizationRestrictions,
-                             LayerTransformation::Params(true, config.inferencePrecision, defaultPrecisions));
+                             LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
     CPU_DISABLE_PASS_COMMON(lptManager, AvgPoolTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, ConvolutionTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, ConvolutionBackpropDataTransformation);

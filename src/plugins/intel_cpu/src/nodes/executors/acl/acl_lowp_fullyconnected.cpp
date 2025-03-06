@@ -74,8 +74,7 @@ bool ACLLowpFullyConnectedExecutor::supports(const FCConfig& config) {
     const auto src0 = srcType(config);
     const auto src1 = weiType(config);
     const auto dst = dstType(config);
-    if ((src0 != ov::element::i8) || (src1 != ov::element::i8) ||
-        (dst != ov::element::f32 && dst != ov::element::f16)) {
+    if ((src0 != ov::element::i8) || (src1 != ov::element::i8) || (dst != ov::element::f32)) {
         return false;
     }
 
