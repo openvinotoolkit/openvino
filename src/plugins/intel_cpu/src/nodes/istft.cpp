@@ -106,4 +106,18 @@ bool ISTFT::needShapeInfer() const {
            (!m_has_signal_length_input && !(m_is_frame_size_const && m_is_frame_step_const)) || Node::needShapeInfer();
 }
 
+void ISTFT::createPrimitive() {
+    RDFTKey key{};
+    key.isInverse = true;
+    auto buildExecutor = [&](const RDFTKey& key) -> std::shared_ptr<RDFTExecutor> {
+        return RDFTExecutor::build(key.isInverse, getSelectedPrimitiveDescriptor());
+    };
+
+    auto cache = context->getParamsCache();
+    auto result = cache->getOrCreate(key, buildExecutor);
+    rdft_executor = result.first;
+
+    Node::createPrimitive();
+}
+
 }  // namespace ov::intel_cpu::node
