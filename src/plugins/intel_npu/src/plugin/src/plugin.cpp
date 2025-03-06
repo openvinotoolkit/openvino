@@ -258,7 +258,7 @@ void Plugin::recheck_compiler_support(Config& cfg) const {
         compiler_version = dummyCompiler->get_version();
         compiler_support_list = dummyCompiler->get_supported_options();
         if (compiler_support_list.size() == 0) {
-            _logger.warning("No compiler support options list received! Fallback to version-based option registration");
+            _logger.info("No compiler support options list received! Fallback to version-based option registration");
             legacy = true;
         }
     } catch (...) {
