@@ -20,7 +20,6 @@
 # -readability-uppercase-literal-suffix. 
 #
 ### Checks that are turned off but better be enabled later:
-# -bugprone-assignment-in-if-condition
 # -bugprone-narrowing-conversions
 # -bugprone-easily-swappable-parameters
 # -bugprone-empty-catch, -bugprone-exception-escape. There are a lot of legacy code which does not handle exceptions properly and just catches them all. Major refactoring is required to correct this.
