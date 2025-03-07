@@ -64,6 +64,7 @@ std::shared_ptr<Node> numel(const NodeContext& context,
                             element::Type output_type = element::i32);
 
 element::Type convert_dtype(int64_t dtype_value);
+bool is_complex_dtype(int64_t pt_type);
 
 Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Output<Node>& input_tensor);
 

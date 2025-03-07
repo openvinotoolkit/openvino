@@ -229,6 +229,54 @@ def test_pytorch_decoder_can_convert_fp64_tensor():
 
 
 @pytest.mark.precommit
+def test_pytorch_decoder_can_convert_complex64_tensor():
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+    from openvino import PartialShape, Type
+
+    class SomeTensor(torch.nn.Module):
+        def forward(self):
+            r = torch.tensor([1, 2], dtype=torch.float32)
+            i = torch.tensor([3, 4], dtype=torch.float32)
+            return torch.complex(r, i)
+
+    model = get_scripted_model(SomeTensor())
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
+              "prim::Constant"]
+    assert len(consts) > 0
+    some_const = consts[0]
+    nc_decoder = TorchScriptPythonDecoder(model, some_const)
+    ov_const = nc_decoder.as_constant()
+    assert ov_const is not None
+    assert len(ov_const) == 1
+    assert ov_const[0].get_element_type() == Type.f32
+    assert ov_const[0].get_partial_shape() == PartialShape([2, 2])
+
+
+@pytest.mark.precommit
+def test_pytorch_decoder_can_convert_complex128_tensor():
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+    from openvino import PartialShape, Type
+
+    class SomeTensor(torch.nn.Module):
+        def forward(self):
+            r = torch.tensor([1, 2], dtype=torch.float64)
+            i = torch.tensor([3, 4], dtype=torch.float64)
+            return torch.complex(r, i)
+
+    model = get_scripted_model(SomeTensor())
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
+              "prim::Constant"]
+    assert len(consts) > 0
+    some_const = consts[0]
+    nc_decoder = TorchScriptPythonDecoder(model, some_const)
+    ov_const = nc_decoder.as_constant()
+    assert ov_const is not None
+    assert len(ov_const) == 1
+    assert ov_const[0].get_element_type() == Type.f64
+    assert ov_const[0].get_partial_shape() == PartialShape([2, 2])
+
+
+@pytest.mark.precommit
 def test_pytorch_decoder_can_convert_bool_tensor():
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino import PartialShape, Type

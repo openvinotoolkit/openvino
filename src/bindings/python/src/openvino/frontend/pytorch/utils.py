@@ -9,8 +9,9 @@ import logging
 import torch
 import numpy as np
 
-from openvino import op, Type as OVType, Shape, Tensor
+from openvino import op, Type as OVType, Shape, Tensor, OVAny
 from openvino import opset11 as ops
+from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 
 log = logging.getLogger(__name__)
 
@@ -78,6 +79,10 @@ def torch_tensor_to_ov_const(torch_t: torch.Tensor, shared_memory=True):
         narr = torch_t.numpy(force=True)
         tensor = Tensor(narr, torch_t.shape, F8_DTYPE_MAP[dtype])
         ov_const = op.Constant(tensor, shared_memory=shared_memory)
+    elif torch_t.is_complex():
+        narr = torch.view_as_real(torch_t).numpy(force=True)
+        # we rely on frontend to mark the constant as complex internally
+        ov_const = op.Constant(narr, shared_memory=shared_memory)
     else:
         narr = torch_t.numpy(force=True)
         ov_const = op.Constant(narr, shared_memory=shared_memory)
@@ -144,6 +149,9 @@ pt_to_ov_type_map = {
     "torch.float16": OVType.f16,
     "torch.float32": OVType.f32,
     "torch.float64": OVType.f64,
+    "torch.complex32": DecoderType.Complex(OVAny(OVType.f16)),
+    "torch.complex64": DecoderType.Complex(OVAny(OVType.f32)),
+    "torch.complex128": DecoderType.Complex(OVAny(OVType.f64)),
     "torch.uint8": OVType.u8,
     "torch.int8": OVType.i8,
     "torch.int16": OVType.i16,
@@ -160,6 +168,9 @@ pt_to_ov_type_map = {
     "torch.CharTensor": OVType.i8,
     "torch.ByteTensor": OVType.u8,
     "torch.BoolTensor": OVType.boolean,
+    "torch.ComplexHalfTensor": DecoderType.Complex(OVAny(OVType.f16)),
+    "torch.ComplexFloatTensor": DecoderType.Complex(OVAny(OVType.f32)),
+    "torch.ComplexDoubleTensor": DecoderType.Complex(OVAny(OVType.f64)),
     "torch.quint8": OVType.u8,
     "torch.qint8": OVType.i8,
     "torch.qint32": OVType.i32,
