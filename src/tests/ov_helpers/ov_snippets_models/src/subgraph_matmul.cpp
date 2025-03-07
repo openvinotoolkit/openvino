@@ -141,7 +141,15 @@ std::shared_ptr<ov::Model> FQMatMulFunction::initOriginal() const {
         in1 = std::make_shared<op::v1::Transpose>(in1, const_order);
     }
     auto matmul = std::make_shared<op::v0::MatMul>(in0, in1);
-    std::shared_ptr<ov::Node> out = matmul;
+    const auto& out_shape = matmul->get_output_partial_shape(0);
+    const auto& out_channels = *out_shape.rbegin();
+    OPENVINO_ASSERT(out_channels.is_static());
+
+    ov::Shape bias_shape(out_shape.size(), 1);
+    bias_shape.back() = out_channels.get_length();
+    const auto bias = ov::test::utils::make_constant(matmul->get_output_element_type(0), bias_shape);
+    const auto add = std::make_shared<ov::op::v1::Add>(matmul, bias);
+    std::shared_ptr<ov::Node> out = add;
     if (pos == 2) {
         out = std::make_shared<op::v1::Transpose>(out, const_order);
     }
