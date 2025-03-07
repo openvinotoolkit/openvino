@@ -132,7 +132,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
 
         # for custom TBB we need to install it to our package
         # to simplify life for our customers
-        set(OV_TBB_DIR_INSTALL "runtime/3rdparty/tbb")
+        set(OV_TBBROOT_INSTALL "runtime/3rdparty/tbb")
 
         # TBBROOT is not defined if ENV{TBBROOT} is not found
         # so, we have to deduce this value ourselves
@@ -155,7 +155,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
 
         if(TBB_DIR MATCHES "^${TBBROOT}.*")
             file(RELATIVE_PATH OV_TBB_DIR_INSTALL "${TBBROOT}" "${TBB_DIR}")
-            set(OV_TBB_DIR_INSTALL "${OV_TBB_DIR_INSTALL}/${OV_TBB_DIR_INSTALL}")
+            set(OV_TBB_DIR_INSTALL "${OV_TBBROOT_INSTALL}/${OV_TBB_DIR_INSTALL}")
         else()
             # TBB_DIR is not a subdirectory of TBBROOT
             # example: old TBB 2017 with no cmake support at all
@@ -189,13 +189,13 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                             # resolve absolute path to avoid issues with installation
                             get_filename_component(_tbb_lib "${_tbb_lib}" REALPATH)
                             install(PROGRAMS "${_tbb_lib}"
-                                    DESTINATION "${OV_TBB_DIR_INSTALL}/${dir}"
+                                    DESTINATION "${OV_TBBROOT_INSTALL}/${dir}"
                                     COMPONENT ${tbb_component})
                         endif()
                     endforeach()
                 else()
                     install(DIRECTORY "${TBBROOT}/${dir}/"
-                            DESTINATION "${OV_TBB_DIR_INSTALL}/${dir}"
+                            DESTINATION "${OV_TBBROOT_INSTALL}/${dir}"
                             COMPONENT ${tbb_component}
                             ${exclude_pattern})
                 endif()
@@ -204,22 +204,27 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
 
         if (EXISTS "${TBBROOT}/LICENSE")
             install(FILES "${TBBROOT}/LICENSE"
-                    DESTINATION "${OV_TBB_DIR_INSTALL}"
+                    DESTINATION "${OV_TBBROOT_INSTALL}"
                     ${OV_CPACK_COMP_TBB_EXCLUDE_ALL}
                     RENAME "TBB-LICENSE"
                     COMPONENT tbb)
         endif()
 
+        ov_cpack_add_component(tbb_dev
+                               HIDDEN
+                               DEPENDS tbb)
+        list(APPEND core_dev_components tbb_dev)
+
         if(WIN32)
         # .lib files are needed only for Windows
         install(DIRECTORY "${TBBROOT}/lib"
-                DESTINATION "${OV_TBB_DIR_INSTALL}"
+                DESTINATION "${OV_TBBROOT_INSTALL}"
                 COMPONENT tbb_dev
                 ${OV_CPACK_COMP_TBB_DEV_EXCLUDE_ALL}
                 PATTERN "cmake" EXCLUDE)
         endif()
 
-        set(TBB_LIB_INSTALL_DIR "${OV_TBB_DIR_INSTALL}/${tbb_libs_dir}" CACHE PATH "TBB library install directory" FORCE)
+        set(TBB_LIB_INSTALL_DIR "${OV_TBBROOT_INSTALL}/${tbb_libs_dir}" CACHE PATH "TBB library install directory" FORCE)
     elseif(tbb_downloaded)
         ov_cpack_add_component(tbb HIDDEN)
         list(APPEND core_components tbb)
