@@ -27,7 +27,7 @@
 using weights_memory_ptr = std::variant<std::shared_ptr<ov::MappedMemory>, std::shared_ptr<ov::Model>>;
 using offset_const_map_t = std::map<size_t, std::shared_ptr<ov::op::v0::Constant>>;
 using shared_mapped_memory_ptr = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>;
-using constant_memory_ptr = std::variant<shared_mapped_memory_ptr, std::shared_ptr<ov::Tensor>>;
+using constant_memory_ptr = std::variant<shared_mapped_memory_ptr, std::shared_ptr<ov::op::v0::Constant>>;
 
 namespace {
 
@@ -72,12 +72,8 @@ public:
             if (const_it == offset_to_constant_map.end()) {
                 OPENVINO_THROW("Constant with bin_offset ", bin_offset, " not found in the model");
             }
-
             auto const_ptr = const_it->second;
-            auto tensor_ptr = std::make_shared<ov::Tensor>(const_ptr->get_element_type(),
-                                                           const_ptr->get_shape(),
-                                                           const_cast<void*>(const_ptr->get_data_ptr()));
-            return tensor_ptr;
+            return const_ptr;
         }
     }
 
@@ -196,9 +192,9 @@ struct weightless_cache_manager {
         if (should_run_transformations()) {
             run_transformations(ib.get_engine(), dst_mem, constant_ptr);
         } else {
-            if (std::holds_alternative<std::shared_ptr<ov::Tensor>>(constant_ptr)) {
-                auto tensor_ptr = std::get<std::shared_ptr<ov::Tensor>>(constant_ptr);
-                copy_to_dst_mem(dst_mem, reinterpret_cast<const uint8_t*>(tensor_ptr->data()));
+            if (std::holds_alternative<std::shared_ptr<ov::op::v0::Constant>>(constant_ptr)) {
+                auto cptr = std::get<std::shared_ptr<ov::op::v0::Constant>>(constant_ptr);
+                copy_to_dst_mem(dst_mem, reinterpret_cast<const uint8_t*>(cptr->get_data_ptr()));
             } else {
                 auto shared_buf = std::get<shared_mapped_memory_ptr>(constant_ptr);
                 copy_to_dst_mem(dst_mem, shared_buf->get_ptr<uint8_t>());
@@ -238,9 +234,9 @@ private:
                 return reinterpret_cast<const uint8_t*>(transformed_constant->get_data_ptr());
             }
 
-            if (std::holds_alternative<std::shared_ptr<ov::Tensor>>(constant_ptr)) {
-                auto tensor_ptr = std::get<std::shared_ptr<ov::Tensor>>(constant_ptr);
-                return reinterpret_cast<const uint8_t*>(tensor_ptr->data());
+            if (std::holds_alternative<std::shared_ptr<ov::op::v0::Constant>>(constant_ptr)) {
+                auto cptr = std::get<std::shared_ptr<ov::op::v0::Constant>>(constant_ptr);
+                return reinterpret_cast<const uint8_t*>(cptr->get_data_ptr());
             } else {
                 auto shared_buf = std::get<shared_mapped_memory_ptr>(constant_ptr);
                 return shared_buf->get_ptr<uint8_t>();
@@ -257,10 +253,8 @@ private:
 
         if (do_precision_conversion) {
             std::shared_ptr<ov::op::v0::Constant> orig_constant = nullptr;
-            if (std::holds_alternative<std::shared_ptr<ov::Tensor>>(constant_ptr)) {
-                auto tensor_ptr = std::get<std::shared_ptr<ov::Tensor>>(constant_ptr);
-                orig_constant =
-                    std::make_shared<ov::op::v0::Constant>(original_dtype, shape, get_intermediate_data(), tensor_ptr);
+            if (std::holds_alternative<std::shared_ptr<ov::op::v0::Constant>>(constant_ptr)) {
+                orig_constant = std::get<std::shared_ptr<ov::op::v0::Constant>>(constant_ptr);
             } else {
                 auto shared_buf = std::get<shared_mapped_memory_ptr>(constant_ptr);
                 orig_constant =
