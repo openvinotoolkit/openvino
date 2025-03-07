@@ -147,11 +147,7 @@ void CompiledModel::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
-    // Customized property handlers
-
-    // Standard properties
-    ov::AnyMap dummy;
-    return _properties->get_property(name, dummy);
+    return _properties->get_property(name);
 }
 
 const std::shared_ptr<IGraph>& CompiledModel::get_graph() const {
