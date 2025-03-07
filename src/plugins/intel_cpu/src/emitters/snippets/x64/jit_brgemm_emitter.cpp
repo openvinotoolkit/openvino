@@ -41,7 +41,7 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
             OPENVINO_ASSERT(constant);
             const auto values = constant->cast_vector<float>();
             OPENVINO_ASSERT(values.size() == 1);
-            post_ops.append_eltwise(values[0], dnnl::impl::alg_kind_t::dnnl_eltwise_linear, 0, 0);
+            post_ops.append_eltwise(1.f, dnnl::impl::alg_kind_t::dnnl_eltwise_linear, values[0], 0);
             std::cout << "[ INFO ] Postop scale was successfully added: " << values[0] << std::endl;
         }
     }
