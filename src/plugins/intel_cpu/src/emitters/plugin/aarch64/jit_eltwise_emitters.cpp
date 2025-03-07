@@ -2619,7 +2619,7 @@ size_t jit_softplus_emitter::get_inputs_count() const {
 }
 
 size_t jit_softplus_emitter::get_aux_vecs_count() const {
-    return 8;
+    return std::max(exp_emitter->get_aux_vecs_count()+2, 2ul);
 }
 
 size_t jit_softplus_emitter::get_aux_gprs_count() const {
@@ -2646,16 +2646,15 @@ void jit_softplus_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     const TReg vmm_aux1(aux_vec_idxs[1]);
     const TReg vmm_aux2(aux_vec_idxs[2]);
     const TReg vmm_aux3(aux_vec_idxs[3]);
-    const TReg vmm_aux4(aux_vec_idxs[4]);
-    const TReg vmm_aux5(aux_vec_idxs[5]);
-    const TReg vmm_mask(aux_vec_idxs[6]);
-    const TReg vmm_neg_mask(aux_vec_idxs[7]); // mask to indicate whether n is negative
+    const TReg vmm_aux4(aux_vec_idxs[exp_emitter->get_aux_vecs_count()]);
+    const TReg vmm_mask(aux_vec_idxs[exp_emitter->get_aux_vecs_count()+1]);
 
     h->ld1r(vmm_aux0.s, table_val2("exp_ln_flt_min_f")); // load min allowed value
-    h->fmaxnm(vmm_dst.s, vmm_src.s, vmm_aux0.s);
+    h->mov(vmm_aux1.b16, vmm_src.b16);
+    h->fmaxnm(vmm_dst.s, vmm_aux1.s, vmm_aux0.s);
     
     h->ld1r(vmm_aux0.s, table_val2("inv_ln2"));
-    h->fmul(vmm_aux2.s, vmm_src.s, vmm_aux0.s);  
+    h->fmul(vmm_aux2.s, vmm_dst.s, vmm_aux0.s);  
     h->frintm(vmm_aux3.s, vmm_aux2.s);           
     h->fcvtzs(vmm_aux4.s, vmm_aux3.s);           
     
@@ -2668,34 +2667,33 @@ void jit_softplus_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     exp_emitter->emit_code({vmm_aux0.getIdx()}, out_vec_idxs, aux_vec_idxs, aux_gpr_idxs);
     
     h->scvtf(vmm_aux3.s, vmm_aux4.s);  // float n
-    h->ld1r(vmm_aux5.s, table_val2("zero")); 
-    h->fcmgt(vmm_neg_mask.s, vmm_aux5.s, vmm_aux3.s);
 
-    // For positive n: ln(1+e^r*2^n)
-    // = n*ln2 + ln((2^-(n-1)+2e^r)*0.5)
+    // // For positive n: ln(1+e^r*2^n)
+    // // = n*ln2 + ln((2^-(n-1)+2e^r)*0.5)
     h->ld1r(vmm_aux4.s, table_val2("bias_float"));     
     h->ld1r(vmm_aux2.s, table_val2("one"));
     h->fsub(vmm_aux2.s, vmm_aux3.s, vmm_aux2.s); // n-1
     h->fneg(vmm_aux2.s, vmm_aux2.s);
     h->fadd(vmm_aux2.s, vmm_aux2.s, vmm_aux4.s);
-    h->fcvtzs(vmm_aux2.s, vmm_aux2.s);     
-    h->shl(vmm_aux2.d, vmm_aux2.d, 23);          // 2^-(n-1) 
-    
-    h->mov(vmm_aux5.b16, vmm_dst.b16);
+    h->fcvtzu(vmm_aux2.s, vmm_aux2.s);     
+    h->sqshl(vmm_aux2.d, vmm_aux2.d, 23);          // 2^-(n-1) 
 
     h->fadd(vmm_aux0.s, vmm_dst.s, vmm_dst.s); 
     h->fadd(vmm_aux0.s, vmm_aux0.s, vmm_aux2.s); 
     h->ld1r(vmm_aux2.s, table_val2("half"));
-    h->fmul(vmm_aux0.s, vmm_aux0.s, vmm_aux2.s); // y = (2*exp(r) + 2^-(n-1))/2
-    
-    h->fcvtzs(vmm_aux1.s, vmm_aux0.s); 
-    h->ushr(vmm_aux1.s, vmm_aux1.s, 23); // exponent (k)
-    h->ld1r(vmm_aux2.s, table_val2("one")); 
-    // y is between (2, 1), dividing y by 2 (done later), 
-    // means we have to add 1 to exponent now
-    h->fadd(vmm_aux1.s, vmm_aux1.s, vmm_aux2.s); 
-    
+    h->fmul(vmm_aux0.s, vmm_aux0.s, vmm_aux2.s); // (2*exp(r) + 2^-(n-1))/2
 
+    h->ushr(vmm_aux1.s, vmm_aux0.s, 23); // exponent (k)
+    h->scvtf(vmm_aux1.s, vmm_aux1.s);
+    h->ld1r(vmm_aux2.s, table_val2("one")); 
+    h->fadd(vmm_aux1.s, vmm_aux1.s, vmm_aux2.s); // k + 1
+    h->ld1r(vmm_aux2.s, table_val2("bias_float")); 
+    h->fsub(vmm_aux1.s, vmm_aux1.s, vmm_aux2.s); // unbiased exponent (k+1)
+    
+    h->ld1r(vmm_aux2.s, table_val2("mantissa_mask"));
+    h->and_(vmm_aux0.b16, vmm_aux0.b16, vmm_aux2.b16);
+    h->ld1r(vmm_aux2.s, table_val2("bias_mask"));
+    h->orr(vmm_aux0.b16, vmm_aux0.b16, vmm_aux2.b16); // normalized fraction y= 1.mantissa
     h->ld1r(vmm_aux2.s, table_val2("half")); // y' = y/2, y' is between (1, 0.5)
     h->fmul(vmm_aux0.s, vmm_aux0.s, vmm_aux2.s);
     h->ld1r(vmm_aux2.s, table_val2("one"));
@@ -2706,76 +2704,32 @@ void jit_softplus_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     // // Log polynomial approximation: log(1+y'') using Taylor series
     h->ld1r(vmm_aux2.s, table_val2("log_pol6"));
     h->ld1r(vmm_aux4.s, table_val2("log_pol5"));
-    h->fmul(vmm_dst.s, vmm_aux0.s, vmm_aux2.s);
-    h->fadd(vmm_dst.s, vmm_dst.s, vmm_aux4.s);
+    h->fmla(vmm_aux4.s, vmm_aux2.s, vmm_aux0.s);
+    h->mov(vmm_dst.b16, vmm_aux4.b16);
     h->ld1r(vmm_aux4.s, table_val2("log_pol4")); 
-    h->fmul(vmm_dst.s, vmm_aux0.s, vmm_dst.s);
-    h->fadd(vmm_dst.s, vmm_dst.s, vmm_aux4.s);
+    h->fmla(vmm_aux4.s, vmm_dst.s, vmm_aux0.s);
+    h->mov(vmm_dst.b16, vmm_aux4.b16);
     h->ld1r(vmm_aux4.s, table_val2("log_pol3")); 
-    h->fmul(vmm_dst.s, vmm_aux0.s, vmm_dst.s);
-    h->fadd(vmm_dst.s, vmm_dst.s, vmm_aux4.s);
+    h->fmla(vmm_aux4.s, vmm_dst.s, vmm_aux0.s);
+    h->mov(vmm_dst.b16, vmm_aux4.b16);
     h->ld1r(vmm_aux4.s, table_val2("log_pol2")); 
-    h->fmul(vmm_dst.s, vmm_aux0.s, vmm_dst.s);
-    h->fadd(vmm_dst.s, vmm_dst.s, vmm_aux4.s);
+    h->fmla(vmm_aux4.s, vmm_dst.s, vmm_aux0.s);
+    h->mov(vmm_dst.b16, vmm_aux4.b16);
     h->ld1r(vmm_aux4.s, table_val2("log_pol1")); 
-    h->fmul(vmm_dst.s, vmm_aux0.s, vmm_dst.s);
-    h->fadd(vmm_dst.s, vmm_dst.s, vmm_aux4.s);
+    h->fmla(vmm_aux4.s, vmm_dst.s, vmm_aux0.s);
+    h->mov(vmm_dst.b16, vmm_aux4.b16);
     h->ld1r(vmm_aux4.s, table_val2("log_pol0")); 
-    h->fmul(vmm_dst.s, vmm_aux0.s, vmm_dst.s);
-    h->fadd(vmm_dst.s, vmm_dst.s, vmm_aux4.s);
+    h->fmla(vmm_aux4.s, vmm_dst.s, vmm_aux0.s);
+    h->mov(vmm_dst.b16, vmm_aux4.b16);
     h->ld1r(vmm_aux4.s, table_val2("one"));
-    h->fmul(vmm_dst.s, vmm_aux0.s, vmm_dst.s);
-    h->fadd(vmm_dst.s, vmm_dst.s, vmm_aux4.s);
+    h->fmla(vmm_aux4.s, vmm_dst.s, vmm_aux0.s);
+    h->mov(vmm_dst.b16, vmm_aux4.b16);
     h->fmul(vmm_dst.s, vmm_aux0.s, vmm_dst.s);
     
     // // Final result = (n+k)*ln2 + log(m)
     h->ld1r(vmm_aux4.s, table_val2("ln2"));
-    h->fadd(vmm_aux1.s, vmm_aux1.s, vmm_aux3.s);     
-    h->fmul(vmm_aux1.s, vmm_aux1.s, vmm_aux4.s);    
-    h->fadd(vmm_dst.s, vmm_dst.s, vmm_aux1.s); 
-    
-    // for negative n we use the formula:
-    // ln(1+e^r*2^n) = ln2 + ln(1 + (e^r*2^(n-1) - 0.5))
-    h->ld1r(vmm_aux4.s, table_val2("one")); 
-    h->fsub(vmm_aux2.s, vmm_aux3.s, vmm_aux4.s); // n-1
-    h->ld1r(vmm_aux4.s, table_val2("bias_float"));     
-    h->fadd(vmm_aux2.s, vmm_aux2.s, vmm_aux4.s);
-    h->fcvtzs(vmm_aux2.s, vmm_aux2.s);     
-    h->shl(vmm_aux2.d, vmm_aux2.d, 23);  // 2^(n-1) as float
-
-    h->fmul(vmm_aux2.s, vmm_aux2.s, vmm_aux5.s); // e^r*2^(n-1)
-    h->ld1r(vmm_aux4.s, table_val2("half")); 
-    h->fsub(vmm_aux0.s, vmm_aux2.s, vmm_aux4.s); // (e^r*2^(n-1) - 0.5)
-
-    // Log approximation of (1 + (e^r*2^(n-1) - 0.5))
-    h->ld1r(vmm_aux5.s, table_val2("log_pol6"));   
-    h->fmul(vmm_aux5.s, vmm_aux5.s, vmm_aux0.s);       
-    h->ld1r(vmm_aux4.s, table_val2("log_pol5"));       
-    h->fadd(vmm_aux5.s, vmm_aux5.s, vmm_aux4.s);
-    h->fmul(vmm_aux5.s, vmm_aux5.s, vmm_aux0.s);      
-    h->ld1r(vmm_aux4.s, table_val2("log_pol4"));       
-    h->fadd(vmm_aux5.s, vmm_aux5.s, vmm_aux4.s);
-    h->fmul(vmm_aux5.s, vmm_aux5.s, vmm_aux0.s);      
-    h->ld1r(vmm_aux4.s, table_val2("log_pol3"));       
-    h->fadd(vmm_aux5.s, vmm_aux5.s, vmm_aux4.s);
-    h->fmul(vmm_aux5.s, vmm_aux5.s, vmm_aux0.s);       
-    h->ld1r(vmm_aux4.s, table_val2("log_pol2"));       
-    h->fadd(vmm_aux5.s, vmm_aux5.s, vmm_aux4.s);
-    h->fmul(vmm_aux5.s, vmm_aux5.s, vmm_aux0.s);       
-    h->ld1r(vmm_aux4.s, table_val2("log_pol1"));       
-    h->fadd(vmm_aux5.s, vmm_aux5.s, vmm_aux4.s);
-    h->fmul(vmm_aux5.s, vmm_aux5.s, vmm_aux0.s);       
-    h->ld1r(vmm_aux4.s, table_val2("log_pol0"));      
-    h->fadd(vmm_aux5.s, vmm_aux5.s, vmm_aux4.s);
-    h->fmul(vmm_aux5.s, vmm_aux5.s, vmm_aux0.s);
-    h->ld1r(vmm_aux4.s, table_val2("one"));           
-    h->fadd(vmm_aux5.s, vmm_aux5.s, vmm_aux4.s);
-    h->fmul(vmm_aux5.s, vmm_aux5.s, vmm_aux0.s);
-
-    h->ld1r(vmm_aux4.s, table_val2("ln2"));     
-    h->fadd(vmm_aux5.s, vmm_aux5.s, vmm_aux4.s); // result = ln2 + ln(1 + (e^r*2^(n-1) - 0.5))
-    h->bsl(vmm_neg_mask.b16, vmm_aux5.b16, vmm_dst.b16);     
-    h->mov(vmm_dst.b16, vmm_neg_mask.b16);                      
+    h->fadd(vmm_aux1.s, vmm_aux1.s, vmm_aux3.s);      
+    h->fmla(vmm_dst.s, vmm_aux1.s, vmm_aux4.s);             
 
     // x > 20.0 returns x
     h->ld1r(vmm_aux0.s, table_val2("threshold"));
@@ -2793,6 +2747,7 @@ void jit_softplus_emitter::register_table_entries() {
     push_arg_entry_of("inv_ln2", 0x3fb8aa3b, true);  
     push_arg_entry_of("threshold", 0x41a00000, true);
     push_arg_entry_of("mantissa_mask", 0x007fffff, true);
+    push_arg_entry_of("bias_mask", 0x3f800000, true);
     push_arg_entry_of("exp_ln_flt_min_f", 0xc2aeac50, true);
     push_arg_entry_of("log_pol0", 0xbf000000, true); 
     push_arg_entry_of("log_pol1", 0x3eaaaa9f, true); 
