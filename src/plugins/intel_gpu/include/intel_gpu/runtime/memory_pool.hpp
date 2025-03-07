@@ -160,7 +160,7 @@ struct padded_pool_comparer {
 
 class memory_pool {
     memory_ptr alloc_memory(const layout& layout, allocation_type type, bool reset = true);
-    static bool has_conflict(const memory_set&, const memory_restricter<uint32_t>&, uint32_t network_id);
+    static bool has_conflict(const memory_set&, const memory_restricter<uint32_t>&);
 
     std::multimap<uint64_t, memory_record> _non_padded_pool;
     std::map<layout, std::list<memory_record>, padded_pool_comparer> _padded_pool;
