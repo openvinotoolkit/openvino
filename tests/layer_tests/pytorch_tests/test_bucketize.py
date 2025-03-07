@@ -39,6 +39,7 @@ class TestBucketize(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("out_int32", [True, False])
     @pytest.mark.parametrize("right", [True, False])
     @pytest.mark.parametrize("is_out", [True, False])

@@ -99,11 +99,9 @@ void PluginGraph::initialize(const Config& config) {
     _input_descriptors.shrink_to_fit();
     _output_descriptors.shrink_to_fit();
 
-    ze_device_properties_t deviceProperties = {};
-    deviceProperties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
-    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
-                                zeDeviceGetProperties(_zeroInitStruct->getDevice(), &deviceProperties));
-    auto groupOrdinal = zeroUtils::findGroupOrdinal(_zeroInitStruct->getDevice(), deviceProperties);
+    _command_queue_group_ordinal =
+        zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
+                                                ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 
     bool turbo = false;
     if (config.has<TURBO>()) {
@@ -112,14 +110,14 @@ void PluginGraph::initialize(const Config& config) {
 
     _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct,
                                                     zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                    groupOrdinal,
+                                                    _command_queue_group_ordinal,
                                                     turbo);
 
     if (config.has<WORKLOAD_TYPE>()) {
         set_workload_type(config.get<WORKLOAD_TYPE>());
     }
 
-    _zeGraphExt->initializeGraph(_handle, config);
+    _zeGraphExt->initializeGraph(_handle, _command_queue_group_ordinal);
 
     if (config.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER) {
         _batch_size = get_batch_size(_metadata);

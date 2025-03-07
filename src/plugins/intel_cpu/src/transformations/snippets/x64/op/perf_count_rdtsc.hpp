@@ -38,7 +38,7 @@ public:
     OPENVINO_OP("PerfCountRdtscEnd", "SnippetsOpset", PerfCountEndBase);
     PerfCountRdtscEnd(const Output<Node>& pc_begin);
     PerfCountRdtscEnd() = default;
-    ~PerfCountRdtscEnd() {
+    ~PerfCountRdtscEnd() override {
         double avg = 0;
         if (iteration != 0) {
             // Note: theoretically accumulation could be larger than 2^53, however

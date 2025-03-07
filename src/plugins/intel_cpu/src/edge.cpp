@@ -242,8 +242,7 @@ Edge::ReorderStatus Edge::needReorder() {
     bool optimized = false;
     auto inputPortDesc = getInputPortDesc();
     auto outPortDesc = getOutputPortDesc();
-
-    if (inputPortDesc->getMemDesc()->getPrecision() == element::undefined) {
+    if (inputPortDesc->getMemDesc()->getPrecision() == element::dynamic) {
         return ReorderStatus::No;
     }
 
@@ -467,7 +466,7 @@ const MemoryDesc& Edge::getOriginalDesc() const {
                     *this,
                     " must be accessed through the memory object");
 
-    if (getInputDesc().getPrecision() == element::undefined) {
+    if (getInputDesc().getPrecision() == element::dynamic) {
         return getInputDesc();
     }
 
@@ -571,7 +570,8 @@ EdgePtr Edge::getBaseEdge(int look) {
             }
         }
         return next_ch_edge;
-    } else if (parentInPlacePort >= 0 && (look & LOOK_UP)) {
+    }
+    if (parentInPlacePort >= 0 && (look & LOOK_UP)) {
         return getParent()->getParentEdgeAt(parentInPlacePort);
     }
 

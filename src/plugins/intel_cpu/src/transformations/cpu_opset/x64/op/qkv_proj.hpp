@@ -28,6 +28,8 @@ public:
         validate_and_infer_types();
     }
 
+    bool visit_attributes(ov::AttributeVisitor& visitor) override;
+
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;

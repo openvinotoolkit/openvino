@@ -115,12 +115,12 @@ KernelsData ExperimentalDetectronGenerateProposalsSingleImageRef::GetKernelsData
 
     constexpr size_t kProposalBoxSize = 5; // 5 values: {x0, y0, x1, y1, score}
     const auto proposals_buffer_size = num_proposals * sizeof(float) * kProposalBoxSize;
-    kd.internalBufferSizes.push_back(proposals_buffer_size);
+    kd.internalBuffers.push_back(proposals_buffer_size);
 
     const auto out_indices_size = new_params.post_nms_count * sizeof(float);
-    kd.internalBufferSizes.push_back(out_indices_size);
+    kd.internalBuffers.push_back(out_indices_size);
 
-    kd.internalBufferSizes.push_back(sizeof(size_t));
+    kd.internalBuffers.push_back(sizeof(size_t));
 
     for (size_t i = 0; i < kKernelsNum; ++i) {
         const auto dispatchData = SetDefault(new_params, i);
