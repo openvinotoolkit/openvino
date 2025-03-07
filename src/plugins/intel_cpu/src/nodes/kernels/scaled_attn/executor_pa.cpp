@@ -30,6 +30,8 @@
 #elif defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE)
 #    include "arm_sve.h"
 #    include "nodes/kernels/aarch64/brgemm_kernel.hpp"
+#    include "nodes/kernels/aarch64/pa_kernels.hpp"
+#    include "nodes/kernels/acl/gemm_kernel.hpp"
 #endif
 
 namespace ov::Extensions::Cpu::XARCH {
@@ -67,6 +69,19 @@ void cvt_copy(TA* dst, TB* src, size_t n) {
     for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
         auto vb = mm256_uni_loadu_ps(src + i);
         mm256_uni_storeu_ps(dst + i, vb);
+    }
+#    elif defined(HAVE_SVE)
+    if constexpr (std::is_same<TA, TB>::value) {
+        SVE_PREDICATE(pg_dst, TA)
+        SVE_VLEN(vlen, TA)
+        for (; i + vlen <= n; i += vlen) {
+            auto vb = svld1(pg_dst, src + i);
+            svst1(pg_dst, dst + i, vb);
+        }
+        SVE_PREDICATE_WHILELT(pgt, TA, i, n)
+        auto vb = svld1(pg_dst, src + i);
+        svst1(pg_dst, dst + i, vb);
+        return;
     }
 #    endif
     for (; i < n; i++) {
@@ -337,6 +352,41 @@ static void attn_acc_value_block(float* out,
             for (; i < group_size; i++) {
                 out[dst_offset + i] += weight[0] * (v_data_ptr[i] - v_f0[1]) * v_f0[0];
             }
+            dst_offset += group_size;
+            src_offset += group_size + params_offset;
+        }
+        v += src_stride;
+        weight++;
+    }
+    return;
+#    elif defined(HAVE_SVE)
+    auto sve_pg = svptrue_b32();
+    size_t j = 0;
+    for (; j < block_size; ++j) {
+        dst_offset = 0;
+        src_offset = 0;
+        while (dst_offset < S) {
+            uint8_t* v_ptr = v + src_offset;
+            uint8_t* v_data_ptr = v_ptr + params_offset;
+            auto v_f0 = reinterpret_cast<float*>(v_ptr);
+            svfloat32_t attn_w_vec0 = svdup_n_f32(weight[0] * v_f0[0]);
+            svfloat32_t zp0 = svdup_n_f32(v_f0[1]);
+            size_t i = 0;
+            for (; i + svcntw() <= group_size; i += svcntw()) {
+                auto v_out = svld1_f32(sve_pg, out + dst_offset + i);
+                svuint32_t reg1 = svld1ub_u32(sve_pg, v_data_ptr + i);
+                svfloat32_t reg2 = svcvt_f32_u32_z(sve_pg, reg1);
+                svfloat32_t v0 = svsub_f32_z(sve_pg, reg2, zp0);
+                v_out = svmla_f32_x(sve_pg, v_out, attn_w_vec0, v0);
+                svst1_f32(sve_pg, out + dst_offset + i, v_out);
+            }
+            auto sve_pgt = svwhilelt_b32(i, group_size);
+            auto v_out = svld1_f32(sve_pgt, out + dst_offset + i);
+            svuint32_t reg1 = svld1ub_u32(sve_pgt, v_data_ptr + i);
+            svfloat32_t reg2 = svcvt_f32_u32_z(sve_pgt, reg1);
+            svfloat32_t v0 = svsub_f32_z(sve_pgt, reg2, zp0);
+            v_out = svmla_f32_x(sve_pgt, v_out, attn_w_vec0, v0);
+            svst1_f32(sve_pgt, out + dst_offset + i, v_out);
             dst_offset += group_size;
             src_offset += group_size + params_offset;
         }
@@ -789,6 +839,48 @@ static void dot_product_block(TA* a,
         *c++ = sum;
     }
     return;
+#    elif defined(HAVE_SVE)
+
+    auto pg_a = svptrue_b32();
+    auto pg_f16 = svwhilelt_b16(svcnth() / 2, svcnth());
+    auto scratch = svdup_f16_x(svptrue_b16(), 0);
+    size_t j = 0;
+    for (; j < block_size; j++) {
+        src_offset = 0;
+        dst_offset = 0;
+        float sum = 0;
+        while (dst_offset < n) {
+            auto vsum = svdup_n_f32(0.0f);
+            auto b0 = reinterpret_cast<float*>(b + src_offset);
+            auto v_zp = svdup_n_f32(b0[1]);
+            size_t i = 0;
+            uint8_t* b_data_ptr = b + src_offset + params_offset;
+            auto vlen = svcntw();
+            for (; i + vlen <= group_size; i += vlen) {
+                svfloat32_t va;
+                if constexpr (std::is_same<TA, ov::float16>::value) {
+                    auto load_src = svld1_f16(pg_f16, reinterpret_cast<float16_t*>(a + dst_offset + i));
+                    auto src_interleave = svzip1_f16(load_src, scratch);
+                    va = svcvt_f32_f16_z(pg_a, src_interleave);
+                } else {
+                    va = svld1(pg_a, a + dst_offset + i);
+                }
+                auto r1 = svcvt_f32_u32_z(pg_a, svld1ub_u32(pg_a, b_data_ptr + i));
+                auto vb = svsub_f32_z(pg_a, r1, v_zp);
+                vsum = svmla_f32_m(pg_a, vsum, va, vb);
+            }
+            float group_sum = svaddv_f32(pg_a, vsum);
+            for (; i < group_size; i++) {
+                group_sum += a[i + dst_offset] * (b_data_ptr[i] - b0[1]);
+            }
+            sum += group_sum * b0[0];
+            dst_offset += group_size;
+            src_offset += group_size + params_offset;
+        }
+        b += src_stride;
+        *c++ = sum;
+    }
+    return;
 #    endif
     for (size_t j = 0; j < block_size; j++) {
         float sum = 0;
@@ -1216,6 +1308,7 @@ struct MHAHelper {
     float _d_scale;
     size_t _key_group_size = 0;
     size_t _value_group_size = 0;
+    bool use_acl = false;
 
     PlainTensor _weight;        // [nthr, H, 32, rnd_up(kv_len, block_size)], shared by first and second loop along bh
     PlainTensor _output;        // [nthr, 32, H, S], shared by first and second loop along bh
@@ -1285,7 +1378,9 @@ struct MHAHelper {
         _nthr = static_cast<size_t>(parallel_get_max_threads());
         _sliding_window = sliding_window;
         _d_scale = d_scale;
-
+#    if defined(OPENVINO_ARCH_ARM64)
+        use_acl = one_of(precision_of<DATA_TYPE>::value, ov::element::f16) ? true : false;
+#    endif
         auto prev_score_stride = _weight.stride(2);
         auto want_score_stride = rnd_up(kv_len, _block_size);
         auto new_score_stride = std::max(prev_score_stride, want_score_stride);
@@ -1294,7 +1389,7 @@ struct MHAHelper {
         _output.resize<float>({static_cast<size_t>(_nthr), _block_size, H, SV});
 
         // TODO: kernel supports stride
-        if (_qk_gemm.empty() || prev_score_stride < new_score_stride) {
+        if (!use_acl && (_qk_gemm.empty() || prev_score_stride < new_score_stride)) {
             _qk_gemm.resize(_block_size);
             _wv_gemm.resize(_block_size);
             _wv_gemm_acc.resize(_block_size);
@@ -1539,6 +1634,177 @@ struct MHAHelper {
             }
         }
     }
+#    if defined(OPENVINO_ARCH_ARM64)
+    // compute one block(such as 32 tokens) of query in M dimension: softmax(q_block*k')*v
+    // all tensors such as query... have no batch dimension because batch dimension is varying
+    //  query: [H, L, S]
+    //  present_value: [block_number, H, 32, S]
+    //  output_emb: [L, H * S]
+    //  qk_scratch_b: [rnd_up(kv_len, block_size), Hk, scratch_b_size]
+    //  wv_scratch_b: [rnd_up(kv_len, block_size), Hk, scratch_b_size]
+    void exec_kernel_multiple_acl(const PlainTensor& query,
+                                  const PlainTensor& present_value,
+                                  const PlainTensor& output_emb,
+                                  const PlainTensor& qk_scratch_b,
+                                  const PlainTensor& wv_scratch_b,
+                                  const int32_t* block_table,
+                                  size_t ithr,
+                                  size_t q_blk,
+                                  size_t hq_beg,
+                                  size_t hq_end,
+                                  size_t hk,
+                                  size_t q_len,
+                                  size_t cur_kv_len,
+                                  const PlainTensor& alibi_slopes,
+                                  float* score_output) {
+        auto q_start = q_blk * _block_size;
+        auto q_end = std::min(q_start + _block_size, q_len);
+        auto q_cnt = q_end - q_start;
+        constexpr bool q_is_xf16 = one_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
+        constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == VALUE_PREC;
+        auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
+        size_t p_bytes = sizeof(DATA_TYPE);
+        arm_compute::Strides qStrides({p_bytes, size_t(_H * _S) * p_bytes});
+        arm_compute::Strides kStrides({p_bytes, size_t(_block_size) * p_bytes});
+        arm_compute::Strides wStrides({p_bytes, size_t(_weight.stride_bytes(2))});
+        arm_compute::Strides vStrides({p_bytes, size_t(_SV) * p_bytes});
+        arm_compute::Strides outStrides({p_bytes, size_t(_H * _SV) * p_bytes});
+        arm_compute::TensorInfo dstInfo;
+        arm_compute::Tensor dstTensor;
+        for (size_t h = hq_beg; h < hq_end; h++) {
+            auto* q_ptr = query.ptr<DATA_TYPE>(h, q_start, 0);
+            float* c_ptr = _weight.ptr<float>(ithr, h, 0, 0);
+            // for each query block, loop through all key block
+            // for blocks:
+            // 1 0 0 0 ...
+            // 1 1 0 0 ...
+            // 1 1 1 0 ...
+            // just computing the positions of 1 should be enough
+            for (size_t k_blk = 0; k_blk < cur_kv_len_blocks; k_blk++) {
+                auto* k_ptr = qk_scratch_b.ptr<DATA_TYPE>(k_blk, hk);
+                auto* qk_out_ptr =
+                    c_ptr +
+                    (precision_of<DATA_TYPE>::value == ov::element::Type_t::f32 ? _block_size : _block_size / 2) *
+                        k_blk;
+                GemmKernel _qk_gemm_acl(q_cnt, _S, _block_size, false, precision_of<DATA_TYPE>::value);
+                _qk_gemm_acl.executeGemm(reinterpret_cast<void*>(q_ptr),
+                                         reinterpret_cast<void*>(k_ptr),
+                                         dstInfo,
+                                         dstTensor,
+                                         qStrides,
+                                         kStrides,
+                                         nullptr,
+                                         1.0f,
+                                         0.0f,
+                                         &wStrides,
+                                         reinterpret_cast<void*>(qk_out_ptr));
+            }
+
+            for (size_t m = q_start; m < q_end; m++) {
+                // apply softmax in f32 precision
+                auto ncausal = (cur_kv_len - q_cnt + (m - q_start) + 1);
+                auto soft_in = _weight.ptr<float>(ithr, h, m - q_start);
+                auto score = _weight.ptr<float>(ithr, h, m - q_start);
+                PlainTensor f32_cvt;
+                if (q_is_xf16) {
+                    f32_cvt.resize<float>({size_t{rnd_up(cur_kv_len, _block_size)}});
+                    cvt_copy(f32_cvt.ptr<float>(0),
+                             reinterpret_cast<DATA_TYPE*>(score),
+                             rnd_up(cur_kv_len, _block_size));
+                    soft_in = f32_cvt.ptr<float>(0);
+                }
+                if (_sliding_window) {
+                    size_t start_idx = 0;
+                    auto new_causal = ncausal;
+                    float* alibi_lookup = nullptr;
+                    if (ncausal > _sliding_window) {
+                        start_idx = ncausal - static_cast<size_t>(_sliding_window);
+                        new_causal = _sliding_window;
+                    }
+                    attn_softmax_kernel<float>(soft_in + start_idx,
+                                               reinterpret_cast<DATA_TYPE*>(score) + start_idx,
+                                               _d_scale,
+                                               alibi_lookup,
+                                               nullptr,
+                                               nullptr,
+                                               false,
+                                               new_causal,
+                                               rnd_up(cur_kv_len, _block_size) - start_idx,
+                                               precision_of<DATA_TYPE>::value,
+                                               precision_of<DATA_TYPE>::value);
+
+                    memset(score, 0, sizeof(DATA_TYPE) * start_idx);
+                } else {
+                    // alibi may available when _sliding_window is false
+                    float* alibi_lookup = nullptr;
+                    float alibi_slope = 0.f;
+                    if (alibi_slopes) {
+                        alibi_slope = alibi_slopes.ptr<float>()[h];
+                        alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - ncausal;
+                    }
+                    attn_softmax_kernel<float>(soft_in,
+                                               reinterpret_cast<DATA_TYPE*>(score),
+                                               _d_scale,
+                                               alibi_lookup,
+                                               nullptr,
+                                               nullptr,
+                                               false,
+                                               ncausal,
+                                               rnd_up(cur_kv_len, _block_size),
+                                               precision_of<DATA_TYPE>::value,
+                                               precision_of<DATA_TYPE>::value,
+                                               alibi_slope);
+                }
+                if (score_output) {
+                    cvt_copy(score_output + h * rnd_up(cur_kv_len, 16),
+                             reinterpret_cast<DATA_TYPE*>(score),
+                             cur_kv_len);
+                }
+            }
+
+            // reuse float buffer, need to use float to compute offset
+            auto* w_ptr = reinterpret_cast<DATA_TYPE*>(_weight.ptr<float>(ithr, h, 0, 0));
+            DATA_TYPE* out_ptr = output_emb.ptr<DATA_TYPE>(q_start, h * _SV);
+
+            // for each weight block, loop through all value block
+            for (size_t v_blk = 0; v_blk < cur_kv_len_blocks; v_blk++) {
+                DATA_TYPE* v_ptr;
+                if (q_is_xf16 || !q_cache_is_same) {
+                    v_ptr = wv_scratch_b.ptr<DATA_TYPE>(v_blk, hk);
+                } else {
+                    v_ptr = present_value.ptr<DATA_TYPE>(block_table[v_blk], hk);
+                }
+                if (v_blk == 0) {
+                    GemmKernel _wv_gemm_acl(q_cnt, _block_size, _SV, false, precision_of<DATA_TYPE>::value);
+                    _wv_gemm_acl.executeGemm(reinterpret_cast<void*>(w_ptr + v_blk * _block_size),
+                                             reinterpret_cast<void*>(v_ptr),
+                                             dstInfo,
+                                             dstTensor,
+                                             wStrides,
+                                             vStrides,
+                                             nullptr,
+                                             1.0f,
+                                             0.0f,
+                                             &outStrides,
+                                             reinterpret_cast<void*>(out_ptr));
+                } else {
+                    GemmKernel _wv_gemm_acc_acl(q_cnt, _block_size, _SV, false, precision_of<DATA_TYPE>::value);
+                    _wv_gemm_acc_acl.executeGemm(reinterpret_cast<void*>(w_ptr + v_blk * _block_size),
+                                                 reinterpret_cast<void*>(v_ptr),
+                                                 dstInfo,
+                                                 dstTensor,
+                                                 wStrides,
+                                                 vStrides,
+                                                 nullptr,
+                                                 1.0f,
+                                                 1.0f,
+                                                 &outStrides,
+                                                 reinterpret_cast<void*>(out_ptr));
+                }
+            }
+        }
+    }
+#    endif
 
     // compute one token, loop along batch and head dimensions
     // all tensors such as query... have no batch dimension because batch dimension is varying
@@ -1988,7 +2254,7 @@ struct MHA {
                 _helper._block_size,
                 _helper._S,
                 _helper._key_group_size);
-
+#    if defined(OPENVINO_ARCH_X86_64)
             if (q_is_xf16) {
                 auto sub_byte_multiplier = get_sub_byte_multiplier(v_cache.get_precision());
                 size_t v_stride = (block_number * v_cache.m_strides[0] + hk * v_cache.m_strides[1]) *
@@ -2004,6 +2270,7 @@ struct MHA {
                     _helper._SV,
                     _helper._value_group_size);
             } else {
+#    endif
                 // need to decompress
                 if (!q_cache_is_same) {
                     auto sub_byte_multiplier = get_sub_byte_multiplier(v_cache.get_precision());
@@ -2017,7 +2284,9 @@ struct MHA {
                         _helper._SV,
                         _helper._value_group_size);
                 }
+#    if defined(OPENVINO_ARCH_X86_64)
             }
+#    endif
         });
 
         // loop along HK dimension: if mixed first/second token and elements count is enough, loop HK to reuse KV in the
@@ -2086,6 +2355,45 @@ struct MHA {
                 PlainTensor sub_query;
                 sub_query.resize({q_len, _helper._H, _helper._S}, q.ptr<DATA_TYPE>(batch_in_token));
                 sub_query = sub_query.permute({1, 0, 2});
+#    if defined(OPENVINO_ARCH_ARM64)
+                if constexpr (q_is_xf16) {
+                    _helper.exec_kernel_multiple_acl(
+                        sub_query,
+                        v_cache,
+                        output_emb.slice(0, batch_in_token, batch_in_token + q_len)
+                            .reshape({q_len, _helper._H * _helper._SV}),
+                        _helper._qk_scratch_b.slice(0, batch_in_reorder, batch_in_reorder),
+                        _helper._wv_scratch_b.slice(0, batch_in_reorder, batch_in_reorder),
+                        block_indices.ptr<int32_t>() + block_indices_begins.ptr<int32_t>()[batch_in_seq],
+                        ithr,
+                        q_blk,
+                        hq_beg,
+                        hq_end,
+                        hk,
+                        q_len,
+                        cur_kv_len,
+                        alibi_slopes,
+                        score_output);
+                } else {
+                    _helper.exec_kernel_multiple(
+                        sub_query,
+                        v_cache,
+                        output_emb.slice(0, batch_in_token, batch_in_token + q_len)
+                            .reshape({q_len, _helper._H * _helper._SV}),
+                        _helper._qk_scratch_b.slice(0, batch_in_reorder, batch_in_reorder),
+                        _helper._wv_scratch_b.slice(0, batch_in_reorder, batch_in_reorder),
+                        block_indices.ptr<int32_t>() + block_indices_begins.ptr<int32_t>()[batch_in_seq],
+                        ithr,
+                        q_blk,
+                        hq_beg,
+                        hq_end,
+                        hk,
+                        q_len,
+                        cur_kv_len,
+                        alibi_slopes,
+                        score_output);
+                }
+#    else
                 _helper.exec_kernel_multiple(
                     sub_query,
                     v_cache,
@@ -2103,6 +2411,7 @@ struct MHA {
                     cur_kv_len,
                     alibi_slopes,
                     score_output);
+#    endif
             }
         });
         if (output_score) {
@@ -2530,6 +2839,14 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
         if (key_cache_type == ov::element::u8 && value_cache_type == ov::element::u8) {
             executor =
                 std::make_shared<AttentionExecutor<float, uint8_t, ov::element::u8>>(key_group_size, value_group_size);
+        } else {
+            OPENVINO_THROW("make_pa_executor: key_cache_type and value_cache_type of u8 is only support");
+        }
+    }
+    if (data_type == ov::element::f16) {
+        if (key_cache_type == ov::element::u8 && value_cache_type == ov::element::u8) {
+            executor = std::make_shared<AttentionExecutor<ov::float16, uint8_t, ov::element::u8>>(key_group_size,
+                                                                                                  value_group_size);
         } else {
             OPENVINO_THROW("make_pa_executor: key_cache_type and value_cache_type of u8 is only support");
         }
