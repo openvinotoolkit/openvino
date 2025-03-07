@@ -82,9 +82,13 @@ private:
     std::map<std::string, std::shared_ptr<TensorPlace>> m_var_places;
     // for pdmodel format
     std::shared_ptr<ProgramDesc> m_fw_ptr;
-    // TODO PIR: m_fw_json_ptr for json format
-    // deserialize json to ptr
-    // std::shared_ptr<pirJson> m_fw_pir_ptr;
+    // TODO PIR: m_fw_pir_ptr for json format
+    // deserialize pir json to PirProgam, which is used to manage the model proto like above protobuf ProgramDesc does.
+    // refer to https://github.com/PaddlePaddle/Paddle/blob/b51bef23ae3651e8c412822c55f3c54cacf3aab4/paddle/pir/include/core/program.h#L40
+    // struct PirProgram {
+    //   ...
+    // };
+    // std::shared_ptr<PirProgram> m_fw_pir_ptr;
     const InputModel& m_input_model;
     std::vector<Place::Ptr> m_inputs;
     std::vector<Place::Ptr> m_outputs;
@@ -112,6 +116,7 @@ void InputModel::InputModelImpl::parseProtobuf(std::ifstream& pb_stream) {
 
 void InputModel::InputModelImpl::parseJson(std::ifstream& json_stream) {
     // TODO PIR: parse json to m_fw_pir_ptr
+    // FRONT_END_GENERAL_CHECK(m_fw_pir_ptr->ParseFromIstream(&json_stream), "Model can't be parsed");
 }
 
 void InputModel::InputModelImpl::load_places() {
@@ -433,16 +438,16 @@ InputModel::InputModelImpl::InputModelImpl(const std::basic_string<T>& path,
       m_input_model(input_model),
       m_telemetry(telemetry) {
     std::ifstream weights_stream;
-    // TODO PIR
     std::ifstream pb_stream(get_model_path<T>(path, &weights_stream).c_str(), std::ios::in | std::ifstream::binary);
+    // TODO PIR: read json model to stream
 
     FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(),
                             "Could not open the file: \"",
                             util::path_to_string(path),
                             '"');
-    // TODO PIR
-    // support deserialize json using json library
     FRONT_END_GENERAL_CHECK(m_fw_ptr->ParseFromIstream(&pb_stream), "Model can't be parsed");
+    // TODO PIR: deserialize json model by m_fw_pir_ptr->ParseFromIstream API
+
     // According to Paddle, the saved model has the framework version
     // For example Paddle 2.1.0 is encoded as 2001000. 0 means the latest framework.
     // https://github.com/paddle/Paddle/blob/develop/cmake/version.cmake
@@ -451,10 +456,13 @@ InputModel::InputModelImpl::InputModelImpl(const std::basic_string<T>& path,
     FRONT_END_GENERAL_CHECK(
         version >= 2000000 || version == 0,
         "[Frontend]Only Support Paddle greater than 2.0.0, current version " + std::to_string(version));
-    // TODO PIR
+    // TODO PIR: translate to InputModel, which is like pir::Program in PDPD.
     // refer to https://github.com/PaddlePaddle/Paddle/blob/fb98f9d48116b72c30147828b90ad2cd45c96feb/paddle/fluid/pir/serialize_deserialize/src/ir_deserialize.cc#L39
-    // translate to InputModel, which is like pir::Program in PDPD.
+
+    // TODO PIR: modify load_places() API, parse m_fw_pir_ptr => m_var_places
     load_places();
+
+    // TODO PIR: modify load_const and create_temp_consts API. map m_var_places with weights
     if (is_pdmodel(path)) {
         load_consts(&weights_stream);
     } else {
