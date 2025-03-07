@@ -30,6 +30,9 @@ using namespace ov;
 using namespace ov::op::util;
 using namespace ov::pass::pattern::op;
 
+constexpr auto SQRT2 = static_cast<float>(M_SQRT2);
+constexpr auto SQRT1_2 = static_cast<float>(M_SQRT1_2);
+
 namespace {
 
 Predicate check_value(float ref, float eps = std::numeric_limits<float>::epsilon()) {
@@ -60,11 +63,11 @@ ov::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
     // Replaces a sub-graph with a Gelu op
     // Shared by every pattern: (1 + erf(x / sqrt(2)))
     auto input = pass::pattern::any_input();
-    auto div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(M_SQRT2f, 0.001f));
+    auto div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(SQRT2, 0.001f));
     auto div = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({input, div_constant});
 
     // In case of ConvertDivideWithConstant is applied and Div is converted to Mul
-    auto mul_as_div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(M_SQRT1_2f, 0.001f));
+    auto mul_as_div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(SQRT1_2, 0.001f));
     auto mul_as_div = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_as_div_constant});
     auto erf_input = std::make_shared<Or>(ov::OutputVector{div, mul_as_div});
 
@@ -91,11 +94,11 @@ ov::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
     // Replaces a sub-graph with a Gelu op
     // Shared by every pattern: (1 + erf(x / sqrt(2)))
     auto input = pass::pattern::any_input();
-    auto div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(M_SQRT2f, 0.001f));
+    auto div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(SQRT2, 0.001f));
     auto div = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({input, div_constant});
 
     // In case of ConvertDivideWithConstant is applied and Div is converted to Mul
-    auto mul_as_div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(M_SQRT1_2f, 0.001f));
+    auto mul_as_div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(SQRT1_2, 0.001f));
     auto mul_as_div = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_as_div_constant});
     auto erf_input = std::make_shared<Or>(ov::OutputVector{div, mul_as_div});
 
@@ -121,11 +124,11 @@ ov::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
     // Replaces a sub-graph with a Gelu op
     // Shared by every pattern: (1 + erf(x / sqrt(2)))
     auto input = pass::pattern::any_input();
-    auto div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(M_SQRT2f, 0.001f));
+    auto div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(SQRT2, 0.001f));
     auto div = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({input, div_constant});
 
     // In case of ConvertDivideWithConstant is applied and Div is converted to Mul
-    auto mul_as_div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(M_SQRT1_2f, 0.001f));
+    auto mul_as_div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(check_value(SQRT1_2, 0.001f));
     auto mul_as_div = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_as_div_constant});
     auto erf_input = std::make_shared<Or>(ov::OutputVector{div, mul_as_div});
 
@@ -152,7 +155,7 @@ ov::pass::GeluFusionWithErfFour::GeluFusionWithErfFour() {
     using namespace ov::pass::pattern;
 
     auto input = any_input();
-    auto mul1_constant = wrap_type<ov::op::v0::Constant>(check_value(M_SQRT1_2f, 0.001f));
+    auto mul1_constant = wrap_type<ov::op::v0::Constant>(check_value(SQRT1_2, 0.001f));
     auto mul1 = wrap_type<ov::op::v1::Multiply>({input, mul1_constant});
     auto erf = wrap_type<ov::op::v0::Erf>({mul1});
     auto mul2_constant = wrap_type<ov::op::v0::Constant>(check_value(0.5f));
