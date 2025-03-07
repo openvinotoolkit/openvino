@@ -151,8 +151,6 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             bool batch_compilation = kernel_string->batch_compilation;
             bool is_cm = kernel_string->language == kernel_language::CM;
 
-            auto& headers = is_cm ? cm_batch_headers : batch_headers;
-
             // Order matters for cm options
             if (batch_compilation && !is_cm) {
                 options = reorder_options(options);
@@ -175,7 +173,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                 const auto& batch_id = 0;
                 // increase bucket id if and only if new bucket comes
                 bucket_id = static_cast<int32_t>(program_buckets.size() - 1);
-                current_bucket.push_back(batch_program(bucket_id, batch_id, options, headers, kernel_string->language));
+                current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_headers, kernel_string->language));
             }
 
             // This is a temporary walk-around to avoid severe performance drop.
@@ -206,7 +204,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                 || current_bucket.back().entry_point_to_id.find(entry_point) != current_bucket.back().entry_point_to_id.end()
                 || need_separate_batch(entry_point)) {
                 const auto& batch_id = static_cast<int32_t>(current_bucket.size());
-                current_bucket.push_back(batch_program(bucket_id, batch_id, options, headers, kernel_string->language));
+                current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_headers, kernel_string->language));
             }
 
             auto& current_batch = current_bucket.back();
@@ -315,14 +313,12 @@ kernels_cache::kernels_cache(engine& engine,
                              const ExecutionConfig& config,
                              uint32_t prog_id,
                              std::shared_ptr<ov::threading::ITaskExecutor> task_executor,
-                             const std::map<std::string, std::string>& batch_headers,
-                             const std::map<std::string, std::string>& cm_batch_headers)
+                             const std::map<std::string, std::string>& batch_headers)
     : _device(get_target_device(engine))
     , _task_executor(task_executor)
     , _config(config)
     , _prog_id(prog_id)
-    , batch_headers(std::move(batch_headers))
-    , cm_batch_headers(std::move(cm_batch_headers)) { }
+    , batch_headers(std::move(batch_headers)) { }
 
 static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
     // Get the size of the program binary in bytes.
