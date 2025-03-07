@@ -7,9 +7,8 @@ import os
 import numpy as np
 import openvino as ov
 from pathlib import Path
-from openvino.utils import deprecated, get_cmake_path
-from tests.utils.helpers import compare_models, get_relu_model
-from openvino.utils import make_postponed_constant
+from openvino.utils import deprecated, get_cmake_path, make_postponed_constant
+from tests.utils.helpers import compare_models, get_relu_model, create_filenames_for_ir
 
 
 def test_compare_functions():
@@ -126,48 +125,49 @@ def create_model(maker):
     return ov.Model(add_2, [param_node], "test_model")
 
 
-def test_save_postponned_constant():
+@pytest.fixture
+def prepare_ir_paths(request, tmp_path):
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
+
+    yield xml_path, bin_path
+
+    # IR Files deletion should be done after `Model` is destructed.
+    # It may be achieved by splitting scopes (`Model` will be destructed
+    # just after test scope finished), or by calling `del Model`
+    os.remove(xml_path)
+    os.remove(bin_path)
+
+
+def test_save_postponned_constant(prepare_ir_paths):
     maker = Maker()
     model = create_model(maker)
     assert maker.called_times() == 0
 
-    model_export_file_name = "out.xml"
-    weights_export_file_name = "out.bin"
+    model_export_file_name, weights_export_file_name = prepare_ir_paths
     ov.save_model(model, model_export_file_name, compress_to_fp16=False)
 
     assert maker.called_times() == 1
 
-    os.remove(model_export_file_name)
-    os.remove(weights_export_file_name)
 
-
-def test_save_postponned_constant_twice():
+def test_save_postponned_constant_twice(prepare_ir_paths):
     maker = Maker()
     model = create_model(maker)
     assert maker.called_times() == 0
 
-    model_export_file_name = "out.xml"
-    weights_export_file_name = "out.bin"
+    model_export_file_name, weights_export_file_name = prepare_ir_paths
     ov.save_model(model, model_export_file_name, compress_to_fp16=False)
     assert maker.called_times() == 1
     ov.save_model(model, model_export_file_name, compress_to_fp16=False)
     assert maker.called_times() == 2
 
-    os.remove(model_export_file_name)
-    os.remove(weights_export_file_name)
 
-
-def test_serialize_postponned_constant():
+def test_serialize_postponned_constant(prepare_ir_paths):
     maker = Maker()
     model = create_model(maker)
     assert maker.called_times() == 0
 
-    model_export_file_name = "out.xml"
-    weights_export_file_name = "out.bin"
+    model_export_file_name, weights_export_file_name = prepare_ir_paths
     ov.serialize(model, model_export_file_name, weights_export_file_name)
-    os.remove(model_export_file_name)
-    os.remove(weights_export_file_name)
-
     assert maker.called_times() == 1
 
 
