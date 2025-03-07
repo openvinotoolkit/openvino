@@ -22,7 +22,6 @@
 ### Checks that are turned off but better be enabled later:
 # -bugprone-narrowing-conversions
 # -bugprone-easily-swappable-parameters
-# -bugprone-empty-catch. Better to fix, potentially hides some errors.
 # -bugprone-exception-escape. There are a lot of legacy code which does not handle exceptions properly and just catches them all. Major refactoring is required to correct this.
 # -bugprone-implicit-widening-of-multiplication-result
 # -bugprone-incorrect-roundings. There are explicit ways to perform rounding (i.e. std::floor(), std::round(), etc). Requires careful updates case by case
@@ -49,7 +48,6 @@ Checks: >
   cppcoreguidelines-prefer-member-initializer,
   readability-else-after-return,
   -bugprone-easily-swappable-parameters,
-  -bugprone-empty-catch,
   -bugprone-exception-escape,
   -bugprone-implicit-widening-of-multiplication-result,
   -bugprone-incorrect-roundings,
