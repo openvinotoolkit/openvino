@@ -760,6 +760,39 @@ def test_patched_16bit_model_converts():
     np.testing.assert_allclose(res_bf16[0], res_ref[0].numpy(), atol=1e-2)
     np.testing.assert_allclose(res_bf16[1], res_ref[1].numpy(), atol=1e-2)
 
+def test_patched_16bit_model_with_convert():
+    from openvino.frontend.pytorch import patch_model
+    from openvino import convert_model, Type
+
+    class ModelWithLinear(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.l1 = torch.nn.Linear(32, 64, dtype=torch.float16)
+            self.l2 = torch.nn.Linear(64, 32, dtype=torch.float16)
+
+        def forward(self, x):
+            x = self.l1(x)
+            x = x.to(self.l1.weight.dtype)
+            x = self.l2(x)
+            return x
+
+    example = (torch.randint(0, 10, [16, 32]),)
+    model = ModelWithLinear()
+    patch_model.__make_16bit_traceable(model)
+    with torch.no_grad():
+        converted_model = convert_model(model, example_input=example)
+    assert converted_model
+    mm_num = 0
+    for node in converted_model.get_ordered_ops():
+        if node.get_type_name() == "MatMul":
+            mm_num += 1
+            # verify all matmuls are executed in fp32
+            assert node.get_input_element_type(0) == Type.f32
+            assert node.get_input_element_type(1) == Type.f32
+            assert node.get_output_element_type(0) == Type.f32
+    assert mm_num == 2
+
+
 
 class InlinedInputsModel(torch.nn.Module):
     def __init__(self):
