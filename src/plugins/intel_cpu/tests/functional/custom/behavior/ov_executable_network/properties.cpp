@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/subgraph_builders/matmul_bias.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
@@ -471,6 +473,37 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCPURuntimOptionsWithCorePr
     ASSERT_EQ(valueSize.as<uint64_t>(), 8);
     ASSERT_EQ(keyCacheType.as<ov::element::Type>(), ov::element::f16);
     ASSERT_EQ(valueCacheType.as<ov::element::Type>(), ov::element::bf16);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuModelDistributionPolicyTensorParallel) {
+    ov::Core core;
+    std::shared_ptr<ov::Model> model = ov::test::utils::make_matmul_bias();
+    std::set<ov::hint::ModelDistributionPolicy> setModels = {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL};
+    ov::AnyMap config = {{ov::hint::model_distribution_policy.name(), setModels},
+                         {ov::num_streams.name(), 1},
+                         {ov::inference_num_threads.name(), 2}};
+
+    core.set_property(deviceName, config);
+    ov::CompiledModel compiledModel = core.compile_model(model, deviceName);
+
+    std::set<ov::hint::ModelDistributionPolicy> model_distribution_policy_value = {};
+    OV_ASSERT_NO_THROW(model_distribution_policy_value = compiledModel.get_property(ov::hint::model_distribution_policy));
+    ASSERT_EQ(model_distribution_policy_value, setModels);
+
+    std::map<ov::Output<ov::Node>, ov::Tensor> inputs;
+    for (const auto& input : model->inputs()) {
+        auto tensor = ov::test::utils::create_and_fill_tensor_normal_distribution(input.get_element_type(),
+                                                                                  input.get_shape(),
+                                                                                  0.0f,
+                                                                                  0.2f,
+                                                                                  7235346);
+        inputs.insert({input, tensor});
+    }
+    auto req = compiledModel.create_infer_request();
+    for (const auto& input : inputs) {
+        req.set_tensor(input.first, input.second);
+    }
+    OV_ASSERT_NO_THROW(req.infer());
 }
 
 }  // namespace
