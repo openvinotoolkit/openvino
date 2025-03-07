@@ -97,7 +97,6 @@ private:
     std::map<std::vector<unsigned char>, uint32_t> _cached_binaries;
     std::unordered_map<std::string, kernel::ptr> _cached_kernels;
     std::map<std::string, std::string> batch_headers;
-    std::map<std::string, std::string> cm_batch_headers;
     std::unordered_map<kernel_impl_params, size_t, impl_hasher> _kernel_batch_hash;
     void get_program_source(const kernels_code& kernels_source_code, std::vector<batch_program>*) const;
     void build_batch(const batch_program& batch, compiled_kernels& compiled_kernels);
@@ -112,8 +111,7 @@ public:
                            const ExecutionConfig& config,
                            uint32_t prog_id,
                            std::shared_ptr<ov::threading::ITaskExecutor> task_executor = nullptr,
-                           const std::map<std::string, std::string>& batch_headers = {},
-                           const std::map<std::string, std::string>& cm_batch_headers = {});
+                           const std::map<std::string, std::string>& batch_headers = {});
     kernel::ptr get_kernel_from_cached_kernels(std::string id) const;
     std::vector<kernel::ptr> get_kernels(const kernel_impl_params& params) const;
 
