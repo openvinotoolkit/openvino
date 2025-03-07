@@ -397,7 +397,7 @@ void Properties::registerProperties() {
         REGISTER_CUSTOM_METRIC(ov::intel_npu::compiler_version, true, [&](const Config& config) {
             /// create dummy compiler
             CompilerAdapterFactory compilerAdapterFactory;
-            auto dummyCompiler = compilerAdapterFactory.getCompiler(_backend, config);
+            auto dummyCompiler = compilerAdapterFactory.getCompiler(_backend, config.get<COMPILER_TYPE>());
             return dummyCompiler->get_version();
         });
     } else if (_pType == PropertiesType::COMPILED_MODEL) {
@@ -450,13 +450,13 @@ ov::Any Properties::get_property(const std::string& name, const ov::AnyMap& argu
 
 void Properties::set_property(const ov::AnyMap& properties) {
     std::map<std::string, std::string> cfgs_to_set;
+    CompilerAdapterFactory compilerAdapterFactory;
+    auto compiler = compilerAdapterFactory.getCompiler(_backend, _config.get<COMPILER_TYPE>());
 
     for (auto&& value : properties) {
         if (_properties.find(value.first) == _properties.end()) {
             // property doesn't exist
             // checking as internal now
-            CompilerAdapterFactory compilerAdapterFactory;
-            auto compiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), _config);
             if (compiler->is_option_supported(value.first)) {
                 // if compiler reports it supported > registering as internal
                 _config.addOrUpdateInternal(value.first, value.second.as<std::string>());

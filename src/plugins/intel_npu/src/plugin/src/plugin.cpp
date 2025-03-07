@@ -248,23 +248,27 @@ void Plugin::init_options() {
 
 void Plugin::recheck_compiler_support(Config& cfg) const {
     bool legacy = false;
-    CompilerAdapterFactory compilerAdapterFactory;
+    bool nocompiler = false;
+    std::unique_ptr<ICompilerAdapter> compiler = nullptr;
     std::vector<std::string> compiler_support_list{};
     uint32_t compiler_version = 0;
     // create a dummy compiler to fetch version and supported options
 
     try {
-        auto dummyCompiler = compilerAdapterFactory.getCompiler(_backend, cfg);
-        compiler_version = dummyCompiler->get_version();
-        compiler_support_list = dummyCompiler->get_supported_options();
-        if (compiler_support_list.size() == 0) {
-            _logger.info("No compiler support options list received! Fallback to version-based option registration");
-            legacy = true;
-        }
+        CompilerAdapterFactory compilerAdapterFactory;
+        compiler = compilerAdapterFactory.getCompiler(_backend, cfg.get<COMPILER_TYPE>());
     } catch (...) {
         // assuming getCompiler failed, meaning we are offline
-        _logger.warning("No available or legacy compiler. Registering only legacy options with no compiler "
-                        "version requirement");
+        _logger.warning("No available compiler. Enabling only runtime options ");
+        nocompiler = true;
+    }
+
+    if (nocompiler || (compiler != nullptr)) {
+        compiler_version = compiler->get_version();
+        compiler_support_list = compiler->get_supported_options();
+    }
+    if (compiler_support_list.size() == 0) {
+        _logger.info("No compiler support options list received! Fallback to version-based option registration");
         legacy = true;
     }
 
@@ -283,7 +287,9 @@ void Plugin::recheck_compiler_support(Config& cfg) const {
         if (opt.mode() == OptionMode::RunTime) {
             isEnabled = true;
         } else {
-            if (legacy) {
+            if (nocompiler) {
+                isEnabled = false;
+            } else if (legacy) {
                 if (compiler_version >= opt.compilerSupportVersion()) {
                     isEnabled = true;
                 }
@@ -292,11 +298,9 @@ void Plugin::recheck_compiler_support(Config& cfg) const {
                 if (it != compiler_support_list.end()) {
                     isEnabled = true;
                 } else {
-                    try {
-                        auto compiler = compilerAdapterFactory.getCompiler(_backend, cfg);
+                    if (compiler != nullptr) {
                         isEnabled = compiler->is_option_supported(key);
-                    } catch (...) {
-                        _logger.debug("Could not determine if option %s is supported!", key.c_str());
+                    } else {
                         isEnabled = false;
                     }
                 }
@@ -446,7 +450,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     CompilerAdapterFactory compilerAdapterFactory;
-    auto compiler = compilerAdapterFactory.getCompiler(_backend, localConfig);
+    auto compiler = compilerAdapterFactory.getCompiler(_backend, localConfig.get<COMPILER_TYPE>());
 
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
     std::shared_ptr<intel_npu::IGraph> graph;
@@ -554,7 +558,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
     try {
         CompilerAdapterFactory compilerAdapterFactory;
-        auto compiler = compilerAdapterFactory.getCompiler(_backend, localConfig);
+        auto compiler = compilerAdapterFactory.getCompiler(_backend, localConfig.get<COMPILER_TYPE>());
 
         uint64_t graphSize;
         const bool skipCompatibility = localConfig.get<DISABLE_VERSION_CHECK>();
@@ -626,7 +630,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
     CompilerAdapterFactory compilerAdapterFactory;
-    auto compiler = compilerAdapterFactory.getCompiler(_backend, localConfig);
+    auto compiler = compilerAdapterFactory.getCompiler(_backend, localConfig.get<COMPILER_TYPE>());
     ov::SupportedOpsMap supportedOpsMap;
     try {
         supportedOpsMap = compiler->query(model, localConfig);
