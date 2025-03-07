@@ -86,7 +86,7 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
         #include <cm/cm.h>
         #include <cm/cmtl.h>
 
-        extern "C" _GENX_MAIN_ void cm_check() {
+        extern "C" _GENX_MAIN_ void cm_check(half *x [[type("svmptr_t")]]) {
             unsigned int id = cm_linear_global_id();
         }
         )"""";
