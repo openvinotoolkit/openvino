@@ -209,6 +209,8 @@ public:
     /// \endcode
     ///
     PreProcessSteps& reverse_channels();
+
+
 };
 
 }  // namespace preprocess
