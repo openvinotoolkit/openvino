@@ -12,6 +12,7 @@ from copy import copy
 import tempfile
 
 import openvino.opset13 as ops
+import openvino as ov
 from openvino import (
     Core,
     Model,
@@ -237,32 +238,35 @@ def test_get_sink_index(device):
 
 # Assume make_model_with_tensor_names is a function that creates a test model
 @pytest.fixture
+
 def test_model():
-   
     parameters = [ov.Parameter([1, 2], dtype=ov.Type.f32)] 
     results = [ov.Output(ov.Node())]  
     return ov.Model(results=results, parameters=parameters, name="TestModel")
+
 
 def test_reshape_valid_input_shapes(test_model):
     input_shapes = [[2, 2], [1, 3, 224, 244], [10]]
     test_model.reshape(input_shapes)
     inputs = test_model.inputs()
+    
     assert len(inputs) == len(input_shapes), "Number of model inputs should match number of provided shapes"
     
     for i, shape in enumerate(input_shapes):
         assert inputs[i].shape == shape, f"Input {i} shape mismatch: expected {shape}, got {inputs[i].shape}"
 
+
 def test_reshape_invalid_input_shapes(test_model):
     input_shapes = [[2, 2], [1, 3, 224]] 
-    
-
     with pytest.raises(RuntimeError, match="Number of provided shapes does not match number of model inputs."):
         test_model.reshape(input_shapes)
+
 
 def test_reshape_shape_mismatch(test_model):
     input_shapes = [[2, 2], [1, 2, 224, 244], [10, 10]]
     with pytest.raises(RuntimeError, match="Number of provided shapes does not match number of model inputs."):
         test_model.reshape(input_shapes)
+
 
 def test_reshape_check_shape_modification(test_model):
     input_shapes = [[2, 2], [1, 3, 224, 224], [10]]
@@ -273,7 +277,6 @@ def test_reshape_check_shape_modification(test_model):
     
     for i, shape in enumerate(input_shapes):
         assert inputs[i].shape == shape, f"Shape mismatch for input {i}: expected {shape}, got {inputs[i].shape}"
-
 
 
 def test_model_sink_ctors():
