@@ -1353,38 +1353,34 @@ void Transformations::MainSnippets() {
         },
         snippets::pass::TokenizeSnippets);
 
-    auto mm_supports_transpose_b = [this, ignoreCallback](const std::shared_ptr<const ov::Node>& n) {
+    auto mm_supports_transpose_b = [this](const std::shared_ptr<const ov::Node>& n) {
         MAYBE_UNUSED(config.inferencePrecision);
-        if (!ignoreCallback) {
-            return false;
-        }
         // Note: BrgemmTPP doesn't support transposed KN natively
         // so we should extract transposes for the corresponding matmul nodes
 #if defined(SNIPPETS_LIBXSMM_TPP)
         // TPP doesn't support dynamic shapes -> there will be BrgemmCPU node
-        if (n->is_dynamic())
-            return true;
-        std::vector<std::vector<size_t>> layouts(3);
-        const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(n);
-        OPENVINO_ASSERT(matmul, "ExplicitTransposeMatMulInputs callback must be called for matmul node");
-        if (matmul->get_transpose_b()) {
-            std::vector<size_t> transposed_layout(n->get_input_partial_shape(1).size());
-            std::iota(transposed_layout.begin(), transposed_layout.end(), 0);
-            std::swap(*transposed_layout.rbegin(), *(transposed_layout.rbegin() + 1));
-            layouts[1] = std::move(transposed_layout);
+        if (!n->is_dynamic()) {
+            std::vector<std::vector<size_t>> layouts(3);
+            const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(n);
+            OPENVINO_ASSERT(matmul, "ExplicitTransposeMatMulInputs callback must be called for matmul node");
+            if (matmul->get_transpose_b()) {
+                std::vector<size_t> transposed_layout(n->get_input_partial_shape(1).size());
+                std::iota(transposed_layout.begin(), transposed_layout.end(), 0);
+                std::swap(*transposed_layout.rbegin(), *(transposed_layout.rbegin() + 1));
+                layouts[1] = std::move(transposed_layout);
+            }
+            ov::element::TypeVector precisions;
+            auto push_precision = [&](const ov::element::Type& precision) {
+                if (config.inferencePrecision == ov::element::bf16 && precision == ov::element::f32)
+                    precisions.push_back(ov::element::bf16);
+                else
+                    precisions.push_back(precision);
+            };
+            push_precision(n->get_input_element_type(0));
+            push_precision(n->get_input_element_type(1));
+            push_precision(n->get_output_element_type(0));
+            return !ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP::is_supported_brgemm_configuration(layouts, precisions);
         }
-        ov::element::TypeVector precisions;
-        auto push_precision = [&](const ov::element::Type& precision) {
-            if (config.inferencePrecision == ov::element::bf16 && precision == ov::element::f32)
-                precisions.push_back(ov::element::bf16);
-            else
-                precisions.push_back(precision);
-        };
-        push_precision(n->get_input_element_type(0));
-        push_precision(n->get_input_element_type(1));
-        push_precision(n->get_output_element_type(0));
-        if (ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP::is_supported_brgemm_configuration(layouts, precisions))
-            return false;
 #endif
         return true;
     };
