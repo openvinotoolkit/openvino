@@ -586,12 +586,13 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             && reorder_inst->output_memory_ptr()
             && get_network().has_output_remote_memory_ptr(reorder_inst->id())
             && get_network().get_engine().is_the_same_buffer(get_network().get_output_remote_memory(reorder_inst->id()), reorder_inst->output_memory())) {
-            if (actual_layouts[0] == _impl_params->get_output_layout()) {
-                OPENVINO_ASSERT(actual_layouts[0].get_linear_size() <= reorder_inst->get_max_output_layout_count(),
-                                "[GPU] Remote tensor memory can't be used because actual memory size required is larger.");
+            if (actual_layouts[0].get_linear_size() <= reorder_inst->get_max_output_layout_count()) {
                 this->_outputs[0] = reorder_inst->_outputs[0];
                 GPU_DEBUG_TRACE_DETAIL << id() << ": use reorder user's remote tensor memory " << this->_outputs[0]->buffer_ptr() << std::endl;
                 return;
+            } else {
+                GPU_DEBUG_TRACE_DETAIL << reorder_inst->id() << " cannot be optimized for the mismatch between input layout and output layout" << std::endl;
+                reorder_inst->set_can_be_optimized(false);
             }
         }
     }
