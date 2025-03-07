@@ -143,7 +143,7 @@ ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov:
 
 uint32_t PluginCompilerAdapter::get_version() const {
     // returning max val as PluginCompiler supports all features and options the plugin is aware of
-    return 0xFFFFFFFF;
+    return _compiler->get_version();
 }
 
 std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
