@@ -1215,7 +1215,12 @@ void ScaledDotProductAttention::createPrimitive() {
     const auto valueS = *(valueDims.end() - 1);
 
     m_key_quant_param.groupSize = cpuConfig.keyCacheGroupSize ? cpuConfig.keyCacheGroupSize : keyS;
-    m_key_quant_param.isByChannel = cpuConfig.keyCacheQuantByChannel;
+    m_key_quant_param.isByChannel = false;
+    if (cpuConfig.keyCacheQuantMode == ov::intel_cpu::Config::CacheQuantMode::BY_CHANNEL) {
+        m_key_quant_param.isByChannel = true;
+    } else if (cpuConfig.keyCacheQuantMode == ov::intel_cpu::Config::CacheQuantMode::BY_HIDDEN) {
+        m_key_quant_param.isByChannel = false;
+    }
     m_value_quant_param.groupSize = cpuConfig.valueCacheGroupSize ? cpuConfig.valueCacheGroupSize : valueS;
     if (keyS % m_key_quant_param.groupSize != 0) {
         OPENVINO_THROW("ScaledDotProductAttention AttentionExecutor creation fails key state " + std::to_string(keyS) +

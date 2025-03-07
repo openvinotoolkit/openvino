@@ -400,8 +400,6 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         return static_cast<decltype(ov::key_cache_group_size)::value_type>(engConfig.keyCacheGroupSize);
     } else if (name == ov::value_cache_group_size) {
         return decltype(ov::value_cache_group_size)::value_type(engConfig.valueCacheGroupSize);
-    } else if (name == ov::key_cache_quant_bychannel) {
-        return decltype(ov::key_cache_quant_bychannel)::value_type(engConfig.keyCacheQuantByChannel);
     }
     return get_ro_property(name, options);
 }
@@ -450,7 +448,6 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
             RW_property(ov::value_cache_precision.name()),
             RW_property(ov::key_cache_group_size.name()),
             RW_property(ov::value_cache_group_size.name()),
-            RW_property(ov::key_cache_quant_bychannel.name()),
         };
 
         std::vector<ov::PropertyName> supportedProperties;

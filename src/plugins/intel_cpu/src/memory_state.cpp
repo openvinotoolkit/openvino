@@ -207,7 +207,7 @@ MemoryPtr VariableStateSingleBuffer::internal_state_mem() const {
 void VariableStateSingleBuffer::commit_impl() {
     // nothing to do
 }
-// To Do, set/get state by channel
+
 VariableStateKVcache::VariableStateKVcache(const std::string& name,
                                            MemoryDescPtr external_desc,
                                            BlockedMemoryDescPtr dense_internal_desc,

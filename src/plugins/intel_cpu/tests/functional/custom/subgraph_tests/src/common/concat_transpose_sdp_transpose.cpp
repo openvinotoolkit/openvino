@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
+#include "internal_properties.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
-
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "utils/cpu_test_utils.hpp"
-#include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "utils/general_utils.h"
 
 using namespace ov::test;
@@ -20,9 +20,9 @@ namespace test {
 using InputShapeAndTransposeOrder = std::pair<std::vector<InputShape>, std::vector<size_t>>;
 using ConcatSDPTransposeTestParams = std::tuple<ElementType,
                                                 InputShapeAndTransposeOrder,
-                                                bool,  // has ShapeOf
-                                                bool, // quantize by channel
-                                                size_t // group_size
+                                                bool,   // has ShapeOf
+                                                bool,   // quantize by channel
+                                                size_t  // group_size
                                                 >;
 // Subgraph:
 /*                              Parameter
@@ -100,10 +100,12 @@ public:
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
         configuration[ov::key_cache_group_size.name()] = keyGroupSize;
         configuration[ov::value_cache_group_size.name()] = keyGroupSize;
-        configuration[ov::key_cache_quant_bychannel.name()] = quantKeyByChannel;
-        //QuantByChannel needs explictly set u8 kv_cache
+        configuration[ov::intel_cpu::key_cache_quant_mode.name()] =
+            quantKeyByChannel ? ov::intel_cpu::CacheQuantMode::BY_CHANNEL : ov::intel_cpu::CacheQuantMode::BY_HIDDEN;
+        // explictly set u8 kv_cache for QuantByChannel
         if (quantKeyByChannel) {
             configuration[ov::hint::kv_cache_precision.name()] = ov::element::u8;
+            abs_threshold = 0.19f;
         }
         if (inType == ElementType::bf16) {
             configuration[ov::hint::inference_precision.name()] = ov::element::bf16;
@@ -146,8 +148,12 @@ public:
         auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ElementType::i32, ov::PartialShape{-1});
         beam_idx->set_friendly_name("beam_idx");
         inputParams.push_back(beam_idx);
-        auto gatherK = std::make_shared<ov::op::v8::Gather>(pastk, beam_idx, ov::op::v0::Constant::create(ElementType::i32, {1}, {0}));
-        auto gatherV = std::make_shared<ov::op::v8::Gather>(pastv, beam_idx, ov::op::v0::Constant::create(ElementType::i32, {1}, {0}));
+        auto gatherK = std::make_shared<ov::op::v8::Gather>(pastk,
+                                                            beam_idx,
+                                                            ov::op::v0::Constant::create(ElementType::i32, {1}, {0}));
+        auto gatherV = std::make_shared<ov::op::v8::Gather>(pastv,
+                                                            beam_idx,
+                                                            ov::op::v0::Constant::create(ElementType::i32, {1}, {0}));
         auto concatK = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{gatherK, inputParams[1]}, concat_axis);
         auto concatV = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{gatherV, inputParams[2]}, concat_axis);
         auto transposeK = std::make_shared<ov::op::v1::Transpose>(concatK, preOrder);
@@ -212,7 +218,7 @@ public:
     }
     void generate(int idx, const std::vector<ov::Shape>& targetInputStaticShapes) {
         inputs.clear();
-        auto create_input = [this] (std::shared_ptr<ov::op::v0::Parameter> param, ov::Shape shape, float val) {
+        auto create_input = [this](std::shared_ptr<ov::op::v0::Parameter> param, ov::Shape shape, float val) {
             if (param->get_element_type() == ov::element::i32) {
                 ov::Tensor t{ov::element::i32, shape};
                 auto size = shape[0];
@@ -280,7 +286,7 @@ public:
         }
         auto states = inferRequest.query_state();
         // k, v may be in any order
-        std::sort(states.begin(), states.end(), [] (VariableState& a, VariableState& b) {
+        std::sort(states.begin(), states.end(), [](VariableState& a, VariableState& b) {
             return a.get_name() > b.get_name();
         });
         for (std::string name : {"pastk", "pastv"}) {
@@ -301,70 +307,6 @@ public:
     }
 };
 
-namespace {
-template <typename T>
-static void quant_u8_by_channel(const T* src,
-                                uint8_t* dst,
-                                size_t seq_dim,
-                                size_t hidden_dims,
-                                size_t src_stride,
-                                size_t dst_stride,
-                                float* scale,
-                                float* zp) {
-    size_t j = 0;
-    for (; j < hidden_dims; j++) {
-        float max = -std::numeric_limits<float>::max();
-        float min = std::numeric_limits<float>::max();
-        for (size_t i = 0; i < seq_dim; i++) {
-            float tmp = src[i * src_stride + j];
-            max = std::max(max, tmp);
-            min = std::min(min, tmp);
-        }
-        float orgin_range = (max - min);
-        float temp_scale = 0.0f;
-        float temp_zp = 0.0f;
-        if (orgin_range != 0.0f) {
-            temp_scale = orgin_range / 255;
-            temp_zp = -255 * min / orgin_range;
-        } else {
-            temp_scale = 0.0001f;
-            temp_zp = -min / temp_scale;
-        }
-        scale[j] = temp_scale;
-        zp[j] = temp_zp;
-    }
-    // quantize
-    for (size_t i = 0; i < seq_dim; ++i) {
-        for (size_t j = 0; j < hidden_dims; j++) {
-            float tmp = src[i * src_stride + j];
-            dst[i * dst_stride + j] = static_cast<uint8_t>(std::round(tmp / scale[j] + zp[j]));
-        }
-    }
-}
-
-template <typename TDST>
-void attn_dequant_u8_by_channel(const uint8_t* src,
-                                TDST* dst,
-                                size_t seq_dim,
-                                size_t hidden_dims,
-                                size_t src_stride,
-                                size_t dst_stride,
-                                float* scale,
-                                float* zp) {
-    uint8_t* src_nc = const_cast<uint8_t*>(src);
-    for (size_t i = 0; i < seq_dim; ++i) {
-        size_t j = 0;
-        while (j < hidden_dims) {
-            float tmp = src_nc[i * src_stride + j];
-            tmp = (tmp - zp[j]) * scale[j];
-            dst[i * dst_stride + j] = tmp;
-            j += 1;
-        }
-    }
-}
-
-}  // namespace
-
 TEST_P(ConcatSDPTransposeTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     auto actualOutputs = run_test(function);
@@ -379,68 +321,30 @@ TEST_P(ConcatSDPTransposeTest, CompareWithRefs) {
     auto expectedOutputs = run_test(functionRefs);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
-        if (i == (actualOutputs.size() - 2) && keyGroupSize > 0) {
-            const auto& key_shape = expectedOutputs[i].get_shape();
-            const auto& strides = expectedOutputs[i].get_strides();
-            auto* src = expectedOutputs[i].data<float>();
-            size_t B = key_shape[0];
-            size_t L = key_shape[1];
-            size_t H = key_shape[2];
-            size_t S = key_shape[3];
-            std::vector<uint8_t> dst_u8(B * L * H * S, 0);
-            size_t groupNum = ov::intel_cpu::div_up(L, keyGroupSize);
-            std::vector<float> scales(B * groupNum * H * S, 0);
-            std::vector<float> zp(B * groupNum * H * S, 0);
-            for (size_t b = 0; b < B; b++) {
-                for (size_t groupIdx = 0; groupIdx < groupNum; groupIdx++) {
-                    quant_u8_by_channel(src + (b * strides[0] + groupIdx * keyGroupSize * strides[1]) / expectedOutputs[i].get_element_type().size(),
-                                        dst_u8.data(),
-                                        std::min(keyGroupSize, L - groupIdx * keyGroupSize),
-                                        H * S,
-                                        strides[1] / expectedOutputs[i].get_element_type().size(),
-                                        H * S,
-                                        scales.data() + b * groupNum * H * S + groupIdx * H * S,
-                                        zp.data() + b * groupNum * H * S + groupIdx * H * S);
-                    attn_dequant_u8_by_channel(dst_u8.data(),
-                                               src + (b * strides[0] + groupIdx * keyGroupSize * strides[1]) / expectedOutputs[i].get_element_type().size(),
-                                               std::min(keyGroupSize, L - groupIdx * keyGroupSize),
-                                               H * S,
-                                               H * S,
-                                               strides[1] / expectedOutputs[i].get_element_type().size(),
-                                               scales.data() + b * groupNum * H * S + groupIdx * H * S,
-                                               zp.data() + b * groupNum * H * S + groupIdx * H * S);
-                }
-            }
-        }
         ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
     }
 }
 
 namespace {
 const std::vector<InputShapeAndTransposeOrder> inputShapeAndReorders = {
-    {
-        // greedy search
-        {{
-            // B, L1, H, S
-            {{1, -1, 8, 64}, {{1, 10, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {1, 20, 8, 64}, {1, 1, 8, 64}}},
-            // B, L0, H, S
-            {{1, -1, 8, 64}, {{1, 0, 8, 64}, {1, 10, 8, 64}, {1, 11, 8, 64}, {1, 12, 8, 64}, {1, 32, 8, 64}}},
-         },
-         // transposeOrder
-         {0, 2, 1, 3}
-        },
-        // beam search
-        {{
-            // B, L1, H, S
-            {{-1, -1, 8, 64}, {{4, 10, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}}},
-            // B, L0, H, S
-            {{-1, -1, 8, 64}, {{4, 0, 8, 64}, {4, 10, 8, 64}, {4, 11, 8, 64}, {4, 12, 8, 64}, {4, 13, 8, 64}}},
-         },
-         // transposeOrder
-         {0, 2, 1, 3}
-        }
-    }
-};
+    {// greedy search
+     {{
+          // B, L1, H, S
+          {{1, -1, 8, 64}, {{1, 10, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {1, 20, 8, 64}, {1, 1, 8, 64}}},
+          // B, L0, H, S
+          {{1, -1, 8, 64}, {{1, 0, 8, 64}, {1, 10, 8, 64}, {1, 11, 8, 64}, {1, 12, 8, 64}, {1, 32, 8, 64}}},
+      },
+      // transposeOrder
+      {0, 2, 1, 3}},
+     // beam search
+     {{
+          // B, L1, H, S
+          {{-1, -1, 8, 64}, {{4, 10, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}}},
+          // B, L0, H, S
+          {{-1, -1, 8, 64}, {{4, 0, 8, 64}, {4, 10, 8, 64}, {4, 11, 8, 64}, {4, 12, 8, 64}, {4, 13, 8, 64}}},
+      },
+      // transposeOrder
+      {0, 2, 1, 3}}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeTest,
                          ConcatSDPTransposeTest,
@@ -452,19 +356,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeTest,
                          ConcatSDPTransposeTest::getTestCaseName);
 
 const std::vector<InputShapeAndTransposeOrder> shapesWithGreedySearch = {
-    {
-        // greedy search
-        {{
-            // B, L1, H, S
-            {{1, -1, 8, 64}, {{1, 7, 8, 64}, {1, 1, 8, 64}, {1, 16, 8, 64}, {1, 1, 8, 64}, {1, 15, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}}},
-            // B, L0, H, S
-            {{1, -1, 8, 64}, {{1, 0, 8, 64}, {1, 7, 8, 64}, {1, 8, 8, 64}, {1, 24, 8, 64}, {1, 25, 8, 64}, {1, 41, 8, 64}, {1, 42, 8, 64}}},
-         },
-         // transposeOrder
-         {0, 2, 1, 3}
-        }
-    }
-};
+    {// greedy search
+     {{
+          // B, L1, H, S
+          {{1, -1, 8, 64},
+           {{1, 7, 8, 64}, {1, 1, 8, 64}, {1, 16, 8, 64}, {1, 1, 8, 64}, {1, 15, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}}},
+          // B, L0, H, S
+          {{1, -1, 8, 64},
+           {{1, 0, 8, 64},
+            {1, 7, 8, 64},
+            {1, 8, 8, 64},
+            {1, 24, 8, 64},
+            {1, 25, 8, 64},
+            {1, 41, 8, 64},
+            {1, 42, 8, 64}}},
+      },
+      // transposeOrder
+      {0, 2, 1, 3}}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeByChannelTest,
                          ConcatSDPTransposeTest,
@@ -474,7 +382,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeByChannelTest,
                                             ::testing::Values(true),
                                             ::testing::Values(8)),
                          ConcatSDPTransposeTest::getTestCaseName);
-} //  namespace
+}  //  namespace
 
 class ConcatSDPTransposeTestSetState : public ConcatSDPTransposeTestBase {
 public:
@@ -492,7 +400,7 @@ public:
         }
     }
     void new_state(ov::element::Type& type, const ov::Shape& pastKVInitShape) {
-        auto fill = [] (ov::Tensor& t, float val) {
+        auto fill = [](ov::Tensor& t, float val) {
             auto shape = t.get_shape();
             if (t.get_element_type() == ov::element::f32) {
                 strided_iota(static_cast<float*>(t.data()), t.get_size(), val, 0.1f);
@@ -594,19 +502,15 @@ TEST_P(ConcatSDPTransposeTestSetState, CompareWithRefs) {
 
 namespace {
 const std::vector<InputShapeAndTransposeOrder> inputShapeAndReordersSetState = {
-    {
-        // beam search
-        {{
-            // B, L1, H, S
-            {{-1, -1, 8, 64}, {{4, 10, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}}},
-            // B, L0, H, S and init tensor
-            {{-1, -1, 8, 64}, {{4, 2, 8, 64}, {4, 12, 8, 64}, {4, 13, 8, 64}, {4, 14, 8, 64}}},
-         },
-         // transposeOrder
-         {0, 2, 1, 3}
-        }
-    }
-};
+    {// beam search
+     {{
+          // B, L1, H, S
+          {{-1, -1, 8, 64}, {{4, 10, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}}},
+          // B, L0, H, S and init tensor
+          {{-1, -1, 8, 64}, {{4, 2, 8, 64}, {4, 12, 8, 64}, {4, 13, 8, 64}, {4, 14, 8, 64}}},
+      },
+      // transposeOrder
+      {0, 2, 1, 3}}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeTestSetState,
                          ConcatSDPTransposeTestSetState,

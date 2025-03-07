@@ -2472,10 +2472,20 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
         auto B_token = q.size(0);
         auto Hk = k_cache.size(1);
-        // The layout for per token per head for u8 kv cache:
-        // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
-        // feature(u8,idx_S)| The actual size needs to deduct scale and zeropoint.
-        // The layout for per channel u8 kv cache [block_size + 2 * sizeof(float) * sub_byte_multiplier, S]
+        /* The layout for kv cache:
+
+           by-hidden, quantized by S(hidden dims) group_num = N
+           N * f32(scale + zp)|group_0|group_1|...|group_N
+           adjusted_S = S + N * f32(scale + zp) * sub_byte_multiplier
+
+           by channel, quantized by channel [block_size, S], group_num = block_size
+           adjusted block consists 3 parts
+           f32[scale, S]
+           f32[zp, S]
+           u8[block_size, S]
+           adjusted key cache block u8[block_size + 2 * sizeof(float) * sub_byte_multiplier, S]
+        */
+
         const size_t key_sub_byte_multiplier = get_sub_byte_multiplier(k_cache.get_precision());
         const size_t value_sub_byte_multiplier = get_sub_byte_multiplier(v_cache.get_precision());
         const size_t key_params_size = sizeof(float) * 2 * key_sub_byte_multiplier;
