@@ -212,6 +212,7 @@ OP_CONVERTER(translate_rnn);
 OP_CONVERTER(translate_roi_align);
 OP_CONVERTER(translate_roll);
 OP_CONVERTER(translate_round);
+OP_CONVERTER(translate_rrelu);
 OP_CONVERTER(translate_rsqrt);
 OP_CONVERTER(translate_rsub);
 OP_CONVERTER(translate_scaled_dot_product_attention);
@@ -643,6 +644,9 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::rnn_tanh", op::translate_rnn},
         {"aten::roll", op::translate_roll},
         {"aten::round", op::translate_round},
+//        {"aten::rrelu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
+        {"aten::rrelu", op::translate_rrelu},
+        {"aten::rrelu_", op::inplace_op<op::translate_rrelu>},
         {"aten::rsqrt", op::optional_out<op::translate_rsqrt, 1>},
         {"aten::rsqrt_", op::inplace_op<op::translate_rsqrt>},
         {"aten::rsub", op::translate_rsub},
@@ -964,6 +968,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.relu_.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
         {"aten.repeat.default", op::translate_repeat_fx},
         {"aten.roll.default", op::translate_roll},
+        {"aten.rrelu.default", op::translate_rrelu},
+        {"aten.rrelu_.default", op::inplace_op<op::translate_rrelu>},
         {"aten.rsqrt.default", op::translate_rsqrt},
         {"aten.rsub.Scalar", op::translate_rsub_fx},
         {"aten.rsub.Tensor", op::translate_rsub_fx},
