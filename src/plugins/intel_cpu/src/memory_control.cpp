@@ -166,7 +166,6 @@ private:
         }
     }
 
-private:
     MemoryControl::MemorySolution m_blocks;
     std::vector<MemorySolver::Box> m_boxes;
     std::shared_ptr<MemoryBlockWithRelease> m_workspace;
@@ -243,7 +242,6 @@ private:
         }
     }
 
-private:
     MemoryControl::MemorySolution m_blocks;
     std::unordered_map<MemoryControl::MemorySolution::key_type, std::shared_ptr<MemoryBlockWithRelease>>
         m_internalBlocks;
@@ -256,7 +254,6 @@ class MemoryControl::RegionHandler {
 public:
     using Condition = std::function<bool(const MemoryRegion&)>;
 
-public:
     RegionHandler(Condition cond, MemoryManagerPtr memManager)
         : m_cond(std::move(cond)),
           m_memManager(std::move(memManager)) {}
@@ -300,28 +297,19 @@ MemoryControl::RegionHandlerPtr buildHandler(F&& f, Args&&... args) {
 MemoryControl::MemoryControl() {
     // init handlers
     m_handlers.emplace_back(buildHandler<MemoryManagerStatic>([](const MemoryRegion& reg) {
-        if (reg.size < 0 || MemoryRegion::RegionType::VARIABLE != reg.type ||
-            MemoryRegion::AllocType::POD != reg.alloc_type) {
-            return false;
-        }
-        return true;
+        return reg.size >= 0 && MemoryRegion::RegionType::VARIABLE == reg.type &&
+               MemoryRegion::AllocType::POD == reg.alloc_type;
     }));
 
     // handler for static tensors
     m_handlers.emplace_back(buildHandler<MemoryManageNonOverlapingSets>([](const MemoryRegion& reg) {
-        if (reg.size >= 0 || MemoryRegion::RegionType::VARIABLE != reg.type ||
-            MemoryRegion::AllocType::POD != reg.alloc_type) {
-            return false;
-        }
-        return true;
+        return reg.size < 0 && MemoryRegion::RegionType::VARIABLE == reg.type &&
+               MemoryRegion::AllocType::POD == reg.alloc_type;
     }));
 
     // handler for I/O tensors, so far simply individual blocks
     m_handlers.emplace_back(buildHandler<MemoryManagerIO>([](const MemoryRegion& reg) {
-        if (MemoryRegion::RegionType::VARIABLE == reg.type || reg.alloc_type != MemoryRegion::AllocType::POD) {
-            return false;
-        }
-        return true;
+        return MemoryRegion::RegionType::VARIABLE != reg.type && reg.alloc_type == MemoryRegion::AllocType::POD;
     }));
 }
 

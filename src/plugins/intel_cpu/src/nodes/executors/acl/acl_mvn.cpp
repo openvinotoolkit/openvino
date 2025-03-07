@@ -10,14 +10,15 @@ using namespace arm_compute;
 
 AclMVNExecutor::AclMVNExecutor(ExecutorContext::CPtr context) : MVNExecutor(std::move(context)) {}
 
-bool AclMVNExecutor::init(const MVNAttrs& mvnAttrs,
-                          const std::vector<MemoryDescPtr>& srcDescs,
-                          const std::vector<MemoryDescPtr>& dstDescs,
-                          const dnnl::primitive_attr& attr) {
+static bool AclMVNExecutor::init(const MVNAttrs& mvnAttrs,
+                                 const std::vector<MemoryDescPtr>& srcDescs,
+                                 const std::vector<MemoryDescPtr>& dstDescs,
+                                 const dnnl::primitive_attr& attr) {
     auto srcDims = srcDescs[0]->getShape().getStaticDims();
     auto dstDims = dstDescs[0]->getShape().getStaticDims();
 
-    size_t X, Y;
+    size_t X;
+    size_t Y;
     if (mvnAttrs.initAcrossChannels_) {
         if (srcDims.size() >= 2u) {
             Y = srcDims[0];
@@ -81,9 +82,9 @@ void AclMVNExecutor::exec(const std::vector<MemoryCPtr>& src,
     dstTensor.allocator()->free();
 }
 
-bool AclMVNExecutorBuilder::isSupported(const MVNAttrs& mvnAttrs,
-                                        const std::vector<MemoryDescPtr>& srcDescs,
-                                        const std::vector<MemoryDescPtr>& dstDescs) const {
+static bool AclMVNExecutorBuilder::isSupported(const MVNAttrs& mvnAttrs,
+                                               const std::vector<MemoryDescPtr>& srcDescs,
+                                               const std::vector<MemoryDescPtr>& dstDescs) {
     if ((srcDescs[0]->getPrecision() != ov::element::f32 && srcDescs[0]->getPrecision() != ov::element::f16) ||
         srcDescs[0]->getPrecision() != dstDescs[0]->getPrecision()) {
         DEBUG_LOG("NEMeanStdDevNormalizationLayer does not support precisions:",

@@ -59,7 +59,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             }
 
             // node is Output
-            if (node->get_output_target_inputs(0).size() == 0u) {
+            if (node->get_output_target_inputs(0).empty()) {
                 found_output = true;
                 return;
             }
@@ -122,7 +122,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
         // Reverse DFS ReadValue, find all suitable nodes and move them to subgraph_nodes.
         reverse_dfs(readvalue->get_input_node_shared_ptr(0));
 
-        if (inputs.size() == 0 || subgraph_nodes.size() == 0) {
+        if (inputs.empty() || subgraph_nodes.empty()) {
             return false;
         }
 

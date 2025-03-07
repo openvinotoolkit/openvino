@@ -28,8 +28,8 @@ public:
     };
     RepackingImplType repacking_impl_type = RepackingImplType::NONE;
 
-    std::unordered_map<size_t, RepackedInput> repacked_inputs = {};
-    std::vector<jit_snippets_call_args::loop_args_t> loop_args = {};
+    std::unordered_map<size_t, RepackedInput> repacked_inputs;
+    std::vector<jit_snippets_call_args::loop_args_t> loop_args;
 };
 
 class CPURuntimeConfigurator : public ov::snippets::RuntimeConfigurator {

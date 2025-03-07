@@ -32,7 +32,7 @@ namespace ov::intel_cpu {
 namespace {
 size_t replace_all(std::string& inout, const std::string& what, const std::string& with) {
     std::size_t count{};
-    for (std::string::size_type pos{}; inout.npos != (pos = inout.find(what.data(), pos, what.length()));
+    for (std::string::size_type pos{}; std::string::npos != (pos = inout.find(what.data(), pos, what.length()));
          pos += with.length(), ++count) {
         inout.replace(pos, what.length(), with.data(), with.length());
     }
@@ -139,11 +139,11 @@ std::ostream& operator<<(std::ostream& os, const PortConfig& config) {
 
 std::ostream& operator<<(std::ostream& os, const NodeConfig& config) {
     os << "(";
-    for (auto& conf : config.inConfs) {
+    for (const auto& conf : config.inConfs) {
         os << conf;
     }
     os << ") -> (";
-    for (auto& conf : config.outConfs) {
+    for (const auto& conf : config.outConfs) {
         os << conf;
     }
     os << ")" << '\n';
@@ -168,7 +168,7 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
         return id;
     };
     auto is_single_output_port = [](Node& node) {
-        for (auto& e : node.getChildEdges()) {
+        for (const auto& e : node.getChildEdges()) {
             auto edge = e.lock();
             if (!edge) {
                 continue;
@@ -180,7 +180,7 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
         return true;
     };
 
-    auto nodeDesc = node.getSelectedPrimitiveDescriptor();
+    auto* nodeDesc = node.getSelectedPrimitiveDescriptor();
     std::stringstream leftside;
 
     int num_output_port = 0;
@@ -214,7 +214,7 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
             if (edge->getStatus() != Edge::Status::NotAllocated) {
                 auto ptr = edge->getMemoryPtr();
                 if (ptr) {
-                    auto desc = &(ptr->getDesc());
+                    const auto* desc = &(ptr->getDesc());
                     auto shape_str = desc->getShape().toString();
                     replace_all(shape_str, " ", "");
                     leftside << comma << desc->getPrecision().get_type_name() << "_" << desc->serializeFormat() << "_"
@@ -257,13 +257,13 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
             os << "]";
         }*/
 
-        auto& outConfs = nodeDesc->getConfig().outConfs;
+        const auto& outConfs = nodeDesc->getConfig().outConfs;
         if (!outConfs.empty()) {
             if (outConfs.size() > 1) {
                 leftside << "(";
             }
             comma = "";
-            for (auto& c : outConfs) {
+            for (const auto& c : outConfs) {
                 auto shape_str = c.getMemDesc()->getShape().toString();
                 replace_all(shape_str, "0 - ?", "?");
                 leftside << comma << c.getMemDesc()->getPrecision().get_type_name() << "_"
@@ -324,7 +324,7 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
     }
 
     if (node.getType() == intel_cpu::Type::Input && node.isConstant()) {
-        if (auto input_node = reinterpret_cast<intel_cpu::node::Input*>(&node)) {
+        if (auto* input_node = reinterpret_cast<intel_cpu::node::Input*>(&node)) {
             auto pmem = input_node->getMemoryPtr();
             void* data = pmem->getData();
             auto shape = pmem->getDesc().getShape().getDims();
@@ -346,7 +346,7 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
 
     // additional properties
     if (node.getType() == intel_cpu::Type::Eltwise) {
-        auto eltwise_node = reinterpret_cast<intel_cpu::node::Eltwise*>(&node);
+        auto* eltwise_node = reinterpret_cast<intel_cpu::node::Eltwise*>(&node);
         os << " | Alpha=" << eltwise_node->getAlpha() << ", Beta=" << eltwise_node->getBeta()
            << ", Gamma=" << eltwise_node->getGamma() << ", BroadcastingPolicy=";
 
@@ -373,7 +373,7 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
         os << " latency:" << node.PerfCounter().avg() << "(us) x" << node.PerfCounter().count();
     }
 
-    for (auto& fn : node.getFusedWith()) {
+    for (const auto& fn : node.getFusedWith()) {
         os << "\n\t  FusedWith: " << *fn;
     }
 
@@ -402,7 +402,7 @@ std::ostream& operator<<(std::ostream& os, const Shape& shape) {
 // Print complex data structures in a textualized form to the console is an efficient way to investigate them
 std::ostream& operator<<(std::ostream& os, const Graph& g) {
     os << "ov::intel_cpu::Graph " << g.GetName() << " {" << '\n';
-    for (auto& graphNode : g.GetNodes()) {
+    for (const auto& graphNode : g.GetNodes()) {
         std::cout << *graphNode << '\n';
     }
     os << "};" << '\n';
@@ -416,10 +416,10 @@ public:
     OstreamAttributeVisitor(std::ostream& os) : os(os) {}
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
-        if (auto a = ov::as_type<ov::AttributeAdapter<std::set<std::string>>>(&adapter)) {
+        if (auto* a = ov::as_type<ov::AttributeAdapter<std::set<std::string>>>(&adapter)) {
             const auto& value = join(a->get());
             append_attribute(name.c_str(), value.c_str());
-        } else if (auto a = ov::as_type<ov::AttributeAdapter<std::vector<ov::element::Type>>>(&adapter)) {
+        } else if (auto* a = ov::as_type<ov::AttributeAdapter<std::vector<ov::element::Type>>>(&adapter)) {
             const auto& value = join(a->get());
             append_attribute(name.c_str(), value.c_str());
         } else {
@@ -476,7 +476,7 @@ public:
     }
 
     template <class Container>
-    inline std::string join(const Container& strs) {
+    std::string join(const Container& strs) {
         std::stringstream ss;
         ss << "[" << ov::intel_cpu::join(strs, ',') << "]";
         return ss.str();
@@ -488,7 +488,7 @@ std::ostream& operator<<(std::ostream& os, const PrintableModel& model) {
     const std::string& tag = model.tag;
     const std::string& prefix = model.prefix;
     OstreamAttributeVisitor osvis(os);
-    std::string sep = "";
+    std::string sep;
     os << prefix;
     for (const auto& op : f.get_results()) {
         os << sep << op->get_name();
@@ -500,7 +500,7 @@ std::ostream& operator<<(std::ostream& os, const PrintableModel& model) {
     }
     os << ") {\n";
     for (const auto& op : f.get_ordered_ops()) {
-        auto type = op->get_type_name();
+        const auto* type = op->get_type_name();
         auto name = op->get_friendly_name();
         os << prefix << "\t";
         if (op->get_output_size() > 1) {
@@ -558,7 +558,7 @@ std::ostream& operator<<(std::ostream& os, const PrintableModel& model) {
             auto cnt = msubgraph->get_internal_subgraphs_size();
             for (size_t i = 0; i < cnt; i++) {
                 os << "\t\t MultiSubGraphOp " << tag << msubgraph->get_friendly_name() << "[" << i << "]" << '\n';
-                os << PrintableModel(*msubgraph->get_function(i).get(), tag, prefix + "\t\t");
+                os << PrintableModel(*msubgraph->get_function(i), tag, prefix + "\t\t");
             }
         }
     }
@@ -693,7 +693,7 @@ std::ostream& operator<<(std::ostream& os, const IMemory& mem) {
 void print_dnnl_memory(const dnnl::memory& memory, const size_t size, const int id, const char* message) {
     const size_t s = memory.get_desc().get_size() / sizeof(float);
     std::cout << message << " " << id << " size: " << s << ", values: ";
-    auto m = reinterpret_cast<float*>(memory.get_data_handle());
+    auto* m = reinterpret_cast<float*>(memory.get_data_handle());
     for (size_t i = 0; i < std::min(s, size); i++) {
         std::cout << *m << " ";
         m++;

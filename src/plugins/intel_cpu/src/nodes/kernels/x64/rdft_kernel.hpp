@@ -38,7 +38,7 @@ struct jit_dft_kernel {
 
     void (*ker_)(const jit_dft_args*) = nullptr;
 
-    void operator()(const jit_dft_args* args) {
+    void operator()(const jit_dft_args* args) const {
         assert(ker_);
         ker_(args);
     }

@@ -233,12 +233,16 @@ void jitUniGatherKernel<isa>::generate() {
         // Formula: idxBatchSum = specIdxSize * (start / afterBatchSize)
         uni_vpmulld(vmmIdxBatchSumB, vmmIdxBatchSumB, vmmSpecIdxSizeB);
 
-        Xbyak::Label lBlock, lEnd;
+        Xbyak::Label lBlock;
+        Xbyak::Label lEnd;
         mov(regAux2, ptr[regParams + GET_OFF(afterAxSize)]);
         cmp(regAux2, 1);
         jg(lBlock, T_NEAR);
         {
-            Xbyak::Label lLessThanVector1, lTail1, lTail2, lE1;
+            Xbyak::Label lLessThanVector1;
+            Xbyak::Label lTail1;
+            Xbyak::Label lTail2;
+            Xbyak::Label lE1;
 
             cmp(regSpecIdxSizeB, vlen);
             jl(lLessThanVector1, T_NEAR);
@@ -282,7 +286,10 @@ void jitUniGatherKernel<isa>::generate() {
             uni_vcvtps2dq(vmmAfterAxisIdxB, vmmAfterAxisIdxB);
             uni_vpslld(vmmAfterAxisIdxB, vmmAfterAxisIdxB, idxTypeShift);  // multiply by indices type size.
 
-            Xbyak::Label lLessThanVector2, lTail3, lTail4, lE2;
+            Xbyak::Label lLessThanVector2;
+            Xbyak::Label lTail3;
+            Xbyak::Label lTail4;
+            Xbyak::Label lE2;
 
             cmp(regAux2, dataElPerVec);
             jl(lLessThanVector2, T_NEAR);
@@ -388,7 +395,8 @@ void jitUniGatherKernel<x64::avx2>::calcSrcShiftLong(Vmm* vAuxPool, bool shiftFi
     auto& vAux1 = vAuxPool[3];
     auto& kAuxMask0 = masksContainer[vAux1.getIdx()];
 
-    Xbyak::Label lIdxStride, lExit;
+    Xbyak::Label lIdxStride;
+    Xbyak::Label lExit;
     if (shiftFirst) {
         uni_vpaddd(vmmSpecIdxB, vmmSpecIdxB, vmmVecLenB);
     }
@@ -483,7 +491,8 @@ void jitUniGatherKernel<x64::avx512_core>::calcSrcShiftLong(Vmm* vAuxPool, bool 
     auto& kAuxMask0 = masksContainer[vAux1.getIdx()];
     auto& kAuxMask1 = masksContainer[vAux1.getIdx() + 1];
 
-    Xbyak::Label lIdxStride, lExit;
+    Xbyak::Label lIdxStride;
+    Xbyak::Label lExit;
     if (shiftFirst) {
         uni_vpaddd(vmmSpecIdxB, vmmSpecIdxB, vmmVecLenB);
     }
@@ -651,7 +660,8 @@ void jitUniGatherKernel<isa>::calcSrcShiftShortBlock(Vmm* vAuxPool, bool shiftFi
                         vpermd(vmmBeforeAxDiffB, vmmBeforeAxPermMask, vmmBeforeAxDiffB);
                     }
                 } else {
-                    Xbyak::Label lBeforeAxStep, lBeforeAxStepEnd;
+                    Xbyak::Label lBeforeAxStep;
+                    Xbyak::Label lBeforeAxStepEnd;
                     add(rSpecIdxAndAfterAxIterB, idxElPerVec * jcp.dataTypeSize);
                     cmp(rSpecIdxAndAfterAxIterB, rSpecIdxAndAfterAxSizeB);
                     jl(lBeforeAxStep, T_NEAR);
@@ -735,7 +745,8 @@ void jitUniGatherKernel<isa>::calcSrcShiftShortBlock(Vmm* vAuxPool, bool shiftFi
 
 template <x64::cpu_isa_t isa>
 void jitUniGatherKernel<isa>::process(bool isShortIdx, bool blocked) {
-    Xbyak::Label lTailProc, lEndProc;
+    Xbyak::Label lTailProc;
+    Xbyak::Label lEndProc;
     cmp(regWorkAmount, dataElPerVec);
     jl(lTailProc, T_NEAR);
     if (jcp.dataTypeSize == 4) {
@@ -753,7 +764,8 @@ void jitUniGatherKernel<isa>::process(bool isShortIdx, bool blocked) {
 
 template <x64::cpu_isa_t isa>
 void jitUniGatherKernel<isa>::process32b(bool isShortIdx, bool blocked) {
-    Xbyak::Label lDstIdxLoop, lTail;
+    Xbyak::Label lDstIdxLoop;
+    Xbyak::Label lTail;
 
     // First iteration
     shiftIdxAndGather(vmmAuxContainer, isShortIdx, false, blocked);
@@ -779,9 +791,12 @@ void jitUniGatherKernel<isa>::process32b(bool isShortIdx, bool blocked) {
 
 template <x64::cpu_isa_t isa>
 void jitUniGatherKernel<isa>::process16b(bool isShortIdx, bool blocked) {
-    Xbyak::Label lDstIdxLoop1, lTail;
+    Xbyak::Label lDstIdxLoop1;
+    Xbyak::Label lTail;
 
-    Vmm vShufMask, vPermMask, vBuff0;
+    Vmm vShufMask;
+    Vmm vPermMask;
+    Vmm vBuff0;
     if (isa == x64::avx512_core) {
         vPermMask = vmmAuxContainer[7];
         vShufMask = vmmAuxContainer[8];
@@ -843,9 +858,13 @@ void jitUniGatherKernel<isa>::process16b(bool isShortIdx, bool blocked) {
 
 template <x64::cpu_isa_t isa>
 void jitUniGatherKernel<isa>::process8b(bool isShortIdx, bool blocked) {
-    Xbyak::Label lDstIdxLoop1, lTail;
+    Xbyak::Label lDstIdxLoop1;
+    Xbyak::Label lTail;
 
-    Vmm vShufMask, vPermMask, vBuff0, vBuff1;
+    Vmm vShufMask;
+    Vmm vPermMask;
+    Vmm vBuff0;
+    Vmm vBuff1;
     if (isa == x64::avx512_core) {
         vPermMask = vmmAuxContainer[7];
         vShufMask = vmmAuxContainer[8];

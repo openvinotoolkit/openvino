@@ -25,14 +25,14 @@ public:
     OPENVINO_OP("BrgemmCopyB", "SnippetsOpset");
 
     BrgemmCopyB(const Output<Node>& x,
-                const element::Type src_type,
+                element::Type src_type,
                 BRGEMM_TYPE type = BRGEMM_TYPE::REPACKING_ONLY,
-                const size_t offset_in = 0lu,
-                const size_t offset_out0 = 0lu,
-                const size_t offset_out1 = 0lu,
+                size_t offset_in = 0lu,
+                size_t offset_out0 = 0lu,
+                size_t offset_out1 = 0lu,
                 const std::vector<size_t>& layout_input = {});
     BrgemmCopyB(const Output<Node>& x,
-                const element::Type src_type,
+                element::Type src_type,
                 BRGEMM_TYPE type,
                 const PortDescriptor& desc_in0,
                 const PortDescriptor& desc_out0,
@@ -63,7 +63,7 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     class ShapeInfer : public snippets::IShapeInferSnippets {
-        std::vector<size_t> m_layout{};
+        std::vector<size_t> m_layout;
         size_t m_num_outs = 1;
 
     public:
@@ -75,7 +75,7 @@ public:
 
 private:
     void custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_input = {});
-    void validate_element_type(const ov::element::Type& element_type);
+    static void validate_element_type(const ov::element::Type& element_type);
 
     BRGEMM_TYPE m_type = BRGEMM_TYPE::REPACKING_ONLY;
     element::Type m_src_type = ov::element::dynamic;  // src element type of the corresponding BRGEMM

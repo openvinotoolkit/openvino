@@ -825,7 +825,8 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto vmm_src1 = Vmm(in_vec_idxs[1]);
     auto vmm_dst = Vmm(out_vec_idxs[0]);
 
-    auto xmm0 = Xmm(0), xmm1 = Xmm(1);
+    auto xmm0 = Xmm(0);
+    auto xmm1 = Xmm(1);
 
     // caller obligation to save gprs as callee may use them
     size_t gpr_size = 8;
@@ -1753,7 +1754,8 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto vmm_dst = Vmm(out_vec_idxs[0]);
     auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
 
-    auto xmm0 = Xmm(0), xmm1 = Xmm(1);
+    auto xmm0 = Xmm(0);
+    auto xmm1 = Xmm(1);
 
     if (scale != 1.f || shift != 0.f) {
         if (isa == x64::sse41) {
@@ -2363,7 +2365,7 @@ void jit_is_finite_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t>
                                                        const std::vector<size_t>& out_vec_idxs) const {
     auto vmm_src = Zmm(in_vec_idxs[0]);
     auto vmm_dst = Zmm(out_vec_idxs[0]);
-    auto& ones_mask = h->k1;
+    const auto& ones_mask = h->k1;
     auto reg32_one = Reg32(aux_gpr_idxs[0]);
 
     h->mov(reg32_one, CONST_1_F);
@@ -2420,7 +2422,7 @@ void jit_is_inf_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t>& i
     auto vmm_dst = Zmm(out_vec_idxs[0]);
 
     if (detect_negative || detect_positive) {
-        auto& ones_mask = h->k1;
+        const auto& ones_mask = h->k1;
         auto reg32_one = Reg32(aux_gpr_idxs[0]);
         uint8_t imm = detect_negative ? 0B00010000 : 0B00000000;
         if (detect_positive) {
@@ -2495,7 +2497,7 @@ void jit_is_nan_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t>& i
                                                     const std::vector<size_t>& out_vec_idxs) const {
     auto vmm_src = Zmm(in_vec_idxs[0]);
     auto vmm_dst = Zmm(out_vec_idxs[0]);
-    auto& ones_mask = h->k1;
+    const auto& ones_mask = h->k1;
     auto reg32_one = Reg32(aux_gpr_idxs[0]);
 
     h->mov(reg32_one, CONST_1_F);

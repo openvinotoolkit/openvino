@@ -423,7 +423,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(const dnnl::stre
             refine_anchors(p_deltas_item,
                            p_scores_item,
                            p_anchors_item,
-                           reinterpret_cast<float*>(&proposals_[0]),
+                           reinterpret_cast<float*>(proposals_.data()),
                            anchors_num,
                            bottom_H,
                            bottom_W,
@@ -440,18 +440,18 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(const dnnl::stre
                                   return (struct1.score > struct2.score);
                               });
 
-            unpack_boxes(reinterpret_cast<float*>(&proposals_[0]), &unpacked_boxes[0], pre_nms_topn);
+            unpack_boxes(reinterpret_cast<float*>(proposals_.data()), unpacked_boxes.data(), pre_nms_topn);
             nms_cpu(pre_nms_topn,
-                    &is_dead[0],
-                    &unpacked_boxes[0],
-                    &roi_indices_[0],
+                    is_dead.data(),
+                    unpacked_boxes.data(),
+                    roi_indices_.data(),
                     &num_rois,
                     0,
                     nms_thresh_,
                     post_nms_topn_,
                     coordinates_offset);
-            fill_output_blobs(&unpacked_boxes[0],
-                              &roi_indices_[0],
+            fill_output_blobs(unpacked_boxes.data(),
+                              roi_indices_.data(),
                               p_roi_item,
                               p_roi_score_item,
                               pre_nms_topn,

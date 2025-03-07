@@ -180,7 +180,7 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
         h->push(Reg64(preserved_gpr_idx));
     }
 
-    if (preserved_vec_idxs.size()) {
+    if (!preserved_vec_idxs.empty()) {
         h->sub(h->rsp, preserved_vec_idxs.size() * get_vec_length());
     }
 
@@ -200,7 +200,7 @@ void jit_emitter::emitter_postamble() const {
         pop_vec(preserved_vec_idxs[i], h->ptr[h->rsp + i * get_vec_length()]);
     }
 
-    if (preserved_vec_idxs.size()) {
+    if (!preserved_vec_idxs.empty()) {
         h->add(h->rsp, preserved_vec_idxs.size() * get_vec_length());
     }
 
@@ -217,7 +217,7 @@ void jit_emitter::emitter_postamble() const {
 
 void jit_emitter::emit_data() const {
     h->align(64);
-    h->L(*l_table.get());
+    h->L(*l_table);
 
     // Assumption: entries can be inserted with dd, so they should be 4 bytes.
     assert(sizeof(table_entry_val_t) == 4);

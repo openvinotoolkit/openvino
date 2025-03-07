@@ -21,13 +21,14 @@ bool BrgemmKernelConfig::operator==(const BrgemmKernelConfig& rhs) const {
            (get_static_params() == rhs.get_static_params() || *get_static_params() == *(rhs.get_static_params()));
 }
 
-size_t BrgemmKernelConfig::compute_hash() const {
+static size_t BrgemmKernelConfig::compute_hash() {
     size_t static_seed = get_static_params()->hash();
     size_t dynamic_seed = BrgemmGenericKernelConfig::compute_hash();
     return dnnl::impl::hash_combine(static_seed, dynamic_seed);
 }
 
-void BrgemmKernelConfig::update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta) {
+static void
+BrgemmKernelConfig::update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta) {
     BrgemmGenericKernelConfig::update(M, N, K, LDA, LDB, LDC, beta);
     // update compile flag, which should be reset depend on beta. It is combination of beta and static_compile_flag and
     // considered in hash() and operator==
@@ -49,7 +50,7 @@ BrgemmKernelConfig::StaticParams::StaticParams(const element::Type& in0_dtype, c
     m_hash = compute_hash();
 }
 
-size_t BrgemmKernelConfig::StaticParams::compute_hash() {
+static size_t BrgemmKernelConfig::StaticParams::compute_hash() {
     size_t seed = 0;
     HASH(m_type_in0);
     HASH(m_type_in1);
@@ -78,7 +79,7 @@ std::string BrgemmKernelConfig::StaticParams::to_string() const {
     return ss.str();
 }
 
-std::string BrgemmKernelConfig::to_string() const {
+static std::string BrgemmKernelConfig::to_string() {
     std::stringstream ss;
     ss << get_static_params()->to_string() << "\n";
     ss << BrgemmGenericKernelConfig::to_string() << "\n";
@@ -90,7 +91,7 @@ std::string BrgemmKernelConfig::to_string() const {
 BrgemmKernelExecutor::BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmKernelConfig config)
     : CPUKernelExecutor<BrgemmKernelConfig, BrgemmTppCompiledKernel>(std::move(kernel_cache), std::move(config)) {}
 
-std::shared_ptr<BrgemmTppCompiledKernel> BrgemmKernelExecutor::compile_kernel(const BrgemmKernelConfig& config) const {
+static std::shared_ptr<BrgemmTppCompiledKernel> BrgemmKernelExecutor::compile_kernel(const BrgemmKernelConfig& config) {
     std::shared_ptr<BrgemmTppCompiledKernel> compiled_kernel = std::make_shared<BrgemmTppCompiledKernel>();
 
     // Brgemm is not executable - nothing to compile
@@ -115,9 +116,9 @@ std::shared_ptr<BrgemmTppCompiledKernel> BrgemmKernelExecutor::compile_kernel(co
     return compiled_kernel;
 }
 
-void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
-                                         const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-                                         BrgemmKernelConfig& config) const {
+static void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
+                                                const ov::snippets::lowered::LinearIRCPtr& linear_ir,
+                                                BrgemmKernelConfig& config) {
     int64_t M, N, K, beta;
     std::tie(M, N, K, beta) = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
     const auto& tpp_mod = std::dynamic_pointer_cast<tpp::modifier::TensorProcessingPrimitive>(expr->get_node());

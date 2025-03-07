@@ -170,7 +170,7 @@ private:
     const size_t X_AXIS = 0;
     const size_t Y_AXIS = 1;
 
-    const bool isBrgConvAvailable();
+    bool isBrgConvAvailable() const;
     std::vector<dnnl::primitive_attr> attrs;
     AttrPtr pAttr;
     bool autoPadding = false;

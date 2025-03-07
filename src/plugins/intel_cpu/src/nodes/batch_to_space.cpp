@@ -162,7 +162,8 @@ void BatchToSpace::batchToSpaceKernel() {
     }
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
+        size_t start(0lu);
+        size_t end(0lu);
         splitter(workAmount, nthr, ithr, start, end);
         std::vector<size_t> indxStart(2, 0);
         std::vector<size_t> indxEnd(2, 0);

@@ -180,13 +180,13 @@ enum class EltwiseKind {
 
 using PostOps = std::vector<std::shared_ptr<PostOp>>;
 
-EltwiseKind getEltwiseKind(const Algorithm alg);
+EltwiseKind getEltwiseKind(Algorithm alg);
 
-ScaleShiftPostOp::Type convertToScaleShiftOpt(const Algorithm alg);
+ScaleShiftPostOp::Type convertToScaleShiftOpt(Algorithm alg);
 
-ActivationPostOp::Type convertToActivationPostOpt(const Algorithm alg);
+ActivationPostOp::Type convertToActivationPostOpt(Algorithm alg);
 
-Algorithm convertToEltwiseAlgorithm(const ActivationPostOp::Type m_type);
+Algorithm convertToEltwiseAlgorithm(ActivationPostOp::Type m_type);
 
 PostOps getPostOps(const std::vector<NodePtr>& fused);
 }  // namespace ov::intel_cpu

@@ -17,7 +17,7 @@ void SnippetsDebugCapsConfig::readProperties() {
         return static_cast<const char*>(nullptr);
     };
 
-    enable_segfault_detector = readEnv("OV_CPU_SNIPPETS_SEGFAULT_DETECTOR") ? true : false;
+    enable_segfault_detector = readEnv("OV_CPU_SNIPPETS_SEGFAULT_DETECTOR") != nullptr;
 }
 
 }  // namespace ov::intel_cpu

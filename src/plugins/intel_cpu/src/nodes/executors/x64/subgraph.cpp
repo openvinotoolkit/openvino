@@ -41,7 +41,8 @@ inline void parallelNd_repacking(const BrgemmCopyBKernel* ker,
     const size_t batch = std::accumulate(dom.rbegin() + 2, dom.rend(), 1lu, std::multiplies<>());
     parallel_nt_static(0, [&](const int ithr, const int nthr) {
         BrgemmCopyBKernel::call_args args;
-        size_t start = 0, end = 0;
+        size_t start = 0;
+        size_t end = 0;
         splitter(batch, nthr, ithr, start, end);
         for (size_t iwork = start; iwork < end; ++iwork) {
             const uint8_t* src_u8 = src;
@@ -125,11 +126,11 @@ SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<CPURuntimeConfig>& snip
 }
 
 #if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
-void SubgraphExecutor::segfault_detector() {
+void SubgraphExecutor::segfault_detector() const {
     if (enabled_segfault_detector) {
         __sighandler_t signal_handler = [](int signal) {
             std::lock_guard<std::mutex> guard(err_print_lock);
-            if (auto segfault_detector_emitter = ov::intel_cpu::g_custom_segfault_handler->local()) {
+            if (auto* segfault_detector_emitter = ov::intel_cpu::g_custom_segfault_handler->local()) {
                 std::cout << segfault_detector_emitter->info() << '\n';
             }
             auto tid = parallel_get_thread_num();

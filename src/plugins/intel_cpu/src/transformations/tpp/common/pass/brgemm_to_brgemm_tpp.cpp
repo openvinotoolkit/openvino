@@ -18,8 +18,8 @@ namespace ov::intel_cpu::tpp::pass {
 
 using namespace snippets::lowered;
 
-bool BrgemmToBrgemmTPP::is_supported_brgemm_configuration(const std::vector<std::vector<size_t>>& layouts,
-                                                          const ov::element::TypeVector& precisions) {
+static bool BrgemmToBrgemmTPP::is_supported_brgemm_configuration(const std::vector<std::vector<size_t>>& layouts,
+                                                                 const ov::element::TypeVector& precisions) {
     OPENVINO_ASSERT(layouts.size() == 3 && precisions.size() == 3,
                     "snippets::op::Brgemm must have 2 inputs and 1 output");
     const bool supported_layouts = std::all_of(layouts.begin(), layouts.end(), [](const std::vector<size_t>& layout) {

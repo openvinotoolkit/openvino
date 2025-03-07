@@ -16,8 +16,8 @@ namespace ov::intel_cpu {
 class InternalDynShapeInfer final : public ShapeInferEmptyPads {
 public:
     InternalDynShapeInfer() = default;
-    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+    static Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         return {{}, ShapeInferStatus::skip};
     }
 

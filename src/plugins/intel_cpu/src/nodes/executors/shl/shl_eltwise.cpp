@@ -11,24 +11,22 @@
 namespace ov::intel_cpu {
 
 bool ShlEltwiseExecutor::isEltwiseAlgorithmSupported(Algorithm algorithm) {
-    if (one_of(algorithm, Algorithm::EltwiseAdd,
-                          Algorithm::EltwiseSubtract,
-                          Algorithm::EltwiseMultiply,
-                          Algorithm::EltwiseDivide,
-                          Algorithm::EltwiseMaximum,
-                          Algorithm::EltwiseMinimum,
-                          Algorithm::EltwiseExp,
-                          Algorithm::EltwiseClamp,
-                          Algorithm::EltwiseRelu,
-                          Algorithm::EltwisePrelu)) {
-        return true;
-    }
-    return false;
+    return one_of(algorithm,
+                  Algorithm::EltwiseAdd,
+                  Algorithm::EltwiseSubtract,
+                  Algorithm::EltwiseMultiply,
+                  Algorithm::EltwiseDivide,
+                  Algorithm::EltwiseMaximum,
+                  Algorithm::EltwiseMinimum,
+                  Algorithm::EltwiseExp,
+                  Algorithm::EltwiseClamp,
+                  Algorithm::EltwiseRelu,
+                  Algorithm::EltwisePrelu);
 }
 
-bool ShlEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
-                                            const std::vector<MemoryDescPtr>& srcDescs,
-                                            const std::vector<MemoryDescPtr>& dstDescs) const {
+static bool ShlEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
+                                                   const std::vector<MemoryDescPtr>& srcDescs,
+                                                   const std::vector<MemoryDescPtr>& dstDescs) {
     if (!ShlEltwiseExecutor::isEltwiseAlgorithmSupported(eltwiseAttrs.algorithm)) {
         DEBUG_LOG("Eltwise algorithm ", algToString(eltwiseAttrs.algorithm), " is not supported");
         return false;
@@ -221,9 +219,9 @@ bool ShlEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs,
     return initFunc != nullptr && initFunc() == CSINN_TRUE;
 }
 
-void ShlEltwiseExecutor::exec(const std::vector<MemoryCPtr> &src,
-                              const std::vector<MemoryPtr> &dst,
-                              const void *post_ops_data_) {
+static void ShlEltwiseExecutor::exec(const std::vector<MemoryCPtr>& src,
+                                     const std::vector<MemoryPtr>& dst,
+                                     const void* post_ops_data_) {
     for (size_t i = 0; i < src.size(); i++) {
         srcTensors[i].setData(src[i]->getData());
     }
@@ -233,8 +231,6 @@ void ShlEltwiseExecutor::exec(const std::vector<MemoryCPtr> &src,
 
     OPENVINO_ASSERT(shlExecFunc != nullptr && shlExecFunc() == CSINN_TRUE,
                     "ShlEltwiseExecutor: failed to execute");
-
-    return;
 }
 
 }  // namespace ov::intel_cpu

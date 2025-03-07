@@ -461,7 +461,10 @@ private:
         int nbits = 8;
         const int inp_mult = dilate_h * div_up(jcp_.ic, nbits);
 
-        Label t_overflow_label, no_t_overflow_label, b_overflow_label, no_b_overflow_label;
+        Label t_overflow_label;
+        Label no_t_overflow_label;
+        Label b_overflow_label;
+        Label no_b_overflow_label;
 
         mov(aux_reg_input, reg_input);
         mov(aux_reg_kernel, reg_kernel_base);
@@ -1080,7 +1083,7 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
 }
 
 void BinaryConvolution::createPrimitive() {
-    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
@@ -1238,7 +1241,7 @@ void BinaryConvolution::executeOptimized(const uint8_t* src,
                                          const std::vector<size_t>& s_str,
                                          const std::vector<size_t>& w_str,
                                          const std::vector<size_t>& d_str) {
-    auto dst_f32 = reinterpret_cast<float*>(dst);
+    auto* dst_f32 = reinterpret_cast<float*>(dst);
 
     const int MB = jcp.mb;
 
@@ -1293,8 +1296,8 @@ void BinaryConvolution::executeReference(const uint8_t* src,
                                          uint8_t* dst,
                                          const std::vector<size_t>& s_str,
                                          const std::vector<size_t>& w_str,
-                                         const std::vector<size_t>& d_str) {
-    auto dst_fp = reinterpret_cast<float*>(dst);
+                                         const std::vector<size_t>& d_str) const {
+    auto* dst_fp = reinterpret_cast<float*>(dst);
 
     const bool with_groups = jcp.ngroups > 1;
 
@@ -1391,9 +1394,9 @@ void BinaryConvolution::execute(const dnnl::stream& strm) {
     auto weightsMemory = getSrcMemoryAtPort(1);
     auto dstMemory = getDstMemoryAtPort(0);
 
-    auto src = srcMemory->getDataAs<const uint8_t>();
-    auto weights = weightsMemory->getDataAs<const uint8_t>();
-    auto dst = dstMemory->getDataAs<uint8_t>();
+    const auto* src = srcMemory->getDataAs<const uint8_t>();
+    const auto* weights = weightsMemory->getDataAs<const uint8_t>();
+    auto* dst = dstMemory->getDataAs<uint8_t>();
 
     auto srcDesc = getParentEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
     std::vector<size_t> srcStride(srcDesc->getStrides().size());
@@ -1413,7 +1416,7 @@ void BinaryConvolution::execute(const dnnl::stream& strm) {
         dstStride[dstDesc->getOrder()[i]] = dstDesc->getStrides()[i];
     }
 
-    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }

@@ -227,8 +227,8 @@ public:
 
     variable_base& operator=(const variable_base&) = delete;
 
-    variable_base(const variable_base&);
-    variable_base(variable_base&&) noexcept;
+    variable_base(const variable_base& /*rhs*/);
+    variable_base(variable_base&& /*rhs*/) noexcept;
 
     [[nodiscard]] reg_type& reg() const {
         return *_reg;
@@ -261,8 +261,8 @@ public:
 
     variable_base& operator=(const variable_base&) = delete;
 
-    variable_base(const variable_base&);
-    variable_base(variable_base&&) noexcept;
+    variable_base(const variable_base& /*rhs*/);
+    variable_base(variable_base&& /*rhs*/) noexcept;
 
     reg_type& reg() const {
         return *_addr;
@@ -804,7 +804,8 @@ void jit_kernel::foreach (const B& begin,
                           const S& step) {
     using namespace Xbyak;
 
-    Label loop, exit;
+    Label loop;
+    Label exit;
 
     auto idx = var<size_t>();
 

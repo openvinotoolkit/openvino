@@ -16,12 +16,12 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
-    void initSupportedPrimitiveDescriptors() override;
+    static void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
     bool created() const override;
-    bool needPrepareParams() const override;
+    static bool needPrepareParams() override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
-    bool needShapeInfer() const override;
+    static bool needShapeInfer() override;
 
 private:
     template <class OV_DATA_TYPE>

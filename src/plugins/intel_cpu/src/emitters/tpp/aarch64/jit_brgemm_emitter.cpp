@@ -30,21 +30,21 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
     m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
 }
 
-std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precisions(
+static std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precisions(
     const std::shared_ptr<ov::Node>& node) {
     // Note: Brgemm currently supports only fp32 on arm
     return {{element::f32, element::f32}};
 }
 
-void jit_brgemm_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+static void jit_brgemm_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) {
     OV_CPU_JIT_EMITTER_ASSERT(in.size() == 2, "Expects 2 input regs, got", in.size());
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Expects 1 output reg, got", out.size());
 }
 
-void jit_brgemm_emitter::emit_code_impl(const std::vector<size_t>& in,
-                                        const std::vector<size_t>& out,
-                                        const std::vector<size_t>& pool_vec_idxs,
-                                        const std::vector<size_t>& pool_gpr_idxs) const {
+static void jit_brgemm_emitter::emit_code_impl(const std::vector<size_t>& in,
+                                               const std::vector<size_t>& out,
+                                               const std::vector<size_t>& pool_vec_idxs,
+                                               const std::vector<size_t>& pool_gpr_idxs) {
     validate_arguments(in, out);
     emit_impl(in, out);
 }
@@ -72,11 +72,11 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     restore_context(exclude);
 }
 
-const uintptr_t jit_brgemm_emitter::get_compiled_kernel_ptr() const {
+uintptr_t jit_brgemm_emitter::get_compiled_kernel_ptr() const {
     return reinterpret_cast<const uintptr_t>(m_kernel_executor.get());
 }
 
-const uintptr_t jit_brgemm_emitter::get_execute_function_ptr() const {
+uintptr_t jit_brgemm_emitter::get_execute_function_ptr() {
     return reinterpret_cast<const uintptr_t>(BrgemmKernelExecutor::execute);
 }
 

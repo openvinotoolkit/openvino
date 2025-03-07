@@ -242,6 +242,4 @@ bool Roll::created() const {
     return getType() == Type::Roll;
 }
 
-constexpr std::array<size_t, 3> Roll::supportedPrecisionSizes;
-
 }  // namespace ov::intel_cpu::node

@@ -289,7 +289,8 @@ void PhiloxGenerator<isa>::process() {
         step = vlen / sizeof(uint32_t);
     }
 
-    Xbyak::Label l_loop, l_tail;
+    Xbyak::Label l_loop;
+    Xbyak::Label l_tail;
     L(l_loop);
     {
         cmp(r64_work_amount, step);
@@ -629,7 +630,8 @@ void PhiloxGenerator<x64::avx512_core>::tail(const std::vector<Vmm>& vmm_dst) {
 
 template <>
 void PhiloxGenerator<x64::avx2>::tail(const std::vector<Vmm>& vmm_dst) {
-    Xbyak::Label l_0, l_end;
+    Xbyak::Label l_0;
+    Xbyak::Label l_end;
     const auto step = vlen / sizeof(uint32_t);
 
     cmp(r64_work_amount, 0);
@@ -658,7 +660,8 @@ void PhiloxGenerator<x64::avx2>::tail(const std::vector<Vmm>& vmm_dst) {
 
 template <x64::cpu_isa_t isa>
 void PhiloxGenerator<isa>::tail(const std::vector<Vmm>& vmm_dst) {
-    Xbyak::Label l_0, l_end;
+    Xbyak::Label l_0;
+    Xbyak::Label l_end;
     const auto step = vlen / sizeof(uint32_t);
 
     cmp(r64_work_amount, 0);

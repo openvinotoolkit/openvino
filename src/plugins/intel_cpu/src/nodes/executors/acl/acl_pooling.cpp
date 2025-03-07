@@ -12,16 +12,16 @@ using namespace arm_compute;
 
 AclPoolingExecutor::AclPoolingExecutor(ExecutorContext::CPtr context) : PoolingExecutor(std::move(context)) {}
 
-bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
-                                     const TensorInfo& dstTensorInfo,
-                                     const PoolingAttrs& poolingAttrs,
-                                     size_t srcDimsSize,
-                                     size_t dstDescsSize,
-                                     DataLayout dataLayout,
-                                     const VectorDims* indDims,
-                                     PoolingLayerInfo* pool_info,
-                                     Pooling3dLayerInfo* pool3d_info,
-                                     bool ignoreOutShapeErrors) {
+static bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
+                                            const TensorInfo& dstTensorInfo,
+                                            const PoolingAttrs& poolingAttrs,
+                                            size_t srcDimsSize,
+                                            size_t dstDescsSize,
+                                            DataLayout dataLayout,
+                                            const VectorDims* indDims,
+                                            const PoolingLayerInfo* pool_info,
+                                            const Pooling3dLayerInfo* pool3d_info,
+                                            bool ignoreOutShapeErrors) {
     unsigned int pad_left =
         (poolingAttrs.data_pad_begin.size() >= 2u) ? poolingAttrs.data_pad_begin[1] : poolingAttrs.data_pad_begin[0];
     unsigned int pad_right =
@@ -133,10 +133,10 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
     return true;
 }
 
-bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
-                              const std::vector<MemoryDescPtr>& srcDescs,
-                              const std::vector<MemoryDescPtr>& dstDescs,
-                              const dnnl::primitive_attr& attr) {
+static bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
+                                     const std::vector<MemoryDescPtr>& srcDescs,
+                                     const std::vector<MemoryDescPtr>& dstDescs,
+                                     const dnnl::primitive_attr& attr) {
     auto srcDims = srcDescs[0]->getShape().getStaticDims();
     auto dstDims = dstDescs[0]->getShape().getStaticDims();
 

@@ -129,14 +129,14 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
             can_inplace = false;
         }
         if (m_config.gather_position_arg_id > 0) {
-            gather.reset(inputs[m_config.gather_position_arg_id]);
+            ov::intel_cpu::PlainTensor::reset(inputs[m_config.gather_position_arg_id]);
         }
 
         if (t_cos.m_rank == 2) {
-            t_cos = t_cos.reshape({1, 1, t_cos.size(0), t_cos.size(1)});
+            t_cos = ov::intel_cpu::PlainTensor::reshape({1, 1, t_cos.size(0), t_cos.size(1)});
         }
         if (t_sin.m_rank == 2) {
-            t_sin = t_sin.reshape({1, 1, t_sin.size(0), t_sin.size(1)});
+            t_sin = ov::intel_cpu::PlainTensor::reshape({1, 1, t_sin.size(0), t_sin.size(1)});
         }
 
         auto batch_size = t_src.size(0);
@@ -346,7 +346,7 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
             t_src = t_src.slice(2, m_config.slice_start, m_config.slice_stop);
         }
         if (m_config.gather_position_arg_id > 0) {
-            gather.reset(inputs[m_config.gather_position_arg_id]);
+            ov::intel_cpu::PlainTensor::reset(inputs[m_config.gather_position_arg_id]);
         }
 
         auto batch_size = t_src.size(0);

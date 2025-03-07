@@ -90,7 +90,7 @@ struct SubgraphKey {
     }
 
     std::shared_ptr<SubgraphAttrs> attrs = nullptr;
-    std::vector<VectorDims> in_shapes = {};
+    std::vector<VectorDims> in_shapes;
 };
 
 struct SubgraphCodeGeneratorKey {
@@ -134,7 +134,7 @@ struct SubgraphShapeInferResultKey {
         return body_hash == rhs.body_hash && in_shapes == rhs.in_shapes;
     }
 
-    std::vector<VectorDims> in_shapes = {};
+    std::vector<VectorDims> in_shapes;
     uint64_t body_hash = 0;
 };
 
@@ -750,7 +750,7 @@ bool Subgraph::canBeInPlace() const {
         return false;
     }
 
-    for (auto& parentEdge : getParentEdges()) {
+    for (const auto& parentEdge : getParentEdges()) {
         auto parent = parentEdge.lock()->getParent();
         if (parent->getChildEdges().size() != 1) {
             return false;
@@ -758,7 +758,7 @@ bool Subgraph::canBeInPlace() const {
 
         // WA to prevent memory corruption caused by inplace feature
         if (parent->getType() == Type::Concatenation) {
-            for (auto& parentParentEdge : parent->getParentEdges()) {
+            for (const auto& parentParentEdge : parent->getParentEdges()) {
                 auto parentParent = parentParentEdge.lock()->getParent();
                 if (parentParent->getChildEdges().size() != 1) {
                     return false;

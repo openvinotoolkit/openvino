@@ -39,11 +39,11 @@ public:
     };
 
 private:
-    [[nodiscard]] std::tuple<size_t, size_t, size_t> get_blocking_params(
-        const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const override;
-    [[nodiscard]] ov::snippets::lowered::SpecificIterationHandlers get_k_loop_handlers(
+    [[nodiscard]] static std::tuple<size_t, size_t, size_t> get_blocking_params(
+        const ov::snippets::lowered::ExpressionPtr& brgemm_expr) override;
+    [[nodiscard]] static ov::snippets::lowered::SpecificIterationHandlers get_k_loop_handlers(
         size_t work_amount,
-        size_t block_size) const override;
+        size_t block_size) override;
 };
 
 }  // namespace ov::intel_cpu::tpp::pass

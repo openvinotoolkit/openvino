@@ -156,17 +156,17 @@ size_t RNNKey::hash() const {
 
     size_t seed = 0lu;
 
-    for (auto& desc : inDataDescs) {
+    for (const auto& desc : inDataDescs) {
         if (desc != nullptr) {
             seed = hash_combine(seed, get_md_hash(*desc->getDnnlDesc().get()));
         }
     }
-    for (auto& desc : outDataDescs) {
+    for (const auto& desc : outDataDescs) {
         if (desc != nullptr) {
             seed = hash_combine(seed, get_md_hash(*desc->getDnnlDesc().get()));
         }
     }
-    for (auto& desc : wDescs) {
+    for (const auto& desc : wDescs) {
         seed = hash_combine(seed, get_md_hash(*desc.get()));
     }
     seed = hash_combine(seed, cellType);
@@ -620,7 +620,8 @@ void RNN::initCell() {
     if (N.isStatic()) {
         // Expected shapes.
         const auto B = N.minVal;
-        const Shape shapeD{B, DC}, shapeS{B, SC};
+        const Shape shapeD{B, DC};
+        const Shape shapeS{B, SC};
 
         if ((getInputShapeAtPort(0).isStatic() && getInputShapeAtPort(0) != shapeD) ||
             (getInputShapeAtPort(1).isStatic() && getInputShapeAtPort(1) != shapeS) ||
@@ -697,7 +698,8 @@ void RNN::fillCellDesc() {
     const Shape RShape{SC * G, SC};
     const Shape BShape{SC * Gb};
 
-    std::vector<MemoryDescPtr> inCandidate, outCandidate;
+    std::vector<MemoryDescPtr> inCandidate;
+    std::vector<MemoryDescPtr> outCandidate;
 
     inCandidate.reserve(getOriginalInputsNumber());
     outCandidate.reserve(getOriginalOutputsNumber());
@@ -807,7 +809,8 @@ void RNN::fillSequenceDesc() {
     const Shape RShape{D, G * SC, SC};
     const Shape BShape{D, Gb * SC};
 
-    std::vector<MemoryDescPtr> inCandidate, outCandidate;
+    std::vector<MemoryDescPtr> inCandidate;
+    std::vector<MemoryDescPtr> outCandidate;
 
     inCandidate.reserve(getOriginalInputsNumber());
     outCandidate.reserve(getOriginalOutputsNumber());
@@ -1382,7 +1385,7 @@ void RNN::prepareParams() {
     }
 
 #ifdef CPU_DEBUG_CAPS
-    auto pd = execPtr->getPrimitiveDesc();
+    const auto* pd = execPtr->getPrimitiveDesc();
     DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
 

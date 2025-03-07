@@ -69,10 +69,10 @@ protected:
     size_t num_outputs = 0;
     size_t work_amount = 0;
     int64_t wa_increment = 0;
-    std::vector<bool> is_incremented = {};
-    std::vector<int64_t> ptr_increments = {};
-    std::vector<int64_t> finalization_offsets = {};
-    std::vector<int64_t> data_sizes = {};
+    std::vector<bool> is_incremented;
+    std::vector<int64_t> ptr_increments;
+    std::vector<int64_t> finalization_offsets;
+    std::vector<int64_t> data_sizes;
     bool evaluate_once = false;
 };
 

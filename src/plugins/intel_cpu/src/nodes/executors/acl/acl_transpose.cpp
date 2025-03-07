@@ -6,10 +6,10 @@
 
 #include "acl_utils.hpp"
 
-bool ov::intel_cpu::ACLTransposeExecutor::init(const ov::intel_cpu::TransposeParams& transposeParams,
-                                               const std::vector<MemoryDescPtr>& srcDescs,
-                                               const std::vector<MemoryDescPtr>& dstDescs,
-                                               const dnnl::primitive_attr& attr) {
+static bool ov::intel_cpu::ACLTransposeExecutor::init(const ov::intel_cpu::TransposeParams& transposeParams,
+                                                      const std::vector<MemoryDescPtr>& srcDescs,
+                                                      const std::vector<MemoryDescPtr>& dstDescs,
+                                                      const dnnl::primitive_attr& attr) {
     auto inputOrder = transposeParams.permuteParams.order;
     if (inputOrder.empty()) {
         inputOrder.resize(srcDescs[0]->getShape().getRank());

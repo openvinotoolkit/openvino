@@ -413,7 +413,7 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
     return priorities_wo_brgemm;
 }
 
-const bool Convolution::isBrgConvAvailable() {
+bool Convolution::isBrgConvAvailable() const {
     // When avx2 brgconv heuristic case,  disable brgconv to WA the regression.
     const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && !useJitPlanar;
     return isBrgConvAvailable;
@@ -497,11 +497,11 @@ void Convolution::getSupportedDescriptors() {
     for (size_t i = 0; i < fusedWith.size(); i++) {
         auto* convolutionNode = dynamic_cast<Convolution*>(fusedWith[i].get());
         if (convolutionNode) {
-            auto& inActivationDims = convolutionNode->inputShapes[0].getStaticDims();
+            const auto& inActivationDims = convolutionNode->inputShapes[0].getStaticDims();
             dw_conv_ih = inActivationDims[convolutionNode->inputShapes[0].getRank() - 2];
             dw_conv_iw = inActivationDims[convolutionNode->inputShapes[0].getRank() - 1];
 
-            auto& outDims = convolutionNode->outputShapes[0].getStaticDims();
+            const auto& outDims = convolutionNode->outputShapes[0].getStaticDims();
             dw_conv_oc = outDims[1];
 
             const auto& dwWeightsDims = convolutionNode->inputShapes[1].getStaticDims();
@@ -533,7 +533,8 @@ void Convolution::getSupportedDescriptors() {
         }
     }
 
-    MemoryDescPtr in_candidate, out_candidate;
+    MemoryDescPtr in_candidate;
+    MemoryDescPtr out_candidate;
     memory::format_tag nspc =
         ndims == 3 ? memory::format_tag::nwc : (ndims == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc);
     memory::format_tag ncsp =
@@ -807,7 +808,8 @@ void Convolution::initSupportedPrimitiveDescriptors() {
     };
 
     auto addSupportedPrimitiveDescriptor = [&](const dnnl::primitive_desc& prim_desc) {
-        std::vector<PortConfig> inConfs, outConfs;
+        std::vector<PortConfig> inConfs;
+        std::vector<PortConfig> outConfs;
         const int inPlaceOutPort = withSum ? static_cast<int>(getParentEdges().size()) - 1 : -1;
 
         for (size_t i = 0; i < descInputNumbers(); i++) {
@@ -866,7 +868,7 @@ void Convolution::initSupportedPrimitiveDescriptors() {
 #endif
     for (size_t dIdx = 0; dIdx < descs.size(); dIdx++) {
         auto& desc = descs[dIdx];
-        auto primitive_desc = desc.get(true);  // true mean allow empty
+        auto* primitive_desc = desc.get(true);  // true mean allow empty
         if (primitive_desc == nullptr) {
             continue;
         }
@@ -1332,8 +1334,8 @@ bool Convolution::isNspcAvailable() const {
             auto paddingRreversItr = paddingR.crbegin();
 
             for (size_t i = 0; i < spatialRank; ++i) {
-                is1x1 = true && *(weightDimsReversItr++) == 1 && *(strideReversItr++) == 1 &&
-                        *(paddingLreversItr++) == 0 && *(paddingRreversItr++) == 0;
+                is1x1 = *(weightDimsReversItr++) == 1 && *(strideReversItr++) == 1 && *(paddingLreversItr++) == 0 &&
+                        *(paddingRreversItr++) == 0;
             }
         }
 
@@ -1591,7 +1593,7 @@ void Convolution::prepareParams() {
     primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
 
 #ifdef CPU_DEBUG_CAPS
-    auto pd = execPtr->getPrimitiveDesc();
+    const auto* pd = execPtr->getPrimitiveDesc();
     DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
 }
@@ -1843,7 +1845,7 @@ VectorDims Convolution::makeInputDummyShape(const Shape& inpShape) const {
 }
 
 VectorDims Convolution::outputStaticShape() const {
-    auto& outputShape = getOutputShapeAtPort(0);
+    const auto& outputShape = getOutputShapeAtPort(0);
     if (outputShape.isDynamic()) {
         auto inpDummyShape = makeInputDummyShape(getInputShapeAtPort(0));
         auto outputDims = shapeInferGeneric({Shape(inpDummyShape), Shape(weightDims)});

@@ -253,7 +253,8 @@ DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs
         };
 
     if (isBlocked) {
-        size_t orderShiftForBlocks, orderShiftForDims;
+        size_t orderShiftForBlocks;
+        size_t orderShiftForDims;
         if (attrs.mode == Mode::BLOCKS_FIRST) {
             orderShiftForBlocks = 1;
             orderShiftForDims = attrs.nSpatialDims + 2;

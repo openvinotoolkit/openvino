@@ -69,13 +69,17 @@ void ov::intel_cpu::InterpolateExecutor::buildTblNN(const VectorDims& srcDimPad5
     float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.f;
     float fy = dataScales[dimSize - 2];
     float fx = dataScales[dimSize - 1];
-    size_t ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
-    size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
+    size_t ID = srcDimPad5d[2];
+    size_t IH = srcDimPad5d[3];
+    size_t IW = srcDimPad5d[4];
+    size_t OD = dstDim5d[2];
+    size_t OH = dstDim5d[3];
+    size_t OW = dstDim5d[4];
 
     indexTable.resize(OD + OH + OW);
-    bool isDDownsample = (fz < 1) ? true : false;
-    bool isHDownsample = (fy < 1) ? true : false;
-    bool isWDownsample = (fx < 1) ? true : false;
+    bool isDDownsample = fz < 1;
+    bool isHDownsample = fy < 1;
+    bool isWDownsample = fx < 1;
     for (int oz = 0; oz < static_cast<int>(OD); oz++) {
         float iz = coordTransToInput(oz, fz, ID, OD);
         indexTable[oz] = nearestRound(iz, isDDownsample, nearestMode);
@@ -134,7 +138,7 @@ float ov::intel_cpu::InterpolateExecutor::coordTransToInput(int outCoord,
 
 int ov::intel_cpu::InterpolateExecutor::nearestRound(float originCoord,
                                                      bool isDownsample,
-                                                     InterpolateNearestMode nearestMode) const {
+                                                     InterpolateNearestMode nearestMode) {
     switch (nearestMode) {
     case InterpolateNearestMode::round_prefer_floor: {
         if (originCoord == (static_cast<int>(originCoord) + 0.5f)) {
@@ -193,8 +197,12 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinearOnnx(const VectorDims& sr
     float fz = (spatialDimSize > 2) ? dataScales[dimSize - 3] : 1.f;
     float fy = (spatialDimSize > 1) ? dataScales[dimSize - 2] : 1.f;
     float fx = dataScales[dimSize - 1];
-    int ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
-    int OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
+    int ID = srcDimPad5d[2];
+    int IH = srcDimPad5d[3];
+    int IW = srcDimPad5d[4];
+    int OD = dstDim5d[2];
+    int OH = dstDim5d[3];
+    int OW = dstDim5d[4];
 
     std::vector<int*> indexPtr(MAX_INPUT_INTERPOLATE, nullptr);
     std::vector<float*> weightPtr(MAX_INPUT_INTERPOLATE, nullptr);
@@ -207,7 +215,7 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinearOnnx(const VectorDims& sr
         int scratchLen = rnd_up(eltInGrid * OW * OH * OD, 16);
         indexTable.resize(idxType * scratchLen);
 
-        indexPtr[0] = static_cast<int*>(&indexTable[0]);
+        indexPtr[0] = static_cast<int*>(indexTable.data());
         indexPtr[1] = static_cast<int*>(&indexTable[OW * OH * OD]);
         weightPtr[0] = reinterpret_cast<float*>(&indexTable[scratchLen]);
         weightPtr[1] = reinterpret_cast<float*>(&indexTable[scratchLen + OW * OH * OD]);
@@ -228,18 +236,24 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinearOnnx(const VectorDims& sr
         int scale = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::sse41) ? srcDataSize : 1;
 
         for (int oz = 0; oz < OD; oz++) {
-            int izF, izE;
-            float weightF, weightE;
+            int izF;
+            int izE;
+            float weightF;
+            float weightE;
             linearOnnxCF(oz, fz, ID, OD, izF, izE, weightF, weightE);
             int idxOz = oz * OH * OW;
             for (int oy = 0; oy < OH; oy++) {
-                int iyT, iyB;
-                float weightT, weightB;
+                int iyT;
+                int iyB;
+                float weightT;
+                float weightB;
                 linearOnnxCF(oy, fy, IH, OH, iyT, iyB, weightT, weightB);
                 int idxOzOy = idxOz + oy * OW;
                 for (int ox = 0; ox < OW; ox++) {
-                    int ixL, ixR;
-                    float weightL, weightR;
+                    int ixL;
+                    int ixR;
+                    float weightL;
+                    float weightR;
                     linearOnnxCF(ox, fx, IW, OW, ixL, ixR, weightL, weightR);
 
                     int idxOzOyOx = idxOzOy + ox;
@@ -270,7 +284,7 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinearOnnx(const VectorDims& sr
         size_t scratchLen = rnd_up(OW + OW + OH + OH + OD + OD, 16);
         int idxType = 2;
         indexTable.resize(idxType * scratchLen);
-        indexPtr[0] = static_cast<int*>(&indexTable[0]);
+        indexPtr[0] = static_cast<int*>(indexTable.data());
         indexPtr[1] = static_cast<int*>(&indexTable[OW]);
         indexPtr[2] = static_cast<int*>(&indexTable[2 * OW]);
         indexPtr[3] = static_cast<int*>(&indexTable[2 * OW + OH]);
@@ -309,10 +323,14 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinear(const VectorDims& srcDim
     float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.f;
     float fy = dataScales[dimSize - 2];
     float fx = dataScales[dimSize - 1];
-    size_t ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
-    size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
+    size_t ID = srcDimPad5d[2];
+    size_t IH = srcDimPad5d[3];
+    size_t IW = srcDimPad5d[4];
+    size_t OD = dstDim5d[2];
+    size_t OH = dstDim5d[3];
+    size_t OW = dstDim5d[4];
 
-    if (!(IW == OW && IH == OH && ID == OD)) {
+    if (IW != OW || IH != OH || ID != OD) {
         float ax = antialias ? fx : 1.0f;
         float ay = antialias ? fy : 1.0f;
         float az = antialias ? fz : 1.0f;
@@ -328,15 +346,15 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinear(const VectorDims& srcDim
         int sizeOH = OH * diaOH;
         int sizeOW = OW * diaOW;
         indexTable.resize((sizeOD + sizeOH + sizeOW) * 2);
-        auto* weightTable = reinterpret_cast<float*>(&indexTable[0]);
-        auto* weightOD = static_cast<float*>(&weightTable[0]);
-        auto* weightOH = static_cast<float*>(&weightTable[sizeOD]);
-        auto* weightOW = static_cast<float*>(&weightTable[sizeOD + sizeOH]);
+        auto* weightTable = reinterpret_cast<float*>(indexTable.data());
+        auto* weightOD = (&weightTable[0]);
+        auto* weightOH = (&weightTable[sizeOD]);
+        auto* weightOW = (&weightTable[sizeOD + sizeOH]);
 
         auto* idxTable = static_cast<int*>(&indexTable[sizeOD + sizeOH + sizeOW]);
-        auto* idxOD = static_cast<int*>(&idxTable[0]);
-        auto* idxOH = static_cast<int*>(&idxTable[sizeOD]);
-        auto* idxOW = static_cast<int*>(&idxTable[sizeOD + sizeOH]);
+        auto* idxOD = (&idxTable[0]);
+        auto* idxOH = (&idxTable[sizeOD]);
+        auto* idxOW = (&idxTable[sizeOD + sizeOH]);
 
         for (int oz = 0; oz < static_cast<int>(OD); oz++) {
             float iz = coordTransToInput(oz, fz, ID, OD);
@@ -380,7 +398,7 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinear(const VectorDims& srcDim
     }
 }
 
-std::vector<float> ov::intel_cpu::InterpolateExecutor::getCubicCoeffs(float mantissa, float a) {
+static std::vector<float> ov::intel_cpu::InterpolateExecutor::getCubicCoeffs(float mantissa, float a) {
     float m = std::fabs(mantissa);
     std::vector<float> coeffs(4, 0.f);
 
@@ -402,8 +420,10 @@ void ov::intel_cpu::InterpolateExecutor::buildTblCubic(const VectorDims& srcDimP
     int dimSize = dataRank;
     float fy = dataScales[dimSize - 2];
     float fx = dataScales[dimSize - 1];
-    int IH = srcDimPad5d[3], IW = srcDimPad5d[4];
-    int OH = dstDim5d[3], OW = dstDim5d[4];
+    int IH = srcDimPad5d[3];
+    int IW = srcDimPad5d[4];
+    int OH = dstDim5d[3];
+    int OW = dstDim5d[4];
 
     // idxNum for index, CUBIC_GRID_LEN for weight
     const int idxNum = 1;
@@ -502,7 +522,7 @@ const uint8_t* ov::intel_cpu::InterpolateExecutor::padPreprocess(const std::vect
 
         if (interpAttrs.layout == InterpolateLayoutType::planar) {
             srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
-            auto* src_data_pad = static_cast<uint8_t*>(&srcPadded[0]);
+            auto* src_data_pad = static_cast<uint8_t*>(srcPadded.data());
             parallel_for4d(srcDim5d[0], srcDim5d[1], srcDim5d[2], srcDim5d[3], [&](int n, int c, int d, int h) {
                 const uint8_t* src = src_data_origin + (inShapeBlock[1] * n + inShapeBlock[2] * c +
                                                         inShapeBlock[3] * d + inShapeBlock[4] * h) *
@@ -516,7 +536,7 @@ const uint8_t* ov::intel_cpu::InterpolateExecutor::padPreprocess(const std::vect
             src_data = src_data_pad;
         } else if (interpAttrs.layout == InterpolateLayoutType::by_channel) {
             srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
-            auto* src_data_pad = static_cast<uint8_t*>(&srcPadded[0]);
+            auto* src_data_pad = static_cast<uint8_t*>(srcPadded.data());
             parallel_for4d(srcDim5d[0], srcDim5d[2], srcDim5d[3], srcDim5d[4], [&](int n, int d, int h, int w) {
                 const uint8_t* src = src_data_origin +
                                      (inShapeBlock[1] * n +
@@ -536,7 +556,7 @@ const uint8_t* ov::intel_cpu::InterpolateExecutor::padPreprocess(const std::vect
             size_t CB = div_up(srcDimPad5d[1], blkSize);
             size_t eltsTotal = srcDimPad5d[0] * CB * srcDimPad5d[2] * srcDimPad5d[3] * srcDimPad5d[4] * blkSize;
             srcPadded.resize(eltsTotal * srcDataSize, 0x0);
-            auto* src_data_pad = static_cast<uint8_t*>(&srcPadded[0]);
+            auto* src_data_pad = static_cast<uint8_t*>(srcPadded.data());
             if ((srcDim5d[0] != srcDimPad5d[0]) || (srcDim5d[1] != srcDimPad5d[1])) {
                 OPENVINO_THROW("Interpolate executor does not support padding on batch and channel dimensions");
             }

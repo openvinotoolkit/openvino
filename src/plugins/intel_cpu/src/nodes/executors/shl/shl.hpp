@@ -107,16 +107,16 @@ struct ShlTensor : public ShlStructure<csinn_tensor*> {
         csinn_tensor_copy(get(), another.get());
     }
 
-    [[nodiscard]] csinn_layout_enum getLayout() const {
+    [[nodiscard]] static csinn_layout_enum getLayout() {
         // csinn_tensor contains `layout` as int32_t
         return static_cast<csinn_layout_enum>(get()->layout);
     }
 
-    [[nodiscard]] csinn_dtype_enum getPrecision() const {
+    [[nodiscard]] static csinn_dtype_enum getPrecision() {
         return get()->dtype;
     }
 
-    [[nodiscard]] VectorDims getShape() const {
+    [[nodiscard]] static VectorDims getShape() {
         VectorDims shape(get()->dim_count);
         for (size_t i = 0; i < shape.size(); ++i) {
             shape[i] = static_cast<size_t>(get()->dim[i]);
@@ -124,11 +124,11 @@ struct ShlTensor : public ShlStructure<csinn_tensor*> {
         return shape;
     }
 
-    [[nodiscard]] void* getData() const {
+    [[nodiscard]] static void* getData() {
         return get()->data;
     }
 
-    void setData(void* data) {
+    static void setData(void* data) {
         get()->data = data;
     }
 
@@ -139,7 +139,7 @@ struct ShlTensor : public ShlStructure<csinn_tensor*> {
     }
 
 #ifdef CPU_DEBUG_CAPS
-    void print() const {
+    static void print() {
         std::cout << "Shape: " << ov::Shape(getShape()) << " "
                   << "DataType: " << getPrecision() << " "
                   << "Layout: " << getLayout() << " "
@@ -148,15 +148,15 @@ struct ShlTensor : public ShlStructure<csinn_tensor*> {
 #endif
 
 private:
-    void setLayout(csinn_layout_enum layout) {
+    static void setLayout(csinn_layout_enum layout) {
         get()->layout = layout;
     }
 
-    void setPrecision(csinn_dtype_enum data_type) {
+    static void setPrecision(csinn_dtype_enum data_type) {
         get()->dtype = data_type;
     }
 
-    void setShape(const VectorDims& shape) {
+    static void setShape(const VectorDims& shape) {
         get()->dim_count = shape.size();
         OPENVINO_ASSERT(get()->dim_count < MAX_DIM, "Shl supports shapes with rank less or equal to 8");
         for (int i = 0; i < get()->dim_count; ++i) {

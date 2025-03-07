@@ -13,7 +13,7 @@
 
 namespace ov::intel_cpu {
 namespace {
-static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory, const ExecutorContext::CPtr context) {
+MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory, const ExecutorContext::CPtr context) {
     DEBUG_LOG("ShlFCExecutor: prepack weights");
 
     auto create = [&]() {
@@ -135,12 +135,13 @@ bool ShlFCExecutor::update(const MemoryArgs& memory) {
 void ShlFCExecutor::execute(const MemoryArgs& memory) {
     wei.setData(packedWeights->getData());
     if (with_bias) {
-        bias.setData(memory.at(ARG_BIAS)->getData());
+        ov::intel_cpu::ShlTensor::setData(memory.at(ARG_BIAS)->getData());
     }
 
     const auto nthreads = std::min(static_cast<int>(dim_M), parallel_get_max_threads());
     parallel_nt(nthreads, [&](const int ithr, const int nthr) {
-        size_t dim_M0 = 0, dim_M1 = 0;
+        size_t dim_M0 = 0;
+        size_t dim_M1 = 0;
         splitter(dim_M, nthr, ithr, dim_M0, dim_M1);
 
         const auto M = dim_M1 - dim_M0;

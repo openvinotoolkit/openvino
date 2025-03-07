@@ -127,7 +127,7 @@ void LoRA::createPrimitive() {
     m_graph.Activate();
 }
 
-void LoRA::execute(const dnnl::stream&) {
+void LoRA::execute(const dnnl::stream& /*strm*/) {
     m_graph.Infer();
 }
 

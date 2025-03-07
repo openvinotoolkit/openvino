@@ -112,12 +112,14 @@ void CTCGreedyDecoderSeqLen::execute(const dnnl::stream& strm) {
     // At the first stage find the maximum index. At second stage merge if needed.
     // Such approach makes parallelization more efficient.
     auto threadBody = [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
+        size_t start(0lu);
+        size_t end(0lu);
         splitter(workAmount, nthr, ithr, start, end);
         if (start >= end) {
             return;
         }
-        size_t tStart = 0lu, bStart = 0lu;
+        size_t tStart = 0lu;
+        size_t bStart = 0lu;
         for (; bStart < B; bStart++) {
             tStart += sequenceLengths[bStart];
             if (tStart >= start) {
@@ -163,7 +165,7 @@ void CTCGreedyDecoderSeqLen::execute(const dnnl::stream& strm) {
         int* shiftedOut = decodedClasses + b * T;
 
         for (size_t t = 0; t < actualSeqLen; ++t) {
-            if (*shiftedOut != blankIndex && !(mergeRepeated && *shiftedOut == prevClassIdx)) {
+            if (*shiftedOut != blankIndex && (!mergeRepeated || *shiftedOut != prevClassIdx)) {
                 decodedClasses[outputIndex++] = *shiftedOut;
             }
             prevClassIdx = *shiftedOut;

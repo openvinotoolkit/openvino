@@ -220,7 +220,7 @@ void Broadcast::plainExecute(const dnnl::stream& strm) {
     if (!dataSrcRank) {
         srcDims = VectorDims(1, 1);
     }
-    if (!srcStrides.size()) {
+    if (srcStrides.empty()) {
         srcStrides = VectorDims(1, 1);
     }
 
@@ -244,7 +244,10 @@ void Broadcast::plainExecute(const dnnl::stream& strm) {
     auto* dstData = getDstDataAtPortAs<uint8_t>(0);
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t i = 0lu, srcIdx = 0lu, start = 0lu, end = 0lu;
+        size_t i = 0lu;
+        size_t srcIdx = 0lu;
+        size_t start = 0lu;
+        size_t end = 0lu;
         VectorDims counters(dataDstRank, 0);
         splitter(workAmountDst, nthr, ithr, start, end);
         for (int j = dataDstRank - 1, i = start; j >= 0; j--) {

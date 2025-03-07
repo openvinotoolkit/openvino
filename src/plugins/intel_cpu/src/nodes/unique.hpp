@@ -24,7 +24,7 @@ public:
 protected:
     void executeDynamicImpl(const dnnl::stream& strm) override;
     void prepareParams() override;
-    [[nodiscard]] bool needShapeInfer() const override {
+    [[nodiscard]] static bool needShapeInfer() override {
         return false;
     }
 

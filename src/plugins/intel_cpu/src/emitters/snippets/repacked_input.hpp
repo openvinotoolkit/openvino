@@ -35,8 +35,8 @@ struct RepackedInput {
 private:
     std::shared_ptr<const RepackedInputKernel> m_kernel{nullptr};
     CpuBlockedMemoryDescPtr m_desc{nullptr};
-    VectorDims m_in_offsets{};
-    VectorDims m_out_offsets{};
+    VectorDims m_in_offsets;
+    VectorDims m_out_offsets;
 };
 
 }  // namespace ov::intel_cpu

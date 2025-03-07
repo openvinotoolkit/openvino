@@ -78,9 +78,9 @@ bool AclEltwiseExecutor::isEltwiseAlgorithmSupported(Algorithm algorithm) {
     return false;
 }
 
-bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
-                                            const std::vector<MemoryDescPtr>& srcDescs,
-                                            const std::vector<MemoryDescPtr>& dstDescs) const {
+static bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
+                                                   const std::vector<MemoryDescPtr>& srcDescs,
+                                                   const std::vector<MemoryDescPtr>& dstDescs) {
     auto checkPrecision = [&srcDescs, &dstDescs](std::vector<ov::element::Type> srcVecPrc,
                                                  ov::element::Type dstPrc) -> bool {
         for (size_t i = 0; i < srcDescs.size(); i++) {
@@ -88,10 +88,7 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
                 return false;
             }
         }
-        if (dstDescs[0]->getPrecision() != dstPrc) {
-            return false;
-        }
-        return true;
+        return static_cast<bool>(dstDescs[0]->getPrecision() == dstPrc);
     };
 
     switch (eltwiseAttrs.algorithm) {
@@ -502,9 +499,9 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs& eltwiseAttrs,
     return true;
 }
 
-void AclEltwiseExecutor::exec(const std::vector<MemoryCPtr>& src,
-                              const std::vector<MemoryPtr>& dst,
-                              const void* post_ops_data_) {
+static void AclEltwiseExecutor::exec(const std::vector<MemoryCPtr>& src,
+                                     const std::vector<MemoryPtr>& dst,
+                                     const void* post_ops_data_) {
     for (size_t i = 0; i < src.size(); i++) {
         srcTensors[i].allocator()->import_memory(src[i]->getData());
     }

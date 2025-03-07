@@ -57,7 +57,7 @@ public:
     [[nodiscard]] virtual bool isSupported(const MVNAttrs& mvnAttrs,
                                            const std::vector<MemoryDescPtr>& srcDescs,
                                            const std::vector<MemoryDescPtr>& dstDescs) const = 0;
-    [[nodiscard]] virtual MVNExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
+    [[nodiscard]] virtual MVNExecutorPtr makeExecutor(ExecutorContext::CPtr context) const = 0;
 };
 
 using MVNExecutorBuilderPtr = std::shared_ptr<MVNExecutorBuilder>;

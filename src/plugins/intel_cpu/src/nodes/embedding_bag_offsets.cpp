@@ -121,7 +121,7 @@ void EmbeddingBagOffset::getIndices(size_t embIndex,
                                     size_t& size,
                                     int& weightsIdx,
                                     bool& withWeight) {
-    if (static_cast<size_t>(embIndex) >= _offsetsLen) {
+    if (embIndex >= _offsetsLen) {
         THROW_CPU_NODE_ERR("Invalid embedding bag index.");
     }
     if (static_cast<size_t>(offsetsData_[embIndex]) >= _indicesLen) {

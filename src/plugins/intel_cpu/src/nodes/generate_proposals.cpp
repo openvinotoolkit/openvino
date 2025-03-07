@@ -420,9 +420,10 @@ void GenerateProposals::execute(const dnnl::stream& strm) {
         // Execute
         size_t batch_size = scoreDims[0];
         size_t total_num_rois = 0;
-        std::vector<float> roi_item, score_item;
+        std::vector<float> roi_item;
+        std::vector<float> score_item;
         std::vector<int64_t> roi_num(batch_size);
-        auto* p_roi_num = reinterpret_cast<uint8_t*>(&roi_num[0]);
+        auto* p_roi_num = reinterpret_cast<uint8_t*>(roi_num.data());
         auto roi_num_type = getOriginalOutputPrecisionAtPort(OUTPUT_ROI_NUM);
         const auto roi_num_item_size = roi_num_type == ov::element::i32 ? sizeof(int32_t) : sizeof(int64_t);
         for (size_t n = 0; n < batch_size; ++n) {
@@ -446,7 +447,7 @@ void GenerateProposals::execute(const dnnl::stream& strm) {
             refine_anchors(p_deltas_item,
                            p_scores_item,
                            p_anchors_item,
-                           reinterpret_cast<float*>(&proposals_[0]),
+                           reinterpret_cast<float*>(proposals_.data()),
                            anchors_num,
                            bottom_H,
                            bottom_W,
@@ -463,11 +464,14 @@ void GenerateProposals::execute(const dnnl::stream& strm) {
                                   return (struct1.score > struct2.score);
                               });
 
-            unpack_boxes(reinterpret_cast<float*>(&proposals_[0]), &unpacked_boxes[0], &is_dead[0], pre_nms_topn);
+            unpack_boxes(reinterpret_cast<float*>(proposals_.data()),
+                         unpacked_boxes.data(),
+                         is_dead.data(),
+                         pre_nms_topn);
             nms_cpu(pre_nms_topn,
-                    &is_dead[0],
-                    &unpacked_boxes[0],
-                    &roi_indices_[0],
+                    is_dead.data(),
+                    unpacked_boxes.data(),
+                    roi_indices_.data(),
                     &num_rois,
                     0,
                     nms_thresh_,
@@ -478,8 +482,8 @@ void GenerateProposals::execute(const dnnl::stream& strm) {
             roi_item.resize(new_num_rois * 4);
             score_item.resize(new_num_rois);
 
-            fill_output_blobs(&unpacked_boxes[0],
-                              &roi_indices_[0],
+            fill_output_blobs(unpacked_boxes.data(),
+                              roi_indices_.data(),
                               &roi_item[total_num_rois * 4],
                               &score_item[total_num_rois],
                               p_roi_num,
@@ -498,9 +502,9 @@ void GenerateProposals::execute(const dnnl::stream& strm) {
         auto* p_roi_item = getDstDataAtPortAs<float>(OUTPUT_ROIS);
         auto* p_roi_score_item = getDstDataAtPortAs<float>(OUTPUT_SCORES);
         auto* p_roi_num_item = getDstDataAtPortAs<uint8_t>(OUTPUT_ROI_NUM);
-        memcpy(p_roi_item, &roi_item[0], roi_item.size() * sizeof(float));
-        memcpy(p_roi_score_item, &score_item[0], score_item.size() * sizeof(float));
-        memcpy(p_roi_num_item, &roi_num[0], getDstMemoryAtPort(OUTPUT_ROI_NUM)->getSize());
+        memcpy(p_roi_item, roi_item.data(), roi_item.size() * sizeof(float));
+        memcpy(p_roi_score_item, score_item.data(), score_item.size() * sizeof(float));
+        memcpy(p_roi_num_item, roi_num.data(), getDstMemoryAtPort(OUTPUT_ROI_NUM)->getSize());
     } catch (const std::exception& e) {
         THROW_CPU_NODE_ERR(e.what());
     }

@@ -45,8 +45,8 @@ libxsmm_bitfield BinaryEltwiseTPP::get_broadcasting_flags(const ov::PartialShape
                                   snippets::utils::pshape_to_vdims(pshape_1));
 }
 
-libxsmm_bitfield BinaryEltwiseTPP::get_broadcasting_flags(const snippets::VectorDims& shape_0,
-                                                          const snippets::VectorDims& shape_1) {
+static libxsmm_bitfield BinaryEltwiseTPP::get_broadcasting_flags(const snippets::VectorDims& shape_0,
+                                                                 const snippets::VectorDims& shape_1) {
     auto get_subshape = [](const snippets::VectorDims& shape) {
         snippets::VectorDims subshape(2, 1);
         for (size_t i = 0; i < std::min(subshape.size(), shape.size()); i++) {

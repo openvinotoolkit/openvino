@@ -12,11 +12,11 @@ class ISTFT : public Node {
 public:
     ISTFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override;
-    void initSupportedPrimitiveDescriptors() override;
+    static void getSupportedDescriptors() override;
+    void initSupportedPrimitiveDescriptors() const override;
     bool created() const override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
-    bool needPrepareParams() const override;
+    static bool needPrepareParams() override;
 
     void execute(const dnnl::stream& strm) override;
     void executeDynamicImpl(const dnnl::stream& strm) override;

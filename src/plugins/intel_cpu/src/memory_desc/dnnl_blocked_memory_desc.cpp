@@ -264,20 +264,20 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const Shape& shape,
 }
 
 bool DnnlBlockedMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
-    if (auto desc = dynamic_cast<const DnnlBlockedMemoryDesc*>(&rhs)) {
+    if (const auto* desc = dynamic_cast<const DnnlBlockedMemoryDesc*>(&rhs)) {
         return isCompatible(*desc);
     }
-    if (auto desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
+    if (const auto* desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
         return isCompatible(*desc);
     }
     return false;
 }
 
 bool DnnlBlockedMemoryDesc::isCompatible(const BlockedMemoryDesc& rhs, CmpMask cmpMask) const {
-    if (auto desc = dynamic_cast<const DnnlBlockedMemoryDesc*>(&rhs)) {
+    if (const auto* desc = dynamic_cast<const DnnlBlockedMemoryDesc*>(&rhs)) {
         return isCompatible(*desc, cmpMask);
     }
-    if (auto desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
+    if (const auto* desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
         return isCompatible(*desc, cmpMask);
     }
     return false;
@@ -425,11 +425,7 @@ bool DnnlBlockedMemoryDesc::isBlockedCFormat(size_t blk_size) const {
             return false;
         }
     }
-    if (blk_size != UNREACHABLE_DIM && static_cast<int64_t>(blk_size) != desc.get_inner_blks()[0]) {
-        return false;
-    }
-
-    return true;
+    return blk_size == UNREACHABLE_DIM || static_cast<int64_t>(blk_size) == desc.get_inner_blks()[0];
 }
 
 bool DnnlBlockedMemoryDesc::isTailCFormat() const {
@@ -533,8 +529,8 @@ bool DnnlBlockedMemoryDesc::isSame(dnnl::memory::format_tag fmt) const {
         }
     }
 
-    auto actualStrides = desc.get()->format_desc.blocking.strides;
-    auto refStrides = refDesc.get()->format_desc.blocking.strides;
+    auto* actualStrides = desc.get()->format_desc.blocking.strides;
+    auto* refStrides = refDesc.get()->format_desc.blocking.strides;
 
     VectorDims actualOrder(desc.get()->ndims);
     {
@@ -579,10 +575,7 @@ bool DnnlBlockedMemoryDesc::isSame(dnnl::memory::format_tag fmt) const {
         });
     }
 
-    if (actualOrder != refOrder) {
-        return false;
-    }
-    return true;
+    return actualOrder == refOrder;
 }
 
 size_t DnnlBlockedMemoryDesc::getMaxMemSize() const {

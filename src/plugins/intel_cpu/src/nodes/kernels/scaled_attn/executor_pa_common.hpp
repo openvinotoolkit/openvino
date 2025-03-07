@@ -36,7 +36,7 @@ struct PagedAttentionExecutor {
     static const size_t ID_ROTATION_DELTAS = 14;        // [num_rotated_blocks * block_size || 0], int32
     static const size_t ID_ROTATION_TRIG_LUT = 15;      // [max_context_length * S || 0], f32
     virtual void execute(const std::vector<ov::intel_cpu::MemoryPtr>& inputs,
-                         const std::vector<ov::intel_cpu::MemoryPtr> outputs) = 0;
+                         std::vector<ov::intel_cpu::MemoryPtr> outputs) = 0;
     virtual ~PagedAttentionExecutor() = default;
 };
 

@@ -284,11 +284,11 @@ private:
 #    undef GET_OFF
     }
 
-    inline void load(const Vmm& vmm_dst,
-                     const Xbyak::Reg64& reg_src,
-                     ov::element::Type src_prc,
-                     const int& elt_num,
-                     bool fill) {
+    void load(const Vmm& vmm_dst,
+              const Xbyak::Reg64& reg_src,
+              ov::element::Type src_prc,
+              const int& elt_num,
+              bool fill) {
         const auto seed = load_emitter_params(src_prc, ov::element::f32, elt_num, fill, "float_min").hash();
         if (!emitters[seed]) {
             emitters[seed] = std::make_unique<jit_load_emitter>(this,
@@ -306,7 +306,7 @@ private:
                                   pool_aux_vmm_idxs,
                                   pool_aux_gpr_idxs);
     }
-    inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, ov::element::Type dst_prc, const int& elt_num) {
+    void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, ov::element::Type dst_prc, const int& elt_num) {
         const auto seed = store_emitter_params(ov::element::f32, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
             emitters[seed] = std::make_unique<jit_store_emitter>(this, isa, ov::element::f32, dst_prc, elt_num);
@@ -484,11 +484,11 @@ private:
     }
 #    undef GET_OFF
 
-    inline void load(const Vmm& vmm_dst,
-                     const Xbyak::Reg64& reg_src,
-                     ov::element::Type src_prc,
-                     const int& elt_num,
-                     bool fill) {
+    void load(const Vmm& vmm_dst,
+              const Xbyak::Reg64& reg_src,
+              ov::element::Type src_prc,
+              const int& elt_num,
+              bool fill) {
         const auto seed = load_emitter_params(src_prc, ov::element::f32, elt_num, fill, "float_min").hash();
         if (!emitters[seed]) {
             emitters[seed] = std::make_unique<jit_load_emitter>(this,
@@ -506,7 +506,7 @@ private:
                                   pool_aux_vmm_idxs,
                                   pool_aux_gpr_idxs);
     }
-    inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, ov::element::Type dst_prc, const int& elt_num) {
+    void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, ov::element::Type dst_prc, const int& elt_num) {
         const auto seed = store_emitter_params(ov::element::f32, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
             emitters[seed] = std::make_unique<jit_store_emitter>(this, isa, ov::element::f32, dst_prc, elt_num);
@@ -663,12 +663,12 @@ private:
         }
     }
 #    undef GET_OFF
-    inline void load(const Vmm& vmm_dst,
-                     const Xbyak::Reg64& reg_src,
-                     ov::element::Type src_prc,
-                     ov::element::Type dst_prc,
-                     const int& elt_num,
-                     bool fill) {
+    void load(const Vmm& vmm_dst,
+              const Xbyak::Reg64& reg_src,
+              ov::element::Type src_prc,
+              ov::element::Type dst_prc,
+              const int& elt_num,
+              bool fill) {
         const auto seed = load_emitter_params(src_prc, dst_prc, elt_num, fill, "float_min").hash();
         if (!emitters[seed]) {
             emitters[seed] = std::make_unique<jit_load_emitter>(this,
@@ -686,11 +686,11 @@ private:
                                   pool_aux_vmm_idxs,
                                   pool_aux_gpr_idxs);
     }
-    inline void store(const Xbyak::Reg64& reg_dst,
-                      const Vmm& vmm_src,
-                      ov::element::Type src_prc,
-                      ov::element::Type dst_prc,
-                      const int& elt_num) {
+    void store(const Xbyak::Reg64& reg_dst,
+               const Vmm& vmm_src,
+               ov::element::Type src_prc,
+               ov::element::Type dst_prc,
+               const int& elt_num) {
         const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
             emitters[seed] = std::make_unique<jit_store_emitter>(this, isa, src_prc, dst_prc, elt_num);
@@ -744,8 +744,8 @@ bool MHA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
         }
 
         bool supportedPrecisions = true;
-        if (!(mha->get_input_element_type(0) == element::i8 && mha->get_input_element_type(1) == element::f32 &&
-              mha->get_input_element_type(3) == element::f32)) {
+        if (mha->get_input_element_type(0) != element::i8 || mha->get_input_element_type(1) != element::f32 ||
+            mha->get_input_element_type(3) != element::f32) {
             if (!one_of(mha->get_input_element_type(0), element::f32, element::bf16, element::i8)) {
                 supportedPrecisions = false;
             }
@@ -837,7 +837,7 @@ void MHA::initSupportedPrimitiveDescriptors() {
     }
 
     if ((inputPrecisions[0] != inputPrecisions[1]) &&
-        !(inputPrecisions[0] == ov::element::i8 && inputPrecisions[1] == ov::element::f32 && !fqScales0.empty())) {
+        (inputPrecisions[0] != ov::element::i8 || inputPrecisions[1] != ov::element::f32 || fqScales0.empty())) {
         inputPrecisions[0] = inputPrecisions[1] = ov::element::f32;
     }
 
@@ -1346,25 +1346,25 @@ void MHA::mhaImpl() {
     auto spatial_loop = [&](size_t i0, size_t i1) {
         size_t threadNum = parallel_get_thread_num();
 
-        auto pTranspose0In0_aux = pTranspose0In0 + (i0 * strTranspose0In0[0] + i1 * strTranspose0In0[2]) *
-                                                       inputPrecisions[0].size();  // order 0213
-        auto pTranspose1In0_aux = pTranspose1In0 + (i0 * strTranspose1In0[0] + i1 * strTranspose1In0[2]) *
-                                                       inputPrecisions[1].size();  // order 0231
+        const auto* pTranspose0In0_aux = pTranspose0In0 + (i0 * strTranspose0In0[0] + i1 * strTranspose0In0[2]) *
+                                                              inputPrecisions[0].size();  // order 0213
+        const auto* pTranspose1In0_aux = pTranspose1In0 + (i0 * strTranspose1In0[0] + i1 * strTranspose1In0[2]) *
+                                                              inputPrecisions[1].size();  // order 0231
 
-        auto pAddIn1_aux = pAddIn1 + i0 * strAddIn1[0];  // order 0231
+        const auto* pAddIn1_aux = pAddIn1 + i0 * strAddIn1[0];  // order 0231
 
-        auto bufferMatMul0In1_local =
+        auto* bufferMatMul0In1_local =
             reinterpret_cast<uint8_t*>(bufferMatMul0In1.data() + threadNum * bufferMatMul0In1Size);
-        auto bufferMatMul0Out_local =
+        auto* bufferMatMul0Out_local =
             reinterpret_cast<uint8_t*>(bufferMatMul0Out.data() + threadNum * bufferMatMul0OutSize);
-        auto bufferMatMul1In1_local =
+        auto* bufferMatMul1In1_local =
             reinterpret_cast<uint8_t*>(bufferMatMul1In1.data() + threadNum * bufferMatMul1In1Size);
-        auto bufferMatMul1Out_local =
+        auto* bufferMatMul1Out_local =
             reinterpret_cast<uint8_t*>(bufferMatMul1Out.data() + threadNum * bufferMatMul1OutSize);
 
-        auto pTranspose1Out_aux = brgCopyBKernel0 ? bufferMatMul1In1_local : bufferMatMul0In1_local;
-        auto pTranspose2In0_aux = pTranspose2In0 + (i0 * strTranspose2In0[0] + i1 * strTranspose2In0[2]) *
-                                                       inputPrecisions[3].size();  // order 0213
+        auto* pTranspose1Out_aux = brgCopyBKernel0 ? bufferMatMul1In1_local : bufferMatMul0In1_local;
+        const auto* pTranspose2In0_aux = pTranspose2In0 + (i0 * strTranspose2In0[0] + i1 * strTranspose2In0[2]) *
+                                                              inputPrecisions[3].size();  // order 0213
 
         if (convertTransposeKernel) {
             jit_convert_transpose_call_args call_args;
@@ -1381,18 +1381,18 @@ void MHA::mhaImpl() {
                       {strTranspose1In0[3], strTranspose1In0[1]});
         }
 
-        auto bufferCompensation0_aux =
+        auto* bufferCompensation0_aux =
             !bufferCompensation0.empty() ? bufferCompensation0.data() + threadNum * bufferCompensation0Size : nullptr;
-        auto bufferCompensation1_aux =
+        auto* bufferCompensation1_aux =
             !bufferCompensation1.empty() ? bufferCompensation1.data() + threadNum * bufferCompensation1Size : nullptr;
 
-        auto wsp_local = !wsp.empty() ? wsp.data() + threadNum * wsp_size_per_thread : nullptr;
+        auto* wsp_local = !wsp.empty() ? wsp.data() + threadNum * wsp_size_per_thread : nullptr;
 
-        auto pMatMul0In1 = reinterpret_cast<uint8_t*>(pTranspose1Out_aux);
+        auto* pMatMul0In1 = pTranspose1Out_aux;
         if (brgCopyBKernel0) {
             for (size_t nb = 0; nb < div_up(N0, N0_blk); nb++) {
-                auto pCopyKernel0In = pMatMul0In1 + nb * N0_blk * inputPrecisions[0].size();
-                auto pCopyKernel0Out =
+                auto* pCopyKernel0In = pMatMul0In1 + nb * N0_blk * inputPrecisions[0].size();
+                auto* pCopyKernel0Out =
                     bufferMatMul0In1_local + nb * N0_blk * brg0VnniFactor * inputPrecisions[0].size();
 
                 auto ctx = jit_brgemm_matmul_copy_b_t::ctx_t();
@@ -1413,12 +1413,12 @@ void MHA::mhaImpl() {
             pMatMul0In1 = bufferMatMul0In1_local;
         }
 
-        auto pMatMul1In1 = pTranspose2In0_aux;
+        const auto* pMatMul1In1 = pTranspose2In0_aux;
         if (brgCopyBKernel1) {
             for (size_t nb = 0; nb < div_up(N1, N1_blk); nb++) {
-                auto pCopyKernel1In = pMatMul1In1 + nb * N1_blk * inputPrecisions[3].size();
-                auto pCopyKernel1Out = reinterpret_cast<uint8_t*>(bufferMatMul1In1_local) +
-                                       nb * N1_blk * brg1VnniFactor * inputPrecisions[3].size();
+                const auto* pCopyKernel1In = pMatMul1In1 + nb * N1_blk * inputPrecisions[3].size();
+                auto* pCopyKernel1Out =
+                    bufferMatMul1In1_local + nb * N1_blk * brg1VnniFactor * inputPrecisions[3].size();
 
                 auto ctx = jit_brgemm_matmul_copy_b_t::ctx_t();
 
@@ -1435,14 +1435,14 @@ void MHA::mhaImpl() {
                 (*brgCopyBKernel1)(&ctx);
             }
 
-            pMatMul1In1 = reinterpret_cast<uint8_t*>(bufferMatMul1In1_local);
+            pMatMul1In1 = bufferMatMul1In1_local;
         }
 
         for (size_t mb = 0; mb < div_up(M, M_blk); mb++) {
             const bool is_M_tail = (M - mb * M_blk < M_blk);
             auto cur_M_blk = is_M_tail ? M_tail : M_blk;
 
-            auto pMatMul0In0 = pTranspose0In0_aux + (mb * M_blk * batch1 * K0) * inputPrecisions[0].size();
+            const auto* pMatMul0In0 = pTranspose0In0_aux + (mb * M_blk * batch1 * K0) * inputPrecisions[0].size();
 
             // TODO: matrix A copy should be performed to enable AMX matmuls for arbitrary shapes
             // if (brgCopyAKernel0) {
@@ -1469,7 +1469,7 @@ void MHA::mhaImpl() {
             //     pMatMul0In0 = reinterpret_cast<const data_type*>(bufferMatMul0In0_local);
             // }
 
-            auto pMatMul0Out = bufferMatMul0Out_local;
+            auto* pMatMul0Out = bufferMatMul0Out_local;
 
             size_t brgIdx0 = getBrgIdx(0, 0, 0);
             size_t K0_step0 = brgCtxs0[brgIdx0].K;
@@ -1481,8 +1481,8 @@ void MHA::mhaImpl() {
                     size_t mIdx = is_M_tail ? 1 : 0;
                     auto& brgemmCtx = brgCtxs0[getBrgIdx(mIdx, k, n)];
 
-                    auto wsp = brgemmCtx.is_with_comp ? reinterpret_cast<void*>(bufferCompensation0_aux + n * N0_step1)
-                                                      : reinterpret_cast<void*>(wsp_local);
+                    auto* wsp = brgemmCtx.is_with_comp ? reinterpret_cast<void*>(bufferCompensation0_aux + n * N0_step1)
+                                                       : reinterpret_cast<void*>(wsp_local);
 
                     if (brgemmCtx.K != 0 && brgemmCtx.N != 0) {
                         callBrgemm(brgemmCtx,
@@ -1495,7 +1495,7 @@ void MHA::mhaImpl() {
                 }
             }
 
-            auto pMulIn1 = reinterpret_cast<float*>(mulScales.empty() ? nullptr : mulScales.data());
+            auto* pMulIn1 = reinterpret_cast<float*>(mulScales.empty() ? nullptr : mulScales.data());
             for (size_t m = 0; m < cur_M_blk; m++) {
                 jit_mul_add_softmax_call_args call_args;
                 call_args.p_in0 = pMatMul0Out + m * N0 * accPrecision0.size();
@@ -1509,11 +1509,11 @@ void MHA::mhaImpl() {
                 (*mulAddSoftmaxKernel)(&call_args);
             }
 
-            auto pMatMul1In0 = bufferMatMul0Out_local;
-            auto pOut_aux = pout + (i0 * strOut[0] + i1 * strOut[2]) * outPrcSize;
+            auto* pMatMul1In0 = bufferMatMul0Out_local;
+            auto* pOut_aux = pout + (i0 * strOut[0] + i1 * strOut[2]) * outPrcSize;
 
-            auto pMatMul1Out = outputPrecision == ov::element::f32 ? pOut_aux + (mb * M_blk * batch1 * N1) * outPrcSize
-                                                                   : bufferMatMul1Out_local;
+            auto* pMatMul1Out = outputPrecision == ov::element::f32 ? pOut_aux + (mb * M_blk * batch1 * N1) * outPrcSize
+                                                                    : bufferMatMul1Out_local;
 
             size_t brgIdx1 = getBrgIdx(0, 0, 0);
             size_t K1_step0 = brgCtxs1[brgIdx1].K;
@@ -1525,8 +1525,8 @@ void MHA::mhaImpl() {
                     size_t mIdx = is_M_tail ? 1 : 0;
                     auto& brgemmCtx = brgCtxs1[getBrgIdx(mIdx, k, n)];
 
-                    auto wsp = brgemmCtx.is_with_comp ? reinterpret_cast<void*>(bufferCompensation1_aux + n * N1_step1)
-                                                      : reinterpret_cast<void*>(wsp_local);
+                    auto* wsp = brgemmCtx.is_with_comp ? reinterpret_cast<void*>(bufferCompensation1_aux + n * N1_step1)
+                                                       : reinterpret_cast<void*>(wsp_local);
 
                     if (brgemmCtx.K != 0 && brgemmCtx.N != 0) {
                         callBrgemm(brgemmCtx,

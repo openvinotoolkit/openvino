@@ -33,12 +33,12 @@ private:
     static VectorDims get_blk_order(size_t shape_rank);
     static VectorDims get_blk_shape(const VectorDims& planar_shape, ov::element::Type prc);
 
-    void update_kernel(const RepackExecutorPtr& executor,
-                       const VectorDims& shape,
-                       const VectorDims& layout,
-                       size_t N,
-                       size_t K,
-                       ov::element::Type prc);
+    static void update_kernel(const RepackExecutorPtr& executor,
+                              const VectorDims& shape,
+                              const VectorDims& layout,
+                              size_t N,
+                              size_t K,
+                              ov::element::Type prc);
 
     static const size_t brgemm_kernel_rank;
     std::unordered_map<size_t, RepackExecutorPtr> m_executors;

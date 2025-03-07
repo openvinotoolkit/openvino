@@ -45,7 +45,8 @@ protected:
                   size_t step,
                   const Xbyak::Reg64& end,
                   std::function<void(const Xbyak::Reg64&)> && fn) {
-        Label loop, exit;
+        Label loop;
+        Label exit;
 
         L(loop);
         cmp(idx, end);
@@ -135,7 +136,6 @@ protected:
         uni_vtestps(b, b);                      // if (b != 0) CF = 1 else CF = 0
     }
 
-protected:
     Label exit, has_target_values, no_target_values;
 
     const Reg64& reg_src = rax;
@@ -403,8 +403,7 @@ void Input::cloneBlobIfRequired() {
                 return;
             }
             // Only bf16 inferencePrecision cases need to be checked for saturation
-            const bool do_bf16_saturation_check =
-                (context->getConfig().inferencePrecision == ov::element::bf16) ? true : false;
+            const bool do_bf16_saturation_check = context->getConfig().inferencePrecision == ov::element::bf16;
 
 #if defined(OPENVINO_ARCH_X86_64)
             auto fn = jit_has_subnormals_function();
@@ -417,7 +416,7 @@ void Input::cloneBlobIfRequired() {
                 std::atomic<bool> has_bf16_overflows_local(false);
                 if (needFlushDenormalsToZero || do_bf16_saturation_check) {
                     parallel_for(iterations_num, [&](int n) {
-                        auto ptr = u32data + n * batch_size;
+                        const auto* ptr = u32data + n * batch_size;
                         jit_has_special_value_base::args_t args = {reinterpret_cast<float const*>(ptr),
                                                                    std::min(batch_size, (size_t)(u32data + size - ptr)),
                                                                    false};
@@ -489,8 +488,8 @@ void Input::cloneBlobIfRequired() {
         } else {
             if (m_constOp->get_element_type() == element::string) {
                 memory = std::make_shared<StringMemory>(getEngine(), memDesc);
-                auto src = m_constOp->get_data_ptr<StringMemory::OvString>();
-                auto dst = memory->getDataAs<StringMemory::OvString>();
+                const auto* src = m_constOp->get_data_ptr<StringMemory::OvString>();
+                auto* dst = memory->getDataAs<StringMemory::OvString>();
                 std::copy(src, src + size, dst);
             } else {
                 memory = std::make_shared<Memory>(getEngine(), memDesc);
@@ -656,7 +655,7 @@ void Input::initOptimalPrimitiveDescriptor() {
 }
 
 void Input::selectOptimalPrimitiveDescriptor() {
-    if (!(m_useParentMemoryDescForOutput && getType() == Type::Output)) {
+    if (!m_useParentMemoryDescForOutput || getType() != Type::Output) {
         return Node::selectOptimalPrimitiveDescriptor();
     }
 

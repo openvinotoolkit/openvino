@@ -186,14 +186,14 @@ struct Work {
     int blk_K_size = 0;
     int output_id;
     void* p_raw_weights;
-    operator bool() {
+    operator bool() const {
         return BN > 0;
     }
 
     bool quant_i8 = false;
     bool is_f16 = false;
 
-    MKernel& get_MKernel() {
+    MKernel& get_MKernel() const {
         constexpr int BM = 256;
         static MKernel jit_amx_bf16(BM, TMUL_TYPE::BF16);
         static MKernel jit_amx_f16(BM, TMUL_TYPE::FP16);
@@ -207,8 +207,8 @@ struct Work {
         return jit_amx_bf16;
     }
 
-    MKernel& get_MKernel_1x2() {
-        static MKernel jit_amx_bf16(16, TMUL_TYPE::BF16);
+    MKernel& get_MKernel_1x2(
+    const       static MKernel jit_amx_bf16(16, TMUL_TYPE::BF16);
         static MKernel jit_amx_f16(16, TMUL_TYPE::FP16);
         static MKernel jit_amx_i8(16, TMUL_TYPE::SSD);
         if (quant_i8) {
@@ -218,13 +218,13 @@ struct Work {
             return jit_amx_f16;
         }
         return jit_amx_bf16;
-    }
+    };
 
     // input : weight [N, K], setup repacks range of N [n_start, n_end)
     template <typename Tsrc, typename Tdst>
     void setup(Tdst* dst, Tsrc* p_weight, int stride_in_bytes, bool do_sum_per_oc = false) {
         auto& mkernel = get_MKernel();
-        auto num_blk_K = (k1 - k0 + blk_K_size - 1) / blk_K_size;
+        auto num_blk_K = (Xbyak::util::k1- k0 + blk_K_size - 1) / blk_K_size;
         auto* pw = p_weight + n0 * stride_in_bytes / sizeof(Tsrc);
 
         if (do_sum_per_oc) {
@@ -327,7 +327,7 @@ struct Work {
 
         auto C_stride_bytes = BN * sizeof(float);
         OPENVINO_ASSERT(C_M * C_stride_bytes <= m_C.stride_bytes(0) * m_C.size(0));
-        auto pC = reinterpret_cast<uint8_t*>(m_C.ptr_v());
+        auto *pC = reinterpret_cast<uint8_t*>(m_C.ptr_v());
 
         auto element_size = quant_i8 ? sizeof(int8_t) : sizeof(ov::bfloat16);
 
@@ -407,7 +407,7 @@ struct Work {
 struct WeightBuffer {
     PlainTensor buffer;
     std::vector<size_t> offsets;
-    void alloc(std::vector<Work>& works, int element_size) {
+    static void alloc(std::vector<Work>& works, int element_size) {
         size_t weight_size = 0;
         for (auto& work : works) {
             offsets.push_back(weight_size);
@@ -434,10 +434,10 @@ struct ScratchBuffAllocator {
         m_total_size += size;
         m_sizes.push_back(size);
     }
-    size_t size() {
+    size_t size() const {
         return m_total_size;
     }
-    void finalize(void* base) {
+    static void finalize(void* base) {
         auto* ptr = reinterpret_cast<uint8_t*>(base);
         for (size_t i = 0; i < m_allocs.size(); i++) {
             m_allocs[i](ptr);
@@ -457,12 +457,12 @@ struct MatrixDynQuantPerRow {
 
     MatrixDynQuantPerRow() = default;
 
-    size_t size() {
+    size_t size()const {
         // size of data & scale & zp
         return M * K + M * sizeof(float) * 2;
     }
 
-    size_t stride() {
+    size_t stride(  {
         return K;
     }
 
@@ -494,7 +494,7 @@ public:
 
     void generate() override;
 
-    void call(float* src, size_t src_stride, void* pv_dst, size_t dst_stride, int num_rows, int num_cols) {
+    void call(constfloat* src, size_t src_stride, void* pv_dst, size_t dst_stride, int num_rows, int num_cols) {
         auto* dst = reinterpret_cast<int16_t*>(pv_dst);
         for (int m = 0; m < num_rows; m++, src += src_stride, dst += dst_stride) {
             auto* prefetch_dst = (m + 1 < num_rows) ? (dst + dst_stride) : (dst);

@@ -185,9 +185,9 @@ static MemoryPtr prepareWeightMemory(const std::vector<MemoryCPtr>& src, const E
     return create();
 }
 
-void AclDeconvExecutor::exec(const std::vector<MemoryCPtr>& src,
-                             const std::vector<MemoryPtr>& dst,
-                             const void* post_ops_data_) {
+static void AclDeconvExecutor::exec(const std::vector<MemoryCPtr>& src,
+                                    const std::vector<MemoryPtr>& dst,
+                                    const void* post_ops_data_) {
     // TODO: Remove transpose from exec
     auto newWei = prepareWeightMemory(src, context);
 
@@ -205,9 +205,9 @@ void AclDeconvExecutor::exec(const std::vector<MemoryCPtr>& src,
         biasTensor.allocator()->free();
 }
 
-bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs& deconvAttrs,
-                                                 const std::vector<MemoryDescPtr>& srcDescs,
-                                                 const std::vector<MemoryDescPtr>& dstDescs) {
+static bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs& deconvAttrs,
+                                                        const std::vector<MemoryDescPtr>& srcDescs,
+                                                        const std::vector<MemoryDescPtr>& dstDescs) {
     if ((srcDescs[0]->getShape().getDims().size() != 3 && srcDescs[0]->getShape().getDims().size() != 4) ||
         dstDescs[0]->getShape().getDims().size() != srcDescs[0]->getShape().getDims().size() ||
         srcDescs[1]->getShape().getDims().size() != 4) {

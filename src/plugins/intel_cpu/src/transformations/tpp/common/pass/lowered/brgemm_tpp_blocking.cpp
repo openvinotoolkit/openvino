@@ -31,13 +31,17 @@ std::shared_ptr<snippets::lowered::pass::PassBase> BrgemmTPPBlocking::SetBrgemmB
 }
 
 std::tuple<size_t, size_t, size_t> BrgemmTPPBlocking::get_blocking_params(
-    const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const {
-    size_t m, n, k;
+    const ov::snippets::lowered::ExpressionPtr& brgemm_expr) {
+    size_t m;
+    size_t n;
+    size_t k;
     std::tie(m, n, k) = get_brgemm_dimensions(brgemm_expr);
     OPENVINO_ASSERT(!is_dynamic_value(m) && !is_dynamic_value(n) && !is_dynamic_value(n),
                     "BrgemmTPP doesn't support dynamic shapes");
 
-    size_t m_blk, n_blk, k_blk;
+    size_t m_blk;
+    size_t n_blk;
+    size_t k_blk;
     std::tie(m_blk, n_blk, k_blk) = BrgemmBlockingBase::get_blocking_params(brgemm_expr);
 
     auto get_projected_blk = [](const size_t dim, const size_t blk) {
@@ -47,7 +51,7 @@ std::tuple<size_t, size_t, size_t> BrgemmTPPBlocking::get_blocking_params(
 }
 
 ov::snippets::lowered::SpecificIterationHandlers BrgemmTPPBlocking::get_k_loop_handlers(size_t work_amount,
-                                                                                        size_t block_size) const {
+                                                                                        size_t block_size) {
     ov::snippets::lowered::SpecificIterationHandlers handlers =
         ov::snippets::lowered::pass::BrgemmBlockingBase::get_k_loop_handlers(work_amount, block_size);
     handlers.register_pass<ov::snippets::lowered::SpecificLoopIterType::FIRST_ITER, SetBrgemmBeta>();

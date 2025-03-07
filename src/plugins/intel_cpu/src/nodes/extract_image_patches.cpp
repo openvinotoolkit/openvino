@@ -102,7 +102,7 @@ private:
     Opmask k_mask = Xbyak::Opmask(1);
     Xbyak::Label gather_index_table;
 
-    inline void load_scalar(Vmm vmm_arg, const Xbyak::Address& op) {
+    void load_scalar(Vmm vmm_arg, const Xbyak::Address& op) {
         auto xmm_src = Xmm(vmm_arg.getIdx());
         switch (jpp.dtype_size) {
         case 4:
@@ -118,7 +118,7 @@ private:
             OPENVINO_THROW("The data type of size '", jpp.dtype_size, "' is not supported.");
         }
     }
-    inline void store_scalar(const Xbyak::Address& op, Vmm vmm_arg) {
+    void store_scalar(const Xbyak::Address& op, Vmm vmm_arg) {
         auto xmm_dst = Xmm(vmm_arg.getIdx());
         switch (jpp.dtype_size) {
         case 4:
@@ -135,8 +135,10 @@ private:
         }
     }
 
-    inline void pad_with_zeros(reg64_t& reg_num_pads_arg, reg64_t& reg_dst_arg) {
-        Xbyak::Label main, tail, exit;
+    void pad_with_zeros(reg64_t& reg_num_pads_arg, reg64_t& reg_dst_arg) {
+        Xbyak::Label main;
+        Xbyak::Label tail;
+        Xbyak::Label exit;
         L(main);
         {
             cmp(reg_num_pads_arg, jpp.block_size);
@@ -158,7 +160,7 @@ private:
         L(exit);
     }
 
-    inline void custom_uni_vgatherdps(const Vmm& vmm_arg, reg64_t& mem_base, const Vmm& mem_offset, Vmm& vmm_mask) {
+    void custom_uni_vgatherdps(const Vmm& vmm_arg, reg64_t& mem_base, const Vmm& mem_offset, Vmm& vmm_mask) {
         switch (isa) {
         case x64::avx2:
             uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
@@ -176,7 +178,7 @@ private:
         }
     }
 
-    inline void gather_src2vmm(const Vmm& vmm_arg, reg64_t& mem_base) {
+    void gather_src2vmm(const Vmm& vmm_arg, reg64_t& mem_base) {
         switch (jpp.dtype_size) {
         case 4:
             custom_uni_vgatherdps(vmm, mem_base, vmm_gather_index, vmm_gather_mask);
@@ -190,7 +192,7 @@ private:
         }
     }
 
-    inline void emulate_gather(const Xbyak::Xmm& xmm_arg, reg64_t& mem_base, int xmm_offset = 0) {
+    void emulate_gather(const Xbyak::Xmm& xmm_arg, reg64_t& mem_base, int xmm_offset = 0) {
         const int xmm_size = 16;  // bytes
         const int xmm_block_size = xmm_size / jpp.dtype_size;
         const int offset = xmm_offset * jpp.SW * jpp.dtype_size * xmm_block_size;
@@ -211,14 +213,14 @@ private:
             }
         }
     }
-    inline void emulate_gather(const Xbyak::Ymm& ymm_arg, reg64_t& mem_base) {
+    void emulate_gather(const Xbyak::Ymm& ymm_arg, reg64_t& mem_base) {
         auto low_xmm = Xbyak::Xmm(ymm_arg.getIdx());
         emulate_gather(low_xmm, mem_base, 0);
         emulate_gather(xmm_aux, mem_base, 1);
         vinserti128(ymm_arg, ymm_arg, xmm_aux, 1);
     }
 
-    inline void emulate_gather(const Xbyak::Zmm& zmm_arg, reg64_t& mem_base) {
+    void emulate_gather(const Xbyak::Zmm& zmm_arg, reg64_t& mem_base) {
         auto low_xmm = Xbyak::Xmm(zmm_arg.getIdx());
         emulate_gather(low_xmm, mem_base, 0);
         for (int i = 1; i < 4; i++) {
@@ -232,8 +234,12 @@ private:
         // reg_num_pads contains h_lo_pad at this point
         sub(reg_oh_count, reg_num_pads);
 
-        Xbyak::Label ih_loop, ih_tail, ih_exit;
-        Xbyak::Label iw_loop, iw_tail, iw_exit;
+        Xbyak::Label ih_loop;
+        Xbyak::Label ih_tail;
+        Xbyak::Label ih_exit;
+        Xbyak::Label iw_loop;
+        Xbyak::Label iw_tail;
+        Xbyak::Label iw_exit;
         if (jpp.need_padding) {
             mul_by_const(reg_num_pads, reg_aux64, jpp.OW);
             pad_with_zeros(reg_num_pads, reg_dst);
@@ -458,8 +464,8 @@ void ExtractImagePatches::initSupportedPrimitiveDescriptors() {
 
 void ExtractImagePatches::execute(const dnnl::stream& strm) {
     if (execPtr) {
-        auto src = getSrcDataAtPort(0);
-        auto dst = getDstDataAtPort(0);
+        auto* src = getSrcDataAtPort(0);
+        auto* dst = getDstDataAtPort(0);
         const auto inStrides = getParentEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
         const auto outStrides = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
         execPtr->exec(src, dst, inStrides, outStrides);

@@ -547,7 +547,8 @@ void StridedSlice::StridedSliceCommonExecutor::dimsNormalization() {
         dim = dim >= 0 ? dim : shift + dim;
     };
 
-    VectorDims newSrcDims, newDstDims;
+    VectorDims newSrcDims;
+    VectorDims newDstDims;
     std::vector<int> beginTemp;
     std::vector<int> endTemp;
     std::vector<int> strideTemp;
@@ -773,7 +774,8 @@ void StridedSlice::StridedSliceCommonExecutor::indicesCalculation() {
     };
 
     parallel_nt(nThreads, [&](const int ithr, const int nthr) {
-        size_t start = 0, end = 0;
+        size_t start = 0;
+        size_t end = 0;
         VectorDims coords(params.nDimsForWork, 0);
         splitter(workAmount, nthr, ithr, start, end);
         parallel_init(start, params.nDimsForWork, params.dstBlockedDims, coords);
@@ -827,7 +829,8 @@ void StridedSlice::StridedSliceCommonExecutor::execStridedSlice(const std::vecto
     auto* dstData = dstMemory[0]->getDataAs<uint8_t>();
     const uint8_t* srcShiftedData = srcData + srcShift;
     parallel_nt(nThreads, [&](const int ithr, const int nthr) {
-        size_t start = 0, end = 0;
+        size_t start = 0;
+        size_t end = 0;
         splitter(workAmount, nthr, ithr, start, end);
 
         for (size_t iwork = start; iwork < end; ++iwork) {
@@ -848,7 +851,8 @@ void StridedSlice::StridedSliceCommonExecutor::execSliceScatter(const std::vecto
     }
     uint8_t* dstShiftedData = dstData + srcShift;
     parallel_nt(nThreads, [&](const int ithr, const int nthr) {
-        size_t start = 0, end = 0;
+        size_t start = 0;
+        size_t end = 0;
         splitter(workAmount, nthr, ithr, start, end);
 
         for (size_t iwork = start; iwork < end; ++iwork) {

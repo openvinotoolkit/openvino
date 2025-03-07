@@ -14,7 +14,7 @@ public:
     ShlFCExecutor(const FCAttrs& attrs,
                   const PostOps& postOps,
                   const MemoryArgs& memory,
-                  const ExecutorContext::CPtr context);
+                  ExecutorContext::CPtr context);
 
     void execute(const MemoryArgs& memory) override;
 
@@ -28,11 +28,11 @@ public:
     static bool supports(const FCConfig& config);
 
 private:
-    ShlTensor src = {};
-    ShlTensor wei = {};
-    ShlTensor dst = {};
-    ShlTensor bias = {};
-    ShlSession sess = {};
+    ShlTensor src;
+    ShlTensor wei;
+    ShlTensor dst;
+    ShlTensor bias;
+    ShlSession sess;
     ShlFCParams params = {};
 
     const MemoryCPtr packedWeights;

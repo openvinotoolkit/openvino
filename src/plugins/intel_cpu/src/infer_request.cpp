@@ -88,7 +88,7 @@ void SyncInferRequest::infer() {
     }
 
     convert_batched_tensors();
-    if (m_batched_tensors.size() > 0) {
+    if (!m_batched_tensors.empty()) {
         // batched_tensors will be updated for each infer, external_ptr should be update together
         update_external_tensor_ptrs();
     }
@@ -164,19 +164,19 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
     for (auto& it : m_input_external_ptr) {
         auto inputNodePtr = graph.getInputNodeByIndex(it.first);
         OPENVINO_ASSERT(inputNodePtr, "Cannot find input tensor with index: ", it.first);
-        if (inputNodePtr->getDstDataAtPort(0) == static_cast<void*>(it.second->data())) {
+        if (inputNodePtr->getDstDataAtPort(0) == it.second->data()) {
             continue;
         }
-        auto& childEdges = inputNodePtr->getChildEdges();
+        const auto& childEdges = inputNodePtr->getChildEdges();
         // Perform checks that the user's memory will not be modified
         bool canBeInPlace = true;
-        for (auto& childEdge : childEdges) {
+        for (const auto& childEdge : childEdges) {
             auto ce = childEdge.lock();
             if (!ce) {
                 OPENVINO_THROW("Node ", inputNodePtr->getName(), " contains empty child edge");
             }
 
-            auto& child = ce->getChild();
+            const auto& child = ce->getChild();
 
             if (child->isConstant()) {
                 canBeInPlace = false;
@@ -201,7 +201,7 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
             }
         }
         if (canBeInPlace) {
-            for (auto& edge : childEdges) {
+            for (const auto& edge : childEdges) {
                 auto e = edge.lock();
                 if (!e) {
                     OPENVINO_THROW("Node ", inputNodePtr->getName(), " contains empty child edge");
@@ -216,7 +216,7 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
         OPENVINO_ASSERT(output, "Cannot find output tensor with index: ", it.first);
         auto parentEdge = output->getParentEdgeAt(0);
         void* const outputRawPtr = parentEdge->getMemory().getData();
-        if (outputRawPtr == static_cast<void*>(it.second->data())) {
+        if (outputRawPtr == it.second->data()) {
             continue;
         }
 
@@ -236,8 +236,8 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
                 break;
             }
 
-            auto& parentEdges = parent->getParentEdges();
-            for (auto& edge : parentEdges) {
+            const auto& parentEdges = parent->getParentEdges();
+            for (const auto& edge : parentEdges) {
                 auto e = edge.lock();
                 if (!e) {
                     OPENVINO_THROW("Node ", parent->getName(), " contains empty parent edge");
@@ -349,8 +349,8 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
     // WA: legacy api create blob with ANY layout will not set BlockingDesc, which will lead to tensor.get_shape()
     // return empty shape but tensor.get_size() return correct value, and tensor.reshape() cannot update
     // BlockingDesc, so to construct new tensor with original tensor's data, which is only for ov legacy api usage.
-    if (in_port.get_partial_shape().is_static() && in_tensor->get_size() > 0 && in_tensor->get_shape().size() == 0 &&
-        in_tensor->get_size() == ov::shape_size(in_port.get_shape()) && in_port.get_shape().size() > 0) {
+    if (in_port.get_partial_shape().is_static() && in_tensor->get_size() > 0 && in_tensor->get_shape().empty() &&
+        in_tensor->get_size() == ov::shape_size(in_port.get_shape()) && !in_port.get_shape().empty()) {
         tensor = ov::make_tensor(in_tensor->get_element_type(), in_port.get_shape(), in_tensor->data());
     }
     auto port_found = find_port(in_port);
@@ -580,7 +580,6 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
     if (!tensor) {
         OPENVINO_THROW("Cannot find tensor with index: ", port_index);
     }
-    return;
 }
 
 void SyncInferRequest::push_input_data(Graph& graph) {
@@ -619,7 +618,7 @@ void SyncInferRequest::sub_streams_infer() {
 
     size_t requests_num = requests.size();
 
-    if (requests.size() > 0) {
+    if (!requests.empty()) {
         for (const auto& output : outputs) {
             auto tensor = requests[0]->get_tensor(output);
             set_tensor(output, tensor);

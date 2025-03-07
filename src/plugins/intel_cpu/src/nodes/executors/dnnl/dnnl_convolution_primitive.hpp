@@ -40,19 +40,19 @@ public:
 
     void execute(const dnnl_primitive_args& primArgs) const;
 
-    [[nodiscard]] const DnnlMemoryDescPtr srcDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr srcDesc() const {
         return m_srcDesc;
     }
 
-    [[nodiscard]] const DnnlMemoryDescPtr dstDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr dstDesc() const {
         return m_dstDesc;
     }
 
-    [[nodiscard]] const DnnlMemoryDescPtr weightsDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr weightsDesc() const {
         return m_weiDesc;
     }
 
-    [[nodiscard]] const DnnlMemoryDescPtr scratchPadDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr scratchPadDesc() const {
         return m_scratchPadDesc;
     }
 
@@ -69,11 +69,11 @@ public:
                                                             const PostOps& postOps,
                                                             const MemoryArgs& memory,
                                                             const ExecutorContext::CPtr& context,
-                                                            const bool cacheWeights);
+                                                            bool cacheWeights);
 
     static std::shared_ptr<DnnlConvolutionPrimitive> create(const MemoryArgs& memory,
                                                             const ConvAttrs& attrs,
-                                                            const ExecutorContext::CPtr context,
+                                                            ExecutorContext::CPtr context,
                                                             const DnnlShapeAgnosticDataPtr& shapeAgnosticData);
 
 private:

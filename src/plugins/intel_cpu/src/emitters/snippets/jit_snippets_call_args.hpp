@@ -59,7 +59,7 @@ struct jit_snippets_call_args::loop_args_t {
     loop_args_t& operator=(loop_args_t other);
     friend void swap(loop_args_t& first, loop_args_t& second) noexcept;
 
-    void init_pointers_and_copy_data(const int64_t num_elements,
+    void init_pointers_and_copy_data(int64_t num_elements,
                                      const int64_t* ptr_increments,
                                      const int64_t* finalization_offsets);
 
@@ -70,8 +70,8 @@ struct jit_snippets_call_args::loop_args_t {
 };
 
 struct jit_snippets_compile_args {
-    std::vector<std::vector<size_t>> data_offsets = {};
-    std::vector<size_t> exec_domain = {};
+    std::vector<std::vector<size_t>> data_offsets;
+    std::vector<size_t> exec_domain;
 };
 
 }  // namespace ov::intel_cpu

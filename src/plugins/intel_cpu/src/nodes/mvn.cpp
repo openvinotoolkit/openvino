@@ -249,7 +249,7 @@ private:
     const int tile_size[kTileNum] = {8, 4, 2, 1};
 
     // nspc across channel
-    inline void nspc_ac_ker() {
+    void nspc_ac_ker() {
         Xbyak::Label loop_label;
         Xbyak::Label loop_end_label;
         L(loop_label);
@@ -279,7 +279,7 @@ private:
     }
 
     // nspc per channel with unroll
-    inline void nspc_pc_ker() {
+    void nspc_pc_ker() {
         // 4 unroll vector
         // r12, rax, rdx, rbp, r15, rcx and rdi is available
         // r13 is available as no fill need for this layout
@@ -557,7 +557,7 @@ private:
         L(label_exit);
     }
 
-    inline void block_ker() {
+    void block_ker() {
         // safe to use abi reg now.
         Xbyak::Reg64 reg_src_bk = rcx;
         Xbyak::Reg64 reg_work_amount_bk = rdi;
@@ -680,7 +680,7 @@ private:
         L(label_exit);
     }
 
-    inline void worker_vector_unroll() {
+    void worker_vector_unroll() {
         // if mean(sum) for continous data, then fast pass for major part
         if (!jcp_.normalize_variance && jcp_.layout == MVNLayoutType::mvn_planar) {
             auto vmm_one = Vmm(15);
@@ -746,7 +746,7 @@ private:
         L(loop_end_label);
     }
 
-    inline void worker_full_size() {
+    void worker_full_size() {
         load_emitter[VECTOR]->emit_code({static_cast<size_t>(reg_src.getIdx())},
                                         {static_cast<size_t>(vmm_val.getIdx())},
                                         {},
@@ -770,7 +770,7 @@ private:
         }
     }
 
-    inline void worker_tails(Xbyak::Reg64& reg_tail_num, const std::function<void(int)>& func) {
+    void worker_tails(Xbyak::Reg64& reg_tail_num, const std::function<void(int)>& func) {
         int tile_start_idx = (isa == cpu::x64::avx512_core) ? 0 : ((isa == cpu::x64::avx2) ? 1 : 2);
         Label tile_exit[kTileNum];
         for (int i = tile_start_idx; i < kTileNum; i++) {
@@ -784,7 +784,7 @@ private:
         }
     }
 
-    inline void worker_block(int block_num, bool is_zero_pad) {
+    void worker_block(int block_num, bool is_zero_pad) {
         if (is_zero_pad) {
             switch (block_num) {
             case 8:
@@ -879,7 +879,7 @@ private:
         }
     }
 
-    inline void reduce_sum_store_xmm(Xbyak::Xmm xmm_sum) {
+    void reduce_sum_store_xmm(Xbyak::Xmm xmm_sum) {
         uni_vmovshdup(xmm_aux3, xmm_sum);           //  sum:1,2,3,4; aux3:2,2,4,4
         uni_vaddps(xmm_sum, xmm_sum, xmm_aux3);     //  sum:1+2,2+2,3+4,4+4
         uni_vmovhlps(xmm_aux3, xmm_aux3, xmm_sum);  //  aux3:3+4,4+4,4,4
@@ -891,7 +891,7 @@ private:
         }
     }
 
-    inline void reduce_sum_store_vmm(int vmm_idx) {
+    void reduce_sum_store_vmm(int vmm_idx) {
         if (isa == cpu::x64::sse41) {
             reduce_sum_store_xmm(Xmm(vmm_idx));
         } else if (isa == cpu::x64::avx2) {
@@ -1128,7 +1128,7 @@ private:
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
     std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
 
-    inline void norm_block_ker() {
+    void norm_block_ker() {
         Xbyak::Reg64 reg_src_bk = rax;
         Xbyak::Reg64 reg_dst_bk = rdx;
         Xbyak::Reg64 reg_work_amount_bk = rdi;
@@ -1225,7 +1225,7 @@ private:
     }
 
     // nspc norm per channel with unroll
-    inline void norm_nspc_pc_ker() {
+    void norm_nspc_pc_ker() {
         // stack used as no more GPR.
         const int gpr_size = 8;
         sub(rsp, 7 * gpr_size);
@@ -1609,7 +1609,7 @@ private:
         add(rsp, 7 * gpr_size);
     }
 
-    inline void norm_nspc_ac_ker() {
+    void norm_nspc_ac_ker() {
         Xbyak::Reg64 reg_rt_shape_bk = rdx;
         Xbyak::Reg64 reg_oc_off_bk = rax;
         mov(reg_rt_shape_bk, reg_rt_shape);
@@ -1646,7 +1646,7 @@ private:
         L(loop_end_label);
     }
 
-    inline void worker_mvn_vector_unroll(Xbyak::Reg64& reg_work_amount) {
+    void worker_mvn_vector_unroll(Xbyak::Reg64& reg_work_amount) {
         Xbyak::Label mvn_loop_label;
         Xbyak::Label mvn_loop_end_label;
 
@@ -1673,7 +1673,7 @@ private:
         L(mvn_loop_end_label);
     }
 
-    inline void worker_mvn_vector() {
+    void worker_mvn_vector() {
         load_emitter[VECTOR]->emit_code({static_cast<size_t>(reg_src.getIdx())},
                                         {static_cast<size_t>(vmm_val.getIdx())},
                                         {},
@@ -1692,7 +1692,7 @@ private:
                                          {store_pool_gpr_idxs});
     }
 
-    inline void worker_mvn_tails(Xbyak::Reg64& reg_tail_num, const std::function<void(int)>& func) {
+    void worker_mvn_tails(Xbyak::Reg64& reg_tail_num, const std::function<void(int)>& func) {
         int tile_start_idx = (isa == cpu::x64::avx512_core) ? 0 : ((isa == cpu::x64::avx2) ? 1 : 2);
         Label tile_exit[kTileNum];
         for (int i = tile_start_idx; i < kTileNum; i++) {
@@ -1706,7 +1706,7 @@ private:
         }
     }
 
-    inline void worker_mvn_block(int block_num) {
+    void worker_mvn_block(int block_num) {
         switch (block_num) {
         case 8:
             load_emitter[TAIL8]->emit_code({static_cast<size_t>(reg_src.getIdx())},
@@ -2006,7 +2006,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
         config.inConfs[1].constant(true);
     }
 
-    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushDesc = [&](LayoutType format, impl_desc_type impl_type, bool useAclExecutor = false) {
         config.inConfs[0].setMemDesc(creatorsMap.at(format)->createSharedDesc(inputPrecision, getInputShapeAtPort(0)));
         config.outConfs[0].setMemDesc(
@@ -2191,7 +2191,7 @@ void MVN::prepareParams() {
     }
 #endif
 
-    auto selectedPD = getSelectedPrimitiveDescriptor();
+    auto* selectedPD = getSelectedPrimitiveDescriptor();
     mvnAttrs.src_prc = selectedPD->getConfig().inConfs[0].getMemDesc()->getPrecision();
     mvnAttrs.dst_prc = selectedPD->getConfig().outConfs[0].getMemDesc()->getPrecision();
     if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp)) {
@@ -2210,7 +2210,7 @@ void MVN::prepareParams() {
         std::vector<MemoryDescPtr> dstMemoryDescs;
         dstMemoryDescs.push_back(getDstMemoryAtPort(0)->getDescPtr());
 
-        auto selectedPD = getSelectedPrimitiveDescriptor();
+        auto* selectedPD = getSelectedPrimitiveDescriptor();
         aclExecPtr = selectedPD->getExecutorFactoryAs<MVNExecutorFactory>()->makeExecutor(mvnAttrs,
                                                                                           srcMemoryDescs,
                                                                                           dstMemoryDescs,
@@ -2359,9 +2359,9 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data,
                 size_t cc = cb + c * C2;
                 auto arg = jit_mvn_call_args();
                 arg.src = src_data + cc * src_data_size;
-                arg.sum = static_cast<float*>(&mean_internal);
-                arg.work_amount = static_cast<size_t>(C2 / blk_size);  // for vector part
-                arg.rt_shape_size = static_cast<size_t>(C2 % blk_size);
+                arg.sum = (&mean_internal);
+                arg.work_amount = (C2 / blk_size);  // for vector part
+                arg.rt_shape_size = (C2 % blk_size);
                 arg.post_op_data = post_ops_data_;
                 (*mvn_mean_kernel)(&arg);
                 return mean_internal;
@@ -2378,10 +2378,10 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data,
                     size_t cc = cb + c * C2;
                     auto arg = jit_mvn_call_args();
                     arg.src = src_data + cc * src_data_size;
-                    arg.mean = static_cast<float*>(&mean);
-                    arg.variance = static_cast<float*>(&variance_internal);
-                    arg.work_amount = static_cast<size_t>(C2 / blk_size);    // vector part
-                    arg.rt_shape_size = static_cast<size_t>(C2 % blk_size);  // for tails
+                    arg.mean = (&mean);
+                    arg.variance = (&variance_internal);
+                    arg.work_amount = (C2 / blk_size);    // vector part
+                    arg.rt_shape_size = (C2 % blk_size);  // for tails
                     arg.post_op_data = post_ops_data_;
                     (*mvn_variance_kernel)(&arg);
                     return variance_internal;
@@ -2400,10 +2400,10 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data,
                     auto arg = jit_mvn_call_args();
                     arg.src = src_data + cc * src_data_size;
                     arg.dst = dst_data + cc * dst_data_size;
-                    arg.mean = static_cast<float*>(&mean);
-                    arg.variance = static_cast<float*>(&variance);
-                    arg.work_amount = static_cast<size_t>(C2 / blk_size);    // work amount for vector part
-                    arg.rt_shape_size = static_cast<size_t>(C2 % blk_size);  // for tails
+                    arg.mean = (&mean);
+                    arg.variance = (&variance);
+                    arg.work_amount = (C2 / blk_size);    // work amount for vector part
+                    arg.rt_shape_size = (C2 % blk_size);  // for tails
                     arg.oc_off = sizeof(float) * c;
                     arg.post_op_data = post_ops_data_;
                     (*mvn_kernel)(&arg);
@@ -2415,9 +2415,9 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data,
                     auto arg = jit_mvn_call_args();
                     arg.src = src_data + cc * src_data_size;
                     arg.dst = dst_data + cc * dst_data_size;
-                    arg.mean = static_cast<float*>(&mean);
-                    arg.work_amount = static_cast<size_t>(C2 / blk_size);
-                    arg.rt_shape_size = static_cast<size_t>(C2 % blk_size);  // for tails
+                    arg.mean = (&mean);
+                    arg.work_amount = (C2 / blk_size);
+                    arg.rt_shape_size = (C2 % blk_size);  // for tails
                     arg.oc_off = sizeof(float) * c;
                     arg.post_op_data = post_ops_data_;
                     (*mvn_kernel)(&arg);
@@ -2436,9 +2436,9 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data,
             auto arg = jit_mvn_call_args();
             arg.src = src_data + cc * src_data_size;
             arg.dst = dst_data + cc * dst_data_size;
-            arg.sum = static_cast<float*>(&mean);
-            arg.work_amount = static_cast<size_t>(C2 / blk_size);
-            arg.rt_shape_size = static_cast<size_t>(C2 % blk_size);
+            arg.sum = (&mean);
+            arg.work_amount = (C2 / blk_size);
+            arg.rt_shape_size = (C2 % blk_size);
             arg.oc_off = static_cast<size_t>(c * sizeof(float));
             arg.post_op_data = post_ops_data_;
             (*mvn_mean_kernel)(&arg);
@@ -2448,8 +2448,8 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data,
             if (mvnAttrs.normalizeVariance_) {
                 // variance for this channel
                 float variance = 0.f;
-                arg.mean = static_cast<float*>(&mean);
-                arg.variance = static_cast<float*>(&variance);
+                arg.mean = (&mean);
+                arg.variance = (&variance);
                 (*mvn_variance_kernel)(&arg);
 
                 if (mvnAttrs.epsMode_ == INSIDE_SQRT) {
@@ -2462,7 +2462,7 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data,
                 (*mvn_kernel)(&arg);
             } else {
                 // mvn for this channel
-                arg.mean = static_cast<float*>(&mean);
+                arg.mean = (&mean);
                 (*mvn_kernel)(&arg);
             }
         });
@@ -2604,7 +2604,8 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data,
         // kernel_type: 0 for mean, 1 for variance, 2 for normalization
         auto worker = [&](const bool across_channel, const int kernel_type) {
             parallel_nt(threads_num, [&](const int ithr, const int nthr) {
-                size_t start = 0, end = 0;
+                size_t start = 0;
+                size_t end = 0;
                 splitter(D * H * W, nthr, ithr, start, end);
 
                 auto arg = jit_mvn_call_args();
@@ -2612,13 +2613,13 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data,
                 if (0 == kernel_type) {
                     arg.sum = &mean_buffer[aux_buffer_size * ithr];
                 } else if (1 == kernel_type) {
-                    arg.mean = &mean_buffer[0];
+                    arg.mean = mean_buffer.data();
                     arg.variance = &variance_buffer[aux_buffer_size * ithr];
                 } else if (2 == kernel_type) {
                     arg.dst = dst_data + (b_offset + (start * C)) * dst_data_size;
-                    arg.mean = &mean_buffer[0];
+                    arg.mean = mean_buffer.data();
                     if (mvnAttrs.normalizeVariance_) {
-                        arg.variance = &variance_buffer[0];
+                        arg.variance = variance_buffer.data();
                     }
                     arg.oc_off = 0;
                     arg.post_op_data = post_ops_data_;
@@ -2753,7 +2754,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                 if (thread_idx >= threads_num) {
                     return mean_internal;
                 }
-                auto mean_buffer_ptr = &mean_buffer[aux_buffer_size * thread_idx];
+                auto* mean_buffer_ptr = &mean_buffer[aux_buffer_size * thread_idx];
                 for (size_t i = 0; i < blk_size; i++) {
                     mean_buffer_ptr[i] = 0.f;
                 }
@@ -2782,7 +2783,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                     size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
 
                     float variance_internal = 0.0f;
-                    auto variance_buffer_ptr =
+                    auto* variance_buffer_ptr =
                         &variance_buffer[aux_buffer_size * static_cast<size_t>(parallel_get_thread_num())];
                     for (size_t i = 0; i < blk_size; i++) {
                         variance_buffer_ptr[i] = 0.f;
@@ -2790,7 +2791,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
 
                     auto arg = jit_mvn_call_args();
                     arg.src = src_data + src_offset * src_data_size;
-                    arg.mean = static_cast<float*>(&mean);
+                    arg.mean = (&mean);
                     arg.variance = variance_buffer_ptr;
                     arg.work_amount = static_cast<size_t>(W);
                     arg.rt_shape_size = (C - cb * blk_size) < blk_size ? static_cast<size_t>(C % blk_size) : 0;
@@ -2818,8 +2819,8 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                     auto arg = jit_mvn_call_args();
                     arg.src = src_data + src_offset * src_data_size;
                     arg.dst = dst_data + src_offset * dst_data_size;
-                    arg.mean = static_cast<float*>(&mean);
-                    arg.variance = static_cast<float*>(&variance);
+                    arg.mean = (&mean);
+                    arg.variance = (&variance);
                     arg.work_amount = static_cast<size_t>(W);
                     arg.rt_shape_size = (C - cb * blk_size) < blk_size ? static_cast<size_t>(C % blk_size) : 0;
                     arg.oc_off = cb * blk_size * sizeof(float);
@@ -2833,7 +2834,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                     auto arg = jit_mvn_call_args();
                     arg.src = src_data + src_offset * src_data_size;
                     arg.dst = dst_data + src_offset * dst_data_size;
-                    arg.mean = static_cast<float*>(&mean);
+                    arg.mean = (&mean);
                     arg.work_amount = static_cast<size_t>(W);
                     arg.rt_shape_size = (C - cb * blk_size) < blk_size ? static_cast<size_t>(C % blk_size) : 0;
                     arg.oc_off = cb * blk_size * sizeof(float);
@@ -2852,7 +2853,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
             auto dh_loop = [&](size_t thr_idx, size_t d, size_t h) {
                 for (size_t cb = 0; cb < CB; cb++) {
                     size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
-                    auto mean_buffer_ptr = &mean_buffer[blk_size * cb + aux_buffer_size * thr_idx];
+                    auto* mean_buffer_ptr = &mean_buffer[blk_size * cb + aux_buffer_size * thr_idx];
 
                     auto arg = jit_mvn_call_args();
                     arg.src = src_data + src_offset * src_data_size;
@@ -2886,8 +2887,8 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                 auto dh_loop = [&](size_t thr_idx, size_t d, size_t h) {
                     for (size_t cb = 0; cb < CB; cb++) {
                         size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
-                        auto mean_buffer_ptr = &mean_buffer[blk_size * cb];
-                        auto variance_buffer_ptr = &variance_buffer[blk_size * cb + aux_buffer_size * thr_idx];
+                        auto* mean_buffer_ptr = &mean_buffer[blk_size * cb];
+                        auto* variance_buffer_ptr = &variance_buffer[blk_size * cb + aux_buffer_size * thr_idx];
 
                         auto arg = jit_mvn_call_args();
                         arg.src = src_data + src_offset * src_data_size;
@@ -2921,8 +2922,8 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                 parallel_for2d(D, H, [&](size_t d, size_t h) {
                     for (size_t cb = 0; cb < CB; cb++) {
                         size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
-                        auto mean_buffer_ptr = &mean_buffer[blk_size * cb];
-                        auto variance_buffer_ptr = &variance_buffer[blk_size * cb];
+                        auto* mean_buffer_ptr = &mean_buffer[blk_size * cb];
+                        auto* variance_buffer_ptr = &variance_buffer[blk_size * cb];
 
                         auto arg = jit_mvn_call_args();
                         arg.src = src_data + src_offset * src_data_size;
@@ -2941,7 +2942,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                 parallel_for2d(D, H, [&](size_t d, size_t h) {
                     for (size_t cb = 0; cb < CB; cb++) {
                         size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
-                        auto mean_buffer_ptr = &mean_buffer[blk_size * cb];
+                        auto* mean_buffer_ptr = &mean_buffer[blk_size * cb];
 
                         auto arg = jit_mvn_call_args();
                         arg.src = src_data + src_offset * src_data_size;

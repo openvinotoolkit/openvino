@@ -52,20 +52,20 @@ const uintptr_t BinaryEltwiseTppEmitter::get_compiled_kernel_ptr() const {
     return COMPILE_TPP_KERNEL(libxsmm_dispatch_meltw_binary(m_op_type, m_shape, m_compile_flags));
 }
 
-std::set<std::vector<element::Type>> BinaryEltwiseTppEmitter::get_supported_precisions(
+static std::set<std::vector<element::Type>> BinaryEltwiseTppEmitter::get_supported_precisions(
     const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
-void BinaryEltwiseTppEmitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+static void BinaryEltwiseTppEmitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) {
     OV_CPU_JIT_EMITTER_ASSERT(in.size() == 2, "Expects 2 input registers, got " + std::to_string(in.size()));
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Expects 1 output register, got " + std::to_string(out.size()));
 }
 
-void BinaryEltwiseTppEmitter::execute_kernel(libxsmm_meltwfunction_binary eltwise_kernel,
-                                             void* in0,
-                                             void* in1,
-                                             void* out0) {
+static void BinaryEltwiseTppEmitter::execute_kernel(libxsmm_meltwfunction_binary eltwise_kernel,
+                                                    void* in0,
+                                                    void* in1,
+                                                    void* out0) {
     libxsmm_meltw_binary_param param;
     param.op.primary = nullptr;
     param.in0.primary = in0;
@@ -91,7 +91,7 @@ UnaryEltwiseTppEmitter::UnaryEltwiseTppEmitter(jit_generator* h, cpu_isa_t isa, 
         libxsmm_create_meltw_unary_shape(N, M, io_strides[0], io_strides[1], io_dtypes[0], io_dtypes[1], exec_dtype);
 }
 
-void UnaryEltwiseTppEmitter::execute_kernel(libxsmm_meltwfunction_unary eltwise_kernel, void* in0, void* out0) {
+static void UnaryEltwiseTppEmitter::execute_kernel(libxsmm_meltwfunction_unary eltwise_kernel, void* in0, void* out0) {
     libxsmm_meltw_unary_param param;
     param.op.primary = nullptr;
     param.in.primary = in0;
@@ -99,12 +99,12 @@ void UnaryEltwiseTppEmitter::execute_kernel(libxsmm_meltwfunction_unary eltwise_
     eltwise_kernel(&param);
 }
 
-std::set<std::vector<element::Type>> UnaryEltwiseTppEmitter::get_supported_precisions(
+static std::set<std::vector<element::Type>> UnaryEltwiseTppEmitter::get_supported_precisions(
     const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
-void UnaryEltwiseTppEmitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+static void UnaryEltwiseTppEmitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) {
     OV_CPU_JIT_EMITTER_ASSERT(in.size() == 1, "Expects 1 input registers, got " + std::to_string(in.size()));
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Expects 1 output register, got " + std::to_string(out.size()));
 }

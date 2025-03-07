@@ -76,7 +76,7 @@ const uintptr_t EquationTppEmitter::get_compiled_kernel_ptr() const {
     return COMPILE_TPP_KERNEL(libxsmm_dispatch_meqn(m_equation_id, m_out_shape));
 }
 
-std::set<std::vector<element::Type>> EquationTppEmitter::get_supported_precisions(
+static std::set<std::vector<element::Type>> EquationTppEmitter::get_supported_precisions(
     const std::shared_ptr<ov::Node>& node) {
     // Note: TPPs have build-in convert semantics, so the equations should support any input precision (specified when
     // created)
@@ -136,7 +136,7 @@ void EquationTppEmitter::emit_impl(const std::vector<size_t>& in, const std::vec
     spill.postamble();
 }
 
-void EquationTppEmitter::execute_kernel(libxsmm_meqn_function equation_kernel, int argc, void** argv) {
+static void EquationTppEmitter::execute_kernel(libxsmm_meqn_function equation_kernel, int argc, void** argv) {
     std::vector<libxsmm_matrix_arg> inputs(argc - 1);
     for (int i = 0; i < argc - 1; i++) {
         inputs[i].primary = argv[i];

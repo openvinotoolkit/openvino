@@ -17,7 +17,7 @@ class SnippetsMarkSkipped : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("SnippetsMarkSkipped");
     SnippetsMarkSkipped() : ModelPass() {}
-    bool run_on_model(const std::shared_ptr<ov::Model>&) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& /*m*/) override;
 };
 
 /*

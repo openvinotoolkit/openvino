@@ -32,7 +32,6 @@ public:
     using Ptr = std::shared_ptr<MemoryControl>;
     using CPtr = std::shared_ptr<const MemoryControl>;
 
-public:
     void insert(const MemoryRegions& regions, const std::vector<size_t>& syncInds);
 
     MemorySolution solve();
@@ -50,7 +49,6 @@ private:
 
     friend class NetworkMemoryControl;
 
-private:
     std::vector<RegionHandlerPtr> m_handlers;
     bool m_allocated = false;
 };

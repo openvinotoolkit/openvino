@@ -251,8 +251,8 @@ void DFT::execute(const dnnl::stream& strm) {
     const auto inputDataEdge = getParentEdgeAt(DATA_INDEX);
     const auto outputDataEdge = getChildEdgeAt(0);
 
-    const auto src = inputDataEdge->getMemoryPtr()->getDataAs<const float>();
-    auto dst = outputDataEdge->getMemoryPtr()->getDataAs<float>();
+    const auto* const src = inputDataEdge->getMemoryPtr()->getDataAs<const float>();
+    auto* dst = outputDataEdge->getMemoryPtr()->getDataAs<float>();
 
     const auto inputRank = inputDataEdge->getMemory().getShape().getRank();
 
@@ -468,7 +468,7 @@ void DFT::naiveDFT(float* data, size_t dataLength, bool inverse) const {
             float sumReal = 0.0f;
             float sumImag = 0.0f;
             for (size_t n = 0; n < nComplex; ++n) {
-                auto complexRef = &twiddles[2 * (k * nComplex + n)];
+                const auto* complexRef = &twiddles[2 * (k * nComplex + n)];
                 float complexReal = *complexRef;
                 float complexImag = *(complexRef + 1);
 
@@ -493,7 +493,7 @@ void DFT::naiveDFT(float* data, size_t dataLength, bool inverse) const {
     cpu_memcpy(data, outputBuffer.data(), dataLength * sizeof(float));
 }
 
-std::vector<float> DFT::generateTwiddlesDFT(size_t n_complex, bool inverse) const {
+std::vector<float> DFT::generateTwiddlesDFT(size_t n_complex, bool inverse) {
     std::vector<float> twiddles(n_complex * n_complex * 2);
     const float inverseMultiplier = inverse ? 1 : -1;
     parallel_for(n_complex, [&](const size_t k) {
@@ -513,7 +513,7 @@ void DFT::updateTwiddlesFFT(size_t n_complex, bool inverse) {
     size_t numBlocks = 1;
 
     twiddlesFFT.reserve((n_complex - 1) * 2);
-    if (twiddlesFFT.size() == 0) {
+    if (twiddlesFFT.empty()) {
         twiddlesFFT.emplace_back(1.0f);   //  cos(0)
         twiddlesFFT.emplace_back(-0.0f);  // -sin(0)
     } else {

@@ -101,11 +101,7 @@ bool JitEltwiseExecutor::isSupported(const Algorithm& algorithm,
                                           ov::element::i8,
                                           ov::element::u8};
 
-    if (!check_precisions(input_precisions, output_precisions, supported_precisions)) {
-        return false;
-    }
-
-    return true;
+    return check_precisions(input_precisions, output_precisions, supported_precisions);
 }
 
 JitEltwiseExecutor::JitEltwiseExecutor(ExecutorContext::CPtr context) : EltwiseExecutor(std::move(context)) {}

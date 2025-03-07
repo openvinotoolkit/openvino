@@ -20,7 +20,12 @@ inline std::vector<float> simplifyToScale(const std::shared_ptr<ov::opset8::Fake
     auto output_high =
         ov::as_type_ptr<ov::opset8::Constant>(fq_node->get_input_node_shared_ptr(4))->cast_vector<float>();
 
-    std::vector<float> cl, ch, isc, ish, osc, osh;
+    std::vector<float> cl;
+    std::vector<float> ch;
+    std::vector<float> isc;
+    std::vector<float> ish;
+    std::vector<float> osc;
+    std::vector<float> osh;
     for (float i : input_low) {
         cl.push_back(i);
     }

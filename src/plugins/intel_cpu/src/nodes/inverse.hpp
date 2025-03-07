@@ -25,7 +25,7 @@ public:
 
     void execute(const dnnl::stream& strm) override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
-    [[nodiscard]] bool canBeInPlace() const override {
+    [[nodiscard]] static bool canBeInPlace() override {
         return false;
     }
 
@@ -52,9 +52,9 @@ private:
                           std::vector<float>& L,
                           std::vector<float>& U,
                           std::vector<size_t>& P,
-                          size_t b);
+                          size_t b) const;
 
-    void lu_solve(float* output, std::vector<float>& L, std::vector<float>& U, std::vector<size_t>& P, size_t b);
+    void lu_solve(float* output, std::vector<float>& L, std::vector<float>& U, std::vector<size_t>& P, size_t b) const;
 };
 
 }  // namespace ov::intel_cpu::node

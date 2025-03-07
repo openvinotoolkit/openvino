@@ -58,7 +58,8 @@ void EmbeddingBag::processData(const T* srcData,
     auto* dstData = outMemory->getDataAs<T>();
 
     auto threadBody = [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
+        size_t start(0lu);
+        size_t end(0lu);
         splitter(outputBagsNum, nthr, ithr, start, end);
         if (start >= end) {
             return;

@@ -198,7 +198,7 @@ namespace ov::intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
-bool Transformations::is_decompression_multiply(const_node_ptr& node) const {
+static bool Transformations::is_decompression_multiply(const_node_ptr& node) {
     auto all_has_type = [](const std::set<ov::Input<ov::Node>>& consumers, const ov::DiscreteTypeInfo& type) {
         return std::all_of(consumers.begin(), consumers.end(), [&type](const ov::Input<ov::Node>& input) {
             return input.get_node()->get_type_info() == type;
@@ -211,16 +211,7 @@ bool Transformations::is_decompression_multiply(const_node_ptr& node) const {
     }
 
     auto are_converts_from_decompression = [&all_has_type](const std::set<ov::Input<ov::Node>>& consumers) {
-        if (!all_has_type(consumers, ov::opset1::Convert::get_type_info_static())) {
-            return false;
-        }
-        for (const auto& consumer : consumers) {
-            const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
-            if (!all_has_type(child_consumers, ov::opset1::MatMul::get_type_info_static())) {
-                return false;
-            }
-        }
-        return true;
+        return static_cast<bool>(all_has_type(consumers, ov::opset1::Convert::get_type_info_static()));
     };
 
     if (all_has_type(consumers, ov::opset1::Reshape::get_type_info_static())) {
@@ -253,8 +244,8 @@ bool Transformations::fuse_type_to_fq(const std::shared_ptr<ov::Node>& node, con
     }
 
     auto consumers = node->output(0).get_target_inputs();
-    for (auto& input : consumers) {
-        const auto consumer = input.get_node();
+    for (const auto& input : consumers) {
+        auto* const consumer = input.get_node();
         if (ov::is_type_any_of<ov::op::v0::Result, ov::op::v0::Convert>(consumer)) {
             continue;
         }
@@ -689,7 +680,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     auto nmsCallback = [](const_node_ptr& node) -> bool {
         // TODO: remove nmsCallback at all
         const bool isLegacyApi = false;
-        return isLegacyApi ? false : true;
+        return !isLegacyApi;
     };
 
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertNMS9ToNMSIEInternal);
@@ -1132,7 +1123,7 @@ void Transformations::MainSnippets() {
     // To avoid performance degradations, we disable MHA tokenization into Subgraphs in LLMs'.
     // We consider the presence of `ScaledDotProductAttentionWithKVCache` ops
     // in the model as a sign that this model is LLM.
-    const auto is_LLM = ov::op::util::is_large_language_model(*model.get()) ||
+    const auto is_LLM = ov::op::util::is_large_language_model(*model) ||
                         ov::op::util::has_op_with_type<intel_cpu::ScaledDotProductAttentionWithKVCache>(model);
 
     // CPU Plugin Subgraph supports f32, bf16, quantized and fp16(on avx_512_core_amx_fp16 target) BRGEMM

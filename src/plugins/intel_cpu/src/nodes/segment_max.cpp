@@ -17,7 +17,8 @@ SegmentMax::SegmentMax(const std::shared_ptr<ov::Node>& op, const GraphContext::
     fillMode = ov::as_type_ptr<const ov::op::v16::SegmentMax>(op)->get_fill_mode();
 }
 
-bool SegmentMax::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+static bool SegmentMax::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
+                                             std::string& errorMessage) noexcept {
     try {
         if (!ov::is_type<ov::op::v16::SegmentMax>(op)) {
             errorMessage = "Only opset16 SegmentMax operation is supported";
@@ -55,11 +56,11 @@ bool SegmentMax::created() const {
     return getType() == Type::SegmentMax;
 }
 
-bool SegmentMax::needPrepareParams() const {
+bool SegmentMax::needPrepareParams() {
     return false;
 }
 
-void SegmentMax::executeDynamicImpl(const dnnl::stream& strm) {
+static void SegmentMax::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 
     // Update lastSegmentIds
@@ -77,7 +78,7 @@ void SegmentMax::executeDynamicImpl(const dnnl::stream& strm) {
     }
 }
 
-bool SegmentMax::needShapeInfer() const {
+bool SegmentMax::needShapeInfer() {
     if (inputShapesModified()) {
         return true;
     }

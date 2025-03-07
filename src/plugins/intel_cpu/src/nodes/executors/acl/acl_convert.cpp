@@ -62,7 +62,7 @@ bool ACLConvertExecutor::init(const ConvertParams& convertParams,
     return true;
 }
 
-void ACLConvertExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
+void ACLConvertExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) const {
     assert(src.size() == 1);
     assert(dst.size() == 1);
 

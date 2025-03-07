@@ -70,7 +70,7 @@ struct gatherJitExecArgs {
 
 struct jitGatherKernelBase {
     void (*ker_)(const gatherJitExecArgs*){nullptr};
-    void operator()(const gatherJitExecArgs* args) {
+    void operator()(const gatherJitExecArgs* args) const {
         assert(ker_);
         ker_(args);
     }
@@ -82,13 +82,13 @@ struct jitGatherKernelBase {
     virtual ~jitGatherKernelBase() = default;
 
     virtual void create_ker() = 0;
-    uint64_t getVecLen() {
+    uint64_t getVecLen() const {
         return vlen;
     }
-    uint64_t getDataElPerVec() {
+    uint64_t getDataElPerVec() const {
         return dataElPerVec;
     }
-    uint64_t getIdxElPerVec() {
+    uint64_t getIdxElPerVec() const {
         return idxElPerVec;
     }
     virtual bool isSupportedConfiguration(uint64_t afterAxisSize) = 0;

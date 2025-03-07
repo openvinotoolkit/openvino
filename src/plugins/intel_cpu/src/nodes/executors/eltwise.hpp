@@ -109,7 +109,7 @@ public:
     [[nodiscard]] virtual bool isSupported(const EltwiseAttrs& eltwiseAttrs,
                                            const std::vector<MemoryDescPtr>& srcDescs,
                                            const std::vector<MemoryDescPtr>& dstDescs) const = 0;
-    [[nodiscard]] virtual EltwiseExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
+    [[nodiscard]] virtual EltwiseExecutorPtr makeExecutor(ExecutorContext::CPtr context) const = 0;
 };
 
 using EltwiseExecutorBuilderPtr = std::shared_ptr<EltwiseExecutorBuilder>;

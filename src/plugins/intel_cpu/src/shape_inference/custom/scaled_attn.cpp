@@ -75,7 +75,7 @@ private:
 ShapeInferPtr SDPAShapeInferFactory::makeShapeInfer() const {
     if (auto sdpa = ov::as_type_ptr<const ScaledDotProductAttentionWithKVCache>(m_op)) {
         const auto& config = sdpa->get_config();
-        if (config.output_BLHxS == false) {
+        if (!config.output_BLHxS) {
             return std::make_shared<SDPAShapeInfer>(config);
         }
     }

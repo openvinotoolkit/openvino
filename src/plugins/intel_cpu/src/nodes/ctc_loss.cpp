@@ -86,7 +86,8 @@ void CTCLoss::execute(const dnnl::stream& strm) {
     std::vector<std::string> errorMsgB(threads_num);
 
     auto threadBody_1 = [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
+        size_t start(0lu);
+        size_t end(0lu);
         splitter(batchNum, nthr, ithr, start, end);
         if (start >= end) {
             return;
@@ -151,11 +152,11 @@ void CTCLoss::execute(const dnnl::stream& strm) {
                 logProbabilities[ll].resize(decodedTargetLen);
             }
         }  // for batch
-    };     // threadBody_1
+    };  // threadBody_1
 
     parallel_nt(threads_num, threadBody_1);
     if (returnCode != 0) {
-        std::string resErr("");
+        std::string resErr;
         for (auto& err : errorMsgB) {
             if (!err.empty()) {
                 resErr += err + "\n";
@@ -172,13 +173,16 @@ void CTCLoss::execute(const dnnl::stream& strm) {
     }
 
     auto threadBody_2 = [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
-        size_t sB(0lu), sT(0lu);
+        size_t start(0lu);
+        size_t end(0lu);
+        size_t sB(0lu);
+        size_t sT(0lu);
         splitter(workAmount2, nthr, ithr, start, end);
         if (start >= end) {
             return;
         }
-        int64_t cw = 0, st = start;
+        int64_t cw = 0;
+        int64_t st = start;
         for (; sB < batchNum; sB++) {
             cw += logitsLength[sB];
             if (cw >= st) {
@@ -212,7 +216,7 @@ void CTCLoss::execute(const dnnl::stream& strm) {
             }
             sT = 0lu;
         }  // for batch
-    };     // threadBody_2
+    };  // threadBody_2
 
     parallel_nt(0, threadBody_2);
 
@@ -232,7 +236,8 @@ void CTCLoss::execute(const dnnl::stream& strm) {
     };
 
     auto threadBody_3 = [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
+        size_t start(0lu);
+        size_t end(0lu);
         splitter(batchNum, nthr, ithr, start, end);
         if (start >= end) {
             return;
@@ -276,7 +281,7 @@ void CTCLoss::execute(const dnnl::stream& strm) {
 
             dstData[b] = -sumLogs(logBwd[0][0], logBwd[1][0]);
         }  // for batch
-    };     // threadBody_3
+    };  // threadBody_3
 
     parallel_nt(0, threadBody_3);
 }

@@ -183,7 +183,7 @@ static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp)
         uint8_t shift = high_half ? 0 : 4;
         return dst | static_cast<uint8_t>(val << shift);
     };
-    auto dst_ptr = reinterpret_cast<uint8_t*>(dst);
+    auto* dst_ptr = reinterpret_cast<uint8_t*>(dst);
     scale = (max - min) / ((1 << 4) - 1);
     if (scale == 0) {
         scale = 0.0001f;
@@ -271,12 +271,12 @@ static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp)
 }
 
 template <typename T, ov::element::Type_t DST_PREC, std::enable_if_t<DST_PREC == ov::element::u8, bool> = true>
-static void quantize(const T* src, uint8_t* dst, size_t n, float* scale_zp) {
+static void quantize(const T* src, uint8_t* dst, size_t n, const float* scale_zp) {
     quant_u8(src, dst, n, *scale_zp, *(scale_zp + 1));
 }
 
 template <typename T, ov::element::Type_t DST_PREC, std::enable_if_t<DST_PREC == ov::element::u4, bool> = true>
-static void quantize(const T* src, void* dst, size_t n, float* scale_zp) {
+static void quantize(const T* src, void* dst, size_t n, const float* scale_zp) {
     quant_u4(src, dst, n, *scale_zp, *(scale_zp + 1));
 }
 
@@ -288,10 +288,14 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                           const ov::intel_cpu::PlainTensor& k_scale_zp,
                           const ov::intel_cpu::PlainTensor& v_scale_zp) {
     // For compatibility, all input_kvs are permuted to BHLS
-    size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3], SV = v_src.m_dims[3];
+    size_t B = k_src.m_dims[0];
+    size_t H = k_src.m_dims[1];
+    size_t L1 = k_src.m_dims[2];
+    size_t S = k_src.m_dims[3];
+    size_t SV = v_src.m_dims[3];
     parallel_for3d(L1, B, H, [&](size_t m, size_t b, size_t h) {
-        auto p_k = k_scale_zp.ptr<float>(m, b, h);
-        auto p_v = v_scale_zp.ptr<float>(m, b, h);
+        auto* p_k = k_scale_zp.ptr<float>(m, b, h);
+        auto* p_v = v_scale_zp.ptr<float>(m, b, h);
         quant_u8(k_src.ptr<T>(b, h, m), k_dst.ptr<T2>(b, h, m), S, p_k[0], p_k[1]);
         quant_u8(v_src.ptr<T>(b, h, m), v_dst.ptr<T2>(b, h, m), SV, p_v[0], p_v[1]);
     });
@@ -305,7 +309,11 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                 const ov::intel_cpu::PlainTensor& slot_mapping,
                                 const size_t key_group_size,
                                 const size_t value_group_size) {
-    size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3], SV = v_src.m_dims[3];
+    size_t B = k_src.m_dims[0];
+    size_t H = k_src.m_dims[1];
+    size_t L1 = k_src.m_dims[2];
+    size_t S = k_src.m_dims[3];
+    size_t SV = v_src.m_dims[3];
     size_t block_size = k_dst.m_dims[2];
     size_t sub_byte_multiplier = 8 / v_dst.get_precision().bitwidth();
     parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
@@ -320,7 +328,7 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
         // feature(u8,idx_S)|
         for (size_t src_offset = 0, dst_offset = 0; src_offset < S;
              src_offset += key_group_size, dst_offset += key_group_size + sizeof(float) + sizeof(float)) {
-            auto p_k = reinterpret_cast<float*>(
+            auto* p_k = reinterpret_cast<float*>(
                 k_dst.ptr<typename ov::element_type_traits<KEY_DST_PREC>::value_type>(block_number,
                                                                                       h,
                                                                                       block_offset,
@@ -343,7 +351,7 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                 (block_number * v_dst.m_strides[0] + h * v_dst.m_strides[1] + block_offset * v_dst.m_strides[2]) /
                     sub_byte_multiplier +
                 dst_offset);
-            auto p_v = reinterpret_cast<float*>(v_base);
+            auto* p_v = reinterpret_cast<float*>(v_base);
             uint8_t* v_ptr = v_base + sizeof(float) * 2;
             quantize<T, VALUE_DST_PREC>(v_src.ptr<T>(b, h, m, src_offset), v_ptr, value_group_size, p_v);
         }

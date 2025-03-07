@@ -122,7 +122,7 @@ static bool SortScorePairDescend(const std::pair<float, std::pair<int, int>>& pa
 struct ConfidenceComparator {
     explicit ConfidenceComparator(const float* conf_data) : _conf_data(conf_data) {}
 
-    bool operator()(int idx1, int idx2) {
+    bool operator()(int idx1, int idx2) const {
         if (_conf_data[idx1] > _conf_data[idx2]) {
             return true;
         }
@@ -309,11 +309,11 @@ void ExperimentalDetectronDetectionOutput::execute(const dnnl::stream& strm) {
 
     refine_boxes(boxes,
                  deltas,
-                 &deltas_weights_[0],
+                 deltas_weights_.data(),
                  scores,
-                 &refined_boxes[0],
-                 &refined_boxes_areas[0],
-                 &refined_scores[0],
+                 refined_boxes.data(),
+                 refined_boxes_areas.data(),
+                 refined_scores.data(),
                  rois_num,
                  classes_num_,
                  img_H,
@@ -331,7 +331,7 @@ void ExperimentalDetectronDetectionOutput::execute(const dnnl::stream& strm) {
         nms_cf(&refined_scores[refined_score_idx({class_idx, 0})],
                &refined_boxes[refined_box_idx({class_idx, 0, 0})],
                &refined_boxes_areas[refined_score_idx({class_idx, 0})],
-               &buffer[0],
+               buffer.data(),
                &indices[total_detections_num],
                detections_per_class[class_idx],
                rois_num,

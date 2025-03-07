@@ -47,7 +47,7 @@ public:
     operator bool() const {
         return enabled;
     }
-    void break_at(const std::string& log);
+    static void break_at(const std::string& log);
 };
 
 class NodeDesc;

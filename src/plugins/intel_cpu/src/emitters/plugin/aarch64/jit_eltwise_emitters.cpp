@@ -2798,7 +2798,7 @@ jit_swish_emitter::jit_swish_emitter(dnnl::impl::cpu::aarch64::jit_generator* ho
     if (swish == nullptr) {
         OV_CPU_JIT_EMITTER_THROW("Can't cast to SwishNode");
     }
-    beta = static_cast<float>(swish->get_alpha());
+    beta = swish->get_alpha();
 
     prepare_table();
     sigmoid_emitter = std::make_unique<jit_sigmoid_emitter>(h, host_isa, node);

@@ -407,7 +407,8 @@ struct EltwiseKey {
 
         if (result) {
             if (implType == EltwiseImplType::optimizedShapeAgnostic) {
-                bool broadcast, rhsBroadcast;
+                bool broadcast;
+                bool rhsBroadcast;
                 for (size_t i = 0; i < inpDims.size(); ++i) {
                     broadcast = (inpDims[i].back() == 1);
                     rhsBroadcast = (rhs.inpDims[i].back() == 1);
@@ -717,7 +718,8 @@ public:
                 }
             }
             parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
-                size_t start = 0, end = 0;
+                size_t start = 0;
+                size_t end = 0;
                 splitter(_schedulerWorkAmount, nthr, ithr, start, end);
 
                 std::vector<size_t> counters(dims_out.size() - 1, 0);
@@ -927,7 +929,8 @@ public:
         }
 
         parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
+            size_t start = 0;
+            size_t end = 0;
             splitter(this->_fullWorkAmount, nthr, ithr, start, end);
 
             std::vector<size_t> counters(dims_out.size(), 0);
@@ -1081,7 +1084,8 @@ public:
         }
 
         parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
+            size_t start = 0;
+            size_t end = 0;
             splitter(this->_fullWorkAmount, nthr, ithr, start, end);
 
             std::vector<size_t> counters(dims_out.size(), 0);
@@ -1301,7 +1305,7 @@ bool Eltwise::isWithBroadcast() {
 }
 
 void Eltwise::getSupportedDescriptors() {
-    if (getParentEdges().size() < 1) {
+    if (getParentEdges().empty()) {
         THROW_CPU_NODE_ERR("Incorrect number of input edges");
     }
     if (getChildEdges().empty()) {
@@ -1365,7 +1369,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 
     size_t expectedInputsNum = getOpInputsNum();
     for (auto& postOp : fusedWith) {
-        auto* eltwiseNode = dynamic_cast<const Eltwise*>(postOp.get());
+        const auto* eltwiseNode = dynamic_cast<const Eltwise*>(postOp.get());
         if (eltwiseNode != nullptr) {
             expectedInputsNum += eltwiseNode->getOpInputsNum() - 1;
         }
@@ -1804,7 +1808,7 @@ void Eltwise::prepareParams() {
         std::vector<MemoryDescPtr> dstMemoryDescs;
         dstMemoryDescs.push_back(getDstMemoryAtPort(0)->getDescPtr());
 
-        auto selectedPD = getSelectedPrimitiveDescriptor();
+        auto* selectedPD = getSelectedPrimitiveDescriptor();
         eltwiseExecPtr = selectedPD->getExecutorFactoryAs<EltwiseExecutorFactory>()->makeExecutor(eltwiseAttrs,
                                                                                                   srcMemoryDescs,
                                                                                                   dstMemoryDescs,
@@ -2013,7 +2017,7 @@ bool Eltwise::canBeInPlace() const {
         return false;
     }
 
-    for (auto& parentEdge : getParentEdges()) {
+    for (const auto& parentEdge : getParentEdges()) {
         auto parent = parentEdge.lock()->getParent();
         if (parent->getChildEdges().size() != 1) {
             return false;
@@ -2021,7 +2025,7 @@ bool Eltwise::canBeInPlace() const {
 
         // WA to prevent memory corruption caused by inplace feature
         if (parent->getType() == Type::Concatenation) {
-            for (auto& parentParentEdge : parent->getParentEdges()) {
+            for (const auto& parentParentEdge : parent->getParentEdges()) {
                 auto parentParent = parentParentEdge.lock()->getParent();
                 if (parentParent->getChildEdges().size() != 1) {
                     return false;
@@ -2280,7 +2284,7 @@ bool Eltwise::canFuseParent(const NodePtr& parentNode) const {
     return true;
 }
 
-bool Eltwise::canFuseConvert(const NodePtr& convertNode) const {
+bool Eltwise::canFuseConvert(const NodePtr& convertNode) {
     if (!one_of(convertNode->getOriginalOutputPrecisionAtPort(0),
                 ov::element::i8,
                 ov::element::u8,

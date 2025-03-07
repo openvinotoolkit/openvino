@@ -12,14 +12,14 @@ namespace ov::intel_cpu::executors::aarch64 {
 
 class JitEltwiseExecutor : public EltwiseExecutor {
 public:
-    explicit JitEltwiseExecutor(const ExecutorContext::CPtr context);
+    explicit JitEltwiseExecutor(ExecutorContext::CPtr context);
 
     static bool isSupported(const Algorithm& algorithm,
                             const std::vector<ov::element::Type>& input_precisions,
                             const std::vector<ov::element::Type>& output_precisions,
-                            const float alpha,
-                            const float beta,
-                            const float gamma);
+                            float alpha,
+                            float beta,
+                            float gamma);
 
     bool init(const EltwiseAttrs& eltwiseAttrs,
               const std::vector<MemoryDescPtr>& srcDescs,

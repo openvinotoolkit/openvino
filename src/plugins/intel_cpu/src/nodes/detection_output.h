@@ -114,7 +114,7 @@ private:
 
     inline void NMSMX(int* indicesIn, int* detections, int* indicesOut, const float* bboxes, const float* sizes);
 
-    inline void topk(const int* indicesIn, int* indicesOut, const float* conf, int n, int k);
+    static inline void topk(const int* indicesIn, int* indicesOut, const float* conf, int n, int k);
 
     inline void generateOutput(float* reorderedConfData,
                                int* indicesData,

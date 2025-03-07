@@ -91,10 +91,7 @@ std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> Blocke
     const CreatorsMap& map,
     unsigned int rank) {
     auto rankFilter = [rank](const CreatorsMap::value_type& item) {
-        if (item.second->getMinimalRank() > rank) {
-            return false;
-        }
-        return true;
+        return item.second->getMinimalRank() <= rank;
     };
 
     auto first = CreatorsMapFilterConstIterator(std::move(rankFilter), map.begin(), map.end());
@@ -107,7 +104,7 @@ std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> Blocke
     unsigned rank,
     const std::vector<LayoutType>& supportedTypes) {
     unsigned bitMask = 0ul;
-    for (auto& item : supportedTypes) {
+    for (const auto& item : supportedTypes) {
         bitMask |= 1 << static_cast<unsigned>(item);
     }
 

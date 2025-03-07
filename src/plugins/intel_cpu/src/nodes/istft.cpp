@@ -12,7 +12,7 @@
 
 namespace ov::intel_cpu::node {
 
-bool ISTFT::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+static bool ISTFT::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (op->get_type_info() != op::v16::ISTFT::get_type_info_static()) {
             errorMessage = "Only ISTFT operation from the opset16 is supported by the CPU plugin.";
@@ -53,7 +53,7 @@ void ISTFT::getSupportedDescriptors() {
     }
 }
 
-void ISTFT::initSupportedPrimitiveDescriptors() {
+void ISTFT::initSupportedPrimitiveDescriptors() const {
     if (!supportedPrimitiveDescriptors.empty()) {
         return;
     }
@@ -74,7 +74,7 @@ void ISTFT::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(configurators, {{LayoutType::ncsp, dataPrecision}}, impl_desc_type::ref_any);
 }
 
-bool ISTFT::needPrepareParams() const {
+bool ISTFT::needPrepareParams() {
     return false;
 }
 

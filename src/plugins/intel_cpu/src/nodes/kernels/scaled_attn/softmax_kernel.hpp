@@ -881,7 +881,7 @@ inline void exp_reduce_sum(ov::float16* a, const ov::float16 max, const size_t s
 }
 #endif
 
-inline void multiply_scalar(float* a, float* a_dst, const float val, const size_t size) {
+inline void multiply_scalar(const float* a, float* a_dst, const float val, const size_t size) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)
     auto v_scale = _mm512_set1_ps(val);
@@ -950,7 +950,7 @@ inline void multiply_scalar(float* a, float* a_dst, const float val, const size_
 
 template <typename T,
           typename = std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>>
-inline void multiply_scalar(float* a, T* a_dst, const float val, const size_t size) {
+inline void multiply_scalar(const float* a, T* a_dst, const float val, const size_t size) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)
     auto v_scale = _mm512_set1_ps(val);

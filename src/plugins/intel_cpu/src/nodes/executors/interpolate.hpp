@@ -50,7 +50,7 @@ inline VectorDims getPaddedInputShape(const VectorDims& srcDims,
 }
 
 inline int clipCoord(int pos, int length) {
-    return std::max(static_cast<int>(0), std::min(pos, length - 1));
+    return std::max(0, std::min(pos, length - 1));
 }
 
 inline size_t getSpatialDimsNum(const Dim rank) {
@@ -142,16 +142,17 @@ private:
                        InterpolateLayoutType layout);
 
     [[nodiscard]] float coordTransToInput(int outCoord, float scale, int inShape, int outShape) const;
-    [[nodiscard]] int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode) const;
-    void linearOnnxCF(int outCoord,
-                      float scale,
-                      int inShape,
-                      int outShape,
-                      int& index0,
-                      int& index1,
-                      float& weight0,
-                      float& weight1);
-    std::vector<float> getCubicCoeffs(float mantissa, float a);
+    [[nodiscard]] static int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode) ;
+    void linearOn;
+    
+                             
+                             
+                              
+                             
+                             
+                                
+                                   float& weight1);
+     static td::vector<float> getCubicCoeffs(float mantissa, float a);
 
 protected:
     InterpolateAttrs interpAttrs;
@@ -172,7 +173,7 @@ public:
     [[nodiscard]] virtual bool isSupported(const InterpolateAttrs& InterpolateAttrs,
                                            const std::vector<MemoryDescPtr>& srcDescs,
                                            const std::vector<MemoryDescPtr>& dstDescs) const = 0;
-    [[nodiscard]] virtual InterpolateExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
+    [[nodiscard]] virtual InterpolateExecutorPtr makeExecutor(ExecutorContext::CPtr context) const = 0;
 };
 
 using InterpolateExecutorBuilderPtr = std::shared_ptr<InterpolateExecutorBuilder>;

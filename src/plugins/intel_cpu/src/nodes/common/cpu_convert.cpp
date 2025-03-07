@@ -404,7 +404,8 @@ private:
 template <typename T, typename U>
 const std::tuple<U, U>& Range<T, U>::fit(const ov::element::Type& prec) {
     if (prec.is_real()) {
-        double lbound, ubound;
+        double lbound;
+        double ubound;
         switch (prec) {
         case ov::element::f8e4m3:
             lbound = static_cast<double>(std::numeric_limits<ov::float8_e4m3>::lowest());
@@ -519,7 +520,8 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
     void operator()(ConvertContext& ctx) {
         auto src = static_cast<const src_t*>(ctx.srcPtr);
         auto dst = static_cast<dst_t*>(ctx.dstPtr);
-        src_t lbound, ubound;
+        src_t lbound;
+        src_t ubound;
         std::tie(lbound, ubound) = ctx.range<src_t>();
 
         // Align with the behavior of ngraph ref and jit implementation. Conversion from f8e4m3-inf
@@ -551,15 +553,16 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
 template <>
 struct ConvertPrecision<std::tuple<float, ov::intel_cpu::bfloat16_t>> {
     void operator()(ConvertContext& ctx) {
-        auto src = static_cast<const float*>(ctx.srcPtr);
-        auto dst = static_cast<ov::intel_cpu::bfloat16_t*>(ctx.dstPtr);
+        const auto* src = static_cast<const float*>(ctx.srcPtr);
+        auto* dst = static_cast<ov::intel_cpu::bfloat16_t*>(ctx.dstPtr);
 
         if (ctx.interimPrc.is_real()) {
             parallel_for(ctx.size, [&](size_t i) {
                 dst[i] = static_cast<ov::intel_cpu::bfloat16_t>(src[i]);
             });
         } else {
-            float lbound, ubound;
+            float lbound;
+            float ubound;
             std::tie(lbound, ubound) = ctx.range<float>();
             parallel_for(ctx.size, [&](size_t i) {
                 dst[i] = static_cast<ov::intel_cpu::bfloat16_t>(std::trunc(std::max(std::min(src[i], ubound), lbound)));
@@ -573,15 +576,16 @@ struct ConvertPrecision<std::tuple<float, ov::intel_cpu::bfloat16_t>> {
 template <>
 struct ConvertPrecision<std::tuple<ov::intel_cpu::bfloat16_t, float>> {
     void operator()(ConvertContext& ctx) {
-        auto src = static_cast<const ov::intel_cpu::bfloat16_t*>(ctx.srcPtr);
-        auto dst = static_cast<float*>(ctx.dstPtr);
+        const auto* src = static_cast<const ov::intel_cpu::bfloat16_t*>(ctx.srcPtr);
+        auto* dst = static_cast<float*>(ctx.dstPtr);
 
         if (ctx.interimPrc.is_real()) {
             parallel_for(ctx.size, [&](size_t i) {
                 dst[i] = static_cast<float>(src[i]);
             });
         } else {
-            float lbound, ubound;
+            float lbound;
+            float ubound;
             std::tie(lbound, ubound) = ctx.range<ov::intel_cpu::bfloat16_t>();
             parallel_for(ctx.size, [&](size_t i) {
                 dst[i] = std::trunc(std::max(std::min(static_cast<float>(src[i]), ubound), lbound));
@@ -597,13 +601,14 @@ template <typename src_t>
 struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
     void operator()(ConvertContext& ctx) {
         auto src = static_cast<const src_t*>(ctx.srcPtr);
-        auto dst = static_cast<ov::float16*>(ctx.dstPtr);
+        auto* dst = static_cast<ov::float16*>(ctx.dstPtr);
 
         constexpr size_t batch = 64;
         const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
         typedef float batch_type[batch];
 
-        src_t lbound, ubound;
+        src_t lbound;
+        src_t ubound;
         std::tie(lbound, ubound) = ctx.range<src_t>();
 
         if (std::is_integral<src_t>::value) {
@@ -649,14 +654,15 @@ struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
 template <typename dst_t>
 struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
     void operator()(ConvertContext& ctx) {
-        auto src = static_cast<const ov::float16*>(ctx.srcPtr);
+        const auto* src = static_cast<const ov::float16*>(ctx.srcPtr);
         auto dst = static_cast<dst_t*>(ctx.dstPtr);
 
         constexpr size_t batch = 64;
         const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
         typedef float batch_type[batch];
 
-        float lbound, ubound;
+        float lbound;
+        float ubound;
         std::tie(lbound, ubound) = ctx.range<ov::float16>();
 
         if (std::is_integral<dst_t>::value) {
@@ -702,14 +708,15 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
 template <>
 struct ConvertPrecision<std::tuple<ov::float16, ov::float16>> {
     void operator()(ConvertContext& ctx) {
-        auto src = static_cast<const ov::float16*>(ctx.srcPtr);
-        auto dst = static_cast<ov::float16*>(ctx.dstPtr);
+        const auto* src = static_cast<const ov::float16*>(ctx.srcPtr);
+        auto* dst = static_cast<ov::float16*>(ctx.dstPtr);
 
         constexpr size_t batch = 64;
         const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
         typedef float batch_type[batch];
 
-        float lbound, ubound;
+        float lbound;
+        float ubound;
         std::tie(lbound, ubound) = ctx.range<ov::float16>();
 
         if (ctx.interimPrc.is_real()) {
@@ -811,7 +818,7 @@ struct ConvertFromBinPrecision;
 template <typename src_t, typename dst_t>
 struct ConvertFromBinPrecision<std::tuple<src_t, dst_t>> {
     void operator()(ConvertFromBinContext& ctx) {
-        auto src = static_cast<const uint8_t*>(ctx.srcPtr);
+        const auto* src = static_cast<const uint8_t*>(ctx.srcPtr);
         auto dst = static_cast<dst_t*>(ctx.dstPtr);
         const size_t nBits = 8;
         const size_t nBytes = rnd_up(ctx.size, nBits);
@@ -865,7 +872,7 @@ struct ConvertFrom4BitPrecision;
 template <typename src_t, typename dst_t>
 struct ConvertFrom4BitPrecision<std::tuple<src_t, dst_t>> {
     void operator()(ConvertFrom4BitContext& ctx) {
-        auto src = static_cast<const uint8_t*>(ctx.srcPtr);
+        const auto* src = static_cast<const uint8_t*>(ctx.srcPtr);
         auto dst = static_cast<dst_t*>(ctx.dstPtr);
         if (ctx.inType == ov::element::nf4) {
             parallel_for(ctx.size, [&](size_t i) {
@@ -912,7 +919,7 @@ struct ConvertTo4BitPrecision<std::tuple<src_t, dst_t>> {
         };
 
         auto src = static_cast<const src_t*>(ctx.srcPtr);
-        auto dst = static_cast<uint8_t*>(ctx.dstPtr);
+        auto* dst = static_cast<uint8_t*>(ctx.dstPtr);
         // each byte must be fully processed within same thread
         auto work_amount = ctx.size / 2;
         auto has_tail = ctx.size % work_amount != 0;
@@ -951,7 +958,7 @@ struct ConvertFromByteFPPrecision;
 template <typename src_t, typename dst_t>
 struct ConvertFromByteFPPrecision<std::tuple<src_t, dst_t>> {
     void operator()(ConvertFromByteFPContext& ctx) {
-        auto src = static_cast<const uint8_t*>(ctx.srcPtr);
+        const auto* src = static_cast<const uint8_t*>(ctx.srcPtr);
         auto dst = static_cast<dst_t*>(ctx.dstPtr);
         if (ctx.inType == ov::element::f8e8m0) {
             parallel_for(ctx.size, [&](size_t i) {
@@ -1018,14 +1025,15 @@ void cpu_convert(const void* srcPtr,
         const size_t L2_cache_size = dnnl::utils::get_cache_size(2, true);
         const size_t totalSize = size * dstPrc.size();
         if (srcPrc == element::string) {
-            auto str_src = reinterpret_cast<const StringMemory::OvString*>(srcPtr);
-            auto str_dst = reinterpret_cast<StringMemory::OvString*>(dstPtr);
+            const auto* str_src = reinterpret_cast<const StringMemory::OvString*>(srcPtr);
+            auto* str_dst = reinterpret_cast<StringMemory::OvString*>(dstPtr);
             std::copy(str_src, str_src + size, str_dst);
         } else if (totalSize >= L2_cache_size) {
-            auto src = static_cast<const uint8_t*>(srcPtr);
-            auto dst = static_cast<uint8_t*>(dstPtr);
+            const auto* src = static_cast<const uint8_t*>(srcPtr);
+            auto* dst = static_cast<uint8_t*>(dstPtr);
             parallel_nt(0, [&](const size_t ithr, const size_t nthr) {
-                size_t start = 0, end = 0;
+                size_t start = 0;
+                size_t end = 0;
                 splitter(totalSize, nthr, ithr, start, end);
                 cpu_memcpy(dst + start, src + start, end - start);
             });

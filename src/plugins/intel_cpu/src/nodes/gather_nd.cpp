@@ -180,7 +180,8 @@ void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr,
     auto* dstData = dstMemPtr->getDataAs<uint8_t>();
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
+        size_t start(0lu);
+        size_t end(0lu);
         splitter(workAmount, nthr, ithr, start, end);
         if (start >= end) {
             return;
@@ -221,7 +222,8 @@ void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr,
     auto* dstData = dstMemPtr->getDataAs<dataType>();
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
+        size_t start(0lu);
+        size_t end(0lu);
         splitter(workAmount, nthr, ithr, start, end);
         if (start >= end) {
             return;

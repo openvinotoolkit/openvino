@@ -160,7 +160,8 @@ void SpaceToBatch::SpaceToBatchKernel() {
     const int64_t workAmount = inShape5D[0] * channels;
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        int64_t start(0lu), end(0lu);
+        int64_t start(0lu);
+        int64_t end(0lu);
         splitter(workAmount, nthr, ithr, start, end);
         std::vector<int64_t> indxStart(2, 0);
         std::vector<int64_t> indxEnd(2, 0);

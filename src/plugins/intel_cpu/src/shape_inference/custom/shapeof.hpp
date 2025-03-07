@@ -19,8 +19,8 @@ using Result = IShapeInfer::Result;
 class ShapeOfShapeInfer : public ShapeInferEmptyPads {
 public:
     ShapeOfShapeInfer() = default;
-    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+    static Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         OPENVINO_ASSERT(!input_shapes.empty());
         return {{VectorDims{input_shapes.front().get().size()}}, ShapeInferStatus::success};
     }

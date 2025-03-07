@@ -323,7 +323,7 @@ void ScatterUpdate::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-int64_t ScatterUpdate::getIndicesValue(uint8_t* indices, size_t offset) {
+int64_t ScatterUpdate::getIndicesValue(uint8_t* indices, size_t offset) const {
     auto* indicesPtr = indices + offset * indicesSize;
     int64_t ret = 0;
     if (indicesSize == 4) {
@@ -390,7 +390,9 @@ struct TensorIterator {
         m_tensorIter.resize(m_squashed_shape.size(), 0);
         getCoordinate(m_tensorIter, start, m_squashed_shape);
 
-        size_t i, dst_idx = 0, indices_idx = 0;
+        size_t i;
+        size_t dst_idx = 0;
+        size_t indices_idx = 0;
         for (i = 0; i < static_cast<size_t>(m_squashed_axis); ++i) {
             dst_idx += m_tensorIter[i] * dataBlockND[i + 1];
             indices_idx += m_tensorIter[i] * indicesBlockND[i + 1];
@@ -578,7 +580,8 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
 
     // process serially along 'axis' dimension because of data dependency brought by duplicated value in indices
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start = 0, end = 0;
+        size_t start = 0;
+        size_t end = 0;
         splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
         scatter_elements_update::TensorIterator tensorItr(squashed_indices_shape, axis);
 
@@ -632,8 +635,8 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
                 end - start + 1,
                 offsets[0]);  // one extra to avoid overflow at the last iteration of inner loop
             std::vector<size_t> indices_offsets(end - start + 1, offsets[1]);
-            size_t* ptr_dst_offset = &dst_offsets[0];
-            size_t* ptr_indices_offset = &indices_offsets[0];
+            size_t* ptr_dst_offset = dst_offsets.data();
+            size_t* ptr_indices_offset = indices_offsets.data();
             for (size_t worker = start; worker < end; worker++) {  // idx = 0
                 int64_t idxValue = getIndicesValue(indicesPtr, *ptr_indices_offset);
                 if (idxValue < 0) {
@@ -650,8 +653,8 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
                 *++ptr_indices_offset = offsets[1];
             }
             for (size_t idx = 1; idx < index_dim_size; idx++) {
-                ptr_indices_offset = &indices_offsets[0];
-                ptr_dst_offset = &dst_offsets[0];
+                ptr_indices_offset = indices_offsets.data();
+                ptr_dst_offset = dst_offsets.data();
                 for (size_t worker = start; worker < end; worker++) {
                     auto indices_offset = *ptr_indices_offset + idx * indicesBlock_axisplus1;
                     int64_t idxValue = getIndicesValue(indicesPtr, indices_offset);
@@ -706,7 +709,8 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
 
     // process serially along 'axis' dimension because of data dependency brought by duplicated value in indices
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start = 0, end = 0;
+        size_t start = 0;
+        size_t end = 0;
         splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
         scatter_elements_update::TensorIterator tensorItr(squashed_indices_shape, axis);
 
@@ -774,8 +778,8 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
                 end - start + 1,
                 offsets[0]);  // one extra to avoid overflow at the last iteration of inner loop
             std::vector<size_t> indices_offsets(end - start + 1, offsets[1]);
-            size_t* ptr_dst_offset = &dst_offsets[0];
-            size_t* ptr_indices_offset = &indices_offsets[0];
+            size_t* ptr_dst_offset = dst_offsets.data();
+            size_t* ptr_indices_offset = indices_offsets.data();
             for (size_t worker = start; worker < end; worker++) {  // idx = 0
                 int64_t idxValue = getIndicesValue(indicesPtr, *ptr_indices_offset);
                 if (idxValue < 0) {
@@ -794,8 +798,8 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
                 *++ptr_indices_offset = offsets[1];
             }
             for (size_t idx = 1; idx < index_dim_size; idx++) {
-                ptr_indices_offset = &indices_offsets[0];
-                ptr_dst_offset = &dst_offsets[0];
+                ptr_indices_offset = indices_offsets.data();
+                ptr_dst_offset = dst_offsets.data();
                 for (size_t worker = start; worker < end; worker++) {
                     auto indices_offset = *ptr_indices_offset + idx * indicesBlock_axisplus1;
                     int64_t idxValue = getIndicesValue(indicesPtr, indices_offset);
@@ -814,7 +818,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
 
             // average
             for (const auto& counter : mean_reduction_counters) {
-                auto dst = counter.first;
+                auto* dst = counter.first;
                 const auto N = counter.second + static_cast<int32_t>(use_init_val);
                 *dst = static_cast<DataType>(static_cast<double>(*dst) / N);
             }
@@ -861,7 +865,7 @@ void ScatterUpdate::execute(const dnnl::stream& strm) {
         auto updateDims = updateMemPtr->getStaticDims();
         if (updateDims.size() <= 1) {
             DEBUG_LOG(getName(), " exec1DCase");
-            auto updateCnt = (updateDims.size() == 0) ? 1 : updateDims[0];
+            auto updateCnt = (updateDims.empty()) ? 1 : updateDims[0];
             auto srcLength = srcMemPtr->getStaticDims()[0];
             auto* psrc = reinterpret_cast<int32_t*>(srcPtr);
             auto* pdst = reinterpret_cast<int32_t*>(dstPtr);
@@ -897,7 +901,8 @@ void ScatterUpdate::execute(const dnnl::stream& strm) {
         size_t srcDimAxis = srcDataDim[axis];
         std::vector<size_t> indicesBlockND = getBlockND(indicesDim);
         parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
+            size_t start = 0;
+            size_t end = 0;
             splitter(indicesBlockND[0], nthr, ithr, start, end);
             for (size_t i = start; i < end; i++) {
                 int64_t idxValue = getIndicesValue(indicesPtr, i);
@@ -943,7 +948,8 @@ void ScatterUpdate::execute(const dnnl::stream& strm) {
     if (srcPtr != dstPtr) {
         std::vector<size_t> srcBlockND = getBlockND(srcDataDim);
         parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
+            size_t start = 0;
+            size_t end = 0;
             splitter(srcBlockND[0], nthr, ithr, start, end);
             size_t size = (end - start) * dataSize;
             start *= dataSize;

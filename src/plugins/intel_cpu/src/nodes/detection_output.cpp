@@ -156,7 +156,7 @@ void DetectionOutput::initSupportedPrimitiveDescriptors() {
 struct ConfidenceComparatorDO {
     explicit ConfidenceComparatorDO(const float* confDataIn) : confData(confDataIn) {}
 
-    bool operator()(int idx1, int idx2) {
+    bool operator()(int idx1, int idx2) const {
         if (confData[idx1] > confData[idx2]) {
             return true;
         }
@@ -456,7 +456,7 @@ inline void DetectionOutput::confFilterCF(const float* pconf,
 // NMS is per class, keep topk is per image, final output is per class
 inline void DetectionOutput::confFilterMX(const float* confData,
                                           const float* ARMConfData,
-                                          float* reorderedConfData,
+                                          const float* reorderedConfData,
                                           int* indicesData,
                                           int* indicesBufData,
                                           int* detectionsData,
@@ -520,7 +520,7 @@ inline void DetectionOutput::confFilterMX(const float* confData,
     detectionsData[0] = k;
 }
 
-inline void DetectionOutput::getActualPriorNum(const float* priorData, int* numPriorsActual, int n) {
+inline void DetectionOutput::getActualPriorNum(const float* priorData, int* numPriorsActual, int n) const {
     numPriorsActual[n] = priorsNum;
     if (!normalized) {
         int num = 0;
@@ -536,7 +536,7 @@ inline void DetectionOutput::getActualPriorNum(const float* priorData, int* numP
 
 inline void DetectionOutput::confReorderDense(const float* confData,
                                               const float* ARMConfData,
-                                              float* reorderedConfData) {
+                                              float* reorderedConfData) const {
     if (withAddBoxPred) {
         parallel_for2d(imgNum, priorsNum, [&](size_t n, size_t p) {
             if (ARMConfData[n * priorsNum * 2 + p * 2 + 1] < objScore) {
@@ -727,13 +727,13 @@ inline void DetectionOutput::decodeBBoxes(const float* priorData,
                                           const float* varianceData,
                                           float* decodedBboxes,
                                           float* decodedBboxSizes,
-                                          int* numPriorsActual,
+                                          const int* numPriorsActual,
                                           int n,
                                           const int& offs,
                                           const int& priorSize,
                                           bool decodeType,
                                           const int* confInfoH,
-                                          const int* confInfoV) {
+                                          const int* confInfoV) const {
     int prNum = numPriorsActual[n];
     if (!decodeType) {
         prNum = priorsNum;
@@ -786,8 +786,10 @@ inline void DetectionOutput::decodeBBoxes(const float* priorData,
             float priorCenterX = (priorXMin + priorXMax) / 2.0f;
             float priorCenterY = (priorYMin + priorYMax) / 2.0f;
 
-            float decodeBboxCenterX, decodeBboxCenterY;
-            float decodeBboxWidth, decodeBboxHeight;
+            float decodeBboxCenterX;
+            float decodeBboxCenterY;
+            float decodeBboxWidth;
+            float decodeBboxHeight;
 
             if (varianceEncodedInTarget) {
                 // variance is encoded in target, we simply need to restore the offset predictions.
@@ -863,11 +865,11 @@ static inline float JaccardOverlap(const float* decodedBbox, const float* bboxSi
     return intersectSize / (bbox1Size + bbox2Size - intersectSize);
 }
 
-inline void DetectionOutput::NMSCF(int* indicesIn,
+inline void DetectionOutput::NMSCF(const int* indicesIn,
                                    int& detections,
                                    int* indicesOut,
                                    const float* bboxes,
-                                   const float* boxSizes) {
+                                   const float* boxSizes) const {
     // nms for this class
     int countIn = detections;
     detections = 0;
@@ -890,11 +892,11 @@ inline void DetectionOutput::NMSCF(int* indicesIn,
     }
 }
 
-inline void DetectionOutput::NMSMX(int* indicesIn,
+inline void DetectionOutput::NMSMX(const int* indicesIn,
                                    int* detections,
                                    int* indicesOut,
                                    const float* bboxes,
-                                   const float* sizes) {
+                                   const float* sizes) const {
     // Input is candidate for image, output is candidate for each class within image
     int countIn = detections[0];
     detections[0] = 0;
@@ -929,10 +931,10 @@ inline void DetectionOutput::NMSMX(int* indicesIn,
     }
 }
 
-inline void DetectionOutput::generateOutput(float* reorderedConfData,
-                                            int* indicesData,
-                                            int* detectionsData,
-                                            float* decodedBboxesData,
+inline void DetectionOutput::generateOutput(const float* reorderedConfData,
+                                            const int* indicesData,
+                                            const int* detectionsData,
+                                            const float* decodedBboxesData,
                                             float* dstData) {
     const auto& outDims = getChildEdgeAt(0)->getMemory().getStaticDims();
     const int numResults = outDims[2];

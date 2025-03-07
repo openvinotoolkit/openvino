@@ -127,7 +127,7 @@ private:
 
     inline void horizontal_mul();
 
-    inline void prepare_table() {
+    void prepare_table() {
         auto broadcast_d = [&](int val) {
             for (size_t d = 0; d < vlen / sizeof(int); ++d) {
                 dd(val);

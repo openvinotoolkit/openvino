@@ -150,7 +150,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             };
 
             try {
-                for (auto& row : val.as<std::set<ov::hint::ModelDistributionPolicy>>()) {
+                for (const auto& row : val.as<std::set<ov::hint::ModelDistributionPolicy>>()) {
                     if ((row != ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL)) {
                         error_info();
                     }
@@ -465,12 +465,12 @@ void Config::updateProperties() {
         return;
     }
 
-    if (collectPerfCounters == true) {
+    if (collectPerfCounters) {
         _config.insert({ov::enable_profiling.name(), "YES"});
     } else {
         _config.insert({ov::enable_profiling.name(), "NO"});
     }
-    if (exclusiveAsyncRequests == true) {
+    if (exclusiveAsyncRequests) {
         _config.insert({ov::internal::exclusive_async_requests.name(), "YES"});
     } else {
         _config.insert({ov::internal::exclusive_async_requests.name(), "NO"});

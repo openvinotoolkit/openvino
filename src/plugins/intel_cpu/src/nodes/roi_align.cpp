@@ -160,32 +160,32 @@ private:
         }
     }
 
-    inline void load(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
+    void load(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
         emit_load(reg_src, vmm_src, jcp_.data_prc, ov::element::f32, elt_num, offset);
     }
 
-    inline void load_buffer(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
+    void load_buffer(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
         emit_load(reg_src, vmm_src, ov::element::f32, ov::element::f32, elt_num, offset);
     }
 
-    inline void load_idx(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
+    void load_idx(Xbyak::Reg64 reg_src, Vmm vmm_src, const int elt_num, const int offset = 0) {
         emit_load(reg_src, vmm_src, ov::element::i32, ov::element::i32, elt_num, offset);
     }
 
-    inline void store(Vmm vmm_dst, Xbyak::Reg64 reg_dst, const int elt_num, const int offset = 0) {
+    void store(Vmm vmm_dst, Xbyak::Reg64 reg_dst, const int elt_num, const int offset = 0) {
         emit_store(vmm_dst, reg_dst, ov::element::f32, jcp_.data_prc, elt_num, offset);
     }
 
-    inline void store_buffer(Vmm vmm_dst, Xbyak::Reg64 reg_dst, const int elt_num, const int offset = 0) {
+    void store_buffer(Vmm vmm_dst, Xbyak::Reg64 reg_dst, const int elt_num, const int offset = 0) {
         emit_store(vmm_dst, reg_dst, ov::element::f32, ov::element::f32, elt_num, offset);
     }
 
-    inline void emit_load(Xbyak::Reg64 reg_src,
-                          Vmm vmm_src,
-                          ov::element::Type src_prc,
-                          ov::element::Type dst_prc,
-                          const int elt_num,
-                          const int offset = 0) {
+    void emit_load(Xbyak::Reg64 reg_src,
+                   Vmm vmm_src,
+                   ov::element::Type src_prc,
+                   ov::element::Type dst_prc,
+                   const int elt_num,
+                   const int offset = 0) {
         const auto seed = load_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
             emitters[seed] = std::make_unique<jit_load_emitter>(this, isa, src_prc, dst_prc, elt_num);
@@ -197,12 +197,12 @@ private:
                                   {load_pool_gpr_idxs});
     }
 
-    inline void emit_store(Vmm vmm_dst,
-                           Xbyak::Reg64 reg_dst,
-                           ov::element::Type src_prc,
-                           ov::element::Type dst_prc,
-                           const int elt_num,
-                           const int offset = 0) {
+    void emit_store(Vmm vmm_dst,
+                    Xbyak::Reg64 reg_dst,
+                    ov::element::Type src_prc,
+                    ov::element::Type dst_prc,
+                    const int elt_num,
+                    const int offset = 0) {
         const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
             emitters[seed] = std::make_unique<jit_store_emitter>(this, isa, src_prc, dst_prc, elt_num);
@@ -577,7 +577,7 @@ private:
     }
 
     // gather f32 data from reg_src with vmm_idx(data_size) to vmm_src with f32 precision
-    inline void gather_f32(Vmm& vmm_src, const reg64_t& reg_src, const Vmm& vmm_idx) {
+    void gather_f32(Vmm& vmm_src, const reg64_t& reg_src, const Vmm& vmm_idx) {
         constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
         constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
 
@@ -592,7 +592,7 @@ private:
         }
     }
 
-    inline void gather_f32_xmm(Xbyak::Xmm xmm_src, const reg64_t reg_src, const Xbyak::Xmm xmm_idx) {
+    void gather_f32_xmm(Xbyak::Xmm xmm_src, const reg64_t reg_src, const Xbyak::Xmm xmm_idx) {
         sub(rsp, x_len);
         uni_vmovdqu(ptr[rsp], xmm_idx);
         for (int i = 0; i < x_step; i++) {
@@ -606,7 +606,7 @@ private:
 
     // gather bf16 data from reg_src with vmm_idx(data_size) to vmm_src with f32 precision
     // bf16 is needed from avx512_core
-    inline void gather_bf16_to_f32_zmm(Vmm vmm_src, const reg64_t reg_src, const Vmm vmm_idx) {
+    void gather_bf16_to_f32_zmm(Vmm vmm_src, const reg64_t reg_src, const Vmm vmm_idx) {
         if (!std::is_same<Vmm, Xbyak::Zmm>::value) {
             OPENVINO_THROW("bf16 is only supported from avx512_core platform for ROIAlign node.");
         }
@@ -623,7 +623,7 @@ private:
         add(rsp, v_len);
     }
 
-    inline void gather_bf16_to_f32_xmm(Xbyak::Xmm xmm_src, const reg64_t reg_src, const Xbyak::Xmm xmm_idx) {
+    void gather_bf16_to_f32_xmm(Xbyak::Xmm xmm_src, const reg64_t reg_src, const Xbyak::Xmm xmm_idx) {
         sub(rsp, x_len);
         uni_vmovdqu(ptr[rsp], xmm_idx);
         for (int i = 0; i < x_step; i++) {
@@ -637,7 +637,7 @@ private:
         add(rsp, x_len);
     }
 
-    inline void horizontal_add_xmm(const Xbyak::Xmm& xmm_dst, const Xbyak::Xmm& xmm_aux) {
+    void horizontal_add_xmm(const Xbyak::Xmm& xmm_dst, const Xbyak::Xmm& xmm_aux) {
         uni_vmovshdup(xmm_aux, xmm_dst);          //  dst:1,2,3,4; aux:2,2,4,4
         uni_vaddps(xmm_dst, xmm_dst, xmm_aux);    //  dst:1+2,2+2,3+4,4+4
         uni_vmovhlps(xmm_aux, xmm_aux, xmm_dst);  //  aux:3+4,4+4,4,4
@@ -645,7 +645,7 @@ private:
     }
 
     // horizontal add for vmm_dst, temp1 and temp2 as aux
-    inline void horizontal_add() {
+    void horizontal_add() {
         auto xmm_dst = Xbyak::Xmm(vmm_dst.getIdx());
         auto xmm_temp1 = Xbyak::Xmm(vmm_temp1.getIdx());
         auto xmm_temp2 = Xbyak::Xmm(vmm_temp2.getIdx());
@@ -892,9 +892,9 @@ void ROIAlign::execute(const dnnl::stream& strm) {
 
 template <typename inputType, typename outputType>
 void ROIAlign::executeSpecified() {
-    auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
-    auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
-    auto& dstMemory = getChildEdgeAt(0)->getMemory();
+    const auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
+    const auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
+    const auto& dstMemory = getChildEdgeAt(0)->getMemory();
 
     auto srcBlockDesc = srcMemory0.getDescWithType<BlockedMemoryDesc>();
     auto dstBlockDesc = dstMemory.getDescWithType<BlockedMemoryDesc>();

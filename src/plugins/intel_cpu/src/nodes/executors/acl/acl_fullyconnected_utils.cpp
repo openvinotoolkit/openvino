@@ -327,7 +327,7 @@ arm_compute::Status acl_fc_executor::ACLWeightsConverter::validateTensorsInfo(co
                                          arm_compute::ConvertPolicy::SATURATE);
 }
 
-ACLFunction acl_fc_executor::ACLWeightsConverter::configureFunction(const ACLTensors& aclMemoryTensors) {
+static ACLFunction acl_fc_executor::ACLWeightsConverter::configureFunction(const ACLTensors& aclMemoryTensors) {
     auto neCast = std::make_unique<arm_compute::NECast>();
     neCast->configure(aclMemoryTensors[ACLArgs::ACL_SRC_0].get(),
                       aclMemoryTensors[ACLArgs::ACL_DST].get(),
@@ -341,11 +341,12 @@ acl_fc_executor::ACLWeightFormatGenerator::ACLWeightFormatGenerator(const FCAttr
     initFCAttrs(attrs, aclTensorAttrs, aclfcAttrs, memory, fullyConnectedLayerInfo, postOps);
 }
 
-void acl_fc_executor::ACLWeightFormatGenerator::updateTensorsShapes(ACLShapes& aclMemoryShapes) {
+static void acl_fc_executor::ACLWeightFormatGenerator::updateTensorsShapes(ACLShapes& aclMemoryShapes) {
     updateFCTensorsShapes(aclMemoryShapes);
 }
 
-arm_compute::Status acl_fc_executor::ACLWeightFormatGenerator::validateTensorsInfo(const ACLInfos& aclMemoryInfos) {
+arm_compute::Status acl_fc_executor::ACLWeightFormatGenerator::validateTensorsInfo(
+    const ACLInfos& aclMemoryInfos) const {
     if (aclfcAttrs.isConvertedWeights) {
         aclMemoryInfos[ACLArgs::ACL_WEI]->set_data_type(aclMemoryInfos[ACLArgs::ACL_SRC_0]->data_type());
     }

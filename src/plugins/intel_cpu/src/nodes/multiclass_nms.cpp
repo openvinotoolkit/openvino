@@ -63,7 +63,7 @@ MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphCon
     if (nmsBase == nullptr) {
         THROW_CPU_NODE_ERR("is not an instance of MulticlassNmsBase.");
     }
-    auto& atrri = nmsBase->get_attrs();
+    const auto& atrri = nmsBase->get_attrs();
     m_sortResultAcrossBatch = atrri.sort_result_across_batch;
     m_nmsTopK = atrri.nms_top_k;
     m_iouThreshold = atrri.iou_threshold;
@@ -404,7 +404,7 @@ void MultiClassNms::execute(const dnnl::stream& strm) {
             auto original_index = original_offset + j;
             const auto& box_info = m_filtBoxes[original_index];
 
-            auto selected_base = selected_outputs + (output_offset + j) * 6;
+            auto* selected_base = selected_outputs + (output_offset + j) * 6;
             selected_base[0] = box_info.class_index;
             selected_base[1] = box_info.score;
 
@@ -450,8 +450,15 @@ bool MultiClassNms::created() const {
 }
 
 float MultiClassNms::intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized) {
-    float yminI, xminI, ymaxI, xmaxI, yminJ, xminJ, ymaxJ, xmaxJ;
-    const auto norm = static_cast<float>(normalized == false);
+    float yminI;
+    float xminI;
+    float ymaxI;
+    float xmaxI;
+    float yminJ;
+    float xminJ;
+    float ymaxJ;
+    float xmaxJ;
+    const auto norm = static_cast<float>(!normalized);
 
     // to align with reference
     yminI = boxesI[0];
@@ -511,7 +518,7 @@ void MultiClassNms::nmsWithEta(const float* boxes,
                 }
             }
             fb.reserve(sorted_boxes.size());
-            if (sorted_boxes.size() > 0) {
+            if (!sorted_boxes.empty()) {
                 auto adaptive_threshold = m_iouThreshold;
                 int max_out_box =
                     (static_cast<size_t>(m_nmsRealTopk) > sorted_boxes.size()) ? sorted_boxes.size() : m_nmsRealTopk;
@@ -626,7 +633,7 @@ void MultiClassNms::nmsWithoutEta(const float* boxes,
             }
 
             int io_selection_size = 0;
-            if (sorted_boxes.size() > 0) {
+            if (!sorted_boxes.empty()) {
                 parallel_sort(sorted_boxes.begin(),
                               sorted_boxes.end(),
                               [](const std::pair<float, int>& l, const std::pair<float, int>& r) {

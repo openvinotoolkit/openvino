@@ -12,7 +12,7 @@ namespace ov::intel_cpu {
 
 class AclPoolingExecutor : public PoolingExecutor {
 public:
-    AclPoolingExecutor(const ExecutorContext::CPtr context);
+    AclPoolingExecutor(ExecutorContext::CPtr context);
 
     bool init(const PoolingAttrs& poolingAttrs,
               const std::vector<MemoryDescPtr>& srcDescs,
@@ -50,9 +50,9 @@ private:
 
 class AclPoolingExecutorBuilder : public PoolingExecutorBuilder {
 public:
-    [[nodiscard]] bool isSupported(const PoolingAttrs& poolingAttrs,
-                                   const std::vector<MemoryDescPtr>& srcDescs,
-                                   const std::vector<MemoryDescPtr>& dstDescs) const override {
+    [[nodiscard]] static bool isSupported(const PoolingAttrs& poolingAttrs,
+                                          const std::vector<MemoryDescPtr>& srcDescs,
+                                          const std::vector<MemoryDescPtr>& dstDescs) override {
         if ((srcDescs[0]->getPrecision() != ov::element::f32 && dstDescs[0]->getPrecision() != ov::element::f32) &&
             (srcDescs[0]->getPrecision() != ov::element::f16 && dstDescs[0]->getPrecision() != ov::element::f16)) {
             DEBUG_LOG("AclPoolingExecutor does not support precisions:",

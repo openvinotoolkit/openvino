@@ -24,7 +24,10 @@ StridedSliceShapeInfer::StridedSliceShapeInfer(size_t output_size,
 Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                                      const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     // align with intel_cpu::node::StridedSlice
-    static constexpr size_t DATA_ID = 0, BEGIN_ID = 1, END_ID = 2, STRIDE_ID = 3;
+    static constexpr size_t DATA_ID = 0;
+    static constexpr size_t BEGIN_ID = 1;
+    static constexpr size_t END_ID = 2;
+    static constexpr size_t STRIDE_ID = 3;
     const VectorDims& shapeIn = input_shapes[DATA_ID].get();
     const VectorDims& shapeBegin = input_shapes[BEGIN_ID].get();
     if (data_dependency.at(BEGIN_ID)->getDesc().getPrecision() != ov::element::i32 ||
@@ -32,9 +35,9 @@ Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<co
         data_dependency.at(STRIDE_ID)->getDesc().getPrecision() != ov::element::i32) {
         OPENVINO_THROW("The data type of begin/end/stride is NOT I32, which is unexpected!");
     }
-    auto beginPtr = data_dependency.at(BEGIN_ID)->getDataAs<int32_t>();
-    auto endPtr = data_dependency.at(END_ID)->getDataAs<int32_t>();
-    auto stridePtr = data_dependency.at(STRIDE_ID)->getDataAs<int32_t>();
+    auto* beginPtr = data_dependency.at(BEGIN_ID)->getDataAs<int32_t>();
+    auto* endPtr = data_dependency.at(END_ID)->getDataAs<int32_t>();
+    auto* stridePtr = data_dependency.at(STRIDE_ID)->getDataAs<int32_t>();
 
     const auto begin_size = shapeBegin[0];
 
@@ -42,7 +45,8 @@ Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<co
         if ((cur_idx >= begin_size) || (shapeIn[in_idx] == 0)) {
             return shapeIn[in_idx];
         }
-        int32_t begin = 0, end = 0;
+        int32_t begin = 0;
+        int32_t end = 0;
         if (stridePtr[cur_idx] < 0) {
             begin = m_begin_mask_set.count(cur_idx) ? shapeIn[in_idx] : beginPtr[cur_idx];
             end = m_end_mask_set.count(cur_idx) ? (-1 - shapeIn[in_idx]) : endPtr[cur_idx];

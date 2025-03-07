@@ -404,7 +404,7 @@ void MKernel::BMatrix::setup(int8_t* ext_buff, int8_t* p_weight, int weight_stri
 
     const int k_step = 64;
     auto N_stride = weight_stride_in_bytes / sizeof(int8_t);
-    auto* pdst = reinterpret_cast<int8_t*>(ext_buff);
+    auto* pdst = ext_buff;
     for (int n = 0; n < N; n += 32) {
         auto* src0 = p_weight + n * N_stride;
         auto* src1 = p_weight + (n + 16) * N_stride;
@@ -412,9 +412,9 @@ void MKernel::BMatrix::setup(int8_t* ext_buff, int8_t* p_weight, int weight_stri
         auto valid_n1 = std::min((N - (n + 16)), 16);
         for (int k = 0, blkk = 0; k < K; k += k_step, blkk++) {
             auto valid_k = std::min((K - k), k_step);
-            repackB(reinterpret_cast<int8_t*>(pdst), src0 + k, N_stride, valid_n0, valid_k);
+            repackB(pdst, src0 + k, N_stride, valid_n0, valid_k);
             pdst += 1024;
-            repackB(reinterpret_cast<int8_t*>(pdst), src1 + k, N_stride, valid_n1, valid_k);
+            repackB(pdst, src1 + k, N_stride, valid_n1, valid_k);
             pdst += 1024;
         }
     }
@@ -469,14 +469,14 @@ void MKernel::BMatrix::setup(int8_t* ext_buff,
     const int k_step = 64;
     auto N_stride = weight_stride_in_bytes / sizeof(int8_t);
     auto N2 = N / 2;
-    auto* pdst = reinterpret_cast<int8_t*>(ext_buff);
+    auto* pdst = ext_buff;
     for (int n = 0; n < N2; n += 16) {
         auto valid_n0 = std::min((N2 - n), 16);
         for (int k = 0; k < K; k += k_step) {
             auto valid_k = std::min((K - k), k_step);
-            repackB(reinterpret_cast<int8_t*>(pdst), p_weight_B0 + n * N_stride + k, N_stride, valid_n0, valid_k);
+            repackB(pdst, p_weight_B0 + n * N_stride + k, N_stride, valid_n0, valid_k);
             pdst += 1024;
-            repackB(reinterpret_cast<int8_t*>(pdst), p_weight_B1 + n * N_stride + k, N_stride, valid_n0, valid_k);
+            repackB(pdst, p_weight_B1 + n * N_stride + k, N_stride, valid_n0, valid_k);
             pdst += 1024;
         }
     }
@@ -490,12 +490,12 @@ void MKernel::BMatrix::setup(int8_t* ext_buff,
 // but prefetch of next B must be specified by caller.
 //
 void MKernel::run(int M,  // actual M
-                  uint8_t* pA,
+                  const uint8_t* pA,
                   int strideA,          // A [M, K]
                   BMatrix& repacked_B,  // B [N/32, K*32] ov::bfloat16
-                  uint8_t* pC,
-                  int strideC,          // C [M, N]
-                  uint8_t* prefetch_B,  // prefetch B
+                  const uint8_t* pC,
+                  int strideC,                // C [M, N]
+                  const uint8_t* prefetch_B,  // prefetch B
                   bool do_accumulation) {
     call_args args;
 
@@ -523,10 +523,11 @@ void MKernel::run(int M,  // actual M
     }
 }
 
-void MatrixDynQuantPerRow::quantize(size_t BM, ov::bfloat16* psrc, int src_stride) {
+void MatrixDynQuantPerRow::quantize(size_t BM, ov::bfloat16* psrc, int src_stride) const {
     assert(static_cast<int64_t>(BM) <= M);
     parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
-        size_t start{0}, end{0};
+        size_t start{0};
+        size_t end{0};
         splitter(BM, nthr, ithr, start, end);
         ov::Extensions::Cpu::XARCH::llm_mlp_quantize_bf16_i8(psrc + start * src_stride,
                                                              src_stride,
@@ -540,10 +541,11 @@ void MatrixDynQuantPerRow::quantize(size_t BM, ov::bfloat16* psrc, int src_strid
     });
 }
 
-void MatrixDynQuantPerRow::quantize(size_t BM, ov::float16* psrc, int src_stride) {
+void MatrixDynQuantPerRow::quantize(size_t BM, ov::float16* psrc, int src_stride) const {
     assert(static_cast<int64_t>(BM) <= M);
     parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
-        size_t start{0}, end{0};
+        size_t start{0};
+        size_t end{0};
         splitter(BM, nthr, ithr, start, end);
         ov::Extensions::Cpu::XARCH::llm_mlp_quantize_f16_i8(psrc + start * src_stride,
                                                             src_stride,

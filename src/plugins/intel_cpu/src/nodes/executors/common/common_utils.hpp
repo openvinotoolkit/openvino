@@ -22,7 +22,7 @@ OV_CPU_MAYBE_UNUSED_FUNCTION static std::vector<float> getDeQuantizedScales(cons
 
     auto scalesMemory = memory.at(ARG_DST_DEQ_SCALE);
 
-    auto scalesData = static_cast<const float*>(scalesMemory->getData());
+    const auto* scalesData = static_cast<const float*>(scalesMemory->getData());
 
     if (!scalesData) {
         return {};

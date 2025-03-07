@@ -75,7 +75,8 @@ public:
     static void execute_unary_eltw_kernel(ReferenceUnaryEltwiseTppEmitter* ref_emitter, void* in0, void* out0) {
         assert(ref_emitter);
         // Note: we can instantiate template with different precision combinations here, if we need to
-        ref_emitter->evaluate_reference_impl(reinterpret_cast<float*>(in0), reinterpret_cast<float*>(out0));
+        ov::intel_cpu::ReferenceUnaryEltwiseTppEmitter::evaluate_reference_impl(reinterpret_cast<float*>(in0),
+                                                                                reinterpret_cast<float*>(out0));
     }
     const uintptr_t get_execute_function_ptr() const override {
         return reinterpret_cast<const uintptr_t>(execute_unary_eltw_kernel);
@@ -100,10 +101,10 @@ private:
             out0 += m_shape.ldo;
         }
     }
-    void evaluate_reference_impl(float* in0, float* out0) {
+    static void evaluate_reference_impl(float* in0, float* out0) {
         for (int n = 0; n < m_shape.n; n++) {
-            auto in0_row = in0;
-            auto out0_row = out0;
+            auto* in0_row = in0;
+            auto* out0_row = out0;
             for (int m = 0; m < m_shape.m; m++)
                 out0_row[m] = executor(in0_row[m]);
             in0 += m_shape.ldi;

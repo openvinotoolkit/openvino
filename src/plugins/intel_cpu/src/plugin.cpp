@@ -136,7 +136,7 @@ Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpec
     get_executor_manager()->execute_task_by_streams_executor(ov::hint::SchedulingCoreType::PCORE_ONLY, [] {
         dnnl::impl::cpu::x64::cpu();
     });
-    auto& ov_version = ov::get_openvino_version();
+    const auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = std::string(ov_version.buildNumber);
     m_msg_manager = ov::threading::message_manager();
 }
@@ -152,7 +152,7 @@ static bool streamsSet(const ov::AnyMap& config) {
     return config.count(ov::num_streams.name());
 }
 
-void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const {
+static void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) {
     int streams_set = config.streams;
     int streams;
     if (config.streamsChanged) {
@@ -165,14 +165,14 @@ void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::M
         streams = streams_set == 1 ? 0 : streams_set;
     }
 
-    if (!((0 == streams_set) && config.streamsChanged)) {
+    if ((0 != streams_set) || !config.streamsChanged) {
         get_num_streams(streams, model, config);
     } else {
         config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor", streams};
     }
 }
 
-void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) const {
+void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) {
     const auto model_prefer_name = std::string("MODEL_PREFER_THREADS");
     if (imported && model->has_rt_info("intel_cpu_hints_config")) {
         // load model_prefer_threads from cache
@@ -204,7 +204,7 @@ static Config::ModelType getModelType(const std::shared_ptr<const Model>& model)
         return Config::ModelType::CNN;
     }
 
-    if ((op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) && model->get_variables().size() > 0) ||
+    if ((op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) && !model->get_variables().empty()) ||
         op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model)) {
         return Config::ModelType::LLM;
     }
@@ -375,7 +375,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
             res = false;
         } else {
             ov::AnyMap input_map = it->second.as<ov::AnyMap>();
-            for (auto& item : m_compiled_model_runtime_properties) {
+            for (const auto& item : m_compiled_model_runtime_properties) {
                 auto it = input_map.find(item.first);
                 if (it == input_map.end() || it->second.as<std::string>() != item.second.as<std::string>()) {
                     res = false;
@@ -387,7 +387,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     }
     if (name == ov::internal::exclusive_async_requests.name()) {
         return engConfig.exclusiveAsyncRequests;
-    } else if (name == ov::hint::dynamic_quantization_group_size) {
+    }
+    if (name == ov::hint::dynamic_quantization_group_size) {
         return static_cast<decltype(ov::hint::dynamic_quantization_group_size)::value_type>(
             engConfig.fcDynamicQuantizationGroupSize);
     } else if (name == ov::hint::kv_cache_precision) {
@@ -476,7 +477,8 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
     if (name == ov::available_devices) {
         const std::vector<std::string> availableDevices = {""};
         return decltype(ov::available_devices)::value_type(availableDevices);
-    } else if (name == ov::device::capabilities) {
+    }
+    if (name == ov::device::capabilities) {
         std::vector<std::string> capabilities;
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) ||
             dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) {

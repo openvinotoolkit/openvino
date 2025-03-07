@@ -84,7 +84,7 @@ enum class ExecutorType { Undefined, Graph, Common, jit_x64, Dnnl, Acl, Mlas, ji
 
 enum class OperationType { FullyConnected, MatMul, Convolution };
 
-std::string ExecutorTypeToString(const ExecutorType type);
+std::string ExecutorTypeToString(ExecutorType type);
 ExecutorType ExecutorTypeFromString(const std::string& typeStr);
 
 class ExecutorContext {
@@ -128,7 +128,7 @@ public:
         return implPriorities;
     }
 
-    [[nodiscard]] const WeightsSharing::Ptr getWeightsCache() const {
+    [[nodiscard]] WeightsSharing::Ptr getWeightsCache() const {
         return weightsCache;
     }
 

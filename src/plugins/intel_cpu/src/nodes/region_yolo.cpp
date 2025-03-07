@@ -184,7 +184,7 @@ private:
         int float_1 = 0x3f800000;    // 1 //  1.0f
     } vals_for_logistic_activate;
 
-    inline void load_vector(Vmm vmm_src, const Xbyak::Address& op, ov::element::Type src_dt) {
+    void load_vector(Vmm vmm_src, const Xbyak::Address& op, ov::element::Type src_dt) {
         switch (src_dt) {
         case ov::element::f32:
             uni_vmovups(vmm_src, op);
@@ -197,7 +197,7 @@ private:
             assert(!"unknown src_dt");
         }
     }
-    inline void store_vector(const Xbyak::Address& op, Vmm vmm_dst, ov::element::Type dst_dt) {
+    void store_vector(const Xbyak::Address& op, Vmm vmm_dst, ov::element::Type dst_dt) {
         auto ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
 
         switch (dst_dt) {
@@ -213,7 +213,7 @@ private:
             assert(!"unknown dst_dt");
         }
     }
-    inline void load_scalar(Xbyak::Xmm xmm_src, const Xbyak::Address& op, ov::element::Type src_dt) {
+    void load_scalar(Xbyak::Xmm xmm_src, const Xbyak::Address& op, ov::element::Type src_dt) {
         switch (src_dt) {
         case ov::element::f32:
             uni_vmovss(xmm_src, op);
@@ -226,7 +226,7 @@ private:
             assert(!"unknown src_dt");
         }
     }
-    inline void store_scalar(const Xbyak::Address& op, Xbyak::Xmm xmm_dst, ov::element::Type dst_dt) {
+    void store_scalar(const Xbyak::Address& op, Xbyak::Xmm xmm_dst, ov::element::Type dst_dt) {
         switch (dst_dt) {
         case ov::element::f32:
             uni_vmovss(op, xmm_dst);
@@ -378,12 +378,12 @@ inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_
         });
     } else {
         if (ov::element::f32 == output_prec) {
-            auto float_dst_data = reinterpret_cast<float*>(dst_data);
+            auto* float_dst_data = reinterpret_cast<float*>(dst_data);
             for (int i = 0; i < count; i++) {
                 float_dst_data[i + start_index] = logistic_scalar(float_dst_data[i + start_index]);
             }
         } else if (ov::element::bf16 == output_prec) {
-            auto bf16_dst_data = reinterpret_cast<ov::intel_cpu::bfloat16_t*>(dst_data);
+            auto* bf16_dst_data = reinterpret_cast<ov::intel_cpu::bfloat16_t*>(dst_data);
             for (int i = 0; i < count; i++) {
                 bf16_dst_data[i + start_index] = logistic_scalar(bf16_dst_data[i + start_index]);
             }

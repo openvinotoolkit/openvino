@@ -180,7 +180,7 @@ struct PlainTensor {
         int count;
         // select all
         tensor_index() : start(0), end(INT_MAX), step(1) {}
-        bool slice_with_squeeze() {
+        bool slice_with_squeeze() const {
             return end == INT_MIN;
         }
         // tensor_index(start)            : select 1 element (with squeeze)
@@ -207,7 +207,7 @@ struct PlainTensor {
         }
     };
 
-    PlainTensor index(const std::initializer_list<tensor_index>& indices) {
+    PlainTensor index(const std::initializer_list<tensor_index>& indices) const {
         PlainTensor sub_tensor;
         assert(indices.size() <= m_rank);
         int i_src = 0;
@@ -300,7 +300,7 @@ struct PlainTensor {
 
        simplified form is when whole tensor is dense
     */
-    [[nodiscard]] PlainTensor reshape(const std::vector<size_t>& target_shape) const {
+    [[nodiscard]] PlainTensor reshape(const std::vector<size_t>& target_shape) {
         // only valid for dense memory
         PlainTensor new_tensor_view;
         assert(is_dense());

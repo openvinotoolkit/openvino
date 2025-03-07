@@ -32,7 +32,7 @@ public:
     [[nodiscard]] bool isExecutable() const override;
     void execute(const dnnl::stream& strm) override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
-    [[nodiscard]] bool canBeInPlace() const override {
+    [[nodiscard]] static bool canBeInPlace() override {
         return false;
     }
 

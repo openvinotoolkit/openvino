@@ -14,7 +14,7 @@ namespace ov::intel_cpu {
 
 class AclReduceExecutor : public ReduceExecutor {
 public:
-    AclReduceExecutor(const ExecutorContext::CPtr context);
+    AclReduceExecutor(ExecutorContext::CPtr context);
 
     bool init(const ReduceAttrs& reduceAttrs,
               const std::vector<MemoryDescPtr>& srcDescs,
@@ -40,9 +40,9 @@ private:
 
 class AclReduceExecutorBuilder : public ReduceExecutorBuilder {
 public:
-    [[nodiscard]] bool isSupported(const ReduceAttrs& reduceAttrs,
-                                   const std::vector<MemoryDescPtr>& srcDescs,
-                                   const std::vector<MemoryDescPtr>& dstDescs) const override {
+    [[nodiscard]] static bool isSupported(const ReduceAttrs& reduceAttrs,
+                                          const std::vector<MemoryDescPtr>& srcDescs,
+                                          const std::vector<MemoryDescPtr>& dstDescs) override {
         if (reduceAttrs.operation == Algorithm::ReduceMean) {
             if (srcDescs[0]->getPrecision() != dstDescs[0]->getPrecision() ||
                 (srcDescs[0]->getPrecision() != ov::element::f32 && srcDescs[0]->getPrecision() != ov::element::f16)) {

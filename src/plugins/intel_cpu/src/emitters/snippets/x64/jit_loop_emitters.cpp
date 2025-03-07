@@ -48,7 +48,7 @@ public:
 private:
     dnnl::impl::cpu::x64::jit_generator* m_h;
     std::vector<size_t>& m_pool_gpr_idxs;
-    Reg64 m_aux_gpr_idx{};
+    Reg64 m_aux_gpr_idx;
     bool m_is_preserved = false;
 };
 }  // namespace
@@ -168,7 +168,7 @@ ov::snippets::lowered::ExpressionPtr jit_loop_end_emitter::get_loop_begin_expr(
 
 void jit_loop_end_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     const auto io_size = num_inputs + num_outputs;
-    OV_CPU_JIT_EMITTER_ASSERT(out.size() == 0, "Invalid number of out arguments: expected ", 0, " got ", out.size());
+    OV_CPU_JIT_EMITTER_ASSERT(out.empty(), "Invalid number of out arguments: expected ", 0, " got ", out.size());
     OV_CPU_JIT_EMITTER_ASSERT(in.size() == io_size + 1,
                               "Invalid number of in arguments: expected ",
                               io_size + 1,

@@ -169,7 +169,12 @@ void PriorBox::execute(const dnnl::stream& strm) {
     }
 
     int64_t idx = 0;
-    float center_x, center_y, box_width, box_height, step_x, step_y;
+    float center_x;
+    float center_y;
+    float box_width;
+    float box_height;
+    float step_x;
+    float step_y;
     float IWI = 1.0f / static_cast<float>(IW);
     float IHI = 1.0f / static_cast<float>(IH);
 

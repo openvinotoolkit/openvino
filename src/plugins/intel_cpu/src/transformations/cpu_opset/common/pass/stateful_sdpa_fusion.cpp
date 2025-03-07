@@ -58,10 +58,18 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     auto concat_k = makePattern<opset1::Concat>({gather_input_k, cur_k}, {{"axis", axis_seq_len}});
     auto concat_v = makePattern<opset1::Concat>({gather_input_v, cur_v}, {{"axis", axis_seq_len}});
 
-    std::shared_ptr<Node> reshape_k, reshape_v, unsqueeze_k, unsqueeze_v;
-    std::shared_ptr<Node> computed_bcst_k, computed_bcst_v, multiply_k, multiply_v;
-    std::shared_ptr<Node> mq_reshape_k, mq_reshape_v;
-    std::shared_ptr<Node> computed_bcst3_k, computed_bcst3_v;
+    std::shared_ptr<Node> reshape_k;
+    std::shared_ptr<Node> reshape_v;
+    std::shared_ptr<Node> unsqueeze_k;
+    std::shared_ptr<Node> unsqueeze_v;
+    std::shared_ptr<Node> computed_bcst_k;
+    std::shared_ptr<Node> computed_bcst_v;
+    std::shared_ptr<Node> multiply_k;
+    std::shared_ptr<Node> multiply_v;
+    std::shared_ptr<Node> mq_reshape_k;
+    std::shared_ptr<Node> mq_reshape_v;
+    std::shared_ptr<Node> computed_bcst3_k;
+    std::shared_ptr<Node> computed_bcst3_v;
     auto multi_query_bcst = [](const std::shared_ptr<Node>& kv) {
         auto reshape_kv = makePattern<opset6::Reshape>({kv, any_input()});
         auto unsqueeze_kv = makePattern<opset1::Unsqueeze>({kv, any_input()});
@@ -125,9 +133,9 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
         auto find_assign = [&](const ov::Output<ov::Node>& out, opset6::Assign*& assign, opset1::Convert*& cvt) {
             auto present_to = out.get_target_inputs();
-            for (auto& to : present_to) {
-                auto to_node = to.get_node();
-                if (auto convert = ov::as_type<opset1::Convert>(to_node)) {
+            for (const auto& to : present_to) {
+                auto* to_node = to.get_node();
+                if (auto* convert = ov::as_type<opset1::Convert>(to_node)) {
                     auto cvt_targets = convert->get_output_target_inputs(0);
                     if (cvt_targets.size() == 1) {
                         to_node = cvt_targets.begin()->get_node();
@@ -143,8 +151,8 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         };
         auto check_valid_children_type = [](const ov::Output<ov::Node>& out) {
             auto children = out.get_target_inputs();
-            for (auto& child : children) {
-                auto node = child.get_node();
+            for (const auto& child : children) {
+                auto* node = child.get_node();
                 if (!one_of(node->get_type_info(),
                             ov::op::v13::ScaledDotProductAttention::get_type_info_static(),
                             ov::op::v0::ShapeOf::get_type_info_static(),
@@ -187,8 +195,10 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
             }
         }
 
-        opset6::Assign *assign_k_node = nullptr, *assign_v_node = nullptr;
-        opset1::Convert *assign_cvt_k_node = nullptr, *assign_cvt_v_node = nullptr;
+        opset6::Assign* assign_k_node = nullptr;
+        opset6::Assign* assign_v_node = nullptr;
+        opset1::Convert* assign_cvt_k_node = nullptr;
+        opset1::Convert* assign_cvt_v_node = nullptr;
         if (!find_assign(concat_k_node, assign_k_node, assign_cvt_k_node)) {
             return false;
         }
@@ -273,7 +283,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
             }
         }
 
-        auto& old_node = sdp_node;
+        const auto& old_node = sdp_node;
         auto new_node = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         copy_runtime_info(old_node, new_node);

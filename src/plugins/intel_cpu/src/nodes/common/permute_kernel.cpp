@@ -205,7 +205,7 @@ void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data) {
     RefTransposeExecutor::referenceExecute(src_data, dst_data, jcp, dst_dims[0]);
 }
 
-void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {
+void PermuteKernel::optimizedExecute(const uint8_t* src_data, const uint8_t* dst_data, const int mb) {
     VectorDims dst_dims = jcp.dst_block_dims;
     const VectorDims dst_strides = jcp.dst_strides;
     const VectorDims src_strides = jcp.src_strides;
@@ -252,7 +252,6 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data,
         });
         break;
     }
-    return;
 }
 
 size_t PermuteParams::hash() const {

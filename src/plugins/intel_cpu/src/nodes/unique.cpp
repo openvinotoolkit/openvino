@@ -176,7 +176,9 @@ void Unique::flattenTensorExec() {
     const size_t inputLen = getSrcMemoryAtPort(IN_DATA)->getSize() / sizeof(T);
     std::vector<T> uniDataTmp(inputLen);
     auto uniDataTmpPtr = uniDataTmp.data();
-    int *firstTmpPtr = nullptr, *inToOutTmpPtr = nullptr, *occurTmpPtr = nullptr;
+    int* firstTmpPtr = nullptr;
+    int* inToOutTmpPtr = nullptr;
+    int* occurTmpPtr = nullptr;
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
         firstTmpPtr = firstUniTmp.data();
     }
@@ -191,7 +193,7 @@ void Unique::flattenTensorExec() {
     if (sorted) {
         cpu_parallel_memcpy(uniDataTmpPtr, srcDataPtr, inputLen * sizeof(T));
         std::sort(uniDataTmpPtr, uniDataTmpPtr + inputLen);
-        auto last = std::unique(uniDataTmpPtr, uniDataTmpPtr + inputLen);
+        auto* last = std::unique(uniDataTmpPtr, uniDataTmpPtr + inputLen);
         uniqueLen = last - uniDataTmpPtr;
 
         if (definedOutputs[FIRST_UNIQUE_IDX]) {
@@ -270,11 +272,11 @@ void Unique::flattenTensorExec() {
         cpu_parallel_memcpy(firstPtr, firstUniTmp.data(), uniqueLen * sizeof(int));
     }
     if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-        auto inToOutPtr = getDstDataAtPortAs<int>(INPUT_TO_UNIQ_IDX);
+        auto* inToOutPtr = getDstDataAtPortAs<int>(INPUT_TO_UNIQ_IDX);
         cpu_parallel_memcpy(inToOutPtr, inToOutTmp.data(), inputLen * sizeof(int));
     }
     if (definedOutputs[OCCURRENCES_NUM]) {
-        auto occurPtr = getDstDataAtPortAs<int>(OCCURRENCES_NUM);
+        auto* occurPtr = getDstDataAtPortAs<int>(OCCURRENCES_NUM);
         cpu_parallel_memcpy(occurPtr, occurTmp.data(), uniqueLen * sizeof(int));
     }
 }
@@ -282,8 +284,10 @@ void Unique::flattenTensorExec() {
 template <typename T>
 void Unique::slicedTensorExec() {
     auto inDataMemPtr = getSrcMemoryAtPort(IN_DATA);
-    auto srcDataPtr = inDataMemPtr->getDataAs<const T>();
-    int *firstTmpPtr = nullptr, *inToOutTmpPtr = nullptr, *occurTmpPtr = nullptr;
+    const auto* srcDataPtr = inDataMemPtr->getDataAs<const T>();
+    int* firstTmpPtr = nullptr;
+    int* inToOutTmpPtr = nullptr;
+    int* occurTmpPtr = nullptr;
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
         firstTmpPtr = firstUniTmp.data();
     }
@@ -323,13 +327,13 @@ void Unique::slicedTensorExec() {
     std::vector<size_t> uniqIdx(axisDim, 0lu);
     // Search for unique slices.
     for (size_t a = 1lu; a < axisDim; a++) {
-        auto first1 = srcDataPtr + a * innerLen;
-        auto last1 = srcDataPtr + (a + 1lu) * innerLen;
+        const auto* first1 = srcDataPtr + a * innerLen;
+        const auto* last1 = srcDataPtr + (a + 1lu) * innerLen;
         bool equal = true;
         size_t uIdx = 0lu;
         // Compare with unique blocks.
         for (; uIdx < uniqueLen; uIdx++) {
-            auto first2 = srcDataPtr + uniqIdx[uIdx] * innerLen;
+            const auto* first2 = srcDataPtr + uniqIdx[uIdx] * innerLen;
             equal = true;
             for (int64_t o = 0lu; o < outerLen; o++) {
                 equal = std::equal(first1, last1, first2);
@@ -365,7 +369,9 @@ void Unique::slicedTensorExec() {
     dstDataShape[axis] = uniqueLen;
     redefineOutputMemory({dstDataShape, {uniqueLen}, {axisDim}, {uniqueLen}});
 
-    int *firstPtr = nullptr, *inToOutPtr = nullptr, *occurNPtr = nullptr;
+    int* firstPtr = nullptr;
+    int* inToOutPtr = nullptr;
+    int* occurNPtr = nullptr;
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
         firstPtr = getDstDataAtPortAs<int>(FIRST_UNIQUE_IDX);
     }
@@ -381,7 +387,7 @@ void Unique::slicedTensorExec() {
     // Filling of the first output if needed.
     if (sorted || definedOutputs[UNIQUE_DATA]) {
         parallel_for(uniqueLen, [&](size_t u) {
-            auto first1 = srcDataPtr + uniqIdx[u] * innerLen;
+            const auto* first1 = srcDataPtr + uniqIdx[u] * innerLen;
             auto first2 = dstDataPtr + u * innerLen;
             for (int64_t p = 0lu; p < outerLen; p++) {
                 cpu_memcpy(first2, first1, innerSizeB);
@@ -404,10 +410,14 @@ void Unique::slicedTensorExec() {
         };
 
         std::vector<OrdEl> colToSort(uniqueLen);
-        T *dst1 = dstDataPtr, *dst2 = dstBuff;
-        int *first1 = firstPtr, *first2 = firstTmpPtr;
-        int *occurN1 = occurNPtr, *occurN2 = occurTmpPtr;
-        int *inToOut1 = inToOutPtr, *inToOut2 = inToOutTmpPtr;
+        T* dst1 = dstDataPtr;
+        T* dst2 = dstBuff;
+        int* first1 = firstPtr;
+        int* first2 = firstTmpPtr;
+        int* occurN1 = occurNPtr;
+        int* occurN2 = occurTmpPtr;
+        int* inToOut1 = inToOutPtr;
+        int* inToOut2 = inToOutTmpPtr;
 
         const bool defined3outputs =
             definedOutputs[FIRST_UNIQUE_IDX] || definedOutputs[OCCURRENCES_NUM] || definedOutputs[INPUT_TO_UNIQ_IDX];

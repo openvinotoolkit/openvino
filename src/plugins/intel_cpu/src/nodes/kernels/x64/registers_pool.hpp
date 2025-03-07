@@ -157,7 +157,7 @@ protected:
     public:
         PhysicalSet(int size) : isFreeIndexVector(size, true) {}
 
-        void setAsUsed(size_t regIdx) {
+        static void setAsUsed(size_t regIdx) {
             if (regIdx >= isFreeIndexVector.size()) {
                 OPENVINO_THROW("regIdx is out of bounds in RegistersPool::PhysicalSet::setAsUsed()");
             }
@@ -167,7 +167,7 @@ protected:
             isFreeIndexVector[regIdx] = false;
         }
 
-        void setAsUnused(size_t regIdx) {
+        static void setAsUnused(size_t regIdx) {
             if (regIdx >= isFreeIndexVector.size()) {
                 OPENVINO_THROW("regIdx is out of bounds in RegistersPool::PhysicalSet::setAsUsed()");
             }
@@ -177,25 +177,24 @@ protected:
             isFreeIndexVector[regIdx] = true;
         }
 
-        size_t getUnused(size_t requestedIdx) {
+        static size_t getUnused(size_t requestedIdx) {
             if (requestedIdx == static_cast<size_t>(anyIdx)) {
                 return getFirstFreeIndex();
-            } else {
-                if (requestedIdx >= isFreeIndexVector.size()) {
-                    OPENVINO_THROW("requestedIdx is out of bounds in RegistersPool::PhysicalSet::getUnused()");
-                }
-                if (!isFreeIndexVector[requestedIdx]) {
-                    OPENVINO_THROW("The register with index #", requestedIdx, " already used in the RegistersPool");
-                }
-                return requestedIdx;
             }
+            if (requestedIdx >= isFreeIndexVector.size()) {
+                OPENVINO_THROW("requestedIdx is out of bounds in RegistersPool::PhysicalSet::getUnused()");
+            }
+            if (!isFreeIndexVector[requestedIdx]) {
+                OPENVINO_THROW("The register with index #", requestedIdx, " already used in the RegistersPool");
+            }
+            return requestedIdx;
         }
 
         void exclude(Xbyak::Reg reg) {
             isFreeIndexVector.at(reg.getIdx()) = false;
         }
 
-        [[nodiscard]] size_t countUnused() const {
+        [[nodiscard]] static size_t countUnused() {
             size_t count = 0;
             for (const auto& isFree : isFreeIndexVector) {
                 if (isFree) {
@@ -206,7 +205,7 @@ protected:
         }
 
     private:
-        size_t getFirstFreeIndex() {
+        static size_t getFirstFreeIndex() {
             for (size_t c = 0; c < isFreeIndexVector.size(); ++c) {
                 if (isFreeIndexVector[c]) {
                     return c;
@@ -215,7 +214,6 @@ protected:
             OPENVINO_THROW("Not enough registers in the RegistersPool");
         }
 
-    private:
         std::vector<bool> isFreeIndexVector;
     };
 
@@ -225,7 +223,7 @@ protected:
     virtual void returnOpmaskToPool(int idx) {
         OPENVINO_THROW("returnOpmaskToPool: The Opmask is not supported in current instruction set");
     }
-    [[nodiscard]] virtual size_t countUnusedOpmask() const {
+    [[nodiscard]] static virtual size_t countUnusedOpmask() {
         OPENVINO_THROW("countUnusedOpmask: The Opmask is not supported in current instruction set");
     }
 
@@ -282,7 +280,7 @@ private:
         }
     }
 
-    void checkUniqueAndUpdate(bool isCtor = true) {
+    static void checkUniqueAndUpdate(bool isCtor = true) {
         static thread_local bool isCreated = false;
         if (isCtor) {
             if (isCreated) {
@@ -334,7 +332,7 @@ public:
         opmaskSet.setAsUnused(idx);
     }
 
-    size_t countUnusedOpmask() const override {
+    size_t countUnusedOpmask() const 
         return opmaskSet.countUnused();
     }
 
@@ -365,8 +363,8 @@ RegistersPool::Ptr RegistersPool::create(std::initializer_list<Xbyak::Reg> regsT
     return std::make_shared<IsaRegistersPool<isa>>(regsToExclude);
 }
 
-inline RegistersPool::Ptr RegistersPool::create(dnnl::impl::cpu::x64::cpu_isa_t isa,
-                                                std::initializer_list<Xbyak::Reg> regsToExclude) {
+inline RegistersPool::Ptr RegistersPool::create(dnnl::impl::cpu::x64
+                                                                std::initializer_list<Xbyak::Reg> regsToExclude) {
 #define ISA_SWITCH_CASE(isa) \
     case isa:                \
         return std::make_shared<IsaRegistersPool<isa>>(regsToExclude);

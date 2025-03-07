@@ -108,7 +108,7 @@ void EmbeddingBagPacked::getIndices(size_t embIndex,
                                     size_t& size,
                                     int& weightsIdx,
                                     bool& withWeight) {
-    if (static_cast<size_t>(embIndex) >= _batch * _indicesPerBag) {
+    if (embIndex >= _batch * _indicesPerBag) {
         THROW_CPU_NODE_ERR("Invalid embedding bag index.");
     }
 

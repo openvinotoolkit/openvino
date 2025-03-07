@@ -110,7 +110,8 @@ void GatherElements::directExecution() {
 
     const int outSize = getChildEdgeAt(0)->getMemory().getShape().getElementsCount();
     auto threadBody = [&](const int ithr, const int nthr) {
-        int start(0lu), end(0lu);
+        int start(0lu);
+        int end(0lu);
         splitter(outSize, nthr, ithr, start, end);
         if (start >= end) {
             return;

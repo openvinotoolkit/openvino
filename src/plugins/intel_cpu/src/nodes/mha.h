@@ -156,12 +156,13 @@ private:
     void mhaImpl();
 
     void init_brgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel, bool use_amx);
-    void init_brgemm_copy_a(std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_a_t>& brgCopyKernel,
-                            size_t K,
-                            size_t K_blk,
-                            size_t K_tail,
-                            size_t LDA,
-                            dnnl_data_type_t dt_in0);
+    static void init_brgemm_copy_a(
+        std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_a_t>& brgCopyKernel,
+        size_t K,
+        size_t K_blk,
+        size_t K_tail,
+        size_t LDA,
+        dnnl_data_type_t dt_in0);
     void init_brgemm_copy_b(std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t>& brgCopyKernel,
                             size_t N,
                             size_t N_blk,
@@ -172,12 +173,12 @@ private:
                             dnnl_data_type_t dt_in0,
                             dnnl_data_type_t dt_in1);
 
-    void callBrgemm(brgemmCtx& ctx,
-                    std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
-                    const void* pin0,
-                    const void* pin1,
-                    void* pout,
-                    void* wsp);
+    static void callBrgemm(brgemmCtx& ctx,
+                           std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
+                           const void* pin0,
+                           const void* pin1,
+                           void* pout,
+                           void* wsp);
 
     size_t getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) {
         return mIdx * 4 + kIdx * 2 + nIdx;

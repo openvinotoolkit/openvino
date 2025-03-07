@@ -46,7 +46,7 @@ public:
 
     [[nodiscard]] bool created() const override;
 
-    [[nodiscard]] bool canBeInPlace() const override {
+    [[nodiscard]] static bool canBeInPlace() override {
         return false;
     }
 

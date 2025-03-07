@@ -10,7 +10,6 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/eye.hpp"
 #include "shape_inference/shape_inference.hpp"
-#include "utils/bfloat16.hpp"
 
 namespace ov::intel_cpu::node {
 using namespace ov::intel_cpu;
@@ -108,11 +107,12 @@ void Eye::executeSpecified() {
     const size_t onesPerBatchNum =
         static_cast<size_t>(shift > 0 ? std::min(countByColumns, static_cast<int64_t>(rowNum))
                                       : std::min(countByRows, static_cast<int64_t>(colNum)));
-    const auto dataShift = static_cast<size_t>(shift >= 0 ? shift : -shift * colNum);
+    const auto dataShift = (shift >= 0 ? shift : -shift * colNum);
 
     if (spatialSize >= l2CacheSize) {
         parallel_nt(0, [&](const size_t ithr, const size_t nthr) {
-            size_t start = 0, end = 0;
+            size_t start = 0;
+            size_t end = 0;
             splitter(elementsCount, nthr, ithr, start, end);
             memset(dst + start, 0, (end - start) * sizeof(T));
         });
@@ -121,7 +121,8 @@ void Eye::executeSpecified() {
         }
         for (size_t bShift = 0; bShift < batchVolume * spatialCount; bShift += spatialCount) {
             parallel_nt(0, [&](const size_t ithr, const size_t nthr) {
-                size_t start = 0, end = 0;
+                size_t start = 0;
+                size_t end = 0;
                 splitter(onesPerBatchNum, nthr, ithr, start, end);
                 for (size_t j = start; j < end; j++) {
                     dst[dataShift + j * (colNum + 1) + bShift] = static_cast<T>(1);
@@ -130,7 +131,8 @@ void Eye::executeSpecified() {
         }
     } else {
         parallel_nt(0, [&](const size_t ithr, const size_t nthr) {
-            size_t start = 0, end = 0;
+            size_t start = 0;
+            size_t end = 0;
             splitter(batchVolume, nthr, ithr, start, end);
             memset(dst + start * spatialCount, 0, (end - start) * spatialSize);
             if (onesPerBatchNum == 0) {

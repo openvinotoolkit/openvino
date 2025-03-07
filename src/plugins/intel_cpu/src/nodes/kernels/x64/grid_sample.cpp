@@ -226,7 +226,8 @@ void GridSampleKernel<isa>::process() {
     regWorkAmount = getReg64();
 
     // Batch loop
-    Xbyak::Label lBatchLoop, lEnd;
+    Xbyak::Label lBatchLoop;
+    Xbyak::Label lEnd;
     RegistersPool::Reg<Xbyak::Reg64> regBatch;
 
     for (uint64_t i = 0lu; i < jcp.batchNum; i++) {
@@ -263,7 +264,8 @@ void GridSampleKernel<isa>::spatialLoop() {
     auto vHCoord = getVmm();
     auto vWCoord = getVmm();
 
-    Xbyak::Label lSpacialLoop, lTail;
+    Xbyak::Label lSpacialLoop;
+    Xbyak::Label lTail;
     L(lSpacialLoop);
     {
         cmp(regWorkAmount, dataElPerVec);
@@ -411,7 +413,9 @@ void GridSampleKernel<isa>::getCoordinates(const Vmm& vHCoord, const Vmm& vWCoor
 
 template <>
 void GridSampleKernel<x64::avx512_core>::getTailCoordinates(const Vmm& vHCoord, const Vmm& vWCoord) {
-    Xbyak::Label lEnd, lGridShift, lRest;
+    Xbyak::Label lEnd;
+    Xbyak::Label lGridShift;
+    Xbyak::Label lRest;
 
     auto vAux = getVmm();
     auto rAux = getReg64();
@@ -459,7 +463,9 @@ void GridSampleKernel<x64::avx512_core>::getTailCoordinates(const Vmm& vHCoord, 
 
 template <>
 void GridSampleKernel<x64::avx2>::getTailCoordinates(const Vmm& vHCoord, const Vmm& vWCoord) {
-    Xbyak::Label lRest, lGridShift, lEnd;
+    Xbyak::Label lRest;
+    Xbyak::Label lGridShift;
+    Xbyak::Label lEnd;
 
     auto rAux = getReg64();
     Vmm vPermMask;
@@ -514,7 +520,8 @@ void GridSampleKernel<x64::avx2>::getTailCoordinates(const Vmm& vHCoord, const V
 
 template <>
 void GridSampleKernel<x64::avx>::getTailCoordinates(const Vmm& vHCoord, const Vmm& vWCoord) {
-    Xbyak::Label lLoop2End, lEnd;
+    Xbyak::Label lLoop2End;
+    Xbyak::Label lEnd;
 
     Xbyak::Xmm xmmWCoord(vWCoord.getIdx());
     Xbyak::Xmm xmmHCoord(vHCoord.getIdx());
@@ -566,7 +573,10 @@ void GridSampleKernel<x64::avx>::getTailCoordinates(const Vmm& vHCoord, const Vm
 
 template <>
 void GridSampleKernel<x64::sse41>::getTailCoordinates(const Vmm& vHCoord, const Vmm& vWCoord) {
-    Xbyak::Label lRest, lHShuf, lGridShift, lEnd;
+    Xbyak::Label lRest;
+    Xbyak::Label lHShuf;
+    Xbyak::Label lGridShift;
+    Xbyak::Label lEnd;
     auto rAux = getReg64();
 
     mov(rAux, regWorkAmount);
@@ -1217,7 +1227,8 @@ void GridSampleKernel<isa>::nearestInterpolation(const Vmm& vWCoord, const Vmm& 
     uni_vroundps(vWCoord, vWCoord, 0x0);  // Round near
     uni_vroundps(vHCoord, vHCoord, 0x0);  // Round near
 
-    bool useMask = false, zeroFill = false;
+    bool useMask = false;
+    bool zeroFill = false;
     if (jcp.paddingMode == GridSamplePaddingMode::ZEROS) {
         useMask = zeroFill = true;
         zerosPadding(kGatherMask, vHCoord, vWCoord);
@@ -1232,7 +1243,8 @@ void GridSampleKernel<isa>::nearestInterpolation(const Vmm& vWCoord, const Vmm& 
     hwShiftPs2dq(vSrcShift, vHCoord, vWCoord, vSrcWidthF);
 
     // PER CHANNEL LOOP
-    Xbyak::Label lChannelLoopBegin, lChannelLoopEnd;
+    Xbyak::Label lChannelLoopBegin;
+    Xbyak::Label lChannelLoopEnd;
     RegistersPool::Reg<Xbyak::Reg64> rChannel;
     auto rSrcTmp = getReg64();
     auto rDstTmp = getReg64();
@@ -1292,7 +1304,10 @@ void GridSampleKernel<x64::avx512_core>::bilinearInterpolation(const Vmm& vWCoor
     auto shift10 = getVmm();
     auto shift11 = getVmm();
     auto vAux = getVmm();
-    RegistersPool::Reg<Vmask> kMask00, kMask01, kMask10, kMask11;
+    RegistersPool::Reg<Vmask> kMask00;
+    RegistersPool::Reg<Vmask> kMask01;
+    RegistersPool::Reg<Vmask> kMask10;
+    RegistersPool::Reg<Vmask> kMask11;
 
     uni_vroundps(shift00, vWCoord, 0x1);  // Round floor
     uni_vroundps(shift01, vHCoord, 0x1);  // Round floor
@@ -1301,7 +1316,8 @@ void GridSampleKernel<x64::avx512_core>::bilinearInterpolation(const Vmm& vWCoor
     uni_vaddps(shift10, shift00, vOnesF);
     uni_vaddps(shift11, shift01, vOnesF);
 
-    bool useMask = false, zeroFill = false;
+    bool useMask = false;
+    bool zeroFill = false;
     if (jcp.paddingMode == GridSamplePaddingMode::ZEROS) {
         useMask = zeroFill = true;
         kMask00 = getMask();
@@ -1343,7 +1359,8 @@ void GridSampleKernel<x64::avx512_core>::bilinearInterpolation(const Vmm& vWCoor
     auto vQ1 = getVmm();
 
     // PER CHANNEL LOOP
-    Xbyak::Label lChannelLoopBegin, lChannelLoopEnd;
+    Xbyak::Label lChannelLoopBegin;
+    Xbyak::Label lChannelLoopEnd;
     RegistersPool::Reg<Xbyak::Reg64> rChannel;
     auto rSrcTmp = getReg64();
     auto rDstTmp = getReg64();
@@ -1432,10 +1449,17 @@ void GridSampleKernel<isa>::bilinearInterpolation(const Vmm& vWCoord, const Vmm&
     auto& vDX = vWCoord;
     auto& vDY = vHCoord;
     auto vAux = getVmm();
-    Vmm shift00, shift01, shift10, shift11;
-    RegistersPool::Reg<Vmm> shift10Holder, shift11Holder;
+    Vmm shift00;
+    Vmm shift01;
+    Vmm shift10;
+    Vmm shift11;
+    RegistersPool::Reg<Vmm> shift10Holder;
+    RegistersPool::Reg<Vmm> shift11Holder;
     // For ZEROS padding only.
-    RegistersPool::Reg<Vmm> vMask00, vMask01, vMask10, vMask11;
+    RegistersPool::Reg<Vmm> vMask00;
+    RegistersPool::Reg<Vmm> vMask01;
+    RegistersPool::Reg<Vmm> vMask10;
+    RegistersPool::Reg<Vmm> vMask11;
 
     uni_vroundps(vWRound, vWCoord, 0x1);  // Round floor
     uni_vroundps(vHRound, vHCoord, 0x1);  // Round floor
@@ -1454,7 +1478,8 @@ void GridSampleKernel<isa>::bilinearInterpolation(const Vmm& vWCoord, const Vmm&
         uni_vaddps(shift11, vHRound, vOnesF);
     }
 
-    bool useMask = false, zeroFill = false;
+    bool useMask = false;
+    bool zeroFill = false;
     if (jcp.paddingMode == GridSamplePaddingMode::ZEROS) {
         useMask = zeroFill = true;
         {
@@ -1509,7 +1534,8 @@ void GridSampleKernel<isa>::bilinearInterpolation(const Vmm& vWCoord, const Vmm&
     auto vQ1 = getVmm();
 
     // PER CHANNEL LOOP
-    Xbyak::Label lChannelLoopBegin, lChannelLoopEnd;
+    Xbyak::Label lChannelLoopBegin;
+    Xbyak::Label lChannelLoopEnd;
     RegistersPool::Reg<Xbyak::Reg64> rChannel;
     auto rSrcTmp = getReg64();
     auto rDstTmp = getReg64();
@@ -1675,7 +1701,8 @@ void GridSampleKernel<x64::avx512_core>::bicubicInterpolation(const Vmm& vWCoord
         bicubicCoefficients(vCX[i], vDX, i);
     }
 
-    bool useMask = false, zeroFill = false;
+    bool useMask = false;
+    bool zeroFill = false;
     if (jcp.paddingMode == GridSamplePaddingMode::ZEROS) {
         useMask = zeroFill = true;
         wMasks.resize(4);
@@ -1693,7 +1720,8 @@ void GridSampleKernel<x64::avx512_core>::bicubicInterpolation(const Vmm& vWCoord
     }
 
     // PER CHANNEL LOOP
-    Xbyak::Label lChannelLoopBegin, lChannelLoopEnd;
+    Xbyak::Label lChannelLoopBegin;
+    Xbyak::Label lChannelLoopEnd;
     RegistersPool::Reg<Xbyak::Reg64> rChannel;
     auto rSrcTmp = getReg64();
     auto rDstTmp = getReg64();
@@ -1817,7 +1845,8 @@ void GridSampleKernel<isa>::bicubicInterpolation(const Vmm& vWCoord, const Vmm& 
     auto rBuff = getReg64();
     mov(rBuff, ptr[regParams + GET_OFF(buffer)]);
 
-    bool useMask = false, zeroFill = false;
+    bool useMask = false;
+    bool zeroFill = false;
 
     if (jcp.paddingMode == GridSamplePaddingMode::BORDER) {
         auto rAux = getReg64();
@@ -1828,7 +1857,8 @@ void GridSampleKernel<isa>::bicubicInterpolation(const Vmm& vWCoord, const Vmm& 
             uni_vmovups(vSrcWidthSub1F, ptr[rAux]);
         }
 
-        auto vW0 = getVmm(), vW1 = getVmm();
+        auto vW0 = getVmm();
+        auto vW1 = getVmm();
         Vmm vW[4] = {vW0, vW1, vHCoord, vWCoord};
         for (int w = 0; w < 4; w++) {
             borderPadding(vW[w], vWLeft, coord::w);
@@ -1876,7 +1906,8 @@ void GridSampleKernel<isa>::bicubicInterpolation(const Vmm& vWCoord, const Vmm& 
             uni_vmovups(vSrcWidthMul2Sub1F, ptr[rAux]);
         }
 
-        auto vW0 = getVmm(), vW1 = getVmm();
+        auto vW0 = getVmm();
+        auto vW1 = getVmm();
         Vmm vW[4] = {vW0, vW1, vHCoord, vWCoord};
         for (int w = 0; w < 4; w++) {
             reflectionPadding(vW[w], vWLeft, coord::w);
@@ -1935,7 +1966,8 @@ void GridSampleKernel<isa>::bicubicInterpolation(const Vmm& vWCoord, const Vmm& 
         }
 
         size_t bufShift = 0lu;
-        auto vShift = vWCoord, vMaskH = vHCoord;
+        auto vShift = vWCoord;
+        auto vMaskH = vHCoord;
         if (!vDataTypeSizeB.isInitialized()) {
             auto rAux = getReg64();
             vDataTypeSizeB = getVmm();
@@ -1975,7 +2007,8 @@ void GridSampleKernel<isa>::bicubicInterpolation(const Vmm& vWCoord, const Vmm& 
     for (int w = 0; w < 4; w++) {
         bicubicCoefficients(vCX[w], vDX, w);
     }
-    auto vCY0 = getVmm(), vCY1 = getVmm();
+    auto vCY0 = getVmm();
+    auto vCY1 = getVmm();
     Vmm vCY[4] = {vCY0, vCY1, vHCoord, vWCoord};
     for (int h = 0; h < 4; h++) {
         bicubicCoefficients(vCY[h], vDY, h);
@@ -1988,7 +2021,8 @@ void GridSampleKernel<isa>::bicubicInterpolation(const Vmm& vWCoord, const Vmm& 
     auto vAux = getVmm();
 
     // PER CHANNEL LOOP
-    Xbyak::Label lChannelLoopBegin, lChannelLoopEnd;
+    Xbyak::Label lChannelLoopBegin;
+    Xbyak::Label lChannelLoopEnd;
     RegistersPool::Reg<Xbyak::Reg64> rChannel;
     auto rSrcTmp = getReg64();
     auto rDstTmp = getReg64();

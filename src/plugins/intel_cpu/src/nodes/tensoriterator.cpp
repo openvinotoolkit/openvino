@@ -106,7 +106,7 @@ public:
         chunk_desc.get()->padded_dims[axis] = abs_stride;  // TODO: asamption that plain tensor
 
         full_mem = full_blob->getPrimitive();
-        const auto full_mem_handler = full_mem.get_data_handle();
+        auto* const full_mem_handler = full_mem.get_data_handle();
         dnnl::memory chunk_mem = {chunk_desc, eng, full_mem_handler};
 
         auto elem_size = DnnlExtensionUtils::sizeOfDataType(chunk_desc.get_data_type());
@@ -173,7 +173,7 @@ public:
 
     void execute(const dnnl::stream& strm, int n_iter) override {
         auto mem = mem_holder_dst;
-        auto data_ptr = static_cast<uint32_t*>(mem.get_data_handle());
+        auto* data_ptr = static_cast<uint32_t*>(mem.get_data_handle());
         if (data_ptr == nullptr) {
             OPENVINO_THROW("TensorIterator node has not allocated memory for IterCountPortHelper");
         }
@@ -190,7 +190,7 @@ public:
     }
 
     int getStatus() override {
-        auto data_ptr = static_cast<uint8_t*>(mem_holder.get_data_handle());
+        auto* data_ptr = static_cast<uint8_t*>(mem_holder.get_data_handle());
         if (data_ptr == nullptr) {
             OPENVINO_THROW("TensorIterator node has not allocated memory for asBoolCheck");
         }
@@ -207,7 +207,7 @@ public:
     }
 
     int getStatus() override {
-        auto data_ptr = static_cast<uint32_t*>(mem_holder.get_data_handle());
+        auto* data_ptr = static_cast<uint32_t*>(mem_holder.get_data_handle());
         if (data_ptr == nullptr) {
             OPENVINO_THROW("TensorIterator node has not allocated memory for asIntCheck");
         }
@@ -281,7 +281,7 @@ void DynamicBuffer::init(const dnnl::engine& eng) {
     num_execs = 0;
 }
 
-bool DynamicBuffer::check_buffer() {
+bool DynamicBuffer::check_buffer() const {
     if (map_rule.stride > 0) {
         if (static_cast<ptrdiff_t>(chunk_offset_in_byte + chunk_unit_in_byte) > chunk_stride_in_byte) {
             return true;
@@ -578,8 +578,8 @@ int TensorIterator::registerToAllocationContext(int offset, AllocationContext& c
 
 bool TensorIterator::needPrepareParams() const {
     if (getAlgorithm() == Algorithm::TensorIteratorLoop) {
-        const auto tripCountPtr = getSrcDataAtPortAs<const uint32_t>(loopTripCountIdx);
-        const auto condPtr = getSrcDataAtPortAs<const uint8_t>(loopExecutionConditionIdx);
+        const auto* const tripCountPtr = getSrcDataAtPortAs<const uint32_t>(loopTripCountIdx);
+        const auto* const condPtr = getSrcDataAtPortAs<const uint8_t>(loopExecutionConditionIdx);
         if (tripCountPtr[0] != static_cast<size_t>(lastUsedTripCount) ||
             static_cast<bool>(condPtr[0]) != lastUsedCond) {
             return true;
@@ -879,7 +879,7 @@ void TensorIterator::reshapeAndFillOutput(const dnnl::stream& strm) {
 bool TensorIterator::checkForInputAndBodyShapesInequality() const {
     for (auto map_rule : inputPortMap) {
         auto original_dims = sliced_input_dims(getSrcMemoryAtPort(map_rule.from), map_rule.axis, map_rule.stride);
-        auto& to_mems = input_mems[map_rule.to];
+        const auto& to_mems = input_mems[map_rule.to];
         const auto& body_inshape = to_mems.front()->getShape();
         if (body_inshape.isDynamic() || body_inshape.getDims() != original_dims) {
             return true;

@@ -116,7 +116,7 @@ bool MatMulKleidiAIExecutor::update(const MemoryArgs& memory) {
     return true;
 }
 
-void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
+static void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
     size_t BLOCK_SIZE = 8;
     auto srcMem = memory.at(ARG_SRC);
     auto weiMem = memory.at(ARG_WEI);
