@@ -38,7 +38,7 @@ namespace {
 Predicate check_value(float ref, float eps = std::numeric_limits<float>::epsilon()) {
     return Predicate(
         [=](const Output<Node>& output) -> bool {
-            return op::util::has_constant_value<float>(output.get_node_shared_ptr(), ref, eps);
+            return ov::op::util::has_constant_value<float>(output.get_node_shared_ptr(), ref, eps);
         },
         "has_constant_value(" + std::to_string(ref) + ")");
 }
