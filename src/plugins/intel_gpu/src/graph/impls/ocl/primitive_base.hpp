@@ -16,7 +16,7 @@
 #include "primitive_inst.h"
 #include "kernel_selector_helper.h"
 #include "register.hpp"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "concatenation_inst.h"
 #include "gather_inst.h"
 #include "permute_inst.h"
@@ -184,19 +184,17 @@ protected:
         return _kernels;
     }
 
-    std::vector<layout> get_internal_buffer_layouts_impl() const override {
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
         if (_kernel_data.internalBuffers.empty())
             return {};
 
-        std::vector<layout> layouts;
+        std::vector<BufferDescriptor> internal_buffers;
         auto dtype = from_data_type(_kernel_data.internalBufferDataType);
         const auto bpp = data_type_traits::size_of(dtype);
         for (const auto& buffer : _kernel_data.internalBuffers) {
-            layout inbuf_layout = {dtype, format::bfyx, // simple linear format (flattern to x channel)
-                                    {1, 1, 1, (tensor::value_type)(buffer.byte_count / bpp)}};
-            layouts.push_back(inbuf_layout);
+            internal_buffers.emplace_back(buffer.byte_count / bpp, dtype, buffer.lockable);
         }
-        return layouts;
+        return internal_buffers;
     }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
