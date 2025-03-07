@@ -144,6 +144,17 @@ void update_log_level(const std::map<std::string, std::string>& propertiesMap) {
     }
 }
 
+static ov::intel_npu::CompilerType resolveCompilerType(const Config& base_conf, const ov::AnyMap& local_conf) {
+    // first look if provided config changes compiler type
+    auto it = local_conf.find(std::string(COMPILER_TYPE::key()));
+    if (it != local_conf.end()) {
+        // if compiler_type is provided by local config = use that
+        return COMPILER_TYPE::parse(it->second.as<std::string>());
+    }
+    // if there is no compiler_type provided = use base_config value
+    return base_conf.get<COMPILER_TYPE>();
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -316,10 +327,13 @@ void Plugin::recheck_compiler_support(Config& cfg) const {
     });
 }
 
-Config Plugin::fork_local_config(const std::map<std::string, std::string>& rawConfig, OptionMode mode) const {
+Config Plugin::fork_local_config(const std::map<std::string, std::string>& rawConfig,
+                                 const std::unique_ptr<ICompilerAdapter>& compiler,
+                                 OptionMode mode) const {
     update_log_level(rawConfig);
     // create a copy of the global config
     Config localConfig = _globalConfig;
+    bool compiler_changed = false;
 
     // Check if compiler was changed
     // 1. Check for compiler change
@@ -331,9 +345,30 @@ Config Plugin::fork_local_config(const std::map<std::string, std::string>& rawCo
             localConfig.update({{std::string(COMPILER_TYPE::key()), it->second}});
             // enable/disable config keys based on what the new compiler supports
             recheck_compiler_support(localConfig);
+            compiler_changed = true;
+        }
+    }
+    // 2. Revalidate unknown internal configs
+    // look for unsupported internals
+    // first in what we inherited from globalconfig by forking it - ONLY if compiler has changed
+    if (compiler_changed) {
+        localConfig.walkInternals([&](const std::string& key) {
+            if (!compiler->is_option_supported(key)) {
+                OPENVINO_THROW("[ NOT_FOUND ] Option '", key, "' is not supported for current configuration");
+            }
+        });
+    }
+    // secondly, in the new config provided by user
+    for (const auto& [key, value] : rawConfig) {
+        if (!localConfig.hasOpt(key)) {
+            // not a known config key
+            if (!compiler->is_option_supported(key)) {
+                OPENVINO_THROW("[ NOT_FOUND ] Option '", key, "' is not supported for current configuration");
+            }
         }
     }
 
+    // 3. If all good so far, update values
     localConfig.update(rawConfig, mode);
     return localConfig;
 }
@@ -391,8 +426,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
+    // create compiler
+    CompilerAdapterFactory compilerAdapterFactory;
+    auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
+
     std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
-    auto localConfig = fork_local_config(localPropertiesMap);
+
+    auto localConfig = fork_local_config(localPropertiesMap, compiler);
     update_log_level(localPropertiesMap);
 
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
@@ -449,8 +489,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
-    CompilerAdapterFactory compilerAdapterFactory;
-    auto compiler = compilerAdapterFactory.getCompiler(_backend, localConfig.get<COMPILER_TYPE>());
+    auto originalModel = model->clone();
 
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
     std::shared_ptr<intel_npu::IGraph> graph;
@@ -533,9 +572,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         npu_plugin_properties.erase(blob_it);
     }
 
+    CompilerAdapterFactory compilerAdapterFactory;
+    auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
+
     const auto propertiesMap = any_copy(npu_plugin_properties);
 
-    auto localConfig = fork_local_config(propertiesMap, OptionMode::RunTime);
+    auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::RunTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
         utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
@@ -557,9 +599,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     std::shared_ptr<ov::ICompiledModel> compiledModel;
 
     try {
-        CompilerAdapterFactory compilerAdapterFactory;
-        auto compiler = compilerAdapterFactory.getCompiler(_backend, localConfig.get<COMPILER_TYPE>());
-
         uint64_t graphSize;
         const bool skipCompatibility = localConfig.get<DISABLE_VERSION_CHECK>();
         if (!skipCompatibility) {
@@ -620,8 +659,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                         const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
+    CompilerAdapterFactory compilerAdapterFactory;
+    auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
     std::map<std::string, std::string> propertiesMap = any_copy(properties);
-    auto localConfig = fork_local_config(propertiesMap, OptionMode::CompileTime);
+    auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::CompileTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
         utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
@@ -629,8 +670,6 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
-    CompilerAdapterFactory compilerAdapterFactory;
-    auto compiler = compilerAdapterFactory.getCompiler(_backend, localConfig.get<COMPILER_TYPE>());
     ov::SupportedOpsMap supportedOpsMap;
     try {
         supportedOpsMap = compiler->query(model, localConfig);

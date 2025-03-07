@@ -9,6 +9,7 @@
 #include <string>
 
 #include "backends_registry.hpp"
+#include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -57,6 +58,7 @@ private:
     void init_options();
     void recheck_compiler_support(Config& cfg) const;
     Config fork_local_config(const std::map<std::string, std::string>& rawConfig,
+                             const std::unique_ptr<ICompilerAdapter>& compiler,
                              OptionMode mode = OptionMode::Both) const;
 
     std::unique_ptr<BackendsRegistry> _backendsRegistry;

@@ -391,6 +391,11 @@ void Config::walkEnables(std::function<void(const std::string&)> cb) const {
         cb(itr.first);
     }
 }
+void Config::walkInternals(std::function<void(const std::string&)> cb) const {
+    for (const auto& itr : _internal_compiler_configs) {
+        cb(itr.first);
+    }
+}
 
 void Config::addOrUpdateInternal(std::string key, std::string value) {
     auto log = Logger::global().clone("Config");
