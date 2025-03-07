@@ -360,7 +360,7 @@ std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::M
     return model;
 }
 
-} // namespace
+}  // namespace
 
 // testability - should we have interface for that or move matchers to another file?
 bool optimize_value_tensors(std::shared_ptr<ov::Model> model);
