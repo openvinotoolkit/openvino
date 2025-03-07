@@ -10,14 +10,13 @@
 namespace ov {
 namespace pass {
 
-class TRANSFORMATIONS_API FuseBias;
+class TRANSFORMATIONS_API ConvertConvolutionToConvolutionBiased;
 
 }  // namespace pass
 }  // namespace ov
 
-class ov::pass::FuseBias : public ov::pass::MatcherPass {
+class ov::pass::ConvertConvolutionToConvolutionBiased : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("FuseBias");
-
-    FuseBias();
+    OPENVINO_MATCHER_PASS_RTTI("ConvertConvolutionToConvolutionBiased");
+    ConvertConvolutionToConvolutionBiased();
 };

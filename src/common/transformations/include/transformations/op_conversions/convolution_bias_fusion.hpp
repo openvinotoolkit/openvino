@@ -18,5 +18,6 @@ class TRANSFORMATIONS_API ConvolutionBiasFusion;
 class ov::pass::ConvolutionBiasFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvolutionBiasFusion");
+
     ConvolutionBiasFusion();
 };

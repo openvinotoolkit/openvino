@@ -10,7 +10,6 @@
 
 namespace ov {
 namespace op {
-namespace v1 {
 
 template <class TOp,
           class TShape,
@@ -53,9 +52,5 @@ std::vector<TRShape> shape_infer(const TOp* op,
 
     return output_shapes;
 }
-}  // namespace v1
-
-using v1::shape_infer;
-
 }  // namespace op
 }  // namespace ov
