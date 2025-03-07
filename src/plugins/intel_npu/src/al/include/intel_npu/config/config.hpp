@@ -474,6 +474,7 @@ public:
     void addOrUpdateInternal(std::string key, std::string value);
     std::string getInternal(std::string key) const;
     std::string toStringForCompilerInternal() const;
+    void walkInternals(std::function<void(const std::string&)> cb) const;
 
 private:
     std::shared_ptr<const OptionsDesc> _desc;
