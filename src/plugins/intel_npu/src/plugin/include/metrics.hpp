@@ -8,7 +8,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "backends.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
@@ -19,7 +18,7 @@ namespace intel_npu {
 
 class Metrics final {
 public:
-    Metrics(const std::shared_ptr<const NPUBackends>& backends);
+    Metrics(const ov::SoPtr<IEngineBackend>& backends);
 
     std::vector<std::string> GetAvailableDevicesNames() const;
     const std::vector<std::string>& SupportedMetrics() const;
@@ -48,7 +47,7 @@ public:
     ~Metrics() = default;
 
 private:
-    const std::shared_ptr<const NPUBackends> _backends;
+    const ov::SoPtr<IEngineBackend> _backend;
     std::vector<std::string> _supportedMetrics;
     std::vector<std::string> _supportedConfigKeys;
     const std::vector<std::string> _optimizationCapabilities = {
@@ -78,6 +77,7 @@ private:
     const std::tuple<uint32_t, uint32_t> _rangeForStreams{1u, 4u};
 
     std::string getDeviceName(const std::string& specifiedDeviceName) const;
+    std::shared_ptr<intel_npu::IDevice> getDevice(const std::string& specifiedDeviceName) const;
 };
 
 }  // namespace intel_npu
