@@ -332,6 +332,8 @@ private:
 };
 
 size_t extract_channel(ChannelName channel, const layout& l);
+int get_channel_index(ChannelName channel_name, size_t rank, bool is_weights_fmt = false, bool is_grouped = false);
+std::vector<ChannelName> get_default_channels_order(size_t rank, bool is_weights_fmt = false, bool is_grouped = false);
 
 JitConstants make_layout_jit_constants(const std::string& name, const cldnn::layout& value, size_t shape_info_tensor_idx);
 JitConstants make_type_jit_constants(const std::string& name, const ov::element::Type& value);
@@ -341,5 +343,5 @@ JitConstants make_activation_jit_constants(activation_func activation_function,
                                            const std::string& suffix,
                                            bool use_type_parameter,
                                            bool disable_type_conversion);
-
+JitConstants make_int4_packed_type_jit_constant(const std::string& macro_name, ov::element::Type type, size_t pack_size);
 }  // namespace ov::intel_gpu
