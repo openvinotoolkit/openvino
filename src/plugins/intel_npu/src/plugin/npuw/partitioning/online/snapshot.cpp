@@ -357,12 +357,12 @@ void Snapshot::markInternalCompute() {
     LOG_INFO("Online partitioning: executing markInternalCompute pass...");
     LOG_BLOCK();
 
-    // Iterate over groups and drop all non-"compute" tag.
+    // Iterate over groups and drop all "fake" tags.
     // It's done for markInternalCompute pass to work properly if
     // there are multiple tags used to not split internal patterns.
     for (const auto& nh : m_graph->sorted()) {
         Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
-        if (!group->isolatedTag().empty() && group->isolatedTag() != "compute") {
+        if (!group->isolatedTag().empty() && group->isolatedTag() == "fake") {
             group->dontIsolate();
         }
     }
