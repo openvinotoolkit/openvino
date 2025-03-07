@@ -12,6 +12,7 @@ namespace ov::intel_cpu {
 
 jit_snippets_call_args::~jit_snippets_call_args() {
     delete[] loop_args;
+    delete[] external_ptrs;
 }
 
 void jit_snippets_call_args::register_loops(const std::vector<loop_args_t>& loops) {
@@ -19,6 +20,17 @@ void jit_snippets_call_args::register_loops(const std::vector<loop_args_t>& loop
     OPENVINO_ASSERT(num_loops <= PTRDIFF_MAX, "Requested allocation size { ", num_loops, " } exceeds PTRDIFF_MAX.");
     loop_args = new loop_args_t[static_cast<ptrdiff_t>(num_loops)];
     std::copy(loops.begin(), loops.end(), loop_args);
+}
+
+void jit_snippets_call_args::init_external_ptrs(const size_t size) {
+    if (size == 0) {
+        return;
+    }
+    OPENVINO_ASSERT(size <= PTRDIFF_MAX, "Requested allocation size { ", size, " } exceeds PTRDIFF_MAX.");
+    external_ptrs = new const void*[static_cast<ptrdiff_t>(size)];
+    if (std::getenv("DEBUG_PRINT")) {
+        std::cout << "\t Array pointer: " << external_ptrs << std::endl;
+    }
 }
 
 jit_snippets_call_args::loop_args_t::loop_args_t(int64_t work_amount,

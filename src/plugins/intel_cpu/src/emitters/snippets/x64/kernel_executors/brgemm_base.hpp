@@ -124,6 +124,7 @@ protected:
                                       const void* wei,
                                       void* dst,
                                       void* scratch,
+                                      const void* post_ops_binary_arg_vec,
                                       bool with_comp,
                                       bool apply_post_ops);
 };

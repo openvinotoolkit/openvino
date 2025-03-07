@@ -99,7 +99,14 @@ void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, call_ar
     // TODO: postops must be applied only on last K blocking loop iteration. It is not implemented yet, so brgemm with
     // postops failed when K blocking is enabled
     const auto apply_post_ops = true;
-    execute_brgemm_kernel(kernel->brgemm_kernel, args->A, args->B, args->C, args->scratch, is_with_comp, apply_post_ops);
+    execute_brgemm_kernel(kernel->brgemm_kernel,
+                          args->A,
+                          args->B,
+                          args->C,
+                          args->scratch,
+                          args->post_ops_binary_arg_vec,
+                          is_with_comp,
+                          apply_post_ops);
 }
 
 #ifdef SNIPPETS_DEBUG_CAPS

@@ -145,10 +145,6 @@ void BrgemmBaseKernelExecutor::create_brgemm_kernel(std::shared_ptr<brgemm_kerne
                                                     const dnnl_post_ops& post_ops,
                                                     bool with_amx,
                                                     char* palette) {
-    std::cout << "[ INFO ] Brgemm kernel params:" << std::endl;
-    std::cout << "\t dt_in0: " << dt_in0 << std::endl;
-    std::cout << "\t dt_in1: " << dt_in1 << std::endl;
-    std::cout << "\t dt_out: " << dt_out << std::endl;
     cpu::x64::brgemm_desc_t desc;
     OV_CPU_JIT_EMITTER_ASSERT(brgemm_desc_init(&desc,
                                                isa,
@@ -199,6 +195,7 @@ void BrgemmBaseKernelExecutor::execute_brgemm_kernel(
     const void* wei,
     void* dst,
     void* scratch,
+    const void* post_ops_binary_arg_vec,
     bool with_comp,
     bool apply_post_ops) {
     cpu::x64::brgemm_kernel_params_t brgemm_p;
@@ -213,6 +210,15 @@ void BrgemmBaseKernelExecutor::execute_brgemm_kernel(
     brgemm_p.do_apply_comp = with_comp;
     brgemm_p.skip_accm = 0;
     brgemm_p.BS = 1;  // default value
+    brgemm_p.post_ops_binary_rhs_arg_vec = post_ops_binary_arg_vec;
+    // It seems like we don't need it
+    // brgemm_p.data_C_ptr_ = reinterpret_cast<char*>(dst);
+
+    if (std::getenv("DEBUG_PRINT")) {
+        std::cout << "[ INFO ] execute_brgemm_kernel: " << std::endl;
+        std::cout << "\t Pointer value: " << post_ops_binary_arg_vec << std::endl;
+    }
+
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr Brgemm kernel");
     (*kernel)(&brgemm_p);
 }
