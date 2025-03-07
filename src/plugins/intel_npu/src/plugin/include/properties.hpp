@@ -41,7 +41,7 @@ public:
     /**
      * @brief Get the values of a property in a map
      */
-    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const;
+    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments = {}) const;
 
     /**
      * @brief Set the values of a subset of properties, provided as a map
