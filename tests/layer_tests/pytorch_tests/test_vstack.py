@@ -33,8 +33,8 @@ class TestVstack(PytorchLayerTest):
     @pytest.mark.parametrize("out", [False, True])
     def test_vstack(self, out, ie_device, precision, ir_version):
         model = aten_vstack() if not out else aten_vstack_out()
-        self._test(model, None, "aten_vstack", ie_device, 
-                   precision, ir_version, kwargs={"out": out, "num_repeats": 2})
+        self._test(model, None, "aten::vstack", ie_device, 
+                   precision, ir_version, kwargs_to_prepare_input={"out": out, "num_repeats": 2})
         
     
 class TestVstackAlignTypes(PytorchLayerTest):
@@ -47,17 +47,11 @@ class TestVstackAlignTypes(PytorchLayerTest):
     
     def create_model(self, in_count):
         class aten_align_types_vstack_two_args(torch.nn.Module):
-            def __init__(self):
-                super().__init()
-            
             def forward(self, x, y):
                 ins = [x, y]
                 return torch.vstack(ins)
         
         class aten_align_types_vstack_three_args(torch.nn.Module):
-            def __init__(self):
-                super().__init()
-            
             def forward(self, x, y, z):
                 ins = [x, y, z]
                 return torch.vstack(ins)
@@ -90,4 +84,4 @@ class TestVstackAlignTypes(PytorchLayerTest):
     @pytest.mark.precommit
     def test_align_types_vstack(self, ie_device, precision, ir_version, in_types):
         self._test(self.create_model(len(in_types)), None, "aten::vstack",
-                   ie_device, precision, ir_version, kwargs={"in_types": in_types})
+                   ie_device, precision, ir_version, kwargs_to_prepare_input={"in_types": in_types})
