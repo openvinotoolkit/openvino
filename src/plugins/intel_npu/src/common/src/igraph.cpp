@@ -47,6 +47,10 @@ const std::shared_ptr<CommandQueue>& IGraph::get_command_queue() const {
     return _command_queue;
 }
 
+uint32_t IGraph::get_command_queue_group_ordinal() const {
+    return _command_queue_group_ordinal;
+}
+
 void IGraph::set_workload_type(const ov::WorkloadType workloadType) const {
     if (_command_queue == nullptr) {
         return;

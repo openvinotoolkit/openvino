@@ -18,6 +18,7 @@ class ZeroRemoteTensor final : public RemoteTensor {
 public:
     ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& context,
                      const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                     const ze_device_properties_t& device_properties,
                      const ov::element::Type& element_type,
                      const ov::Shape& shape,
                      const Config& config,
@@ -41,7 +42,7 @@ private:
 
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
 
-    ze_device_properties_t _ze_properties = {};
+    ze_device_properties_t _device_properties = {};
 
     ov::intel_npu::TensorType _tensor_type;
     ov::intel_npu::MemType _mem_type;
