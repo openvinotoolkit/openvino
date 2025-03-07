@@ -37,6 +37,8 @@ private:
     // Note: cluster ids order: A, B, C (+ scratchpad, if needed). Values can be dynamic_value if there is no buffer
     std::vector<size_t> m_buffer_ids{};
     std::shared_ptr<x64::BrgemmBaseKernelExecutor> m_kernel_executor = nullptr;
+    // -1 means that there are no binary postops
+    int m_binary_postops_offset = -1;
 
 #ifdef SNIPPETS_DEBUG_CAPS
     friend std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter* emitter);
