@@ -312,3 +312,18 @@ TEST_F(SerializationConstantCompressionTest, IdenticalConstantsDifferentTypesI32
 
     ASSERT_EQ(file_size(bin_1), unique_const_count * ov::shape_size(shape) * sizeof(int32_t));
 }
+
+TEST_F(SerializationConstantCompressionTest, EmptyConstants) {
+    
+    auto A = ov::opset8::Constant::create(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{});
+    auto B = ov::opset8::Constant::create(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{});
+
+    auto model = std::make_shared<ov::Model>(ov::NodeVector{A, B}, ov::ParameterVector{});
+
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(model);
+
+    std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
+    std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
+
+    ASSERT_EQ(file_size(bin_1), 0);
+}
