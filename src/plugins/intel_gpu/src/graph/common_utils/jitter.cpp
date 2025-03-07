@@ -163,7 +163,7 @@ void LayoutJitter::make_definitions(const layout& l, size_t shape_info_offset) {
         int channel_index = get_channel_index(target_channel, rank, is_weights_fmt, is_grouped);
         bool valid_channel = ((channel_index >= 0) && (channel_index < static_cast<int>(rank)));
         if (valid_channel) {
-            if (is_static) {
+            if (is_static && !pad.is_dynamic()) {
                 m_strides[i] = JitTerm{to_code_string(strides[channel_index])};
             } else if (format::is_simple_data_format(fmt)) {
                 auto channel_it = std::find(actual_channels_order.begin(), actual_channels_order.end(), target_channel);
