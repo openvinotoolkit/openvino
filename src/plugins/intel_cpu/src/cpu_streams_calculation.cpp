@@ -559,15 +559,39 @@ std::vector<std::vector<int>> get_streams_rank_table(const std::vector<std::vect
 
 int get_model_prefer_threads(const int num_streams,
                              const std::vector<std::vector<int>>& proc_type_table,
-                             const std::shared_ptr<ov::Model>& model,
-                             Config& config) {
+                             const std::shared_ptr<ov::Model>& model) {
     const int sockets = get_num_sockets();
     auto model_prefer = 0;
-    if (-1 == config.modelPreferThreads) {
+    // latency
+    if (num_streams <= sockets && num_streams > 0) {
+        if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && proc_type_table[0][MAIN_CORE_PROC] > 0) {
+#ifdef __APPLE__
+            if ((proc_type_table.size() == 1) && (proc_type_table[0][EFFICIENT_CORE_PROC] > 0)) {
+                model_prefer = proc_type_table[0][MAIN_CORE_PROC] > proc_type_table[0][EFFICIENT_CORE_PROC]
+                                   ? proc_type_table[0][MAIN_CORE_PROC]
+                                   : proc_type_table[0][ALL_PROC];
+            }
+#else
+            bool llm_related = has_matmul_with_compressed_weights(model);
+            bool int8_intensive = ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model) || llm_related;
+            const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
+            const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
+            // By default the latency case uses (faster) Big cores only, depending on the compute ratio
+            // But on MTL detected by ov::get_number_of_blocked_cores(), use Big and Little cores together in Big
+            // cores only cases except LLM.
+            model_prefer = proc_type_table[0][MAIN_CORE_PROC] > (proc_type_table[0][EFFICIENT_CORE_PROC] /
+                                                                 (int8_intensive ? int8_threshold : fp32_threshold))
+                               ? ((!llm_related && ov::get_number_of_blocked_cores())
+                                      ? proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC]
+                                      : proc_type_table[0][MAIN_CORE_PROC])
+                               : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
+#endif
+        }
+    } else {  // throughput
 #if (defined(OPENVINO_ARCH_ARM64) && defined(__linux__))
-        config.modelPreferThreads = 8;
+        model_prefer = 8;
         if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::cpu_isa_t::sve_128)) {
-            config.modelPreferThreads = 16;
+            model_prefer = 16;
         }
 #else
         const auto isa = dnnl::get_effective_cpu_isa();
@@ -598,88 +622,59 @@ int get_model_prefer_threads(const int num_streams,
             ov::mem_bandwidth_pressure_tolerance(model, L2_cache_size, memThresholdAssumeLimitedForISA);
 
 #    if (defined(OPENVINO_ARCH_ARM) && defined(__linux__))
-        config.modelPreferThreads = 4;
+        model_prefer = 4;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
             if (networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) {
-                config.modelPreferThreads = 8;
+                model_prefer = 8;
             }
         } else if ((networkToleranceForLowCache.max_mem_tolerance < ov::MemBandwidthPressure::LIMITED) &&
                    ((networkToleranceForLowCache.ratio_mem_limited_deconvs > ov::MemBandwidthPressure::LIMITED) ||
                     (networkToleranceForLowCache.ratio_mem_limited_gemms > ov::MemBandwidthPressure::LIMITED))) {
-            config.modelPreferThreads = 8;
+            model_prefer = 8;
         }
 #    elif ((defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__))
-        config.modelPreferThreads = 1;
+        model_prefer = 1;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
             if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||
                 (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
                 // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
-                config.modelPreferThreads = 4;
+                model_prefer = 4;
             }  // otherwise (no recognized layers) falling back to the default value
         } else if (networkToleranceForLowCache.max_mem_tolerance > memThresholdAssumeLimitedForISA) {
             // network is below the ISA-specific threshold
-            config.modelPreferThreads = 1;
+            model_prefer = 1;
         } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
             // network is below general threshold
-            config.modelPreferThreads = 1;
+            model_prefer = 1;
         } else if (networkToleranceForLowCache.ratio_mem_limited_deconvs > ov::MemBandwidthPressure::LIMITED &&
                    networkToleranceForLowCache.ratio_compute_convs < ov::MemBandwidthPressure::ALL) {
-            config.modelPreferThreads = 4;
+            model_prefer = 4;
         } else if (networkToleranceForLowCache.ratio_mem_limited_deconvs <= ov::MemBandwidthPressure::LIMITED &&
                    networkToleranceForLowCache.ratio_mem_limited_convs <= ov::MemBandwidthPressure::LIMITED &&
                    networkToleranceForLowCache.ratio_compute_convs > ov::MemBandwidthPressure::LIMITED) {
-            config.modelPreferThreads = 2;
+            model_prefer = 2;
         }
 #    else
-        config.modelPreferThreads = 0;
+        model_prefer = 0;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
             if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||
                 (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
                 // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
-                config.modelPreferThreads = 1;
+                model_prefer = 1;
             }  // otherwise (no recognized layers) falling back to the default value
         } else if (networkToleranceForLowCache.max_mem_tolerance > memThresholdAssumeLimitedForISA) {
             // network is below the ISA-specific threshold
-            config.modelPreferThreads = 1;
+            model_prefer = 1;
         } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
             // network is below general threshold
-            config.modelPreferThreads = 2;
+            model_prefer = 2;
         }
-        if (config.modelPreferThreads == 1 && proc_type_table[0][EFFICIENT_CORE_PROC] == 0 &&
+        if (model_prefer == 1 && proc_type_table[0][EFFICIENT_CORE_PROC] == 0 &&
             (proc_type_table[0][HYPER_THREADING_PROC] == proc_type_table[0][MAIN_CORE_PROC])) {
-            config.modelPreferThreads = 2;
+            model_prefer = 2;
         }
 #    endif
 #endif
-    }
-
-    // latency
-    if (num_streams <= sockets && num_streams > 0) {
-        if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && proc_type_table[0][MAIN_CORE_PROC] > 0) {
-#ifdef __APPLE__
-            if ((proc_type_table.size() == 1) && (proc_type_table[0][EFFICIENT_CORE_PROC] > 0)) {
-                model_prefer = proc_type_table[0][MAIN_CORE_PROC] > proc_type_table[0][EFFICIENT_CORE_PROC]
-                                   ? proc_type_table[0][MAIN_CORE_PROC]
-                                   : proc_type_table[0][ALL_PROC];
-            }
-#else
-            bool llm_related = has_matmul_with_compressed_weights(model);
-            bool int8_intensive = ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model) || llm_related;
-            const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
-            const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
-            // By default the latency case uses (faster) Big cores only, depending on the compute ratio
-            // But on MTL detected by ov::get_number_of_blocked_cores(), use Big and Little cores together in Big
-            // cores only cases except LLM.
-            model_prefer = proc_type_table[0][MAIN_CORE_PROC] > (proc_type_table[0][EFFICIENT_CORE_PROC] /
-                                                                 (int8_intensive ? int8_threshold : fp32_threshold))
-                               ? ((!llm_related && ov::get_number_of_blocked_cores())
-                                      ? proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC]
-                                      : proc_type_table[0][MAIN_CORE_PROC])
-                               : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
-#endif
-        }
-    } else {  // throughput
-        model_prefer = config.modelPreferThreads;
     }
 
     return model_prefer;
@@ -690,19 +685,30 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                    const std::shared_ptr<ov::Model>& model,
                                                    Config& config,
                                                    std::vector<std::vector<int>>& proc_type_table,
-                                                   int preferred_nthreads_per_stream) {
+                                                   int& modelPreferThreads) {
+#if defined(__APPLE__)
+    // CPUStreamExecutor doesn't support CPU reservation on Mac
+    config.set_user_property(ov::hint::enable_cpu_reservation(false));
+#endif
+
     if (proc_type_table.empty() || proc_type_table[0][ALL_PROC] == 0) {
         OPENVINO_THROW("proc_type_table is empty. No CPU resources available!");
     }
-    int model_prefer_threads = preferred_nthreads_per_stream;
-    proc_type_table = apply_scheduling_core_type(config.schedulingCoreType, proc_type_table);
+    auto threadsPerStream = config.streamExecutorConfig.get_threads_per_stream();
 
-    proc_type_table = apply_hyper_threading(config.enableHyperThreading,
-                                            config.changedHyperThreading,
-                                            ov::util::to_string(config.hintPerfMode),
+    auto core_type = config.get_scheduling_core_type();
+    proc_type_table = apply_scheduling_core_type(core_type, proc_type_table);
+    config.set_user_property(ov::hint::scheduling_core_type(core_type));
+
+    auto enable_hyper_threading = config.get_enable_hyper_threading();
+    proc_type_table = apply_hyper_threading(enable_hyper_threading,
+                                            config.is_set_by_user(ov::hint::enable_hyper_threading),
+                                            ov::util::to_string(config.get_performance_mode()),
                                             proc_type_table);
-    if (-1 == preferred_nthreads_per_stream) {
-        model_prefer_threads = get_model_prefer_threads(streams, proc_type_table, model, config);
+    config.set_user_property(ov::hint::enable_hyper_threading(enable_hyper_threading));
+
+    if (-1 == modelPreferThreads) {
+        modelPreferThreads = get_model_prefer_threads(streams, proc_type_table, model);
     }
 
     if (proc_type_table.size() > 1) {
@@ -712,34 +718,35 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
     if (proc_type_table.empty() || proc_type_table[0][ALL_PROC] == 0) {
         OPENVINO_THROW("proc_type_table is empty. No valid CPU resources available!");
     }
-    auto streams_info_table = get_streams_info_table(config.streams,
-                                                     config.streamsChanged,
-                                                     config.threads,
-                                                     config.hintNumRequests,
-                                                     model_prefer_threads,
-                                                     ov::util::to_string(config.hintPerfMode),
-                                                     config.modelDistributionPolicy,
+    auto streams_info_table = get_streams_info_table(config.get_num_streams(),
+                                                     config.is_set_by_user(ov::num_streams),
+                                                     config.get_inference_num_threads(),
+                                                     config.get_num_requests(),
+                                                     modelPreferThreads,
+                                                     ov::util::to_string(config.get_performance_mode()),
+                                                     config.get_model_distribution_policy(),
                                                      proc_type_table);
     if (streams_info_table.empty()) {
         OPENVINO_THROW("streams_info_table is empty!");
     }
-    if (config.modelDistributionPolicy.find(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) !=
-        config.modelDistributionPolicy.end()) {
+    auto modelDistributionPolicy = config.get_model_distribution_policy();
+    if (modelDistributionPolicy.find(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) != modelDistributionPolicy.end()) {
         config.streamsRankTable =
             get_streams_rank_table(streams_info_table, config.streamsRankLevel, config.numSubStreams);
     }
 
-    config.enableCpuPinning = check_cpu_pinning(config.enableCpuPinning,
-                                                config.changedCpuPinning,
-                                                config.enableCpuReservation,
+    auto enable_cpu_pinning = check_cpu_pinning(config.get_enable_cpu_pinning(),
+                                                config.is_set_by_user(ov::hint::enable_cpu_pinning),
+                                                config.get_enable_cpu_reservation(),
                                                 streams_info_table);
+    config.set_user_property(ov::hint::enable_cpu_pinning(enable_cpu_pinning));
 
     config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor",
-                                                           config.streams,
-                                                           config.threadsPerStream,
+                                                           config.get_num_streams(),
+                                                           threadsPerStream,
                                                            ov::hint::SchedulingCoreType::ANY_CORE,
-                                                           config.enableCpuReservation,
-                                                           config.enableCpuPinning,
+                                                           config.get_enable_cpu_reservation(),
+                                                           config.get_enable_cpu_pinning(),
                                                            true,
                                                            std::move(streams_info_table),
                                                            {},
@@ -747,12 +754,12 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
     return proc_type_table;
 }
 
-void get_num_streams(const int streams, const std::shared_ptr<ov::Model>& model, Config& config) {
+void get_num_streams(const int streams, const std::shared_ptr<ov::Model>& model, Config& config, int& modelPreferThreads) {
     {
         std::lock_guard<std::mutex> lock{_streams_executor_mutex};
         std::vector<std::vector<int>> proc_type_table = get_proc_type_table();
 
-        generate_stream_info(streams, -1, model, config, proc_type_table);
+        generate_stream_info(streams, -1, model, config, proc_type_table, modelPreferThreads);
     }
 }
 

@@ -106,9 +106,10 @@ public:
     void buildReorderGraph(const ov::intel_cpu::CpuBlockedMemoryDesc& inputDesc,
                            const ov::intel_cpu::CpuBlockedMemoryDesc& outputDesc) {
         Config conf;
-        conf.rtCacheCapacity = 100;
+        conf.set_property(ov::intel_cpu::cpu_runtime_cache_capacity(100));
         auto context = std::make_shared<GraphContext>(conf,
                                                       std::make_shared<WeightsSharing>(),
+                                                      false,
                                                       false);
 
         const dnnl::engine cpuEngine = context->getEngine();

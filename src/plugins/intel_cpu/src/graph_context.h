@@ -30,6 +30,7 @@ public:
     GraphContext(Config config,
                  WeightsSharing::Ptr w_cache,
                  bool isGraphQuantized,
+                 bool denormalsAsZero,
                  ov::threading::IStreamsExecutor::Ptr streamExecutor = nullptr,
                  std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr);
 
@@ -57,6 +58,10 @@ public:
 
     bool isGraphQuantized() const {
         return m_isGraphQuantizedFlag;
+    }
+
+    bool getDenormalsAsZero() const {
+        return m_denormalsAsZero;
     }
 
     ov::threading::CPUStreamsExecutor::Ptr getCPUStreamExecutor() const {
@@ -106,6 +111,7 @@ private:
     DnnlScratchPadPtr m_rtScratchPad;
 
     bool m_isGraphQuantizedFlag = false;
+    bool m_denormalsAsZero = false;
     // scratch pad per sub-stream
     std::vector<DnnlScratchPadPtr> m_rtScratchPads;
     // stream executor for current graph

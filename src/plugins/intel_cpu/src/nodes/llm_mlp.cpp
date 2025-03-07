@@ -501,7 +501,7 @@ LLMMLP::LLMMLP(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     const auto& config = context->getConfig();
-    if (!isSupportedOperation(op, errorMessage, config.fcDynamicQuantizationGroupSize)) {
+    if (!isSupportedOperation(op, errorMessage, config.get_dynamic_quantization_group_size())) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto node_mlp = ov::as_type_ptr<const LLMMLPNode>(op);

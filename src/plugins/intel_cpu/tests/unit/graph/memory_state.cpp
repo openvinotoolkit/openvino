@@ -81,9 +81,9 @@ TEST(MemStateGraphTest, smoke_Check_Memory_Modification_Guard) {
         // create graph context
 
         Config conf;
-        conf.rtCacheCapacity = 0;
+        conf.set_property(ov::intel_cpu::cpu_runtime_cache_capacity(0));
         auto context =
-            std::make_shared<GraphContext>(conf, nullptr, false);
+            std::make_shared<GraphContext>(conf, nullptr, false, false);
 
         auto input_node = std::make_shared<node::Input>(param, context);
         auto memory_input = std::make_shared<node::MemoryInput>(read, context);
@@ -289,9 +289,9 @@ TEST(MemStateGraphTest, smoke_ShapeOf_no_Inplace_Conflicts) {
     // create graph context
 
     Config conf;
-    conf.rtCacheCapacity = 0;
+    conf.set_property(ov::intel_cpu::cpu_runtime_cache_capacity(0));
     auto context =
-        std::make_shared<GraphContext>(conf, nullptr, false);
+        std::make_shared<GraphContext>(conf, nullptr, false, false);
 
     auto input_node = std::make_shared<node::Input>(param, context);
     auto memory_input = std::make_shared<node::MemoryInput>(read, context);

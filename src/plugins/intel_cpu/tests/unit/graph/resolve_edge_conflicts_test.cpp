@@ -43,8 +43,8 @@ TEST(ResolveEdgeConflictsCPUTest, smoke_Run_ResolveEdgeConflicts) {
         order is after Dummy3. Then insert Reorder in edge Input->Dummy2.
     */
     Config conf;
-    conf.rtCacheCapacity = 100;
-    auto context = std::make_shared<GraphContext>(conf, nullptr, false);
+    conf.set_property(ov::intel_cpu::cpu_runtime_cache_capacity(100));
+    auto context = std::make_shared<GraphContext>(conf, nullptr, false, false);
     const dnnl::engine cpuEngine = context->getEngine();
 
     std::unique_ptr<Graph> graph = std::unique_ptr<Graph>(new Graph());
@@ -115,8 +115,8 @@ TEST(ResolveEdgeConflictsCPUTest2, smoke_Run_ResolveEdgeConflicts2) {
                                          Result              Result
     */
     Config conf;
-    conf.rtCacheCapacity = 100;
-    auto context = std::make_shared<GraphContext>(conf, nullptr, false);
+    conf.set_property(ov::intel_cpu::cpu_runtime_cache_capacity(100));
+    auto context = std::make_shared<GraphContext>(conf, nullptr, false, false);
 
     std::unique_ptr<Graph> graph = std::unique_ptr<Graph>(new Graph());
 
