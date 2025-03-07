@@ -492,10 +492,6 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
 
     if (is_remote) {
         _output_remote_mem_ptrs[id] = mem_new;
-    } else {
-        if (has_output_remote_memory_ptr(id)) {
-            _output_remote_mem_ptrs.erase(id);
-        }
     }
 
     auto& eng = get_engine();
@@ -511,7 +507,7 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
         if (!prim->is_dynamic() && mem_new && prim->output_memory_ptr())
             mem = eng.reinterpret_buffer(*mem_new, prim->output_memory().get_layout());
 
-        ret_ev.push_back(prim->set_output_memory(mem, !is_remote));
+        ret_ev.push_back(prim->set_output_memory(mem, (!prim->is_dynamic() || !is_remote)));
         if (!_reset_arguments &&
             (prim->type() != cldnn::data::type_id() && !(prim->type() == cldnn::mutable_data::type_id() && prim->dependencies().empty()))) {
             prim->set_arguments();
