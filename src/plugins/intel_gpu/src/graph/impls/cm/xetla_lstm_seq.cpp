@@ -29,7 +29,6 @@ protected:
 
     JitConstants get_jit_constants(const kernel_impl_params& params) const override {
         auto jit_constants = KernelGenerator::get_jit_constants(params);
-        const auto& desc = params.typed_desc<lstm_seq>();
         const auto& x_shape = params.input_layouts[0].get_shape();
 
         jit_constants.add({
@@ -60,9 +59,7 @@ protected:
             assert(!params.is_dynamic());
             auto& wgs = kd.params.workGroups;
 
-            const auto& x_shape = params.input_layouts[0].get_shape();
             const auto& ini_hidden_shape = params.input_layouts[1].get_shape();
-            const auto& out_shape = params.output_layouts[0].get_shape();
 
             const auto num_gates = 4;
             const auto hidden_size = ini_hidden_shape[2];
@@ -101,7 +98,6 @@ protected:
 
     JitConstants get_jit_constants(const kernel_impl_params& params) const override {
         auto jit_constants = KernelGenerator::get_jit_constants(params);
-        const auto& desc = params.typed_desc<lstm_seq>();
         const auto& x_shape = params.input_layouts[0].get_shape();
 
         jit_constants.add({
@@ -129,7 +125,6 @@ protected:
             assert(!params.is_dynamic());
             auto& wgs = kd.params.workGroups;
 
-            const auto& x_shape = params.input_layouts[0].get_shape();
             const auto& ini_hidden_shape = params.input_layouts[1].get_shape();
             const auto& out_shape = params.output_layouts[0].get_shape();
 

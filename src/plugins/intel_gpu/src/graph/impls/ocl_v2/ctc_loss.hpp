@@ -8,6 +8,9 @@
 
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
+
+using namespace cldnn; // TODO: Remove once namespaces are aligned
+
 namespace ov::intel_gpu::ocl {
 
 struct CTCLoss : public ImplementationManager {
