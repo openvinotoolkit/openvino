@@ -13,6 +13,7 @@
 #
 ### Checks that are turned off for a reason:
 #
+# -bugprone-empty-catch, -bugprone-exception-escape. Not applicable in some cases where all possible exceptions are intentionally captured
 # -cppcoreguidelines-pro-bounds-pointer-arithmetic
 # -google-readability-todo. No big reason to enforce
 # -modernize-use-trailing-return-type. Just stylistic preference
@@ -20,9 +21,13 @@
 # -readability-uppercase-literal-suffix. 
 #
 ### Checks that are turned off but better be enabled later:
+# -bugprone-assignment-in-if-condition
 # -bugprone-narrowing-conversions
 # -bugprone-easily-swappable-parameters
 # -bugprone-implicit-widening-of-multiplication-result
+# -bugprone-incorrect-roundings. Intentional in many computations, need to be solved case by case
+# -bugprone-lambda-function-name. After avoiding cases in debug caps
+# -bugprone-signed-char-misuse
 # -cppcoreguidelines-narrowing-conversions
 # -google-default-arguments,
 # -google-explicit-constructor,
@@ -75,6 +80,8 @@ WarningsAsErrors: '*'
 FormatStyle: file
 HeaderFilterRegex: ''
 CheckOptions:
+  - key: bugprone-signed-char-misuse.CharTypdefsToIgnore
+    value: "int8_t"
   - key: cppcoreguidelines-avoid-do-while.IgnoreMacros
     value: true
   # matches with corresponding cpplink check  

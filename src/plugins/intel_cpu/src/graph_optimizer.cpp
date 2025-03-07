@@ -1018,7 +1018,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
             OPENVINO_THROW("Cannot cast to TBlob internal weights blob");
         }
 
-        auto weightsPtr = static_cast<const int8_t*>(weightsBlob->getData());  // NOLINT(bugprone-signed-char-misuse)
+        auto weightsPtr = static_cast<const int8_t*>(weightsBlob->getData());
         if (weightsPtr == nullptr) {
             OPENVINO_THROW("weightsBlob has not allocated buffer");
         }

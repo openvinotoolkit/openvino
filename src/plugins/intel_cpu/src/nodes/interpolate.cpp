@@ -2492,13 +2492,17 @@ void Interpolate::prepareParams() {
 
     auto buildExecutor = [&](const InterpolateKey& key) -> std::shared_ptr<InterpolateExecutorBase> {
         std::shared_ptr<InterpolateExecutorBase> executor;
-        if (((key.nodeAttrs.mode == InterpolateMode::nearest || key.nodeAttrs.mode == InterpolateMode::linear_onnx ||
-              key.nodeAttrs.mode == InterpolateMode::cubic) &&
-             ((key.nodeAttrs.layout != InterpolateLayoutType::planar && mayiuse(cpu::x64::sse41)) ||
-              (mayiuse(cpu::x64::avx2) && key.nodeAttrs.inPrc == ov::element::f32))) ||
-            ((key.nodeAttrs.mode == InterpolateMode::bilinear_pillow ||
-              key.nodeAttrs.mode == InterpolateMode::bicubic_pillow) &&
-             (key.nodeAttrs.layout == InterpolateLayoutType::by_channel))) {
+        bool isNearestLinearOrCubic = key.nodeAttrs.mode == InterpolateMode::nearest ||
+                                      key.nodeAttrs.mode == InterpolateMode::linear_onnx ||
+                                      key.nodeAttrs.mode == InterpolateMode::cubic;
+        bool isPlanarLayourAndSse41 = key.nodeAttrs.layout != InterpolateLayoutType::planar && mayiuse(cpu::x64::sse41);
+        bool isAvx2AndF32 = mayiuse(cpu::x64::avx2) && key.nodeAttrs.inPrc == ov::element::f32;
+        bool isPillowMode = key.nodeAttrs.mode == InterpolateMode::bilinear_pillow ||
+                            key.nodeAttrs.mode == InterpolateMode::bicubic_pillow;
+        bool isByChannelLayout = key.nodeAttrs.layout == InterpolateLayoutType::by_channel;
+
+        if ((isNearestLinearOrCubic && (isPlanarLayourAndSse41 || isAvx2AndF32)) ||
+            (isPillowMode && isByChannelLayout)) {
             executor = std::make_shared<InterpolateJitExecutor>(key.nodeAttrs,
                                                                 key.srcDims,
                                                                 key.dstDims,

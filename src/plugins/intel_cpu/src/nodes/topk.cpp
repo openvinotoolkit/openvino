@@ -2040,9 +2040,11 @@ void TopK::preset_params() {
         blk_size = 8;
     }
 
+    bool can_use_heap_sort =
+        (layout == TopKLayoutType::topk_ncsp || layout == TopKLayoutType::topk_nspc) && topk_innermost;
+    bool use_bubble_sort = stable || !can_use_heap_sort;
     if (isDynamicNode()) {
-        if (stable ||
-            !((layout == TopKLayoutType::topk_ncsp || layout == TopKLayoutType::topk_nspc) && topk_innermost)) {
+        if (use_bubble_sort) {
             algorithm = TopKAlgorithm::topk_bubble_sort;
             bubble_inplace = false;
         } else {
