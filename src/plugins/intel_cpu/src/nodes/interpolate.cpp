@@ -2500,9 +2500,10 @@ void Interpolate::prepareParams() {
         bool isPillowMode = key.nodeAttrs.mode == InterpolateMode::bilinear_pillow ||
                             key.nodeAttrs.mode == InterpolateMode::bicubic_pillow;
         bool isByChannelLayout = key.nodeAttrs.layout == InterpolateLayoutType::by_channel;
+        bool isNearestLinearOrCubicSupported = isNearestLinearOrCubic && (isPlanarLayourAndSse41 || isAvx2AndF32);
+        bool isPillowModeSupported = isPillowMode && isByChannelLayout;
 
-        if ((isNearestLinearOrCubic && (isPlanarLayourAndSse41 || isAvx2AndF32)) ||
-            (isPillowMode && isByChannelLayout)) {
+        if (isNearestLinearOrCubicSupported || isPillowModeSupported) {
             executor = std::make_shared<InterpolateJitExecutor>(key.nodeAttrs,
                                                                 key.srcDims,
                                                                 key.dstDims,

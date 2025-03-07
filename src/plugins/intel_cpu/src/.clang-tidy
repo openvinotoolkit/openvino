@@ -13,7 +13,6 @@
 #
 ### Checks that are turned off for a reason:
 #
-# -bugprone-empty-catch, -bugprone-exception-escape. Not applicable in some cases where all possible exceptions are intentionally captured
 # -cppcoreguidelines-pro-bounds-pointer-arithmetic
 # -google-readability-todo. No big reason to enforce
 # -modernize-use-trailing-return-type. Just stylistic preference
@@ -24,10 +23,11 @@
 # -bugprone-assignment-in-if-condition
 # -bugprone-narrowing-conversions
 # -bugprone-easily-swappable-parameters
+# -bugprone-empty-catch, -bugprone-exception-escape. There are a lot of legacy code which does not handle exceptions properly and just catches them all. Major refactoring is required to correct this.
 # -bugprone-implicit-widening-of-multiplication-result
-# -bugprone-incorrect-roundings. Intentional in many computations, need to be solved case by case
-# -bugprone-lambda-function-name. After avoiding cases in debug caps
-# -bugprone-signed-char-misuse
+# -bugprone-incorrect-roundings. There are explicit ways to perform rounding (i.e. std::floor(), std::round(), etc). Requires careful updates case by case
+# -bugprone-lambda-function-name. Used by generic debug caps macro
+# -bugprone-signed-char-misuse. The source code contains valid logic when pointer to the data is interpreted as int8_t (i.e. weights tensor)
 # -cppcoreguidelines-narrowing-conversions
 # -google-default-arguments,
 # -google-explicit-constructor,
@@ -48,7 +48,6 @@ Checks: >
   modernize-*,
   cppcoreguidelines-prefer-member-initializer,
   readability-else-after-return,
-  -bugprone-assignment-in-if-condition,
   -bugprone-easily-swappable-parameters,
   -bugprone-empty-catch,
   -bugprone-exception-escape,
@@ -80,8 +79,6 @@ WarningsAsErrors: '*'
 FormatStyle: file
 HeaderFilterRegex: ''
 CheckOptions:
-  - key: bugprone-signed-char-misuse.CharTypdefsToIgnore
-    value: "int8_t"
   - key: cppcoreguidelines-avoid-do-while.IgnoreMacros
     value: true
   # matches with corresponding cpplink check  
