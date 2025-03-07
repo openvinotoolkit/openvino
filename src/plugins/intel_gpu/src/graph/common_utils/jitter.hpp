@@ -10,6 +10,7 @@
 
 #include "common_utils/dispatch_utils.hpp"
 
+#include <sstream>
 #include <string>
 
 namespace ov::intel_gpu {
@@ -163,7 +164,7 @@ public:
     explicit JitTerm(std::string text)
         : text(std::move(text)) {}
 
-    std::string str() const { return text; }
+    const std::string& str() const { return text; }
 
     JitTerm gt(const JitTerm& rhs) const {
         JitTerm jit_term { "(" + text + ">" + rhs.str() + ")" };
@@ -220,12 +221,27 @@ private:
     std::string text;
 };
 
+inline bool is_number(const JitTerm& s) {
+    return !s.str().empty() && std::all_of(s.str().begin(), s.str().end(), ::isdigit);
+}
+template <typename T>
+inline T as_number(const JitTerm& s) {
+    T val;
+    std::stringstream ss(s.str());
+    ss >> val;
+    return val;
+}
+
 inline JitTerm neg(const JitTerm& arg) { return JitTerm{"(-" + arg.str() + ")"}; }
 inline JitTerm operator+(const JitTerm& lhs, const JitTerm& rhs) {
     if (lhs.str() == "0")
         return rhs;
     if (rhs.str() == "0")
         return lhs;
+    if (is_number(lhs) && is_number(rhs)) {
+        return JitTerm{std::to_string(as_number<int64_t>(lhs) + as_number<int64_t>(rhs))};
+    }
+
     return JitTerm{"(" + lhs.str() + " + " + rhs.str() + ")"};
 }
 
@@ -234,6 +250,10 @@ inline JitTerm operator-(const JitTerm& lhs, const JitTerm& rhs) {
         return neg(rhs);
     if (rhs.str() == "0")
         return lhs;
+    if (is_number(lhs) && is_number(rhs)) {
+        return JitTerm{std::to_string(as_number<int64_t>(lhs) - as_number<int64_t>(rhs))};
+    }
+
     return JitTerm{"(" + lhs.str() + " - " + rhs.str() + ")"};
 }
 
@@ -244,12 +264,17 @@ inline JitTerm operator*(const JitTerm& lhs, const JitTerm& rhs) {
         return rhs;
     if (rhs.str() == "1")
         return lhs;
-
+    if (is_number(lhs) && is_number(rhs)) {
+        return JitTerm{std::to_string(as_number<int64_t>(lhs) * as_number<int64_t>(rhs))};
+    }
     return JitTerm{"(" + lhs.str() + " * " + rhs.str() + ")"};
 }
 inline JitTerm operator/(const JitTerm& lhs, const JitTerm& rhs) {
     if (rhs.str() == "1")
         return lhs;
+    if (is_number(lhs) && is_number(rhs)) {
+        return JitTerm{std::to_string(as_number<int64_t>(lhs) / as_number<int64_t>(rhs))};
+    }
     return JitTerm{"(" + lhs.str() + " / " + rhs.str() + ")"};
 }
 inline JitTerm operator%(const JitTerm& lhs, const JitTerm& rhs) { return JitTerm{"(" + lhs.str() + " % " + rhs.str() + ")"}; }
