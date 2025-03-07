@@ -233,6 +233,8 @@ std::shared_ptr<Node> op::v0::LSTMCell::clone_with_new_inputs(const OutputVector
     }
 }
 
+AttributeAdapter<op::LSTMWeightsFormat>::~AttributeAdapter() = default;
+
 template <>
 OPENVINO_API EnumNames<op::LSTMWeightsFormat>& EnumNames<op::LSTMWeightsFormat>::get() {
     static auto enum_names = EnumNames<op::LSTMWeightsFormat>("op::LSTMWeightsFormat",
