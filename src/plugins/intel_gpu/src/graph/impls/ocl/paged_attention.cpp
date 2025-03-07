@@ -19,6 +19,7 @@
 
 namespace cldnn {
 namespace ocl {
+using PagedAttentionStage = kernel_selector::PagedAttentionStage;
 
 struct paged_attention_impl : multi_stage_primitive<paged_attention> {
     using parent = multi_stage_primitive<paged_attention>;
@@ -184,9 +185,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         auto add_internal_buffers = [](std::vector<BufferDescriptor>& internal_buffers,
                                        const kernel_selector::KernelData& kd) {
             for (const auto& buffer_desc : kd.internalBuffers) {
-                internal_buffers.emplace_back(
-                    layout{ov::PartialShape{static_cast<int64_t>(buffer_desc.byte_count)}, ov::element::u8, format::bfyx},
-                    buffer_desc.lockable);
+                internal_buffers.emplace_back(buffer_desc.byte_count, ov::element::u8, buffer_desc.lockable);
             }
         };
 
