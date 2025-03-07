@@ -189,9 +189,13 @@ Plugin::~Plugin() {
         m_constructed = false;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+        // WA for oneDNN cache clean
+#ifdef _WIN32
+        // WA differect order of static objects Linux\Windows
         auto capacity = dnnl::get_primitive_cache_capacity();
         dnnl::set_primitive_cache_capacity(0);
         dnnl::set_primitive_cache_capacity(capacity);
+#endif
 #endif
     }
 }
