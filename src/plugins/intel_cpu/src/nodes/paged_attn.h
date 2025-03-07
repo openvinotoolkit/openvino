@@ -46,6 +46,8 @@ public:
     void createPrimitive() override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
+    static bool isQuantByChannel(const Config::CacheQuantMode mode) noexcept;
+
 private:
     ov::element::Type getRuntimePrecision() const override;
 

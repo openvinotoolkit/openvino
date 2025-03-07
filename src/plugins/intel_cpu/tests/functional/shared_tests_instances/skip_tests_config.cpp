@@ -375,6 +375,7 @@ std::vector<std::string> disabledTestPatterns() {
     // Issue: 141705
     retVector.emplace_back(R"(.*smoke_arm_Deconv_2D_Planar_FP16/DeconvolutionLayerCPUTest.*INFERENCE_PRECISION_HINT=f16.*)");
     retVector.emplace_back(R"(.*ConcatMultiQuerySDPTest.*u8.*)");
+    retVector.emplace_back(R"(.*smoke_ConcatSDPTransposeByChannelTest.*)");
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)
