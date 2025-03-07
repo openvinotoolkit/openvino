@@ -9,7 +9,7 @@ import openvino as ov
 from pathlib import Path
 from openvino.utils import deprecated, get_cmake_path
 from tests.utils.helpers import compare_models, get_relu_model
-from openvino.utils import make_postponed_constant
+from openvino.utils.postponed_constant import make_postponed_constant
 
 def test_compare_functions():
     try:
@@ -128,13 +128,13 @@ def create_model(maker):
 def test_save_postponned_constant():
     maker = Maker()
     model = create_model(maker)
-    assert maker.called_times() is 0
+    assert maker.called_times() == 0
 
     model_export_file_name = "out.xml"
     weights_export_file_name = "out.bin"
     ov.save_model(model, model_export_file_name, compress_to_fp16=False)
 
-    assert maker.called_times() > 0
+    assert maker.called_times() == 1
 
     os.remove(model_export_file_name)
     os.remove(weights_export_file_name)
@@ -143,14 +143,14 @@ def test_save_postponned_constant():
 def test_save_postponned_constant_twice():
     maker = Maker()
     model = create_model(maker)
-    assert maker.called_times() is 0
+    assert maker.called_times() == 0
 
     model_export_file_name = "out.xml"
     weights_export_file_name = "out.bin"
     ov.save_model(model, model_export_file_name, compress_to_fp16=False)
-    assert maker.called_times() is 1
+    assert maker.called_times() == 1
     ov.save_model(model, model_export_file_name, compress_to_fp16=False)
-    assert maker.called_times() is 2
+    assert maker.called_times() == 2
 
     os.remove(model_export_file_name)
     os.remove(weights_export_file_name)
@@ -159,7 +159,7 @@ def test_save_postponned_constant_twice():
 def test_serialize_postponned_constant():
     maker = Maker()
     model = create_model(maker)
-    assert maker.called_times() is 0
+    assert maker.called_times() == 0
 
     model_export_file_name = "out.xml"
     weights_export_file_name = "out.bin"
@@ -167,12 +167,13 @@ def test_serialize_postponned_constant():
     os.remove(model_export_file_name)
     os.remove(weights_export_file_name)
 
-    assert maker.called_times() > 0
+    assert maker.called_times() == 1
+
 
 def test_infer_postponned_constant():
     maker = Maker()
     model = create_model(maker)
-    assert maker.called_times() is 0
+    assert maker.called_times() == 0
 
     compiled_model = ov.compile_model(model, "CPU")
     assert isinstance(compiled_model, ov.CompiledModel)
@@ -182,7 +183,7 @@ def test_infer_postponned_constant():
     input_tensor = ov.Tensor(input_data)
 
     results = request.infer({"data": input_tensor})
-    assert maker.called_times() is 1
+    assert maker.called_times() == 1
 
     expected_output = np.array([4, 5, 6, 7], dtype=np.float32).reshape(1, 2, 1, 2)
     assert np.allclose(results[list(results)[0]], expected_output, 1e-4, 1e-4)

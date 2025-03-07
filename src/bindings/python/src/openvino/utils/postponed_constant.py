@@ -4,11 +4,7 @@
 
 
 from typing import Callable, List, Optional
-from openvino._pyopenvino import Op
-from openvino._pyopenvino import Type
-from openvino._pyopenvino import Shape
-from openvino._pyopenvino import Tensor
-from openvino._pyopenvino import PartialShape
+from openvino import Op, Type, Shape, Tensor, PartialShape
 
 
 class PostponedConstant(Op):
