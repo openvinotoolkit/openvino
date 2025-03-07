@@ -514,11 +514,14 @@ pass::EliminateConcat::EliminateConcat() {
 }
 
 pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
+    using node_index_info_map = std::vector<std::tuple<std::shared_ptr<Node>, int64_t, int64_t>>;
     MATCHER_SCOPE(EliminateConcatStridedSlice);
     auto pattern_concat = pattern::wrap_type<ov::op::v0::Concat>(ov::pass::pattern::has_static_rank());
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
         const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(pattern_concat));
+        if (concat->is_dynamic())
+            return false;
 
         const auto concat_axis =
             ov::util::normalize(concat->get_axis(), concat->get_output_partial_shape(0).rank().get_length());
@@ -528,7 +531,7 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
             return false;
         auto concat_inputs = concat->inputs();
 
-        std::vector<std::tuple<std::shared_ptr<Node>, int64_t, int64_t>> slice_out_index_in_concat;
+        node_index_info_map slice_out_index_in_concat;
         for (const auto& user : concat_users) {
             if (ov::is_type<ov::op::v1::StridedSlice>(user)) {
                 auto strided_slice_node = ov::as_type_ptr<ov::op::v1::StridedSlice>(user);
@@ -545,7 +548,7 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
                     }
                     return false;
                 };
-                // check that we won't do change dimention rank
+                // check that we won't do change dimenstion rank
                 if (!check_mask(strided_slice_node->get_shrink_axis_mask()) ||
                     !check_mask(strided_slice_node->get_new_axis_mask()) ||
                     !check_mask(strided_slice_node->get_ellipsis_mask())) {
@@ -574,7 +577,7 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
             return false;
 
         uint64_t start_index = 0;
-        std::vector<std::tuple<std::shared_ptr<Node>, int64_t, int64_t>> in_index_in_concat;
+        node_index_info_map in_index_in_concat;
         for (auto& concat_in : concat_inputs) {
             auto tmp_index = start_index + concat_in.get_shape()[concat_axis] - 1;
             in_index_in_concat.push_back(
@@ -582,7 +585,7 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
             start_index = tmp_index + 1;
         }
 
-        std::vector<std::tuple<std::shared_ptr<Node>, int64_t, int64_t>> mismatch_slices{};
+        node_index_info_map mismatch_slices{};
         for (const auto& [slice_node, slice_begin, slice_end] : slice_out_index_in_concat) {
             bool matched = false;
             for (const auto& [concat_input_node, concat_input_begin, concat_input_end] : in_index_in_concat) {
