@@ -430,8 +430,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     CompilerAdapterFactory compilerAdapterFactory;
     auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
 
-    std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
-
+    const std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
     auto localConfig = fork_local_config(localPropertiesMap, compiler);
     update_log_level(localPropertiesMap);
 
@@ -576,7 +575,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
 
     const auto propertiesMap = any_copy(npu_plugin_properties);
-
     auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::RunTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
@@ -661,7 +659,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
     CompilerAdapterFactory compilerAdapterFactory;
     auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
-    std::map<std::string, std::string> propertiesMap = any_copy(properties);
+    const std::map<std::string, std::string> propertiesMap = any_copy(properties);
     auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::CompileTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
