@@ -8,6 +8,8 @@
 #include "lstm_seq_inst.h"
 #include "registry/implementation_manager.hpp"
 
+using namespace cldnn; // TODO: Remove once namespaces are aligned
+
 namespace ov::intel_gpu::cm {
 
 struct LSTMSeqImplementationManager : public ImplementationManager {
