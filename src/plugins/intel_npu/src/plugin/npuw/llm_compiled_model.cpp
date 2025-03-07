@@ -323,6 +323,7 @@ public:
     }
 };
 
+namespace {
 uint32_t align_to(uint32_t value, uint32_t alignment) {
     return (value + alignment - 1) & ~(alignment - 1);
 }
@@ -359,7 +360,10 @@ std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::M
     return model;
 }
 
+} // namespace
+
 // testability - should we have interface for that or move matchers to another file?
+bool optimize_value_tensors(std::shared_ptr<ov::Model> model);
 bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ScaledDotProductAttentionDecomposition>();
