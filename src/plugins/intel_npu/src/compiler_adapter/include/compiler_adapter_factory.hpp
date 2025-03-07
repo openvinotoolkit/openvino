@@ -14,10 +14,9 @@ namespace intel_npu {
 
 class CompilerAdapterFactory final {
 public:
-    const std::unique_ptr<ICompilerAdapter> getCompiler(const ov::SoPtr<IEngineBackend>& engineBackend,
-                                                        const Config& config) const {
-        auto compilerType = config.get<COMPILER_TYPE>();
-        switch (compilerType) {
+    std::unique_ptr<ICompilerAdapter> getCompiler(const ov::SoPtr<IEngineBackend>& engineBackend,
+                                                  const ov::intel_npu::CompilerType type) const {
+        switch (type) {
         case ov::intel_npu::CompilerType::MLIR: {
             if (engineBackend == nullptr || engineBackend->getName() != "LEVEL0") {
                 return std::make_unique<PluginCompilerAdapter>(nullptr);
