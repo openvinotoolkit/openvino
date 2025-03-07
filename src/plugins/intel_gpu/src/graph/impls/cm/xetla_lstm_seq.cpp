@@ -15,8 +15,7 @@ namespace {
 constexpr auto get_lstm_build_options() {
     return " -Qxcm_jit_option=-DPASTokenReduction "
            " -mllvm --vc-disable-indvars-opt=true "
-           " /Qxcm_jit_option=-enableBCR "
-           " -fcm-pointer /Qxcm_doubleGRF "
+           " /Qxcm_jit_option=-enableBCR /Qxcm_doubleGRF "
            " -DXETLA_CODE_BASE=__CM__ ";
 }
 class XetlaLSTMLoopGenerator : public KernelGenerator {
