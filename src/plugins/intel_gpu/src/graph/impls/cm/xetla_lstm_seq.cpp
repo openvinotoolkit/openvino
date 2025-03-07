@@ -165,8 +165,8 @@ public:
 
     LSTMImpl() : PrimitiveImplOCL(LSTMSeqImplementationManager::get_type_info_static()) {}
     LSTMImpl(const program_node& node, const kernel_impl_params& params) : LSTMImpl() {
-        add_stage(lstm_loop, params);
         add_stage(lstm_gemm, params);
+        add_stage(lstm_loop, params);
     }
     std::unique_ptr<primitive_impl> clone() const override {
         return make_deep_copy<LSTMImpl>(this);
