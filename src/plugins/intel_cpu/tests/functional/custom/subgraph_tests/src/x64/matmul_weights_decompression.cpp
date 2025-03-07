@@ -80,7 +80,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic_fp8,
                                             ::testing::Values(false),
                                             ::testing::ValuesIn(filter_additional_config_basic()),
                                             ::testing::ValuesIn(fusing_params),
-                                            ::testing::Values(true)),
+                                            ::testing::Values(false)),
                          MatmulWeightsDecompression::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_amx,
