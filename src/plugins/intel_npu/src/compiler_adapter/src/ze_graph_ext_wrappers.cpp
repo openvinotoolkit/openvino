@@ -536,26 +536,23 @@ std::string ZeGraphExtWrappers::getCompilerSupportedOptions() const {
         if (str_size > 0) {
             _logger.debug("pfnCompilerGetSupportedOptions - obtain list");
             // 2. allocate buffer for it
-            char* supported_options_list_chr = (char*)malloc(str_size);
+            std::vector<char> sup_options_chr(str_size);
             // 3. ask driver to populate char list
             auto result =
                 _zeroInitStruct->getGraphDdiTable().pfnCompilerGetSupportedOptions(_zeroInitStruct->getDevice(),
                                                                                    ZE_NPU_COMPILER_OPTIONS,
                                                                                    &str_size,
-                                                                                   supported_options_list_chr);
+                                                                                   sup_options_chr.data());
             if (result == ZE_RESULT_SUCCESS) {
                 // convert received buff to string
-                std::string supported_options_list_str(supported_options_list_chr);
+                std::string supported_options_list_str(sup_options_chr.data());
                 // cleanup
-                free(supported_options_list_chr);
                 return supported_options_list_str;
             } else if (result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) {
                 // cleanup
-                free(supported_options_list_chr);
                 return {};
             } else {
                 // cleanup
-                free(supported_options_list_chr);
                 THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerGetSupportedOptions",
                                                 result,
                                                 _zeroInitStruct->getGraphDdiTable())
