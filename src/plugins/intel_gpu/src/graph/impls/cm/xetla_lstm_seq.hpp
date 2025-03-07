@@ -8,7 +8,7 @@
 #include "lstm_seq_inst.h"
 #include "registry/implementation_manager.hpp"
 
-using namespace cldnn; // TODO: Remove once namespaces are aligned
+using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
 namespace ov::intel_gpu::cm {
 
@@ -45,6 +45,9 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
         if (!check_cm_jit_support(engine, config) || info.arch != gpu_arch::xe2) {
             return false;
         }
+
+        if (node.has_fused_primitives())
+            return false;
 
         const auto& lstm_node = node.as<lstm_seq>();
         const auto& lstm_prim = lstm_node.get_primitive();
