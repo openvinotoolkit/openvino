@@ -96,8 +96,9 @@ void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, call_ar
 
     // Note: compensations should be applied only once, so we do it only on the first iteration, when beta == 0
     const auto is_with_comp = config.get_beta() == 0 && config.is_with_comp();
-    // TODO: most likely should be fixed
-    const auto apply_post_ops = config.get_beta() == 1.f;
+    // TODO: postops must be applied only on last K blocking loop iteration. It is not implemented yet, so brgemm with
+    // postops failed when K blocking is enabled
+    const auto apply_post_ops = true;
     execute_brgemm_kernel(kernel->brgemm_kernel, args->A, args->B, args->C, args->scratch, is_with_comp, apply_post_ops);
 }
 
