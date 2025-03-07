@@ -29,6 +29,8 @@ const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8,
                                                                ov::element::i4,
                                                                ov::element::nf4};
 
+const std::vector<ov::test::ElementType> weights_precisions_fp8 = {ov::element::f8e4m3, ov::element::f8e5m2};
+
 const std::vector<MatMulDecompressionShapeParams> input_shapes_basic = {
     {{{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, {16, 32}},
     {{{}, {{1, 8, 16}}}, {16, 32}, 4ul},
@@ -63,6 +65,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
                                             ::testing::ValuesIn(filter_additional_config_basic()),
                                             ::testing::ValuesIn(fusing_params),
                                             ::testing::Values(true)),
+                         MatmulWeightsDecompression::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic_fp8,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_basic),
+                                            ::testing::ValuesIn(weights_precisions_fp8),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(true),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(DecompressionType::full),
+                                            // todo: zero points converted to fp32 for reshape == true case
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(filter_additional_config_basic()),
+                                            ::testing::ValuesIn(fusing_params),
+                                            ::testing::Values(false)),
                          MatmulWeightsDecompression::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_amx,
