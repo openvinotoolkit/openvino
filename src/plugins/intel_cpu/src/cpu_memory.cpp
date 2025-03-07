@@ -455,13 +455,16 @@ StaticMemory::StaticMemory(dnnl::engine eng, MemoryDescPtr desc, const void* dat
 
     try {
         auto dnnl_desc = MemoryDescUtils::convertToDnnlMemoryDesc(m_pMemDesc);
-        // ========================
         // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
         // but with ability to skip pads zeroing.
-        m_prim = dnnl::memory(dnnl_desc->getDnnlDesc(), m_eng, DNNL_MEMORY_NONE);
-        //
-        // ========================
-        m_prim.set_data_handle(m_pMemBlock->getRawPtr());
+        const auto& memory_desc = dnnl_desc->getDnnlDesc();
+        if (memory_desc.is_zero()) {
+            // dnnl memory created using an empty memory_desc is not empty, so use a default constructor
+            m_prim = dnnl::memory();
+        } else {
+            m_prim = dnnl::memory(memory_desc, m_eng, DNNL_MEMORY_NONE);
+            m_prim.set_data_handle(m_pMemBlock->getRawPtr());
+        }
     } catch (const std::exception& exc) {
         dnnlErrorCtx = exc.what();
     }
@@ -511,9 +514,10 @@ MemoryBlockPtr StaticMemory::getMemoryBlock() const {
 
 // oneDNN specifics for backward compatibility
 dnnl::memory StaticMemory::getPrimitive() const {
-    if (!m_prim) {
+    if (!m_prim && !getDesc().empty()) {  // for an empty memory m_prim is expected to be empty
         OPENVINO_THROW("Couldn't create dnnl::memory object: ", dnnlErrorCtx);
     }
+
     return m_prim;
 }
 
@@ -616,6 +620,10 @@ bool mbind_move(const MemoryCPtr& mem, int numaNodeID) {
 }
 
 bool mbind_move(const dnnl::memory& mem, int numaNodeID) {
+    if (!mem) {
+        return true;
+    }
+
     void* data = mem.get_data_handle();
     auto desc = mem.get_desc();
     auto size = desc.get_size();
