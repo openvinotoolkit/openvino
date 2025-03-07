@@ -237,6 +237,27 @@ static auto get_specified_device_name(const Config config) {
     return std::string();
 }
 
+// Heuristically obtained number. Varies depending on the values of PLATFORM and PERFORMANCE_HINT
+// Note: this is the value provided by the plugin, application should query and consider it, but may supply its own
+// preference for number of parallel requests via dedicated configuration
+static int64_t getOptimalNumberOfInferRequestsInParallel(const Config& config) {
+    const std::string platform = ov::intel_npu::Platform::standardize(config.get<PLATFORM>());
+
+    if (platform == ov::intel_npu::Platform::NPU3720) {
+        if (config.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::THROUGHPUT) {
+            return 4;
+        } else {
+            return 1;
+        }
+    } else {
+        if (config.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::THROUGHPUT) {
+            return 8;
+        } else {
+            return 1;
+        }
+    }
+}
+
 Properties::Properties(const PropertiesType pType,
                        Config& config,
                        const std::shared_ptr<Metrics>& metrics,
