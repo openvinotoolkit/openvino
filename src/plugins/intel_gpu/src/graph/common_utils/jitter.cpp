@@ -183,26 +183,20 @@ void LayoutJitter::make_definitions(const layout& l, size_t shape_info_offset) {
         }
     }
 
-    if (!pad.is_dynamic()) {
-        m_offset = JitTerm{to_code_string(pad._lower_size[channels_map[ChannelName::X]])};
-    } else {
-        std::vector<JitTerm> padded_pitches = {
-                m_strides[channels_map.at(ChannelName::X)] * m_pad_lower[channels_map.at(ChannelName::X)],
-                m_strides[channels_map.at(ChannelName::Y)] * m_pad_lower[channels_map.at(ChannelName::Y)],
-                m_strides[channels_map.at(ChannelName::Z)] * m_pad_lower[channels_map.at(ChannelName::Z)],
-                m_strides[channels_map.at(ChannelName::W)] * m_pad_lower[channels_map.at(ChannelName::W)],
-                m_strides[channels_map.at(ChannelName::U)] * m_pad_lower[channels_map.at(ChannelName::U)],
-                m_strides[channels_map.at(ChannelName::V)] * m_pad_lower[channels_map.at(ChannelName::V)],
-                m_strides[channels_map.at(ChannelName::FEATURE)] * m_pad_lower[channels_map.at(ChannelName::FEATURE)],
-                m_strides[channels_map.at(ChannelName::BATCH)] * m_pad_lower[channels_map.at(ChannelName::BATCH)],
-        };
+    std::vector<JitTerm> padded_pitches = {
+            m_strides[channels_map.at(ChannelName::X)] * m_pad_lower[channels_map.at(ChannelName::X)],
+            m_strides[channels_map.at(ChannelName::Y)] * m_pad_lower[channels_map.at(ChannelName::Y)],
+            m_strides[channels_map.at(ChannelName::Z)] * m_pad_lower[channels_map.at(ChannelName::Z)],
+            m_strides[channels_map.at(ChannelName::W)] * m_pad_lower[channels_map.at(ChannelName::W)],
+            m_strides[channels_map.at(ChannelName::U)] * m_pad_lower[channels_map.at(ChannelName::U)],
+            m_strides[channels_map.at(ChannelName::V)] * m_pad_lower[channels_map.at(ChannelName::V)],
+            m_strides[channels_map.at(ChannelName::FEATURE)] * m_pad_lower[channels_map.at(ChannelName::FEATURE)],
+            m_strides[channels_map.at(ChannelName::BATCH)] * m_pad_lower[channels_map.at(ChannelName::BATCH)],
+    };
 
-        JitTerm offset{"0"};
-        for (size_t i = 0; i < padded_pitches.size(); ++i) {
-            offset = offset + padded_pitches[i];
-        }
-
-        m_offset = offset;
+    m_offset = JitTerm{"0"};
+    for (size_t i = 0; i < padded_pitches.size(); ++i) {
+        m_offset = m_offset + padded_pitches[i];
     }
 }
 
