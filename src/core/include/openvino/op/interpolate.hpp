@@ -162,5 +162,6 @@ public:
         : EnumAttributeAdapterBase<op::v0::Interpolate::InterpolateMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v0::Interpolate::InterpolateMode>");
+    ~AttributeAdapter() override;
 };
 }  // namespace ov

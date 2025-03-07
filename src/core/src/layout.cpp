@@ -631,6 +631,8 @@ void AttributeAdapter<ov::Layout>::set(const std::string& value) {
     m_ref = Layout(value);
 }
 
+AttributeAdapter<Layout>::~AttributeAdapter() = default;
+
 bool LayoutAttribute::visit_attributes(AttributeVisitor& visitor) {
     std::string layout_str = value.to_string();
     visitor.on_attribute("layout", layout_str);

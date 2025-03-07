@@ -120,6 +120,7 @@ class OPENVINO_API AttributeAdapter<ov::op::util::FrameworkNodeAttrs>
     : public DirectValueAccessor<ov::op::util::FrameworkNodeAttrs> {
 public:
     AttributeAdapter(ov::op::util::FrameworkNodeAttrs& value);
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<FrameworkNodeAttr>");
 };
