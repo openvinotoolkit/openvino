@@ -12,17 +12,6 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 
-namespace ov {
-
-namespace intel_npu {
-
-std::string_view stringifyEnum(ProfilingType val);
-std::string_view stringifyEnum(CompilerType val);
-
-}  // namespace intel_npu
-
-}  // namespace ov
-
 namespace intel_npu {
 
 //
@@ -66,6 +55,25 @@ struct PERFORMANCE_HINT final : OptionBase<PERFORMANCE_HINT, ov::hint::Performan
         }
 
         OPENVINO_THROW("Value '", val, "' is not a valid PERFORMANCE_HINT option");
+    }
+
+    static std::string toString(const ov::hint::PerformanceMode& val) {
+        std::stringstream strStream;
+        switch (val) {
+        case ov::hint::PerformanceMode::LATENCY:
+            strStream << "LATENCY";
+            break;
+        case ov::hint::PerformanceMode::THROUGHPUT:
+            strStream << "THROUGHPUT";
+            break;
+        case ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT:
+            strStream << "CUMULATIVE_THROUGHPUT";
+            break;
+        default:
+            OPENVINO_THROW("Invalid ov::hint::PerformanceMode setting");
+            break;
+        }
+        return strStream.str();
     }
 };
 
@@ -451,8 +459,6 @@ struct EXCLUSIVE_ASYNC_REQUESTS final : OptionBase<EXCLUSIVE_ASYNC_REQUESTS, boo
     }
 };
 
-int64_t getOptimalNumberOfInferRequestsInParallel(const Config& config);
-
 ///
 /// PROFILING TYPE
 ///
@@ -806,9 +812,9 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
     }
 
     static ov::intel_npu::CompilerType parse(std::string_view val) {
-        if (val == stringifyEnum(ov::intel_npu::CompilerType::MLIR)) {
+        if (val == "MLIR") {
             return ov::intel_npu::CompilerType::MLIR;
-        } else if (val == stringifyEnum(ov::intel_npu::CompilerType::DRIVER)) {
+        } else if (val == "DRIVER") {
             return ov::intel_npu::CompilerType::DRIVER;
         }
 
@@ -1318,11 +1324,3 @@ struct DISABLE_VERSION_CHECK final : OptionBase<DISABLE_VERSION_CHECK, bool> {
 };
 
 }  // namespace intel_npu
-
-namespace ov {
-namespace hint {
-
-std::string_view stringifyEnum(PerformanceMode val);
-
-}  // namespace hint
-}  // namespace ov
