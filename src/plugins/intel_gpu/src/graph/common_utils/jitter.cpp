@@ -61,22 +61,6 @@ std::vector<ChannelName> get_weights_channels_order(size_t rank, bool is_grouped
     return {};
 }
 
-std::vector<ChannelName> get_default_channels_order(size_t rank, bool is_weights_fmt = false, bool is_grouped = false) {
-    if (is_weights_fmt)
-        return get_weights_channels_order(rank, is_grouped);
-    else
-        return get_data_channels_order(rank);
-}
-
-int get_channel_index(ChannelName channel_name, size_t rank, bool is_weights_fmt = false, bool is_grouped = false) {
-    auto order = get_default_channels_order(rank, is_weights_fmt, is_grouped);
-    auto it = std::find(order.begin(), order.end(), channel_name);
-    if (it == order.end())
-        return -1;
-
-    return std::distance(order.begin(), it);
-}
-
 }  // namespace
 
 void LayoutJitter::make_definitions(const layout& l, size_t shape_info_offset) {
@@ -838,6 +822,22 @@ JitConstants make_activation_jit_constants(activation_func activation_function,
     return jit;
 }
 
+std::vector<ChannelName> get_default_channels_order(size_t rank, bool is_weights_fmt, bool is_grouped) {
+    if (is_weights_fmt)
+        return get_weights_channels_order(rank, is_grouped);
+    else
+        return get_data_channels_order(rank);
+}
+
+int get_channel_index(ChannelName channel_name, size_t rank, bool is_weights_fmt, bool is_grouped) {
+    auto order = get_default_channels_order(rank, is_weights_fmt, is_grouped);
+    auto it = std::find(order.begin(), order.end(), channel_name);
+    if (it == order.end())
+        return -1;
+
+    return std::distance(order.begin(), it);
+}
+
 size_t extract_channel(ChannelName channel, const layout& l) {
     const auto& pshape = l.get_partial_shape();
     auto idx = get_channel_index(channel, pshape.size(), format::is_weights_format(l.format), format::is_grouped(l.format));
@@ -867,6 +867,17 @@ std::string to_ocl_type(ov::element::Type_t et) {
         default:
             return "";
     }
+}
+
+JitConstants make_int4_packed_type_jit_constant(const std::string& macro_name, ov::element::Type type, size_t pack_size) {
+    OPENVINO_ASSERT(pack_size % 2 == 0 && pack_size != 0 && pack_size <= 16);
+    std::string type_string = "";
+    switch (type) {
+        case ov::element::u4: type_string = "uint4x"; break;
+        case ov::element::i4: type_string = "int4x"; break;
+        default: OPENVINO_THROW("[GPU] Unsupported compressed type");
+    }
+    return { make_jit_constant(macro_name, type_string + std::to_string(pack_size) + "_t") };
 }
 
 }  // namespace ov::intel_gpu
