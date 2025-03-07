@@ -1874,7 +1874,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -------------------------------------------------------------
 
-32. KleidiAI (https://git.gitlab.arm.com/kleidi/kleidiai)
+32. KleidiAI (https://github.com/ARM-software/kleidiai)
 Copyright 2024-2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
 
 Apache License
