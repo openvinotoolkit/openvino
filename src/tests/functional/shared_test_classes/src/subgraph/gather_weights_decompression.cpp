@@ -26,7 +26,7 @@ void GatherWeightsDecompressionBase::generate_inputs(const std::vector<ov::Shape
     }
 }
 
-void GatherWeightsDecompressionBase::check_results(const ov::element::Type& weights_precision) {
+void GatherWeightsDecompressionBase::check_results(const ov::element::Type& weights_precision, const size_t& num_ops_expect) {
     size_t num_exec_ops = 0;
 
     for (const auto& n : compiledModel.get_runtime_model()->get_ordered_ops()) {
@@ -38,11 +38,7 @@ void GatherWeightsDecompressionBase::check_results(const ov::element::Type& weig
         }
     }
 
-    if (weights_precision == ov::element::Type_t::f16 || weights_precision == ov::element::Type_t::bf16) {
-        EXPECT_LE(num_exec_ops, 4u);
-    } else {
-        EXPECT_LE(num_exec_ops, 3u);
-    }
+    EXPECT_LE(num_exec_ops, num_ops_expect);
 }
 
 std::string GatherWeightsDecompression::get_test_case_name(
@@ -108,7 +104,7 @@ std::shared_ptr<ov::Model> GatherWeightsDecompression::init_subgraph(const ov::S
 void GatherWeightsDecompression::check_results() {
     const auto& test_param = GetParam();
     const ov::element::Type& weights_precision = std::get<2>(test_param);
-    GatherWeightsDecompressionBase::check_results(weights_precision);
+    GatherWeightsDecompressionBase::check_results(weights_precision, 3u);
 }
 
 void GatherWeightsDecompression::SetUp() {
@@ -215,7 +211,7 @@ void GatherWeightsDecompressionWithoutScale::SetUp() {
 void GatherWeightsDecompressionWithoutScale::check_results() {
     const auto& test_param = GetParam();
     const ov::element::Type& weights_precision = std::get<2>(test_param);
-    GatherWeightsDecompressionBase::check_results(weights_precision);
+    GatherWeightsDecompressionBase::check_results(weights_precision, 4u);
 }
 
 }  // namespace test

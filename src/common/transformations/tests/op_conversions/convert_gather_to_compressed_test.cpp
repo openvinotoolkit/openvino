@@ -226,7 +226,10 @@ TEST_F(TransformationTestsF, ConvertGatherToCompressedMultiOutput) {
     }
 }
 
-TEST_F(TransformationTestsF, ConvertGatherToCompressedFP16Weight) {
+// In compressed FP16/BF16 weight case, it transform gather node with constant weight decompression pattern(FP16/BF16 +
+// convert(FP32)) to gather node with compressed(FP16/BF16) weight, and move decompression after gather node, so
+// GatherCompressed node should not generated.
+TEST_F(TransformationTestsF, MoveDecompressionAfterGatherFP16Weight) {
     {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 16});
         auto axis_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
@@ -235,7 +238,7 @@ TEST_F(TransformationTestsF, ConvertGatherToCompressedFP16Weight) {
         auto gather = std::make_shared<ov::op::v8::Gather>(convert, input1, axis_const);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{gather}, ov::ParameterVector{input1});
-        manager.register_pass<ConvertGatherToGatherCompressed>();
+        manager.register_pass<MoveDecompressionAfterGather>();
     }
     {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 16});
@@ -248,7 +251,7 @@ TEST_F(TransformationTestsF, ConvertGatherToCompressedFP16Weight) {
     }
 }
 
-TEST_F(TransformationTestsF, ConvertGatherToCompressedBF16Weight) {
+TEST_F(TransformationTestsF, MoveDecompressionAfterGatherBF16Weight) {
     {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 16});
         auto axis_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
@@ -257,7 +260,7 @@ TEST_F(TransformationTestsF, ConvertGatherToCompressedBF16Weight) {
         auto gather = std::make_shared<ov::op::v8::Gather>(convert, input1, axis_const);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{gather}, ov::ParameterVector{input1});
-        manager.register_pass<ConvertGatherToGatherCompressed>();
+        manager.register_pass<MoveDecompressionAfterGather>();
     }
     {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 16});

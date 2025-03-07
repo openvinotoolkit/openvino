@@ -14,7 +14,7 @@ namespace test {
 class GatherWeightsDecompressionBase : virtual public ov::test::SubgraphBaseTest {
 protected:
     void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override;
-    void check_results(const ov::element::Type& weights_precision);
+    void check_results(const ov::element::Type& weights_precision, const size_t& num_exec_ops_expect);
 };
 
 /*
