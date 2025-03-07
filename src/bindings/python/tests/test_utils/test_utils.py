@@ -9,7 +9,8 @@ import openvino as ov
 from pathlib import Path
 from openvino.utils import deprecated, get_cmake_path
 from tests.utils.helpers import compare_models, get_relu_model
-from openvino.utils.postponed_constant import make_postponed_constant
+from openvino.utils import make_postponed_constant
+
 
 def test_compare_functions():
     try:
@@ -102,7 +103,7 @@ class Maker:
     def __init__(self):
         self.calls_count = 0
 
-    def __call__(self, tensor : ov.Tensor) -> None:
+    def __call__(self, tensor: ov.Tensor) -> None:
         self.calls_count += 1
         tensor_data = np.array([2, 2, 2, 2], dtype=np.float32).reshape(1, 1, 2, 2)
         ov.Tensor(tensor_data).copy_to(tensor)
