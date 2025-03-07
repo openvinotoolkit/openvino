@@ -360,6 +360,18 @@ std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::M
     return model;
 }
 
+bool remove_empty_kv_inputs(std::shared_ptr<ov::Model> model) {
+    ov::pass::GraphRewrite rewr;
+    RemoveEmptyKVTensors::Context ctx;
+    rewr.add_matcher<RemoveEmptyKVTensors>(std::ref(ctx));
+    rewr.run_on_model(model);
+    for (auto old_param : ctx.old_params) {
+        model->remove_parameter(old_param);
+    }
+    ov::pass::Validate().run_on_model(model);
+    // NB: if old_params is not empty - pass has been applied
+    return !ctx.old_params.empty();
+}
 }  // namespace
 
 // testability - should we have interface for that or move matchers to another file?
@@ -376,19 +388,6 @@ bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
 
     // NB: matmul parameters gets transposed, if pass applied
     return ctx.bTransposed;
-}
-
-bool remove_empty_kv_inputs(std::shared_ptr<ov::Model> model) {
-    ov::pass::GraphRewrite rewr;
-    RemoveEmptyKVTensors::Context ctx;
-    rewr.add_matcher<RemoveEmptyKVTensors>(std::ref(ctx));
-    rewr.run_on_model(model);
-    for (auto old_param : ctx.old_params) {
-        model->remove_parameter(old_param);
-    }
-    ov::pass::Validate().run_on_model(model);
-    // NB: if old_params is not empty - pass has been applied
-    return !ctx.old_params.empty();
 }
 
 namespace {
