@@ -208,6 +208,7 @@ OP_CONVERTER(translate_remainder);
 OP_CONVERTER(translate_repeat_interleave);
 OP_CONVERTER(translate_reshape);
 OP_CONVERTER(translate_reshape_as);
+OP_CONVERTER(translate_rms_norm);
 OP_CONVERTER(translate_rnn);
 OP_CONVERTER(translate_roi_align);
 OP_CONVERTER(translate_roll);
@@ -639,6 +640,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         // for real dtypes, these operations return input tensor without changes and can be skipped
         {"aten::resolve_conj", op::skip_node},
         {"aten::resolve_neg", op::skip_node},
+        {"aten::rms_norm", op::translate_rms_norm},
         {"aten::rnn_relu", op::translate_rnn},
         {"aten::rnn_tanh", op::translate_rnn},
         {"aten::roll", op::translate_roll},
@@ -963,6 +965,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.relu.default", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten.relu_.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
         {"aten.repeat.default", op::translate_repeat_fx},
+        {"aten.rms_norm.default", op::translate_rms_norm},
         {"aten.roll.default", op::translate_roll},
         {"aten.rsqrt.default", op::translate_rsqrt},
         {"aten.rsub.Scalar", op::translate_rsub_fx},
