@@ -172,8 +172,9 @@ void BrgemmBaseKernelExecutor::create_brgemm_kernel(std::shared_ptr<brgemm_kerne
     // TODO: place postops fusion here
     primitive_attr_t attr;
     attr.set_post_ops(post_ops);
-    dnnl::memory::desc dst_desc({M, N}, static_cast<dnnl::memory::data_type>(dt_out), dnnl::memory::format_tag::any);
-    brgemm_desc_set_postops(&desc, &attr, dst_desc.get(), LDC);
+    dnnl::memory::desc dst_desc({M, N}, static_cast<dnnl::memory::data_type>(dt_out), dnnl::memory::format_tag::ab);
+    OV_CPU_JIT_EMITTER_ASSERT(brgemm_desc_set_postops(&desc, &attr, dst_desc.get(), LDC) == dnnl_success,
+                              "Cannot set postops to brgemm descriptor");
 
     std::cout << "[ INFO ] Brgemm desc creation:" << std::endl;
     std::cout << "\t desc.dt_a: " << desc.dt_a << std::endl;
