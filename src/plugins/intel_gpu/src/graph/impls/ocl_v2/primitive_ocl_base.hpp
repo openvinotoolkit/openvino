@@ -35,6 +35,12 @@ public:
 
 // Base class for all GPU implementation of specified primitive type.
 // For example, all gpu convolution implementations should derive from primitive_impl_ocl<convolution>.
+// Derived classes are supposed to define Stage-s as members of the class
+// and ensure that default constructor initializes all of them to automatically set-up update_dispatch_data_func
+// for each stage on primitive load from the cache.
+// Stage registration doesn't mean that it's actually compiled and exectued - it's mainly a holder for stage-related objects.
+// In order to activate a stage, add_stage method must be called explicitly for each stage required to execute a particular set
+// of parameters. Note: if execute() method is not overriden, then stages are executed in the order of activation (not order of construction)
 struct PrimitiveImplOCL : public primitive_impl {
     std::vector<Stage*> _stages;
     std::vector<size_t> _order;
