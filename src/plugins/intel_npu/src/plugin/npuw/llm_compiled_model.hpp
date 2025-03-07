@@ -52,13 +52,13 @@ private:
 
     void serialize(std::ostream& stream,
                    bool encrypted = false,
-                   const std::function<std::string(const std::string&)>& encypt = nullptr) const;
+                   std::function<std::string(const std::string&)> encypt = nullptr) const;
     static std::shared_ptr<LLMCompiledModel> deserialize(
         std::istream& stream,
         const std::shared_ptr<const ov::IPlugin>& plugin,
         const ov::AnyMap& properties,
         bool encrypted = false,
-        const std::function<std::string(const std::string&)>& decrypt = nullptr);
+        std::function<std::string(const std::string&)> decrypt = nullptr);
 
     std::string m_name;
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;

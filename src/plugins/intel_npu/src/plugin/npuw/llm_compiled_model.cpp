@@ -659,18 +659,17 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     // Identify encryption flow
     bool encryption_required = false;
     EncryptionCallbacks enc_callbacks;
-    if (m_non_llm_props.count(ov::cache_encryption_callbacks.name()) &&
-        m_non_llm_props.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>().encrypt) {
+    if (auto it = m_non_llm_props.find(ov::cache_encryption_callbacks.name());
+        it != m_non_llm_props.end() && it->second.as<EncryptionCallbacks>().encrypt) {
         LOG_INFO("Encryption will be done via the function provided.");
         encryption_required = true;
-        enc_callbacks.encrypt =
-            m_non_llm_props.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>().encrypt;
+        enc_callbacks.encrypt = it->second.as<EncryptionCallbacks>().encrypt;
     }
 
     // Identify either full flow or weightless
     bool is_weightless = true;
-    if (m_non_llm_props.count(ov::cache_mode.name()) &&
-        m_non_llm_props.at(ov::cache_mode.name()).as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
+    if (auto it = m_non_llm_props.find(ov::cache_mode.name());
+        it != m_non_llm_props.end() && it->second.as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
         LOG_INFO("Serialization will be done via flow with weights.");
         is_weightless = false;
     }
@@ -707,7 +706,7 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
 
 void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream,
                                            bool encrypted,
-                                           const std::function<std::string(const std::string&)>& encrypt) const {
+                                           std::function<std::string(const std::string&)> encrypt) const {
     LOG_INFO("Serializing LLMCompiledModel...");
     LOG_BLOCK();
 
@@ -715,8 +714,8 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream,
 
     // Identify either full flow or weightless
     bool is_weightless = true;
-    if (m_non_llm_props.count(ov::cache_mode.name()) &&
-        m_non_llm_props.at(ov::cache_mode.name()).as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
+    if (auto it = m_non_llm_props.find(ov::cache_mode.name());
+        it != m_non_llm_props.end() && it->second.as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
         LOG_INFO("Serialization will be done via flow with weights.");
         is_weightless = false;
     }
@@ -890,7 +889,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& properties,
     bool encrypted,
-    const std::function<std::string(const std::string&)>& decrypt) {
+    std::function<std::string(const std::string&)> decrypt) {
     using namespace ov::npuw::s11n;
 
     auto read_model_meta = [&](std::istream& model_stream) {
