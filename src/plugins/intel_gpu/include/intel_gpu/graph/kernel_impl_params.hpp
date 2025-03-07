@@ -185,7 +185,8 @@ struct kernel_impl_params final {
 
         // single batch
         auto shape = output_layouts[0].get_partial_shape().to_shape();
-        return one_of(ov::shape_size(shape), shape);
+        auto shape_size = ov::shape_size(shape);
+        return one_of(shape_size, shape) && (shape_size % 16 == 0);
     }
 
     template <class PType>
