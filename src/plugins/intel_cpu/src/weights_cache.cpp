@@ -39,11 +39,22 @@ WeightsSharing::SharedMemory::Ptr WeightsSharing::findOrCreate(const std::string
         std::unique_lock<std::mutex> lock(guard);
         auto found = sharedWeights.find(key);
 
-        auto isInvalid = [&]() {
-            return found == sharedWeights.end() || !((ptr = found->second) && (newPtr = ptr->sharedMemory.lock()));
+        auto isCached = [&]() -> bool {
+            if (found == sharedWeights.end()) {
+                return false;
+            }
+            ptr = found->second;
+            if (!ptr) {
+                return false;
+            }
+            newPtr = ptr->sharedMemory.lock();
+            if (!newPtr) {
+                return false;
+            }
+            return true;
         };
 
-        if (isInvalid()) {
+        if (!isCached()) {
             newPtr = create();
             ptr = std::make_shared<MemoryInfo>(newPtr, valid);
             sharedWeights[key] = ptr;
