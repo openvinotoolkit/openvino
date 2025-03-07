@@ -9,7 +9,7 @@
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
 
-using namespace cldnn; // TODO: Remove once namespaces are aligned
+using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
 namespace ov::intel_gpu::ocl {
 
@@ -27,6 +27,9 @@ struct CTCLoss : public ImplementationManager {
                                                       format::bs_fs_yx_bsv16_fsv16,
                                                       format::bs_fs_yx_bsv32_fsv32,
                                                       format::bs_fs_yx_bsv32_fsv16};
+
+        if (node.has_fused_primitives())
+            return false;
 
         for (const auto& in_l : node.get_input_layouts()) {
             if (!one_of(in_l.format, supported_fmts))
