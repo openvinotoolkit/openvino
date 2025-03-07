@@ -77,10 +77,16 @@ public:
                                    const std::vector<float>& outputHighValues,
                                    const ov::element::Type outputPrecision = ov::element::dynamic,
                                    const std::vector<ov::Any>& attributes = {},
-                                   const bool addConverts = false);
+                                   const bool addConverts = false,
+                                   const ov::element::Type constantPrecision = ov::element::dynamic);
     virtual ~FakeQuantizeOnDataWithConstant();
 
     virtual bool empty() const;
+
+    FakeQuantizeOnDataWithConstant& setConstantPrecision(ov::element::Type constantPrecision) {
+        this->constantPrecision = constantPrecision;
+        return *this;
+    }
 
     uint64_t quantizationLevel;
     std::vector<ov::Shape> constantShapes;
@@ -91,6 +97,7 @@ public:
     ov::element::Type outputPrecision;
     std::vector<ov::Any> attributes;
     bool addConverts;
+    ov::element::Type constantPrecision;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnDataWithConstant& data) {
@@ -100,8 +107,9 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnDataWithC
     return out << "level=" << data.quantizationLevel
                << "_shape=" << (data.constantShapes.empty() ? ov::Shape{} : data.constantShapes[0])
                << "_input_low=" << data.inputLowValues << "_input_high=" << data.inputHighValues
-               << "_output_low=" << data.outputLowValues << "_output_high=" << data.outputHighValues << "_precision="
-               << (data.outputPrecision == ov::element::dynamic ? "" : data.outputPrecision.get_type_name());
+               << "_output_low=" << data.outputLowValues << "_output_high=" << data.outputHighValues << "_output_precision="
+               << (data.outputPrecision == ov::element::dynamic ? "" : data.outputPrecision.get_type_name())
+               << "_constant_precision=" << (data.constantPrecision == ov::element::dynamic ? "" : data.constantPrecision.get_type_name());
 }
 
 }  // namespace subgraph
