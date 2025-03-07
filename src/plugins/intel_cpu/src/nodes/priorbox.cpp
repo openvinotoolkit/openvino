@@ -152,7 +152,7 @@ void PriorBox::execute(const dnnl::stream& strm) {
     const int OH = 4 * H * W * number_of_priors;
     const int OW = 1;
 
-    float* dst_data = getDstDataAtPortAs<float>(0);
+    auto* dst_data = getDstDataAtPortAs<float>(0);
 
     float step_ = step;
     auto min_size_ = min_size;

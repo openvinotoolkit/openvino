@@ -135,7 +135,7 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(PartialShape{1, 48}, PartialShape{16}, 16, 16, false, PartialShape{1, 9, 3, 2}),
         std::make_tuple(PartialShape{2, 48}, PartialShape{8}, 16, 4, false, PartialShape{2, 9, 9, 2}),
         std::make_tuple(PartialShape{2, 9}, PartialShape{5}, 9, 100, false, PartialShape{2, 5, 1, 2}),
-        std::make_tuple(PartialShape{2, 0}, PartialShape{5}, 9, 100, true, PartialShape{2, 5, 1, 2}),
+        std::make_tuple(PartialShape{2, 1}, PartialShape{5}, 9, 100, true, PartialShape{2, 5, 1, 2}),
         std::make_tuple(PartialShape{4, 47},
                         PartialShape{7},
                         11,
@@ -151,7 +151,7 @@ INSTANTIATE_TEST_SUITE_P(
                         3,
                         false,
                         PartialShape{{2, 4}, 6, {1, -1}, 2}),
-        std::make_tuple(PartialShape{{2, 4}, {-1, -1}},
+        std::make_tuple(PartialShape{{2, 4}, {1, -1}},
                         PartialShape{7},
                         11,
                         3,
@@ -401,9 +401,9 @@ TEST_F(TypePropISTFTTest, frame_step_incompatible_type) {
 }
 
 TEST_F(TypePropISTFTTest, frame_step_incompatible_value) {
-    const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{9, 9, 2});
+    const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{9, 3, 2});
     const auto window = std::make_shared<Parameter>(element::f32, PartialShape{8});
-    const auto frame_size = Constant::create<int32_t>(element::i32, {}, {8});
+    const auto frame_size = Constant::create<int32_t>(element::i32, {}, {16});
     {
         const auto frame_step = Constant::create<int32_t>(element::i32, {}, {-1});
         OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, center, normalized),
@@ -433,6 +433,16 @@ TEST_F(TypePropISTFTTest, window_incompatible_dim_with_frame_size) {
     OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, center, normalized),
                     NodeValidationFailure,
                     HasSubstr("Window input dimension must be in range [1, 8]"));
+}
+
+TEST_F(TypePropISTFTTest, data_shape_incompatible_dim_with_frame_size) {
+    const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{9, 3, 2});
+    const auto window = std::make_shared<Parameter>(element::f32, PartialShape{16});
+    const auto frame_size = Constant::create<int32_t>(element::i32, {}, {31});
+    const auto frame_step = Constant::create<int32_t>(element::i32, {}, {11});
+    OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, center, normalized),
+                    NodeValidationFailure,
+                    HasSubstr("The dimension at data_shape[-3] must be equal to: (frame_size // 2 + 1)"));
 }
 
 }  // namespace ov::test

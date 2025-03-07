@@ -241,13 +241,13 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
         const auto& inputNode = input.second;
         const auto precToSet = inputNode->getOriginalOutputPrecisionAtPort(0);
         const auto childEdges = inputNode->getChildEdgesAtPort(0);
-        for (size_t i = 0; i < childEdges.size(); i++) {
-            const auto child = childEdges[i]->getChild();
-            const auto child_prec = child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum());
+        for (const auto& childEdge : childEdges) {
+            const auto child = childEdge->getChild();
+            const auto child_prec = child->getOriginalInputPrecisionAtPort(childEdge->getOutputNum());
             if (!one_of(child_prec, ov::element::bf16, ov::element::f16) &&
                 // remove this WA when #78939 is resolved
                 !hasSubgraphConsumers(child)) {
-                child->setOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum(), precToSet);
+                child->setOriginalInputPrecisionAtPort(childEdge->getOutputNum(), precToSet);
             }
         }
     }
@@ -631,9 +631,9 @@ void Graph::ResolveEdgeConflicts() {
 
     /* When inserting convert / reorder, two new edges are added (pushed to the end) to the graphEdges.
        So use a plain for loop, to handle newly inserted edges as well */
-    for (size_t i = 0; i < graphEdges.size(); i++) {
+    for (size_t i = 0; i < graphEdges.size(); i++) {  // NOLINT(modernize-loop-convert)
         auto& edge = graphEdges[i];
-        auto reorderStatus = edge->needReorder();
+        auto reorderStatus = edge->needReorder();  // NOLINT(modernize-loop-convert)
         DEBUG_LOG(*edge, " reorderStatus = ", reorderStatus);
 
         switch (reorderStatus) {
@@ -664,7 +664,7 @@ void Graph::ResolveEdgeConflicts() {
 void Graph::ResolveComplexInplaceConflicts() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveComplexInplaceConflicts");
 
-    ptrdiff_t numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
+    auto numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
 
     std::unordered_set<std::string> uniqueLayerNames = getUniqueLayerNames(graphNodes);
 
@@ -960,7 +960,7 @@ static EdgeClusters FormEdgeClusters(const std::vector<EdgePtr>& graphEdges) {
         // create an edge cluster when the base edge is visited for the first time
         // so the base edge is always the first edge in the cluster
         if (edge == nullptr) {
-            edgeClusters.emplace_back(EdgeCluster{});
+            edgeClusters.emplace_back();
             return edgeClusters.size() - 1;
         }
 
@@ -1201,10 +1201,10 @@ void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& in
 
             if (actualDesc->getPrecision() == element::string) {
                 StringMemory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr);
-                edgeMemory->load(ext_mem, false);
+                edgeMemory->load(ext_mem, false, false);
             } else if (!actualDesc->isCompatible(*ext_tensor_desc)) {
                 Memory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr, false);
-                edgeMemory->load(ext_mem, false);
+                edgeMemory->load(ext_mem, false, false);
             } else {
                 size_t size_to_copy = ext_tensor_desc->getCurrentMemSize();
                 cpu_parallel_memcpy(inter_data_ptr, ext_data_ptr, size_to_copy);
@@ -1242,10 +1242,9 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
         bool isScalarOutput = false;
         if (ext_blob->get_shape().empty() && ext_blob->get_size() == 1) {
             const auto& actualDims = expected_desc_ptr->getShape().getStaticDims();
-            isScalarOutput = !actualDims.empty() && std::accumulate(actualDims.begin(),
-                                                                    actualDims.end(),
-                                                                    static_cast<size_t>(1),
-                                                                    std::multiplies<size_t>()) == 1;
+            isScalarOutput =
+                !actualDims.empty() &&
+                std::accumulate(actualDims.begin(), actualDims.end(), static_cast<size_t>(1), std::multiplies<>()) == 1;
         }
 
         auto outDims = intr_blob.getStaticDims();
@@ -1311,10 +1310,10 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
 
         if (actualDesc->getPrecision() == element::string) {
             StringMemory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr);
-            outBloMem.load(intr_blob, false);
+            outBloMem.load(intr_blob, false, false);
         } else if (!actualDesc->isCompatible(*expected_desc_ptr) && !isScalarOutput) {
             Memory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr, false);
-            outBloMem.load(intr_blob, false);
+            outBloMem.load(intr_blob, false, false);
         } else {
             OPENVINO_ASSERT(srcPrec == dstPrec,
                             "The precision of the CPU output tensor index",
@@ -1757,11 +1756,11 @@ void Graph::GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const {
             }
         };
 
-    for (size_t i = 0; i < graphNodes.size(); i++) {
-        if (graphNodes[i]->isConstant()) {
+    for (const auto& graphNode : graphNodes) {
+        if (graphNode->isConstant()) {
             continue;
         }
-        getPerfMapFor(perfMap, graphNodes[i]);
+        getPerfMapFor(perfMap, graphNode);
     }
 }
 
@@ -1793,7 +1792,8 @@ void Graph::DropNode(const NodePtr& node) {
     auto children = node->childEdges;
     auto parents = node->parentEdges;
 
-    for (size_t i = 0; i < parents.size(); i++) {
+    // The collections are being updated while iterating. So, range based for loops cannot be used.
+    for (size_t i = 0; i < parents.size(); i++) {  // NOLINT(modernize-loop-convert)
         auto p_edge = parents[i].lock();
         if (!p_edge) {
             continue;
@@ -1806,7 +1806,8 @@ void Graph::DropNode(const NodePtr& node) {
         const int inNum = p_edge->getInputNum();
         RemoveEdge(p_edge);
 
-        for (size_t j = 0; j < children.size(); j++) {
+        // The collections are being updated while iterating. So, range based for loops cannot be used.
+        for (size_t j = 0; j < children.size(); j++) {  // NOLINT(modernize-loop-convert)
             auto c_edge = children[j].lock();
             if (!c_edge) {
                 continue;
@@ -1851,7 +1852,8 @@ void Graph::DropDWConvNode(const NodePtr& node) {
         const int inNum = p_edge->getInputNum();
         RemoveEdge(p_edge);
 
-        for (size_t j = 0; j < children.size(); j++) {
+        // The collections are being updated while iterating. So, range based for loops cannot be used.
+        for (size_t j = 0; j < children.size(); j++) {  // NOLINT(modernize-loop-convert)
             auto c_edge = children[j].lock();
             if (!c_edge) {
                 continue;
