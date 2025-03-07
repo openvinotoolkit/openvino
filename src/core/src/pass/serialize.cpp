@@ -928,6 +928,7 @@ public:
                 "Node with set `postponed_constant` attribute cannot be fold to constant when saving model to IR file");
             m_constant = outputs[0].get_node_shared_ptr();
             m_node = m_constant.get();
+            m_node->set_friendly_name(node->get_friendly_name());
         }
     }
 };
