@@ -70,15 +70,6 @@ function(build_docs)
         list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "FINISHED preprocessing OpenVINO Python API")
     endif()
 
-    if(${ENABLE_NOTEBOOKS})
-        set(NBDOC_SCRIPT "${DOCS_SOURCE_DIR}/nbdoc/nbdoc.py")
-        list(PREPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "STARTED preprocessing OpenVINO notebooks")
-        list(PREPEND commands
-            COMMAND ${Python3_EXECUTABLE} "${NBDOC_SCRIPT}" "${DOCS_SOURCE_DIR}/notebooks" "${SPHINX_SOURCE_DIR}/notebooks"
-        )
-        list(PREPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "FINISHED preprocessing OpenVINO notebooks")
-    endif()
-
     if(${ENABLE_OVMS})
         list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "STARTED preprocessing OVMS")
         list(APPEND commands COMMAND ${Python3_EXECUTABLE} ${FILE_HELPER_SCRIPT}

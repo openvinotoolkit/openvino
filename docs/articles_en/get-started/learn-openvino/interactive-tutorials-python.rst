@@ -8,13 +8,6 @@ Interactive Tutorials (Python)
                  toolkit for optimized deep learning inference.
 
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Notebooks
-   :hidden:
-
-   interactive-tutorials-python/notebooks-installation
-
 
 Jupyter notebooks show how to use various OpenVINO features to run optimized deep learning
 inference with Python. Notebooks with |binder logo| and |colab logo| buttons can be run in the
@@ -23,7 +16,7 @@ browser, no installation required. Just choose a tutorial and click the button.
 `Binder <https://mybinder.org/>`__ and `Google Colab <https://colab.research.google.com/>`__
 are free online services with limited resources. For the best performance
 and more control, you should run the notebooks locally. Follow the
-:doc:`Installation Guide <interactive-tutorials-python/notebooks-installation>` in order to get information
+`Installation Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__ in order to get information
 on how to run and manage the notebooks on your system.
 
 .. raw:: html
@@ -33,8 +26,14 @@ on how to run and manage the notebooks on your system.
 
 
 .. note::
-   If you have any issues with the notebooks, refer to the **Troubleshooting** and **FAQ**
-   sections in the :doc:`Installation Guide <interactive-tutorials-python/notebooks-installation>` or start a GitHub
+
+   If you have any issues with the notebooks, refer to the
+   `Troubleshooting <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#%EF%B8%8F-troubleshooting>`__
+   and
+   `FAQ <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-faq>`__
+   sections in the
+   `Installation Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__
+   or start a GitHub
    `discussion <https://github.com/openvinotoolkit/openvino_notebooks/discussions>`__.
 
 
