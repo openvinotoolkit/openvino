@@ -3003,7 +3003,7 @@ inline void Reduce::reduce_kernel_process(const uint8_t* in_p,
                                           size_t reduce_w,
                                           size_t work_batch,
                                           const int* tab_idx) {
-    const float divisor = apply_division ? static_cast<float>(IB * IC * ID * IH * IW / (OB * OC * OD * OH * OW)) : 1;
+    const float divisor = apply_division ? static_cast<float>(IB * IC * ID * IH * IW) / (OB * OC * OD * OH * OW) : 1;
     auto arg = jit_reduce_call_args();
     arg.src = static_cast<const void*>(in_p);
     arg.idx = tab_idx;

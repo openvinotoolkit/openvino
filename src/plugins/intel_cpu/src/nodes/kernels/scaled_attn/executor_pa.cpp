@@ -1415,10 +1415,10 @@ void rotate_kv_cache(PlainTensor& key_cache,
 template <typename DATA_TYPE, typename KEY_CACHE_TYPE, ov::element::Type_t VALUE_PREC>
 struct MHAHelper {
     // initialize once
-    size_t _H;
-    size_t _S;
-    size_t _SV;
-    size_t _Hk;
+    size_t H;
+    size_t S;
+    size_t SV;
+    size_t Hk;
     size_t _h_each_group_len;
     size_t _block_size;
     size_t _nthr;
@@ -1488,10 +1488,10 @@ struct MHAHelper {
         //   aka: M:1~block_size, N:S, K:block_size
         // Because K and V are from cache, can use M2'=rnd_up(M2, block_size) to simplify logic
         auto in_type = precision_of<DATA_TYPE>::value;
-        _H = H;
-        _S = S;
-        _SV = SV;
-        _Hk = Hk;
+        this->H = H;
+        this->S = S;
+        this->SV = SV;
+        this->Hk = Hk;
         _h_each_group_len = h_each_group_len;
         _block_size = block_size;
         _nthr = static_cast<size_t>(parallel_get_max_threads());
@@ -1517,29 +1517,29 @@ struct MHAHelper {
             for (size_t i = 0; i < _block_size; i++) {
                 _qk_gemm[i] = std::make_shared<BrgemmKernel>(i + 1,
                                                              _block_size,
-                                                             _S,
-                                                             _H * _S,
+                                                             S,
+                                                             H * S,
                                                              _block_size,
                                                              _weight.stride(2),
                                                              false,
                                                              in_type);
                 _wv_gemm[i] =
                     std::make_shared<BrgemmKernel>(i + 1,
-                                                   _SV,
+                                                   SV,
                                                    _block_size,
                                                    // if it's bf16, the stride needs double due to reuse float buffer
                                                    (in_type == ov::element::Type_t::f32 ? 1 : 2) * _weight.stride(2),
-                                                   _SV,
+                                                   SV,
                                                    _output.stride(1),
                                                    false,
                                                    in_type);
                 _wv_gemm_acc[i] =
                     std::make_shared<BrgemmKernel>(i + 1,
-                                                   _SV,
+                                                   SV,
                                                    _block_size,
                                                    // if it's bf16, the stride needs double due to reuse float buffer
                                                    (in_type == ov::element::Type_t::f32 ? 1 : 2) * _weight.stride(2),
-                                                   _SV,
+                                                   SV,
                                                    _output.stride(1),
                                                    false,
                                                    in_type,
@@ -1589,8 +1589,8 @@ struct MHAHelper {
     }
 
     void init_reorder_buffers(size_t batch, size_t kv_len_in_blocks) {
-        _qk_scratch_b.resize<DATA_TYPE>({batch, kv_len_in_blocks, _Hk, _block_size * _S});
-        _wv_scratch_b.resize<DATA_TYPE>({batch, kv_len_in_blocks, _Hk, _block_size * rnd_up(_SV, _block_size)});
+        _qk_scratch_b.resize<DATA_TYPE>({batch, kv_len_in_blocks, Hk, _block_size * S});
+        _wv_scratch_b.resize<DATA_TYPE>({batch, kv_len_in_blocks, Hk, _block_size * rnd_up(SV, _block_size)});
     }
 
     void init_score_buffers(const PlainTensor& past_lens, const PlainTensor& subsequence_begins) {
@@ -1610,7 +1610,7 @@ struct MHAHelper {
             total_kv_len += kv_len;
         }
 
-        _score_output.resize<float>({total_kv_len_aligned * _H});
+        _score_output.resize<float>({total_kv_len_aligned * H});
     }
 
     // compute one block(such as 32 tokens) of query in M dimension: softmax(q_block*k')*v
@@ -1719,7 +1719,7 @@ struct MHAHelper {
             // reuse float buffer, need to use float to compute offset
             auto* w_ptr = reinterpret_cast<DATA_TYPE*>(_weight.ptr<float>(ithr, h, 0, 0));
             float* fp32_out_ptr =
-                q_is_xf16 ? _output.ptr<float>(ithr, 0, h, 0) : output_emb.ptr<float>(q_start, h * _SV);
+                q_is_xf16 ? _output.ptr<float>(ithr, 0, h, 0) : output_emb.ptr<float>(q_start, h * SV);
 
             // for each weight block, loop through all value block
             for (size_t v_blk = 0; v_blk < cur_kv_len_blocks; v_blk++) {
@@ -1748,12 +1748,12 @@ struct MHAHelper {
             }
             if (q_is_xf16) {
                 attn_memcpy2d_kernel(_output.ptr<float>(ithr, 0, h, 0),
-                                     output_emb.ptr<DATA_TYPE>(q_start, h * _SV),
+                                     output_emb.ptr<DATA_TYPE>(q_start, h * SV),
                                      ov::element::f32,
                                      precision_of<DATA_TYPE>::value,
                                      _output.stride(1),
                                      output_emb.stride(0),
-                                     _SV,
+                                     SV,
                                      q_cnt);
             }
         }
@@ -1803,13 +1803,13 @@ struct MHAHelper {
                             dot_product_block_by_channel(query.ptr<DATA_TYPE>(h, pq),
                                                          present_key.ptr<uint8_t>(block_number, hk),
                                                          _weight.ptr<float>(ithr, h, pq) + pk,
-                                                         _S,
+                                                         S,
                                                          std::min(_block_size, cur_kv_len - pk));
                         } else {
                             dot_product_block(query.ptr<DATA_TYPE>(h, pq),
                                               present_key.ptr<KEY_CACHE_TYPE>(block_number, hk),
                                               _weight.ptr<float>(ithr, h, pq) + pk,
-                                              _S,
+                                              S,
                                               std::min(_block_size, cur_kv_len - pk),
                                               _key_group_size);
                         }
@@ -1849,7 +1849,7 @@ struct MHAHelper {
             }
         }
 
-        memset(_output.ptr<float>(ithr), 0, q_len * _H * _SV * sizeof(float));
+        memset(_output.ptr<float>(ithr), 0, q_len * H * SV * sizeof(float));
         for (size_t pv = 0, i = 0; pv < cur_kv_len; pv += _block_size, i++) {
             auto block_number = block_table[i];
             for (size_t pq = 0; pq < q_len; pq++) {
@@ -1863,7 +1863,7 @@ struct MHAHelper {
                         _output.ptr<float>(ithr, pq, h),
                         _weight.ptr<float>(ithr, h, pq) + pv,
                         v_ptr,
-                        _SV,
+                        SV,
                         std::min(_block_size, cur_kv_len - pv),
                         _value_group_size);
                 }
@@ -1872,7 +1872,7 @@ struct MHAHelper {
         // convert to dst
         for (size_t pq = 0; pq < q_len; pq++) {
             for (size_t h = hq_beg; h < hq_end; h++) {
-                cvt_copy(output_emb.ptr<DATA_TYPE>(pq, h * _SV), _output.ptr<float>(ithr, pq, h), 1, _SV, 0, 0);
+                cvt_copy(output_emb.ptr<DATA_TYPE>(pq, h * SV), _output.ptr<float>(ithr, pq, h), 1, SV, 0, 0);
             }
         }
     }
@@ -1900,12 +1900,12 @@ struct MHAHelper {
         auto q_len = query.size(2);
         auto kv_len_in_blocks = div_up(max_context_len, _block_size);
         // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
-        _weight_bhl.resize<float>({B, _H, q_len, rnd_up(max_context_len, std::max(_block_size, size_t{16}))});
+        _weight_bhl.resize<float>({B, H, q_len, rnd_up(max_context_len, std::max(_block_size, size_t{16}))});
 
         // for small batches dynamic scheduler has notable overhead
         bool prefer_static_loop;
         // if less than 2 work items per thread, loop H
-        bool loop_hk = B * kv_len_in_blocks * _Hk <= 2 * _nthr ? false : true;
+        bool loop_hk = B * kv_len_in_blocks * Hk <= 2 * _nthr ? false : true;
         if (B <= 32) {
             prefer_static_loop = true;
             // small batch and all batch size is same(like SDPA case)
@@ -1959,13 +1959,13 @@ struct MHAHelper {
                                 dot_product_block_by_channel(query.ptr<DATA_TYPE>(b, h, pq),
                                                              key_cache.ptr<uint8_t>(block_number, hk),
                                                              _weight_bhl.ptr<float>(b, h, pq) + pk,
-                                                             _S,
+                                                             S,
                                                              std::min(_block_size, context_len - pk));
                             } else {
                                 dot_product_block(query.ptr<DATA_TYPE>(b, h, pq),
                                                   key_cache.ptr<KEY_CACHE_TYPE>(block_number, hk),
                                                   _weight_bhl.ptr<float>(b, h, pq) + pk,
-                                                  _S,
+                                                  S,
                                                   std::min(_block_size, context_len - pk),
                                                   _key_group_size);
                             }
@@ -2001,13 +2001,13 @@ struct MHAHelper {
                                        alibi_slope);
         };
 
-        size_t h_dims = loop_hk ? _Hk : _H;
+        size_t h_dims = loop_hk ? Hk : H;
         if (prefer_static_loop) {
             parallel_for3d(B, kv_len_in_blocks, h_dims, loop_qk);
-            parallel_for3d(B, _H, q_len, loop_softmax);
+            parallel_for3d(B, H, q_len, loop_softmax);
         } else {
             parallel_for3d_dynamic(B, kv_len_in_blocks, h_dims, loop_qk);
-            parallel_for3d_dynamic(B, _H, q_len, loop_softmax);
+            parallel_for3d_dynamic(B, H, q_len, loop_softmax);
         }
 
         if (output_score) {
@@ -2016,12 +2016,12 @@ struct MHAHelper {
                 auto* src = _weight_bhl.ptr<float>(b, 0, pq);
                 size_t src_stride = _weight_bhl.stride(2);
                 auto* dst = output_score.ptr<float>() + _score_offsets.ptr<int32_t>()[b];
-                attn_reduce(dst, src, _H, cur_kv_len, src_stride);
+                attn_reduce(dst, src, H, cur_kv_len, src_stride);
             });
         }
 
         // attn_w * V
-        _output_bhl.resize<float>({static_cast<size_t>(_nthr), B, q_len, _H, _SV});
+        _output_bhl.resize<float>({static_cast<size_t>(_nthr), B, q_len, H, SV});
         // m_attn_w {B, H, q_len, kv_len}
         parallel_nt_static(_nthr, [&](const size_t ithr, const size_t nthr) {
             memset(_output_bhl.ptr<float>(ithr, 0, 0, 0, 0), 0, _output_bhl.stride(0) * sizeof(float));
@@ -2048,7 +2048,7 @@ struct MHAHelper {
                             _output_bhl.ptr<float>(ithr, b, pq, h),
                             _weight_bhl.ptr<float>(b, h, pq) + pv,
                             v_ptr,
-                            _SV,
+                            SV,
                             std::min(_block_size, context_len - pv),
                             _value_group_size);
                     }
@@ -2057,16 +2057,16 @@ struct MHAHelper {
         };
 
         if (prefer_static_loop) {
-            parallel_for3d(B, kv_len_in_blocks, loop_hk ? _Hk : _H, loop_wk);
+            parallel_for3d(B, kv_len_in_blocks, loop_hk ? Hk : H, loop_wk);
         } else {
-            parallel_for3d_dynamic(B, kv_len_in_blocks, loop_hk ? _Hk : _H, loop_wk);
+            parallel_for3d_dynamic(B, kv_len_in_blocks, loop_hk ? Hk : H, loop_wk);
         }
 
-        parallel_for3d(B, _H, q_len, [&](size_t b, size_t h, size_t pq) {
+        parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
             auto* temp = _output_bhl.ptr<float>(0, b, pq, h);
             size_t temp_stride = _output_bhl.stride(0);
-            auto* dst = output_emb.ptr<DATA_TYPE>(b, pq, h * _SV);
-            attn_reduce(dst, temp, _nthr, _SV, temp_stride);
+            auto* dst = output_emb.ptr<DATA_TYPE>(b, pq, h * SV);
+            attn_reduce(dst, temp, _nthr, SV, temp_stride);
         });
     }
 };
@@ -2218,11 +2218,12 @@ struct MHA {
                 k_ptr,
                 _helper._output.template ptr<DATA_TYPE>(ithr),
                 _helper._block_size,            // N
-                _helper._S,                     // K
+                _helper.S,                      // K
                 _helper._block_size,            // dst_stride
-                _helper._S,                     // src_stride
+                _helper.S,                      // src_stride
                 _helper._key_group_size,        // group_size
                 _helper._quant_key_bychannel);  // quant_by_channel
+
             if (q_is_xf16) {
                 auto sub_byte_multiplier = get_sub_byte_multiplier(v_cache.get_precision());
                 size_t v_stride = (block_number * v_cache.m_strides[0] + hk * v_cache.m_strides[1]) *
@@ -2233,9 +2234,9 @@ struct MHA {
                     v_ptr,
                     _helper._output.template ptr<DATA_TYPE>(ithr),
                     _helper._block_size,
-                    _helper._SV,
-                    rnd_up(_helper._SV, _helper._block_size),
-                    _helper._SV,
+                    _helper.SV,
+                    rnd_up(_helper.SV, _helper._block_size),
+                    _helper.SV,
                     _helper._value_group_size);
             } else {
                 // need to decompress
@@ -2248,7 +2249,7 @@ struct MHA {
                         _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
                         v_ptr,
                         _helper._block_size,
-                        _helper._SV,
+                        _helper.SV,
                         _helper._value_group_size);
                 }
             }
@@ -2262,7 +2263,7 @@ struct MHA {
                            ? false
                            : true;  // or less than 2 work items per thread, loop H
 
-        parallel_for2d_dynamic(attn_work_count, loop_hk ? Hk : _helper._H, [&](size_t w, size_t hx) {
+        parallel_for2d_dynamic(attn_work_count, loop_hk ? Hk : _helper.H, [&](size_t w, size_t hx) {
             size_t hk, hq_beg, hq_end;
             if (loop_hk) {
                 hk = hx;
@@ -2285,7 +2286,7 @@ struct MHA {
                 float* score_output = nullptr;
                 if (output_score) {
                     auto score_offset = _helper._score_offsets_aligned.template ptr<int32_t>()[batch_in_seq];
-                    score_output = _helper._score_output.template ptr<float>() + score_offset * _helper._H;
+                    score_output = _helper._score_output.template ptr<float>() + score_offset * _helper.H;
                 }
 
                 _helper.exec_kernel_one_bh(
@@ -2313,18 +2314,18 @@ struct MHA {
                     // last block
                     if (q_len - q_blk * _helper._block_size <= _helper._block_size) {
                         auto score_offset = _helper._score_offsets_aligned.template ptr<int32_t>()[batch_in_seq];
-                        score_output = _helper._score_output.template ptr<float>() + score_offset * _helper._H;
+                        score_output = _helper._score_output.template ptr<float>() + score_offset * _helper.H;
                     }
                 }
 
                 PlainTensor sub_query;
-                sub_query.resize({q_len, _helper._H, _helper._S}, q.ptr<DATA_TYPE>(batch_in_token));
+                sub_query.resize({q_len, _helper.H, _helper.S}, q.ptr<DATA_TYPE>(batch_in_token));
                 sub_query = sub_query.permute({1, 0, 2});
                 _helper.exec_kernel_multiple(
                     sub_query,
                     v_cache,
                     output_emb.slice(0, batch_in_token, batch_in_token + q_len)
-                        .reshape({q_len, _helper._H * _helper._SV}),
+                        .reshape({q_len, _helper.H * _helper.SV}),
                     _helper._qk_scratch_b.slice(0, batch_in_reorder, batch_in_reorder),
                     _helper._wv_scratch_b.slice(0, batch_in_reorder, batch_in_reorder),
                     block_indices.ptr<int32_t>() + block_indices_begins.ptr<int32_t>()[batch_in_seq],
@@ -2345,11 +2346,11 @@ struct MHA {
                                                    subsequence_begins.ptr<int32_t>()[b]);
                 auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + seq_len;
                 auto src_offset = _helper._score_offsets_aligned.template ptr<int32_t>()[b];
-                auto* src = _helper._score_output.template ptr<float>() + src_offset * _helper._H;
+                auto* src = _helper._score_output.template ptr<float>() + src_offset * _helper.H;
                 size_t src_stride = rnd_up(cur_kv_len, 16);
                 auto dst_offset = _helper._score_offsets.template ptr<int32_t>()[b];
                 auto* dst = output_score.ptr<float>() + dst_offset;
-                attn_reduce(dst, src, _helper._H, cur_kv_len, src_stride);
+                attn_reduce(dst, src, _helper.H, cur_kv_len, src_stride);
             });
         }
     }
