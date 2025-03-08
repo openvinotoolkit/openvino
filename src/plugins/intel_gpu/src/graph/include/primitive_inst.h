@@ -316,6 +316,7 @@ public:
                                        bool runtime_alloc = false);
 
     const std::vector<memory::ptr>& get_intermediates_memories() const { return _intermediates_memory; }
+    size_t get_max_output_layout_count(size_t idx = 0) const { return _max_output_layout_count[idx]; }
 
     std::string get_implementation_name() const;
 

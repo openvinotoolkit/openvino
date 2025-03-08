@@ -443,13 +443,7 @@ void SyncInferRequest::wait() {
         } else if (is_remote_tensor_impl && is_dynamic) {
             auto& stream = m_graph->get_network()->get_stream();
             auto user_mem = remote_tensor_impl_ptr->get_original_memory();
-            if (user_mem->get_allocation_type() == cldnn::allocation_type::cl_mem && output_memory->get_allocation_type() != cldnn::allocation_type::cl_mem) {
-                // WA: Copy between cl_mem and usm memory may fail for some reason (driver bug?)
-                // so this explicit memcpy is used to provide correct output for cl_mem output in dynamic cases
-                cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::write> lock_dst(user_mem, stream);
-                cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read> lock_src(output_memory, stream);
-                std::memcpy(lock_dst.data(), lock_src.data(), output_memory->size());
-            } else {
+            if (!m_graph->get_engine().is_the_same_buffer(*output_memory, *user_mem)) {
                 copy_events.push_back(output_memory->copy_to(stream, *user_mem, false));
             }
         }
@@ -464,6 +458,8 @@ void SyncInferRequest::wait() {
             stream.wait_for_events(copy_events);
         }
     }
+
+    network.reset_output_remote_memory_ptrs();
 
     // finally collect profiling info
     if (m_enable_profiling) {
@@ -934,7 +930,8 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     auto device_tensor_et = convert_to_supported_device_type(element_type);
     bool convert_needed = is_convert_required(device_tensor_et, element_type);
 
-    if (is_remote_tensor_impl && !convert_needed && !is_dynamic) {
+    // Even if the network is dynamic, if user tensor's shape is static, remote tensor can be set as plugin's output tensor
+    if (is_remote_tensor_impl && !convert_needed) {
         m_plugin_outputs[output_idx] = user_tensor_wrapper;
     }
 
@@ -961,7 +958,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     auto output_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(m_plugin_outputs.at(output_idx).ptr);
     auto output_memory = output_tensor->get_memory();
     GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << output_idx << " prepare output: " << output_memory->buffer_ptr() << std::endl;
-    return network->set_output_memory(internal_name, output_memory);
+    return network->set_output_memory(internal_name, output_memory, is_remote_tensor_impl);
 }
 
 void SyncInferRequest::init_mappings() {
