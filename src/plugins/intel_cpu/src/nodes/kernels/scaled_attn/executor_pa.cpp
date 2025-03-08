@@ -1664,7 +1664,7 @@ struct MHAHelper {
                 // apply attention mask & sofmax
                 auto ncausal = (cur_kv_len - q_cnt + (m - q_start) + 1);
                 auto score = _weight.ptr<float>(ithr, h, m - q_start);
-                if (_sliding_window) {
+                if (_sliding_window != 0u) {
                     size_t start_idx = 0;
                     auto new_causal = ncausal;
                     float* alibi_lookup = nullptr;
@@ -1706,7 +1706,7 @@ struct MHAHelper {
                                                precision_of<DATA_TYPE>::value,
                                                alibi_slope);
                 }
-                if (score_output) {
+                if (score_output != nullptr) {
                     cvt_copy(score_output + h * rnd_up(cur_kv_len, 16),
                              reinterpret_cast<DATA_TYPE*>(score),
                              1,
@@ -1841,7 +1841,7 @@ struct MHAHelper {
                                            ov::element::f32,
                                            ov::element::f32,
                                            alibi_slope);
-                if (score_output) {
+                if (score_output != nullptr) {
                     memcpy(score_output + h * rnd_up(cur_kv_len, 16),
                            _weight.ptr<float>(ithr, h, pq),
                            cur_kv_len * sizeof(float));

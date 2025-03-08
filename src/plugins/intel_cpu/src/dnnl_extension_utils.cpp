@@ -214,7 +214,7 @@ DnnlMemoryDescPtr DnnlExtensionUtils::query_md(const const_dnnl_primitive_desc_t
     auto query = dnnl::convert_to_c(what);
     const auto* cdesc = dnnl_primitive_desc_query_md(pd, query, idx);
 
-    if (!cdesc) {
+    if (cdesc == nullptr) {
         OPENVINO_THROW("query_md failed for query=", query, " idx=", idx, ".");
     }
 

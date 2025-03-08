@@ -145,7 +145,7 @@ ov::PartialShape StaticShapeRef::to_partial_shape() const {
 }
 
 ov::Shape StaticShapeRef::to_shape() const {
-    return m_dims ? ov::Shape{*m_dims} : ov::Shape{};
+    return (m_dims != nullptr) ? ov::Shape{*m_dims} : ov::Shape{};
 }
 
 ov::Shape StaticShapeRef::get_max_shape() const {

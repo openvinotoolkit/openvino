@@ -249,8 +249,8 @@ stack_frame::stack_frame(ov::intel_cpu::jit_kernel& kernel, size_t size, uint32_
     : _kernel(kernel),
       _size(size),
       _alignment(alignment) {
-    if (_size || _alignment) {
-        if (_size && _alignment == 1) {
+    if ((_size != 0u) || (_alignment != 0u)) {
+        if ((_size != 0u) && _alignment == 1) {
             _kernel.sub(_kernel.rsp, _size);
         } else {
             auto tmp = _kernel.var<size_t>();
@@ -271,8 +271,8 @@ stack_frame::stack_frame(stack_frame&& rhs) noexcept
 }
 
 stack_frame::~stack_frame() {
-    if (_size || _alignment) {
-        if (_size && _alignment == 1) {
+    if ((_size != 0u) || (_alignment != 0u)) {
+        if ((_size != 0u) && _alignment == 1) {
             _kernel.add(_kernel.rsp, _size);
         } else {
             _kernel.mov(_kernel.rsp, _kernel.ptr[_kernel.rsp + _size]);

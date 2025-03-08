@@ -183,7 +183,7 @@ std::string RandomUniform::getPrimitiveDescriptorType() const {
     auto selectedPrimitiveDesc = getSelectedPrimitiveDescriptor();
 
     impl_desc_type type = impl_desc_type::undef;
-    if (selectedPrimitiveDesc) {
+    if (selectedPrimitiveDesc != nullptr) {
         type = selectedPrimitiveDesc->getImplementationType();
     }
 
@@ -217,7 +217,7 @@ std::string RandomUniform::getPrimitiveDescriptorType() const {
         str_type = "undef";
     }
 
-    if (selectedPrimitiveDesc) {
+    if (selectedPrimitiveDesc != nullptr) {
         if (selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision() != ov::element::u8) {
             str_type +=
                 "_" + static_cast<std::string>(
@@ -611,7 +611,7 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out,
 namespace {
 
 uint32_t twist(uint32_t u, uint32_t v) {
-    return (((u & 0x80000000) | (v & 0x7fffffff)) >> 1) ^ (v & 1 ? 0x9908b0df : 0);
+    return (((u & 0x80000000) | (v & 0x7fffffff)) >> 1) ^ (((v & 1) != 0u) ? 0x9908b0df : 0);
 }
 
 inline void initial_mersenne_state(uint32_t* mersenne_state_ptr, uint64_t global_seed) {
@@ -623,11 +623,11 @@ inline void initial_mersenne_state(uint32_t* mersenne_state_ptr, uint64_t global
 
 inline void next_mersenne_state(uint32_t* mersenne_state_ptr) {
     auto* current_state_ptr = mersenne_state_ptr;
-    for (int j = MERSENNE_STATE_N - MERSENNE_STATE_M + 1; --j; current_state_ptr++) {
+    for (int j = MERSENNE_STATE_N - MERSENNE_STATE_M + 1; --j != 0; current_state_ptr++) {
         *current_state_ptr = current_state_ptr[MERSENNE_STATE_M] ^ twist(current_state_ptr[0], current_state_ptr[1]);
     }
 
-    for (int j = MERSENNE_STATE_M; --j; current_state_ptr++) {
+    for (int j = MERSENNE_STATE_M; --j != 0; current_state_ptr++) {
         *current_state_ptr =
             current_state_ptr[MERSENNE_STATE_M - MERSENNE_STATE_N] ^ twist(current_state_ptr[0], current_state_ptr[1]);
     }

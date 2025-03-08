@@ -65,20 +65,20 @@ bool ProxyMemoryBlock::hasExtBuffer() const noexcept {
 }
 
 void ProxyMemoryBlock::registerMemory(Memory* memPtr) {
-    if (memPtr) {
+    if (memPtr != nullptr) {
         m_setMemPtrs.insert(memPtr);
     }
 }
 
 void ProxyMemoryBlock::unregisterMemory(Memory* memPtr) {
-    if (memPtr) {
+    if (memPtr != nullptr) {
         m_setMemPtrs.erase(memPtr);
     }
 }
 
 void ProxyMemoryBlock::notifyUpdate() {
     for (auto& item : m_setMemPtrs) {
-        if (item) {
+        if (item != nullptr) {
             item->update();
         }
     }

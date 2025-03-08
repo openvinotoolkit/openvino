@@ -27,7 +27,7 @@ ConvertExecutorPtr ConvertExecutorFactory::makeExecutor(const ConvertParams& con
         return ptr;
     };
 
-    if (chosenDesc) {
+    if (chosenDesc != nullptr) {
         if (auto executor = build(chosenDesc)) {
             return executor;
         }

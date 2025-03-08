@@ -54,7 +54,7 @@ public:
             return ptr;
         };
 
-        if (chosenDesc) {
+        if (chosenDesc != nullptr) {
             if (auto executor = build(chosenDesc)) {
                 return executor;
             }

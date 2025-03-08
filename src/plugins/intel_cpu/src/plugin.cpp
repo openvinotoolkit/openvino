@@ -93,7 +93,7 @@ public:
         new_stack.ss_size = new_size;
         new_stack.ss_sp = altstack;
         auto rc = sigaltstack(&new_stack, &old_stack);
-        if (rc) {
+        if (rc != 0) {
             munmap(new_stack.ss_sp, new_stack.ss_size);
             new_stack.ss_sp = nullptr;
             new_stack.ss_size = 0;
@@ -103,7 +103,7 @@ public:
 
     ~SigAltStackSetup() {
         stack_t current_stack;
-        if (new_stack.ss_sp) {
+        if (new_stack.ss_sp != nullptr) {
             // restore old stack if new_stack is still the current one
             if (sigaltstack(nullptr, &current_stack) == 0) {
                 if (current_stack.ss_sp == new_stack.ss_sp) {
@@ -149,7 +149,7 @@ Plugin::~Plugin() {
 }
 
 static bool streamsSet(const ov::AnyMap& config) {
-    return config.count(ov::num_streams.name());
+    return config.count(ov::num_streams.name()) != 0u;
 }
 
 void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const {
@@ -229,7 +229,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             ov::element::Type_t::f64,  ov::element::Type_t::boolean, ov::element::Type_t::string,
             ov::element::Type_t::nf4,  ov::element::Type_t::dynamic};
 
-        if (!supported_precisions.count(input_precision)) {
+        if (supported_precisions.count(input_precision) == 0u) {
             OPENVINO_THROW_NOT_IMPLEMENTED("CPU plugin: Input image format ",
                                            input_precision,
                                            " is not supported yet...");
@@ -326,7 +326,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     }
     if (name == ov::enable_profiling.name()) {
         const bool perfCount = engConfig.collectPerfCounters;
-        return static_cast<decltype(ov::enable_profiling)::value_type>(perfCount);
+        return static_cast<decltype(ov::enable_profiling)::value_type>(static_cast<int>(perfCount));
     }
     if (name == ov::hint::inference_precision) {
         return decltype(ov::hint::inference_precision)::value_type(engConfig.inferencePrecision);
@@ -336,11 +336,11 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     }
     if (name == ov::hint::enable_cpu_pinning) {
         const bool pin_value = engConfig.enableCpuPinning;
-        return static_cast<decltype(ov::hint::enable_cpu_pinning)::value_type>(pin_value);
+        return static_cast<decltype(ov::hint::enable_cpu_pinning)::value_type>(static_cast<int>(pin_value));
     }
     if (name == ov::hint::enable_cpu_reservation) {
         const bool reserve_value = engConfig.enableCpuReservation;
-        return static_cast<decltype(ov::hint::enable_cpu_reservation)::value_type>(reserve_value);
+        return static_cast<decltype(ov::hint::enable_cpu_reservation)::value_type>(static_cast<int>(reserve_value));
     }
     if (name == ov::hint::scheduling_core_type) {
         const auto core_type = engConfig.schedulingCoreType;
@@ -352,7 +352,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     }
     if (name == ov::hint::enable_hyper_threading) {
         const bool ht_value = engConfig.enableHyperThreading;
-        return static_cast<decltype(ov::hint::enable_hyper_threading)::value_type>(ht_value);
+        return static_cast<decltype(ov::hint::enable_hyper_threading)::value_type>(static_cast<int>(ht_value));
     }
     if (name == ov::hint::num_requests) {
         return static_cast<decltype(ov::hint::num_requests)::value_type>(engConfig.hintNumRequests);
@@ -577,7 +577,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
 
     CacheDecrypt decrypt{codec_xor};
     bool decript_from_string = false;
-    if (config.count(ov::cache_encryption_callbacks.name())) {
+    if (config.count(ov::cache_encryption_callbacks.name()) != 0u) {
         const auto& encryption_callbacks = config.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>();
         decrypt.m_decrypt_str = encryption_callbacks.decrypt;
         decript_from_string = true;
@@ -585,7 +585,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
 
     auto _config = config;
     std::shared_ptr<ov::AlignedBuffer> model_buffer;
-    if (_config.count(ov::internal::cached_model_buffer.name())) {
+    if (_config.count(ov::internal::cached_model_buffer.name()) != 0u) {
         model_buffer = _config.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
         _config.erase(ov::internal::cached_model_buffer.name());
     }

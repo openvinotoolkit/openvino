@@ -37,7 +37,7 @@ MemoryDescPtr DnnlMemoryDesc::cloneWithNewPrecision(const ov::element::Type prec
 }
 
 bool DnnlMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
-    if (MemoryDescType::Dnnl & rhs.getType()) {
+    if ((MemoryDescType::Dnnl & rhs.getType()) != 0) {
         auto* dnnMemDesc = rhs.as<DnnlMemoryDesc>();
         return isCompatible(*dnnMemDesc);
     }

@@ -75,7 +75,7 @@ void transferData(const IMemory& src, const IMemory& dst, bool ftz, bool bf16sat
         return;
     }
     size_t offset = 0;
-    if (dst.getDesc().getType() & MemoryDescType::Dnnl) {
+    if ((dst.getDesc().getType() & MemoryDescType::Dnnl) != 0) {
         // here we can safely cast to DnnlMemoryDesc
         auto dnnl_desc = dst.getDescWithType<DnnlMemoryDesc>();
         auto desc = dnnl_desc->getDnnlDesc();
@@ -115,7 +115,7 @@ Memory::Memory(dnnl::engine eng, MemoryDescPtr desc, MemoryBlockPtr block)
     if (m_pMemDesc->getPrecision() == element::string) {
         OPENVINO_THROW("[CPU] Memory object can't be created for string data.");
     }
-    bool memAllocated = m_blockHandle->getRawPtr();
+    bool memAllocated = m_blockHandle->getRawPtr() != nullptr;
 
     create(m_pMemDesc, nullptr, !memAllocated);
 }
@@ -241,7 +241,7 @@ bool MemoryBlockWithReuse::resize(size_t size) {
     bool sizeChanged = false;
     if (size > m_memUpperBound) {
         void* ptr = dnnl::impl::malloc(size, cacheLineSize);
-        if (!ptr) {
+        if (ptr == nullptr) {
             OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");
         }
         m_memUpperBound = size;
@@ -365,7 +365,7 @@ bool StringMemory::StringMemoryBlock::resize(size_t size) {
         }
         auto ptr_size = static_cast<ptrdiff_t>(size);  // WA for warning alloc-size-larger-than
         auto ptr = new OvString[ptr_size];
-        if (!ptr) {
+        if (ptr == nullptr) {
             OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");
         }
         m_str_upper_bound = size;
@@ -416,20 +416,20 @@ bool DnnlMemoryBlock::hasExtBuffer() const noexcept {
 }
 
 void DnnlMemoryBlock::registerMemory(Memory* memPtr) {
-    if (memPtr) {
+    if (memPtr != nullptr) {
         m_setMemPtrs.insert(memPtr);
     }
 }
 
 void DnnlMemoryBlock::unregisterMemory(Memory* memPtr) {
-    if (memPtr) {
+    if (memPtr != nullptr) {
         m_setMemPtrs.erase(memPtr);
     }
 }
 
 void DnnlMemoryBlock::notifyUpdate() {
     for (auto& item : m_setMemPtrs) {
-        if (item) {
+        if (item != nullptr) {
             item->update();
         }
     }
@@ -447,7 +447,7 @@ StaticMemory::StaticMemory(dnnl::engine eng, MemoryDescPtr desc, const void* dat
 
     m_size = m_pMemDesc->getCurrentMemSize();
 
-    if (data) {
+    if (data != nullptr) {
         m_pMemBlock = std::make_shared<StaticMemoryBlock>(const_cast<void*>(data), m_size);
     } else {
         m_pMemBlock = std::make_shared<StaticMemoryBlock>(m_size);
