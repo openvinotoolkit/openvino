@@ -79,7 +79,7 @@ SinkReshape::SinkReshape() {
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        auto reshape = std::dynamic_pointer_cast<v1::Reshape>(pattern_map.at(reshape_m).get_node_shared_ptr());
+        auto reshape = std::dynamic_pointer_cast<v1::Reshape>(pattern_map.at(std::move(reshape_m)).get_node_shared_ptr());
         if (!reshape || transformation_callback(reshape)) {
             return false;
         }
@@ -92,7 +92,7 @@ SinkReshape::SinkReshape() {
             // dim with index=2 is split into 2 parts: 2 and 3
             auto reshape_in_shape = reshape_node->get_input_partial_shape(0).to_shape();
             auto reshape_out_shape = reshape_node->get_output_partial_shape(0).to_shape();
-            auto transformed_order = original_order;
+            auto transformed_order = std::move(original_order);
             ov::Shape new_shape(transformed_order.size());
             const uint16_t merge_dim_idx = [&]() {
                 for (uint16_t i = 0; i < reshape_out_shape.size(); ++i) {
@@ -130,7 +130,7 @@ SinkReshape::SinkReshape() {
         };
 
         auto transpose = std::dynamic_pointer_cast<v1::Transpose>(pattern_map.at(transpose_m).get_node_shared_ptr());
-        if (pattern_map.count(transpose_const_m) > 0) {
+        if (pattern_map.count(std::move(transpose_const_m)) > 0) {
             auto org_transpose_m = pattern_map.at(transpose_const_m).get_node_shared_ptr();
             auto org_transpose_os = transpose->get_output_shape(0);
             auto tranpose_order = std::dynamic_pointer_cast<v0::Constant>(org_transpose_m);
