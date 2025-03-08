@@ -189,4 +189,11 @@ bool containsNonSupportedFormat(const std::vector<cpu_memory_format_t>& formats,
                                 const std::vector<cpu_memory_format_t>& non_supported_f);
 bool containsSupportedFormatsOnly(const std::vector<cpu_memory_format_t>& formats,
                                   const std::vector<cpu_memory_format_t>& supported_f);
+
+void CheckNodePrecisionsWithType(const ov::CompiledModel& compiledModel,
+                                 const std::string& nodeType,
+                                 const ov::element::TypeVector& inPrecisions,
+                                 const ov::element::TypeVector& outPrecisions);
+
+std::string getRuntimeValue(const ov::Node::RTMap& rtInfo, const std::string& paramName);
 }  // namespace CPUTestUtils
