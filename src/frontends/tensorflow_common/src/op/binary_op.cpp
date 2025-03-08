@@ -127,6 +127,17 @@ OutputVector translate_sub_op(const NodeContext& node) {
     return {result};
 }
 
+OutputVector translate_equal_op(const NodeContext& node) {
+    default_op_checks(node, 2, {"Equal"}, true);
+    auto lhs = node.get_input(0);
+    auto rhs = node.get_input(1);
+
+    auto result = ComplexTypeMark::equal(node, lhs, rhs);
+
+    set_node_name(node.get_name(), result.get_node_shared_ptr());
+    return {result};
+}
+
 template OutputVector translate_binary_op<v1::Add>(const NodeContext& node);
 template OutputVector translate_binary_op<v13::BitwiseAnd>(const NodeContext& node);
 template OutputVector translate_binary_op<v13::BitwiseOr>(const NodeContext& node);
