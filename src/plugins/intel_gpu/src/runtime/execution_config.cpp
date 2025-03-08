@@ -117,9 +117,7 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
     if (!info.supports_immad) {
         apply_rt_info_property(ov::hint::kv_cache_precision, rt_info);
     }
-    if (!is_llm)
-        apply_rt_info_property(ov::hint::activations_scale_factor, rt_info);
-
+    apply_rt_info_property(ov::hint::activations_scale_factor, rt_info);
     apply_rt_info_property(ov::hint::dynamic_quantization_group_size, rt_info);
 
     // WEIGHTS_PATH is used for the weightless cache mechanism which is used only with

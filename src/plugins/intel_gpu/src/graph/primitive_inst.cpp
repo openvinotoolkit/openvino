@@ -2615,6 +2615,7 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
 }
 
 bool primitive_inst::is_valid_fusion() const {
+    return true;
     if (!is_dynamic())
         return true;
 
