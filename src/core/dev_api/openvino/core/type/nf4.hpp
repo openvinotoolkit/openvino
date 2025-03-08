@@ -11,6 +11,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <cstdint>
 
 #include "openvino/core/core_visibility.hpp"
 
