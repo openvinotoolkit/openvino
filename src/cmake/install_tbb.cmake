@@ -84,7 +84,10 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
        ( (DEFINED TBBROOT AND TBBROOT MATCHES ${TEMP}) OR
          (DEFINED TBBROOT OR DEFINED TBB_DIR OR DEFINED ENV{TBBROOT} OR
           DEFINED ENV{TBB_DIR}) OR ENABLE_SYSTEM_TBB ) )
+    message(STATUS "TBBROOT is ${TBBROOT}")
+    message(STATUS "TEMP is ${TEMP}")
     if(TBBROOT MATCHES ${TEMP})
+        message(STATUS "tbb_downloaded is set to ON")
         set(tbb_downloaded ON)
     elseif(DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR} OR
            DEFINED TBBROOT OR DEFINED TBB_DIR)
@@ -127,6 +130,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
 
         set(TBB_LIB_INSTALL_DIR "runtime/3rdparty/tbb/lib" CACHE PATH "TBB library install directory" FORCE)
     elseif(tbb_custom)
+        message(STATUS "tbb_custom is ON")
         ov_cpack_add_component(tbb HIDDEN)
         list(APPEND core_components tbb)
 
@@ -141,7 +145,9 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         endif()
         # sometimes TBBROOT can be set with relative paths inside (e.g. oneAPI package)
         if(DEFINED TBBROOT)
+            message(STATUS "TBBROOT is defined to ${TBBROOT}")
             get_filename_component(TBBROOT "${TBBROOT}" ABSOLUTE)
+            message(STATUS "TBBROOT's absolute path is ${TBBROOT}")
         endif()
         if(NOT DEFINED TBBROOT)
             get_target_property(_tbb_include_dir TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
@@ -154,14 +160,17 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         endif()
 
         if(TBB_DIR MATCHES "^${TBBROOT}.*")
+            message(STATUS "${TBB_DIR} matches ${TBBROOT}")
             file(RELATIVE_PATH OV_TBB_DIR_INSTALL "${TBBROOT}" "${TBB_DIR}")
             set(OV_TBB_DIR_INSTALL "${OV_TBBROOT_INSTALL}/${OV_TBB_DIR_INSTALL}")
+            message(STATUS "OV_TBB_DIR_INSTALL is ${OV_TBB_DIR_INSTALL}")
         else()
             # TBB_DIR is not a subdirectory of TBBROOT
             # example: old TBB 2017 with no cmake support at all
             # - TBBROOT point to actual root of TBB
             # - TBB_DIR points to cmake/developer_package/tbb/<lnx|mac|win>
             set(OV_TBB_DIR_INSTALL "${TBB_DIR}")
+            message(STATUS "OV_TBB_DIR_INSTALL is TBB_DIR:${TBB_DIR}")
         endif()
 
         # try to select proper library directory
@@ -169,30 +178,42 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         get_filename_component(_tbb_libs_dir "${_tbb_lib_location}" DIRECTORY)
         get_filename_component(_tbb_libs_dir "${_tbb_libs_dir}" REALPATH)
         file(RELATIVE_PATH tbb_libs_dir "${TBBROOT}" "${_tbb_libs_dir}")
+        message(STATUS "tbb_libs_dir is ${tbb_libs_dir}")
 
         # install only meaningful directories
         foreach(dir include ${tbb_libs_dir} cmake lib/cmake lib/pkgconfig lib/intel64/vc14)
+            message(STATUS "dir is ${dir}")
             if(EXISTS "${TBBROOT}/${dir}")
+                message(STATUS "exist ${TBBROOT}/${dir}")
                 if(dir STREQUAL "include" OR dir MATCHES ".*(cmake|pkgconfig)$" OR dir STREQUAL "lib/intel64/vc14")
                     set(tbb_component tbb_dev)
                     set(core_dev_components tbb_dev)
                     unset(exclude_pattern)
+                    ov_cpack_add_component(tbb_dev
+                                            HIDDEN
+                                            DEPENDS tbb)
                 else()
                     set(tbb_component tbb)
                     set(exclude_pattern REGEX ".*(cmake|pkgconfig)$" EXCLUDE)
                 endif()
 
                 if(tbb_libs_dir STREQUAL dir)
-                    file(GLOB _tbb_libs ${TBBROOT}/${tbb_libs_dir}/*)
-                    foreach(_tbb_lib IN LISTS _tbb_libs)
-                        if(_tbb_lib MATCHES ".*${CMAKE_SHARED_LIBRARY_SUFFIX}.*")
-                            # resolve absolute path to avoid issues with installation
-                            get_filename_component(_tbb_lib "${_tbb_lib}" REALPATH)
-                            install(PROGRAMS "${_tbb_lib}"
-                                    DESTINATION "${OV_TBBROOT_INSTALL}/${dir}"
-                                    COMPONENT ${tbb_component})
-                        endif()
-                    endforeach()
+                    # file(GLOB _tbb_libs ${TBBROOT}/${tbb_libs_dir}/*)
+                    # foreach(_tbb_lib IN LISTS _tbb_libs)
+                    #     if(_tbb_lib MATCHES ".*${CMAKE_SHARED_LIBRARY_SUFFIX}.*")
+                    #         # resolve absolute path to avoid issues with installation
+                    #         get_filename_component(_tbb_lib "${_tbb_lib}" REALPATH)
+                    #         install(PROGRAMS "${_tbb_lib}"
+                    #                 DESTINATION "${OV_TBBROOT_INSTALL}/${dir}"
+                    #                 COMPONENT ${tbb_component})
+                    #         message(STATUS "install PROGRAMS:${_tbb_lib} to DESTINATION:${OV_TBBROOT_INSTALL}/${dir}")
+                    #     endif()
+                    # endforeach()
+                    install(DIRECTORY "${TBBROOT}/${dir}/"
+                            DESTINATION "${OV_TBBROOT_INSTALL}/${dir}"
+                            COMPONENT ${tbb_component}
+                            FILES_MATCHING PATTERN "*${CMAKE_SHARED_LIBRARY_SUFFIX}*"
+                            ${exclude_pattern})
                 else()
                     install(DIRECTORY "${TBBROOT}/${dir}/"
                             DESTINATION "${OV_TBBROOT_INSTALL}/${dir}"
@@ -225,7 +246,9 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         endif()
 
         set(TBB_LIB_INSTALL_DIR "${OV_TBBROOT_INSTALL}/${tbb_libs_dir}" CACHE PATH "TBB library install directory" FORCE)
+        message(STATUS "TBB_LIB_INSTALL_DIR is ${TBB_LIB_INSTALL_DIR}")
     elseif(tbb_downloaded)
+        message(STATUS "tbb_downloaded is ON")
         ov_cpack_add_component(tbb HIDDEN)
         list(APPEND core_components tbb)
 
