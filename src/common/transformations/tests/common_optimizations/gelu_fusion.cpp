@@ -34,16 +34,27 @@
 using namespace testing;
 using namespace ov;
 
-TEST_F(TransformationTestsF, GeluFusionPatternOne) {
+enum Mode { DIV, MUL };
+class GeluTestsP : public TransformationTestsF, public WithParamInterface<Mode> {};
+INSTANTIATE_TEST_SUITE_P(gelu_tests, GeluTestsP, Values(Mode::DIV, Mode::MUL));
+
+Output<Node> div_or_mul(const Mode& mode, const std::shared_ptr<Node>& input, element::Type type) {
+    if (mode == Mode::MUL) {
+        auto mul_const = ov::op::v0::Constant::create(type, Shape{1}, {M_SQRT1_2});
+        return std::make_shared<ov::op::v1::Multiply>(input, mul_const);
+    } else {
+        auto div_const = ov::op::v0::Constant::create(type, Shape{1}, {M_SQRT2});
+        return std::make_shared<ov::op::v1::Divide>(input, div_const);
+    }
+}
+
+TEST_P(GeluTestsP, GeluFusionPatternOne) {
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
-
-        auto div_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {M_SQRT2});
         auto add_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {1.0});
         auto mul_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {0.5});
 
-        auto div = std::make_shared<ov::op::v1::Divide>(data, div_const);
-        auto erf = std::make_shared<ov::op::v0::Erf>(div);
+        auto erf = std::make_shared<ov::op::v0::Erf>(div_or_mul(GetParam(), data, element::f32));
         auto add = std::make_shared<ov::op::v1::Add>(erf, add_const);
         auto mul_first = std::make_shared<ov::op::v1::Multiply>(data, mul_const);
         auto mul = std::make_shared<ov::op::v1::Multiply>(mul_first, add);
@@ -60,16 +71,14 @@ TEST_F(TransformationTestsF, GeluFusionPatternOne) {
     }
 }
 
-TEST_F(TransformationTestsF, GeluFusionPatternOneF16) {
+TEST_P(GeluTestsP, GeluFusionPatternOneF16) {
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{2, 2});
 
-        auto div_const = ov::op::v0::Constant::create(element::f16, Shape{1}, {M_SQRT2});
         auto add_const = ov::op::v0::Constant::create(element::f16, Shape{1}, {1.0});
         auto mul_const = ov::op::v0::Constant::create(element::f16, Shape{1}, {0.5});
 
-        auto div = std::make_shared<ov::op::v1::Divide>(data, div_const);
-        auto erf = std::make_shared<ov::op::v0::Erf>(div);
+        auto erf = std::make_shared<ov::op::v0::Erf>(div_or_mul(GetParam(), data, element::f16));
         auto add = std::make_shared<ov::op::v1::Add>(erf, add_const);
         auto mul_first = std::make_shared<ov::op::v1::Multiply>(data, mul_const);
         auto mul = std::make_shared<ov::op::v1::Multiply>(mul_first, add);
@@ -86,16 +95,14 @@ TEST_F(TransformationTestsF, GeluFusionPatternOneF16) {
     }
 }
 
-TEST_F(TransformationTestsF, GeluFusionPatternTwo) {
+TEST_P(GeluTestsP, GeluFusionPatternTwo) {
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
 
-        auto div_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {M_SQRT2});
         auto add_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {1.0});
         auto mul_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {0.5});
 
-        auto div = std::make_shared<ov::op::v1::Divide>(data, div_const);
-        auto erf = std::make_shared<ov::op::v0::Erf>(div);
+        auto erf = std::make_shared<ov::op::v0::Erf>(div_or_mul(GetParam(), data, element::f32));
         auto add = std::make_shared<ov::op::v1::Add>(erf, add_const);
         auto mul_first = std::make_shared<ov::op::v1::Multiply>(data, add);
         auto mul = std::make_shared<ov::op::v1::Multiply>(mul_first, mul_const);
@@ -112,16 +119,14 @@ TEST_F(TransformationTestsF, GeluFusionPatternTwo) {
     }
 }
 
-TEST_F(TransformationTestsF, GeluFusionPatternTwoF16) {
+TEST_P(GeluTestsP, GeluFusionPatternTwoF16) {
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{2, 2});
 
-        auto div_const = ov::op::v0::Constant::create(element::f16, Shape{1}, {M_SQRT2});
         auto add_const = ov::op::v0::Constant::create(element::f16, Shape{1}, {1.0});
         auto mul_const = ov::op::v0::Constant::create(element::f16, Shape{1}, {0.5});
 
-        auto div = std::make_shared<ov::op::v1::Divide>(data, div_const);
-        auto erf = std::make_shared<ov::op::v0::Erf>(div);
+        auto erf = std::make_shared<ov::op::v0::Erf>(div_or_mul(GetParam(), data, element::f16));
         auto add = std::make_shared<ov::op::v1::Add>(erf, add_const);
         auto mul_first = std::make_shared<ov::op::v1::Multiply>(data, add);
         auto mul = std::make_shared<ov::op::v1::Multiply>(mul_first, mul_const);
@@ -138,16 +143,14 @@ TEST_F(TransformationTestsF, GeluFusionPatternTwoF16) {
     }
 }
 
-TEST_F(TransformationTestsF, GeluFusionPatternThree) {
+TEST_P(GeluTestsP, GeluFusionPatternThree) {
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
 
-        auto div_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {M_SQRT2});
         auto add_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {1.0});
         auto mul_const = ov::op::v0::Constant::create(element::f32, Shape{1}, {0.5});
 
-        auto div = std::make_shared<ov::op::v1::Divide>(data, div_const);
-        auto erf = std::make_shared<ov::op::v0::Erf>(div);
+        auto erf = std::make_shared<ov::op::v0::Erf>(div_or_mul(GetParam(), data, element::f32));
         auto add = std::make_shared<ov::op::v1::Add>(erf, add_const);
         auto mul_first = std::make_shared<ov::op::v1::Multiply>(add, mul_const);
         auto mul = std::make_shared<ov::op::v1::Multiply>(data, mul_first);
@@ -164,16 +167,14 @@ TEST_F(TransformationTestsF, GeluFusionPatternThree) {
     }
 }
 
-TEST_F(TransformationTestsF, GeluFusionPatternThreeF16) {
+TEST_P(GeluTestsP, GeluFusionPatternThreeF16) {
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{2, 2});
 
-        auto div_const = ov::op::v0::Constant::create(element::f16, Shape{1}, {M_SQRT2});
         auto add_const = ov::op::v0::Constant::create(element::f16, Shape{1}, {1.0});
         auto mul_const = ov::op::v0::Constant::create(element::f16, Shape{1}, {0.5});
 
-        auto div = std::make_shared<ov::op::v1::Divide>(data, div_const);
-        auto erf = std::make_shared<ov::op::v0::Erf>(div);
+        auto erf = std::make_shared<ov::op::v0::Erf>(div_or_mul(GetParam(), data, element::f16));
         auto add = std::make_shared<ov::op::v1::Add>(erf, add_const);
         auto mul_first = std::make_shared<ov::op::v1::Multiply>(add, mul_const);
         auto mul = std::make_shared<ov::op::v1::Multiply>(data, mul_first);
