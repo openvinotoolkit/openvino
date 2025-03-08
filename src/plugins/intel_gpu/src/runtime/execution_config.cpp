@@ -8,6 +8,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include "openvino/op/search_sorted.hpp"
 #include "openvino/op/stft.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
@@ -135,6 +136,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
 
     const auto& ops = model.get_ops();
 
+    auto is_paged_attention_model = false;
     std::function<void(std::shared_ptr<Node>)> process_op = [&, this](std::shared_ptr<Node> op) {
         if (requires_new_shape_infer(op)) {
             m_allow_new_shape_infer = true;
@@ -158,10 +160,26 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
                 }
             }
         }
+
+        if (ov::is_type<ov::op::PagedAttentionExtension>(op)) {
+            is_paged_attention_model = true;
+        }
     };
 
     for (const auto& op : ops) {
         process_op(op);
+    }
+
+    const auto& info = dynamic_cast<const RemoteContextImpl*>(context)->get_engine().get_device_info();
+    if (!is_set_by_user(ov::hint::kv_cache_precision) || get_kv_cache_precision() == ov::element::dynamic) {
+        if (is_paged_attention_model || !info.supports_immad) {
+            // Enable KV-cache compression by default for:
+            // 1) Non-systolic platforms in case of SDPA-based models
+            // 2) For any platforms in case of PagedAttention-based model
+            m_kv_cache_precision = ov::element::i8;
+        } else {
+            m_kv_cache_precision = get_inference_precision();
+        }
     }
 
     m_optimize_data = true;
@@ -185,15 +203,6 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
         m_queue_type = QueueTypes::in_order;
     }
 
-    if (!is_set_by_user(ov::hint::kv_cache_precision) || get_kv_cache_precision() == ov::element::dynamic) {
-        if (info.supports_immad) {  // MFDNN-11755
-            m_kv_cache_precision = get_inference_precision();
-        } else {
-            // Enable KV-cache compression by default for non-systolic platforms only
-            m_kv_cache_precision = ov::element::i8;
-        }
-    }
-
     // Enable dynamic quantization by default for non-systolic platforms
     if (!is_set_by_user(ov::hint::dynamic_quantization_group_size) && get_dynamic_quantization_group_size() == 0 && !info.supports_immad) {
         m_dynamic_quantization_group_size = 32;
@@ -201,6 +210,11 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
 
     if (!get_force_implementations().empty()) {
         m_optimize_data = true;
+    }
+
+    // Replace UINT8 KV-cache compression data type with INT8, as plugin is supposed to work with INT8 internally
+    if (get_kv_cache_precision() == ov::element::u8) {
+        m_kv_cache_precision = ov::element::i8;
     }
 
 #ifdef ENABLE_DEBUG_CAPS
