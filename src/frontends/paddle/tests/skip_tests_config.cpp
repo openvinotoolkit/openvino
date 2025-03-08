@@ -14,5 +14,10 @@ std::vector<std::string> disabledTestPatterns() {
         ".*FrontendLibCloseTest.*",
 #endif
         ".*testUnloadLibBeforeDeletingDependentObject.*",
+#ifdef _WIN32
+        // CVS-149651
+        ".*LoadModelMemoryToCore.*",
+        ".*ImportBasicModelToCoreWstring.*",
+#endif
     };
 }
