@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1830,7 +1830,7 @@ TEST(border_gpu, basic_zero_input_dynamic) {
     auto& engine = get_test_engine();
 
     // WA to avoid crash due to attempt to allocate 0 bytes for USM memory
-    layout fake_input_layout = {{1}, data_types::undefined, format::bfyx};
+    layout fake_input_layout = {{1}, data_types::dynamic, format::bfyx};
     auto input = engine.allocate_memory(fake_input_layout);
 
     layout zero_input_layout = {{0, 1}, data_types::f32, format::bfyx};

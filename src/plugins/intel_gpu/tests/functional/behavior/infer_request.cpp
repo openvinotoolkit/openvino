@@ -6,7 +6,11 @@
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/node_builders/activation.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/runtime/core.hpp"
 #include "transformations/utils/utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -368,5 +372,27 @@ TEST(TensorTest, smoke_outputTensorShapesForDynamicInput) {
     OV_ASSERT_NO_THROW(inf_req.set_input_tensor(t3));
     OV_ASSERT_NO_THROW(inf_req.infer());
     ASSERT_EQ(inf_req.get_output_tensor().get_shape(), output3_shape);
+}
+
+TEST(TensorTest, smoke_canShareTensorIfModelsFromDifferentCores) {
+    auto core1 = ov::Core();
+    auto core2 = ov::Core();
+
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4, 8});
+    auto relu = std::make_shared<ov::op::v0::Relu>(param);
+    auto result = std::make_shared<ov::op::v0::Result>(relu);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+
+    auto compiled_model1 = core1.compile_model(model, ov::test::utils::DEVICE_GPU);
+    auto compiled_model2 = core2.compile_model(model, ov::test::utils::DEVICE_GPU);
+
+    auto request1 = compiled_model1.create_infer_request();
+    auto request2 = compiled_model2.create_infer_request();
+
+    request2.set_input_tensor(request1.get_output_tensor());
+    request2.set_output_tensor(request1.get_input_tensor());
+
+    OV_ASSERT_NO_THROW(request1.infer());
+    OV_ASSERT_NO_THROW(request2.infer());
 }
 } // namespace

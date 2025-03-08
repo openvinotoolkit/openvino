@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -239,6 +239,20 @@ void set_pattern_symbols(const Node* const op, TShape& shape) {
 template <class TShape, typename std::enable_if<!std::is_same<TShape, PartialShape>::value>::type* = nullptr>
 void set_pattern_symbols(const Node* const, TShape&) {}
 
+/** @brief Deducing symbol relations: number of elements in the tensor doesn't change after the Reshape operation. */
+template <class TDim,
+          typename std::enable_if<std::is_same<typename std::decay<TDim>::type, Dimension>::value>::type* = nullptr>
+void deduce_symbol_relations(const Product<TDim>& product) {
+    auto dyn_in = product.get_dynamic_in();
+    auto dyn_out = product.get_dynamic_out();
+    dyn_in.merge(dyn_in, dyn_in, dyn_out);
+}
+
+/** @brief Shapes other than PartialShape have no symbols. */
+template <class TDim,
+          typename std::enable_if<!std::is_same<typename std::decay<TDim>::type, Dimension>::value>::type* = nullptr>
+void deduce_symbol_relations(const Product<TDim>& product) {}
+
 }  // namespace reshape
 
 namespace v1 {
@@ -341,6 +355,10 @@ std::vector<TRShape> shape_infer(const Reshape* op,
                 NODE_VALIDATION_CHECK(op,
                                       !dim::is_empty(minus_one_dim),
                                       "Non-'-1' output dimensions do not evenly divide the input dimensions");
+            }
+        } else {
+            if (product.get_static_in() == product.get_static_out() && product.get_static_in() != 0) {
+                deduce_symbol_relations(product);
             }
         }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,6 +42,7 @@ void get_cur_stream_info(const int stream_id,
                          int& concurrency,
                          int& core_type,
                          int& numa_node_id,
+                         int& socket_id,
                          int& max_threads_per_core);
 
 /**

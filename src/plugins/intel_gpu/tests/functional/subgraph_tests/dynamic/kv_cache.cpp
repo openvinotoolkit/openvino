@@ -530,4 +530,81 @@ TEST_F(KVCacheTests, smoke_multipleIterations_stateful_with_set_state) {
     this->test_smoke_multipleIterations_stateful(false, true, true, 1, 2, ov::element::f16, 5, 1, true);
 }
 
+class KVCacheIssueTests: public ::testing::Test {
+public:
+    void test_smoke_conflicted_memory_for_two_inf_req() {
+    #if defined(ANDROID)
+        GTEST_SKIP();
+    #endif
+        auto core = ov::test::utils::PluginCache::get().core();
+
+        ov::AnyMap properties = {
+            ov::hint::kv_cache_precision(ov::element::f16)
+        };
+
+        const size_t n_batch = 1;
+        const size_t n_heads = 32;
+        const size_t n_features = 10;
+        const size_t context_size = 20;
+        ov::element::Type element_type = ov::element::f16;
+
+        const bool stateful = true;
+
+        auto model = tests::make_llm_kv_cache_pattern(n_batch,
+                                                      n_heads,
+                                                      n_features,
+                                                      element_type,
+                                                      2,
+                                                      stateful,
+                                                      false,
+                                                      stateful);
+        auto compiled_model = core->compile_model(model, ov::test::utils::DEVICE_GPU, properties);
+
+        auto input0 = model->get_parameters().at(0);
+        auto input1 = model->get_parameters().at(1);
+
+        auto ireq1 = compiled_model.create_infer_request();
+        auto ireq2 = compiled_model.create_infer_request();
+
+        auto ireq1_input0 = ov::test::utils::create_and_fill_tensor_real_distribution(element_type,
+                                {n_batch, context_size, n_heads, n_features}, -0.5f, 0.5f, 1);
+        auto ireq1_input1 = ov::test::utils::create_and_fill_tensor_real_distribution(element_type,
+                                {n_batch, n_heads, context_size, context_size}, -0.5f, 0.5f, 1);
+        ireq1.set_tensor(input0, ireq1_input0);
+        ireq1.set_tensor(input1, ireq1_input1);
+
+        auto ireq2_input0 = ov::test::utils::create_and_fill_tensor_real_distribution(element_type,
+                                {n_batch, context_size + 1, n_heads, n_features}, -0.5f, 0.5f, 555);
+        auto ireq2_input1 = ov::test::utils::create_and_fill_tensor_real_distribution(element_type,
+                                {n_batch, n_heads, context_size + 1, context_size + 1}, -0.5f, 0.5f, 555);
+        ireq2.set_tensor(input0, ireq2_input0);
+        ireq2.set_tensor(input1, ireq2_input1);
+
+        std::stringstream oss1;
+        std::stringstream oss2;
+        for (auto&& state : ireq1.query_state()) {
+            state.reset();
+        }
+        ireq1.infer();
+        for (auto&& state : ireq1.query_state()) {
+            oss1.write(reinterpret_cast<char*>(state.get_state().data()), state.get_state().get_byte_size());
+        }
+
+        for (auto&& state : ireq2.query_state()) {
+            state.reset();
+        }
+        ireq2.infer();
+        for (auto&& state : ireq1.query_state()) {
+            oss2.write(reinterpret_cast<char*>(state.get_state().data()), state.get_state().get_byte_size());
+        }
+
+        ASSERT_TRUE(oss1.str() == oss2.str());
+    }
+};
+
+TEST_F(KVCacheIssueTests, conflicted_memory_for_two_inf_req) {
+    this->test_smoke_conflicted_memory_for_two_inf_req();
+}
+
+
 } // namespace

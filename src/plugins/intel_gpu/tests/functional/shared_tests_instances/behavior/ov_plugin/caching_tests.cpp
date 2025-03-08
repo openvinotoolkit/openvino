@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,7 +48,7 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(smoke_KernelCachingSupportCase_GPU,
                          CompiledKernelsCacheTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values(std::make_pair(ov::AnyMap{}, "blob"))),
+                                            ::testing::Values(std::make_pair(ov::AnyMap{}, "blob,cl_cache"))),
                          CompiledKernelsCacheTest::getTestCaseName);
 
 const std::vector<ov::AnyMap> GPULoadFromFileConfigs = {

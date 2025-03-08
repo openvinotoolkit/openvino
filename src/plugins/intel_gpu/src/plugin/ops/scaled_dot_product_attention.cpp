@@ -20,8 +20,7 @@ using IndirectSDPA = ov::intel_gpu::op::IndirectSDPA;
 }  // namespace op
 }  // namespace ov
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateScaledDotProductAttentionOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v13::ScaledDotProductAttention>& op) {
     validate_inputs_count(op, {3, 4, 5});
@@ -62,11 +61,13 @@ static void CreateSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
 }
 
 static void CreateIndirectSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::IndirectSDPA>& op) {
-    validate_inputs_count(op, {4, 5, 6});
     auto inputs = p.GetInputInfo(op);
     auto layerName = layer_type_name_ID(op);
 
     bool is_causal = op->get_causal();
+    const auto compression_inputs = op->get_compression_inputs_num();
+    validate_inputs_count(op, {4 + compression_inputs, 5 + compression_inputs, 6 + compression_inputs});
+
     int64_t indirect_axis = op->get_indirect_axis();
     auto sdpa_prim = cldnn::scaled_dot_product_attention(layerName,
                                                          inputs,
@@ -75,7 +76,9 @@ static void CreateIndirectSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op
                                                          op->get_input0_transpose_order(),
                                                          op->get_input1_transpose_order(),
                                                          op->get_input2_transpose_order(),
-                                                         op->get_output_transpose_order());
+                                                         op->get_output_transpose_order(),
+                                                         op->get_quantization_attrs(),
+                                                         op->get_kv_compressed());
 
     p.add_primitive(*op, sdpa_prim);
 }
@@ -84,5 +87,4 @@ REGISTER_FACTORY_IMPL(internal, SDPA);
 REGISTER_FACTORY_IMPL(internal, IndirectSDPA);
 REGISTER_FACTORY_IMPL(v13, ScaledDotProductAttention);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

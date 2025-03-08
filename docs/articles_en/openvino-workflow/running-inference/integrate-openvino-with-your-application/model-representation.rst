@@ -247,57 +247,50 @@ OpenVINO™ provides several debug capabilities:
 
 * Model can be visualized to image from the xDot format:
 
-.. tab-set::
+  .. tab-set::
 
-   .. tab-item:: Python
-      :sync: py
+     .. tab-item:: Python
+        :sync: py
 
-      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.py
-         :language: python
-         :fragment: [ov:visualize]
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.py
+           :language: python
+           :fragment: [ov:visualize]
 
-   .. tab-item:: C++
-      :sync: cpp
+     .. tab-item:: C++
+        :sync: cpp
 
-      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
-         :language: cpp
-         :fragment: [ov:visualize]
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
+           :language: cpp
+           :fragment: [ov:visualize]
 
 
-.. code-block:: sh
+  ``ov::pass::VisualizeTree`` can be parametrized via environment variables:
 
-   `ov::pass::VisualizeTree` can be parametrized via environment variables:
-
-   OV_VISUALIZE_TREE_OUTPUT_SHAPES=1       - visualize shapes
-
-   OV_VISUALIZE_TREE_OUTPUT_TYPES=1        - visualize types
-
-   OV_VISUALIZE_TREE_MIN_MAX_DENORMAL=1    - pretty denormal values
-
-   OV_VISUALIZE_TREE_RUNTIME_INFO=1        - print runtime information
-
-   OV_VISUALIZE_TREE_IO=1                  - print I/O ports
-
-   OV_VISUALIZE_TREE_MEMBERS_NAME=1        - print member names
+  * ``OV_VISUALIZE_TREE_OUTPUT_SHAPES=1`` - visualize shapes
+  * ``OV_VISUALIZE_TREE_OUTPUT_TYPES=1`` - visualize types
+  * ``OV_VISUALIZE_TREE_MIN_MAX_DENORMAL=1`` - pretty denormal values
+  * ``OV_VISUALIZE_TREE_RUNTIME_INFO=1`` - print runtime information
+  * ``OV_VISUALIZE_TREE_IO=1`` - print I/O ports
+  * ``OV_VISUALIZE_TREE_MEMBERS_NAME=1`` - print member names
 
 
 * Also model can be serialized to IR:
 
-.. tab-set::
+  .. tab-set::
 
-   .. tab-item:: Python
-      :sync: py
+     .. tab-item:: Python
+        :sync: py
 
-      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.py
-         :language: python
-         :fragment: [ov:serialize]
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.py
+           :language: python
+           :fragment: [ov:serialize]
 
-   .. tab-item:: C++
-      :sync: cpp
+     .. tab-item:: C++
+        :sync: cpp
 
-      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
-         :language: cpp
-         :fragment: [ov:serialize]
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
+           :language: cpp
+           :fragment: [ov:serialize]
 
 
 Additional Resources
@@ -306,5 +299,3 @@ Additional Resources
 * :doc:`Available Operation Sets <../../../documentation/openvino-ir-format/operation-sets/available-opsets>`.
 * :doc:`OpenVINO™ Runtime Extensibility Developer Guide <../../../documentation/openvino-extensibility>`.
 * :doc:`Transformations Developer Guide <../../../documentation/openvino-extensibility/transformation-api>`.
-
-

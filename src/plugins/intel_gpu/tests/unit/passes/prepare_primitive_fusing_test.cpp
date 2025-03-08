@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -525,7 +525,7 @@ TEST(prepare_primitive_fusing, fuse_constant_transposes_removal_check) {
 
     auto prog = program::build_program(engine, topology, config, false, true);
 
-    prog->get_layout_optimizer().set_implementation_forcing(config.get_property(ov::intel_gpu::force_implementations));
+    prog->get_layout_optimizer().set_implementation_forcing(config.get_force_implementations());
     program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
 
     ASSERT_TRUE(!has_node(*prog, "permute"));

@@ -10,8 +10,7 @@
 #include "openvino/op/op.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * @interface Subgraph
@@ -19,7 +18,7 @@ namespace intel_cpu {
  */
 class SubModel : public ov::op::util::SubGraphOp {
 public:
-    OPENVINO_OP("SubModel", "cpu_plugin_opset");
+    OPENVINO_OP("SubModel", "cpu_plugin_opset", ov::op::util::SubGraphOp);
 
     SubModel() = default;
 
@@ -51,5 +50,4 @@ private:
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

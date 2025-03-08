@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <iterator>
@@ -11,6 +11,7 @@
 #include "openvino/core/validation_util.hpp"
 #include "primitive_type_base.h"
 #include "reshape_inst.h"
+#include "read_value_inst.h"
 #include "reshape_shape_inference.hpp"
 #include "squeeze_shape_inference.hpp"
 #include "unsqueeze_shape_inference.hpp"
@@ -286,7 +287,7 @@ reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
 
     // if reshape operated in-place, postpone creation of the output until network run,
     // then create new memory object as the reinterpreted output of the previous primitive
-    if (input_layout.is_static() && output_layout.is_static()) {
+    if (input_layout.is_static() && output_layout.is_static() && !node.get_dependency(0).is_type<read_value>()) {
         if (!node.can_be_optimized()) {
             _outputs = allocate_outputs();
             _mem_allocated = true;
@@ -319,7 +320,7 @@ void reshape_inst::update_output_memory() {
     // Can_be_optimized nodes are allocating from memory_pool too. In this case,
     // we need release the legacy output memory from memory pool explicitly.
     if (static_cast<bool>(_outputs[0]) &&
-        _node->get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool)) {
+        _node->get_program().get_config().get_enable_memory_pool()) {
         _network.get_memory_pool().release_memory(_outputs[0].get(), _node->get_unique_id(), _node->id(), _network.get_id());
     }
     _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout())};

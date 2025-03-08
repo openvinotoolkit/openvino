@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ static bool not_empty_mask(ov::Mask::Ptr mask) {
 }
 
 static bool is_static_reshape_op(std::shared_ptr<ov::Node> node) {
-    auto reshape_node = std::dynamic_pointer_cast<ov::opset6::Reshape>(node);
+    auto reshape_node = ov::as_type_ptr<ov::opset6::Reshape>(node);
     if (!reshape_node)
         return false;
 
@@ -224,7 +224,7 @@ bool ov::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ov::Model>& f) 
             continue;
 
         // TODO: constant can be shared across functions so we need to avoid consumers from other function
-        auto const_node = std::dynamic_pointer_cast<opset6::Constant>(node);
+        auto const_node = ov::as_type_ptr<opset6::Constant>(node);
         if (!const_node)
             continue;
 

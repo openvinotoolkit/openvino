@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,12 +11,13 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/frontend/decoder.hpp"
+#include "openvino/frontend/jax/visibility.hpp"
 
 namespace ov {
 namespace frontend {
 namespace jax {
 
-class JaxDecoder : public IDecoder {
+class JAX_FRONTEND_API JaxDecoder : public IDecoder {
 public:
     virtual OutputVector as_constant() const = 0;
 
@@ -64,6 +65,8 @@ public:
     /// If there is no query for specific sub-graph it shouldn't be converted
     // node_visitor is a function that will be fed by nodes in subgraph for all nodes in graph
     virtual void visit_subgraph(std::function<void(std::shared_ptr<JaxDecoder>)> node_visitor) const = 0;
+
+    ~JaxDecoder() override;
 };
 
 }  // namespace jax

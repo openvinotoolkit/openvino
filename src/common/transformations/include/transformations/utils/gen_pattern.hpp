@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -22,6 +22,7 @@
 #include <string>
 #include <utility>
 
+#include "openvino/core/log_util.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset2.hpp"
 #include "openvino/opsets/opset3.hpp"
@@ -34,11 +35,20 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/log.hpp"
 
 namespace ov {
 namespace gen_pattern {
 
 #ifdef CPU_DEBUG_CAPS
+
+#    ifdef __GNUC__
+#        define CURRENT_LINE_NO __builtin_LINE()
+#        define CURRENT_FILE    __builtin_FILE()
+#    else
+#        define CURRENT_LINE_NO -1
+#        define CURRENT_FILE    ""
+#    endif
 
 template <typename... Args>
 static inline void _verbose_log(Args&&... args) {
@@ -58,6 +68,10 @@ static bool matcher_verbose_enabled() {
         if (matcher_verbose_enabled()) \
         _verbose_log(__VA_ARGS__)
 #else
+
+#    define CURRENT_LINE_NO -1
+#    define CURRENT_FILE    ""
+
 static bool matcher_verbose_enabled() {
     return false;
 }
@@ -181,6 +195,8 @@ private:
         double literal_const_value;
         std::shared_ptr<Entity> lhs;
         std::shared_ptr<Entity> rhs;
+        const char* filename = "";
+        int line_no = -1;
         // _,+,-,*,/
         // l : literal const
         // n : named symbol
@@ -220,10 +236,12 @@ public:
         entity->op = 'n';
         entity->name = name;
     }
-    Symbol(const int value) {
+    Symbol(const int value, int line_no = CURRENT_LINE_NO, const char* file = CURRENT_FILE) {
         entity = std::make_shared<Entity>();
         entity->op = 'l';
         entity->literal_const_value = value;
+        entity->line_no = line_no;
+        entity->filename = file;
     }
     Symbol(char op, const Symbol& lhs, const Symbol& rhs) {
         entity = std::make_shared<Entity>();
@@ -246,12 +264,17 @@ public:
     void* get_id() const {
         return entity.get();
     }
-    const char* get_name() const {
-        return entity->name;
+    std::string get_name() const {
+        if (entity->line_no == -1 || is_independent_var())
+            return entity->name;
+        auto filename = strrchr(entity->filename, '/') ? strrchr(entity->filename, '/') + 1 : entity->filename;
+        std::string name(filename);  // use filename:lineno instead
+        return name + ":" + std::to_string(entity->line_no);
     }
     bool operator<(const Symbol& rhs) const {
         return get_id() < rhs.get_id();
     }
+    bool validate = true;
 };
 
 inline Symbol operator-(const Symbol& lhs) {
@@ -539,6 +562,11 @@ public:
             a->set(m_attr_map[name].as_vector<int64_t>());
         } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::element::TypeVector>>(&adapter)) {
             a->set(m_attr_map[name].as_T_vector<ov::element::Type>());
+        } else if (auto a = dynamic_cast<ov::AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>*>(&adapter)) {
+            ov::op::util::VariableInfo var_info;
+            var_info.variable_id = m_attr_map[name].as_string();
+            auto variable = std::make_shared<ov::op::util::Variable>(var_info);
+            a->set(variable);
         } else {
             OPENVINO_THROW("unsupported AttributeAdapter for attribute : ", name);
         }
@@ -734,7 +762,9 @@ public:
     explicit GenericPattern(const DiscreteTypeInfo& type_info,
                             const OutputVector& args,
                             const detail::AttrMap& attrs,
-                            const char* vt)
+                            const char* vt,
+                            const int line_no = -1,
+                            const char* file = "")
         : ov::pass::pattern::op::Pattern(args),
           m_type_info(type_info),
           m_attrs(attrs),
@@ -753,6 +783,12 @@ public:
                 sep = ",";
             }
             ss << ")";
+            if (line_no != -1) {
+                // add the code line no to the log:
+                //   O P752<opset1::Multiply>(P736,P745)@fuse_rotary_positional_embeddings.cpp:551 vs ...
+                auto filename = strrchr(file, '/') ? strrchr(file, '/') + 1 : file;
+                ss << "@" << filename << ":" << line_no;
+            }
             m_signature = ss.str();
             set_friendly_name(std::string("P") + std::to_string(id));
         }
@@ -771,18 +807,27 @@ public:
         // strictly requires pattern & graph value to come from output port with same index,
         // this is absolute necessary when pattern contains split node connections.
         if (pattern_value.get_index() != graph_value.get_index()) {
-            _VERBOSE_LOG(level, "X output index mismatch: ", pattern_value.get_index(), "!=", graph_value.get_index());
+            _VERBOSE_LOG(level,
+                         "X output index mismatch:(",
+                         m_signature,
+                         "): ",
+                         pattern_value.get_index(),
+                         "!=",
+                         graph_value.get_index());
+            OPENVINO_LOG_GENPATTERN1(matcher, pattern_value, graph_value);
             return false;
         }
 
         auto value_node = graph_value.get_node_shared_ptr();
         if (!value_node->get_type_info().is_castable(m_type_info)) {
             _VERBOSE_LOG(level, "X OP type mismatch: ", m_signature, " vs ", graph_value);
+            OPENVINO_LOG_GENPATTERN2(matcher, pattern_value, graph_value);
             return false;
         }
 
         if (!m_vt.predicate(graph_value)) {
             _VERBOSE_LOG(level, "X value info mismatch: ", m_signature, " vs ", graph_value);
+            OPENVINO_LOG_GENPATTERN3(matcher);
             return false;
         }
 
@@ -791,6 +836,7 @@ public:
             value_node->visit_attributes(visitor);
             if (!visitor.matched()) {
                 _VERBOSE_LOG(level, "X OP attrs mismatch: ", m_signature, " vs ", graph_value);
+                OPENVINO_LOG_GENPATTERN4(matcher);
                 return false;
             }
         }
@@ -804,12 +850,18 @@ public:
 
         if (matcher_verbose_enabled())
             level.push_back('\t');
+        OPENVINO_LOG_GENPATTERN5(matcher);
         bool ret = matcher->match_arguments(pattern_value.get_node(), graph_value.get_node_shared_ptr());
+        OPENVINO_LOG_GENPATTERN6(matcher, ret);
         if (matcher_verbose_enabled()) {
             level.pop_back();
             _VERBOSE_LOG(level, ret ? "O" : "X", m_signature, " vs ", graph_value);
         }
         return ret;
+    }
+
+    const DiscreteTypeInfo& get_wrapped_type() const {
+        return m_type_info;
     }
 
 private:
@@ -896,6 +948,7 @@ struct PatternNode {
     // scalar constant (treated as wildcard for single-element-constant with any rank)
     PatternNode(int v) : node(std::make_shared<ov::op::v0::Constant>(element::from<int>(), Shape({}), v)) {}
     PatternNode(float v) : node(std::make_shared<ov::op::v0::Constant>(element::from<float>(), Shape({}), v)) {}
+    PatternNode(long long v) : node(std::make_shared<ov::op::v0::Constant>(element::from<int64_t>(), Shape({}), v)) {}
 
     PatternNode(std::initializer_list<int> v, values_info vi = nullptr) {
         node = ConstVector(std::vector<int>(v), vi);
@@ -1012,7 +1065,9 @@ template <class T>
 std::shared_ptr<Node> makePattern(const std::vector<detail::PatternNode>& inputs,
                                   detail::AttrMap attrmap = {},
                                   const char* vt = nullptr,
-                                  const char* friendly_name = nullptr) {
+                                  const char* friendly_name = nullptr,
+                                  int line_no = CURRENT_LINE_NO,
+                                  const char* file = CURRENT_FILE) {
     OutputVector args;
     for (auto& in : inputs)
         args.push_back(in.get_output());
@@ -1020,7 +1075,8 @@ std::shared_ptr<Node> makePattern(const std::vector<detail::PatternNode>& inputs
     // pattern nodes are better for pattern matching because
     //  - it can be generic/incomplete, so normal OP node is not working properly
     //  - it has predicate to correctly decide which branch to take (in Or pattern)
-    auto pattern_node = std::make_shared<detail::GenericPattern>(T::get_type_info_static(), args, attrmap, vt);
+    auto pattern_node =
+        std::make_shared<detail::GenericPattern>(T::get_type_info_static(), args, attrmap, vt, line_no, file);
 
     if (friendly_name)
         pattern_node->set_friendly_name(friendly_name);
@@ -1114,7 +1170,9 @@ inline std::shared_ptr<Node> GenStridedSlice(detail::PatternNode data,
                                              detail::PatternNode start,
                                              detail::PatternNode stop,
                                              detail::PatternNode step,
-                                             size_t axis) {
+                                             size_t axis,
+                                             int line_no = CURRENT_LINE_NO,
+                                             const char* file = CURRENT_FILE) {
     std::vector<int64_t> begin_mask(axis + 1, 1);
     std::vector<int64_t> end_mask(axis + 1, 1);
     std::vector<int64_t> new_axis_mask;
@@ -1129,12 +1187,27 @@ inline std::shared_ptr<Node> GenStridedSlice(detail::PatternNode data,
                                                    {"end_mask", end_mask},
                                                    {"new_axis_mask", new_axis_mask},
                                                    {"shrink_axis_mask", shrink_axis_mask},
-                                                   {"ellipsis_mask", ellipsis_mask}});
+                                                   {"ellipsis_mask", ellipsis_mask}},
+                                                  nullptr,
+                                                  nullptr,
+                                                  line_no,
+                                                  file);
     return opt2;
 }
 
-inline std::shared_ptr<Node> GenSlice(detail::PatternNode data, Symbol start, Symbol stop, Symbol step, size_t axis) {
-    auto opt1 = makePattern<opset8::Slice>({data, {start}, {stop}, {step}, {static_cast<int>(axis)}});
+inline std::shared_ptr<Node> GenSlice(detail::PatternNode data,
+                                      Symbol start,
+                                      Symbol stop,
+                                      Symbol step,
+                                      size_t axis,
+                                      int line_no = CURRENT_LINE_NO,
+                                      const char* file = CURRENT_FILE) {
+    auto opt1 = makePattern<opset8::Slice>({data, {start}, {stop}, {step}, {static_cast<int>(axis)}},
+                                           {},
+                                           nullptr,
+                                           nullptr,
+                                           line_no,
+                                           file);
 
     std::vector<Symbol> vbegin(axis + 1, Symbol(0));
     std::vector<Symbol> vend(axis + 1, Symbol(0));
@@ -1162,7 +1235,11 @@ inline std::shared_ptr<Node> GenSlice(detail::PatternNode data, Symbol start, Sy
                                                    {"end_mask", end_mask},
                                                    {"new_axis_mask", new_axis_mask},
                                                    {"shrink_axis_mask", shrink_axis_mask},
-                                                   {"ellipsis_mask", ellipsis_mask}});
+                                                   {"ellipsis_mask", ellipsis_mask}},
+                                                  nullptr,
+                                                  nullptr,
+                                                  line_no,
+                                                  file);
     return opt1 | opt2;
 }
 
@@ -1198,7 +1275,7 @@ public:
                 if (rt_info.count("symbolic_const_value")) {
                     // symbolic constant node, a symbol reference is observed
                     auto& symbols = rt_info["symbolic_const_value"].as<std::vector<Symbol>>();
-                    auto constop = std::dynamic_pointer_cast<op::v0::Constant>(value_node);
+                    auto constop = ov::as_type_ptr<op::v0::Constant>(value_node);
                     if (!constop) {
                         _VERBOSE_LOG("symbolic_const_value unexpected OP: ", value_node->get_friendly_name());
                         return false;
@@ -1228,9 +1305,9 @@ public:
                 }
                 continue;
             }
-            if (auto pconst_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(pnode)) {
+            if (auto pconst_node = ov::as_type_ptr<ov::op::v0::Constant>(pnode)) {
                 // const_node needs to match type/shape/value
-                auto vconst_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(value_node);
+                auto vconst_node = ov::as_type_ptr<ov::op::v0::Constant>(value_node);
                 if (!vconst_node) {
                     _VERBOSE_LOG("expecting Constant op, but got ", value_node);
                     return false;
@@ -1322,8 +1399,10 @@ public:
             if (sym.is_independent_var()) {
                 auto id = sym.get_id();
                 if (symbol_value_map.count(id)) {
-                    if (symbol_value_map[id] != value) {
-                        _VERBOSE_LOG(" in-consistency between multiple references of same symbol : ",
+                    if (sym.validate && symbol_value_map[id] != value) {
+                        _VERBOSE_LOG(" in-consistency between multiple references of same symbol(",
+                                     sym.get_name(),
+                                     "): ",
                                      symbol_value_map[id],
                                      " != ",
                                      value);
@@ -1339,7 +1418,12 @@ public:
             if (sym.is_literal_const()) {
                 auto literal = sym.eval(symbol_value_map);
                 if (literal != value) {
-                    _VERBOSE_LOG(" mismatch between literal symbol & value : ", literal, " != ", value);
+                    _VERBOSE_LOG(" mismatch between literal symbol & value(",
+                                 sym.get_name(),
+                                 "): ",
+                                 literal,
+                                 " != ",
+                                 value);
                     return false;
                 }
                 // no need to put literal into value map to eval them.
@@ -1367,7 +1451,9 @@ public:
                     }
                 }
                 if (!is_match) {
-                    _VERBOSE_LOG(" mismatch between derived & value : ",
+                    _VERBOSE_LOG(" mismatch between derived & value(",
+                                 sym.get_name(),
+                                 "): ",
                                  std::setprecision(std::numeric_limits<float>::max_digits10),
                                  derived,
                                  " != ",

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,6 +74,7 @@ class OPENVINO_API AttributeAdapter<op::v0::SpaceToDepth::SpaceToDepthMode>
 public:
     AttributeAdapter(op::v0::SpaceToDepth::SpaceToDepthMode& value)
         : EnumAttributeAdapterBase<op::v0::SpaceToDepth::SpaceToDepthMode>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v0::SpaceToDepth::SpaceToDepthMode>");
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -663,7 +663,7 @@ bool Constant::evaluate_upper(TensorVector& outputs) const {
     return evaluate(outputs, {});
 }
 
-bool Constant::constant_fold(OutputVector&, const OutputVector&) {
+bool Constant::can_constant_fold(const OutputVector& input_values) const {
     return false;
 }
 

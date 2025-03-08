@@ -1,8 +1,10 @@
 {
     "binarySearchRes": {
         "repoPath": "./",
-        "cachePath": "../slider_cache",
-        "logPath": "../log",
+        "userCachePath": "{testDir}/test_cache/",
+        "userLogPath" : "{testDir}/test_log/",
+        "clearLogsAposteriori" : true,
+        "clearCache" : true,
         "patchGeneratorPrefix": "const char \\*patchGenerator = R\"V0G0N\\(",
         "patchGeneratorPostfix": "\\)V0G0N\";",
         "mainFile": "main.cpp",
@@ -33,6 +35,196 @@
                 "stopPattern" : "(.)*failed(.)*"
             }
         }
+    },
+    "CustomizedLog": {
+        "repoName": "firstBadVersion",
+        "patchedFile": "tests_res/fbv_main.cpp",
+        "testCfg": {
+            "appCmd" : "{appCmd}",
+            "appPath": "{appPath}",
+            "gitPath" : "{gitPath}",
+            "userLogPath" : "{testDir}/test_log/sub_log/",
+            "clearLogsAposteriori" : false,
+            "buildPath" : "{buildPath}",
+            "verboseOutput": false,
+            "runConfig" : {
+                "commitList" : {
+                    "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
+                },
+                "mode" : "checkOutput",
+                "traversal" : "firstFailedVersion",
+                "stopPattern" : "(.)*failed(.)*"
+            }
+        }
+    },
+    "MultiConfig": {
+        "repoName": "firstBadVersion",
+        "patchedFile": "tests_res/fbv_main.cpp",
+        "testCfg": [
+            {
+                "appCmd" : "{appCmd}",
+                "appPath": "{appPath}",
+                "gitPath" : "{gitPath}",
+                "userLogPath" : "{testDir}/test_log/sub_log_0/",
+                "clearLogsAposteriori" : false,
+                "buildPath" : "{buildPath}",
+                "verboseOutput": false,
+                "runConfig" : {
+                    "commitList" : {
+                        "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
+                    },
+                    "mode" : "nop",
+                    "traversal" : "bruteForce",
+                    "msg" : "cfg #0"
+                }
+            },
+            {
+                "appCmd" : "{appCmd}",
+                "appPath": "{appPath}",
+                "gitPath" : "{gitPath}",
+                "userLogPath" : "{testDir}/test_log/sub_log_1/",
+                "clearLogsAposteriori" : false,
+                "buildPath" : "{buildPath}",
+                "verboseOutput": false,
+                "runConfig" : {
+                    "commitList" : {
+                        "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
+                    },
+                    "mode" : "nop",
+                    "traversal" : "bruteForce",
+                    "msg" : "cfg #1"
+                }
+            },
+            {
+                "appCmd" : "{appCmd}",
+                "appPath": "{appPath}",
+                "gitPath" : "{gitPath}",
+                "userLogPath" : "{testDir}/test_log/sub_log_2/",
+                "clearLogsAposteriori" : false,
+                "buildPath" : "{buildPath}",
+                "verboseOutput": false,
+                "runConfig" : {
+                    "commitList" : {
+                        "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
+                    },
+                    "mode" : "nop",
+                    "traversal" : "bruteForce",
+                    "msg" : "cfg #2"
+                }
+            }
+        ]
+    },
+    "ConfigMultiplicatorByKey": {
+        "testCfg":
+        {
+            "appCmd" : "{appCmd}",
+            "appPath": "{appPath}",
+            "gitPath" : "{gitPath}",
+            "userLogPath" : {
+                "multiplication_type": "dot_product",
+                "multiplication_key": [
+                    "{testDir}/test_log/sub_log_0/",
+                    "{testDir}/test_log/sub_log_1/",
+                    "{testDir}/test_log/sub_log_2/"
+                ]
+            },
+            "clearLogsAposteriori" : false,
+            "buildPath" : "{buildPath}",
+            "verboseOutput": false,
+            "runConfig" : {
+                "commitList" : {
+                    "getCommitListCmd" : {
+                        "multiplication_type": "dot_product",
+                        "multiplication_key": [
+                            "git log start_0..end_0 --boundary --pretty=\"%h\"",
+                            "git log start_1..end_1 --boundary --pretty=\"%h\"",
+                            "git log start_2..end_2 --boundary --pretty=\"%h\""
+                        ]
+                    }
+                },
+                "someKey" : ["dot_product", "", "dot_product"],
+                "complexOblect": {"multiplication_key": [
+                    {"k1" : "v0", "k2" : ["v00", "v01"]},
+                    {"k1" : "v1", "k2" : ["v10", "v11"]},
+                    {"k1" : "v2", "k2" : ["v20", "v21"]}
+                ]},
+                "someList" : [
+                    "val_0", "val_1",
+                    {"multiplication_key": [
+                        "val_20",
+                        "val_21",
+                        "val_22"
+                    ]}
+                ],
+                "mode" : "nop",
+                "traversal" : "bruteForce",
+                "msg" : {
+                    "multiplication_type": "dot_product",
+                    "multiplication_key": ["cfg #1", "cfg #2", "cfg #3"]
+                }
+            }
+        },
+        "multipliedCfg" : [{"appCmd":"{appCmd}","appPath":"{appPath}","buildPath":"{buildPath}","clearLogsAposteriori":false,"gitPath":"{gitPath}","runConfig":{"commitList":{"getCommitListCmd":"git log start_0..end_0 --boundary --pretty=\"%h\""},"complexOblect":{"k1":"v0","k2":["v00","v01"]},"mode":"nop","msg":"cfg #1","someKey":["dot_product","","dot_product"],"someList":["val_0","val_1","val_20"],"traversal":"bruteForce"},"userLogPath":"{testDir}/test_log/sub_log_0/","verboseOutput":false},{"appCmd":"{appCmd}","appPath":"{appPath}","buildPath":"{buildPath}","clearLogsAposteriori":false,"gitPath":"{gitPath}","runConfig":{"commitList":{"getCommitListCmd":"git log start_1..end_1 --boundary --pretty=\"%h\""},"complexOblect":{"k1":"v1","k2":["v10","v11"]},"mode":"nop","msg":"cfg #2","someKey":["dot_product","","dot_product"],"someList":["val_0","val_1","val_21"],"traversal":"bruteForce"},"userLogPath":"{testDir}/test_log/sub_log_1/","verboseOutput":false},{"appCmd":"{appCmd}","appPath":"{appPath}","buildPath":"{buildPath}","clearLogsAposteriori":false,"gitPath":"{gitPath}","runConfig":{"commitList":{"getCommitListCmd":"git log start_2..end_2 --boundary --pretty=\"%h\""},"complexOblect":{"k1":"v2","k2":["v20","v21"]},"mode":"nop","msg":"cfg #3","someKey":["dot_product","","dot_product"],"someList":["val_0","val_1","val_22"],"traversal":"bruteForce"},"userLogPath":"{testDir}/test_log/sub_log_2/","verboseOutput":false}]
+    },
+    "MultiConfigWithKey": {
+        "repoName": "firstBadVersion",
+        "patchedFile": "tests_res/fbv_main.cpp",
+        "testCfg": {
+                "appCmd" : "{appCmd}",
+                "appPath": "{appPath}",
+                "gitPath" : "{gitPath}",
+                "userLogPath" : {
+                    "multiplication_type": "dot_product",
+                    "multiplication_key": [
+                        "{testDir}/test_log/sub_log_0/",
+                        "{testDir}/test_log/sub_log_1/",
+                        "{testDir}/test_log/sub_log_2/"
+                    ]
+                },
+                "clearLogsAposteriori" : false,
+                "buildPath" : "{buildPath}",
+                "verboseOutput": false,
+                "runConfig" : {
+                    "commitList" : {
+                        "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
+                    },
+                    "mode" : "nop",
+                    "traversal" : "bruteForce",
+                    "msg" : {
+                        "multiplication_type": "dot_product",
+                        "multiplication_key": [
+                            "cfg #0",
+                            "cfg #1",
+                            "cfg #2"
+                        ]
+                    }
+                }
+            }
+    },
+    "ConfigMultiplicator": {
+        "repoName": "firstBadVersion",
+        "patchedFile": "tests_res/fbv_main.cpp",
+        "testCfg":
+            {
+                "appCmd" : "{appCmd}",
+                "appPath": "{appPath}",
+                "gitPath" : "{gitPath}",
+                "userLogPath" : "{testDir}/test_log/sub_log_0/",
+                "clearLogsAposteriori" : false,
+                "buildPath" : "{buildPath}",
+                "verboseOutput": false,
+                "runConfig" : {
+                    "commitList" : {
+                        "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
+                    },
+                    "mode" : "nop",
+                    "traversal" : "bruteForce",
+                    "msg" : {
+                        "multiplication_type": "dot_product",
+                        "multiplication_key": ["cfg #1", "cfg #2", "cfg #3"]
+                    }
+                }
+            }
     },
     "BmBinarySearchUnstable": {
         "repoName": "BmBinarySearchUnstable",
@@ -153,9 +345,9 @@
             }
         }
     },
-    "ACMode": {
-        "repoName": "BmBinarySearchUnstable",
-        "patchedFile": "tests_res/fbv_ac_mode.cpp",
+    "ACModeBitwise": {
+        "repoName": "ACModeBitwise",
+        "patchedFile": "tests_res/fbv_ac_mode_bitwise.cpp",
         "testCfg": {
             "appCmd" : "{appCmd}",
             "appPath": "{appPath}",
@@ -168,6 +360,25 @@
                 },
                 "mode" : "ac",
                 "traversal" : "firstFailedVersion",
+                "threshold": "80%"
+            }
+        }
+    },
+    "ACMode": {
+        "repoName": "ACMode",
+        "patchedFile": "tests_res/fbv_ac_mode.cpp",
+        "testCfg": {
+            "appCmd" : "{appCmd}",
+            "appPath": "{appPath}",
+            "gitPath" : "{gitPath}",
+            "buildPath" : "{buildPath}",
+            "verboseOutput": false,
+            "runConfig" : {
+                "commitList" : {
+                    "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
+                },
+                "mode" : "ac",
+                "traversal" : "allBreaks",
                 "threshold": "80%"
             }
         }

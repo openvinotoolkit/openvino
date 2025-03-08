@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -124,7 +124,7 @@ inference_with_streams(const std::string &model, const std::string &target_devic
             log_err("Failed to query OPTIMAL_NUMBER_OF_INFER_REQUESTS");
         }
 
-        for (int counter = 0; counter < nireq; counter++) {
+        for (unsigned int counter = 0; counter < nireq; counter++) {
             ie_api_wrapper->create_infer_request();
             ie_api_wrapper->prepare_input();
             ie_api_wrapper->infer();

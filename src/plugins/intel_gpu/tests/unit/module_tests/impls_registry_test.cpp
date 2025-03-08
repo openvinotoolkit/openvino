@@ -4,7 +4,7 @@
 
 #include <memory>
 
-#include "impls/registry/registry.hpp"
+#include "registry/registry.hpp"
 #include "intel_gpu/primitives/adaptive_pooling.hpp"
 #include "intel_gpu/primitives/arg_max_min.hpp"
 #include "intel_gpu/primitives/assign.hpp"
@@ -44,7 +44,6 @@
 #include "intel_gpu/primitives/group_normalization.hpp"
 #include "intel_gpu/primitives/kv_cache.hpp"
 #include "intel_gpu/primitives/loop.hpp"
-#include "intel_gpu/primitives/lstm.hpp"
 #include "intel_gpu/primitives/matrix_nms.hpp"
 #include "intel_gpu/primitives/multiclass_nms.hpp"
 #include "intel_gpu/primitives/multinomial.hpp"
@@ -86,6 +85,7 @@
 #include "intel_gpu/primitives/swiglu.hpp"
 #include "intel_gpu/primitives/tile.hpp"
 #include "intel_gpu/primitives/unique.hpp"
+#include "intel_gpu/primitives/fake_convert.hpp"
 #include "primitive_inst.h"
 #include "test_utils.h"
 
@@ -176,7 +176,6 @@ TEST(registry_test, no_null_impls) {
                 cldnn::group_normalization,
                 cldnn::kv_cache,
                 cldnn::lrn,
-                cldnn::lstm_elt,
                 cldnn::multiclass_nms,
                 cldnn::multinomial,
                 cldnn::mutable_data,
@@ -228,5 +227,6 @@ TEST(registry_test, no_null_impls) {
                 cldnn::unique_count,
                 cldnn::unique_gather,
                 cldnn::scaled_dot_product_attention,
-                cldnn::rope>();
+                cldnn::rope,
+                cldnn::fake_convert>();
 }

@@ -6,7 +6,7 @@
 
 #include "primitive_inst.h"
 #include "intel_gpu/runtime/memory.hpp"
-#include "impls/registry/registry.hpp"
+#include "registry/registry.hpp"
 #include "runtime/ocl/ocl_event.hpp"
 
 #include <vector>
@@ -45,13 +45,13 @@ protected:
             for (auto& e : native_events) {
                 events.push_back(std::make_shared<ocl::ocl_event>(cl::Event(e, true)));
             }
-            return events.empty() ? stream.create_user_event(true) : stream.group_events(events);
+            return stream.aggregate_events(events);
         } else {
-            return stream.create_user_event(true);
+            return nullptr;
         }
     }
 
-    std::vector<layout> get_internal_buffer_layouts_impl() const override {
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
         return {};
     }
 };

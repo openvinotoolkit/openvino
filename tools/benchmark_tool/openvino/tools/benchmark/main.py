@@ -1,11 +1,12 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 import sys
+import platform
 from datetime import datetime
 
-from openvino.runtime import Dimension,properties
+from openvino import Dimension, properties
 
 from openvino.tools.benchmark.benchmark import Benchmark
 from openvino.tools.benchmark.parameters import parse_args
@@ -21,6 +22,28 @@ from openvino.tools.benchmark.utils.utils import next_step, get_number_iteration
     check_for_static, can_measure_as_static, parse_value_for_virtual_device, is_virtual_device, is_virtual_device_found
 from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, JsonStatisticsReport, CsvStatisticsReport, \
     averageCntReport, detailedCntReport
+
+def get_peak_memory_usage():    
+    if platform.system() == "Linux":
+        with open("/proc/self/status", "r") as f:
+            for line in f:
+                if line.startswith("VmPeak:"):
+                    return int(line.split()[1])  # The value in KB
+        raise RuntimeError("VmPeak attribute not found. Unable to determine peak memory usage.")
+    
+    # No Windows support due to the lack of the ‘psutil’ module in the CI infrastructure
+    # No Macos support due to no /proc/self/status file
+    return None
+
+def log_memory_usage(logger, start_mem_usage, end_mem_usage, action_name):
+    if start_mem_usage is None or end_mem_usage is None:
+        return
+
+    capitalized_action_name = action_name.capitalize()
+    action_name = "compilation" if action_name == "compile" else action_name
+    logger.info(f"Start of {action_name} memory usage: Peak {start_mem_usage} KB")
+    logger.info(f"End of {action_name} memory usage: Peak {end_mem_usage} KB")
+    logger.info(f"{capitalized_action_name} model ram used {end_mem_usage - start_mem_usage} KB")
 
 def parse_and_check_command_line():
     def arg_not_empty(arg_value,empty_value):
@@ -48,6 +71,13 @@ def parse_and_check_command_line():
     if is_network_compiled and is_precisiton_set:
         raise Exception("Cannot set precision for a compiled model. " \
                         "Please re-compile your model with required precision.")
+
+    if args.api_type == "":
+        args.api_type = "sync" if args.perf_hint == "latency" else "async"
+
+    if args.api_type == "sync":
+        if args.time == 0 and (args.number_infer_requests > args.number_iterations):
+            raise Exception("Number of infer requests should be less than or equal to number of iterations in sync mode.")
 
     return args, is_network_compiled
 
@@ -85,7 +115,8 @@ def main():
         next_step(step_id=2)
 
         benchmark = Benchmark(args.target_device, args.number_infer_requests,
-                              args.number_iterations, args.time, args.api_type, args.inference_only)
+                              args.number_iterations, args.time, args.api_type,
+                              args.inference_only, args.maximum_inference_rate)
 
         if args.extensions:
             benchmark.add_extension(path_to_extensions=args.extensions)
@@ -284,11 +315,6 @@ def main():
                 return
 
             def set_nthreads_pin(property_name, property_value):
-                if property_name == properties.affinity():
-                    if property_value == "YES":
-                        property_value = properties.Affinity.CORE
-                    elif property_value == "NO":
-                        property_value = properties.Affinity.NONE
                 if property_name in supported_properties or device_name == AUTO_DEVICE_NAME:
                     # create nthreads/pin primary property for HW device or AUTO if -d is AUTO directly.
                     config[device][property_name] = property_value
@@ -305,7 +331,7 @@ def main():
 
             if is_flag_set_in_command_line('pin'):
                 ## set for CPU to user defined value
-                set_nthreads_pin(properties.affinity(), args.infer_threads_pinning)
+                set_nthreads_pin(properties.hint.enable_cpu_pinning(), args.infer_threads_pinning)
 
             set_throughput_streams()
             set_infer_precision()
@@ -346,10 +372,15 @@ def main():
             # --------------------- 7. Loading the model to the device -------------------------------------------------
             next_step()
 
+            start_mem_usage = get_peak_memory_usage()
             start_time = datetime.utcnow()
+
             compiled_model = benchmark.core.compile_model(args.path_to_model, benchmark.device, device_config)
+
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
+            end_mem_usage = get_peak_memory_usage()
             logger.info(f"Compile model took {duration_ms} ms")
+            log_memory_usage(logger, start_mem_usage, end_mem_usage, "compile")
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
@@ -408,11 +439,15 @@ def main():
 
             # --------------------- 7. Loading the model to the device -------------------------------------------------
             next_step()
+            start_mem_usage = get_peak_memory_usage()
             start_time = datetime.utcnow()
-            compiled_model = benchmark.core.compile_model(model, benchmark.device, device_config)
 
+            compiled_model = benchmark.core.compile_model(model, benchmark.device, device_config)
+            
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
+            end_mem_usage = get_peak_memory_usage()
             logger.info(f"Compile model took {duration_ms} ms")
+            log_memory_usage(logger, start_mem_usage, end_mem_usage, "compile")
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
@@ -432,10 +467,15 @@ def main():
             # --------------------- 7. Loading the model to the device -------------------------------------------------
             next_step()
 
+            start_mem_usage = get_peak_memory_usage()
             start_time = datetime.utcnow()
+
             compiled_model = benchmark.core.import_model(args.path_to_model, benchmark.device, device_config)
+
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
+            end_mem_usage = get_peak_memory_usage()
             logger.info(f"Import model took {duration_ms} ms")
+            log_memory_usage(logger, start_mem_usage, end_mem_usage, "import")
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [

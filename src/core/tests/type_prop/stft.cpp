@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -104,6 +104,14 @@ INSTANTIATE_TEST_SUITE_P(
     type_prop_stft_shape,
     TypePropSTFTTestP,
     testing::Values(
+        std::make_tuple(PartialShape{16}, PartialShape{16}, 16, 16, true, PartialShape{9, 1, 2}),
+        std::make_tuple(PartialShape{48}, PartialShape{16}, 16, 16, false, PartialShape{3, 9, 2}),
+        std::make_tuple(PartialShape{56}, PartialShape{7}, 11, 3, false, PartialShape{16, 6, 2}),
+        std::make_tuple(PartialShape{56}, PartialShape{7}, 11, 3, true, PartialShape{6, 16, 2}),
+        std::make_tuple(PartialShape{48}, PartialShape{8}, 16, 4, true, PartialShape{9, 9, 2}),
+        std::make_tuple(PartialShape{{48, 56}}, PartialShape{7}, 11, 3, true, PartialShape{6, {13, 16}, 2}),
+        std::make_tuple(PartialShape{-1}, PartialShape{7}, 11, 3, true, PartialShape{6, {1, -1}, 2}),
+        std::make_tuple(PartialShape{1, 16}, PartialShape{16}, 16, 16, true, PartialShape{1, 9, 1, 2}),
         std::make_tuple(PartialShape{1, 48}, PartialShape{16}, 16, 16, true, PartialShape{1, 9, 3, 2}),
         std::make_tuple(PartialShape{1, 48}, PartialShape{16}, 16, 16, false, PartialShape{1, 3, 9, 2}),
         std::make_tuple(PartialShape{2, 48}, PartialShape{8}, 16, 4, true, PartialShape{2, 9, 9, 2}),
@@ -138,16 +146,16 @@ TEST_F(TypePropSTFTTest, signal_incompatible_shape) {
     const auto frame_size = std::make_shared<Parameter>(element::i64, PartialShape{});
     const auto frame_step = std::make_shared<Parameter>(element::i64, PartialShape{});
     {
-        const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{48});
+        const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{});
         OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
                         NodeValidationFailure,
-                        HasSubstr("The shape of signal must be 2D [batch, signal_size]"));
+                        HasSubstr("The shape of signal must be 1D [signal_size] or 2D [batch, signal_size]"));
     }
     {
         const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{-1, 4, 48});
         OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
                         NodeValidationFailure,
-                        HasSubstr("The shape of signal must be 2D [batch, signal_size]"));
+                        HasSubstr("The shape of signal must be 1D [signal_size] or 2D [batch, signal_size]"));
     }
 }
 

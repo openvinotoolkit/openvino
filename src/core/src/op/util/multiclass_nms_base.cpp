@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -98,4 +98,6 @@ EnumNames<op::util::MulticlassNmsBase::SortResultType>::get() {
          {"none", op::util::MulticlassNmsBase::SortResultType::NONE}});
     return enum_names;
 }
+
+AttributeAdapter<op::util::MulticlassNmsBase::SortResultType>::~AttributeAdapter() = default;
 }  // namespace ov

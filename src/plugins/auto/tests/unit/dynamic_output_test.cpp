@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,6 @@
 
 #include "include/auto_unit_test.hpp"
 #include "openvino/runtime/threading/immediate_executor.hpp"
-
 using DynamicOutputConfigParams = std::tuple<ov::Any,  // priority device list
                                              ov::Any   // expected device to run inference on
                                              >;
@@ -21,14 +20,18 @@ public:
         mockExecutor.reset();
         mockExecutorActual.reset();
         mockInferrequest.reset();
+        mockInferrequest_2.reset();
         mockInferrequestActual.reset();
+        mockInferrequestActual_2.reset();
     }
 
 protected:
     ov::Any priorityList;
     ov::Any targetList;
     std::shared_ptr<ov::mock_auto_plugin::MockAsyncInferRequest> mockInferrequest;
+    std::shared_ptr<ov::mock_auto_plugin::MockAsyncInferRequest> mockInferrequest_2;
     std::shared_ptr<ov::mock_auto_plugin::MockAsyncInferRequest> mockInferrequestActual;
+    std::shared_ptr<ov::mock_auto_plugin::MockAsyncInferRequest> mockInferrequestActual_2;
     std::shared_ptr<ov::threading::ImmediateExecutor> mockExecutor;
     std::shared_ptr<ov::threading::ImmediateExecutor> mockExecutorActual;
 };
@@ -53,13 +56,28 @@ void DynamicOutputInferenceTest::SetUp() {
     mockExecutorActual = std::make_shared<ov::threading::ImmediateExecutor>();
     mockInferrequest =
         std::make_shared<ov::mock_auto_plugin::MockAsyncInferRequest>(inferReqInternal, mockExecutor, nullptr, false);
+    // will be at least 2 infer requests for mocked CPU/GPU
+    auto inferReqInternal_2 = std::make_shared<ov::mock_auto_plugin::MockISyncInferRequest>(mockIExeNet);
+    mockInferrequest_2 =
+        std::make_shared<ov::mock_auto_plugin::MockAsyncInferRequest>(inferReqInternal_2, mockExecutor, nullptr, false);
+
+    auto inferReqInternalActual_2 = std::make_shared<ov::mock_auto_plugin::MockISyncInferRequest>(mockIExeNetActual);
+
     mockInferrequestActual = std::make_shared<ov::mock_auto_plugin::MockAsyncInferRequest>(inferReqInternalActual,
                                                                                            mockExecutorActual,
                                                                                            nullptr,
                                                                                            false);
+    mockInferrequestActual_2 = std::make_shared<ov::mock_auto_plugin::MockAsyncInferRequest>(inferReqInternalActual_2,
+                                                                                             mockExecutorActual,
+                                                                                             nullptr,
+                                                                                             false);
+
     std::tie(priorityList, targetList) = GetParam();
     auto targets = targetList.as<std::vector<std::string>>();
     ON_CALL(*core, get_available_devices()).WillByDefault(Return(targets));
+        std::vector<std::string> deviceIDs = {};
+        ON_CALL(*core, get_property(StrEq("GPU"), StrEq(ov::available_devices.name()), _))
+            .WillByDefault(RETURN_MOCK_VALUE(deviceIDs));
     for (auto device : targets) {
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
@@ -103,11 +121,12 @@ TEST_P(DynamicOutputInferenceTest, CanInferWithOutputChangedFromDynamicOnAutoToS
         auto tensor = inferReqInternal->get_tensor(it);
         tensor->set_shape(ov::Shape{2, 3});
     }
-    ON_CALL(*mockIExeNet.get(), create_infer_request()).WillByDefault(Return(mockInferrequest));
-    ON_CALL(*mockIExeNetActual.get(), create_infer_request()).WillByDefault(InvokeWithoutArgs([this]() {
-        std::this_thread::sleep_for(std::chrono::milliseconds(0));
-        return mockInferrequestActual;
-    }));
+    EXPECT_CALL(*mockIExeNet.get(), create_infer_request())
+        .WillOnce(Return(mockInferrequest))
+        .WillOnce(Return(mockInferrequest_2));
+    EXPECT_CALL(*mockIExeNetActual.get(), create_infer_request())
+        .WillOnce(Return(mockInferrequestActual))
+        .WillOnce(Return(mockInferrequestActual_2));
     config.insert(ov::device::priorities(priorityList.as<std::string>()));
     config.insert(ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
     std::shared_ptr<ov::ICompiledModel> exeNetwork;

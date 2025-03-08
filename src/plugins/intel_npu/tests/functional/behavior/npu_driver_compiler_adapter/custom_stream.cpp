@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <chrono>
@@ -8,15 +8,16 @@
 #include "common/functions.h"
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
-#include "graph_transformations.hpp"
-#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/config/common.hpp"
+#include "ir_serializer.hpp"
 #include "openvino/opsets/opset11.hpp"
+
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
                                      >;
 
-using IRSerializer = intel_npu::driverCompilerAdapter::IRSerializer;
+using IRSerializer = intel_npu::driver_compiler_utils::IRSerializer;
 
 namespace ov::test::behavior {
 

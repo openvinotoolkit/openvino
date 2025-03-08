@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -102,8 +102,6 @@ void DFTLayerTest::SetUp() {
 
     if (model_type == ov::element::f32) {
         abs_threshold = 8e-5;
-    } else if (model_type == ov::element::bf16) {
-        abs_threshold = 5e-7;
     }
 }
 }  // namespace test

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,7 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 // @todo executor is not complete and covers only 1x1 fallback case for fullyconnected node
 class DnnlConvolutionPrimitive {
@@ -30,7 +29,7 @@ class DnnlConvolutionPrimitive {
 
         const dnnl::primitive_attr attr;
 
-        size_t hash() const;
+        [[nodiscard]] size_t hash() const;
         bool operator==(const Key& rhs) const;
     };
 
@@ -41,35 +40,35 @@ public:
 
     void execute(const dnnl_primitive_args& primArgs) const;
 
-    const DnnlMemoryDescPtr srcDesc() const {
+    [[nodiscard]] const DnnlMemoryDescPtr srcDesc() const {
         return m_srcDesc;
     }
 
-    const DnnlMemoryDescPtr dstDesc() const {
+    [[nodiscard]] const DnnlMemoryDescPtr dstDesc() const {
         return m_dstDesc;
     }
 
-    const DnnlMemoryDescPtr weightsDesc() const {
+    [[nodiscard]] const DnnlMemoryDescPtr weightsDesc() const {
         return m_weiDesc;
     }
 
-    const DnnlMemoryDescPtr scratchPadDesc() const {
+    [[nodiscard]] const DnnlMemoryDescPtr scratchPadDesc() const {
         return m_scratchPadDesc;
     }
 
-    impl_desc_type implType() const {
+    [[nodiscard]] impl_desc_type implType() const {
         return m_implType;
     }
 
-    static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc,
-                                                            const DnnlMemoryDescPtr dstDesc,
+    static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
+                                                            const DnnlMemoryDescPtr& dstDesc,
                                                             bool weightsNonTransposed);
 
     // create shape agnostic data using FC attributes (1x1 Convolution as FC executor)
     static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const FCAttrs& attrs,
                                                             const PostOps& postOps,
                                                             const MemoryArgs& memory,
-                                                            const ExecutorContext::CPtr context,
+                                                            const ExecutorContext::CPtr& context,
                                                             const bool cacheWeights);
 
     static std::shared_ptr<DnnlConvolutionPrimitive> create(const MemoryArgs& memory,
@@ -90,5 +89,4 @@ private:
 
 using DnnlConvExecutorPtr = std::shared_ptr<DnnlConvolutionPrimitive>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

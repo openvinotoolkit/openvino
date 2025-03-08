@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ public:
             return equal(value);
         }
 
-        ov::element::Type outPrecision = ov::element::undefined;
+        ov::element::Type outPrecision = ov::element::dynamic;
         bool addDequantizationAttribute = true;
     private:
         bool isEmpty;
@@ -35,16 +35,15 @@ public:
         Subtract(const float value, const bool toRemove = true);
         Subtract(const std::vector<float>& values);
         Subtract(const std::vector<float>& values, const ov::element::Type outPrecision);
-        Subtract(
-            const std::vector<float>& values,
-            const ov::element::Type outPrecision,
-            const ov::Shape& constantShape,
-            const bool toRemove = false,
-            const size_t constantIndex = 1ul,
-            const ov::element::Type constantPrecision = ov::element::undefined,
-            const bool addConvert = false,
-            const ov::Node::RTMap& attributes = {},
-            const ov::Node::RTMap& convertAttributes = {});
+        Subtract(const std::vector<float>& values,
+                 const ov::element::Type outPrecision,
+                 const ov::Shape& constantShape,
+                 const bool toRemove = false,
+                 const size_t constantIndex = 1ul,
+                 const ov::element::Type constantPrecision = ov::element::dynamic,
+                 const bool addConvert = false,
+                 const ov::Node::RTMap& attributes = {},
+                 const ov::Node::RTMap& convertAttributes = {});
         bool empty() const noexcept;
         bool equal(const DequantizationOperations::Subtract& value) const noexcept;
         bool operator==(const Subtract& value) const noexcept {
@@ -57,11 +56,11 @@ public:
         Subtract& setAddConvert(bool value);
 
         std::vector<float> values;
-        ov::element::Type outPrecision = ov::element::undefined;
+        ov::element::Type outPrecision = ov::element::dynamic;
         ov::Shape constantShape;
         bool constantShapeIsDefined = false;
         size_t constantIndex = 1ul;
-        ov::element::Type constantPrecision = ov::element::undefined;
+        ov::element::Type constantPrecision = ov::element::dynamic;
         bool addConvert = false;
         ov::Node::RTMap attributes;
         ov::Node::RTMap convertAttributes;
@@ -76,14 +75,13 @@ public:
         Multiply(const float value);
         Multiply(const std::vector<float>& values);
         Multiply(const std::vector<float>& values, const ov::element::Type outPrecision);
-        Multiply(
-            const std::vector<float>& values,
-            const ov::element::Type outPrecision,
-            const ov::Shape& constantShape,
-            const bool toRemove = false,
-            const size_t constantIndex = 1ul,
-            const ov::element::Type constantPrecision = ov::element::undefined,
-            const bool addConvert = false);
+        Multiply(const std::vector<float>& values,
+                 const ov::element::Type outPrecision,
+                 const ov::Shape& constantShape,
+                 const bool toRemove = false,
+                 const size_t constantIndex = 1ul,
+                 const ov::element::Type constantPrecision = ov::element::dynamic,
+                 const bool addConvert = false);
         bool empty() const noexcept;
         bool equal(const DequantizationOperations::Multiply& value) const noexcept;
         bool operator==(const Multiply& value) const noexcept {
@@ -93,11 +91,11 @@ public:
         Multiply& setAddConvert(bool value);
 
         std::vector<float> values;
-        ov::element::Type outPrecision = ov::element::undefined;
+        ov::element::Type outPrecision = ov::element::dynamic;
         ov::Shape constantShape;
         bool constantShapeIsDefined = false;
         size_t constantIndex = 1ul;
-        ov::element::Type constantPrecision = ov::element::undefined;
+        ov::element::Type constantPrecision = ov::element::dynamic;
         bool addConvert = false;
 
     private:
@@ -124,7 +122,7 @@ inline std::ostream& operator<<(std::ostream& out, const DequantizationOperation
     if (convert.empty()) {
         return out << "{}";
     }
-    return out << "_" << (convert.outPrecision != ov::element::undefined ? convert.outPrecision.get_type_name() : "");
+    return out << "_" << (convert.outPrecision != ov::element::dynamic ? convert.outPrecision.get_type_name() : "");
 }
 
 inline std::ostream& operator<<(std::ostream& out, const DequantizationOperations::Subtract& subtract) {

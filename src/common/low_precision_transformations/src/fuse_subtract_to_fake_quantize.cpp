@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,16 +25,16 @@ FuseSubtractToFakeQuantizeTransformation::FuseSubtractToFakeQuantizeTransformati
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool FuseSubtractToFakeQuantizeTransformation::transform(ov::pass::pattern::Matcher &m) {
     const auto subtract = m.get_match_root();
-    if (!canBeTransformed(context, subtract)) {
+    if (!canBeTransformed(subtract)) {
         return false;
     }
 
@@ -51,37 +51,34 @@ bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& 
         return false;
     }
 
-    auto outputLowConst_f32 = foldConvert(fakeQuantize->input_value(3), deqPrecision);
-    auto outputHighConst_f32 = foldConvert(fakeQuantize->input_value(4), deqPrecision);
+    auto outputLow = foldConvert(fakeQuantize->input_value(3), deqPrecision);
+    auto outputHigh = foldConvert(fakeQuantize->input_value(4), deqPrecision);
+    const auto subValue = foldConvert(subtractConstant, deqPrecision);
 
-    const auto value = subtractConstant->get_output_element_type(0) == element::f32 ?
-        subtractConstant :
-        foldConvert(subtractConstant, deqPrecision);
-
-    outputLowConst_f32 = fold<ov::opset1::Subtract>(outputLowConst_f32, value);
-    outputHighConst_f32 = fold<ov::opset1::Subtract>(outputHighConst_f32, value);
+    outputLow = fold<ov::opset1::Subtract>(outputLow, subValue);
+    outputHigh = fold<ov::opset1::Subtract>(outputHigh, subValue);
 
     const auto inputLow = foldConvert(fakeQuantize->input_value(1), deqPrecision);
     const auto inputHigh = foldConvert(fakeQuantize->input_value(2), deqPrecision);
     NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(1), inputLow);
     NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(2), inputHigh);
-    NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(3), outputLowConst_f32);
-    NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(4), outputHighConst_f32);
+    NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(3), outputLow);
+    NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(4), outputHigh);
 
     auto newFakeQuantize = std::make_shared<ov::op::TypeRelaxed<ov::opset1::FakeQuantize>>(
         ov::opset1::FakeQuantize(
             fakeQuantize->input_value(0),
             inputLow,
             inputHigh,
-            outputLowConst_f32,
-            outputHighConst_f32,
+            outputLow,
+            outputHigh,
             fakeQuantize->get_levels()),
         subtract->get_output_element_type(0));
 
     replace_node(subtract, newFakeQuantize);
     NetworkHelper::copyInfo(fakeQuantize, newFakeQuantize);
 
-    updateOutput(context, newFakeQuantize, subtract);
+    updateOutput(newFakeQuantize, subtract);
     return true;
 }
 

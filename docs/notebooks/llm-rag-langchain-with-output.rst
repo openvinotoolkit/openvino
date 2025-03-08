@@ -97,17 +97,20 @@ Install required dependencies
 
     import os
     import requests
+    from pathlib import Path
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    with open("notebook_utils.py", "w") as f:
-        f.write(r.text)
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        with open("notebook_utils.py", "w") as f:
+            f.write(r.text)
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/pip_helper.py",
-    )
-    open("pip_helper.py", "w").write(r.text)
+    if not Path("pip_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/pip_helper.py",
+        )
+        open("pip_helper.py", "w").write(r.text)
     
     from pip_helper import pip_install
     
@@ -127,7 +130,8 @@ Install required dependencies
         "onnx<1.16.2",
         "einops",
         "transformers_stream_generator",
-        "tiktoken" "transformers>=4.43.1",
+        "tiktoken",
+        "transformers>=4.43.1",
         "faiss-cpu",
         "sentence_transformers",
         "langchain>=0.2.0",
@@ -137,7 +141,13 @@ Install required dependencies
         "scikit-learn",
         "python-docx",
         "pypdf",
+        "huggingface-hub>=0.26.5",
     )
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("llm-rag-langchain.ipynb")
 
 .. code:: ipython3
 

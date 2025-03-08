@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -626,6 +626,16 @@ void clKernelData::load(cldnn::BinaryInputBuffer& ib) {
         micro_kernels.push_back(microkernel);
     }
 #endif
+}
+
+void InternalBuffer::save(cldnn::BinaryOutputBuffer& ob) const {
+    ob << lockable;
+    ob << byte_count;
+}
+
+void InternalBuffer::load(cldnn::BinaryInputBuffer& ib) {
+    ib >> lockable;
+    ib >> byte_count;
 }
 
 }  // namespace kernel_selector

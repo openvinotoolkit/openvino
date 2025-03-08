@@ -68,19 +68,40 @@ Prerequisites
 
 .. code:: ipython3
 
+    import requests
+    from pathlib import Path
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py")
+        open("cmd_helper.py", "w", encoding="utf-8").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("llm-agent-react-langchain.ipynb")
+
+.. code:: ipython3
+
     import os
     
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
     
     %pip install -Uq pip
     %pip uninstall -q -y optimum optimum-intel
-    %pip install --pre -Uq "openvino>=2024.2.0" openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu \
+    %pip install --pre -Uq "openvino>=2024.5.0" openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "transformers>=4.38.1" "langchain>=0.2.3" "langchain-huggingface>=0.1.2" "langchain-community>=0.2.4" "Wikipedia" \
     "torch>=2.1" \
     "datasets" \
     "accelerate" \
-    "gradio>=4.19"
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "transformers>=4.38.1" "langchain>=0.2.3" "langchain-community>=0.2.4" "Wikipedia"
+    "pydantic<2.10.0" \
+    "gradio>=4.19" \
+    "huggingface-hub>=0.26.5"
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git" \
     "git+https://github.com/openvinotoolkit/nncf.git"
 
@@ -178,7 +199,7 @@ previous agent tool invocations and the corresponding tool outputs.
 
 .. code:: ipython3
 
-    PREFIX = """[INST]Respond to the human as helpfully and accurately as possible. You have access to the following tools:"""
+    PREFIX = """Respond to the human as helpfully and accurately as possible. You have access to the following tools:"""
     
     FORMAT_INSTRUCTIONS = """Use a json blob to specify a tool by providing an action key (tool name) and an action_input key (tool input).
     
@@ -210,10 +231,10 @@ previous agent tool invocations and the corresponding tool outputs.
       "action": "Final Answer",
       "action_input": "Final response to human"
     }}}}
-    ```[/INST]"""
+    ```"""
     
     SUFFIX = """Begin! Reminder to ALWAYS respond with a valid json blob of a single action. Use tools if necessary. Respond directly if appropriate. Format is Action:```$JSON_BLOB```then Observation:.
-    Thought:[INST]"""
+    Thought:"""
     
     HUMAN_MESSAGE_TEMPLATE = "{input}\n\n{agent_scratchpad}"
 
@@ -225,18 +246,32 @@ Create LLM
 Large Language Models (LLMs) are a core component of LangChain.
 LangChain does not serve its own LLMs, but rather provides a standard
 interface for interacting with many different LLMs. In this example, we
-select ``Mistral-7B-Instruct-v0.3`` as LLM in agent pipeline.
+select following models as LLM in agent pipeline.
 
--  **Mistral-7B-Instruct-v0.3** - The Mistral-7B-Instruct-v0.3 Large
-   Language Model (LLM) is an instruct fine-tuned version of the
-   Mistral-7B-v0.3. You can find more details about model in the `model
-   card <https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3>`__,
-   `paper <https://arxiv.org/abs/2310.06825>`__ and `release blog
-   post <https://mistral.ai/news/announcing-mistral-7b/>`__.
+-  **qwen2.5-3b-instruct/qwen2.5-7b-instruct/qwen2.5-14b-instruct** -
+   Qwen2.5 is the latest series of Qwen large language models. Comparing
+   with Qwen2, Qwen2.5 series brings significant improvements in coding,
+   mathematics and general knowledge skills. Additionally, it brings
+   long-context and multiple languages support including Chinese,
+   English, French, Spanish, Portuguese, German, Italian, Russian,
+   Japanese, Korean, Vietnamese, Thai, Arabic, and more. For more
+   details, please refer to
+   `model_card <https://huggingface.co/Qwen/Qwen2.5-7B-Instruct>`__,
+   `blog <https://qwenlm.github.io/blog/qwen2.5/>`__,
+   `GitHub <https://github.com/QwenLM/Qwen2.5>`__, and
+   `Documentation <https://qwen.readthedocs.io/en/latest/>`__.
+-  **llama-3.1-8b-instruct** - The Llama 3.1 instruction tuned text only
+   models (8B, 70B, 405B) are optimized for multilingual dialogue use
+   cases and outperform many of the available open source and closed
+   chat models on common industry benchmarks. More details about model
+   can be found in `Meta blog
+   post <https://ai.meta.com/blog/meta-llama-3-1/>`__, `model
+   website <https://llama.meta.com>`__ and `model
+   card <https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct>`__.
    >\ **Note**: run model with demo, you will need to accept license
    agreement. >You must be a registered user in Hugging Face Hub.
    Please visit `HuggingFace model
-   card <https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3>`__,
+   card <https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct>`__,
    carefully read terms of usage and click accept button. You will need
    to use an access token for the code below to run. For more
    information on access tokens, refer to `this section of the
@@ -269,13 +304,74 @@ folder.
 
 .. code:: ipython3
 
-    from pathlib import Path
+    import ipywidgets as widgets
     
-    model_id = "mistralai/Mistral-7B-Instruct-v0.3"
-    model_path = "Mistral-7B-Instruct-v0.3-ov-int4"
+    llm_model_ids = ["Qwen/Qwen2.5-7B-Instruct", "Qwen/Qwen2.5-3B-Instruct", "Qwen/qwen2.5-14b-instruct", "meta-llama/Meta-Llama-3.1-8B-Instruct"]
     
-    if not Path(model_path).exists():
-        !optimum-cli export openvino --model {model_id} --task text-generation-with-past --trust-remote-code --weight-format int4 {model_path}
+    llm_model_id = widgets.Dropdown(
+        options=llm_model_ids,
+        value=llm_model_ids[0],
+        description="Model:",
+        disabled=False,
+    )
+    
+    llm_model_id
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Model:', options=('Qwen/Qwen2.5-7B-Instruct', 'Qwen/Qwen2.5-3B-Instruct', 'Qwen/qwen2.5-…
+
+
+
+.. code:: ipython3
+
+    from cmd_helper import optimum_cli
+    
+    llm_model_path = llm_model_id.value.split("/")[-1]
+    repo_name = llm_model_id.value.split("/")[0]
+    
+    if not Path(llm_model_path).exists():
+        optimum_cli(
+            llm_model_id.value,
+            llm_model_path,
+            additional_args={"task": "text-generation-with-past", "weight-format": "int4", "group-size": "128", "ratio": "1.0", "sym": ""},
+        )
+
+
+
+**Export command:**
+
+
+
+``optimum-cli export openvino --model Qwen/Qwen2.5-7B-Instruct Qwen2.5-7B-Instruct --task text-generation-with-past --weight-format int4 --group-size 128 --ratio 1.0 --sym``
+
+
+.. parsed-literal::
+
+    Downloading shards: 100%|██████████| 4/4 [06:03<00:00, 90.89s/it]
+    Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  6.20it/s]
+    We detected that you are passing `past_key_values` as a tuple and this is deprecated and will be removed in v4.43. Please use an appropriate `Cache` class (https://huggingface.co/docs/transformers/v4.41.3/en/internal/generation_utils#transformers.Cache)
+    /home2/ethan/intel/openvino_notebooks/openvino_venv/lib/python3.10/site-packages/optimum/exporters/openvino/model_patcher.py:506: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if sequence_length != 1:
+    /home2/ethan/intel/openvino_notebooks/openvino_venv/lib/python3.10/site-packages/transformers/models/qwen2/modeling_qwen2.py:165: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if seq_len > self.max_seq_len_cached:
+
+
+.. parsed-literal::
+
+    INFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │ int8_asym                 │ 14% (2 / 198)               │ 0% (0 / 196)                           │
+    ├───────────────────────────┼─────────────────────────────┼────────────────────────────────────────┤
+    │ int4_sym                  │ 86% (196 / 198)             │ 100% (196 / 196)                       │
+    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% • 0:04:25 • 0:00:00;0;104;181m0:00:01181m0:00:11
+    
 
 Select inference device for LLM
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -284,16 +380,11 @@ Select inference device for LLM
 
 .. code:: ipython3
 
-    import requests
-    
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
-    
     from notebook_utils import device_widget
     
     device = device_widget("CPU", exclude=["NPU"])
+    
+    device
 
 
 
@@ -312,12 +403,17 @@ information <https://python.langchain.com/docs/integrations/llms/openvino/>`__.
 
 .. code:: ipython3
 
-    from langchain_community.llms.huggingface_pipeline import HuggingFacePipeline
+    from langchain_huggingface import HuggingFacePipeline
     from transformers.generation.stopping_criteria import StoppingCriteriaList, StoppingCriteria
     
     import openvino.properties as props
     import openvino.properties.hint as hints
     import openvino.properties.streams as streams
+    
+    import torch
+    
+    if hasattr(torch, "mps") and torch.mps.is_available:
+        torch.mps.is_available = lambda: False
     
     
     class StopSequenceCriteria(StoppingCriteria):
@@ -343,10 +439,10 @@ information <https://python.langchain.com/docs/integrations/llms/openvino/>`__.
     
     
     ov_config = {hints.performance_mode(): hints.PerformanceMode.LATENCY, streams.num(): "1", props.cache_dir(): ""}
-    stop_tokens = ["Observation:"]
+    stop_tokens = ["Observation:", "Observation:\n"]
     
     ov_llm = HuggingFacePipeline.from_model_id(
-        model_id=model_path,
+        model_id=llm_model_path,
         task="text-generation",
         backend="openvino",
         model_kwargs={
@@ -356,26 +452,19 @@ information <https://python.langchain.com/docs/integrations/llms/openvino/>`__.
         },
         pipeline_kwargs={"max_new_tokens": 2048},
     )
-    ov_llm = ov_llm.bind(skip_prompt=True, stop=["Observation:"])
     
     tokenizer = ov_llm.pipeline.tokenizer
     ov_llm.pipeline._forward_params["stopping_criteria"] = StoppingCriteriaList([StopSequenceCriteria(stop_tokens, tokenizer)])
 
+.. code:: ipython3
 
-.. parsed-literal::
-
-    2024-06-07 23:17:16.804739: I tensorflow/core/util/port.cc:111] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-06-07 23:17:16.807973: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-06-07 23:17:16.850235: E tensorflow/compiler/xla/stream_executor/cuda/cuda_dnn.cc:9342] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
-    2024-06-07 23:17:16.850258: E tensorflow/compiler/xla/stream_executor/cuda/cuda_fft.cc:609] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
-    2024-06-07 23:17:16.850290: E tensorflow/compiler/xla/stream_executor/cuda/cuda_blas.cc:1518] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
-    2024-06-07 23:17:16.859334: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-06-07 23:17:17.692415: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    You set `add_prefix_space`. The tokenizer needs to be converted from the slow tokenizers
-    The argument `trust_remote_code` is to be used along with export=True. It will be ignored.
-    Compiling the model to GPU ...
-
+    from langchain_huggingface import ChatHuggingFace
+    
+    ov_chat = ChatHuggingFace(llm=ov_llm, verbose=True)
+    ov_chat = ov_chat.bind(skip_prompt=True, stop=["Observation:", "Observation:\n"])
+    
+    if llm_model_id.value == "meta-llama/Meta-Llama-3.1-8B-Instruct":
+        ov_chat.llm.pipeline.tokenizer.pad_token_id = ov_chat.llm.pipeline.tokenizer.eos_token_id
 
 You can get additional inference speed improvement with `Dynamic
 Quantization of activations and KV-cache quantization on
@@ -409,7 +498,7 @@ outputs back to the agent, and repeats.
     from langchain.agents import AgentExecutor, StructuredChatAgent
     
     agent = StructuredChatAgent.from_llm_and_tools(
-        ov_llm,
+        ov_chat,
         tools,
         prefix=PREFIX,
         suffix=SUFFIX,
@@ -438,57 +527,69 @@ prompt template.
     
     
     > Entering new AgentExecutor chain...
-    Thought: I can use the exponentiate and add tools to solve the first part, and then use the multiply tool for the second part, and finally the exponentiate tool again to square the result.
+    Thought: First, I need to calculate 3 raised to the fifth power. Then, I will find the sum of twelve and three. After that, I will multiply the first result by the second result, and finally, I will square the entire result.
     
     Action:
     ```
     {
       "action": "exponentiate",
-      "action_input": {"base": 3, "exponent": 5}
+      "action_input": {
+        "base": 3,
+        "exponent": 5
+      }
     }
     ```
     Observation:
     Observation: 243
-    Thought: Now I need to add twelve and three
+    Thought:Next, I need to find the sum of twelve and three.
     
     Action:
     ```
     {
       "action": "add",
-      "action_input": {"first_int": 12, "second_int": 3}
+      "action_input": {
+        "first_int": 12,
+        "second_int": 3
+      }
     }
     ```
     Observation:
     Observation: 15
-    Thought: Now I need to multiply the result by 243
+    Thought:Now, I will multiply the result of \(3^5\) (which is 243) by the sum of twelve and three (which is 15). After that, I will square the entire result.
     
     Action:
     ```
     {
       "action": "multiply",
-      "action_input": {"first_int": 243, "second_int": 15}
+      "action_input": {
+        "first_int": 243,
+        "second_int": 15
+      }
     }
     ```
     Observation:
     Observation: 3645
-    Thought: Finally, I need to square the result
+    Thought:Thought: Now I need to square the result of the multiplication, which is 3645.
     
     Action:
     ```
     {
       "action": "exponentiate",
-      "action_input": {"base": 3645, "exponent": 2}
+      "action_input": {
+        "base": 3645,
+        "exponent": 2
+      }
     }
     ```
     Observation:
     Observation: 13286025
-    Thought: I know what to respond
+    Thought:Thought: I know what to respond
     
     Action:
     ```
     {
       "action": "Final Answer",
-      "action_input": "The final answer is 13286025"
+      "action_input": "The final result is 13286025."
     }
     ```
     
@@ -500,7 +601,7 @@ prompt template.
 .. parsed-literal::
 
     {'input': 'Take 3 to the fifth power and multiply that by the sum of twelve and three, then square the whole result',
-     'output': 'The final answer is 13286025'}
+     'output': 'The final result is 13286025.'}
 
 
 
@@ -566,7 +667,7 @@ words generated by agent.
 
 .. parsed-literal::
 
-    'Page: OpenVINO\nSummary: OpenVINO is an open-source software toolkit for optimizing and deploying deep learning models. It enables programmers to develop scalable and efficient AI solutions with relatively few lines of code. It supports several popular model formats and categories, such as large language models, computer vision, and generative AI.\nActively developed by Intel, it prioritizes high-performance inference on Intel hardware but also supports ARM/ARM64 processors and encourages contributors to add new devices to the portfolio.\nBased in C++, it offers the following APIs: C/C++, Python, and Node.js (an early preview).\nOpenVINO is cross-platform and free for use under Apache License 2.0.\n\nPage: Stable Diffusion\nSummary: Stable Diffusion is a deep learning, text-to-image model released in 2022 based on diffusion techniques. It is considered to be a part of the ongoing artificial intelligence boom.\nIt is primarily used to generate detailed images conditioned on text descriptions, t'
+    'Page: OpenVINO\nSummary: OpenVINO is an open-source software toolkit for optimizing and deploying deep learning models. It enables programmers to develop scalable and efficient AI solutions with relatively few lines of code. It supports several popular model formats and categories, such as large language models, computer vision, and generative AI.\nActively developed by Intel, it prioritizes high-performance inference on Intel hardware but also supports ARM/ARM64 processors and encourages contributors to add new devices to the portfolio.\nBased in C++, it offers the following APIs: C/C++, Python, and Node.js (an early preview).\nOpenVINO is cross-platform and free for use under Apache License 2.0.\n\nPage: Audacity (audio editor)\nSummary: Audacity is a free and open-source digital audio editor and recording application software, available for Windows, macOS, Linux, and other Unix-like operating systems. \nAs of December 6, 2022, Audacity is the most popular download at FossHub, with over 114.'
 
 
 
@@ -643,7 +744,7 @@ In this examples, we will create 2 customized tools for
 
 .. parsed-literal::
 
-    "{'current_condition': {'temp_C': '9', 'FeelsLikeC': '8', 'humidity': '93', 'weatherDesc': [{'value': 'Sunny'}], 'observation_time': '04:39 AM'}}"
+    "{'current_condition': {'temp_C': '0', 'FeelsLikeC': '-4', 'humidity': '86', 'weatherDesc': [{'value': 'Clear'}], 'observation_time': '12:16 AM'}}"
 
 
 
@@ -657,7 +758,7 @@ Create AI agent demo with Gradio UI
     tools = [wikipedia, painting, weather]
     
     agent = StructuredChatAgent.from_llm_and_tools(
-        ov_llm,
+        ov_chat,
         tools,
         prefix=PREFIX,
         suffix=SUFFIX,
@@ -703,7 +804,7 @@ Create AI agent demo with Gradio UI
     
     
     def request_cancel():
-        ov_llm.pipeline.model.request.cancel()
+        ov_chat.llm.pipeline.model.request.cancel()
 
 .. code:: ipython3
 
@@ -713,7 +814,15 @@ Create AI agent demo with Gradio UI
     
     from gradio_helper import make_demo
     
-    demo = make_demo(run_fn=run_chatbot, stop_fn=request_cancel)
+    examples = [
+        ["Based on current weather in London, show me a picture of Big Ben through its URL"],
+        ["What is OpenVINO ?"],
+        ["Create an image of pink cat and return its URL"],
+        ["How many people live in Canada ?"],
+        ["What is the weather like in New York now ?"],
+    ]
+    
+    demo = make_demo(run_fn=run_chatbot, stop_fn=request_cancel, examples=examples)
     
     try:
         demo.launch()
@@ -722,50 +831,6 @@ Create AI agent demo with Gradio UI
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    
-    
-    > Entering new AgentExecutor chain...
-    Thought: I need to use the weather tool to get the current weather in London, then use the painting tool to generate a picture of Big Ben based on the weather information.
-    
-    Action:
-    ```
-    {
-      "action": "weather",
-      "action_input": "London"
-    }
-    ```
-    
-    Observation:
-    Observation: {'current_condition': {'temp_C': '9', 'FeelsLikeC': '8', 'humidity': '93', 'weatherDesc': [{'value': 'Sunny'}], 'observation_time': '04:39 AM'}}
-    Thought: I have the current weather in London. Now I can use the painting tool to generate a picture of Big Ben based on the weather information.
-    
-    Action:
-    ```
-    {
-      "action": "painting",
-      "action_input": "Big Ben, sunny day"
-    }
-    ```
-    
-    Observation:
-    Observation: {image_url: "https://image.pollinations.ai/prompt/Big%20Ben%2C%20sunny%20day"}
-    Thought: I have the image URL of Big Ben on a sunny day. Now I can respond to the human with the image URL.
-    
-    Action:
-    ```
-    {
-      "action": "Final Answer",
-      "action_input": "Here is the image of Big Ben on a sunny day: https://image.pollinations.ai/prompt/Big%20Ben%2C%20sunny%20day"
-    }
-    ```
-    Observation:
-    
-    > Finished chain.
-
 
 .. code:: ipython3
 

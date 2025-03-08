@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -21,7 +21,7 @@ public:
     void set_out_type(int index, const ov::element::Type& output_type);
 
 protected:
-    std::vector<ov::element::Type> m_output_type = {ov::element::undefined, ov::element::undefined};
+    std::vector<ov::element::Type> m_output_type = {ov::element::dynamic, ov::element::dynamic};
 };
 
 }  // namespace op

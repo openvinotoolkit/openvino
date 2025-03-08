@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
-#include "npu_private_properties.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/type/element_iterator.hpp"

@@ -4,28 +4,27 @@
 
 #pragma once
 
-#include "openvino/core/model.hpp"
-#include "utils/debug_capabilities.h"
-#include "low_precision/low_precision.hpp"
-#include "config.h"
-#include "transformations/convert_precision.hpp"
-
-#include "itt.h"
-
 #include <memory>
+#include <utility>
 #include <vector>
+
+#include "config.h"
+#include "itt.h"
+#include "low_precision/low_precision.hpp"
+#include "openvino/core/model.hpp"
+#include "transformations/convert_precision.hpp"
+#include "utils/debug_capabilities.h"
 
 namespace ov {
 namespace intel_cpu {
 
 class Transformations {
 public:
-    Transformations(const std::shared_ptr<ov::Model>& initialModel,
-                    const Config&                     config)
-        : model(initialModel),
+    Transformations(std::shared_ptr<ov::Model> initialModel, const Config& config)
+        : model(std::move(initialModel)),
           config(config) {
-            CPU_DEBUG_CAPS_MAYBE_UNUSED(this->config);
-          }
+        CPU_DEBUG_CAPS_MAYBE_UNUSED(this->config);
+    }
 
     void UpToLpt();
     void CpuSpecificOpSet();
@@ -39,6 +38,7 @@ private:
     void PreLpt(const std::vector<ov::element::Type>& defaultPrecisions);
 
     void Lpt(const std::vector<ov::element::Type>& defaultPrecisions);
+    void runLptPasses(const std::vector<ov::element::Type>& defaultPrecisions);
 
     void MainSnippets(void);
 
@@ -51,5 +51,5 @@ private:
     static bool fuse_type_to_pa(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

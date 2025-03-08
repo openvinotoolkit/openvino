@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -695,9 +695,11 @@ KERNEL(gemm_tiled_opt)(
 
 #if HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD
     #if IS_DYNAMIC
+    uint xs = b_raw_global_id;
     FUSED_OPS_PRELOAD_SCALAR;
     #else // IS_DYNAMIC
         #if TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1
+    uint xs = b_raw_global_id;
     FUSED_OPS_PRELOAD_SCALAR;
         #else // TILE_N_NOT_DIVISIBLE
     FUSED_OPS_PRELOAD_VEC;
@@ -720,6 +722,8 @@ KERNEL(gemm_tiled_opt)(
             #if FUSED_OPS_CAN_USE_PRELOAD
             FUSED_OPS_CALC_SCALAR;
             #else // FUSED_OPS_CAN_USE_PRELOAD
+            ACCUMULATOR_TYPE dequantized_scalar = dequantized;
+            uint xs = b_raw_global_id;
             FUSED_OPS_SCALAR;
             #endif // FUSED_OPS_CAN_USE_PRELOAD
             OUTPUT_TYPE res = FUSED_OPS_RESULT_SCALAR;
@@ -741,7 +745,23 @@ KERNEL(gemm_tiled_opt)(
         #else // BIAS_TERM
         ACCUMULATOR_TYPE_VEC dequantized = (ACCUMULATOR_TYPE_VEC)(ALPHA) * c_tile[write_id];
         #endif // BIAS_TERM
+
         #if HAS_FUSED_OPS
+        #ifdef FUSE_SCALAR
+        OUTPUT_TYPE_VEC result;
+        unroll_for (uint n_elem = 0; n_elem < B_VEC_SIZE; ++n_elem) {
+            ACCUMULATOR_TYPE dequantized_scalar = dequantized[n_elem];
+            uint xs = b_raw_global_id + SIMD_WIDTH * n_elem;
+            FUSED_OPS_SCALAR;
+            result[n_elem] = FUSED_OPS_RESULT_SCALAR;
+        }
+
+        unroll_for (uint n_elem = 0; n_elem < B_VEC_SIZE; ++n_elem) {
+            if (b_raw_global_id + SIMD_WIDTH * n_elem < N) {
+                *(d_ptr_tmp + SIMD_WIDTH * n_elem * x_pitch) = result[n_elem];
+            }
+        }
+        #else // fuse vec
         FUSED_OPS_VEC;
         OUTPUT_TYPE_VEC result = FUSED_OPS_RESULT_VEC;
         unroll_for (uint n_elem = 0; n_elem < B_VEC_SIZE; ++n_elem) {
@@ -749,6 +769,7 @@ KERNEL(gemm_tiled_opt)(
                 *(d_ptr_tmp + SIMD_WIDTH * n_elem * x_pitch) = result[n_elem];
             }
         }
+        #endif // FUSE_SCALAR
         #else
         unroll_for (uint n_elem = 0; n_elem < B_VEC_SIZE; ++n_elem) {
             if (b_raw_global_id + SIMD_WIDTH * n_elem < N) {
@@ -770,6 +791,8 @@ KERNEL(gemm_tiled_opt)(
             #if FUSED_OPS_CAN_USE_PRELOAD
             FUSED_OPS_CALC_SCALAR;
             #else // FUSED_OPS_CAN_USE_PRELOAD
+            ACCUMULATOR_TYPE dequantized_scalar = dequantized;
+            const uint xs = b_raw_global_id;
             FUSED_OPS_SCALAR;
             #endif // FUSED_OPS_CAN_USE_PRELOAD
             OUTPUT_TYPE res = FUSED_OPS_RESULT_SCALAR;

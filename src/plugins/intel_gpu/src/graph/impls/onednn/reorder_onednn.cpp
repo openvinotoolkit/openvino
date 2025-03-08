@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 #include "reorder_inst.h"
 #include "impls/onednn/utils.hpp"
 #include "primitive_onednn_base.h"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 
 #include <oneapi/dnnl/dnnl.hpp>
 
@@ -23,7 +23,7 @@ struct reorder_onednn : typed_primitive_onednn_impl<reorder, dnnl::reorder::prim
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<reorder_onednn>(*this);
+        return std::make_unique<reorder_onednn>(*this);
     }
 
     std::unordered_map<int, dnnl::memory> get_arguments(reorder_inst& instance) const override {
@@ -119,7 +119,7 @@ public:
             auto& config = impl_params.prog->get_config();
             auto attr = impl_params.attrs_onednn;
             auto prim_desc = get_reorder_primitive_descriptor(impl_params, *attr);
-            return cldnn::make_unique<reorder_onednn>(engine, config, attr, *prim_desc);
+            return std::make_unique<reorder_onednn>(engine, config, attr, *prim_desc);
         }
     }
 
@@ -144,7 +144,7 @@ public:
             output_md,
             *attr);
 
-        return cldnn::make_unique<reorder_onednn>(engine, impl_param.prog->get_config(), attr, *reorder_prim);
+        return std::make_unique<reorder_onednn>(engine, impl_param.prog->get_config(), attr, *reorder_prim);
     }
 };
 

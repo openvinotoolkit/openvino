@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@
 #include "openvino/op/reduce_l1.hpp"
 #include "openvino/op/reduce_l2.hpp"
 #include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_min.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
@@ -181,11 +182,14 @@ OutputVector translate_linalg_vector_norm(const NodeContext& context) {
     // dtype=None) -> Tensor
     // aten::linalg_vector_norm.out(Tensor self, Scalar ord=2, int[1]? dim=None, bool
     // keepdim=False, *, ScalarType? dtype=None, Tensor(a!) out) -> Tensor(a!):
-    num_inputs_check(context, 4, 6);
+    num_inputs_check(context, 3, 6);
     auto x = context.get_input(0);
     // ord defines the vector norm that is computed.
     auto ord = context.const_input<float>(1);
-    bool keep_dim = context.const_input<bool>(3);
+    bool keep_dim = false;
+    if (!context.input_is_none(3)) {
+        keep_dim = context.const_input<bool>(3);
+    }
     Output<Node> dim;
     Output<Node> result;
     // If dim= None, x will be flattened before the norm is computed.
@@ -322,6 +326,63 @@ OutputVector translate_frobenius_norm(const NodeContext& context) {
     auto result = frobenius_norm(context, x, dim, keep_dim);
     if (!context.input_is_none(3)) {
         context.mutate_input(3, result);
+    }
+    return {result};
+}
+
+OutputVector translate_rms_norm(const NodeContext& context) {
+    // Tensor = aten::rms_norm(%input_data.1, %2, %4, %3)
+    num_inputs_check(context, 2, 4);
+    auto x = context.get_input(0);
+    auto normalized_shape = context.get_input(1);
+    Output<Node> eps;
+    if (!context.input_is_none(3)) {
+        eps = context.get_input(3);
+        if (eps.get_element_type().is_dynamic() || eps.get_element_type() != x.get_element_type())
+            eps = std::make_shared<v1::ConvertLike>(eps, x);
+    } else {
+        switch (x.get_element_type()) {
+        case element::bf16:
+            eps = v0::Constant::create(ov::element::bf16, {}, {std::numeric_limits<bfloat16>::epsilon()});
+            break;
+        case element::f16:
+            eps = v0::Constant::create(ov::element::f16, {}, {std::numeric_limits<float16>::epsilon()});
+            break;
+        case element::f64:
+            eps = v0::Constant::create(ov::element::f64, {}, {std::numeric_limits<double>::epsilon()});
+            break;
+        case element::f32:
+            eps = v0::Constant::create(ov::element::f32, {}, {std::numeric_limits<float>::epsilon()});
+            break;
+        default:
+            eps = v0::Constant::create(ov::element::f32, {}, {std::numeric_limits<float>::epsilon()});
+            eps = std::make_shared<v1::ConvertLike>(eps, x);
+        }
+    }
+    context.mark_output(eps);
+
+    // normalized shape represent D last dimensions to be normalized
+    auto num_axes = context.mark_node(std::make_shared<v3::ShapeOf>(normalized_shape, element::i32));
+    auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    num_axes = context.mark_node(std::make_shared<v0::Squeeze>(num_axes, zero));
+    auto minus_one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-1}));
+    auto axes_range = context.mark_node(std::make_shared<v4::Range>(num_axes, zero, minus_one, element::i32));
+    auto axes = context.mark_node(std::make_shared<v1::Multiply>(axes_range, minus_one));
+
+    // decomposition of RMSNorm to be fused by plugins
+    auto power_const = context.mark_node(v0::Constant::create(ov::element::f32, {}, {2.f}));
+    power_const = context.mark_node(std::make_shared<v1::ConvertLike>(power_const, x));
+    auto power = context.mark_node(std::make_shared<v1::Power>(x, power_const));
+    auto mean = context.mark_node(std::make_shared<v1::ReduceMean>(power, axes, true));
+    auto add_eps = context.mark_node(std::make_shared<v1::Add>(mean, eps));
+    auto sqrt = context.mark_node(std::make_shared<v0::Sqrt>(add_eps));
+    auto div_const = context.mark_node(v0::Constant::create(ov::element::f32, {}, {-1}));
+    div_const = context.mark_node(std::make_shared<v1::ConvertLike>(div_const, x));
+    auto div = context.mark_node(std::make_shared<v1::Power>(sqrt, div_const));
+    auto result = context.mark_node(std::make_shared<v1::Multiply>(x, div));
+
+    if (!context.input_is_none(2)) {
+        result = context.mark_node(std::make_shared<v1::Multiply>(context.get_input(2), result));
     }
     return {result};
 }

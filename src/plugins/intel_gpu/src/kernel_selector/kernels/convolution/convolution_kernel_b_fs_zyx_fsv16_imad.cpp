@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +55,10 @@ namespace kernel_selector {
 
 Convolution_kernel_b_fs_zyx_fsv16_imad::BlockParams
 Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params& params) const {
-    size_t max_block_width = getOutBlock_X(params.outputs[0].X().v, params.stride.x, params.filterSize.x, params.dilation.x);
+    size_t max_block_width = 1;
+    if (!params.outputs[0].X().is_dynamic) {
+        max_block_width = getOutBlock_X(params.outputs[0].X().v, params.stride.x, params.filterSize.x, params.dilation.x);
+    }
     size_t max_in_block_width = (max_block_width - 1) * params.stride.x + (params.filterSize.x - 1) * params.dilation.x + 1;
 
     size_t block_width = max_block_width;
@@ -90,7 +93,9 @@ Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params&
     size_t max_slm_split = params.engineInfo.maxWorkGroupSize / simd;
 
     // TGLU exceptions related to SLM usage
-    if (params.engineInfo.deviceType == dev_type::integrated_gpu && params.engineInfo.computeUnitsCount == 96) {
+    if (params.is_shape_agnostic) {
+        max_slm_split = 2;
+    } else if (params.engineInfo.deviceType == dev_type::integrated_gpu && params.engineInfo.computeUnitsCount == 96) {
         bool split_exception_1 = params.outputs[0].X().v == 3 && params.outputs[0].Y().v == 3 && params.outputs[0].Z().v == 1
                                  && params.outputs[0].Feature().v == 512;
         bool split_exception_2 = params.outputs[0].X().v == 5 && params.outputs[0].Y().v == 5 && params.outputs[0].Z().v == 1
@@ -118,13 +123,16 @@ Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params&
             }
         }
 
+        size_t max_d = params.outputs[0].Z().is_dynamic ? 1 : 16;
+        size_t max_h = params.outputs[0].Y().is_dynamic ? 1 : 16;
+
         for (size_t split = 1; split <= max_slm_split; split *= 2) {
             for (size_t temp_block_features = simd; temp_block_features <= simd * 2; temp_block_features += simd) {
-                for (size_t d = 1; d < 16; ++d) {
-                    if (params.outputs[0].Z().v % d)
+                for (size_t d = 1; d < max_d; ++d) {
+                    if (d != 1 && params.outputs[0].Z().v % d)
                         continue;
-                    for (size_t h = 1; h < 16; ++h) {
-                        if (params.outputs[0].Y().v % h)
+                    for (size_t h = 1; h < max_h; ++h) {
+                        if (h != 1 && params.outputs[0].Y().v % h)
                             continue;
 
                         bool c_ifm_mul = CeilDiv(params.weights.IFM().v, fsv) % split == 0;
@@ -174,6 +182,10 @@ Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params&
 }
 
 float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateBlockParamsRatio(const convolution_params& params, const BlockParams& block) const {
+    if (params.has_dynamic_outputs()) {
+        return -10.f;
+    }
+
     float occupancy_by_logic_size = static_cast<float>(params.outputs[0].LogicalSize() / static_cast<size_t>(params.engineInfo.maxThreadsPerDevice));
     bool increase_max_reg_pressure = occupancy_by_logic_size >= 595.f;
     bool twice_increase_max_reg_pressure = occupancy_by_logic_size >= 595.f * 2.f;
@@ -373,6 +385,7 @@ ParamsKey Convolution_kernel_b_fs_zyx_fsv16_imad::GetSupportedKey() const {
     k.EnableQuantization(QuantizationType::SYMMETRIC);
     k.EnableQuantization(QuantizationType::ASYMMETRIC_DATA);
     k.EnableDilation();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
@@ -450,10 +463,15 @@ JitConstants Convolution_kernel_b_fs_zyx_fsv16_imad::GetJitConstants(const convo
 
 ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_zyx_fsv16_imad::SetDefault(const convolution_params& params,
                                                                                        int) const {
+    const BlockParams& block_params = GetBlockParams(params);
+    return CalcDispatchDataWithBlockParams(params, block_params);
+}  // SetDefault
+
+ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_zyx_fsv16_imad::CalcDispatchDataWithBlockParams(const convolution_params& params,
+                                                                                                            const BlockParams& block_params) const {
     DispatchData dispatchData;
     const auto& output = params.outputs[0];
     const auto& weights = params.weights;
-    auto block_params = GetBlockParams(params);
 
     dispatchData.gws[0] = CeilDiv(output.X().v, block_params.output_block_width);
     dispatchData.gws[1] = CeilDiv(output.Y().v, block_params.output_block_height) * CeilDiv(output.Z().v, block_params.output_block_depth);
@@ -466,17 +484,24 @@ ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_zyx_fsv16_imad::SetD
 
     dispatchData.cldnnStyle = {0, 0, 0, 0, 0};
     dispatchData.gemmStyle = {0, 0, 0, 0, 0, 0};
-
+    dispatchData.blockParams = { block_params.output_block_width, block_params.output_block_height,
+                                 block_params.output_block_depth, block_params.output_block_features,
+                                 block_params.input_block_width, block_params.input_block_height,
+                                 block_params.input_block_depth, block_params.feature_slm_split };
     return dispatchData;
-}  // SetDefault
+}
 
 KernelsPriority Convolution_kernel_b_fs_zyx_fsv16_imad::GetKernelsPriority(const Params& params) const {
     const auto& p = static_cast<const convolution_params&>(params);
 
-    if (static_cast<float>(p.weights.IFM().v) / static_cast<float>(Align(p.weights.IFM().v, fsv)) < 0.5f)
+    if (!p.is_shape_agnostic) {
+        if (static_cast<float>(p.weights.IFM().v) / static_cast<float>(Align(p.weights.IFM().v, fsv)) < 0.5f)
+            return FORCE_PRIORITY_4;
+        else
+            return FORCE_PRIORITY_2;
+    } else {
         return FORCE_PRIORITY_4;
-    else
-        return FORCE_PRIORITY_2;
+    }
 }
 
 bool Convolution_kernel_b_fs_zyx_fsv16_imad::Validate(const Params& params) const {
@@ -507,4 +532,23 @@ bool Convolution_kernel_b_fs_zyx_fsv16_imad::Validate(const Params& params) cons
 
     return true;
 }
+
+void Convolution_kernel_b_fs_zyx_fsv16_imad::GetUpdateDispatchDataFunc(KernelData& kd) const {
+    const auto& prim_params = static_cast<const convolution_params&>(*kd.params);
+    const auto& dynamicDispatchData = SetDefault(prim_params);
+
+    kd.update_dispatch_data_func = [this, dynamicDispatchData](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const convolution_params&>(params);
+        const auto& dispatchData = CalcDispatchDataWithBlockParams(prim_params, dynamicDispatchData.blockParams);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+
+        kd.internalBuffers.clear();
+        kd.internalBuffers.push_back(prim_params.inputs[0].PhysicalSizeInBytes());
+        kd.internalBufferDataType = prim_params.inputs[0].GetDType();
+    };
+}
+
 }  // namespace kernel_selector

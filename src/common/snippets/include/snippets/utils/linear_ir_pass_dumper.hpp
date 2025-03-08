@@ -16,8 +16,8 @@ namespace snippets {
 
 class LIRPassDump {
 public:
-    explicit LIRPassDump(lowered::LinearIR& linear_ir, std::string pass_name)
-        : linear_ir(linear_ir), pass_name(std::move(pass_name)), debug_config(linear_ir.get_config().debug_config) {
+    explicit LIRPassDump(const lowered::LinearIR& linear_ir, std::string pass_name)
+        : linear_ir(linear_ir), pass_name(std::move(pass_name)), debug_config(*linear_ir.get_config().debug_config) {
         dump("_in");
     }
     ~LIRPassDump() {
@@ -44,7 +44,7 @@ private:
         num++;
     }
 
-    lowered::LinearIR& linear_ir;
+    const lowered::LinearIR& linear_ir;
     const std::string pass_name;
     const DebugCapsConfig& debug_config;
 };
@@ -53,7 +53,7 @@ private:
 }  // namespace ov
 
 #define SNIPPETS_DEBUG_LIR_PASS_DUMP(_linear_ir, _pass)    \
-    auto dumpLIR = _linear_ir.get_config().debug_config.dumpLIR;    \
+    auto dumpLIR = _linear_ir.get_config().debug_config->dumpLIR;    \
     auto pass_name = std::string(_pass->get_type_name());    \
     auto dump_name = dumpLIR.passes;    \
     auto dumperPtr = ((std::find(dump_name.begin(), dump_name.end(), ov::util::to_lower(pass_name)) != dump_name.end()) ||    \

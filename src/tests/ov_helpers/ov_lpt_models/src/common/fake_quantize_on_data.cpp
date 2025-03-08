@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,9 +46,9 @@ bool FakeQuantizeOnData::empty() const {
         outputHighValues.empty();
 }
 
-FakeQuantizeOnDataWithConstant::FakeQuantizeOnDataWithConstant() :
-    quantizationLevel(0),
-    outputPrecision(ov::element::undefined) {}
+FakeQuantizeOnDataWithConstant::FakeQuantizeOnDataWithConstant()
+    : quantizationLevel(0),
+      outputPrecision(ov::element::dynamic) {}
 
 FakeQuantizeOnDataWithConstant::FakeQuantizeOnDataWithConstant(
     const uint64_t quantizationLevel,
@@ -59,7 +59,8 @@ FakeQuantizeOnDataWithConstant::FakeQuantizeOnDataWithConstant(
     const std::vector<float>& outputHighValues,
     const ov::element::Type outputPrecision,
     const std::vector<ov::Any>& attributes,
-    const bool addConverts) :
+    const bool addConverts,
+    const ov::element::Type constantPrecision) :
     quantizationLevel(quantizationLevel),
     constantShapes(constantShapes),
     inputLowValues(inputLowValues),
@@ -68,8 +69,8 @@ FakeQuantizeOnDataWithConstant::FakeQuantizeOnDataWithConstant(
     outputHighValues(outputHighValues),
     outputPrecision(outputPrecision),
     attributes(attributes),
-    addConverts(addConverts)
-{}
+    addConverts(addConverts),
+    constantPrecision(constantPrecision) {}
 
 FakeQuantizeOnDataWithConstant::~FakeQuantizeOnDataWithConstant() {}
 

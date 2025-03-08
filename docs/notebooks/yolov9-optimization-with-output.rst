@@ -15,19 +15,26 @@ PyTorch YOLO V9 with OpenVINO.
 The tutorial consists of the following steps:
 
 -  Prepare PyTorch model
--  Convert PyTorch model to OpenVINO IR
--  Run model inference with OpenVINO
--  Prepare and run optimization pipeline
--  Compare performance of the FP32 and quantized models.
--  Run optimized model inference on video
 
+-  Convert PyTorch model to OpenVINO IR
+
+-  Run model inference with OpenVINO
+
+-  Prepare and run optimization pipeline
+
+-  Compare performance of the FP32 and quantized models.
+
+-  Run optimized model inference on video
 
 **Table of contents:**
 
 -  `Prerequisites <#prerequisites>`__
+
 -  `Get PyTorch model <#get-pytorch-model>`__
+
 -  `Convert PyTorch model to OpenVINO
    IR <#convert-pytorch-model-to-openvino-ir>`__
+
 -  `Verify model inference <#verify-model-inference>`__
 
    -  `Preprocessing <#preprocessing>`__
@@ -41,8 +48,10 @@ The tutorial consists of the following steps:
    -  `Perform model quantization <#perform-model-quantization>`__
 
 -  `Run quantized model inference <#run-quantized-model-inference>`__
+
 -  `Compare Performance of the Original and Quantized
    Models <#compare-performance-of-the-original-and-quantized-models>`__
+
 -  `Run Live Object Detection <#run-live-object-detection>`__
 
 Installation Instructions
@@ -58,23 +67,11 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
+
+
 .. code:: ipython3
 
-    import platform
-
-    %pip install -q "openvino>=2023.3.0" "nncf>=2.8.1" "opencv-python" "seaborn" "pandas" "scikit-learn" "torch" "torchvision" "tqdm"  --extra-index-url https://download.pytorch.org/whl/cpu
-
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
+    %pip install -q "openvino>=2023.3.0" "nncf>=2.8.1" "opencv-python" "matplotlib>=3.4" "seaborn" "pandas" "scikit-learn" "torch<2.6.0" "torchvision" "tqdm"  --extra-index-url https://download.pytorch.org/whl/cpu
 
 .. code:: ipython3
 
@@ -83,27 +80,31 @@ Prerequisites
     # Fetch `notebook_utils` module
     import requests
 
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
 
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
+
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+        )
+        open("cmd_helper.py", "w").write(r.text)
+
+    from cmd_helper import clone_repo
     from notebook_utils import download_file, VideoPlayer, device_widget
 
-    if not Path("yolov9").exists():
-        !git clone https://github.com/WongKinYiu/yolov9
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+
+    collect_telemetry("yolov9-optimization.ipynb")
+
+
+    clone_repo("https://github.com/WongKinYiu/yolov9", add_to_sys_path=False)
+
     %cd yolov9
-
-
-.. parsed-literal::
-
-    Cloning into 'yolov9'...
-    remote: Enumerating objects: 781, done.[K
-    remote: Total 781 (delta 0), reused 0 (delta 0), pack-reused 781 (from 1)[K
-    Receiving objects: 100% (781/781), 3.27 MiB | 10.53 MiB/s, done.
-    Resolving deltas: 100% (330/330), done.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9
-
 
 Get PyTorch model
 -----------------
@@ -130,17 +131,16 @@ applicable for other models from YOLO V9 family.
     download_file(MODEL_LINK, directory=MODEL_DIR, show_progress=True)
 
 
+.. parsed-literal::
+
+    'model/gelan-c.pt' already exists.
+
+
+
 
 .. parsed-literal::
 
-    model/gelan-c.pt:   0%|          | 0.00/49.1M [00:00<?, ?B/s]
-
-
-
-
-.. parsed-literal::
-
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9/model/gelan-c.pt')
+    PosixPath('/home/ea/work/openvino_notebooks/notebooks/yolov9-optimization/yolov9/model/gelan-c.pt')
 
 
 
@@ -192,15 +192,6 @@ using ``ov.save_model``.
     else:
         metadata = yaml_load(ov_model_path.parent / weights.name.replace(".pt", ".yaml"))
 
-
-.. parsed-literal::
-
-    Fusing layers...
-    Model summary: 387 layers, 25288768 parameters, 0 gradients, 102.1 GFLOPs
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9/models/yolo.py:108: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      elif self.dynamic or self.shape != shape:
-
-
 Verify model inference
 ----------------------
 
@@ -238,7 +229,8 @@ To keep specific shape, preprocessing automatically enables padding.
     from utils.augmentations import letterbox
 
     image_url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/7b6af406-4ccb-4ded-a13d-62b7c0e42e96"
-    download_file(image_url, directory=DATA_DIR, filename="test_image.jpg", show_progress=True)
+    if not Path("test_image.jpg").exists():
+        download_file(image_url, directory=DATA_DIR, filename="test_image.jpg", show_progress=True)
 
 
     def preprocess_image(img0: np.ndarray):
@@ -282,10 +274,9 @@ To keep specific shape, preprocessing automatically enables padding.
     NAMES = metadata["names"]
 
 
-
 .. parsed-literal::
 
-    data/test_image.jpg:   0%|          | 0.00/101k [00:00<?, ?B/s]
+    'data/test_image.jpg' already exists.
 
 
 Postprocessing
@@ -405,7 +396,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=3, options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='AUTO')
 
 
 
@@ -464,26 +455,19 @@ quantization.
 
     OUT_DIR = Path(".")
 
-    download_file(DATA_URL, directory=OUT_DIR, show_progress=True)
-    download_file(LABELS_URL, directory=OUT_DIR, show_progress=True)
-
     if not (OUT_DIR / "coco/labels").exists():
+        download_file(DATA_URL, directory=OUT_DIR, show_progress=True)
+        download_file(LABELS_URL, directory=OUT_DIR, show_progress=True)
         with ZipFile("coco2017labels-segments.zip", "r") as zip_ref:
             zip_ref.extractall(OUT_DIR)
         with ZipFile("val2017.zip", "r") as zip_ref:
             zip_ref.extractall(OUT_DIR / "coco/images")
 
 
-
 .. parsed-literal::
 
-    val2017.zip:   0%|          | 0.00/778M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    coco2017labels-segments.zip:   0%|          | 0.00/169M [00:00<?, ?B/s]
+    'val2017.zip' already exists.
+    'coco2017labels-segments.zip' already exists.
 
 
 .. code:: ipython3
@@ -515,8 +499,7 @@ quantization.
 
 .. parsed-literal::
 
-    val: Scanning coco/val2017... 4952 images, 48 backgrounds, 0 corrupt: 100%|██████████| 5000/5000 00:00
-    val: New cache created: coco/val2017.cache
+    [34m[1mval: [0mScanning coco/val2017.cache... 4952 images, 48 backgrounds, 0 corrupt: 100%|██████████| 5000/5000 00:00[0m
 
 
 NNCF provides ``nncf.Dataset`` wrapper for using native framework
@@ -574,41 +557,6 @@ asymmetric quantization of activations.
 
         ov.save_model(quantized_model, ov_int8_model_path)
         yaml_save(ov_int8_model_path.parent / weights.name.replace(".pt", "_int8.yaml"), metadata)
-
-
-.. parsed-literal::
-
-    2024-10-08 06:55:28.833031: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-10-08 06:55:28.867508: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-10-08 06:55:29.471960: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
 
 Run quantized model inference
 -----------------------------
@@ -669,18 +617,18 @@ models.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.5.0-16913-890f2e12c98
+    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
     [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.5.0-16913-890f2e12c98
+    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
     [ INFO ]
     [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 26.27 ms
+    [ INFO ] Read model took 34.88 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: x) : f32 / [...] / [?,3,?,?]
@@ -692,7 +640,7 @@ models.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'images': [1,3,640,640]
-    [ INFO ] Reshape model took 7.74 ms
+    [ INFO ] Reshape model took 10.57 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     images (node: x) : u8 / [N,C,H,W] / [1,3,640,640]
@@ -702,54 +650,52 @@ models.
     [ INFO ]     xi.3 (node: __module.model.22/aten::cat/Concat_1) : f32 / [...] / [1,144,40,40]
     [ INFO ]     xi (node: __module.model.22/aten::cat/Concat) : f32 / [...] / [1,144,20,20]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 487.17 ms
+    [ INFO ] Compile model took 810.84 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
     [ INFO ]   EXECUTION_DEVICES: ['CPU']
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
-    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
     [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
     [ INFO ]   CPU:
     [ INFO ]     AFFINITY: Affinity.CORE
     [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
     [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
-    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 32
+    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 0
     [ INFO ]     ENABLE_CPU_PINNING: True
     [ INFO ]     ENABLE_HYPER_THREADING: True
     [ INFO ]     EXECUTION_DEVICES: ['CPU']
     [ INFO ]     EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
-    [ INFO ]     INFERENCE_NUM_THREADS: 24
+    [ INFO ]     INFERENCE_NUM_THREADS: 36
     [ INFO ]     INFERENCE_PRECISION_HINT: <Type: 'float32'>
     [ INFO ]     KV_CACHE_PRECISION: <Type: 'float16'>
     [ INFO ]     LOG_LEVEL: Level.NO
-    [ INFO ]     MODEL_DISTRIBUTION_POLICY: set()
     [ INFO ]     NETWORK_NAME: Model0
-    [ INFO ]     NUM_STREAMS: 6
-    [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+    [ INFO ]     NUM_STREAMS: 12
+    [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
     [ INFO ]     PERFORMANCE_HINT: THROUGHPUT
     [ INFO ]     PERFORMANCE_HINT_NUM_REQUESTS: 0
     [ INFO ]     PERF_COUNT: NO
     [ INFO ]     SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
     [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
     [ INFO ]   LOADED_FROM_CACHE: False
-    [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
     [ INFO ] Fill input 'images' with random values
-    [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
+    [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 173.19 ms
+    [ INFO ] First inference took 267.81 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            222 iterations
-    [ INFO ] Duration:         15646.59 ms
+    [ INFO ] Count:            276 iterations
+    [ INFO ] Duration:         15758.17 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        412.14 ms
-    [ INFO ]    Average:       418.38 ms
-    [ INFO ]    Min:           285.25 ms
-    [ INFO ]    Max:           798.40 ms
-    [ INFO ] Throughput:   14.19 FPS
+    [ INFO ]    Median:        675.43 ms
+    [ INFO ]    Average:       677.33 ms
+    [ INFO ]    Min:           437.98 ms
+    [ INFO ]    Max:           813.27 ms
+    [ INFO ] Throughput:   17.51 FPS
 
 
 .. code:: ipython3
@@ -763,30 +709,30 @@ models.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.5.0-16913-890f2e12c98
+    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
     [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.5.0-16913-890f2e12c98
+    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
     [ INFO ]
     [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 41.47 ms
+    [ INFO ] Read model took 74.87 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
-    [ INFO ]     images (node: x) : f32 / [...] / [1,3,640,640]
+    [ INFO ]     images (node: x) : f32 / [...] / [?,3,?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     output0 (node: __module.model.22/aten::cat/Concat_5) : f32 / [...] / [1,84,8400]
-    [ INFO ]     xi.1 (node: __module.model.22/aten::cat/Concat_2) : f32 / [...] / [1,144,80,80]
-    [ INFO ]     xi.3 (node: __module.model.22/aten::cat/Concat_1) : f32 / [...] / [1,144,40,40]
-    [ INFO ]     xi (node: __module.model.22/aten::cat/Concat) : f32 / [...] / [1,144,20,20]
+    [ INFO ]     output0 (node: __module.model.22/aten::cat/Concat_5) : f32 / [...] / [?,84,8400]
+    [ INFO ]     xi.1 (node: __module.model.22/aten::cat/Concat_2) : f32 / [...] / [?,144,4..,4..]
+    [ INFO ]     xi.3 (node: __module.model.22/aten::cat/Concat_1) : f32 / [...] / [?,144,2..,2..]
+    [ INFO ]     xi (node: __module.model.22/aten::cat/Concat) : f32 / [...] / [?,144,1..,1..]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'images': [1,3,640,640]
-    [ INFO ] Reshape model took 0.04 ms
+    [ INFO ] Reshape model took 21.00 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     images (node: x) : u8 / [N,C,H,W] / [1,3,640,640]
@@ -796,54 +742,52 @@ models.
     [ INFO ]     xi.3 (node: __module.model.22/aten::cat/Concat_1) : f32 / [...] / [1,144,40,40]
     [ INFO ]     xi (node: __module.model.22/aten::cat/Concat) : f32 / [...] / [1,144,20,20]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 870.18 ms
+    [ INFO ] Compile model took 1577.10 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
     [ INFO ]   EXECUTION_DEVICES: ['CPU']
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
-    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
     [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
     [ INFO ]   CPU:
     [ INFO ]     AFFINITY: Affinity.CORE
     [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
     [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
-    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 32
+    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 0
     [ INFO ]     ENABLE_CPU_PINNING: True
     [ INFO ]     ENABLE_HYPER_THREADING: True
     [ INFO ]     EXECUTION_DEVICES: ['CPU']
     [ INFO ]     EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
-    [ INFO ]     INFERENCE_NUM_THREADS: 24
+    [ INFO ]     INFERENCE_NUM_THREADS: 36
     [ INFO ]     INFERENCE_PRECISION_HINT: <Type: 'float32'>
     [ INFO ]     KV_CACHE_PRECISION: <Type: 'float16'>
     [ INFO ]     LOG_LEVEL: Level.NO
-    [ INFO ]     MODEL_DISTRIBUTION_POLICY: set()
     [ INFO ]     NETWORK_NAME: Model0
-    [ INFO ]     NUM_STREAMS: 6
-    [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+    [ INFO ]     NUM_STREAMS: 12
+    [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
     [ INFO ]     PERFORMANCE_HINT: THROUGHPUT
     [ INFO ]     PERFORMANCE_HINT_NUM_REQUESTS: 0
     [ INFO ]     PERF_COUNT: NO
     [ INFO ]     SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
     [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
     [ INFO ]   LOADED_FROM_CACHE: False
-    [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
     [ INFO ] Fill input 'images' with random values
-    [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
+    [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 71.43 ms
+    [ INFO ] First inference took 97.75 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            726 iterations
-    [ INFO ] Duration:         15150.76 ms
+    [ INFO ] Count:            948 iterations
+    [ INFO ] Duration:         15275.99 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        121.03 ms
-    [ INFO ]    Average:       124.70 ms
-    [ INFO ]    Min:           65.35 ms
-    [ INFO ]    Max:           268.30 ms
-    [ INFO ] Throughput:   47.92 FPS
+    [ INFO ]    Median:        189.64 ms
+    [ INFO ]    Average:       192.41 ms
+    [ INFO ]    Min:           116.33 ms
+    [ INFO ]    Max:           302.97 ms
+    [ INFO ] Throughput:   62.06 FPS
 
 
 Run Live Object Detection
@@ -955,11 +899,11 @@ Run Live Object Detection
                 cv2.destroyAllWindows()
 
 Use a webcam as the video input. By default, the primary webcam is set
-with \ ``source=0``. If you have multiple webcams, each one will be
-assigned a consecutive number starting at 0. Set \ ``flip=True`` when
+with ``source=0``. If you have multiple webcams, each one will be
+assigned a consecutive number starting at 0. Set ``flip=True`` when
 using a front-facing camera. Some web browsers, especially Mozilla
 Firefox, may cause flickering. If you experience flickering,
-set \ ``use_popup=True``.
+set ``use_popup=True``.
 
    **NOTE**: To use this notebook with a webcam, you need to run the
    notebook on a computer with a webcam. If you run the notebook on a
@@ -977,7 +921,10 @@ Run the object detection:
     if WEBCAM_INFERENCE:
         VIDEO_SOURCE = 0  # Webcam
     else:
-        VIDEO_SOURCE = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/people.mp4"
+        VIDEO_URL = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/people.mp4"
+        VIDEO_SOURCE = Path("people.mp4")
+        if not VIDEO_SOURCE.exists():
+            download_file(VIDEO_URL)
 
 .. code:: ipython3
 
@@ -988,7 +935,7 @@ Run the object detection:
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=3, options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='AUTO')
 
 
 
@@ -1003,13 +950,3 @@ Run the object detection:
         model=quantized_model,
         device=device.value,
     )
-
-
-
-.. image:: yolov9-optimization-with-output_files/yolov9-optimization-with-output_36_0.png
-
-
-.. parsed-literal::
-
-    Source ended
-

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -248,3 +248,5 @@ std::shared_ptr<ov::Symbol> Dimension::get_symbol() const {
 void Dimension::set_symbol(const std::shared_ptr<ov::Symbol>& s) {
     m_symbol = s;
 }
+
+AttributeAdapter<Dimension>::~AttributeAdapter() = default;

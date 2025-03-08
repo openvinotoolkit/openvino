@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,8 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 
-using namespace ov;
+namespace ov {
+namespace test {
 
 class DestructorTest {
 public:
@@ -735,3 +736,70 @@ TEST_F(AnyTests, EmptyStringAsAny) {
     ASSERT_EQ(p.as<std::vector<float>>(), ref_f);
     ASSERT_EQ(p.as<std::vector<int>>(), ref_i);
 }
+
+template <class T>
+class AnyConversionTest : public AnyTests {};
+
+TYPED_TEST_SUITE_P(AnyConversionTest);
+
+using AnyArithmeticTypes = ::testing::Types<char,
+                                            signed char,
+                                            short,
+                                            int,
+                                            long,
+                                            long long,
+                                            unsigned char,
+                                            unsigned short,
+                                            unsigned int,
+                                            unsigned long,
+                                            unsigned long long,
+                                            float,
+                                            double>;
+
+TYPED_TEST_P(AnyConversionTest, AnyToOtherValue) {
+    const TypeParam test_value{static_cast<TypeParam>(23.15f)};
+    const auto a = Any{test_value};
+
+    EXPECT_EQ(a.as<int8_t>(), static_cast<int8_t>(test_value));
+    EXPECT_EQ(a.as<int16_t>(), static_cast<int16_t>(test_value));
+    EXPECT_EQ(a.as<int32_t>(), static_cast<int32_t>(test_value));
+    EXPECT_EQ(a.as<int64_t>(), static_cast<int64_t>(test_value));
+
+    EXPECT_EQ(a.as<uint8_t>(), static_cast<uint8_t>(test_value));
+    EXPECT_EQ(a.as<uint16_t>(), static_cast<uint16_t>(test_value));
+    EXPECT_EQ(a.as<uint32_t>(), static_cast<uint32_t>(test_value));
+    EXPECT_EQ(a.as<uint64_t>(), static_cast<uint64_t>(test_value));
+    EXPECT_EQ(a.as<size_t>(), static_cast<size_t>(test_value));
+
+    EXPECT_EQ(a.as<float>(), static_cast<float>(test_value));
+    EXPECT_EQ(a.as<double>(), static_cast<double>(test_value));
+}
+
+REGISTER_TYPED_TEST_SUITE_P(AnyConversionTest, AnyToOtherValue);
+INSTANTIATE_TYPED_TEST_SUITE_P(InstantiationName, AnyConversionTest, AnyArithmeticTypes);
+
+TEST_F(AnyTests, AnyAsOtherTypeIsIncosisoinet) {
+    // To show member `as` current behaviour.
+    // Maybe there should be two members `as` which return value
+    // and `cast` returns reference if casted type is same as Any underlying type
+    auto a = Any{10};
+
+    auto& a_int = a.as<int>();
+    auto& a_str = a.as<std::string>();
+
+    EXPECT_EQ(a_int, 10);
+    EXPECT_EQ(a_str, "10");
+
+    a_int = 15;
+    EXPECT_EQ(a_int, 15);
+    // as string ref still has old value
+    EXPECT_EQ(a_str, "10");
+
+    a_str = "30";
+    EXPECT_EQ(a_int, 15);
+    // as string ref has new value but is not in sync what any contains.
+    EXPECT_EQ(a_str, "30");
+}
+
+}  // namespace test
+}  // namespace ov

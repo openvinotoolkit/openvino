@@ -1,0 +1,80 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "input"
+    input: "skip"
+    input: "gamma"
+    input: "bias"
+    output: "out"
+    name: "SkipSimplifiedLayerNorm"
+    op_type: "SkipSimplifiedLayerNormalization"
+    attribute {
+      name: "epsilon"
+      f: 1e-05
+      type: FLOAT
+    }
+    domain: "com.microsoft"
+  }
+  initializer {
+    dims: 4
+    data_type: 1  # FLOAT32
+    name: "gamma"
+    float_data: 0.1
+    float_data: 0.2
+    float_data: 0.3
+    float_data: 0.4
+  }
+  initializer {
+    dims: 4
+    data_type: 1  # FLOAT32
+    name: "bias"
+    float_data: -0.07
+    float_data: -0.4
+    float_data: 0.22
+    float_data: 0.0
+  }
+  input {
+    name: "input"
+    type {
+      tensor_type {
+        elem_type: 1  # FLOAT32
+        shape {
+          dim { dim_value: 3 }
+          dim { dim_value: 2 }
+          dim { dim_value: 4 }
+        }
+      }
+    }
+  }
+  input {
+    name: "skip"
+    type {
+      tensor_type {
+        elem_type: 1  # FLOAT32
+        shape {
+          dim { dim_value: 3 }
+          dim { dim_value: 2 }
+          dim { dim_value: 4 }
+        }
+      }
+    }
+  }
+  output {
+    name: "out"
+    type {
+      tensor_type {
+        elem_type: 1  # FLOAT32
+        shape {
+          dim { dim_value: 3 }
+          dim { dim_value: 2 }
+          dim { dim_value: 4 }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: "com.microsoft"
+  version: 1
+}

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -139,11 +139,6 @@ void op::v7::Einsum::parse_equation(const std::string& equation,
         OPENVINO_ASSERT(is_subscript_correct(output_subscript, output_is_ellipsis_met),
                         "Output subscript of Einsum equation must consist of either only "
                         "alphabetic letters or alphabetic letters with one ellipsis.");
-
-        // if the ellipsis is met in input subscripts, one ellipsis must be in the output subscript
-        OPENVINO_ASSERT(is_ellipsis_met == output_is_ellipsis_met,
-                        "Output subscript of Einsum equation must contain one ellipsis if "
-                        "ellipsis is met in any input subscript.");
     }
 }
 

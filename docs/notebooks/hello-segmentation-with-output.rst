@@ -35,20 +35,12 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 
 .. code:: ipython3
 
-    import platform
-    
     # Install required packages
-    %pip install -q "openvino>=2023.1.0" opencv-python tqdm
-    
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "openvino>=2023.1.0" opencv-python tqdm "matplotlib>=3.4"
 
 
 .. parsed-literal::
 
-    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -63,17 +55,25 @@ Imports
     import matplotlib.pyplot as plt
     import numpy as np
     import openvino as ov
+    from pathlib import Path
     
     # Fetch `notebook_utils` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
     
-    open("notebook_utils.py", "w").write(r.text)
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+    
+        open("notebook_utils.py", "w").write(r.text)
     
     from notebook_utils import segmentation_map_to_image, download_file, device_widget
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("hello-segmentation.ipynb")
 
 Download model weights
 ----------------------
@@ -109,13 +109,13 @@ Download model weights
 
 .. parsed-literal::
 
-    model/road-segmentation-adas-0001.xml:   0%|          | 0.00/389k [00:00<?, ?B/s]
+    road-segmentation-adas-0001.xml:   0%|          | 0.00/389k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    model/road-segmentation-adas-0001.bin:   0%|          | 0.00/720k [00:00<?, ?B/s]
+    road-segmentation-adas-0001.bin:   0%|          | 0.00/720k [00:00<?, ?B/s]
 
 
 Select inference device
@@ -164,10 +164,14 @@ is provided.
 .. code:: ipython3
 
     # Download the image from the openvino_notebooks storage
-    image_filename = download_file(
-        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/empty_road_mapillary.jpg",
-        directory="data",
-    )
+    image_filename = Path("data/empty_road_mapillary.jpg")
+    
+    
+    if not image_filename.exists():
+        download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/empty_road_mapillary.jpg",
+            directory="data",
+        )
     
     # The segmentation network expects images in BGR format.
     image = cv2.imread(str(image_filename))
@@ -189,14 +193,14 @@ is provided.
 
 .. parsed-literal::
 
-    data/empty_road_mapillary.jpg:   0%|          | 0.00/227k [00:00<?, ?B/s]
+    empty_road_mapillary.jpg:   0%|          | 0.00/227k [00:00<?, ?B/s]
 
 
 
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f8630302df0>
+    <matplotlib.image.AxesImage at 0x7fd57a5cb040>
 
 
 
@@ -223,7 +227,7 @@ Do Inference
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f861873c6d0>
+    <matplotlib.image.AxesImage at 0x7fd53c2fed90>
 
 
 

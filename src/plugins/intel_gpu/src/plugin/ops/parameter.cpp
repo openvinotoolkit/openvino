@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,8 +19,7 @@
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateParameterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Parameter>& op) {
     auto input_pshape = op->get_partial_shape();
@@ -29,7 +28,8 @@ static void CreateParameterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
     }
 
     cldnn::format input_format = cldnn::format::get_default_format(input_pshape.size());
-    auto element_type = cldnn::element_type_to_data_type(convert_to_supported_device_type(op->get_output_element_type(0)));
+    auto element_type = convert_to_supported_device_type(op->get_output_element_type(0));
+    element_type = element_type == ov::element::boolean ? ov::element::u8 : element_type;
 
     // look at the expected color format of this input
     auto input_name = layer_type_name_ID(op);
@@ -143,5 +143,4 @@ static void CreateParameterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
 
 REGISTER_FACTORY_IMPL(v0, Parameter);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

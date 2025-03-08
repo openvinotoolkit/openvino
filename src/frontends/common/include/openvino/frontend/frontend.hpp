@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <vector>
@@ -50,7 +51,11 @@ public:
     /// \return true if model recognized, false - otherwise.
     template <typename... Types>
     inline bool supported(const Types&... vars) const {
-        return supported_impl({ov::Any(vars)...});
+        if constexpr ((std::is_same_v<std::filesystem::path, Types> || ...)) {
+            return supported_impl({path_as_str_or_forward(vars)...});
+        } else {
+            return supported_impl({ov::Any(vars)...});
+        }
     }
     inline bool supported(const ov::AnyVector& vars) const {
         return supported_impl(vars);
@@ -65,7 +70,11 @@ public:
     /// \return Loaded input model.
     template <typename... Types>
     inline InputModel::Ptr load(const Types&... vars) const {
-        return load_impl({ov::Any{vars}...});
+        if constexpr ((std::is_same_v<std::filesystem::path, Types> || ...)) {
+            return load_impl({path_as_str_or_forward(vars)...});
+        } else {
+            return load_impl({ov::Any{vars}...});
+        }
     }
 
     inline InputModel::Ptr load(const ov::AnyVector& vars) const {
@@ -118,7 +127,13 @@ public:
 
     /// \brief Registers extension
     /// \param library_path path to library with ov::Extension
+    /// \{
     void add_extension(const std::string& library_path);
+
+    void add_extension(const std::filesystem::path& library_path) {
+        add_extension(library_path.string());
+    }
+    /// \}
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
@@ -162,6 +177,15 @@ protected:
 private:
     static std::shared_ptr<ov::Model> create_copy(const std::shared_ptr<ov::Model>& ov_model,
                                                   const std::shared_ptr<void>& shared_object);
+
+    template <class T>
+    static constexpr auto path_as_str_or_forward(T&& p) {
+        if constexpr (std::is_same_v<std::filesystem::path, std::decay_t<T>>) {
+            return p.string();
+        } else {
+            return std::forward<T>(p);
+        }
+    }
 };
 
 template <>

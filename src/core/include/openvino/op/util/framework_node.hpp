@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -120,6 +120,7 @@ class OPENVINO_API AttributeAdapter<ov::op::util::FrameworkNodeAttrs>
     : public DirectValueAccessor<ov::op::util::FrameworkNodeAttrs> {
 public:
     AttributeAdapter(ov::op::util::FrameworkNodeAttrs& value);
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<FrameworkNodeAttr>");
 };

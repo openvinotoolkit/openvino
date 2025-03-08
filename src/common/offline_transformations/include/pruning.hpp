@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ class Pruning;
  */
 class ov::pass::InitMasks : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("InitMasks", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("InitMasks");
     InitMasks();
 };
 
@@ -41,7 +41,7 @@ public:
  */
 class ov::pass::InitConstMask : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("InitConstMask", "0");
+    OPENVINO_MATCHER_PASS_RTTI("InitConstMask");
     explicit InitConstMask(
         const ov::AxisSet& dims,
         const std::function<bool(const double& value)>& condition = [](const double& value) {
@@ -56,7 +56,7 @@ public:
  */
 class ov::pass::PropagateMasks : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("PropagateMasks", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("PropagateMasks");
     PropagateMasks();
 };
 
@@ -67,7 +67,7 @@ public:
  */
 class ov::pass::ShrinkWeights : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("ShrinkWeights", "0");
+    OPENVINO_MODEL_PASS_RTTI("ShrinkWeights");
     bool run_on_model(const std::shared_ptr<ov::Model>&) override;
 };
 
@@ -77,6 +77,6 @@ public:
  */
 class ov::pass::Pruning : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("Pruning", "0");
+    OPENVINO_MODEL_PASS_RTTI("Pruning");
     bool run_on_model(const std::shared_ptr<Model>&) override;
 };

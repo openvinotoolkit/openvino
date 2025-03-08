@@ -24,6 +24,13 @@ static size_t get_generate_stage_block_size(size_t head_size) {
     return 1;
 }
 
+static std::string GetKernelName(std::string kernel_name, const kv_cache_update_params& params) {
+    if (params.conf.is_kv_compressed)
+        kernel_name += "_dq";
+
+    return kernel_name;
+}
+
 KernelsData KVCacheUpdateKernelRef::GetKernelsData(const Params& p) const {
     if (!Validate(p)) {
         return {};
@@ -34,10 +41,11 @@ KernelsData KVCacheUpdateKernelRef::GetKernelsData(const Params& p) const {
     GetUpdateDispatchDataFunc(kd);
 
     const auto& params = static_cast<const kv_cache_update_params&>(p);
+    const auto kernel_name = GetKernelName(kernelName, params);
     const auto dispatch_data = SetDefault(params);
-    const auto entry_point = GetEntryPoint(kernelName, params.layerID, p);
+    const auto entry_point = GetEntryPoint(kernel_name, params.layerID, p);
     const auto jit_constants = GetJitConstants(params);
-    const auto jit = CreateJit(kernelName, jit_constants, entry_point);
+    const auto jit = CreateJit(kernel_name, jit_constants, entry_point);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
@@ -76,6 +84,8 @@ ParamsKey KVCacheUpdateKernelRef::GetSupportedKey() const {
 
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT32);
 
     k.EnableInputLayout(DataLayout::bfyx);
@@ -120,6 +130,15 @@ JitConstants KVCacheUpdateKernelRef::GetJitConstants(const kv_cache_update_param
     jit.AddConstant(MakeJitConstant("PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size));
     jit.AddConstant(MakeJitConstant("SUBGROUP_SIZE", subgroup_size));
     jit.AddConstant(MakeJitConstant("GENERATE_STAGE_BLOCK_SIZE", get_generate_stage_block_size(params.conf.head_size)));
+    jit.AddConstant(MakeJitConstant("IS_KV_COMPRESSED", params.conf.is_kv_compressed));
+
+    if (params.conf.is_kv_compressed) {
+        auto scales_zp_size = params.inputs[0].ElementSize() * 2; // scale + zp
+        jit.AddConstant(MakeJitConstant("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size));
+        jit.AddConstant(MakeJitConstant("ADJUSTED_HEAD_SIZE", params.conf.head_size + scales_zp_size));
+    } else {
+        jit.AddConstant(MakeJitConstant("ADJUSTED_HEAD_SIZE", params.conf.head_size));
+    }
 
     return jit;
 }
@@ -167,13 +186,14 @@ void KVCacheUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
 
         const auto indexes_dt = Datatype::INT32;
         const auto target_seq_len_block_size = 16;
-        const auto target_seq_len = prim_params.conf.paged_attention_aligned_seq_len;
+        const auto target_seq_len = std::max(prim_params.conf.paged_attention_aligned_seq_len, static_cast<int64_t>(1));
         const auto indexes_buf_size = CeilDiv(target_seq_len, target_seq_len_block_size) * BytesPerElement(indexes_dt);
 
-        kd.internalBufferSizes.clear();
-        kd.internalBufferSizes.push_back(indexes_buf_size);
-        kd.internalBufferSizes.push_back(indexes_buf_size);
-        kd.internalBufferSizes.push_back(indexes_buf_size);
+        const bool lockable = true;
+        kd.internalBuffers.clear();
+        kd.internalBuffers.emplace_back(indexes_buf_size, lockable);
+        kd.internalBuffers.emplace_back(indexes_buf_size, lockable);
+        kd.internalBuffers.emplace_back(indexes_buf_size, lockable);
         kd.internalBufferDataType = indexes_dt;
 
         kd.kernels[0].params.scalars[0].v.s32 = static_cast<int32_t>(prim_params.is_prefill);

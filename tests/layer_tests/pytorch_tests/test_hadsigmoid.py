@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -29,6 +29,7 @@ class TestHardSigmoid(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("shape", [[1, 10], [1, 2, 3], [1, 2, 3, 4], [1, 2, 3, 4, 5]])
     @pytest.mark.parametrize("dtype", ["float32", "float64"])
     @pytest.mark.parametrize("inplace", [skip_if_export(True), False])

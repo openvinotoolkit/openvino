@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -78,7 +78,7 @@ OutputVector translate_varhandle_op(const NodeContext& node) {
     auto var_index = model->get_variables_index();
     auto ov_type = node.get_attribute<element::Type>("dtype");
     std::shared_ptr<Node> const_node;
-    if (ov_type == element::undefined) {
+    if (ov_type == element::dynamic) {
         const_node = std::make_shared<UnsupportedConstant>();
     } else if (var_index.get() == nullptr) {
         auto ov_shape = node.get_attribute<ov::PartialShape>("shape").get_shape();
@@ -98,7 +98,7 @@ OutputVector translate_varhandle_op(const NodeContext& node) {
 
         TENSORFLOW_OP_VALIDATION(node, result, "[TensorFlow Frontend] Internal error: Cannot find requested variable.");
 
-        ::tensorflow::BundleEntryProto entry;
+        ::tensorflow::BundleEntryProto entry{};
         TENSORFLOW_OP_VALIDATION(node,
                                  entry.ParseFromArray(entry_data, static_cast<int>(entry_size)),
                                  "[TensorFlow Frontend] Internal error: Cannot get read bundle entry.");

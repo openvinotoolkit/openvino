@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ TEST(attributes, search_sorted_op) {
     auto g_op = ov::as_type_ptr<TOp>(builder.create());
 
     // attribute count
-    const auto expected_attr_count = 1;
+    const auto expected_attr_count = 2;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
     // space_to_depth attributes

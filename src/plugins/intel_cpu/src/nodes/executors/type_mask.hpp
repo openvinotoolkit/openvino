@@ -9,34 +9,32 @@
 
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 struct TypeMask {
     enum Value : uint64_t {
-        _undefined = 1 << 0,
-        _dynamic   = 1 << 1,
-        _boolean   = 1 << 2,
-        _bf16      = 1 << 3,
-        _f16       = 1 << 4,
-        _f32       = 1 << 5,
-        _f64       = 1 << 6,
-        _i4        = 1 << 7,
-        _i8        = 1 << 8,
-        _i16       = 1 << 9,
-        _i32       = 1 << 10,
-        _i64       = 1 << 11,
-        _u1        = 1 << 12,
-        _u4        = 1 << 13,
-        _u8        = 1 << 14,
-        _u16       = 1 << 15,
-        _u32       = 1 << 16,
-        _u64       = 1 << 17,
-        _nf4       = 1 << 18,
-        _f8e4m3    = 1 << 19,
-        _f8e5m2    = 1 << 20,
-        _string    = 1 << 21,
-        _f4e2m1    = 1 << 22,
-        _f8e8m0    = 1 << 23,
+        _dynamic = 1 << 0,
+        _boolean = 1 << 1,
+        _bf16 = 1 << 2,
+        _f16 = 1 << 3,
+        _f32 = 1 << 4,
+        _f64 = 1 << 5,
+        _i4 = 1 << 6,
+        _i8 = 1 << 7,
+        _i16 = 1 << 8,
+        _i32 = 1 << 9,
+        _i64 = 1 << 10,
+        _u1 = 1 << 11,
+        _u4 = 1 << 12,
+        _u8 = 1 << 13,
+        _u16 = 1 << 14,
+        _u32 = 1 << 15,
+        _u64 = 1 << 16,
+        _nf4 = 1 << 17,
+        _f8e4m3 = 1 << 18,
+        _f8e5m2 = 1 << 19,
+        _string = 1 << 20,
+        _f4e2m1 = 1 << 21,
+        _f8e8m0 = 1 << 22,
     };
 
     TypeMask(const ov::element::Type precision) : value(generateMask(precision)), precision(precision) {}
@@ -61,8 +59,6 @@ private:
     case ov::element::typeM: \
         return _##typeM;
         switch (type) {
-            CASE(undefined)
-            CASE(dynamic)
             CASE(boolean)
             CASE(bf16)
             CASE(f16)
@@ -86,17 +82,16 @@ private:
             CASE(f4e2m1)
             CASE(f8e8m0)
         default:
-            return _undefined;
+            return _dynamic;
         }
 #undef CASE
     }
 };
 
 namespace TypeMaskAlias {
-constexpr ov::element::Type fxx(ov::element::Type_t::undefined);
+constexpr ov::element::Type fxx(ov::element::Type_t::dynamic);
 #define DEFINE_TYPE_ALIAS(x) constexpr auto x = TypeMask::Value::x
 // use underscore for naming to avoid conflicts with Precision aliases
-DEFINE_TYPE_ALIAS(_undefined);
 DEFINE_TYPE_ALIAS(_dynamic);
 DEFINE_TYPE_ALIAS(_boolean);
 DEFINE_TYPE_ALIAS(_bf16);
@@ -126,5 +121,4 @@ constexpr auto _quant = _u8 | _i8;
 constexpr auto _any = std::numeric_limits<uint64_t>::max();
 }  // namespace TypeMaskAlias
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

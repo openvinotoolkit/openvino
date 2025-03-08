@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -39,7 +39,7 @@ class TestPythonOp(PytorchLayerTest):
             pytest.param(
                 False,
                 marks=pytest.mark.xfail(
-                    reason="Subgraph of prim::PythonOp cannot be retrived using if using scripting."
+                    reason="Subgraph of prim::PythonOp cannot be retrieved using if using scripting."
                 ),
             ),
         ],

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@
     out_name[4] = in_prefix##_VAL4;
 #endif
 
-KERNEL(slice_ref)(OPTIONAL_SHAPE_INFO_ARG 
+KERNEL(slice_ref)(OPTIONAL_SHAPE_INFO_ARG
                   const __global INPUT0_TYPE* restrict input,
                   START_BUFFER
                   STEP_BUFFER

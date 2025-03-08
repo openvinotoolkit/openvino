@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "openvino/op/scaled_dot_product_attention.hpp"
@@ -27,13 +27,21 @@ std::shared_ptr<ov::Node> translate_scaled_dot_product_attention_common(const No
 
     if (!context.input_is_none(3))
         inputs.push_back(context.get_input(3));
-    else if (!context.input_is_none(6)) {
-        // need to fill a gap in inputs with scalar 0 to be able to pass one extra input after that
-        auto zero = op::v0::Constant::create(element::f32, Shape{}, {0});
-        inputs.push_back(context.mark_node(std::make_shared<v1::ConvertLike>(zero, query)));
-    }
-    if (!context.input_is_none(6))
+    if (!context.input_is_none(6)) {
+        if (inputs.size() < 4) {
+            // need to fill a gap in inputs with scalar 0 to be able to pass one extra input after that
+            auto zero = op::v0::Constant::create(element::f32, Shape{}, {0});
+            inputs.push_back(context.mark_node(std::make_shared<v1::ConvertLike>(zero, query)));
+        }
         inputs.push_back(context.mark_node(std::make_shared<v1::ConvertLike>(context.get_input(6), query)));
+    } else if (context.has_attribute("scale")) {
+        const auto scale = context.get_input("scale");
+        if (inputs.size() < 4) {
+            auto zero = op::v0::Constant::create(element::f32, Shape{}, {0});
+            inputs.push_back(context.mark_node(std::make_shared<v1::ConvertLike>(zero, query)));
+        }
+        inputs.push_back(context.mark_node(std::make_shared<v1::ConvertLike>(scale, query)));
+    }
     if (!context.input_is_none(7)) {
         auto enable_gqa = context.const_input<bool>(7);
         PYTORCH_OP_CONVERSION_CHECK(enable_gqa == false,
@@ -46,7 +54,7 @@ std::shared_ptr<ov::Node> translate_scaled_dot_product_attention_common(const No
 OutputVector translate_scaled_dot_product_attention(const NodeContext& context) {
     // aten::scaled_dot_product_attention(Tensor query, Tensor key, Tensor value, Tensor? attn_mask=None, float
     // dropout_p=0., bool is_causal=False, float scale=None, bool enable_gqa=False)
-    num_inputs_check(context, 6, 8);
+    num_inputs_check(context, 3, 8);
     return {translate_scaled_dot_product_attention_common(context)};
 };
 

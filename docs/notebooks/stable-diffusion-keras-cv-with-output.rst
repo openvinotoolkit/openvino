@@ -57,18 +57,12 @@ Prerequisites
 
 .. code:: ipython3
 
-    import platform
-    
     %pip install -q "tensorflow-macos>=2.15; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.15; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
     %pip install -q "tensorflow>=2.15; sys_platform != 'darwin' and python_version > '3.8'"
     %pip install -q keras-cv tf_keras numpy "openvino>=2024.1.0" "gradio>=4.19" datasets "nncf>=2.10.0"
     
-    
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "matplotlib>=3.4"
 
 Convert Stable Diffusion Pipeline models to OpenVINO
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -119,6 +113,11 @@ Import required modules and set constants
     OV_TEXT_ENCODER_MODEL_PATH = Path("models/ov_text_encoder_model.xml")
     OV_DIFFUSION_MODEL_PATH = Path("models/ov_diffusion_model.xml")
     OV_DECODER_MODEL_PATH = Path("models/ov_decoder_model.xml")
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("stable-diffusion-keras-cv.ipynb")
 
 Create KerasCV Stable Diffusion pipeline
 

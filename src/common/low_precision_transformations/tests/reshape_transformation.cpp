@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,7 +91,6 @@ TEST_P(ReshapeTransformation, CompareFunctions) {
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
-
 const std::vector<ReshapeTransformationTestValues> testValues = {
     // U8: no subtract 3D -> 4D: channels are not affected
     {{1, 384, 1024},
@@ -170,11 +169,11 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
      {1, 2, 2, 10, 10},
      LayerTransformation::createParamsU8I8(),
      {ov::element::u8,
-      {{ov::element::f32}, {{128.f}, element::undefined, {1, 4, 1, 1}, false, 1ul, element::u8, true}, {3.f}}},
+      {{ov::element::f32}, {{128.f}, element::dynamic, {1, 4, 1, 1}, false, 1ul, element::u8, true}, {3.f}}},
      {ov::element::u8,
       {{}, {}, {}},
       ov::element::u8,
-      {{ov::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::u8, true}, {3.f}}}},
+      {{ov::element::f32}, {{128.f}, element::dynamic, {}, false, 1ul, element::u8, true}, {3.f}}}},
     // U8: with subtract 3D -> 4D: channels are not affected, dynamic batch
     {{-1, 3, 20},
      {0, 3, 4, 5},

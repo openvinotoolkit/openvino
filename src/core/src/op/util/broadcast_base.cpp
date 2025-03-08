@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -470,4 +470,11 @@ bool ov::op::util::BroadcastBase::evaluate_upper(ov::TensorVector& output_values
         (get_input_size() > 2 && !input_value(2).get_tensor().has_and_set_bound()))
         return false;
     return default_upper_bound_evaluator(this, output_values);
+}
+
+bool ov::op::util::BroadcastBase::evaluate_symbol(ov::TensorSymbolVector& output_symbols) const {
+    if (!input_value(1).get_tensor().has_and_set_bound() ||
+        (get_input_size() > 2 && !input_value(2).get_tensor().has_and_set_bound()))
+        return false;
+    return default_symbol_evaluator(this, {0}, output_symbols);
 }

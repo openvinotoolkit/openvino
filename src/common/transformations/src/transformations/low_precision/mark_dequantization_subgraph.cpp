@@ -1,118 +1,311 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
+#include "itt.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 
-ov::pass::MarkDequantizationSubgraph::MarkDequantizationSubgraph(const element::TypeVector& precisions,
-                                                                 const bool fold_subtract_const,
-                                                                 const bool disable_fold_multiply_const) {
-    // Dequantization subgraph may have two forms: with and without Subtract
-    //
-    //    Input                                 Input
-    //      |                                     |
-    //   Convert  zero point           OR       Convert   scale
-    //       \     /                               \      /
-    //       Subtract   scale                      Multiply
-    //           \      /
-    //           Multiply
-    //
-    auto input_pattern = pattern::any_input();
-    auto convert_pattern = pattern::wrap_type<ov::op::v0::Convert>({input_pattern}, pattern::consumers_count(1));
-    auto zero_point_pattern = pattern::any_input();
-    auto subtract_pattern = pattern::wrap_type<ov::op::v1::Subtract>({convert_pattern, zero_point_pattern});
-    auto multiply_pattern = pattern::wrap_type<ov::op::v1::Multiply>({subtract_pattern, pattern::any_input()});
-    auto multiply_no_subtract_pattern =
-        pattern::wrap_type<ov::op::v1::Multiply>({convert_pattern, pattern::any_input()});
-    auto root = std::make_shared<pattern::op::Or>(OutputVector{multiply_pattern, multiply_no_subtract_pattern});
+using namespace ov;
+using namespace ov::op;
+using namespace ov::pass::pattern;
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) -> bool {
-        const auto& pattern_map = m.get_pattern_value_map();
-        auto convert = pattern_map.at(convert_pattern).get_node_shared_ptr();
-        auto input = pattern_map.at(input_pattern);
+namespace {
+
+ov::pass::pattern::op::Predicate check_precision(const ov::element::TypeVector& precisions) {
+    return ov::pass::pattern::op::Predicate(
+        [=](const Output<Node>& output) -> bool {
+            return std::find(precisions.begin(), precisions.end(), output.get_element_type()) != precisions.end();
+        },
+        "check_precision");
+}
+
+using RTInfoSetter = std::function<void(const std::shared_ptr<ov::Node>& node)>;
+void set_rt_info(const PatternValueMap& pt_map,
+                 const RTInfoSetter& rt_info_setter,
+                 const NodeVector& pattern_nodes,
+                 const ov::element::TypeVector& precisions) {
+    for (const auto& pattern_node : pattern_nodes) {
+        if (pt_map.count(pattern_node)) {
+            auto node = pt_map.at(pattern_node).get_node_shared_ptr();
+            // we don't need to mark Converts with disable_cf attribute if the `from` type (input type)
+            // is not in the `precisions` list.
+            if (ov::as_type_ptr<v0::Convert>(node) && !check_precision(precisions)(node->input_value(0))) {
+                continue;
+            }
+
+            rt_info_setter(node);
+        }
+    }
+};
+
+/*
+In some cases we cannot swap Convert and Reshape because it would
+lead to incorrect shapes: e.g.
+If we have a following graph with Convert working for several Zero-Point Subgraphs,
+we cannot perform swapping as this would break another part of the graph.
+
+                               ZP Const
+                                  │
+                                  ▼
+          Input                Convert                Input
+            │                  │     │                  │
+            ▼                  ▼     ▼                  ▼
+ Scale      Convert      Reshape     Reshape      Convert      Scale
+     |            │    (64,1,1,1)   (1,64,1,1)    │            │
+     |            │      │                 │      │            |
+     ▼            ▼      ▼                 ▼      ▼            ▼
+     Reshape      Subtract                 Subtract      Reshape
+           |      |                               |      |
+           ▼      ▼                               ▼      ▼
+           Multiply                               Multiply
+
+Though, we can perform swapping if the shapes are same for all branches: e.g.
+
+                               ZP Const
+                                  │
+                                  ▼
+          Input                Convert                Input
+            │                  │     │                  │
+            ▼                  ▼     ▼                  ▼
+            Convert      Reshape     Reshape      Convert
+ Scale            │    (64,1,1,1)   (64,1,1,1)    │            Scale
+     |            │      │                 │      │            |
+     ▼            ▼      ▼                 ▼      ▼            ▼
+     Reshape      Subtract                 Subtract      Reshape
+           |      |                               |      |
+           ▼      ▼                               ▼      ▼
+           Multiply                               Multiply
+
+Step 1: the left part of the graph would be matched transforming the graph above into the following form:
+
+                      ZP Const
+                         │
+                         ▼
+          Input       Reshape
+            │        (64,1,1,1)
+            │            │
+            ▼            ▼
+Scale       Convert   Convert          Input
+    │          │      │     │            |
+    ▼          ▼      ▼     ▼            ▼
+    Reshape    Subtract     Reshape   Convert         Scale
+          |      |         (64,1,1,1)    │            │
+          ▼      ▼                │      │            |
+          Multiply                ▼      ▼            ▼
+                                  Subtract      Reshape
+                                         |      |
+                                         ▼      ▼
+                                         Multiply
+
+Step 2: the right part of the graph would be matched transforming the graph above into the final form:
+
+                        ZP Const
+                           │
+                           ▼
+                        Reshape
+                       (64,1,1,1)
+                           │
+                           ▼
+         Input          Reshape          Input
+           │           (64,1,1,1)          │
+           │               │               │
+           ▼               ▼               ▼
+Scale      Convert      Convert      Convert      Scale
+    │            │      │     │      │            │
+    ▼            ▼      ▼     ▼      ▼            ▼
+    Reshape      Subtract     Subtract      Reshape
+          |      |                   |      |
+          ▼      ▼                   ▼      ▼
+          Multiply                   Multiply
+
+The double Reshapes are going to be folded in the next ConstantFolding
+
+If there were 3 or even more branches with the same shapes, the process
+will be the same: forthe first branch step 1 is applied, for all the
+remainings step 2.
+*/
+
+bool can_swap(const PatternValueMap& pt_map,
+              const std::shared_ptr<Node>& first_pattern,
+              const std::shared_ptr<Node>& second_pattern) {
+    if (pt_map.count(first_pattern) && pt_map.count(second_pattern)) {
+        auto first_node = pt_map.at(first_pattern).get_node_shared_ptr();
+        auto second_node = pt_map.at(second_pattern).get_node_shared_ptr();
+
+        if (first_pattern->output(0).get_target_inputs().size() == 1)
+            return true;
+
+        auto target_inputs = first_node->output(0).get_target_inputs();
+
+        if (target_inputs.begin()->get_node()->get_output_partial_shape(0).is_static()) {
+            auto first_shape = target_inputs.begin()->get_node()->output(0).get_shape();
+
+            // Step 1 (see steps description in the comments above)
+            if (std::all_of(std::next(target_inputs.begin()),
+                            target_inputs.end(),
+                            [&](const ov::Input<ov::Node>& input) {
+                                return input.get_node()->get_output_partial_shape(0).is_static() &&
+                                       input.get_node()->get_shape() == first_shape;
+                            })) {
+                return true;
+            } else if (first_node->get_output_partial_shape(0).is_static() &&
+                       second_node->get_output_partial_shape(0).is_static() &&
+                       first_node->get_output_shape(0) == second_node->get_output_shape(0)) {
+                // Step 2
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+bool swap_nodes(const PatternValueMap& pt_map,
+                const std::shared_ptr<Node>& first,
+                const std::shared_ptr<Node>& second) {
+    if (can_swap(pt_map, first, second)) {
+        auto first_node = pt_map.at(first).get_node_shared_ptr();
+        auto second_node = pt_map.at(second).get_node_shared_ptr();
+        auto target_inputs = second_node->output(0).get_target_inputs();
+        second_node->input(0).replace_source_output(first_node->input_value(0));
+        first_node->input(0).replace_source_output(second_node->output(0));
+        for (const auto& in : target_inputs) {
+            in.replace_source_output(first_node->output(0));
+        }
+        first_node->validate_and_infer_types();
+        second_node->validate_and_infer_types();
+        return true;
+    }
+    return false;
+}
+
+}  // namespace
+
+ov::pass::MarkDequantization::MarkDequantization(const element::TypeVector& precisions,
+                                                 const bool fold_subtract_const,
+                                                 const bool fold_multiply_const) {
+    MATCHER_SCOPE(MarkDequantization);
+
+    // data input:
+    auto input_pattern = any_input(check_precision(precisions));
+    auto convert_pattern = wrap_type<v0::Convert>({input_pattern}, consumers_count(1));
+
+    // zero points:
+    auto zp_pattern = any_input();
+    auto zp_convert_pattern = pattern::optional<v0::Convert>(zp_pattern);
+    auto zp_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({zp_convert_pattern, any_input()});
+    auto subtract_pattern = pattern::optional<v1::Subtract>({convert_pattern, zp_reshape_pattern});
+
+    // scale:
+    auto scale_pattern = any_input();
+    auto scale_convert_pattern = pattern::optional<v0::Convert>(scale_pattern);
+    auto scale_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({scale_convert_pattern, any_input()});
+    auto multiply_pattern = wrap_type<v1::Multiply>({subtract_pattern, scale_reshape_pattern});
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) -> bool {
+        const auto& pt_map = m.get_pattern_value_map();
+        auto convert = pt_map.at(convert_pattern);
+        auto input = pt_map.at(input_pattern);
         const auto multiply = m.get_match_root();
 
         if (transformation_callback(multiply)) {
             return false;
         }
 
-        auto subtract_it = pattern_map.find(subtract_pattern);
-        if (subtract_it == pattern_map.end()) {
-            for (size_t i = 0; i < multiply->get_input_size(); i++) {
-                const auto node = ov::as_type_ptr<ov::op::v0::Convert>(multiply->get_input_node_shared_ptr(i));
-                if (node && std::find(precisions.begin(), precisions.end(), node->get_input_element_type(0)) !=
-                                precisions.end()) {
-                    convert = node;
-                    input = convert->input_value(0);
-                }
-            }
+        // Multiply and Subtract have to be marked as dq
+        set_rt_info(pt_map, mark_as_dequantization_node, {subtract_pattern, multiply_pattern}, {/* not applicable */});
+
+        // Convert might be presented on scales, zp and data_input.
+        // Depending on the transformation arguments they have to be marked/unmarked with disable_cf rt_info.
+        NodeVector converts_to_mark = {convert_pattern};
+        NodeVector converts_to_unmark = {};
+
+        if (fold_subtract_const) {
+            converts_to_unmark.push_back(zp_convert_pattern);
+        } else {
+            converts_to_mark.push_back(zp_convert_pattern);
         }
 
-        const auto& input_precision = input.get_element_type();
-        // validation by Convert operation input precisions
-        if (std::find(precisions.begin(), precisions.end(), input_precision) == precisions.end()) {
+        if (fold_multiply_const) {
+            converts_to_unmark.push_back(scale_convert_pattern);
+        } else {
+            converts_to_mark.push_back(scale_convert_pattern);
+        }
+
+        set_rt_info(pt_map, disable_constant_folding, converts_to_mark, precisions);
+        set_rt_info(pt_map, enable_constant_folding, converts_to_unmark, precisions);
+
+        // Move Reshape/Unsqueeze ops up to fold them in ConstantFolding.
+        auto changed = swap_nodes(pt_map, zp_convert_pattern, zp_reshape_pattern);
+        changed = swap_nodes(pt_map, scale_convert_pattern, scale_reshape_pattern) || changed;
+        return changed;
+    };
+
+    auto m = std::make_shared<Matcher>(multiply_pattern, "MarkDequantization");
+    this->register_matcher(m, callback);
+}
+
+ov::pass::KeepConstPrecision::KeepConstPrecision(const element::TypeVector& precisions,
+                                                 bool fold_subtract_const,
+                                                 bool fold_multiply_const) {
+    MATCHER_SCOPE(KeepConstPrecision);
+
+    // data input:
+    auto input_pattern = any_input();
+    auto convert_pattern = wrap_type<v0::Convert>({input_pattern}, consumers_count(1));
+
+    // zero points:
+    auto zp_pattern = any_input();
+    auto zp_convert_pattern = pattern::optional<v0::Convert>(zp_pattern);
+    auto zp_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({zp_convert_pattern, any_input()});
+    auto subtract_pattern = pattern::optional<v1::Subtract>({convert_pattern, zp_reshape_pattern});
+
+    // scale:
+    auto scale_pattern = any_input();
+    auto scale_convert_pattern = pattern::optional<v0::Convert>(scale_pattern);
+    auto scale_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({scale_convert_pattern, any_input()});
+    auto multiply_pattern = wrap_type<v1::Multiply>({subtract_pattern, scale_reshape_pattern});
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) -> bool {
+        const auto& pt_map = m.get_pattern_value_map();
+        const auto multiply = m.get_match_root();
+
+        if (transformation_callback(multiply)) {
             return false;
         }
 
-        if (ov::op::util::is_on_constant_path(input)) {
-            // disable ConstantFolding if dequantization subgraph is on constant data
-            ov::disable_constant_folding(convert);
-            // It is also necessary to avoid precision conversion for constant nodes with input_precision
-            auto keep_const_precision = [&](Node* node) {
-                if (auto constant = ov::as_type<ov::op::v0::Constant>(node)) {
-                    const auto& const_et = constant->get_element_type();
-                    if (std::find(precisions.begin(), precisions.end(), const_et) != precisions.end())
-                        ov::enable_keep_const_precision(convert->get_input_node_shared_ptr(0));
-                }
-            };
-            std::unordered_set<Node*> visited;
-            ov::op::util::visit_constant_path(input.get_node(), visited, keep_const_precision);
-        }
-
-        if (subtract_it != pattern_map.end()) {
-            // mark Subtract as dequantization node
-            ov::mark_as_dequantization_node(subtract_it->second.get_node_shared_ptr());
-            auto zero_point = pattern_map.at(zero_point_pattern).get_node_shared_ptr();
-            if (ov::is_type<ov::op::v0::Convert>(zero_point) &&
-                input_precision == zero_point->get_input_element_type(0) &&
-                ov::is_type<ov::op::v0::Constant>(zero_point->get_input_node_ptr(0))) {
-                if (!fold_subtract_const) {
-                    // disable ConstantFolding also for Convert on zero_point
-                    // so we don't have to constantfold it and then convert it back to
-                    // low precision in LP transformations
-                    ov::disable_constant_folding(zero_point);
-                    ov::enable_keep_const_precision(zero_point->get_input_node_shared_ptr(0));
-                } else {
-                    ov::enable_constant_folding(zero_point);
-                    ov::disable_keep_const_precision(zero_point->get_input_node_shared_ptr(0));
+        using PatternNode = std::shared_ptr<Node>;
+        std::map<PatternNode, bool> keep_const_precisions = {{input_pattern, false},
+                                                             {zp_pattern, fold_subtract_const},
+                                                             {scale_pattern, fold_multiply_const}};
+        for (const auto& pattern_node : keep_const_precisions) {
+            if (pt_map.count(pattern_node.first)) {
+                auto node = pt_map.at(pattern_node.first).get_node_shared_ptr();
+                if (ov::as_type_ptr<v0::Constant>(node) && check_precision(precisions)(node->output(0))) {
+                    if (pattern_node.second) {
+                        ov::disable_keep_const_precision(node);
+                    } else {
+                        ov::enable_keep_const_precision(node);
+                    }
                 }
             }
         }
-
-        // mark Multiply as dequantization node
-        ov::mark_as_dequantization_node(multiply);
-        auto scale = multiply->get_input_node_shared_ptr(1);
-        if (ov::is_type<ov::op::v0::Convert>(scale) &&
-            ov::is_type<ov::op::v0::Constant>(scale->get_input_node_ptr(0))) {
-            if (disable_fold_multiply_const) {
-                ov::disable_constant_folding(scale);
-                ov::unmark_as_decompression(scale);
-                ov::enable_keep_const_precision(scale->get_input_node_shared_ptr(0));
-            }
-        }
-
         return false;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(root, "MarkDequantizationSubgraph");
+    auto m = std::make_shared<Matcher>(multiply_pattern, "KeepConstPrecision");
     this->register_matcher(m, callback);
 }

@@ -1,18 +1,18 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #ifdef SNIPPETS_DEBUG_CAPS
 
-#pragma once
+#    pragma once
 
-#include "openvino/op/op.hpp"
-#include "snippets/op/perf_count.hpp"
-#include <iomanip>
+#    include <iomanip>
+
+#    include "openvino/op/op.hpp"
+#    include "snippets/op/perf_count.hpp"
 
 using namespace ov::snippets::op;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * @interface PerfCountRdtscBegin
@@ -38,7 +38,7 @@ public:
     OPENVINO_OP("PerfCountRdtscEnd", "SnippetsOpset", PerfCountEndBase);
     PerfCountRdtscEnd(const Output<Node>& pc_begin);
     PerfCountRdtscEnd() = default;
-    ~PerfCountRdtscEnd() {
+    ~PerfCountRdtscEnd() override {
         double avg = 0;
         if (iteration != 0) {
             // Note: theoretically accumulation could be larger than 2^53, however
@@ -48,7 +48,7 @@ public:
             avg = integral + static_cast<double>(accumulation - integral * iteration) / iteration;
         }
         std::cerr << "name : " << get_friendly_name() << " : acc : " << accumulation << " : num_hit : " << iteration
-         << std::fixed << std::setprecision(4) << " : avg : " << avg << std::endl;
+                  << std::fixed << std::setprecision(4) << " : avg : " << avg << '\n';
     }
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
@@ -61,6 +61,6 @@ public:
     uint64_t iteration = 0ul;
 };
 
-} // namespace intel_cpu
-} // namespace ov
-#endif // SNIPPETS_DEBUG_CAPS
+}  // namespace ov::intel_cpu
+
+#endif  // SNIPPETS_DEBUG_CAPS

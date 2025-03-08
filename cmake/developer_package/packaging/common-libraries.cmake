@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -30,7 +30,7 @@ macro(ov_common_libraries_cpack_set_dirs)
 
     ov_get_pyversion(pyversion)
     if(pyversion)
-        # should not be used in production; only by setup.py install
+        # should not be used in production; only by pip install
         set(OV_CPACK_PYTHONDIR lib/${pyversion}/site-packages)
     endif()
 
@@ -94,7 +94,7 @@ macro(ov_define_component_include_rules)
     set(OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_BENCHMARK_APP_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
     set(OV_CPACK_COMP_OVC_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
-    # we don't pack artifacts of setup.py install, because it's called explicitly in conda / brew
+    # we don't pack artifacts of pip install, because it's called explicitly in conda / brew
     # or not used at all like in cases with conan / vcpkg
     set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
     # we don't need wheels in the distribution packages

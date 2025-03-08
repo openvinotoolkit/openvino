@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,21 @@
 
 #include <functional>
 #include <memory>
-#include <set>
+#include <string>
+#include <vector>
 
+#include "openvino/core/rtti.hpp"
 #include "openvino/pass/node_registry.hpp"
+
+#define _OPENVINO_MATCHER_PASS_RTTI_WITH_TYPE(TYPE_NAME) _OPENVINO_MATCHER_PASS_RTTI_WITH_TYPE_VERSION(TYPE_NAME, "0")
+
+#define _OPENVINO_MATCHER_PASS_RTTI_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME) \
+    _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT(TYPE_NAME, VERSION_NAME, ::ov::pass::MatcherPass)
+
+#define OPENVINO_MATCHER_PASS_RTTI(...)                                                                       \
+    _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR_2(__VA_ARGS__,                                   \
+                                                               _OPENVINO_MATCHER_PASS_RTTI_WITH_TYPE_VERSION, \
+                                                               _OPENVINO_MATCHER_PASS_RTTI_WITH_TYPE)(__VA_ARGS__))
 
 namespace ov {
 using matcher_pass_callback = std::function<bool(pass::pattern::Matcher& m)>;

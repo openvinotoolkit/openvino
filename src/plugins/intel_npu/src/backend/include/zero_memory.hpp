@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 #include <string>
 
 #include "intel_npu/utils/logger/logger.hpp"
-#include "zero_init.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 
 namespace {
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,11 +9,15 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
 
@@ -94,4 +98,153 @@ TEST_F(TransformationTestsF, ApplySymbolEquivalence_Concat_Values) {
             false);
         model_ref = make_shared<Model>(NodeVector{reshape}, ParameterVector{input_2, input_1});
     }
+}
+
+Output<Node> get_dim_by_idx(const Output<Node>& source, const int64_t& idx, element::Type type = element::i64) {
+    auto shape = make_shared<v3::ShapeOf>(source, type);
+    auto gather = make_shared<v1::Gather>(shape,
+                                          v0::Constant::create(element::i64, {}, {idx}),
+                                          v0::Constant::create(element::i64, {}, {0}));
+    return gather->output(0);
+}
+
+Output<Node> get_dim_by_idx(const Output<Node>& source,
+                            initializer_list<int64_t> idx,
+                            element::Type type = element::i64) {
+    auto shape = make_shared<v3::ShapeOf>(source, type);
+    auto gather = make_shared<v8::Gather>(shape,
+                                          v0::Constant::create(element::i64, {idx.size()}, idx),
+                                          v0::Constant::create(element::i64, {}, {0}));
+    return gather->output(0);
+}
+
+TEST_F(TransformationTestsF, ValueOptimizationSingleValue) {
+    {
+        auto input = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));
+
+        auto dim_0 = get_dim_by_idx(input, {-1}, element::i64);
+        auto dim_1 = get_dim_by_idx(input, {3}, element::i32);
+        auto dim_2 = get_dim_by_idx(input, -1, element::i32);
+
+        auto reshape_0 = make_shared<v1::Reshape>(
+            input,
+            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, {1}, {-1}), dim_0}, 0),
+            false);
+        auto reshape_1 = make_shared<v1::Reshape>(
+            input,
+            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i32, {1}, {0}), dim_1}, 0),
+            false);
+        auto range = make_shared<v4::Range>(v0::Constant::create(element::i32, {}, {0}),
+                                            dim_2,
+                                            v0::Constant::create(element::i32, {}, {1}),
+                                            element::i32);
+
+        model = make_shared<Model>(NodeVector{reshape_0, reshape_1, range}, ParameterVector{input});
+
+        manager.set_per_pass_validation(false);
+        manager.register_pass<pass::SymbolicPropagation>();
+        manager.register_pass<pass::OptimizeSymbolsUsedAsValues>();
+        manager.register_pass<pass::SharedOpOptimization>();
+    }
+    {
+        auto input = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));
+        auto dim_1 = get_dim_by_idx(input, {3}, element::i32);
+        auto dim_0 = std::make_shared<v0::Convert>(dim_1, element::i64);
+        auto dim_2 = std::make_shared<v0::Squeeze>(dim_1);
+        auto reshape_0 = make_shared<v1::Reshape>(
+            input,
+            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, {1}, {-1}), dim_0}, 0),
+            false);
+        auto reshape_1 = make_shared<v1::Reshape>(
+            input,
+            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i32, {1}, {0}), dim_1}, 0),
+            false);
+        auto range = make_shared<v4::Range>(v0::Constant::create(element::i32, {}, {0}),
+                                            dim_2,
+                                            v0::Constant::create(element::i32, {}, {1}),
+                                            element::i32);
+
+        model_ref = make_shared<Model>(NodeVector{reshape_0, reshape_1, range}, ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, ValueOptimizationDoubleValue) {
+    {
+        auto input = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));
+
+        auto dim_0 = get_dim_by_idx(input, {-1, -2}, element::i64);
+        auto dim_1 = get_dim_by_idx(input, {3, 2}, element::i32);
+
+        auto reshape_0 = make_shared<v1::Reshape>(
+            input,
+            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, {1}, {-1}), dim_0}, 0),
+            false);
+        auto reshape_1 = make_shared<v1::Reshape>(
+            input,
+            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i32, {1}, {0}), dim_1}, 0),
+            false);
+
+        model = make_shared<Model>(NodeVector{reshape_0, reshape_1}, ParameterVector{input});
+
+        manager.set_per_pass_validation(false);
+        manager.register_pass<pass::SymbolicPropagation>();
+        manager.register_pass<pass::OptimizeSymbolsUsedAsValues>();
+        manager.register_pass<pass::SharedOpOptimization>();
+    }
+    {
+        auto input = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));
+        auto dim_0 = get_dim_by_idx(input, {3, 2}, element::i32);
+        auto dim_1 = std::make_shared<v0::Convert>(dim_0, element::i64);
+
+        auto reshape_0 = make_shared<v1::Reshape>(
+            input,
+            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, {1}, {-1}), dim_1}, 0),
+            false);
+        auto reshape_1 = make_shared<v1::Reshape>(
+            input,
+            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i32, {1}, {0}), dim_0}, 0),
+            false);
+
+        model_ref = make_shared<Model>(NodeVector{reshape_0, reshape_1}, ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, ValueOptimizationSymbolAndValue) {
+    {
+        auto input = make_shared<v0::Parameter>(element::f32, PartialShape({-1, -1, 4, -1}));
+
+        auto dim_0 = get_dim_by_idx(input, {-1, -2}, element::i64);
+        auto dim_1 = get_dim_by_idx(input, {3, 2}, element::i32);
+
+        auto reshape_0 = make_shared<v1::Reshape>(
+            input,
+            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, {1}, {-1}), dim_0}, 0),
+            false);
+        auto reshape_1 = make_shared<v1::Reshape>(
+            input,
+            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i32, {1}, {-1}), dim_1}, 0),
+            false);
+
+        model = make_shared<Model>(NodeVector{reshape_0, reshape_1}, ParameterVector{input});
+
+        manager.set_per_pass_validation(false);
+        manager.register_pass<pass::SymbolicPropagation>();
+        manager.register_pass<pass::OptimizeSymbolsUsedAsValues>();
+        manager.register_pass<pass::SharedOpOptimization>();
+    }
+    {
+        auto input = make_shared<v0::Parameter>(element::f32, PartialShape({-1, -1, 4, -1}));
+        auto dim_0 = make_shared<v0::Concat>(
+            OutputVector{v0::Constant::create(element::i32, {1}, {-1}), get_dim_by_idx(input, {3, 2}, element::i32)},
+            0);
+        auto dim_1 = std::make_shared<v0::Convert>(dim_0, element::i64);
+
+        auto reshape_0 = make_shared<v1::Reshape>(input, dim_1, false);
+        auto reshape_1 = make_shared<v1::Reshape>(input, dim_0, false);
+
+        model_ref = make_shared<Model>(NodeVector{reshape_0, reshape_1}, ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }

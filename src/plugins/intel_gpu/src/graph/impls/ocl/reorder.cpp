@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,19 +22,15 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::reorder_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<reorder_impl>(*this);
+        return make_deep_copy<reorder_impl, kernel_params_t>(*this);
     }
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic()) {
+        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
             auto& kernel_selector = kernel_selector_t::Instance();
-            if (!_kernel_data.kernelName.empty()) {
-                auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
-                kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
-            } else {
-                GPU_DEBUG_TRACE_DETAIL << "Fail to update dispatch data because kernel name is empty" << std::endl;
-            }
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
         }
     }
 
@@ -160,7 +156,7 @@ public:
 
         auto best_kernel = kernel_selector.get_best_kernel(r_params);
 
-        return make_unique<reorder_impl>(best_kernel);
+        return std::make_unique<reorder_impl>(best_kernel);
     }
 };
 

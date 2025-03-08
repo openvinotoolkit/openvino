@@ -152,14 +152,8 @@ Prerequisites
 
 .. code:: ipython3
 
-    import platform
-    
     %pip install -q "segment_anything" "gradio>=4.13" "openvino>=2023.1.0" "nncf>=2.7.0" "torch>=2.1" "torchvision>=0.16" Pillow opencv-python tqdm  --extra-index-url https://download.pytorch.org/whl/cpu
-    
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "matplotlib>=3.4"
 
 Convert model to OpenVINO Intermediate Representation
 -----------------------------------------------------
@@ -183,19 +177,27 @@ model type below to a SAM model checkpoint, then load the model using
 
     # Fetch `notebook_utils` module
     import requests
+    from pathlib import Path
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
     
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file, device_widget
     
     checkpoint = "sam_vit_b_01ec64.pth"
     model_url = "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth"
     model_type = "vit_b"
     
-    download_file(model_url)
+    if not Path(checkpoint).exists():
+        download_file(model_url)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("segment-anything.ipynb")
 
 .. code:: ipython3
 
@@ -1324,9 +1326,8 @@ the label files.
     DATA_URL = "https://ultralytics.com/assets/coco128.zip"
     OUT_DIR = Path(".")
     
-    download_file(DATA_URL, directory=OUT_DIR, show_progress=True)
-    
     if not (OUT_DIR / "coco128/images/train2017").exists():
+        download_file(DATA_URL, directory=OUT_DIR, show_progress=True)
         with ZipFile("coco128.zip", "r") as zip_ref:
             zip_ref.extractall(OUT_DIR)
 

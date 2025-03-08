@@ -60,21 +60,9 @@ Import the required modules.
 
 .. code:: ipython3
 
-    import platform
-    
     %pip install -q "openvino>=2023.1.0" opencv-python tqdm
     
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
+    %pip install -q "matplotlib>=3.4"
 
 .. code:: ipython3
 
@@ -90,13 +78,19 @@ Import the required modules.
     # Fetch `notebook_utils` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
     
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
     
     import notebook_utils as utils
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("vehicle-detection-and-recognition.ipynb")
 
 Download Models
 ---------------
@@ -153,31 +147,6 @@ model is already downloaded, this step is skipped.
             base_model_dir,
         )
 
-
-
-.. parsed-literal::
-
-    model/vehicle-detection-0200.xml:   0%|          | 0.00/181k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    model/vehicle-detection-0200.bin:   0%|          | 0.00/6.93M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    model/vehicle-attributes-recognition-barrier-0039.xml:   0%|          | 0.00/33.7k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    model/vehicle-attributes-recognition-barrier-0039.bin:   0%|          | 0.00/2.39M [00:00<?, ?B/s]
-
-
 Load Models
 -----------
 
@@ -200,7 +169,7 @@ specified device.
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
 
 
 
@@ -287,15 +256,15 @@ channel with ``expand_dims`` function.
     url = "https://storage.openvinotoolkit.org/data/test_data/images/person-bicycle-car-detection.bmp"
     filename = "cars.jpg"
     directory = "data"
-    image_file = utils.download_file(
-        url,
-        filename=filename,
-        directory=directory,
-        show_progress=False,
-        silent=True,
-        timeout=30,
-    )
-    assert Path(image_file).exists()
+    
+    image_file = Path(directory) / filename
+    if not image_file.exists():
+        utils.download_file(
+            url,
+            filename=filename,
+            directory=directory,
+            show_progress=False,
+        )
     
     # Read the image.
     image_de = cv2.imread("data/cars.jpg")
@@ -474,7 +443,7 @@ determine the maximum probability as the result.
 .. parsed-literal::
 
     Attributes:('Gray', 'Car')
-
+    
 
 Combine two models
 ~~~~~~~~~~~~~~~~~~

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,9 +8,13 @@ ov::op::util::MultiSubGraphOp::InputDescription::InputDescription(uint64_t input
     : m_input_index(input_index),
       m_body_parameter_index(body_parameter_index) {}
 
+ov::op::util::MultiSubGraphOp::InputDescription::~InputDescription() = default;
+
 ov::op::util::MultiSubGraphOp::OutputDescription::OutputDescription(uint64_t body_value_index, uint64_t output_index)
     : m_body_value_index(body_value_index),
       m_output_index(output_index) {}
+
+ov::op::util::MultiSubGraphOp::OutputDescription::~OutputDescription() = default;
 
 ov::op::util::MultiSubGraphOp::SliceInputDescription::SliceInputDescription(uint64_t input_index,
                                                                             uint64_t body_parameter_index,
@@ -183,3 +187,8 @@ ov::op::util::MultiSubGraphOp::OutputMap ov::op::util::MultiSubGraphOp::get_mapp
 
     return outputs_map;
 }
+
+ov::AttributeAdapter<
+    std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>>>::~AttributeAdapter() = default;
+ov::AttributeAdapter<
+    std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>>>::~AttributeAdapter() = default;

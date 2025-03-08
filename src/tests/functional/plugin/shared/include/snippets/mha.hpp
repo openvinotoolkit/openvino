@@ -42,6 +42,7 @@ protected:
     void SetUp() override;
     void compile_model() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+    void init_thresholds() override;
     virtual std::shared_ptr<SnippetsFunctionBase> get_subgraph() const = 0;
     virtual void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) = 0;
 
@@ -88,6 +89,7 @@ class MHATransposedB : public MHA {
 class MHAINT8MatMul : public MHA {
 protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
+    void init_thresholds() override;
 };
 
 class MHAQuantMatMul0 : public MHA {
@@ -103,6 +105,7 @@ protected:
 class MHAFQ : public MHA {
 protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
+    void init_thresholds() override;
 };
 
 class MHAWithExtractedReshape : public MHA {

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -6,7 +6,7 @@ set(FLATBUFFERS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(FLATBUFFERS_INSTALL OFF CACHE BOOL "" FORCE)
 set(FLATBUFFERS_CPP_STD ${CMAKE_CXX_STANDARD})
 
-# note: HOST_AARCH64 AND X86_64 are not handled for Apple explicitly, becuase it can work via Rosetta
+# note: HOST_AARCH64 AND X86_64 are not handled for Apple explicitly, because it can work via Rosetta
 if(CMAKE_CROSSCOMPILING OR (APPLE AND (HOST_X86_64 AND AARCH64)) )
     set(FLATBUFFERS_BUILD_FLATC OFF CACHE BOOL "" FORCE)
 else()

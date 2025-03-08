@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -299,12 +299,14 @@ inline void update_shapes(kernel_selector::Params& p, const kernel_impl_params& 
         const auto& fused_prim = impl_param.fused_desc[i];
         auto& fd = bp.fused_ops[i];
         fd.output_tensor = convert_data_tensor(fused_prim.output_layout);
+        fd.tensors.clear();
         for (size_t i = fd.dep_idx_start; i < fd.dep_idx_start + fd.dep_size; i++) {
             fd.tensors.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
     }
 }
 
+bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config);
 bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
 
 }  // namespace cldnn

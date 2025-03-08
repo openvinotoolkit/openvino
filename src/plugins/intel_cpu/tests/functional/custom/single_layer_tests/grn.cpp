@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -84,8 +84,8 @@ const std::vector<InputShape> dataInputDynamicShapes = {{{-1, -1}, {{5, 17}, {10
 INSTANTIATE_TEST_SUITE_P(smoke_GRNCPUStatic,
                          GRNLayerCPUTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(ov::element::undefined),
-                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::element::dynamic),
                                             ::testing::ValuesIn(dataInputStaticShapes),
                                             ::testing::ValuesIn(biases),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -94,8 +94,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_GRNCPUStatic,
 INSTANTIATE_TEST_SUITE_P(smoke_GRNCPUDynamic,
                          GRNLayerCPUTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(ov::element::undefined),
-                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::element::dynamic),
                                             ::testing::ValuesIn(dataInputDynamicShapes),
                                             ::testing::ValuesIn(biases),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),

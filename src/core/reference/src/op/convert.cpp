@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,8 @@
 #include "openvino/reference/utils/convert_util.hpp"
 
 #ifdef OV_CORE_USE_XBYAK_JIT
-#    include "jit_generator.hpp"
+#    include "openvino/reference/utils/jit_generator.hpp"
+#    include "openvino/util/common_util.hpp"
 #endif
 
 #ifdef OV_CORE_USE_INTRINSICS
@@ -256,7 +257,7 @@ public:
 
     template <typename src_t, typename dst_t, bool clamp = false>
     static fn_t get() {
-        if (is_x64() && mayiuse(avx) && mayiuse(avx2) && mayiuse(fp16)) {
+        if (is_x64() && mayiuse(jit::avx) && mayiuse(jit::avx2) && mayiuse(jit::fp16)) {
             static const jit_convert_array::context_t context{{sizeof(src_t), &jit::Generator::copy<src_t>},
                                                               {sizeof(dst_t), &jit::Generator::copy<dst_t>},
                                                               jit_convert_vec<src_t, dst_t, clamp>,
@@ -460,7 +461,7 @@ public:
 
     template <typename data_t, typename range_t>
     static fn_t get() {
-        if (is_x64() && mayiuse(avx2)) {
+        if (is_x64() && mayiuse(jit::avx2)) {
             static const jit_count_out_of_range::context_t context{
                 {sizeof(data_t), &jit::Generator::copy<data_t>},
                 jit_count_out_of_range_vec_prepare<data_t, range_t>,
@@ -480,14 +481,15 @@ public:
 template <class Clamp, typename TI, typename TO>
 void convert_impl(const TI* arg, TO* out, size_t count) {
 #ifdef OV_CORE_USE_XBYAK_JIT
-    if (auto converter = jit_convert_array::get<TI, TO, Clamp::enabled>()) {
-        jit_convert_array::args_t args = {arg, out, count};
-        converter(&args);
-    } else
-#endif
-    {
-        Converter<TI, TO>::template apply<Clamp>(arg, out, count);
+    if (util::may_i_use_dynamic_code()) {
+        if (auto converter = jit_convert_array::get<TI, TO, Clamp::enabled>()) {
+            jit_convert_array::args_t args = {arg, out, count};
+            converter(&args);
+            return;
+        }
     }
+#endif  // OV_CORE_USE_XBYAK_JIT
+    Converter<TI, TO>::template apply<Clamp>(arg, out, count);
 }
 }  // namespace
 
@@ -544,11 +546,13 @@ void convert_from_bf16_to_f16_with_clamp(const bfloat16* arg, float16* out, size
 
 size_t count_out_of_f16_range(const float* arg, size_t count) {
 #ifdef OV_CORE_USE_XBYAK_JIT
-    if (auto converter = jit_count_out_of_range::get<float, float16>()) {
-        size_t num_out_of_range = 0;
-        jit_count_out_of_range::args_t args = {arg, &num_out_of_range, count};
-        converter(&args);
-        return num_out_of_range;
+    if (util::may_i_use_dynamic_code()) {
+        if (auto converter = jit_count_out_of_range::get<float, float16>()) {
+            size_t num_out_of_range = 0;
+            jit_count_out_of_range::args_t args = {arg, &num_out_of_range, count};
+            converter(&args);
+            return num_out_of_range;
+        }
     }
 #endif  // OV_CORE_USE_XBYAK_JIT
     const auto is_out_of_f16_range = [](const float v) {

@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 if(NOT BUILD_SHARED_LIBS)
     file(GLOB_RECURSE op_list "src/op/*.cpp")
     set(static_reg_file ${CMAKE_CURRENT_BINARY_DIR}/static_reg.hpp)
-    file(WRITE ${static_reg_file} "// Copyright (C) 2018-2024 Intel Corporation\n// SPDX-License-Identifier: Apache-2.0\n// Auto generated file, DO NOT EDIT INLINE\n\n")
+    file(WRITE ${static_reg_file} "// Copyright (C) 2018-2025 Intel Corporation\n// SPDX-License-Identifier: Apache-2.0\n// Auto generated file, DO NOT EDIT INLINE\n\n")
     file(APPEND ${static_reg_file} "#include \"core/operator_set.hpp\"\n\n")
     file(APPEND ${static_reg_file} "#define ONNX_DECL_OP(op) extern ov::OutputVector op(const Node&)\n\n")
     file(APPEND ${static_reg_file} "namespace ov {\nnamespace frontend {\nnamespace onnx {\n")
@@ -77,7 +77,7 @@ ov_add_frontend(NAME onnx
                 FILEDESCRIPTION "FrontEnd to load and convert ONNX file format"
                 LINK_LIBRARIES openvino_onnx_common openvino::core::dev)
 
-set(ONNX_OPSET_VERSION 20 CACHE INTERNAL "Supported version of ONNX operator set")
+set(ONNX_OPSET_VERSION 21 CACHE INTERNAL "Supported version of ONNX operator set")
 target_compile_definitions(${TARGET_NAME} PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
 
 if(BUILD_SHARED_LIBS)

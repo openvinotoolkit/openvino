@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,8 @@ std::shared_ptr<ov::Model> FuseMultiplyToFakeQuantizeFunction::get(
     const DequantizationOperations& dequantization) {
     const auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, inputShape);
 
-    const auto fakeQuantize = makeFakeQuantize(input, ov::element::f32, fqOnData);
+    const auto constantPrecision = fqOnData.constantPrecision != ov::element::dynamic ? fqOnData.constantPrecision : ov::element::f32;
+    const auto fakeQuantize = makeFakeQuantize(input, constantPrecision, fqOnData);
     const auto lastDequantization = makeDequantization(fakeQuantize, dequantization);
     lastDequantization->set_friendly_name("output");
 

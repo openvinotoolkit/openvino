@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,12 +9,12 @@
 #include <sstream>
 
 #include "base/ov_behavior_test_utils.hpp"
-#include "intel_npu/al/config/common.hpp"
-#include "npu_private_properties.hpp"
+#include "intel_npu/config/common.hpp"
+#include "intel_npu/npu_private_properties.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "zero_init.hpp"
 
 namespace ov {
 namespace test {
@@ -159,7 +159,7 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadType) {
 }
 
 TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadTypeDelayedExecutor) {
-    configuration[intel_npu::create_executor.name()] = 0;
+    configuration[intel_npu::defer_weights_load.name()] = true;
     OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
     ov::AnyMap modelConfiguration;
     modelConfiguration[workload_type.name()] = WorkloadType::DEFAULT;
@@ -233,8 +233,8 @@ TEST_P(OVCompileAndInferRequestTurbo, CompiledModelTurbo) {
         OV_ASSERT_NO_THROW(req.wait());
         ASSERT_TRUE(is_called);
     } else {
-        auto cr_ex = configuration.find(intel_npu::create_executor.name());
-        if (cr_ex->second.as<int64_t>() == 1) {
+        auto cr_ex = configuration.find(intel_npu::defer_weights_load.name());
+        if (cr_ex->second.as<bool>() == false) {
             OV_EXPECT_THROW_HAS_SUBSTRING(core->compile_model(function, target_device, configuration),
                                           ov::Exception,
                                           "Turbo is not supported by the current driver");

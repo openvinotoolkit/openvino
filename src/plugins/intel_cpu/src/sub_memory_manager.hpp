@@ -1,18 +1,18 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <cassert>
+#include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
-#include <mutex>
-#include <memory>
-#include <assert.h>
+
 #include "cpu_memory.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 class SubMemoryManager {
 public:
     struct MemoryInfo {
@@ -50,6 +50,4 @@ public:
     std::vector<int> _use_count;
     std::mutex _flagMutex;
 };
-}  // namespace intel_cpu
-
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ struct gemm_impl : multi_stage_primitive<gemm> {
     const uint32_t indirect_gemm = 1;
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<gemm_impl>(*this);
+        return make_deep_copy<gemm_impl, kernel_params_t>(*this);
     }
 
     gemm_impl() = default;
@@ -154,6 +154,13 @@ protected:
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, gemm_inst& instance) override {
+        if (instance.get_input_layout(0).count() == 0 ||
+            instance.get_input_layout(1).count() == 0) {
+            stream& stream = instance.get_network().get_stream();
+            stream.enqueue_barrier();
+            return instance.output_memory_ptr()->fill(stream, false);
+        }
+
         if (need_indirect_load(instance))
             return execute_stage(events, instance, indirect_gemm);
         else
@@ -299,7 +306,7 @@ public:
             indirect_kernel_params.is_shape_agnostic = params.is_dynamic();
             kernels_data.push_back(kernel_selector.get_best_kernel(indirect_kernel_params));
         }
-        return cldnn::make_unique<gemm_impl>(kernels_data);
+        return std::make_unique<gemm_impl>(kernels_data);
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {

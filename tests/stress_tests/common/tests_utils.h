@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,7 +65,7 @@ public:
         device = _device, models = _models;
         test_case_name = "Numprocesses_" + std::to_string(numprocesses) + "_Numthreads_" + std::to_string(numthreads) +
                          "_Numiters_" + std::to_string(numiters) + "_Device_" + update_item_for_name(device);
-        for (int i = 0; i < models.size(); i++) {
+        for (size_t i = 0; i < models.size(); i++) {
             test_case_name += "_Model" + std::to_string(i + 1) + "_" + update_item_for_name(models[i]["name"]) + "_" +
                               update_item_for_name(models[i]["precision"]);
             model_name += "\"" + models[i]["path"] + "\"" + (i < models.size() - 1 ? ", " : "");

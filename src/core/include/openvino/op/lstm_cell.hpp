@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -388,6 +388,7 @@ public:
     AttributeAdapter(op::LSTMWeightsFormat& value) : EnumAttributeAdapterBase<op::LSTMWeightsFormat>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::LSTMWeightsFormat>");
+    ~AttributeAdapter() override;
 };
 
 }  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ struct reverse_sequence_impl : typed_primitive_impl_ocl<reverse_sequence> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::reverse_sequence_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<reverse_sequence_impl>(*this);
+        return make_deep_copy<reverse_sequence_impl, kernel_params_t>(*this);
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
@@ -44,6 +44,12 @@ attach_reverse_sequence_impl::attach_reverse_sequence_impl() {
         std::make_tuple(data_types::i32, format::bfyx),
         std::make_tuple(data_types::u8, format::bfyx),
         std::make_tuple(data_types::i8, format::bfyx),
+
+        std::make_tuple(data_types::f32, format::bfzyx),
+        std::make_tuple(data_types::f16, format::bfzyx),
+        std::make_tuple(data_types::i32, format::bfzyx),
+        std::make_tuple(data_types::u8, format::bfzyx),
+        std::make_tuple(data_types::i8, format::bfzyx),
     });
 }
 

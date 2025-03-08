@@ -1,4 +1,3 @@
-
 {
     "PrecisionsMap": {
         "INT4": "int4",
@@ -8,19 +7,26 @@
         "BF16": "bf16",
         "FP32_OV": "fp32_ov",
         "FP32_OVMS": "fp32_ovms",
+        "TOKEN_INT4": "token_int4",
+        "TOKEN_INT8": "token_int8",
+        "TOKEN_FP16": "token_fp16",
         "INT8_OV": "int8_ov",
-        "INT8_OVMS": "int8_ovms"
+        "INT8_OVMS": "int8_ovms",
+        "THROUGHPUT": "Throughput",
+        "LATENCY": "Latency"
     },
     "ParametersMap": {
         "Throughput": "throughput",
         "Latency": "latency"
     },
     "UnitDescription": {
+        "sec.": "(lower is better)",
         "msec.": "(lower is better)",
-        "ms": "(lower is better)",
+        "ms.": "(lower is better)",
         "msec/token": "(lower is better)",
         "Generating time, sec.": "(lower is better)",
         "msec/token/TDP": "(lower is better)",
+        "Tokens per sec": "(higher is better)",
         "FPS": "(higher is better)",
         "FPS/$": "(higher is better)",
         "FPS/TDP": "(higher is better)",
@@ -71,6 +77,45 @@
             "data": null,
             "color": "#00536a",
             "label": "INT8 OVMS"
+        },
+        "token_int4": {
+            "data": null,
+            "color": "#00536a",
+            "label": "T INT4"
+        },
+        "token_int8": {
+            "data": null,
+            "color": "#00636a",
+            "label": "T INT8"
+        },
+        "token_fp16": {
+            "data": null,
+            "color": "#00736a",
+            "label": "T INT16"
+        },
+        "Vllm": {
+            "Latency": {
+                "data": null,
+                "color": "#FDB2BC",
+                "label": "Latency"
+            },
+            "Throughput": {
+                "data": null,
+                "color": "#91CDF7",
+                "label": "Throughput"
+            }
+        },
+        "Ovms": {
+            "Latency": {
+                "data": null,
+                "color": "#CDB2BC",
+                "label": "Latency"
+            },
+            "Throughput": {
+                "data": null,
+                "color": "#12CDF7",
+                "label": "Throughput"
+            }
         }
     },
     "Filters": [
@@ -80,13 +125,16 @@
         "platformTypes": {
             "name": "ietype",
             "data": [
-                "Client Platforms (Intel® Core™)"
+                "Intel® Core™, CPU-only",
+                "Intel® Core™, iGPU-only",
+                "Intel® Core™, NPU-only",
+                "Intel® Core™, CPU+iGPU",
+                "Server Platforms (Intel® Xeon®)"
             ]
         },
         "platforms": {
             "name": "platform",
-            "data": [
-            ]
+            "data": []
         },
         "platformFilters": {
             "name": "coretype",
@@ -97,21 +145,24 @@
         "models": {
             "name": "networkmodel",
             "data": [
-                "bert-base-cased"
+                "bert-base-cased",
+                "resnet-50",
+                "yolo_v8n",
+                "llama-3-8B"
             ]
         },
         "parameters": {
             "name": "parameters",
             "data": [
-                "Throughput",
-                "Latency"
+                "Vllm",
+                "Ovms"
             ]
         },
         "precision": {
             "name": "precision",
             "data": [
-                "INT4",
-                "INT8"
+                "THROUGHPUT",
+                "LATENCY"
             ]
         }
     }

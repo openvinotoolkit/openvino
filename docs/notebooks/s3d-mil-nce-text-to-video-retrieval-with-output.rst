@@ -59,60 +59,19 @@ Prerequisites
 
 .. code:: ipython3
 
-    import platform
-    
-    %pip install -Uq pip
     %pip install --upgrade --pre openvino-tokenizers "openvino>=2024.2.0" --extra-index-url "https://storage.openvinotoolkit.org/simple/wheels/nightly"
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
     %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version > '3.8'"
     
-    %pip install -q tensorflow_hub tf_keras numpy "opencv-python" "nncf>=2.10.0"
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Looking in indexes: https://pypi.org/simple, https://storage.openvinotoolkit.org/simple/wheels/nightly
-    Requirement already satisfied: openvino-tokenizers in /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2024.4.0.0)
-    Collecting openvino-tokenizers
-      Downloading https://storage.openvinotoolkit.org/wheels/nightly/openvino-tokenizers/openvino_tokenizers-2024.5.0.0.dev20241003-py3-none-manylinux2014_x86_64.whl (13.9 MB)
-    [2K     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 13.9/13.9 MB 48.7 MB/s eta 0:00:00
-    Requirement already satisfied: openvino>=2024.2.0 in /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2024.4.0)
-    Collecting openvino>=2024.2.0
-      Downloading https://storage.openvinotoolkit.org/wheels/nightly/openvino/openvino-2024.5.0.dev20241003-16913-cp38-cp38-manylinux2014_x86_64.whl (43.2 MB)
-    [2K     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 43.2/43.2 MB 63.2 MB/s eta 0:00:00
-    Requirement already satisfied: numpy<2.1.0,>=1.16.6 in /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino>=2024.2.0) (1.24.4)
-    Requirement already satisfied: openvino-telemetry>=2023.2.1 in /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino>=2024.2.0) (2024.1.0)
-    Requirement already satisfied: packaging in /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino>=2024.2.0) (24.1)
-    Installing collected packages: openvino, openvino-tokenizers
-      Attempting uninstall: openvino
-        Found existing installation: openvino 2024.4.0
-        Uninstalling openvino-2024.4.0:
-          Successfully uninstalled openvino-2024.4.0
-      Attempting uninstall: openvino-tokenizers
-        Found existing installation: openvino-tokenizers 2024.4.0.0
-        Uninstalling openvino-tokenizers-2024.4.0.0:
-          Successfully uninstalled openvino-tokenizers-2024.4.0.0
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    openvino-dev 2024.4.0 requires openvino==2024.4.0, but you have openvino 2024.5.0.dev20241003 which is incompatible.
-    openvino-genai 2024.4.0.0 requires openvino_tokenizers~=2024.4.0.0.dev, but you have openvino-tokenizers 2024.5.0.0.dev20241003 which is incompatible.
-    Successfully installed openvino-2024.5.0.dev20241003 openvino-tokenizers-2024.5.0.0.dev20241003
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
+    %pip install -q --no-deps tensorflow_hub
+    %pip install -q tf_keras numpy "opencv-python" "nncf>=2.10.0"
+    %pip install -q "matplotlib>=3.4"
 
 .. code:: ipython3
 
     import os
+    import requests
     from pathlib import Path
     
     import tensorflow as tf
@@ -124,15 +83,17 @@ Prerequisites
     import math
     
     os.environ["TFHUB_CACHE_DIR"] = str(Path("./tfhub_modules").resolve())
-
-
-.. parsed-literal::
-
-    2024-10-08 05:44:24.909782: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-10-08 05:44:24.945302: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-10-08 05:44:25.555746: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("s3d-mil-nce-text-to-video-retrieval.ipynb")
 
 Download the model
 
@@ -140,13 +101,6 @@ Download the model
 
     hub_handle = "https://www.kaggle.com/models/deepmind/mil-nce/TensorFlow1/s3d/1"
     hub_model = hub.load(hub_handle)
-
-
-.. parsed-literal::
-
-    2024-10-08 05:44:30.329291: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
-    Skipping registering GPU devices...
-
 
 The model has 2 signatures, one for generating video embeddings and one
 for generating text embeddings. We will use these embedding to find the
@@ -178,7 +132,10 @@ Below we will define auxiliary functions
     
     
     def load_video(video_url, max_frames=32, resize=(224, 224)):
-        path = tf.keras.utils.get_file(os.path.basename(video_url)[-128:], video_url)
+        if video_url.startswith("http"):
+            path = tf.keras.utils.get_file(os.path.basename(video_url)[-128:], video_url, cache_dir=".", cache_subdir="data")
+        else:
+            path = video_url
         cap = cv2.VideoCapture(path)
         frames = []
         try:
@@ -235,15 +192,16 @@ Below we will define auxiliary functions
 
 .. code:: ipython3
 
-    # @title Load example videos and define text queries  { display-mode: "form" }
+    video_1_url = "https://upload.wikimedia.org/wikipedia/commons/b/b0/YosriAirTerjun.gif"
+    video_2_url = "https://upload.wikimedia.org/wikipedia/commons/e/e6/Guitar_solo_gif.gif"
+    video_3_url = "https://upload.wikimedia.org/wikipedia/commons/3/30/2009-08-16-autodrift-by-RalfR-gif-by-wau.gif"
     
-    video_1_url = "https://upload.wikimedia.org/wikipedia/commons/b/b0/YosriAirTerjun.gif"  # @param {type:"string"}
-    video_2_url = "https://upload.wikimedia.org/wikipedia/commons/e/e6/Guitar_solo_gif.gif"  # @param {type:"string"}
-    video_3_url = "https://upload.wikimedia.org/wikipedia/commons/3/30/2009-08-16-autodrift-by-RalfR-gif-by-wau.gif"  # @param {type:"string"}
-    
-    video_1 = load_video(video_1_url)
-    video_2 = load_video(video_2_url)
-    video_3 = load_video(video_3_url)
+    video_1_path = Path("data/YosriAirTerjun.gif")
+    video_2_path = Path("data/Guitar_solo_gif.gif")
+    video_3_path = Path("data/2009-08-16-autodrift-by-RalfR-gif-by-wau.gif")
+    video_1 = load_video(video_1_url if not video_1_path.exists() else video_1_path)
+    video_2 = load_video(video_2_url if not video_2_path.exists() else video_2_path)
+    video_3 = load_video(video_3_url if not video_3_path.exists() else video_3_path)
     all_videos = [video_1, video_2, video_3]
     
     query_1_video = "waterfall"  # @param {type:"string"}
@@ -410,8 +368,8 @@ preparing input data in model expected format.
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, openvino
+    
 
 Perform model quantization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -447,13 +405,7 @@ preset, ignored scope etc.) can be provided.
 
 
 
-
-
-
-
-.. parsed-literal::
-
-    Output()
+    
 
 
 
@@ -461,6 +413,7 @@ preset, ignored scope etc.) can be provided.
 
 
 
+    
 
 
 
@@ -473,7 +426,41 @@ preset, ignored scope etc.) can be provided.
 
 
 
+    
 
+
+
+
+
+
+
+    
+
+
+.. parsed-literal::
+
+    INFO:nncf:39 ignored nodes were found by name in the NNCFGraph
+    
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+    
+
+
+
+
+
+
+
+    
 
 
 
@@ -486,7 +473,15 @@ preset, ignored scope etc.) can be provided.
 
 
 
+    
 
+
+
+
+
+
+
+    
 
 
 Run quantized model inference

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -91,26 +91,22 @@ def test_basic_ovtypes(ovtype,
 
 
 def test_undefined_ovtype():
-    ov_type = Type.undefined
-    assert ov_type.is_static() is True
-    assert ov_type.is_dynamic() is False
-    assert ov_type.is_real() is False
-    assert ov_type.real is False
-    assert ov_type.is_integral() is True
-    assert ov_type.integral is True
-    assert ov_type.is_signed() is False
-    assert ov_type.signed is False
-    assert ov_type.is_quantized() is False
-    assert ov_type.quantized is False
-    assert ov_type.get_type_name() == "undefined"
-    assert ov_type.type_name == "undefined"
-    assert ov_type.get_size() == 0
-    assert ov_type.size == 0
+    with pytest.warns(DeprecationWarning, match="openvino.Type.undefined is deprecated and will be removed in version 2026.0") as w:
+        ov_type = Type.undefined
+    assert issubclass(w[0].category, DeprecationWarning)
+    assert "openvino.Type.undefined is deprecated and will be removed in version 2026.0" in str(w[0].message)
 
-    # Note: might depend on the system
-    import sys
-    assert ov_type.bitwidth == sys.maxsize * 2 + 1
-    assert ov_type.get_bitwidth() == sys.maxsize * 2 + 1
+    assert ov_type.is_static() is False
+    assert ov_type.is_dynamic() is True
+    assert ov_type.is_real() is False
+    assert ov_type.is_integral() is True
+    assert ov_type.is_signed() is False
+    assert ov_type.is_quantized() is False
+    assert ov_type.get_type_name() == "dynamic"
+    assert ov_type.size == 0
+    assert ov_type.get_size() == 0
+    assert ov_type.bitwidth == 0
+    assert ov_type.get_bitwidth() == 0
 
 
 def test_dynamic_ov_type():

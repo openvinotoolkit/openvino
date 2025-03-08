@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import csv
@@ -49,7 +49,7 @@ def parse_arguments():
     ov_help = "OV binary path. The default way is to find the absolute path of latest bin in the repo (by using script path)"
     working_dir_help = "Specify a working directory to save a run artifacts"
     type_help = "Specify conformance type: `OP` or `API`. The default value is `OP`"
-    workers_help = "Specify number of workers to run in parallel. The default value is `CPU_count-1`"
+    workers_help = "Specify number of workers to run in parallel. The default value is `CPU_count`"
     gtest_filter_helper = "Specify gtest filter to apply for a test run. E.g. *Add*:*BinaryConv*. The default value is None"
     ov_config_path_helper = "Specify path to a plugin config file as `.lst` file. Default value is ``"
     special_mode_help = "Specify shape mode (`static`, `dynamic` or ``) for Opset conformance or API scope type (`mandatory` or ``). Default value is ``"

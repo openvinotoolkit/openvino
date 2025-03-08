@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,6 +75,8 @@ public:
     AttributeAdapter(ParameterVector& ref);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
+
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ParameterVector>");
 

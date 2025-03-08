@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -10,6 +10,7 @@ set(MANDATORY_UNIT_TESTS_LIBS
         "openvino::gtest"
         "openvino::gtest_main"
         "openvino::runtime"
+        "openvino::npu_common"
         "openvino::npu_al"
         "openvino::npu_logger_utils"
 )
@@ -24,10 +25,14 @@ ov_add_test_target(
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
             ${CMAKE_CURRENT_SOURCE_DIR}/npuw
+            ${CMAKE_CURRENT_SOURCE_DIR}/npuw/model_generator
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/utils/include
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/al/include
+        OBJECT_FILES
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/metadata.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/llm_compiled_model.cpp            
         LINK_LIBRARIES
             ${MANDATORY_UNIT_TESTS_LIBS}
         LABELS

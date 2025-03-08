@@ -1,12 +1,13 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <array>
-#include <openvino/op/strided_slice.hpp>
+#include <optional>
 
+#include "openvino/op/strided_slice.hpp"
 #include "slice_shape_inference_utils.hpp"
 #include "utils.hpp"
 
@@ -61,7 +62,7 @@ std::vector<TRShape> shape_infer(const StridedSlice* op,
     const auto begin = get_input_bounds<TRShape, int64_t>(op, 1, ta);
     const auto end = get_input_bounds<TRShape, int64_t>(op, 2, ta);
 
-    ov::optional<std::vector<int64_t>> strides;
+    std::optional<std::vector<int64_t>> strides;
     if (input_shapes.size() > 3) {
         strides = get_input_const_data_as<TRShape, int64_t>(op, 3, ta);
     } else if (begin) {

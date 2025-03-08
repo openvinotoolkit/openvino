@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,11 +6,11 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
-#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/config/common.hpp"
 
 using namespace ov::test::behavior;
 
-const std::vector<ov::AnyMap> remoteConfigs = {{ov::log::level(ov::log::Level::INFO)}};
+const std::vector<ov::AnyMap> remoteConfigs = {{}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          RemoteRunTests,

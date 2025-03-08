@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,7 @@ const std::vector<ov::AnyMap> gpu_compileModel_properties = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
      ov::hint::num_requests(10),
      ov::hint::enable_cpu_pinning(true),
+     ov::hint::enable_cpu_reservation(false),
      ov::enable_profiling(true)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_gpuCompileModelBehaviorTests,
@@ -310,7 +311,7 @@ TEST_P(OVClassGetPropertyTest_GPU, GetAndSetEnableProfilingNoThrow) {
 
 TEST_P(OVClassGetPropertyTest_GPU, GetAndSetInferencePrecisionNoThrow) {
     ov::Core ie;
-    auto value = ov::element::undefined;
+    auto value = ov::element::dynamic;
     const auto expected_default_precision = ov::element::f16;
 
     OV_ASSERT_NO_THROW(value = ie.get_property(target_device, ov::hint::inference_precision));

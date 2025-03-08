@@ -30,7 +30,8 @@ std::string ConcatSDPTest::getTestCaseName(const testing::TestParamInfo<ConcatSD
     std::vector<InputShape> inputShapes;
     bool forceKVU8;
     bool hasShapeOf;
-    std::tie(inType, inputShapes, forceKVU8, hasShapeOf) = obj.param;
+    bool isDiffKVHeadSize;
+    std::tie(inType, inputShapes, forceKVU8, hasShapeOf, isDiffKVHeadSize) = obj.param;
     std::ostringstream result;
     result << "IS=";
     for (const auto& shape : inputShapes) {
@@ -48,14 +49,15 @@ std::string ConcatSDPTest::getTestCaseName(const testing::TestParamInfo<ConcatSD
     }
     result << "Prc=" << inType << "_";
     result << "ForceKVU8=" << forceKVU8 << "_";
-    result << "HasShapeOf=" << hasShapeOf;
+    result << "HasShapeOf=" << hasShapeOf << "_";
+    result << "IsDiffKVHeadSize=" << isDiffKVHeadSize;
     return result.str();
 }
 
 void ConcatSDPTest::SetUp() {
     ElementType inType;
     std::vector<InputShape> inputShapes;
-    std::tie(inType, inputShapes, m_forceKVU8, m_hasShapeOf) = this->GetParam();
+    std::tie(inType, inputShapes, m_forceKVU8, m_hasShapeOf, m_isDiffKVHeadSize) = this->GetParam();
     targetDevice = ov::test::utils::DEVICE_CPU;
     rel_threshold = 1e-2f;
     if (inType == ElementType::bf16 || inType == ElementType::f16) {
@@ -71,7 +73,11 @@ void ConcatSDPTest::SetUp() {
     // q,k,v
     inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]));
     inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]));
-    inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]));
+    auto v_ps = inputDynamicShapes[0];
+    if (m_isDiffKVHeadSize) {
+        v_ps[3] += m_diffKVHeadSize;
+    }
+    inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, v_ps));
     inputParams[0]->set_friendly_name("q");
     inputParams[1]->set_friendly_name("k");
     inputParams[2]->set_friendly_name("v");
@@ -81,9 +87,15 @@ void ConcatSDPTest::SetUp() {
         ov::op::util::VariableInfo{inputDynamicShapes[1], inType, "pastk"});
     auto pastk = std::make_shared<ov::op::v6::ReadValue>(inputParams[3], var_k);
     pastk->set_friendly_name("pastk_r");
+    // pastv init_cost
+    auto v_init_ps = inputDynamicShapes[1];
+    if (m_isDiffKVHeadSize) {
+        v_init_ps[3] += m_diffKVHeadSize;
+    }
+    inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, v_init_ps));
     auto var_v = std::make_shared<ov::op::util::Variable>(
-        ov::op::util::VariableInfo{inputDynamicShapes[1], inType, "pastv"});
-    auto pastv = std::make_shared<ov::op::v6::ReadValue>(inputParams[3], var_v);
+        ov::op::util::VariableInfo{v_init_ps, inType, "pastv"});
+    auto pastv = std::make_shared<ov::op::v6::ReadValue>(inputParams[4], var_v);
     pastv->set_friendly_name("pastv_r");
     auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ElementType::i32, ov::PartialShape{-1});
     beam_idx->set_friendly_name("beam_idx");
@@ -125,15 +137,6 @@ void ConcatSDPTest::SetUp() {
     manager.run_passes(functionRefs);
 }
 
-void ConcatSDPTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
-    std::vector<ov::Shape> shapes(4);
-    shapes[0] = targetInputStaticShapes[0];
-    shapes[1] = targetInputStaticShapes[0];
-    shapes[2] = targetInputStaticShapes[0];
-    shapes[3] = targetInputStaticShapes[1];
-    SubgraphBaseTest::generate_inputs(shapes);
-}
-
 template<typename IT, typename T>
 void strided_iota(IT first, size_t n, T value, T stride) {
     for (size_t i = 0; i < n; i++) {
@@ -163,17 +166,26 @@ void ConcatSDPTest::generate(int idx, const std::vector<ov::Shape>& targetInputS
             strided_iota(static_cast<ov::float16 *>(t.data()), t.get_size(), val, 0.0f);
             inputs.insert({param, t});
         } else {
+            ASSERT_TRUE(param->get_element_type() == element::bf16);
             ov::Tensor t{ov::element::bf16, shape};
             strided_iota(static_cast<ov::bfloat16*>(t.data()), t.get_size(), val, 0.1f);
             inputs.insert({param, t});
         }
     };
     // q, k, v, pastkv
+    auto v_shape = targetInputStaticShapes[0];
+    auto v_init_shape = targetInputStaticShapes[1];
+    if (m_isDiffKVHeadSize) {
+        v_shape[3] += m_diffKVHeadSize;
+        v_init_shape[3] += m_diffKVHeadSize;
+    }
+
     create_input(function->get_parameters()[0], targetInputStaticShapes[0], idx + 1.0f);
     create_input(function->get_parameters()[1], targetInputStaticShapes[0], idx + 2.0f);
-    create_input(function->get_parameters()[2], targetInputStaticShapes[0], idx + 3.0f);
+    create_input(function->get_parameters()[2], v_shape, idx + 3.0f);
     create_input(function->get_parameters()[3], targetInputStaticShapes[1], idx + 4.0f);
-    create_input(function->get_parameters()[4], ov::Shape{targetInputStaticShapes[0][0]}, idx + 0.0f);
+    create_input(function->get_parameters()[4], v_init_shape, idx + 4.0f);
+    create_input(function->get_parameters()[5], ov::Shape{targetInputStaticShapes[0][0]}, idx + 0.0f);
 }
 
 void ConcatSDPTest::prepare() {
@@ -214,7 +226,8 @@ TEST_P(ConcatSDPTest, CompareWithRefs) {
     std::vector<InputShape> inputShapes;
     bool forceKVU8;
     bool hasShapeOf;
-    std::tie(inType, inputShapes, forceKVU8, hasShapeOf) = this->GetParam();
+    bool isDiffKVHeadSize;
+    std::tie(inType, inputShapes, forceKVU8, hasShapeOf, isDiffKVHeadSize) = this->GetParam();
 
     auto actualOutputs = run_test(function);
     if (!hasShapeOf) {

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -24,9 +24,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME reference)
 if(ENABLE_AVX2)
     ov_avx2_optimization_flags(avx2_flags)
 
-    set(OV_REFERENCE_X86_AVX2_SRC
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/op/convert_x86_intrinsics.cpp
-    )
+    set(OV_REFERENCE_X86_AVX2_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/op/convert_x86_intrinsics.cpp)
     set_source_files_properties(${OV_REFERENCE_X86_AVX2_SRC} PROPERTIES COMPILE_OPTIONS "${avx2_flags}"
                                                                         SKIP_UNITY_BUILD_INCLUSION ON
                                                                         SKIP_PRECOMPILE_HEADERS ON)
@@ -49,9 +47,6 @@ target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${REF_IMPL_INCLUDE_DIR}>
     $<BUILD_INTERFACE:${OV_CORE_DEV_API_PATH}>
     $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>)
-
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    $<BUILD_INTERFACE:$<$<TARGET_EXISTS:xbyak::xbyak>:$<TARGET_PROPERTY:xbyak::xbyak,INTERFACE_INCLUDE_DIRECTORIES>>>)
 
 find_package(Threads REQUIRED)
 target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads openvino::core::dev)

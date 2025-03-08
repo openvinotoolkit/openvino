@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -191,28 +191,28 @@ TEST(F8E5M2Test, f8e5m2_num_limits_exp) {
     EXPECT_EQ(max_exp10, 4);
 }
 
-TEST(F8E5M2Test, f32_ge_f8_max_round_to_inf) {
+TEST(F8E5M2Test, f32_as_f16_inf_gt_f8_max_round_to_inf) {
     const auto f8 = ov::float8_e5m2(65520.0f);
 
     EXPECT_EQ(f8.to_bits(), 0b01111100);
 }
 
-TEST(F8E5M2Test, f32_ge_f8_max_round_to_max) {
+TEST(F8E5M2Test, f32_gt_f16_max_gt_f8_max_round_to_inf) {
     const auto f8 = ov::float8_e5m2(65519.9f);
 
-    EXPECT_EQ(f8.to_bits(), 0b01111011);
+    EXPECT_EQ(f8.to_bits(), 0b01111100);
 }
 
-TEST(F8E5M2Test, f32_ge_f8_max_round_to_minus_inf) {
+TEST(F8E5M2Test, f32_as_f16_minus_inf_lt_f8_lowest_round_to_minus_inf) {
     const auto f8 = ov::float8_e5m2(-65520.0f);
 
     EXPECT_EQ(f8.to_bits(), 0b11111100);
 }
 
-TEST(F8E5M2Test, f32_ge_f8_max_round_to_lowest) {
+TEST(F8E5M2Test, f32_lt_f16_lowest_lt_f8_lowest_round_to_minus_inf) {
     const auto f8 = ov::float8_e5m2(-65519.9f);
 
-    EXPECT_EQ(f8.to_bits(), 0b11111011);
+    EXPECT_EQ(f8.to_bits(), 0b11111100);
 }
 
 template <class TContainer>

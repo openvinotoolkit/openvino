@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,6 +77,7 @@ class OPENVINO_API AttributeAdapter<op::v15::ScatterNDUpdate::Reduction>
 public:
     AttributeAdapter(op::v15::ScatterNDUpdate::Reduction& value)
         : EnumAttributeAdapterBase<op::v15::ScatterNDUpdate::Reduction>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<v15::ScatterNDUpdate::Reduction>");
 };

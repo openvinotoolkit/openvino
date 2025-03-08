@@ -81,30 +81,24 @@ Install required dependencies
 .. code:: ipython3
 
     import os
+    import platform
 
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
 
-    %pip install -Uq pip
-    %pip uninstall -q -y optimum optimum-intel
-    %pip install -q -U "openvino>=2024.3.0" openvino-tokenizers[transformers] openvino-genai
+    %pip install -q -U "openvino>=2024.6.0" openvino-tokenizers[transformers] openvino-genai --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
     "git+https://github.com/huggingface/optimum-intel.git"\
-    "git+https://github.com/openvinotoolkit/nncf.git"\
+    "nncf==2.14.1"\
     "torch>=2.1"\
     "datasets" \
     "accelerate" \
     "gradio>=4.19" \
     "transformers>=4.43.1" \
-    "onnx<=1.16.1; sys_platform=='win32'" "einops" "transformers_stream_generator" "tiktoken" "bitsandbytes"
+    "huggingface-hub>=0.26.5" \
+    "einops" "transformers_stream_generator" "tiktoken" "bitsandbytes"
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
+    if platform.system() == "Darwin":
+        %pip install -q "numpy<2.0.0"
 
 .. code:: ipython3
 
@@ -140,6 +134,38 @@ Install required dependencies
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
+
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+
+    collect_telemetry("llm-chatbot-generate-api.ipynb")
+
+Select device for inference
+---------------------------
+
+
+
+.. code:: ipython3
+
+    from notebook_utils import device_widget
+
+    device = device_widget(default="CPU")
+
+    device
+
+
+.. parsed-literal::
+
+    <frozen importlib.util>:247: DeprecationWarning: The `openvino.runtime` module is deprecated and will be removed in the 2026.0 release. Please replace `openvino.runtime` with `openvino`.
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
+
+
 
 Select model for inference
 --------------------------
@@ -194,12 +220,24 @@ several options for model weight compression:
    of the
    `Wikitext <https://huggingface.co/datasets/Salesforce/wikitext>`__
    dataset for calibration.
+-  **INT4 NPU-friendly** is an 4-bit channel-wise quantization. This
+   approach is
+   `recommended <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/genai-guide-npu.html>`__
+   for LLM inference using NPU.
 
 .. raw:: html
 
    <details>
 
+.. raw:: html
+
+   <summary>
+
 Click here to see available models options
+
+.. raw:: html
+
+   </summary>
 
 -  **tiny-llama-1b-chat** - This is the chat model finetuned on top of
    `TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T <https://huggingface.co/TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T>`__.
@@ -212,12 +250,19 @@ Click here to see available models options
    computation and memory footprint. More details about model can be
    found in `model
    card <https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v1.0>`__
--  **mini-cpm-2b-dpo** - MiniCPM is an End-Size LLM developed by
+-  **minicpm-2b-dpo** - MiniCPM is an End-Size LLM developed by
    ModelBest Inc. and TsinghuaNLP, with only 2.4B parameters excluding
    embeddings. After Direct Preference Optimization (DPO) fine-tuning,
    MiniCPM outperforms many popular 7b, 13b and 70b models. More details
    can be found in
    `model_card <https://huggingface.co/openbmb/MiniCPM-2B-dpo-fp16>`__.
+-  **minicpm3-4b** - MiniCPM3-4B is the 3rd generation of MiniCPM
+   series. The overall performance of MiniCPM3-4B surpasses
+   Phi-3.5-mini-Instruct, being comparable with many recent 7B~9B
+   models.Compared to previous generations, MiniCPM3-4B has a more
+   powerful and versatile skill set to enable more general usage. More
+   details can be found in `model
+   card <https://huggingface.co/openbmb/MiniCPM3-4B>`__.
 -  **llama-3.2-1B-instruct** - 1B parameters model from LLama3.2
    collection of instruction-tuned multilingual models. Llama 3.2
    instruction-tuned text only models are optimized for multilingual
@@ -293,9 +338,10 @@ Click here to see available models options
    model can be found in `model
    card <https://huggingface.co/google/gemma-2b-it>`__. >\ **Note**: run
    model with demo, you will need to accept license agreement. >You must
-   be a registered user in Hugging Face Hub. Please visit `HuggingFace
-   model card <https://huggingface.co/google/gemma-2b-it>`__, carefully
-   read terms of usage and click accept button. You will need to use an
+   be a registered user in Hugging Face Hub. Please visit
+   `HuggingFace model
+   card <https://huggingface.co/google/gemma-2b-it>`__, carefully read
+   terms of usage and click accept button. You will need to use an
    access token for the code below to run. For more information on
    access tokens, refer to `this section of the
    documentation <https://huggingface.co/docs/hub/security-tokens>`__.
@@ -370,6 +416,18 @@ Click here to see available models options
    card <https://huggingface.co/microsoft/Phi-3.5-mini-instruct>`__,
    `Microsoft blog <https://aka.ms/phi3.5-techblog>`__ and `technical
    report <https://arxiv.org/abs/2404.14219>`__.
+-  **phi-4** - Phi-4 is 14B model that built upon a blend of synthetic
+   datasets, data from filtered public domain websites, and acquired
+   academic books and Q&A datasets. The goal of this approach was to
+   ensure that small capable models were trained with data focused on
+   high quality and advanced reasoning. Phi-4 underwent a rigorous
+   enhancement and alignment process, incorporating both supervised
+   fine-tuning and direct preference optimization to ensure precise
+   instruction adherence and robust safety measures. More details about
+   model can be found in
+   `model_card <https://huggingface.co/microsoft/phi-4>`__, `technical
+   report <https://arxiv.org/pdf/2412.08905>`__ and `Microsoft
+   blog <https://techcommunity.microsoft.com/blog/aiplatformblog/introducing-phi-4-microsoft%E2%80%99s-newest-small-language-model-specializing-in-comple/4357090>`__.
 -  **red-pajama-3b-chat** - A 2.8B parameter pre-trained language model
    based on GPT-NEOX architecture. It was developed by Together Computer
    and leaders from the open-source AI community. The model is
@@ -387,9 +445,10 @@ Click here to see available models options
    model can be found in `model
    card <https://huggingface.co/google/gemma-7b-it>`__. >\ **Note**: run
    model with demo, you will need to accept license agreement. >You must
-   be a registered user in Hugging Face Hub. Please visit `HuggingFace
-   model card <https://huggingface.co/google/gemma-7b-it>`__, carefully
-   read terms of usage and click accept button. You will need to use an
+   be a registered user in Hugging Face Hub. Please visit
+   `HuggingFace model
+   card <https://huggingface.co/google/gemma-7b-it>`__, carefully read
+   terms of usage and click accept button. You will need to use an
    access token for the code below to run. For more information on
    access tokens, refer to `this section of the
    documentation <https://huggingface.co/docs/hub/security-tokens>`__.
@@ -635,16 +694,28 @@ Click here to see available models options
    card <https://huggingface.co/THUDM/glm-4-9b-chat/blob/main/README_en.md>`__,
    `technical report <https://arxiv.org/pdf/2406.12793>`__ and
    `repository <https://github.com/THUDM/GLM-4>`__
-
-.. raw:: html
-
-   </details>
+-  **DeepSeek-R1-Distill-Qwen-1.5B** - Qwen2.5-1.5B fine-tuned using the
+   reasoning data generated by
+   `DeepSeek-R1 <https://huggingface.co/deepseek-ai/DeepSeek-R1>`__. You
+   can find more info in `model
+   card <https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B>`__
+-  **DeepSeek-R1-Distill-Qwen-7B** - Qwen2.5-7B fine-tuned using the
+   reasoning data generated by
+   `DeepSeek-R1 <https://huggingface.co/deepseek-ai/DeepSeek-R1>`__. You
+   can find more info in `model
+   card <https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B>`__
+-  **DeepSeek-R1-Distill-Llama-8B** - Llama-3.1-8B fine-tuned using the
+   reasoning data generated by
+   `DeepSeek-R1 <https://huggingface.co/deepseek-ai/DeepSeek-R1>`__. You
+   can find more info in `model
+   card <https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Llama-8B>`__
+   </details
 
 .. code:: ipython3
 
     from llm_config import get_llm_selection_widget
 
-    form, lang, model_id_widget, compression_variant, use_preconverted = get_llm_selection_widget()
+    form, lang, model_id_widget, compression_variant, use_preconverted = get_llm_selection_widget(device=device.value)
 
     form
 
@@ -666,7 +737,7 @@ Click here to see available models options
 
 .. parsed-literal::
 
-    Selected model qwen2.5-0.5b-instruct with INT4 compression
+    Selected model DeepSeek-R1-Distill-Llama-8B with INT4 compression
 
 
 Convert model using Optimum-CLI tool
@@ -674,8 +745,8 @@ Convert model using Optimum-CLI tool
 
 
 
-`Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
-the interface between the
+`Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__
+is the interface between the
 `Transformers <https://huggingface.co/docs/transformers/index>`__ and
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ libraries
 and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
@@ -688,7 +759,15 @@ format.
 
    <details>
 
+.. raw:: html
+
+   <summary>
+
 Click here to read more about Optimum CLI usage
+
+.. raw:: html
+
+   </summary>
 
 The command bellow demonstrates basic command for model export with
 ``optimum-cli``
@@ -722,7 +801,15 @@ with the CLI.
 
    <details>
 
+.. raw:: html
+
+   <summary>
+
 Click here to read more about weights compression with Optimum CLI
+
+.. raw:: html
+
+   </summary>
 
 Setting ``--weight-format`` to respectively fp16, int8 or int4. This
 type of optimization allows to reduce the memory footprint and inference
@@ -766,47 +853,7 @@ be additionally applied during model export with INT4 precision using
 
 .. parsed-literal::
 
-    ⌛ qwen2.5-0.5b-instruct conversion to INT4 started. It may takes some time.
-
-
-
-**Export command:**
-
-
-
-``optimum-cli export openvino --model Qwen/Qwen2.5-0.5B-Instruct --task text-generation-with-past --weight-format int4 --group-size 128 --ratio 1.0 --sym qwen2.5/INT4_compressed_weights``
-
-
-.. parsed-literal::
-
-    2024-10-08 02:53:02.359208: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-10-08 02:53:02.392956: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-10-08 02:53:02.929372: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    Framework not specified. Using pt to export the model.
-    Using framework PyTorch: 2.2.2+cpu
-    Overriding 1 configuration item(s)
-    	- use_cache -> True
-    We detected that you are passing `past_key_values` as a tuple and this is deprecated and will be removed in v4.43. Please use an appropriate `Cache` class (https://huggingface.co/docs/transformers/v4.41.3/en/internal/generation_utils#transformers.Cache)
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/optimum/exporters/openvino/model_patcher.py:496: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if sequence_length != 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:165: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if seq_len > self.max_seq_len_cached:
-    Set tokenizer padding side to left for `text-generation-with-past` task.
-
-
-.. parsed-literal::
-
-    INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │ int8_asym                 │ 28% (1 / 169)               │ 0% (0 / 168)                           │
-    ├───────────────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │ int4_sym                  │ 72% (168 / 169)             │ 100% (168 / 168)                       │
-    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-    [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% • 0:00:14 • 0:00:00
-    ✅ INT4 qwen2.5-0.5b-instruct model converted and can be found in qwen2.5/INT4_compressed_weights
+    ✅ INT4 DeepSeek-R1-Distill-Llama-8B model already converted and can be found in DeepSeek-R1-Distill-Llama-8B/INT4_compressed_weights
 
 
 Let’s compare model size for different compression types
@@ -820,33 +867,8 @@ Let’s compare model size for different compression types
 
 .. parsed-literal::
 
-    Size of model with INT4 compressed weights is 322.44 MB
+    Size of model with INT4 compressed weights is 5102.71 MB
 
-
-Select device for inference
----------------------------
-
-
-
-.. code:: ipython3
-
-    from notebook_utils import device_widget
-
-    device = device_widget(default="CPU", exclude=["NPU"])
-
-    device
-
-
-
-
-.. parsed-literal::
-
-    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
-
-
-
-The cell below demonstrates how to instantiate model based on selected
-variant of model weights and inference device
 
 Instantiate pipeline with OpenVINO Generate API
 -----------------------------------------------
@@ -864,38 +886,65 @@ OpenVINO GenAI API. You can construct it straight away from the folder
 with the converted model. We will provide directory with model and
 device for ``LLMPipeline``. Then we run ``generate`` method and get the
 output in text format. Additionally, we can configure parameters for
-decoding. We can get the default config with
-``get_generation_config()``, setup parameters, and apply the updated
+decoding. We can create the default config with
+``ov_genai.GenerationConfig()``, setup parameters, and apply the updated
 version with ``set_generation_config(config)`` or put config directly to
 ``generate()``. It’s also possible to specify the needed options just as
 inputs in the ``generate()`` method, as shown below, e.g. we can add
 ``max_new_tokens`` to stop generation if a specified number of tokens is
 generated and the end of generation is not reached. We will discuss some
-of the available generation parameters more deeply later.
+of the available generation parameters more deeply later. Generation
+process for long response may be time consuming, for accessing partial
+result as soon as it is generated without waiting when whole process
+finished, Streaming API can be used. Token streaming is the mode in
+which the generative system returns the tokens one by one as the model
+generates them. This enables showing progressive generations to the user
+rather than waiting for the whole generation. Streaming is an essential
+aspect of the end-user experience as it reduces latency, one of the most
+critical aspects of a smooth experience. In code below, we implement
+simple streamer for printing output result. For more advanced streamer
+example please check openvino.genai
+`sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/multinomial_causal_lm>`__.
 
 .. code:: ipython3
 
-    from openvino_genai import LLMPipeline
+    import openvino_genai as ov_genai
+    import sys
 
     print(f"Loading model from {model_dir}\n")
 
 
-    pipe = LLMPipeline(str(model_dir), device.value)
+    pipe = ov_genai.LLMPipeline(str(model_dir), device.value)
 
-    generation_config = pipe.get_generation_config()
+    generation_config = ov_genai.GenerationConfig()
+    generation_config.max_new_tokens = 128
 
-    input_prompt = "The Sun is yellow bacause"
+
+    def streamer(subword):
+        print(subword, end="", flush=True)
+        sys.stdout.flush()
+        # Return flag corresponds whether generation should be stopped.
+        # False means continue generation.
+        return False
+
+
+    input_prompt = "What is OpenVINO?"
     print(f"Input text: {input_prompt}")
-    print(pipe.generate(input_prompt, max_new_tokens=10))
+    result = pipe.generate(input_prompt, generation_config, streamer)
 
 
 .. parsed-literal::
 
-    Loading model from qwen2.5/INT4_compressed_weights
+    Loading model from DeepSeek-R1-Distill-Llama-8B/INT4_compressed_weights
 
-    Input text: The Sun is yellow bacause
-     of its coloration. The Sun is blue because
+    Input text: What is OpenVINO?
+     It's a tool that helps in optimizing AI models for different platforms, including mobile and edge devices. It's designed to make AI deployment easier by providing tools for model optimization, quantization, and more.
 
+    I remember that OpenVINO is an open-source toolkit. So, it's free to use and modify.
+
+    It's used for optimizing AI models, which means it helps in making the models smaller and faster, so they can run on devices with limited resources.
+
+    I think OpenVINO provides tools for model quantization, which is the process of reducing the precision of the model's weights to make them smaller, which helps in deploying them
 
 Run Chatbot
 -----------
@@ -909,7 +958,15 @@ Now, when model created, we can setup Chatbot interface using
 
    <details>
 
+.. raw:: html
+
+   <summary>
+
 Click here to see how pipeline works
+
+.. raw:: html
+
+   </summary>
 
 The diagram below illustrates how the chatbot pipeline works
 
@@ -959,11 +1016,22 @@ Advanced generation options
 
 
 
+   **Note**: NPU inference pipeline does not support providing advanced
+   options at this moment, they will be disabled if NPU selected
+
 .. raw:: html
 
    <details>
 
+.. raw:: html
+
+   <summary>
+
 Click here to see detailed description of advanced options
+
+.. raw:: html
+
+   </summary>
 
 | There are several parameters that can control text generation quality,
   \* ``Temperature`` is a parameter used to control the level of
@@ -1033,31 +1101,12 @@ Click here to see detailed description of advanced options
 
     from gradio_helper_genai import make_demo
 
-    demo = make_demo(pipe, model_configuration, model_id, lang.value)
+    demo = make_demo(pipe, model_configuration, model_id, lang.value, device.value == "NPU")
 
     try:
-        demo.launch(debug=False)
+        demo.launch(debug=True)
     except Exception:
-        demo.launch(debug=False, share=True)
+        demo.launch(debug=True, share=True)
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-
-
-.. code:: ipython3
-
-    # please uncomment and run this cell for stopping gradio interface
-    # demo.close()
