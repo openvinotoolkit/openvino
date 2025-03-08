@@ -16,6 +16,7 @@ struct fully_connected_params : public weight_bias_params {
 
     QuantizationType quantization = QuantizationType::NONE;
     size_t dynamic_quantization_group_size = 0;
+    bool single_batch = 0;
 
     ParamsKey GetParamsKey() const override {
         ParamsKey k = weight_bias_params::GetParamsKey();
