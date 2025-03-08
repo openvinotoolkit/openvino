@@ -70,6 +70,10 @@ kernel_selector::dev_type get_device_type(cldnn::device_type type) {
 namespace cldnn {
 
 bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
+    // Skip check for Windows as CM frontend is a component of Intel GPU driver
+#ifdef WIN32
+    return true;
+#else
     auto device = e.get_device().get();
 
     static std::mutex m;
@@ -107,6 +111,7 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
     }
 
     return cache.at(device);
+#endif
 }
 
 bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
