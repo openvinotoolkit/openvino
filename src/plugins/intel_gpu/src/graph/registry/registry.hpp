@@ -42,7 +42,7 @@
 #define FOR_EACH_(N, prim, ...) EXPAND(CAT(INSTANTIATE_, N)(prim, __VA_ARGS__))
 #define INSTANTIATE(prim, ...) EXPAND(FOR_EACH_(COUNT(__VA_ARGS__), prim, __VA_ARGS__))
 
-#define CREATE_INSTANCE(Type, ...) std::make_shared<cldnn::Type>(__VA_ARGS__),
+#define CREATE_INSTANCE(Type, ...) std::make_shared<Type>(__VA_ARGS__),
 #define GET_INSTANCE(Type, ...) cldnn::implementation_map<cldnn::Type>::get(__VA_ARGS__)
 
 #define OV_GPU_GET_INSTANCE_1(prim, impl_type, shape_types) GET_INSTANCE(prim, impl_type, shape_types),
@@ -128,6 +128,7 @@ REGISTER_IMPLS(broadcast);
 REGISTER_IMPLS(concatenation);
 REGISTER_IMPLS(convolution);
 REGISTER_IMPLS(crop);
+REGISTER_IMPLS(ctc_loss);
 REGISTER_IMPLS(deconvolution);
 REGISTER_IMPLS(detection_output);
 REGISTER_IMPLS(eltwise);
@@ -209,7 +210,6 @@ REGISTER_DEFAULT_IMPLS(gather_tree, OCL_S);
 REGISTER_DEFAULT_IMPLS(resample, OCL_S);
 REGISTER_DEFAULT_IMPLS(grn, OCL_S);
 REGISTER_DEFAULT_IMPLS(ctc_greedy_decoder, OCL_S);
-REGISTER_DEFAULT_IMPLS(ctc_loss, OCL_S);
 REGISTER_DEFAULT_IMPLS(cum_sum, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(embedding_bag, OCL_S);
 REGISTER_DEFAULT_IMPLS(extract_image_patches, OCL_S);
