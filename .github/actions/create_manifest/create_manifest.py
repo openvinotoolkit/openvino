@@ -9,6 +9,8 @@ import re
 import git
 import sys
 
+import toml
+
 from manifest_manager import Manifest, Repository, Component
 
 sys.path.append(str(Path(__file__).parents[1]))
@@ -80,6 +82,19 @@ def parse_ov_version(header_file: str | Path) -> str:
     return f"{major}.{minor}.{patch}"
 
 
+def parse_ov_version_from_toml(toml_file_path: str | Path) -> str:
+    """
+    Reads the version field under the [project] section from a pyproject.toml.
+
+    :param toml_file_path: Path to the .toml file
+    :return: Version string
+    """
+    toml_content = Path(toml_file_path).read_text()
+    toml_data = toml.loads(toml_content)
+    version = toml_data['project']['version']
+    return version
+
+
 def generate_manifest(repos: list, product_type: str, event_type: str, build_type: str, target_arch: str) -> Manifest:
     manifest = Manifest()
     component_name = 'dldt'  # historical, keep for internal compatibility
@@ -93,6 +108,10 @@ def generate_manifest(repos: list, product_type: str, event_type: str, build_typ
         if repo.name == 'openvino':
             version_file = Path(repo_dir) / 'src' / 'core' / 'include' / 'openvino' / 'core' / 'version.hpp'
             ov_version = parse_ov_version(version_file)
+        elif repo.name in ['openvino_tokenizers', 'openvino.genai']:
+            version_file = Path(repo_dir) / 'pyproject.toml'
+            ov_version = parse_ov_version_from_toml(version_file)
+
         if repo.trigger:
             trigger_repo = repo
 
