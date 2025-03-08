@@ -79,6 +79,9 @@ public:
     }
 };
 
+template<class T>
+Equal(T) -> Equal<T>;
+
 /**
  * \brief Compare if value is less to expected.
  *
@@ -95,6 +98,9 @@ public:
         return value < m_exp_value;
     }
 };
+
+template<class T>
+Less(T) -> Less<T>;
 
 /**
  * \brief Compare two values (a < b) in safe way against lossy integer conversion.
