@@ -16,6 +16,7 @@
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/gather_compressed.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
@@ -144,5 +145,48 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(gather_m, "ConvertGatherToGatherCompressed");
+    this->register_matcher(m, callback);
+}
+
+ov::pass::MoveDecompressionAfterGather::MoveDecompressionAfterGather() {
+    using namespace ov::pass::pattern;
+
+    auto compressed_constant_without_scale = [](const ov::Output<ov::Node>& output) {
+        return output.get_element_type() == ov::element::f16 || output.get_element_type() == ov::element::bf16;
+    };
+    auto dicts_wo_scale = wrap_type<ov::op::v0::Constant>(compressed_constant_without_scale);
+    auto convert_wo_scale = wrap_type<ov::op::v0::Convert>({dicts_wo_scale}, pattern::consumers_count(1));
+    auto gather_wo_scale =
+        wrap_type<ov::op::v8::Gather>({convert_wo_scale, any_input(), wrap_type<ov::op::v0::Constant>()});
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto constant_node = pattern_map.at(dicts_wo_scale).get_node_shared_ptr();
+        auto convert_node = pattern_map.at(convert_wo_scale).get_node_shared_ptr();
+        auto gather_node = pattern_map.at(gather_wo_scale).get_node_shared_ptr();
+        if (transformation_callback(gather_node)) {
+            return false;
+        }
+
+        if (convert_node->get_output_target_inputs(0).size() != 1 ||
+            convert_node->get_output_element_type(0) != element::Type_t::f32) {
+            return false;
+        }
+
+        auto new_gather = gather_node->clone_with_new_inputs(
+            {constant_node, gather_node->get_input_source_output(1), gather_node->get_input_source_output(2)});
+        auto new_convert = convert_node->clone_with_new_inputs({new_gather});
+        register_new_node(new_gather);
+        register_new_node(new_convert);
+
+        ov::enable_keep_const_precision(constant_node);
+
+        new_convert->set_friendly_name(gather_node->get_friendly_name());
+        ov::copy_runtime_info({convert_node, gather_node}, {new_gather, new_convert});
+        replace_node(gather_node, new_convert);
+        return true;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(gather_wo_scale, "MoveDecompressionAfterGather");
     this->register_matcher(m, callback);
 }
