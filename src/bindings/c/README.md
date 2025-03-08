@@ -32,7 +32,7 @@ OpenVINO C API has the following structure:
 
 ## Tutorials
 
-* [How to integrate OpenVINO C API with Your Application](https://docs.openvino.ai/2025/openvino-workflow/running-inference/integrate-openvino-with-your-application.html)
+* [How to integrate OpenVINO C API with Your Application](https://docs.openvino.ai/2025/openvino-workflow/running-inference.html)
 * [How to wrap OpenVINO objects with C](./docs/how_to_wrap_openvino_objects_with_c.md)
 * [How to wrap OpenVINO interfaces with C](./docs/how_to_wrap_openvino_interfaces_with_c.md)
 * [Samples implemented by OpenVINO C API](../../../samples/c/)
@@ -46,5 +46,5 @@ See [CONTRIBUTING](../../../CONTRIBUTING.md) for details.
 ## See also
 
  * [OpenVINO™ README](../../../README.md)
- * [OpenVINO Runtime C API User Guide](https://docs.openvino.ai/2025/openvino-workflow/running-inference/integrate-openvino-with-your-application.html)
+ * [OpenVINO Runtime C API User Guide](https://docs.openvino.ai/2025/openvino-workflow/running-inference.html)
 

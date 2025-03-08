@@ -9,7 +9,7 @@ Hello Reshape SSD Sample
 
 
 This sample demonstrates how to do synchronous inference of object detection models
-using :doc:`Shape Inference feature <../../../openvino-workflow/running-inference/changing-input-shape>`. Before
+using :doc:`Shape Inference feature <../../../openvino-workflow/running-inference/model-input-output/changing-input-shape>`. Before
 using the sample, refer to the following requirements:
 
 - Models with only one input and output are supported.
@@ -46,7 +46,7 @@ As a result, the program creates an output image, logging each step in a standar
 
 
 You can see the explicit description of
-each sample step at :doc:`Integration Steps <../../../openvino-workflow/running-inference/integrate-openvino-with-your-application>` section of "Integrate OpenVINO™ Runtime with Your Application" guide.
+each sample step at :doc:`Integration Steps <../../../openvino-workflow/running-inference>` section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 Running
 ####################
@@ -201,7 +201,7 @@ Sample Output
 Additional Resources
 ####################
 
-- :doc:`Integrate the OpenVINO™ Runtime with Your Application <../../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
+- :doc:`Integrate the OpenVINO™ Runtime with Your Application <../../../openvino-workflow/running-inference>`
 - :doc:`Get Started with Samples <get-started-demos>`
 - :doc:`Using OpenVINO Samples <../openvino-samples>`
 - :doc:`Convert a Model <../../../openvino-workflow/model-preparation/convert-model-to-ir>`
