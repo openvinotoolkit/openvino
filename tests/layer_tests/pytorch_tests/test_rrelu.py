@@ -28,9 +28,9 @@ class TestRReLU(PytorchLayerTest):
 
         return aten_rrelu(lower, upper, inplace), ref_net, "aten::rrelu" if not inplace else "aten::rrelu_"
 
-    @pytest.mark.parametrize("lower", [0.1])#[0.01, 0.1])
-    @pytest.mark.parametrize("upper", [0.5])#[0.1, 0.5])
-    @pytest.mark.parametrize("inplace", [False])#skip_if_export(True), False])
+    @pytest.mark.parametrize("lower", [0.01, 0.1])
+    @pytest.mark.parametrize("upper", [0.1, 0.5, None])#[0.1, 0.5])
+    @pytest.mark.parametrize("inplace", [skip_if_export(True), False])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export

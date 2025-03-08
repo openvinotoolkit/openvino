@@ -25,8 +25,10 @@ OutputVector translate_rrelu(const NodeContext& context) {
     Output<Node> lower = ov::op::v0::Constant::create(element::f32, Shape{1}, {lower_default});
     Output<Node> upper = ov::op::v0::Constant::create(element::f32, Shape{1}, {upper_default});
 
-    if (context.get_input_size() > 1) {
+    if (!context.input_is_none(1)) {
         lower = context.get_input(1);
+    }
+    if (!context.input_is_none(2)) {
         upper = context.get_input(2);
     }
     lower = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(lower, x));
