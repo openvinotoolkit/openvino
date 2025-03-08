@@ -91,6 +91,29 @@ INSTANTIATE_TEST_SUITE_P(smoke_GPU_BehaviorTests, InferRequestIOPrecision,
                                  ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          InferRequestIOPrecision::getTestCaseName);
 
+static std::shared_ptr<ov::Model> create_n_inputs(ov::element::Type type,
+                                                  const std::vector<ov::PartialShape>& shapes,
+                                                  const std::vector<ov::Layout>& layouts) {
+    ov::ResultVector res;
+    ov::ParameterVector params;
+    for (size_t i = 0; i < shapes.size(); i++) {
+        auto index_str = std::to_string(i);
+        auto data1 = std::make_shared<ov::op::v0::Parameter>(type, shapes[i]);
+        data1->set_layout(layouts[i]);
+        data1->set_friendly_name("input" + index_str);
+        data1->get_output_tensor(0).set_names({"tensor_input" + index_str});
+        auto op1 = std::make_shared<ov::op::v0::Relu>(data1);
+        op1->set_friendly_name("Relu" + index_str);
+        auto res1 = std::make_shared<ov::op::v0::Result>(op1);
+        res1->set_friendly_name("Result" + index_str);
+        res1->get_output_tensor(0).set_names({"tensor_output" + index_str});
+        params.push_back(data1);
+        res.push_back(res1);
+    }
+    auto f = std::make_shared<ov::Model>(res, params);
+    return f;
+}
+
 TEST(TensorTest, smoke_canSetShapeForPreallocatedTensor) {
     auto core = ov::Core();
     using namespace ov::preprocess;
@@ -394,5 +417,49 @@ TEST(TensorTest, smoke_canShareTensorIfModelsFromDifferentCores) {
 
     OV_ASSERT_NO_THROW(request1.infer());
     OV_ASSERT_NO_THROW(request2.infer());
+}
+
+TEST(TensorTest, smoke_batch_zero_infer_single) {
+    auto model = create_n_inputs(ov::element::f32, {ov::PartialShape{-1, -1, -1, -1}}, {"NCHW"});
+    auto core = ov::Core{};
+
+    auto compiled_model = core.compile_model(model, "GPU");
+    auto infer_request = compiled_model.create_infer_request();
+    auto input_tensor = ov::Tensor(ov::element::f32, {0, 299, 299, 3});
+    OV_EXPECT_THROW_HAS_SUBSTRING(infer_request.set_input_tensor(input_tensor),
+                                  ov::Exception,
+                                  "Batch size must be a positive value for input")
+}
+
+TEST(TensorTest, smoke_batch_zero_infer_multi) {
+    auto model = create_n_inputs(ov::element::f32, {ov::PartialShape{-1, -1, -1, -1}}, {"NCHW"});
+    auto core = ov::Core{};
+    auto compiled_model = core.compile_model(model, "GPU");
+    auto infer_request = compiled_model.create_infer_request();
+    ov::Tensor t1 = ov::Tensor(ov::element::f32, {1, 299, 299, 3});
+    ov::Tensor t2 = ov::Tensor(ov::element::f32, {0, 299, 299, 3});
+    ov::TensorVector t = {t1, t2};
+    OV_EXPECT_THROW_HAS_SUBSTRING(infer_request.set_input_tensors(t),
+                                  ov::Exception,
+                                  "Tensors shall represent one item in a batch, 0 provided")
+    ASSERT_TRUE(true);
+}
+
+TEST(TensorTest, smoke_batch_zero_infer_static_batch_model) {
+    auto model = create_n_inputs(ov::element::f32, {ov::PartialShape{1, 1, 1, 1}}, {"NCHW"});
+    auto core = ov::Core{};
+    auto compiled_model = core.compile_model(model, "GPU");
+    auto infer_request = compiled_model.create_infer_request();
+    ov::Tensor t1 = ov::Tensor(ov::element::f32, {1, 1, 1, 1});
+    ov::Tensor t2 = ov::Tensor(ov::element::f32, {0, 1, 1, 1});
+    infer_request.set_input_tensor(t1);
+    ov::TensorVector t = {t1, t2};
+    OV_EXPECT_THROW_HAS_SUBSTRING(infer_request.set_input_tensor(t2),
+                                  ov::Exception,
+                                  "The tensor size is not equal to model, can't set input tensor with index")
+    OV_EXPECT_THROW_HAS_SUBSTRING(infer_request.set_input_tensors(t),
+                                  ov::Exception,
+                                  "Tensors shall represent one item in a batch, 0 provided")
+    ASSERT_TRUE(true);
 }
 } // namespace
