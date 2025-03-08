@@ -304,7 +304,7 @@ KERNEL(pa_sdpa_opt)(
 
         {
             // Save temporary exm_sums and max_logits values for each partition_num
-            if (seq_len > SEQ_LEN_PARTITION_SIZE && sgid == 0) {
+            if (seq_len > SEQ_LEN_PARTITION_SIZE && lid == 0) {
                 const uint exp_sums_offset = seq_idx * HEADS_NUM * total_partitions_num +
                                              head_num_idx * total_partitions_num +
                                              partition_idx;
