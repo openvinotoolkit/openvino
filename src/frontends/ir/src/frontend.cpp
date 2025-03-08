@@ -169,7 +169,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         return exts;
     };
 
-    auto create_input_model = [&](std::string weights_path) -> std::shared_ptr<InputModel> {
+    auto create_input_model = [&](const std::string& weights_path) -> std::shared_ptr<InputModel> {
         if (provided_model_stream) {
             return std::make_shared<InputModel>(*provided_model_stream,
                                                 weights,

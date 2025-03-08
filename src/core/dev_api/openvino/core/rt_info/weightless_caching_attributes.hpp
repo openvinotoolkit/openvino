@@ -35,6 +35,8 @@ public:
 
     bool is_copyable() const override;
 
+    bool visit_attributes(AttributeVisitor& visitor) override;
+
     size_t original_size;
     size_t bin_offset;
     ov::element::Type original_dtype;

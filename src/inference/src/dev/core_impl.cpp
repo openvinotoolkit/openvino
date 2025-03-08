@@ -778,6 +778,13 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
+
+        const auto& rt_info = model->get_rt_info();
+        auto weights_path = rt_info.find("__weights_path");
+        if (weights_path != rt_info.end()) {
+            parsed._config[ov::weights_path.name()] = weights_path->second;
+        }
+
         res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
             return compile_model_and_cache(plugin,
                                            model,
@@ -1472,17 +1479,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                 ov::AnyMap update_config = config;
                 update_config[ov::loaded_from_cache.name()] = true;
 
-                if (util::contains(plugin.get_property(ov::supported_properties), ov::weights_path)) {
-                    std::string weights_path = cacheContent.modelPath;
-                    auto pos = weights_path.rfind('.');
-                    if (pos != weights_path.npos && weights_path.substr(pos) == ".xml") {
-                        weights_path = weights_path.substr(0, pos);
-                        weights_path += ".bin";
-                    }
-                    if (ov::util::file_exists(weights_path)) {
-                        update_config[ov::weights_path.name()] = weights_path;
-                    }
-                }
                 if (model_buffer) {
                     update_config[ov::internal::cached_model_buffer.name()] = model_buffer;
                 }
@@ -1499,8 +1495,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
     }
 
     // fallback scenario
-    if (!compiled_model)
+    if (!compiled_model) {
+        printf("[ CORE ] Could not import cached model.")
         compiled_model = compile_model_lambda();
+    }
 
     return compiled_model;
 }

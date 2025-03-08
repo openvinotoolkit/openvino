@@ -14,6 +14,7 @@
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/parameter.hpp"
@@ -255,6 +256,47 @@ ov::op::v5::Loop::SpecialBodyPorts ov::XmlDeserializer::parse_purpose_attribute(
     return result;
 }
 
+namespace {
+template <typename src_type, typename dst_type>
+inline dst_type convert_value(src_type val) {
+    if (val > std::numeric_limits<dst_type>::max()) {
+        return std::numeric_limits<dst_type>::max();
+    } else if (val < std::numeric_limits<dst_type>::lowest()) {
+        return std::numeric_limits<dst_type>::lowest();
+    }
+    return static_cast<dst_type>(val);
+}
+
+template <ov::element::Type_t DT_FROM, ov::element::Type_t DT_TO>
+void convert_dt(char* dst, const char* src, size_t el_num) {
+    using src_type = typename ov::element_type_traits<DT_FROM>::value_type;
+    using dst_type = typename ov::element_type_traits<DT_TO>::value_type;
+
+    auto src_data = reinterpret_cast<const src_type*>(src);
+    auto dst_data = reinterpret_cast<dst_type*>(dst);
+
+    for (size_t i = 0lu; i < el_num; i++) {
+        dst_data[i] = convert_value<src_type, dst_type>(src_data[i]);
+    }
+}
+
+void convert_dt(ov::element::Type to_dt, ov::element::Type from_dt, char* dst, const char* src, size_t el_num) {
+    if (from_dt == ov::element::i64 && to_dt == ov::element::i32) {
+        convert_dt<ov::element::Type_t::i64, ov::element::Type_t::i32>(dst, src, el_num);
+    } else if (from_dt == ov::element::u8 && to_dt == ov::element::i32) {
+        convert_dt<ov::element::Type_t::u8, ov::element::Type_t::i32>(dst, src, el_num);
+    } else if (from_dt == ov::element::bf16 && to_dt == ov::element::f32) {
+        convert_dt<ov::element::Type_t::bf16, ov::element::Type_t::f32>(dst, src, el_num);
+    } else if (from_dt == ov::element::i8 && to_dt == ov::element::f32) {
+        convert_dt<ov::element::Type_t::i8, ov::element::Type_t::f32>(dst, src, el_num);
+    } else if (from_dt == ov::element::u8 && to_dt == ov::element::f32) {
+        convert_dt<ov::element::Type_t::u8, ov::element::Type_t::f32>(dst, src, el_num);
+    } else if (from_dt == ov::element::f32 && to_dt == ov::element::f16) {
+        convert_dt<ov::element::Type_t::f32, ov::element::Type_t::f16>(dst, src, el_num);
+    }
+}
+}  // namespace
+
 void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) {
     static const std::unordered_set<std::string> skip_names = {"input_descriptions",
                                                                "output_descriptions",
@@ -367,34 +409,67 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
             value.copy(data, value.size());
             a->set(buffer);
         } else if (name == "value" && type == "Const") {
+            if (!m_weights) {
+                OPENVINO_THROW("Empty weights data in bin file or bin file cannot be found!");
+            }
             std::vector<int64_t> shape;
             std::string el_type_str;
 
             size_t offset = static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset"));
-            size_t size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
-            if (!getStrAttribute(dn, "element_type", el_type_str))
+            const size_t actual_size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
+            size_t origin_size = actual_size; // Original blob size in the m_weights object.
+            if (!getStrAttribute(dn, "element_type", el_type_str) || !getParameters<int64_t>(dn, "shape", shape)) {
                 return;
-            if (!getParameters<int64_t>(dn, "shape", shape))
-                return;
+            }
 
-            ov::element::Type el_type = ov::element::Type(el_type_str);
+            const auto el_num = ov::shape_size(shape);
+            const auto el_type = ov::element::Type(el_type_str);
+            std::shared_ptr<ov::AlignedBuffer> weights_buf = m_weights;
+            char* data = nullptr;
 
-            if (!m_weights)
-                OPENVINO_THROW("Empty weights data in bin file or bin file cannot be found!");
-            if (m_weights->size() < offset + size)
+            // Weightless cache way
+            if (auto rt_info = m_node.child("rt_info")) {
+                bool attr_found = false;
+                for (auto child : rt_info.children()) {
+                    for (auto attr : child.attributes()) {
+                        if (strcmp(attr.name(), "name") == 0 && strcmp(attr.value(), ov::WeightlessCacheAttribute::get_type_info_static().name) == 0) {
+                            ov::element::Type original_dt(child.attribute("original_dtype").value());
+                            offset = static_cast<size_t>(pugixml::get_uint64_attr(child, "bin_offset"));
+
+                            if (original_dt != el_type) {
+                                std::shared_ptr<char[]> new_buf(new char[actual_size]);
+                                data = new_buf.get();
+                                weights_buf = std::make_shared<ov::SharedBuffer<std::shared_ptr<char[]>>>(data, actual_size, new_buf);
+                                convert_dt(el_type, original_dt, data, m_weights->get_ptr<char>() + offset, el_num);
+                                origin_size = el_num * original_dt.size();
+                            }
+
+                            attr_found = true;
+                            break;
+                        }
+                    }
+                    if (attr_found) {
+                        break;
+                    }
+                }
+            }
+            if (m_weights->size() < offset + origin_size) {
                 OPENVINO_THROW("Incorrect weights in bin file!");
-            char* data = m_weights->get_ptr<char>() + offset;
+            }
+            if (data == nullptr) {
+                data = m_weights->get_ptr<char>() + offset;
+            }
 
             if (el_type == element::string) {
                 auto buffer =
-                    ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data, size);
+                    ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data, actual_size);
                 a->set(buffer);
             } else {
-                if (size < ((ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3))
+                if (actual_size < ((el_num * el_type.bitwidth() + 7) >> 3))
                     OPENVINO_THROW("Attribute and shape size are inconsistent for ", type, " op!");
 
                 auto buffer =
-                    std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, size, m_weights);
+                    std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, actual_size, weights_buf);
                 a->set(buffer);
             }
         }
