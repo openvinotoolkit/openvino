@@ -2071,6 +2071,13 @@ TEST(constant, f4e2m1_write_then_cast_custom_type) {
     EXPECT_EQ(v, input);
 }
 
+TEST(constant, empty_tensor) {
+    auto c = std::make_shared<op::v0::Constant>(element::i32, Shape{0}, std::vector<int32_t>{});
+    
+    ASSERT_EQ(c->get_data_ptr(), nullptr);
+    ASSERT_EQ(c->get_byte_size(), 0);
+}
+
 //
 // f8e8m0
 //
