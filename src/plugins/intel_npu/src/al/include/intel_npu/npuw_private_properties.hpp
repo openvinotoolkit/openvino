@@ -237,6 +237,14 @@ static constexpr ov::Property<bool> spatial_dyn{"NPUW_SPATIAL_DYN"};
 /**
  * @brief
  * Type: boolean
+ * Force subgraph interconnect tensors to f16 precision if those are in f32
+ * Default value: false
+ */
+static constexpr ov::Property<bool> f16_interconnect{"NPUW_F16IC"};
+
+/**
+ * @brief
+ * Type: boolean
  * When applicable, do embedding gather on host.
  * Default value: true.
  */
