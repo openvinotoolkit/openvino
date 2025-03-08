@@ -124,7 +124,7 @@ class PytorchLayerTest:
                 from torch.export import export
 
                 em = export(model, tuple(torch_inputs))
-
+                print("start convert")
                 converted_model = convert_model(
                     em, example_input=torch_inputs, verbose=True)
                 self._resolve_input_shape_dtype(
