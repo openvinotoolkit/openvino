@@ -50,6 +50,11 @@ TYPE_PRINTER(double)
 TYPE_PRINTER(std::string)
 TYPE_PRINTER(std::size_t)
 
+#ifndef ONEAPI_MAKE_VERSION
+/// @brief Generates generic 'oneAPI' API versions
+#    define ONEAPI_MAKE_VERSION(_major, _minor) ((_major << 16) | (_minor & 0x0000ffff))
+#endif  // ONEAPI_MAKE_VERSION
+
 //
 // OptionParser
 //
@@ -276,7 +281,17 @@ struct OptionBase {
 
     // Overload this for private options.
     static bool isPublic() {
-        return true;
+        return false;
+    }
+
+    // Overload this for read-only options (metrics)
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
+    }
+
+    /// Overload this for options conditioned by compiler version
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(0, 0);
     }
 
     static std::string toString(const ValueType& val) {
@@ -341,6 +356,8 @@ struct OptionConcept final {
     std::string_view (*envVar)() = nullptr;
     OptionMode (*mode)() = nullptr;
     bool (*isPublic)() = nullptr;
+    ov::PropertyMutability (*mutability)() = nullptr;
+    uint32_t (*compilerSupportVersion)() = nullptr;
     std::shared_ptr<OptionValue> (*validateAndParse)(std::string_view val) = nullptr;
 };
 
@@ -359,7 +376,13 @@ std::shared_ptr<OptionValue> validateAndParse(std::string_view val) {
 
 template <class Opt>
 OptionConcept makeOptionModel() {
-    return {&Opt::key, &Opt::envVar, &Opt::mode, &Opt::isPublic, &validateAndParse<Opt>};
+    return {&Opt::key,
+            &Opt::envVar,
+            &Opt::mode,
+            &Opt::isPublic,
+            &Opt::mutability,
+            &Opt::compilerSupportVersion,
+            &validateAndParse<Opt>};
 }
 
 }  // namespace details
@@ -373,9 +396,17 @@ public:
     template <class Opt>
     void add();
 
-    std::vector<std::string> getSupported(bool includePrivate = false) const;
+    bool has(std::string_view key) const;
 
-    details::OptionConcept get(std::string_view key, OptionMode mode) const;
+    void remove(std::string_view key);
+
+    void reset();
+
+    std::vector<std::string> getSupported(bool includePrivate = false) const;
+    std::vector<ov::PropertyName> getSupportedOptions(bool includePrivate = false) const;
+    std::string getSupportedAsString(bool includePrivate = false) const;
+
+    details::OptionConcept get(std::string_view key, OptionMode mode = OptionMode::Both) const;
     void walk(std::function<void(const details::OptionConcept&)> cb) const;
 
 private:
@@ -405,12 +436,17 @@ class Config final {
 public:
     using ConfigMap = std::map<std::string, std::string>;
     using ImplMap = std::unordered_map<std::string, std::shared_ptr<details::OptionValue>>;
+    using EnableMap = std::unordered_map<std::string, bool>;
 
     explicit Config(const std::shared_ptr<const OptionsDesc>& desc);
 
     void update(const ConfigMap& options, OptionMode mode = OptionMode::Both);
 
     void parseEnvVars();
+
+    bool hasOpt(std::string_view key) const;
+    bool isOptPublic(std::string_view key) const;
+    details::OptionConcept getOpt(std::string_view key) const;
 
     template <class Opt>
     bool has() const;
@@ -421,13 +457,30 @@ public:
     template <class Opt>
     typename std::string getString() const;
 
-    std::string toString() const;
+    bool isAvailable(std::string key) const;
+    void enable(std::string key, bool enable);
+    void enableAll();
+    void walkEnables(std::function<void(const std::string&)> cb) const;
 
     void fromString(const std::string& str);
+
+    // Returns a string with all config keys which have set values
+    std::string toString() const;
+
+    // Returns a string with all config keys which have set values
+    // and have OptionMode::Compile or OptionMode::Both
+    std::string toStringForCompiler() const;
+
+    void addOrUpdateInternal(std::string key, std::string value);
+    std::string getInternal(std::string key) const;
+    std::string toStringForCompilerInternal() const;
+    void walkInternals(std::function<void(const std::string&)> cb) const;
 
 private:
     std::shared_ptr<const OptionsDesc> _desc;
     ImplMap _impl;
+    EnableMap _enabled;
+    ConfigMap _internal_compiler_configs;
 };
 
 template <class Opt>
