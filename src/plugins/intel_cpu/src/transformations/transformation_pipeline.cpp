@@ -457,7 +457,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         },
         ov::pass::KeepConstAndDecompression);
 
+
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
+
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
     ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
     cacheConfig.keyCachePrecision = config.keyCachePrecision;
