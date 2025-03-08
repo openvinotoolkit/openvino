@@ -268,6 +268,10 @@ void MemoryBlockWithReuse::free() {
     m_useExternalStorage = false;
 }
 
+size_t MemoryBlockWithReuse::size() const {
+    return m_memUpperBound;
+}
+
 void MemoryBlockWithReuse::release(void* ptr) {}
 
 void MemoryBlockWithReuse::destroy(void* ptr) {
