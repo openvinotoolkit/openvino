@@ -42,6 +42,7 @@ public:
     bool operator!=(const LazyTensor& other) const;
 
     ov::Tensor eval() const;
+    std::pair<ov::Shape, ov::element::Type> eval_shape_type() const;
     std::size_t get_hash() const;
     void detach();
 
