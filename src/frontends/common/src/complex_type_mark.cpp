@@ -19,8 +19,6 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/equal.hpp"
-#include "openvino/op/logical_and.hpp"
 
 using namespace ov::frontend;
 using namespace ov::op;
