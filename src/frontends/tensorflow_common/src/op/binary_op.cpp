@@ -129,12 +129,8 @@ OutputVector translate_sub_op(const NodeContext& node) {
 
 OutputVector translate_equal_op(const NodeContext& node) {
     default_op_checks(node, 2, {"Equal"}, true);
-    auto lhs = node.get_input(0);
-    auto rhs = node.get_input(1);
 
-    auto result = ComplexTypeMark::equal(node, lhs, rhs);
-
-    set_node_name(node.get_name(), result.get_node_shared_ptr());
+    auto result = common_translators::translate_equal_op(node);
     return {result};
 }
 

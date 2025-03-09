@@ -8,6 +8,7 @@
 #include <map>
 #include <string>
 
+#include "common_translators.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/frontend/node_context.hpp"
 #include "utils.hpp"
