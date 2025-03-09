@@ -181,7 +181,7 @@ void EltwiseLayerCPUTest::SetUp() {
         netType,
         configuration);
     // selectedType = makeSelectedTypeStr(getPrimitiveType(), netType);
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM)
     if (eltwiseType == utils::POWER) {
         selectedType = std::regex_replace(selectedType, std::regex("acl"), "ref");
     }
@@ -265,6 +265,7 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
        (eltwise_type == utils::EltwiseTypes::DIVIDE) ||
        (eltwise_type == utils::EltwiseTypes::FLOOR_MOD) ||
        (eltwise_type == utils::EltwiseTypes::MOD) ||
+       (eltwise_type == utils::EltwiseTypes::POWER) ||
        (eltwise_type == utils::EltwiseTypes::SQUARED_DIFF)) {
         return "jit";
     }
@@ -336,6 +337,7 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInp() {
         utils::EltwiseTypes::FLOOR_MOD,
         utils::EltwiseTypes::SQUARED_DIFF,
         utils::EltwiseTypes::MOD,
+        utils::EltwiseTypes::POWER,
     };
     return eltwiseOpTypesBinInp;
 }
@@ -346,6 +348,7 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInpSnippets() {
         utils::EltwiseTypes::MULTIPLY,
         utils::EltwiseTypes::FLOOR_MOD,
         utils::EltwiseTypes::MOD,
+        utils::EltwiseTypes::POWER,
     };
     return eltwiseOpTypesBinInp;
 }
