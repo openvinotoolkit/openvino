@@ -131,7 +131,9 @@ OutputVector translate_equal_op(const NodeContext& node) {
     default_op_checks(node, 2, {"Equal"}, true);
 
     auto result = common_translators::translate_equal_op(node);
-    return {result};
+
+    set_node_name(node.get_name(), result[0].get_node_shared_ptr());
+    return result;
 }
 
 template OutputVector translate_binary_op<v1::Add>(const NodeContext& node);
