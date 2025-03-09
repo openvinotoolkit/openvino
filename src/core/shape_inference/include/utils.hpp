@@ -257,9 +257,9 @@ std::optional<TRes> get_input_const_data_as(const ov::Node* op,
         const auto& shape = constant->get_shape();
         if (constant->get_data_ptr() != nullptr) {
             return {get_raw_data_as<TData, TRes>(et,
-                                             constant->get_data_ptr(),
-                                             shape_size(shape),
-                                             std::forward<UnaryOperation>(func))};
+                                                constant->get_data_ptr(),
+                                                shape_size(shape),
+                                                std::forward<UnaryOperation>(func))};
         } else {
             return std::vector<TData>();
         }
