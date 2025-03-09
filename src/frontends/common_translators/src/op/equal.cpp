@@ -17,7 +17,7 @@ namespace ov {
 namespace frontend {
 namespace common_translators {
 
-OutputVector translate_equal_op(const NodeContext& node) {
+OutputVector translate_equal(const NodeContext& node) {
     num_inputs_check(node, 2, 2, true);
     auto lhs = node.get_input(0);
     auto rhs = node.get_input(1);

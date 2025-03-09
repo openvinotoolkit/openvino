@@ -19,7 +19,7 @@ COMMON_OP_CONVERTER(translate_imag);
 COMMON_OP_CONVERTER(translate_atan2);
 COMMON_OP_CONVERTER(translate_angle);
 
-COMMON_OP_CONVERTER(translate_equal_op);
+COMMON_OP_CONVERTER(translate_equal);
 
 OutputVector translate_atan2_util(const NodeContext& context, const Output<Node>& lhs, const Output<Node>& rhs);
 
