@@ -258,15 +258,6 @@ std::shared_ptr<Node> make_try_fold(Args&&... args) {
     return try_fold_unary_output(unary_output_node);
 }
 
-template <class T>
-Output<Node> eltwise_fold(const Output<Node>& input0, const Output<Node>& input1) {
-    auto eltwise = std::make_shared<T>(input0, input1);
-    OutputVector output(eltwise->get_output_size());
-    OPENVINO_ASSERT(eltwise->constant_fold(output, {input0, input1}), "Can not constant fold eltwise node");
-    OPENVINO_ASSERT(output.size() == 1, "Eltwise constant fold has unexpected number of outputs: ", output.size());
-    return output[0];
-}
-
 TRANSFORMATIONS_API std::vector<Input<Node>> get_node_target_inputs(const std::shared_ptr<Node>& node);
 
 TRANSFORMATIONS_API std::shared_ptr<Node> node_to_get_shape_value_of_indices_from_shape_node(
