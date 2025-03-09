@@ -130,7 +130,7 @@ OutputVector translate_sub_op(const NodeContext& node) {
 OutputVector translate_equal_op(const NodeContext& node) {
     default_op_checks(node, 2, {"Equal"}, true);
 
-    auto result = common_translators::translate_equal_op(node);
+    auto result = common_translators::translate_equal(node);
 
     set_node_name(node.get_name(), result[0].get_node_shared_ptr());
     return result;
