@@ -80,7 +80,7 @@ PagedAttentionExtension::PagedAttentionExtension(const Output<Node>& query,
 }
 
 void PagedAttentionExtension::validate_and_infer_types() {
-    OV_OP_SCOPE(_PagedAttentionExtension_validate_and_infer_types);
+    OV_OP_SCOPE(PagedAttentionExtension_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this,
                           get_input_size() == 13 || get_input_size() == 16,
