@@ -259,7 +259,7 @@ static int64_t getOptimalNumberOfInferRequestsInParallel(const Config& config) {
 }
 
 Properties::Properties(const PropertiesType pType,
-                       Config& config,
+                       FilteredConfig& config,
                        const std::shared_ptr<Metrics>& metrics,
                        const std::shared_ptr<NPUBackends>& backends)
     : _pType(pType),
@@ -454,7 +454,7 @@ ov::Any Properties::get_property(const std::string& name, const ov::AnyMap& argu
     for (auto&& value : arguments) {
         amends.emplace(value.first, value.second.as<std::string>());
     }
-    Config amendedConfig = _config;
+    FilteredConfig amendedConfig = _config;
     amendedConfig.update(amends, OptionMode::Both);
 
     auto&& configIterator = _properties.find(name);

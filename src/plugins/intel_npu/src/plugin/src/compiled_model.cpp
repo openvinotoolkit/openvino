@@ -27,7 +27,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const std::shared_ptr<IDevice>& device,
                              const std::shared_ptr<IGraph>& graph,
-                             const Config& config)
+                             const FilteredConfig& config)
     : ICompiledModel(model, plugin),
       _config(config),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
@@ -105,7 +105,7 @@ const std::shared_ptr<IGraph>& CompiledModel::get_graph() const {
     return _graph;
 }
 
-const Config& CompiledModel::get_config() const {
+const FilteredConfig& CompiledModel::get_config() const {
     return _config;
 }
 
