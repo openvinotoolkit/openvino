@@ -102,7 +102,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
  * @param isBatchingSupported  Newer driver versions support batching mode on the plugin.
  * @param config A configuration map.
  */
-void set_batch_config(bool isBatchingSupported, Config& config) {
+void set_batch_config(bool isBatchingSupported, FilteredConfig config) {
     if (!isBatchingSupported) {
         if (config.has<BATCH_MODE>()) {
             if (config.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
@@ -144,7 +144,7 @@ void update_log_level(const std::map<std::string, std::string>& propertiesMap) {
     }
 }
 
-static ov::intel_npu::CompilerType resolveCompilerType(const Config& base_conf, const ov::AnyMap& local_conf) {
+static ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig base_conf, const ov::AnyMap& local_conf) {
     // first look if provided config changes compiler type
     auto it = local_conf.find(std::string(COMPILER_TYPE::key()));
     if (it != local_conf.end()) {
@@ -257,7 +257,7 @@ void Plugin::init_options() {
     _globalConfig.parseEnvVars();
 }
 
-void Plugin::recheck_compiler_support(Config& cfg) const {
+void Plugin::recheck_compiler_support(FilteredConfig& cfg) const {
     bool legacy = false;
     bool nocompiler = false;
     std::unique_ptr<ICompilerAdapter> compiler = nullptr;
@@ -327,12 +327,12 @@ void Plugin::recheck_compiler_support(Config& cfg) const {
     });
 }
 
-Config Plugin::fork_local_config(const std::map<std::string, std::string>& rawConfig,
-                                 const std::unique_ptr<ICompilerAdapter>& compiler,
-                                 OptionMode mode) const {
+FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string>& rawConfig,
+                                         const std::unique_ptr<ICompilerAdapter>& compiler,
+                                         OptionMode mode) const {
     update_log_level(rawConfig);
     // create a copy of the global config
-    Config localConfig = _globalConfig;
+    FilteredConfig localConfig = _globalConfig;
     bool compiler_changed = false;
 
     // Check if compiler was changed

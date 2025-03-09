@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "intel_npu/config/config.hpp"
+#include "intel_npu/common/filtered_config.hpp"
 #include "metrics.hpp"
 
 namespace intel_npu {
@@ -20,7 +20,7 @@ public:
      * @param metrics - reference ptr to the metrics object of the parent object (PLUGIN only)
      */
     Properties(const PropertiesType pType,
-               Config& config,
+               FilteredConfig& config,
                const std::shared_ptr<Metrics>& metrics = nullptr,
                const ov::SoPtr<IEngineBackend>& backend = nullptr);
 
@@ -53,7 +53,7 @@ public:
 
 private:
     PropertiesType _pType;
-    Config& _config;
+    FilteredConfig& _config;
     std::shared_ptr<Metrics> _metrics;
     ov::SoPtr<IEngineBackend> _backend;
 

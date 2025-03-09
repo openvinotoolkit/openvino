@@ -9,6 +9,7 @@
 #include <string>
 
 #include "backends_registry.hpp"
+#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
@@ -56,10 +57,10 @@ public:
 
 private:
     void init_options();
-    void recheck_compiler_support(Config& cfg) const;
-    Config fork_local_config(const std::map<std::string, std::string>& rawConfig,
-                             const std::unique_ptr<ICompilerAdapter>& compiler,
-                             OptionMode mode = OptionMode::Both) const;
+    void recheck_compiler_support(FilteredConfig& cfg) const;
+    FilteredConfig fork_local_config(const std::map<std::string, std::string>& rawConfig,
+                                     const std::unique_ptr<ICompilerAdapter>& compiler,
+                                     OptionMode mode = OptionMode::Both) const;
 
     std::unique_ptr<BackendsRegistry> _backendsRegistry;
 
@@ -68,7 +69,7 @@ private:
     ov::SoPtr<IEngineBackend> _backend;
 
     std::shared_ptr<OptionsDesc> _options;
-    Config _globalConfig;
+    FilteredConfig _globalConfig;
     mutable Logger _logger;
     std::shared_ptr<Metrics> _metrics;
     std::unique_ptr<Properties> _properties;

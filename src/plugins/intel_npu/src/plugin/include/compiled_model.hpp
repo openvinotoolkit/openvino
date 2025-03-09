@@ -33,7 +33,7 @@ public:
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const std::shared_ptr<IDevice>& device,
                   const std::shared_ptr<IGraph>& graph,
-                  const Config& config);
+                  const FilteredConfig& config);
 
     CompiledModel(const CompiledModel&) = delete;
 
@@ -55,12 +55,12 @@ public:
 
     const std::shared_ptr<IGraph>& get_graph() const override;
 
-    const Config& get_config() const override;
+    const FilteredConfig& get_config() const override;
 
 private:
     void configure_stream_executors();
 
-    Config _config;
+    FilteredConfig _config;
     Logger _logger;
     const std::shared_ptr<IDevice> _device;
     std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor;

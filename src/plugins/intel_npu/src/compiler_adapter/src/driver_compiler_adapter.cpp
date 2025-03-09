@@ -8,6 +8,7 @@
 #include <string_view>
 
 #include "driver_graph.hpp"
+#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
@@ -407,8 +408,16 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
                                                    ze_graph_compiler_version_info_t compilerVersion) const {
     Logger logger("serializeConfig", Logger::global().level());
 
-    std::string content = config.toStringForCompiler();
-    content += " " + config.toStringForCompilerInternal();
+    std::string content = {};
+
+    const FilteredConfig* plgConfig = dynamic_cast<const FilteredConfig*>(&config);
+    if (plgConfig != nullptr) {
+        content += plgConfig->toStringForCompiler();
+        content += plgConfig->toStringForCompilerInternal();
+    } else {
+        logger.warning("Failed to cast Config to FilteredConfig. Exporting all configs");
+        content += config.toString();
+    }
 
     logger.debug("Original content of config: %s", content.c_str());
 
