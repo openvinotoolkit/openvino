@@ -163,7 +163,7 @@ void paged_attention(
     int32_t batch_tokens = q_shape[0];
     int32_t query_features = q_shape[1];  // equals num_heads * head_size.
     int32_t num_heads = query_features / head_size;
-    int32_t batch_seq = past_lens_shape.empty() ? 1 : past_lens_shape[0];
+    int32_t batch_seq = !past_lens_shape.empty() ? past_lens_shape[0] : 1;
 
     // Process each query token.
     for (int32_t token_idx = 0; token_idx < batch_tokens; token_idx++) {
@@ -187,7 +187,7 @@ void paged_attention(
             int32_t total_keys = seq_past_tokens + seq_new_tokens;
             std::vector<T> scores(total_keys, T(0));
 
-            // --- Compute raw attention scores ---
+            // Compute raw attention scores.
             for (int32_t k = 0; k < total_keys; k++) {
                 T score_val = T(0);
                 if (k < seq_past_tokens) {
@@ -249,14 +249,14 @@ void paged_attention(
                 }
                 // Apply scale and add alibi bias.
                 score_val *= scale;
-                T alibi = (alibi_slopes) ? alibi_slopes[h % num_kv_heads] : T(0);
+                T alibi = alibi_slopes ? alibi_slopes[h % num_kv_heads] : T(0);
                 score_val += alibi * static_cast<T>(k);
                 scores[k] = score_val;
             }
 
             paged_attention_utils::softmax(scores);
 
-            // --- Compute weighted sum over value vectors ---
+            // Compute weighted sum over value vectors.
             std::vector<T> out_vec(head_size, T(0));
             for (int32_t k = 0; k < total_keys; k++) {
                 T weight = scores[k];
