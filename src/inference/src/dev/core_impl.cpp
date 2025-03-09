@@ -207,6 +207,19 @@ static const auto core_properties_names =
 
 static const auto auto_batch_properties_names =
     ov::util::make_array(ov::auto_batch_timeout.name(), ov::hint::allow_auto_batching.name());
+
+ov::util::Path extract_weight_path(const std::string& compiled_properties) {
+    if (auto start = compiled_properties.find(ov::weights_path.name()); start != std::string::npos) {
+        start += std::string_view{ov::weights_path.name()}.size() + 1;
+        auto length = compiled_properties.find(",", start);
+        if (length != std::string::npos) {
+            length -= start;
+        }
+        return {compiled_properties.substr(start, length)};
+    } else {
+        return {};
+    }
+}
 }  // namespace
 
 bool ov::is_config_applicable(const std::string& user_device_name, const std::string& subprop_device_name) {
@@ -1441,8 +1454,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                 OV_ITT_SCOPE(FIRST_INFERENCE,
                              ov::itt::domains::LoadTime,
                              "Core::load_model_from_cache::ReadStreamAndImport");
+                ov::CompiledBlobHeader header;
                 try {
-                    ov::CompiledBlobHeader header;
                     networkStream >> header;
                     if (header.get_file_info() != ov::ModelCache::calculate_file_info(cacheContent.modelPath)) {
                         // Original file is changed, don't use cache
@@ -1473,21 +1486,37 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                 update_config[ov::loaded_from_cache.name()] = true;
 
                 if (util::contains(plugin.get_property(ov::supported_properties), ov::weights_path)) {
-                    std::string weights_path = cacheContent.modelPath;
-                    auto pos = weights_path.rfind('.');
-                    if (pos != weights_path.npos && weights_path.substr(pos) == ".xml") {
-                        weights_path = weights_path.substr(0, pos);
-                        weights_path += ".bin";
+                    util::Path weights_path;
+
+                    if (auto&& path_hint = update_config.find(ov::weights_path.name());
+                        path_hint != update_config.end()) {
+                        weights_path = path_hint->second.as<std::string>();
+                    } else if (weights_path = extract_weight_path(header.get_runtime_info()); weights_path.empty()) {
+                        weights_path = cacheContent.modelPath;
+                        weights_path.replace_extension(".bin");
                     }
+
                     if (ov::util::file_exists(weights_path)) {
-                        update_config[ov::weights_path.name()] = weights_path;
+                        update_config[ov::weights_path.name()] = weights_path.string();
                     }
                 }
                 if (model_buffer) {
                     update_config[ov::internal::cached_model_buffer.name()] = model_buffer;
                 }
-                compiled_model = context ? plugin.import_model(networkStream, context, update_config)
-                                         : plugin.import_model(networkStream, update_config);
+
+                // weight path is set from model path or weightless hint or from cache runtime info
+                if (update_config.count(ov::weights_path.name()) != 0) {
+                    update_config[ov::blob_stream.name()] = std::ref(networkStream);
+                    const std::shared_ptr<const Model> null_model;
+                    // use null model as all model data are in configuration
+                    compiled_model = context ? plugin.compile_model(null_model, context, update_config)
+                                             : plugin.compile_model(null_model, update_config);
+
+                } else {
+                    // regular blob stream, can be imported or fail if there is no weights
+                    compiled_model = context ? plugin.import_model(networkStream, context, update_config)
+                                             : plugin.import_model(networkStream, update_config);
+                }
             });
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work

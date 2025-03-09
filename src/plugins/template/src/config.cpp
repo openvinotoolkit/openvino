@@ -85,6 +85,8 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
             model_priority = value.as<ov::hint::Priority>();
         } else if (ov::cache_encryption_callbacks == key) {
             encryption_callbacks = value.as<EncryptionCallbacks>();
+        } else if (ov::weights_path == key) {
+            weights_path = value.as<std::string>();
         } else if (throwOnUnsupported) {
             OPENVINO_THROW("Property was not found: ", key);
         }
@@ -118,6 +120,10 @@ ov::Any Configuration::Get(const std::string& name) const {
         return log_level;
     } else if (name == ov::hint::model_priority) {
         return model_priority;
+    } else if (name == ov::weights_path) {
+        return weights_path.string();
+    } else if (name == ov::internal::compiled_model_runtime_properties) {
+        return compiled_model_runtime_properties;
     } else {
         OPENVINO_THROW("Property was not found: ", name);
     }

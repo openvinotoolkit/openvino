@@ -1323,6 +1323,18 @@ static constexpr Property<std::vector<std::string>, PropertyMutability::RO> exec
  */
 static constexpr Property<std::string, PropertyMutability::RW> weights_path{"WEIGHTS_PATH"};
 
+/** @brief The blob stream type to pass as property. */
+using BlobStream = std::reference_wrapper<std::istream>;
+
+/** @brief  The stream to model blob.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * The property is used pass model stream to the plugin for model compilation.
+ * The stream can be regular or weightless model. The `weights_path` property will work as hint where to look for
+ * weights. If compiled model fail from blob stream then original model will be used for compilation.
+ */
+inline constexpr Property<BlobStream, PropertyMutability::RW> blob_stream{"BLOB_STREAM"};
+
 /**
  * @brief The precision of key cache compression
  * @ingroup ov_runtime_cpp_prop_api

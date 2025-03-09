@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <filesystem>
 #include <map>
 #include <string>
 
@@ -48,7 +49,9 @@ struct Configuration {
 
     ov::hint::Priority model_priority = ov::hint::Priority::DEFAULT;
 
-    EncryptionCallbacks encryption_callbacks;
+    EncryptionCallbacks encryption_callbacks{};
+    std::filesystem::path weights_path{};
+    AnyMap compiled_model_runtime_properties{};
 };
 // ! [configuration:header]
 
