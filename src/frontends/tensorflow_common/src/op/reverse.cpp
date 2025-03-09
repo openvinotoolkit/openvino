@@ -3,6 +3,7 @@
 //
 
 #include "common_op_table.hpp"
+#include "helper_ops/complex_type_mark.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
@@ -55,16 +56,25 @@ OutputVector translate_reverse_base_op(const NodeContext& node,
         unsqueeze_axes.push_back(0);
     }
 
+    auto new_input = input;
+    auto complex_type_mark = as_type_ptr<ComplexTypeMark>(new_input.get_node_shared_ptr());
+    if (complex_type_mark) {
+        new_input = complex_type_mark->get_data();
+        if (seq_axis < 0) {
+            seq_axis -= 1;
+        }
+    }
+
     // make sure that batch and sequence dimensions are different
     // in case seq_axis is zero, we added the temporal dimension in the previous step
     // so we have to shift it by one
     seq_axis = (seq_axis == 0) ? 1 : seq_axis;
-    auto batched_input = input;
+    auto batched_input = new_input;
     if (unsqueeze_axes.size() > 0) {
         // prepare input to issue auxiliary dimensions for batch
         auto unsqueeze_axes_const =
             make_shared<v0::Constant>(element::i32, Shape{unsqueeze_axes.size()}, unsqueeze_axes);
-        batched_input = make_shared<v0::Unsqueeze>(input, unsqueeze_axes_const);
+        batched_input = make_shared<v0::Unsqueeze>(new_input, unsqueeze_axes_const);
     }
 
     auto input_shape = make_shared<v3::ShapeOf>(batched_input, element::i32);
@@ -79,6 +89,12 @@ OutputVector translate_reverse_base_op(const NodeContext& node,
     }
 
     set_node_name(node.get_name(), reverse_sequence.get_node_shared_ptr());
+
+    if (complex_type_mark) {
+        auto complex_reverse_sequence = make_shared<ComplexTypeMark>(reverse_sequence, complex_type_mark->get_complex_part_type());
+        return {complex_reverse_sequence->output(0)};
+    }
+
     return {reverse_sequence};
 }
 
@@ -86,7 +102,7 @@ OutputVector translate_reverse_op(const NodeContext& node) {
     // The second input of Reverse is a boolean vector.
     // True elements correspond the axes along which
     // elements of the input tensor are reversed
-    default_op_checks(node, 2, {"Reverse"});
+    default_op_checks(node, 2, {"Reverse"}, true);
     auto input = node.get_input(0);
 
     std::vector<bool> dims;
@@ -106,7 +122,7 @@ OutputVector translate_reverse_op(const NodeContext& node) {
 OutputVector translate_reverse_v2_op(const NodeContext& node) {
     // The second input of ReverseV2 is a vector of axes along which
     // elements of the input tensor are reversed
-    default_op_checks(node, 2, {"ReverseV2", "REVERSE_V2"});
+    default_op_checks(node, 2, {"ReverseV2", "REVERSE_V2"}, true);
     auto input = node.get_input(0);
 
     // the translator is able to convert ReverseV2 only
