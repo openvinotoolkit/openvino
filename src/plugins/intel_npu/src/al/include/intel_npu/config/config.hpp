@@ -33,11 +33,15 @@ struct TypePrinter {
     static constexpr const char* name();
 };
 
-#define TYPE_PRINTER(type)                                    \
-    template <>                                               \
-    struct TypePrinter<type> {                                \
-        static constexpr bool hasName() { return true; }      \
-        static constexpr const char* name() { return #type; } \
+#define TYPE_PRINTER(type)                    \
+    template <>                               \
+    struct TypePrinter<type> {                \
+        static constexpr bool hasName() {     \
+            return true;                      \
+        }                                     \
+        static constexpr const char* name() { \
+            return #type;                     \
+        }                                     \
     };
 
 TYPE_PRINTER(bool)
@@ -432,21 +436,16 @@ void OptionsDesc::add() {
 // Config
 //
 
-class Config final {
+class Config {
 public:
     using ConfigMap = std::map<std::string, std::string>;
     using ImplMap = std::unordered_map<std::string, std::shared_ptr<details::OptionValue>>;
-    using EnableMap = std::unordered_map<std::string, bool>;
 
     explicit Config(const std::shared_ptr<const OptionsDesc>& desc);
 
-    void update(const ConfigMap& options, OptionMode mode = OptionMode::Both);
+    virtual void update(const ConfigMap& options, OptionMode mode = OptionMode::Both);
 
     void parseEnvVars();
-
-    bool hasOpt(std::string_view key) const;
-    bool isOptPublic(std::string_view key) const;
-    details::OptionConcept getOpt(std::string_view key) const;
 
     template <class Opt>
     bool has() const;
@@ -457,30 +456,16 @@ public:
     template <class Opt>
     typename std::string getString() const;
 
-    bool isAvailable(std::string key) const;
-    void enable(std::string key, bool enable);
-    void enableAll();
-    void walkEnables(std::function<void(const std::string&)> cb) const;
-
     void fromString(const std::string& str);
 
     // Returns a string with all config keys which have set values
     std::string toString() const;
 
-    // Returns a string with all config keys which have set values
-    // and have OptionMode::Compile or OptionMode::Both
-    std::string toStringForCompiler() const;
+    virtual ~Config() = default;
 
-    void addOrUpdateInternal(std::string key, std::string value);
-    std::string getInternal(std::string key) const;
-    std::string toStringForCompilerInternal() const;
-    void walkInternals(std::function<void(const std::string&)> cb) const;
-
-private:
+protected:
     std::shared_ptr<const OptionsDesc> _desc;
     ImplMap _impl;
-    EnableMap _enabled;
-    ConfigMap _internal_compiler_configs;
 };
 
 template <class Opt>
