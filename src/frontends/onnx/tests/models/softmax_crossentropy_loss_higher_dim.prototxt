@@ -7,9 +7,14 @@ graph {
     output: "z"
     op_type: "SoftmaxCrossEntropyLoss"
     attribute {
-      name: "reduction"
-      s: "mean"
-      type: STRING
+        name: "reduction"
+        s: "mean"
+        type: STRING
+    }
+    attribute {
+        name: "axis"
+        i: 1
+        type: INT
     }
   }
   name: "test_sce_higher_dim"
