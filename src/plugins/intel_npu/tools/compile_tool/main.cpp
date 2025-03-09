@@ -453,16 +453,6 @@ int main(int argc, char* argv[]) {
             std::cout << "Warning: Model has no batch layout / conflicting N dimensions. Details: " << e.what() << std::endl;
         }
 
-        std::cout << "Performing reshape" << std::endl;
-        reshape(std::move(inputs_info), info_map, model, FLAGS_shape, FLAGS_override_model_batch_size, FLAGS_d);
-
-        try {
-            ov::Dimension modelBatchAfter = ov::get_batch(model);
-            std::cout << "Model Batch [After]  --->>> " << modelBatchAfter.to_string() << std::endl;
-        } catch (const ov::AssertFailure& e) {
-            std::cout << "Warning: Model has no batch layout / conflicting N dimensions. Details: " << e.what() << std::endl;
-        }
-
         std::cout << "Configuring model pre & post processing" << std::endl;
         configurePrePostProcessing(model,
                                    FLAGS_ip,
@@ -474,6 +464,17 @@ int main(int argc, char* argv[]) {
                                    FLAGS_iml,
                                    FLAGS_oml,
                                    FLAGS_ioml);
+
+        std::cout << "Performing reshape" << std::endl;
+        reshape(std::move(inputs_info), info_map, model, FLAGS_shape, FLAGS_override_model_batch_size, FLAGS_d);
+
+        try {
+            ov::Dimension modelBatchAfter = ov::get_batch(model);
+            std::cout << "Model Batch [After]  --->>> " << modelBatchAfter.to_string() << std::endl;
+        } catch (const ov::AssertFailure& e) {
+            std::cout << "Warning: Model has no batch layout / conflicting N dimensions. Details: " << e.what() << std::endl;
+        }
+
         // TODO: Temporarily removing setting model batch here
         // if (FLAGS_shape.empty()) {
         //     setModelBatch(model, FLAGS_override_model_batch_size);

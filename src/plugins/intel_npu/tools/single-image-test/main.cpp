@@ -2028,33 +2028,6 @@ static int runSingleImageTest() {
             auto model = core.read_model(FLAGS_network);
             nameIOTensors(model);
 
-            auto inputsInfo = std::const_pointer_cast<ov::Model>(model)->inputs();
-            InputsInfo infoMap;
-
-            try {
-                ov::Dimension modelBatchBefore = ov::get_batch(model);
-                std::cout << "Model Batch [Before] --->>> " << modelBatchBefore.to_string() << std::endl;
-            } catch (const ov::AssertFailure& e) {
-                std::cout << "Warning: Model has no batch layout / conflicting N dimensions." << std::endl;
-            }
-            std::cout << "Printing Input and Output Info from model" << std::endl;
-            printInputAndOutputsInfoShort(*model);
-
-            // Get model shape and batch size
-            std::cout << "Override Model Batch Size -> " << FLAGS_override_model_batch_size << std::endl;
-            std::cout << " ^^^ Default = 1" << std::endl;
-
-            std::cout << "Performing reshape" << std::endl;
-            reshape(std::move(inputsInfo), infoMap, model, FLAGS_shape,
-                    FLAGS_override_model_batch_size, FLAGS_device);
-
-            try {
-                ov::Dimension modelBatchBefore = ov::get_batch(model);
-                std::cout << "Model Batch [After]  --->>> " << modelBatchBefore.to_string() << std::endl;
-            } catch (const ov::AssertFailure& e) {
-                std::cout << "Warning: Model has no batch layout / conflicting N dimensions." << std::endl;
-            }
-
             ov::preprocess::PrePostProcessor ppp(model);
 
             // Input precision
@@ -2176,6 +2149,33 @@ static int runSingleImageTest() {
             // if (FLAGS_shape.empty()) {
             //     setModelBatch(model, FLAGS_override_model_batch_size);
             // }
+            auto inputsInfo = std::const_pointer_cast<ov::Model>(model)->inputs();
+            InputsInfo infoMap;
+
+            try {
+                ov::Dimension modelBatchBefore = ov::get_batch(model);
+                std::cout << "Model Batch [Before] --->>> " << modelBatchBefore.to_string() << std::endl;
+            } catch (const ov::AssertFailure& e) {
+                std::cout << "Warning: Model has no batch layout / conflicting N dimensions." << std::endl;
+            }
+            std::cout << "Printing Input and Output Info from model" << std::endl;
+            printInputAndOutputsInfoShort(*model);
+
+            // Get model shape and batch size
+            std::cout << "Override Model Batch Size -> " << FLAGS_override_model_batch_size << std::endl;
+            std::cout << " ^^^ Default = 1" << std::endl;
+
+            std::cout << "Performing reshape" << std::endl;
+            reshape(std::move(inputsInfo), infoMap, model, FLAGS_shape,
+                    FLAGS_override_model_batch_size, FLAGS_device);
+
+            try {
+                ov::Dimension modelBatchBefore = ov::get_batch(model);
+                std::cout << "Model Batch [After]  --->>> " << modelBatchBefore.to_string() << std::endl;
+            } catch (const ov::AssertFailure& e) {
+                std::cout << "Warning: Model has no batch layout / conflicting N dimensions." << std::endl;
+            }
+
             std::cout << "Compile model" << std::endl;
             model = ppp.build();
             printInputAndOutputsInfoShort(*model);
