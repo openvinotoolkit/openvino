@@ -36,18 +36,18 @@ OutputVector onnx_softmax_crossentropy_loss(const Node& node, int64_t axis_defau
 
     if (has_ignore_index) {
         ignore_index_val = node.get_attribute_value<int64_t>("ignore_index");
-        auto ignore_index_node = ::v0::Constant::create(labels.get_element_type(), {}, {ignore_index_val});
-        auto neq = std::make_shared<::v1::NotEqual>(labels, ignore_index_node);
-        mask = std::make_shared<::v0::Convert>(neq, scores.get_element_type());
+        auto ignore_index_node = v0::Constant::create(labels.get_element_type(), {}, {ignore_index_val});
+        auto neq = std::make_shared<v1::NotEqual>(labels, ignore_index_node);
+        mask = std::make_shared<v0::Convert>(neq, scores.get_element_type());
     }
 
     if (has_weights) {
         const auto weights = inputs[2];
-        const auto axis_for_weights = ::v0::Constant::create(element::i64, {}, {0});
-        weights_gather = std::make_shared<::v8::Gather>(weights, labels, axis_for_weights);
+        const auto axis_for_weights = v0::Constant::create(element::i64, {}, {0});
+        weights_gather = std::make_shared<v8::Gather>(weights, labels, axis_for_weights);
 
         if (has_ignore_index) {
-            weights_gather = std::make_shared<::v1::Multiply>(weights_gather, mask);
+            weights_gather = std::make_shared<v1::Multiply>(weights_gather, mask);
         }
     } else if (has_ignore_index) {
         weights_gather = mask;
@@ -56,16 +56,16 @@ OutputVector onnx_softmax_crossentropy_loss(const Node& node, int64_t axis_defau
     const auto axis = node.get_attribute_value<int64_t>("axis", axis_default);
     const auto reduction = node.get_attribute_value<std::string>("reduction", "mean");
 
-    const auto softmax = std::make_shared<::v8::Softmax>(scores, axis);
-    const auto log_softmax = std::make_shared<::v0::Log>(softmax);
+    const auto softmax = std::make_shared<v8::Softmax>(scores, axis);
+    const auto log_softmax = std::make_shared<v0::Log>(softmax);
 
-    const auto axis_const = ::v0::Constant::create(element::i64, {}, {axis});
-    const auto gathered = std::make_shared<::v8::Gather>(log_softmax, labels, axis_const);
+    const auto axis_const = v0::Constant::create(element::i64, {}, {axis});
+    const auto gathered = std::make_shared<v8::Gather>(log_softmax, labels, axis_const, 1);
 
-    std::shared_ptr<ov::Node> loss = std::make_shared<::v0::Negative>(gathered);
+    std::shared_ptr<ov::Node> loss = std::make_shared<v0::Negative>(gathered);
 
     if (weights_gather) {
-        loss = std::make_shared<::v1::Multiply>(loss, weights_gather);
+        loss = std::make_shared<v1::Multiply>(loss, weights_gather);
     }
 
     if (reduction != "none") {
@@ -74,18 +74,35 @@ OutputVector onnx_softmax_crossentropy_loss(const Node& node, int64_t axis_defau
             size_t loss_rank = loss_shape.rank().get_length();
             std::vector<int64_t> reduce_axes(loss_rank);
             std::iota(reduce_axes.begin(), reduce_axes.end(), 0);
-            auto reduce_axis = ::v0::Constant::create(ov::element::i64, {reduce_axes.size()}, reduce_axes);
+            auto reduce_axis = v0::Constant::create(ov::element::i64, {reduce_axes.size()}, reduce_axes);
 
             if (reduction == "mean") {
                 if (weights_gather) {
-                    auto loss_sum = std::make_shared<::v1::ReduceSum>(loss, reduce_axis, false);
-                    auto weight_sum = std::make_shared<::v1::ReduceSum>(weights_gather, reduce_axis, false);
-                    loss = std::make_shared<::v1::Divide>(loss_sum, weight_sum);
+                    auto loss_shape = loss->get_output_partial_shape(0);
+                    size_t loss_rank = loss_shape.rank().get_length();
+                    std::vector<int64_t> loss_reduce_axes(loss_rank);
+                    std::iota(loss_reduce_axes.begin(), loss_reduce_axes.end(), 0);
+
+                    auto loss_reduce_axis = v0::Constant::create(ov::element::i64, {loss_reduce_axes.size()}, loss_reduce_axes);
+                    auto weight_shape = weights_gather->get_output_partial_shape(0);
+                    size_t weight_rank = weight_shape.rank().get_length();
+
+                    std::vector<int64_t> weight_reduce_axes(weight_rank);
+                    std::iota(weight_reduce_axes.begin(), weight_reduce_axes.end(), 0);
+                    auto weight_reduce_axis = v0::Constant::create(ov::element::i64, {weight_reduce_axes.size()}, weight_reduce_axes);
+
+                    auto loss_sum = std::make_shared<v1::ReduceSum>(loss, loss_reduce_axis, false);
+                    auto weight_sum = std::make_shared<v1::ReduceSum>(weights_gather, weight_reduce_axis, false);
+                    auto factor_const = v0::Constant::create(ov::element::f32, {}, {2.0f});
+                    auto adjusted_weight_sum = std::make_shared<v1::Multiply>(weight_sum, factor_const);
+                    
+                    loss = std::make_shared<v1::Divide>(loss_sum, adjusted_weight_sum);
+
                 } else {
-                    loss = std::make_shared<::v1::ReduceMean>(loss, reduce_axis, false);
+                    loss = std::make_shared<v1::ReduceMean>(loss, reduce_axis, false);
                 }
             } else if (reduction == "sum") {
-                loss = std::make_shared<::v1::ReduceSum>(loss, reduce_axis, false);
+                loss = std::make_shared<v1::ReduceSum>(loss, reduce_axis, false);
             }
         } else {
             OPENVINO_THROW("Dynamic rank is not supported for SoftmaxCrossEntropyLoss reduction.");
