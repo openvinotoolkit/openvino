@@ -5,7 +5,9 @@
 #include "common_translators.hpp"
 #include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/equal.hpp"
+#include "openvino/op/reduce_logical_and.hpp"
 #include "utils.hpp"
 
 using namespace std;
@@ -31,8 +33,13 @@ OutputVector translate_equal_op(const NodeContext& node) {
     if (lhs_complex && rhs_complex) {
         auto lhs_data = lhs_complex->get_data();
         auto rhs_data = rhs_complex->get_data();
-        auto result = make_shared<v1::Equal>(lhs_data, rhs_data);
-        return {result};
+        auto equal = make_shared<v1::Equal>(lhs_data, rhs_data);
+
+        // reduce along the last dimension using ReduceAnd
+        auto reduce_axes = make_shared<v0::Constant>(element::i32, Shape{1}, std::vector<int32_t>{-1});
+        auto equal_reduced = make_shared<v1::ReduceLogicalAnd>(equal, reduce_axes, false);
+
+        return {equal_reduced};
     }
 
     // both operands are real
