@@ -101,7 +101,7 @@ public:
         oss << t.shape.to_string();
         oss << ", vals: ";
         oss << "()";
-        for (size_t i = 0; i < std::accumulate(t.shape.begin(), t.shape.end(), 0, std::multiplies<size_t>{}); ++i) {
+        for (size_t i = 0; i < std::accumulate(t.shape.begin(), t.shape.end(), 1, std::multiplies<size_t>{}); ++i) {
             if (t.type == ov::element::f32) {
                 oss << static_cast<float*>(t.data.data())[i];
             } else if (t.type == ov::element::i32) {
