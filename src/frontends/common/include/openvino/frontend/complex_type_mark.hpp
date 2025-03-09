@@ -93,14 +93,6 @@ public:
                                     const ov::Output<ov::Node>& lhs,
                                     const ov::Output<ov::Node>& rhs);
 
-    // Compute equation of two operands that can be of complex type
-    // if operand is of complex type, complex type will be indicated by bool flag
-    // complex tensor is represented as a real tensor with auxiliary dimension 2 in the tail
-    // types of both operands must be aligned prior to the call
-    static ov::Output<ov::Node> equal(const NodeContext& context,
-                                    const ov::Output<ov::Node>& lhs,
-                                    const ov::Output<ov::Node>& rhs);
-
     // Convert type of real and imaginary parts of input to like type
     static ov::Output<ov::Node> convert_like(const NodeContext& context,
                                              const ov::Output<ov::Node>& input,

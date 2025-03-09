@@ -291,52 +291,6 @@ ov::Output<ov::Node> ComplexTypeMark::div(const NodeContext& context,
     return {result};
 }
 
-ov::Output<ov::Node> ComplexTypeMark::equal(const NodeContext& context,
-    const ov::Output<ov::Node>& lhs,
-    const ov::Output<ov::Node>& rhs) {
-auto lhs_complex = as_type_ptr<ComplexTypeMark>(lhs.get_node_shared_ptr());
-auto rhs_complex = as_type_ptr<ComplexTypeMark>(rhs.get_node_shared_ptr());
-
-if (lhs_complex && rhs_complex) {
-// both operands are of complex type
-auto lr = lhs_complex->get_real();
-auto li = lhs_complex->get_imag();
-auto rr = rhs_complex->get_real();
-auto ri = rhs_complex->get_imag();
-
-auto eq_real = context.mark_node(make_shared<v1::Equal>(lr, rr));
-auto eq_imag = context.mark_node(make_shared<v1::Equal>(li, ri));
-auto result = context.mark_node(make_shared<v1::LogicalAnd>(eq_real, eq_imag));
-return {result};
-} else if (lhs_complex) {
-// rhs is of a real type
-auto lhs_real = lhs_complex->get_real();
-auto lhs_imag = lhs_complex->get_imag();
-
-auto eq_real = context.mark_node(make_shared<v1::Equal>(lhs_real, rhs));
-auto zero_const = context.mark_node(make_shared<v0::Constant>(lhs_imag.get_element_type(), Shape{}, 0));
-auto eq_imag = context.mark_node(make_shared<v1::Equal>(lhs_imag, zero_const));
-
-auto result = context.mark_node(make_shared<v1::LogicalAnd>(eq_real, eq_imag));
-return {result};
-} else if (rhs_complex) {
-// lhs is of a real type
-auto rhs_real = rhs_complex->get_real();
-auto rhs_imag = rhs_complex->get_imag();
-
-auto eq_real = context.mark_node(make_shared<v1::Equal>(lhs, rhs_real));
-auto zero_const = context.mark_node(make_shared<v0::Constant>(rhs_imag.get_element_type(), Shape{}, 0));
-auto eq_imag = context.mark_node(make_shared<v1::Equal>(rhs_imag, zero_const));
-
-auto result = context.mark_node(make_shared<v1::LogicalAnd>(eq_real, eq_imag));
-return {result};
-}
-
-// both operands are real
-auto result = context.mark_node(make_shared<v1::Equal>(lhs, rhs));
-return {result};
-}
-
 ov::Output<ov::Node> ComplexTypeMark::convert_like(const NodeContext& context,
                                                    const ov::Output<ov::Node>& input,
                                                    const ov::Output<ov::Node>& like) {
