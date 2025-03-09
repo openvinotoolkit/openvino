@@ -285,7 +285,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
 }
 
 std::shared_ptr<ov::Node> PagedAttentionExtension::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    OV_OP_SCOPE(_PagedAttentionExtension_clone_with_new_inputs);
+    OV_OP_SCOPE(PagedAttentionExtension_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<PagedAttentionExtension>(new_args);
 }
