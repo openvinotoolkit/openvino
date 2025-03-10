@@ -40,10 +40,6 @@ public:
         return _name == "LEVEL0";
     }
 
-    bool isVpual() const {
-        return _name == "VPUAL";
-    }
-
     bool isIMD() const {
         return _name == "IMD";
     }
@@ -186,11 +182,29 @@ bool isRuleInverted(std::string& rule);
 bool isRuleInverted(std::string& rule) {
     auto pos = rule.find("!");
     if (pos != std::string::npos) {
-        // Extract negation character from rule string
+        // Delete negation character from rule string
         rule.erase(pos, 1);
         return true;
     }
     return false;
+}
+
+template <typename T>
+void categoryRuleEnabler(std::string category, pugi::xml_node& enableRules, bool* ruleFlag, const T& enablePolicy) {
+    bool localFlag = false;
+    if (!enableRules.child(category.c_str()).empty()) {
+        FOREACH_CHILD (enableRule, enableRules, category.c_str()) {
+            auto categoryRule = enableRule.text().get();
+
+            std::string categoryRuleString(categoryRule);
+            bool invert = isRuleInverted(categoryRuleString);
+            // Perform logical XOR to invert condition
+            if (!(enablePolicy(categoryRuleString)) != !invert)
+                localFlag = true;
+        }
+        // Accumulate rule for each category
+        *ruleFlag &= localFlag;
+    }
 }
 
 std::vector<std::string> disabledTestPatterns();
@@ -209,7 +223,7 @@ std::vector<std::string> disabledTestPatterns() {
         // Check if skip xml is set to be read
         const auto& filePath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_SKIP_CONFIG_FILE;
         if (filePath.empty())
-            _log.warning("[WARNING] OV_NPU_TESTS_SKIP_CONFIG_FILE not set");
+            _log.warning("OV_NPU_TESTS_SKIP_CONFIG_FILE not set");
         else
             _log.info("Using %s as skip config", filePath.c_str());
 
@@ -238,56 +252,30 @@ std::vector<std::string> disabledTestPatterns() {
             pugi::xml_node enableRules = skipConfigRule.child("enable_rules");
             bool ruleFlag = true;
             if (!enableRules.empty()) {
-                bool backendRuleFlag = false;
-                if (!enableRules.child("backend").empty()) {
-                    FOREACH_CHILD (enableRule, enableRules, "backend") {
-                        auto backendRule = enableRule.text().get();
+                auto backendPolicy = [&backendName](std::string ruleString) {
+                    return ruleString == backendName.getName();
+                };
+                categoryRuleEnabler("backend", enableRules, &ruleFlag, backendPolicy);
 
-                        std::string backendRuleString(backendRule);
-                        bool invert = isRuleInverted(backendRuleString);
-                        // Perform logical XOR to invert condition
-                        if (!(backendRuleString == backendName.getName()) != !invert)
-                            backendRuleFlag = true;
+                auto devicePolicy = [&devices](std::string ruleString) {
+                    for (auto& device : devices.getAvailableDevices()) {
+                        if (ruleString == device)
+                            return true;
                     }
-                    // Accumulate rule for backends
-                    ruleFlag &= backendRuleFlag;
-                }
+                    return false;
+                };
+                categoryRuleEnabler("device", enableRules, &ruleFlag, devicePolicy);
 
-                bool deviceRuleFlag = false;
-                if (!enableRules.child("device").empty()) {
-                    FOREACH_CHILD (enableRule, enableRules, "device") {
-                        auto deviceRule = enableRule.text().get();
-
-                        std::string deviceRuleString(deviceRule);
-                        bool invert = isRuleInverted(deviceRuleString);
-                        for (auto& device : devices.getAvailableDevices()) {
-                            // Perform logical XOR to invert condition
-                            if (!(deviceRuleString == device) != !invert)
-                                deviceRuleFlag = true;
-                        }
-                    }
-                    // Accumulate rules for devices
-                    ruleFlag &= deviceRuleFlag;
-                }
-
-                bool operatingSystemRuleFlag = false;
-                if (!enableRules.child("operating_system").empty()) {
-                    FOREACH_CHILD (enableRule, enableRules, "operating_system") {
-                        auto operatingSystemRule = enableRule.text().get();
-
-                        if (operatingSystemRule == currentOS.getName())
-                            operatingSystemRuleFlag = true;
-                    }
-                    // Accumulate rule for operating systems
-                    ruleFlag &= operatingSystemRuleFlag;
-                }
+                auto operatingSystemPolicy = [&currentOS](std::string ruleString) {
+                    return ruleString == currentOS.getName();
+                };
+                categoryRuleEnabler("operating_system", enableRules, &ruleFlag, operatingSystemPolicy);
             }
 
             // Select individual filters and add them to the skipRegistry
             pugi::xml_node skipFiltersList = skipConfigRule.child("filters");
             FOREACH_CHILD (skipFilter, skipFiltersList, "filter") {
                 auto skipFilterEntry = skipFilter.text().get();
-
                 // Add skip to registry
                 _skipRegistry.addPatterns(ruleFlag, skipMessageEntry, {skipFilterEntry});
             }
@@ -295,7 +283,7 @@ std::vector<std::string> disabledTestPatterns() {
 
         // OV_NPU_TESTS_SKIP_CONFIG_FILE not present
         if (filePath.empty() || !xmlResult.error_msg.empty()) {
-            _log.warning("[WARNING] Using legacy skip config");
+            _log.warning("Using legacy skip config");
 
             // clang-format off
 
