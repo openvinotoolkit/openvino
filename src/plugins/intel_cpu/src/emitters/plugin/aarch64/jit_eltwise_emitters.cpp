@@ -2602,7 +2602,7 @@ size_t jit_softplus_emitter::get_inputs_count() const {
 }
 
 size_t jit_softplus_emitter::get_aux_vecs_count() const {
-    return std::max(exp_emitter->get_aux_vecs_count()+2, 2ul);
+    return std::max(exp_emitter->get_aux_vecs_count() + 2, 6ul);
 }
 
 size_t jit_softplus_emitter::get_aux_gprs_count() const {
@@ -2620,7 +2620,7 @@ void jit_softplus_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_softplus_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
-                                   const std::vector<size_t>& out_vec_idxs) const {
+                                    const std::vector<size_t>& out_vec_idxs) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     const TReg vmm_src(in_vec_idxs[0]);
     const TReg vmm_dst(out_vec_idxs[0]);
@@ -2644,112 +2644,112 @@ void jit_softplus_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     // we modify the above formula to
     // = n * ln(2) + ln((2^-(n-1) + 2 * exp(r))/2)
 
-    h->ld1r(vmm_aux0.s, table_val2("exp_ln_flt_min_f")); // load min allowed value
+    h->ld1r(vmm_aux0.s, table_val2("exp_ln_flt_min_f"));  // load min allowed value
     h->mov(vmm_aux1.b16, vmm_src.b16);
     h->fmaxnm(vmm_dst.s, vmm_aux1.s, vmm_aux0.s);
-    
+
     h->ld1r(vmm_aux0.s, table_val2("inv_ln2"));
     h->fmul(vmm_aux2.s, vmm_dst.s, vmm_aux0.s);  
-    h->frintm(vmm_aux3.s, vmm_aux2.s);           
-    h->fcvtzs(vmm_aux4.s, vmm_aux3.s);           
-    
+    h->frintm(vmm_aux3.s, vmm_aux2.s);
+    h->fcvtzs(vmm_aux4.s, vmm_aux3.s);
+
     // Compute remainder r = x - n*ln2
-    h->scvtf(vmm_aux2.s, vmm_aux4.s);            
+    h->scvtf(vmm_aux2.s, vmm_aux4.s);
     h->ld1r(vmm_aux0.s, table_val2("ln2"));
     h->fmul(vmm_aux1.s, vmm_aux0.s, vmm_aux2.s);
     h->fsub(vmm_aux0.s, vmm_src.s, vmm_aux1.s);
-    
+
     exp_emitter->emit_code({vmm_aux0.getIdx()}, out_vec_idxs, aux_vec_idxs, aux_gpr_idxs);
-    
+
     h->scvtf(vmm_aux3.s, vmm_aux4.s);  // float n
 
-    // // For positive n: ln(1+e^r*2^n)
-    // // = n*ln2 + ln((2^-(n-1)+2e^r)*0.5)
-    h->ld1r(vmm_aux4.s, table_val2("bias_float"));     
+    // For positive n: ln(1+e^r*2^n)
+    // = n*ln2 + ln((2^-(n-1)+2e^r)*0.5)
+    h->ld1r(vmm_aux4.s, table_val2("bias_float"));
     h->ld1r(vmm_aux2.s, table_val2("one"));
-    h->fsub(vmm_aux2.s, vmm_aux3.s, vmm_aux2.s); // n-1
+    h->fsub(vmm_aux2.s, vmm_aux3.s, vmm_aux2.s);  // n-1
     h->fneg(vmm_aux2.s, vmm_aux2.s);
     h->fadd(vmm_aux2.s, vmm_aux2.s, vmm_aux4.s);
-    h->fcvtzu(vmm_aux2.s, vmm_aux2.s);     
-    h->sqshl(vmm_aux2.d, vmm_aux2.d, 23);          // 2^-(n-1) 
+    h->fcvtzu(vmm_aux2.s, vmm_aux2.s);
+    h->sqshl(vmm_aux2.d, vmm_aux2.d, 23);  // 2^-(n-1)
 
-    h->fadd(vmm_aux0.s, vmm_dst.s, vmm_dst.s); 
-    h->fadd(vmm_aux0.s, vmm_aux0.s, vmm_aux2.s); 
+    h->fadd(vmm_aux0.s, vmm_dst.s, vmm_dst.s);
+    h->fadd(vmm_aux0.s, vmm_aux0.s, vmm_aux2.s);
     h->ld1r(vmm_aux2.s, table_val2("half"));
-    h->fmul(vmm_aux0.s, vmm_aux0.s, vmm_aux2.s); // (2*exp(r) + 2^-(n-1))/2
+    h->fmul(vmm_aux0.s, vmm_aux0.s, vmm_aux2.s);  // (2*exp(r) + 2^-(n-1))/2
 
-    h->ushr(vmm_aux1.s, vmm_aux0.s, 23); // exponent (k)
+    h->ushr(vmm_aux1.s, vmm_aux0.s, 23);  // exponent (k)
     h->scvtf(vmm_aux1.s, vmm_aux1.s);
-    h->ld1r(vmm_aux2.s, table_val2("one")); 
-    h->fadd(vmm_aux1.s, vmm_aux1.s, vmm_aux2.s); // k + 1
-    h->ld1r(vmm_aux2.s, table_val2("bias_float")); 
-    h->fsub(vmm_aux1.s, vmm_aux1.s, vmm_aux2.s); // unbiased exponent (k+1)
-    
+    h->ld1r(vmm_aux2.s, table_val2("one"));
+    h->fadd(vmm_aux1.s, vmm_aux1.s, vmm_aux2.s);  // k + 1
+    h->ld1r(vmm_aux2.s, table_val2("bias_float"));
+    h->fsub(vmm_aux1.s, vmm_aux1.s, vmm_aux2.s);  // unbiased exponent (k+1)
+
     h->ld1r(vmm_aux2.s, table_val2("mantissa_mask"));
     h->and_(vmm_aux0.b16, vmm_aux0.b16, vmm_aux2.b16);
     h->ld1r(vmm_aux2.s, table_val2("bias_mask"));
-    h->orr(vmm_aux0.b16, vmm_aux0.b16, vmm_aux2.b16); // normalized fraction y= 1.mantissa
-    h->ld1r(vmm_aux2.s, table_val2("half")); // y' = y/2, y' is between (1, 0.5)
+    h->orr(vmm_aux0.b16, vmm_aux0.b16, vmm_aux2.b16);  // normalized fraction y= 1.mantissa
+    h->ld1r(vmm_aux2.s, table_val2("half"));           // y' = y/2, y' is between (1, 0.5)
     h->fmul(vmm_aux0.s, vmm_aux0.s, vmm_aux2.s);
     h->ld1r(vmm_aux2.s, table_val2("one"));
-    // y'' = 1 - y' for log computation, y'' is between (0, -0.5) 
+    // y'' = 1 - y' for log computation, y'' is between (0, -0.5)
     // for better log approximation with 8th degree polynomial
-    h->fsub(vmm_aux0.s, vmm_aux0.s, vmm_aux2.s); 
-    
+    h->fsub(vmm_aux0.s, vmm_aux0.s, vmm_aux2.s);
+
     // Log polynomial approximation: log(1+y'') using Taylor series
     h->ld1r(vmm_aux2.s, table_val2("log_pol6"));
     h->ld1r(vmm_aux4.s, table_val2("log_pol5"));
     h->fmla(vmm_aux4.s, vmm_aux2.s, vmm_aux0.s);
     h->mov(vmm_dst.b16, vmm_aux4.b16);
-    h->ld1r(vmm_aux4.s, table_val2("log_pol4")); 
+    h->ld1r(vmm_aux4.s, table_val2("log_pol4"));
     h->fmla(vmm_aux4.s, vmm_dst.s, vmm_aux0.s);
     h->mov(vmm_dst.b16, vmm_aux4.b16);
-    h->ld1r(vmm_aux4.s, table_val2("log_pol3")); 
+    h->ld1r(vmm_aux4.s, table_val2("log_pol3"));
     h->fmla(vmm_aux4.s, vmm_dst.s, vmm_aux0.s);
     h->mov(vmm_dst.b16, vmm_aux4.b16);
-    h->ld1r(vmm_aux4.s, table_val2("log_pol2")); 
+    h->ld1r(vmm_aux4.s, table_val2("log_pol2"));
     h->fmla(vmm_aux4.s, vmm_dst.s, vmm_aux0.s);
     h->mov(vmm_dst.b16, vmm_aux4.b16);
-    h->ld1r(vmm_aux4.s, table_val2("log_pol1")); 
+    h->ld1r(vmm_aux4.s, table_val2("log_pol1"));
     h->fmla(vmm_aux4.s, vmm_dst.s, vmm_aux0.s);
     h->mov(vmm_dst.b16, vmm_aux4.b16);
-    h->ld1r(vmm_aux4.s, table_val2("log_pol0")); 
+    h->ld1r(vmm_aux4.s, table_val2("log_pol0"));
     h->fmla(vmm_aux4.s, vmm_dst.s, vmm_aux0.s);
     h->mov(vmm_dst.b16, vmm_aux4.b16);
     h->ld1r(vmm_aux4.s, table_val2("one"));
     h->fmla(vmm_aux4.s, vmm_dst.s, vmm_aux0.s);
     h->mov(vmm_dst.b16, vmm_aux4.b16);
     h->fmul(vmm_dst.s, vmm_aux0.s, vmm_dst.s);
-    
+
     h->ld1r(vmm_aux4.s, table_val2("ln2"));
-    h->fadd(vmm_aux1.s, vmm_aux1.s, vmm_aux3.s);      
-    h->fmla(vmm_dst.s, vmm_aux1.s, vmm_aux4.s);             
+    h->fadd(vmm_aux1.s, vmm_aux1.s, vmm_aux3.s);
+    h->fmla(vmm_dst.s, vmm_aux1.s, vmm_aux4.s);
 
     // x > 20.0 returns x
     h->ld1r(vmm_aux0.s, table_val2("threshold"));
-    h->fcmgt(vmm_mask.s, vmm_src.s, vmm_aux0.s); 
+    h->fcmgt(vmm_mask.s, vmm_src.s, vmm_aux0.s);
     h->bsl(vmm_mask.b16, vmm_src.b16, vmm_dst.b16);
-    h->mov(vmm_dst.b16, vmm_mask.b16);  
+    h->mov(vmm_dst.b16, vmm_mask.b16);
 }
 
 void jit_softplus_emitter::register_table_entries() {
-    push_arg_entry_of("one", 0x3f800000, true);     
+    push_arg_entry_of("one", 0x3f800000, true);
     push_arg_entry_of("zero", 0x00000000, true);
-    push_arg_entry_of("half", 0x3f000000, true);     
-    push_arg_entry_of("bias_float", 0x42fe0000, true);   
-    push_arg_entry_of("ln2", 0x3f317218, true);      
-    push_arg_entry_of("inv_ln2", 0x3fb8aa3b, true);  
+    push_arg_entry_of("half", 0x3f000000, true);
+    push_arg_entry_of("bias_float", 0x42fe0000, true);
+    push_arg_entry_of("ln2", 0x3f317218, true);
+    push_arg_entry_of("inv_ln2", 0x3fb8aa3b, true);
     push_arg_entry_of("threshold", 0x41a00000, true);
     push_arg_entry_of("mantissa_mask", 0x007fffff, true);
     push_arg_entry_of("bias_mask", 0x3f800000, true);
     push_arg_entry_of("exp_ln_flt_min_f", 0xc2aeac50, true);
-    push_arg_entry_of("log_pol0", 0xbf000000, true); 
-    push_arg_entry_of("log_pol1", 0x3eaaaa9f, true); 
-    push_arg_entry_of("log_pol2", 0xbe800000, true); 
-    push_arg_entry_of("log_pol3", 0x3e4ccccd, true); 
-    push_arg_entry_of("log_pol4", 0xbe2aaac1, true); 
-    push_arg_entry_of("log_pol5", 0x3e12491b, true); 
-    push_arg_entry_of("log_pol6", 0xbe000000, true); 
+    push_arg_entry_of("log_pol0", 0xbf000000, true);
+    push_arg_entry_of("log_pol1", 0x3eaaaa9f, true);
+    push_arg_entry_of("log_pol2", 0xbe800000, true);
+    push_arg_entry_of("log_pol3", 0x3e4ccccd, true);
+    push_arg_entry_of("log_pol4", 0xbe2aaac1, true);
+    push_arg_entry_of("log_pol5", 0x3e12491b, true);
+    push_arg_entry_of("log_pol6", 0xbe000000, true);
 }
 
 void jit_softplus_emitter::emit_data() const {

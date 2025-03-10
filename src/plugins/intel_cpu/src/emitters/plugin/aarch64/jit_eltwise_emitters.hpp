@@ -1055,7 +1055,7 @@ private:
 };
 
 class jit_softplus_emitter : public jit_emitter {
-public: 
+public:
     jit_softplus_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                          const ov::element::Type exec_prc = ov::element::f32);
