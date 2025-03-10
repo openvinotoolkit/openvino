@@ -80,7 +80,7 @@ OutputVector translate_repeat_interleave(const NodeContext& context) {
             auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
             auto repeats_bc = context.mark_node(std::make_shared<v3::Broadcast>(repeats, input_shape));
             auto repeat_max = context.mark_node(std::make_shared<v1::ReduceMax>(repeats_bc, const_0, true));
-            
+
             // Tile the input based on the maximum repeat value
             auto max_repeat_for_tile =
                 context.mark_node(std::make_shared<v0::Concat>(OutputVector{const_1_list, repeat_max}, 0));
@@ -93,7 +93,7 @@ OutputVector translate_repeat_interleave(const NodeContext& context) {
             auto repeats_1 = context.mark_node(std::make_shared<v0::Unsqueeze>(repeats_bc, const_neg_1));
             auto less = context.mark_node(std::make_shared<v1::Less>(range, repeats_1));
             auto less_flat = context.mark_node(std::make_shared<v1::Reshape>(less, const_neg_1, false));
-            
+
             // Identify non-zero indices from the comparison result
             auto non_zero = context.mark_node(std::make_shared<v3::NonZero>(less_flat));
             auto indices = context.mark_node(std::make_shared<v15::Squeeze>(non_zero, const_0));
