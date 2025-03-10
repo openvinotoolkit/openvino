@@ -11,6 +11,7 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/core/strides.hpp"
+#include "openvino/core/tensor_util.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
@@ -108,4 +109,10 @@ bool Tensor::is_continuous() const {
     OV_TENSOR_STATEMENT(return _impl->is_continuous());
 }
 
+Tensor Tensor::from_file(const std::filesystem::path& file_name,
+                         const element::Type& element_type,
+                         const PartialShape& partial_shape,
+                         std::size_t offset_in_bytes) {
+    return ov::util::read_tensor_from_file(file_name, element_type, partial_shape, offset_in_bytes);
+}
 }  // namespace ov
