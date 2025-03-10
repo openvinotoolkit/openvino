@@ -10,7 +10,6 @@
 
 namespace ov {
 namespace op {
-
 PagedAttentionExtension::PagedAttentionExtension(const ov::OutputVector& args) : ov::op::Op(args) {
     constructor_validate_and_infer_types();
 }
@@ -165,12 +164,14 @@ void PagedAttentionExtension::validate_and_infer_types() {
                           get_input_element_type(8),
                           ".");
 
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_partial_shape(9).rank().is_dynamic() || get_input_partial_shape(9).rank().get_length() == 0,
-        "Input `scale` should be a scalar but it has rank ",
-        get_input_partial_shape(9).rank().get_length(),
-        ".");
+    // TODO Handle optional inputs properly.
+        NODE_VALIDATION_CHECK(this,
+                          get_input_partial_shape(9).rank().is_dynamic() ||
+                              get_input_partial_shape(9).rank().get_length() ==0 ||
+                              get_input_partial_shape(9).rank().get_length() ==1,
+                          "Input `scale` should be a scalar but it has rank ",
+                          get_input_partial_shape(9).rank().get_length(),
+                          ".");
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(9).is_dynamic() || get_input_element_type(9).is_real(),
                           "Element type of `scale` input should be a floating type, but it is ",

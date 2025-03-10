@@ -30,9 +30,9 @@ bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) {
                                       inputs[10].data<int32_t>(),  // sw --
                                       inputs[11].data<T>(),        // as
                                       inputs[12].data<int32_t>(),  // mcl --
-                                      inputs[13].data<int32_t>(),  // rbi
-                                      inputs[14].data<int32_t>(),  // rd
-                                      inputs[15].data<T>(),        // trl
+                                      (inputs[13].get_shape().size() != 0)? inputs[13].data<int32_t>() : nullptr,  // rbi
+                                      (inputs[14].get_shape().size() != 0)? inputs[14].data<int32_t>() : nullptr,  // rd
+                                      (inputs[15].get_shape().size() != 0)? inputs[15].data<T>() : nullptr,        // trl
                                       inputs[13].get_shape(),      // rbis
                                       inputs[14].get_shape(),      // rds
                                       inputs[15].get_shape());     // trls
@@ -54,7 +54,7 @@ bool evaluate_node<ov::op::PagedAttentionExtension>(std::shared_ptr<ov::Node> no
     case ov::element::f32:
         return evaluate<ov::element::f32>(outputs, inputs);
     default:
-        OPENVINO_THROW("Unhandled data type ", node->get_element_type().get_type_name(), " in evaluate_node()");
+        OPENVINO_THROW("Unhandled data type ", element_type.get_type_name(), " in evaluate_node()");
     }
     return true;
 }
