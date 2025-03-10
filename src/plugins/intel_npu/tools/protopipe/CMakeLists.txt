@@ -6,7 +6,7 @@
 set(TARGET_NAME protopipe)
 
 if (NOT DEFINED PROJECT_NAME)
-    cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+    cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
     project(protopipe_standalone)
     include("cmake/standalone.cmake")
     return()
