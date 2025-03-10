@@ -281,7 +281,7 @@ void Plugin::recheck_compiler_support(Config& cfg) const {
         nocompiler = true;
     }
 
-    if (nocompiler || (compiler != nullptr)) {
+    if (!nocompiler || (compiler != nullptr)) {
         compiler_version = compiler->get_version();
         compiler_support_list = compiler->get_supported_options();
     }
