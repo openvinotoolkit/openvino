@@ -145,6 +145,7 @@ DEFINE_double(rrmse_loss_threshold, std::numeric_limits<double>::max(), "Thresho
 DEFINE_double(nrmse_loss_threshold, 1.0, "Threshold for 'nrmse' mode");
 DEFINE_double(confidence_threshold, 1e-4, "Confidence threshold for Detection mode");
 DEFINE_double(box_tolerance, 1e-4, "Box tolerance for 'detection' mode");
+DEFINE_bool(apply_soft_max, false, "Apply SoftMax for 'nrmse' mode");
 
 DEFINE_double(psnr_reference, 30.0, "PSNR reference value in dB");
 DEFINE_double(psnr_tolerance, 1e-4, "Tolerance for 'psnr' mode");
@@ -1410,6 +1411,27 @@ bool computeNRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
     return nrmseLoss <= FLAGS_nrmse_loss_threshold;
 }
 
+std::vector<float> softmax(std::vector<float>& logits) {
+    std::vector<float> probabilities(logits.size());
+
+    // Find the maximum logit for numerical stability
+    float max_logit = *std::max_element(logits.begin(), logits.end());
+
+    // Compute the exponentials of the logits after subtracting max_logit for numerical stability
+    float sum_exp = 0.0;
+    for (size_t i = 0; i < logits.size(); ++i) {
+        probabilities[i] = exp(logits[i] - max_logit);  // exp(logit - max_logit) for stability
+        sum_exp += probabilities[i];
+    }
+
+    // Normalize the probabilities by dividing by the sum of exponentials
+    for (size_t i = 0; i < logits.size(); ++i) {
+        probabilities[i] /= sum_exp;
+    }
+
+    return probabilities;
+}
+
 bool testNRMSE(const TensorMap& outputs, const TensorMap& references, size_t batch_size = 1) {
     if (batch_size != 1) {
         throw std::runtime_error(
@@ -1432,6 +1454,22 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, size_t bat
 
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
+        bool applySoftMax= FLAGS_apply_soft_max;
+
+        if (applySoftMax) {
+            std::vector<float> actSoftMax1;
+            std::vector<float> refSoftMax1;
+
+            std::copy_n((npu::utils::toFP32(output)).data<const float>(), output.get_size(), std::back_insert_iterator(actSoftMax1));
+            std::copy_n((npu::utils::toFP32(referencesIterator->second)).data<const float>(), referencesIterator->second.get_size(),
+                std::back_insert_iterator(refSoftMax1));
+
+            auto actSoftMax = softmax(actSoftMax1);
+            auto refSoftMax = softmax(refSoftMax1);
+
+            std::copy_n(actSoftMax.begin(), output.get_size(), output.data<float>());
+            std::copy_n(refSoftMax.begin(), referencesIterator->second.get_size(), referencesIterator->second.data<float>());
+        }
 
         std::cout << "Compare " << tensorName << " with reference" << std::endl;
         if (!computeNRMSE(output, referencesIterator->second)) {
