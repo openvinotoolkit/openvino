@@ -22,6 +22,49 @@
 
 namespace opp = ov::pass::pattern;
 
+class RemoveEmptyKVTensors : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::RemoveEmptyKVTensors");
+
+    struct Context {
+        std::vector<std::shared_ptr<ov::opset13::Parameter>> old_params;
+        using Ref = std::reference_wrapper<Context>;
+    };
+
+    RemoveEmptyKVTensors(Context::Ref ctx) {
+        auto param = opp::wrap_type<ov::op::v0::Parameter>();
+        auto concat = opp::wrap_type<ov::op::v0::Concat>({param, opp::any_input()});
+
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
+            auto& node_to_output = m.get_pattern_value_map();
+            auto matched_param = ov::as_type_ptr<ov::op::v0::Parameter>(node_to_output.at(param).get_node_shared_ptr());
+            auto matched_node_concat = node_to_output.at(concat).get_node_shared_ptr();
+
+            ctx.get().old_params.push_back(matched_param);
+
+            auto users = matched_param->get_users();
+            if (users.size() == 2u) {
+                auto shapeof_node = ov::is_type<ov::op::v3::ShapeOf>(users[0]) ? users[0] : users[1];
+                NPUW_ASSERT(ov::is_type<ov::op::v3::ShapeOf>(shapeof_node));
+                auto cst_node =
+                    ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, matched_param->get_shape());
+                ov::replace_node(shapeof_node, cst_node);
+            } else {
+                NPUW_ASSERT(users.size() == 1u);
+            }
+
+            // Redirect second concat input to every node which reads from concat
+            auto curr_kv_tensor = matched_node_concat->input(1).get_source_output();
+            for (auto target_input : matched_node_concat->output(0u).get_target_inputs()) {
+                target_input.replace_source_output(curr_kv_tensor);
+            }
+
+            return true;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(concat, "RemoveEmptyKVTensors"), std::move(callback));
+    }
+};
+
 class TransposeValueTensors : public ov::pass::MatcherPass {
 public:
     struct Context {
@@ -317,18 +360,18 @@ std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::M
     return model;
 }
 
-std::shared_ptr<ov::Model> cvt_value_tensors_layout(std::shared_ptr<ov::Model> model) {
-    ov::preprocess::PrePostProcessor ppp(model);
-    for (const auto& tensor : model->outputs()) {
-        if (tensor.get_any_name().find("value") != std::string::npos) {
-            // NB: [batch, num_heads, seq_len, emb_size] -> [batch, num_heads, emb_size, seq_len]
-            ppp.output(tensor.get_any_name()).model().set_layout(ov::Layout("BHSE"));
-            ppp.output(tensor.get_any_name()).tensor().set_layout(ov::Layout("BHES"));
-        }
+bool remove_empty_kv_inputs(std::shared_ptr<ov::Model> model) {
+    ov::pass::GraphRewrite rewr;
+    RemoveEmptyKVTensors::Context ctx;
+    rewr.add_matcher<RemoveEmptyKVTensors>(std::ref(ctx));
+    rewr.run_on_model(model);
+    for (auto old_param : ctx.old_params) {
+        model->remove_parameter(old_param);
     }
-    return ppp.build();
+    ov::pass::Validate().run_on_model(model);
+    // NB: if old_params is not empty - pass has been applied
+    return !ctx.old_params.empty();
 }
-
 }  // namespace
 
 // testability - should we have interface for that or move matchers to another file?
@@ -464,8 +507,17 @@ ov::AnyMap get_default_common_config(const std::shared_ptr<ov::Model>& model, co
     return config;
 }
 
-ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model, const std::optional<NPUDesc>& npudesc) {
+ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model,
+                                      const std::optional<NPUDesc>& npudesc,
+                                      const ::intel_npu::npuw::llm::PrefillHint hint) {
     auto config = get_default_common_config(model, npudesc);
+    if (hint == ::intel_npu::npuw::llm::PrefillHint::DYNAMIC) {
+        if (is_cw_compressed(model)) {
+            // NB: These two ifs are not combined into one with && deliberately
+            // there may be later changes w.r.t. required compiler versions for GQ
+            config.emplace("NPUW_ONLINE_PIPELINE", "SPATIAL");
+        }
+    }
     if (npudesc.has_value() && npudesc->arch == "4000" && npudesc->max_tiles != -1) {
         config.emplace("NPU_DPU_GROUPS", npudesc->max_tiles);
     }
@@ -585,14 +637,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("6. Check and apply opt layout");
         LOG_BLOCK();
         if (optimize_value_tensors(kvcache_model)) {
+            NPUW_ASSERT(optimize_value_tensors(prefill_model));
             m_kvcache_desc.v_tensors_transposed = true;
-            prefill_model = cvt_value_tensors_layout(prefill_model);
         } else {
             LOG_DEBUG("vtensors optimisation not applied");
         }
     } else {
         LOG_DEBUG("6. Check and apply opt layout --- SKIPPED");
     }
+    NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
     LOG_DEBUG("7. Optimize kvcache model to output key/values for new token.");
     kvcache_model = redirect_new_kv_to_output(kvcache_model);
     LOG_DEBUG("8. Converting KV-cache in kvcache model to FP16.");
@@ -601,8 +654,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     prefill_model = cvt_kvcache_to_fp16(prefill_model);
 
     auto npudesc = extract_npu_descriptor(plugin);
+
+    // NB: PREFILL_HINT is only applicable for default prefill config!
+    if (prefill_config_opt.has_value() && npuw_llm_props.count(ov::intel_npu::npuw::llm::prefill_hint.name())) {
+        OPENVINO_THROW("PREFILL_HINT only works with default prefill config!");
+    }
+    const ::intel_npu::npuw::llm::PrefillHint prefill_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_HINT>();
     auto prefill_config =
-        prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
+        prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc, prefill_hint)).as<ov::AnyMap>();
 
     // NB: GENERATE_HINT is only applicable for default generate config!
     if (generate_config_opt.has_value() && npuw_llm_props.count(ov::intel_npu::npuw::llm::generate_hint.name())) {
@@ -861,6 +920,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::max_prompt_len, NPUW_LLM_MAX_PROMPT_LEN, get),
                           BIND(npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN, get),
                           BIND(npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS, get),
+                          BIND(npuw::llm::prefill_hint, NPUW_LLM_PREFILL_HINT, getString),
                           BIND(npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT, getString)});
 #undef BIND
 }
