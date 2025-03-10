@@ -660,7 +660,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
         if (desc->heads_num != desc->kv_heads_num) {
             config.broadcast_axis = 1;
-            config.group_size = desc->heads_num / desc->kv_heads_num;
+            config.kv_group_size = desc->heads_num / desc->kv_heads_num;
         }
 
         if (desc->has_scores_output() && !is_dynamic) {
