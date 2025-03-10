@@ -2629,8 +2629,8 @@ void jit_softplus_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     const TReg vmm_aux1(aux_vec_idxs[1]);
     const TReg vmm_aux2(aux_vec_idxs[2]);
     const TReg vmm_aux3(aux_vec_idxs[3]);
-    const TReg vmm_aux4(aux_vec_idxs[std::max(exp_emitter->get_aux_vecs_count(), 4)]);
-    const TReg vmm_aux0(aux_vec_idxs[std::max(exp_emitter->get_aux_vecs_count() + 1, 5)]);
+    const TReg vmm_aux4(aux_vec_idxs[std::max<size_t>(exp_emitter->get_aux_vecs_count(), 4)]);
+    const TReg vmm_aux0(aux_vec_idxs[std::max<size_t>(exp_emitter->get_aux_vecs_count() + 1, 5)]);
 
     // ln(1 + exp(x)) =
     // = ln(1 + exp(n * ln(2) + r)) // divide x by ln(2) and get quot and rem
@@ -2649,7 +2649,7 @@ void jit_softplus_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     h->fmaxnm(vmm_dst.s, vmm_aux1.s, vmm_aux0.s);
 
     h->ld1r(vmm_aux0.s, table_val2("inv_ln2"));
-    h->fmul(vmm_aux2.s, vmm_dst.s, vmm_aux0.s);  
+    h->fmul(vmm_aux2.s, vmm_dst.s, vmm_aux0.s);
     h->frintm(vmm_aux3.s, vmm_aux2.s);
     h->fcvtzs(vmm_aux4.s, vmm_aux3.s);
 
