@@ -45,16 +45,6 @@ struct TypeInfo {
         return m_cname != nullptr && m_type_name != nullptr;
     }
 };
-;
-
-constexpr TypeInfo type_info(size_t bitwidth,
-                             bool is_real,
-                             bool is_signed,
-                             bool is_quantized,
-                             const char* cname,
-                             const char* type_name) {
-    return {bitwidth, is_real, is_signed, is_quantized, cname, type_name, nullptr, 0};
-}
 
 template <class Array>
 constexpr TypeInfo type_info(size_t bitwidth,
@@ -67,7 +57,7 @@ constexpr TypeInfo type_info(size_t bitwidth,
     return {bitwidth, is_real, is_signed, is_quantized, cname, type_name, aliases.data(), aliases.size()};
 }
 
-constexpr auto undefined_aliases = util::make_array("UNSPECIFIED");
+constexpr auto dynamic_aliases = util::make_array("UNSPECIFIED", "undefined");
 constexpr auto boolean_aliases = util::make_array("BOOL");
 constexpr auto bf16_aliases = util::make_array("BF16");
 constexpr auto f16_aliases = util::make_array("FP16");
@@ -95,14 +85,7 @@ constexpr auto f4e2m1_aliases = util::make_array("F4E2M1");
 constexpr auto f8e8m0_aliases = util::make_array("F8E8M0");
 
 static constexpr std::array<TypeInfo, enum_types_size> types_info = {
-    type_info(std::numeric_limits<size_t>::max(),
-              false,
-              false,
-              false,
-              "undefined",
-              "undefined",
-              undefined_aliases),                                                                 // undefined
-    type_info(0, false, false, false, "dynamic", "dynamic"),                                      // dynamic
+    type_info(0, false, false, false, "dynamic", "dynamic", dynamic_aliases),                     // dynamic
     type_info(8, false, true, false, "char", "boolean", boolean_aliases),                         // boolean
     type_info(16, true, true, false, "bfloat16", "bf16", bf16_aliases),                           // bf16
     type_info(16, true, true, false, "float16", "f16", f16_aliases),                              // f16
@@ -319,34 +302,22 @@ size_t Type::bitwidth() const {
 namespace ov {
 template <>
 OPENVINO_API EnumNames<element::Type_t>& EnumNames<element::Type_t>::get() {
-    static auto enum_names = EnumNames<element::Type_t>("element::Type_t",
-                                                        {{"undefined", element::Type_t::undefined},
-                                                         {"dynamic", element::Type_t::dynamic},
-                                                         {"boolean", element::Type_t::boolean},
-                                                         {"bf16", element::Type_t::bf16},
-                                                         {"f16", element::Type_t::f16},
-                                                         {"f32", element::Type_t::f32},
-                                                         {"f64", element::Type_t::f64},
-                                                         {"i4", element::Type_t::i4},
-                                                         {"i8", element::Type_t::i8},
-                                                         {"i16", element::Type_t::i16},
-                                                         {"i32", element::Type_t::i32},
-                                                         {"i64", element::Type_t::i64},
-                                                         {"u1", element::Type_t::u1},
-                                                         {"u2", element::Type_t::u2},
-                                                         {"u3", element::Type_t::u3},
-                                                         {"u4", element::Type_t::u4},
-                                                         {"u6", element::Type_t::u6},
-                                                         {"u8", element::Type_t::u8},
-                                                         {"u16", element::Type_t::u16},
-                                                         {"u32", element::Type_t::u32},
-                                                         {"u64", element::Type_t::u64},
-                                                         {"nf4", element::Type_t::nf4},
-                                                         {"f8e4m3", element::Type_t::f8e4m3},
-                                                         {"f8e5m2", element::Type_t::f8e5m2},
-                                                         {"string", element::Type_t::string},
-                                                         {"f4e2m1", element::Type_t::f4e2m1},
-                                                         {"f8e8m0", element::Type_t::f8e8m0}});
+    static auto enum_names =
+        EnumNames<element::Type_t>("element::Type_t",
+                                   {{"dynamic", element::Type_t::dynamic}, {"undefined", element::Type_t::dynamic},
+                                    {"boolean", element::Type_t::boolean}, {"bf16", element::Type_t::bf16},
+                                    {"f16", element::Type_t::f16},         {"f32", element::Type_t::f32},
+                                    {"f64", element::Type_t::f64},         {"i4", element::Type_t::i4},
+                                    {"i8", element::Type_t::i8},           {"i16", element::Type_t::i16},
+                                    {"i32", element::Type_t::i32},         {"i64", element::Type_t::i64},
+                                    {"u1", element::Type_t::u1},           {"u2", element::Type_t::u2},
+                                    {"u3", element::Type_t::u3},           {"u4", element::Type_t::u4},
+                                    {"u6", element::Type_t::u6},           {"u8", element::Type_t::u8},
+                                    {"u16", element::Type_t::u16},         {"u32", element::Type_t::u32},
+                                    {"u64", element::Type_t::u64},         {"nf4", element::Type_t::nf4},
+                                    {"f8e4m3", element::Type_t::f8e4m3},   {"f8e5m2", element::Type_t::f8e5m2},
+                                    {"string", element::Type_t::string},   {"f4e2m1", element::Type_t::f4e2m1},
+                                    {"f8e8m0", element::Type_t::f8e8m0}});
     return enum_names;
 }
 
@@ -357,4 +328,8 @@ const std::string& AttributeAdapter<element::Type>::get() {
 void AttributeAdapter<element::Type>::set(const std::string& value) {
     m_ref = as_enum<element::Type_t>(value);
 }
+
+AttributeAdapter<ov::element::Type_t>::~AttributeAdapter() = default;
+AttributeAdapter<ov::element::Type>::~AttributeAdapter() = default;
+AttributeAdapter<ov::element::TypeVector>::~AttributeAdapter() = default;
 }  // namespace ov

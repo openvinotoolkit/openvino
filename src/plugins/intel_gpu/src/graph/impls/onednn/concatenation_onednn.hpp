@@ -4,7 +4,7 @@
 
 #include "concatenation_inst.h"
 #include "impls/onednn/utils.hpp"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 
 #include <memory>
 namespace cldnn {
@@ -18,8 +18,9 @@ struct ConcatenationImplementationManager : public ImplementationManager {
 
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<concatenation>());
+        const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad || info.arch == gpu_arch::unknown)
+        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn())
             return false;
 
         static const std::vector<ov::element::Type_t> supported_types = { ov::element::f16, ov::element::u8, ov::element::i8 };

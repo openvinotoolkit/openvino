@@ -132,7 +132,7 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(
     }
 
     std::shared_ptr<ov::Node> last_node = mul_parent;
-    const auto& scale_prc = scale_precision == ov::element::undefined ? decompression_precision : scale_precision;
+    const auto& scale_prc = scale_precision == ov::element::dynamic ? decompression_precision : scale_precision;
     if (decompression_multiply_type != DecompressionType::empty) {
         auto multiply_shape =
             decompression_multiply_type == DecompressionType::full ? scaleshift_const_shape : ov::Shape({});

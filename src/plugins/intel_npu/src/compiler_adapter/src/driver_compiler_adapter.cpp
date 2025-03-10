@@ -68,8 +68,6 @@ void checkedMemcpy(void* destination, size_t destinationSize, void const* source
  */
 std::string ovPrecisionToLegacyPrecisionString(const ov::element::Type& precision) {
     switch (precision) {
-    case ov::element::Type_t::undefined:
-        return "UNSPECIFIED";
     case ov::element::Type_t::f16:
         return "FP16";
     case ov::element::Type_t::f32:
@@ -580,6 +578,10 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
     std::ostringstream turbostring;
     turbostring << ov::intel_npu::turbo.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
     content = std::regex_replace(content, std::regex(turbostring.str()), "");
+    // Remove weights path property as it is not used by compiler
+    std::ostringstream weightspathstream;
+    weightspathstream << ov::weights_path.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
+    content = std::regex_replace(content, std::regex(weightspathstream.str()), "");
     // Remove Bypass UMD Caching propery
     std::ostringstream umdcachestring;
     umdcachestring << ov::intel_npu::bypass_umd_caching.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"

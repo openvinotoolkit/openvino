@@ -194,7 +194,7 @@ ResampleKernelBase::DispatchData ResampleKernelPilRef::SetDefaultForKernel(Kerne
 
 static void SetKernelArguments(const resample_params& params, ResampleKernelPilRef::KernelId kernelId,
                                cldnn::arguments_desc& arguments,
-                               std::vector<std::size_t>& internalBufferSizes) {
+                               std::vector<InternalBuffer>& internalBuffers) {
     /* maximum number of coeffs */
     switch (kernelId) {
     case ResampleKernelPilRef::eCalcHorizontalCoefficients: {
@@ -206,9 +206,9 @@ static void SetKernelArguments(const resample_params& params, ResampleKernelPilR
         int ksize = static_cast<int>(std::ceil(support)) * 2 + 1;
 
         arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0}); // coefficients
-        internalBufferSizes.push_back(outputHorizontalSize * ksize * sizeof(float));
+        internalBuffers.push_back(outputHorizontalSize * ksize * sizeof(float));
         arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1}); // bounds
-        internalBufferSizes.push_back(outputHorizontalSize * 2 * sizeof(int));
+        internalBuffers.push_back(outputHorizontalSize * 2 * sizeof(int));
         break;
     }
     case ResampleKernelPilRef::eResampleHorizontal: {
@@ -218,7 +218,7 @@ static void SetKernelArguments(const resample_params& params, ResampleKernelPilR
         if (NeedVerticalPass(params)) {
             arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2}); // output
             auto intermediateBufferTensor = GetIntermediateBufferSize(params);
-            internalBufferSizes.push_back(intermediateBufferTensor.PhysicalSize() *
+            internalBuffers.push_back(intermediateBufferTensor.PhysicalSize() *
                 BytesPerElement(intermediateBufferTensor.GetDType()));
         } else {
             arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0}); // output
@@ -233,8 +233,8 @@ static void SetKernelArguments(const resample_params& params, ResampleKernelPilR
         float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
         int ksize = static_cast<int>(std::ceil(support)) * 2 + 1;
 
-        internalBufferSizes.push_back(outputVerticalSize * ksize * sizeof(float)); // coefficients
-        internalBufferSizes.push_back(outputVerticalSize * 2 * sizeof(int));       // bounds
+        internalBuffers.push_back(outputVerticalSize * ksize * sizeof(float)); // coefficients
+        internalBuffers.push_back(outputVerticalSize * 2 * sizeof(int));       // bounds
         if (NeedHorizontalPass(params)) {
             arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3}); // coefficients
             arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4}); // bounds
@@ -397,7 +397,7 @@ KernelsData ResampleKernelPilRef::GetKernelsData(const Params &params) const {
                          0,
                          0,
                          0);
-        SetKernelArguments(resample_parameters, id, kernel.params.arguments, kd.internalBufferSizes);
+        SetKernelArguments(resample_parameters, id, kernel.params.arguments, kd.internalBuffers);
     }
     return {kd};
 }
