@@ -487,6 +487,18 @@ std::vector<GroupConvolutionBackpropDataOutShapeParams> generateGroupConvolution
                                                    {1, 1},
                                                    {2},
                                                    {1, 14}),
+        // Adding new test case when output shape is non empty
+        GroupConvolutionBackpropDataOutShapeParams(Shape{1, 2, 2, 2},
+                                                   Shape{2, 1, 1, 2, 2},
+                                                   Shape{1, 2, 3, 3},
+                                                   IN_ET,
+                                                   std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8},
+                                                   std::vector<T>{1, 0, 0, 1, 1, 0, 0, 1},
+                                                   std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9},
+                                                   {1, 1},
+                                                   {1, 1},
+                                                   {2},
+                                                   {1, 3}),
     };
     return groupConvolutionBackpropDataOutShapeParams;
 }
