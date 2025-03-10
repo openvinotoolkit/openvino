@@ -201,6 +201,12 @@ jobs:
           ${{ env.SETUPVARS_COMMAND }}
           ${{ env.INSTALL_TEST_DIR }}/ov_cpu_unit_tests_vectorized --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CPUUnitTestsVectorized.xml
 
+      - name: NPU plugin unit tests 
+        if: ${{fromJSON(inputs.affected-components).NPU.test && runner.os == 'Windows'}}
+        run: |
+          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_npu_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-NPUUnitTests.xml
+      
       - name: ov_subgraphs_dumper_tests tests
         run: |
           ${{ env.SETUPVARS_COMMAND }}

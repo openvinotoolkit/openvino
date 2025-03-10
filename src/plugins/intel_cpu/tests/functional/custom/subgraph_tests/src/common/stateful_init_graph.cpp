@@ -217,7 +217,6 @@ public:
 
         configuration.insert({"SNIPPETS_MODE", "DISABLE"});
 
-        bool directPair;
         std::tie(inputShapes, directPair) = this->GetParam();
 
         init_input_shapes(inputShapes);
@@ -250,12 +249,24 @@ public:
     }
 
     void check_init_graph_node() override {
+#if defined(OPENVINO_ARCH_ARM64)
+        // Convert node is fused into Eltwise on arm platforms
+        if (directPair) {
+            CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
+        } else {
+            CheckNumberOfNodesWithType(compiledModel, "Convert", 1);
+        }
+#else
         CheckNumberOfNodesWithType(compiledModel, "Convert", 1);
+#endif
     }
 
     ov::Shape get_state_shape(size_t i) override {
         return inputShapes[0].second[i];
     }
+
+private:
+    bool directPair;
 };
 
 TEST_P(InitGraphStatefulDiffPrimitiveModel, CompareWithRefs) {

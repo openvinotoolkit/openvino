@@ -13,7 +13,7 @@ class OPENVINO_API True : public Pattern {
 public:
     OPENVINO_RTTI("patternTrue");
     /// \brief Always matches, does not add node to match list.
-    True() : Pattern(OutputVector{}) {}
+    True() : Pattern() {}
     bool match_value(pattern::Matcher* matcher,
                      const Output<Node>& pattern_value,
                      const Output<Node>& graph_value) override;

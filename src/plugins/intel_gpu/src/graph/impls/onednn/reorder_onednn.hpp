@@ -4,7 +4,7 @@
 
 #include "impls/onednn/utils.hpp"
 #include "reorder_inst.h"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 
 #include <memory>
 namespace cldnn {
