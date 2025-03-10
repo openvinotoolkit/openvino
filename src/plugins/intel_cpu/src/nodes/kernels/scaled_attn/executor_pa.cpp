@@ -1159,7 +1159,7 @@ static inline void dequant(T* dst, void* src, const size_t N, const size_t K, co
 }
 template <typename T, ov::element::Type_t SRC_PREC, std::enable_if_t<SRC_PREC == ov::element::f16, bool> = true>
 static inline void dequant(float* dst, void* src, const size_t N, const size_t K, const size_t group_size) {
-    cvt_copy(dst, reinterpret_cast<ov::float16*>(src), K * N, 1, 0, 0);
+    cvt_copy(dst, reinterpret_cast<ov::float16*>(src), 1, K * N, 0, 0);
 }
 
 template <typename TDST,
