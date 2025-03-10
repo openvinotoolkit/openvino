@@ -5,7 +5,7 @@
 
 """ Script to generate XML config file with the list of IR models
 Usage: 
-  python get_testdata.py  --test_conf <name_test_config>.xml  --ir_cache_dir <path_to_ir_cache>
+  python gen_testdata.py  --test_conf <name_test_config>.xml  --ir_cache_dir <path_to_ir_cache>
 """
 # pylint:disable=line-too-long
 
@@ -82,18 +82,22 @@ def main():
     
     subdirectory = str(args.ir_cache_dir)
 
-    for root, dirs, files in os.walk(subdirectory):
-        for file in files:
-            if file.endswith(".xml"):
-                full_path = os.path.join(root, file)
+    for root, _, files in os.walk(subdirectory):
+        for file_name in files:
+            if file_name.endswith(".xml"):
+                full_path = os.path.join(root, file_name)
                 path_parts = os.path.normpath(full_path).split(os.path.sep)
-                model_element = eET.Element("model")
-                model_element.attrib["name"] = path_parts[-1]
+
+                model_element = eET.Element("model", {
+                    "name": file_name,
+                    "precision": path_parts[-4] if path_parts[-2] != "optimized" else path_parts[-5],
+                    "framework": path_parts[-6] if path_parts[-2] != "optimized" else path_parts[-8],
+                    "path": subdirectory,
+                    "full_path": full_path
+                })
+
                 model_element.tail = '\n\t'
-                model_element.attrib["precision"] = path_parts[-4] if path_parts[-2]!="optimized" else path_parts[-5]
-                model_element.attrib["framework"] = path_parts[-6] if path_parts[-2]!="optimized" else path_parts[-8]
-                model_element.attrib["path"] = subdirectory
-                model_element.attrib["full_path"] = full_path
+
                 model_recs.append(model_element)
 
     test_conf_obj.write(args.test_conf, xml_declaration=True)
