@@ -74,10 +74,14 @@ TResult get_raw_data_as(const element::Type_t et, const void* const ptr, const s
  */
 template <class T, class TResult = std::vector<T>, class UnaryOperation = ov::util::Cast<T>>
 TResult get_tensor_data_as(const Tensor& t, UnaryOperation&& func = ov::util::Cast<T>()) {
-    return get_raw_data_as<T, TResult>(t.get_element_type(),
-                                       t.data(),
-                                       t.get_size(),
-                                       std::forward<UnaryOperation>(func));
+    if(t.data() == nullptr) {
+        return TResult();
+    } else {
+        return get_raw_data_as<T, TResult>(t.get_element_type(),
+                                           t.data(),
+                                           t.get_size(),
+                                           std::forward<UnaryOperation>(func));
+    }
 }
 
 namespace util {
@@ -261,7 +265,7 @@ std::optional<TRes> get_input_const_data_as(const ov::Node* op,
                                                  shape_size(shape),
                                                  std::forward<UnaryOperation>(func))};
         } else {
-            return std::vector<TData>();
+            return TRes();
         }
     } else {
         return {};
