@@ -270,6 +270,10 @@ void Config::parseEnvVars() {
     });
 }
 
+bool Config::has(std::string key) const {
+    return _impl.count(key) != 0;
+}
+
 void Config::update(const ConfigMap& options, OptionMode mode) {
     auto log = Logger::global().clone("Config");
 
