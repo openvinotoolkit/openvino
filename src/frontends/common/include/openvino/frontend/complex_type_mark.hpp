@@ -98,6 +98,12 @@ public:
                                              const ov::Output<ov::Node>& input,
                                              const ov::Output<ov::Node>& like);
 
+    // Compute abs of operand that can be of complex type
+    static ov::Output<ov::Node> abs(const NodeContext& context, const ov::Output<ov::Node>& data);
+
+    // Compute exp of operand that can be of complex type
+    static ov::Output<ov::Node> exp(const NodeContext& context, const ov::Output<ov::Node>& data);
+
 private:
     ov::element::Type m_complex_part_type;
 

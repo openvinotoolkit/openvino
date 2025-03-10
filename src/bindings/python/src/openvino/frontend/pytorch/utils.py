@@ -47,6 +47,8 @@ def get_type_from_py_type(value):
         return OVType.boolean
     if isinstance(value, int):
         return OVType.i64
+    if isinstance(value, complex):
+        return OVType.f32
     return OVType.dynamic
 
 
@@ -92,7 +94,10 @@ def torch_tensor_to_ov_const(torch_t: torch.Tensor, shared_memory=True):
 def ivalue_to_constant(ivalue, shared_memory=True):
     ov_type = get_type_from_py_type(ivalue)
     if ov_type.is_static():
-        return op.Constant(ov_type, Shape([]), [ivalue]).outputs()
+        if isinstance(ivalue, complex):
+            return op.Constant(ov_type, Shape([2]), [ivalue.real, ivalue.imag]).outputs()
+        else:
+            return op.Constant(ov_type, Shape([]), [ivalue]).outputs()
 
     if isinstance(ivalue, (list, tuple)):
         assert len(ivalue) > 0, "Can't deduce type for empty list"
