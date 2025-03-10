@@ -187,7 +187,7 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_use_hint) {
     auto w_file_path = ov::util::path_join({cache_dir, utils::generateTestFilePrefix() + "_weights.bin"});
     {
         // store weights in file, not same as in orignal model model
-        utils::createDirectory(cache_dir);
+        std::filesystem::create_directories(cache_dir);
         auto w = utils::create_tensor(element::f32, Shape{5}, std::vector<float>{1.0f, 3.0f, 1.0f, 1.0f, 1.0f});
         auto w_file = std::ofstream(w_file_path, std::ios::binary);
         w_file.write(reinterpret_cast<const char*>(w.data()), w.get_byte_size());
@@ -216,8 +216,8 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_no_hint) {
     auto cache_dir = ov::util::path_join({utils::getCurrentWorkingDir(), "cache"});
     auto w_file_path = ov::util::path_join({cache_dir, utils::generateTestFilePrefix() + "_weights.bin"});
     {
-        // store weights in file, not same as in orignal model model
-        utils::createDirectory(cache_dir);
+        // store weights in file, not same as in original model model
+        std::filesystem::create_directories(cache_dir);
         auto w = utils::create_tensor(element::f32, Shape{5}, std::vector<float>{1.0f, 3.0f, 1.0f, 1.0f, 1.0f});
         auto w_file = std::ofstream(w_file_path, std::ios::binary);
         w_file.write(reinterpret_cast<const char*>(w.data()), w.get_byte_size());
@@ -246,6 +246,7 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_no_hint) {
 TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_but_no_weights) {
     auto cache_dir = ov::util::Path{utils::getCurrentWorkingDir()} / "cache";
     auto w_file_path = cache_dir / (utils::generateTestFilePrefix() + "_weights.bin");
+    std::filesystem::create_directories(cache_dir);
 
     // add weights the TEMPLATE will export model as weightless blob.
     configuration.emplace(ov::weights_path(w_file_path.string()));
