@@ -154,8 +154,12 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
 
             fc_input_b = transpose->clone_with_new_inputs({ fc_input_b->output(0), transpose_const });
             result_nodes.push_back(fc_input_b);
-            fc_input_scale = transpose->clone_with_new_inputs({ scale->output(0), transpose_const });
-            result_nodes.push_back(fc_input_scale);
+
+            if (ov::shape_size(scale->output(0).get_shape()) > 1) {
+                fc_input_scale = transpose->clone_with_new_inputs({ scale->output(0), transpose_const });
+                result_nodes.push_back(fc_input_scale);
+            }
+
             if (with_zero_point && ov::shape_size(optional_zero_point->output(0).get_shape()) > 1) {
                 fc_input_zp = transpose->clone_with_new_inputs({ optional_zero_point->output(0), transpose_const });
                 result_nodes.push_back(fc_input_zp);
