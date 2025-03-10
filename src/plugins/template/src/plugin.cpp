@@ -43,14 +43,15 @@ std::string get_model_str(std::istream& model) {
     return xml;
 }
 
+ov::Tensor read_wights(std::istream& model, const size_t weights_size) {
+    ov::Tensor weights(ov::element::from<char>(), ov::Shape{weights_size});
+    model.read(weights.data<char>(), weights_size);
+    return weights;
+}
+
 ov::Tensor get_model_weights(std::istream& model) {
-    if (const auto weights_size = get_blob_data_size(model); weights_size != 0) {
-        ov::Tensor weights(ov::element::from<char>(), ov::Shape{weights_size});
-        model.read(weights.data<char>(), weights_size);
-        return weights;
-    } else {
-        return {};
-    }
+    const auto weights_size = get_blob_data_size(model);
+    return weights_size != 0 ? read_wights(model, weights_size) : ov::Tensor();
 }
 }  // namespace
 
@@ -154,8 +155,7 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
             const auto w_path = std::filesystem::path(weights_path->second.as<std::string>());
             if (auto size = util::file_size(w_path); size > 0) {
                 auto f_weights = std::ifstream(w_path, std::ios::binary | std::ios::in);
-                weights = Tensor(element::from<char>(), Shape{static_cast<size_t>(size)});
-                f_weights.read(weights.data<char>(), size);
+                weights = read_wights(f_weights, size);
             }
         }
 

@@ -150,7 +150,7 @@ TEST_P(OVCompiledModelBaseTest, compile_from_weightless_blob) {
     }
 
     utils::compare(expected, output);
-    utils::removeFile(w_file_path);
+    utils::removeFile(w_file_path.string());
 }
 
 TEST_P(OVCompiledModelBaseTest, compile_from_weightless_blob_but_no_weights) {
@@ -179,7 +179,7 @@ TEST_P(OVCompiledModelBaseTest, compile_from_weightless_blob_but_no_weights) {
     }
 
     utils::compare(expected, output);
-    utils::removeFile(w_file_path);
+    utils::removeFile(w_file_path.string());
 }
 
 TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_use_hint) {
