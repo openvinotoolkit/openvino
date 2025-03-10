@@ -481,7 +481,7 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
     return _output_chains.insert({ p_inst->id(), chain }).first;
 }
 
-std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memory::ptr mem_new) {
+std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memory::ptr mem_new, bool is_remote) {
     GPU_DEBUG_TRACE_DETAIL << "Set output " << id << " " << mem_new->get_layout().to_short_string() << std::endl;
     std::vector<event::ptr> ret_ev;
     std::shared_ptr<primitive_inst> p_inst = find_primitive(id);
@@ -489,6 +489,10 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
     auto iter = std::find(_outputs.begin(), _outputs.end(), p_inst);
     if (iter == _outputs.end())
         throw std::runtime_error("primitive: " + id + " is not a network output");
+
+    if (is_remote) {
+        _output_remote_mem_ptrs[id] = mem_new;
+    }
 
     auto& eng = get_engine();
     // locate primitive chain for this output
@@ -503,7 +507,7 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
         if (!prim->is_dynamic() && mem_new && prim->output_memory_ptr())
             mem = eng.reinterpret_buffer(*mem_new, prim->output_memory().get_layout());
 
-        ret_ev.push_back(prim->set_output_memory(mem));
+        ret_ev.push_back(prim->set_output_memory(mem, (!prim->is_dynamic() || !is_remote)));
         if (!_reset_arguments &&
             (prim->type() != cldnn::data::type_id() && !(prim->type() == cldnn::mutable_data::type_id() && prim->dependencies().empty()))) {
             prim->set_arguments();
@@ -693,6 +697,25 @@ bool network::contains_state(const std::string& variable_id) {
         return true;
     else
         return false;
+}
+
+memory& network::get_output_remote_memory(const primitive_id& id) const {
+    OPENVINO_ASSERT(_output_remote_mem_ptrs.count(id) == 1, "[GPU] Can't get output remote memory with ", id);
+    return *_output_remote_mem_ptrs.at(id);
+}
+
+bool network::has_output_remote_memory_ptr(const primitive_id& id) const {
+    auto it = _output_remote_mem_ptrs.find(id);
+    if (it != _output_remote_mem_ptrs.end())
+        return true;
+    else
+        return false;
+}
+
+void network::reset_output_remote_memory_ptrs() {
+    if (!_output_remote_mem_ptrs.empty()) {
+        _output_remote_mem_ptrs.clear();
+    }
 }
 
 void network::add_to_exec_order(const primitive_id& id) {
