@@ -855,7 +855,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     try {
         CompilerAdapterFactory compilerAdapterFactory;
         auto compiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), localConfig);
-        std::cout << CURRENT_OPENVINO_VERSION << "\n\n\n\n";
+
         uint64_t graphSize;
         const bool skipCompatibility = localConfig.get<SKIP_VERSION_CHECK>();
         if (!skipCompatibility) {
