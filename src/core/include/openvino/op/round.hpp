@@ -57,6 +57,7 @@ class OPENVINO_API AttributeAdapter<op::v5::Round::RoundMode>
     : public EnumAttributeAdapterBase<op::v5::Round::RoundMode> {
 public:
     AttributeAdapter(op::v5::Round::RoundMode& value) : EnumAttributeAdapterBase<op::v5::Round::RoundMode>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v5::Round::RoundMode>");
 };
