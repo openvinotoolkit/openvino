@@ -5,11 +5,7 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/constant.hpp"
-#include <cmath>  // Required for M_PI
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
+#include <cmath>
 
 namespace ov {
 namespace frontend {
@@ -22,9 +18,14 @@ OutputVector translate_rad2deg(const NodeContext& context) {
     
     // Retrieve the input tensor
     auto input = context.get_input(0);
+
+    // Get the input element type dynamically
+    auto input_type = input.get_element_type();
+
+    const double pi_val = std::atan(1.0) * 4;
     
     // Create a constant node with the conversion factor (180 / π)
-    auto conversion_factor = context.mark_node(ov::op::v0::Constant::create(element::f32, Shape{}, {180.0 / M_PI}));
+    auto conversion_factor = context.mark_node(ov::op::v0::Constant::create(input_type, Shape{}, {180.0 / pi_val}));
     
     // Apply the multiplication operation to convert radians to degrees
     auto result = context.mark_node(std::make_shared<ov::op::v1::Multiply>(input, conversion_factor));
