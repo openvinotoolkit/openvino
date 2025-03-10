@@ -52,9 +52,9 @@ std::optional<std::vector<T>> to_vector(const ov::Tensor& t) {
 /// \param offset_in_bytes Read file starting from specified offset. Default is 0. The remining size of the file should
 /// be compatible with shape.
 Tensor read_tensor_data(const std::filesystem::path& file_name,
-                             const element::Type& element_type = element::u8,
-                             const PartialShape& shape = PartialShape::dynamic(1),
-                             std::size_t offset_in_bytes = 0);
+                        const element::Type& element_type = element::u8,
+                        const PartialShape& shape = PartialShape::dynamic(1),
+                        std::size_t offset_in_bytes = 0);
 
 }  // namespace util
 }  // namespace ov
