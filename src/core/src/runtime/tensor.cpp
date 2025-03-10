@@ -113,6 +113,6 @@ Tensor Tensor::from_file(const std::filesystem::path& file_name,
                          const element::Type& element_type,
                          const PartialShape& partial_shape,
                          std::size_t offset_in_bytes) {
-    return ov::util::read_tensor_from_file(file_name, element_type, partial_shape, offset_in_bytes);
+    return ov::util::read_tensor_data(file_name, element_type, partial_shape, offset_in_bytes);
 }
 }  // namespace ov

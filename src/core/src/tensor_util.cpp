@@ -88,7 +88,8 @@ ov::Shape calc_static_shape_for_file(const std::filesystem::path& file_name,
         }
     }
     OPENVINO_ASSERT(dynamic_dimension_numbers.size() == 1,
-                    "Only dynamic PartialShape with 1 dynamic dimension is supported");
+                    "Only one dynamic dimension in input shape is supported but got: ",
+                    dynamic_dimension_numbers.size());
     auto& dynamic_dimension = partial_shape_copy[dynamic_dimension_numbers[0]];
 
     auto file_size = std::filesystem::file_size(file_name);
@@ -109,10 +110,10 @@ ov::Shape calc_static_shape_for_file(const std::filesystem::path& file_name,
 }
 }  // namespace
 
-Tensor read_tensor_from_file(const std::filesystem::path& file_name,
-                             const ov::element::Type& element_type,
-                             const ov::PartialShape& partial_shape,
-                             size_t offset_in_bytes) {
+Tensor read_tensor_data(const std::filesystem::path& file_name,
+                        const ov::element::Type& element_type,
+                        const ov::PartialShape& partial_shape,
+                        size_t offset_in_bytes) {
     OPENVINO_ASSERT(element_type != ov::element::string);
     auto static_shape = calc_static_shape_for_file(file_name, element_type, partial_shape, offset_in_bytes);
 
