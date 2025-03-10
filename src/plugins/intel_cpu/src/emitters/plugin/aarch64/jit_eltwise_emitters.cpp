@@ -2602,7 +2602,7 @@ size_t jit_softplus_emitter::get_inputs_count() const {
 }
 
 size_t jit_softplus_emitter::get_aux_vecs_count() const {
-    return std::max(exp_emitter->get_aux_vecs_count() + 2, 6ul);
+    return std::max<size_t>(exp_emitter->get_aux_vecs_count() + 2, 6);
 }
 
 size_t jit_softplus_emitter::get_aux_gprs_count() const {
