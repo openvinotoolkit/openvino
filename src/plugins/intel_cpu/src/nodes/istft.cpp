@@ -183,6 +183,7 @@ void istft_impl(const float* in_data,
     const int64_t copy_end = final_signal_length < data_end ? final_signal_length : data_end;
 
     std::vector<float> window_sum(batch_size * signal_length);
+    auto twiddles = rdft_executor->generateTwiddles({static_cast<int>(frame_size)}, {frame_size_dim}, {0});
 
     parallel_for(batch_size, [&](size_t batch) {
         for (size_t frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
@@ -195,16 +196,15 @@ void istft_impl(const float* in_data,
             const auto out_frame_end = out_frame_start + frame_size;
 
             std::vector<float> frame_signal(frame_size);
-            auto twiddles = rdft_executor->generateTwiddles({static_cast<int>(frame_size)}, fft_out_shape, {0});
             rdft_executor->execute(data_t.data() + in_frame_start,
                                    frame_signal.data(),
                                    twiddles,
                                    1,
                                    {0},
                                    {static_cast<int>(frame_size)},
-                                   {frame_size_dim, 2},
-                                   fft_out_shape,
-                                   {2, 1},
+                                   {frame_size_dim},
+                                   {frame_size_dim},
+                                   {1},
                                    {1});
 
             std::transform(frame_signal.begin(),
