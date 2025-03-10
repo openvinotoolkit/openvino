@@ -74,7 +74,7 @@ TResult get_raw_data_as(const element::Type_t et, const void* const ptr, const s
  */
 template <class T, class TResult = std::vector<T>, class UnaryOperation = ov::util::Cast<T>>
 TResult get_tensor_data_as(const Tensor& t, UnaryOperation&& func = ov::util::Cast<T>()) {
-    if(t.data() == nullptr) {
+    if (t.data() == nullptr) {
         return TResult();
     } else {
         return get_raw_data_as<T, TResult>(t.get_element_type(),
