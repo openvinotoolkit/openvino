@@ -2642,12 +2642,24 @@ void jit_softplus_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     const TReg vmm_src(in_vec_idxs[0]);
     const TReg vmm_dst(out_vec_idxs[0]);
 
-    const TReg vmm_aux0(aux_vec_idxs[0]);
+    const TReg vmm_mask(aux_vec_idxs[0]);
     const TReg vmm_aux1(aux_vec_idxs[1]);
     const TReg vmm_aux2(aux_vec_idxs[2]);
     const TReg vmm_aux3(aux_vec_idxs[3]);
-    const TReg vmm_aux4(aux_vec_idxs[exp_emitter->get_aux_vecs_count()]);
-    const TReg vmm_mask(aux_vec_idxs[exp_emitter->get_aux_vecs_count()+1]);
+    const TReg vmm_aux4(aux_vec_idxs[std::max(exp_emitter->get_aux_vecs_count(), 4)]);
+    const TReg vmm_aux0(aux_vec_idxs[std::max(exp_emitter->get_aux_vecs_count() + 1, 5)]);
+
+    // ln(1 + exp(x)) =
+    // = ln(1 + exp(n * ln(2) + r)) // divide x by ln(2) and get quot and rem
+    // = ln(1 + 2^n * exp(r)) // simplify the exp(n*ln(2)) expression
+    // = ln(2 ^ 0 + 2^n * exp(r)) // note 1 = 2^0
+    // = ln(2 ^ (n - n) + 2^n * exp(r)) // 2^0 = 2^(n-n)
+    // = ln(2 ^ n * (2^-n + exp(r))) // factorize with 2^n
+    // = n * ln(2) + ln(2^-n + exp(r)) // take the 2^n factor out of the ln
+
+    // to prevent overflow for n = -128, which is not representable by fp32
+    // we modify the above formula to
+    // = n * ln(2) + ln((2^-(n-1) + 2 * exp(r))/2)
 
     h->ld1r(vmm_aux0.s, table_val2("exp_ln_flt_min_f")); // load min allowed value
     h->mov(vmm_aux1.b16, vmm_src.b16);
@@ -2658,7 +2670,7 @@ void jit_softplus_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     h->frintm(vmm_aux3.s, vmm_aux2.s);           
     h->fcvtzs(vmm_aux4.s, vmm_aux3.s);           
     
-    // // Compute remainder r = x - n*ln2
+    // Compute remainder r = x - n*ln2
     h->scvtf(vmm_aux2.s, vmm_aux4.s);            
     h->ld1r(vmm_aux0.s, table_val2("ln2"));
     h->fmul(vmm_aux1.s, vmm_aux0.s, vmm_aux2.s);
@@ -2701,7 +2713,7 @@ void jit_softplus_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     // for better log approximation with 8th degree polynomial
     h->fsub(vmm_aux0.s, vmm_aux0.s, vmm_aux2.s); 
     
-    // // Log polynomial approximation: log(1+y'') using Taylor series
+    // Log polynomial approximation: log(1+y'') using Taylor series
     h->ld1r(vmm_aux2.s, table_val2("log_pol6"));
     h->ld1r(vmm_aux4.s, table_val2("log_pol5"));
     h->fmla(vmm_aux4.s, vmm_aux2.s, vmm_aux0.s);
@@ -2726,7 +2738,6 @@ void jit_softplus_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     h->mov(vmm_dst.b16, vmm_aux4.b16);
     h->fmul(vmm_dst.s, vmm_aux0.s, vmm_dst.s);
     
-    // // Final result = (n+k)*ln2 + log(m)
     h->ld1r(vmm_aux4.s, table_val2("ln2"));
     h->fadd(vmm_aux1.s, vmm_aux1.s, vmm_aux3.s);      
     h->fmla(vmm_dst.s, vmm_aux1.s, vmm_aux4.s);             
