@@ -262,7 +262,7 @@ void Constant::allocate_buffer(bool memset_allocation) {
         m_data = std::make_shared<AlignedBuffer>(byte_size, host_alignment());
 
         // AlignedBuffer allocates 1 byte for empty constants, and we set it to zero
-        if (memset_allocation || m_data->size() != byte_size) {
+        if (memset_allocation || byte_size == 0) {
             std::memset(m_data->get_ptr(), init_value, m_data->size());
         } else {
             set_unused_bits(m_data->get_ptr());
