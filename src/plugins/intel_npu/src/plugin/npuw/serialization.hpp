@@ -5,6 +5,7 @@
 #pragma once
 
 #include <array>
+#include <functional>
 #include <iostream>
 #include <map>
 #include <memory>
