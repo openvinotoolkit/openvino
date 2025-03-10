@@ -139,7 +139,7 @@ def main():
             file.write(workflow_link)
         store_checksums(workflow_link_file)
 
-    if not error_found:
+    if not error_found and os.getenv('GITHUB_REPOSITORY') == 'openvinotoolkit/openvino':
         latest_artifacts_for_branch = artifact_utils.get_latest_artifacts_link(storage_dir, args.storage_root,
                                                                                args.branch_name, args.event_name)
         # Overwrite path to "latest" built artifacts only if a given commit is the head of a given branch
