@@ -11,9 +11,10 @@
 namespace ov {
 namespace frontend {
 namespace onnx {
-class ConversionExtension : public ConversionExtensionBase {
+class ONNX_FRONTEND_API ConversionExtension : public ConversionExtensionBase {
 public:
     OPENVINO_RTTI("frontend::onnx::ConversionExtension", "", ConversionExtensionBase);
+    ~ConversionExtension() override;
 
     using Ptr = std::shared_ptr<ConversionExtension>;
 
