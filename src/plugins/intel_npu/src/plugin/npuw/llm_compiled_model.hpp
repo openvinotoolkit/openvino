@@ -50,15 +50,11 @@ private:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     void implement_properties();
 
-    void serialize(std::ostream& stream,
-                   bool encrypted = false,
-                   std::function<std::string(const std::string&)> encypt = nullptr) const;
-    static std::shared_ptr<LLMCompiledModel> deserialize(
-        std::istream& stream,
-        const std::shared_ptr<const ov::IPlugin>& plugin,
-        const ov::AnyMap& properties,
-        bool encrypted = false,
-        std::function<std::string(const std::string&)> decrypt = nullptr);
+    void serialize(std::ostream& stream, const ov::npuw::s11n::LLMSerializeContext& ctx) const;
+    static std::shared_ptr<LLMCompiledModel> deserialize(std::istream& stream,
+                                                         const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                         const ov::AnyMap& properties,
+                                                         const ov::npuw::s11n::LLMDeserializeContext& ctx);
 
     std::string m_name;
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
