@@ -2,7 +2,9 @@ from __future__ import annotations
 from builtins import builtin_function_or_method as BuiltinFunctionType
 from builtins import module as ModuleType
 import sys as sys
-__all__ = ['BuiltinFunctionType', 'ModuleType', 'Property', 'sys']
+import typing
+from typing import Any
+__all__ = ['Any', 'BuiltinFunctionType', 'ModuleType', 'Property', 'sys']
 class Property(str):
     """
     This class allows to make a string object callable. Call returns underlying string's data.

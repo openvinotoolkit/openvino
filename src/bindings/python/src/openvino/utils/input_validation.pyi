@@ -5,7 +5,8 @@ from __future__ import annotations
 import logging as logging
 import numpy as np
 from openvino.exceptions import UserInputError
-__all__ = ['UserInputError', 'assert_list_of_ints', 'check_valid_attribute', 'check_valid_attributes', 'is_non_negative_value', 'is_positive_value', 'log', 'logging', 'np']
+from typing import Any
+__all__ = ['Any', 'UserInputError', 'assert_list_of_ints', 'check_valid_attribute', 'check_valid_attributes', 'is_non_negative_value', 'is_positive_value', 'log', 'logging', 'np']
 def _check_value(op_name, attr_key, value, val_type, cond = None):
     """
     Check whether provided value satisfies specified criteria.

@@ -29,10 +29,10 @@ def normalize_imports(lines):
 
 # Ignore differences in memory addresses like in function _get_node_factory at 0x7fdad9f53640
 # Ignore differences in version strings like __version__: str = '2025.1.0-18207-10035956d7f-pyi_files'
-def remove_unique_strings(lines):
-    lines = [re.sub(r'at 0x[0-9a-fA-F]+', 'at <memory_address>', line) for line in lines]
-    lines = [re.sub(r'__version__: str = \'[^\']+\'', '__version__: str = \'<version_string>\'', line) for line in lines]
-    return lines
+#def remove_unique_strings(lines):
+#    lines = [re.sub(r'at 0x[0-9a-fA-F]+', 'at <memory_address>', line) for line in lines]
+#    lines = [re.sub(r'__version__: str = \'[^\']+\'', '__version__: str = \'<version_string>\'', line) for line in lines]
+#    return lines
 
 
 def compare_files(file1, file2):
@@ -45,8 +45,8 @@ def compare_files(file1, file2):
         normalized_lines1 = normalize_imports(lines1)
         normalized_lines2 = normalize_imports(lines2)
 
-        normalized_lines1 = remove_unique_strings(normalized_lines1)
-        normalized_lines2 = remove_unique_strings(normalized_lines2)
+        #normalized_lines1 = remove_unique_strings(normalized_lines1)
+        #normalized_lines2 = remove_unique_strings(normalized_lines2)
         # DEBUG: Display differences, this fails on CI for one init and I'm not sure why
         if normalized_lines1 != normalized_lines2:
             for line1, line2 in zip(normalized_lines1, normalized_lines2):

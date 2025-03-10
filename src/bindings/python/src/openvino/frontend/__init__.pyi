@@ -22,4 +22,4 @@ from openvino.frontend.frontend import FrontEnd
 from openvino.frontend.frontend import FrontEndManager
 from . import frontend
 __all__ = ['ConversionExtension', 'DecoderTransformationExtension', 'FrontEnd', 'FrontEndManager', 'GeneralFailure', 'InitializationFailure', 'InputModel', 'NodeContext', 'NotImplementedFailure', 'OpConversionFailure', 'OpExtension', 'OpValidationFailure', 'Place', 'ProgressReporterExtension', 'TelemetryExtension', 'frontend', 'get_version']
-__version__: str = '2025.1.0-18198-298262e2962-pyi_files'
+__version__: str = '2025.1.0-18209-ede7b13484a-pyi_files'
