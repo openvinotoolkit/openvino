@@ -51,8 +51,10 @@ inline const bool FUNC(is_between)(int val, int min, int max) {
     const int v10_OFFSET = v10_valid ? (GLOBAL_OFFSET + (y_topleft + 1) * INPUT0_SIZE_X + x_topleft) : 0; \
     const int v11_OFFSET = v11_valid ? (GLOBAL_OFFSET + (y_topleft + 1) * INPUT0_SIZE_X + x_topleft + 1) : 0;
 
-// WARNING: This loads may read from 'wrong' location - this
-// is done intentianally to keep warp without need to sync
+// WARNING: This loads may read from 'wrong' location
+// (in sense that is has nothing to do with 
+// sampling point being calculated) - this is done
+// intentianally to keep warp without need to sync
 // and allows for having multiple such loads on the fly - if
 // compiler is smart enough.
 // Otherwise, if load is done conditionally, software pipelinging
