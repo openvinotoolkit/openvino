@@ -448,6 +448,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
             RW_property(ov::value_cache_precision.name()),
             RW_property(ov::key_cache_group_size.name()),
             RW_property(ov::value_cache_group_size.name()),
+            RW_property(ov::weights_path.name())
         };
 
         std::vector<ov::PropertyName> supportedProperties;
@@ -593,11 +594,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
     ModelDeserializer deserializer(
         model_stream,
         model_buffer,
-        [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
-            return get_core()->read_model(model, weights);
+        [this](const std::shared_ptr<ov::AlignedBuffer>& model,
+               const std::shared_ptr<ov::AlignedBuffer>& weights,
+               const std::shared_ptr<ov::AlignedBuffer>& origin_weights) {
+            return get_core()->read_model(model, weights, origin_weights);
         },
         decrypt,
         decript_from_string);
+    auto wp_it = _config.find(ov::weights_path.name());
+    if (wp_it != _config.end()) {
+        deserializer.set_weights_path(wp_it->second.as<std::string>());
+    }
 
     std::shared_ptr<ov::Model> model;
     deserializer >> model;
