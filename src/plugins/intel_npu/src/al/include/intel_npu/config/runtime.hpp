@@ -309,4 +309,18 @@ struct RUN_INFERENCES_SEQUENTIALLY final : OptionBase<RUN_INFERENCES_SEQUENTIALL
     }
 };
 
+struct SKIP_VERSION_CHECK final : OptionBase<SKIP_VERSION_CHECK, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::skip_version_check.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
 }  // namespace intel_npu

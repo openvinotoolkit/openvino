@@ -575,9 +575,15 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<RUN_INFERENCES_SEQUENTIALLY>();
           }}},
-        {ov::intel_npu::batch_mode.name(), {false, ov::PropertyMutability::RW, [](const Config& config) {
-                                                return config.getString<BATCH_MODE>();
-                                            }}}};
+        {ov::intel_npu::batch_mode.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.getString<BATCH_MODE>();
+          }}},
+        {ov::intel_npu::skip_version_check.name(), {false, ov::PropertyMutability::RW, [](const Config& config) {
+                                                        return config.getString<SKIP_VERSION_CHECK>();
+                                                    }}}};
 }
 
 void Plugin::reset_supported_properties() const {
@@ -851,15 +857,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         auto compiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), localConfig);
 
         bool skipCompatibility = false;
+        const auto skip_property = localConfig.get<SKIP_VERSION_CHECK>();
 
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
-        if (auto envVar = std::getenv("OV_NPU_DISABLE_VERSION_CHECK")) {
-            if (envVarStrToBool("OV_NPU_DISABLE_VERSION_CHECK", envVar)) {
-                _logger.info("Blob compatibility check skipped.");
-                skipCompatibility = true;
-            }
+        if (skip_property) {
+            _logger.info("Blob compatibility check skipped.");
+            skipCompatibility = true;
         }
-#endif
+
         uint64_t graphSize;
         if (!skipCompatibility) {
             auto storedMeta = read_metadata_from(stream);

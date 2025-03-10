@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include "openvino/core/version.hpp"
 
 namespace intel_npu {
 
@@ -83,6 +84,8 @@ constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_1_0};
 
 constexpr uint16_t CURRENT_METADATA_MAJOR_VERSION{MetadataBase::get_major(CURRENT_METADATA_VERSION)};
 constexpr uint16_t CURRENT_METADATA_MINOR_VERSION{MetadataBase::get_minor(CURRENT_METADATA_VERSION)};
+
+#define CURRENT_OPENVINO_VERSION OPENVINO_VERSION_MAJOR OPENVINO_VERSION_MINOR OPENVINO_VERSION_PATCH
 
 struct OpenvinoVersion {
 private:
