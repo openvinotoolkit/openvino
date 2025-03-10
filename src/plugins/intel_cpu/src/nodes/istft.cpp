@@ -144,7 +144,7 @@ void istft_impl(const float* in_data,
     std::vector<float> pad_window(frame_size, 0);
     std::copy(window, window + window_shape[0], pad_window.begin() + (frame_size_dim - window_length) / 2);
 
-    std::vector<float> data_t(in_data, in_data + shape_size(data_shape));
+    std::vector<float> data_t(shape_size(data_shape));
     const auto stft_transp_out_shape = ov::Shape{batch_size, num_frames, fft_out_shape[0], fft_out_shape[1]};
     transpose_out4d(reinterpret_cast<const uint8_t*>(in_data),
                     reinterpret_cast<uint8_t*>(data_t.data()),
