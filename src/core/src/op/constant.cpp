@@ -257,10 +257,11 @@ void Constant::allocate_buffer(bool memset_allocation) {
     const auto byte_size = element::get_memory_size(m_element_type, num_elements);
     if (m_element_type == ov::element::string) {
         m_data = std::make_shared<StringAlignedBuffer>(num_elements, byte_size, host_alignment(), memset_allocation);
+    } else if (byte_size == 0) {
+        m_data = std::make_shared<AlignedBuffer>();
     } else {
         constexpr uint8_t init_value = 0;
         m_data = std::make_shared<AlignedBuffer>(byte_size, host_alignment());
-
         if (memset_allocation) {
             std::memset(m_data->get_ptr(), init_value, m_data->size());
         } else {

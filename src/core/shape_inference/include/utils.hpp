@@ -74,10 +74,14 @@ TResult get_raw_data_as(const element::Type_t et, const void* const ptr, const s
  */
 template <class T, class TResult = std::vector<T>, class UnaryOperation = ov::util::Cast<T>>
 TResult get_tensor_data_as(const Tensor& t, UnaryOperation&& func = ov::util::Cast<T>()) {
-    return get_raw_data_as<T, TResult>(t.get_element_type(),
-                                       t.data(),
-                                       t.get_size(),
-                                       std::forward<UnaryOperation>(func));
+    if (t && t.data() != nullptr) {
+        return get_raw_data_as<T, TResult>(t.get_element_type(),
+                                           t.data(),
+                                           t.get_size(),
+                                           std::forward<UnaryOperation>(func));
+    } else {
+        return TResult();
+    }
 }
 
 namespace util {
@@ -215,10 +219,14 @@ std::optional<TRes> get_input_const_data_as(const ov::Node* op,
         NODE_VALIDATION_CHECK(op, constant != nullptr, "Static shape inference lacks constant data on port ", idx);
         const auto& et = constant->get_element_type();
         const auto& shape = constant->get_shape();
-        return {get_raw_data_as<TData, TRes>(et,
-                                             constant->get_data_ptr(),
-                                             shape_size(shape),
-                                             std::forward<UnaryOperation>(func))};
+        if (constant->get_data_ptr() != nullptr) {
+            return {get_raw_data_as<TData, TRes>(et,
+                                                 constant->get_data_ptr(),
+                                                 shape_size(shape),
+                                                 std::forward<UnaryOperation>(func))};
+        } else {
+            return TRes();
+        }
     }
 }
 
@@ -255,10 +263,14 @@ std::optional<TRes> get_input_const_data_as(const ov::Node* op,
                    (idx < op->get_input_size()) ? ov::util::get_constant_from_source(op->input_value(idx)) : nullptr) {
         const auto& et = constant->get_element_type();
         const auto& shape = constant->get_shape();
-        return {get_raw_data_as<TData, TRes>(et,
-                                             constant->get_data_ptr(),
-                                             shape_size(shape),
-                                             std::forward<UnaryOperation>(func))};
+        if (constant->get_data_ptr() != nullptr) {
+            return {get_raw_data_as<TData, TRes>(et,
+                                                 constant->get_data_ptr(),
+                                                 shape_size(shape),
+                                                 std::forward<UnaryOperation>(func))};
+        } else {
+            return TRes();
+        }
     } else {
         return {};
     }
