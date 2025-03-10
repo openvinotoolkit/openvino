@@ -5,6 +5,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -14,7 +15,6 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <cstdint>
 
 namespace ov {
 namespace npuw {

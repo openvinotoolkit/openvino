@@ -6,10 +6,10 @@
 #ifdef CPU_DEBUG_CAPS
 
 #    include <bitset>
+#    include <cstdint>
 #    include <memory>
 #    include <unordered_map>
 #    include <utility>
-#    include <cstdint>
 
 #    include "openvino/core/except.hpp"
 #    include "openvino/util/common_util.hpp"
