@@ -223,7 +223,6 @@ jobs:
       runner: 'aks-linux-16-cores-arm'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}
       python-version: '3.11'
-      scope: ${{ github.event_name == 'workflow_dispatch' && 'nightly' || 'smoke' }}
 
   TensorFlow_Models_Tests:
     name: TensorFlow Models tests
