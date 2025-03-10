@@ -72,9 +72,3 @@ INTERPRETER.onnx_softmax_crossentropy_loss_mean
 # Incorrect order of elements returned by the TopK implementation
 INTERPRETER.onnx_model_top_k_repeating
 INTERPRETER.onnx_model_top_k_repeating_unsorted
-
-# Interpreter backend doesn't implement evaluate method for OP ScaledDotProductAttention
-INTERPRETER.onnx_model_gqa_past_0_input_1_rotary
-INTERPRETER.onnx_model_gqa_past_0_input_1_rotary_interleaved
-INTERPRETER.onnx_model_gqa_past_1_input_1_rotary
-INTERPRETER.onnx_model_gqa_past_1_input_1_rotary_interleaved
