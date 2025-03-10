@@ -262,7 +262,7 @@ int64_t get_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
     }
 }
 
-dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_tag target_fmt, bool flatten) {
+dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_tag target_fmt, bool flatten, int dst_ndims) {
     dnnl::memory::dims dims;
     if (target_fmt == dnnl::memory::format_tag::ab && flatten) {
         dims = flatten_tensor(l.get_tensor());
@@ -286,6 +286,11 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
 
     dnnl::memory::data_type dt = convert_data_type(l.data_type);
     dnnl::memory::format_tag fmt = target_fmt == dnnl::memory::format_tag::undef ? convert_data_format(l.format) : target_fmt;
+    if (dims.size() == 2 && dst_ndims == 4) {
+        dims.push_back(1);
+        dims.push_back(1);
+        fmt = dnnl::memory::format_tag::abcd;
+    }
     dnnl::memory::desc res(dims, dt, fmt);
 
     return res;
