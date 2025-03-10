@@ -156,7 +156,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
             )
         endif()
 
-        set(LIB_INCLUDE_DIRS "${ONEDNN_INSTALL_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src" "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/third_party")
+        set(LIB_INCLUDE_DIRS "${ONEDNN_INSTALL_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src" "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src/gpu/intel/jit/ngen" "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/third_party" "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/third_party/ngen")
         set(LIB_DEFINITIONS ENABLE_ONEDNN_FOR_GPU
                             DNNL_DLL
                             DNNL_DLL_EXPORTS
