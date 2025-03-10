@@ -87,6 +87,8 @@ protected:
     void set_output_port_descriptor(const PortDescriptor& desc, const size_t i);
     const PortDescriptor& get_input_port_descriptor(const size_t i) const;
     const PortDescriptor& get_output_port_descriptor(const size_t i) const;
+    const std::vector<PortDescriptor> get_input_port_descriptors() const;
+    const std::vector<PortDescriptor> get_output_port_descriptors() const;
     PortDescriptor& get_input_port_descriptor(const size_t i);
     PortDescriptor& get_output_port_descriptor(const size_t i);
 

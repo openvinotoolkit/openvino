@@ -22,50 +22,15 @@ public:
     using BRGEMM_TYPE = brgemm_utils::BRGEMM_TYPE;
     OPENVINO_OP("BrgemmCPU", "SnippetsOpset", snippets::op::Brgemm);
 
-    BrgemmCPU(const Output<Node>& A,
-              const Output<Node>& B,
+    using PostopsConfig = std::vector<std::pair<type_info_t, ov::NodeVector>>;
+    BrgemmCPU(const ov::OutputVector& inputs,
               BRGEMM_TYPE type,
-              const size_t offset_a = 0,
-              const size_t offset_b = 0,
-              const size_t offset_c = 0,
+              const std::vector<PortDescriptor>& input_descs = {},
+              const PortDescriptor& output_desc = {0, 0},
               const std::vector<size_t>& layout_a = {},
               const std::vector<size_t>& layout_b = {},
               const std::vector<size_t>& layout_c = {},
-              ov::NodeVector post_ops = {});
-    BrgemmCPU(const Output<Node>& A,
-              const Output<Node>& B,
-              const Output<Node>& scratch,
-              BRGEMM_TYPE type,
-              const size_t offset_a = 0,
-              const size_t offset_b = 0,
-              const size_t offset_scratch = 0,
-              const size_t offset_c = 0,
-              const std::vector<size_t>& layout_a = {},
-              const std::vector<size_t>& layout_b = {},
-              const std::vector<size_t>& layout_c = {},
-              ov::NodeVector post_ops = {});
-    BrgemmCPU(const Output<Node>& A,
-              const Output<Node>& B,
-              BRGEMM_TYPE type,
-              const PortDescriptor& desc_a,
-              const PortDescriptor& desc_b,
-              const PortDescriptor& desc_c,
-              const std::vector<size_t>& layout_a = {},
-              const std::vector<size_t>& layout_b = {},
-              const std::vector<size_t>& layout_c = {},
-              ov::NodeVector post_ops = {});
-    BrgemmCPU(const Output<Node>& A,
-              const Output<Node>& B,
-              const Output<Node>& scratch,
-              BRGEMM_TYPE type,
-              const PortDescriptor& desc_a,
-              const PortDescriptor& desc_b,
-              const PortDescriptor& desc_scratch,
-              const PortDescriptor& desc_c,
-              const std::vector<size_t>& layout_a = {},
-              const std::vector<size_t>& layout_b = {},
-              const std::vector<size_t>& layout_c = {},
-              ov::NodeVector post_ops = {});
+              PostopsConfig post_ops = {});
     BrgemmCPU() = default;
 
     void validate_and_infer_types() override;
@@ -91,12 +56,15 @@ private:
     void custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_a,
                                                      const std::vector<size_t>& layout_b,
                                                      const std::vector<size_t>& layout_c);
+    static size_t compute_main_inputs_count(const BRGEMM_TYPE type);
     void validate_with_scratchpad() const;
     void validate_inputs() const;
     ov::element::Type get_output_type() const override;
 
     BRGEMM_TYPE m_type = BRGEMM_TYPE::STAND_ALONE;
 
-    ov::NodeVector m_post_ops = {};
+    PostopsConfig m_post_ops = {};
+
+    const size_t m_main_inputs_count = 0lu;
 };
 }  // namespace ov::intel_cpu

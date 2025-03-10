@@ -121,6 +121,24 @@ MemoryAccess::PortDescriptor& MemoryAccess::get_output_port_descriptor(const siz
     return const_cast<MemoryAccess::PortDescriptor&>(const_cast<const MemoryAccess*>(this)->get_output_port_descriptor(i));
 }
 
+const std::vector<MemoryAccess::PortDescriptor> MemoryAccess::get_input_port_descriptors() const {
+    std::vector<MemoryAccess::PortDescriptor> res;
+    for (const auto& p : m_input_ports) {
+        OPENVINO_ASSERT(p.first < m_input_ports.size(), "Index of input port descriptor should be less than count of input ports");
+        res.push_back(p.second);
+    }
+    return res;
+}
+
+const std::vector<MemoryAccess::PortDescriptor> MemoryAccess::get_output_port_descriptors() const {
+    std::vector<MemoryAccess::PortDescriptor> res;
+    for (const auto& p : m_output_ports) {
+        OPENVINO_ASSERT(p.first < m_output_ports.size(), "Index of output port descriptor should be less than count of input ports");
+        res.push_back(p.second);
+    }
+    return res;
+}
+
 void  MemoryAccess::set_input_count(size_t count, size_t idx) {
     get_input_port_descriptor(idx).count = count;
 }
