@@ -226,9 +226,9 @@ TEST_F(TransformationTestsF, ConvertGatherToCompressedMultiOutput) {
     }
 }
 
-// In compressed FP16/BF16 weight case, it transform gather node with constant weight decompression pattern(FP16/BF16 +
-// convert(FP32)) to gather node with compressed(FP16/BF16) weight, and move decompression after gather node, so
-// GatherCompressed node should not generated.
+// In compressed FP16/BF16 weight case, gather node with constant weight decompression pattern (FP16/BF16 +
+// convert(FP32)) is transformed to gather node with compressed (FP16/BF16) weights, and decompression convert is moved
+// after gather node, so GatherCompressed node should not be generated.
 TEST_F(TransformationTestsF, MoveDecompressionAfterGatherFP16Weight) {
     {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 16});

@@ -151,25 +151,19 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
 ov::pass::MoveDecompressionAfterGather::MoveDecompressionAfterGather() {
     using namespace ov::pass::pattern;
 
-    auto compressed_constant_without_scale = [](const ov::Output<ov::Node>& output) {
-        return output.get_element_type() == ov::element::f16 || output.get_element_type() == ov::element::bf16;
+    auto dicts = wrap_type<ov::op::v0::Constant>(pattern::type_matches_any({element::f16, element::bf16}));
+    auto convert_predicate = [](ov::Output<ov::Node> output) -> bool {
+        return pattern::consumers_count(1)(output) && pattern::type_matches(ov::element::f32)(output);
     };
-    auto dicts_wo_scale = wrap_type<ov::op::v0::Constant>(compressed_constant_without_scale);
-    auto convert_wo_scale = wrap_type<ov::op::v0::Convert>({dicts_wo_scale}, pattern::consumers_count(1));
-    auto gather_wo_scale =
-        wrap_type<ov::op::v8::Gather>({convert_wo_scale, any_input(), wrap_type<ov::op::v0::Constant>()});
+    auto convert = wrap_type<ov::op::v0::Convert>({dicts}, convert_predicate);
+    auto gather = wrap_type<ov::op::v8::Gather>({convert, any_input(), wrap_type<ov::op::v0::Constant>()});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        auto constant_node = pattern_map.at(dicts_wo_scale).get_node_shared_ptr();
-        auto convert_node = pattern_map.at(convert_wo_scale).get_node_shared_ptr();
-        auto gather_node = pattern_map.at(gather_wo_scale).get_node_shared_ptr();
+        auto constant_node = pattern_map.at(dicts).get_node_shared_ptr();
+        auto convert_node = pattern_map.at(convert).get_node_shared_ptr();
+        auto gather_node = pattern_map.at(gather).get_node_shared_ptr();
         if (transformation_callback(gather_node)) {
-            return false;
-        }
-
-        if (convert_node->get_output_target_inputs(0).size() != 1 ||
-            convert_node->get_output_element_type(0) != element::Type_t::f32) {
             return false;
         }
 
@@ -187,6 +181,6 @@ ov::pass::MoveDecompressionAfterGather::MoveDecompressionAfterGather() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(gather_wo_scale, "MoveDecompressionAfterGather");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(gather, "MoveDecompressionAfterGather");
     this->register_matcher(m, callback);
 }
