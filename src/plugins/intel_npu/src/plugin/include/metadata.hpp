@@ -8,7 +8,7 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <vector>
+
 #include "openvino/core/version.hpp"
 
 namespace intel_npu {
@@ -85,7 +85,11 @@ constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_1_0};
 constexpr uint16_t CURRENT_METADATA_MAJOR_VERSION{MetadataBase::get_major(CURRENT_METADATA_VERSION)};
 constexpr uint16_t CURRENT_METADATA_MINOR_VERSION{MetadataBase::get_minor(CURRENT_METADATA_VERSION)};
 
-#define CURRENT_OPENVINO_VERSION OPENVINO_VERSION_MAJOR OPENVINO_VERSION_MINOR OPENVINO_VERSION_PATCH
+#define NPU_STRINGIFY(x) #x
+#define NPU_TOSTRING(x)  NPU_STRINGIFY(x)
+
+#define CURRENT_OPENVINO_VERSION \
+    NPU_TOSTRING(OPENVINO_VERSION_MAJOR) "." NPU_TOSTRING(OPENVINO_VERSION_MINOR) "." NPU_TOSTRING(OPENVINO_VERSION_PATCH)
 
 struct OpenvinoVersion {
 private:
@@ -106,6 +110,10 @@ public:
      * @brief Writes version data to a stream.
      */
     void write(std::ostream& stream);
+
+    static std::string make_version(int major, int minor, int patch) {
+        return std::string(std::to_string(major) + "." + std::to_string(minor) + "." + std::to_string(patch));
+    }
 
     /**
      * @brief Gets the version string.

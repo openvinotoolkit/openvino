@@ -31,7 +31,7 @@ TEST_F(MetadataUnitTests, readUnversionedBlob) {
 TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlob) {
     uint64_t blobSize = 0;
     std::stringstream stream;
-    auto meta = MetadataTest(blobSize, ov::get_openvino_version().buildNumber);
+    auto meta = MetadataTest(blobSize, CURRENT_OPENVINO_VERSION);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
 

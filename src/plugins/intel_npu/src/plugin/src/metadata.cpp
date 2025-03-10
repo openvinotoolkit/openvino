@@ -8,9 +8,7 @@
 #include <optional>
 #include <sstream>
 
-#include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "openvino/core/version.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 
 namespace intel_npu {
@@ -18,6 +16,8 @@ namespace intel_npu {
 OpenvinoVersion::OpenvinoVersion(std::string_view version)
     : _version(version),
       _size(static_cast<uint32_t>(version.size())) {}
+
+// std::string_view CURRENT_OPENVINO_VERSION{OpenvinoVersion::make_version(OPENVINO_VERSION_MAJOR, OPENVINO_VERSION_MINOR, OPENVINO_VERSION_PATCH)};
 
 void OpenvinoVersion::read(std::istream& stream) {
     stream.read(reinterpret_cast<char*>(&_size), sizeof(_size));
@@ -32,7 +32,7 @@ void OpenvinoVersion::write(std::ostream& stream) {
 
 Metadata<METADATA_VERSION_1_0>::Metadata(uint64_t blobSize, std::optional<std::string_view> ovVersion)
     : MetadataBase{METADATA_VERSION_1_0},
-      _ovVersion{ovVersion.value_or(ov::get_openvino_version().buildNumber)},
+      _ovVersion{ovVersion.value_or(CURRENT_OPENVINO_VERSION)},
       _blobDataSize{blobSize} {}
 
 void Metadata<METADATA_VERSION_1_0>::read(std::istream& stream) {
@@ -68,10 +68,10 @@ std::string OpenvinoVersion::get_version() const {
 bool Metadata<METADATA_VERSION_1_0>::is_compatible() {
     auto logger = Logger::global().clone("NPUBlobMetadata");
     // checking if we can import the blob
-    if (_ovVersion.get_version() != ov::get_openvino_version().buildNumber) {
+    if (_ovVersion.get_version() != CURRENT_OPENVINO_VERSION) {
         logger.error("Imported blob OpenVINO version: %s, but the current OpenVINO version is: %s",
                      _ovVersion.get_version().c_str(),
-                     ov::get_openvino_version().buildNumber);
+                     CURRENT_OPENVINO_VERSION);
         return false;
     }
     return true;

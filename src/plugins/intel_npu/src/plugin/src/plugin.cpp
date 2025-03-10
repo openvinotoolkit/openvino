@@ -855,16 +855,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     try {
         CompilerAdapterFactory compilerAdapterFactory;
         auto compiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), localConfig);
-
-        bool skipCompatibility = false;
-        const auto skip_property = localConfig.get<SKIP_VERSION_CHECK>();
-
-        if (skip_property) {
-            _logger.info("Blob compatibility check skipped.");
-            skipCompatibility = true;
-        }
-
+        std::cout << CURRENT_OPENVINO_VERSION << "\n\n\n\n";
         uint64_t graphSize;
+        const bool skipCompatibility = localConfig.get<SKIP_VERSION_CHECK>();
         if (!skipCompatibility) {
             auto storedMeta = read_metadata_from(stream);
             if (!storedMeta->is_compatible()) {
@@ -872,6 +865,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             }
             graphSize = storedMeta->get_blob_size();
         } else {
+            _logger.info("Blob compatibility check skipped.");
             graphSize = MetadataBase::getFileSize(stream);
         }
 
