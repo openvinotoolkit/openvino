@@ -62,6 +62,9 @@ TEST(add_onednn_optimization_attributes, init_attribute_for_fused_onednn_primiti
 TEST(add_onednn_optimization_attributes, sum_post_op_for_residual_connection) {
     auto& engine = get_test_engine();
 
+    if (!engine.get_device_info().supports_immad)
+        return;
+
     auto in_layout = layout{ov::PartialShape({1, 3, 32, 32}), data_types::f16, format::bfyx};
     auto input = engine.allocate_memory(layout{ov::PartialShape({1, 3, 32, 32}), data_types::f16, format::bfyx});
     auto weight = engine.allocate_memory(layout{ov::PartialShape({3, 3, 1, 1}), data_types::f16, format::bfyx});
