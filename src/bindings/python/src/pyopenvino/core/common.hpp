@@ -188,7 +188,7 @@ std::string get_simple_repr(const T& obj) {
     return "<" + class_name + ">";
 }
 
-typedef std::variant<std::shared_ptr<ov::Node>, int, float, py::array> NodeInput;
+typedef std::variant<std::shared_ptr<ov::Node>, int64_t, double, py::array> NodeInput;
 
 std::shared_ptr<ov::Node> node_from_input_value(NodeInput& input);
 

@@ -675,9 +675,9 @@ ov::pass::Serialize::Version convert_to_version(const std::string& version) {
 std::shared_ptr<ov::Node> node_from_input_value(NodeInput& input) {
     if (std::shared_ptr<ov::Node>* node = std::get_if<std::shared_ptr<ov::Node>>(&input)) {
         return *node;
-    } else if (const int* i_val = std::get_if<int>(&input)) {
+    } else if (const int64_t* i_val = std::get_if<int64_t>(&input)) {
         return std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, i_val);
-    } else if (const float* f_val = std::get_if<float>(&input)) {
+    } else if (const double* f_val = std::get_if<double>(&input)) {
         return std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::f64, ov::Shape{}, f_val);
     } else {
         auto& np_array = std::get<py::array>(input);
