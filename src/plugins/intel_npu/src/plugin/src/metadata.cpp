@@ -17,8 +17,6 @@ OpenvinoVersion::OpenvinoVersion(std::string_view version)
     : _version(version),
       _size(static_cast<uint32_t>(version.size())) {}
 
-// std::string_view CURRENT_OPENVINO_VERSION{OpenvinoVersion::make_version(OPENVINO_VERSION_MAJOR, OPENVINO_VERSION_MINOR, OPENVINO_VERSION_PATCH)};
-
 void OpenvinoVersion::read(std::istream& stream) {
     stream.read(reinterpret_cast<char*>(&_size), sizeof(_size));
     _version.resize(_size);

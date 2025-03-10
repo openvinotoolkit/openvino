@@ -111,10 +111,6 @@ public:
      */
     void write(std::ostream& stream);
 
-    static std::string make_version(int major, int minor, int patch) {
-        return std::string(std::to_string(major) + "." + std::to_string(minor) + "." + std::to_string(patch));
-    }
-
     /**
      * @brief Gets the version string.
      */
