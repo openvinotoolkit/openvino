@@ -54,7 +54,7 @@ void regclass_graph_Node(py::module m) {
             Return node which applies f(A,B) = A+B to the input nodes element-wise.
 
             :param right: The right operand.
-            :type right: Union[openvino.Node, int, float, ndarray]
+            :type right: Union[openvino.Node, int, float, numpy.ndarray]
             :return: The node performing element-wise addition.
             :rtype: openvino.Node
         )"",
@@ -77,7 +77,7 @@ void regclass_graph_Node(py::module m) {
             Return node which applies f(A,B) = A-B to the input nodes element-wise.
 
             :param right: The right operand.
-            :type right: Union[openvino.Node, int, float, ndarray]
+            :type right: Union[openvino.Node, int, float, numpy.ndarray]
             :return: The node performing element-wise subtraction.
             :rtype: openvino.Node
         )"",
@@ -100,7 +100,7 @@ void regclass_graph_Node(py::module m) {
             Return node which applies f(A,B) = A*B to the input nodes element-wise.
 
             :param right: The right operand.
-            :type right: Union[openvino.Node, int, float, ndarray]
+            :type right: Union[openvino.Node, int, float, numpy.ndarray]
             :return: The node performing element-wise multiplication.
             :rtype: openvino.Node
         )"",
@@ -123,7 +123,7 @@ void regclass_graph_Node(py::module m) {
             Return node which applies f(A,B) = A/B to the input nodes element-wise.
 
             :param right: The right operand.
-            :type right: Union[openvino.Node, int, float, ndarray]
+            :type right: Union[openvino.Node, int, float, numpy.ndarray]
             :return: The node performing element-wise division.
             :rtype: openvino.Node
         )"",
