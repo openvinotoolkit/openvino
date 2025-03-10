@@ -24,6 +24,20 @@ constexpr size_t subgroup_size = 16;
 constexpr size_t seq_len_partition_size = 256;
 constexpr size_t paged_attention_block_size = 16;
 constexpr Datatype softmax_acc_dt = Datatype::F32;
+
+size_t get_sg_number_scale_factor(const pa_sdpa_params& params, size_t head_size, size_t kernel_type) {
+    if (params.conf.is_kv_compressed) {
+        const size_t optimal_scale_factor = 2;
+        if (kernel_type == KernelsTypes::SINGLE_TOKEN ||
+            kernel_type == KernelsTypes::MULTI_TOKENS) {
+            if (head_size * optimal_scale_factor <= params.engineInfo.maxWorkGroupSize) {
+                return optimal_scale_factor;
+            }
+        }
+    }
+
+    return 1;
+}
 }  // namespace
 
 static std::string GetKernelName(std::string base_name, KernelsTypes type) {
@@ -155,10 +169,14 @@ ParamsKey PagedAttentionSDPAKernelOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT32);
 
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT32);
 
     k.EnableInputLayout(DataLayout::bfyx);
@@ -206,6 +224,17 @@ JitConstants PagedAttentionSDPAKernelOpt::GetJitConstants(const pa_sdpa_params& 
     jit.AddConstant(MakeJitConstant("SEQ_LEN_PARTITION_SIZE", seq_len_partition_size));
     jit.AddConstant(MakeJitConstant("PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size));
     jit.AddConstant(MakeJitConstant("SUBGROUP_SIZE", subgroup_size));
+    jit.AddConstant(MakeJitConstant("SLIDING_WINDOW_SIZE", config.paged_attention_sliding_window));
+    jit.AddConstant(MakeJitConstant("IS_KV_COMPRESSED", params.conf.is_kv_compressed));
+    jit.AddConstant(MakeJitConstant("SG_SCALE_FACTOR", get_sg_number_scale_factor(params, config.head_size, kernel_idx)));
+
+    if (params.conf.is_kv_compressed) {
+        auto scales_zp_size = params.inputs[0].ElementSize() * 2; // scale + zp
+        jit.AddConstant(MakeJitConstant("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size));
+        jit.AddConstant(MakeJitConstant("ADJUSTED_HEAD_SIZE", params.conf.head_size + scales_zp_size));
+    } else {
+        jit.AddConstant(MakeJitConstant("ADJUSTED_HEAD_SIZE", params.conf.head_size));
+    }
 
     if (config.broadcast_axis != -1) {
         jit.AddConstant(MakeJitConstant("BROADCAST_GROUP_SIZE", config.group_size));
@@ -259,10 +288,11 @@ CommonDispatchData PagedAttentionSDPAKernelOpt::SetDefault(const pa_sdpa_params&
         const size_t head_size = static_cast<size_t>(params.conf.head_size);
 
         if (kernel_idx == KernelsTypes::SINGLE_TOKEN || kernel_idx == KernelsTypes::MULTI_TOKENS) {
+            auto sg_scale = get_sg_number_scale_factor(params, head_size, kernel_idx);
             dispatch_data.gws = { total_tokens,
                                   heads_num,
-                                  head_size * num_of_partitions };
-            dispatch_data.lws = { 1, 1, head_size };
+                                  head_size * num_of_partitions * sg_scale };
+            dispatch_data.lws = { 1, 1, head_size * sg_scale };
         } else if (kernel_idx == KernelsTypes::SCORES_CALCULATION) {
             const auto& past_lens = params.inputs[3];
             const auto subsequences_number = past_lens.Batch().v;
@@ -362,7 +392,8 @@ void PagedAttentionSDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) cons
         auto tmp_out_elements_count = total_tokens * prim_params.conf.heads_num * prim_params.conf.head_size * num_of_partitions;
         auto tmp_out_size = tmp_out_elements_count * tmp_out_dt_size;
 
-        kd.internalBufferSizes.clear();
+        const bool lockable = true;
+        kd.internalBuffers.clear();
 
         if (has_scores_output) {
             const auto& past_lens = prim_params.inputs[3];
@@ -373,9 +404,9 @@ void PagedAttentionSDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) cons
             auto softmax_buf_size = softmax_buf_elements_count * softmax_buf_dt_size;
 
             // Softmax intermediate output
-            kd.internalBufferSizes.push_back(softmax_buf_size);
+            kd.internalBuffers.emplace_back(softmax_buf_size, !lockable);
             // Precalculated accumulated sequence length offsets for each subsequence
-            kd.internalBufferSizes.push_back(subsequences_number * BytesPerElement(Datatype::INT32));
+            kd.internalBuffers.emplace_back(subsequences_number * BytesPerElement(Datatype::INT32), lockable);
 
             if (prim_params.stage == PagedAttentionStage::PREFILL) {
                 // Recalculate buf_size as in case of PREFILL stage it's not needed to allocate buffer per each input token
@@ -387,16 +418,16 @@ void PagedAttentionSDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) cons
             }
         }
 
-        kd.internalBufferSizes.push_back(buf_size); // softmax exp_sums
-        kd.internalBufferSizes.push_back(buf_size); // softmax max_logits
-        kd.internalBufferSizes.push_back(tmp_out_size); // intermediate output
+        kd.internalBuffers.emplace_back(buf_size, !lockable); // softmax exp_sums
+        kd.internalBuffers.emplace_back(buf_size, !lockable); // softmax max_logits
+        kd.internalBuffers.emplace_back(tmp_out_size, !lockable); // intermediate output
         kd.internalBufferDataType = softmax_acc_dt;
 
         if (multi_tokens_mode) {
             auto buf_dt_size = BytesPerElement(Datatype::INT32);
             auto buf_elements_count = total_tokens;
             auto buf_size = Align(buf_elements_count * buf_dt_size, BytesPerElement(softmax_acc_dt));
-            kd.internalBufferSizes.push_back(buf_size);
+            kd.internalBuffers.emplace_back(buf_size, lockable);
         }
     };
 }

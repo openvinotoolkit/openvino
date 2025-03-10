@@ -91,6 +91,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Erf", Type::Eltwise},
         {"SoftPlus", Type::Eltwise},
         {"SoftSign", Type::Eltwise},
+        {"SegmentMax", Type::SegmentMax},
         {"Select", Type::Eltwise},
         {"Log", Type::Eltwise},
         {"BitwiseAnd", Type::Eltwise},
@@ -186,6 +187,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"IDFT", Type::DFT},
         {"RDFT", Type::RDFT},
         {"IRDFT", Type::RDFT},
+        {"ISTFT", Type::ISTFT},
         {"STFT", Type::STFT},
         {"Abs", Type::Math},
         {"Acos", Type::Math},
@@ -270,9 +272,8 @@ Type TypeFromName(const std::string& type) {
     auto itType = type_to_name_tbl.find(type);
     if (type_to_name_tbl.end() != itType) {
         return itType->second;
-    } else {
-        return Type::Unknown;
     }
+    return Type::Unknown;
 }
 
 std::string NameFromType(const Type type) {
@@ -348,6 +349,7 @@ std::string NameFromType(const Type type) {
         CASE(DFT);
         CASE(RDFT);
         CASE(STFT);
+        CASE(ISTFT);
         CASE(Math);
         CASE(CTCLoss);
         CASE(Bucketize);
@@ -393,6 +395,7 @@ std::string NameFromType(const Type type) {
         CASE(QKVProjection);
         CASE(RMS);
         CASE(SearchSorted);
+        CASE(SegmentMax);
         CASE(LoRA);
         CASE(Unknown);
     }

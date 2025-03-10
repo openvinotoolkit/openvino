@@ -543,7 +543,7 @@ protected:
                 _prim.execute(stream.get_onednn_stream(), _args[net_id]);
             } catch (dnnl::error& err) {
                 auto err_code = err.status == dnnl_status_t::dnnl_out_of_memory ? CL_OUT_OF_RESOURCES : CL_INVALID_OPERATION;
-                ocl::rethrow_or_exit(err.what(), err_code, _engine->get_device_info());
+                ocl::rethrow(err.what(), err_code, _engine->get_device_info());
             }
 
             if (_enable_profiling) {
@@ -572,10 +572,10 @@ protected:
         return event;
     }
 
-    std::vector<layout> get_internal_buffer_layouts_impl() const override {
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
         if (_scratchpad_md.get_size() == 0)
             return {};
-        return {{{1, 1, 1, (tensor::value_type)(_scratchpad_md.get_size())}, cldnn::data_types::u8, format::bfyx}};
+        return {BufferDescriptor(_scratchpad_md.get_size(), cldnn::data_types::u8)};
     }
 };
 

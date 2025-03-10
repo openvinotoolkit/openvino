@@ -39,7 +39,7 @@ using namespace ov::element;
 
 namespace ov::intel_cpu::node {
 
-ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes() {
+ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes(bool apply_fp8) {
     using ov::element::Type_t;
 
     bool useMatmulPrim = false;
@@ -47,13 +47,17 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes() {
 
     if (useMatmulPrim) {
         return {Type_t::u8, Type_t::i8};
-    } else {
-#if defined(OPENVINO_ARCH_X86_64)
-        return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::nf4, Type_t::f4e2m1};
-#else
-        return {};
-#endif
     }
+#if defined(OPENVINO_ARCH_X86_64)
+    ov::element::TypeVector supportedDataTypes =
+        {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::nf4, Type_t::f4e2m1};
+    if (apply_fp8) {
+        supportedDataTypes.insert(supportedDataTypes.end(), {Type_t::f8e4m3, Type_t::f8e5m2});
+    }
+    return supportedDataTypes;
+#else
+    return {};
+#endif
 }
 
 ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes() {
@@ -64,23 +68,20 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes()
 
     if (useMatmulPrim) {
         return {Type_t::f32, Type_t::f16};
-    } else {
-#if defined(OPENVINO_ARCH_X86_64)
-        // @todo enable for bf16 as well
-        // after EnforceInferencePrecision is replaced with ConvertPrecision
-        return {Type_t::f32};
-#else
-        return {};
-#endif
     }
+#if defined(OPENVINO_ARCH_X86_64)
+    // @todo enable for bf16 as well
+    // after EnforceInferencePrecision is replaced with ConvertPrecision
+    return {Type_t::f32};
+#else
+    return {};
+#endif
 }
 
 bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                           std::string& errorMessage) noexcept {
     try {
-        if (!ov::is_type<const ov::op::internal::FullyConnected>(op) &&
-            !ov::is_type<const ov::op::internal::FullyConnectedQuantizedLegacy>(op) &&
-            !ov::is_type<const ov::op::internal::FullyConnectedCompressed>(op)) {
+        if (!ov::is_type<const ov::op::internal::FullyConnected>(op)) {
             return false;
         }
 
