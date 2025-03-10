@@ -156,18 +156,14 @@ void istft_impl(const float* in_data,
     const auto norm_window_div = [sqrt_frame_size](float a, float b) {
         if (b != 0.f) {
             return (a * sqrt_frame_size) / b;
-
-        } else {
-            return 0.f;
         }
+        return 0.f;
     };
     const auto window_div = [](float a, float b) {
         if (b != 0.f) {
             return a / b;
-
-        } else {
-            return 0.f;
         }
+        return 0.f;
     };
     std::function<float(float, float)> postprocess_func;
     if (normalized) {
@@ -211,13 +207,13 @@ void istft_impl(const float* in_data,
                            frame_signal.end(),
                            mid_result.begin() + out_frame_start,
                            mid_result.begin() + out_frame_start,
-                           std::plus<float>());
+                           std::plus<>());
 
             std::transform(window_sum.begin() + out_frame_start,
                            window_sum.begin() + out_frame_end,
                            pad_window.begin(),
                            window_sum.begin() + out_frame_start,
-                           std::plus<float>());
+                           std::plus<>());
         }
         float* result = mid_result.data() + (batch * signal_length);
         std::transform(result,
