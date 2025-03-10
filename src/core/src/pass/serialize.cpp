@@ -919,7 +919,7 @@ public:
         return m_constant != nullptr;
     }
 
-    PostponedConstantReplacer(ov::Node* node) : m_node(node) {
+    PostponedConstantReplacer(ov::Node* node) : m_node(node), m_constant() {
         if (node->get_rt_info().count("postponed_constant")) {
             OPENVINO_ASSERT(node->get_output_size() == 1);
             ov::OutputVector outputs(1);
