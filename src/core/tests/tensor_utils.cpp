@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/runtime/tensor.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/reference/convert.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov::test {
 template <typename element_type>
@@ -53,7 +53,6 @@ public:
 TYPED_TEST_SUITE_P(ParametredOffloadTensorTest);
 
 TYPED_TEST_P(ParametredOffloadTensorTest, read_tensor) {
-
     {
         ov::Tensor tensor;
         EXPECT_NO_THROW(tensor = ov::Tensor::from_file(this->file_name, this->ov_type, this->shape, 0));
@@ -144,9 +143,7 @@ TEST_F(FunctionalOffloadTensorTest, read_with_offset) {
 TEST_F(FunctionalOffloadTensorTest, read_small_file) {
     auto new_shape = shape;
     new_shape[0] = 10;
-    {
-        EXPECT_THROW(std::ignore = ov::Tensor::from_file(file_name, ov_type, new_shape, 0), ov::Exception);
-    }
+    { EXPECT_THROW(std::ignore = ov::Tensor::from_file(file_name, ov_type, new_shape, 0), ov::Exception); }
 }
 
 TEST_F(FunctionalOffloadTensorTest, read_too_big_offset) {
@@ -202,8 +199,6 @@ TEST_F(FunctionalOffloadTensorTest, read_type_doesnt_fit_file_size) {
     }
     ASSERT_TRUE(std::filesystem::exists(file_name));
 
-    {
-        EXPECT_THROW(std::ignore = ov::Tensor::from_file(file_name, ov::element::f32), ov::Exception);
-    }
+    { EXPECT_THROW(std::ignore = ov::Tensor::from_file(file_name, ov::element::f32), ov::Exception); }
 }
 }  // namespace ov::test

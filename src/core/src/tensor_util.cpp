@@ -5,12 +5,12 @@
 #include "openvino/core/tensor_util.hpp"
 
 #include "openvino/core/type/element_iterator.hpp"
+#include "openvino/op/greater_eq.hpp"
+#include "openvino/op/reduce_logical_and.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/file_path.hpp"
 #include "openvino/util/mmap_object.hpp"
-#include "openvino/op/greater_eq.hpp"
-#include "openvino/op/reduce_logical_and.hpp"
 
 ov::Tensor ov::util::greater_equal(const ov::Tensor& lhs, const ov::Tensor& rhs) {
     if (!lhs || !rhs)
@@ -33,7 +33,6 @@ bool ov::util::reduce_and(const ov::Tensor& t) {
         return false;
     return outputs[0].data<char>();
 }
-
 
 namespace ov::util {
 namespace {
@@ -102,7 +101,7 @@ ov::Shape calc_static_shape_for_file(const std::filesystem::path& file_name,
 
     OPENVINO_ASSERT(static_cast<int>(new_dimension_size) >= dynamic_dimension.get_min_length() &&
                         (static_cast<int>(new_dimension_size) <= dynamic_dimension.get_max_length() ||
-                            dynamic_dimension.get_max_length() == -1),
+                         dynamic_dimension.get_max_length() == -1),
                     "Cannot fit file size into requested PartialShape");
 
     dynamic_dimension = Dimension(new_dimension_size);
@@ -118,9 +117,10 @@ Tensor read_tensor_from_file(const std::filesystem::path& file_name,
     auto static_shape = calc_static_shape_for_file(file_name, element_type, partial_shape, offset_in_bytes);
 
     auto mapped_memory = ov::load_mmap_object(file_name);
-    auto mmaped = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data() + offset_in_bytes,
-                                                                                    mapped_memory->size() - offset_in_bytes,
-                                                                                    mapped_memory);
+    auto mmaped =
+        std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data() + offset_in_bytes,
+                                                                              mapped_memory->size() - offset_in_bytes,
+                                                                              mapped_memory);
     return ov::Tensor(element_type, static_shape, StaticBufferAllocator(mmaped));
 }
 }  // namespace ov::util

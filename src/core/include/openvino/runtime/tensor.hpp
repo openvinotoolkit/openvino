@@ -13,9 +13,9 @@
 #include <type_traits>
 
 #include "openvino/core/coordinate.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/shape.hpp"
-#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/allocator.hpp"
 
@@ -262,12 +262,12 @@ public:
     ///              File should contain enough bytes, an exception is raised otherwise.
     ///              One of the dimensions can be dynamic. In this case it will be determined automatically based on the
     ///              length of the file content and `offset`. Default value is [?].
-    /// \param offset_in_bytes Read file starting from specified offset. Default is 0. The remining size of the file should be
-    /// compatible with shape.
+    /// \param offset_in_bytes Read file starting from specified offset. Default is 0. The remining size of the file
+    /// should be compatible with shape.
     static Tensor from_file(const std::filesystem::path& file_name,
-        const element::Type& element_type = element::u8,
-        const PartialShape& shape = PartialShape::dynamic(1),
-        std::size_t offset_in_bytes = 0);
+                            const element::Type& element_type = element::u8,
+                            const PartialShape& shape = PartialShape::dynamic(1),
+                            std::size_t offset_in_bytes = 0);
 };
 
 /**
