@@ -124,24 +124,26 @@ KERNEL(pa_sdpa_opt)(
 
     {
 #if STORE_QUERY_TO_SLM
-        const uint query_idx_local = sgid * SUBGROUP_SIZE + sglid;
-        const uint query_idx = INPUT0_OFFSET +
-                               seq_idx * (HEAD_SIZE * HEADS_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM + INPUT0_PAD_AFTER_FEATURE_NUM) +
-                               head_num_idx * HEAD_SIZE +
-                               query_idx_local;
+        if (sgid < HEAD_SIZE / SUBGROUP_SIZE) {
+            const uint query_idx_local = sgid * SUBGROUP_SIZE + sglid;
+            const uint query_idx = INPUT0_OFFSET +
+                                   seq_idx * (HEAD_SIZE * HEADS_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM + INPUT0_PAD_AFTER_FEATURE_NUM) +
+                                   head_num_idx * HEAD_SIZE +
+                                   query_idx_local;
 
-        INPUT0_TYPE q_val = BLOCK_READN(INPUT0_TYPE, 1, query, query_idx);
+            INPUT0_TYPE q_val = BLOCK_READN(INPUT0_TYPE, 1, query, query_idx);
 
-        // Apply scale value directly to the query input to improve accuracy in case of a high range of input data
+            // Apply scale value directly to the query input to improve accuracy in case of a high range of input data
 #ifdef SCALE_VAL
-        q_val = TO_INPUT0_TYPE(SCALE_VAL) * q_val;
+            q_val = TO_INPUT0_TYPE(SCALE_VAL) * q_val;
 #else
-        q_val = *scale * q_val;
+            q_val = *scale * q_val;
 #endif
 
-        slm_query[query_idx_local] = q_val;
+            slm_query[query_idx_local] = q_val;
 
-        barrier(CLK_LOCAL_MEM_FENCE);
+            barrier(CLK_LOCAL_MEM_FENCE);
+        }
 #else
         INPUT0_TYPE q_val[HEAD_SIZE / SUBGROUP_SIZE];
         unroll_for (uint i = 0; i < HEAD_SIZE / SUBGROUP_SIZE; i++) {
