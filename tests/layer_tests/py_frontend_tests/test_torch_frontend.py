@@ -2,19 +2,23 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import torch
-import numpy as np
-from openvino.frontend import FrontEndManager, ConversionExtension, NodeContext
-from openvino.runtime import PartialShape, Type
-import openvino.runtime.opset10 as ops
-import pytest
-
 import glob
 import itertools
 import math
 import os
 import re
+import logging
 from pathlib import Path
+
+import torch
+import numpy as np
+import pytest
+
+from openvino.frontend import FrontEndManager, ConversionExtension, NodeContext
+from openvino import PartialShape, Type
+import openvino.opset10 as ops
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 class aten_relu(torch.nn.Module):

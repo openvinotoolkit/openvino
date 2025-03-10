@@ -117,7 +117,9 @@ class VariableStateKVcache : public VariableStateBase {
 public:
     VariableStateKVcache(const std::string& name,
                          MemoryDescPtr external_desc,
-                         BlockedMemoryDescPtr dense_internal_desc);
+                         BlockedMemoryDescPtr dense_internal_desc,
+                         const bool quant_by_channel,
+                         const size_t group_size = 0);
 
     // ov::IVariableState
     ov::SoPtr<ov::ITensor> get_state() const override;
@@ -172,6 +174,8 @@ private:
 
     // for u8 kv cache: [B, H, L, 2], 0 for scale, 1 for zp
     PlainTensor m_scale_zp;
+    bool m_quant_by_channel = false;
+    size_t m_group_size = 0;
 };
 
 using MemStatePtr = std::shared_ptr<IVariableState>;
