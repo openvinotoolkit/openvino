@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "eltwise_inst.h"
@@ -393,7 +393,7 @@ eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) :
                                       "");
         }
     } else {
-        bool use_new_shape_infer = network.get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+        bool use_new_shape_infer = network.get_config().get_allow_new_shape_infer();
         auto input0_pshape = node.get_input_pshape(0);
 
         for (size_t i = 1; i < inputs_count; ++i) {

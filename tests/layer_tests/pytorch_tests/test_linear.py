@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -45,6 +45,7 @@ class TestMatMul(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_matmul(self, kwargs_to_prepare_input, ie_device, precision, ir_version):
         self._test(*self.create_model(len(kwargs_to_prepare_input) == 3), ie_device, precision, ir_version,
                    kwargs_to_prepare_input=kwargs_to_prepare_input)
@@ -73,6 +74,7 @@ class TestLinearBiasList(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_linear_bias_list(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version,
                    trace_model=True, freeze_model=False)

@@ -9,8 +9,7 @@
 #include "cpu_memory.h"
 #include "executor_config.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 // @todo require explicit initialization of all the attributes?
 struct FCAttrs {
@@ -19,16 +18,10 @@ struct FCAttrs {
     bool withBias = false;
     bool weightsNonTransposed = false;
     bool sparseWeights = false;
-    // @todo only memory descriptors should be a part of attributes
-    // actual memory should be passed into "execute" or "prepareMemory" calls
-    std::vector<float> dequantizationScales;
-    // @todo should be passed as an additional memory input?
-    MemoryCPtr decompressionSubtractPtr;
-    MemoryCPtr decompressionMultiplyPtr;
     uint64_t dynamicQuantizationGroupSize;
+
     ov::intel_cpu::Config::ModelType modelType = ov::intel_cpu::Config::ModelType::Unknown;
 };
 
 using FCConfig = executor::Config<FCAttrs>;
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -49,20 +49,12 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 
 .. code:: ipython3
 
-    import platform
-    
-    # Install openvino-dev package
-    %pip install -q "openvino>=2023.1.0" opencv-python tqdm
-    
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    # Install openvino package
+    %pip install -q "openvino>=2023.1.0" opencv-python tqdm "matplotlib>=3.4"
 
 
 .. parsed-literal::
 
-    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -75,6 +67,7 @@ Imports
 
     from collections import namedtuple
     from itertools import groupby
+    from pathlib import Path
     
     import cv2
     import matplotlib.pyplot as plt
@@ -84,12 +77,18 @@ Imports
     # Fetch `notebook_utils` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
     
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file, device_widget
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("handwritten-ocr.ipynb")
 
 Settings
 --------
@@ -101,9 +100,9 @@ Set up all constants and folders used in this notebook
 .. code:: ipython3
 
     # Directories where data will be placed.
-    base_models_dir = "models"
-    data_folder = "data"
-    charlist_folder = f"{data_folder}/text"
+    base_models_dir = Path("models")
+    data_folder = Path("data")
+    charlist_folder = Path(f"{data_folder}/text")
     
     # Precision used by the model.
     precision = "FP16"
@@ -163,26 +162,29 @@ model file.
 
 .. code:: ipython3
 
-    path_to_model = download_file(
-        url=f"https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/{selected_language.model_name}/{precision}/{selected_language.model_name}.xml",
-        directory=base_models_dir,
-    )
-    _ = download_file(
-        url=f"https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/{selected_language.model_name}/{precision}/{selected_language.model_name}.bin",
-        directory=base_models_dir,
-    )
+    path_to_model = base_models_dir / f"{selected_language.model_name}.xml"
+    
+    if not path_to_model.exists():
+        path_to_model = download_file(
+            url=f"https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/{selected_language.model_name}/{precision}/{selected_language.model_name}.xml",
+            directory=base_models_dir,
+        )
+        download_file(
+            url=f"https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/{selected_language.model_name}/{precision}/{selected_language.model_name}.bin",
+            directory=base_models_dir,
+        )
 
 
 
 .. parsed-literal::
 
-    models/handwritten-simplified-chinese-recognition-0001.xml:   0%|          | 0.00/108k [00:00<?, ?B/s]
+    handwritten-simplified-chinese-recognition-0001.xml:   0%|          | 0.00/108k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    models/handwritten-simplified-chinese-recognition-0001.bin:   0%|          | 0.00/32.9M [00:00<?, ?B/s]
+    handwritten-simplified-chinese-recognition-0001.bin:   0%|          | 0.00/32.9M [00:00<?, ?B/s]
 
 
 Load the Model and Execute
@@ -253,10 +255,13 @@ keep letters proportional and meet input shape.
 .. code:: ipython3
 
     # Download the image from the openvino_notebooks storage based on the selected model.
-    file_name = download_file(
-        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/" + selected_language.demo_image_name,
-        directory=data_folder,
-    )
+    file_name = data_folder / selected_language.demo_image_name
+    
+    if not file_name.exists():
+        download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/" + selected_language.demo_image_name,
+            directory=data_folder,
+        )
     
     # Text detection models expect an image in grayscale format.
     # IMPORTANT! This model enables reading only one line at time.
@@ -286,7 +291,7 @@ keep letters proportional and meet input shape.
 
 .. parsed-literal::
 
-    data/handwritten_chinese_test.jpg:   0%|          | 0.00/42.1k [00:00<?, ?B/s]
+    handwritten_chinese_test.jpg:   0%|          | 0.00/42.1k [00:00<?, ?B/s]
 
 
 Visualize Input Image
@@ -320,16 +325,19 @@ Chinese and Japanese models.
 .. code:: ipython3
 
     # Download the image from the openvino_notebooks storage based on the selected model.
-    used_charlist_file = download_file(
-        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/text/" + selected_language.charlist_name,
-        directory=charlist_folder,
-    )
+    used_charlist_file = charlist_folder / selected_language.charlist_name
+    
+    if not used_charlist_file.exists():
+        used_charlist_file = download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/text/" + selected_language.charlist_name,
+            directory=charlist_folder,
+        )
 
 
 
 .. parsed-literal::
 
-    data/text/chinese_charlist.txt:   0%|          | 0.00/15.8k [00:00<?, ?B/s]
+    chinese_charlist.txt:   0%|          | 0.00/15.8k [00:00<?, ?B/s]
 
 
 .. code:: ipython3

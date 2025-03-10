@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ TEST_F(ROIPoolingV0StaticShapeInferenceTest, default_ctor) {
     op->set_method("max");
     op->set_spatial_scale(0.34f);
 
-    input_shapes = ShapeVector{{1, 5, 10, 10}, {2, 5}};
+    input_shapes = StaticShapeVector{{1, 5, 10, 10}, {2, 5}};
     auto shape_infer = make_shape_inference(op);
     output_shapes = shape_inference(op.get(), input_shapes);
 
@@ -39,7 +39,7 @@ TEST_F(ROIPoolingV0StaticShapeInferenceTest, inputs_dynamic_rank) {
 
     op = make_op(feat, rois, ov::Shape{5, 5}, 0.9f);
 
-    input_shapes = ShapeVector{{2, 3, 100, 100}, {10, 5}};
+    input_shapes = StaticShapeVector{{2, 3, 100, 100}, {10, 5}};
     output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
@@ -52,7 +52,7 @@ TEST_F(ROIPoolingV0StaticShapeInferenceTest, inputs_static_rank) {
 
     op = make_op(feat, rois, ov::Shape{7, 5}, 1.9f, "max");
 
-    input_shapes = ShapeVector{{2, 3, 20, 100}, {10, 5}};
+    input_shapes = StaticShapeVector{{2, 3, 20, 100}, {10, 5}};
     output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
@@ -65,7 +65,7 @@ TEST_F(ROIPoolingV0StaticShapeInferenceTest, invalid_rois_batch_size) {
 
     op = make_op(feat, rois, ov::Shape{7, 5}, 1.9f, "max");
 
-    input_shapes = ShapeVector{{2, 3, 20, 100}, {10, 6}};
+    input_shapes = StaticShapeVector{{2, 3, 20, 100}, {10, 6}};
 
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,

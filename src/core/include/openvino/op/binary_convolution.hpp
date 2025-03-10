@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -99,6 +99,7 @@ public:
         : EnumAttributeAdapterBase<op::v1::BinaryConvolution::BinaryConvolutionMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v1::BinaryConvolution::BinaryConvolutionMode>");
+    ~AttributeAdapter() override;
 };
 
 }  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,12 +7,10 @@
 #include "jit_kernel_base.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
-#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #endif
 
-namespace ov {
-namespace intel_cpu {
-namespace kernel {
+namespace ov::intel_cpu::kernel {
 
 struct jit_rotary_compile_params {
     ov::element::Type src_prc;
@@ -40,14 +38,26 @@ struct jit_rotary_kernel : public JitKernel<jit_rotary_compile_params, jit_rotar
     explicit jit_rotary_kernel(const jit_rotary_compile_params& jcp) : JitKernel(jit_name(), jcp, isa) {}
 
 private:
-    using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,  Xbyak::Xmm,
-        isa == dnnl::impl::cpu::x64::avx2,  Xbyak::Ymm,  Xbyak::Zmm>::type;
+    using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
+                                                         Xbyak::Xmm,
+                                                         isa == dnnl::impl::cpu::x64::avx2,
+                                                         Xbyak::Ymm,
+                                                         Xbyak::Zmm>::type;
 
     void generate() override;
     void rotary_half(size_t step);
     void rotary_interleave(size_t step);
-    void load(const Vmm& vmm_dst, const Xbyak::Reg64& reg_src, ov::element::Type src_prc, const int& elt_num, bool fill, size_t offset = 0);
-    void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, ov::element::Type dst_prc, const int& elt_num, size_t offset = 0);
+    void load(const Vmm& vmm_dst,
+              const Xbyak::Reg64& reg_src,
+              ov::element::Type src_prc,
+              const int& elt_num,
+              bool fill,
+              size_t offset = 0);
+    void store(const Xbyak::Reg64& reg_dst,
+               const Vmm& vmm_src,
+               ov::element::Type dst_prc,
+               const int& elt_num,
+               size_t offset = 0);
     const Vmm vmm_src0 = Vmm(0);
     const Vmm vmm_src1 = Vmm(1);
     const Vmm vmm_cos = Vmm(2);
@@ -62,12 +72,10 @@ private:
     const Xbyak::Reg64 reg_tmp = rdx;
 
     std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
-    const std::vector<size_t> pool_aux_gpr_idxs = { static_cast<size_t>(rax.getIdx()), static_cast<size_t>(r9.getIdx()) };
-    const std::vector<size_t> pool_aux_vmm_idxs = { 6 };
+    const std::vector<size_t> pool_aux_gpr_idxs = {static_cast<size_t>(rax.getIdx()), static_cast<size_t>(r9.getIdx())};
+    const std::vector<size_t> pool_aux_vmm_idxs = {6};
 };
 
 #endif
 
-}   // namespace kernel
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu::kernel

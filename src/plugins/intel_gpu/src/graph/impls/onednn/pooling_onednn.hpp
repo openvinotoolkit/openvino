@@ -4,7 +4,7 @@
 
 #include "intel_gpu/runtime/utils.hpp"
 #include "pooling_inst.h"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 #include "utils.hpp"
 
 #include <memory>
@@ -14,13 +14,14 @@ namespace onednn {
 
 struct PoolingImplementationManager : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("onednn::pool")
-    PoolingImplementationManager(shape_types shape_type) : ImplementationManager(impl_types::onednn, shape_type) {}
+    PoolingImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::onednn, shape_type, vf) {}
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
 
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<pooling>());
+        const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad)
+        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn())
             return false;
 
         const auto& in_layout = node.get_input_layout(0);

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -55,6 +55,7 @@ class TestEmbeddingBag1dOffsets(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("indicies_dtype", ["int", "int32"])
     @pytest.mark.parametrize(
@@ -124,6 +125,7 @@ class TestEmbeddingBag2d(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("indicies_size", [[1, 1], [2, 5], [3, 10], [4, 7]])
     @pytest.mark.parametrize("indicies_dtype", ["int", "int32"])
@@ -203,6 +205,7 @@ class TestEmbeddingBagPretrained(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("indicies_size", [[1, 1], [2, 5], [3, 10], [4, 7]])
     @pytest.mark.parametrize("indicies_dtype", ["int", "int32"])

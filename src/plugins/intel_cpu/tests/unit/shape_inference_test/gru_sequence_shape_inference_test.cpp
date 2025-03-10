@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,12 +9,7 @@
 using namespace ov;
 using namespace ov::intel_cpu;
 
-class GRUSequenceV5StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v5::GRUSequence> {
-protected:
-    void SetUp() override {
-        this->output_shapes = ShapeVector(2);
-    }
-};
+class GRUSequenceV5StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v5::GRUSequence> {};
 
 TEST_F(GRUSequenceV5StaticShapeInferenceTest, default_ctor) {
     constexpr size_t batch_size = 2;

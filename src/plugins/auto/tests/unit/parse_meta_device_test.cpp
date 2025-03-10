@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -78,7 +78,7 @@ using ParseMetaDeviceNoIDTest = ParseMetaDeviceTest;
 TEST_P(ParseMetaDeviceTest, ParseMetaDevicesWithPriority) {
     EXPECT_CALL(*plugin, parse_meta_devices(_, _)).Times(1);
     EXPECT_CALL(*core, get_property(_, _, _)).Times(AnyNumber());
-    EXPECT_CALL(*core, get_available_devices()).Times(1);
+    EXPECT_CALL(*core, get_available_devices()).Times(0);
     EXPECT_CALL(*core, get_supported_property(_, _, _)).Times(expectedTimes);
     if (throwException) {
         ASSERT_ANY_THROW(plugin->parse_meta_devices(priorityDevices, {}));
@@ -92,7 +92,7 @@ TEST_P(ParseMetaDeviceTest, ParseMetaDevicesWithPriority) {
 TEST_P(ParseMetaDeviceTest, ParseMetaDevicesNotWithPriority) {
     EXPECT_CALL(*plugin, parse_meta_devices(_, _)).Times(1 + !throwException);
     EXPECT_CALL(*core, get_property(_, _, _)).Times(AnyNumber());
-    EXPECT_CALL(*core, get_available_devices()).Times(1 + !throwException);
+    EXPECT_CALL(*core, get_available_devices()).Times(0);
     if (throwException) {
         ASSERT_ANY_THROW(plugin->parse_meta_devices(priorityDevices, {}));
     } else {
@@ -111,9 +111,12 @@ TEST_P(ParseMetaDeviceTest, ParseMetaDevicesNotWithPriority) {
 
 TEST_P(ParseMetaDeviceNoIDTest, ParseMetaDevices) {
     ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevsNoID));
+    std::vector<std::string> deviceIDs = {};
+    ON_CALL(*core, get_property(StrEq("GPU"), StrEq(ov::available_devices.name()), _))
+        .WillByDefault(RETURN_MOCK_VALUE(deviceIDs));
     EXPECT_CALL(*plugin, parse_meta_devices(_, _)).Times(1);
     EXPECT_CALL(*core, get_property(_, _, _)).Times(AnyNumber());
-    EXPECT_CALL(*core, get_available_devices()).Times(1);
+    EXPECT_CALL(*core, get_available_devices()).Times(0);
     EXPECT_CALL(*core, get_supported_property(_, _, _)).Times(expectedTimes);
     if (throwException) {
         ASSERT_ANY_THROW(plugin->parse_meta_devices(priorityDevices, {}));

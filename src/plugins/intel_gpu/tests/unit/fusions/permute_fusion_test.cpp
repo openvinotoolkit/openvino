@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -103,6 +103,7 @@ public:
 #define CASE_PERMUTE_F32_5 { 1, 32, 4, 5 }, { 32, 4, 5, 1 }, { 1, 3, 0, 2 }, tensor{ 0 }, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 #define CASE_PERMUTE_F32_6 { 1, 16, 4, 5 }, { 5, 16, 4, 1 }, { 2, 1, 0, 3 }, tensor{ 0 }, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 #define CASE_PERMUTE_F32_7 { 1, 16, 1, 1 }, { 1, 1, 1, 16 }, { 3, 2, 1, 0 }, tensor{ 0 }, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
+#define CASE_PERMUTE_F32_8 { 1, 16, 1, 32 }, { 1, 16, 1, 32 }, { 0, 2, 1, 3 }, tensor{ 0 }, data_types::f32, format::bfyx, data_types::f32, format::bfyx
 
 #define CASE_PERMUTE_F16_0 { 1, 16, 4, 5 }, { 1, 16, 4, 5 }, { 0, 1, 2, 3 }, tensor{ 0 }, data_types::f16, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 #define CASE_PERMUTE_F16_1 { 2, 16, 4, 5 }, { 16, 4, 5, 2 }, { 1, 3, 0, 2 }, tensor{ 0 }, data_types::f16, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
@@ -314,6 +315,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_quant_u8, ::testing::ValuesIn(std:
 
     permute_params{ CASE_PERMUTE_F16_0, 2, 3 },
     permute_params{ CASE_PERMUTE_F16_1, 2, 3 },
+    permute_params{ CASE_PERMUTE_F32_8, 2, 3 },
 }));
 
 class permute_scale_actv_eltw_scale_actv_quant_i8: public PermuteFusingTest {};

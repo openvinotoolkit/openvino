@@ -1,22 +1,24 @@
 # How to extend the OpenVINO™ JavaScript API code
 
-## Build the OpenVINO™ JavaScript API 
+## Build the OpenVINO™ JavaScript API
+
 For detailed build instructions, refer to the [OpenVINO™ JavaScript API documentation](./README.md).
 
+
 ## Project's naming conventions
+
 When implementing the C++ sources for the JavaScript API, it is essential to adhere to the OpenVINO naming conventions described in the [OpenVINO Coding Style Guide](../../../../docs/dev/coding_style.md). In summary, the naming style employs `Snake Case` for methods, functions, and variables, while `Camel Case` is used for class names. Additionally, the naming of entities in the C++ sources should closely mirror their equivalents in the C++ API to maintain consistency.
 
 For methods that are exposed to JavaScript, the naming convention transitions to `Camel Case`, aligning with common JavaScript practices. As an example, a method in the C++ API named `get_element_type` would be represented in the JavaScript API as `getElementType()`.
+
 
 ## node-addon-api module
 
 [node addon api](https://github.com/nodejs/node-addon-api) is used to create OpenVINO JavaScript API for Node.js. The quickest way to learn is to follow the official [examples](https://github.com/nodejs/node-addon-examples). It is recommended to check out the tutorial on [how to create a JavaScript object from a C++ object](https://github.com/nodejs/node-addon-examples/tree/main/src/2-js-to-native-conversion/object-wrap-demo/node-addon-api).
 
 
-
-
-
 ## Adding a new class and method
+
 To introduce a new `MyTensor` class that interacts with the `ov::Tensor` class, follow these steps:
  - The class should facilitate construction from an ov::Tensor instance and allow initialization from a JavaScript element type and shape.
  - It should also provide a getElementType method that retrieves the ov::Tensor element type.
@@ -25,7 +27,7 @@ Begin by creating a header file for the `MyTensor` class in the OpenVINO reposit
 ```cpp
 class MyTensor : public Napi::ObjectWrap<MyTensor> {
 public:
-    // Constructor for the wrapper class 
+    // Constructor for the wrapper class
     MyTensor(const Napi::CallbackInfo& info);
 
     // It returns a JavaScript class definition
@@ -75,12 +77,15 @@ add_library(${PROJECT_NAME} SHARED
 )
 ```
 
+
 ### Argument validation and conversion
 
 When binding JavaScript arguments with C++ functions, it is crucial to validate and convert the arguments appropriately. The template `ov::js::validate` function is a utility that facilitates this process. It is particularly useful for handling different overloads of functions and ensuring standardized error messages when arguments do not match expected signatures.
 Before implementing a new conversion function, such as `js_to_cpp<ov::Shape>`, review the existing [helper methods](../../node/include/helper.hpp) to see if one already meets your requirements.
 
+
 ### New class initialization
+
 When a new class is introduced to the `openvino-node` module, it must be initialized upon module loading. This is done in the [addon.cpp](../../src/addon.cpp) file. The initialization process registers the class with the Node.js environment so that it can be used within JavaScript code.
 ```cpp
 Napi::Object init_module(Napi::Env env, Napi::Object exports) {
@@ -100,6 +105,7 @@ struct AddonData {
 ```
 
 ### Document the new functionality
+
 The last step is to add the TypeScript type definitions and describe the new functionality.
 ```typescript
 /**
@@ -132,7 +138,7 @@ export interface NodeAddon {
 
 Now that coding is finished, remember to rebuild the project and test it out.
 
-To learn how to test your code, refer to the guide on [how to test OpenVINO™ JavaScript API.](./test_examples.md) 
+To learn how to test your code, refer to the guide on [how to test OpenVINO™ JavaScript API.](./test_examples.md)
 
 ## See also
  * [OpenVINO™ README](../../../../README.md)

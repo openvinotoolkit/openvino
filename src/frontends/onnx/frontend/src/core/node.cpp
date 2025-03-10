@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -245,7 +245,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(cons
                                                                             T default_value,
                                                                             ov::element::Type type) const {
     const auto value = get_attribute_value<T>(name, default_value);
-    return std::make_shared<ov::op::v0::Constant>(type == ov::element::undefined ? ov::element::from<T>() : type,
+    return std::make_shared<ov::op::v0::Constant>(type == ov::element::dynamic ? ov::element::from<T>() : type,
                                                   ov::Shape{},
                                                   value);
 }
@@ -254,7 +254,7 @@ template <typename T>
 std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(const std::string& name,
                                                                             ov::element::Type type) const {
     const auto value = get_attribute_value<T>(name);
-    return std::make_shared<ov::op::v0::Constant>(type == ov::element::undefined ? ov::element::from<T>() : type,
+    return std::make_shared<ov::op::v0::Constant>(type == ov::element::dynamic ? ov::element::from<T>() : type,
                                                   ov::Shape{},
                                                   value);
 }
@@ -271,9 +271,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant<std:
     const std::string& name,
     ov::element::Type type) const {
     const auto value = get_attribute_value<std::vector<int64_t>>(name);
-    return ov::op::v0::Constant::create(type == ov::element::undefined ? ov::element::i64 : type,
-                                        {value.size()},
-                                        value);
+    return ov::op::v0::Constant::create(type == ov::element::dynamic ? ov::element::i64 : type, {value.size()}, value);
 }
 
 template <>
@@ -288,9 +286,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(cons
                                                                             std::vector<int64_t> default_value,
                                                                             ov::element::Type type) const {
     const auto value = get_attribute_value<std::vector<int64_t>>(name, default_value);
-    return ov::op::v0::Constant::create(type != ov::element::undefined ? type : ov::element::i64,
-                                        {value.size()},
-                                        value);
+    return ov::op::v0::Constant::create(type != ov::element::dynamic ? type : ov::element::i64, {value.size()}, value);
 }
 
 Node::Node(const NodeProto& node_proto, Graph* graph)

@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
+
+#include "openvino/core/visibility.hpp"
 
 #include "low_precision/avg_pool.hpp"
 #include "low_precision/common/precisions_restriction.hpp"
@@ -118,7 +120,12 @@ public:
     }
 };
 
+#if defined (OPENVINO_ARCH_ARM) && defined(__linux__)
+// Ticket: 153155
+TEST_P(FakeQuantizeTransformation, DISABLED_CompareFunctions) {
+#else
 TEST_P(FakeQuantizeTransformation, CompareFunctions) {
+#endif
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(actualFunction, referenceFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;

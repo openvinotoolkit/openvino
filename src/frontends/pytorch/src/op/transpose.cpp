@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/op/transpose.hpp"
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -29,8 +29,9 @@ using namespace ov::op;
 
 OutputVector translate_transpose(const NodeContext& context) {
     num_inputs_check(context, 3, 3);
+    auto data = context.get_input(0);
     Output<Node> rank;
-    std::tie(std::ignore, rank) = get_shape_rank(context, context.get_input(0), true);
+    std::tie(std::ignore, rank) = get_shape_rank(context, data, true);
     auto dim0_node = get_input_as_i32(context, 1);
     auto dim1_node = get_input_as_i32(context, 2);
     dim0_node = normalize_axis(context, dim0_node, rank);
@@ -44,10 +45,15 @@ OutputVector translate_transpose(const NodeContext& context) {
     auto dim1_node_ = std::make_shared<v0::Unsqueeze>(dim1_node, axis_0);
     auto indices = std::make_shared<v0::Concat>(OutputVector{dim0_node_, dim1_node_}, 0);
     auto updates = std::make_shared<v0::Concat>(OutputVector{dim1_node_, dim0_node_}, 0);
-    auto scatter = std::make_shared<v3::ScatterElementsUpdate>(range, indices, updates, axis_0);
-    context.mark_nodes({start, step, range, axis_0, dim0_node_, dim1_node_, indices, updates, scatter});
+    Output<Node> scatter = std::make_shared<v3::ScatterElementsUpdate>(range, indices, updates, axis_0);
+    if (const auto scatter_const = ov::util::get_constant_from_source(scatter)) {
+        scatter = context.mark_node(scatter_const);
+    } else {
+        context.mark_nodes(
+            {start, step, range, axis_0, dim0_node_, dim1_node_, indices, updates, scatter.get_node_shared_ptr()});
+    }
 
-    return {context.mark_node(std::make_shared<v1::Transpose>(context.get_input(0), scatter))};
+    return {context.mark_node(std::make_shared<v1::Transpose>(data, scatter))};
 };
 
 OutputVector translate_t(const NodeContext& context) {

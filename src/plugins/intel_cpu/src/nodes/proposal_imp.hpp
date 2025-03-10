@@ -1,14 +1,12 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <array>
 #include <cstddef>
 #include <vector>
-#include <array>
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
+namespace ov::Extensions::Cpu {
 
 struct proposal_conf {
     size_t feat_stride_;
@@ -37,12 +35,15 @@ struct proposal_conf {
 
 namespace XARCH {
 
-void proposal_exec(const float* input0, const float* input1,
-        std::vector<size_t> dims0, std::array<float, 4> img_info,
-        const float* anchors, int* roi_indices,
-        float* output0, float* output1, proposal_conf &conf);
+void proposal_exec(const float* input0,
+                   const float* input1,
+                   std::vector<size_t> dims0,
+                   std::array<float, 4> img_info,
+                   const float* anchors,
+                   int* roi_indices,
+                   float* output0,
+                   float* output1,
+                   proposal_conf& conf);
 
 }  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu

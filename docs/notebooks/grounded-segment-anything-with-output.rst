@@ -64,6 +64,7 @@ Clone repositories and install requirements
 
 .. parsed-literal::
 
+    WARNING: supervision 0.25.1 does not provide the extra 'desktop'
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -97,44 +98,47 @@ segmentation you can select vanilla ``SAM``.
 
 .. code:: ipython3
 
+    import requests
+    from pathlib import Path
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+        )
+        open("cmd_helper.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("grounded-segment-anything.ipynb")
+
+.. code:: ipython3
+
     from pathlib import Path
     import sys
     import os
+    
+    from cmd_helper import clone_repo
+    
     
     repo_dir = Path("Grounded-Segment-Anything")
     ground_dino_dir = Path("GroundingDINO")
     efficient_sam_dir = Path("EfficientSAM")
     
-    # we use grounding dino from a fork which contains modifications that allow conversion to OpenVINO IR format
-    if not ground_dino_dir.exists():
-        !git clone https://github.com/wenyi5608/GroundingDINO/
-    if use_efficient_sam and not efficient_sam_dir.exists():
-        !git clone https://github.com/yformer/EfficientSAM
-    if not use_efficient_sam and not repo_dir.exists():
-        !git clone https://github.com/IDEA-Research/Grounded-Segment-Anything
+    # we use grounding dino from a fork which contains modifications that allow conversion to OpenVINO IR
+    clone_repo("https://github.com/wenyi5608/GroundingDINO.git")
     
-    # append to sys.path so that modules from the repo could be imported
-    sys.path.append(str(ground_dino_dir))
-    sys.path.append(str("EfficientSAM" if use_efficient_sam else repo_dir / "segment_anything"))
-
-
-.. parsed-literal::
-
-    Cloning into 'GroundingDINO'...
-    remote: Enumerating objects: 379, done.[K
-    remote: Counting objects: 100% (190/190), done.[K
-    remote: Compressing objects: 100% (80/80), done.[K
-    remote: Total 379 (delta 135), reused 110 (delta 110), pack-reused 189 (from 1)[K
-    Receiving objects: 100% (379/379), 14.03 MiB | 16.82 MiB/s, done.
-    Resolving deltas: 100% (194/194), done.
-    Cloning into 'EfficientSAM'...
-    remote: Enumerating objects: 424, done.[K
-    remote: Counting objects: 100% (85/85), done.[K
-    remote: Compressing objects: 100% (33/33), done.[K
-    remote: Total 424 (delta 76), reused 52 (delta 52), pack-reused 339 (from 1)[K
-    Receiving objects: 100% (424/424), 262.14 MiB | 26.81 MiB/s, done.
-    Resolving deltas: 100% (246/246), done.
-
+    if use_efficient_sam:
+        clone_repo("https://github.com/yformer/EfficientSAM.git")
+    if not use_efficient_sam:
+        clone_repo("https://github.com/IDEA-Research/Grounded-Segment-Anything.git", add_to_sys_path=False)
+        sys.path.append(repo_dir / "segment_anything")
 
 .. code:: ipython3
 
@@ -178,20 +182,15 @@ Download checkpoints and load PyTorch models
 
 .. code:: ipython3
 
-    import requests
-    
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    
-    open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file, device_widget
     
-    download_file(
-        "https://github.com/IDEA-Research/GroundingDINO/releases/download/v0.1.0-alpha/groundingdino_swint_ogc.pth",
-        directory=CKPT_BASE_PATH,
-    )
-    if not use_efficient_sam:
+    
+    if not (CKPT_BASE_PATH / "groundingdino_swint_ogc.pth").exists():
+        download_file(
+            "https://github.com/IDEA-Research/GroundingDINO/releases/download/v0.1.0-alpha/groundingdino_swint_ogc.pth",
+            directory=CKPT_BASE_PATH,
+        )
+    if not use_efficient_sam and not (CKPT_BASE_PATH / "sam_vit_h_4b8939.pth").exists():
         download_file(
             "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth",
             directory=CKPT_BASE_PATH,
@@ -201,7 +200,7 @@ Download checkpoints and load PyTorch models
 
 .. parsed-literal::
 
-    checkpoints/groundingdino_swint_ogc.pth:   0%|          | 0.00/662M [00:00<?, ?B/s]
+    groundingdino_swint_ogc.pth:   0%|          | 0.00/662M [00:00<?, ?B/s]
 
 
 GroundingDINO imports
@@ -221,6 +220,11 @@ GroundingDINO imports
 
 .. parsed-literal::
 
+    2025-02-04 02:34:38.131198: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2025-02-04 02:34:38.165686: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2025-02-04 02:34:38.716239: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
     UserWarning: Failed to load custom C++ ops. Running on CPU mode Only!
 
 
@@ -253,7 +257,7 @@ GroundingDINO imports
 
 .. parsed-literal::
 
-    UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3549.)
+    UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3609.)
 
 
 .. parsed-literal::
@@ -263,7 +267,7 @@ GroundingDINO imports
 
 .. parsed-literal::
 
-    FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+    FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
 
 
 .. parsed-literal::
@@ -290,6 +294,12 @@ GroundingDINO imports
         # Load SAM Model and SAM Predictor
         sam = build_sam(checkpoint=SAM_CHECKPOINT_PATH).to(PT_DEVICE)
         sam_predictor = SamPredictor(sam)
+
+
+.. parsed-literal::
+
+    FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+
 
 Convert GroundingDINO to OpenVINO IR format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -368,7 +378,18 @@ Convert GroundingDINO to OpenVINO IR format
     TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
     TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
     TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
     TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+
+
+.. parsed-literal::
+
+    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
+
+
+.. parsed-literal::
+
+    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
 
 
 Run OpenVINO optimized GroundingDINO
@@ -426,7 +447,7 @@ class, but the inference will be done using OpenVINO optimized model.
         text_threshold: float,
         dino_tokenizer: transformers.PreTrainedTokenizerBase = dino_tokenizer,
         max_text_len: int = max_text_len,
-    ) -> (torch.Tensor, List[str], torch.Tensor):
+    ):
         #  for text prompt pre-processing we reuse existing routines from GroundignDINO repo
         if isinstance(caption, list):
             caption = ". ".join(caption)
@@ -511,15 +532,6 @@ class, but the inference will be done using OpenVINO optimized model.
 
     boxes_filt, pred_phrases, logits_filt = get_ov_grounding_output(ov_compiled_grounded_dino, pil_image, classes_prompt, BOX_THRESHOLD, TEXT_THRESHOLD)
 
-
-.. parsed-literal::
-
-    2024-09-24 01:11:42.692032: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-09-24 01:11:42.732257: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-09-24 01:11:43.332245: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
-
 Convert predicted boxes to supervision box detections format
 
 .. code:: ipython3
@@ -545,7 +557,7 @@ Draw box detections
 
 
 
-.. image:: grounded-segment-anything-with-output_files/grounded-segment-anything-with-output_29_0.png
+.. image:: grounded-segment-anything-with-output_files/grounded-segment-anything-with-output_30_0.png
 
 
 
@@ -578,11 +590,6 @@ segmentation. First of all let’s convert ``SAM`` model to OpenVINO IR.
         ov.save_model(ov_efficient_sam, ov_efficient_sam_path)
     elif use_efficient_sam:
         ov_efficient_sam = core.read_model(ov_efficient_sam_path)
-
-
-.. parsed-literal::
-
-    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
 
 
 .. parsed-literal::
@@ -798,7 +805,7 @@ Combine both boxes and segmentation masks and draw them.
 
 
 
-.. image:: grounded-segment-anything-with-output_files/grounded-segment-anything-with-output_45_0.png
+.. image:: grounded-segment-anything-with-output_files/grounded-segment-anything-with-output_46_0.png
 
 
 

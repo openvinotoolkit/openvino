@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -122,12 +122,6 @@ void SwapOutputNames(Output<Node> output1, Output<Node> output2) {
     const auto node2_output_names = output2.get_names();
     output2.set_names(output1.get_names());
     output1.set_names(node2_output_names);
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto node2_legacy_output_names = get_ov_tensor_legacy_name(output2.get_tensor());
-    set_ov_tensor_legacy_name(output2.get_tensor(), get_ov_tensor_legacy_name(output1.get_tensor()));
-    set_ov_tensor_legacy_name(output1.get_tensor(), node2_legacy_output_names);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void SwapFriendlyNames(const NodePtr& node1, const NodePtr& node2) {

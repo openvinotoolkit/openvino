@@ -1,23 +1,24 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "static_dimension.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 std::ostream& operator<<(std::ostream& str, const StaticDimension& dimension) {
     return str << dimension.get_length();
 }
 
-StaticDimension::StaticDimension(value_type dimension)
-        : m_dimension(dimension) {}
+StaticDimension::StaticDimension(value_type dimension) : m_dimension(dimension) {}
 
-StaticDimension::StaticDimension(value_type ldimension, value_type udimension)
-        : m_dimension(ldimension) {
+StaticDimension::StaticDimension(value_type ldimension, value_type udimension) : m_dimension(ldimension) {
     OPENVINO_ASSERT(ldimension == udimension,
-                    "Can not create StaticDimension out of [", ldimension, ", ", udimension, "]");
+                    "Can not create StaticDimension out of [",
+                    ldimension,
+                    ", ",
+                    udimension,
+                    "]");
 }
 
 bool StaticDimension::operator==(const StaticDimension& dim) const {
@@ -29,7 +30,7 @@ bool StaticDimension::operator!=(const StaticDimension& dim) const {
 }
 
 StaticDimension StaticDimension::operator+(const StaticDimension& dim) const {
-    return StaticDimension(m_dimension + dim.m_dimension);
+    return {m_dimension + dim.m_dimension};
 }
 
 StaticDimension& StaticDimension::operator+=(const StaticDimension& dim) {
@@ -37,11 +38,11 @@ StaticDimension& StaticDimension::operator+=(const StaticDimension& dim) {
 }
 
 StaticDimension StaticDimension::operator-(const StaticDimension& dim) const {
-    return StaticDimension(m_dimension - dim.m_dimension);
+    return {m_dimension - dim.m_dimension};
 }
 
 StaticDimension StaticDimension::operator*(const StaticDimension& dim) const {
-    return StaticDimension(m_dimension * dim.m_dimension);
+    return {m_dimension * dim.m_dimension};
 }
 
 StaticDimension& StaticDimension::operator*=(const StaticDimension& dim) {
@@ -54,7 +55,7 @@ StaticDimension StaticDimension::operator/(const value_type divisor) const {
     if (m_dimension % divisor) {
         return StaticDimension{};
     }
-    return StaticDimension(m_dimension / divisor);
+    return {m_dimension / divisor};
 }
 
 StaticDimension& StaticDimension::operator/=(const value_type divisor) {
@@ -66,8 +67,9 @@ StaticDimension StaticDimension::operator&(const StaticDimension& dim) const {
 }
 
 StaticDimension& StaticDimension::operator&=(const StaticDimension& dim) {
-    if (*this != dim)
+    if (*this != dim) {
         m_dimension = 0;
+    }
     return *this;
 }
 
@@ -80,8 +82,9 @@ bool StaticDimension::same_scheme(const StaticDimension& dim) const {
 }
 
 bool StaticDimension::merge(StaticDimension& dst, const StaticDimension& d1, const StaticDimension& d2) {
-    if (d1 != d2)
+    if (d1 != d2) {
         return false;
+    }
     dst = d1;
     return true;
 }
@@ -110,5 +113,4 @@ StaticDimension::value_type StaticDimension::get_min_length() const {
     return m_dimension;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu

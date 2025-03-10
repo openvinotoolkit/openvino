@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -166,5 +166,8 @@ void AttributeAdapter<std::shared_ptr<ov::SharedStringAlignedBuffer>>::get_raw_s
     size_t string_ind) {
     aux_get_raw_string_by_index(m_ref, raw_string_ptr, raw_string_size, string_ind);
 }
+
+AttributeAdapter<std::shared_ptr<StringAlignedBuffer>>::~AttributeAdapter() = default;
+AttributeAdapter<std::shared_ptr<SharedStringAlignedBuffer>>::~AttributeAdapter() = default;
 
 }  // namespace ov

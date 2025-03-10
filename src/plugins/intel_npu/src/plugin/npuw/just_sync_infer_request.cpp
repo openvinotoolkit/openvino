@@ -5,6 +5,7 @@
 #include "just_sync_infer_request.hpp"
 
 #include <algorithm>
+#include <future>
 #include <map>
 #include <memory>
 #include <string>
@@ -15,13 +16,178 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
-#include "openvino/runtime/make_tensor.hpp"
 #include "plugin.hpp"
 #include "util.hpp"
 #include "weights_bank.hpp"
 
+ov::npuw::MemAccessSim::MemAccessSim(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model) {
+    LOG_VERB("Running memory access simulation...");
+    LOG_BLOCK();
+
+    // Initialize the read list
+    m_read_list.resize(compiled_model->m_compiled_submodels.size());
+
+    // Initialize read counters for tensors in the graph:
+    // 1. Interconnect
+    for (const auto& kvp : compiled_model->m_submodels_input_to_prev_output) {
+        const auto& read_to = kvp.first;     // who reads
+        const auto& read_from = kvp.second;  // reads what
+
+        if (read_to == CompiledModel::NO_LINK || read_from == CompiledModel::NO_LINK) {
+            continue;
+        }
+
+        // Record # of reads for this particular Source
+        m_remaining_reads[read_from]++;
+
+        // Record a read request for this particular Subgraph (who reads the Source)
+        m_read_list[read_to.first].push_back(read_from);
+    }
+    // 2. Global model's outputs
+    for (auto&& read_from : compiled_model->m_outputs_to_submodels_outputs) {
+        m_remaining_reads[read_from]++;
+    }
+
+    LOG_VERB("Done");
+}
+
+const ov::npuw::MemAccessSim::ReadList& ov::npuw::MemAccessSim::read_list(std::size_t idx) const {
+    return m_read_list.at(idx);
+}
+
+std::size_t ov::npuw::MemAccessSim::remaining_reads(const LinkFrom& from) {
+    return m_remaining_reads.at(from);
+}
+
+void ov::npuw::MemAccessSim::register_read(const LinkFrom& from) {
+    m_remaining_reads.at(from)--;
+}
+
+ov::npuw::FuncMemMgr::FuncMemMgr(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
+    : m_sim(compiled_model),
+      m_model(compiled_model) {}
+
+void ov::npuw::FuncMemMgr::set_alloc(AllocFcn&& fcn) {
+    m_alloc = std::move(fcn);
+}
+
+void ov::npuw::FuncMemMgr::assign_memory() {
+    LOG_VERB("Assigning function memory...");
+    LOG_BLOCK();
+
+    const auto num_submodels = m_model->m_compiled_submodels.size();
+
+    // Walk over the subgraphs, pre-allocate and pre-assign tensors to the subgraphs
+    // outputs.
+    for (std::size_t idx = 0u; idx < num_submodels; idx++) {
+        LOG_VERB("Process Subgraph[" << idx << "]");
+        LOG_BLOCK();
+        const auto& comp_model_desc = m_model->m_compiled_submodels[idx];
+        if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
+            // no model & no funcall - optimized out, do nothing
+            continue;
+        }
+
+        // Simulate subgraph execution: poll its input list first
+        const auto& read_list = m_sim.read_list(idx);
+
+        // Now, get the outputs for the subgraph. If it is "regular", there's
+        // nothing to do - this subgraph owns its outputs on its own.
+        // If it is a function, though - look up in the function's memory storage.
+        if (comp_model_desc.replaced_by) {
+            const auto real_idx = comp_model_desc.replaced_by.value();
+            const auto& proto_comp_model_desc = m_model->m_compiled_submodels[real_idx];
+
+            const auto num_outs = proto_comp_model_desc.compiled_model->outputs().size();
+            for (std::size_t out_idx = 0u; out_idx < num_outs; out_idx++) {
+                const LinkFrom this_out = LinkFrom{idx, out_idx};
+                assign(this_out);
+            }
+        }
+
+        // Here happens the imaginary execution... Hocus pocus, done - that's a
+        // simulation after all
+        // After the execution, mark that the read_list was read.
+        for (auto&& from : read_list) {
+            m_sim.register_read(from);
+        }
+        LOG_VERB("Done");
+    }
+
+    // Report memory residency
+    for (auto&& m : m_memory) {
+        LOG_VERB("Function " << m.first.first << "/out port " << m.first.second << " : maximum memory residency "
+                             << m.second.size() << " tensor(s)");
+    }
+
+    LOG_VERB("Done");
+}
+
+void ov::npuw::FuncMemMgr::assign(const LinkFrom& from) {
+    // This method is the center of the function memory management.
+    // The logic is simple:
+    // - Look for an output tensor to reuse
+    //   - If there's one, assign it to this allocation
+    //   - If there's none, allocate a new tensor
+    // - How a tensor to reuse is piced:
+    //   1. It should exist
+    //   2. It's "remaining reads" count should be 0 (all planned reads
+    //      happened at this point).
+    // The tensor storage is organized like this:
+    // - Function: Here we use .replaced_by as a function identifier; taken from `from`
+    //   - Output index: taken from `from`
+    //     - A vector of resident tensors
+
+    LOG_VERB("Assinging tensor for Subgraph[" << from.first << "]/" << from.second << "...");
+    LOG_BLOCK();
+
+    const auto& comp_model_desc = m_model->m_compiled_submodels[from.first];
+    NPUW_ASSERT(comp_model_desc.replaced_by.has_value());
+
+    const auto real_idx = comp_model_desc.replaced_by.value();
+
+    FO func_output = {real_idx, from.second};
+    auto& assigned_memory = m_memory[func_output];
+    auto asgn_iter = std::find_if(assigned_memory.begin(), assigned_memory.end(), [&](Assignment& a) {
+        return m_sim.remaining_reads(a.from) == 0u;
+    });
+    if (asgn_iter != assigned_memory.end()) {
+        // Reassign this memory slot to the new "from"
+        asgn_iter->from = from;
+        m_table[from] = asgn_iter->ptr;
+    } else {
+        // No free space at this point - allocate a new tensor
+        const auto& proto_comp_model_desc = m_model->m_compiled_submodels[real_idx];
+        const auto& proto_comp_model = proto_comp_model_desc.compiled_model;
+
+        const auto& oport = proto_comp_model->outputs()[from.second];
+        ov::Shape oshape = oport.get_shape();
+
+        if (proto_comp_model_desc.spatial) {
+            oshape[proto_comp_model_desc.spatial->out_dim] = proto_comp_model_desc.spatial->range;
+        }
+        const auto& device = m_model->funcall_mem_device(real_idx);
+        TensorPtr new_tensor = m_alloc(oport.get_element_type(), oshape, device);
+        NPUW_ASSERT(new_tensor);
+
+        assigned_memory.push_back(Assignment{new_tensor, from});
+        m_table[from] = new_tensor;
+    }
+    LOG_VERB("Done");
+}
+
+ov::npuw::TensorPtr ov::npuw::FuncMemMgr::get_tensor(const LinkFrom& from) {
+    return m_table.at(from);
+}
+
 ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
-    : IBaseInferRequest(compiled_model) {
+    : IBaseInferRequest(compiled_model),
+      m_func_mem_mgr(compiled_model) {
+    using namespace std::placeholders;
+    m_func_mem_mgr.set_alloc(std::bind(&JustInferRequest::allocMem, this, _1, _2, _3));
+    m_func_mem_mgr.assign_memory();
+
+    m_closure_update_required = m_npuw_model->m_cfg.get<::intel_npu::NPUW_FOLD>();
     m_use_function_pipelining = m_npuw_model->m_cfg.get<::intel_npu::NPUW_FUNCALL_ASYNC>();
     if (m_use_function_pipelining) {
         LOG_WARN("Function call pipelining is enabled for " << m_npuw_model->m_name
@@ -29,9 +195,12 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         m_funcall_pipeline.resize(m_num_submodels);
     }
 
+    m_spatial_io.resize(m_num_submodels);
+
     // Create infer requests
     // Preallocate funcall tensors & substitute function call requests
     bool failover_happened = false;
+    bool has_spatial = false;
     for (size_t i = 0; i < m_num_submodels; i++) {
         LOG_INFO("Creating infer request for Subgraph[" << i << "]...");
         LOG_BLOCK();
@@ -46,13 +215,41 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         // FIXME: Shouldn't this be handled by the base class? (in create_tensor)
         // A special case for function calls
         if (comp_model_desc.replaced_by) {
-            // Pre-allocate output tesnors for this function call
+            // Pre-allocate output tensors for this function call
             const auto real_idx = comp_model_desc.replaced_by.value();
-            auto& proto_comp_model = m_npuw_model->m_compiled_submodels[real_idx].compiled_model;
-            for (size_t out_idx = 0; out_idx < proto_comp_model->outputs().size(); out_idx++) {
-                const auto& port = proto_comp_model->outputs()[out_idx];
-                m_funcall_result[LinkFrom{i, out_idx}] =
-                    ov::get_tensor_impl(ov::Tensor(port.get_element_type(), port.get_shape()));
+            auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+            auto& proto_comp_model = proto_comp_model_desc.compiled_model;
+            const auto num_outputs = proto_comp_model->outputs().size();
+
+            // Initialize the spatial IO placeholders, if required
+            if (proto_comp_model_desc.spatial) {
+                has_spatial = true;
+
+                m_spatial_io[real_idx].inputs.resize(proto_comp_model_desc.param_base);
+                m_spatial_io[real_idx].input_tails.resize(proto_comp_model_desc.param_base);
+                m_spatial_io[real_idx].outputs.resize(num_outputs);
+                m_spatial_io[real_idx].output_tails.resize(num_outputs);
+
+                if (proto_comp_model_desc.spatial->tail_size) {
+                    // Preallocate extra buffers for tail processing
+                    // Note: these buffers are allocated to the entire NWAY (> tail_size)
+                    for (auto&& p : proto_comp_model_desc.spatial->params) {
+                        const auto& iport = proto_comp_model_desc.compiled_model->inputs()[p.idx];
+                        m_spatial_io[real_idx].input_tails[p.idx] =
+                            allocOut(iport, m_npuw_model->funcall_mem_device(real_idx));
+                    }
+                    const auto num_outs = proto_comp_model_desc.compiled_model->outputs().size();
+                    for (std::size_t out_idx = 0u; out_idx < num_outs; out_idx++) {
+                        const auto& oport = proto_comp_model_desc.compiled_model->outputs()[out_idx];
+                        m_spatial_io[real_idx].output_tails[out_idx] =
+                            allocOut(oport, m_npuw_model->funcall_mem_device(real_idx));
+                    }
+                }
+            }  // if(spatial)
+
+            for (size_t out_idx = 0; out_idx < num_outputs; out_idx++) {
+                const auto from = LinkFrom{i, out_idx};
+                m_funcall_result[from] = m_func_mem_mgr.get_tensor(from);
             }
             if (real_idx != i) {
                 // If this function call is NOT the function body, do nothing here - the original
@@ -63,12 +260,13 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         }  // if(replaced_by)
 
         // Special cases are handled -- so nothing to do here
+        const bool is_piped = is_pipelined(i);
         bool recompiled = false;
-        auto rqs = create_infer_requests(i, m_use_function_pipelining ? 2 : 1, &recompiled);
+        auto rqs = create_infer_requests(i, is_piped ? 2 : 1, &recompiled);
         failover_happened |= recompiled;
         m_subrequests[i] = rqs.at(0);
         m_subrequest_devices[i] = *comp_model_desc.device_it;
-        if (comp_model_desc.replaced_by && m_use_function_pipelining) {
+        if (is_piped) {
             m_funcall_pipeline[i].subrequest = rqs.at(1);
         }
 
@@ -89,6 +287,10 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         for (std::size_t i = 0; i < m_num_submodels; i++) {
             auto& comp_model_desc = m_npuw_model->m_compiled_submodels[i];
             if (comp_model_desc.replaced_by) {  // a function call..
+                if (!is_pipelined(i)) {
+                    LOG_INFO("Skip subgraph[" << i << "] as it is a single-call function");
+                    continue;
+                }
                 // Use real_id to accumulate information about
                 // different functions
                 const auto real_id = comp_model_desc.replaced_by.value();
@@ -108,97 +310,56 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         }
     }  // if(function_pipelining)
 
-    // Preallocate input tensors
-    LOG_INFO("Preallocating input tensors...");
-    for (size_t i = 0; i < m_npuw_model->inputs().size(); i++) {
-        const auto& port = m_npuw_model->inputs()[i];
-        m_input_tensors.push_back(ov::get_tensor_impl(ov::Tensor(port.get_element_type(), port.get_shape())));
-        m_port_to_tensor[port] = TensorStorage{m_input_tensors.back(), true};
-    }  // for(inputs)
-
-    // Preallocate output tensors
-    LOG_INFO("Preallocating output tensors...");
-    for (size_t i = 0; i < m_npuw_model->outputs().size(); i++) {
-        LOG_BLOCK();
-        const auto& port = m_npuw_model->outputs()[i];
-        LOG_INFO("Output " << i << " of " << m_npuw_model->outputs().size() << ": " << port);
-
-        // FIXME: Yes, the CompiledModel::ToSubmodel == JustInferRequest::LinkFrom
-        const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(i);
-
-        LOG_INFO("Produced by Subgraph[" << from_submodel.first << "] / " << from_submodel.second);
-        auto funcall_result_iter = m_funcall_result.find(from_submodel);
-
-        const auto& tensor =
-            funcall_result_iter != m_funcall_result.end()
-                ? funcall_result_iter->second  // Function calls have their tensors allocated, so just use one
-                : ov::get_tensor_impl(ov::Tensor(port.get_element_type(), port.get_shape()));
-
-        m_output_tensors.push_back(tensor);
-        m_port_to_tensor[port] = TensorStorage{tensor, true};
-    }
+    alloc_io();
     connect_subrequests();
+    init_gio();
 
-    // Build the parameter/result mapping {{{
-    m_subrequests_gio.resize(m_subrequests.size());
-
-    // Parameters: stage 1...
-    for (size_t i = 0; i < m_npuw_model->inputs().size(); i++) {
-        const auto& to_submodel = m_npuw_model->m_inputs_to_submodels_inputs.at(i);
-        if (to_submodel != CompiledModel::NO_LINK) {
-            std::size_t sub_idx{}, in_idx{};
-            std::tie(sub_idx, in_idx) = m_npuw_model->m_inputs_to_submodels_inputs.at(i);
-            m_subrequests_gio.at(sub_idx).global_params[i] = in_idx;
-        }
-    }  // for(inputs)
-
-    // Parameters: stage 2...
-    for (auto&& it : m_npuw_model->m_param_subscribers) {
-        const auto param_idx = it.first;
-        for (auto&& to_submodel : it.second) {
-            std::size_t sub_idx{}, in_idx{};
-            std::tie(sub_idx, in_idx) = to_submodel;
-            m_subrequests_gio.at(sub_idx).global_params[param_idx] = in_idx;
-        }
-    }
-
-    // Results
-    for (size_t i = 0; i < m_npuw_model->outputs().size(); i++) {
-        std::size_t sub_idx{}, out_idx{};
-        std::tie(sub_idx, out_idx) = m_npuw_model->m_outputs_to_submodels_outputs.at(i);
-        m_subrequests_gio.at(sub_idx).global_results[i] = out_idx;
-    }
-    // }}}
-
-    // Sort out how to handle weights bank and unpack
-    auto& wbank = m_npuw_model->m_weights_bank;
     for (size_t i = 0; i < m_num_submodels; i++) {
         LOG_VERB("Trying to preemptively set tensors for Subgraph[" << i << "]...");
         LOG_BLOCK();
         auto& comp_model_desc = m_npuw_model->m_compiled_submodels[i];
-
+        // FIXME: figure out our cases and if this should be replaced with &&
+        // Note: replaced_by is utilized below unconditionally
         if (!comp_model_desc.compiled_model || !comp_model_desc.replaced_by) {
             continue;
         }
-
         const auto real_idx = comp_model_desc.replaced_by.value();
         auto& func_desc = m_npuw_model->m_compiled_submodels[real_idx];
 
-        auto& request = m_subrequests[real_idx];
-
-        for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.size(); cidx++) {
-            const auto& closure = comp_model_desc.closure[cidx];
-
-            const auto closure_param_id = comp_model_desc.param_base + cidx;
-            const auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
-
-            // No update required to this tensor in runtime - so it can be set only once
-            if (!comp_model_desc.update_required[cidx]) {
-                request->set_tensor(iport, ov::get_tensor_impl(wbank->get(closure, *func_desc.device_it)));
-            }
-        }  // for(closure)
-        LOG_VERB("DONE");
+        // So - closure update is NOT required, OR the function is SINGLE -
+        // just handle it's closure here and don't do it in runtime
+        if (!m_closure_update_required || func_desc.forced_to_fcall) {
+            unpack_closure(i, m_subrequests[real_idx]);
+        }
+        LOG_VERB("Done");
     }
+
+    // Handle spatial dynamic submission
+    if (has_spatial) {
+        if (m_npuw_model->m_cfg.get<::intel_npu::NPUW_SPATIAL_DYN>()) {
+            LOG_VERB("Finding spatial features...");
+            LOG_BLOCK();
+            m_spatial_selector = runtime::spatial::AttentionMask::find(*this);
+            if (!m_spatial_selector) {
+                LOG_WARN("Spatial capability is enabled, but no run-time features were found.");
+                // Fallback selector to ALL
+                m_spatial_selector.reset(new runtime::spatial::All());
+            }
+        } else {
+            // Just force selector to ALL
+            m_spatial_selector.reset(new runtime::spatial::All());
+        }
+        LOG_VERB("Done");
+    }
+}
+
+ov::npuw::TensorPtr ov::npuw::JustInferRequest::alloc_global_out(std::size_t out_idx) {
+    const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(out_idx);
+    auto funcall_result_iter = m_funcall_result.find(from_submodel);
+    if (funcall_result_iter != m_funcall_result.end()) {
+        return funcall_result_iter->second;
+    }
+    return IBaseInferRequest::alloc_global_out(out_idx);
 }
 
 void ov::npuw::JustInferRequest::connect_subrequests() {
@@ -266,33 +427,6 @@ void ov::npuw::JustInferRequest::connect_subrequests() {
     LOG_INFO("Done");
 }
 
-std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::JustInferRequest::query_state() const {
-    std::vector<ov::SoPtr<ov::IVariableState>> variable_states = {};
-    for (const auto& request : m_subrequests) {
-        if (!request)  // optimized out
-            continue;
-        for (auto&& state : request->query_state()) {
-            if (!state._so)
-                state._so = request._so;
-            variable_states.emplace_back(state);
-        }
-    }
-    return variable_states;
-}
-
-std::vector<ov::ProfilingInfo> ov::npuw::JustInferRequest::get_profiling_info() const {
-    std::vector<ov::ProfilingInfo> info;
-    for (size_t i = 0; i < m_subrequests.size(); ++i) {
-        if (!m_subrequests[i])  // optimized out
-            continue;
-        auto&& subreq_info = m_subrequests[i]->get_profiling_info();
-        for (auto&& rec : subreq_info)
-            rec.node_name = std::string("subgraph") + std::to_string(i) + ": " + rec.node_name;
-        info.insert(info.end(), subreq_info.begin(), subreq_info.end());
-    }
-    return info;
-}
-
 void ov::npuw::JustInferRequest::prepare_for_infer() {
     LOG_DEBUG("Preparing to infer...");
     LOG_BLOCK();
@@ -305,6 +439,11 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     for (auto&& id : m_funcall_heads) {
         LOG_DEBUG("Pre-initializing weights for subgraph[" << id << "]");
         unpack_closure(id, m_subrequests[id]);
+    }
+
+    // Adjust spatial input range, if supported
+    if (m_spatial_selector) {
+        m_spatial_selector->prepare();
     }
     LOG_DEBUG("Done");
 }
@@ -325,89 +464,36 @@ void ov::npuw::JustInferRequest::start_subrequest(std::size_t idx) {
 }
 
 void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
-    LOG_DEBUG("Binding parameters for Subgraph[" << idx << "]");
-    LOG_BLOCK();
-
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
 
-    LOG_DEBUG("Real idx is..." << real_idx);
-
-    const bool do_copy = needs_copy(idx);
-    const auto& iodesc = m_subrequests_gio.at(idx);
-
-    // a list of ports to copy tensors, if needed: FROM -> TO
-    std::vector<std::pair<ov::SoPtr<ov::ITensor>, ov::Output<const ov::Node>>> copy_list;
-
     // pick which subrequest we actually work on here
-    auto subr = [&]() {
-        if (now_idx() && real_idx == real(now_idx().value()) && m_use_function_pipelining) {
-            LOG_DEBUG("Accessing the pipeline subrequest");
-            // The real index of request we need to prepare IS
-            // the same request which executes now AND
-            // function_pipelining enabled - select the reserve request.
-            NPUW_ASSERT(m_funcall_pipeline[real_idx].subrequest);
-            return m_funcall_pipeline[real_idx].subrequest;
-        }
+    if (now_idx() && real_idx == real(now_idx().value()) && is_pipelined(now_idx().value())) {
+        LOG_DEBUG("Accessing the pipeline subrequest");
+        // The real index of request we need to prepare IS
+        // the same request which executes now AND
+        // function_pipelining enabled - select the reserve request.
+        NPUW_ASSERT(m_funcall_pipeline[real_idx].subrequest);
+        bind_global_params(idx, m_funcall_pipeline[real_idx].subrequest);
+    } else {
         // Otherwise: Just a return a subrequest which is in place.
         // If it is a function call and we have function pipelining ON,
         // it is still the right subrequest we can use.
         LOG_DEBUG("Accessing the primary subrequest");
-        return m_subrequests[real_idx];
-    }();
-
-    for (auto&& it : iodesc.global_params) {
-        std::size_t param_idx{}, sub_in_idx{};
-        std::tie(param_idx, sub_in_idx) = it;
-        LOG_DEBUG("Processing " << param_idx << " -> " << sub_in_idx << std::endl);
-        const auto& g_port = m_npuw_model->inputs()[param_idx];
-        const auto& g_tnsr = m_port_to_tensor.at(g_port).tensor;
-        const auto& s_port = subr->get_inputs()[sub_in_idx];
-        LOG_DEBUG("Processing " << g_port << " -> " << s_port << "...");
-        LOG_BLOCK();
-        if (do_copy) {
-            LOG_DEBUG("Will be copied");
-            copy_list.emplace_back(g_tnsr, s_port);
-        } else {
-            LOG_DEBUG("Will be set");
-            subr->set_tensor(s_port, g_tnsr);
-        }
+        bind_global_params(idx, m_subrequests[real_idx]);
     }
-
-    LOG_DEBUG("Running copy...");
-    ov::parallel_for(copy_list.size(), [&](std::size_t idx) {
-        auto& it = copy_list[idx];
-        ov::SoPtr<ov::ITensor> dst = subr->get_tensor(it.second);
-        it.first->copy_to(dst._ptr);
-    });
-
-    LOG_DEBUG("Done");
 }
 
 void ov::npuw::JustInferRequest::bind_global_results(std::size_t idx) {
-    LOG_DEBUG("Binding results for Subgraph[" << idx << "]");
-    LOG_BLOCK();
-
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-    const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-    if (real_idx != idx) {
-        // Don't do here - function call will take parameter
-        // itself. Note it may be implemented more efficently
-        // than now (and in some cases, parameter can be pre-set)
-        LOG_DEBUG("Skipping this too now - function will do it for itself");
+    if (comp_model_desc.replaced_by) {
+        // Don't do here - function call will take the right tensor
+        // itself. Note it may be implemented more efficently than now
+        // (and in some cases, the tensor can be pre-set)
+        LOG_DEBUG("Skipping bind_glo - function will do it for itself");
         return;
     }
-
-    const auto& iodesc = m_subrequests_gio.at(idx);
-    for (auto&& it : iodesc.global_results) {
-        std::size_t result_idx{}, sub_out_idx{};
-        std::tie(result_idx, sub_out_idx) = it;
-        const auto& g_port = m_npuw_model->outputs()[result_idx];
-        const auto& s_port = m_subrequests[idx]->get_outputs()[sub_out_idx];
-        m_subrequests[idx]->set_tensor(s_port, m_port_to_tensor.at(g_port).tensor);
-    }
-
-    LOG_DEBUG("Done");
+    IBaseInferRequest::bind_global_results(idx, m_subrequests[idx]);
 }
 
 void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
@@ -419,6 +505,8 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     NPUW_ASSERT(comp_model_desc.replaced_by);
     const auto real_idx = comp_model_desc.replaced_by.value();
     auto& func_desc = m_npuw_model->m_compiled_submodels[real_idx];
+
+    const bool is_spatial = func_desc.spatial.has_value();
 
     // Function call prologue:
     // 1. Walk through function dependencies and set the respective tensors
@@ -437,11 +525,25 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
             if (!m_npuw_model->m_compiled_submodels[prod_idx].replaced_by) {
                 // Producer is a normal model -> take its tensor directly
                 const auto& oport = m_npuw_model->m_compiled_submodels[prod_idx].compiled_model->outputs()[prod_port];
-                m_subrequests[real_idx]->set_tensor(iport, m_subrequests[prod_idx]->get_tensor(oport));
+                auto i_tensor = m_subrequests[prod_idx]->get_tensor(oport);
+                if (!is_spatial) {
+                    // Non-spatial case - set immediately
+                    m_subrequests[real_idx]->set_tensor(iport, i_tensor);
+                } else {
+                    // Spatial case - defer
+                    m_spatial_io[real_idx].inputs.at(i) = i_tensor;
+                }
             } else {
                 // Producer is a function - maybe the same as we're calling now.
                 // Take its tensor from the storage
-                m_subrequests[real_idx]->set_tensor(iport, m_funcall_result.at({prod_idx, prod_port}));
+                auto i_tensor = m_funcall_result.at({prod_idx, prod_port});
+                if (!is_spatial) {
+                    // Non-spatial case - again, set immediately
+                    m_subrequests[real_idx]->set_tensor(iport, m_funcall_result.at({prod_idx, prod_port}));
+                } else {
+                    // Spatial case - defer
+                    m_spatial_io[real_idx].inputs.at(i) = i_tensor;
+                }
             }
         }
     }  // for(param_base)
@@ -449,7 +551,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     // 2. Unpack the function closure -- right here, if pipelining if not enabled.
     // If it is enabled, the flow is a little bit different - see run_subrequest_for_success()
     // for details.
-    if (!m_use_function_pipelining) {
+    if (!is_pipelined(idx) && m_closure_update_required && !func_desc.forced_to_fcall) {
         LOG_DEBUG("Unpacking closures...");
         LOG_BLOCK();
         unpack_closure(idx, m_subrequests[real_idx]);
@@ -463,90 +565,24 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     for (std::size_t i = 0; i < func_desc.compiled_model->outputs().size(); i++) {
         LOG_DEBUG("Binding result[" << i << "]...");
         auto& oport = func_desc.compiled_model->outputs()[i];
-        m_subrequests[real_idx]->set_tensor(oport, m_funcall_result.at({idx, i}));
+        auto o_tensor = m_funcall_result.at({idx, i});
+        if (!is_spatial) {
+            // Non-spatial case - set immediately
+            m_subrequests[real_idx]->set_tensor(oport, o_tensor);
+        } else {
+            // Spatial case - defer
+            m_spatial_io[real_idx].outputs.at(i) = o_tensor;
+        }
     }
     LOG_DEBUG("Done");
-}
-
-void ov::npuw::JustInferRequest::unpack_closure(std::size_t idx, RqPtr request) {
-    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-
-    NPUW_ASSERT(comp_model_desc.replaced_by);
-    const auto real_idx = comp_model_desc.replaced_by.value();
-    auto& func_desc = m_npuw_model->m_compiled_submodels[real_idx];
-
-    // Bind extra parameters from the function's closure
-    // First, do easy things & delay heavy stuff
-    std::vector<std::size_t> closure_unpack_required;
-    std::vector<std::size_t> closure_copy_required;
-
-    for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.size(); cidx++) {
-        auto& closure = comp_model_desc.closure[cidx];
-
-        const auto closure_param_id = comp_model_desc.param_base + cidx;
-        auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
-        const auto& clparam = request->get_tensor(iport);
-        if (closure.get_element_type() != clparam->get_element_type()) {
-            // Remember where the unpack is required
-            closure_unpack_required.push_back(cidx);
-        } else if (comp_model_desc.update_required[cidx]) {
-            if (needs_copy(idx)) {
-                // Remember where copy is requried
-                closure_copy_required.push_back(cidx);
-            } else {
-                // Easy case, just set one to another
-                request->set_tensor(iport, ov::get_tensor_impl(closure));
-            }
-        }
-    }  // for(closure)
-
-    // m_ms_unpack += ov::npuw::perf::ms_to_run([&](){
-    ov::parallel_for(closure_copy_required.size(), [&](std::size_t j) {
-        auto cidx = closure_copy_required[j];
-        auto& closure = comp_model_desc.closure[cidx];
-        const auto closure_param_id = comp_model_desc.param_base + cidx;
-        auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
-        auto clparam = request->get_tensor(iport);
-        ov::get_tensor_impl(closure)->copy_to(clparam._ptr);
-    });
-    // }); // ms_to_run
-
-    for (std::size_t j = 0; j != closure_unpack_required.size(); j++) {
-        // NB: No need to protect anything here as containers are all
-        // preallocated and we only access elements under particular (thread
-        // -local) indices.
-        auto cidx = closure_unpack_required[j];
-
-        // FIXME: zerops are stored with absolute indexing, this needs to be aligned
-        auto& closure = comp_model_desc.closure[cidx];
-
-        const auto closure_param_id = comp_model_desc.param_base + cidx;
-        auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
-        auto clparam = request->get_tensor(iport);
-
-        if (!comp_model_desc.scales.empty() && comp_model_desc.scales[cidx] && comp_model_desc.zerops[cidx]) {
-            // Unpacking this weight requires scaling with zero points...
-            ov::npuw::util::unpack(ov::get_tensor_impl(closure),
-                                   ov::get_tensor_impl(comp_model_desc.zerops[cidx]),
-                                   ov::get_tensor_impl(comp_model_desc.scales[cidx]),
-                                   clparam);
-        } else if (!comp_model_desc.scales.empty() && comp_model_desc.scales[cidx]) {
-            // Unpacking this weight requires scaling
-            ov::npuw::util::unpack(ov::get_tensor_impl(closure),
-                                   ov::get_tensor_impl(comp_model_desc.scales[cidx]),
-                                   clparam);
-        } else {
-            // Unpacking this weight doesn't require scaling
-            ov::npuw::util::unpack(ov::get_tensor_impl(closure), clparam);
-        }
-    }
 }
 
 void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     auto real_idx = comp_model_desc.replaced_by.value_or(idx);
 
-    auto new_rqs = create_infer_requests(idx, m_use_function_pipelining ? 2 : 1);
+    const auto is_piped = is_pipelined(idx);
+    auto new_rqs = create_infer_requests(idx, is_piped ? 2 : 1);
 
     // NB: Regardless if this subrequest was a function call
     // or not, always use the real_idx here - for regular
@@ -554,7 +590,7 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     // is critical here to update the function body, not the
     // function calls (which are left empty now in the vector)
     m_subrequests[real_idx] = new_rqs.at(0);
-    if (comp_model_desc.replaced_by && m_use_function_pipelining) {
+    if (is_piped) {
         m_funcall_pipeline[real_idx].subrequest = new_rqs.at(1);
     }
     // After an infer request is recreated, the internal cross-request
@@ -628,7 +664,7 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
 
     if (job_done) {
         dump_output_tensors(idx);  // FIXME: Called here unconditionally, need to refactor
-        if (m_use_function_pipelining && m_funcall_pipeline[idx].next) {
+        if (is_pipelined(idx) && m_funcall_pipeline[idx].next) {
             // Swap the next (pipelined, semi-prepared) infer request in the chain
             // with the default (to be accessed next) one.
             std::swap(m_subrequests[real_idx], m_funcall_pipeline[real_idx].subrequest);
@@ -636,19 +672,135 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
     }
 }
 
-namespace {
-template <typename R, typename F>
-void during(R&& r, F&& f) {
-    r->start_async();
-    f();  // expect noexcept
-    r->wait();
+void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, const std::function<void()>& f) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    if (!comp_model_desc.spatial) {
+        // Non-spatial execution: trigger request asynchronously, run `f` in this context
+        auto& r = m_subrequests[real_idx];
+        r->start_async();
+        f();  // expect noexcept
+        r->wait();
+    } else {
+        // Spatial execution... Do the opposite - run f asynchronously, and meanwhile run the
+        // spatial inference
+        auto future = std::async(std::launch::async, f);
+        unsafe_infer(real_idx);
+        future.wait();
+    }
 }
-}  // namespace
+
+void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    auto& r = m_subrequests[real_idx];
+    if (!comp_model_desc.spatial) {
+        // Run normally
+        r->infer();
+    } else {
+        // Run over the specified range... Note: the full inputs/outputs
+        // must be prepared in the m_spatial_io at this point
+        const auto& spatial = comp_model_desc.spatial.value();
+        const auto num_outputs = comp_model_desc.compiled_model->outputs().size();
+        NPUW_ASSERT(m_spatial_selector);
+
+        // Create a sparse vector with full input sizes.
+        // For the access simplicity, its size is aligned with function's
+        // number of input parameters (activations) so some slots may be
+        // not used here.
+        // FIXME: All these preparations could be done statically (just once)
+        std::vector<ov::Shape> full_in_shapes(comp_model_desc.param_base);
+        for (auto&& param : spatial.params) {
+            full_in_shapes[param.idx] = m_spatial_io[real_idx].inputs.at(param.idx)->get_shape();
+        }
+
+        // Now handle the range, even if it is not a multiply of nway (slice):
+        //
+        // |<- - - - full range  - - - ->|
+        // +------+------+------+------+-+
+        // | nway | nway | nway | nway | |
+        // +------+------+------+------+-+
+        //                              ^tail
+        // The block is always compiled to produce nway. If we need a smaller tensor
+        // on the last iteration, the sub-nway will be copied from the input range to
+        // a temporary tensor, and then the sub-nwway range will be copied from the
+        // request's output range.
+
+        std::size_t offset = 0u;
+        for (std::size_t i = 0u; i < spatial.nway_iters; i++, offset += spatial.nway) {
+            if (!m_spatial_selector->need_submit(offset, spatial.nway)) {
+                continue;
+            }
+
+            // Collect spatial inputs for this offset
+            for (auto&& param : spatial.params) {
+                const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
+                const auto& iview =
+                    ov::npuw::util::view(m_spatial_io[real_idx].inputs.at(param.idx), param.dim, offset, spatial.nway);
+                r->set_tensor(iport, iview);
+            }  // for(params)
+
+            // Now set the spatial outputs
+            for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
+                const auto& oport = comp_model_desc.compiled_model->outputs()[out_idx];
+                r->set_tensor(oport,
+                              ov::npuw::util::view(m_spatial_io[real_idx].outputs.at(out_idx),
+                                                   spatial.out_dim,
+                                                   offset,
+                                                   spatial.nway));
+            }  // for(outputs)
+
+            // Now run the part
+            r->infer();
+        }  // for(full_nway_times)
+
+        // Now process the tail, if required
+        if (spatial.tail_size && m_spatial_selector->need_submit(offset, spatial.tail_size)) {
+            // Copy the sub-ranges to spatial inputs
+            // NOTE: tails buffers are read from/written to at 0th offset!
+            for (auto&& param : spatial.params) {
+                auto in_view = ov::npuw::util::view(m_spatial_io[real_idx].inputs.at(param.idx),
+                                                    param.dim,
+                                                    offset,
+                                                    spatial.tail_size);
+
+                const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
+                auto out_view = ov::npuw::util::view(m_spatial_io[real_idx].input_tails.at(param.idx),
+                                                     param.dim,
+                                                     0,
+                                                     spatial.tail_size);
+
+                in_view->copy_to(out_view._ptr);
+                r->set_tensor(iport, m_spatial_io[real_idx].input_tails.at(param.idx));
+            }  // for(params)
+
+            // Now set the tail tensors
+            for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
+                const auto& oport = comp_model_desc.compiled_model->outputs()[out_idx];
+                r->set_tensor(oport, m_spatial_io[real_idx].output_tails.at(out_idx));
+            }  // for(outputs)
+
+            // Now run the tail infer
+            r->infer();
+
+            // Now copy the views from the output full-nway tensor to the output tensors
+            for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
+                auto in_view = ov::npuw::util::view(m_spatial_io[real_idx].output_tails.at(out_idx),
+                                                    spatial.out_dim,
+                                                    0,
+                                                    spatial.tail_size);
+
+                auto out_view = ov::npuw::util::view(m_spatial_io[real_idx].outputs.at(out_idx),
+                                                     spatial.out_dim,
+                                                     offset,
+                                                     spatial.tail_size);
+                in_view->copy_to(out_view._ptr);
+            }  // for(outputs)
+        }
+    }
+}
 
 void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-    auto& this_subr = m_subrequests[real_idx];
     const std::size_t next_idx = next(idx + 1);
 
     if (comp_model_desc.replaced_by) {
@@ -657,10 +809,10 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
             // The next subgraph is a call to the same function...
             // At this point, THIS infer request is already prepared.
             // Run it, then prepare it again for the next entrace
-            if (m_use_function_pipelining) {
+            if (is_pipelined(real_idx)) {
                 // function pipelining is here! and the next rq is ours.
                 NPUW_ASSERT(m_funcall_pipeline[idx].next.value() == next_idx);
-                during(this_subr, [&]() {
+                unsafe_during(real_idx, [&]() {
                     LOG_DEBUG("Unpacking closures for the NEXT subrequest[" << next_idx << "]...");
                     LOG_BLOCK();
                     // Note: do it here unconditionally - if this request fails,
@@ -671,7 +823,7 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
             } else {
                 // Function pipelining is not used. THIS infer request
                 // is also the NEXT one. Nothing much to do here
-                this_subr->infer();
+                unsafe_infer(real_idx);
                 bind_global_parameters(next_idx);
             }
         } else {
@@ -681,14 +833,14 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
             if (next_idx == 0) {
                 // Note: even if m_function_pipelining is ON,
                 // SWAP won't happen here - see the below check for .next
-                this_subr->infer();
+                unsafe_infer(real_idx);
             } else {
-                during(this_subr, [&]() {
+                unsafe_during(real_idx, [&]() {
                     if (!next_prepared) {
                         bind_global_parameters(next_idx);
                         next_prepared = true;
                     }
-                    if (m_use_function_pipelining && m_funcall_pipeline[idx].next) {
+                    if (is_pipelined(idx) && m_funcall_pipeline[idx].next) {
                         const auto my_next_idx = m_funcall_pipeline[idx].next.value();
                         LOG_DEBUG("Unpacking closures for the NEXT subrequest[" << my_next_idx << "]...");
                         LOG_BLOCK();
@@ -701,9 +853,9 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
         // This is a regular subgraph. Start it async to prepare the next
         // parameters
         if (next_idx == 0) {
-            this_subr->infer();
+            unsafe_infer(real_idx);
         } else {
-            during(this_subr, [&]() {
+            unsafe_during(real_idx, [&]() {
                 if (!next_prepared) {
                     bind_global_parameters(next_idx);
                     next_prepared = true;
@@ -725,14 +877,15 @@ void ov::npuw::JustInferRequest::cancel_subrequest(std::size_t idx) {
     m_subrequests[idx]->cancel();
 }
 
-std::size_t ov::npuw::JustInferRequest::total_subrequests() const {
-    return m_subrequests.size();
-}
-
 bool ov::npuw::JustInferRequest::supports_async_pipeline() const {
     return false;
 }
 
 void ov::npuw::JustInferRequest::update_subrequest_links(std::size_t) {
     connect_subrequests();
+}
+
+bool ov::npuw::JustInferRequest::is_pipelined(std::size_t idx) const {
+    const auto& desc = m_npuw_model->m_compiled_submodels[real(idx)];
+    return m_use_function_pipelining && desc.replaced_by && !desc.forced_to_fcall;
 }

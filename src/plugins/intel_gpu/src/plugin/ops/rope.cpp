@@ -16,8 +16,7 @@ using RoPE = ov::op::internal::RoPE;
 }  // namespace op
 }  // namespace ov
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateRoPEOp(ProgramBuilder& p, const std::shared_ptr<op::internal::RoPE>& op) {
     validate_inputs_count(op, {3, 4});
@@ -29,6 +28,8 @@ static void CreateRoPEOp(ProgramBuilder& p, const std::shared_ptr<op::internal::
         gather_rank = op->get_input_partial_shape(config.gather_position_arg_id).size();
     }
 
+    OPENVINO_ASSERT(!config.is_interleaved || !config.output_trans0213, "[GPU] Unsupported ROPE parameters");
+
     auto rope = cldnn::rope(layer_type_name_ID(op),
                             inputs,
                             config,
@@ -39,5 +40,4 @@ static void CreateRoPEOp(ProgramBuilder& p, const std::shared_ptr<op::internal::
 
 REGISTER_FACTORY_IMPL(internal, RoPE);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

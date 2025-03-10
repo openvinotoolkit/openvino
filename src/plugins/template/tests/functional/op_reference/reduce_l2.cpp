@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,27 @@ std::vector<ReductionParams> generateReductionParams(const bool keep_dims) {
         reference_tests::Tensor(reduce(Shape{3, 2, 2}, AxisSet{2}, keep_dims),
                                 element::Type(IN_ET),
                                 std::vector<T>{2.23606798, 5.0, 7.81024968, 10.63014581, 13.45362405, 16.2788206}))};
+    auto out_shape_from_empty = Shape{2, 1, 1};
+    if (keep_dims == false) {
+        out_shape_from_empty = Shape{2};
+    }
+    params.push_back(
+        ReductionParams(ReductionType::L2,
+                        keep_dims,
+                        std::vector<int64_t>{1, 2},
+                        reference_tests::Tensor({2, 0, 4}, element::Type(IN_ET), std::vector<T>{}),
+                        reference_tests::Tensor(out_shape_from_empty, element::Type(IN_ET), std::vector<T>{0, 0})));
+
+    out_shape_from_empty = Shape{2, 0, 1};
+    if (keep_dims == false) {
+        out_shape_from_empty = Shape{2, 0};
+    }
+    params.push_back(
+        ReductionParams(ReductionType::L2,
+                        keep_dims,
+                        std::vector<int64_t>{2},
+                        reference_tests::Tensor({2, 0, 4}, element::Type(IN_ET), std::vector<T>{}),
+                        reference_tests::Tensor(out_shape_from_empty, element::Type(IN_ET), std::vector<T>{})));
     return params;
 }
 
@@ -45,6 +66,7 @@ std::vector<ReductionParams> generateReductionParams(const bool keep_dims) {
         reference_tests::Tensor(reduce(Shape{3, 2, 2}, AxisSet{2}, keep_dims),
                                 element::Type(IN_ET),
                                 std::vector<T>{2, 5, 8, 11, 13, 16}))};
+
     return params;
 }
 

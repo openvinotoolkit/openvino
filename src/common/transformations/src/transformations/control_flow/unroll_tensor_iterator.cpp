@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
     for (const auto& op : f->get_ops()) {
         ov::op::util::process_subgraph(*this, op);
 
-        auto sub_graph_op = std::dynamic_pointer_cast<op::util::SubGraphOp>(op);
+        auto sub_graph_op = ov::as_type_ptr<op::util::SubGraphOp>(op);
         if (!sub_graph_op || transformation_callback(sub_graph_op)) {
             continue;
         }
@@ -52,8 +52,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
 
         // Port map : inputs and back edges
         for (const auto& desc : sub_graph_op->get_input_descriptions()) {
-            if (const auto& input_desc =
-                    std::dynamic_pointer_cast<ov::op::v0::TensorIterator::SliceInputDescription>(desc)) {
+            if (const auto& input_desc = ov::as_type_ptr<ov::op::v0::TensorIterator::SliceInputDescription>(desc)) {
                 // Connect the sliced input (layer before the input) to the Split layer and connect
                 // the corresponding Split output to the corresponding copy of the body.
                 // If the number of iterations is 1, then the Split is not needed.
@@ -81,7 +80,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
                     }
                 }
             } else if (const auto& merged_desc =
-                           std::dynamic_pointer_cast<ov::op::v0::TensorIterator::MergedInputDescription>(desc)) {
+                           ov::as_type_ptr<ov::op::v0::TensorIterator::MergedInputDescription>(desc)) {
                 // Connect the input to the corresponding copy of the body.
                 auto in_data = sub_graph_op->input_values()[merged_desc->m_input_index];
                 const auto& param = body_functions[0]->get_parameters()[merged_desc->m_body_parameter_index];
@@ -98,7 +97,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
                     }
                 }
             } else if (const auto& invariant_desc =
-                           std::dynamic_pointer_cast<ov::op::v0::TensorIterator::InvariantInputDescription>(desc)) {
+                           ov::as_type_ptr<ov::op::v0::TensorIterator::InvariantInputDescription>(desc)) {
                 // Connect the input to the corresponding copy of the body.
                 auto in_data = sub_graph_op->input_values()[invariant_desc->m_input_index];
                 for (int64_t j = 0; j < num_iter; j++) {
@@ -115,23 +114,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
 
         // Port map: outputs
         for (const auto& desc : sub_graph_op->get_output_descriptions()) {
-            //  we need to insert tensor_name to the outputs of TensorIterator if they directly connected to
-            // Results ops. It's necessary to save original TensorIterator name when we use CNNNetwork.
-            auto insert_tensor_name = [&](const ov::Output<ov::Node>& ti_output, const ov::Output<Node>& insert_to) {
-                auto target_inputs = ti_output.get_target_inputs();
-                if (target_inputs.empty() ||
-                    std::any_of(target_inputs.begin(), target_inputs.end(), [](const ov::Input<ov::Node>& target_inp) {
-                        return ov::as_type<ov::op::v0::Result>(target_inp.get_node()) != nullptr;
-                    })) {
-                    OPENVINO_SUPPRESS_DEPRECATED_START
-                    ov::descriptor::set_ov_tensor_legacy_name(insert_to.get_tensor(),
-                                                              ov::op::util::create_ie_output_name(ti_output));
-                    OPENVINO_SUPPRESS_DEPRECATED_END
-                }
-            };
-
-            if (const auto& concat_desc =
-                    std::dynamic_pointer_cast<ov::op::v0::TensorIterator::ConcatOutputDescription>(desc)) {
+            if (const auto& concat_desc = ov::as_type_ptr<ov::op::v0::TensorIterator::ConcatOutputDescription>(desc)) {
                 if (!concat_desc) {
                     return false;
                 }
@@ -155,9 +138,6 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
                     auto concat = std::make_shared<ov::op::v0::Concat>(to_concat, concat_desc->m_axis);
                     copy_runtime_info(sub_graph_op, concat);
 
-                    // set output name to Tensor to store it for openvino to cnn conversion
-                    insert_tensor_name(sub_graph_op->output(concat_desc->m_output_index), concat->output(0));
-
                     // connect the Concat layer to the corresponding TI outputs
                     for (auto& input : sub_graph_op->output(concat_desc->m_output_index).get_target_inputs()) {
                         input.replace_source_output(concat);
@@ -167,23 +147,18 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
                     std::shared_ptr<ov::op::v0::Result> result =
                         body_functions[0]->get_results().at(concat_desc->m_body_value_index);
                     const auto& input_to_res = result->get_input_source_output(0);
-                    // set output name to Tensor to store it for openvino to cnn conversion
-                    insert_tensor_name(sub_graph_op->output(concat_desc->m_output_index), input_to_res);
 
                     for (auto& input : sub_graph_op->output(concat_desc->m_output_index).get_target_inputs()) {
                         input.replace_source_output(input_to_res);
                     }
                 }
             } else if (const auto& output_desc =
-                           std::dynamic_pointer_cast<ov::op::v0::TensorIterator::BodyOutputDescription>(desc)) {
+                           ov::as_type_ptr<ov::op::v0::TensorIterator::BodyOutputDescription>(desc)) {
                 // Connect outputs of the bodies to the corresponding TI outputs
                 auto iter = output_desc->m_iteration;
                 iter = iter >= 0 ? iter : num_iter - 1;
-                std::shared_ptr<ov::op::v0::Result> result =
-                    body_functions[iter]->get_results()[output_desc->m_body_value_index];
-                const auto& in_value = result->input_value(0);
+                auto result = body_functions[iter]->get_results()[output_desc->m_body_value_index];
 
-                insert_tensor_name(sub_graph_op->output(output_desc->m_output_index), in_value);
                 for (const auto& input : sub_graph_op->output(output_desc->m_output_index).get_target_inputs()) {
                     input.replace_source_output(result->get_input_source_output(0));
                 }

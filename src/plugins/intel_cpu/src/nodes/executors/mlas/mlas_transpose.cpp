@@ -3,12 +3,12 @@
 //
 
 #include "mlas_transpose.hpp"
-#include "openvino/core/parallel.hpp"
-#include "nodes/common/cpu_memcpy.h"
-#include "mlas.h"
 
-namespace ov {
-namespace intel_cpu {
+#include "mlas.h"
+#include "nodes/common/cpu_memcpy.h"
+#include "openvino/core/parallel.hpp"
+
+namespace ov::intel_cpu {
 
 template <typename T>
 struct has_mlas_transpose : std::false_type {};
@@ -23,8 +23,13 @@ template <>
 struct has_mlas_transpose<uint32_t> : std::true_type {};
 
 template <typename T>
-typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisOutwards(
-    const T* input_data, T* output_data, int64_t num_loops, int64_t num_writers, int64_t writes_per_loop, int64_t writes_per_writer_per_loop) {
+std::enable_if_t<!has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisOutwards(
+    const T* input_data,
+    T* output_data,
+    int64_t num_loops,
+    int64_t num_writers,
+    int64_t writes_per_loop,
+    int64_t writes_per_writer_per_loop) {
     const T* end;
     for (int64_t l = 0; l < num_loops; ++l) {
         T* output_for_first_writer = output_data;
@@ -43,18 +48,31 @@ typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTranspo
 }
 
 template <typename T>
-typename std::enable_if<has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisOutwards(
-        const T* input_data, T* output_data, int64_t num_loops, int64_t num_writers, int64_t writes_per_loop, int64_t writes_per_writer_per_loop) {
+std::enable_if_t<has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisOutwards(
+    const T* input_data,
+    T* output_data,
+    int64_t num_loops,
+    int64_t num_writers,
+    int64_t writes_per_loop,
+    int64_t writes_per_writer_per_loop) {
     for (int64_t l = 0; l < num_loops; ++l) {
-        MlasTranspose(input_data, output_data, static_cast<size_t>(writes_per_writer_per_loop), static_cast<size_t>(num_writers));
+        MlasTranspose(input_data,
+                      output_data,
+                      static_cast<size_t>(writes_per_writer_per_loop),
+                      static_cast<size_t>(num_writers));
         input_data += writes_per_loop;
         output_data += writes_per_loop;
     }
 }
 
 template <typename T>
-typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisInwards(
-        const T* input_data, T* output_data, int64_t num_loops, int64_t num_readers, int64_t reads_per_loop, int64_t reads_per_reader_per_loop) {
+std::enable_if_t<!has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisInwards(
+    const T* input_data,
+    T* output_data,
+    int64_t num_loops,
+    int64_t num_readers,
+    int64_t reads_per_loop,
+    int64_t reads_per_reader_per_loop) {
     T* end;
     for (int64_t l = 0; l < num_loops; ++l) {
         const T* input_for_first_reader = input_data;
@@ -73,10 +91,18 @@ typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTranspo
 }
 
 template <typename T>
-typename std::enable_if<has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisInwards(
-        const T* input_data, T* output_data, int64_t num_loops, int64_t num_readers, int64_t reads_per_loop, int64_t reads_per_reader_per_loop) {
+std::enable_if_t<has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisInwards(
+    const T* input_data,
+    T* output_data,
+    int64_t num_loops,
+    int64_t num_readers,
+    int64_t reads_per_loop,
+    int64_t reads_per_reader_per_loop) {
     for (int64_t l = 0; l < num_loops; ++l) {
-        MlasTranspose(input_data, output_data, static_cast<size_t>(num_readers), static_cast<size_t>(reads_per_reader_per_loop));
+        MlasTranspose(input_data,
+                      output_data,
+                      static_cast<size_t>(num_readers),
+                      static_cast<size_t>(reads_per_reader_per_loop));
         input_data += reads_per_loop;
         output_data += reads_per_loop;
     }
@@ -148,7 +174,10 @@ bool MlasTransposeExecutor::IsTransposeMovingSingleAxis(VectorDims permutations,
     return single_axis_moved;
 }
 
-void MlasTransposeExecutor::TransposeSingleAxisOutwards(const MemoryCPtr& input, const MemoryPtr& output, size_t from, size_t to) {
+void MlasTransposeExecutor::TransposeSingleAxisOutwards(const MemoryCPtr& input,
+                                                        const MemoryPtr& output,
+                                                        size_t from,
+                                                        size_t to) {
     const auto& input_shape = input->getShape();
     const auto& input_dims = input_shape.getDims();
     const auto element_size = input->getDesc().getPrecision().size();
@@ -159,58 +188,74 @@ void MlasTransposeExecutor::TransposeSingleAxisOutwards(const MemoryCPtr& input,
     auto num_loops = calcShapeSize(input_shape, 0, to);
     auto num_writers = input_dims[from];
     auto block_size = calcShapeSize(input_shape, from + 1, input_shape.getRank());
-    auto writes_per_loop = int64_t(input_shape.getElementsCount() / num_loops / block_size);
-    auto writes_per_writer_per_loop = int64_t(writes_per_loop / num_writers);
+    auto writes_per_loop = static_cast<int64_t>(input_shape.getElementsCount() / num_loops / block_size);
+    auto writes_per_writer_per_loop = static_cast<int64_t>(writes_per_loop / num_writers);
     // TODO: check integer overflow
     const size_t bytes_per_write = static_cast<size_t>(block_size) * element_size;
 
     switch (bytes_per_write) {
-        case (sizeof(uint8_t)): {
-            SimpleTransposeSingleAxisOutwards(input_data, output_data, num_loops, num_writers, writes_per_loop,
-                                                                                writes_per_writer_per_loop);
-            break;
-        }
-        case (sizeof(uint16_t)): {
-            SimpleTransposeSingleAxisOutwards(reinterpret_cast<const uint16_t*>(input_data),
-                                                                                reinterpret_cast<uint16_t*>(output_data), num_loops, num_writers,
-                                                                                writes_per_loop, writes_per_writer_per_loop);
-            break;
-        }
-        case (sizeof(uint32_t)): {
-            SimpleTransposeSingleAxisOutwards(reinterpret_cast<const uint32_t*>(input_data),
-                                                                                reinterpret_cast<uint32_t*>(output_data), num_loops, num_writers,
-                                                                                writes_per_loop, writes_per_writer_per_loop);
-            break;
-        }
-        case (sizeof(uint64_t)): {
-            SimpleTransposeSingleAxisOutwards(reinterpret_cast<const uint64_t*>(input_data),
-                                                                                reinterpret_cast<uint64_t*>(output_data), num_loops, num_writers,
-                                                                                writes_per_loop, writes_per_writer_per_loop);
-            break;
-        }
-        default: {
-            // we need to use memcpy for each block
-            for (int64_t l = 0; l < num_loops; ++l) {
-                uint8_t* output_for_first_writer = output_data;
+    case (sizeof(uint8_t)): {
+        SimpleTransposeSingleAxisOutwards(input_data,
+                                          output_data,
+                                          num_loops,
+                                          num_writers,
+                                          writes_per_loop,
+                                          writes_per_writer_per_loop);
+        break;
+    }
+    case (sizeof(uint16_t)): {
+        SimpleTransposeSingleAxisOutwards(reinterpret_cast<const uint16_t*>(input_data),
+                                          reinterpret_cast<uint16_t*>(output_data),
+                                          num_loops,
+                                          num_writers,
+                                          writes_per_loop,
+                                          writes_per_writer_per_loop);
+        break;
+    }
+    case (sizeof(uint32_t)): {
+        SimpleTransposeSingleAxisOutwards(reinterpret_cast<const uint32_t*>(input_data),
+                                          reinterpret_cast<uint32_t*>(output_data),
+                                          num_loops,
+                                          num_writers,
+                                          writes_per_loop,
+                                          writes_per_writer_per_loop);
+        break;
+    }
+    case (sizeof(uint64_t)): {
+        SimpleTransposeSingleAxisOutwards(reinterpret_cast<const uint64_t*>(input_data),
+                                          reinterpret_cast<uint64_t*>(output_data),
+                                          num_loops,
+                                          num_writers,
+                                          writes_per_loop,
+                                          writes_per_writer_per_loop);
+        break;
+    }
+    default: {
+        // we need to use memcpy for each block
+        for (int64_t l = 0; l < num_loops; ++l) {
+            uint8_t* output_for_first_writer = output_data;
 
-                for (auto wwpl = 0; wwpl < writes_per_writer_per_loop; ++wwpl) {
-                    uint8_t* output_for_current_writer = output_for_first_writer;
+            for (auto wwpl = 0; wwpl < writes_per_writer_per_loop; ++wwpl) {
+                uint8_t* output_for_current_writer = output_for_first_writer;
 
-                    for (uint64_t w = 0; w < num_writers; ++w) {
-                        memcpy(output_for_current_writer, input_data, bytes_per_write);
-                        // skip to output position for next writer
-                        output_for_current_writer += (writes_per_writer_per_loop * bytes_per_write);
-                        input_data += bytes_per_write;
-                    }
-                    output_for_first_writer += bytes_per_write;
+                for (uint64_t w = 0; w < num_writers; ++w) {
+                    memcpy(output_for_current_writer, input_data, bytes_per_write);
+                    // skip to output position for next writer
+                    output_for_current_writer += (writes_per_writer_per_loop * bytes_per_write);
+                    input_data += bytes_per_write;
                 }
-                output_data += writes_per_loop * bytes_per_write;
+                output_for_first_writer += bytes_per_write;
             }
+            output_data += writes_per_loop * bytes_per_write;
         }
+    }
     }
 }
 
-void MlasTransposeExecutor::TransposeSingleAxisInwards(const MemoryCPtr& input, const MemoryPtr& output, size_t from, size_t to) {
+void MlasTransposeExecutor::TransposeSingleAxisInwards(const MemoryCPtr& input,
+                                                       const MemoryPtr& output,
+                                                       size_t from,
+                                                       size_t to) {
     const auto& input_shape = input->getShape();
     const auto& input_dims = input_shape.getDims();
 
@@ -221,67 +266,80 @@ void MlasTransposeExecutor::TransposeSingleAxisInwards(const MemoryCPtr& input, 
     auto num_loops = calcShapeSize(input_shape, 0, from);
     auto num_readers = input_dims[from];
     auto block_size = calcShapeSize(input_shape, to + 1, input_shape.getRank());
-    auto reads_per_loop = int64_t(input_shape.getElementsCount() / num_loops / block_size);
-    auto reads_per_reader_per_loop = int64_t(reads_per_loop / num_readers);
+    auto reads_per_loop = static_cast<int64_t>(input_shape.getElementsCount() / num_loops / block_size);
+    auto reads_per_reader_per_loop = static_cast<int64_t>(reads_per_loop / num_readers);
     // TODO: check integer overflow
     const size_t bytes_per_read = static_cast<size_t>(block_size) * element_size;
 
     switch (bytes_per_read) {
-        case (sizeof(uint8_t)): {
-            SimpleTransposeSingleAxisInwards(input_data, output_data, num_loops, num_readers, reads_per_loop,
-                                                                             reads_per_reader_per_loop);
-            break;
-        }
-        case (sizeof(uint16_t)): {
-            SimpleTransposeSingleAxisInwards(reinterpret_cast<const uint16_t*>(input_data),
-                                                                             reinterpret_cast<uint16_t*>(output_data), num_loops, num_readers, reads_per_loop,
-                                                                             reads_per_reader_per_loop);
-            break;
-        }
-        case (sizeof(uint32_t)): {
-            SimpleTransposeSingleAxisInwards(reinterpret_cast<const uint32_t*>(input_data),
-                                                                             reinterpret_cast<uint32_t*>(output_data), num_loops, num_readers, reads_per_loop,
-                                                                             reads_per_reader_per_loop);
-            break;
-        }
-        case (sizeof(uint64_t)): {
-            SimpleTransposeSingleAxisInwards(reinterpret_cast<const uint64_t*>(input_data),
-                                                                             reinterpret_cast<uint64_t*>(output_data), num_loops, num_readers, reads_per_loop,
-                                                                             reads_per_reader_per_loop);
-            break;
-        }
-        default: {
-            // we need to use memcpy for each block
-            for (int64_t l = 0; l < num_loops; ++l) {
-                const uint8_t* input_for_first_reader = input_data;
-                for (auto rrpl = 0; rrpl < reads_per_reader_per_loop; ++rrpl) {
-                    const uint8_t* input_for_current_reader = input_for_first_reader;
-                    for (uint64_t r = 0; r < num_readers; ++r) {
-                        memcpy(output_data, input_for_current_reader, bytes_per_read);
-                        output_data += bytes_per_read;
-                        // skip to input position for next reader
-                        input_for_current_reader += (reads_per_reader_per_loop * bytes_per_read);
-                    }
-                    input_for_first_reader += bytes_per_read;
+    case (sizeof(uint8_t)): {
+        SimpleTransposeSingleAxisInwards(input_data,
+                                         output_data,
+                                         num_loops,
+                                         num_readers,
+                                         reads_per_loop,
+                                         reads_per_reader_per_loop);
+        break;
+    }
+    case (sizeof(uint16_t)): {
+        SimpleTransposeSingleAxisInwards(reinterpret_cast<const uint16_t*>(input_data),
+                                         reinterpret_cast<uint16_t*>(output_data),
+                                         num_loops,
+                                         num_readers,
+                                         reads_per_loop,
+                                         reads_per_reader_per_loop);
+        break;
+    }
+    case (sizeof(uint32_t)): {
+        SimpleTransposeSingleAxisInwards(reinterpret_cast<const uint32_t*>(input_data),
+                                         reinterpret_cast<uint32_t*>(output_data),
+                                         num_loops,
+                                         num_readers,
+                                         reads_per_loop,
+                                         reads_per_reader_per_loop);
+        break;
+    }
+    case (sizeof(uint64_t)): {
+        SimpleTransposeSingleAxisInwards(reinterpret_cast<const uint64_t*>(input_data),
+                                         reinterpret_cast<uint64_t*>(output_data),
+                                         num_loops,
+                                         num_readers,
+                                         reads_per_loop,
+                                         reads_per_reader_per_loop);
+        break;
+    }
+    default: {
+        // we need to use memcpy for each block
+        for (int64_t l = 0; l < num_loops; ++l) {
+            const uint8_t* input_for_first_reader = input_data;
+            for (auto rrpl = 0; rrpl < reads_per_reader_per_loop; ++rrpl) {
+                const uint8_t* input_for_current_reader = input_for_first_reader;
+                for (uint64_t r = 0; r < num_readers; ++r) {
+                    memcpy(output_data, input_for_current_reader, bytes_per_read);
+                    output_data += bytes_per_read;
+                    // skip to input position for next reader
+                    input_for_current_reader += (reads_per_reader_per_loop * bytes_per_read);
                 }
-                input_data += reads_per_loop * bytes_per_read;
+                input_for_first_reader += bytes_per_read;
             }
+            input_data += reads_per_loop * bytes_per_read;
         }
+    }
     }
 }
 
 void MlasTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
     if (from > to) {
-            TransposeSingleAxisOutwards(src[0], dst[0], from, to);
+        TransposeSingleAxisOutwards(src[0], dst[0], from, to);
     } else {
-            TransposeSingleAxisInwards(src[0], dst[0], from, to);
+        TransposeSingleAxisInwards(src[0], dst[0], from, to);
     }
 }
 
-bool MlasTransposeExecutor::init(const TransposeParams &transposeParams,
-                                 const std::vector<MemoryDescPtr> &srcDescs,
-                                 const std::vector<MemoryDescPtr> &dstDescs,
-                                 const dnnl::primitive_attr &attr) {
+bool MlasTransposeExecutor::init(const TransposeParams& transposeParams,
+                                 const std::vector<MemoryDescPtr>& srcDescs,
+                                 const std::vector<MemoryDescPtr>& dstDescs,
+                                 const dnnl::primitive_attr& attr) {
     if (!IsTransposeMovingSingleAxis(transposeParams.permuteParams.order, from, to)) {
         DEBUG_LOG("MLAS Transpose executor supports moving single axis only");
         return false;
@@ -292,8 +350,7 @@ bool MlasTransposeExecutor::init(const TransposeParams &transposeParams,
 bool MlasTransposeExecutorBuilder::isSupported(const TransposeParams& transposeParams,
                                                const std::vector<MemoryDescPtr>& srcDescs,
                                                const std::vector<MemoryDescPtr>& dstDescs) const {
-    if (!srcDescs[0]->hasLayoutType(LayoutType::ncsp) ||
-        !dstDescs[0]->hasLayoutType(LayoutType::ncsp)) {
+    if (!srcDescs[0]->hasLayoutType(LayoutType::ncsp) || !dstDescs[0]->hasLayoutType(LayoutType::ncsp)) {
         DEBUG_LOG("MLAS Transpose executor supports NCHW layout only");
         return false;
     }
@@ -308,5 +365,4 @@ TransposeExecutorPtr MlasTransposeExecutorBuilder::makeExecutor(const ExecutorCo
     return std::make_shared<MlasTransposeExecutor>(context);
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu

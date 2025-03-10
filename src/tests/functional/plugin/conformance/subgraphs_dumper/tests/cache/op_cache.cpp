@@ -1,20 +1,18 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "cache/op_cache.hpp"
+
 #include <memory>
 
-#include "openvino/op/ops.hpp"
-#include "openvino/util/file_util.hpp"
-
+#include "base_test.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
-
-#include "cache/op_cache.hpp"
-#include "utils/node.hpp"
+#include "openvino/op/ops.hpp"
+#include "openvino/util/file_util.hpp"
 #include "utils/cache.hpp"
-
-#include "base_test.hpp"
+#include "utils/node.hpp"
 
 namespace {
 
@@ -30,11 +28,11 @@ protected:
     void SetUp() override {
         SubgraphsDumperBaseTest::SetUp();
         test_model_name = "test_model_name";
-        test_artifacts_dir = ov::util::path_join({ov::test::utils::getCurrentWorkingDir(), "test_artifacts"});
-        test_model_path = ov::util::path_join({test_artifacts_dir, test_model_name + ".xml"});
+        test_artifacts_dir = ov::util::path_join({ov::test::utils::getCurrentWorkingDir(), "test_artifacts"}).string();
+        test_model_path = ov::util::path_join({test_artifacts_dir, test_model_name + ".xml"}).string();
         ov::util::create_directory_recursive(test_artifacts_dir);
         {
-            auto params = ov::ParameterVector {
+            auto params = ov::ParameterVector{
                 std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::PartialShape{1, 1, 1, 1}),
             };
             auto convert = std::make_shared<ov::op::v0::Convert>(params.front(), ov::element::f16);
@@ -77,8 +75,7 @@ TEST_F(OpCacheFuncTest, serialize_cache) {
 
 // ====================== Operation Cache Unit tests ==============================
 
-class OpCacheUnitTest : public OpCacheFuncTest,
-                        public virtual OpCache {
+class OpCacheUnitTest : public OpCacheFuncTest, public virtual OpCache {
 protected:
     std::shared_ptr<ov::op::v0::Convert> convert_node;
     ov::conformance::MetaInfo test_meta;
@@ -101,7 +98,7 @@ TEST_F(OpCacheUnitTest, update_cache_by_model) {
     this->update_cache(convert_node, test_model_path, 1);
     ASSERT_EQ(m_ops_cache.size(), 1);
     std::shared_ptr<ov::Model> test_model_1;
-    std::string test_model_path_1 = ov::util::path_join({test_artifacts_dir, "model_1", test_model_name + ".xml"});
+    std::string test_model_path_1 = ov::util::path_join({test_artifacts_dir, "model_1", test_model_name + ".xml"}).string();
     {
         auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::PartialShape{1, 1, 1, 1});
         param->set_friendly_name("in_0");
@@ -116,10 +113,10 @@ TEST_F(OpCacheUnitTest, update_cache_by_model) {
     // check cache
     ASSERT_EQ(m_ops_cache.size(), 2);
     for (const auto& cached_node : this->m_ops_cache) {
-        ASSERT_TRUE(std::dynamic_pointer_cast<ov::op::v0::Convert>(cached_node.first) ||
-                    std::dynamic_pointer_cast<ov::op::v0::ShapeOf>(cached_node.first));
+        ASSERT_TRUE(ov::as_type_ptr<ov::op::v0::Convert>(cached_node.first) ||
+                    ov::as_type_ptr<ov::op::v0::ShapeOf>(cached_node.first));
         auto meta = cached_node.second;
-        if (std::dynamic_pointer_cast<ov::op::v0::Convert>(cached_node.first)) {
+        if (ov::as_type_ptr<ov::op::v0::Convert>(cached_node.first)) {
             // check model_path
             ASSERT_EQ(meta.get_model_info().size(), 1);
             ASSERT_EQ(meta.get_model_info().begin()->first, test_model_name);
@@ -158,6 +155,11 @@ TEST_F(OpCacheUnitTest, update_cache_by_model) {
     }
 }
 
+TEST_F(OpCacheUnitTest, directory_exists) {
+    EXPECT_TRUE(ov::util::directory_exists(test_artifacts_dir));
+    EXPECT_FALSE(ov::util::directory_exists(test_artifacts_dir + "/fake"));
+}
+
 TEST_F(OpCacheUnitTest, serialize_op) {
     // Ticket: 149824
     if (std::getenv("GITHUB_ACTIONS")) {
@@ -166,8 +168,8 @@ TEST_F(OpCacheUnitTest, serialize_op) {
     this->set_serialization_dir(test_artifacts_dir);
     ASSERT_TRUE(this->serialize_op({convert_node, test_meta}));
     ASSERT_TRUE(ov::util::directory_exists(test_artifacts_dir));
-    auto serialized_model_path = ov::util::path_join({test_artifacts_dir,
-        "operation", "static", "Convert-1", "f16", "Convert-1_0.xml"});
+    auto serialized_model_path =
+        ov::util::path_join({test_artifacts_dir, "operation", "static", "Convert-1", "f16", "Convert-1_0.xml"});
     ASSERT_TRUE(ov::util::file_exists(serialized_model_path));
     auto serialized_model = ov::util::core->read_model(serialized_model_path);
     auto res = compare_functions(test_model, serialized_model, true, false, true, true, true, false);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,14 +8,15 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "ov_ops/dynamic_quantize.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 class SDPA : public ov::op::v13::ScaledDotProductAttention {
 public:
-    OPENVINO_OP("SDPA", "gpu_opset");
+    OPENVINO_OP("SDPA", "gpu_opset", ov::op::v13::ScaledDotProductAttention);
+
+    using QuantizationAttribute = ov::op::internal::DynamicQuantize::Attributes;
 
     SDPA() = default;
 
@@ -25,7 +26,16 @@ public:
          const std::vector<int64_t>& order_k,
          const std::vector<int64_t>& order_v,
          const std::vector<int64_t>& order_out,
-         const ov::element::Type output_type = ov::element::undefined);
+         const ov::element::Type output_type = ov::element::dynamic);
+
+    SDPA(const OutputVector& inputs,
+         const bool is_causal,
+         const std::vector<int64_t>& order_q,
+         const std::vector<int64_t>& order_k,
+         const std::vector<int64_t>& order_v,
+         const std::vector<int64_t>& order_out,
+         const QuantizationAttribute& quantization_attrs,
+         const ov::element::Type output_type = ov::element::dynamic);
 
     bool visit_attributes(ov::AttributeVisitor &visitor) override;
 
@@ -41,6 +51,10 @@ public:
     std::vector<int64_t> get_output_transpose_order() const { return m_order_out; }
     ov::element::Type get_output_type() const { return m_output_type; }
 
+    bool get_kv_compressed() const { return m_compressed; }
+    QuantizationAttribute get_quantization_attrs() const { return m_quantization_attrs; }
+    size_t get_compression_inputs_num() const;
+
     static std::vector<int64_t> default_order(size_t rank) {
         std::vector<int64_t> order(rank);
         std::iota(order.begin(), order.end(), 0);
@@ -54,6 +68,9 @@ protected:
     std::vector<int64_t> m_order_v;
     std::vector<int64_t> m_order_out;
     ov::element::Type m_output_type;
+
+    bool m_compressed = false;
+    QuantizationAttribute m_quantization_attrs = {};
 };
 
 std::vector<ov::PartialShape> shape_infer(const SDPA* op,
@@ -64,6 +81,4 @@ std::vector<ov::PartialShape> shape_infer(const SDPA* op,
                                           const std::vector<int64_t>& order_out);
 
 
-}   // namespace op
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu::op

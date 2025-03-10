@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,6 +57,7 @@ class OPENVINO_API AttributeAdapter<op::v5::Round::RoundMode>
     : public EnumAttributeAdapterBase<op::v5::Round::RoundMode> {
 public:
     AttributeAdapter(op::v5::Round::RoundMode& value) : EnumAttributeAdapterBase<op::v5::Round::RoundMode>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v5::Round::RoundMode>");
 };

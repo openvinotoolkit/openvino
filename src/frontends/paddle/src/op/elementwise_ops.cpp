@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "elementwise_ops.hpp"
+
+#include "op_utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -54,6 +56,10 @@ NamedOutputs not_equal(const NodeContext& node_context) {
     return elementwise_ops<default_opset::NotEqual>(node_context);
 }
 
+NamedOutputs less_equal(const NodeContext& node) {
+    return elementwise_ops<default_opset::LessEqual>(node);
+}
+
 NamedOutputs elementwise_floordiv(const NodeContext& node_context) {
     auto x = node_context.get_input("X");
     auto y = node_context.get_input("Y");
@@ -68,6 +74,8 @@ NamedOutputs elementwise_floordiv(const NodeContext& node_context) {
     if (pd_version >= 2005000 || pd_version == 0) {
         python_div = true;
     }
+    x = get_tensor_safe(x);
+    y = get_tensor_safe(y);
     return node_context.default_single_output_mapping(
         {std::make_shared<default_opset::Divide>(x,
                                                  y,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ constexpr uint8_t f8e5m2_m_mask = 0x03;  // f8e5m2 mantissa bit mask
 
 uint8_t f32_to_f8e5m2_bits(const float value) {
     auto f16 = static_cast<float16>(value);
-    reference::func::emulate_f8e5m2_on_fp16(&f16, &f16, 1);
+    reference::func::emulate_f8e5m2_on_fp16(&f16, &f16, 1, false);
     return static_cast<uint8_t>((f16.to_bits() >> byte_shift));
 }
 }  // namespace

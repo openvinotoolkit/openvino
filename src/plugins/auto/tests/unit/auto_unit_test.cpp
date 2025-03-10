@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -192,6 +192,9 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest(const MODELTYPE modelType) : Bas
         .WillByDefault(RETURN_MOCK_VALUE(dgpuFullDeviceName));
     const std::vector<std::string> availableDevs = {"CPU", "GPU.0", "GPU.1"};
     ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevs));
+    std::vector<std::string> deviceIDs = {"0", "1"};
+    ON_CALL(*core, get_property(StrEq("GPU"), StrEq(ov::available_devices.name()), _))
+        .WillByDefault(RETURN_MOCK_VALUE(deviceIDs));
     ON_CALL(*core, get_supported_property).WillByDefault([](const std::string& device, const ov::AnyMap& fullConfigs, const bool keep_core_property = true) {
         auto item = fullConfigs.find(ov::device::properties.name());
         ov::AnyMap deviceConfigs;

@@ -48,8 +48,6 @@ public:
         const size_t convOutChannels = 64;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         const auto targetFormat = with_cpu_x86_avx512_core() ? nChw16c : nChw8c;
-#elif defined(OV_CPU_WITH_SHL)
-        const auto targetFormat = nchw;
 #else
         const auto targetFormat = nhwc;
 #endif

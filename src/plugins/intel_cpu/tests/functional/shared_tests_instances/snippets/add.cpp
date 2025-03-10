@@ -27,7 +27,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, Add,
                          ::testing::Combine(
                              ::testing::ValuesIn(inShapesStatic1),
                              ::testing::ValuesIn(inShapesStatic2),
-                             ::testing::Values(ov::element::f32),
+                             ::testing::ValuesIn({ov::element::f32, ov::element::f16}),
                              ::testing::Values(1), // Add
                              ::testing::Values(1), // Subgraph is created, since the inputs are followed by converts
                              ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -50,7 +50,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise_Add, Add,
                          ::testing::Combine(
                                  ::testing::ValuesIn(inShapesDynamic1),
                                  ::testing::ValuesIn(inShapesDynamic2),
-                                 ::testing::Values(ov::element::f32),
+                                 ::testing::ValuesIn({ov::element::f32, ov::element::f16}),
                                  ::testing::Values(1),
                                  ::testing::Values(1), // Subgraph is created, since the inputs are followed by converts
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -86,7 +86,7 @@ std::vector<std::vector<InputShape>> inShapesAddPair {
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, AddPair,
                          ::testing::Combine(
                                  ::testing::ValuesIn(inShapesAddPair),
-                                 ::testing::Values(ov::element::f32),
+                                 ::testing::ValuesIn({ov::element::f32, ov::element::f16}),
                                  ::testing::Values(1),
                                  ::testing::Values(1), // Subgraph is created, since the inputs are followed by converts
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),

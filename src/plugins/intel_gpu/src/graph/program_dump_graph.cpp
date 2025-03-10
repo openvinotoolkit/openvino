@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "program_dump_graph.h"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "to_string_utils.h"
 #include "data_inst.h"
 #include "condition_inst.h"
@@ -139,7 +140,6 @@ void close_stream(std::ofstream& graph) { graph.close(); }
 std::string get_node_id(const program_node* ptr) { return "node_" + std::to_string(reinterpret_cast<uintptr_t>(ptr)); }
 
 void dump_full_node(std::ofstream& out, const program_node* node) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     try {
         out << node->type()->to_string(*node);
     } catch(const std::exception& e) {
@@ -157,7 +157,7 @@ void dump_full_node(std::ofstream& out, const program_node* node) {
 }  // namespace
 
 std::string get_dir_path(const ExecutionConfig& config) {
-    auto path = config.get_property(ov::intel_gpu::dump_graphs);
+    std::string path = GPU_DEBUG_VALUE_OR(config.get_dump_graphs_path(), "");
     if (path.empty()) {
         return {};
     }
@@ -170,7 +170,7 @@ std::string get_dir_path(const ExecutionConfig& config) {
 
 void dump_graph_init(std::ofstream& graph,
                      const program& program,
-                     std::function<std::shared_ptr<primitive_inst>(const primitive_id&)> get_primitive_inst) {
+                     std::function<std::shared_ptr<const primitive_inst>(const primitive_id&)> get_primitive_inst) {
     const std::string invalid_layout_msg = "(invalid layout)";
 
     const auto dump_mem_info = [&invalid_layout_msg, &get_primitive_inst](const program_node* ptr) {

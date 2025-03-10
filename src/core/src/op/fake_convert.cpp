@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,6 +77,10 @@ FakeConvert::FakeConvert(const ov::Output<ov::Node>& data,
 
 std::string FakeConvert::get_destination_type() const {
     return m_destination_type.get_type_name();
+}
+
+void FakeConvert::set_destination_type(ov::element::Type destination_type) {
+    m_destination_type = destination_type;
 }
 
 const ov::element::Type& FakeConvert::get_destination_element_type() const {

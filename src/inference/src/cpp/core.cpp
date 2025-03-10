@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,12 +37,12 @@ std::string find_plugins_xml(const std::string& xml_file) {
     const auto sub_folder = str.str();
 
     // register plugins from default openvino-<openvino version>/plugins.xml config
-    auto xmlConfigFileDefault = ov::util::path_join({ov_library_path, sub_folder, xml_file_name});
+    auto xmlConfigFileDefault = ov::util::path_join({ov_library_path, sub_folder, xml_file_name}).string();
     if (ov::util::file_exists(xmlConfigFileDefault))
         return xmlConfigFileDefault;
 
     // 2. in folder with libopenvino.so
-    xmlConfigFileDefault = ov::util::path_join({std::move(ov_library_path), std::move(xml_file_name)});
+    xmlConfigFileDefault = ov::util::path_join({std::move(ov_library_path), std::move(xml_file_name)}).string();
     if (ov::util::file_exists(xmlConfigFileDefault))
         return xmlConfigFileDefault;
 
@@ -80,14 +80,19 @@ Core::Core(const std::string& xml_config_file) {
 std::map<std::string, Version> Core::get_versions(const std::string& device_name) const {
     OV_CORE_CALL_STATEMENT({ return _impl->get_versions(device_name); })}
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-std::shared_ptr<ov::Model> Core::read_model(const std::wstring& model_path, const std::wstring& bin_path) const {
-    OV_CORE_CALL_STATEMENT(
-        return _impl->read_model(ov::util::wstring_to_string(model_path), ov::util::wstring_to_string(bin_path)););
+std::shared_ptr<ov::Model> Core::read_model(const std::wstring& model_path,
+                                            const std::wstring& bin_path,
+                                            const ov::AnyMap& properties) const {
+    OV_CORE_CALL_STATEMENT(return _impl->read_model(ov::util::wstring_to_string(model_path),
+                                                    ov::util::wstring_to_string(bin_path),
+                                                    properties););
 }
 #endif
 
-std::shared_ptr<ov::Model> Core::read_model(const std::string& model_path, const std::string& bin_path) const {
-    OV_CORE_CALL_STATEMENT(return _impl->read_model(model_path, bin_path););
+std::shared_ptr<ov::Model> Core::read_model(const std::string& model_path,
+                                            const std::string& bin_path,
+                                            const AnyMap& properties) const {
+    OV_CORE_CALL_STATEMENT(return _impl->read_model(model_path, bin_path, properties););
 }
 
 std::shared_ptr<ov::Model> Core::read_model(const std::string& model, const ov::Tensor& weights) const {

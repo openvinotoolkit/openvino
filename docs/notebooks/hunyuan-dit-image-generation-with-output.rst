@@ -36,7 +36,6 @@ using OpenVINO. Additionally, we will use
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ for optimizing model
 in low precision.
 
-
 **Table of contents:**
 
 -  `Prerequisites <#prerequisites>`__
@@ -82,17 +81,32 @@ Prerequisites
 .. code:: ipython3
 
     from pathlib import Path
-    import sys
+    import requests
 
-    repo_dir = Path("HunyuanDiT")
 
-    if not repo_dir.exists():
-        !git clone https://github.com/tencent/HunyuanDiT
-        %cd HunyuanDiT
-        !git checkout ebfb7936490287616c38519f87084a34a1d75362
-        %cd ..
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+        )
+        open("cmd_helper.py", "w").write(r.text)
 
-    sys.path.append(str(repo_dir))
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+
+    collect_telemetry("hunyuan-dit-image-generation.ipynb")
+
+.. code:: ipython3
+
+    from cmd_helper import clone_repo
+
+
+    repo_dir = clone_repo("https://github.com/tencent/HunyuanDiT", "ebfb7936490287616c38519f87084a34a1d75362")
 
 Download PyTorch model
 ----------------------
@@ -754,13 +768,6 @@ Please select inference device using dropdown widget:
 
 .. code:: ipython3
 
-    import requests
-
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
-
     from notebook_utils import device_widget
 
     device = device_widget()
@@ -882,7 +889,7 @@ Please select inference device using dropdown widget:
 
 
 
-.. image:: hunyuan-dit-image-generation-with-output_files/hunyuan-dit-image-generation-with-output_30_0.png
+.. image:: hunyuan-dit-image-generation-with-output_files/hunyuan-dit-image-generation-with-output_31_0.png
 
 
 
@@ -936,8 +943,3 @@ Interactive demo
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
-
-.. code:: ipython3
-
-    # please uncomment and run this cell for stopping gradio interface
-    # demo.close()

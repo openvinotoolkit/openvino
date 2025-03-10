@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <exception>
-#include "impls/registry/implementation_manager.hpp"
-#include "impls/registry/registry.hpp"
+#include "registry/implementation_manager.hpp"
+#include "registry/registry.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 
 #include "pass_manager.h"

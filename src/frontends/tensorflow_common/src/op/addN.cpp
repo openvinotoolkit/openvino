@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,12 +22,12 @@ OutputVector translate_add_n_op(const NodeContext& node) {
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(result.get_node_shared_ptr());
     if (complex_type_mark) {
         element::Type complex_part_type = complex_type_mark->get_complex_part_type();
-        result = complex_type_mark->input_value(0);
+        result = complex_type_mark->get_data();
 
         // converting all the inputs to complex type (simulating complex type) and adding them
         for (int ind = 1; ind < num_size; ++ind) {
             auto complex_type_mark_ind = as_type_ptr<ComplexTypeMark>(node.get_input(ind).get_node_shared_ptr());
-            result = make_shared<v1::Add>(result, complex_type_mark_ind->input_value(0));
+            result = make_shared<v1::Add>(result, complex_type_mark_ind->get_data());
         }
         auto complex_add_n = make_shared<ComplexTypeMark>(result, complex_part_type);
         set_node_name(node.get_name(), result.get_node_shared_ptr());

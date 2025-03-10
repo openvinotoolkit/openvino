@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,14 +16,13 @@ namespace subgraph {
 
 class ConcatFunction {
 public:
-    static std::shared_ptr<ov::Model> get(
-        const ov::element::Type inputPrecision,
-        const ov::element::Type deqPrecision,
-        const std::vector<ov::PartialShape>& inputShapes,
-        const std::vector<DequantizationOperations>& dequantizationsBefore,
-        const std::int64_t concatAxis,
-        const ov::element::Type precisionAfter = ov::element::undefined,
-        const DequantizationOperations& dequantizationAfter = {});
+    static std::shared_ptr<ov::Model> get(const ov::element::Type inputPrecision,
+                                          const ov::element::Type deqPrecision,
+                                          const std::vector<ov::PartialShape>& inputShapes,
+                                          const std::vector<DequantizationOperations>& dequantizationsBefore,
+                                          const std::int64_t concatAxis,
+                                          const ov::element::Type precisionAfter = ov::element::dynamic,
+                                          const DequantizationOperations& dequantizationAfter = {});
 
     static std::shared_ptr<ov::Model> getOriginal(
         const ov::element::Type precision,

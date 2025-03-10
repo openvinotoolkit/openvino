@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include "nodes/executors/pooling.hpp"
 #include "arm_compute/runtime/NEON/NEFunctions.h"
+#include "nodes/executors/pooling.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class AclPoolingExecutor : public PoolingExecutor {
 public:
@@ -18,7 +17,7 @@ public:
     bool init(const PoolingAttrs& poolingAttrs,
               const std::vector<MemoryDescPtr>& srcDescs,
               const std::vector<MemoryDescPtr>& dstDescs,
-              const dnnl::primitive_attr &attr) override;
+              const dnnl::primitive_attr& attr) override;
     void exec(const std::vector<MemoryCPtr>& src,
               const std::vector<MemoryPtr>& dst,
               std::unordered_map<int, MemoryPtr> postOpsArgs) override;
@@ -34,7 +33,7 @@ public:
                             arm_compute::Pooling3dLayerInfo* pool3d_info,
                             bool ignoreOutShapeErrors = false);
 
-    impl_desc_type getImplType() const override {
+    [[nodiscard]] impl_desc_type getImplType() const override {
         return implType;
     }
 
@@ -51,82 +50,83 @@ private:
 
 class AclPoolingExecutorBuilder : public PoolingExecutorBuilder {
 public:
-    bool isSupported(const PoolingAttrs& poolingAttrs,
-                     const std::vector<MemoryDescPtr>& srcDescs,
-                     const std::vector<MemoryDescPtr>& dstDescs) const override {
-        if ((srcDescs[0]->getPrecision() != ov::element::f32 &&
-             dstDescs[0]->getPrecision() != ov::element::f32) &&
-            (srcDescs[0]->getPrecision() != ov::element::f16 &&
-             dstDescs[0]->getPrecision() != ov::element::f16)) {
+    [[nodiscard]] bool isSupported(const PoolingAttrs& poolingAttrs,
+                                   const std::vector<MemoryDescPtr>& srcDescs,
+                                   const std::vector<MemoryDescPtr>& dstDescs) const override {
+        if ((srcDescs[0]->getPrecision() != ov::element::f32 && dstDescs[0]->getPrecision() != ov::element::f32) &&
+            (srcDescs[0]->getPrecision() != ov::element::f16 && dstDescs[0]->getPrecision() != ov::element::f16)) {
             DEBUG_LOG("AclPoolingExecutor does not support precisions:",
-                      " src[0]=", srcDescs[0]->getPrecision(),
-                      " dst[0]=", dstDescs[0]->getPrecision());
+                      " src[0]=",
+                      srcDescs[0]->getPrecision(),
+                      " dst[0]=",
+                      dstDescs[0]->getPrecision());
             return false;
         }
 
         if (srcDescs.size() == 2u &&
-            (srcDescs[1]->getPrecision() != ov::element::f32 &&
-             srcDescs[0]->getPrecision() != ov::element::f32 &&
+            (srcDescs[1]->getPrecision() != ov::element::f32 && srcDescs[0]->getPrecision() != ov::element::f32 &&
              dstDescs[0]->getPrecision() != ov::element::f32) &&
-            (srcDescs[1]->getPrecision() != ov::element::f16 &&
-             srcDescs[0]->getPrecision() != ov::element::f16 &&
+            (srcDescs[1]->getPrecision() != ov::element::f16 && srcDescs[0]->getPrecision() != ov::element::f16 &&
              dstDescs[0]->getPrecision() != ov::element::f16)) {
             DEBUG_LOG("AclPoolingExecutor does not support precisions:",
-                      " src[0]=", srcDescs[0]->getPrecision(),
-                      " src[1]=", srcDescs[1]->getPrecision(),
-                      " dst[0]=", dstDescs[0]->getPrecision());
+                      " src[0]=",
+                      srcDescs[0]->getPrecision(),
+                      " src[1]=",
+                      srcDescs[1]->getPrecision(),
+                      " dst[0]=",
+                      dstDescs[0]->getPrecision());
             return false;
         }
 
-        if (dstDescs.size() == 2u &&
-            dstDescs[1]->getPrecision() != ov::element::u32) {
+        if (dstDescs.size() == 2u && !one_of(dstDescs[1]->getPrecision(), ov::element::u32, ov::element::i32)) {
             DEBUG_LOG("AclPoolingExecutor supports U32 as indices precisions only. ",
-                      "Passed indices precision: ", dstDescs[1]->getPrecision());
-                return false;
-            }
+                      "Passed indices precision: ",
+                      dstDescs[1]->getPrecision());
+            return false;
+        }
 
         if (srcDescs[0]->getShape().getRank() < 5) {
-            if (!(srcDescs[0]->hasLayoutType(LayoutType::ncsp) &&
-                dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
-                !(srcDescs[0]->hasLayoutType(LayoutType::nspc) &&
-                dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
-                    DEBUG_LOG("NEPoolingLayer does not support layouts:",
-                    " src=", srcDescs[0]->serializeFormat(),
-                    " dst=", dstDescs[0]->serializeFormat());
-                    return false;
-                }
+            if (!(srcDescs[0]->hasLayoutType(LayoutType::ncsp) && dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
+                !(srcDescs[0]->hasLayoutType(LayoutType::nspc) && dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
+                DEBUG_LOG("NEPoolingLayer does not support layouts:",
+                          " src=",
+                          srcDescs[0]->serializeFormat(),
+                          " dst=",
+                          dstDescs[0]->serializeFormat());
+                return false;
+            }
             if (srcDescs.size() == 2u &&
-              !(srcDescs[0]->hasLayoutType(LayoutType::ncsp) &&
-                srcDescs[1]->hasLayoutType(LayoutType::ncsp) &&
-                dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
-              !(srcDescs[0]->hasLayoutType(LayoutType::nspc) &&
-                srcDescs[1]->hasLayoutType(LayoutType::nspc) &&
-                dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
-                    DEBUG_LOG("NEPoolingLayer does not support layouts:",
-                    " src[0]=", srcDescs[0]->serializeFormat(),
-                    " src[1]=", srcDescs[1]->serializeFormat(),
-                    " dst=", dstDescs[0]->serializeFormat());
-                    return false;
-                }
+                !(srcDescs[0]->hasLayoutType(LayoutType::ncsp) && srcDescs[1]->hasLayoutType(LayoutType::ncsp) &&
+                  dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
+                !(srcDescs[0]->hasLayoutType(LayoutType::nspc) && srcDescs[1]->hasLayoutType(LayoutType::nspc) &&
+                  dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
+                DEBUG_LOG("NEPoolingLayer does not support layouts:",
+                          " src[0]=",
+                          srcDescs[0]->serializeFormat(),
+                          " src[1]=",
+                          srcDescs[1]->serializeFormat(),
+                          " dst=",
+                          dstDescs[0]->serializeFormat());
+                return false;
+            }
         } else {
-            if (!(srcDescs[0]->hasLayoutType(LayoutType::nspc) &&
-                dstDescs[0]->hasLayoutType(LayoutType::nspc)) &&
-                !(srcDescs[0]->hasLayoutType(LayoutType::nspc) &&
-                dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
-                    DEBUG_LOG("Pooling3dLayer does not support layouts:",
-                    " src=", srcDescs[0]->serializeFormat(),
-                    " dst=", dstDescs[0]->serializeFormat());
-                    return false;
-                }
+            if (!(srcDescs[0]->hasLayoutType(LayoutType::nspc) && dstDescs[0]->hasLayoutType(LayoutType::nspc)) &&
+                !(srcDescs[0]->hasLayoutType(LayoutType::nspc) && dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
+                DEBUG_LOG("Pooling3dLayer does not support layouts:",
+                          " src=",
+                          srcDescs[0]->serializeFormat(),
+                          " dst=",
+                          dstDescs[0]->serializeFormat());
+                return false;
+            }
         }
 
         return true;
     }
 
-    PoolingExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
+    [[nodiscard]] PoolingExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
         return std::make_shared<AclPoolingExecutor>(context);
     }
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu

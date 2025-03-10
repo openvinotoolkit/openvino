@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -351,6 +351,7 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::os_is_yx_osv32_isv4_swizzled_by_2:           return "OS_IS_YX_OSV32_ISV4_SWIZZLED_BY_2";
         case WeightsLayout::os_is_yx_osv32_isv4:                         return "OS_IS_YX_OSV32_ISV4";
         case WeightsLayout::os_is_yx_osv32_isv2:                         return "OS_IS_YX_OSV32_ISV2";
+        case WeightsLayout::os_is_yx_osv64_isv2:                         return "OS_IS_YX_OSV64_ISV2";
         case WeightsLayout::os_is_zyx_osv32_isv4:                        return "OS_IS_ZYX_OSV32_ISV4";
         case WeightsLayout::oizyx:                                       return "OIZYX";
         case WeightsLayout::iozyx:                                       return "IOZYX";
@@ -625,6 +626,16 @@ void clKernelData::load(cldnn::BinaryInputBuffer& ib) {
         micro_kernels.push_back(microkernel);
     }
 #endif
+}
+
+void InternalBuffer::save(cldnn::BinaryOutputBuffer& ob) const {
+    ob << lockable;
+    ob << byte_count;
+}
+
+void InternalBuffer::load(cldnn::BinaryInputBuffer& ib) {
+    ib >> lockable;
+    ib >> byte_count;
 }
 
 }  // namespace kernel_selector

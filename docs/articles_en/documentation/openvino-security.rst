@@ -8,7 +8,7 @@ with encryption or other security tools.
 Actual security and privacy requirements depend on your unique deployment scenario.
 This section provides general guidance on using OpenVINO tools and libraries securely.
 The main security measure for OpenVINO is its
-:doc:`Security Add-on <openvino-ecosystem/openvino-security-add-on>`. You can find its description
+:doc:`Security Add-on <../about-openvino/openvino-ecosystem/openvino-project/openvino-security-add-on>`. You can find its description
 in the Ecosystem section.
 
 .. _encrypted-models:
@@ -55,7 +55,8 @@ Hardware-based protection such as Intel Software Guard Extensions (Intel SGX) ca
 decryption operation secrets and bind them to a device. For more information, see
 the `Intel Software Guard Extensions <https://software.intel.com/en-us/sgx>`__.
 
-Use the ``ov::Core::read_model`` to set model representations and weights respectively.
+Use the `ov::Core::read_model <../api/c_cpp_api/group__ov__dev__exec__model.html#classov_1_1_core_1ae0576a95f841c3a6f5e46e4802716981>`__
+to set model representations and weights respectively.
 
 Currently there is no way to read external weights from memory for ONNX models.
 The ``ov::Core::read_model(const std::string& model, const Tensor& weights)`` method
@@ -65,10 +66,24 @@ should be called with ``weights`` passed as an empty ``ov::Tensor``.
     :language: cpp
     :fragment: part1
 
+
+Encrypted models that have already been compiled, in the form of blob files,
+can be loaded using the
+`ov::Core::import_model <../api/c_cpp_api/group__ov__runtime__cpp__api.html#_CPPv4N2ov4Core12import_modelERNSt7istreamERKNSt6stringERK6AnyMap>`__
+method, as shown in the code sample below:
+
+.. code-block:: cpp
+
+   ov::Core core;
+   // Import a model from a blob.
+   std::ifstream compiled_blob(blob, std::ios_base::in | std::ios_base::binary);
+   auto compiled_model = core.import_model(compiled_blob, "CPU");
+
+
 Additional Resources
 ####################
 
 - Intel® Distribution of OpenVINO™ toolkit `home page <https://software.intel.com/en-us/openvino-toolkit>`__.
-- :doc:`Convert a Model <legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`.
+- :doc:`Convert a Model <../openvino-workflow/model-preparation/convert-model-to-ir>`.
 - :doc:`OpenVINO™ Runtime User Guide <../openvino-workflow/running-inference>`.
-- For more information on Sample Applications, see the :doc:`OpenVINO Samples Overview <../learn-openvino/openvino-samples>`
+- For more information on Sample Applications, see the :doc:`OpenVINO Samples Overview <../get-started/learn-openvino/openvino-samples>`

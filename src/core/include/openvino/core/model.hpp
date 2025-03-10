@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,13 +51,7 @@ class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
     std::shared_ptr<void> m_shared_object;  // plugin shared object handle.
 
 public:
-    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {
-        static const ::ov::DiscreteTypeInfo type_info_static{"Model"};
-        return type_info_static;
-    }
-    const ::ov::DiscreteTypeInfo& get_type_info() const {
-        return get_type_info_static();
-    }
+    OPENVINO_RTTI_BASE("Model")
 
     Model(const ov::NodeVector& results, const ov::ParameterVector& parameters, const std::string& name = "");
 
@@ -107,7 +101,7 @@ public:
     /// based on traversing the graph from the results and the sinks.
     Model(const ov::OutputVector& results, const ov::SinkVector& sinks, const std::string& name = "");
 
-    virtual ~Model() = default;
+    virtual ~Model();
     /// Return the number of outputs for this Model.
     size_t get_output_size() const;
 
@@ -582,6 +576,7 @@ public:
     AttributeAdapter(std::shared_ptr<ov::Model>& value) : DirectValueAccessor<std::shared_ptr<ov::Model>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<Model>");
+    ~AttributeAdapter() override;
 };
 
 /// \brief Helper method to get associated batch size for a Model

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,5 +45,6 @@ public:
     AttributeAdapter(Coordinate& value) : IndirectVectorValueAccessor<Coordinate, std::vector<int64_t>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<Coordinate>");
+    ~AttributeAdapter() override;
 };
 }  // namespace ov

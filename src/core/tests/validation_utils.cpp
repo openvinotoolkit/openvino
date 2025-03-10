@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,6 +47,11 @@ TEST(get_constant_from_source, extract_static_dim_from_dynamic_shape_check) {
 
     ASSERT_TRUE(extract_static_dimension->get_output_tensor(0).get_lower_value());
     ASSERT_TRUE(extract_static_dimension->get_output_tensor(0).get_upper_value());
+}
+
+TEST(get_constant_from_source, return_nullptr_for_empty_output) {
+    auto res = ov::util::get_constant_from_source(ov::Output<ov::Node>());
+    ASSERT_EQ(res, nullptr);
 }
 
 TEST(constantfold_subgraph, split) {

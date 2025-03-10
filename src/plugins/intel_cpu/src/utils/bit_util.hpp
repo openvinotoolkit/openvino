@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,7 @@
 
 #include <cstdint>
 
-namespace ov {
-namespace util {
-namespace bit {
+namespace ov::util::bit {
 
 /**
  * @brief Make empty bit mask, non of bit is set.
@@ -35,6 +33,4 @@ constexpr uint64_t mask(T bit_pos, Args... other_bits) {
     return mask(other_bits...) | (static_cast<uint64_t>(1) << bit_pos);
 }
 
-}  // namespace bit
-}  // namespace util
-}  // namespace ov
+}  // namespace ov::util::bit

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -61,6 +61,7 @@ class TestSplit(PytorchLayerTest):
     @pytest.mark.parametrize("getitem", [-5, -2, -1, 0, 1, 4])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_split_getitem(self, params, getitem, ie_device, precision, ir_version):
         (self.split_param, self.axis) = params
         self.getitem = getitem
@@ -70,6 +71,7 @@ class TestSplit(PytorchLayerTest):
     @pytest.mark.parametrize("params", test_cases)
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_split_listunpack(self, params, ie_device, precision, ir_version):
         (self.split_param, self.axis) = params
         self._test(
@@ -99,6 +101,32 @@ class TestSplitWithSizes(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_split_with_sizes(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(),
+                   ie_device, precision, ir_version, trace_model=True)
+
+class TestSplitWithSizesCopy(PytorchLayerTest):
+    def _prepare_input(self):
+        import numpy as np
+        return (np.random.randn(20).astype(np.float32),np.random.randn(20).astype(np.float32))
+
+    def create_model(self):
+        import torch
+
+        class aten_split_with_sizes_copy(torch.nn.Module):
+            def __init__(self):
+                super(aten_split_with_sizes_copy, self).__init__()                
+
+            def forward(self, x, y):
+                return torch.split_with_sizes_copy(x, [y.shape[0]], dim=0)
+
+        ref_net = None
+
+        return aten_split_with_sizes_copy(), ref_net, ["aten::split_with_sizes", "prim::ListConstruct"]
+
+    @pytest.mark.precommit_fx_backend
+    def test_split_with_sizes_copy(self, ie_device, precision, ir_version):
         self._test(*self.create_model(),
                    ie_device, precision, ir_version, trace_model=True)

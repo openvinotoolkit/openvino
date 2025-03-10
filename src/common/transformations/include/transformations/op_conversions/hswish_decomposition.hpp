@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API HSwishDecomposition;
  */
 class ov::pass::HSwishDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("HSwishDecomposition", "0");
+    OPENVINO_MATCHER_PASS_RTTI("HSwishDecomposition");
     HSwishDecomposition();
 };

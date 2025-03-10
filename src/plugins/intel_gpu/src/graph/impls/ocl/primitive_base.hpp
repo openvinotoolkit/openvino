@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,12 +16,15 @@
 #include "primitive_inst.h"
 #include "kernel_selector_helper.h"
 #include "register.hpp"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "concatenation_inst.h"
 #include "gather_inst.h"
 #include "permute_inst.h"
 #include "strided_slice_inst.h"
 #include "broadcast_inst.h"
+#include "scatter_update_inst.h"
+#include "scatter_elements_update_inst.h"
+#include "scatter_nd_update_inst.h"
 
 #include <vector>
 #include <list>
@@ -71,7 +74,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     void save(BinaryOutputBuffer& ob) const override {
         primitive_impl::save(ob);
         ob << make_data(&_kernel_data.internalBufferDataType, sizeof(kernel_selector::Datatype));
-        ob << _kernel_data.internalBufferSizes;
+        ob << _kernel_data.internalBuffers;
         ob << _kernel_data.kernels;
         ob << _kernel_data.kernelName;
     }
@@ -79,7 +82,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     void load(BinaryInputBuffer& ib) override {
         primitive_impl::load(ib);
         ib >> make_data(&_kernel_data.internalBufferDataType, sizeof(kernel_selector::Datatype));
-        ib >> _kernel_data.internalBufferSizes;
+        ib >> _kernel_data.internalBuffers;
         ib >> _kernel_data.kernels;
         ib >> _kernel_data.kernelName;
     }
@@ -89,12 +92,9 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         // concat buffer fusing for dynamic shape is adaptively applied at runtime. So we need to build dynamic impl at build time.
         if (impl_param.can_be_optimized() &&
             !((impl_param.is_type<concatenation>() ||
-               impl_param.is_type<gather>() ||
-               impl_param.is_type<permute>() ||
-               impl_param.is_type<strided_slice>() ||
-               impl_param.is_type<broadcast>() ||
-               impl_param.is_type<crop>()) && impl_param.is_dynamic())) {
-            return make_unique<ImplType>(kernel_selector::kernel_data{});
+               impl_param.is_type<crop>() ||
+               impl_param.runtime_skippable()) && impl_param.is_dynamic())) {
+            return std::make_unique<ImplType>(kernel_selector::kernel_data{});
         }
         auto kernel_params = ImplType::get_kernel_params(ImplType::static_canonicalize_shapes(impl_param));
         kernel_params.is_shape_agnostic = impl_param.is_dynamic();
@@ -102,7 +102,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         auto& kernel_selector = ImplType::kernel_selector_t::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(kernel_params);
 
-        return make_unique<ImplType>(best_kernel);
+        return std::make_unique<ImplType>(best_kernel);
     }
 
     void update(primitive_inst& inst, const kernel_impl_params& impl_params) override {
@@ -170,23 +170,31 @@ protected:
         return {kernels_cache.get_cached_kernel_ids(_kernels)};
     }
 
+    template<typename ImplType, typename KernelParamsType>
+    static std::unique_ptr<primitive_impl> make_deep_copy(const ImplType& impl_ocl) {
+        auto prim_impl = std::make_unique<ImplType>(impl_ocl);
+        KernelParamsType* params_ptr = dynamic_cast<KernelParamsType*>((*prim_impl)._kernel_data.params.get());
+        if (params_ptr != nullptr) {
+            (*prim_impl)._kernel_data.params = std::make_unique<KernelParamsType>(*params_ptr);
+        }
+        return prim_impl;
+    }
+
     std::vector<kernel::ptr> get_kernels() const override {
         return _kernels;
     }
 
-    std::vector<layout> get_internal_buffer_layouts_impl() const override {
-        if (_kernel_data.internalBufferSizes.empty())
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
+        if (_kernel_data.internalBuffers.empty())
             return {};
 
-        std::vector<layout> layouts;
+        std::vector<BufferDescriptor> internal_buffers;
         auto dtype = from_data_type(_kernel_data.internalBufferDataType);
         const auto bpp = data_type_traits::size_of(dtype);
-        for (auto size : _kernel_data.internalBufferSizes) {
-            layout inbuf_layout = {dtype, format::bfyx, // simple linear format (flattern to x channel)
-                                    {1, 1, 1, (tensor::value_type)(size / bpp)}};
-            layouts.push_back(inbuf_layout);
+        for (const auto& buffer : _kernel_data.internalBuffers) {
+            internal_buffers.emplace_back(buffer.byte_count / bpp, dtype, buffer.lockable);
         }
-        return layouts;
+        return internal_buffers;
     }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
@@ -303,10 +311,6 @@ protected:
             auto sub_kernel_idx = k.second;
             _kernels[sub_kernel_idx] = k.first;
         }
-    }
-
-    std::vector<kernel::ptr> get_kernels() override {
-        return _kernels;
     }
 
     std::pair<std::string, std::string> get_kernels_dump_info() const override {

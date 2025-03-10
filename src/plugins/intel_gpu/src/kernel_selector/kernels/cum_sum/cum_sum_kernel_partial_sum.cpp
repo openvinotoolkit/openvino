@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,7 +73,7 @@ KernelsData CumSumKernelPartialSum::GetMultiStageKernelsData(const Params& param
         kernel.params.arguments.clear();  // Clear original output argument
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kd.internalBufferSizes.push_back(newParams.outputs[0].PhysicalSizeInBytes());
+        kd.internalBuffers.push_back(newParams.outputs[0].PhysicalSizeInBytes());
     }
     {
         // Final

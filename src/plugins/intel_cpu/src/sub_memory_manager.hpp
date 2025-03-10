@@ -1,32 +1,30 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <cassert>
+#include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
-#include <mutex>
-#include <memory>
-#include <assert.h>
+
 #include "cpu_memory.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 class SubMemoryManager {
 public:
     struct MemoryInfo {
-        void* send_buf;
-        bool flag;
-        bool last_used;
+        void* send_buf = nullptr;
+        bool flag = false;
+        bool last_used = false;
     };
 
     SubMemoryManager(int num_sub_streams) {
         assert(num_sub_streams);
         _num_sub_streams = num_sub_streams;
         MemoryInfo memory_info;
-        memory_info.flag = false;
-        memory_info.last_used = false;
         std::vector<MemoryInfo> memorys;
         memorys.assign(_num_sub_streams, memory_info);
         _memorys_table.assign(2, memorys);
@@ -52,6 +50,4 @@ public:
     std::vector<int> _use_count;
     std::mutex _flagMutex;
 };
-}  // namespace intel_cpu
-
-}  // namespace ov
+}  // namespace ov::intel_cpu

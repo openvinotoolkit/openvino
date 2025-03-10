@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,10 +16,15 @@ public:
 
     LLMMLPNode() = default;
 
-    enum class ACT_FN { SILU = 0, GELU = 1};
+    enum class ACT_FN { SILU = 0, GELU = 1 };
 
     struct Config {
         ACT_FN act;
+        bool gate_up_quantized;
+        bool down_quantized;
+        int hidden_size;
+        int up_size;
+        bool gate_up_combined;
     };
 
     // args:

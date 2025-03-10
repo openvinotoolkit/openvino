@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,76 +6,153 @@
 
 #include <algorithm>
 #include <memory>
+#include <regex>
 
 #include "itt.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/util/common_util.hpp"
 
+namespace ov::pass {
+
+using NodeNamesMap = std::unordered_map<std::string, std::list<Node*>>;
+using NodeNamesSolver = std::function<void(const std::list<Node*>&)>;
+using TensorNamesMap = std::unordered_map<std::string, size_t>;
 namespace {
 
-void collect_name_collisions_map(const std::shared_ptr<ov::Model>& model,
-                                 std::unordered_map<std::string, std::list<ov::Node*>>& name_collisions_map) {
+std::string make_unique_tensor_name(const TensorNamesMap& names_map, const std::string& name, size_t hash) {
+    static const auto port_num_pattern = std::regex(R"((.*?)(:\d+)?$)");
+    std::smatch matches;
+    std::regex_match(name, matches, port_num_pattern);
+
+    auto idx = 1;
+
+    auto new_name = matches[1].str() + ov::descriptor::unique_name_sep + std::to_string(idx);
+    if (matches[2].matched) {
+        new_name += matches[2];
+    }
+
+    for (auto it = names_map.find(name); it != names_map.end() && hash != it->second; ++idx) {
+        new_name = matches[1].str() + ov::descriptor::unique_name_sep + std::to_string(idx);
+        if (matches[2].matched) {
+            new_name += matches[2];
+        }
+
+        it = names_map.find(new_name);
+    }
+
+    return new_name;
+}
+
+std::string make_unique_node_name(const NodeNamesMap& names_map, ov::Node& node, int& i) {
+    const auto& name = node.get_friendly_name();
+    auto new_name = name + ov::descriptor::unique_name_sep + std::to_string(i++);
+    for (auto it = names_map.find(new_name); it != names_map.end(); ++i) {
+        new_name = name + ov::descriptor::unique_name_sep + std::to_string(i);
+        it = names_map.find(new_name);
+    }
+    return new_name;
+}
+
+void resolve_output_tensor_names(const Output<const Node>& output, TensorNamesMap& names_map) {
+    static constexpr ov::descriptor::TensorExtension::Hasher hasher;
+    ov::TensorNames new_names;
+
+    auto names = output.get_names();
+    const auto tensor_hash = hasher(output.get_tensor_ptr());
+
+    for (auto name_it = names.begin(); name_it != names.end();) {
+        if (auto it = names_map.find(*name_it); it != names_map.end() && tensor_hash != it->second) {
+            auto&& unique_name = new_names.insert(make_unique_tensor_name(names_map, *name_it, tensor_hash)).first;
+            name_it = names.erase(name_it);
+            names_map[*unique_name] = tensor_hash;
+        } else {
+            names_map[*name_it] = tensor_hash;
+            ++name_it;
+        }
+    }
+
+    if (!new_names.empty()) {
+        names.insert(std::move_iterator(new_names.begin()), std::move_iterator(new_names.end()));
+        output.get_tensor().set_names(names);
+    }
+}
+
+void resolve_node_tensors_names(const ov::Node& node, TensorNamesMap& names_map) {
+    for (const auto& output : node.outputs()) {
+        resolve_output_tensor_names(output, names_map);
+    }
+}
+
+void resolve_tensor_names(const ov::Model& model, TensorNamesMap& names_map) {
+    // Resolve inputs and outputs names first to avoid rename if internal model node has same name.
+    for (const auto& input : model.inputs()) {
+        resolve_output_tensor_names(input, names_map);
+    }
+
+    for (const auto& output : model.outputs()) {
+        resolve_output_tensor_names(output, names_map);
+    }
+
+    for (auto&& node : model.get_ordered_ops()) {
+        if (auto msn = ov::as_type<ov::op::util::MultiSubGraphOp>(node.get())) {
+            for (const auto& body : msn->get_functions()) {
+                resolve_tensor_names(*body, names_map);
+            }
+        } else {
+            resolve_node_tensors_names(*node, names_map);
+        }
+    }
+}
+
+void collect_name_collisions_map(const std::shared_ptr<ov::Model>& model, NodeNamesMap& name_collisions_map) {
     for (const auto& node : model->get_ordered_ops()) {
         // Collect a names collision map for all nodes in the graph
         const auto& friendly_name = node->get_friendly_name();
         name_collisions_map[friendly_name].emplace_back(node.get());
-        if (auto msn = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
+        if (auto msn = ov::as_type<ov::op::util::MultiSubGraphOp>(node.get())) {
             for (const auto& body : msn->get_functions()) {
                 collect_name_collisions_map(body, name_collisions_map);
             }
         }
     }
 }
-
 }  // namespace
 
-bool ov::pass::ResolveNameCollisions::run_on_model(const std::shared_ptr<ov::Model>& model) {
+bool ResolveNameCollisions::run_on_model(const std::shared_ptr<Model>& model) {
     // Next containers are used to fix collisions in autogenerated names
     // The final list of nodes with collisions
     RUN_ON_MODEL_SCOPE(ResolveNameCollisions);
-    std::vector<Node*> nodes_with_conflicts;
-    std::unordered_map<std::string, std::list<Node*>> visited_nodes;
 
-    collect_name_collisions_map(model, visited_nodes);
+    NodeNamesMap node_names_map;
+    const NodeNamesSolver resolve_nodes_any_name = [&](const auto& nodes) {
+        std::for_each(std::next(nodes.begin()), nodes.end(), [idx = 1, &node_names_map](auto&& node) mutable {
+            node->set_friendly_name(make_unique_node_name(node_names_map, *node, idx));
+        });
+    };
 
-    for (const auto& it : visited_nodes) {
-        const auto& same_named_ops = it.second;
-        if (same_named_ops.size() < 2) {
-            continue;
+    const NodeNamesSolver resolve_nodes_generated_name = [&](const auto& nodes) {
+        auto idx = 2;
+        // check if node has OV autogenerated friendly name (same instance).
+        // unique and friendly names have to be equal for the autogenerated name.
+        for (auto&& node : nodes) {
+            if (&node->get_name() == &node->get_friendly_name()) {
+                node->set_friendly_name(make_unique_node_name(node_names_map, *node, idx));
+            }
         }
+    };
+    const auto resolve_node_name = m_resolve_all_names ? resolve_nodes_any_name : resolve_nodes_generated_name;
 
-        auto update_name = [&](ov::Node* op, int64_t& cnt) {
-            // add a prefix "_counter" to the autogenerated name to make it unique.
-            const auto& old_name = op->get_friendly_name();
-            auto new_name = old_name + "_" + std::to_string(cnt++);
-            while (visited_nodes.find(new_name) != visited_nodes.end()) {
-                new_name = old_name + "_" + std::to_string(cnt++);
-            }
-            op->set_friendly_name(new_name);
-        };
-
-        if (m_resolve_all_names) {
-            int64_t cnt = 0;
-            for (const auto& op : same_named_ops) {
-                // we don't need to change name of the first op in this list.
-                // the expected result: Name, Name_1, Name_2 etc
-                if (cnt == 0) {
-                    cnt++;
-                    continue;
-                }
-                update_name(op, cnt);
-            }
-        } else {
-            int64_t cnt = 2;
-            for (const auto& op : same_named_ops) {
-                // check if op has OV autogenerated friendly name.
-                // unique and friendly names have to be equal for the autogenerated name.
-                bool is_autogenerated = op->m_friendly_name.empty();
-                if (!is_autogenerated) {
-                    continue;
-                }
-                update_name(op, cnt);
-            }
+    collect_name_collisions_map(model, node_names_map);
+    for (const auto& [_, same_name_ops] : node_names_map) {
+        if (same_name_ops.size() > 1) {
+            resolve_node_name(same_name_ops);
         }
     }
+
+    TensorNamesMap tensor_names_map;
+    resolve_tensor_names(*model, tensor_names_map);
     return false;
 }
+}  // namespace ov::pass

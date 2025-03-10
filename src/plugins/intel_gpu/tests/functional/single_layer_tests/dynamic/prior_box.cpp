@@ -73,7 +73,7 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        auto model_type = ov::element::undefined;
+        auto model_type = ov::element::dynamic;
         InputShape input1Shape;
         InputShape input2Shape;
         std::vector<float> max_size;

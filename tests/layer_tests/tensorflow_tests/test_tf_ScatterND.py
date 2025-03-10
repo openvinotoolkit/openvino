@@ -1,11 +1,13 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
 
+import numpy as np
 import pytest
 from common.tf_layer_test_class import CommonTFLayerTest
 
+rng = np.random.default_rng(475912)
 
 class TestTFScatterND(CommonTFLayerTest):
     def create_tf_scatternd_placeholder_const_net(self, x_shape, indices, updates, ir_version,
@@ -70,6 +72,57 @@ class TestTFScatterND(CommonTFLayerTest):
     def test_tf_scatter_nd(self, params, ie_device, precision, ir_version, temp_dir,
                            use_legacy_frontend):
         self._test(*self.create_tf_scatternd_placeholder_const_net(**params, ir_version=ir_version,
+                                                                   use_legacy_frontend=use_legacy_frontend),
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
+                   use_legacy_frontend=use_legacy_frontend, **params)
+
+class TestTFScatterNDComplex(CommonTFLayerTest):
+    def _prepare_input(self, inputs_info):
+        assert 'param_real:0' in inputs_info, "Test error: inputs_info must contain `param_real`"
+        assert 'param_imag:0' in inputs_info, "Test error: inputs_info must contain `param_imag`"
+        updates_shape = inputs_info['param_real:0']
+        inputs_data = {}
+        inputs_data['param_real:0'] = rng.integers(-10, 10, updates_shape).astype(np.float32)
+        inputs_data['param_imag:0'] = rng.integers(-10, 10, updates_shape).astype(np.float32)
+
+        return inputs_data
+
+    def create_tf_scatternd_complex_placeholder_const_net(self, x_shape, indices, updates_shape, indices_type,
+                                                          ir_version, use_legacy_frontend):
+        import tensorflow as tf
+        tf.compat.v1.reset_default_graph()
+        with tf.compat.v1.Session() as sess:
+            param_real = tf.compat.v1.placeholder(tf.float32, updates_shape, 'param_real')
+            param_imag = tf.compat.v1.placeholder(tf.float32, updates_shape, 'param_imag')
+
+            tf_indices = tf.constant(indices, dtype=indices_type)
+            tf_shape = tf.constant(x_shape, dtype=indices_type)
+
+            complex = tf.raw_ops.Complex(real=param_real, imag=param_imag)
+
+            result = tf.scatter_nd(indices=tf_indices, updates=complex, shape=tf_shape, name="Operation")
+            tf.raw_ops.Real(input=result)
+            tf.raw_ops.Imag(input=result)
+
+            tf.compat.v1.global_variables_initializer()
+
+            tf_net = sess.graph_def
+
+        return tf_net, None
+
+    test_data = [
+        dict(x_shape=[8], indices=[[4], [3], [1], [7]], updates_shape=[4], indices_type=np.int32),
+        dict(x_shape=[10], indices=[[0], [2], [4], [6], [8]], updates_shape=[5], indices_type=np.int64),
+        dict(x_shape=[5, 5], indices=[[0, 0], [1, 1], [2, 2], [3, 3]], updates_shape=[4], indices_type=np.int64),
+        dict(x_shape=[3, 3, 3], indices=[[0, 0, 0], [1, 1, 1], [2, 2, 2]], updates_shape=[3], indices_type=np.int32),
+    ]
+
+    @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf_scatter_nd_complex(self, params, ie_device, precision, ir_version, temp_dir,
+                           use_legacy_frontend):
+        self._test(*self.create_tf_scatternd_complex_placeholder_const_net(**params, ir_version=ir_version,
                                                                    use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
                    use_legacy_frontend=use_legacy_frontend, **params)

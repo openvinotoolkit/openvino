@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,14 +11,6 @@ namespace snippets {
 namespace op {
 
 Kernel::Kernel(lowered::LinearIR nested) : Op(), region(std::make_shared<lowered::LinearIR>(std::move(nested))) {}
-
-std::shared_ptr<Kernel> Kernel::make_kernel(const lowered::LinearIR& region) {
-    if (region.is_dynamic()) {
-        return std::make_shared<KernelDynamic>(region);
-    } else {
-        return std::make_shared<KernelStatic>(region);
-    }
-}
 
 KernelStatic::KernelStatic(lowered::LinearIR nested) : Kernel(std::move(nested)) {}
 

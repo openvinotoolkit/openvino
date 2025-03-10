@@ -83,6 +83,7 @@ Install required dependencies
 .. code:: ipython3
 
     import os
+    import platform
 
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
 
@@ -91,12 +92,16 @@ Install required dependencies
     %pip install --pre -Uq "openvino>=2024.2.0" openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
     "git+https://github.com/huggingface/optimum-intel.git"\
-    "git+https://github.com/openvinotoolkit/nncf.git"\
+    "nncf==2.14.1"\
     "torch>=2.1"\
     "datasets" \
     "accelerate" \
     "gradio>=4.19" \
-    "onnx<=1.16.1; sys_platform=='win32'" "einops" "transformers>=4.43.1" "transformers_stream_generator" "tiktoken" "bitsandbytes"
+    "huggingface-hub>=0.26.5" \
+     "einops" "transformers>=4.43.1" "transformers_stream_generator" "tiktoken" "bitsandbytes"
+
+    if platform.system() == "Darwin":
+        %pip install -q "numpy<2.0.0"
 
 .. code:: ipython3
 
@@ -156,12 +161,19 @@ Click here to see available models options
    computation and memory footprint. More details about model can be
    found in `model
    card <https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v1.0>`__
--  **mini-cpm-2b-dpo** - MiniCPM is an End-Size LLM developed by
+-  **minicpm-2b-dpo** - MiniCPM is an End-Size LLM developed by
    ModelBest Inc. and TsinghuaNLP, with only 2.4B parameters excluding
    embeddings. After Direct Preference Optimization (DPO) fine-tuning,
    MiniCPM outperforms many popular 7b, 13b and 70b models. More details
    can be found in
    `model_card <https://huggingface.co/openbmb/MiniCPM-2B-dpo-fp16>`__.
+-  **minicpm3-4b** - MiniCPM3-4B is the 3rd generation of MiniCPM
+   series. The overall performance of MiniCPM3-4B surpasses
+   Phi-3.5-mini-Instruct, being comparable with many recent 7B~9B
+   models.Compared to previous generations, MiniCPM3-4B has a more
+   powerful and versatile skill set to enable more general usage. More
+   details can be found in `model
+   card <https://huggingface.co/openbmb/MiniCPM3-4B>`__.
 -  **gemma-2b-it** - Gemma is a family of lightweight, state-of-the-art
    open models from Google, built from the same research and technology
    used to create the Gemini models. They are text-to-text, decoder-only
@@ -249,7 +261,18 @@ Click here to see available models options
    card <https://huggingface.co/microsoft/Phi-3.5-mini-instruct>`__,
    `Microsoft blog <https://aka.ms/phi3.5-techblog>`__ and `technical
    report <https://arxiv.org/abs/2404.14219>`__.
-
+-  **phi-4** - Phi-4 is 14B model that built upon a blend of synthetic
+   datasets, data from filtered public domain websites, and acquired
+   academic books and Q&A datasets. The goal of this approach was to
+   ensure that small capable models were trained with data focused on
+   high quality and advanced reasoning. Phi-4 underwent a rigorous
+   enhancement and alignment process, incorporating both supervised
+   fine-tuning and direct preference optimization to ensure precise
+   instruction adherence and robust safety measures. More details about
+   model can be found in
+   `model_card <https://huggingface.co/microsoft/phi-4>`__, `technical
+   report <https://arxiv.org/pdf/2412.08905>`__ and `Microsoft
+   blog <https://techcommunity.microsoft.com/blog/aiplatformblog/introducing-phi-4-microsoft%E2%80%99s-newest-small-language-model-specializing-in-comple/4357090>`__.
 -  **red-pajama-3b-chat** - A 2.8B parameter pre-trained language model
    based on GPT-NEOX architecture. It was developed by Together Computer
    and leaders from the open-source AI community. The model is
@@ -420,27 +443,18 @@ Click here to see available models options
        except OSError:
            notebook_login()
 
--  **qwen2-1.5b-instruct/qwen2-7b-instruct** - Qwen2 is the new series
-   of Qwen large language models.Compared with the state-of-the-art open
-   source language models, including the previous released Qwen1.5,
-   Qwen2 has generally surpassed most open source models and
-   demonstrated competitiveness against proprietary models across a
-   series of benchmarks targeting for language understanding, language
-   generation, multilingual capability, coding, mathematics, reasoning,
-   etc. For more details, please refer to
-   `model_card <https://huggingface.co/Qwen/Qwen2-7B-Instruct>`__,
-   `blog <https://qwenlm.github.io/blog/qwen2/>`__,
-   `GitHub <https://github.com/QwenLM/Qwen2>`__, and
+-  **qwen2.5-0.5b-instruct/qwen2.5-1.5b-instruct/qwen2.5-3b-instruct/qwen2.5-7b-instruct/qwen2.5-14b-instruct**
+   - Qwen2.5 is the latest series of Qwen large language models.
+   Comparing with Qwen2, Qwen2.5 series brings significant improvements
+   in coding, mathematics and general knowledge skills. Additionally, it
+   brings long-context and multiple languages support including Chinese,
+   English, French, Spanish, Portuguese, German, Italian, Russian,
+   Japanese, Korean, Vietnamese, Thai, Arabic, and more. For more
+   details, please refer to
+   `model_card <https://huggingface.co/Qwen/Qwen2.5-7B-Instruct>`__,
+   `blog <https://qwenlm.github.io/blog/qwen2.5/>`__,
+   `GitHub <https://github.com/QwenLM/Qwen2.5>`__, and
    `Documentation <https://qwen.readthedocs.io/en/latest/>`__.
--  **qwen1.5-0.5b-chat/qwen1.5-1.8b-chat/qwen1.5-7b-chat** - Qwen1.5 is
-   the beta version of Qwen2, a transformer-based decoder-only language
-   model pretrained on a large amount of data. Qwen1.5 is a language
-   model series including decoder language models of different model
-   sizes. It is based on the Transformer architecture with SwiGLU
-   activation, attention QKV bias, group query attention, mixture of
-   sliding window attention and full attention. You can find more
-   details about model in the `model
-   repository <https://huggingface.co/Qwen>`__.
 -  **qwen-7b-chat** - Qwen-7B is the 7B-parameter version of the large
    language model series, Qwen (abbr. Tongyi Qianwen), proposed by
    Alibaba Cloud. Qwen-7B is a Transformer-based large language model,
@@ -545,6 +559,21 @@ Click here to see available models options
    card <https://huggingface.co/THUDM/glm-4-9b-chat/blob/main/README_en.md>`__,
    `technical report <https://arxiv.org/pdf/2406.12793>`__ and
    `repository <https://github.com/THUDM/GLM-4>`__
+-  **DeepSeek-R1-Distill-Qwen-1.5B** - Qwen2.5-1.5B fine-tuned using the
+   reasoning data generated by
+   `DeepSeek-R1 <https://huggingface.co/deepseek-ai/DeepSeek-R1>`__. You
+   can find more info in `model
+   card <https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B>`__
+-  **DeepSeek-R1-Distill-Qwen-7B** - Qwen2.5-7B fine-tuned using the
+   reasoning data generated by
+   `DeepSeek-R1 <https://huggingface.co/deepseek-ai/DeepSeek-R1>`__. You
+   can find more info in `model
+   card <https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B>`__
+-  **DeepSeek-R1-Distill-Llama-8B** - Llama-3.1-8B fine-tuned using the
+   reasoning data generated by
+   `DeepSeek-R1 <https://huggingface.co/deepseek-ai/DeepSeek-R1>`__. You
+   can find more info in `model
+   card <https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Llama-8B>`__
 
 .. code:: ipython3
 
@@ -864,6 +893,11 @@ We can now save floating point and compressed model variants
                 "group_size": 128,
                 "ratio": 0.5,
             },
+            "qwen2.5-7b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
+            "qwen2.5-3b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
+            "qwen2.5-14b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
+            "qwen2.5-1.5b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
+            "qwen2.5-0.5b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
             "default": {
                 "sym": False,
                 "group_size": 128,
@@ -941,6 +975,11 @@ Select device for inference and model variant
     device = device_widget("CPU", exclude=["NPU"])
 
     device
+
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+
+    collect_telemetry("llm-chatbot.ipynb")
 
 
 
@@ -1023,6 +1062,7 @@ guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
     from transformers import AutoConfig, AutoTokenizer
     from optimum.intel.openvino import OVModelForCausalLM
 
+    import openvino as ov
     import openvino.properties as props
     import openvino.properties.hint as hints
     import openvino.properties.streams as streams
@@ -1043,6 +1083,8 @@ guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
 
     # On a GPU device a model is executed in FP16 precision. For red-pajama-3b-chat model there known accuracy
     # issues caused by this, which we avoid by setting precision hint to "f32".
+    core = ov.Core()
+
     if model_id.value == "red-pajama-3b-chat" and "GPU" in core.available_devices and device.value in ["GPU", "AUTO"]:
         ov_config["INFERENCE_PRECISION_HINT"] = "f32"
 
@@ -1301,7 +1343,7 @@ answers.https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html
         if input_ids.shape[1] > 2000:
             history = [history[-1]]
             input_ids = convert_history_to_token(history)
-        streamer = TextIteratorStreamer(tok, timeout=30.0, skip_prompt=True, skip_special_tokens=True)
+        streamer = TextIteratorStreamer(tok, timeout=3600.0, skip_prompt=True, skip_special_tokens=True)
         generate_kwargs = dict(
             input_ids=input_ids,
             max_new_tokens=max_new_tokens,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,11 @@ namespace frontend {
 namespace onnx {
 namespace common {
 const ov::element::Type& get_ov_element_type(std::int64_t onnx_type);
+
+/// \brief Function does a default checks for a node. Raise an exception if checks are failed
+/// \param[in]  node    Node to check
+/// \param[in]  min_inputs_size  Minimal amount of inputs expected
+void default_op_checks(const Node& node, size_t min_inputs_size);
 
 /// \brief      Return a monotonic sequence.
 ///

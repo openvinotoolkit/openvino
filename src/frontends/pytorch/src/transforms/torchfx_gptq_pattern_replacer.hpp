@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace pass {
 // This transformation replaces the GPTQ pattern with a Constant node
 class GPTQDecompressionReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::GPTQDecompressionReplacer");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::GPTQDecompressionReplacer");
     GPTQDecompressionReplacer();
 };
 
@@ -24,7 +24,7 @@ public:
 // additional optimizations
 class GPTQMultPatternReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::GPTQMultPatternReplacer");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::GPTQMultPatternReplacer");
     GPTQMultPatternReplacer();
 };
 

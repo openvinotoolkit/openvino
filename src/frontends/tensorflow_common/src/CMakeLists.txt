@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -23,7 +23,7 @@ endif()
 set_target_properties(${TARGET_NAME} PROPERTIES
     INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-target_link_libraries(${TARGET_NAME} PRIVATE openvino::util
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::util openvino::frontend::common_translators
                                      PUBLIC openvino::core::dev)
 
 target_include_directories(${TARGET_NAME}

@@ -19,6 +19,8 @@ RUN apt-get update && \
         git \
         gpg-agent \
         tzdata \
+        # parallel gzip
+        pigz \
         # Pythons \
         python3 \
         python3-pip \

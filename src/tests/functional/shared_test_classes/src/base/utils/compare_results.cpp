@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -206,6 +206,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 #include "openvino/opsets/opset13_tbl.hpp"
 #include "openvino/opsets/opset14_tbl.hpp"
 #include "openvino/opsets/opset15_tbl.hpp"
+#include "openvino/opsets/opset16_tbl.hpp"
 
 #include "ov_ops/opset_private_tbl.hpp"
 #undef _OPENVINO_OP_REG

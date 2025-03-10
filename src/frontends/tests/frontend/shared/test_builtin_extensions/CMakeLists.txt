@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -38,11 +38,6 @@ endif()
 if (ENABLE_OV_PYTORCH_FRONTEND)
     list(APPEND DEPENDENCIES openvino::frontend::pytorch)
     list(APPEND DEFINITIONS ENABLE_OV_PYTORCH_FRONTEND)
-endif()
-
-if (ENABLE_OV_JAX_FRONTEND)
-    list(APPEND DEPENDENCIES openvino::frontend::jax)
-    list(APPEND DEFINITIONS ENABLE_OV_JAX_FRONTEND)
 endif()
 
 # Create library

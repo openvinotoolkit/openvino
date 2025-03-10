@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,7 @@
 
 #include "nodes/executors/convert.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class CommonConvertExecutor : public ConvertExecutor {
 public:
@@ -15,9 +14,11 @@ public:
     bool init(const ConvertParams& convertParams,
               const MemoryDescPtr& srcDesc,
               const MemoryDescPtr& dstDesc,
-              const dnnl::primitive_attr &attr) override;
+              const dnnl::primitive_attr& attr) override;
     void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) override;
-    impl_desc_type implType() const override { return implDescType; };
+    [[nodiscard]] impl_desc_type implType() const override {
+        return implDescType;
+    };
     static bool isSupported(ov::element::Type srcPrc, ov::element::Type dstPrc);
 
 protected:
@@ -26,19 +27,17 @@ protected:
     const ExecutorContext::CPtr convertContext;
 };
 
-
 class CommonConvertExecutorBuilder : public ConvertExecutorBuilder {
 public:
-    ~CommonConvertExecutorBuilder() = default;
-    bool isSupported(const ConvertParams& convertParams,
-                     const MemoryDescPtr& srcDesc,
-                     const MemoryDescPtr& dstDesc) const override {
+    ~CommonConvertExecutorBuilder() override = default;
+    [[nodiscard]] bool isSupported(const ConvertParams& convertParams,
+                                   const MemoryDescPtr& srcDesc,
+                                   const MemoryDescPtr& dstDesc) const override {
         return true;
     }
-    ConvertExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
+    [[nodiscard]] ConvertExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
         return std::make_shared<CommonConvertExecutor>(context);
     }
 };
 
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace ov::intel_cpu

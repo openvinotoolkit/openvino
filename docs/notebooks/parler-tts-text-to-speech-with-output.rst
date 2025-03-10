@@ -64,8 +64,9 @@ Prerequisites
     
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
     
+    %pip uninstall -q -y torch torchvision torchaudio
     %pip install -q "openvino>=2024.2.0"
-    %pip install -q git+https://github.com/huggingface/parler-tts.git "gradio>=4.19" transformers "torch>=2.2" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q git+https://github.com/huggingface/parler-tts.git "gradio>=4.19" transformers "torch>=2.2" "torchaudio" --extra-index-url https://download.pytorch.org/whl/cpu
 
 Load the original model and inference
 -------------------------------------
@@ -242,16 +243,22 @@ Select device from dropdown list for running inference using OpenVINO.
 
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
     
     from notebook_utils import device_widget
     
     device = device_widget()
     
     device
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("parler-tts-text-to-speech.ipynb")
 
 
 
@@ -395,8 +402,6 @@ Interactive inference
 
 .. code:: ipython3
 
-    import requests
-    
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/parler-tts-text-to-speech/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -19,7 +19,7 @@ from transformers import (
     VivitImageProcessor, XCLIPVisionModel
 )
 
-from models_hub_common.constants import hf_hub_cache_dir
+from models_hub_common.constants import hf_cache_dir, clean_hf_cache_dir
 from models_hub_common.utils import cleanup_dir, get_models_list, retry
 from torch_utils import TestTorchConvertModel
 
@@ -497,8 +497,9 @@ class TestTransformersModel(TestTorchConvertModel):
         return model
 
     def teardown_method(self):
-        # remove all downloaded files from cache
-        cleanup_dir(hf_hub_cache_dir)
+        if clean_hf_cache_dir:
+            # remove all downloaded files from cache
+            cleanup_dir(hf_cache_dir)
 
         super().teardown_method()
 
@@ -520,11 +521,18 @@ class TestTransformersModel(TestTorchConvertModel):
                                            ("bert-base-uncased", "bert"),
                                            ("google/flan-t5-base", "t5"),
                                            ("google/tapas-large-finetuned-wtq", "tapas"),
-                                           ("gpt2", "gpt2"),
                                            ("openai/clip-vit-large-patch14", "clip"),
                                            ])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, type, ie_device):
+        self.run(model_name=name, model_link=type, ie_device=ie_device)
+
+    @pytest.mark.parametrize("name,type", [("bert-base-uncased", "bert"),
+                                           ("openai/clip-vit-large-patch14", "clip"),
+                                           ])
+    @pytest.mark.precommit
+    def test_convert_model_precommit_export(self, name, type, ie_device):
+        self.mode = "export"
         self.run(model_name=name, model_link=type, ie_device=ie_device)
 
     @pytest.mark.parametrize("type,name,mark,reason",

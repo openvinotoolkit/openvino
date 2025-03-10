@@ -139,7 +139,7 @@ To check if a model already has dynamic dimensions, first load it with the ``rea
 
 If the input model already has dynamic dimensions, that will not change during inference. If the inputs will not be used dynamically, it is recommended to set them to static values using the ``reshape`` method to save application memory and potentially improve inference speed. The OpenVINO API supports any combination of static and dynamic dimensions.
 
-Static and dynamic dimensions can also be set when converting the model with ``convert_model()``. It has identical capabilities to the ``reshape`` method, so you can save time by converting the model with dynamic shapes beforehand rather than in the application code. To get information about setting input shapes using ``convert_model()``,  refer to :doc:`Setting Input Shapes <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-setting-input-shapes>`.
+Static and dynamic dimensions can also be set when converting the model with ``convert_model()``. It has identical capabilities to the ``reshape`` method, so you can save time by converting the model with dynamic shapes beforehand rather than in the application code. To get information about setting input shapes using ``convert_model()``,  refer to :doc:`Setting Input Shapes <./changing-input-shape>`.
 
 Dimension Bounds
 ----------------
@@ -175,7 +175,7 @@ The lower and/or upper bounds of a dynamic dimension can also be specified. They
     .. tab-item:: C
         :sync: c
 
-        The dimension bounds can be coded as arguments for `ov_dimension <https://docs.openvino.ai/2024/api/c_cpp_api/structov__dimension.html>`__, as shown in these examples:
+        The dimension bounds can be coded as arguments for `ov_dimension <https://docs.openvino.ai/2025/api/c_cpp_api/structov__dimension.html>`__, as shown in these examples:
 
         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_dynamic_shapes.c
            :language: cpp
@@ -190,7 +190,7 @@ For the same reason, it is not recommended to leave dimensions as undefined, wit
 
 When specifying bounds, the lower bound is not as important as the upper one. The upper bound allows inference devices to allocate memory for intermediate tensors more precisely. It also allows using a fewer number of tuned kernels for different sizes.
 More precisely, benefits of specifying the lower or upper bound is device dependent.
-Depending on the plugin, specifying the upper bounds can be required. For information about dynamic shapes support on different devices, refer to the :doc:`feature support table <../../about-openvino/compatibility-and-support/supported-devices>`.
+Depending on the plugin, specifying the upper bounds can be required. For information about dynamic shapes support on different devices, refer to the :doc:`feature support table <../../documentation/compatibility-and-support/supported-devices>`.
 
 If the lower and upper bounds for a dimension are known, it is recommended to specify them, even if a plugin can execute a model without the bounds.
 

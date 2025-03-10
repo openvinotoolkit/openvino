@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -30,5 +30,6 @@ class TestPRelu(PytorchLayerTest):
     @pytest.mark.parametrize("alpha", [0.01, 1.01, -0.01])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_prelu(self, alpha, ie_device, precision, ir_version):
         self._test(*self.create_model(alpha), ie_device, precision, ir_version)

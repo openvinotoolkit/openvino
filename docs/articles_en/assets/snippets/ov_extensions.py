@@ -1,20 +1,32 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 import openvino as ov
+from ov_custom_op import Identity
 
 #! [py_frontend_extension_ThresholdedReLU_header]
-import openvino.runtime.opset12 as ops
+import openvino.runtime.opset14 as ops
 from openvino.frontend import ConversionExtension
 #! [py_frontend_extension_ThresholdedReLU_header]
 
 #! [add_extension]
-# Not implemented
+core = ov.Core()
+
+# Use operation type to add operation extension
+core.add_extension(Identity)
+
+# or you can add operation extension object which is equivalent form
+core.add_extension(ov.OpExtension(Identity))
 #! [add_extension]
 
 #! [add_frontend_extension]
-# Not implemented
+# Register more sophisticated mapping with decomposition
+def conversion(node):
+    input_node = node.get_input(0)
+    return Identity(input_node).outputs()
+
+core.add_extension(ConversionExtension("Identity", conversion))
 #! [add_frontend_extension]
 
 from utils import get_path_to_extension_library
@@ -47,7 +59,7 @@ core.add_extension(ConversionExtension("ThresholdedRelu", conversion))
 #! [py_frontend_extension_aten_hardtanh]
 import torch
 from openvino.frontend import ConversionExtension, NodeContext
-from openvino.tools.mo import convert_model
+from openvino import convert_model
 
 
 class HardTanh(torch.nn.Module):
@@ -69,5 +81,5 @@ def convert_hardtanh(node: NodeContext):
 
 model = HardTanh(min_val=0.1, max_val=2.0)
 hardtanh_ext = ConversionExtension("aten::hardtanh", convert_hardtanh)
-ov_model = convert_model(input_model=model, extensions=[hardtanh_ext])
+ov_model = convert_model(input_model=model, extension=[hardtanh_ext])
 #! [py_frontend_extension_aten_hardtanh]

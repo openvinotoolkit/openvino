@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -105,17 +105,19 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckMetricsPropsTests_ModelDependceProps,
 // OV Class GetMetric
 //
 
-INSTANTIATE_TEST_SUITE_P(
-        ov_plugin_mandatory, OVGetMetricPropsTest,
-        ::testing::Values(ov::test::utils::target_device));
+INSTANTIATE_TEST_SUITE_P(ov_plugin,
+                         OVGetMetricPropsTest,
+                         ::testing::Values(ov::test::utils::target_device),
+                         MARK_MANDATORY_API_FOR_HW_DEVICE_WITHOUT_PARAM());
 
 INSTANTIATE_TEST_SUITE_P(
         ov_plugin, OVGetMetricPropsOptionalTest,
         ::testing::Values(ov::test::utils::target_device));
 
-INSTANTIATE_TEST_SUITE_P(
-        ov_plugin_mandatory, OVGetAvailableDevicesPropsTest,
-        ::testing::Values(ov::test::utils::target_device));
+INSTANTIATE_TEST_SUITE_P(ov_plugin,
+                         OVGetAvailableDevicesPropsTest,
+                         ::testing::Values(ov::test::utils::target_device),
+                         MARK_MANDATORY_API_FOR_HW_DEVICE_WITHOUT_PARAM());
 
 //
 // OV Class GetConfig

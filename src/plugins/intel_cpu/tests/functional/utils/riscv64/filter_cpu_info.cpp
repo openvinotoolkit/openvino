@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,9 +64,12 @@ std::vector<CPUSpecificParams> filterCPUInfoForDeviceWithFP16(const std::vector<
 }
 
 std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpecificParams> &paramsVector) {
-    static const std::vector<CPUTestUtils::cpu_memory_format_t> supported_f = {CPUTestUtils::cpu_memory_format_t::ncw,
-     CPUTestUtils::cpu_memory_format_t::nchw,
-     CPUTestUtils::cpu_memory_format_t::ncdhw};
+    static const std::vector<CPUTestUtils::cpu_memory_format_t> supported_f = {CPUTestUtils::cpu_memory_format_t::nwc,
+                                                                               CPUTestUtils::cpu_memory_format_t::ncw,
+                                                                               CPUTestUtils::cpu_memory_format_t::nchw,
+                                                                               CPUTestUtils::cpu_memory_format_t::nhwc,
+                                                                               CPUTestUtils::cpu_memory_format_t::ndhwc,
+                                                                               CPUTestUtils::cpu_memory_format_t::ncdhw};
     std::vector<CPUSpecificParams> filteredParamsVector = paramsVector;
     filteredParamsVector.erase(std::remove_if(filteredParamsVector.begin(),
                                filteredParamsVector.end(),

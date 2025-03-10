@@ -1,9 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common_test_utils/test_constants.hpp"
 #include "single_op_tests/random_uniform.hpp"
+
+#include "openvino/op/util/attr_types.hpp"
 
 using ov::test::RandomUniformLayerTest;
 
@@ -32,6 +34,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(random_uniform_type_specific_params),
                 ::testing::ValuesIn(global_seeds),
                 ::testing::ValuesIn(op_seeds),
+                ::testing::Values(ov::op::PhiloxAlignment::TENSORFLOW),
                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
         RandomUniformLayerTest::getTestCaseName);
 

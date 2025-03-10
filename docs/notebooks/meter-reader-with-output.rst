@@ -54,20 +54,12 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 
 .. code:: ipython3
 
-    import platform
-    
     # Install openvino package
-    %pip install -q "openvino>=2023.1.0" opencv-python tqdm
-    
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "openvino>=2023.1.0" opencv-python tqdm "matplotlib>=3.4"
 
 
 .. parsed-literal::
 
-    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -90,12 +82,18 @@ Import
     # Fetch `notebook_utils` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
     
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file, segmentation_map_to_image, device_widget
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("meter-reader.ipynb")
 
 Prepare the Model and Test Image
 --------------------------------
@@ -143,7 +141,7 @@ DeepLabV3P pre-trained models from PaddlePaddle community.
 
 .. parsed-literal::
 
-    model/meter_det_model.tar.gz:   0%|          | 0.00/192M [00:00<?, ?B/s]
+    meter_det_model.tar.gz:   0%|          | 0.00/192M [00:00<?, ?B/s]
 
 
 .. parsed-literal::
@@ -154,7 +152,7 @@ DeepLabV3P pre-trained models from PaddlePaddle community.
 
 .. parsed-literal::
 
-    model/meter_seg_model.tar.gz:   0%|          | 0.00/94.9M [00:00<?, ?B/s]
+    meter_seg_model.tar.gz:   0%|          | 0.00/94.9M [00:00<?, ?B/s]
 
 
 .. parsed-literal::
@@ -165,7 +163,7 @@ DeepLabV3P pre-trained models from PaddlePaddle community.
 
 .. parsed-literal::
 
-    data/170696219-f68699c6-1e82-46bf-aaed-8e2fc3fa5f7b.jpg:   0%|          | 0.00/183k [00:00<?, ?B/s]
+    170696219-f68699c6-1e82-46bf-aaed-8e2fc3fa5f7b.jpg:   0%|          | 0.00/183k [00:00<?, ?B/s]
 
 
 .. parsed-literal::
@@ -645,7 +643,7 @@ bounds of input batch size.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f8978b88670>
+    <matplotlib.image.AxesImage at 0x7fa4e138c280>
 
 
 

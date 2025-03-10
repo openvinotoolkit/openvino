@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ struct border_impl : typed_primitive_impl_ocl<border> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::border_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<border_impl>(*this);
+        return make_deep_copy<border_impl, kernel_params_t>(*this);
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
@@ -127,7 +127,7 @@ struct border_impl : typed_primitive_impl_ocl<border> {
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
         ib >> zero_input;
-        if (is_dynamic()) {
+        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -150,17 +150,16 @@ protected:
         return args;
     }
 
-    std::vector<layout> get_internal_buffer_layouts_impl() const override {
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
         const auto& prim_params = static_cast<const kernel_selector::border_params&>(*_kernel_data.params);
-        std::vector<layout> layouts;
+        std::vector<BufferDescriptor> internal_buffers;
 
         if ((_kernel_data.params == nullptr && zero_input) ||
             (_kernel_data.params != nullptr && prim_params.inputs[0].LogicalSize() == 0)) {
-            layout any_layout = {data_types::u8, format::bfyx, {1, 1, 1, 1}};
-            layouts.push_back(any_layout);
+            internal_buffers.emplace_back(1, ov::element::u8);
         }
 
-        return layouts;
+        return internal_buffers;
     }
 };
 

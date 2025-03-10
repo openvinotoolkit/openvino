@@ -63,6 +63,13 @@ The transformation function is a function that takes a sample from the dataset a
          :language: python
          :fragment: [dataset]
 
+   .. tab-item:: TorchFX
+      :sync: torch_fx
+
+      .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch_fx.py
+         :language: python
+         :fragment: [dataset]
+
 If there is no framework dataset object, you can create your own entity that implements the ``Iterable`` interface in Python, for example the list of images, and returns data samples feasible for inference. In this case, a transformation function is not required.
 
 
@@ -102,6 +109,12 @@ See the `example section <#examples-of-how-to-apply-nncf-post-training-quantizat
          :language: python
          :fragment: [quantization]
 
+   .. tab-item:: TorchFX
+      :sync: torch_fx
+
+      .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch_fx.py
+         :language: python
+         :fragment: [quantization]
 
 After that the model can be converted into the OpenVINO Intermediate Representation (IR) if needed, compiled and run with OpenVINO.
 If you have not already installed OpenVINO developer tools, install it with ``pip install openvino``.
@@ -133,6 +146,17 @@ If you have not already installed OpenVINO developer tools, install it with ``pi
       :sync: tensorflow
 
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_tensorflow.py
+         :language: python
+         :fragment:  [inference]
+
+TorchFX models can utilize OpenVINO optimizations using `torch.compile(..., backend="openvino") <https://docs.openvino.ai/2025/openvino-workflow/torch-compile.html>`__ functionality:
+
+.. tab-set::
+
+   .. tab-item:: TorchFX
+      :sync: torch_fx
+
+      .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch_fx.py
          :language: python
          :fragment:  [inference]
 

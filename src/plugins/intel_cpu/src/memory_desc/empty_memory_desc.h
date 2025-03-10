@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "cpu_memory_desc.h"
-
 #include "cpu_shape.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -23,8 +22,7 @@ namespace intel_cpu {
  */
 class EmptyMemoryDesc : public MemoryDesc {
 public:
-    EmptyMemoryDesc():
-        MemoryDesc(Shape{0}, Empty) {
+    EmptyMemoryDesc() : MemoryDesc(Shape{0}, Empty) {
         /* status never changes for an empty memory desc
          * so "define" beforehand to ensure isDefined() is thread safe */
         status = MemoryDesc::descStatus::Defined;
@@ -39,7 +37,7 @@ public:
     };
 
     ov::element::Type getPrecision() const override {
-        return ov::element::undefined;
+        return ov::element::dynamic;
     }
 
     size_t getOffsetPadding() const override {
@@ -59,7 +57,11 @@ public:
     }
 
     MemoryDescPtr cloneWithNewPrecision(const ov::element::Type prec) const override {
-        OPENVINO_THROW("Clone an empty memory desc with any precision (", prec, ") is prohibited");
+        OPENVINO_ASSERT(prec == ov::element::dynamic,
+                        "Clone an empty memory desc with defined precision: ",
+                        prec,
+                        " is prohibited");
+        return clone();
     }
 
 private:
@@ -90,5 +92,5 @@ private:
 using EmptyMemoryDescPtr = std::shared_ptr<EmptyMemoryDesc>;
 using EmptyMemoryDescCPtr = std::shared_ptr<const EmptyMemoryDesc>;
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

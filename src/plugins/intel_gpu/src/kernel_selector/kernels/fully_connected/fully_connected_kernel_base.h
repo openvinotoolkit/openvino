@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,7 @@ public:
         uint32_t rg_count = 0;
 
         bool use_slm = false;
+        uint32_t outer_n = 0;
 
         // Gemm style params
         uint32_t tile_m = 0;

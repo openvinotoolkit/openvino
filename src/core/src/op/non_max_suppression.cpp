@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -102,6 +102,8 @@ std::ostream& operator<<(std::ostream& s, const op::v1::NonMaxSuppression::BoxEn
     return s << as_string(type);
 }
 
+AttributeAdapter<op::v1::NonMaxSuppression::BoxEncodingType>::~AttributeAdapter() = default;
+
 // ------------------------------ V3 ------------------------------
 op::v3::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
@@ -197,6 +199,8 @@ EnumNames<op::v3::NonMaxSuppression::BoxEncodingType>::get() {
 std::ostream& operator<<(std::ostream& s, const op::v3::NonMaxSuppression::BoxEncodingType& type) {
     return s << as_string(type);
 }
+
+AttributeAdapter<op::v3::NonMaxSuppression::BoxEncodingType>::~AttributeAdapter() = default;
 
 // ------------------------------ V4 ------------------------------
 op::v4::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
@@ -766,4 +770,7 @@ EnumNames<op::v9::NonMaxSuppression::BoxEncodingType>::get() {
          {"center", op::v9::NonMaxSuppression::BoxEncodingType::CENTER}});
     return enum_names;
 }
+
+AttributeAdapter<op::v5::NonMaxSuppression::BoxEncodingType>::~AttributeAdapter() = default;
+AttributeAdapter<op::v9::NonMaxSuppression::BoxEncodingType>::~AttributeAdapter() = default;
 }  // namespace ov

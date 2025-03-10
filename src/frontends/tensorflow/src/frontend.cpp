@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,7 +66,7 @@ void get_unsupported_operations_and_failures(const std::shared_ptr<Model>& model
                                              std::set<std::string>& unsupported_operations,
                                              std::unordered_map<std::string, std::string>& failures) {
     for (const auto& node : model->get_ordered_ops()) {
-        if (const auto& internal_op = std::dynamic_pointer_cast<InternalOperation>(node)) {
+        if (const auto& internal_op = ov::as_type_ptr<InternalOperation>(node)) {
             // handle internal operations separately
             // which can have elaborated reason of unconverted operation
             // like Const of string type
@@ -466,12 +466,11 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
 
         // recommend to use openvino-tokenizers if some unconverted operations from tokenizers are met
         if (unsupported_ops_from_tokenizers.size() > 0) {
-            exception_message
-                << "\nEncountered unconverted operation(s) for which openvino-tokenizers package "
-                   "provides conversion extension(s): "
-                << unsupported_ops_from_tokenizers
-                << ". Install OpenVINO Tokenizers, refer to the documentation: "
-                   "https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/ov-tokenizers.html \n";
+            exception_message << "\nEncountered unconverted operation(s) for which openvino-tokenizers package "
+                                 "provides conversion extension(s): "
+                              << unsupported_ops_from_tokenizers
+                              << ". Install OpenVINO Tokenizers, refer to the documentation: "
+                                 "https://docs.openvino.ai/2025/openvino-workflow-generative/ov-tokenizers.html \n";
         }
     }
 
@@ -546,7 +545,7 @@ std::shared_ptr<ov::Model> FrontEnd::decode(const ov::frontend::InputModel::Ptr&
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) const {
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
         if (ov::is_type<FrameworkNode>(node)) {
-            translate_framework_node(std::dynamic_pointer_cast<FrameworkNode>(node), m_op_translators);
+            translate_framework_node(ov::as_type_ptr<FrameworkNode>(node), m_op_translators);
         }
     }
     for (const auto& result : partiallyConverted->get_results()) {
@@ -595,7 +594,7 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     } else if (const auto& so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
         add_extension(so_ext->extension());
         m_extensions.push_back(so_ext);
-    } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
+    } else if (auto common_conv_ext = ov::as_type_ptr<ov::frontend::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(common_conv_ext);
         if (common_conv_ext->get_converter()) {
             m_op_translators[common_conv_ext->get_op_type()] =
@@ -611,7 +610,7 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         // Ignore other types of extensions in particular CreatorFunctionNamed which cannot be used with tensorflow
         // frontend
     } else if (const auto& tensorflow_conv_ext =
-                   std::dynamic_pointer_cast<ov::frontend::tensorflow::ConversionExtension>(extension)) {
+                   ov::as_type_ptr<ov::frontend::tensorflow::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(tensorflow_conv_ext);
         m_op_translators[tensorflow_conv_ext->get_op_type()] = tensorflow_conv_ext->get_converter();
     } else if (auto op_base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension)) {

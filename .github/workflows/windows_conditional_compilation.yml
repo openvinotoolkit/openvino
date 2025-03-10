@@ -30,7 +30,8 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -56,7 +57,9 @@ jobs:
     runs-on: aks-win-32-cores-128gb
     env:
       CMAKE_BUILD_TYPE: 'Release'
-      CMAKE_GENERATOR: 'Ninja Multi-Config'
+      CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
+      # CMAKE_GENERATOR: 'Ninja Multi-Config'
+      CMAKE_GENERATOR: 'Visual Studio 17 2022'
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
       CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows2022_x86_64_itt\\${{ github.base_ref || github.ref_name }}"
@@ -64,7 +67,7 @@ jobs:
       CCACHE_MAXSIZE: 3G
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
-      INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
+      INSTALL_PDB_DIR: "${{ github.workspace }}\\install_pdb"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       MODELS_PATH: "${{ github.workspace }}\\testdata"
       SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
@@ -73,13 +76,15 @@ jobs:
 
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           path: 'openvino'
           submodules: 'true'
 
       - name: Clone test models
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           repository: 'openvinotoolkit/testdata'
           path: 'testdata'
@@ -154,7 +159,7 @@ jobs:
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
-          toolset: 14.40
+          toolset: 14.42 # v2022
 
       - name: Set SSL_CERT_FILE for model downloading for unit tests
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
@@ -167,7 +172,6 @@ jobs:
             -DENABLE_TESTS=ON `
             -DENABLE_CPPLINT=OFF `
             -DENABLE_NCC_STYLE=OFF `
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
             -DENABLE_PROFILING_ITT=ON `
             -DSELECTIVE_BUILD=COLLECT `
             -DENABLE_FASTER_BUILD=ON `
@@ -188,16 +192,14 @@ jobs:
         run: '& ccache --show-stats'
 
       - name: Cmake install - OpenVINO
-        run: cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+        run: |
+          cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
+          cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_PDB_DIR }} --component pdb
 
       - name: Build C++ samples - OpenVINO build tree
         run: |
           cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
-          cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
-
-      - name: Build C samples - OpenVINO install tree
-        run: |
-          & ${{ env.INSTALL_DIR }}/samples/c/build_samples.ps1 -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
+          cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
 
       - name: Ctest - OpenVINO unit tests
         shell: cmd
@@ -228,6 +230,23 @@ jobs:
 
       - name: Pack Artifacts
         run: |
+          $file = Get-ChildItem -Path "${{ env.INSTALL_DIR }}"
+          $compress = @{
+            Path = $file
+            CompressionLevel = "Optimal"
+            DestinationPath = "${{ env.BUILD_DIR }}/openvino_package.zip"
+          }
+          Compress-Archive @compress
+
+          $file=Get-ChildItem -Path "${{ env.INSTALL_PDB_DIR }}"
+          $compress = @{
+            Path = $file
+            CompressionLevel = "Optimal"
+            DestinationPath = "${{ env.BUILD_DIR }}/openvino_pdb.zip"
+          }
+          Compress-Archive @compress
+
+
           $file=Get-ChildItem -Path "${{ env.SELECTIVE_BUILD_STAT_DIR }}"
           $compress = @{
             Path = $file
@@ -237,19 +256,48 @@ jobs:
           Compress-Archive @compress
 
           $compress = @{
-            Path = "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_cpu_func_tests.exe", "${{ env.BUILD_DIR }}/bin/${{ env.CMAKE_BUILD_TYPE }}/ze_loader.dll", "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/openvino_template_extension.dll", "${{ env.OPENVINO_REPO }}/src/tests/test_utils/functional_test_utils/layer_tests_summary", "${{ env.INSTALL_DIR }}/runtime/3rdparty/tbb"
+            Path = "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_cpu_func_tests.exe", "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/openvino_template_extension.dll", "${{ env.OPENVINO_REPO }}/src/tests/test_utils/functional_test_utils/layer_tests_summary", "${{ env.INSTALL_DIR }}/runtime/3rdparty/tbb"
             CompressionLevel = "Optimal"
             DestinationPath = "${{ env.BUILD_DIR }}/openvino_tests.zip"
           }
           Compress-Archive @compress
 
+      - name: Build C samples - OpenVINO install tree
+        run: |
+          # install PDB files to OpenVINO main installation folder to ensure that they are used instead of PDB files from build folder
+          cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }} --component pdb
+          # then, we need to clean build tree to remove PDB files
+          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target clean
+          & ${{ env.INSTALL_DIR }}/samples/c/build_samples.ps1 -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
+        env:
+          CXXFLAGS: "/Zi"
+          CFLAGS: "/Zi"
+          LDFLAGS: "/DEBUG"
+          CMAKE_GENERATOR: "Visual Studio 17 2022"
+
       #
       # Upload build artifacts and logs
       #
 
+      - name: Upload OpenVINO package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: openvino_package
+          path: ${{ env.BUILD_DIR }}/openvino_package.zip
+          if-no-files-found: 'error'
+
+      - name: Upload OpenVINO PDB package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: openvino_pdb
+          path: ${{ env.BUILD_DIR }}/openvino_pdb.zip
+          if-no-files-found: 'error'
+
       - name: Upload selective build statistics package
         if: ${{ always() }}
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: openvino_selective_build_stat
           path: ${{ env.BUILD_DIR }}/openvino_selective_build_stat.zip
@@ -257,7 +305,7 @@ jobs:
 
       - name: Upload OpenVINO tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.zip
@@ -265,7 +313,7 @@ jobs:
 
   CC_Build:
     name: Conditional Compilation
-    timeout-minutes: 20
+    timeout-minutes: 25
     needs: [Build, Smart_CI]
     defaults:
       run:
@@ -282,13 +330,15 @@ jobs:
 
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           path: 'openvino'
           submodules: 'true'
 
       - name: Clone test models
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           repository: 'openvinotoolkit/testdata'
           path: 'testdata'
@@ -331,7 +381,7 @@ jobs:
             -B ${{ env.BUILD_DIR }}
 
       - name: Cmake build - CC ON
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app --verbose
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app --verbose
 
       - name: List bin files
         shell: cmd
@@ -369,7 +419,8 @@ jobs:
         run: Expand-Archive ${{ env.INSTALL_TEST_DIR }}/openvino_tests.zip -DestinationPath "${{ env.INSTALL_TEST_DIR }}"
 
       - name: Fetch setup_python action
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
@@ -387,7 +438,7 @@ jobs:
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/layer_tests_summary/requirements.txt
 
       - name: Restore tests execution time
-        uses: actions/cache/restore@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
+        uses: actions/cache/restore@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
@@ -402,7 +453,7 @@ jobs:
         timeout-minutes: 60
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         if: ${{ !cancelled() }}
         with:
           name: test-results-functional-cpu

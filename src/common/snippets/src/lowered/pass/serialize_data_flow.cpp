@@ -15,7 +15,7 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool SerializeDataFlow::run(LinearIR& linear_ir) {
+bool SerializeDataFlow::run(const LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SerializeDataFlow")
     if (linear_ir.empty())
         return false;
@@ -34,6 +34,7 @@ bool SerializeDataFlow::run(LinearIR& linear_ir) {
         }
         if (ov::is_type<ov::op::v0::Parameter>(node)) {
             const auto parameter = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
+            parameter->get_rt_info()["execTimeMcs"] = 0;
             ops_map[expr] = parameter;
             parameters.push_back(parameter);
         } else if (ov::is_type<ov::op::v0::Result>(node)) {

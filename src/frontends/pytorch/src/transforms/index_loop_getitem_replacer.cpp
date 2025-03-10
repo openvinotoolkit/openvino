@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "index_loop_getitem_replacer.hpp"
 
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -51,7 +52,7 @@ IndexLoopGetitemReplacer::IndexLoopGetitemReplacer() {
         size_t chunk_idx = 0;
         auto loop_inputs = loop_op->input_values();
         for (size_t i = 1; i < loop_inputs.size(); i++) {
-            if (cast_fw_node(loop_inputs.at(i).get_node_shared_ptr(), "aten::chunk")) {
+            if (cast_fw_node(loop_inputs.at(i).get_node_shared_ptr(), {"aten::chunk", "aten::unsafe_chunk"})) {
                 chunk_op = loop_inputs.at(i).get_node_shared_ptr();
                 chunk_idx = i;
                 break;
@@ -85,8 +86,8 @@ IndexLoopGetitemReplacer::IndexLoopGetitemReplacer() {
             return false;
         }
 
-        auto dim = chunk_op->input_value(2);
-        if (!ov::as_type_ptr<v0::Constant>(dim.get_node_shared_ptr())) {
+        auto dim = ov::util::get_constant_from_source(chunk_op->input_value(2));
+        if (!dim) {
             add_exception_to_fw_node(chunk_op, "aten::chunk: dimension is not constant.");
             return false;
         }
@@ -120,7 +121,7 @@ IndexLoopGetitemReplacer::IndexLoopGetitemReplacer() {
         // Add new inputs in Loop: chunk_size and dim_1d
         auto inp_descs = loop_op->get_input_descriptions();
         auto chunks_size_body = rg.make<v0::Parameter>(element::i32, Shape{1});
-        auto dim_body = rg.make<v0::Parameter>(dim.get_element_type(), Shape{1});
+        auto dim_body = rg.make<v0::Parameter>(dim->get_element_type(), Shape{1});
         body->add_parameters({chunks_size_body, dim_body});
         loop_op->set_argument(loop_op->get_input_size(), chunk_size);
         loop_op->set_argument(loop_op->get_input_size(), dim_1d);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,10 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset4.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/fq_mul_fusion.hpp"
+#include "transformations/common_optimizations/pull_transpose_through_fq.hpp"
 #include "transformations/init_node_info.hpp"
 
 using namespace ov;
@@ -66,13 +69,8 @@ private:
     }
 
     std::shared_ptr<ov::Model> get_reference_function(const FQReshapeFusionTestCase& test_case) {
-        const auto& data = std::make_shared<opset4::Constant>(element::f32, test_case.data_shape, 0);
-        const auto& reshaped_data = std::make_shared<opset4::Reshape>(
-            data,
-            std::make_shared<opset4::Constant>(element::i64,
-                                               Shape{test_case.reshape_pattern.size()},
-                                               test_case.reshape_pattern),
-            true);
+        auto shape = PartialShape(test_case.reshape_pattern).to_shape();
+        const auto& data = std::make_shared<opset4::Constant>(element::f32, shape, 0);
 
         const auto& p_il = std::make_shared<opset4::Parameter>(element::f32, test_case.il_shape);
         Output<Node> il = p_il;
@@ -104,7 +102,7 @@ private:
                 opset4::Constant::create(element::i64, {test_case.new_oh_shape.size()}, test_case.new_oh_shape),
                 true);
 
-        auto fq = std::make_shared<opset4::FakeQuantize>(reshaped_data, il, ih, ol, oh, 42);
+        auto fq = std::make_shared<opset4::FakeQuantize>(data, il, ih, ol, oh, 42);
 
         auto result = std::make_shared<op::v0::Result>(fq);
         ParameterVector params = {p_il, p_ih, p_ol, p_oh};
@@ -212,4 +210,78 @@ TEST_F(TransformationTestsF, FQReshapeGroupConvolution) {
     pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::pass::FakeQuantizeReshapeFusion>();
+}
+
+TEST_F(TransformationTestsF, FQOptimizations) {
+    {
+        const auto& data = std::make_shared<opset4::Constant>(element::u8, Shape{9, 32}, 0);
+        const auto& convert = std::make_shared<opset4::Convert>(data, element::f32);
+
+        const auto& il = op::v0::Constant::create(element::f32, Shape{1}, {0});
+        const auto& ih = op::v0::Constant::create(element::f32, Shape{1}, {254});
+        const auto& ol = op::v0::Constant::create(element::f32, Shape{32}, {-14.22});
+        const auto& oh = op::v0::Constant::create(element::f32, Shape{32}, {14.22});
+
+        const auto& fq = std::make_shared<opset4::FakeQuantize>(convert, il, ih, ol, oh, 255);
+
+        const auto& reshape =
+            std::make_shared<opset4::Reshape>(fq,
+                                              op::v0::Constant::create(element::i64, Shape{4}, {3, 3, 32, 1}),
+                                              true);
+
+        const auto& multiply =
+            std::make_shared<opset4::Multiply>(reshape,
+                                               op::v0::Constant::create(element::f32, Shape{1, 1, 32, 1}, {0.1140}));
+
+        const auto& transpose =
+            std::make_shared<opset4::Transpose>(multiply,
+                                                op::v0::Constant::create(element::i64, Shape{4}, {2, 3, 0, 1}));
+
+        const auto& reshape_to_weight =
+            std::make_shared<opset4::Reshape>(transpose,
+                                              op::v0::Constant::create(element::i64, Shape{5}, {32, 1, 1, 3, 3}),
+                                              true);
+
+        const auto& input = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(4));
+        const auto& group_conv = std::make_shared<opset4::GroupConvolution>(input,
+                                                                            reshape_to_weight,
+                                                                            Strides{1, 1},
+                                                                            CoordinateDiff{0, 0},
+                                                                            CoordinateDiff{0, 0},
+                                                                            Strides{1, 1});
+
+        model = std::make_shared<ov::Model>(OutputVector{group_conv}, ParameterVector{input});
+
+        auto fq_fusions = manager.register_pass<ov::pass::GraphRewrite>();
+        fq_fusions->add_matcher<ov::pass::FakeQuantizeMulFusion>();
+        fq_fusions->add_matcher<ov::pass::FakeQuantizeReshapeFusion>();
+        fq_fusions->add_matcher<ov::pass::PullTransposeThroughFQUp>();
+        fq_fusions->set_name("ov::pass::FakeQuantizeFusions");
+    }
+    {
+        const auto& data = std::make_shared<opset4::Constant>(element::u8, Shape{32, 1, 3, 3}, 0);
+        const auto& convert = std::make_shared<opset4::Convert>(data, element::f32);
+
+        const auto& il = op::v0::Constant::create(element::f32, Shape{1, 1, 1, 1}, {0});
+        const auto& ih = op::v0::Constant::create(element::f32, Shape{1, 1, 1, 1}, {254});
+        const auto& ol = op::v0::Constant::create(element::f32, Shape{32, 1, 1, 1}, {-14.22 * 0.1140});
+        const auto& oh = op::v0::Constant::create(element::f32, Shape{32, 1, 1, 1}, {14.22 * 0.1140});
+
+        const auto& fq = std::make_shared<opset4::FakeQuantize>(convert, il, ih, ol, oh, 255);
+
+        const auto& reshape_to_weight =
+            std::make_shared<opset4::Reshape>(fq,
+                                              op::v0::Constant::create(element::i64, Shape{5}, {32, 1, 1, 3, 3}),
+                                              true);
+
+        const auto& input = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(4));
+        const auto& group_conv = std::make_shared<opset4::GroupConvolution>(input,
+                                                                            reshape_to_weight,
+                                                                            Strides{1, 1},
+                                                                            CoordinateDiff{0, 0},
+                                                                            CoordinateDiff{0, 0},
+                                                                            Strides{1, 1});
+
+        model_ref = std::make_shared<ov::Model>(OutputVector{group_conv}, ParameterVector{input});
+    }
 }

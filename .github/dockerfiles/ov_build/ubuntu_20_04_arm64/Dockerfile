@@ -23,6 +23,8 @@ RUN apt-get update && \
         ca-certificates \
         gpg-agent \
         tzdata \
+        # parallel gzip
+        pigz \
         # Pythons
         python3.8-dev \
         python3.8-venv \
@@ -33,7 +35,7 @@ RUN apt-get update && \
         libhdf5-dev \
         # For Java API
         default-jdk \
-        # Compiler
+        # Compiler, required for multi-isa build
         gcc-10 \
         g++-10 \
         && \

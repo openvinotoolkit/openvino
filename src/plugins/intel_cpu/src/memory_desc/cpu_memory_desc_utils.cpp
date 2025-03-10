@@ -1,63 +1,71 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "memory_desc/cpu_memory_desc_utils.h"
 
-#include "memory_desc/cpu_blocked_memory_desc.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "graph_context.h"
-#include "cpu_memory_desc.h"
-#include "memory_desc/empty_memory_desc.h"
-#include <cpu_memory.h>
-#include <vector>
 #include <cpu_memory.h>
 #include <dnnl_types.h>
+
 #include <numeric>
 #include <vector>
 
+#include "cpu_memory_desc.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "memory_desc/empty_memory_desc.h"
+
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
-DnnlMemoryDescPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDescPtr &desc) {
+DnnlMemoryDescPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDescPtr& desc) {
     if (MemoryDescType::Blocked == desc->getType()) {
         const auto cpuDesc = desc->as<CpuBlockedMemoryDesc>();
-        return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(cpuDesc->getPrecision(), cpuDesc->getShape(), cpuDesc->getBlockDims(),
-                                                        cpuDesc->getOrder(), cpuDesc->getOffsetPadding(),
-                                                        cpuDesc->getOffsetPaddingToData(), cpuDesc->getStrides()));
-    } else if (MemoryDescType::Empty == desc->getType()) {
-        return DnnlExtensionUtils::makeDescriptor(dnnl::memory::desc());
-    } else if (MemoryDescType::Dnnl & desc->getType()) {
-        return std::dynamic_pointer_cast<DnnlMemoryDesc>(desc);
-    } else {
-        OPENVINO_THROW("Cannot convert MemoryDesc to DnnlMemoryDesc");
+        return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(cpuDesc->getPrecision(),
+                                                                                cpuDesc->getShape(),
+                                                                                cpuDesc->getBlockDims(),
+                                                                                cpuDesc->getOrder(),
+                                                                                cpuDesc->getOffsetPadding(),
+                                                                                cpuDesc->getOffsetPaddingToData(),
+                                                                                cpuDesc->getStrides()));
     }
+    if (MemoryDescType::Empty == desc->getType()) {
+        return DnnlExtensionUtils::makeDescriptor(dnnl::memory::desc());
+    }
+    if (MemoryDescType::Dnnl & desc->getType()) {
+        return std::dynamic_pointer_cast<DnnlMemoryDesc>(desc);
+    }
+    OPENVINO_THROW("Cannot convert MemoryDesc to DnnlMemoryDesc");
 }
 
 DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const MemoryDesc& desc) {
     if (MemoryDescType::DnnlBlocked == desc.getType()) {
-        return DnnlBlockedMemoryDesc(*desc.as<DnnlBlockedMemoryDesc>());
-    } else if (MemoryDescType::Blocked == desc.getType()) {
-        const auto cpuDesc = desc.as<CpuBlockedMemoryDesc>();
-        return DnnlBlockedMemoryDesc(cpuDesc->getPrecision(), cpuDesc->getShape(), cpuDesc->getBlockDims(), cpuDesc->getOrder(), cpuDesc->getOffsetPadding(),
-                                     cpuDesc->getOffsetPaddingToData(), cpuDesc->getStrides());
-    } else {
-        OPENVINO_THROW("Cannot convert MemoryDesc to DnnlBlockedMemoryDesc");
+        return {*desc.as<DnnlBlockedMemoryDesc>()};
     }
+    if (MemoryDescType::Blocked == desc.getType()) {
+        const auto cpuDesc = desc.as<CpuBlockedMemoryDesc>();
+        return {cpuDesc->getPrecision(),
+                cpuDesc->getShape(),
+                cpuDesc->getBlockDims(),
+                cpuDesc->getOrder(),
+                cpuDesc->getOffsetPadding(),
+                cpuDesc->getOffsetPaddingToData(),
+                cpuDesc->getStrides()};
+    }
+    OPENVINO_THROW("Cannot convert MemoryDesc to DnnlBlockedMemoryDesc");
 }
 
-BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDescPtr &desc) {
+BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDescPtr& desc) {
     if (desc->getType() & MemoryDescType::Blocked) {
         return std::dynamic_pointer_cast<BlockedMemoryDesc>(desc);
-    } else {
-        OPENVINO_THROW("Cannot convert MemoryDesc to BlockedMemoryDesc");
     }
+    OPENVINO_THROW("Cannot convert MemoryDesc to BlockedMemoryDesc");
 }
 
 CpuBlockedMemoryDescPtr MemoryDescUtils::generateCpuBlockedMemoryDesc(const ov::SoPtr<ov::ITensor>& tensor) {
-    const auto& shape = tensor->get_shape().empty() ?  ov::Shape{tensor->get_size()} : tensor->get_shape();
+    const auto& shape = tensor->get_shape().empty() ? ov::Shape{tensor->get_size()} : tensor->get_shape();
 
     VectorDims blk_order(shape.size());
     std::iota(blk_order.begin(), blk_order.end(), 0);
@@ -87,17 +95,16 @@ CpuBlockedMemoryDescPtr MemoryDescUtils::generateCpuBlockedMemoryDesc(const ov::
                        });
     }
 
-    return std::make_shared<CpuBlockedMemoryDesc>(
-        element_type,
-        Shape{shape},
-        shape,
-        blk_order,
-        0UL,
-        VectorDims{},
-        blk_strides);
+    return std::make_shared<CpuBlockedMemoryDesc>(element_type,
+                                                  Shape{shape},
+                                                  shape,
+                                                  blk_order,
+                                                  0UL,
+                                                  VectorDims{},
+                                                  blk_strides);
 }
 
-std::shared_ptr<MemoryDesc> MemoryDescUtils::makeDummyDesc(const MemoryDesc &desc, Dim dummyVal) {
+std::shared_ptr<MemoryDesc> MemoryDescUtils::makeDummyDesc(const MemoryDesc& desc, Dim dummyVal) {
     auto dummyShape = makeDummyShape(desc.getShape(), dummyVal);
     return desc.cloneWithNewDims(dummyShape.getStaticDims());
 }
@@ -107,11 +114,11 @@ std::shared_ptr<MemoryDesc> MemoryDescUtils::makeEmptyDesc() {
     return emptyDesc;
 }
 
-std::shared_ptr<IMemory> MemoryDescUtils::makeEmptyMemory(const GraphContext::CPtr context) {
+std::shared_ptr<IMemory> MemoryDescUtils::makeEmptyMemory(const GraphContext::CPtr& context) {
     return std::make_shared<StaticMemory>(context->getEngine(), makeEmptyDesc(), nullptr);
 }
 
-Shape MemoryDescUtils::makeDummyShape(const Shape &shape, Dim dummyVal) {
+Shape MemoryDescUtils::makeDummyShape(const Shape& shape, Dim dummyVal) {
     const auto& minDims = shape.getMinDims();
     const auto& maxDims = shape.getMaxDims();
     const auto& dims = shape.getDims();
@@ -122,7 +129,7 @@ Shape MemoryDescUtils::makeDummyShape(const Shape &shape, Dim dummyVal) {
     return Shape(dummyDims);
 }
 
-Shape MemoryDescUtils::makeDummyShape(const Shape &shape, const VectorDims& dummyVals) {
+Shape MemoryDescUtils::makeDummyShape(const Shape& shape, const VectorDims& dummyVals) {
     if (shape.getRank() != dummyVals.size()) {
         OPENVINO_THROW("makeDummyShape(): dummyVals vector size and shape ranks mismatch");
     }
@@ -131,9 +138,9 @@ Shape MemoryDescUtils::makeDummyShape(const Shape &shape, const VectorDims& dumm
     const auto& dims = shape.getDims();
     VectorDims dummyDims(dims.size());
     for (size_t i = 0; i < dims.size(); ++i) {
-        dummyDims[i] = dims[i] == Shape::UNDEFINED_DIM ? std::min(maxDims[i], std::max(minDims[i], dummyVals[i])) : dims[i];
+        dummyDims[i] =
+            dims[i] == Shape::UNDEFINED_DIM ? std::min(maxDims[i], std::max(minDims[i], dummyVals[i])) : dims[i];
     }
     return Shape(dummyDims);
 }
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu

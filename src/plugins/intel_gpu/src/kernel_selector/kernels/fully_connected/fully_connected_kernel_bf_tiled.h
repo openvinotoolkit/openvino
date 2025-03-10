@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,6 +42,7 @@ public:
                     unsigned tile_ofm,
                     unsigned tile_ifm,
                     unsigned tile_k,
+                    unsigned outer_ofm,
                     unsigned dispatch_bsv,
                     unsigned dispatch_fsv,
                     std::string exec_options,
@@ -50,6 +51,7 @@ public:
             , tile_ofm(tile_ofm)
             , tile_ifm(tile_ifm)
             , tile_k(tile_k)
+            , outer_ofm(outer_ofm)
             , dispatch_bsv(dispatch_bsv)
             , dispatch_fsv(dispatch_fsv)
             , exec_options(exec_options)
@@ -62,6 +64,7 @@ public:
         unsigned tile_ofm;
         unsigned tile_ifm;
         unsigned tile_k;
+        unsigned outer_ofm;
         unsigned dispatch_bsv;
         unsigned dispatch_fsv;
         std::string exec_options;
@@ -73,7 +76,8 @@ protected:
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::ACTIVATION,
                  FusedOpType::ELTWISE,
-                 FusedOpType::QUANTIZE };
+                 FusedOpType::QUANTIZE,
+                 FusedOpType::SWIGLU };
     }
     JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;
     bool Validate(const Params& params) const override;

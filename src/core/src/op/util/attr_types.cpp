@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,14 @@ OPENVINO_API EnumNames<ov::op::PadMode>& EnumNames<ov::op::PadMode>::get() {
                                                          {"edge", ov::op::PadMode::EDGE},
                                                          {"reflect", ov::op::PadMode::REFLECT},
                                                          {"symmetric", ov::op::PadMode::SYMMETRIC}});
+    return enum_names;
+}
+
+template <>
+OPENVINO_API EnumNames<ov::op::FillMode>& EnumNames<ov::op::FillMode>::get() {
+    static auto enum_names =
+        EnumNames<ov::op::FillMode>("ov::op::FillMode",
+                                    {{"zero", ov::op::FillMode::ZERO}, {"lowest", ov::op::FillMode::LOWEST}});
     return enum_names;
 }
 
@@ -132,6 +140,10 @@ std::ostream& op::operator<<(std::ostream& s, const ov::op::PadMode& type) {
     return s << as_string(type);
 }
 
+std::ostream& op::operator<<(std::ostream& s, const ov::op::FillMode& type) {
+    return s << as_string(type);
+}
+
 std::ostream& op::operator<<(std::ostream& s, const ov::op::PadType& type) {
     return s << as_string(type);
 }
@@ -183,4 +195,18 @@ op::AutoBroadcastType op::AutoBroadcastSpec::type_from_string(const std::string&
 std::ostream& op::operator<<(std::ostream& s, const ov::op::RecurrentSequenceDirection& direction) {
     return s << as_string(direction);
 }
+
+AttributeAdapter<op::PadMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::FillMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::PadType>::~AttributeAdapter() = default;
+AttributeAdapter<op::RoundingType>::~AttributeAdapter() = default;
+AttributeAdapter<op::AutoBroadcastType>::~AttributeAdapter() = default;
+AttributeAdapter<op::BroadcastType>::~AttributeAdapter() = default;
+AttributeAdapter<op::EpsMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::TopKSortType>::~AttributeAdapter() = default;
+AttributeAdapter<op::TopKMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::PhiloxAlignment>::~AttributeAdapter() = default;
+AttributeAdapter<op::AutoBroadcastSpec>::~AttributeAdapter() = default;
+AttributeAdapter<op::BroadcastModeSpec>::~AttributeAdapter() = default;
+AttributeAdapter<op::RecurrentSequenceDirection>::~AttributeAdapter() = default;
 }  // namespace ov

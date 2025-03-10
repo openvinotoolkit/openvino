@@ -1,33 +1,32 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "align_matmul_input_ranks.hpp"
 
+#include <algorithm>
+#include <transformations/utils/utils.hpp>
+
+#include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/opsets/opset1.hpp"
-#include "openvino/core/rt_info.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include <transformations/utils/utils.hpp>
 #include "openvino/pass/pattern/op/or.hpp"
-
-#include <algorithm>
-#include "itt.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
     MATCHER_SCOPE(AlignMatMulInputRanks);
-    ov::OutputVector twoInputs = {
-        ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
-        ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank())
-    };
+    ov::OutputVector twoInputs = {ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
+                                  ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank())};
 
     auto matmulPattern = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>(twoInputs);
 
     ov::matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
-        auto matmul = std::dynamic_pointer_cast<ov::op::v0::MatMul> (m.get_match_root());
+        auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(m.get_match_root());
 
-        if (!matmul || transformation_callback(matmul))
+        if (!matmul || transformation_callback(matmul)) {
             return false;
+        }
 
         const auto& input0 = matmul->input_value(0);
         const auto& input1 = matmul->input_value(1);
@@ -40,20 +39,22 @@ ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
 
         const bool transposedUnsqueeze = input1shape.size() == 1;
 
-        if (input0shape.size() == input1shape.size() &&
-            input0shape.size() != 1)
-            return false; // nothing to do
+        if (input0shape.size() == input1shape.size() && input0shape.size() != 1) {
+            return false;  // nothing to do
+        }
 
         auto getUnsqueeze = [&](const ov::Output<ov::Node>& nodeFrom, const ov::Output<ov::Node>& nodeTo) {
             auto rankFrom = nodeFrom.get_partial_shape().size();
             auto rankTo = nodeTo.get_partial_shape().size();
 
             std::vector<int64_t> unsqueeze_axes;
-            for (int64_t j = 0; j < static_cast<int64_t>(rankTo - rankFrom); ++j)
+            for (int64_t j = 0; j < static_cast<int64_t>(rankTo - rankFrom); ++j) {
                 unsqueeze_axes.push_back(j);
+            }
 
-            if (transposedUnsqueeze) // special case for one-dimensional second input
+            if (transposedUnsqueeze) {  // special case for one-dimensional second input
                 unsqueeze_axes[unsqueeze_axes.size() - 1]++;
+            }
 
             auto unsqueeze = std::make_shared<ov::opset1::Unsqueeze>(
                 nodeFrom,
@@ -92,15 +93,17 @@ ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
             matmul_new_inputs[0] = unsqueezeInput0;
             new_ops.push_back(unsqueezeInput0);
 
-            if (input0shape.size() == 1)
+            if (input0shape.size() == 1) {
                 matmul->set_transpose_a(false);
+            }
         } else if (input0shape.size() > input1shape.size()) {
             std::shared_ptr<ov::Node> unsqueezeInput1 = getUnsqueeze(input1, input0);
             matmul_new_inputs[1] = unsqueezeInput1;
             new_ops.push_back(unsqueezeInput1);
 
-            if (input1shape.size() == 1)
+            if (input1shape.size() == 1) {
                 matmul->set_transpose_b(false);
+            }
         }
 
         std::shared_ptr<ov::Node> matmul_new = matmul->clone_with_new_inputs(matmul_new_inputs);
@@ -120,10 +123,11 @@ ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
             if (ov::is_scalar(output_shape) && can_squeeze_scalar) {
                 squeeze_output = std::make_shared<ov::op::v0::Squeeze>(matmul_new);
             } else {
-                if (input0shape.size() == 1)
+                if (input0shape.size() == 1) {
                     squeeze_axis = new_out_shape_size - 2;
-                else if (input1shape.size() == 1)
+                } else if (input1shape.size() == 1) {
                     squeeze_axis = new_out_shape_size - 1;
+                }
                 squeeze_output = std::make_shared<ov::op::v0::Squeeze>(
                     matmul_new,
                     ov::opset1::Constant::create(ov::element::i64, ov::Shape{1}, {squeeze_axis}));
@@ -140,7 +144,6 @@ ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
             ov::copy_runtime_info(matmul, new_ops);
             ov::replace_node(matmul, matmul_new);
         }
-
 
         return true;
     };

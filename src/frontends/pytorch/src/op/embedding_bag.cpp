@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,10 @@ OutputVector translate_embedding_bag_common(const NodeContext& context) {
     // per_sample_weights=None, include_last_offset=False, padding_idx=None)
     // we have only EmbeddingBag case support, check it before translation
 
-    auto mode = context.const_input<int64_t>(4);
+    int64_t mode = 0;
+    if (!context.input_is_none(4)) {
+        mode = context.const_input<int64_t>(4);
+    }
     PYTORCH_OP_CONVERSION_CHECK(mode <= 1, "Only sum and mean mode supported for aten::embedding_bag translation");
     auto weight = context.get_input(0);
     auto indices = context.get_input(1);
@@ -78,7 +81,7 @@ OutputVector translate_embedding_bag(const NodeContext& context) {
 }
 
 OutputVector translate_embedding_bag_fx(const NodeContext& context) {
-    num_inputs_check(context, 7, 9);
+    num_inputs_check(context, 3, 9);
     ov::OutputVector output = translate_embedding_bag_common(context);
     return {context.mark_node(make_list_construct(output))};
 }

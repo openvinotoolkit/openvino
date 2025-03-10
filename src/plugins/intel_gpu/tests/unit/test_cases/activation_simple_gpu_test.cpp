@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -153,6 +153,66 @@ TEST(activation_f32_fw_cpu_impl, dynamic_8d) {
                 break;
             }
         }
+    }
+}
+
+TEST(activation_f32_fw_cpu, not_basic_yxfb_disable_usm) {
+    //  Input:
+    //  1  0 -3  4  5
+    //  0  2  3  4 -6
+    //  3 -3  3  0  1
+    //  1  1  1 -1  0
+    //
+    //  Output:
+    //  0, 1, 0, 0, 0,
+    //  1, 0, 0, 0, 0,
+    //  0, 0, 0, 1, 0,
+    //  0, 0, 0, 0, 1
+
+    auto engine = create_test_engine(engine_types::ocl, runtime_types::ocl, false);
+
+    auto input = engine->allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
+    set_values(input,
+    { 1.0f, 0.0f, -3.0f, 4.0f, 5.0f,
+      0.0f, 2.0f, 3.0f, 4.0f, -6.0f,
+      3.0f, -3.0f, 3.0f, 0.0f, 1.0f,
+      1.0f, 1.0f, 1.0f, -1.0f, 0.0f });
+    VF<float> output_vec = {
+        0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+        1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 0.0f, 1.0f };
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        activation("not", input_info("input"), activation_func::negation));
+
+    ExecutionConfig config = get_test_default_config(*engine);
+    auto forcing_map = ov::intel_gpu::ImplForcingMap{ {"not", {format::yxfb, "", impl_types::cpu}} };
+    config.set_property(ov::intel_gpu::force_implementations(forcing_map));
+
+    network network(*engine, topology, config);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "not");
+
+    auto output_memory = outputs.at("not").get_memory();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
+    ASSERT_EQ(output_layout.format, format::yxfb);
+    ASSERT_EQ(y_size, 4);
+    ASSERT_EQ(x_size, 5);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
+
+    for (size_t i = 0; i < output_vec.size(); ++i) {
+        ASSERT_FLOAT_EQ(output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1579,7 +1639,8 @@ TEST(activation_i32_fw_gpu, basic_yxfb_i32_funcs) {
         activation_func::negation,
         activation_func::relu,
         activation_func::clamp,
-        activation_func::floor
+        activation_func::floor,
+        activation_func::abs
     };
 
     for (auto func : funcs) {
@@ -1619,6 +1680,9 @@ TEST(activation_i32_fw_gpu, basic_yxfb_i32_funcs) {
                 break;
             case activation_func::floor:
                 ASSERT_EQ((int32_t)std::floor(input_ptr[i]), output_ptr[i]);
+                break;
+            case activation_func::abs:
+                ASSERT_EQ(std::abs(static_cast<int32_t>(input_ptr[i])), output_ptr[i]);
                 break;
             default:
                 break;

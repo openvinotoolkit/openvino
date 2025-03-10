@@ -1,6 +1,8 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <array>
+
 #include "ov_test.hpp"
 
 class ov_preprocess_test : public ::testing::Test {
@@ -595,4 +597,72 @@ TEST_F(ov_preprocess_test, ov_preprocess_prepostprocessor_for_nv12_input) {
     EXPECT_NE(nullptr, ppp_model);
 
     ov_layout_free(layout);
+}
+
+TEST_F(ov_preprocess_test, ov_preprocess_preprocess_steps_pad_constant) {
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
+    EXPECT_NE(nullptr, preprocess);
+
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_get_input_info(preprocess, &input_info));
+    EXPECT_NE(nullptr, input_info);
+
+    OV_EXPECT_OK(ov_preprocess_input_info_get_tensor_info(input_info, &input_tensor_info));
+    EXPECT_NE(nullptr, input_tensor_info);
+
+    ov_shape_t shape;
+    int64_t dims[4] = {1, 1, 225, 230};
+    OV_EXPECT_OK(ov_shape_create(4, dims, &shape));
+
+    OV_EXPECT_OK(ov_tensor_create(ov_element_type_e::F32, shape, &tensor));
+    OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_from(input_tensor_info, tensor));
+
+    OV_EXPECT_OK(ov_preprocess_input_info_get_preprocess_steps(input_info, &input_process));
+    EXPECT_NE(nullptr, input_process);
+
+    constexpr auto pads_begin = std::array<int, 4>{0, 1, 2, 0};
+    constexpr auto pads_end = std::array<int, 4>{0, 1, 0, -3};
+
+    OV_EXPECT_OK(ov_preprocess_preprocess_steps_pad(input_process,
+                                                    pads_begin.data(),
+                                                    pads_begin.size(),
+                                                    pads_end.data(),
+                                                    pads_end.size(),
+                                                    1.0f,
+                                                    ov_padding_mode_e::CONSTANT));
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_build(preprocess, &ppp_model));
+    EXPECT_NE(nullptr, ppp_model);
+}
+
+TEST_F(ov_preprocess_test, ov_preprocess_preprocess_steps_pad_edge) {
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
+    EXPECT_NE(nullptr, preprocess);
+
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_get_input_info(preprocess, &input_info));
+    EXPECT_NE(nullptr, input_info);
+
+    OV_EXPECT_OK(ov_preprocess_input_info_get_tensor_info(input_info, &input_tensor_info));
+    EXPECT_NE(nullptr, input_tensor_info);
+
+    ov_shape_t shape;
+    int64_t dims[4] = {1, 2, 225, 230};
+    OV_EXPECT_OK(ov_shape_create(4, dims, &shape));
+
+    OV_EXPECT_OK(ov_tensor_create(ov_element_type_e::F32, shape, &tensor));
+    OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_from(input_tensor_info, tensor));
+
+    OV_EXPECT_OK(ov_preprocess_input_info_get_preprocess_steps(input_info, &input_process));
+    EXPECT_NE(nullptr, input_process);
+
+    constexpr auto pads_begin = std::array<int, 4>{0, 0, 2, 0};
+    constexpr auto pads_end = std::array<int, 4>{0, 1, 0, -3};
+
+    OV_EXPECT_OK(ov_preprocess_preprocess_steps_pad(input_process,
+                                                    pads_begin.data(),
+                                                    pads_begin.size(),
+                                                    pads_end.data(),
+                                                    pads_end.size(),
+                                                    1.0f,
+                                                    ov_padding_mode_e::EDGE));
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_build(preprocess, &ppp_model));
+    EXPECT_NE(nullptr, ppp_model);
 }

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -49,8 +49,6 @@ class TestSegmentSum(CommonTFLayerTest):
                                use_legacy_frontend):
         if use_legacy_frontend:
             pytest.skip("SegmentSum operation is not supported via legacy frontend.")
-        if ie_device == 'GPU':
-            pytest.skip("GPU error: to_shape was called on a dynamic shape")
         self._test(*self.create_segment_sum_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
@@ -68,8 +66,6 @@ class TestSegmentSum(CommonTFLayerTest):
                                          use_legacy_frontend):
         if use_legacy_frontend:
             pytest.skip("SegmentSum operation is not supported via legacy frontend.")
-        if ie_device == 'GPU':
-            pytest.skip("GPU error: to_shape was called on a dynamic shape")
         self._test(*self.create_segment_sum_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
@@ -122,8 +118,6 @@ class TestSegmentSumComplex(CommonTFLayerTest):
                                          use_legacy_frontend):
         if use_legacy_frontend:
             pytest.skip("SegmentSum operation is not supported via legacy frontend.")
-        if ie_device == 'GPU':
-            pytest.skip("GPU error: to_shape was called on a dynamic shape")
         self._test(*self.create_segment_sum_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)

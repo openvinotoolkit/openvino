@@ -492,5 +492,29 @@ ov::Tensor joinTensors(const std::list<ov::Tensor>& tensors, const ov::Layout& l
     }
     return out;
 }
+
+std::list<ov::Tensor> splitBatchedTensor(const ov::Tensor &tensor, const ov::Layout& layout, size_t parts) {
+    if (!parts) {
+        OPENVINO_THROW("Cannot split tensor on parts: ", parts);
+    }
+    auto pivotShape = tensor.get_shape();
+    if (!ov::layout::has_batch(layout)) {
+        OPENVINO_THROW("Cannot split tensor: has no batch_idx in layout", layout.to_string());
+    }
+    auto pivotPrecision = tensor.get_element_type();
+    if (pivotShape[ov::layout::batch_idx(layout)] % parts != 0) {
+        OPENVINO_THROW("Cannot split tensor with batch size: ", pivotShape[ov::layout::batch_idx(layout)], " on: ", parts ," equal tensors");
+    }
+    pivotShape[ov::layout::batch_idx(layout)] /= parts;
+    std::list<ov::Tensor> ret;
+    const auto *inputBuffer = tensor.data<unsigned char>();
+    for (size_t i = 0; i < parts; i ++) {
+        ov::Tensor out(pivotPrecision, pivotShape);
+        memcpy(out.data<unsigned char>(), inputBuffer, out.get_byte_size());
+        inputBuffer += out.get_byte_size();
+        ret.push_back(std::move(out));
+    }
+    return ret;
+}
 }  // namespace utils
 }  // namespace npu

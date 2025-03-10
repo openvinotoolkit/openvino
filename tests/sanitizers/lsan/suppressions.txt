@@ -1,0 +1,51 @@
+# Copyright (C) 2018-2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+# This is a LeakSanitizer (LSan) suppression file which provides a default
+# configuration for the builds with -DENABLE_SANITIZER=ON.
+# More information about LSan suppressions on
+# https://github.com/google/sanitizers/wiki/AddressSanitizerLeakSanitizer#suppressions
+
+# Noisy indirect leaks from pthread. TODO: investigate.
+leak:__pthread_once_slow
+
+# memory leaks in graphics driver
+leak:libigdrcl.so
+
+# leaks in std
+leak:libstdc++
+leak:libstdc
+leak:libc
+leak:libc++
+
+# leaks from python packages used by tests
+leak:site-packages/scipy/
+leak:site-packages/tensorflow/
+leak:site-packages/onnx/
+leak:site-packages/mxnet/
+
+# leaks from mostly tensorflow when used by tests
+leak:_PyObject_New
+leak:_PyLong_New
+leak:PyCode_NewWithPosOnlyArgs
+leak:PyLong_FromLongLong
+
+# Noisy leaks from pybind11. TODO: investigate.
+leak:pybind11
+
+# leak reported if you run through `bash -c`
+leak:/bin/bash
+
+# leak reported by E2E tests
+leak:libfontconfig.so
+
+# leak reported from python wrappers of 3rd parties 
+leak:_pywrap_tensorflow_internal.so
+leak:site-packages/google/protobuf
+
+# leaks from thirdparty libs
+leak:thirdparty/protobuf
+leak:thirdparty/protobuf/protobuf
+leak:thirdparty/gtest
+leak:thirdparty/tbb
+leak:libtbb.so

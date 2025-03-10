@@ -1,14 +1,14 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# create targed with prefix TARGET_PREFIX for each test file in directory TEST_DIR
+#create targed with prefix TARGET_PREFIX for each test file in directory TEST_DIR
 function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
-  # exclude every other test file inside directory
+#exclude every other test file inside directory
   set(EXCLUDED_SOURCE_PATHS_FOR_TEST
     ${TEST_DIR})
 
-  # list of object files required for each test
+#list of object files required for each test
   set(REQUIRED_OBJECT_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/core_config.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/skip_tests_config.cpp
@@ -96,7 +96,7 @@ endif()
 endfunction()
 
 if(ENABLE_CPU_SPECIFIC_TARGET_PER_TEST)
-  create_target_per_test_for_directory(${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src ov_cpu_func_subgraph)
+  create_target_per_test_for_directory(${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/common ov_cpu_func_subgraph)
   create_target_per_test_for_directory(${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests ov_cpu_func_slt)
 endif()
 

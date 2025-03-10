@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -197,16 +197,16 @@ const auto layerSpecificParams = ::testing::Combine(
     ::testing::ValuesIn(variances),
     ::testing::ValuesIn(scale_all_sizes));
 
-INSTANTIATE_TEST_SUITE_P(smoke_PriorBox, PriorBoxLayerCPUTest,
-    ::testing::Combine(
-        layerSpecificParams,
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ov::test::ElementType::undefined),
-        ::testing::Values(ov::test::ElementType::undefined),
-        ::testing::ValuesIn(inputShape),
-        ::testing::ValuesIn(imageShape),
-        ::testing::Values(ov::test::utils::DEVICE_CPU)),
-    PriorBoxLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_PriorBox,
+                         PriorBoxLayerCPUTest,
+                         ::testing::Combine(layerSpecificParams,
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(ov::test::ElementType::dynamic),
+                                            ::testing::Values(ov::test::ElementType::dynamic),
+                                            ::testing::ValuesIn(inputShape),
+                                            ::testing::ValuesIn(imageShape),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         PriorBoxLayerCPUTest::getTestCaseName);
 
 } // namespace
 }  // namespace test
