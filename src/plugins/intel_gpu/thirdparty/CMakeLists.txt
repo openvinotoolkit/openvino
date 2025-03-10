@@ -162,12 +162,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                             DNNL_DLL_EXPORTS
                             DNNL_ENABLE_CPU_ISA_HINTS
                             DNNL_ENABLE_MAX_CPU_ISA
-                            DNNL_X64=1
-                            NGEN_CPP11
-                            NGEN_NEO_INTERFACE
-                            NGEN_NO_OP_NAMES
-                            NGEN_SAFE
-                            NGEN_WINDOWS_COMPAT)
+                            DNNL_X64=1)
         add_library(onednn_gpu_tgt INTERFACE)
         set_target_properties(onednn_gpu_tgt PROPERTIES
             INTERFACE_LINK_LIBRARIES $<BUILD_INTERFACE:${ONEDNN_GPU_LIB_PATH}>
