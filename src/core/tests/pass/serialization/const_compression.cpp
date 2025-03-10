@@ -7,12 +7,12 @@
 #include <fstream>
 
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/serialize.hpp"
-#include "transformations/common_optimizations/compress_float_constants.hpp"
-#include "common_test_utils/graph_comparator.hpp"
 #include "openvino/runtime/core.hpp"
+#include "transformations/common_optimizations/compress_float_constants.hpp"
 
 class SerializationConstantCompressionTest : public ov::test::TestsCommon {
 protected:
@@ -321,7 +321,7 @@ TEST_F(SerializationConstantCompressionTest, EmptyConstants) {
     auto B = ov::opset8::Constant::create(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{});
 
     auto model_initial = std::make_shared<ov::Model>(ov::NodeVector{A, B}, ov::ParameterVector{});
-    
+
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(model_initial);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
@@ -344,7 +344,7 @@ TEST_F(SerializationConstantCompressionTest, EmptyAndNotEmptyConstantSameValues)
     auto B = ov::opset8::Constant::create(ov::element::i8, ov::Shape{1}, std::vector<int8_t>{0});
 
     auto model_initial = std::make_shared<ov::Model>(ov::NodeVector{A, B}, ov::ParameterVector{});
-    
+
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(model_initial);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
@@ -367,7 +367,7 @@ TEST_F(SerializationConstantCompressionTest, EmptyAndNotEmptyConstantsDifferentV
     auto B = ov::opset8::Constant::create(ov::element::i8, ov::Shape{1}, std::vector<int8_t>{1});
 
     auto model_initial = std::make_shared<ov::Model>(ov::NodeVector{A, B}, ov::ParameterVector{});
-    
+
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(model_initial);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
