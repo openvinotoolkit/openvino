@@ -74,22 +74,30 @@ OutputVector translate_repeat_interleave(const NodeContext& context) {
         repeats = context.mark_node(std::make_shared<v1::Reshape>(repeats, const_neg_1, false));
         if (context.input_is_none(2)) {
             // case (repeats=number, dim=None)
+            // Prepare the input and determine the maximum repeat value
             input = context.mark_node(std::make_shared<v1::Reshape>(input, const_neg_1, false));
             auto new_input = context.mark_node(std::make_shared<v0::Unsqueeze>(input, const_1));
             auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
             auto repeats_bc = context.mark_node(std::make_shared<v3::Broadcast>(repeats, input_shape));
             auto repeat_max = context.mark_node(std::make_shared<v1::ReduceMax>(repeats_bc, const_0, true));
+            
+            // Tile the input based on the maximum repeat value
             auto max_repeat_for_tile =
                 context.mark_node(std::make_shared<v0::Concat>(OutputVector{const_1_list, repeat_max}, 0));
             auto tile = context.mark_node(std::make_shared<v0::Tile>(new_input, max_repeat_for_tile));
             auto tile_flat = context.mark_node(std::make_shared<v1::Reshape>(tile, const_neg_1, false));
+
+            // Generate a range and compare to determine valid indices
             auto stop = context.mark_node(std::make_shared<v15::Squeeze>(repeat_max, const_0));
             auto range = context.mark_node(std::make_shared<v4::Range>(const_0, stop, const_1, element::i32));
             auto repeats_1 = context.mark_node(std::make_shared<v0::Unsqueeze>(repeats_bc, const_neg_1));
             auto less = context.mark_node(std::make_shared<v1::Less>(range, repeats_1));
             auto less_flat = context.mark_node(std::make_shared<v1::Reshape>(less, const_neg_1, false));
+            
+            // Identify non-zero indices from the comparison result
             auto non_zero = context.mark_node(std::make_shared<v3::NonZero>(less_flat));
             auto indices = context.mark_node(std::make_shared<v15::Squeeze>(non_zero, const_0));
+            // Gather the final result using valid indices
             result = std::make_shared<v8::Gather>(tile_flat, indices, const_0);
         } else {
             // case (repeats=number, dim=number)
