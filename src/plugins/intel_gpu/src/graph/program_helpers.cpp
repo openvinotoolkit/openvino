@@ -93,7 +93,7 @@ void onednn_add_fusing_helpers::for_eltwise(
 }
 
 static bool is_direct_ancestor(const program_node& child, const program_node& target) {
-    // is_direct_ancestor function is added to detect pattern like below.
+    // is_direct_ancestor function is added to detect pattern like below from get_add_fusing_type.
     // It is necessary to use onednn sum post operation in such case for better performance.
     // In such case, 'A' can have two connections.
     //   ┌───────┐
