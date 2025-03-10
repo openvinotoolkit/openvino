@@ -292,34 +292,34 @@ void regclass_graph_Model(py::module m) {
             :param name: String to set as model's friendly name.
             :type name: str
             )");
-        
+
             model.def("reshape",
                 [](ov::Model& self, const std::vector<std::vector<int64_t>>& input_shapes) {
                     auto inputs = self.inputs();
                     if (inputs.size() != input_shapes.size()) {
                         throw std::runtime_error("Number of provided shapes does not match number of model inputs.");
                     }
-            
+
                     std::map<ov::Output<ov::Node>, ov::PartialShape> shape_map;
                     for (size_t i = 0; i < inputs.size(); ++i) {
                         shape_map[inputs[i]] = ov::PartialShape(input_shapes[i]);
                     }
-            
-                
-                    self.reshape(shape_map);  
+
+
+                    self.reshape(shape_map);
                 },
                 py::arg("input_shapes"),
                 R"(
                 Reshape model inputs using a list of shapes.
-            
+
                 Example:
                     model.reshape([[2, 2], [1, 3, 224, 244], [10]])
-            
+
                 :param input_shapes: List of shapes for each input.
                 :type input_shapes: List[List[int]]
                 )"
             );
-            
+
 
     model.def(py::init([](const ov::OutputVector& results,
                           const ov::OutputVector& nodes,
@@ -811,7 +811,7 @@ void regclass_graph_Model(py::module m) {
               &ov::Model::get_parameters,
               R"(
                     Return the model parameters.
-                    
+
                     :return: a list of model's parameters.
                     :rtype: List[op.Parameter]
                  )");
@@ -819,7 +819,7 @@ void regclass_graph_Model(py::module m) {
                                 &ov::Model::get_parameters,
                                 R"(
                                         Return the model parameters.
-                                        
+
                                         :return: a list of model's parameters.
                                         :rtype: List[op.Parameter]
                                     )");
@@ -1130,7 +1130,7 @@ void regclass_graph_Model(py::module m) {
               &ov::Model::remove_parameter,
               py::arg("parameter"),
               R"(
-            Delete Parameter node from the list of parameters. Method will not delete node from graph. 
+            Delete Parameter node from the list of parameters. Method will not delete node from graph.
             You need to replace Parameter with other operation manually.
 
             Attention: Indexing of parameters can be changed.
@@ -1199,7 +1199,7 @@ void regclass_graph_Model(py::module m) {
               py::arg("results"),
               R"(
                     Add new Result nodes to the list.
-                    
+
                     Method doesn't validate graph, it should be done manually after all changes.
 
                     :param results: new Result nodes.
@@ -1221,7 +1221,7 @@ void regclass_graph_Model(py::module m) {
         py::arg("sinks"),
         R"(
             Add new sink nodes to the list.
-            
+
             Method doesn't validate graph, it should be done manually after all changes.
 
             :param sinks: new sink nodes.
@@ -1232,8 +1232,8 @@ void regclass_graph_Model(py::module m) {
               &ov::Model::add_variables,
               py::arg("variables"),
               R"(
-                    Add new variables to the list. 
-                    
+                    Add new variables to the list.
+
                     Method doesn't validate graph, it should be done manually after all changes.
 
                     :param variables: new variables to add.
@@ -1244,7 +1244,7 @@ void regclass_graph_Model(py::module m) {
               &ov::Model::get_variables,
               R"(
                     Return a list of model's variables.
-                    
+
                     :return: a list of model's variables.
                     :rtype: List[op.util.Variable]
                 )");
@@ -1253,7 +1253,7 @@ void regclass_graph_Model(py::module m) {
                                 &ov::Model::get_variables,
                                 R"(
                                     Return a list of model's variables.
-                                    
+
                                     :return: a list of model's variables.
                                     :rtype: List[op.util.Variable]
                                 )");
@@ -1262,7 +1262,7 @@ void regclass_graph_Model(py::module m) {
               &ov::Model::get_variable_by_id,
               R"(
                     Return a variable by specified variable_id.
-                    
+
                     :param variable_id: a variable id to get variable node.
                     :type variable_id: str
                     :return: a variable node.
@@ -1457,7 +1457,7 @@ void regclass_graph_Model(py::module m) {
         },
         R"(
         Returns a raw address of the Model object from C++.
-        
+
         Use this function in order to compare underlying C++ addresses instead of using `__eq__` in Python.
 
         :return: a raw address of the Model object.
