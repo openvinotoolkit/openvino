@@ -15,6 +15,7 @@
 #include <utility>
 #include <vector>
 
+#include "allocation_context.hpp"
 #include "cpu_memory.h"
 #include "cpu_shape.h"
 #include "cpu_types.h"
@@ -59,7 +60,7 @@ public:
           inPlace(inPlace) {}
 
     PortConfigurator(ov::intel_cpu::LayoutType blockedDescType,
-                     ov::element::Type prc = ov::element::undefined,
+                     ov::element::Type prc = ov::element::dynamic,
                      bool constant = false,
                      int inPlace = -1)
         : blockedDescCreator(getBlockedDescCreator(blockedDescType)),
@@ -128,6 +129,40 @@ public:
 
     void setExecutorFactory(ExecutorFactoryLegacyPtr factory) {
         executorFactory = std::move(factory);
+    }
+
+    bool hasZeroInputDims() const {
+        const auto& inputConfigs = getConfig().inConfs;
+        return std::any_of(inputConfigs.begin(), inputConfigs.end(), [](const PortConfig& portConfig) {
+            return portConfig.hasZeroDims();
+        });
+    }
+
+    bool hasZeroInputDimsAtPort(size_t portIdx) const {
+        const auto& inputConfigs = getConfig().inConfs;
+        OPENVINO_ASSERT(portIdx < inputConfigs.size(),
+                        "Attempt to get NodeDesc input configuration for port ",
+                        portIdx,
+                        ". Number of inputs is ",
+                        inputConfigs.size());
+        return inputConfigs[portIdx].hasZeroDims();
+    }
+
+    bool hasZeroOutputDims() const {
+        const auto& outputConfigs = getConfig().outConfs;
+        return std::any_of(outputConfigs.begin(), outputConfigs.end(), [](const PortConfig& portConfig) {
+            return portConfig.hasZeroDims();
+        });
+    }
+
+    bool hasZeroOutputDimsAtPort(size_t portIdx) const {
+        const auto& outputConfigs = getConfig().outConfs;
+        OPENVINO_ASSERT(portIdx < outputConfigs.size(),
+                        "Attempt to get NodeDesc output configuration for port ",
+                        portIdx,
+                        ". Number of outputs is ",
+                        outputConfigs.size());
+        return outputConfigs[portIdx].hasZeroDims();
     }
 
 private:
@@ -292,6 +327,9 @@ public:
 
     bool isInPlace() const;
 
+    virtual bool neverExecute() const {
+        return getSelectedPrimitiveDescriptor()->hasZeroInputDims();
+    }
     // must be called only after Graph::ResolveEdgeConflicts()
     virtual bool isExecutable() const {
         return !hasEmptyInputTensors();
@@ -470,7 +508,7 @@ public:
         return perfCounter;
     }
 
-    virtual void resolveInPlaceEdges(Edge::LOOK look = Edge::LOOK_BOTH);
+    virtual void resolveInPlaceEdges(Edge::LOOK look);
 
     // @todo this supposed to be 'execute + executeImpl' instead of 'executeStatic + execute'
     // but this requires changes in all the nodes. Since moving to a numa node right before an execute
@@ -513,6 +551,17 @@ public:
 
     int getExecIndex() const {
         return execIndex;
+    }
+
+    /**
+     * @brief Register node to the allocation \context
+     *
+     * The main use case are nodes with nested graphs.
+     * Use this method to make nested graphs a part of global allocation procedure
+     */
+    virtual int registerToAllocationContext(int offset, AllocationContext& context) {
+        (void)context;  // nothing to register by default
+        return offset;
     }
 
     const std::string& getTypeStr() const {
@@ -666,11 +715,11 @@ public:
     virtual void appendPostOps(dnnl::post_ops& ops,
                                const VectorDims& postOpDims,
                                std::unordered_map<int, MemoryPtr>& postOpsMem,
-                               const int channelAxis = 1);
+                               const int channelAxis);
     virtual void appendPostOps(dnnl::post_ops& ops,
                                const VectorDims& postOpDims,
                                std::vector<const void*>& postOpsMem,
-                               const int channelAxis = 1);
+                               const int channelAxis);
     virtual bool canBeExecutedInInt8() const {
         OPENVINO_THROW_NOT_IMPLEMENTED("canBeExecutedInInt8 not implemented for node with type ",
                                        NameFromType(getType()));

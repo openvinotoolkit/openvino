@@ -8,8 +8,7 @@
 #include "nodes/common/cpu_memcpy.h"
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 template <typename T>
 struct has_mlas_transpose : std::false_type {};
@@ -24,7 +23,7 @@ template <>
 struct has_mlas_transpose<uint32_t> : std::true_type {};
 
 template <typename T>
-typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisOutwards(
+std::enable_if_t<!has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisOutwards(
     const T* input_data,
     T* output_data,
     int64_t num_loops,
@@ -49,7 +48,7 @@ typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTranspo
 }
 
 template <typename T>
-typename std::enable_if<has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisOutwards(
+std::enable_if_t<has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisOutwards(
     const T* input_data,
     T* output_data,
     int64_t num_loops,
@@ -67,7 +66,7 @@ typename std::enable_if<has_mlas_transpose<T>::value, void>::type SimpleTranspos
 }
 
 template <typename T>
-typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisInwards(
+std::enable_if_t<!has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisInwards(
     const T* input_data,
     T* output_data,
     int64_t num_loops,
@@ -92,7 +91,7 @@ typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTranspo
 }
 
 template <typename T>
-typename std::enable_if<has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisInwards(
+std::enable_if_t<has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisInwards(
     const T* input_data,
     T* output_data,
     int64_t num_loops,
@@ -366,5 +365,4 @@ TransposeExecutorPtr MlasTransposeExecutorBuilder::makeExecutor(const ExecutorCo
     return std::make_shared<MlasTransposeExecutor>(context);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

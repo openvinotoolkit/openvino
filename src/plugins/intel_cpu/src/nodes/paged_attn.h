@@ -22,10 +22,19 @@ public:
     bool created() const override {
         return getType() == Type::PagedAttention;
     }
+
+    // pastkv may have zero dimension
+    bool neverExecute() const override {
+        return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0) ||
+               getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(1) ||
+               getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(2);
+    }
+
     // pastkv may have zero dimension
     bool isExecutable() const override {
         return !isInputTensorAtPortEmpty(0) && !isInputTensorAtPortEmpty(1) && !isInputTensorAtPortEmpty(2);
     }
+
     bool needPrepareParams() const override {
         return false;
     }
@@ -36,6 +45,8 @@ public:
     void execute(const dnnl::stream& strm) override;
     void createPrimitive() override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+
+    static bool isQuantByChannel(const Config::CacheQuantMode mode) noexcept;
 
 private:
     ov::element::Type getRuntimePrecision() const override;

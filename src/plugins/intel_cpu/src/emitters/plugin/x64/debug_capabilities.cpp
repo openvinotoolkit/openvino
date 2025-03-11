@@ -9,8 +9,7 @@
 #    include <iostream>
 #    include <sstream>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace Xbyak;
 using namespace dnnl::impl::cpu::x64;
@@ -37,16 +36,16 @@ void RegPrinter::print_reg_prc(const char* name, const char* ori_name, T* ptr) {
         ss << name << " | ";
     }
     ss << ori_name << ": ";
-    if (std::is_floating_point<T>::value) {
+    if (std::is_floating_point_v<T>) {
         ss << *ptr;
     } else {
-        if (std::is_signed<T>::value) {
+        if (std::is_signed_v<T>) {
             ss << static_cast<int64_t>(*ptr);
         } else {
             ss << static_cast<uint64_t>(*ptr);
         }
     }
-    ss << std::endl;
+    ss << '\n';
     std::cout << ss.str();
 }
 
@@ -60,7 +59,7 @@ void RegPrinter::print_vmm_prc(const char* name, const char* ori_name, PRC_T* pt
     for (size_t i = 1; i < vlen / sizeof(float); i++) {
         ss << ", " << ptr[i];
     }
-    ss << "}" << std::endl;
+    ss << "}" << '\n';
     std::cout << ss.str();
 }
 template void RegPrinter::print_vmm_prc<float, 16>(const char* name, const char* ori_name, float* ptr);
@@ -218,7 +217,6 @@ void RegPrinter::print_reg(jit_generator& h, REG_T reg, const char* name) {
     postamble(h);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 #endif  // CPU_DEBUG_CAPS

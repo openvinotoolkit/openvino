@@ -128,7 +128,7 @@ bool StaticShape::broadcast_merge_into(StaticShape& dst,
 
 //-- Shape as reference
 StaticShapeRef::StaticShapeAdapter(const StaticShape& shape) : m_dims{&(*shape)} {}
-StaticShapeRef::StaticShapeAdapter(const ov::PartialShape&) : m_dims{} {
+StaticShapeRef::StaticShapeAdapter(const ov::PartialShape&) {
     partial_shape_convert_throw();
 }
 

@@ -10,8 +10,7 @@
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 Tensor::Tensor(MemoryPtr memptr) : m_memptr{std::move(memptr)} {
     OPENVINO_ASSERT(m_memptr != nullptr);
@@ -85,7 +84,7 @@ void Tensor::update_strides() const {
 }
 
 void* Tensor::data(const element::Type& element_type) const {
-    if (element_type != element::undefined && element_type != element::dynamic) {
+    if (element_type.is_static()) {
         OPENVINO_ASSERT(element_type == get_element_type(),
                         "Tensor data with element type ",
                         get_element_type(),
@@ -106,5 +105,4 @@ std::shared_ptr<ITensor> make_tensor(MemoryPtr mem) {
     return std::make_shared<Tensor>(std::move(mem));
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

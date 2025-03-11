@@ -110,7 +110,7 @@ OpenVINO Components include:
     * [bindings](../../src/bindings) - contains all available OpenVINO bindings which are maintained by the OpenVINO team.
         * [c](../../src/bindings/c) - C API for OpenVINO™ Runtime
         * [python](../../src/bindings/python) - Python API for OpenVINO™ Runtime
-* [Plugins](../../src/plugins) - contains OpenVINO plugins which are maintained in open-source by the OpenVINO team. For more information, take a look at the [list of supported devices](https://docs.openvino.ai/2025/about-openvino/compatibility-and-support/supported-devices.html).
+* [Plugins](../../src/plugins) - contains OpenVINO plugins which are maintained in open-source by the OpenVINO team. For more information, take a look at the [list of supported devices](https://docs.openvino.ai/2025/documentation/compatibility-and-support/supported-devices.html).
 * [Frontends](../../src/frontends) - contains available OpenVINO frontends that allow reading models from the native framework format.
 * [OpenVINO Model Converter (OVC)](https://docs.openvino.ai/2025/openvino-workflow/model-preparation.html) - is a cross-platform command-line tool that facilitates the transition between training and deployment environments, and adjusts deep learning models for optimal execution on end-point target devices.
 * [Samples](https://github.com/openvinotoolkit/openvino/tree/master/samples) - applications in C, C++ and Python languages that show basic OpenVINO use cases.
