@@ -3,8 +3,8 @@ from openvino._pyopenvino.op import assign
 from openvino._pyopenvino.op import if_op
 from openvino._pyopenvino.op import loop
 from openvino._pyopenvino.op import tensor_iterator
-from openvino.opset1.ops import absolute
 from openvino.opset1.ops import absolute as abs
+from openvino.opset1.ops import absolute
 from openvino.opset1.ops import acos
 from openvino.opset1.ops import add
 from openvino.opset1.ops import asin
