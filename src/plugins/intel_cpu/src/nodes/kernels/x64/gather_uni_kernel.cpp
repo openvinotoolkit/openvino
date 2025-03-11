@@ -1031,7 +1031,7 @@ void jitUniGatherKernel<x64::avx2>::fillRestWorkMask(Vmask& kDstMask,
     mov(rOnes, 0xFFFFFFFF);
     Xbyak::Xmm xmmAux(vAux.getIdx());
     uni_vmovups(kDstMask, vmmZeros);
-    for (uint8_t i = 0; i < idxElPerVec; i++) {
+    for (size_t i = 0; i < idxElPerVec; i++) {
         cmp(rAux0, 0);
         je(lEnd, T_NEAR);
 

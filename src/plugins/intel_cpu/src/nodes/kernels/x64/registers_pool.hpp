@@ -369,7 +369,7 @@ inline RegistersPool::Ptr RegistersPool::create(dnnl::impl::cpu::x64::cpu_isa_t 
                                                 std::initializer_list<Xbyak::Reg> regsToExclude) {
 #define ISA_SWITCH_CASE(isa) \
     case isa:                \
-        return std::make_shared<IsaRegistersPool<isa>>(regsToExclude);
+        return std::make_shared<IsaRegistersPool<(isa)>>(regsToExclude);
     switch (isa) {
         ISA_SWITCH_CASE(dnnl::impl::cpu::x64::sse41)
         ISA_SWITCH_CASE(dnnl::impl::cpu::x64::avx)

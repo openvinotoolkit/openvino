@@ -861,7 +861,7 @@ void MemoryInput::runStatic(dnnl::stream strm) {
 
 void MemoryInput::resolveInPlaceEdges(Edge::LOOK look) {
     if (!(look & Edge::LOOK_UP)) {
-        Node::resolveInPlaceEdges(look);
+        ov::intel_cpu::node::Input::resolveInPlaceEdges(look);
         return;
     }
 
@@ -1017,7 +1017,7 @@ void MemoryInputSDPA::runDynamic(dnnl::stream strm) {
 
 void MemoryInputSDPA::resolveInPlaceEdges(Edge::LOOK look) {
     if (getParentEdgeAt(0)) {
-        Node::resolveInPlaceEdges(look);
+        ov::intel_cpu::node::Input::resolveInPlaceEdges(look);
     } else {
         auto memDesc = getBaseMemDescAtOutputPort(0);
         for (auto&& edge : getChildEdgesAtPort(0)) {  // always only one child port

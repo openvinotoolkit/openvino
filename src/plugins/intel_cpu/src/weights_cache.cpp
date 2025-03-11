@@ -39,7 +39,22 @@ WeightsSharing::SharedMemory::Ptr WeightsSharing::findOrCreate(const std::string
         std::unique_lock<std::mutex> lock(guard);
         auto found = sharedWeights.find(key);
 
-        if (found == sharedWeights.end() || !((ptr = found->second) && (newPtr = ptr->sharedMemory.lock()))) {
+        auto isCached = [&]() -> bool {
+            if (found == sharedWeights.end()) {
+                return false;
+            }
+            ptr = found->second;
+            if (!ptr) {
+                return false;
+            }
+            newPtr = ptr->sharedMemory.lock();
+            if (!newPtr) {
+                return false;
+            }
+            return true;
+        };
+
+        if (!isCached()) {
             newPtr = create();
             ptr = std::make_shared<MemoryInfo>(newPtr, valid);
             sharedWeights[key] = ptr;
@@ -59,7 +74,15 @@ WeightsSharing::SharedMemory::Ptr WeightsSharing::get(const std::string& key) co
         std::unique_lock<std::mutex> lock(guard);
         auto found = sharedWeights.find(key);
 
-        if (found == sharedWeights.end() || !((ptr = found->second) && (newPtr = ptr->sharedMemory.lock()))) {
+        if (found == sharedWeights.end()) {
+            OPENVINO_THROW("Unknown shared memory with key ", key);
+        }
+        ptr = found->second;
+        if (!ptr) {
+            OPENVINO_THROW("Unknown shared memory with key ", key);
+        }
+        newPtr = ptr->sharedMemory.lock();
+        if (!newPtr) {
             OPENVINO_THROW("Unknown shared memory with key ", key);
         }
     }

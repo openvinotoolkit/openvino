@@ -430,6 +430,7 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
                     errorMessage = "QKVProjection needs at least 3 cores to work";
                     return false;
                 }
+                // NOLINTNEXTLINE(bugprone-integer-division)
                 float unbalance_ratio = static_cast<float>(concurrency % 3) / static_cast<float>(concurrency / 3);
                 if (unbalance_ratio > 0.2f) {
                     errorMessage = "QKVProjection needs number of cores to be nearly multiple of 3";
