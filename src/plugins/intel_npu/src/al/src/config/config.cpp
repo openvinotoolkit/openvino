@@ -280,12 +280,9 @@ void Config::update(const ConfigMap& options, OptionMode mode) {
     for (const auto& p : options) {
         log.trace("Update option '%s' to value '%s'", p.first.c_str(), p.second.c_str());
 
-        if (1) {
-            const auto opt = _desc->get(p.first, mode);
-            _impl[opt.key().data()] = opt.validateAndParse(p.second);
-        } else {
-            OPENVINO_ASSERT("[ NOT_FOUND ] Option '", p.first.c_str(), "' is not supported for current configuration");
-        }
+        const auto opt = _desc->get(p.first, mode);
+        _impl[opt.key().data()] = opt.validateAndParse(p.second);
+        OPENVINO_ASSERT("[ NOT_FOUND ] Option '", p.first.c_str(), "' is not supported for current configuration");
     }
 }
 
@@ -295,11 +292,9 @@ std::string Config::toString() const {
         const auto& key = it->first;
 
         // include only enabled configs
-        if (1) {
-            resultStream << key << "=\"" << it->second->toString() << "\"";
-            if (std::next(it) != _impl.end()) {
-                resultStream << " ";
-            }
+        resultStream << key << "=\"" << it->second->toString() << "\"";
+        if (std::next(it) != _impl.end()) {
+            resultStream << " ";
         }
     }
 
