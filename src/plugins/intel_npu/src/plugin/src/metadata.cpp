@@ -6,7 +6,6 @@
 
 #include <cstring>
 #include <optional>
-#include <sstream>
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/runtime/shared_buffer.hpp"

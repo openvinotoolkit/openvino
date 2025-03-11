@@ -589,7 +589,8 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
     content = std::regex_replace(content, std::regex(umdcachestring.str()), "");
     // Remove skip_version_check property as it is not used by compiler
     std::ostringstream skipversioncheck;
-    skipversioncheck << ov::intel_npu::skip_version_check.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
+    skipversioncheck << ov::intel_npu::skip_version_check.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+                     << VALUE_DELIMITER;
     content = std::regex_replace(content, std::regex(skipversioncheck.str()), "");
 
     // FINAL step to convert prefixes of remaining params, to ensure backwards compatibility
