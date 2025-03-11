@@ -233,7 +233,10 @@ private:
             network.set_output_memory(reorder_rep.reorder->id, dst_mem);
             auto outputs = network.execute();
             for (const auto& output : outputs) {
-                output.second.get_event()->wait();
+                auto ev = output.second.get_event();
+                if (ev) {
+                    ev->wait();
+                }
             }
 
             OPENVINO_ASSERT(outputs.size() == 1);

@@ -64,7 +64,7 @@ To pack PDB files, it's essential to run cmake command to create a dedicated arc
     ```sh
     -DPython3_EXECUTABLE="C:\Program Files\Python11\python.exe"
     ```
-2. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4), and install requirements:
+2. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 3), and install requirements:
     ```sh
     pip install -r <openvino source tree>\src\bindings\python\wheel\requirements-dev.txt
     ```
