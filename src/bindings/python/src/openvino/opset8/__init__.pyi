@@ -3,8 +3,8 @@ from openvino._pyopenvino.op import assign
 from openvino._pyopenvino.op import if_op
 from openvino._pyopenvino.op import loop
 from openvino._pyopenvino.op import tensor_iterator
-from openvino.opset1.ops import absolute
 from openvino.opset1.ops import absolute as abs
+from openvino.opset1.ops import absolute
 from openvino.opset1.ops import acos
 from openvino.opset1.ops import add
 from openvino.opset1.ops import asin
@@ -102,8 +102,8 @@ from openvino.opset2.ops import roi_pooling
 from openvino.opset2.ops import space_to_batch
 from openvino.opset3.ops import broadcast
 from openvino.opset3.ops import bucketize
-from openvino.opset3.ops import cum_sum
 from openvino.opset3.ops import cum_sum as cumsum
+from openvino.opset3.ops import cum_sum
 from openvino.opset3.ops import embedding_bag_offsets_sum
 from openvino.opset3.ops import embedding_bag_packed_sum
 from openvino.opset3.ops import embedding_segments_sum
