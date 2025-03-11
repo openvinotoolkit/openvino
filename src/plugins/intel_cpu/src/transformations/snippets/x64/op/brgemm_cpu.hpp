@@ -22,7 +22,7 @@ public:
     using BRGEMM_TYPE = brgemm_utils::BRGEMM_TYPE;
     OPENVINO_OP("BrgemmCPU", "SnippetsOpset", snippets::op::Brgemm);
 
-    using PostopsConfig = std::vector<std::pair<type_info_t, ov::NodeVector>>;
+    using PostopsConfig = std::vector<type_info_t>;
     BrgemmCPU(const ov::OutputVector& inputs,
               BRGEMM_TYPE type,
               const std::vector<PortDescriptor>& input_descs = {},
@@ -42,13 +42,13 @@ public:
 
     size_t get_offset_scratch() const;
 
-    const ov::NodeVector& get_postops() const {
+    const PostopsConfig& get_postops() const {
         return m_post_ops;
     }
 
-    bool visit_attributes(AttributeVisitor& visitor) override;
+    ov::OutputVector get_postop_inputs() const;
 
-    void add_post_op(const std::shared_ptr<ov::Node>& post_op);
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
     constexpr static size_t SCRATCH_BYTE_SIZE = 32 * 1024;
 

@@ -34,15 +34,22 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
 
     // Create helper which will compose postops based on the node configuration
     const auto& fused_ops = brgemm_node->get_postops();
+
+    const auto postop_inputs = brgemm_node->get_postop_inputs();
     dnnl_post_ops post_ops;
-    for (const auto& op : fused_ops) {
-        if (ov::is_type<ov::op::v1::Multiply>(op)) {
-            const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+    for (size_t i = 0; i < fused_ops.size(); ++i) {
+        const auto& postop_config = fused_ops[i];
+        if (postop_config == ov::op::v1::Multiply::get_type_info_static()) {
+            const auto& postop_input = postop_inputs[i];
+            const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(postop_input.get_node_shared_ptr());
             OPENVINO_ASSERT(constant);
             const auto values = constant->cast_vector<float>();
             OPENVINO_ASSERT(values.size() == 1);
             post_ops.append_eltwise(1.f, dnnl::impl::alg_kind_t::dnnl_eltwise_linear, values[0], 0);
             std::cout << "[ INFO ] Postop scale was successfully added: " << values[0] << std::endl;
+        } else {
+            std::cout << "Unsupported postop type: " << postop_config << std::endl;
+            // post_ops.append_binary(dnnl::impl::alg_kind_t::dnnl_binary_add, /*desc must be here*/);
         }
     }
 
@@ -82,25 +89,35 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
     const auto brgemm = as_type_ptr<ov::intel_cpu::BrgemmCPU>(node);
     OV_CPU_JIT_EMITTER_ASSERT(brgemm, "get_supported_precisions() expects BrgemmCPU node");
     using brgemm_utils::BRGEMM_TYPE;
+
+    auto form_precisions = [&brgemm](const element::TypeVector& precisions) {
+        auto res = precisions;
+        // Note: all postops are supported only in f32 precision
+        for (size_t i = 0; i < brgemm->get_postops().size(); ++i) {
+            res.push_back(element::f32);
+        }
+        return res;
+    };
+
     switch (brgemm->get_type()) {
     case BRGEMM_TYPE::STAND_ALONE:
-        return {{element::f32, element::f32}};
+        return {form_precisions({element::f32, element::f32})};
     case BRGEMM_TYPE::REPACKING_ONLY: {
-        std::set<std::vector<element::Type>> supported_types = {{element::u8, element::i8},
-                                                                {element::bf16, element::bf16},
-                                                                {element::f32, element::f32}};
+        std::set<std::vector<element::Type>> supported_types = {form_precisions({element::u8, element::i8}),
+                                                                form_precisions({element::bf16, element::bf16}),
+                                                                form_precisions({element::f32, element::f32})};
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) {
-            supported_types.insert({element::i8, element::i8});
+            supported_types.insert(form_precisions({element::i8, element::i8}));
         }
         return supported_types;
     }
     case BRGEMM_TYPE::WITH_COMPENSATIONS:
-        return {{element::i8, element::i8, element::f32}};
+        return {form_precisions({element::i8, element::i8, element::f32})};
     case BRGEMM_TYPE::WITH_AMX:
-        return {{element::i8, element::i8, element::u8},
-                {element::u8, element::i8, element::u8},
-                {element::bf16, element::bf16, element::u8},
-                {element::f16, element::f16, element::u8}};
+        return {form_precisions({element::i8, element::i8, element::u8}),
+                form_precisions({element::u8, element::i8, element::u8}),
+                form_precisions({element::bf16, element::bf16, element::u8}),
+                form_precisions({element::f16, element::f16, element::u8})};
     default:
         OV_CPU_JIT_EMITTER_THROW("got BrgemmCPU node with unsupported type");
     }

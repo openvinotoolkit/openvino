@@ -127,7 +127,7 @@ std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_a
 }
 
 size_t BrgemmCPU::get_offset_scratch() const {
-    OPENVINO_ASSERT(with_scratchpad(m_type) && get_input_size() == 3,
+    OPENVINO_ASSERT(with_scratchpad(m_type) && m_main_inputs_count == 3,
                     "Offset of scratchpad must be only in Brgemm with scratchpad on 3rd input");
     return get_input_offset(2);
 }
@@ -138,28 +138,12 @@ bool BrgemmCPU::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-void BrgemmCPU::add_post_op(const std::shared_ptr<ov::Node>& post_op) {
-    const auto& inputs = post_op->input_values();
-    // TODO: what about activations?
-    OPENVINO_ASSERT(inputs.size() >= 1, "Post-op must have at least one input");
-    // TODO: Should we even check postop parent?
-    const auto in_node = inputs[0].get_node();
-    if (ov::is_type<ov::snippets::op::ConvertSaturation>(in_node)) {
-        OPENVINO_ASSERT(in_node->get_input_node_ptr(0) == this, "First input of post-op must be Brgemm output");
-    } else {
-        OPENVINO_ASSERT(in_node == this, "First input of post-op must be Brgemm output");
-    }
-    OPENVINO_ASSERT(std::all_of(inputs.begin() + 1,
-                                inputs.end(),
-                                [&](const Output<Node>& input) {
-                                    return ov::is_type<ov::op::v0::Constant>(input.get_node());
-                                }),
-                    "All post-op inputs except 0's must be constant");
-    m_post_ops.push_back(post_op);
-    validate_and_infer_types();
+ov::element::Type BrgemmCPU::get_output_type() const {
+    return m_post_ops.empty() ? Brgemm::get_output_type() : input_values().back().get_element_type();
 }
 
-ov::element::Type BrgemmCPU::get_output_type() const {
-    return m_post_ops.empty() ? Brgemm::get_output_type() : m_post_ops.back()->get_output_element_type(0);
+ov::OutputVector BrgemmCPU::get_postop_inputs() const {
+    const auto& input_values = this->input_values();
+    return ov::OutputVector(input_values.begin() + m_main_inputs_count, input_values.end());
 }
 }  // namespace ov::intel_cpu

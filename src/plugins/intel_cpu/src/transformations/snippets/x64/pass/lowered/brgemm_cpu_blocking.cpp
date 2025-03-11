@@ -104,7 +104,7 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
     const auto& loop_manager = linear_ir.get_loop_manager();
     if (with_compensations(type)) {
         const ov::snippets::VectorDims compensations_subtensor{1, get_full_dim_value()};
-        OPENVINO_ASSERT(brgemm_expr->get_input_count() == 3, "Brgemm must have 3 inputs in case of compensations.");
+        OPENVINO_ASSERT(brgemm_expr->get_input_count() >= 3, "Brgemm must have 3 inputs in case of compensations.");
         OPENVINO_ASSERT(copy_b_expr, "BrgemmCopyB must be present in case of compensations.");
         const auto& compens_port = brgemm_expr->get_input_port(2);
         compens_port.get_descriptor_ptr()->set_subtensor(compensations_subtensor);
