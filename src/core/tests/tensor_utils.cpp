@@ -55,7 +55,7 @@ TYPED_TEST_SUITE_P(ParametredOffloadTensorTest);
 TYPED_TEST_P(ParametredOffloadTensorTest, read_tensor) {
     {
         ov::Tensor tensor;
-        EXPECT_NO_THROW(tensor = ov::Tensor::from_file(this->file_name, this->ov_type, this->shape, 0));
+        EXPECT_NO_THROW(tensor = read_tensor_data(this->file_name, this->ov_type, this->shape, 0));
         EXPECT_EQ(0, memcmp(tensor.data(), this->initial_tensor.data(), this->data_size));
     }
 }
@@ -87,7 +87,7 @@ TEST(OffloadTensorTest, string_tensor_throws) {
         fout << "Hello, world!";
         fout.close();
         ASSERT_TRUE(std::filesystem::exists(file_name));
-        EXPECT_THROW(ov::Tensor::from_file(file_name, ov::element::string), ov::Exception);
+        EXPECT_THROW(read_tensor_data(file_name, ov::element::string), ov::Exception);
         std::filesystem::remove(file_name);
     }
 }
@@ -135,7 +135,7 @@ TEST_F(FunctionalOffloadTensorTest, read_with_offset) {
 
     {
         ov::Tensor tensor;
-        EXPECT_NO_THROW(tensor = ov::Tensor::from_file(file_name, ov_type, shape, sizeof(float)));
+        EXPECT_NO_THROW(tensor = read_tensor_data(file_name, ov_type, shape, sizeof(float)));
         EXPECT_EQ(0, memcmp(tensor.data(), init_values.data(), data_size));
     }
 }
@@ -143,29 +143,29 @@ TEST_F(FunctionalOffloadTensorTest, read_with_offset) {
 TEST_F(FunctionalOffloadTensorTest, read_small_file) {
     auto new_shape = shape;
     new_shape[0] = 10;
-    { EXPECT_THROW(std::ignore = ov::Tensor::from_file(file_name, ov_type, new_shape, 0), ov::Exception); }
+    { EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, new_shape, 0), ov::Exception); }
 }
 
 TEST_F(FunctionalOffloadTensorTest, read_too_big_offset) {
     {
         // offset + data_size > file_size
-        EXPECT_THROW(std::ignore = ov::Tensor::from_file(file_name, ov_type, shape, 1), ov::Exception);
+        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, 1), ov::Exception);
         // offset == file_size
-        EXPECT_THROW(std::ignore = ov::Tensor::from_file(file_name, ov_type, shape, data_size), ov::Exception);
+        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size), ov::Exception);
         // offset > file_size
-        EXPECT_THROW(std::ignore = ov::Tensor::from_file(file_name, ov_type, shape, data_size + 1), ov::Exception);
+        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape, data_size + 1), ov::Exception);
     }
 }
 
 TEST_F(FunctionalOffloadTensorTest, read_dynamic_shape) {
     {
         ov::Tensor tensor;
-        EXPECT_NO_THROW(tensor = ov::Tensor::from_file(file_name, ov_type, PartialShape::dynamic(1), 0));
+        EXPECT_NO_THROW(tensor = read_tensor_data(file_name, ov_type, PartialShape::dynamic(1), 0));
         EXPECT_EQ(0, memcmp(tensor.data(), init_values.data(), data_size));
     }
     {
         ov::Tensor tensor;
-        EXPECT_NO_THROW(tensor = ov::Tensor::from_file(file_name));
+        EXPECT_NO_THROW(tensor = read_tensor_data(file_name));
         EXPECT_EQ(0, memcmp(tensor.data(), init_values.data(), data_size));
     }
 }
@@ -176,7 +176,7 @@ TEST_F(FunctionalOffloadTensorTest, read_1_dynamic_dimension) {
         auto shape_with_1_dynamic_dimension = shape;
         size_t dynamic_dimension_number = shape_with_1_dynamic_dimension.size() - 1;
         shape_with_1_dynamic_dimension[dynamic_dimension_number] = -1;
-        EXPECT_NO_THROW(tensor = ov::Tensor::from_file(file_name, ov_type, shape_with_1_dynamic_dimension, 0));
+        EXPECT_NO_THROW(tensor = read_tensor_data(file_name, ov_type, shape_with_1_dynamic_dimension, 0));
         EXPECT_EQ(tensor.get_shape()[dynamic_dimension_number], shape.get_shape()[dynamic_dimension_number]);
         EXPECT_EQ(0, memcmp(tensor.data(), init_values.data(), data_size));
     }
@@ -187,7 +187,7 @@ TEST_F(FunctionalOffloadTensorTest, read_wrong_dynamic_shape) {
         auto shape_with_1_dynamic_dimension = shape;
         shape_with_1_dynamic_dimension[shape_with_1_dynamic_dimension.size() - 1] = -1;
         shape_with_1_dynamic_dimension[shape_with_1_dynamic_dimension.size() - 2] = 100;
-        EXPECT_THROW(std::ignore = ov::Tensor::from_file(file_name, ov_type, shape_with_1_dynamic_dimension, 0),
+        EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov_type, shape_with_1_dynamic_dimension, 0),
                      ov::Exception);
     }
 }
@@ -199,6 +199,6 @@ TEST_F(FunctionalOffloadTensorTest, read_type_doesnt_fit_file_size) {
     }
     ASSERT_TRUE(std::filesystem::exists(file_name));
 
-    { EXPECT_THROW(std::ignore = ov::Tensor::from_file(file_name, ov::element::f32), ov::Exception); }
+    { EXPECT_THROW(std::ignore = read_tensor_data(file_name, ov::element::f32), ov::Exception); }
 }
 }  // namespace ov::test
