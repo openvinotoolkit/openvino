@@ -72,14 +72,16 @@ bool isFullyConnected(const std::shared_ptr<const ov::Node>& node) {
 bool SupportsFusingWithConvolution_Simple(const std::shared_ptr<const Node>& node) {
     // Note: some other operations support this fusing (SoftPlus, Sqrt).
     // Skip them here, when they are supported by Snippets ARM. Ticket: 141170.
-    return ov::is_type<ov::op::v0::Abs>(node) || ov::is_type<ov::op::v0::Clamp>(node) ||
-           ov::is_type<ov::op::v0::Elu>(node) || ov::is_type<ov::op::v0::Relu>(node) ||
-           ov::is_type<ov::op::v0::Sigmoid>(node) || ov::is_type<ov::op::v0::Tanh>(node);
+    return ov::is_type_any_of<ov::op::v0::Abs,
+                              ov::op::v0::Clamp,
+                              ov::op::v0::Elu,
+                              ov::op::v0::Relu,
+                              ov::op::v0::Sigmoid,
+                              ov::op::v0::Tanh>(node);
 }
 // Convolution is a special case, since it supports peculiar fusings
 bool isSuitableConvolutionParent(const std::shared_ptr<const Node>& node) {
-    const bool is_suitable_node =
-        ov::is_type<ov::op::v1::Convolution>(node) || ov::is_type<ov::op::v1::GroupConvolution>(node);
+    const bool is_suitable_node = ov::is_type_any_of<ov::op::v1::Convolution, ov::op::v1::GroupConvolution>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
@@ -93,9 +95,8 @@ bool isSuitableBinaryConvolutionParent(const std::shared_ptr<const Node>& node) 
     return is_suitable_node && has_only_child;
 }
 bool isSuitableMiscParent(const std::shared_ptr<const Node>& node) {
-    const bool is_suitable_node = ov::is_type<ov::op::v0::NormalizeL2>(node) ||
-                                  ov::is_type<ov::op::v1::ConvolutionBackpropData>(node) ||
-                                  ov::is_type<ov::op::v1::GroupConvolutionBackpropData>(node);
+    const bool is_suitable_node =
+        ov::is_type_any_of<ov::op::v0::NormalizeL2, ov::op::util::ConvolutionBackPropBase>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
@@ -126,8 +127,7 @@ bool isSuitableChildForFusingBias(const std::shared_ptr<const Node>& node, int f
     }
 
     auto is_suitable_parent = [](const std::shared_ptr<const Node>& node) {
-        return (ov::is_type<ov::op::v1::Convolution>(node) || ov::is_type<ov::op::v1::GroupConvolution>(node) ||
-                ov::is_type<ov::op::v0::MatMul>(node));
+        return (ov::is_type_any_of<ov::op::v1::Convolution, ov::op::v1::GroupConvolution, ov::op::v0::MatMul>(node));
     };
 
     for (const auto& in : node->inputs()) {
@@ -221,8 +221,7 @@ bool isSuitableConvert(const std::shared_ptr<const Node>& node) {
 }
 
 auto is_skipped_op(const std::shared_ptr<ov::Node>& op) -> bool {
-    return ov::is_type<ov::op::v0::Constant>(op) || ov::is_type<ov::op::v0::Parameter>(op) ||
-           ov::is_type<ov::op::v0::Result>(op);
+    return ov::is_type_any_of<ov::op::v0::Constant, ov::op::v0::Parameter, ov::op::v0::Result>(op);
 }
 
 bool isSuitableMatMulWithConstantPath(const std::shared_ptr<Node>& node) {

@@ -145,5 +145,6 @@ public:
     OPENVINO_RTTI("AttributeAdapter<Shape>");
 
     AttributeAdapter(ov::Shape& value) : IndirectVectorValueAccessor<ov::Shape, std::vector<int64_t>>(value) {}
+    ~AttributeAdapter() override;
 };
 }  // namespace ov

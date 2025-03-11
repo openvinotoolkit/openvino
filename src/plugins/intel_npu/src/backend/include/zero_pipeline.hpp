@@ -22,8 +22,7 @@ public:
              zeroProfiling::ProfilingQuery& profiling_query,
              const std::shared_ptr<zeroProfiling::NpuInferProfiling>& npu_profiling,
              const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors,
-             const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors,
-             uint32_t group_ordinal);
+             const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors);
 
     Pipeline(const Pipeline&) = delete;
     Pipeline& operator=(const Pipeline&) = delete;
@@ -59,7 +58,7 @@ protected:
     std::vector<std::unique_ptr<Fence>> _fences;
     std::shared_ptr<EventPool> _event_pool;
     std::vector<std::shared_ptr<Event>> _events;
-    bool sync_output_with_fences_ = true;
+    bool _sync_output_with_fences = true;
     std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;
     Logger _logger;
 };
