@@ -17,14 +17,18 @@
 namespace ov::intel_cpu {
 
 using namespace snippets::lowered;
+using PortDescriptorUtils = snippets::lowered::PortDescriptorUtils;
 
 pass::FuseBrgemmCPUPostops::FuseBrgemmCPUPostops() {
     MATCHER_SCOPE(FuseBrgemmCPUPostops);
     auto m_brgemm = ov::pass::pattern::wrap_type<BrgemmCPU>();
     auto m_convert = ov::pass::pattern::optional<ov::snippets::op::ConvertSaturation>(m_brgemm);
 
-    auto m_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto m_postop = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({m_convert, m_constant});
+    auto m_postop_values = ov::pass::pattern::wrap_type<ov::op::v0::Constant, ov::op::v0::Parameter>(
+        ov::pass::pattern::type_matches(ov::element::f32));
+    std::cout << "[ WARNING ] Only Multiply is fused!!!\n";
+    auto m_postop = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({m_convert, m_postop_values});
+    // auto m_postop = ov::pass::pattern::wrap_type<ov::op::v1::Multiply, ov::op::v1::Add>({m_convert, m_postop_values});
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseBrgemmCPUPostops")
@@ -50,60 +54,41 @@ pass::FuseBrgemmCPUPostops::FuseBrgemmCPUPostops() {
         // Log the addition of the post operation
         std::cout << "[ INFO ] Adding post operation: " << post_op->get_friendly_name()
                   << " to BrgemmCPU: " << brgemm->get_friendly_name() << std::endl;
-        brgemm->add_post_op(post_op);
+        auto brgemm_inputs = brgemm->input_values();
+        brgemm_inputs.push_back(post_op->input_value(1));
+        auto postops = brgemm->get_postops();
+        postops.push_back(post_op->get_type_info());
+        auto input_descs = brgemm->get_input_port_descriptors();
+        input_descs.push_back(ov::snippets::modifier::MemoryAccess::PortDescriptor{0, 0});
 
-        // Log the replacement output
-        auto replacement_output = post_op->input_value(0);
-        std::cout << "\t Initial replacement output set to input value of post operation: "
-                  << replacement_output.get_node()->get_friendly_name() << std::endl;
+        auto new_brgemm = std::make_shared<BrgemmCPU>(
+            brgemm_inputs,
+            brgemm->get_type(),
+            input_descs,
+            // TODO: rewrite
+            brgemm->get_output_port_descriptors().back(),
+            PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(0))->get_layout(),
+            PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(1))->get_layout(),
+            PortDescriptorUtils::get_port_descriptor_ptr(brgemm->output(0))->get_layout(),
+            postops);
+        new_brgemm->set_friendly_name(brgemm->get_friendly_name());
+        ov::copy_runtime_info({brgemm, post_op}, new_brgemm);
 
-        if (pattern_map.count(m_convert)) {
-            const auto convert = pattern_map.at(m_convert).get_node_shared_ptr();
-            std::cout << "\t Convert operation found: " << convert->get_friendly_name() << std::endl;
-
-            OPENVINO_ASSERT(convert->get_output_element_type(0) == brgemm->get_output_element_type(0),
-                            "Unexpected type for brgemm output conversion: ",
-                            convert->get_output_element_type(0));
-
-            replacement_output = convert->input_value(0);
-            std::cout << "\t Replacement output updated to input value of convert operation: "
-                      << replacement_output.get_node()->get_friendly_name() << std::endl;
+        // PortDescriptors are copied manually since it is not copyable attribute
+        for (size_t i = 0; i < brgemm->get_input_size(); ++i) {
+            const auto in_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(i));
+            PortDescriptorUtils::set_port_descriptor(new_brgemm->input(i), in_desc->get_subtensor(), in_desc->get_layout());
         }
+        const auto out_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->output(0));
+        PortDescriptorUtils::set_port_descriptor(new_brgemm->output(0), out_desc->get_subtensor(), out_desc->get_layout());
 
-        // Log the output replacement
-        std::cout << "\t Replacing output of post operation: " << post_op->get_friendly_name()
-                  << " with: " << replacement_output.get_node()->get_friendly_name() << std::endl;
-        return ov::replace_output_update_name(post_op->output(0), replacement_output);
+        ov::replace_node(post_op, new_brgemm);
+        std::cout << "[ INFO ] BrgemmCPU: " << brgemm << " \n\t was replaced with: " << new_brgemm->get_friendly_name()
+                  << std::endl;
+        return true;
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(m_postop, matcher_name);
-    register_matcher(m, callback);
-}
-
-pass::FuseBrgemmOutConvert::FuseBrgemmOutConvert() {
-    MATCHER_SCOPE(FuseBrgemmOutConvert);
-    auto m_brgemm = ov::pass::pattern::wrap_type<BrgemmCPU>();
-    auto m_convert = ov::pass::pattern::wrap_type<ov::snippets::op::ConvertSaturation>({m_brgemm});
-
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
-        OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseBrgemmOutConvert")
-        const auto& pattern_map = m.get_pattern_value_map();
-        const auto brgemm = ov::as_type_ptr<BrgemmCPU>(pattern_map.at(m_brgemm).get_node_shared_ptr());
-        const auto convert = pattern_map.at(m_convert).get_node_shared_ptr();
-
-        // Log the addition of the convert operation
-        std::cout << " [ INFO ] Adding convert operation: " << convert->get_friendly_name()
-                  << " to BrgemmCPU: " << brgemm->get_friendly_name() << std::endl;
-        brgemm->add_post_op(convert);
-
-        // Log the replacement output
-        auto replacement_output = convert->input_value(0);
-        std::cout << "\t Replacing output of convert operation: " << convert->get_friendly_name()
-                  << " with: " << replacement_output.get_node()->get_friendly_name() << std::endl;
-        return ov::replace_output_update_name(convert->output(0), replacement_output);
-    };
-
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(m_convert, matcher_name);
     register_matcher(m, callback);
 }
 
