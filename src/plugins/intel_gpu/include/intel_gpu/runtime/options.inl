@@ -62,7 +62,7 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_profiling_data_path, "", "Save csv fi
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_graphs_path, "", "Save intermediate graph representations during model compilation pipeline to specified folder")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_sources_path, "", "Save generated sources for each kernel to specified folder")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_tensors_path, "", "Save intermediate in/out tensors of each primitive to specified folder")
-OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_tensors, ov::intel_gpu::DumpTensors::all, "Tensor types to dump. Supported values: all, inputs, outputs")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_tensors, ov::intel_gpu::DumpTensors::all, "Tensor types to dump. Supported values: all, in, out")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_tensors_format, ov::intel_gpu::DumpFormat::text, "Format of the tensors dump. Supported values: binary, text, text_raw")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_layer_names, std::vector<std::string>{}, "Activate dump for specified layers only")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_memory_pool_path, "", "Save csv file with memory pool info to specified folder")
