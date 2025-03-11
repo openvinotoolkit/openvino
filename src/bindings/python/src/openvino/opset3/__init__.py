@@ -11,7 +11,7 @@ from openvino.opset3.ops import assign
 from openvino.opset1.ops import atan
 from openvino.opset1.ops import avg_pool
 from openvino.opset1.ops import batch_norm_inference
-from openvino.opset2.ops import batch_to_space
+from openvino.opset2.ops import batch_to_spacedwdwd
 from openvino.opset1.ops import binary_convolution
 from openvino.opset3.ops import broadcast
 from openvino.opset3.ops import bucketize
