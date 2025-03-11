@@ -42,9 +42,14 @@ public:
     bool operator!=(const LazyTensor& other) const;
 
     ov::Tensor eval() const;
-    std::pair<ov::Shape, ov::element::Type> eval_shape_type() const;
     std::size_t get_hash() const;
     void detach();
+
+    struct Meta {
+        ov::Shape shape;
+        ov::element::Type type;
+    };
+    Meta eval_meta() const;
 
     void serialize(std::ostream& stream) const;
     static LazyTensor deserialize(std::istream& stream);

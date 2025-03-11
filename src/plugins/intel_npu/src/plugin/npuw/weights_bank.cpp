@@ -94,7 +94,7 @@ void Bank::evaluate_and_allocate() {
         storage_guard.unlock();
 
         std::map<int64_t, ov::Tensor> uids_to_allocated;
-        std::map<int64_t, std::pair<ov::Shape, ov::element::Type>> uids_to_meta;
+        std::map<int64_t, LazyTensor::Meta> uids_to_meta;
 
         ov::parallel_for(vec.size(), [&](std::size_t idx) {
             const auto& lt = vec[idx];
@@ -110,7 +110,7 @@ void Bank::evaluate_and_allocate() {
             dev_guard.unlock();
 
             // Allocation and/or evaluation needed
-            const auto& transformed_tensor_meta = lt.eval_shape_type();
+            const auto& transformed_tensor_meta = lt.eval_meta();
 
             std::unique_lock<std::mutex> guard(device_bank.mutex);
             uids_to_meta[uid] = transformed_tensor_meta;
@@ -137,7 +137,7 @@ void Bank::evaluate_and_allocate() {
             ov::Tensor allocated_tensor;
 
             auto remote_ctx = m_core->get_default_context(device_for_alloc)._ptr;
-            remote_tensor = remote_ctx->create_host_tensor(uids_to_meta[uid].second, uids_to_meta[uid].first);
+            remote_tensor = remote_ctx->create_host_tensor(uids_to_meta[uid].type, uids_to_meta[uid].shape);
             uids_to_allocated.at(uid) = ov::make_tensor(remote_tensor);
         }
         guard.unlock();
