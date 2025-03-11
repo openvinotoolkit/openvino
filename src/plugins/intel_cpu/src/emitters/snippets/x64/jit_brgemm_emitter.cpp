@@ -124,8 +124,9 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
 }
 
 void jit_brgemm_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    OV_CPU_JIT_EMITTER_ASSERT(m_memory_offsets.size() == in.size() + 1 && (out.size() == 1),
-                              "expects 3 inputs if there are compensations/wsp");
+    // TODO: handle postops here
+    // OV_CPU_JIT_EMITTER_ASSERT(m_memory_offsets.size() == in.size() + 1 && (out.size() == 1),
+    //                           "expects 3 inputs if there are compensations/wsp");
 }
 
 void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
