@@ -169,6 +169,7 @@ Plugin::Plugin()
     _options->add<LOG_LEVEL>();
     _globalConfig.parseEnvVars();
     Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
+    _logger.setLevel(_globalConfig.get<LOG_LEVEL>());
 
     // TODO: generation of available backends list can be done during execution of CMake scripts
     std::vector<AvailableBackends> backendRegistry;
