@@ -1381,7 +1381,11 @@ bool ov::CoreImpl::device_supports_internal_property(const ov::Plugin& plugin, c
 }
 
 bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin, const ov::AnyMap& arguments) const {
-    return plugin.supports_model_caching(arguments);
+    ov::AnyMap properties;
+    if (arguments.count(ov::device::priorities.name())) {
+        properties[ov::device::priorities.name()] = arguments.at(ov::device::priorities.name()).as<std::string>();
+    }
+    return plugin.supports_model_caching(properties);
 }
 
 bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {
