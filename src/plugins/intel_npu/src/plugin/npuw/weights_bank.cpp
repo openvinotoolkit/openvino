@@ -36,12 +36,40 @@ private:
     std::mutex m_mutex;
 };
 
+class RemoteContextManager {
+public:
+    static RemoteContextManager& getInstance() {
+        static RemoteContextManager instance;
+        return instance;
+    }
+
+private:
+    RemoteContextManager() {}
+    RemoteContextManager(RemoteContextManager const&) = delete;
+    void operator=(RemoteContextManager const&) = delete;
+
+public:
+    // Public API
+    ov::SoPtr<ov::IRemoteContext> getContext(const std::shared_ptr<const ov::ICore>& core, const std::string& device) {
+        std::lock_guard<std::mutex> guard(m_mutex);
+        auto it_ctx = m_context_map.find(device);
+        if (it_ctx == m_context_map.end()) {
+            m_context_map[device] = core->get_default_context(device)._ptr;
+            it_ctx = m_context_map.find(device);
+        }
+        return it_ctx->second;
+    }
+
+private:
+    // Data
+    std::unordered_map<std::string, ov::SoPtr<ov::IRemoteContext>> m_context_map;
+    std::mutex m_mutex;
+};
+
 Bank::Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device, const std::string& bank_name)
     : m_core(core),
       m_alloc_device(alloc_device),
-      m_bank_name(bank_name),
-      // FIXME: Only NPU allocation is supported for now
-      m_ctx(m_core->get_default_context("NPU")._ptr) {}
+      m_bank_name(bank_name) {}
 
 int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
     const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
@@ -143,7 +171,8 @@ void Bank::evaluate_and_allocate() {
             ov::SoPtr<ov::ITensor> remote_tensor;
             ov::Tensor allocated_tensor;
 
-            remote_tensor = m_ctx->create_host_tensor(uids_to_meta[uid].type, uids_to_meta[uid].shape);
+            remote_tensor = ov::npuw::weights::context(m_core, device_for_alloc)
+                                ->create_host_tensor(uids_to_meta[uid].type, uids_to_meta[uid].shape);
             uids_to_allocated.at(uid) = ov::make_tensor(remote_tensor);
         }
         guard.unlock();
@@ -292,7 +321,7 @@ void Bank::read_and_add_tensor(std::istream& stream, int64_t uid, const std::str
     std::size_t byte_size = 0;
     read(stream, byte_size);
 
-    remote_tensor = m_ctx->create_host_tensor(type, shape);
+    remote_tensor = ov::npuw::weights::context(m_core, device)->create_host_tensor(type, shape);
     allocated_tensor = ov::make_tensor(remote_tensor);
     device_bank.storage[uid] = {LazyTensor(), allocated_tensor};
     stream.read(reinterpret_cast<char*>(allocated_tensor.data()), byte_size);
@@ -326,4 +355,10 @@ std::shared_ptr<Bank> ov::npuw::weights::bank(const std::string& bank_name,
 
     auto& instance = BankManager::getInstance();
     return instance.getBank(bank_name, core, alloc_device);
+}
+
+ov::SoPtr<ov::IRemoteContext> ov::npuw::weights::context(const std::shared_ptr<const ov::ICore>& core,
+                                                         const std::string& device) {
+    auto& instance = RemoteContextManager::getInstance();
+    return instance.getContext(core, device);
 }

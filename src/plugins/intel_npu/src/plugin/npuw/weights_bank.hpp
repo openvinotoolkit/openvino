@@ -67,7 +67,6 @@ private:
 
     mutable std::mutex m_mutex;
     std::shared_ptr<const ov::ICore> m_core = nullptr;
-    ov::SoPtr<ov::IRemoteContext> m_ctx;
     std::string m_alloc_device;
     int64_t uid_count = 0;
     std::string m_bank_name;
@@ -76,6 +75,9 @@ private:
 std::shared_ptr<Bank> bank(const std::string& bank_name,
                            const std::shared_ptr<const ov::ICore>& core,
                            const std::string& alloc_device);
+
+ov::SoPtr<ov::IRemoteContext> ov::npuw::weights::context(const std::shared_ptr<const ov::ICore>& core,
+                                                         const std::string& device);
 
 }  // namespace weights
 }  // namespace npuw
