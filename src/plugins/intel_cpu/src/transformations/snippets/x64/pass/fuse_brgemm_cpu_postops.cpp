@@ -54,12 +54,18 @@ pass::FuseBrgemmCPUPostops::FuseBrgemmCPUPostops() {
         // Log the addition of the post operation
         std::cout << "[ INFO ] Adding post operation: " << post_op->get_friendly_name()
                   << " to BrgemmCPU: " << brgemm->get_friendly_name() << std::endl;
+
         auto brgemm_inputs = brgemm->input_values();
-        brgemm_inputs.push_back(post_op->input_value(1));
+        auto input_descs = brgemm->get_input_port_descriptors();
+        for (size_t i = 1; i < post_op->get_input_size(); ++i) {
+            brgemm_inputs.push_back(post_op->input_value(i));
+            input_descs.push_back(ov::snippets::modifier::MemoryAccess::PortDescriptor{0, 0});
+            const auto input_node = post_op->get_input_node_shared_ptr(i);
+            input_node->get_rt_info()["SKIP_REGISTER_ASSIGNMENT"] = true;
+        }
+
         auto postops = brgemm->get_postops();
         postops.push_back(post_op->get_type_info());
-        auto input_descs = brgemm->get_input_port_descriptors();
-        input_descs.push_back(ov::snippets::modifier::MemoryAccess::PortDescriptor{0, 0});
 
         auto new_brgemm = std::make_shared<BrgemmCPU>(
             brgemm_inputs,

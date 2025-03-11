@@ -20,7 +20,8 @@ inline bool pass_through_expr(const ExpressionPtr& expr) {
             || ov::is_type<op::PerfCountBeginBase>(node)
             || ov::is_type<op::PerfCountEndBase>(node)
 #endif
-            || ov::is_type<BufferExpression>(expr);
+            || ov::is_type<BufferExpression>(expr) ||
+            expr->get_node()->get_rt_info().count("SKIP_REGISTER_ASSIGNMENT");
 }
 
 } // namespace
