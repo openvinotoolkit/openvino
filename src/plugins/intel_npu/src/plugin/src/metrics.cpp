@@ -100,14 +100,6 @@ ov::device::LUID Metrics::GetDeviceLUID(const std::string& specifiedDeviceName) 
     }};
 }
 
-std::vector<ov::PropertyName> Metrics::GetCachingProperties() const {
-    return _cachingProperties;
-}
-
-std::vector<ov::PropertyName> Metrics::GetInternalSupportedProperties() const {
-    return _internalSupportedProperties;
-}
-
 std::string Metrics::GetBackendName() const {
     if (_backend == nullptr) {
         OPENVINO_THROW("No available backends");

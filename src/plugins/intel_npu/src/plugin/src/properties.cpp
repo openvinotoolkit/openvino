@@ -359,8 +359,7 @@ void Properties::registerProperties() {
         REGISTER_SIMPLE_METRIC(ov::device::pci_info, true, _metrics->GetPciInfo(get_specified_device_name(config)));
         REGISTER_SIMPLE_METRIC(ov::device::gops, true, _metrics->GetGops(get_specified_device_name(config)));
         REGISTER_SIMPLE_METRIC(ov::device::type, true, _metrics->GetDeviceType(get_specified_device_name(config)));
-        REGISTER_SIMPLE_METRIC(ov::internal::caching_properties, false, _metrics->GetCachingProperties());
-        REGISTER_SIMPLE_METRIC(ov::internal::supported_properties, true, _metrics->GetInternalSupportedProperties());
+        REGISTER_SIMPLE_METRIC(ov::internal::supported_properties, true, _internalSupportedProperties);
         REGISTER_SIMPLE_METRIC(ov::intel_npu::device_alloc_mem_size,
                                true,
                                _metrics->GetDeviceAllocMemSize(get_specified_device_name(config)));
@@ -429,6 +428,18 @@ void Properties::registerProperties() {
     }
     // 2.3. Common metrics (exposed same way by both Plugin and CompiledModel)
     REGISTER_SIMPLE_METRIC(ov::supported_properties, true, _supportedProperties);
+
+    REGISTER_CUSTOM_METRIC(ov::internal::caching_properties, false, [&](const Config& config) {
+        // return a dynamically created list based on what is supported in current configuration
+        std::vector<ov::PropertyName> caching_props{};
+        // walk the static caching properties, add only what is supported now
+        for (auto prop : _cachingProperties) {
+            if (_config.isAvailable(prop)) {
+                caching_props.emplace_back(prop);
+            }
+        }
+        return caching_props;
+    });
 
     // 3. Populate supported properties list
     // ========

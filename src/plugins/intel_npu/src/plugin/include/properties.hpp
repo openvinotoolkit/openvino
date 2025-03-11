@@ -60,6 +60,21 @@ private:
     // properties map: {name -> [supported, mutable, eval function]}
     std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
     std::vector<ov::PropertyName> _supportedProperties;
+
+    const std::vector<ov::PropertyName> _cachingProperties = {ov::device::architecture.name(),
+                                                              ov::intel_npu::compilation_mode_params.name(),
+                                                              ov::intel_npu::compiler_dynamic_quantization.name(),
+                                                              ov::intel_npu::tiles.name(),
+                                                              ov::intel_npu::dpu_groups.name(),
+                                                              ov::intel_npu::dma_engines.name(),
+                                                              ov::intel_npu::compilation_mode.name(),
+                                                              ov::intel_npu::driver_version.name(),
+                                                              ov::intel_npu::compiler_type.name(),
+                                                              ov::intel_npu::batch_mode.name(),
+                                                              ov::hint::execution_mode.name()};
+
+    const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
+                                                                        ov::internal::caching_with_mmap.name()};
 };
 
 }  // namespace intel_npu
