@@ -53,7 +53,9 @@ class TestComplexReverse(CommonTFLayerTest):
             param_imag = tf.compat.v1.placeholder(np.float32, shape, 'param_imag')
             complex = tf.raw_ops.Complex(real=param_real, imag=param_imag)
 
-            tf.raw_ops.Reverse(tensor=complex, dims=dims, name='reverse')
+            transpose = tf.raw_ops.Reverse(tensor=complex, dims=dims, name='reverse')
+            tf.raw_ops.Real(input=transpose)
+            tf.raw_ops.Imag(input=transpose)
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
