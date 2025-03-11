@@ -1338,7 +1338,7 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
         constexpr std::uintmax_t MIN_DISK_SPACE_REQUIRED = 50 * 1024 * 1024; // adjust as needed
 
         // Check available space for bin file directory
-        fs::path binDir(binPath_ref);
+        fs::path bin_dir(binPath_ref);
         if (binDir.has_parent_path())
             binDir = binDir.parent_path();
         fs::space_info binSpace = fs::space(binDir);
