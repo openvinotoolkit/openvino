@@ -1,4 +1,4 @@
-Category,topology,sourceframework,precision,infered by,CPU,GPU,NPU
+Category,topology,source framework,precision,infered with,CPU,GPU,NPU
 Sound Classification,aclnet,onnx,FP16,OpenVINO,+,+,+
 Sound Classification,aclnet,onnx,FP16-INT8,OpenVINO,+,+,+
 Sound Classification,aclnet,onnx,FP32,OpenVINO,+,+,+
@@ -897,7 +897,7 @@ Natural Language Processing,mobilebert,onnx,FP32,ONNX Runtime OVEP,+,+,+
 Natural Language Processing,mobilebert,onnx,FP16,ONNX Runtime OVEP,+,+,+
 Natural Language Processing,mobilebert,onnx,INT8,ONNX Runtime OVEP,+,+,
 Natural Language Processing,mobilebert-uncased,pytorch,FP32,torch.compile,+,+,+
-,mobilenet_v1_1.0_224,pytorch,intel-optimum default,Optimum Intel,+,+,
+Object Detection,mobilenet_v1_1.0_224,pytorch,intel-optimum default,Optimum Intel,+,+,
 Object Detection,mobilenet_v2,pytorch,FP32,torch.compile,+,+,+
 Object Detection,mobilenet_v2_1.4_224,pytorch,intel-optimum default,Optimum Intel,+,+,
 Object Detection,mobilenet_v3_large,pytorch,FP32,torch.compile,+,+,+
