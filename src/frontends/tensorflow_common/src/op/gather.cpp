@@ -80,10 +80,7 @@ OutputVector translate_gather_v2_op(const NodeContext& node) {
         auto axis_subtract_one = make_shared<v1::Subtract>(axis, one);
         auto updated_axis = make_shared<v1::Select>(condition, axis_subtract_one, axis);
 
-        // Update batch_dims if negative
-        auto updated_batch_dims = (batch_dims < 0) ? batch_dims - 1 : batch_dims;
-
-        auto gather = make_shared<v8::Gather>(params, indices, updated_axis, updated_batch_dims);
+        auto gather = make_shared<v8::Gather>(params, indices, updated_axis, batch_dims);
         set_node_name(node.get_name(), gather);
         auto complex_gather = make_shared<ComplexTypeMark>(gather, complex_part_type);
         return {complex_gather->output(0)};
