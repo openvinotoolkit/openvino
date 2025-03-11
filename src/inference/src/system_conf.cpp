@@ -277,7 +277,7 @@ int get_num_numa_nodes() {
 int get_num_sockets() {
     return -1;
 }
-int numa_node_id(int cpu_id) {
+int get_numa_node_id(int cpu_id) {
     return -1;
 }
 void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,
@@ -338,7 +338,7 @@ int get_num_numa_nodes() {
 int get_num_sockets() {
     return cpu_info()._sockets;
 }
-int numa_node_id(int cpu_id) {
+int get_numa_node_id(int cpu_id) {
     return -1;
 }
 void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,
@@ -465,7 +465,7 @@ int get_num_sockets() {
     return cpu_info()._sockets;
 }
 
-int numa_node_id(int cpu_id) {
+int get_numa_node_id(int cpu_id) {
     CPU& cpu = cpu_info();
     return cpu._cpu_mapping_table[cpu_id][CPU_MAP_NUMA_NODE_ID];
 }

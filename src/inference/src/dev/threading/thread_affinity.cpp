@@ -130,7 +130,7 @@ bool pin_thread_to_vacant_core(int thrIdx,
     if (proc_type_table.size() > 1) {
         int cores_in_numa = proc_type_table[1][MAIN_CORE_PROC] + proc_type_table[1][HYPER_THREADING_PROC];
         GROUP_AFFINITY group;
-        group.Group = numa_node_id(cpu_ids[thrIdx]);
+        group.Group = get_numa_node_id(cpu_ids[thrIdx]);
         group.Mask = DWORD_PTR(1) << (cpu_ids[thrIdx] % cores_in_numa);
         group.Reserved[0] = 0;
         group.Reserved[1] = 0;

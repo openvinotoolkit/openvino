@@ -193,7 +193,7 @@ OPENVINO_RUNTIME_API int get_num_sockets();
  * @ingroup    ov_dev_api_system_conf
  * @return     Numa node id
  */
-OPENVINO_RUNTIME_API int numa_node_id(int cpu_id);
+OPENVINO_RUNTIME_API int get_numa_node_id(int cpu_id);
 
 /**
  * @brief      Returns a table of number of processor types on Linux/Windows

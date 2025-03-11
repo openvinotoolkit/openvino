@@ -78,7 +78,7 @@ bool check_cpu_pinning(const bool cpu_pinning,
 #if defined(__APPLE__)
     result_value = false;
 #elif defined(_WIN32)
-    result_value = input_changed ? cpu_pinning : cpu_reservation;
+    result_value = cpu_pinning_changed ? cpu_pinning : cpu_reservation;
 #else
     // The following code disables pinning in case stream contains both Pcore and Ecore
     auto hyper_cores_in_stream = [&]() {
