@@ -149,7 +149,8 @@ std::shared_ptr<ov::Model> FQMatMulFunction::initOriginal() const {
     bias_shape.back() = out_channels.get_length();
     const auto bias = ov::test::utils::make_constant(matmul->get_output_element_type(0), bias_shape);
     const auto add = std::make_shared<ov::op::v1::Add>(matmul, bias);
-    std::shared_ptr<ov::Node> out = add;
+    const auto relu = std::make_shared<ov::op::v0::Relu>(add);
+    std::shared_ptr<ov::Node> out = relu;
     if (pos == 2) {
         out = std::make_shared<op::v1::Transpose>(out, const_order);
     }
