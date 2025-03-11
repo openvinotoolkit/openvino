@@ -70,7 +70,7 @@ TEST(SerializationTest, WriteInReadOnly) {
     EXPECT_THROW(serializer.run_on_model(m), ov::AssertFailure);
 
     // Force removal of read-only attribute (if needed) and then remove the files.
-    auto forceRemove = [](const std::string& filename) {
+    auto force_remove = [](const std::string& filename) {
 #ifdef _WIN32
         // On Windows, clear the read-only attribute first.
         SetFileAttributesA(filename.c_str(), FILE_ATTRIBUTE_NORMAL);
