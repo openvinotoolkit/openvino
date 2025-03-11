@@ -21,9 +21,14 @@ namespace pass {
 
 AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& linear_ir, std::set<Reg>& gpr_pool, std::set<Reg>& vec_pool) {
     RegMap manually_assigned;
+    // TODO: need to exclude params from this check that are used by brgemm kernel
     OPENVINO_ASSERT(gpr_pool.size() >= (linear_ir.get_parameters().size() + linear_ir.get_results().size()),
                     "Not enough gp registers in the pool to perform manual assignment");
     for (const auto& param : linear_ir.get_parameters()) {
+        if (param->get_node()->get_rt_info().count("SKIP_REGISTER_ASSIGNMENT")) {
+            std::cout << "[ INFO ] Register assignment is skipped for the node " << param->get_node() << std::endl;
+            continue;
+        }
         manually_assigned[param->get_output_port_descriptor(0)->get_reg()] = *gpr_pool.begin();
         gpr_pool.erase(gpr_pool.begin());
     }
@@ -174,6 +179,10 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
     assigned_reg_map.insert(map_gpr.begin(), map_gpr.end());
 
     for (const auto& expr : exprs) {
+        if (expr->get_node()->get_rt_info().count("SKIP_REGISTER_ASSIGNMENT")) {
+            std::cout << "[ INFO ] Register assignment is skipped for the node " << expr->get_node() << std::endl;
+            continue;
+        }
         // Note: manually assigned regs are always live => add them to all expressions
         std::set<Reg> mapped_live_regs = global_regs;
         for (const auto& live_reg : expr->get_live_regs())

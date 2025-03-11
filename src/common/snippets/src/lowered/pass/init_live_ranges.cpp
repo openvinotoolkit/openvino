@@ -19,7 +19,8 @@ inline bool pass_through_expr(const ExpressionPtr& expr) {
 #ifdef SNIPPETS_DEBUG_CAPS
             || ov::is_type_any_of<op::PerfCountBeginBase, op::PerfCountEndBase>(node)
 #endif
-            || ov::is_type<BufferExpression>(expr);
+            || ov::is_type<BufferExpression>(expr) ||
+            expr->get_node()->get_rt_info().count("SKIP_REGISTER_ASSIGNMENT");
 }
 
 } // namespace
