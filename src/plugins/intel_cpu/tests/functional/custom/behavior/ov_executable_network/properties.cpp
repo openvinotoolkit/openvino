@@ -506,4 +506,47 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuModelDistributionPolicyTensorParallel) {
     OV_ASSERT_NO_THROW(req.infer());
 }
 
+TEST_F(OVClassConfigTestCPU, smoke_CpuModelDistributionPolicyTensorParallelAccurcay) {
+    ov::Core core;
+    std::shared_ptr<ov::Model> model = ov::test::utils::make_matmul_bias();
+    std::set<ov::hint::ModelDistributionPolicy> setModels = {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL};
+    ov::AnyMap config_model = {{ov::hint::model_distribution_policy.name(), setModels},
+                               {ov::num_streams.name(), 1},
+                               {ov::inference_num_threads.name(), 2}};
+
+    core.set_property(deviceName, config_model);
+
+    std::map<ov::Output<ov::Node>, ov::Tensor> inputs;
+    for (const auto& input : model->inputs()) {
+        auto tensor = ov::test::utils::create_and_fill_tensor_normal_distribution(input.get_element_type(),
+                                                                                  input.get_shape(),
+                                                                                  0.0f,
+                                                                                  0.2f,
+                                                                                  7235346);
+        inputs.insert({input, tensor});
+    }
+
+    auto getOutputBlob = [&](ov::Core& core) {
+        auto compiled_model = core.compile_model(model, deviceName);
+        auto req = compiled_model.create_infer_request();
+        for (const auto& input : inputs) {
+            req.set_tensor(input.first, input.second);
+        }
+        auto output_tensor = ov::Tensor(model->output().get_element_type(), model->output().get_shape());
+        req.set_output_tensor(output_tensor);
+        req.infer();
+        return output_tensor;
+    };
+
+    auto outputActual = getOutputBlob(core);
+
+    {
+        ov::Core coreRef;
+        ov::AnyMap config = {{ov::num_streams.name(), 1}, {ov::inference_num_threads.name(), 1}};
+        coreRef.set_property(deviceName, config);
+        auto outputRef = getOutputBlob(coreRef);
+        ov::test::utils::compare(outputActual, outputRef);
+    }
+}
+
 }  // namespace
