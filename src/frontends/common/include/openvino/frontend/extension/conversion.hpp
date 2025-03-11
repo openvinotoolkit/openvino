@@ -14,7 +14,6 @@ namespace frontend {
 class FRONTEND_API ConversionExtensionBase : public Extension {
 public:
     OPENVINO_RTTI("ConversionExtensionBase", "0", Extension);
-    ~ConversionExtensionBase() override;
 
     using Ptr = std::shared_ptr<ConversionExtensionBase>;
     explicit ConversionExtensionBase(const std::string& op_type) : m_op_type(op_type) {}
@@ -22,6 +21,8 @@ public:
     const std::string& get_op_type() const {
         return m_op_type;
     }
+
+    ~ConversionExtensionBase() override;
 
 private:
     std::string m_op_type;
