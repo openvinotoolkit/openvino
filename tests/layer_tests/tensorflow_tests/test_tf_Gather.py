@@ -97,7 +97,7 @@ class TestComplexGather(CommonTFLayerTest):
         return inputs_data
 
 
-    def create_gather_net(self, params_shape, params_type, indices_shape, indices_type, axis_value, batch_dims,
+    def create_complex_gather_net(self, params_shape, params_type, indices_shape, indices_type, axis_value, batch_dims,
                           operation_type):
         self.params_type = params_type
         if params_type == str or params_type == np.str_:
@@ -121,13 +121,15 @@ class TestComplexGather(CommonTFLayerTest):
 
             indices = tf.compat.v1.placeholder(indices_type, indices_shape, 'indices')
             if operation_type == "Gather":
-                tf.raw_ops.Gather(params=complex, indices=indices)
+                transpose = tf.raw_ops.Gather(params=complex, indices=indices)
             elif operation_type == "GatherV2":
                 axis = tf.constant(axis_value, dtype=tf.int32)
-                tf.raw_ops.GatherV2(params=complex, indices=indices, axis=axis, batch_dims=batch_dims)
+                transpose = tf.raw_ops.GatherV2(params=complex, indices=indices, axis=axis, batch_dims=batch_dims)
             else:
                 assert False, "Incorrect operation type is tested"
 
+            tf.raw_ops.Real(input=transpose)
+            tf.raw_ops.Imag(input=transpose)
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
@@ -148,10 +150,10 @@ class TestComplexGather(CommonTFLayerTest):
     @pytest.mark.parametrize("indices_type", [np.int32, np.int64])
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_gather(self, params, params_type, indices_type, ie_device, precision, ir_version, temp_dir,
+    def test_complex_gather(self, params, params_type, indices_type, ie_device, precision, ir_version, temp_dir,
                     use_legacy_frontend):
         if ie_device == 'GPU':
             pytest.skip("timeout issue on GPU")
-        self._test(*self.create_gather_net(**params, params_type=params_type, indices_type=indices_type),
+        self._test(*self.create_complex_gather_net(**params, params_type=params_type, indices_type=indices_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
