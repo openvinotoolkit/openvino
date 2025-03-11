@@ -327,7 +327,31 @@ public:
 private:
     FunctionPipelineType func_pipeline_type;
     ::intel_npu::Config& cfg;
+
+    std::size_t m_f16ic_counter = 0u;
+
+    std::shared_ptr<ov::Node> new_f16ic_cvt(ov::Output<ov::Node> out, ov::element::Type type);
 };
+
+std::shared_ptr<ov::Node> Partitioner::new_f16ic_cvt(ov::Output<ov::Node> out, ov::element::Type type) {
+    // These Converts are added on activations (cross-subgraph connections) when
+    // the model is being cut. This may end up in Converts added to different
+    // individual submodels, rather than the one flat original model.
+    // This, in turn, may cause naming collisions between the newly added Converts
+    // and, for example, the Converts that was there in the original model.
+    // Since the substantial part of the FOLDing algorithm still relies on
+    // operation names (Operation bank matching), this is the point where
+    // it did break - based on the clashed name match, one Convert was mistakenly
+    // recognized as some other, resulting in the broken match banks and the failed
+    // "all_ok" assert.
+    //
+    // The below code workarounds the issue by forcing these Convert names be
+    // unique. Again, there's no guarantee we won't see such Convert names in the
+    // original model(s), but the probability is quite low here.
+    auto new_src = std::make_shared<ov::op::v0::Convert>(out, type);
+    new_src->set_friendly_name("Convert_f16ic_" + std::to_string(m_f16ic_counter++));
+    return new_src;
+}
 
 void Partitioner::identifySubgraphs() {
     LOG_INFO("Identifying subgraphs for model " << model->get_friendly_name() << "...");
@@ -510,7 +534,9 @@ void Partitioner::identifySubgraphs() {
                             NPUW_ASSERT(input_desc.get_element_type() == ov::element::f32);
                             NPUW_ASSERT(new_param->get_element_type() == ov::element::f16);
                             NPUW_ASSERT(connect_in_f16);
-                            new_src = std::make_shared<ov::op::v0::Convert>(new_param, ov::element::f32);
+                            new_src = new_f16ic_cvt(new_param, ov::element::f32);
+                            LOG_DEBUG("Added F16IC Param Convert " << new_src << " on top of " << new_param
+                                     << " for " << input_desc);
                         } else {
                             new_src = new_param;
                         }
@@ -675,11 +701,12 @@ void Partitioner::identifySubgraphs() {
                         LOG_VERB("Discarding " << output_desc << " -- optimized out!");
                     } else {
                         // Register a new Result. Optionally, lower it to f16
-                        ov::Output<ov::Node> result_src =
-                            (output_desc.get_element_type() == ov::element::f32 && connect_in_f16)
-                                ? std::make_shared<ov::op::v0::Convert>(output_desc, ov::element::f16)
-                                : output_desc;
-
+                        ov::Output<ov::Node> result_src = output_desc;
+                        if (output_desc.get_element_type() == ov::element::f32 && connect_in_f16) {
+                            auto new_cvt = new_f16ic_cvt(output_desc, ov::element::f16);
+                            LOG_DEBUG("Added F16IC Result Convert " << new_cvt << " on top of " << output_desc);
+                            result_src = new_cvt;
+                        }
                         auto new_result = std::make_shared<ov::op::v0::Result>(result_src);
                         result_cache[output_layer_ptr] = LinkPtrFrom{this_group_idx, new_result};
 
