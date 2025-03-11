@@ -189,22 +189,24 @@ bool isRuleInverted(std::string& rule) {
     return false;
 }
 
-template <typename T>
-void categoryRuleEnabler(std::string category, pugi::xml_node& enableRules, bool* ruleFlag, const T& enablePolicy) {
-    bool localFlag = false;
+bool categoryRuleEnabler(std::string category, std::vector<std::string> localSettings, pugi::xml_node& enableRules);
+
+bool categoryRuleEnabler(std::string category, std::vector<std::string> localSettings, pugi::xml_node& enableRules) {
     if (!enableRules.child(category.c_str()).empty()) {
         FOREACH_CHILD (enableRule, enableRules, category.c_str()) {
             auto categoryRule = enableRule.text().get();
 
             std::string categoryRuleString(categoryRule);
             bool invert = isRuleInverted(categoryRuleString);
-            // Perform logical XOR to invert condition
-            if (!(enablePolicy(categoryRuleString)) != !invert)
-                localFlag = true;
+            for (auto& localSetting : localSettings) {
+                // Perform logical XOR to invert condition
+                if (!(categoryRuleString == localSetting) != !invert)
+                    return true;
+            }
         }
-        // Accumulate rule for each category
-        *ruleFlag &= localFlag;
+        return false;
     }
+    return true;
 }
 
 std::vector<std::string> disabledTestPatterns();
@@ -227,7 +229,6 @@ std::vector<std::string> disabledTestPatterns() {
         else
             _log.info("Using %s as skip config", filePath.c_str());
 
-        // Load the Skip config
         auto xmlResult = ov::util::pugixml::parse_xml(filePath.c_str());
         if (!xmlResult.error_msg.empty() && !filePath.empty())
             _log.error(xmlResult.error_msg.c_str());
@@ -242,34 +243,16 @@ std::vector<std::string> disabledTestPatterns() {
             // Extract skip message, it will get printed in the test logs
             auto skipMessageEntry = skipConfigRule.child("message").text().get();
 
-            // Read enable/disable conditions:
-            // Three rule categories exist:
-            //    Backends
-            //    Devices
-            //    Operating Systems
+            // Read enable/disable conditions
             // There can be multiple rules for each category
             // If "!" is found, then rule is inverted
             pugi::xml_node enableRules = skipConfigRule.child("enable_rules");
             bool ruleFlag = true;
             if (!enableRules.empty()) {
-                auto backendPolicy = [&backendName](std::string ruleString) {
-                    return ruleString == backendName.getName();
-                };
-                categoryRuleEnabler("backend", enableRules, &ruleFlag, backendPolicy);
-
-                auto devicePolicy = [&devices](std::string ruleString) {
-                    for (auto& device : devices.getAvailableDevices()) {
-                        if (ruleString == device)
-                            return true;
-                    }
-                    return false;
-                };
-                categoryRuleEnabler("device", enableRules, &ruleFlag, devicePolicy);
-
-                auto operatingSystemPolicy = [&currentOS](std::string ruleString) {
-                    return ruleString == currentOS.getName();
-                };
-                categoryRuleEnabler("operating_system", enableRules, &ruleFlag, operatingSystemPolicy);
+                // Accumulate rule for each category
+                ruleFlag &= categoryRuleEnabler("backend", {backendName.getName()}, enableRules);
+                ruleFlag &= categoryRuleEnabler("device", devices.getAvailableDevices(), enableRules);
+                ruleFlag &= categoryRuleEnabler("operating_system", {currentOS.getName()}, enableRules);
             }
 
             // Select individual filters and add them to the skipRegistry
