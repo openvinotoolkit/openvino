@@ -169,19 +169,20 @@ static void quant_u8(const T* src, uint8_t* dst, size_t n, float& scale, float& 
 #endif
     for (; i < n; i++) {
         float tmp = src[i];
-        dst[i] = static_cast<uint8_t>(std::round(tmp / scale + zp));
+        tmp = std::max(tmp / scale + zp, 0.0f);
+        dst[i] = static_cast<uint8_t>(std::round(tmp));
     }
 }
 
 template <typename T>
-static void quant_u8_by_channel_kernel(const T* src,
-                                       uint8_t* dst,
-                                       size_t seq_dim,
-                                       size_t hidden_dims,
-                                       size_t src_stride,
-                                       size_t dst_stride,
-                                       float* scale,
-                                       float* zp) {
+static void find_params_by_channel(const T* src,
+                                   size_t seq_dim,
+                                   size_t hidden_dims,
+                                   size_t src_stride,
+                                   size_t dst_stride,
+                                   float* scale,
+                                   float* zp,
+                                   size_t bits) {
     size_t j = 0;
 #if defined(HAVE_AVX512F)
     for (; j + vec_len_f32_avx512 <= hidden_dims; j += vec_len_f32_avx512) {
@@ -193,7 +194,7 @@ static void quant_u8_by_channel_kernel(const T* src,
             v_min = _mm512_min_ps(v_min, v_cur);
         }
         auto v_scale = _mm512_sub_ps(v_max, v_min);
-        v_scale = _mm512_mul_ps(v_scale, _mm512_set1_ps(1.0f / 255));
+        v_scale = _mm512_mul_ps(v_scale, _mm512_set1_ps(1 / ((1 << bits) - 1)));
         auto v_mask = _mm512_cmp_ps_mask(v_scale, _mm512_setzero_ps(), _CMP_EQ_OQ);
         v_scale = _mm512_mask_add_ps(v_scale, v_mask, v_scale, _mm512_set1_ps(0.0001f));
         auto v_zp = _mm512_mul_ps(v_min, _mm512_set1_ps(-1.0f));
@@ -213,7 +214,7 @@ static void quant_u8_by_channel_kernel(const T* src,
             v_min = _mm256_min_ps(v_min, v_cur);
         }
         auto v_scale = _mm256_sub_ps(v_max, v_min);
-        v_scale = _mm256_mul_ps(v_scale, _mm256_set1_ps(1 / 255.0f));
+        v_scale = _mm256_mul_ps(v_scale, _mm256_set1_ps(1 / ((1 << bits) - 1)));
         auto v_cond = _mm256_cmp_ps(v_scale, _mm256_setzero_ps(), _CMP_EQ_OQ);
         auto v_comp = _mm256_and_ps(v_cond, _mm256_set1_ps(0.0001f));
         v_scale = _mm256_add_ps(v_scale, v_comp);
@@ -231,15 +232,27 @@ static void quant_u8_by_channel_kernel(const T* src,
             max = std::max(max, tmp);
             min = std::min(min, tmp);
         }
-        float temp_scale = (max - min) / 255;
+        float temp_scale = (max - min) / ((1 << bits) - 1);
         if (temp_scale == 0)
             temp_scale = 0.0001f;
         float temp_zp = -min / temp_scale;
         scale[j] = temp_scale;
         zp[j] = temp_zp;
     }
+}
+
+template <typename T>
+static void quant_u8_by_channel_kernel(const T* src,
+                                       uint8_t* dst,
+                                       size_t seq_dim,
+                                       size_t hidden_dims,
+                                       size_t src_stride,
+                                       size_t dst_stride,
+                                       float* scale,
+                                       float* zp) {
+    find_params_by_channel(src, seq_dim, hidden_dims, src_stride, dst_stride, scale, zp, 8);
     // quantize
-    j = 0;
+    size_t j = 0;
 #if defined(HAVE_AVX512F)
     for (; j + vec_len_f32_avx512 <= hidden_dims; j += vec_len_f32_avx512) {
         auto v_scale = mm512_uni_loadu_ps(scale + j);
@@ -261,12 +274,13 @@ static void quant_u8_by_channel_kernel(const T* src,
         auto v_scale = mm256_uni_loadu_ps(scale + j);
         v_scale = _mm256_div_ps(_mm256_set1_ps(1.0f), v_scale);
         auto v_zp = mm256_uni_loadu_ps(zp + j);
+        auto v_zero = _mm256_setzero_si256();
         for (size_t i = 0; i < seq_dim; i++) {
             auto v = mm256_uni_loadu_ps(src + i * src_stride + j);
             v = _mm256_fmadd_ps(v, v_scale, v_zp);
             v = _mm256_round_ps(v, _MM_ROUND_NEAREST);
             auto v_i32 = _mm256_cvtps_epi32(v);
-
+            v_i32 = _mm256_max_epi32(v_i32, v_zero);
             auto high4 = _mm256_extractf128_si256(v_i32, 1);
             auto low4 = _mm256_castsi256_si128(v_i32);
             auto packed = _mm_packs_epi32(low4, high4);
@@ -278,7 +292,35 @@ static void quant_u8_by_channel_kernel(const T* src,
     for (size_t i = 0; i < seq_dim; ++i) {
         for (; j < hidden_dims; j++) {
             float tmp = src[i * src_stride + j];
-            dst[i * dst_stride + j] = static_cast<uint8_t>(std::round(tmp / scale[j] + zp[j]));
+            tmp = std::max(tmp / scale[j] + zp[j], 0.0f);
+            dst[i * dst_stride + j] = static_cast<uint8_t>(std::round(tmp));
+        }
+    }
+}
+
+uint8_t inline insert_half_byte(uint8_t dst, uint8_t val, bool high_half) {
+    uint8_t shift = high_half ? 0 : 4;
+    return dst | static_cast<uint8_t>(val << shift);
+}
+
+template <typename T>
+static void quant_u4_by_channel_kernel(const T* src,
+                                       uint8_t* dst,
+                                       size_t seq_dim,
+                                       size_t hidden_dims,
+                                       size_t src_stride,
+                                       size_t dst_stride,
+                                       float* scale,
+                                       float* zp) {
+    find_params_by_channel(src, seq_dim, hidden_dims, src_stride, dst_stride, scale, zp, 4);
+    for (size_t j = 0; j < hidden_dims; j++) {
+        for (size_t i = 0; i < seq_dim; i++) {
+            float tmp = src[i * src_stride + j];
+            uint8_t src_val = std::min((uint8_t)15, (uint8_t)(std::round(tmp / scale[j] + zp[j])));
+            src_val = std::max((uint8_t)0, (uint8_t)(std::round(tmp / scale[j] + zp[j])));
+            uint8_t dst_val = j % 2 == 0 ? 0 : dst[i * dst_stride + j / 2];
+            dst_val = insert_half_byte(dst_val, src_val, static_cast<uint8_t>(i % 2));
+            dst[i * dst_stride + j / 2] = dst_val;
         }
     }
 }
@@ -289,10 +331,6 @@ static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp)
     float max = -FLT_MAX;
     float min = FLT_MAX;
     find_minmax(src, n, min, max);
-    auto insert_half_byte = [](uint8_t dst, uint8_t val, bool high_half) -> uint8_t {
-        uint8_t shift = high_half ? 0 : 4;
-        return dst | static_cast<uint8_t>(val << shift);
-    };
     auto dst_ptr = reinterpret_cast<uint8_t*>(dst);
     scale = (max - min) / ((1 << 4) - 1);
     if (scale == 0) {
@@ -372,8 +410,8 @@ static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp)
 #endif
     for (; i < n; i++) {
         float tmp = src[i];
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-        uint8_t src_val = MIN(15, (uint8_t)(std::round(tmp / scale + zp)));
+        uint8_t src_val = std::min((uint8_t)15, (uint8_t)(std::round(tmp / scale + zp)));
+        src_val = std::max((uint8_t)0, (uint8_t)(std::round(tmp / scale + zp)));
         uint8_t dst_val = i % 2 == 0 ? 0 : dst_ptr[i / 2];
         dst_val = insert_half_byte(dst_val, src_val, static_cast<uint8_t>(i % 2));
         dst_ptr[i / 2] = dst_val;
@@ -388,6 +426,30 @@ static void quantize(const T* src, uint8_t* dst, size_t n, float* scale_zp) {
 template <typename T, ov::element::Type_t DST_PREC, std::enable_if_t<DST_PREC == ov::element::u4, bool> = true>
 static void quantize(const T* src, void* dst, size_t n, float* scale_zp) {
     quant_u4(src, dst, n, *scale_zp, *(scale_zp + 1));
+}
+
+template <typename T, ov::element::Type_t DST_PREC, std::enable_if_t<DST_PREC == ov::element::u8, bool> = true>
+static void quantize_by_channel(const T* src,
+                                uint8_t* dst,
+                                size_t seq_dim,
+                                size_t hidden_dims,
+                                size_t src_stride,
+                                size_t dst_stride,
+                                float* scale,
+                                float* zp) {
+    quant_u8_by_channel_kernel(src, dst, seq_dim, hidden_dims, src_stride, dst_stride, scale, zp);
+}
+
+template <typename T, ov::element::Type_t DST_PREC, std::enable_if_t<DST_PREC == ov::element::u4, bool> = true>
+static void quantize_by_channel(const T* src,
+                                uint8_t* dst,
+                                size_t seq_dim,
+                                size_t hidden_dims,
+                                size_t src_stride,
+                                size_t dst_stride,
+                                float* scale,
+                                float* zp) {
+    return;
 }
 
 template <typename T, typename T2>
@@ -532,14 +594,14 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                                                                                      h,
                                                                                                      2 * sizeof(float),
                                                                                                      0);
-                    quant_u8_by_channel_kernel(k_src.ptr<T>(b_in_tokens, h, m),
-                                               p_k,
-                                               token_num,
-                                               S,
-                                               k_src.stride(0),
-                                               k_dst.stride(2),
-                                               p_scales,
-                                               p_zps);
+                    quantize_by_channel<T, KEY_DST_PREC>(k_src.ptr<T>(b_in_tokens, h, m),
+                                                         p_k,
+                                                         token_num,
+                                                         S,
+                                                         k_src.stride(0),
+                                                         k_dst.stride(2),
+                                                         p_scales,
+                                                         p_zps);
                 });
             } else {
                 auto prev_nums = past_len % block_size;
@@ -579,23 +641,23 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                  S,
                                  k_src.stride(0),
                                  S);
-                        quant_u8_by_channel_kernel(buffer,
-                                                   p_k,
-                                                   prev_nums + valid_length,
-                                                   S,
-                                                   S,
-                                                   k_dst.stride(2),
-                                                   p_scales,
-                                                   p_zps);
+                        quantize_by_channel<float, KEY_DST_PREC>(buffer,
+                                                                 p_k,
+                                                                 prev_nums + valid_length,
+                                                                 S,
+                                                                 S,
+                                                                 k_dst.stride(2),
+                                                                 p_scales,
+                                                                 p_zps);
                     } else {
-                        quant_u8_by_channel_kernel(k_src.ptr<T>(b_in_tokens, h, m),
-                                                   p_k,
-                                                   valid_length,
-                                                   S,
-                                                   k_src.stride(0),
-                                                   k_dst.stride(2),
-                                                   p_scales,
-                                                   p_zps);
+                        quantize_by_channel<T, KEY_DST_PREC>(k_src.ptr<T>(b_in_tokens, h, m),
+                                                             p_k,
+                                                             valid_length,
+                                                             S,
+                                                             k_src.stride(0),
+                                                             k_dst.stride(2),
+                                                             p_scales,
+                                                             p_zps);
                     }
                 }
             }

@@ -440,13 +440,16 @@ static void attn_acc_value_block(float* out,
     }
 }
 
-template <typename TA, typename TB>
+template <typename TA,
+          ov::element::Type_t SRC_PREC,
+          std::enable_if_t<(SRC_PREC != ov::element::u8 && SRC_PREC != ov::element::u4), bool> = true>
 static void dot_product_block(TA* a,
-                              TB* b,
+                              void* b,
                               float* c,
                               const size_t n,
                               const size_t block_size,
                               const size_t group_size) {
+    auto* b_src = reinterpret_cast<typename element_type_traits<SRC_PREC>::value_type*>(b);
 #    if defined(HAVE_AVX512F)
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {
@@ -457,40 +460,40 @@ static void dot_product_block(TA* a,
         size_t i = 0;
         for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
             auto va = mm512_uni_loadu_ps(a + i);
-            vsum0 = _mm512_fmadd_ps(va, mm512_uni_loadu_ps(b + i), vsum0);
-            vsum1 = _mm512_fmadd_ps(va, mm512_uni_loadu_ps(b + i + n), vsum1);
-            vsum2 = _mm512_fmadd_ps(va, mm512_uni_loadu_ps(b + i + 2 * n), vsum2);
-            vsum3 = _mm512_fmadd_ps(va, mm512_uni_loadu_ps(b + i + 3 * n), vsum3);
+            vsum0 = _mm512_fmadd_ps(va, mm512_uni_loadu_ps(b_src + i), vsum0);
+            vsum1 = _mm512_fmadd_ps(va, mm512_uni_loadu_ps(b_src + i + n), vsum1);
+            vsum2 = _mm512_fmadd_ps(va, mm512_uni_loadu_ps(b_src + i + 2 * n), vsum2);
+            vsum3 = _mm512_fmadd_ps(va, mm512_uni_loadu_ps(b_src + i + 3 * n), vsum3);
         }
         float sum0 = _mm512_reduce_add_ps(vsum0);
         float sum1 = _mm512_reduce_add_ps(vsum1);
         float sum2 = _mm512_reduce_add_ps(vsum2);
         float sum3 = _mm512_reduce_add_ps(vsum3);
         for (; i < n; i++) {
-            sum0 += a[i] * b[i];
-            sum1 += a[i] * b[i + n];
-            sum2 += a[i] * b[i + 2 * n];
-            sum3 += a[i] * b[i + 3 * n];
+            sum0 += a[i] * b_src[i];
+            sum1 += a[i] * b_src[i + n];
+            sum2 += a[i] * b_src[i + 2 * n];
+            sum3 += a[i] * b_src[i + 3 * n];
         }
         c[0] = sum0;
         c[1] = sum1;
         c[2] = sum2;
         c[3] = sum3;
         c += 4;
-        b += 4 * n;
+        b_src += 4 * n;
     }
     for (; j < block_size; j++) {
         auto vsum = _mm512_setzero_ps();
         size_t i = 0;
         for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
             auto va = mm512_uni_loadu_ps(a + i);
-            vsum = _mm512_fmadd_ps(va, mm512_uni_loadu_ps(b + i), vsum);
+            vsum = _mm512_fmadd_ps(va, mm512_uni_loadu_ps(b_src + i), vsum);
         }
         float sum = _mm512_reduce_add_ps(vsum);
         for (; i < n; i++) {
-            sum += a[i] * b[i];
+            sum += a[i] * b_src[i];
         }
-        b += n;
+        b_src += n;
         *c++ = sum;
     }
     return;
@@ -504,10 +507,10 @@ static void dot_product_block(TA* a,
         size_t i = 0;
         for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
             auto va = mm256_uni_loadu_ps(a + i);
-            vsum0 = _mm256_fmadd_ps(va, mm256_uni_loadu_ps(b + i), vsum0);
-            vsum1 = _mm256_fmadd_ps(va, mm256_uni_loadu_ps(b + i + n), vsum1);
-            vsum2 = _mm256_fmadd_ps(va, mm256_uni_loadu_ps(b + i + 2 * n), vsum2);
-            vsum3 = _mm256_fmadd_ps(va, mm256_uni_loadu_ps(b + i + 3 * n), vsum3);
+            vsum0 = _mm256_fmadd_ps(va, mm256_uni_loadu_ps(b_src + i), vsum0);
+            vsum1 = _mm256_fmadd_ps(va, mm256_uni_loadu_ps(b_src + i + n), vsum1);
+            vsum2 = _mm256_fmadd_ps(va, mm256_uni_loadu_ps(b_src + i + 2 * n), vsum2);
+            vsum3 = _mm256_fmadd_ps(va, mm256_uni_loadu_ps(b_src + i + 3 * n), vsum3);
         }
         hsum(vsum0);
         hsum(vsum1);
@@ -518,31 +521,31 @@ static void dot_product_block(TA* a,
         float sum2 = _mm256_cvtss_f32(vsum2);
         float sum3 = _mm256_cvtss_f32(vsum3);
         for (; i < n; i++) {
-            sum0 += a[i] * b[i];
-            sum1 += a[i] * b[i + n];
-            sum2 += a[i] * b[i + 2 * n];
-            sum3 += a[i] * b[i + 3 * n];
+            sum0 += a[i] * b_src[i];
+            sum1 += a[i] * b_src[i + n];
+            sum2 += a[i] * b_src[i + 2 * n];
+            sum3 += a[i] * b_src[i + 3 * n];
         }
         c[0] = sum0;
         c[1] = sum1;
         c[2] = sum2;
         c[3] = sum3;
         c += 4;
-        b += 4 * n;
+        b_src += 4 * n;
     }
     for (; j < block_size; j++) {
         auto vsum = _mm256_set1_ps(0.0f);
         size_t i = 0;
         for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
             auto va = mm256_uni_loadu_ps(a + i);
-            vsum = _mm256_fmadd_ps(va, mm256_uni_loadu_ps(b + i), vsum);
+            vsum = _mm256_fmadd_ps(va, mm256_uni_loadu_ps(b_src + i), vsum);
         }
         hsum(vsum);
         float sum = _mm256_cvtss_f32(vsum);
         for (; i < n; i++) {
-            sum += a[i] * b[i];
+            sum += a[i] * b_src[i];
         }
-        b += n;
+        b_src += n;
         *c++ = sum;
     }
     return;
@@ -550,15 +553,19 @@ static void dot_product_block(TA* a,
     for (size_t j = 0; j < block_size; j++) {
         float sum = 0;
         for (size_t i = 0; i < n; i++) {
-            sum += a[i] * b[i];
+            sum += a[i] * b_src[i];
         }
-        b += n;
+        b_src += n;
         *c++ = sum;
     }
 }
 
-template <typename TA>
-static void dot_product_block_by_channel(TA* a, uint8_t* b, float* c, const size_t n, const size_t block_size) {
+template <typename TA, ov::element::Type_t SRC_PREC>
+static void dot_product_block_quantized_by_channel(TA* a,
+                                                   uint8_t* b,
+                                                   float* c,
+                                                   const size_t n,
+                                                   const size_t block_size) {
     const size_t params_offset = sizeof(float) * 2 * n;
     const size_t src_stride = n;
     auto p_scales = reinterpret_cast<float*>(b);
@@ -768,13 +775,13 @@ static void dot_product_block_by_channel(TA* a, uint8_t* b, float* c, const size
     }
 }
 
-template <typename TA>
-static void dot_product_block(TA* a,
-                              uint8_t* b,
-                              float* c,
-                              const size_t n,
-                              const size_t block_size,
-                              const size_t group_size) {
+template <typename TA, ov::element::Type_t SRC_PREC, std::enable_if_t<(SRC_PREC == ov::element::u8), bool> = true>
+static void dot_product_block_quantized_by_dims(TA* a,
+                                                uint8_t* b,
+                                                float* c,
+                                                const size_t n,
+                                                const size_t block_size,
+                                                const size_t group_size) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
     // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
@@ -998,6 +1005,21 @@ static void dot_product_block(TA* a,
         }
         b += src_stride;
         *c++ = sum;
+    }
+}
+
+template <typename TA, ov::element::Type_t SRC_PREC, std::enable_if_t<(SRC_PREC == ov::element::u8), bool> = true>
+static void dot_product_block_quantized(TA* a,
+                                        uint8_t* b,
+                                        float* c,
+                                        const size_t n,
+                                        const bool is_bychannel,
+                                        const size_t block_size,
+                                        const size_t group_size) {
+    if (is_bychannel) {
+        dot_product_block_quantized_by_channel<TA, SRC_PREC>(a, b, c, n, block_size);
+    } else {
+        dot_product_block_quantized_by_dims<TA, SRC_PREC>(a, b, c, n, block_size, group_size);
     }
 }
 
@@ -1800,14 +1822,18 @@ struct MHAHelper {
                 auto block_number = block_table[i];
                 for (size_t pq = 0; pq < q_len; pq++) {
                     for (size_t h = hq_beg; h < hq_end; h++) {
-                        if (KEY_PREC == ov::element::u8 && _quant_key_bychannel) {
-                            dot_product_block_by_channel(query.ptr<DATA_TYPE>(h, pq),
-                                                         present_key.ptr<uint8_t>(block_number, hk),
-                                                         _weight.ptr<float>(ithr, h, pq) + pk,
-                                                         _S,
-                                                         std::min(_block_size, cur_kv_len - pk));
+                        if constexpr (KEY_PREC == ov::element::u8) {
+                            dot_product_block_quantized<DATA_TYPE, KEY_PREC>(
+                                query.ptr<DATA_TYPE>(h, pq),
+                                present_key.ptr<typename ov::element_type_traits<KEY_PREC>::value_type>(block_number,
+                                                                                                        hk),
+                                _weight.ptr<float>(ithr, h, pq) + pk,
+                                _S,
+                                _quant_key_bychannel,
+                                std::min(_block_size, cur_kv_len - pk),
+                                _key_group_size);
                         } else {
-                            dot_product_block(
+                            dot_product_block<DATA_TYPE, KEY_PREC>(
                                 query.ptr<DATA_TYPE>(h, pq),
                                 present_key.ptr<typename ov::element_type_traits<KEY_PREC>::value_type>(block_number,
                                                                                                         hk),
@@ -1959,14 +1985,18 @@ struct MHAHelper {
 #    endif
                     for (size_t pq = 0; pq < q_len; pq++) {
                         for (size_t h = hq_beg; h < hq_end; h++) {
-                            if (KEY_PREC == ov::element::u8 && _quant_key_bychannel) {
-                                dot_product_block_by_channel(query.ptr<DATA_TYPE>(b, h, pq),
-                                                             key_cache.ptr<uint8_t>(block_number, hk),
-                                                             _weight_bhl.ptr<float>(b, h, pq) + pk,
-                                                             _S,
-                                                             std::min(_block_size, context_len - pk));
+                            if constexpr (KEY_PREC == ov::element::u8) {
+                                dot_product_block_quantized<DATA_TYPE, KEY_PREC>(
+                                    query.ptr<DATA_TYPE>(b, h, pq),
+                                    key_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type>(block_number,
+                                                                                                          hk),
+                                    _weight_bhl.ptr<float>(b, h, pq) + pk,
+                                    _S,
+                                    _quant_key_bychannel,
+                                    std::min(_block_size, context_len - pk),
+                                    _key_group_size);
                             } else {
-                                dot_product_block(
+                                dot_product_block<DATA_TYPE, KEY_PREC>(
                                     query.ptr<DATA_TYPE>(b, h, pq),
                                     key_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type>(block_number,
                                                                                                           hk),
@@ -2512,18 +2542,24 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                            _helper._value_group_size,
                            " should be smaller than hidden_dims");
         size_t S = 0;
-        if (_helper._quant_key_bychannel) {
-            S = k_cache.size(3);
+        // check parameter of quantized key cache
+        if (k_cache.get_precision().is_integral()) {
+            if (_helper._quant_key_bychannel) {
+                S = k_cache.size(3);
+            } else {
+                if (!key_group_num)
+                    OPENVINO_THROW("PagedAttn key cache gets wrong group_size, ",
+                                _helper._key_group_size,
+                                " should be smaller than hidden_dims");
+                S = k_cache.size(3) - key_params_size * key_group_num;
+                _helper._key_group_size = _helper._key_group_size ? _helper._key_group_size : S;
+            }
+            
         } else {
-            // check by_hidden_dims parameter of key cache
-            if (!key_group_num && k_cache.get_precision().is_integral())
-                OPENVINO_THROW("PagedAttn key cache gets wrong group_size, ",
-                               _helper._key_group_size,
-                               " should be smaller than hidden_dims");
-            S = k_cache.size(3) - (k_cache.get_precision().is_real() ? 0 : key_params_size * key_group_num);
-            _helper._key_group_size = _helper._key_group_size ? _helper._key_group_size : S;
+            // check parameter of key cache
+            S = k_cache.size(3);
         }
-        auto block_size = _helper._quant_key_bychannel ? (k_cache.size(2) - key_params_size) : k_cache.size(2);
+        auto block_size = (_helper._quant_key_bychannel && k_cache.get_precision().is_integral()) ? (k_cache.size(2) - key_params_size) : k_cache.size(2);
         auto H = q.size(1) / S;
         auto h_each_group_len = 1;
         if (Hk != H) {

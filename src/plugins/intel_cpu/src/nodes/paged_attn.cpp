@@ -150,12 +150,14 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
 
-bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode) noexcept {
+bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode, const ov::element::Type precision) noexcept {
     // AUTO means select by primitive
     // for non-x86 platform, by-channel quantization is disabled
     // for x86 platform, by-channel quantization is disabled by default until further accuracy data collect
     bool byChannel = false;
-    if (mode == Config::CacheQuantMode::BY_CHANNEL) {
+    if (!precision.is_integral()) {
+        byChannel = false;
+    } else if (mode == Config::CacheQuantMode::BY_CHANNEL) {
         byChannel = true;
     } else if (mode == Config::CacheQuantMode::BY_HIDDEN) {
         byChannel = false;
@@ -179,7 +181,7 @@ void PagedAttention::createPrimitive() {
         auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
         const auto& cpuConfig = context->getConfig();
 
-        bool byChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode);
+        bool byChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision);
         return make_pa_executor(rtPrecision,
                                 kCachePrecision,
                                 vCachePrecision,
