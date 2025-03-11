@@ -581,9 +581,9 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.getString<BATCH_MODE>();
           }}},
-        {ov::intel_npu::skip_version_check.name(), {false, ov::PropertyMutability::RW, [](const Config& config) {
-                                                        return config.getString<SKIP_VERSION_CHECK>();
-                                                    }}}};
+        {ov::intel_npu::disable_version_check.name(), {false, ov::PropertyMutability::RW, [](const Config& config) {
+                                                           return config.getString<DISABLE_VERSION_CHECK>();
+                                                       }}}};
 }
 
 void Plugin::reset_supported_properties() const {
@@ -857,7 +857,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         auto compiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), localConfig);
 
         uint64_t graphSize;
-        const bool skipCompatibility = localConfig.get<SKIP_VERSION_CHECK>();
+        const bool skipCompatibility = localConfig.get<DISABLE_VERSION_CHECK>();
         if (!skipCompatibility) {
             auto storedMeta = read_metadata_from(stream);
             if (!storedMeta->is_compatible()) {
