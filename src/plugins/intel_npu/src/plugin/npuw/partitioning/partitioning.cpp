@@ -535,8 +535,8 @@ void Partitioner::identifySubgraphs() {
                             NPUW_ASSERT(new_param->get_element_type() == ov::element::f16);
                             NPUW_ASSERT(connect_in_f16);
                             new_src = new_f16ic_cvt(new_param, ov::element::f32);
-                            LOG_DEBUG("Added F16IC Param Convert " << new_src << " on top of " << new_param
-                                     << " for " << input_desc);
+                            LOG_DEBUG("Added F16IC Param Convert " << new_src << " on top of " << new_param << " for "
+                                                                   << input_desc);
                         } else {
                             new_src = new_param;
                         }
