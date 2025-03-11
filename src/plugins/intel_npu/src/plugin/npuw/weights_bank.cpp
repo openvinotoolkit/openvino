@@ -36,6 +36,15 @@ private:
     std::mutex m_mutex;
 };
 
+Bank::Bank(const std::shared_ptr<const ov::ICore>& core,
+            const std::string& alloc_device,
+            const std::string& bank_name)
+        : m_core(core),
+        m_alloc_device(alloc_device),
+        m_bank_name(bank_name),
+        // FIXME: Only NPU allocation is supported for now
+        m_ctx(m_core->get_default_context("NPU")._ptr) {}
+
 int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
     const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
 
@@ -136,8 +145,7 @@ void Bank::evaluate_and_allocate() {
             ov::SoPtr<ov::ITensor> remote_tensor;
             ov::Tensor allocated_tensor;
 
-            auto remote_ctx = m_core->get_default_context(device_for_alloc)._ptr;
-            remote_tensor = remote_ctx->create_host_tensor(uids_to_meta[uid].type, uids_to_meta[uid].shape);
+            remote_tensor = m_ctx->create_host_tensor(uids_to_meta[uid].type, uids_to_meta[uid].shape);
             uids_to_allocated.at(uid) = ov::make_tensor(remote_tensor);
         }
         guard.unlock();
@@ -286,8 +294,7 @@ void Bank::read_and_add_tensor(std::istream& stream, int64_t uid, const std::str
     std::size_t byte_size = 0;
     read(stream, byte_size);
 
-    auto remote_ctx = m_core->get_default_context(device)._ptr;
-    remote_tensor = remote_ctx->create_host_tensor(type, shape);
+    remote_tensor = m_ctx->create_host_tensor(type, shape);
     allocated_tensor = ov::make_tensor(remote_tensor);
     device_bank.storage[uid] = {LazyTensor(), allocated_tensor};
     stream.read(reinterpret_cast<char*>(allocated_tensor.data()), byte_size);

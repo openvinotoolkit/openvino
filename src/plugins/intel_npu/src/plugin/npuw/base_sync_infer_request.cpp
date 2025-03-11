@@ -20,6 +20,8 @@ ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::C
     if (m_npuw_model->m_acc_check) {
         m_ref_subrequests.resize(m_num_submodels);
     }
+    // FIXME: Only NPU allocation is supported for now
+    m_ctx = m_npuw_model->get_plugin()->get_core()->get_default_context("NPU")._ptr;
 }
 
 ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_requests(std::size_t id,
@@ -244,8 +246,7 @@ ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocMem(const ov::element::Typ
         return ov::get_tensor_impl(ov::Tensor(type, shape));
     }
 
-    auto remote_ctx = m_npuw_model->get_plugin()->get_core()->get_default_context(device)._ptr;
-    auto remote_tensor = remote_ctx->create_host_tensor(type, shape);
+    auto remote_tensor = m_ctx->create_host_tensor(type, shape);
     return ov::get_tensor_impl(ov::make_tensor(remote_tensor));
 }
 

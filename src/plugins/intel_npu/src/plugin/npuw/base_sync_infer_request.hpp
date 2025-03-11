@@ -140,6 +140,7 @@ protected:
     // Common functionality - shared for subclasses
     const std::size_t m_num_submodels;
 
+    ov::SoPtr<ov::IRemoteContext> m_ctx;
     TensorPtr allocMem(const ov::element::Type type, const ov::Shape& shape, const std::string& device);
     TensorPtr allocOut(const ov::Output<const ov::Node>& node, const std::string& device);
     virtual void alloc_io();
