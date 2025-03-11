@@ -2249,6 +2249,80 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     }
 }
 
+/// POWER DYNAMIC ///
+jit_power_dynamic_emitter::jit_power_dynamic_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                                   dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                                   const std::shared_ptr<ov::Node>& node,
+                                                   const ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, node, exec_prc) {}
+
+jit_power_dynamic_emitter::jit_power_dynamic_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                                   dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                                   const ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
+
+size_t jit_power_dynamic_emitter::get_inputs_count() const {
+    return 2;
+}
+
+size_t jit_power_dynamic_emitter::get_aux_gprs_count() const {
+    return 1;
+}
+
+std::set<std::vector<element::Type>> jit_power_dynamic_emitter::get_supported_precisions(
+    const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32, element::f32}};
+}
+
+void jit_power_dynamic_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                         const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                        const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
+
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+
+    auto src0 = TReg(in_vec_idxs[0]);
+    auto src1 = TReg(in_vec_idxs[1]);
+    auto dst = TReg(out_vec_idxs[0]);
+
+    auto pow_f32_addr = reinterpret_cast<uintptr_t>(::powf);
+
+    Xbyak_aarch64::XReg func_reg(aux_gpr_idxs[0]);
+    h->mov(func_reg, pow_f32_addr);
+
+    Xbyak_aarch64::SReg s0(0);
+    Xbyak_aarch64::SReg s1(1);
+
+    const std::unordered_set<size_t> exclude = {src0.getIdx(), src1.getIdx(), dst.getIdx()};
+    store_context(exclude);
+    for (auto i = 0; i < 4; i++) {
+        h->mov(s0, src0.s[i]);
+        h->mov(s1, src1.s[i]);
+
+        h->str(Xbyak_aarch64::QReg(dst.getIdx()), pre_ptr(h->sp, -16));
+        h->str(Xbyak_aarch64::QReg(src0.getIdx()), pre_ptr(h->sp, -16));
+        h->str(Xbyak_aarch64::QReg(src1.getIdx()), pre_ptr(h->sp, -16));
+        h->blr(func_reg);
+        h->ldr(Xbyak_aarch64::QReg(src1.getIdx()), post_ptr(h->sp, 16));
+        h->ldr(Xbyak_aarch64::QReg(src0.getIdx()), post_ptr(h->sp, 16));
+        h->ldr(Xbyak_aarch64::QReg(dst.getIdx()), post_ptr(h->sp, 16));
+
+        Xbyak_aarch64::WReg w0(0);
+        h->fmov(w0, s0);
+        h->mov(dst.s[i], w0);
+    }
+    restore_context(exclude);
+}
+
 /// PRELU ///
 jit_prelu_emitter::jit_prelu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
