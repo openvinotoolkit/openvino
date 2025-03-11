@@ -147,7 +147,14 @@ void CompiledModel::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
-    return _properties->get_property(name);
+    // special cases
+    if (name == ov::model_name.name()) {
+        OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
+        return _graph->get_metadata().name;
+    } else {
+        // default behaviour
+        return _properties->get_property(name);
+    }
 }
 
 const std::shared_ptr<IGraph>& CompiledModel::get_graph() const {

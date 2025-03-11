@@ -230,6 +230,10 @@ struct LOG_LEVEL final : OptionBase<LOG_LEVEL, ov::log::Level> {
         return ov::log::Level::ERR;
 #endif
     }
+
+    static bool isPublic() {
+        return true;
+    }
 };
 
 //
@@ -327,6 +331,10 @@ struct LOADED_FROM_CACHE final : OptionBase<LOADED_FROM_CACHE, bool> {
 
     static bool defaultValue() {
         return false;
+    }
+
+    static bool isPublic() {
+        return true;
     }
 
     static OptionMode mode() {
@@ -772,7 +780,7 @@ struct TURBO final : OptionBase<TURBO, bool> {
     }
 
     static bool isPublic() {
-        return false;  // visiblity is decided on plugin level by driver support
+        return true;
     }
 
     static OptionMode mode() {

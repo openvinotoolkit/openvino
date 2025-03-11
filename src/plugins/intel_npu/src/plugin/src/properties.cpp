@@ -48,11 +48,7 @@ namespace intel_npu {
             bool isPublic = _config.getOpt(o_name).isPublic();                                          \
             ov::PropertyMutability isMutable = _config.getOpt(o_name).mutability();                     \
             if (_pType == PropertiesType::COMPILED_MODEL) {                                             \
-                if (_config.has<OPT_TYPE>()) {                                                          \
-                    isMutable = ov::PropertyMutability::RO;                                             \
-                } else {                                                                                \
-                    break;                                                                              \
-                }                                                                                       \
+                isMutable = ov::PropertyMutability::RO;                                                 \
             }                                                                                           \
             _properties.emplace(o_name, std::make_tuple(isPublic, isMutable, [](const Config& config) { \
                                     return config.get<OPT_TYPE>();                                      \
@@ -80,11 +76,7 @@ namespace intel_npu {
         if (_config.isAvailable(o_name)) {                                                                     \
             ov::PropertyMutability isMutable = _config.getOpt(o_name).mutability();                            \
             if (_pType == PropertiesType::COMPILED_MODEL) {                                                    \
-                if (_config.has<OPT_TYPE>()) {                                                                 \
-                    isMutable = ov::PropertyMutability::RO;                                                    \
-                } else {                                                                                       \
-                    break;                                                                                     \
-                }                                                                                              \
+                isMutable = ov::PropertyMutability::RO;                                                        \
             }                                                                                                  \
             _properties.emplace(o_name, std::make_tuple(PROP_VISIBILITY, isMutable, [](const Config& config) { \
                                     return config.get<OPT_TYPE>();                                             \
@@ -112,11 +104,7 @@ namespace intel_npu {
             bool isPublic = _config.getOpt(o_name).isPublic();                               \
             ov::PropertyMutability isMutable = _config.getOpt(o_name).mutability();          \
             if (_pType == PropertiesType::COMPILED_MODEL) {                                  \
-                if (_config.has<OPT_TYPE>()) {                                               \
-                    isMutable = ov::PropertyMutability::RO;                                  \
-                } else {                                                                     \
-                    break;                                                                   \
-                }                                                                            \
+                isMutable = ov::PropertyMutability::RO;                                      \
             }                                                                                \
             _properties.emplace(o_name, std::make_tuple(isPublic, isMutable, PROP_RETFUNC)); \
         }                                                                                    \
@@ -313,38 +301,31 @@ void Properties::registerProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::qdq_optimization, QDQ_OPTIMIZATION);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::disable_version_check, DISABLE_VERSION_CHECK);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::batch_compiler_mode_settings, BATCH_COMPILER_MODE_SETTINGS);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
 
-    // ENABLE_CPU_PINNING is required in CompiledModel by benchmarkapp for some reason...
-    // so we force-register it to bypass value checking (_config.has()) for compiled-model
-    TRY_REGISTER_CUSTOM_PROPERTY(ov::hint::enable_cpu_pinning,
-                                 ENABLE_CPU_PINNING,
-                                 true,
-                                 ov::PropertyMutability::RW,
-                                 [](const Config& config) {
-                                     return config.get<ENABLE_CPU_PINNING>();
-                                 });
-
-    TRY_REGISTER_CUSTOMFUNC_PROPERTY(ov::intel_npu::stepping, STEPPING, [&](const Config& config) {
-        if (!config.has<STEPPING>()) {
-            const auto specifiedDeviceName = get_specified_device_name(config);
-            return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
-        } else {
-            return config.get<STEPPING>();
-        }
-    });
-    TRY_REGISTER_CUSTOMFUNC_PROPERTY(ov::intel_npu::max_tiles, MAX_TILES, [&](const Config& config) {
-        if (!config.has<MAX_TILES>()) {
-            const auto specifiedDeviceName = get_specified_device_name(config);
-            return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
-        } else {
-            return config.get<MAX_TILES>();
-        }
-    });
     // 1.2. Special cases
     // ==================
     if (_pType == PropertiesType::PLUGIN && _metrics != nullptr) {
         // These properties require different handling in plugin vs compiled_model
         TRY_REGISTER_SIMPLE_PROPERTY(ov::workload_type, WORKLOAD_TYPE);
+        // plugin-only
+        TRY_REGISTER_CUSTOMFUNC_PROPERTY(ov::intel_npu::stepping, STEPPING, [&](const Config& config) {
+            if (!config.has<STEPPING>()) {
+                const auto specifiedDeviceName = get_specified_device_name(config);
+                return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
+            } else {
+                return config.get<STEPPING>();
+            }
+        });
+        // plugin-only
+        TRY_REGISTER_CUSTOMFUNC_PROPERTY(ov::intel_npu::max_tiles, MAX_TILES, [&](const Config& config) {
+            if (!config.has<MAX_TILES>()) {
+                const auto specifiedDeviceName = get_specified_device_name(config);
+                return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
+            } else {
+                return config.get<MAX_TILES>();
+            }
+        });
     } else if (_pType == PropertiesType::COMPILED_MODEL) {
         // These properties require different handling in plugin vs compiled_model
         TRY_REGISTER_CUSTOM_PROPERTY(ov::workload_type,
@@ -354,6 +335,8 @@ void Properties::registerProperties() {
                                      [](const Config& config) {
                                          return config.get<WORKLOAD_TYPE>();
                                      });
+        // compiled-model only
+        TRY_REGISTER_SIMPLE_PROPERTY(ov::loaded_from_cache, LOADED_FROM_CACHE);
     }
 
     // 2. Metrics (static device and enviroment properties)
@@ -436,6 +419,12 @@ void Properties::registerProperties() {
             static const std::vector<ov::PropertyName> supportedProperty{
                 ov::PropertyName(ov::internal::caching_properties.name(), ov::PropertyMutability::RO)};
             return supportedProperty;
+        });
+        REGISTER_CUSTOM_METRIC(ov::execution_devices, true, [](const Config&) {
+            // TODO: log an error here as the code shouldn't have gotten here
+            // this property is implemented in compiled model directly
+            // this implementation here servers only to publish it in supported_properties
+            return std::string("NPU");
         });
     }
     // 2.3. Common metrics (exposed same way by both Plugin and CompiledModel)

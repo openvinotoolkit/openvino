@@ -170,6 +170,7 @@ Plugin::Plugin()
     _options->add<LOG_LEVEL>();
     _globalConfig.parseEnvVars();
     Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
+    _logger.setLevel(_globalConfig.get<LOG_LEVEL>());
 
     OV_ITT_TASK_CHAIN(PLUGIN, itt::domains::NPUPlugin, "Plugin::Plugin", "GetBackend");
     // backend registry shall be created after configs are updated
