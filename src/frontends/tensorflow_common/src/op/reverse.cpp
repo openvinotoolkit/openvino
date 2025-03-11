@@ -91,7 +91,8 @@ OutputVector translate_reverse_base_op(const NodeContext& node,
     set_node_name(node.get_name(), reverse_sequence.get_node_shared_ptr());
 
     if (complex_type_mark) {
-        auto complex_reverse_sequence = make_shared<ComplexTypeMark>(reverse_sequence, complex_type_mark->get_complex_part_type());
+        auto complex_part_type = complex_type_mark->get_complex_part_type();
+        auto complex_reverse_sequence = make_shared<ComplexTypeMark>(reverse_sequence, complex_part_type);
         return {complex_reverse_sequence->output(0)};
     }
 
