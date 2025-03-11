@@ -156,6 +156,7 @@ OP_CONVERTER(translate_min);
 OP_CONVERTER(translate_minimum);
 OP_CONVERTER(translate_movedim);
 OP_CONVERTER(translate_multinomial);
+OP_CONVERTER(translate_nan_to_num);
 OP_CONVERTER(translate_narrow);
 OP_CONVERTER(translate_native_multi_head_attention);
 OP_CONVERTER(translate_neg);
@@ -299,7 +300,6 @@ OP_CONVERTER(translate_max_pool2d_fx);
 OP_CONVERTER(translate_max_pool3d_fx);
 OP_CONVERTER(translate_mean_fx);
 OP_CONVERTER(translate_min_dim_fx);
-OP_CONVERTER(translate_nan_to_num_fx);
 OP_CONVERTER(translate_new_full_fx);
 OP_CONVERTER(translate_new_ones_fx);
 OP_CONVERTER(translate_new_zeros_fx);
@@ -583,8 +583,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::multiply", op::translate_mul},
         {"aten::multiply_", op::translate_mul_},
         {"aten::multinomial", op::translate_multinomial},
-        {"aten::nan_to_num", op::translate_nan_to_num_fx},
-        {"aten::nan_to_num_", op::inplace_op<op::translate_nan_to_num_fx>},
+        {"aten::nan_to_num", op::translate_nan_to_num},
+        {"aten::nan_to_num_", op::inplace_op<op::translate_nan_to_num>},
         {"aten::narrow", op::translate_narrow},
         {"aten::ne", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
         {"aten::neg", op::translate_neg},
