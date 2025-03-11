@@ -2713,7 +2713,7 @@ bool primitive_inst::is_valid_fusion() const {
                                                          cldnn::format::dimension(data_layout.format),
                                                          false);
 
-            if (gemm_dims[0] != data_dims[0])
+            if (gemm_dims[0] != data_dims[0] && gemm_dims[1] != 1)
                 return false;
         } else if (_node->is_type<fully_connected>() && _node->get_preferred_impl_type() == impl_types::onednn) {
             const auto& fc_layout = _impl_params->get_output_layout();
