@@ -1343,8 +1343,8 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
             binDir = binDir.parent_path();
         fs::space_info binSpace = fs::space(binDir);
         if (binSpace.available < MIN_DISK_SPACE_REQUIRED) {
-            OPENVINO_ASSERT(false, "Insufficient disk space for bin file: \"" + binPath_ref +
-                                         "\". Available: " + std::to_string(binSpace.available) + " bytes.");
+            OPENVINO_ASSERT(binSpace.available > MIN_DISK_SPACE_REQUIRED, "Insufficient disk space for bin file: \"", binPath_ref,
+                                         "\". Available: ", binSpace.available, " bytes.");
         }
 
         // Check available space for xml file directory
