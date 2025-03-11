@@ -32,7 +32,7 @@ jobs:
     name: Rerun Workflow
     # Run only for the failed workflows in openvinotoolkit org
     if: ${{ github.event.workflow_run.conclusion == 'failure' && github.repository_owner == 'openvinotoolkit' }}
-    runs-on: aks-linux-smallworker
+    runs-on: aks-linux-small
     permissions:
       actions: write
       contents: read
