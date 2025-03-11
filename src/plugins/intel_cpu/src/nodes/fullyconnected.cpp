@@ -638,9 +638,7 @@ void FullyConnected::needUpdateTensorParalelConfig() {
     // 2. last dim can be splited.
     if (tp_cfg.enable_tensor_parallel) {
         const auto& shape = getSrcMemoryAtPort(WEIGHTS)->getShape();
-        if (shape.isDynamic()) {
-            tp_cfg.enable_tensor_parallel = false;
-        } else if (shape.getDims()[0] < static_cast<size_t>(tp_cfg.w_size)) {
+        if (shape.isDynamic() || shape.getDims()[0] < static_cast<size_t>(tp_cfg.w_size)) {
             tp_cfg.enable_tensor_parallel = false;
         }
     }
