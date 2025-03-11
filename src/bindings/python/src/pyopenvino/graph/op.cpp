@@ -56,7 +56,7 @@ bool PyOp::has_evaluate() const {
     py::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
     // Try to look up the overridden method on the Python side.
     py::function overrided_py_method = pybind11::get_override(this, "has_evaluate");
-    if (overrided_py_method) {                                       // method is found
+    if (overrided_py_method) {                                 // method is found
         return static_cast<py::bool_>(overrided_py_method());  // Call the Python function.
     }
     py::function overrided_evaluate_method = pybind11::get_override(this, "evaluate");
