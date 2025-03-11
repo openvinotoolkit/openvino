@@ -1501,17 +1501,26 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                     }
                 }
                 if (model_buffer) {
-                    update_config[ov::internal::cached_model_buffer.name()] = model_buffer;
+                    auto compiled_blob =
+                        Tensor(element::from<char>(), Shape{model_buffer->size()}, model_buffer->get_ptr());
+                    auto impl = get_tensor_impl(compiled_blob);
+                    impl._so = model_buffer;
+                    compiled_blob = make_tensor(impl);
+                    update_config[ov::hint::compiled_blob.name()] = compiled_blob;
                 }
 
-                // weight path is set from model path or weightless hint or from cache runtime info
                 if (update_config.count(ov::weights_path.name()) != 0) {
-                    update_config[ov::blob_stream.name()] = std::ref(networkStream);
+                    if (!model_buffer) {
+                        auto size = networkStream.rdbuf()->in_avail();
+                        ov::Tensor model_blob{element::from<char>(), ov::Shape{static_cast<size_t>(size)}};
+                        networkStream.read(model_blob.data<char>(), model_blob.get_byte_size());
+                        update_config[ov::hint::compiled_blob.name()] = model_blob;
+                    }
+
                     const std::shared_ptr<const Model> null_model;
                     // use null model as all model data are in configuration
                     compiled_model = context ? plugin.compile_model(null_model, context, update_config)
                                              : plugin.compile_model(null_model, update_config);
-
                 } else {
                     // regular blob stream, can be imported or fail if there is no weights
                     compiled_model = context ? plugin.import_model(networkStream, context, update_config)

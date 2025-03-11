@@ -87,6 +87,9 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
             encryption_callbacks = value.as<EncryptionCallbacks>();
         } else if (ov::weights_path == key) {
             weights_path = value.as<std::string>();
+            if (!weights_path.empty()) {
+                compiled_model_runtime_properties[ov::weights_path.name()] = weights_path.string();
+            }
         } else if (throwOnUnsupported) {
             OPENVINO_THROW("Property was not found: ", key);
         }

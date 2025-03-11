@@ -24,6 +24,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 
@@ -607,6 +608,13 @@ static constexpr Property<element::Type, PropertyMutability::RW> kv_cache_precis
  */
 static constexpr Property<float, PropertyMutability::RW> activations_scale_factor{"ACTIVATIONS_SCALE_FACTOR"};
 
+/** @brief  Hint for device to use model compiled blob.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * The property is used pass compiled blob as ov::Tensor.
+ * The blob can be regular or weightless model. The `weights_path` property is hint where to look for weights.
+ */
+inline constexpr Property<Tensor, PropertyMutability::RW> compiled_blob{"COMPILED_BLOB"};
 }  // namespace hint
 
 /**
@@ -1322,18 +1330,6 @@ static constexpr Property<std::vector<std::string>, PropertyMutability::RO> exec
  * @note This property is used for weightless caching. Only used when ov::CacheMode Property is set to "OPTIMIZE_SIZE".
  */
 static constexpr Property<std::string, PropertyMutability::RW> weights_path{"WEIGHTS_PATH"};
-
-/** @brief The blob stream type to pass as property. */
-using BlobStream = std::reference_wrapper<std::istream>;
-
-/** @brief  The stream to model blob.
- * @ingroup ov_runtime_cpp_prop_api
- *
- * The property is used pass model stream to the plugin for model compilation.
- * The stream can be regular or weightless model. The `weights_path` property will work as hint where to look for
- * weights. If compiled model fail from blob stream then original model will be used for compilation.
- */
-inline constexpr Property<BlobStream, PropertyMutability::RW> blob_stream{"BLOB_STREAM"};
 
 /**
  * @brief The precision of key cache compression

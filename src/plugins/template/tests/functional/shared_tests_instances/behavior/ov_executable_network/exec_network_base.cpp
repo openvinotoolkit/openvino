@@ -8,6 +8,12 @@
 
 namespace ov::test::behavior {
 
+Tensor from_stream(std::istream& stream, const size_t size) {
+    ov::Tensor t(element::from<char>(), Shape{size});
+    stream.read(t.data<char>(), size);
+    return t;
+}
+
 using testing::_;
 
 namespace utils = ::ov::test::utils;
@@ -85,10 +91,14 @@ TEST_P(OVCompiledModelBaseTest, import_from_weightless_blob) {
 }
 
 TEST_P(OVCompiledModelBaseTest, compile_from_regular_blob) {
-    std::stringstream export_stream;
     auto compiled_model_ref = core->compile_model(make_model_with_weights(), target_device, configuration);
     ASSERT_FALSE(!compiled_model_ref);
-    compiled_model_ref.export_model(export_stream);
+    Tensor exported_model;
+    {
+        std::stringstream export_stream;
+        compiled_model_ref.export_model(export_stream);
+        exported_model = from_stream(export_stream, export_stream.str().size());
+    }
 
     ov::Tensor expected, output;
     auto input = utils::create_tensor(element::f32, Shape{1}, std::vector<float>{2.0f});
@@ -101,7 +111,7 @@ TEST_P(OVCompiledModelBaseTest, compile_from_regular_blob) {
     }
     // Infer compiled from stream
     {
-        configuration.emplace(ov::blob_stream(export_stream));
+        configuration.emplace(ov::hint::compiled_blob(exported_model));
         auto empty_model = std::make_shared<Model>(OutputVector{}, ParameterVector{}, "Empty model");
         auto model_from_stream = core->compile_model(empty_model, target_device, configuration);
         auto infer_request_import = model_from_stream.create_infer_request();
@@ -115,17 +125,19 @@ TEST_P(OVCompiledModelBaseTest, compile_from_regular_blob) {
 
 TEST_P(OVCompiledModelBaseTest, compile_from_weightless_blob) {
     auto weights = utils::create_tensor(element::f32, Shape{5}, std::vector<float>{1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
-    std::stringstream export_stream;
     auto w_file_path =
         ov::util::path_join({utils::getCurrentWorkingDir(), utils::generateTestFilePrefix() + "_weights.bin"});
 
+    Tensor exported_model;
     // add weights the TEMPLATE will export model as weightless blob.
     configuration.emplace(ov::weights_path(w_file_path.string()));
     {
+        std::stringstream export_stream;
         auto model = make_model_with_weights(weights);
         auto compiled_model_ref = core->compile_model(model, target_device, configuration);
         ASSERT_FALSE(!compiled_model_ref);
         compiled_model_ref.export_model(export_stream);
+        exported_model = from_stream(export_stream, export_stream.str().size());
     }
 
     auto expected = utils::create_tensor(element::f32, Shape{5}, std::vector<float>{3.0f, 5.0f, 3.0f, 3.0f, 3.0f});
@@ -140,7 +152,7 @@ TEST_P(OVCompiledModelBaseTest, compile_from_weightless_blob) {
     auto input = utils::create_tensor(element::f32, Shape{1}, std::vector<float>{2.0f});
     // Infer compiled from weightless stream
     {
-        configuration.emplace(ov::blob_stream(export_stream));
+        configuration.emplace(ov::hint::compiled_blob(exported_model));
         auto empty_model = std::make_shared<Model>(OutputVector{}, ParameterVector{}, "Empty model");
         auto import_model = core->compile_model(empty_model, target_device, configuration);
         auto infer_request_import = import_model.create_infer_request();
@@ -154,23 +166,27 @@ TEST_P(OVCompiledModelBaseTest, compile_from_weightless_blob) {
 }
 
 TEST_P(OVCompiledModelBaseTest, compile_from_weightless_blob_but_no_weights) {
-    std::stringstream export_stream;
+    Tensor exported_model;
     auto w_file_path =
         ov::util::path_join({utils::getCurrentWorkingDir(), utils::generateTestFilePrefix() + "_weights.bin"});
 
     // add weights the TEMPLATE will export model as weightless blob.
     configuration.emplace(ov::weights_path(w_file_path.string()));
     auto model = make_model_with_weights();
-    auto compiled_model_ref = core->compile_model(model, target_device, configuration);
-    ASSERT_FALSE(!compiled_model_ref);
-    compiled_model_ref.export_model(export_stream);
+    {
+        auto compiled_model_ref = core->compile_model(model, target_device, configuration);
+        std::stringstream export_stream;
+        ASSERT_FALSE(!compiled_model_ref);
+        compiled_model_ref.export_model(export_stream);
+        exported_model = from_stream(export_stream, export_stream.str().size());
+    }
 
     auto expected = utils::create_tensor(element::f32, Shape{5}, std::vector<float>{3.0f, 3.0f, 3.0f, 3.0f, 3.0f});
     ov::Tensor output;
     auto input = utils::create_tensor(element::f32, Shape{1}, std::vector<float>{2.0f});
     // Infer compiled from weightless stream and no weights use original model
     {
-        configuration.emplace(ov::blob_stream(export_stream));
+        configuration.emplace(ov::hint::compiled_blob(exported_model));
         auto import_model = core->compile_model(model, target_device, configuration);
         auto infer_request_import = import_model.create_infer_request();
         infer_request_import.set_tensor("input", input);
@@ -186,7 +202,7 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_use_hint) {
     auto cache_dir = ov::util::path_join({utils::getCurrentWorkingDir(), "cache"});
     auto w_file_path = ov::util::path_join({cache_dir, utils::generateTestFilePrefix() + "_weights.bin"});
     {
-        // store weights in file, not same as in orignal model model
+        // store weights in file, not same as in original model model
         std::filesystem::create_directories(cache_dir);
         auto w = utils::create_tensor(element::f32, Shape{5}, std::vector<float>{1.0f, 3.0f, 1.0f, 1.0f, 1.0f});
         auto w_file = std::ofstream(w_file_path, std::ios::binary);

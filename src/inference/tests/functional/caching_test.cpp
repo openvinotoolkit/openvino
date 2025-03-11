@@ -33,6 +33,7 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_iasync_infer_request.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icompiled_model.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_iplugin.hpp"
@@ -2429,10 +2430,11 @@ TEST_P(CachingTest, Load_mmap) {
         if (m_checkConfigCb) {
             m_checkConfigCb(config);
         }
-        std::shared_ptr<ov::AlignedBuffer> model_buffer;
-        if (config.count(ov::internal::cached_model_buffer.name()))
-            model_buffer = config.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
-        EXPECT_TRUE(model_buffer);
+        ov::Tensor compiled_blob;
+        if (config.count(ov::hint::compiled_blob.name()))
+            compiled_blob = config.at(ov::hint::compiled_blob.name()).as<ov::Tensor>();
+
+        EXPECT_TRUE(static_cast<bool>(compiled_blob));
 
         std::string name;
         istr >> name;
@@ -2476,10 +2478,10 @@ TEST_P(CachingTest, Load_mmap_is_disabled) {
         if (m_checkConfigCb) {
             m_checkConfigCb(config);
         }
-        std::shared_ptr<ov::AlignedBuffer> model_buffer;
-        if (config.count(ov::internal::cached_model_buffer.name()))
-            model_buffer = config.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
-        EXPECT_FALSE(model_buffer);
+        ov::Tensor compiled_blob;
+        if (config.count(ov::hint::compiled_blob.name()))
+            compiled_blob = config.at(ov::hint::compiled_blob.name()).as<ov::Tensor>();
+        EXPECT_FALSE(compiled_blob);
 
         std::string name;
         istr >> name;
@@ -2523,10 +2525,10 @@ TEST_P(CachingTest, Load_mmap_is_not_supported_by_plugin) {
         if (m_checkConfigCb) {
             m_checkConfigCb(config);
         }
-        std::shared_ptr<ov::AlignedBuffer> model_buffer;
-        if (config.count(ov::internal::cached_model_buffer.name()))
-            model_buffer = config.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
-        EXPECT_FALSE(model_buffer);
+        ov::Tensor compiled_blob;
+        if (config.count(ov::hint::compiled_blob.name()))
+            compiled_blob = config.at(ov::hint::compiled_blob.name()).as<ov::Tensor>();
+        EXPECT_FALSE(compiled_blob);
 
         std::string name;
         istr >> name;
@@ -2565,10 +2567,10 @@ TEST_P(CachingTest, Load_mmap_is_disabled_local_cfg) {
         if (m_checkConfigCb) {
             m_checkConfigCb(config);
         }
-        std::shared_ptr<ov::AlignedBuffer> model_buffer;
-        if (config.count(ov::internal::cached_model_buffer.name()))
-            model_buffer = config.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
-        EXPECT_FALSE(model_buffer);
+        ov::Tensor compiled_blob;
+        if (config.count(ov::hint::compiled_blob.name()))
+            compiled_blob = config.at(ov::hint::compiled_blob.name()).as<ov::Tensor>();
+        EXPECT_FALSE(compiled_blob);
 
         std::string name;
         istr >> name;
@@ -2611,10 +2613,10 @@ TEST_P(CachingTest, Load_mmap_is_not_supported_by_plugin_local_cfg) {
         if (m_checkConfigCb) {
             m_checkConfigCb(config);
         }
-        std::shared_ptr<ov::AlignedBuffer> model_buffer;
-        if (config.count(ov::internal::cached_model_buffer.name()))
-            model_buffer = config.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
-        EXPECT_FALSE(model_buffer);
+        ov::Tensor compiled_blob;
+        if (config.count(ov::hint::compiled_blob.name()))
+            compiled_blob = config.at(ov::hint::compiled_blob.name()).as<ov::Tensor>();
+        EXPECT_FALSE(compiled_blob);
 
         std::string name;
         istr >> name;

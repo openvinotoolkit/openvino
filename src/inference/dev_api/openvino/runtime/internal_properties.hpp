@@ -38,12 +38,6 @@ static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> cac
 static constexpr Property<bool, PropertyMutability::RO> caching_with_mmap{"CACHING_WITH_MMAP"};
 
 /**
- * @brief Property to get a ov::AlignedBuffer with cached model
- * @ingroup ov_dev_api_plugin_api
- */
-static constexpr Property<std::shared_ptr<ov::AlignedBuffer>, PropertyMutability::RW> cached_model_buffer{"CACHED_MODEL_BUFFER"};
-
-/**
  * @brief Allow to create exclusive_async_requests with one executor
  * @ingroup ov_dev_api_plugin_api
  */

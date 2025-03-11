@@ -12,6 +12,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "remote_context.hpp"
@@ -37,6 +38,7 @@ uint64_t get_blob_data_size(std::istream& model) {
 
 std::string get_model_str(std::istream& model) {
     const auto model_size = get_blob_data_size(model);
+    std::cout << "read size: " << model_size << std::endl;
     std::string xml;
     xml.resize(model_size);
     model.read(xml.data(), model_size);
@@ -136,7 +138,7 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
         auto _properties = properties;
         // remove not supported properties which are consumed by compile_model
         _properties.erase(ov::loaded_from_cache.name());
-        _properties.erase(ov::blob_stream.name());
+        _properties.erase(ov::hint::compiled_blob.name());
         fullConfig = Configuration{_properties, m_cfg};
     }
 
@@ -159,8 +161,10 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
             }
         }
 
-        if (auto blob_it = properties.find(ov::blob_stream.name()); blob_it != properties.end()) {
-            if (auto&& blob_stream = blob_it->second.as<ov::BlobStream>().get(); blob_stream.good()) {
+        if (auto blob_it = properties.find(ov::hint::compiled_blob.name()); blob_it != properties.end()) {
+            if (auto&& blob = blob_it->second.as<ov::Tensor>(); blob) {
+                ov::SharedStreamBuffer shared_buffer(reinterpret_cast<char*>(blob.data()), blob.get_byte_size());
+                std::istream blob_stream(&shared_buffer);
                 const auto model = get_model_str(blob_stream);
                 if (!weights) {
                     weights = get_model_weights(blob_stream);
