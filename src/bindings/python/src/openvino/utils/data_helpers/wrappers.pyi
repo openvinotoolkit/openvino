@@ -2,8 +2,8 @@ from __future__ import annotations
 import collections.abc
 from collections.abc import Mapping
 from functools import singledispatchmethod
-import numpy as np
 import numpy
+import numpy as np
 import openvino._pyopenvino
 from openvino._pyopenvino import ConstOutput
 from openvino._pyopenvino import InferRequest as InferRequestBase

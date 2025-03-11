@@ -1,6 +1,6 @@
 from __future__ import annotations
-import numpy as np
 import numpy
+import numpy as np
 import openvino._pyopenvino
 from openvino._pyopenvino import Shape
 from openvino._pyopenvino import Type

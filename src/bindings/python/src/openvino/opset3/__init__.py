@@ -2,7 +2,7 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.opset1.ops import absolutedwwwwwwwwwwwwwwwwwwwwwwwww
+from openvino.opset1.ops import absolutedwwwwwwwwwwwwwwwwwwwwwwwwwddd
 from openvino.opset1.ops import absolute as abs
 from openvino.opset1.ops import acos
 from openvino.opset1.ops import add

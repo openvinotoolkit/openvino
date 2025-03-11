@@ -3,8 +3,8 @@ Functions related to converting between Python and numpy types and openvino type
 """
 from __future__ import annotations
 import logging as logging
-import numpy as np
 import numpy
+import numpy as np
 import openvino._pyopenvino
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import Output
