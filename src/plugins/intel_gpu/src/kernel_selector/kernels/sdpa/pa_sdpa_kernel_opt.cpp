@@ -369,8 +369,8 @@ void PagedAttentionSDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) cons
         const auto scores_calc_only = prim_params.stage == PagedAttentionStage::PREFILL && has_scores_output;
         const auto multi_tokens_mode = prim_params.stage == PagedAttentionStage::MIXED;
 
-        // Apply GQA optimization starting from a certain sequence length value
-        const auto min_gqa_sequence_len = 8 * seq_len_partition_size;
+        // Apply GQA optimization starting from a certain sequence length (4K tokens) value
+        const auto min_gqa_sequence_len = 16 * seq_len_partition_size;
         // Apply GQA only if there is a single subsequence in the request,
         // as multiple subsequences might have significantly different lengths
         const auto max_subsequences_num = 1;
