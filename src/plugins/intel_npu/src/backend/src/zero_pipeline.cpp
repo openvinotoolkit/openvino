@@ -24,36 +24,47 @@ Pipeline::Pipeline(const Config& config,
                    zeroProfiling::ProfilingQuery& profiling_query,
                    const std::shared_ptr<zeroProfiling::NpuInferProfiling>& npu_profiling,
                    const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors,
-                   const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors,
-                   uint32_t group_ordinal)
+                   const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors)
     : _graph(graph),
       _config(config),
       _id(_graph->get_unique_id()),
       _number_of_command_lists(_graph->get_batch_size().has_value() ? *_graph->get_batch_size() : 1),
-      _event_pool{
-          std::make_shared<EventPool>(init_structs->getDevice(),
-                                      init_structs->getContext(),
-                                      _number_of_command_lists ? static_cast<uint32_t>(_number_of_command_lists) : 1)},
       _npu_profiling(npu_profiling),
       _logger("Pipeline", _config.get<LOG_LEVEL>()) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::Pipeline::Pipeline");
     _logger.debug("Pipeline - initialize started");
 
+    OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>(),
+                    "In-order execution doesn't work in case synchronization of the inferences is done using events");
+
     if (profiling_pool.create()) {
         profiling_query.create(profiling_pool._handle);
     }
 
+    if (!_sync_output_with_fences || _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        _event_pool =
+            std::make_shared<EventPool>(init_structs->getDevice(),
+                                        init_structs->getContext(),
+                                        _number_of_command_lists ? static_cast<uint32_t>(_number_of_command_lists) : 1);
+
+        _events.reserve(_number_of_command_lists);
+        for (size_t i = 0; i < _number_of_command_lists; i++) {
+            _events.emplace_back(std::make_shared<Event>(_event_pool, static_cast<uint32_t>(i)));
+        }
+    }
+
     _command_lists.reserve(_number_of_command_lists);
-    _events.reserve(_number_of_command_lists);
-    _fences.reserve(_number_of_command_lists);
-    _logger.debug("Pipeline - emplace_back _event_pool and _command_queue");
     for (size_t i = 0; i < _number_of_command_lists; i++) {
         _command_lists.emplace_back(
-            std::make_unique<CommandList>(init_structs,
-                                          group_ordinal,
-                                          init_structs->getMutableCommandListVersion() ? true : false));
-        _events.emplace_back(std::make_shared<Event>(_event_pool, static_cast<uint32_t>(i)));
-        _fences.emplace_back(std::make_unique<Fence>(*_graph->get_command_queue()));
+            std::make_unique<CommandList>(init_structs, _graph->get_command_queue_group_ordinal()));
+    }
+
+    if (_sync_output_with_fences) {
+        _fences.reserve(_number_of_command_lists);
+
+        for (size_t i = 0; i < _number_of_command_lists; i++) {
+            _fences.emplace_back(std::make_unique<Fence>(_graph->get_command_queue()));
+        }
     }
 
     for (size_t i = 0; i < _number_of_command_lists; i++) {
@@ -138,7 +149,7 @@ Pipeline::Pipeline(const Config& config,
         }
 
         // appendBarrier used in L0 as well
-        if (!sync_output_with_fences_) {
+        if (!_sync_output_with_fences) {
             _command_lists.at(i)->appendBarrier();
             _events.at(i)->AppendSignalEvent(*_command_lists.at(i));
         }
@@ -164,7 +175,7 @@ void Pipeline::push() {
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
-        if (sync_output_with_fences_) {
+        if (_sync_output_with_fences) {
             _graph->get_command_queue()->executeCommandList(*_command_lists.at(i), *_fences.at(i));
         } else {
             _graph->get_command_queue()->executeCommandList(*_command_lists.at(i));
@@ -179,7 +190,7 @@ void Pipeline::pull() {
     OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PULL, itt::domains::LevelZeroBackend, "Pipeline", "pull");
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
-        if (sync_output_with_fences_) {
+        if (_sync_output_with_fences) {
             _fences.at(i)->hostSynchronize();
         } else {
             _events.at(i)->hostSynchronize();
@@ -197,7 +208,7 @@ void Pipeline::reset() const {
     _logger.debug("Pipeline - rest() started");
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
-        if (sync_output_with_fences_) {
+        if (_sync_output_with_fences) {
             _fences.at(i)->reset();
         } else {
             _events.at(i)->reset();

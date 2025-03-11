@@ -561,6 +561,7 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
         id_to_node[layer_id] = node;
 
         if (const auto& parameter_node = ov::as_type_ptr<ov::op::v0::Parameter>(node)) {
+            OPENVINO_ASSERT(!p.xml.child("data").empty(), "Layer data must be defined for: ", parameter_node);
             io_map.inputs.insert({layer_id, func_nodes.parameters.size()});
             func_nodes.parameters.emplace_back(parameter_node);
         }
@@ -783,7 +784,7 @@ ov::GenericLayerParams ov::XmlDeserializer::parse_generic_params(const pugi::xml
             port.dims.emplace_back(dim);
         }
 
-        ov::element::Type type(ov::element::Type_t::undefined);
+        ov::element::Type type(ov::element::Type_t::dynamic);
         // Input port hasn't precision
         if (!input) {
             const std::string& preStr = pugixml::get_str_attr(parentNode, "precision");
@@ -846,17 +847,6 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
                            " with id: ",
                            params.layerId,
                            " has incorrect input with index ",
-                           i,
-                           "!");
-
-        if (is_type<op::v0::Parameter>(inputs[i].get_node_shared_ptr()) &&
-            ov::element::Type_t::undefined == inputs[i].get_element_type())
-            OPENVINO_THROW(params.type,
-                           " layer ",
-                           params.name,
-                           " with id: ",
-                           params.layerId,
-                           " has undefined element type for input with index ",
                            i,
                            "!");
     }
@@ -1044,11 +1034,7 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
         // assume all names from parent node are Result's (model's) tensor names.
         if (auto result = ov::as_type<ov::op::v0::Result>(ovNode.get())) {
             if (const auto names = node.attribute("output_names"); names.empty()) {
-                if (!ov::op::util::is_parameter(result->get_input_source_output(0).get_node())) {
-                    // Copy names if parent node is not parameter, model's input names should not be dedicated
-                    // output names as they could be removed from Parameter's tensor during model transformations.
-                    result->get_output_tensor(0).add_names(result->get_input_tensor(0).get_names());
-                }
+                descriptor::add_not_parameter_names(result->get_output_tensor(0), result->get_input_tensor(0));
             } else {
                 result->get_output_tensor(0).set_names(deserialize_tensor_names(names.value()));
             }

@@ -9,6 +9,7 @@
 #include <string>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu_map_scheduling.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
@@ -117,7 +118,11 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::hint::enable_cpu_reservation.name()) {
             try {
+#if defined(__APPLE__)
+                enableCpuReservation = false;
+#else
                 enableCpuReservation = val.as<bool>();
+#endif
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
@@ -210,7 +215,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::internal::exclusive_async_requests.name(),
                                ". Expected only true/false");
             }
-        } else if (key == ov::intel_cpu::lp_transforms_mode.name()) {
+        } else if (key == ov::internal::enable_lp_transformations.name()) {
             try {
                 lpTransformsMode = val.as<bool>() ? LPTransformsMode::On : LPTransformsMode::Off;
             } catch (ov::Exception&) {
@@ -237,7 +242,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                     if (hasHardwareSupport(ov::element::f16)) {
                         inferencePrecision = ov::element::f16;
                     }
-                } else if (one_of(prec, element::f32, element::undefined)) {
+                } else if (one_of(prec, element::f32, element::dynamic)) {
                     inferencePrecision = prec;
                 } else {
                     OPENVINO_THROW("invalid value");
@@ -374,6 +379,25 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                key,
                                ". Expected only unsinged integer numbers");
             }
+        } else if (key == ov::intel_cpu::key_cache_quant_mode.name()) {
+            try {
+                auto const mode = val.as<ov::intel_cpu::CacheQuantMode>();
+                if (mode == ov::intel_cpu::CacheQuantMode::AUTO) {
+                    keyCacheQuantMode = CacheQuantMode::AUTO;
+                } else if (mode == ov::intel_cpu::CacheQuantMode::BY_CHANNEL) {
+                    keyCacheQuantMode = CacheQuantMode::BY_CHANNEL;
+                } else if (mode == ov::intel_cpu::CacheQuantMode::BY_HIDDEN) {
+                    keyCacheQuantMode = CacheQuantMode::BY_HIDDEN;
+                } else {
+                    OPENVINO_THROW("invalid value");
+                }
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<ov::intel_cpu::CacheQuantMode>(),
+                               " for property key ",
+                               ov::intel_cpu::key_cache_quant_mode.name(),
+                               ". Expected only unsinged integer numbers");
+            }
         } else if (key == ov::cache_encryption_callbacks.name()) {
             try {
                 const auto& encryption_callbacks = val.as<EncryptionCallbacks>();
@@ -401,7 +425,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 inferencePrecision = ov::element::bf16;
             }
         } else {
-            inferencePrecision = ov::element::undefined;
+            inferencePrecision = ov::element::dynamic;
         }
     }
     // enable ACL fast math in PERFORMANCE mode

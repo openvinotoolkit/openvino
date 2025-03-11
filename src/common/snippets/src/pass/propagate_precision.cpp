@@ -244,10 +244,9 @@ bool ov::snippets::pass::PropagatePrecision::validate_and_infer_types_and_restor
     return was_updated;
 }
 
-bool ov::snippets::pass::PropagatePrecision::can_be_removed(
-    const element::Type& actual_before,
-    const element::Type& actual_after,
-    const element::Type& required_after) noexcept {
+bool ov::snippets::pass::PropagatePrecision::can_be_removed(const element::Type& actual_before,
+                                                            const element::Type& actual_after,
+                                                            const element::Type& required_after) {
     if (actual_before != required_after) {
         return false;
     }
@@ -255,9 +254,7 @@ bool ov::snippets::pass::PropagatePrecision::can_be_removed(
     return can_be_fused(actual_after, actual_before);
 }
 
-bool ov::snippets::pass::PropagatePrecision::can_be_fused(
-    const element::Type& actual,
-    const element::Type& required) noexcept {
+bool ov::snippets::pass::PropagatePrecision::can_be_fused(const element::Type& actual, const element::Type& required) {
     if (actual == required) {
         return true;
     }
@@ -281,7 +278,7 @@ bool ov::snippets::pass::PropagatePrecision::can_be_fused(
 
 std::vector<ov::element::Type> ov::snippets::pass::PropagatePrecision::get_precisions(
     const std::vector<element::Type>& input_precisions,
-    const std::set<std::vector<element::Type>>& supported_precisions_pack) noexcept {
+    const std::set<std::vector<element::Type>>& supported_precisions_pack) {
     bool was_found = false;
     for (const auto& supported_precisions : supported_precisions_pack) {
         for (size_t i = 0; i < supported_precisions.size(); ++i) {

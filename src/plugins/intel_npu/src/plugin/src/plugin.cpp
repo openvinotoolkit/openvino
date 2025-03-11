@@ -66,7 +66,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
 
         parameter->set_friendly_name(inputDescriptor.nodeFriendlyName);
         parameter->output(0).get_tensor().set_names(inputDescriptor.outputTensorNames);
-        parameters.push_back(parameter);
+        parameters.push_back(std::move(parameter));
     }
 
     // The "result" nodes require a parent node in order to satisfy the API conventions. Additionally, a dummy shape for
@@ -90,7 +90,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
         std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>(constantDummy);
         result->output(0).set_tensor_ptr(tensorDummy);
         result->set_friendly_name(outputDescriptor.nodeFriendlyName);
-        results.push_back(result);
+        results.push_back(std::move(result));
     }
 
     return std::make_shared<ov::Model>(results, parameters);
@@ -462,6 +462,12 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<COMPILER_DYNAMIC_QUANTIZATION>();
           }}},
+        {ov::intel_npu::qdq_optimization.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<QDQ_OPTIMIZATION>();
+          }}},
         {ov::intel_npu::turbo.name(),
          {_backends->isCommandQueueExtSupported(),
           ov::PropertyMutability::RW,
@@ -611,6 +617,15 @@ void Plugin::reset_compiler_dependent_properties() const {
             std::get<0>(_properties[ov::intel_npu::compiler_dynamic_quantization.name()]) = true;  /// mark supported
         } else {
             std::get<0>(_properties[ov::intel_npu::compiler_dynamic_quantization.name()]) = false;  // mark unsupported
+        }
+    }
+    // NPU_QDQ_OPTIMIZATION
+    // unpublish if compiler version requirement is not met
+    if (_properties.find(ov::intel_npu::qdq_optimization.name()) != _properties.end()) {
+        if (active_compiler_version >= ICOMPILER_MAKE_VERSION(7, 5)) {
+            std::get<0>(_properties[ov::intel_npu::qdq_optimization.name()]) = true;  /// mark supported
+        } else {
+            std::get<0>(_properties[ov::intel_npu::qdq_optimization.name()]) = false;  // mark unsupported
         }
     }
 }
@@ -786,8 +801,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     return compile_model(model, properties);
 }
 
-ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
-    return get_default_context(remote_properties);
+ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remoteProperties) const {
+    return std::make_shared<RemoteContextImpl>(_backends, _globalConfig, remoteProperties);
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) const {
@@ -800,7 +815,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
     // If was exported via NPUW
     auto stream_start_pos = stream.tellg();
-    std::array<uint8_t, 6> serialization_indicator;
+    ov::npuw::s11n::IndicatorType serialization_indicator;
     ov::npuw::s11n::read(stream, serialization_indicator);
     if (serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
         stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);

@@ -5,8 +5,8 @@
 #pragma once
 
 #include "descriptor.hpp"
-#include "modifiers.hpp"
 #include "openvino/op/op.hpp"
+#include "transformations/tpp/common/op/modifiers.hpp"
 
 namespace ov::intel_cpu::tpp::op {
 

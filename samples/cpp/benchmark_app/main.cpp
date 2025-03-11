@@ -35,9 +35,91 @@
 #include "remote_tensors_filling.hpp"
 #include "statistics_report.hpp"
 #include "utils.hpp"
+
+#if defined(_WIN32)
+#include <windows.h>
+#include <psapi.h>
+#elif defined(__APPLE__)
+#include <sys/resource.h>
+#elif defined(__linux__)
+#include <fstream>
+#include <regex>
+#include <sstream>
+#else
+#error "unsupported OS"
+#endif
+
 // clang-format on
 
 namespace {
+
+#if defined(_WIN32)
+
+int64_t get_peak_memory_usage() {
+    PROCESS_MEMORY_COUNTERS mem_counters;
+    if (!GetProcessMemoryInfo(GetCurrentProcess(), &mem_counters, sizeof(mem_counters))) {
+        throw std::runtime_error("Can't get system memory values");
+    }
+
+    // Linux tracks memory usage in pages and then converts them to kB.
+    // Thus, there is always some room for inaccuracy as pages are not guaranteed to be fully used.
+    // In Windows, the situation is different: the system returns the memory usage in bytes, not in pages.
+    // To align the output between the two operating systems as closely as possible, we have two options:
+    //     1. Use rounding to the nearest integer.
+    //     2. Try to estimate the number of pages used in Windows. However,
+    //         this approach is likely to be inaccurate as well, so option 1 was chosen.
+    static constexpr double bytes_in_kilobyte = 1024.0;
+
+    // please note then we calculate difference
+    // to get peak memory increment value, so we return int64, not size_t
+    return static_cast<int64_t>(std::round(mem_counters.PeakWorkingSetSize / bytes_in_kilobyte));
+}
+
+#elif defined(__APPLE__)
+
+int64_t get_peak_memory_usage() {
+    struct rusage usage;
+    // There is no VmPeak on macOS, so the only way is to use ru_maxrss.
+    // Please note, there's a difference between ru_maxrss and VmPeak:
+    // ru_maxrss is the maximum amount of physical memory (RAM) occupied by the process
+    // which, does not include memory-mapped files, pages reserved but not used, etc.
+    if (getrusage(RUSAGE_SELF, &usage) != 0) {
+        throw std::runtime_error("Can't get system memory values");
+    }
+
+    // in kilobytes
+    return static_cast<int64_t>(usage.ru_maxrss);
+}
+
+#else
+
+int64_t get_peak_memory_usage() {
+    size_t peak_mem_usage_kB = 0;
+
+    std::ifstream status_file("/proc/self/status");
+    std::string line;
+    std::regex vm_peak_regex("VmPeak:");
+    std::smatch vm_match;
+    bool mem_values_found = false;
+    while (std::getline(status_file, line)) {
+        if (std::regex_search(line, vm_match, vm_peak_regex)) {
+            std::istringstream iss(vm_match.suffix());
+            iss >> peak_mem_usage_kB;
+            mem_values_found = true;
+        }
+    }
+
+    if (!mem_values_found) {
+        throw std::runtime_error("Can't get system memory values");
+    }
+
+    // please note then we calculate difference
+    // to get peak memory increment value, so we return int64, not size_t
+    return static_cast<int64_t>(peak_mem_usage_kB);
+}
+
+#endif
+
 bool parse_and_check_command_line(int argc, char* argv[]) {
     // ---------------------------Parsing and validating input
     // arguments--------------------------------------
@@ -57,6 +139,9 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     if (FLAGS_latency_percentile > 100 || FLAGS_latency_percentile < 1) {
         show_usage();
         throw std::logic_error("The percentile value is incorrect. The applicable values range is [1, 100].");
+    }
+    if (FLAGS_api == "") {
+        FLAGS_api = FLAGS_hint == "latency" ? "sync" : "async";
     }
     if (FLAGS_api != "async" && FLAGS_api != "sync") {
         throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
@@ -529,7 +614,7 @@ int main(int argc, char* argv[]) {
         if (result != config.end())
             device_config = result->second;
         size_t batchSize = FLAGS_b;
-        ov::element::Type type = ov::element::undefined;
+        ov::element::Type type = ov::element::dynamic;
         std::string topology_name = "";
         std::vector<benchmark_app::InputsInfo> app_inputs_info;
         std::string output_name;
@@ -563,10 +648,18 @@ int main(int argc, char* argv[]) {
             slog::info << "Skipping the step for loading model from file" << slog::endl;
             next_step();
             slog::info << "Skipping the step for loading model from file" << slog::endl;
+            auto compile_model_mem_start = get_peak_memory_usage();
             auto startTime = Time::now();
             compiledModel = core.compile_model(FLAGS_m, device_name, device_config);
             auto duration_ms = get_duration_ms_till_now(startTime);
+            auto compile_model_mem_end = get_peak_memory_usage();
             slog::info << "Compile model took " << double_to_string(duration_ms) << " ms" << slog::endl;
+
+            slog::info << "Start of compilation memory usage: Peak " << compile_model_mem_start << " KB" << slog::endl;
+            slog::info << "End of compilation memory usage: Peak " << compile_model_mem_end << " KB" << slog::endl;
+            slog::info << "Compile model ram used " << compile_model_mem_end - compile_model_mem_start << " KB"
+                       << slog::endl;
+
             slog::info << "Original model I/O parameters:" << slog::endl;
             printInputAndOutputsInfoShort(compiledModel);
 
@@ -660,14 +753,14 @@ int main(int argc, char* argv[]) {
                                         std::const_pointer_cast<const ov::Model>(model)->outputs());
             }
 
-            const auto input_precision = FLAGS_ip.empty() ? ov::element::undefined : getPrecision2(FLAGS_ip);
-            const auto output_precision = FLAGS_op.empty() ? ov::element::undefined : getPrecision2(FLAGS_op);
+            const auto input_precision = FLAGS_ip.empty() ? ov::element::dynamic : getPrecision2(FLAGS_ip);
+            const auto output_precision = FLAGS_op.empty() ? ov::element::dynamic : getPrecision2(FLAGS_op);
 
             const auto& inputs = model->inputs();
             for (size_t i = 0; i < inputs.size(); i++) {
                 const auto& item = inputs[i];
-                auto iop_precision = ov::element::undefined;
-                auto type_to_set = ov::element::undefined;
+                auto iop_precision = ov::element::dynamic;
+                auto type_to_set = ov::element::dynamic;
                 std::string name;
                 try {
                     // Some tensors might have no names, get_any_name will throw exception in that case.
@@ -676,10 +769,9 @@ int main(int argc, char* argv[]) {
                     iop_precision = getPrecision2(user_precisions_map.at(item.get_any_name()));
                 } catch (...) {
                 }
-
-                if (iop_precision != ov::element::undefined) {
+                if (iop_precision != ov::element::dynamic) {
                     type_to_set = iop_precision;
-                } else if (input_precision != ov::element::undefined) {
+                } else if (input_precision != ov::element::dynamic) {
                     type_to_set = input_precision;
                 } else if (!name.empty() && app_inputs_info[0].at(name).is_image()) {
                     // image input, set U8
@@ -687,7 +779,7 @@ int main(int argc, char* argv[]) {
                 }
 
                 auto& in = preproc.input(item.get_any_name());
-                if (type_to_set != ov::element::undefined) {
+                if (type_to_set != ov::element::dynamic) {
                     in.tensor().set_element_type(type_to_set);
 
                     if (!name.empty()) {
@@ -707,17 +799,16 @@ int main(int argc, char* argv[]) {
             const auto& outs = model->outputs();
             for (size_t i = 0; i < outs.size(); i++) {
                 const auto& item = outs[i];
-                auto iop_precision = ov::element::undefined;
+                auto iop_precision = ov::element::dynamic;
                 try {
                     // Some tensors might have no names, get_any_name will throw exception in that case.
                     // -iop option will not work for those tensors.
                     iop_precision = getPrecision2(user_precisions_map.at(item.get_any_name()));
                 } catch (...) {
                 }
-
-                if (iop_precision != ov::element::undefined) {
+                if (iop_precision != ov::element::dynamic) {
                     preproc.output(i).tensor().set_element_type(iop_precision);
-                } else if (output_precision != ov::element::undefined) {
+                } else if (output_precision != ov::element::dynamic) {
                     preproc.output(i).tensor().set_element_type(output_precision);
                 }
             }
@@ -737,10 +828,18 @@ int main(int argc, char* argv[]) {
             // ----------------- 7. Loading the model to the device
             // --------------------------------------------------------
             next_step();
+            auto compile_model_mem_start = get_peak_memory_usage();
             startTime = Time::now();
             compiledModel = core.compile_model(model, device_name, device_config);
             duration_ms = get_duration_ms_till_now(startTime);
+            auto compile_model_mem_end = get_peak_memory_usage();
             slog::info << "Compile model took " << double_to_string(duration_ms) << " ms" << slog::endl;
+
+            slog::info << "Start of compilation memory usage: Peak " << compile_model_mem_start << " KB" << slog::endl;
+            slog::info << "End of compilation memory usage: Peak " << compile_model_mem_end << " KB" << slog::endl;
+            slog::info << "Compile model ram used " << compile_model_mem_end - compile_model_mem_start << " KB"
+                       << slog::endl;
+
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
@@ -759,17 +858,26 @@ int main(int argc, char* argv[]) {
             // ----------------- 7. Loading the model to the device
             // --------------------------------------------------------
             next_step();
+            auto import_model_mem_start = get_peak_memory_usage();
             auto startTime = Time::now();
 
             std::ifstream modelStream(FLAGS_m, std::ios_base::binary | std::ios_base::in);
             if (!modelStream.is_open()) {
                 throw std::runtime_error("Cannot open model file " + FLAGS_m);
             }
+
             compiledModel = core.import_model(modelStream, device_name, device_config);
             modelStream.close();
 
             auto duration_ms = get_duration_ms_till_now(startTime);
+            auto import_model_mem_end = get_peak_memory_usage();
             slog::info << "Import model took " << double_to_string(duration_ms) << " ms" << slog::endl;
+
+            slog::info << "Start of import memory usage: Peak " << import_model_mem_start << " KB" << slog::endl;
+            slog::info << "End of import memory usage: Peak " << import_model_mem_end << " KB" << slog::endl;
+            slog::info << "Import model ram used " << import_model_mem_end - import_model_mem_start << " KB"
+                       << slog::endl;
+
             slog::info << "Original model I/O paramteters:" << slog::endl;
             printInputAndOutputsInfoShort(compiledModel);
 
