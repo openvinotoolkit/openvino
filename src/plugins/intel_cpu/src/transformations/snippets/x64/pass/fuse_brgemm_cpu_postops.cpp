@@ -26,9 +26,10 @@ pass::FuseBrgemmCPUPostops::FuseBrgemmCPUPostops() {
 
     auto m_postop_values = ov::pass::pattern::wrap_type<ov::op::v0::Constant, ov::op::v0::Parameter>(
         ov::pass::pattern::type_matches(ov::element::f32));
-    std::cout << "[ WARNING ] Only Multiply is fused!!!\n";
-    auto m_postop = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({m_convert, m_postop_values});
-    // auto m_postop = ov::pass::pattern::wrap_type<ov::op::v1::Multiply, ov::op::v1::Add>({m_convert, m_postop_values});
+    auto m_postop =
+        std::getenv("ONLY_MUL")
+            ? ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({m_convert, m_postop_values})
+            : ov::pass::pattern::wrap_type<ov::op::v1::Multiply, ov::op::v1::Add>({m_convert, m_postop_values});
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseBrgemmCPUPostops")
