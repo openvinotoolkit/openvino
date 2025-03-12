@@ -83,7 +83,7 @@
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset4.hpp"
-#include "ov_ops/convolution_biased.hpp"
+#include "ov_ops/convolution.hpp"
 #include "pad_shape_inference.hpp"
 #include "prior_box_clustered_shape_inference.hpp"
 #include "prior_box_shape_inference.hpp"
@@ -613,7 +613,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::AUGRUSequence, ShapeInferTA, util::bit::mask()),
     OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::RMSNorm, ShapeInferTA, util::bit::mask(1)),
     OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::GLU, ShapeInferTA, util::bit::mask()),
-    OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::ConvolutionBiased, ShapeInferPaddingTA, util::bit::mask()),
+    OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::Convolution, ShapeInferPaddingTA, util::bit::mask()),
 };
 // clang-format on
 
