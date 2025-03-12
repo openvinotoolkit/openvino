@@ -189,24 +189,31 @@ bool isRuleInverted(std::string& rule) {
     return false;
 }
 
-bool categoryRuleEnabler(std::string category, std::vector<std::string> localSettings, pugi::xml_node& enableRules);
+bool categoryRuleEnabler(const std::string& category,
+                         const std::vector<std::string>& localSettings,
+                         const pugi::xml_node& enableRules);
 
-bool categoryRuleEnabler(std::string category, std::vector<std::string> localSettings, pugi::xml_node& enableRules) {
-    if (!enableRules.child(category.c_str()).empty()) {
-        FOREACH_CHILD (enableRule, enableRules, category.c_str()) {
-            auto categoryRule = enableRule.text().get();
+bool categoryRuleEnabler(const std::string& category,
+                         const std::vector<std::string>& localSettings,
+                         const pugi::xml_node& enableRules) {
+    if (enableRules.child(category.c_str()).empty()) {
+        return true;
+    }
 
-            std::string categoryRuleString(categoryRule);
-            bool invert = isRuleInverted(categoryRuleString);
-            for (auto& localSetting : localSettings) {
-                // Perform logical XOR to invert condition
-                if (!(categoryRuleString == localSetting) != !invert)
-                    return true;
+    FOREACH_CHILD (enableRule, enableRules, category.c_str()) {
+        auto categoryRule = enableRule.text().get();
+
+        std::string categoryRuleString(categoryRule);
+        bool invert = isRuleInverted(categoryRuleString);
+        for (auto& localSetting : localSettings) {
+            // Perform logical XOR to invert condition
+            if (!(categoryRuleString == localSetting) != !invert) {
+                return true;
             }
         }
-        return false;
     }
-    return true;
+
+    return false;
 }
 
 std::vector<std::string> disabledTestPatterns();
@@ -224,14 +231,16 @@ std::vector<std::string> disabledTestPatterns() {
 
         // Check if skip xml is set to be read
         const auto& filePath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_SKIP_CONFIG_FILE;
-        if (filePath.empty())
+        if (filePath.empty()) {
             _log.warning("OV_NPU_TESTS_SKIP_CONFIG_FILE not set");
-        else
+        } else {
             _log.info("Using %s as skip config", filePath.c_str());
+        }
 
         auto xmlResult = ov::util::pugixml::parse_xml(filePath.c_str());
-        if (!xmlResult.error_msg.empty() && !filePath.empty())
+        if (!xmlResult.error_msg.empty() && !filePath.empty()) {
             _log.error(xmlResult.error_msg.c_str());
+        }
 
         pugi::xml_document& xmlSkipConfig = *xmlResult.xml;
 
