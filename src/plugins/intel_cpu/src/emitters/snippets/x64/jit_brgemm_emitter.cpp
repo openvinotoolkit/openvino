@@ -74,7 +74,14 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
 
             DnnlBlockedMemoryDesc memory_desc(ov::element::f32, Shape(per_channel_shape));
             OPENVINO_ASSERT(post_ops.append_binary(dnnl::impl::alg_kind_t::dnnl_binary_add, memory_desc.getDnnlDesc().get()) == dnnl_success);
-            std::cout << "[ INFO ] Binary add postop was successfully added." << std::endl;
+
+            const auto& rt_info = brgemm_node->get_rt_info();
+            OPENVINO_ASSERT(rt_info.count("EXTERNAL_PTR_OFFSET"), "EXTERNAL_PTR_OFFSET is not set for the postop input");
+            m_binary_postops_offset = rt_info.at("EXTERNAL_PTR_OFFSET").as<int>();
+            OPENVINO_ASSERT(m_binary_postops_offset >= 0, "EXTERNAL_PTR_OFFSET is invalid: ", m_binary_postops_offset);
+
+            std::cout << "[ INFO ] Binary add postop was successfully added. m_binary_postops_offset = "
+                      << m_binary_postops_offset << std::endl;
         } else {
             OPENVINO_THROW("Unsupported postop type: ", postop_config);
         }

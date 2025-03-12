@@ -30,6 +30,7 @@ public:
 
     std::unordered_map<size_t, RepackedInput> repacked_inputs = {};
     std::vector<jit_snippets_call_args::loop_args_t> loop_args = {};
+    std::set<size_t> external_ptrs_idces = {};
 };
 
 class CPURuntimeConfigurator : public ov::snippets::RuntimeConfigurator {
@@ -41,6 +42,8 @@ public:
      * @param linear_ir LinearIR
      */
     void update_loop_args(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const;
+
+    void init_external_ptrs(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const;
 
     // Note: This method is temporarily used only by `BrgemmExternalRepackingAdjuster` to create kernels for repacking.
     //       Please, remove this method when the adjuster is deprecated

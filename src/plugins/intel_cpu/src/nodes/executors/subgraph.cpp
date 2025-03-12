@@ -61,10 +61,14 @@ SubgraphCodeGenerator::SubgraphCodeGenerator(const std::shared_ptr<SubgraphAttrs
     OPENVINO_ASSERT(config, "Runtime Config is empty!");
 
     jit_snippets_compile_args jcp;
-    jcp.data_offsets = config->io_data_offsets;
-    if (!std::getenv("REF") && !std::getenv("ONLY_MUL")) {
-        // TODO: handle it in a common way: need to filter params which are not used in the kernel
-        jcp.data_offsets.pop_back();
+    jcp.data_offsets.reserve(config->io_data_offsets.size());
+    const auto& external_ptrs_idces = config->external_ptrs_idces;
+    for (size_t i = 0; i < config->io_data_offsets.size(); ++i) {
+        if (!external_ptrs_idces.count(i)) {
+            jcp.data_offsets.push_back(config->io_data_offsets[i]);
+        } else {
+            std::cout << "[ WARNING ] jcp.data_offsets push back skipped" << std::endl;
+        }
     }
     SubgraphBaseExecutor::init_parallel_domain(config, jcp.exec_domain);
     schedule =

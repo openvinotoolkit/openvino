@@ -26,7 +26,6 @@ AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& li
                     "Not enough gp registers in the pool to perform manual assignment");
     for (const auto& param : linear_ir.get_parameters()) {
         if (param->get_node()->get_rt_info().count("POSTOP_INPUT")) {
-            std::cout << "[ INFO ] Register assignment is skipped for the node " << param->get_node() << std::endl;
             continue;
         }
         manually_assigned[param->get_output_port_descriptor(0)->get_reg()] = *gpr_pool.begin();
@@ -180,7 +179,6 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
 
     for (const auto& expr : exprs) {
         if (expr->get_node()->get_rt_info().count("POSTOP_INPUT")) {
-            std::cout << "[ INFO ] Register assignment is skipped for the node " << expr->get_node() << std::endl;
             continue;
         }
         // Note: manually assigned regs are always live => add them to all expressions
