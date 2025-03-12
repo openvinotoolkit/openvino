@@ -527,11 +527,14 @@ std::string ZeGraphExtWrappers::getCompilerSupportedOptions() const {
     }
     // 1. ask driver for size of compiler supported options list
     _logger.debug("pfnCompilerGetSupportedOptions - obtain string size");
-    size_t str_size = 0;
-    auto result = _zeroInitStruct->getGraphDdiTable().pfnCompilerGetSupportedOptions(_zeroInitStruct->getDevice(),
-                                                                                     ZE_NPU_COMPILER_OPTIONS,
-                                                                                     &str_size,
-                                                                                     nullptr);
+    size_t str_size = 10000;                 // TEMPORARY_WORKAROUND for driver bug DO NOT MERGE
+    char* dummy = (char*)malloc(30 * 1024);  // TEMPORARY WORKAROUND for driver bug DO NOT MERGE
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnCompilerGetSupportedOptions(
+        _zeroInitStruct->getDevice(),
+        ZE_NPU_COMPILER_OPTIONS,
+        &str_size,
+        dummy);   /// TEMPORARY - revert last param to nullptr
+    free(dummy);  // TEMPORARY_WORKAROUND for driver bug DO NOT MERGE
     if (result == ZE_RESULT_SUCCESS) {
         if (str_size > 0) {
             _logger.debug("pfnCompilerGetSupportedOptions - obtain list");
@@ -580,7 +583,7 @@ bool ZeGraphExtWrappers::isOptionSupported(std::string optname) const {
                                                                                    nullptr);
     if (result == ZE_RESULT_SUCCESS) {
         return true;
-    } else if (result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) {
+    } else if ((result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) || (result == ZE_RESULT_ERROR_UNKNOWN)) {
         return false;
     } else {
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerIsOptionSupported", result, _zeroInitStruct->getGraphDdiTable());
