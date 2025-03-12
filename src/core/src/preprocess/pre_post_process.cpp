@@ -16,6 +16,7 @@
 #include "transformations/common_optimizations/convolution_to_group_convolution_fusion.hpp"
 #include "transformations/common_optimizations/disable_random_uniform_constant_folding.hpp"
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
+#include "transformations/common_optimizations/gelu_fusion.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/ric_fusion.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
@@ -89,12 +90,14 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
 
     // 2. Fusion transformations:
     REGISTER_PASS(manager, ConvertDivideWithConstant)
-    auto multiply_fusions = manager.register_pass<GraphRewrite>();
-    ADD_MATCHER(multiply_fusions, MultiplyConvolutionFusion)
-    ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionFusion)
-    ADD_MATCHER(multiply_fusions, MultiplyConvolutionBackpropDataFusion)
-    ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionBackpropDataFusion)
-    multiply_fusions->set_name("ov::pass::MultiplyFusions");
+    auto fusions = manager.register_pass<GraphRewrite>();
+    // Gelu fusion have to be executed before MulConv fusion because Mul(X, 0.5) might be fused to Conv weights
+    ADD_MATCHER(fusions, GeluFusion)
+    ADD_MATCHER(fusions, MultiplyConvolutionFusion)
+    ADD_MATCHER(fusions, MultiplyGroupConvolutionFusion)
+    ADD_MATCHER(fusions, MultiplyConvolutionBackpropDataFusion)
+    ADD_MATCHER(fusions, MultiplyGroupConvolutionBackpropDataFusion)
+    fusions->set_name("ov::pass::MultiplyFusions");
     REGISTER_PASS(manager, ReverseInputChannelsFusion)
 
     // 3. CF call due to detected perf degradations
