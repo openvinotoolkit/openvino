@@ -392,8 +392,8 @@ class TestRMSNorm(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
-    @pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.3"),
-                        reason="Not supported in PyTorch versions earlier than 2.3.")
+    @pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.4"),
+                        reason="Not supported in PyTorch versions earlier than 2.4.")
     @pytest.mark.parametrize("normalized_shape", [[10,],
                                                   [10, 10],
                                                   [5, 10, 10]])
