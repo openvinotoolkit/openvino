@@ -7,6 +7,7 @@
 #include "emitters/plugin/x64/utils.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_amx.hpp"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
@@ -35,21 +36,47 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
     // Create helper which will compose postops based on the node configuration
     const auto& fused_ops = brgemm_node->get_postops();
 
+    const auto out_shape = ov::snippets::utils::get_preordered_vdims(expr->get_output_port(0));
+    const auto OC = out_shape.back();
+    if (!fused_ops.empty()) {
+        OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(OC),
+                        "Postops are supported only for static output channels");
+    }
+
+    // Form 2 types of shapes supported by postops
+    const size_t tile_rank = 2;
+    VectorDims per_tensor_shape(tile_rank, 1);
+    auto per_channel_shape = per_tensor_shape;
+    per_channel_shape.back() = OC;
+
     const auto postop_inputs = brgemm_node->get_postop_inputs();
     dnnl_post_ops post_ops;
     for (size_t i = 0; i < fused_ops.size(); ++i) {
         const auto& postop_config = fused_ops[i];
+        const auto& postop_input = postop_inputs[i];
+        // During postops composition, need to resolve the following questions:
+        // 1. Is it a static scalar value (append_eltwise) or a tensor (append_binary)?
+        // 2. What is the shape of the tensor (per-tensor or per-channel)?
+        // Note: it seems like in case of per-channel shape, only append_binary can be used
         if (postop_config == ov::op::v1::Multiply::get_type_info_static()) {
-            const auto& postop_input = postop_inputs[i];
             const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(postop_input.get_node_shared_ptr());
             OPENVINO_ASSERT(constant);
             const auto values = constant->cast_vector<float>();
             OPENVINO_ASSERT(values.size() == 1);
-            post_ops.append_eltwise(1.f, dnnl::impl::alg_kind_t::dnnl_eltwise_linear, values[0], 0);
-            std::cout << "[ INFO ] Postop scale was successfully added: " << values[0] << std::endl;
+            OPENVINO_ASSERT(post_ops.append_eltwise(1.f, dnnl::impl::alg_kind_t::dnnl_eltwise_linear, values[0], 0) == dnnl_success);
+            std::cout << "[ INFO ] Eltwise scale postop was successfully added: " << values[0] << std::endl;
+        } else if (postop_config == ov::op::v1::Add::get_type_info_static()) {
+            const auto param = ov::as_type_ptr<ov::op::v0::Parameter>(postop_input.get_node_shared_ptr());
+            OPENVINO_ASSERT(param);
+            // TODO: should dynamic postops be supported? It seems like we don't need it
+            const auto dims = param->get_partial_shape().to_shape();
+            OPENVINO_ASSERT(ov::shape_size(dims) == OC);
+
+            DnnlBlockedMemoryDesc memory_desc(ov::element::f32, Shape(per_channel_shape));
+            OPENVINO_ASSERT(post_ops.append_binary(dnnl::impl::alg_kind_t::dnnl_binary_add, memory_desc.getDnnlDesc().get()) == dnnl_success);
+            std::cout << "[ INFO ] Binary add postop was successfully added." << std::endl;
         } else {
-            std::cout << "Unsupported postop type: " << postop_config << std::endl;
-            // post_ops.append_binary(dnnl::impl::alg_kind_t::dnnl_binary_add, /*desc must be here*/);
+            OPENVINO_THROW("Unsupported postop type: ", postop_config);
         }
     }
 

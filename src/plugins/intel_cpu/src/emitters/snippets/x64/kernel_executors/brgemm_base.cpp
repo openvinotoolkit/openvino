@@ -209,6 +209,11 @@ void BrgemmBaseKernelExecutor::execute_brgemm_kernel(
     brgemm_p.do_apply_comp = with_comp;
     brgemm_p.skip_accm = 0;
     brgemm_p.BS = 1;  // default value
+
+    // TODO: this value should be taken from kernel runtime args
+    brgemm_p.post_ops_binary_rhs_arg_vec = dst;  // default value
+    // brgemm_p.post_ops_binary_rhs_arg_vec = post_ops_data.binary_post_ops_rhs;
+    brgemm_p.data_C_ptr_ = reinterpret_cast<char*>(dst);
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr Brgemm kernel");
     (*kernel)(&brgemm_p);
 }
