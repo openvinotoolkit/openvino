@@ -21,17 +21,18 @@ using PortDescriptorUtils = snippets::lowered::PortDescriptorUtils;
 
 pass::FuseBrgemmCPUPostops::FuseBrgemmCPUPostops() {
     MATCHER_SCOPE(FuseBrgemmCPUPostops);
-    auto m_brgemm = ov::pass::pattern::wrap_type<BrgemmCPU>();
-    auto m_convert = ov::pass::pattern::optional<ov::snippets::op::ConvertSaturation>(m_brgemm);
+    using namespace ov::pass::pattern;
+    auto m_brgemm = wrap_type<BrgemmCPU>();
+    auto m_optional_convert = optional<ov::snippets::op::ConvertSaturation>(m_brgemm);
 
-    auto m_postop_values = ov::pass::pattern::wrap_type<ov::op::v0::Constant, ov::op::v0::Parameter>(
-        ov::pass::pattern::type_matches(ov::element::f32));
-    auto m_postop =
-        std::getenv("ONLY_MUL")
-            ? ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({m_convert, m_postop_values})
-            : ov::pass::pattern::wrap_type<ov::op::v1::Multiply, ov::op::v1::Add>({m_convert, m_postop_values});
+    auto postop_input_predicate = [](const Output<Node>& output) {
+        return has_static_shape()(output) && type_matches(ov::element::f32)(output);
+    };
 
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
+    auto m_postop_value = wrap_type<ov::op::v0::Constant, ov::op::v0::Parameter>(postop_input_predicate);
+    auto m_postop = wrap_type<ov::op::v1::Multiply, ov::op::v1::Add>({m_optional_convert, m_postop_value});
+
+    auto callback = [=](Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseBrgemmCPUPostops")
         const auto& pattern_map = m.get_pattern_value_map();
         const auto post_op = pattern_map.at(m_postop).get_node_shared_ptr();
@@ -39,16 +40,14 @@ pass::FuseBrgemmCPUPostops::FuseBrgemmCPUPostops() {
 
         // Note: due to specific handling of commutative ops in matcher,
         // 0's input is not always brgemm (even if it is 0's in the matcher)
-        const auto op_after_brgemm = pattern_map.count(m_convert) ? pattern_map.at(m_convert).get_node_shared_ptr() : post_op;
+        const auto op_after_brgemm =
+            pattern_map.count(m_optional_convert) ? pattern_map.at(m_optional_convert).get_node_shared_ptr() : post_op;
         if (op_after_brgemm->get_input_node_shared_ptr(0).get() != brgemm.get()) {
-            std::cout << "Post operation's input node: " << op_after_brgemm->get_input_node_shared_ptr(0)
-                      << "\n is not BrgemmCPU: " << brgemm << ". Skipping fusion." << std::endl;
             return false;
         }
 
         // Note: currently, only post ops which don't change the shape are supported
         if (brgemm->get_output_partial_shape(0) != post_op->get_output_partial_shape(0)) {
-            std::cout << "Output shape of BrgemmCPU and post operation do not match. Skipping fusion." << std::endl;
             return false;
         }
 
@@ -90,12 +89,10 @@ pass::FuseBrgemmCPUPostops::FuseBrgemmCPUPostops() {
         PortDescriptorUtils::set_port_descriptor(new_brgemm->output(0), out_desc->get_subtensor(), out_desc->get_layout());
 
         ov::replace_node(post_op, new_brgemm);
-        std::cout << "[ INFO ] BrgemmCPU: " << brgemm << " \n\t was replaced with: " << new_brgemm->get_friendly_name()
-                  << std::endl;
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(m_postop, matcher_name);
+    auto m = std::make_shared<Matcher>(m_postop, matcher_name);
     register_matcher(m, callback);
 }
 
