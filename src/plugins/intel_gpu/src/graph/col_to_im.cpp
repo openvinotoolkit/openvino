@@ -57,6 +57,17 @@ std::vector<layout> col_to_im_inst::calc_output_layouts(col_to_im_node const& no
     };
     std::vector<ShapeType> output_shapes = ov::op::v15::shape_infer(&op, input_shapes);
 
+    // XXX: quick and dirty implementation of output shape inference. It should have been fed into shape_infer function
+    output_shapes[0][-1] = node.get_primitive()->output_shape[1];
+    output_shapes[0][-2] = node.get_primitive()->output_shape[0];
+    size_t prod = 1;
+    for (auto t: node.get_primitive()->kernel_shape) {
+        prod *= t;
+    }
+    auto C = input_shapes[0][-2] / prod;
+    output_shapes[0][-3] = C;
+
+    // std::cout << __FILE__ << ":" << __LINE__ << "   " << node.id() << "   " << output_shapes[0] << "   " << input_shapes[1] << " x "<< std::endl;
     return { layout{output_shapes[0], output_type, output_format} };
 }
 

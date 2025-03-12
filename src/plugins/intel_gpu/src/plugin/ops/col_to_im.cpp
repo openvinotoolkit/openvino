@@ -8,6 +8,7 @@
 #include "openvino/op/col2im.hpp"
 
 #include "intel_gpu/primitives/col_to_im.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -32,6 +33,14 @@ static void CreateCol2ImOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15:
     for (auto p: op->get_pads_end())
         padding_end.push_back(p);
 
+    auto output_shape_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+    auto vec_output_shape = output_shape_const->cast_vector<size_t>();
+    ov::Shape output_shape(vec_output_shape);
+
+    auto kernel_size_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+    auto kernel_size = kernel_size_const->cast_vector<size_t>();
+    ov::Shape kernel_shape(kernel_size);
+
     // Create col2im prim
     auto CallToImPrim = cldnn::col_to_im(layerName,
                                             inputPrimitives[0],
@@ -40,7 +49,9 @@ static void CreateCol2ImOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15:
                                             strides,
                                             dilations,
                                             padding_begin,
-                                            padding_end);
+                                            padding_end,
+                                            vec_output_shape,
+                                            kernel_shape);
 
     p.add_primitive(*op, CallToImPrim);
 }
