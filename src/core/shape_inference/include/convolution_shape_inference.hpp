@@ -15,7 +15,6 @@ template <class TOp,
           class TShape,
           class TRShape = result_shape_t<TShape>,
           typename std::enable_if<std::is_same<TOp, v1::Convolution>::value ||
-                                  std::is_same<TOp, internal::Convolution>::value ||
                                   std::is_same<TOp, v1::BinaryConvolution>::value>::type* = nullptr>
 std::vector<TRShape> shape_infer(const TOp* op,
                                  const std::vector<TShape>& input_shapes,

@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/op_conversions/convert_convolution_to_convolution_internal.hpp"
+
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/convolution.hpp"
-#include "transformations/op_conversions/convert_convolution_to_convolution_internal.hpp"
 
 using namespace ov;
 
@@ -24,11 +25,14 @@ ov::pass::ConvertConvolutionToConvolutionInternal::ConvertConvolutionToConvoluti
 
         auto new_conv = std::make_shared<ov::op::internal::Convolution>(conv->input_value(0),
                                                                         conv->input_value(1),
+                                                                        Output<Node>(),
                                                                         conv->get_strides(),
                                                                         conv->get_pads_begin(),
                                                                         conv->get_pads_end(),
                                                                         conv->get_dilations(),
-                                                                        conv->get_auto_pad());
+                                                                        -1,
+                                                                        conv->get_auto_pad(),
+                                                                        conv->get_output_element_type(0));
 
         new_conv->set_friendly_name(conv->get_friendly_name());
         copy_runtime_info(conv, new_conv);

@@ -4,7 +4,7 @@
 
 #include "ov_ops/convolution.hpp"
 
-#include "convolution_shape_inference.hpp"
+#include "internal_convolution_shape_inference.hpp"
 #include "itt.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
@@ -13,29 +13,24 @@ using namespace std;
 namespace ov {
 op::internal::Convolution::Convolution(const Output<Node>& data_batch,
                                        const Output<Node>& filters,
-                                       const Strides& strides,
-                                       const CoordinateDiff& pads_begin,
-                                       const CoordinateDiff& pads_end,
-                                       const Strides& dilations,
-                                       const PadType& auto_pad)
-    : op::util::ConvolutionFwdPropBase({data_batch, filters}, strides, pads_begin, pads_end, dilations, auto_pad) {
-    constructor_validate_and_infer_types();
-}
-
-op::internal::Convolution::Convolution(const Output<Node>& data_batch,
-                                       const Output<Node>& filters,
                                        const Output<Node>& bias,
                                        const Strides& strides,
                                        const CoordinateDiff& pads_begin,
                                        const CoordinateDiff& pads_end,
                                        const Strides& dilations,
-                                       const PadType& auto_pad)
-    : op::util::ConvolutionFwdPropBase({data_batch, filters, bias},
-                                       strides,
-                                       pads_begin,
-                                       pads_end,
-                                       dilations,
-                                       auto_pad) {
+                                       const int64_t& groups,
+                                       const PadType& auto_pad,
+                                       const element::Type& output_type)
+    : op::util::ConvolutionFwdPropBase(
+          bias.get_node() ? OutputVector{data_batch, filters, bias} : OutputVector{data_batch, filters},
+          strides,
+          pads_begin,
+          pads_end,
+          dilations,
+          auto_pad),
+      m_groups(groups),
+      m_asymmetric(false),
+      m_output_type(output_type) {
     constructor_validate_and_infer_types();
 }
 
@@ -79,15 +74,6 @@ void op::internal::Convolution::validate_and_infer_types() {
 
 shared_ptr<Node> op::internal::Convolution::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
-    if (new_args.size() == 2) {
-        return make_shared<internal::Convolution>(new_args.at(0),
-                                                  new_args.at(1),
-                                                  m_strides,
-                                                  m_pads_begin,
-                                                  m_pads_end,
-                                                  m_dilations,
-                                                  m_auto_pad);
-    }
     return make_shared<internal::Convolution>(new_args.at(0),
                                               new_args.at(1),
                                               new_args.at(2),
@@ -95,7 +81,21 @@ shared_ptr<Node> op::internal::Convolution::clone_with_new_inputs(const OutputVe
                                               m_pads_begin,
                                               m_pads_end,
                                               m_dilations,
-                                              m_auto_pad);
+                                              m_groups,
+                                              m_auto_pad,
+                                              m_output_type);
+}
+
+bool op::internal::Convolution::has_groups() const {
+    return m_groups > 0;
+}
+
+int64_t op::internal::Convolution::get_groups() const {
+    return m_groups;
+}
+
+bool op::internal::Convolution::is_asymmetric() const {
+    return m_asymmetric;
 }
 
 }  // namespace ov
