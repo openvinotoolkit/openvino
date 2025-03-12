@@ -26,6 +26,7 @@ macro(ov_install_pdb target)
             # installation of linker PDB files for shared libraries
             install(FILES $<TARGET_PDB_FILE:${target}>
                     DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT pdb
+                    OPTIONAL
                     EXCLUDE_FROM_ALL)
         elseif(_lib_type STREQUAL "STATIC_LIBRARY")
             get_target_property(_compile_pdb_name ${target} OUTPUT_NAME)
