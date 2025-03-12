@@ -775,7 +775,6 @@ public:
 #elif defined(OPENVINO_ARCH_ARM64)
         if (one_of(algorithm,
                    Algorithm::EltwisePowerDynamic,
-                   Algorithm::EltwiseSoftRelu,
                    Algorithm::EltwiseHsigmoid,
                    Algorithm::EltwiseErf,
                    Algorithm::EltwiseBitwiseAnd,
@@ -2064,7 +2063,7 @@ void Eltwise::execute(const dnnl::stream& strm) {
         std::vector<MemoryPtr> dstMemory;
         dstMemory.push_back(getDstMemoryAtPort(0));
 
-        eltwiseExecPtr->exec(srcMemory, dstMemory, fqDataPtrs.data());
+        eltwiseExecPtr->exec(srcMemory, dstMemory, reinterpret_cast<void*>(fqDataPtrs.data()));
     } else {
         THROW_CPU_NODE_ERR("Primitive isn't created");
     }
