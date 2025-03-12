@@ -252,7 +252,7 @@ protected:
         if (query_shape[num_heads_dim].is_static() && key_shape[num_heads_dim].is_static() && value_shape[num_heads_dim].is_static()) {
             if (query_shape[num_heads_dim].get_length() > key_shape[num_heads_dim].get_length()) {
                 config.broadcast_axis = desc->input_k_transpose_order[num_heads_dim];
-                config.group_size = query_shape[num_heads_dim].get_length() / key_shape[num_heads_dim].get_length();
+                config.kv_group_size = query_shape[num_heads_dim].get_length() / key_shape[num_heads_dim].get_length();
             }
         }
 
