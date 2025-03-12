@@ -601,24 +601,33 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         memory[ARG_DST] = getDstMemoryAtPort(0);
         tp_cfg.cached_dst = split_horizontal(context->getEngine(), dst, -1, tp_cfg.w_rank, tp_cfg.w_size, false);
 
-        memory[ARG_DST | ARG_ATTR_SCALES] =
-            split_horizontal(context->getEngine(), memory[ARG_DST | ARG_ATTR_SCALES], 0, tp_cfg.w_rank, tp_cfg.w_size);
+        if (memory.count(ARG_DST | ARG_ATTR_SCALES)) {
+            memory[ARG_DST | ARG_ATTR_SCALES] = split_horizontal(context->getEngine(),
+                                                                 memory[ARG_DST | ARG_ATTR_SCALES],
+                                                                 0,
+                                                                 tp_cfg.w_rank,
+                                                                 tp_cfg.w_size);
+        }
 
-        auto scale_mem = std::const_pointer_cast<IMemory>(memory[ARG_WEI | ARG_ATTR_SCALES]);
-        memory[ARG_WEI | ARG_ATTR_SCALES] =
-            attrs.weightsNonTransposed
-                ? split_vertical(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
-                : split_horizontal(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
-
-        auto zeropoint_mem = std::const_pointer_cast<IMemory>(memory[ARG_WEI | ARG_ATTR_ZERO_POINTS]);
-        auto element_num = zeropoint_mem->getSize() / zeropoint_mem->getPrecision().size();
-        if (element_num == 1) {
-            tp_cfg.cached_zeropoint = zeropoint_mem;
-        } else {
-            tp_cfg.cached_zeropoint =
+        if (memory.count(ARG_WEI | ARG_ATTR_SCALES)) {
+            auto scale_mem = std::const_pointer_cast<IMemory>(memory[ARG_WEI | ARG_ATTR_SCALES]);
+            memory[ARG_WEI | ARG_ATTR_SCALES] =
                 attrs.weightsNonTransposed
-                    ? split_vertical(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
-                    : split_horizontal(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
+                    ? split_vertical(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                    : split_horizontal(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
+        }
+
+        if (memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS)) {
+            auto zeropoint_mem = std::const_pointer_cast<IMemory>(memory[ARG_WEI | ARG_ATTR_ZERO_POINTS]);
+            auto element_num = zeropoint_mem->getSize() / zeropoint_mem->getPrecision().size();
+            if (element_num == 1) {
+                tp_cfg.cached_zeropoint = zeropoint_mem;
+            } else {
+                tp_cfg.cached_zeropoint =
+                    attrs.weightsNonTransposed
+                        ? split_vertical(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                        : split_horizontal(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
+            }
         }
     }
 }
@@ -629,9 +638,7 @@ void FullyConnected::needUpdateTensorParalelConfig() {
     // 2. last dim can be splited.
     if (tp_cfg.enable_tensor_parallel) {
         const auto& shape = getSrcMemoryAtPort(WEIGHTS)->getShape();
-        if (shape.isDynamic()) {
-            tp_cfg.enable_tensor_parallel = false;
-        } else if (shape.getDims()[0] < static_cast<size_t>(tp_cfg.w_size)) {
+        if (shape.isDynamic() || shape.getDims()[0] < static_cast<size_t>(tp_cfg.w_size)) {
             tp_cfg.enable_tensor_parallel = false;
         }
     }
