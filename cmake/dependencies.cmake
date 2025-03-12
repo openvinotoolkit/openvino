@@ -131,10 +131,10 @@ function(ov_download_tbb)
     elseif(APPLE AND X86_64)
         # build oneTBB 2021.2.1 with OS version 11.4
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_MAC "oneapi-tbb-2021.13.0-mac.tgz"
+                ARCHIVE_MAC "oneapi-tbb-2021.13.0-mac-canary.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "86e07127bfead5c4aad456c765de845013502342bda33d249d8097ed57afe945"
+                SHA256 "f26a8ae579c4e843781b139c6b74325ae48b58cb2a7a31a0982acda5343f0dd8"
                 USE_NEW_LOCATION TRUE)
     elseif(WIN32 AND AARCH64)
         # build oneTBB 2021.2.1 with Visual Studio 2022 (MSVC 14.35)
@@ -155,10 +155,10 @@ function(ov_download_tbb)
     elseif(APPLE AND AARCH64)
         # build oneTBB with export MACOSX_DEPLOYMENT_TARGET=11.0
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_MAC "oneapi-tbb-2021.13.0-mac-arm64-release.tgz"
+                ARCHIVE_MAC "oneapi-tbb-2021.13.0-mac-arm64-canary.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "de9893f8699c15b1c8b46daa7fc51e112e84353d66d5baf1c35574932747c64c"
+                SHA256 "fb4be1dd03044a97475c45a0cf4576e502b4b64048e98e019520b0720fc255aa"
                 USE_NEW_LOCATION TRUE)
     else()
         message(WARNING "Prebuilt TBB is not available on current platform")
