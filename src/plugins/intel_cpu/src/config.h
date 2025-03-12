@@ -37,6 +37,12 @@ struct Config {
         Disable,
     };
 
+    enum CacheQuantMode {
+        AUTO,
+        BY_CHANNEL,
+        BY_HIDDEN,
+    };
+
     enum class ModelType { CNN, LLM, Unknown };
 
     bool collectPerfCounters = false;
@@ -69,6 +75,7 @@ struct Config {
 #endif
     size_t keyCacheGroupSize = 0ul;
     size_t valueCacheGroupSize = 0ul;
+    CacheQuantMode keyCacheQuantMode = CacheQuantMode::AUTO;
     ov::threading::IStreamsExecutor::Config streamExecutorConfig;
     int streams = 1;
     bool streamsChanged = false;
