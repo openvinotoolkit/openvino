@@ -113,7 +113,7 @@ SDPAScaleFusion::SDPAScaleFusion() {
                 new_scale_node = pattern_map.at(scale_q);
                 q_input = pattern_map.at(q);
             } else if (has_k_scale && !ov::is_type<ov::op::v0::Constant>(scale_k_node) &&
-                    pattern_map.at(k).get_element_type() == k_input.get_element_type()) {
+                        pattern_map.at(k).get_element_type() == k_input.get_element_type()) {
                 new_scale_node = pattern_map.at(scale_k);
                 k_input = pattern_map.at(k);
             } else {
