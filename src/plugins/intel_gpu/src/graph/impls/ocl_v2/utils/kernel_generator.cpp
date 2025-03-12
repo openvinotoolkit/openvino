@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2024 Intel Corporation
+﻿// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,12 +7,14 @@
 #include <cctype>
 
 #include "common_utils/jitter.hpp"
+#include "common_utils/kernel_generator_base.hpp"
+#include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/runtime/kernel_args.hpp"
 #include "kernels_db.hpp"
 
 namespace ov::intel_gpu::ocl {
 
-JitConstants KernelGenerator::make_tensors_jit_constants(const kernel_impl_params& params) const {
+JitConstants KernelGenerator::make_tensors_jit_constants(const RuntimeParams& params) {
     JitConstants jit_constants;
 
     const auto& in_offsets_map = params.in_port_to_shape_info_offset;
@@ -30,7 +32,7 @@ JitConstants KernelGenerator::make_tensors_jit_constants(const kernel_impl_param
     return jit_constants;
 }
 
-JitConstants KernelGenerator::make_base_jit_constants(const kernel_impl_params& params) const {
+JitConstants KernelGenerator::make_base_jit_constants(const RuntimeParams& params) const {
     JitConstants jit_constants;
 
     auto entry_point = get_entry_point(params);
@@ -49,35 +51,35 @@ JitConstants KernelGenerator::make_base_jit_constants(const kernel_impl_params& 
     return jit_constants;
 }
 
-std::string KernelGenerator::build_code(std::string_view template_name, const JitConstants& jit_constants, const std::string& kernel_id) const {
+std::string KernelGenerator::build_code(std::string_view template_name, const JitConstants& jit_constants, const std::string& entry_point) {
     CodeBuilder code;
     code.add_line("\n//====================================================")
         .add_line("// Kernel template: " + std::string(template_name) + " ")
-        .add_line("// Kernel name: " + kernel_id)
-        .decoration_macro("FUNC", "", kernel_id)
-        .decoration_macro("FUNC_CALL", "", kernel_id)
-        .decoration_macro("CONST_ARRAY_DECL", "__constant size_t ", kernel_id + " []")
-        .decoration_macro("CONST_ARRAY_REF", "", kernel_id);
+        .add_line("// Kernel name: " + entry_point)
+        .decoration_macro("FUNC", "", entry_point)
+        .decoration_macro("FUNC_CALL", "", entry_point)
+        .decoration_macro("CONST_ARRAY_DECL", "__constant size_t ", entry_point + " []")
+        .decoration_macro("CONST_ARRAY_REF", "", entry_point);
 
-    for (auto& jit_constant : jit_constants) {
+    for (const auto& jit_constant : jit_constants) {
         code.value_macro(jit_constant.name, jit_constant.value);
     }
 
     code.add_line(std::string(SourcesDB::get_kernel_template(template_name)));
 
-    for (auto& jit_constant : jit_constants) {
+    for (const auto& jit_constant : jit_constants) {
         code.undef_macro(jit_constant.name);
     }
 
     return code.str();
 }
 
-KernelData KernelGenerator::get_kernel_data(const kernel_impl_params& params) const {
+KernelData KernelGenerator::get_kernel_data(const RuntimeParams& params) const {
     auto jit = get_jit_constants(params);
 
     KernelData kd;
     kd.code.kernel_string = std::make_shared<KernelString>();
-    kd.code.kernel_string->language = kernel_language::OCLC_V2;
+    kd.code.kernel_string->language = KernelLanguage::OCLC_V2;
     kd.code.kernel_string->entry_point = get_entry_point(params);
     kd.code.kernel_string->jit = "";  // jit and undefa are a part of the code now
     kd.code.kernel_string->undefs = "";
@@ -93,11 +95,11 @@ KernelData KernelGenerator::get_kernel_data(const kernel_impl_params& params) co
     return kd;
 }
 
-std::string KernelGenerator::get_entry_point(const kernel_impl_params& params) const {
+std::string KernelGenerator::get_entry_point(const RuntimeParams& params) const {
     return m_kernel_name + m_stage_suffix + "_" + std::to_string(params.hash()) + (params.is_dynamic() ? "__sa" : "");
 }
 
-std::string KernelGenerator::get_build_options(const kernel_impl_params& params) const {
+std::string KernelGenerator::get_build_options(const RuntimeParams& params) const {
     std::string options;
     const auto& device_info = params.get_program().get_engine().get_device_info();
     if (device_info.vendor_id == cldnn::INTEL_VENDOR_ID) {
@@ -111,18 +113,19 @@ std::string KernelGenerator::get_build_options(const kernel_impl_params& params)
     return options;
 }
 
-JitConstants KernelGenerator::get_jit_constants(const kernel_impl_params& params) const {
+JitConstants KernelGenerator::get_jit_constants(const RuntimeParams& params) const {
     auto jit = make_base_jit_constants(params);
     jit.merge(make_tensors_jit_constants(params));
     jit.add(make_activation_jit_constants(activation_func::none, ov::element::dynamic, "", false, false));
     return jit;
 }
 
-Arguments KernelGenerator::get_arguments_desc(const kernel_impl_params& params) const {
+Arguments KernelGenerator::get_arguments_desc(const RuntimeParams& params) const {
     Arguments args;
 
-    if (params.is_dynamic())
+    if (params.is_dynamic()) {
         args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+    }
 
     for (uint32_t i = 0; i < params.input_layouts.size(); i++) {
         args.push_back({ArgumentDescriptor::Types::INPUT, i});

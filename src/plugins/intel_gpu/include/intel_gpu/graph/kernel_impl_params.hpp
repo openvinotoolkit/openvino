@@ -185,3 +185,7 @@ struct kernel_impl_params final {
 };
 
 }  // namespace cldnn
+
+namespace ov::intel_gpu {
+using RuntimeParams = cldnn::kernel_impl_params;
+}  // namespace ov::intel_gpu

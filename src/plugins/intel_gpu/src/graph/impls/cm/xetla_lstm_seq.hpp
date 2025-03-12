@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <memory>
+#include <utility>
 
 #include "intel_gpu/runtime/layout.hpp"
 #include "lstm_seq_inst.h"
@@ -14,9 +16,10 @@ namespace ov::intel_gpu::cm {
 
 struct LSTMSeqImplementationManager : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("cm::lstm_seq")
-    LSTMSeqImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::cm, shape_type, vf) {}
+    explicit LSTMSeqImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr)
+        : ImplementationManager(impl_types::cm, shape_type, std::move(vf)) {}
 
-    in_out_fmts_t query_formats(const program_node& node) const override {
+    [[nodiscard]] in_out_fmts_t query_formats(const program_node& node) const override {
         assert(node.is_type<lstm_seq>());
         std::vector<format::type> in_fmts(node.get_dependencies().size(), format::any);
         std::vector<format::type> out_fmts(node.get_outputs_count(), format::any);
@@ -32,13 +35,13 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
         return {in_fmts, out_fmts};
     }
 
-    std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
+    [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
 
-    bool validate_impl(const program_node& node) const override {
+    [[nodiscard]] bool validate_impl(const program_node& node) const override {
         assert(node.is_type<lstm_seq>());
 
         auto& engine = node.get_program().get_engine();
-        auto& config = node.get_program().get_config();
+        const auto& config = node.get_program().get_config();
         const auto& info = engine.get_device_info();
 
         // XeTLA LSTM optimized for Xe2 architectures
@@ -46,8 +49,9 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
             return false;
         }
 
-        if (node.has_fused_primitives())
+        if (node.has_fused_primitives()) {
             return false;
+        }
 
         const auto& lstm_node = node.as<lstm_seq>();
         const auto& lstm_prim = lstm_node.get_primitive();
@@ -64,7 +68,7 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
         if (node.is_dynamic()) {
             return false;
         }
-        unsigned int expected_inputs = 7;
+        const uint32_t expected_inputs = 7;
         if (in_layouts.size() != expected_inputs) {
             return false;
         }
@@ -93,11 +97,7 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
         auto input_size = in_layouts[0].get_shape()[2];
         auto hidden_size = in_layouts[3].get_shape()[1] / num_gates;
         auto num_dir = in_layouts[3].get_shape()[0];
-        if (hidden_size != 128 || batch_size != 1 || num_dir != 2 || (input_size != 64 && input_size != 256)) {
-            return false;
-        }
-
-        return true;
+        return hidden_size == 128 && batch_size == 1 && num_dir == 2 && (input_size == 64 || input_size == 256);
     }
 };
 
