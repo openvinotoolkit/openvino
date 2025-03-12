@@ -113,8 +113,16 @@ protected:
                                const std::vector<ptrdiff_t>& start_offset_in,
                                const std::vector<ptrdiff_t>& start_offset_out,
                                size_t ithr) {
-        for (size_t i = 0; i < srcMemPtrs.size(); i++) {
-            call_args.src_ptrs[i] = srcMemPtrs[i]->getDataAs<const uint8_t>() + start_offset_in[i];
+        if (!std::getenv("REF") && !std::getenv("ONLY_MUL")) {
+            std::cout << "[ INFO ] init_call_args is called\n";
+            // TODO: need to write non-kernel data in a separate call_args section
+            for (size_t i = 0; i < srcMemPtrs.size() - 1; i++) {
+                call_args.src_ptrs[i] = srcMemPtrs[i]->getDataAs<const uint8_t>() + start_offset_in[i];
+            }
+        } else {
+            for (size_t i = 0; i < srcMemPtrs.size(); i++) {
+                call_args.src_ptrs[i] = srcMemPtrs[i]->getDataAs<const uint8_t>() + start_offset_in[i];
+            }
         }
 
         for (size_t i = 0; i < dstMemPtrs.size(); i++) {
