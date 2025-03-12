@@ -342,6 +342,9 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         qk_scratch_b.resize<T>({B, Hk, qk_gemm_ptr->get_scratch_b_size() / data_size});
         wv_scratch_b.resize<T>({B, Hk, wv_gemm_ptr->get_scratch_b_size() / data_size});
         const size_t m_block_size = qk_gemm_ptr->get_mblk_size();
+
+        std::cout << "weight_score " << &weight_score << " SDPA m_threads_num:" << m_threads_num << " H:" << H << " m_block_size:" << m_block_size
+                  << " kv_len:" << kv_len << " B:" << B << " q_len:" << q_len << std::endl;
         weight_score.resize<float>({m_threads_num, H, m_block_size, kv_len});
         if (has_out_transpose) {
             fp32_out.resize<float>({B, q_len, H, head_size_v});
