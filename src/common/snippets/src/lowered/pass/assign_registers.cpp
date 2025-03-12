@@ -25,7 +25,7 @@ AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& li
     OPENVINO_ASSERT(gpr_pool.size() >= (linear_ir.get_parameters().size() + linear_ir.get_results().size()),
                     "Not enough gp registers in the pool to perform manual assignment");
     for (const auto& param : linear_ir.get_parameters()) {
-        if (param->get_node()->get_rt_info().count("SKIP_REGISTER_ASSIGNMENT")) {
+        if (param->get_node()->get_rt_info().count("POSTOP_INPUT")) {
             std::cout << "[ INFO ] Register assignment is skipped for the node " << param->get_node() << std::endl;
             continue;
         }
@@ -179,7 +179,7 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
     assigned_reg_map.insert(map_gpr.begin(), map_gpr.end());
 
     for (const auto& expr : exprs) {
-        if (expr->get_node()->get_rt_info().count("SKIP_REGISTER_ASSIGNMENT")) {
+        if (expr->get_node()->get_rt_info().count("POSTOP_INPUT")) {
             std::cout << "[ INFO ] Register assignment is skipped for the node " << expr->get_node() << std::endl;
             continue;
         }

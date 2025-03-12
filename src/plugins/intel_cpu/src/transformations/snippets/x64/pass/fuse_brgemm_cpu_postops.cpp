@@ -62,7 +62,7 @@ pass::FuseBrgemmCPUPostops::FuseBrgemmCPUPostops() {
             brgemm_inputs.push_back(post_op->input_value(i));
             input_descs.push_back(ov::snippets::modifier::MemoryAccess::PortDescriptor{0, 0});
             const auto input_node = post_op->get_input_node_shared_ptr(i);
-            input_node->get_rt_info()["SKIP_REGISTER_ASSIGNMENT"] = true;
+            input_node->get_rt_info()["POSTOP_INPUT"] = true;
         }
 
         auto postops = brgemm->get_postops();
