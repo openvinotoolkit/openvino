@@ -47,9 +47,6 @@ struct DispatchDataFunc {
     }
 };
 
-#define DISPATCH_DATA_FUNC(params, kd, rt_params, ...) [__VA_ARGS__](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params)
-#define OV_GPU_OCL_KERNEL(TYPE_NAME)                   OV_GPU_PRIMITIVE_IMPL(TYPE_NAME)
-
 struct KernelData {
     KernelCode code;
     KernelParams params;
