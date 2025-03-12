@@ -41,13 +41,19 @@ class Model(object, metaclass=ModelMeta):
                 "5. openvino.Model(results: list[openvino.Output], parameters: list[openvino.op.Parameter], name: str = '')",
                 "6. openvino.Model(results: list[openvino.Output], sinks: list[openvino.Node], parameters: list[openvino.op.Parameter], name: str = '')",
                 "7. openvino.Model(results: list[openvino.Output], sinks: list[openvino.Output], parameters: list[openvino.op.Parameter], name: str = '')",
-                "8. openvino.Model(results: list[openvino.Output], sinks: list[openvino.Output], parameters: list[openvino.op.Parameter], variables: list[openvino.op.util.Variable], name: str = '')",
+                "8. openvino.Model(results: list[openvino.Output], sinks: list[openvino.Output], parameters: list[openvino.op.Parameter], \
+                                   variables: list[openvino.op.util.Variable], name: str = '')",
                 "9. openvino.Model(results: list[openvino.op.Result], sinks: list[openvino.Output], parameters: list[openvino.op.Parameter], name: str = '')",
-                "10. openvino.Model(results: list[openvino.op.Result], sinks: list[openvino.Output], parameters: list[openvino.op.Parameter], variables: list[openvino.op.util.Variable], name: str = '')",
-                "11. openvino.Model(results: list[openvino.op.Result], sinks: list[openvino.Node], parameters: list[openvino.op.Parameter], variables: list[openvino.op.util.Variable], name: str = '')",
-                "12. openvino.Model(results: list[openvino.Output], sinks: list[openvino.Node], parameters: list[openvino.op.Parameter], variables: list[openvino.op.util.Variable], name: str = '')",
-                "13. openvino.Model(results: list[openvino.op.Result], parameters: list[openvino.op.Parameter], variables: list[openvino.op.util.Variable], name: str = '')",
-                "14. openvino.Model(results: list[openvino.Output], parameters: list[openvino.op.Parameter], variables: list[openvino.op.util.Variable], name: str = '')",
+                "10. openvino.Model(results: list[openvino.op.Result], sinks: list[openvino.Output], parameters: list[openvino.op.Parameter], \
+                                    variables: list[openvino.op.util.Variable], name: str = '')",
+                "11. openvino.Model(results: list[openvino.op.Result], sinks: list[openvino.Node], parameters: list[openvino.op.Parameter], \
+                                    variables: list[openvino.op.util.Variable], name: str = '')",
+                "12. openvino.Model(results: list[openvino.Output], sinks: list[openvino.Node], parameters: list[openvino.op.Parameter], \
+                                    variables: list[openvino.op.util.Variable], name: str = '')",
+                "13. openvino.Model(results: list[openvino.op.Result], parameters: list[openvino.op.Parameter], \
+                                    variables: list[openvino.op.util.Variable], name: str = '')",
+                "14. openvino.Model(results: list[openvino.Output], parameters: list[openvino.op.Parameter], \
+                                    variables: list[openvino.op.util.Variable], name: str = '')",
             ]
 
             constructor_info = "\n".join(f"  - {ctor}" for ctor in constructors)
