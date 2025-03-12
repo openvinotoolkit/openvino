@@ -14,22 +14,27 @@ namespace ov::intel_gpu::ocl {
 
 class KernelGenerator : public KernelGeneratorBase {
 public:
-    explicit KernelGenerator(std::string_view name) : KernelGeneratorBase(), m_kernel_name(name) {}
+    KernelGenerator(const KernelGenerator&) = default;
+    KernelGenerator(KernelGenerator&&) = delete;
+    KernelGenerator& operator=(const KernelGenerator&) = delete;
+    KernelGenerator& operator=(KernelGenerator&&) = delete;
+    explicit KernelGenerator(std::string_view name, std::string_view suffix = "") : m_kernel_name(name), m_stage_suffix(suffix) {}
     virtual ~KernelGenerator() = default;
 
-    KernelData get_kernel_data(const kernel_impl_params& params) const override;
+    [[nodiscard]] KernelData get_kernel_data(const RuntimeParams& params) const override;
 
 protected:
-    virtual Arguments get_arguments_desc(const kernel_impl_params& params) const;
-    virtual JitConstants get_jit_constants(const kernel_impl_params& params) const;
-    virtual std::string get_entry_point(const kernel_impl_params& params) const;
-    virtual std::string get_build_options(const kernel_impl_params& params) const;
+    [[nodiscard]] virtual Arguments get_arguments_desc(const RuntimeParams& params) const;
+    [[nodiscard]] virtual JitConstants get_jit_constants(const RuntimeParams& params) const;
+    [[nodiscard]] virtual std::string get_entry_point(const RuntimeParams& params) const;
+    [[nodiscard]] virtual std::string get_build_options(const RuntimeParams& params) const;
 
-    JitConstants make_base_jit_constants(const kernel_impl_params& params) const;
-    JitConstants make_tensors_jit_constants(const kernel_impl_params& params) const;
-    std::string build_code(std::string_view template_name, const JitConstants& jit_constants, const std::string& entry_point) const;
+    [[nodiscard]] JitConstants make_base_jit_constants(const RuntimeParams& params) const;
+    [[nodiscard]] static JitConstants make_tensors_jit_constants(const RuntimeParams& params);
+    [[nodiscard]] static std::string build_code(std::string_view template_name, const JitConstants& jit_constants, const std::string& entry_point);
 
-    const std::string m_kernel_name;
+private:
+    std::string m_kernel_name;
     std::string m_stage_suffix;
 };
 

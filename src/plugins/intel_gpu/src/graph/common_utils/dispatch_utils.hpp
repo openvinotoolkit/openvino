@@ -11,10 +11,10 @@
 
 namespace ov::intel_gpu {
 
-enum class ChannelName : size_t { X = 0, Y = 1, Z = 2, W = 3, U = 4, V = 5, FEATURE = 6, BATCH = 7, IFM = 8, OFM = 9, G = 10, UNKNOWN = 11 };
+enum class ChannelName : uint8_t { X = 0, Y = 1, Z = 2, W = 3, U = 4, V = 5, FEATURE = 6, BATCH = 7, IFM = 8, OFM = 9, G = 10, UNKNOWN = 11 };
 
 std::vector<size_t> get_optimal_lws(const std::vector<size_t>& gws, const cldnn::device_info& info,
-                                    cldnn::format input_fmt = cldnn::format::bfyx, cldnn::format output_fmt = cldnn::format::bfyx,
+                                    cldnn::format::type input_fmt = cldnn::format::bfyx, cldnn::format::type output_fmt = cldnn::format::bfyx,
                                     std::vector<std::vector<ChannelName>> dims_by_gws =
                                                       {{ ChannelName::X, ChannelName::Y },
                                                        { ChannelName::FEATURE },

@@ -4,19 +4,17 @@
 
 #pragma once
 
-#include "openvino/core/type.hpp"
-#include "program_node.h"
-
 #include <cstddef>
-#include <string>
+#include <type_traits>
+#include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/runtime/kernel_args.hpp"
 
 namespace micro {
 struct MicroKernelPackage;
-}  // namspace
+}  // namespace micro
 
 namespace ov::intel_gpu {
-
-using namespace cldnn;
 
 using KernelParams = cldnn::kernel_arguments_desc;
 
@@ -26,26 +24,31 @@ using ScalarDescriptor = cldnn::scalar_desc;
 using Scalars = cldnn::scalars_desc;
 using ArgumentDescriptor = cldnn::argument_desc;
 using Arguments = cldnn::arguments_desc;
+using cldnn::WeightsReorderParams;
+using KernelLanguage = cldnn::kernel_language;
 
 struct KernelCode {
     std::shared_ptr<KernelString> kernel_string;
 };
 
 struct KernelData;
-struct RuntimeParams { };
+struct ImplRuntimeParams {};
 
 struct DispatchDataFunc {
-    std::function<void(const kernel_impl_params&, KernelData&, RuntimeParams*)> m_dispatch_data_func = nullptr;
+    using FuncType = std::function<void(const RuntimeParams&, KernelData&, ImplRuntimeParams*)>;
+    FuncType m_dispatch_data_func = nullptr;
 
-    template <typename Callable>
-    DispatchDataFunc(Callable&& func) : m_dispatch_data_func(std::forward<Callable>(func)) {}
+    template <typename Callable, typename std::enable_if_t<std::is_constructible_v<FuncType, Callable>, bool> = true>
+    explicit DispatchDataFunc(Callable&& func) : m_dispatch_data_func(std::forward<Callable>(func)) {}
     explicit DispatchDataFunc(std::nullptr_t) {}
 
-    void operator()(const kernel_impl_params& params, KernelData& kd, RuntimeParams* rt_params = nullptr) { m_dispatch_data_func(params, kd, rt_params); }
+    void operator()(const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params = nullptr) const {
+        m_dispatch_data_func(params, kd, rt_params);
+    }
 };
 
-#define DISPATCH_DATA_FUNC(params, kd, rt_params, ...) [__VA_ARGS__](const kernel_impl_params& params, KernelData& kd, RuntimeParams* rt_params)
-#define OV_GPU_OCL_KERNEL(TYPE_NAME) OV_GPU_PRIMITIVE_IMPL(TYPE_NAME)
+#define DISPATCH_DATA_FUNC(params, kd, rt_params, ...) [__VA_ARGS__](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params)
+#define OV_GPU_OCL_KERNEL(TYPE_NAME)                   OV_GPU_PRIMITIVE_IMPL(TYPE_NAME)
 
 struct KernelData {
     KernelCode code;
@@ -62,10 +65,14 @@ struct KernelData {
 class KernelGeneratorBase {
 public:
     KernelGeneratorBase() = default;
+    KernelGeneratorBase(const KernelGeneratorBase&) = default;
+    KernelGeneratorBase(KernelGeneratorBase&&) = delete;
+    KernelGeneratorBase& operator=(const KernelGeneratorBase&) = default;
+    KernelGeneratorBase& operator=(KernelGeneratorBase&&) = delete;
     virtual ~KernelGeneratorBase() = default;
 
-    virtual KernelData get_kernel_data(const kernel_impl_params& params) const = 0;
-    virtual DispatchDataFunc get_dispatch_data_func() const = 0;
+    [[nodiscard]] virtual KernelData get_kernel_data(const RuntimeParams& params) const = 0;
+    [[nodiscard]] virtual DispatchDataFunc get_dispatch_data_func() const = 0;
 };
 
 }  // namespace ov::intel_gpu

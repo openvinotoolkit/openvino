@@ -51,7 +51,7 @@ void KernelData::load(cldnn::BinaryInputBuffer& ib) {
     ib >> params.layerID;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    size_t n_microkernels;
+    size_t n_microkernels = 0;
     ib >> n_microkernels;
     micro_kernels.clear();
     for (size_t i = 0; i < n_microkernels; i++) {
