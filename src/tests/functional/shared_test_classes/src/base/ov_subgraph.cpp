@@ -306,7 +306,7 @@ void SubgraphBaseTest::compile_model() {
         std::cout << "[ PLUGIN      ] `SubgraphBaseTest::compile_model()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
     }
     try {
-        inference_precision = core->get_property(targetDevice, ov::hint::inference_precision);
+        inference_precision = compiledModel.get_property(ov::hint::inference_precision);
     } catch (std::exception& e) {
         std::cout << "[ WARNING ] Impossible to get Inference Precision with exception: " << e.what() << std::endl;
     }
