@@ -92,8 +92,6 @@ private:
     uint16_t _patch;
 
 public:
-    OpenvinoVersion();
-
     constexpr OpenvinoVersion(uint16_t major, uint16_t minor, uint16_t patch)
         : _major(major),
           _minor(minor),

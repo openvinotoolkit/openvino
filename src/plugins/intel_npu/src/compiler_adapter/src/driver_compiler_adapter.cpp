@@ -587,7 +587,7 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
     umdcachestring << ov::intel_npu::bypass_umd_caching.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                    << VALUE_DELIMITER;
     content = std::regex_replace(content, std::regex(umdcachestring.str()), "");
-    // Remove disable_version_check property as it is not used by compiler
+
     std::ostringstream skipversioncheck;
     skipversioncheck << ov::intel_npu::disable_version_check.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                      << VALUE_DELIMITER;

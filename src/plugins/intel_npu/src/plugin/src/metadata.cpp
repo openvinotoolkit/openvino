@@ -72,7 +72,7 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
         return std::make_unique<Metadata<METADATA_VERSION_2_0>>(blobSize, std::nullopt);
 
     default:
-        OPENVINO_THROW("Invalid metadata version!");
+        OPENVINO_THROW("Metadata version is not supported!");
     }
 }
 
