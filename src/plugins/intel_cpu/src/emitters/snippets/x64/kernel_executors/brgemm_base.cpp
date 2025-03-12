@@ -145,10 +145,6 @@ void BrgemmBaseKernelExecutor::create_brgemm_kernel(std::shared_ptr<brgemm_kerne
                                                     const dnnl_post_ops& post_ops,
                                                     bool with_amx,
                                                     char* palette) {
-    std::cout << "[ INFO ] Brgemm kernel params:" << std::endl;
-    std::cout << "\t dt_in0: " << dt_in0 << std::endl;
-    std::cout << "\t dt_in1: " << dt_in1 << std::endl;
-    std::cout << "\t dt_out: " << dt_out << std::endl;
     cpu::x64::brgemm_desc_t desc;
     OV_CPU_JIT_EMITTER_ASSERT(brgemm_desc_init(&desc,
                                                isa,

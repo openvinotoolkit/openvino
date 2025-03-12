@@ -133,7 +133,9 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     validate_arguments(in, out);
     std::vector<size_t> mem_ptrs_idxs{in[0], in[1], out[0]};
     init_binary_call_regs(2, mem_ptrs_idxs);
-    if (in.size() > 2) {
+    // TODO: investigate if it is needed
+    if (m_memory_offsets.size() > 3) {
+        OV_CPU_JIT_EMITTER_ASSERT(in.size() >= 3, "expects 3 inputs if there are compensations/wsp");
         mem_ptrs_idxs.emplace_back(in[2]);
     }
 
