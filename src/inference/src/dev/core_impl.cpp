@@ -790,6 +790,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
+        cacheContent.model = std::const_pointer_cast<ov::Model>(model);
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
             return compile_model_and_cache(plugin,
@@ -825,6 +826,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
+        cacheContent.model = std::const_pointer_cast<ov::Model>(model);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, [&]() {
             return compile_model_and_cache(plugin, model, parsed._config, context, cacheContent);
         });
@@ -1499,6 +1501,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                     if (ov::util::file_exists(weights_path)) {
                         update_config[ov::weights_path.name()] = weights_path.string();
                     }
+
+                    if (cacheContent.model) {
+                        update_config[ov::hint::model.name()] = cacheContent.model;
+                    }
                 }
                 if (model_buffer) {
                     auto compiled_blob =
@@ -1517,10 +1523,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                         update_config[ov::hint::compiled_blob.name()] = model_blob;
                     }
 
-                    const std::shared_ptr<const Model> null_model;
-                    // use null model as all model data are in configuration
-                    compiled_model = context ? plugin.compile_model(null_model, context, update_config)
-                                             : plugin.compile_model(null_model, update_config);
+                    compiled_model = context ? plugin.compile_model(cacheContent.model, context, update_config)
+                                             : plugin.compile_model(cacheContent.model, update_config);
                 } else {
                     // regular blob stream, can be imported or fail if there is no weights
                     compiled_model = context ? plugin.import_model(networkStream, context, update_config)
