@@ -74,12 +74,12 @@ void Unique::initSupportedPrimitiveDescriptors() {
 
     std::vector<PortConfigurator> inPortConfigs = {{LayoutType::ncsp, dataPrecision}};
     if (!flattened) {
-        inPortConfigs.push_back({LayoutType::ncsp, axisPrecision});
+        inPortConfigs.emplace_back(LayoutType::ncsp, axisPrecision);
     }
     std::vector<PortConfigurator> outPortConfigs;
     outPortConfigs.reserve(4);
     for (int i = 0; i < 4; i++) {
-        outPortConfigs.push_back({LayoutType::ncsp, i == 0 ? dataPrecision : axisPrecision});
+        outPortConfigs.emplace_back(LayoutType::ncsp, i == 0 ? dataPrecision : axisPrecision);
     }
 
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, implType);
@@ -142,16 +142,16 @@ void Unique::execute(const dnnl::stream& strm) {
                   OV_CASE(ov::element::i32, int32_t),
                   OV_CASE(ov::element::i8, int8_t),
                   OV_CASE(ov::element::u8, uint8_t))
-    } else {
-        OV_SWITCH(intel_cpu,
-                  slicedExec,
-                  this,
-                  dataPrecision,
-                  OV_CASE(ov::element::f32, float),
-                  OV_CASE(ov::element::i32, int32_t),
-                  OV_CASE(ov::element::i8, int8_t),
-                  OV_CASE(ov::element::u8, uint8_t))
+        return;
     }
+    OV_SWITCH(intel_cpu,
+              slicedExec,
+              this,
+              dataPrecision,
+              OV_CASE(ov::element::f32, float),
+              OV_CASE(ov::element::i32, int32_t),
+              OV_CASE(ov::element::i8, int8_t),
+              OV_CASE(ov::element::u8, uint8_t))
 }
 
 void Unique::executeDynamicImpl(const dnnl::stream& strm) {
@@ -159,7 +159,7 @@ void Unique::executeDynamicImpl(const dnnl::stream& strm) {
     VectorDims dstDataDims;
     Dim uniqLen = 1;
     if (flattened) {
-        uniqLen = std::accumulate(srcDataDims.begin(), srcDataDims.end(), 1, std::multiplies<Dim>());
+        uniqLen = std::accumulate(srcDataDims.begin(), srcDataDims.end(), 1, std::multiplies<>());
         dstDataDims = {uniqLen};
     } else {
         uniqLen = srcDataDims[axis];
@@ -266,7 +266,7 @@ void Unique::flattenTensorExec() {
     T* uniDataPtr = getDstDataAtPortAs<T>(UNIQUE_DATA);
     cpu_parallel_memcpy(uniDataPtr, uniDataTmpPtr, uniqueLen * sizeof(T));
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
-        int* firstPtr = getDstDataAtPortAs<int>(FIRST_UNIQUE_IDX);
+        auto* firstPtr = getDstDataAtPortAs<int>(FIRST_UNIQUE_IDX);
         cpu_parallel_memcpy(firstPtr, firstUniTmp.data(), uniqueLen * sizeof(int));
     }
     if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
@@ -299,11 +299,11 @@ void Unique::slicedTensorExec() {
     const auto axisDim = srcDataShape[axis];
     int64_t outerLen = 1lu;
     if (axis > 0) {
-        outerLen = std::accumulate(srcDataShape.begin(), srcDataShape.begin() + axis, 1, std::multiplies<Dim>());
+        outerLen = std::accumulate(srcDataShape.begin(), srcDataShape.begin() + axis, 1, std::multiplies<>());
     }
     int64_t innerLen = 1;
     if (static_cast<size_t>(axis) < srcDataShape.size() - 1) {
-        innerLen = std::accumulate(srcDataShape.begin() + axis + 1, srcDataShape.end(), 1, std::multiplies<Dim>());
+        innerLen = std::accumulate(srcDataShape.begin() + axis + 1, srcDataShape.end(), 1, std::multiplies<>());
     }
     const auto innerSizeB = innerLen * sizeof(T);
     const auto srcOuterStep = innerLen * axisDim;

@@ -8,6 +8,9 @@
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/node_builders/activation.hpp"
 #include "shared_test_classes/single_op/activation.hpp"
+#if defined(OPENVINO_ARCH_RISCV64)
+#   include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
+#endif
 
 using namespace CPUTestUtils;
 using namespace ov::test::utils;
@@ -200,7 +203,8 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::LogicalNot) ||
         (activation_type == utils::ActivationTypes::Tanh) ||
         (activation_type == utils::ActivationTypes::RoundHalfAwayFromZero) ||
-        (activation_type == utils::ActivationTypes::RoundHalfToEven))) {
+        (activation_type == utils::ActivationTypes::RoundHalfToEven) ||
+        (activation_type == utils::ActivationTypes::SoftPlus))) {
         return "jit";
     }
 
@@ -219,18 +223,27 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         return "ref";
     }
     return "acl";
-#elif defined(OV_CPU_WITH_SHL)
+#endif
+#if defined(OPENVINO_ARCH_RISCV64)
+    if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
+        if ((activation_type == utils::ActivationTypes::Clamp) ||
+            (activation_type == utils::ActivationTypes::Exp) ||
+            (activation_type == utils::ActivationTypes::Negative) ||
+            (activation_type == utils::ActivationTypes::Relu) ||
+            (activation_type == utils::ActivationTypes::PReLu) ||
+            (activation_type == utils::ActivationTypes::Sigmoid) )
+            return "jit";
+    }
+#if defined(OV_CPU_WITH_SHL)
     if ((activation_type == utils::ActivationTypes::Relu) ||
         (activation_type == utils::ActivationTypes::PReLu) ||
         (activation_type == utils::ActivationTypes::Exp) ||
         (activation_type == utils::ActivationTypes::Clamp)) {
         return "shl";
-    } else {
-        return "ref";
     }
-#else
-    return CPUTestsBase::getPrimitiveType();
 #endif
+#endif
+    return CPUTestsBase::getPrimitiveType();
 }
 
 TEST_P(ActivationLayerCPUTest, CompareWithRefs) {

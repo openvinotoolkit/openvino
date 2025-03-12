@@ -5,7 +5,7 @@
 #include "lstm_seq_inst.h"
 #include "primitive_onednn_base.h"
 #include "lstm_seq_onednn.hpp"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 
 #include "kernel_selector_common.h"
 
