@@ -22,7 +22,7 @@ for more streamlined resource management.
 NPU Plugin is now available through all relevant OpenVINO distribution channels.
 
 | **Supported Platforms:**
-|   Host: Intel® Core™ Ultra (former Meteor Lake)
+|   Host: Intel® Core™ Ultra series
 |   NPU device: NPU 3720
 |   OS: Ubuntu* 22.04 64-bit (with Linux kernel 6.6+), MS Windows* 11 64-bit (22H2, 23H2)
 
@@ -33,10 +33,10 @@ Follow the instructions below to install the latest NPU drivers:
 * `Linux driver <https://github.com/intel/linux-npu-driver/releases>`__
 
 
-The plugin uses the graph extension API exposed by the driver to convert the OpenVINO specific representation
-of the model into a proprietary format. The compiler included in the user mode driver (UMD) performs
-platform specific optimizations in order to efficiently schedule the execution of network layers and
-memory transactions on various NPU hardware submodules.
+The plugin uses the graph extension API exposed by the driver to convert the OpenVINO specific
+representation of the model into a proprietary format. The compiler included in the user mode
+driver (UMD) performs platform specific optimizations in order to efficiently schedule the
+execution of network layers and memory transactions on various NPU hardware submodules.
 
 To use NPU for inference, pass the device name to the ``ov::Core::compile_model()`` method:
 
@@ -144,6 +144,7 @@ offer a limited set of supported OpenVINO features.
          ov::workload_type
          ov::intel_npu::compilation_mode_params
          ov::intel_npu::compiler_dynamic_quantization
+         ov::intel_npu::qdq_optimization
          ov::intel_npu::turbo
          ov::intel_npu::tiles
          ov::intel_npu::max_tiles

@@ -21,9 +21,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool Split::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -82,22 +80,25 @@ void Split::getSupportedDescriptors() {}
 void Split::initSupportedPrimitiveDescriptors() {
     constexpr size_t channelsPos = 1lu;
 
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     const auto& srcShape = getInputShapeAtPort(0);
     const auto& dstFirstDims = getOutputShapeAtPort(0).getDims();
-    for (size_t i = 0; i < outputShapes.size(); i++) {
-        const auto& o_Dims = outputShapes[i].getDims();
+    for (const auto& outputShape : outputShapes) {
+        const auto& o_Dims = outputShape.getDims();
         if (dstFirstDims.size() != o_Dims.size()) {
             THROW_CPU_NODE_ERR("only supports output blobs with equal number of dimensions");
         }
 
         for (size_t j = 0; j < dstFirstDims.size(); j++) {
-            if (j == axis)
+            if (j == axis) {
                 continue;
-            if (!dimsEqualWeak(o_Dims[j], dstFirstDims[j]))
+            }
+            if (!dimsEqualWeak(o_Dims[j], dstFirstDims[j])) {
                 THROW_CPU_NODE_ERR("has incorrect output dimensions");
+            }
         }
     }
 
@@ -111,8 +112,9 @@ void Split::initSupportedPrimitiveDescriptors() {
     if (srcShape.getRank() > 2) {
         for (auto item : {std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c)}) {
             const auto& blkDims = srcShape.getDims();
-            if (blkDims[channelsPos] == Shape::UNDEFINED_DIM || blkDims[channelsPos] % item.first != 0)
+            if (blkDims[channelsPos] == Shape::UNDEFINED_DIM || blkDims[channelsPos] % item.first != 0) {
                 continue;
+            }
 
             bool blocked = true;
             for (size_t i = 0; i < outputShapes.size(); i++) {
@@ -184,8 +186,8 @@ void Split::initSupportedPrimitiveDescriptors() {
         for (auto refPdIndex : pdIndexesToReuse) {
             auto config = supportedPrimitiveDescriptors[refPdIndex].getConfig();
 
-            for (size_t i = 0; i < config.outConfs.size(); i++) {
-                config.outConfs[i].inPlace(0);
+            for (auto& outConf : config.outConfs) {
+                outConf.inPlace(0);
             }
             supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
         }
@@ -222,7 +224,8 @@ void Split::initSupportedPrimitiveDescriptors() {
 bool Split::needShapeInfer() const {
     if (Node::needShapeInfer()) {
         return true;
-    } else if (!constSplitLengths) {
+    }
+    if (!constSplitLengths) {
         const auto& lengthsMemPtr = getSrcMemoryAtPort(2);
         const auto curLengthsSize = lengthsMemPtr->getStaticDims()[0];
         if (curLengthsSize != splitLengths.size()) {
@@ -289,6 +292,10 @@ void Split::prepareParams() {
     }
 }
 
+bool Split::neverExecute() const {
+    return isInPlace() || getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0);
+}
+
 bool Split::isExecutable() const {
     return !isInPlace() && !isInputTensorAtPortEmpty(0);
 }
@@ -298,8 +305,9 @@ void Split::execute(const dnnl::stream& strm) {
         return;
     }
 
-    if (dstMemPtrs.empty())
+    if (dstMemPtrs.empty()) {
         THROW_CPU_NODE_ERR("Output data pointers have not been initialized.");
+    }
 
     const auto& srcMem = getParentEdgeAt(0)->getMemory();
 
@@ -308,8 +316,8 @@ void Split::execute(const dnnl::stream& strm) {
         return;
     }
 
-    uint8_t* srcData = srcMem.getDataAs<uint8_t>();
-    OPENVINO_ASSERT(execPtr != nullptr);
+    auto* srcData = srcMem.getDataAs<uint8_t>();
+    CPU_NODE_ASSERT(execPtr != nullptr, "Split executor is not initialized");
     execPtr->exec(srcData, getRawDstMemPtrs());
 }
 
@@ -320,18 +328,20 @@ bool Split::created() const {
 void Split::initOptimalPrimitiveDescriptor() {
     Node::initOptimalPrimitiveDescriptor();
     auto selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
+    if (selected_pd == nullptr) {
         THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
+    }
 
     auto config = selected_pd->getConfig();
     canUseOptimizedNspc2Ncsp = false;
-    OPENVINO_ASSERT(config.inConfs.size() > 0);
+    CPU_NODE_ASSERT(config.inConfs.size() > 0, "Incorrect number of input configurations");
     const auto inConfDesc = config.inConfs[0].getMemDesc();
     if (axis == 1 && one_of(inConfDesc->getShape().getRank(), 4u, 5u) && inConfDesc->hasLayoutType(LayoutType::nspc)) {
         canUseOptimizedNspc2Ncsp = true;
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
-            if (!config.outConfs[i].getMemDesc()->hasLayoutType(LayoutType::ncsp))
+        for (const auto& outConf : config.outConfs) {
+            if (!outConf.getMemDesc()->hasLayoutType(LayoutType::ncsp)) {
                 canUseOptimizedNspc2Ncsp = false;
+            }
         }
     }
 }
@@ -514,16 +524,18 @@ Split::SplitOptimizedExecutor::SplitOptimizedExecutor(const BlockedMemoryDescCPt
     const auto getRank = srcDims.size();
 
     countStrides = 1;
-    for (unsigned int i = 0; i < axisOrderPos; i++)
+    for (unsigned int i = 0; i < axisOrderPos; i++) {
         countStrides *= srcDims[i];
+    }
 
     srcDataStride = 0;
     dataSize.resize(outputPortsCount);
 
     for (size_t i = 0; i < outputPortsCount; i++) {
         dataSize[i] = srcDataSize;
-        for (size_t j = axisOrderPos; j < getRank; j++)
+        for (size_t j = axisOrderPos; j < getRank; j++) {
             dataSize[i] *= outDescs[i]->getBlockDims()[j];
+        }
 
         srcDataStride += dataSize[i];
     }
@@ -551,31 +563,23 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
         return;
     }
     auto selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
-        OPENVINO_THROW("Preferable primitive descriptor is not set.");
+    if (selected_pd == nullptr) {
+        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
+    }
     auto& config = selected_pd->getConfig();
     size_t numberOfOutputs = config.outConfs.size();
     size_t inplaceInpIndx = selected_pd->getConfig().outConfs[0].inPlace();
     auto baseDim = inputShapes.front().getDims()[axis];
-    OPENVINO_ASSERT(baseDim != Shape::UNDEFINED_DIM,
-                    " Split node: ",
-                    getName(),
-                    " can not use inPlace memory with splitting on dynamic dimension");
+    CPU_NODE_ASSERT(baseDim != Shape::UNDEFINED_DIM, "can not use inPlace memory with splitting on dynamic dimension");
     auto baseMemBlock = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryBlock();
     ptrdiff_t offset = 0;
     for (size_t i = 0; i < numberOfOutputs; ++i) {
         auto partDim = outputShapes[i].getDims()[axis];
-        OPENVINO_ASSERT(partDim != Shape::UNDEFINED_DIM,
-                        " Split node: ",
-                        getName(),
-                        " can not use inPlace memory with splitting on dynamic dimension");
+        CPU_NODE_ASSERT(partDim != Shape::UNDEFINED_DIM,
+                        "can not use inPlace memory with splitting on dynamic dimension");
         const auto& childEdges = getChildEdgesAtPort(i);
         for (auto& childEdge : childEdges) {
-            OPENVINO_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated,
-                            " Unexpected edge status in node: ",
-                            getName(),
-                            " with type ",
-                            getTypeStr());
+            CPU_NODE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated, "Unexpected edge status");
 
             auto memDesc = selected_pd->getConfig().outConfs[i].getMemDesc();
             MemoryPtr newMem;
@@ -593,6 +597,4 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
     }
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

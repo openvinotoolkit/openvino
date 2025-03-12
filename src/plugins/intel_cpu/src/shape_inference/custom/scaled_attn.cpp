@@ -10,9 +10,7 @@
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class SDPAShapeInfer : public ShapeInferEmptyPads {
 public:
@@ -30,8 +28,9 @@ public:
             present_v_dims[0] = beam_idx_dims[0];
             present_v_dims[2] += query_dims[2];
             // normal and fast path
-            if (present_v_dims[3] == query_dims[3])
+            if (present_v_dims[3] == query_dims[3]) {
                 return {{query_dims, present_v_dims, present_v_dims}, ShapeInferStatus::success};
+            }
 
             // diff kv feature size
             auto output_dims = query_dims;
@@ -54,8 +53,9 @@ public:
         }
 
         // normal and fast path
-        if (present_v_dims[3] == query_dims[3])
+        if (present_v_dims[3] == query_dims[3]) {
             return {{output_dims, present_v_dims, present_v_dims}, ShapeInferStatus::success};
+        }
 
         // diff kv feature size
         output_dims[3] = present_v_dims[3];
@@ -64,7 +64,7 @@ public:
         return {{output_dims, present_k_dims, present_v_dims}, ShapeInferStatus::success};
     }
 
-    port_mask_t get_port_mask() const override {
+    [[nodiscard]] port_mask_t get_port_mask() const override {
         return EMPTY_PORT_MASK;
     }
 
@@ -75,13 +75,12 @@ private:
 ShapeInferPtr SDPAShapeInferFactory::makeShapeInfer() const {
     if (auto sdpa = ov::as_type_ptr<const ScaledDotProductAttentionWithKVCache>(m_op)) {
         const auto& config = sdpa->get_config();
-        if (config.output_BLHxS == false)
+        if (config.output_BLHxS == false) {
             return std::make_shared<SDPAShapeInfer>(config);
+        }
     }
     // fallback to ngraph shape infer on non-perf-critical case
     return make_shape_inference(m_op);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

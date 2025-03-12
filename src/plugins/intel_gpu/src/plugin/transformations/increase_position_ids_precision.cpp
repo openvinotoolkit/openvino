@@ -17,20 +17,23 @@
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 IncreasePositionIdsPrecision::IncreasePositionIdsPrecision() {
     using namespace ov::pass::pattern;
     using ov::pass::pattern::op::Or;
 
     auto gemm_or_matmul = wrap_type<ov::intel_gpu::op::Gemm, ov::op::v0::MatMul>();
-    auto concat = wrap_type<ov::op::v0::Concat>({gemm_or_matmul, gemm_or_matmul});
+    auto transpose_m = wrap_type<ov::op::v1::Transpose>({gemm_or_matmul, any_input()});
+    auto reshape_m = wrap_type<ov::op::v1::Reshape>({gemm_or_matmul, any_input()});
+    auto concat_input = std::make_shared<Or>(OutputVector{gemm_or_matmul, transpose_m, reshape_m});
+    auto concat = wrap_type<ov::op::v0::Concat>({concat_input, concat_input});
     auto sin = wrap_type<ov::op::v0::Sin>({concat});
     auto cos = wrap_type<ov::op::v0::Cos>({concat});
 
@@ -126,5 +129,4 @@ IncreasePositionIdsPrecision::IncreasePositionIdsPrecision() {
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

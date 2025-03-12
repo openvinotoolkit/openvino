@@ -5,6 +5,7 @@
 #include "interpolate.h"
 
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -41,9 +42,7 @@ using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_interpolate_call_args, field)
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 static inline bool isFloatCompatible(ov::element::Type prc) {
     return one_of(prc, ov::element::f32, ov::element::bf16, ov::element::f16, ov::element::f64);
@@ -182,8 +181,9 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
         this->postamble();
 
         emit_emitters_data();
-        for (auto& inj : eltwise_injectors)
+        for (auto& inj : eltwise_injectors) {
             inj->prepare_table();
+        }
         if ((jcp_.mode == InterpolateMode::cubic) && (jcp_.layout == InterpolateLayoutType::planar)) {
             prepare_cubic_planar_table();
         }
@@ -283,8 +283,9 @@ private:
 
     void emit_emitters_data() {
         for (const auto& emitter : emitters) {
-            if (emitter.second)
+            if (emitter.second) {
                 emitter.second->emit_data();
+            }
         }
     }
 
@@ -304,7 +305,7 @@ private:
                           const int offset = 0) {
         const auto seed = load_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num));
+            emitters[seed] = std::make_unique<jit_load_emitter>(this, isa, src_prc, dst_prc, elt_num);
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), static_cast<size_t>(offset)},
@@ -316,7 +317,7 @@ private:
     inline void store(Vmm vmm_dst, Xbyak::Reg64 reg_dst, const int elt_num, const int offset = 0) {
         const auto seed = store_emitter_params(ov::element::f32, jcp_.dst_prc, elt_num).hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, elt_num));
+            emitters[seed] = std::make_unique<jit_store_emitter>(this, isa, ov::element::f32, jcp_.dst_prc, elt_num);
         }
 
         // for cases when Store emitter need 2 aux vmm we can use vmm_dst as second aux vmm
@@ -342,7 +343,7 @@ private:
         Xbyak::Reg64 reg_dst_xpass = r13;
         Xbyak::Reg64 reg_src_ypass = r14;
         Xbyak::Reg64 reg_dst_aux = r15;
-        Xbyak::Reg64 reg_params = abi_param1;
+        auto reg_params = abi_param1;
 
         mov(reg_src, ptr[reg_params + GET_OFF(src_ptr[0])]);
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
@@ -535,8 +536,9 @@ private:
                 uni_vmovdqu(vmm_index, ptr[reg_index]);
                 uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
                 vgatherdps(vmm_val, ptr[reg_src_h + vmm_index], vmm_mask);
-                if (attr_.post_ops_.len() != 0)
+                if (attr_.post_ops_.len() != 0) {
                     apply_post_ops(jcp_.dst_prc, 1);
+                }
                 store(vmm_val, reg_dst, vector_step);
 
                 add(reg_dst, vector_step * jcp_.dst_data_size);
@@ -557,8 +559,9 @@ private:
                 add(reg_src_aux, reg_index_offset);
 
                 load(reg_src_aux, vmm_val, scalar_step);
-                if (attr_.post_ops_.len() != 0)
+                if (attr_.post_ops_.len() != 0) {
                     apply_post_ops(jcp_.dst_prc, 1);
+                }
                 store(vmm_val, reg_dst, scalar_step);
 
                 add(reg_dst, scalar_step * jcp_.dst_data_size);
@@ -591,8 +594,9 @@ private:
             add(reg_src_aux, reg_index_offset);
 
             load(reg_src_aux, vmm_val, vector_step);
-            if (attr_.post_ops_.len() != 0)
+            if (attr_.post_ops_.len() != 0) {
                 apply_post_ops(jcp_.dst_prc, 0);
+            }
             store(vmm_val, reg_dst, vector_step);
             add(reg_dst, vector_step * jcp_.dst_data_size);
 
@@ -651,8 +655,9 @@ private:
             add(reg_src_aux, reg_index_offset);
 
             mov(reg_work_amount, reg_work_amount_bk);
-            if (attr_.post_ops_.len() != 0)
+            if (attr_.post_ops_.len() != 0) {
                 mov(reg_oc_off, reg_oc_off_bk);
+            }
 
             L(nn_loop_label);
             {
@@ -660,8 +665,9 @@ private:
                 jl(nn_loop_end_label, T_NEAR);
 
                 load(reg_src_aux, vmm_val, vector_step);
-                if (attr_.post_ops_.len() != 0)
+                if (attr_.post_ops_.len() != 0) {
                     apply_post_ops(jcp_.dst_prc, 0);
+                }
                 store(vmm_val, reg_dst, vector_step);
 
                 add(reg_dst, vector_step * jcp_.dst_data_size);
@@ -675,8 +681,9 @@ private:
 
             if (tail_step != 0) {
                 load(reg_src_aux, vmm_val, tail_step);
-                if (attr_.post_ops_.len() != 0)
+                if (attr_.post_ops_.len() != 0) {
                     apply_post_ops(jcp_.dst_prc, 0);
+                }
                 store(vmm_val, reg_dst, tail_step);
 
                 // check to remove below
@@ -1625,7 +1632,7 @@ struct InterpolateKey {
     std::vector<float> dataScales;
     dnnl::primitive_attr attr;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const InterpolateKey& rhs) const;
 };
 
@@ -1658,35 +1665,49 @@ size_t InterpolateKey::hash() const {
 }
 
 bool InterpolateKey::operator==(const InterpolateKey& rhs) const {
-    if (nodeAttrs.mode != rhs.nodeAttrs.mode)
+    if (nodeAttrs.mode != rhs.nodeAttrs.mode) {
         return false;
-    if (nodeAttrs.coordTransMode != rhs.nodeAttrs.coordTransMode)
+    }
+    if (nodeAttrs.coordTransMode != rhs.nodeAttrs.coordTransMode) {
         return false;
-    if (nodeAttrs.nearestMode != rhs.nodeAttrs.nearestMode)
+    }
+    if (nodeAttrs.nearestMode != rhs.nodeAttrs.nearestMode) {
         return false;
-    if (nodeAttrs.layout != rhs.nodeAttrs.layout)
+    }
+    if (nodeAttrs.layout != rhs.nodeAttrs.layout) {
         return false;
-    if (nodeAttrs.antialias != rhs.nodeAttrs.antialias)
+    }
+    if (nodeAttrs.antialias != rhs.nodeAttrs.antialias) {
         return false;
-    if (nodeAttrs.cubeCoeff != rhs.nodeAttrs.cubeCoeff)
+    }
+    if (nodeAttrs.cubeCoeff != rhs.nodeAttrs.cubeCoeff) {
         return false;
-    if (nodeAttrs.padBegin != rhs.nodeAttrs.padBegin)
+    }
+    if (nodeAttrs.padBegin != rhs.nodeAttrs.padBegin) {
         return false;
-    if (nodeAttrs.padEnd != rhs.nodeAttrs.padEnd)
+    }
+    if (nodeAttrs.padEnd != rhs.nodeAttrs.padEnd) {
         return false;
-    if (nodeAttrs.inPrc != rhs.nodeAttrs.inPrc)
+    }
+    if (nodeAttrs.inPrc != rhs.nodeAttrs.inPrc) {
         return false;
-    if (nodeAttrs.outPrc != rhs.nodeAttrs.outPrc)
+    }
+    if (nodeAttrs.outPrc != rhs.nodeAttrs.outPrc) {
         return false;
+    }
 
-    if (srcDims != rhs.srcDims)
+    if (srcDims != rhs.srcDims) {
         return false;
-    if (dstDims != rhs.dstDims)
+    }
+    if (dstDims != rhs.dstDims) {
         return false;
-    if (dataScales != rhs.dataScales)
+    }
+    if (dataScales != rhs.dataScales) {
         return false;
-    if (!(*attr.get() == *rhs.attr.get()))
+    }
+    if (!(*attr.get() == *rhs.attr.get())) {
         return false;
+    }
 
     return true;
 }
@@ -1850,22 +1871,22 @@ namespace {
 class InterpolateShapeInferFactory : public ShapeInferFactory {
 public:
     InterpolateShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
-    ShapeInferPtr makeShapeInfer() const override {
+    [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
         if (auto interp4 = ov::as_type_ptr<ov::opset4::Interpolate>(m_op)) {
             const auto& attr = interp4->get_attrs();
             const auto is_supported_mode = (attr.shape_calculation_mode == ngInterpShapeCalcMode::SCALES) ||
                                            (attr.shape_calculation_mode == ngInterpShapeCalcMode::SIZES);
             OPENVINO_ASSERT(is_supported_mode, "Unsupported interpolate shape calculation mode");
             return make_shape_inference(m_op);
-        } else if (auto interp11 = ov::as_type_ptr<ov::op::v11::Interpolate>(m_op)) {
-            return make_shape_inference(m_op);
-        } else {
-            OPENVINO_THROW("Shape infer factory cannot be created for ",
-                           m_op->get_type_name(),
-                           " node with name: ",
-                           m_op->get_friendly_name(),
-                           ", only versions 4 and 11 are supported.");
         }
+        if (auto interp11 = ov::as_type_ptr<ov::op::v11::Interpolate>(m_op)) {
+            return make_shape_inference(m_op);
+        }
+        OPENVINO_THROW("Shape infer factory cannot be created for ",
+                       m_op->get_type_name(),
+                       " node with name: ",
+                       m_op->get_friendly_name(),
+                       ", only versions 4 and 11 are supported.");
     }
 
 private:
@@ -1881,10 +1902,12 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
         if (const auto interp = ov::as_type_ptr<const ov::opset4::Interpolate>(op)) {
             is_version11 = false;
             const auto numInputs = inputShapes.size();
-            if (numInputs != 3 && numInputs != 4)
+            if (numInputs != 3 && numInputs != 4) {
                 THROW_CPU_NODE_ERR("has incorrect number of input edges");
-            if (outputShapes.size() != 1)
+            }
+            if (outputShapes.size() != 1) {
                 THROW_CPU_NODE_ERR("has incorrect number of output edges");
+            }
             isAxesSpecified = numInputs != 3;
 
             const auto& interpAttr = interp->get_attrs();
@@ -1954,16 +1977,18 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
                 interpAttrs.padBegin.resize(dataRank, 0);
             } else {
                 interpAttrs.padBegin.resize(interpAttr.pads_begin.size());
-                for (size_t i = 0; i < interpAttr.pads_begin.size(); i++)
+                for (size_t i = 0; i < interpAttr.pads_begin.size(); i++) {
                     interpAttrs.padBegin[i] = static_cast<int>(interpAttr.pads_begin[i]);
+                }
             }
 
             if (interpAttr.pads_end.empty()) {
                 interpAttrs.padEnd.resize(dataRank, 0);
             } else {
                 interpAttrs.padEnd.resize(interpAttr.pads_end.size());
-                for (size_t i = 0; i < interpAttr.pads_end.size(); i++)
+                for (size_t i = 0; i < interpAttr.pads_end.size(); i++) {
                     interpAttrs.padEnd[i] = static_cast<int>(interpAttr.pads_end[i]);
+                }
             }
 
             const auto scalesNode =
@@ -1985,10 +2010,12 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
         } else if (const auto interp = ov::as_type_ptr<const ov::op::v11::Interpolate>(op)) {
             is_version11 = true;
             const auto numInputs = inputShapes.size();
-            if (numInputs != 2 && numInputs != 3)
+            if (numInputs != 2 && numInputs != 3) {
                 THROW_CPU_NODE_ERR("has incorrect number of input edges");
-            if (outputShapes.size() != 1)
+            }
+            if (outputShapes.size() != 1) {
                 THROW_CPU_NODE_ERR("has incorrect number of output edges");
+            }
             isAxesSpecified = numInputs != 2;
 
             const auto& interpAttr = interp->get_attrs();
@@ -2025,16 +2052,18 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
                 interpAttrs.padBegin.resize(dataRank, 0);
             } else {
                 interpAttrs.padBegin.resize(interpAttr.pads_begin.size());
-                for (size_t i = 0; i < interpAttr.pads_begin.size(); i++)
+                for (size_t i = 0; i < interpAttr.pads_begin.size(); i++) {
                     interpAttrs.padBegin[i] = static_cast<int>(interpAttr.pads_begin[i]);
+                }
             }
 
             if (interpAttr.pads_end.empty()) {
                 interpAttrs.padEnd.resize(dataRank, 0);
             } else {
                 interpAttrs.padEnd.resize(interpAttr.pads_end.size());
-                for (size_t i = 0; i < interpAttr.pads_end.size(); i++)
+                for (size_t i = 0; i < interpAttr.pads_end.size(); i++) {
                     interpAttrs.padEnd[i] = static_cast<int>(interpAttr.pads_end[i]);
+                }
             }
 
             if (isAxesSpecified) {
@@ -2058,22 +2087,24 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
 }
 
 void Interpolate::getSupportedDescriptors() {
-    if (getParentEdges().size() != 2 && getParentEdges().size() != 3 && getParentEdges().size() != 4)
+    if (getParentEdges().size() != 2 && getParentEdges().size() != 3 && getParentEdges().size() != 4) {
         // v4: data, target_shape, scale, axis(optional).
         // v11: data, size_or_scale, axis(optional)
         THROW_CPU_NODE_ERR("has incorrect number of input edges");
-    if (getChildEdges().empty())
+    }
+    if (getChildEdges().empty()) {
         THROW_CPU_NODE_ERR("has incorrect number of output edges");
+    }
 
     // get pad
-    for (size_t i = 0; i < interpAttrs.padBegin.size(); i++) {
-        if (interpAttrs.padBegin[i] != 0) {
+    for (int i : interpAttrs.padBegin) {
+        if (i != 0) {
             hasPad = true;
             break;
         }
     }
-    for (size_t i = 0; i < interpAttrs.padEnd.size(); i++) {
-        if (interpAttrs.padEnd[i] != 0) {
+    for (int i : interpAttrs.padEnd) {
+        if (i != 0) {
             hasPad = true;
             break;
         }
@@ -2102,8 +2133,9 @@ void Interpolate::getSupportedDescriptors() {
 }
 
 void Interpolate::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(DATA_ID);
 
@@ -2116,8 +2148,9 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         inputPrecision = ov::element::f32;
     }
 
-    if (!hasHardwareSupport(inputPrecision))
+    if (!hasHardwareSupport(inputPrecision)) {
         inputPrecision = ov::element::f32;
+    }
 
     // support input with rank<=3 only with float precision and planar layout.
     // Jit for avx2(gather is available) and ref for no-avx2 machine.
@@ -2173,9 +2206,10 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
                         ->createSharedDesc(scalesType, getInputShapeAtPort(SIZE_OR_SCALE_ID_V11)));
             }
 
-            if (isAxesSpecified)
+            if (isAxesSpecified) {
                 config.inConfs[AXES_ID_V11].setMemDesc(
                     creatorsMap.at(LayoutType::ncsp)->createSharedDesc(axesType, getInputShapeAtPort(AXES_ID_V11)));
+            }
         } else {
             config.inConfs[TARGET_SHAPE_ID].setMemDesc(
                 creatorsMap.at(LayoutType::ncsp)
@@ -2183,9 +2217,10 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
             config.inConfs[get_scale_id()].setMemDesc(
                 creatorsMap.at(LayoutType::ncsp)->createSharedDesc(scalesType, getInputShapeAtPort(get_scale_id())));
 
-            if (isAxesSpecified)
+            if (isAxesSpecified) {
                 config.inConfs[get_axis_id()].setMemDesc(
                     creatorsMap.at(LayoutType::ncsp)->createSharedDesc(axesType, getInputShapeAtPort(get_axis_id())));
+            }
         }
 
         config.outConfs[0].setMemDesc(
@@ -2193,12 +2228,14 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
 
         if (useAclExecutor) {
             std::vector<MemoryDescPtr> srcMemoryDescs;
-            for (size_t i = 0; i < config.inConfs.size(); i++) {
-                srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
+            srcMemoryDescs.reserve(config.inConfs.size());
+            for (const auto& inConf : config.inConfs) {
+                srcMemoryDescs.push_back(inConf.getMemDesc());
             }
             std::vector<MemoryDescPtr> dstMemoryDescs;
-            for (size_t i = 0; i < config.outConfs.size(); i++) {
-                dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
+            dstMemoryDescs.reserve(config.outConfs.size());
+            for (const auto& outConf : config.outConfs) {
+                dstMemoryDescs.push_back(outConf.getMemDesc());
             }
 
             auto factory = std::make_shared<InterpolateExecutorFactory>(
@@ -2207,10 +2244,10 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
                 dstMemoryDescs,
                 std::make_shared<ExecutorContext>(context, getImplPriority()));
             if (!factory->isEmpty()) {
-                supportedPrimitiveDescriptors.push_back({config, implDetail, factory});
+                supportedPrimitiveDescriptors.emplace_back(config, implDetail, factory);
             }
         } else {
-            supportedPrimitiveDescriptors.push_back({config, implDetail});
+            supportedPrimitiveDescriptors.emplace_back(config, implDetail);
         }
     };
     if (is_version11) {
@@ -2227,20 +2264,23 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
 
         if (dataRank == 4) {
             if (mayiuse(cpu::x64::avx512_core)) {
-                if (NCHWAsNHWC)
+                if (NCHWAsNHWC) {
                     pushDesc(LayoutType::ncsp, jit_avx512, true);
-                else
+                } else {
                     pushDesc(LayoutType::nspc, jit_avx512, true);
+                }
             } else if (mayiuse(cpu::x64::avx2)) {
-                if (NCHWAsNHWC)
+                if (NCHWAsNHWC) {
                     pushDesc(LayoutType::ncsp, jit_avx2, true);
-                else
+                } else {
                     pushDesc(LayoutType::nspc, jit_avx2, true);
+                }
             } else if (mayiuse(cpu::x64::sse41)) {
-                if (NCHWAsNHWC)
+                if (NCHWAsNHWC) {
                     pushDesc(LayoutType::ncsp, jit_sse42, true);
-                else
+                } else {
                     pushDesc(LayoutType::nspc, jit_sse42, true);
+                }
             }
         }
         pushDesc(LayoutType::ncsp, ref, true);
@@ -2266,16 +2306,19 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
             if (dataRank == 4 || (dataRank == 5 && interpAttrs.mode != InterpolateMode::cubic)) {
                 if (mayiuse(cpu::x64::avx512_core)) {
                     pushDesc(LayoutType::nspc, jit_avx512, false);
-                    if (isBlkApplied)
+                    if (isBlkApplied) {
                         pushDesc(LayoutType::nCsp16c, jit_avx512, false);
+                    }
                 } else if (mayiuse(cpu::x64::avx2)) {
                     pushDesc(LayoutType::nspc, jit_avx2, false);
-                    if (isBlkApplied)
+                    if (isBlkApplied) {
                         pushDesc(LayoutType::nCsp8c, jit_avx2, false);
+                    }
                 } else {
                     pushDesc(LayoutType::nspc, jit_sse42, false);
-                    if (isBlkApplied)
+                    if (isBlkApplied) {
                         pushDesc(LayoutType::nCsp8c, jit_sse42, false);
+                    }
                 }
             }
 
@@ -2283,10 +2326,11 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
             // 1.ref on machine w/o avx2(no fuse)
             // 2.JIT kernel for avx2(gatherps is available).(with fuse)
             if (inputPrecision == ov::element::f32) {
-                if (mayiuse(cpu::x64::avx2))
+                if (mayiuse(cpu::x64::avx2)) {
                     pushDesc(LayoutType::ncsp, jit_avx2, false);
-                else
+                } else {
                     pushDesc(LayoutType::ncsp, ref, false);
+                }
             }
         }
     }
@@ -2300,7 +2344,7 @@ bool Interpolate::needShapeInfer() const {
         if (lastScales.empty()) {
             return true;
         }
-        const float* scales = getSrcDataAtPortAs<const float>(get_scale_id());
+        const auto* scales = getSrcDataAtPortAs<const float>(get_scale_id());
         for (size_t i = 0; i < lastScales.size(); i++) {
             if (lastScales[i] != scales[i]) {
                 return true;
@@ -2310,7 +2354,7 @@ bool Interpolate::needShapeInfer() const {
         if (lastSizes.empty()) {
             return true;
         }
-        const int32_t* sizes = getSrcDataAtPortAs<const int32_t>(TARGET_SHAPE_ID);
+        const auto* sizes = getSrcDataAtPortAs<const int32_t>(TARGET_SHAPE_ID);
         for (size_t i = 0; i < lastSizes.size(); i++) {
             if (sizes[i] != lastSizes[i]) {
                 return true;
@@ -2326,10 +2370,10 @@ void Interpolate::executeDynamicImpl(const dnnl::stream& strm) {
     const size_t port = interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : get_scale_id();
     const auto& memory = getParentEdgeAt(port)->getMemory();
     if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::scales) {
-        const float* scales = memory.getDataAs<const float>();
+        const auto* scales = memory.getDataAs<const float>();
         lastScales.assign(scales, scales + memory.getDesc().getShape().getElementsCount());
     } else {
-        const int32_t* sizes = memory.getDataAs<const int32_t>();
+        const auto* sizes = memory.getDataAs<const int32_t>();
         lastSizes.assign(sizes, sizes + memory.getDesc().getShape().getElementsCount());
     }
 }
@@ -2339,52 +2383,56 @@ bool Interpolate::needPrepareParams() const {
 }
 
 inline int Interpolate::get_scale_id() const {
-    if (is_version11)
+    if (is_version11) {
         return SIZE_OR_SCALE_ID_V11;
-    else
-        return SCALES_ID;
+    }
+    return SCALES_ID;
 }
 inline int Interpolate::get_axis_id() const {
-    if (is_version11)
+    if (is_version11) {
         return AXES_ID_V11;
-    else
-        return AXES_ID;
+    }
+    return AXES_ID;
 }
 
 void Interpolate::prepareParams() {
     if (!shapesDefined()) {
-        OPENVINO_THROW("Can't prepare params for Interpolate node with name: ",
-                       getName(),
-                       ", because input/output dims aren't defined");
+        THROW_CPU_NODE_ERR("input/output dims aren't defined");
     }
 
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isDefined())
+    if (!dstMemPtr || !dstMemPtr->isDefined()) {
         THROW_CPU_NODE_ERR("has undefined destination memory");
+    }
 
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
-    if (!srcMemPtr || !srcMemPtr->isDefined())
+    if (!srcMemPtr || !srcMemPtr->isDefined()) {
         THROW_CPU_NODE_ERR("has undefined input memory");
+    }
 
     if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::sizes) {
         auto tsMemPtr = getSrcMemoryAtPort(TARGET_SHAPE_ID);
-        if (!tsMemPtr || !tsMemPtr->isDefined())
+        if (!tsMemPtr || !tsMemPtr->isDefined()) {
             THROW_CPU_NODE_ERR("has undefined target shape memory");
+        }
     } else {
         auto scaleMemPtr = getSrcMemoryAtPort(get_scale_id());
-        if (!scaleMemPtr || !scaleMemPtr->isDefined())
+        if (!scaleMemPtr || !scaleMemPtr->isDefined()) {
             THROW_CPU_NODE_ERR("has undefined scales memory");
+        }
     }
 
     if (isAxesSpecified) {
         auto axesMemPtr = getSrcMemoryAtPort(get_axis_id());
-        if (!axesMemPtr || !axesMemPtr->isDefined())
+        if (!axesMemPtr || !axesMemPtr->isDefined()) {
             THROW_CPU_NODE_ERR("has undefined axes memory");
+        }
     }
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
+    if (selected_pd == nullptr) {
         THROW_CPU_NODE_ERR("did not set preferable primitive descriptor");
+    }
 
     const auto& srcDimsOrign = srcMemPtr->getStaticDims();
     const auto& dstDimsOrign = dstMemPtr->getStaticDims();
@@ -2408,7 +2456,7 @@ void Interpolate::prepareParams() {
     if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::scales) {
         if (!isScaleConstant) {
             const auto& scalesMem = getParentEdgeAt(get_scale_id())->getMemory();
-            const float* scalesData = scalesMem.getDataAs<const float>();
+            const auto* scalesData = scalesMem.getDataAs<const float>();
             scales.assign(scalesData, scalesData + scalesMem.getStaticDims()[0]);
         }
     }
@@ -2416,7 +2464,7 @@ void Interpolate::prepareParams() {
     std::vector<float> dataScales =
         getScales(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd), dstDims);
     if (!NCHWAsNHWC && (getOutputShapeAtPort(0).getRank() > 2 && (dataScales[0] != 1.f || dataScales[1] != 1.f))) {
-        OPENVINO_THROW("Interpolate layer only supports resize on spatial dimensions(depth, height and width)");
+        THROW_CPU_NODE_ERR("only supports resize on spatial dimensions(depth, height and width)");
     }
 
     if (canUseAclExecutor) {
@@ -2444,18 +2492,18 @@ void Interpolate::prepareParams() {
 
     auto buildExecutor = [&](const InterpolateKey& key) -> std::shared_ptr<InterpolateExecutorBase> {
         std::shared_ptr<InterpolateExecutorBase> executor;
-        if ((key.nodeAttrs.mode == InterpolateMode::nearest || key.nodeAttrs.mode == InterpolateMode::linear_onnx ||
-             key.nodeAttrs.mode == InterpolateMode::cubic) &&
-            ((key.nodeAttrs.layout != InterpolateLayoutType::planar && mayiuse(cpu::x64::sse41)) ||
-             (mayiuse(cpu::x64::avx2) && key.nodeAttrs.inPrc == ov::element::f32))) {
-            executor = std::make_shared<InterpolateJitExecutor>(key.nodeAttrs,
-                                                                key.srcDims,
-                                                                key.dstDims,
-                                                                key.dataScales,
-                                                                key.attr);
-        } else if ((key.nodeAttrs.mode == InterpolateMode::bilinear_pillow ||
-                    key.nodeAttrs.mode == InterpolateMode::bicubic_pillow) &&
-                   (key.nodeAttrs.layout == InterpolateLayoutType::by_channel)) {
+        bool isNearestLinearOrCubic = key.nodeAttrs.mode == InterpolateMode::nearest ||
+                                      key.nodeAttrs.mode == InterpolateMode::linear_onnx ||
+                                      key.nodeAttrs.mode == InterpolateMode::cubic;
+        bool isPlanarLayourAndSse41 = key.nodeAttrs.layout != InterpolateLayoutType::planar && mayiuse(cpu::x64::sse41);
+        bool isAvx2AndF32 = mayiuse(cpu::x64::avx2) && key.nodeAttrs.inPrc == ov::element::f32;
+        bool isPillowMode = key.nodeAttrs.mode == InterpolateMode::bilinear_pillow ||
+                            key.nodeAttrs.mode == InterpolateMode::bicubic_pillow;
+        bool isByChannelLayout = key.nodeAttrs.layout == InterpolateLayoutType::by_channel;
+        bool isNearestLinearOrCubicSupported = isNearestLinearOrCubic && (isPlanarLayourAndSse41 || isAvx2AndF32);
+        bool isPillowModeSupported = isPillowMode && isByChannelLayout;
+
+        if (isNearestLinearOrCubicSupported || isPillowModeSupported) {
             executor = std::make_shared<InterpolateJitExecutor>(key.nodeAttrs,
                                                                 key.srcDims,
                                                                 key.dstDims,
@@ -2478,10 +2526,12 @@ void Interpolate::prepareParams() {
 void Interpolate::createPrimitive() {
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!srcMemPtr)
+    if (!srcMemPtr) {
         THROW_CPU_NODE_ERR("has null input memory");
-    if (!dstMemPtr)
+    }
+    if (!dstMemPtr) {
         THROW_CPU_NODE_ERR("has null destination memory");
+    }
 
     if (dstMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
         interpAttrs.layout = InterpolateLayoutType::planar;
@@ -2496,8 +2546,9 @@ void Interpolate::createPrimitive() {
     interpAttrs.outPrc = dstMemPtr->getDesc().getPrecision();
 
     if (shapesDefined() && isExecutable()) {
-        if (needPrepareParams())
+        if (needPrepareParams()) {
             prepareParams();
+        }
         updateLastInputDims();
     }
 }
@@ -2515,23 +2566,25 @@ void Interpolate::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims)
 
     postOpsDataPtrs.clear();
     for (auto& node : fusedWith) {
+        int channelAxis = 1;
+
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs);
+            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs, channelAxis);
             continue;
         }
 
         auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get());
         if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops, dims, postOpsDataPtrs);
+            eltwiseNode->appendPostOps(ops, dims, postOpsDataPtrs, channelAxis);
             continue;
         }
 
-        OPENVINO_THROW("Fusing of ",
-                       NameFromType(node->getType()),
-                       " operation to ",
-                       NameFromType(this->getType()),
-                       " node is not implemented");
+        THROW_CPU_NODE_ERR("Fusing of ",
+                           NameFromType(node->getType()),
+                           " operation to ",
+                           NameFromType(this->getType()),
+                           " node is not implemented");
     }
 
     attr.set_post_ops(ops);
@@ -2576,7 +2629,7 @@ void Interpolate::execute(const dnnl::stream& strm) {
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
 
     if (execPtr) {
-        uint8_t* dst_data = dstMemPtr->getDataAs<uint8_t>();
+        auto* dst_data = dstMemPtr->getDataAs<uint8_t>();
         const uint8_t* src_data_origin = srcMemPtr->getDataAs<uint8_t>();
         const uint8_t* src_data = nullptr;
         std::vector<uint8_t> srcPadded;
@@ -2600,7 +2653,7 @@ void Interpolate::execute(const dnnl::stream& strm) {
 
             if (interpAttrs.layout == InterpolateLayoutType::planar) {
                 srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
-                uint8_t* src_data_pad = static_cast<uint8_t*>(&srcPadded[0]);
+                auto* src_data_pad = static_cast<uint8_t*>(&srcPadded[0]);
                 parallel_for4d(srcDim5d[0], srcDim5d[1], srcDim5d[2], srcDim5d[3], [&](int n, int c, int d, int h) {
                     const uint8_t* src = src_data_origin + (inShapeBlock[1] * n + inShapeBlock[2] * c +
                                                             inShapeBlock[3] * d + inShapeBlock[4] * h) *
@@ -2614,7 +2667,7 @@ void Interpolate::execute(const dnnl::stream& strm) {
                 src_data = src_data_pad;
             } else if (interpAttrs.layout == InterpolateLayoutType::by_channel) {
                 srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
-                uint8_t* src_data_pad = static_cast<uint8_t*>(&srcPadded[0]);
+                auto* src_data_pad = static_cast<uint8_t*>(&srcPadded[0]);
                 parallel_for4d(srcDim5d[0], srcDim5d[2], srcDim5d[3], srcDim5d[4], [&](int n, int d, int h, int w) {
                     const uint8_t* src =
                         src_data_origin +
@@ -2636,11 +2689,9 @@ void Interpolate::execute(const dnnl::stream& strm) {
                 size_t CB = div_up(srcDimPad5d[1], blkSize);
                 size_t eltsTotal = srcDimPad5d[0] * CB * srcDimPad5d[2] * srcDimPad5d[3] * srcDimPad5d[4] * blkSize;
                 srcPadded.resize(eltsTotal * srcDataSize, 0x0);
-                uint8_t* src_data_pad = static_cast<uint8_t*>(&srcPadded[0]);
+                auto* src_data_pad = static_cast<uint8_t*>(&srcPadded[0]);
                 if ((srcDim5d[0] != srcDimPad5d[0]) || (srcDim5d[1] != srcDimPad5d[1])) {
-                    OPENVINO_THROW("Interpolate layer with name '",
-                                   getName(),
-                                   "' does not support padding on batch and channel dimensions");
+                    THROW_CPU_NODE_ERR("does not support padding on batch and channel dimensions");
                 }
                 parallel_for5d(srcDim5d[0],
                                CB,
@@ -2670,11 +2721,11 @@ void Interpolate::execute(const dnnl::stream& strm) {
             src_data = src_data_origin;
         }
 
-        execPtr->exec(src_data, dst_data, postOpsDataPtrs.data());
+        execPtr->exec(src_data, dst_data, reinterpret_cast<void*>(postOpsDataPtrs.data()));
     } else if (aclExecPtr) {
-        aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, postOpsDataPtrs.data());
+        aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, reinterpret_cast<void*>(postOpsDataPtrs.data()));
     } else {
-        OPENVINO_THROW("Can't execute Interpolate node. Primitive didn't created");
+        THROW_CPU_NODE_ERR("Primitive wasn't created");
     }
 }
 
@@ -2691,9 +2742,9 @@ void Interpolate::InterpolateJitExecutor::NNCGathered(const uint8_t* in_ptr_,
                                                       int OD,
                                                       int OH,
                                                       int OW) {
-    int* index_d = static_cast<int*>(&auxTable[0]);
-    int* index_h = static_cast<int*>(&auxTable[OD]);
-    int* index_w = static_cast<int*>(&auxTable[OD + OH]);
+    auto* index_d = static_cast<int*>(&auxTable[0]);
+    auto* index_h = static_cast<int*>(&auxTable[OD]);
+    auto* index_w = static_cast<int*>(&auxTable[OD + OH]);
 
     bool is_nhwc = (configured_for_layout == by_channel);
 
@@ -2757,9 +2808,9 @@ void Interpolate::InterpolateJitExecutor::NNPlanar(const uint8_t* in_ptr_,
                                                    int OD,
                                                    int OH,
                                                    int OW) {
-    int* index_d = static_cast<int*>(&auxTable[0]);
-    int* index_h = static_cast<int*>(&auxTable[OD]);
-    int* index_w = static_cast<int*>(&auxTable[OD + OH]);
+    auto* index_d = static_cast<int*>(&auxTable[0]);
+    auto* index_h = static_cast<int*>(&auxTable[OD]);
+    auto* index_w = static_cast<int*>(&auxTable[OD + OH]);
 
     std::vector<int> index_kernel(OH + OW);
     // index_h * IW * srcDataSize to reduce and simplify redundant compute
@@ -2801,10 +2852,10 @@ void Interpolate::InterpolateJitExecutor::linearOnnxPlanar(const uint8_t* in_ptr
                                                            int OW) {
     // FrontTopLeft:0, FrontTopRight:1, FrontBottomLeft:2, FrontBottomRight:3, EndTopLeft:4,   EndTopRight:5,
     // EndBottomLeft:6,   EndBottomRight:7 weight: Left:0, ritht:1, top:2, bottom:3, front:4, end:5
-    int* index = static_cast<int*>(&auxTable[0]);
+    auto* index = static_cast<int*>(&auxTable[0]);
     int eltInGrid = (spatialDimSize > 2) ? MAX_INPUT_INTERPOLATE : ((spatialDimSize > 1) ? 4 : 2);
     int scratchLen = rnd_up(eltInGrid * OW * OH * OD, 16);
-    float* weight = reinterpret_cast<float*>(&auxTable[scratchLen]);
+    auto* weight = reinterpret_cast<float*>(&auxTable[scratchLen]);
 
     parallel_for2d(B, C, [&](size_t b, size_t c) {
         uint8_t* out_ptr_nc = out_ptr_ + (OH * OW * OD * C * b + OH * OW * OD * c) * dstDataSize;
@@ -2833,8 +2884,8 @@ void Interpolate::InterpolateJitExecutor::linearOnnxCGathered(const uint8_t* in_
                                                               int OH,
                                                               int OW) {
     // left:OW right:OW Top:OH Bottom:OH Front:OD End:OD
-    std::vector<int*> indexPtr(MAX_INPUT_INTERPOLATE, 0);
-    std::vector<float*> weightPtr(MAX_INPUT_INTERPOLATE, 0);
+    std::vector<int*> indexPtr(MAX_INPUT_INTERPOLATE, nullptr);
+    std::vector<float*> weightPtr(MAX_INPUT_INTERPOLATE, nullptr);
     size_t scratchLen = rnd_up(OW + OW + OH + OH + OD + OD, 16);
     indexPtr[0] = static_cast<int*>(&auxTable[0]);
     indexPtr[1] = static_cast<int*>(&auxTable[OW]);
@@ -2912,10 +2963,10 @@ void Interpolate::InterpolateJitExecutor::cubicCGathered(const uint8_t* in_ptr_,
                                                          int OH,
                                                          int OW) {
     const int idxNum = 1;
-    int* xOrigin = static_cast<int*>(&auxTable[0]);
-    float* xFactor = reinterpret_cast<float*>(&auxTable[OW]);
-    int* yOrigin = static_cast<int*>(&auxTable[(CUBIC_GRID_LEN + idxNum) * OW]);
-    float* yFactor = reinterpret_cast<float*>(&auxTable[(CUBIC_GRID_LEN + idxNum) * OW + OH]);
+    auto* xOrigin = static_cast<int*>(&auxTable[0]);
+    auto* xFactor = reinterpret_cast<float*>(&auxTable[OW]);
+    auto* yOrigin = static_cast<int*>(&auxTable[(CUBIC_GRID_LEN + idxNum) * OW]);
+    auto* yFactor = reinterpret_cast<float*>(&auxTable[(CUBIC_GRID_LEN + idxNum) * OW + OH]);
 
     int blkSize = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
     int CB = div_up(C, blkSize);
@@ -2966,18 +3017,18 @@ void Interpolate::InterpolateJitExecutor::cubicPlanar(const uint8_t* in_ptr_,
                                                       int OH,
                                                       int OW) {
     int tblAdvance = 0;
-    int* xOrigin = static_cast<int*>(&auxTable[tblAdvance]);
+    auto* xOrigin = static_cast<int*>(&auxTable[tblAdvance]);
     tblAdvance += OW;
-    float* xFactor = reinterpret_cast<float*>(&auxTable[tblAdvance]);
+    auto* xFactor = reinterpret_cast<float*>(&auxTable[tblAdvance]);
     tblAdvance += CUBIC_GRID_LEN * OW;
-    int* yOrigin = static_cast<int*>(&auxTable[tblAdvance]);
+    auto* yOrigin = static_cast<int*>(&auxTable[tblAdvance]);
     tblAdvance += OH;
-    float* yFactor = reinterpret_cast<float*>(&auxTable[tblAdvance]);
+    auto* yFactor = reinterpret_cast<float*>(&auxTable[tblAdvance]);
 
     tblAdvance += CUBIC_GRID_LEN * OH;
-    int* sequenceOH = static_cast<int*>(&auxTable[tblAdvance]);
+    auto* sequenceOH = static_cast<int*>(&auxTable[tblAdvance]);
     tblAdvance += OW * OH;
-    int* sequenceOW = static_cast<int*>(&auxTable[tblAdvance]);
+    auto* sequenceOW = static_cast<int*>(&auxTable[tblAdvance]);
 
     parallel_for2d(B, C, [&](size_t n, size_t c) {
         const uint8_t* in_ptr_nc = in_ptr_ + (IW * IH * C * n + IW * IH * c) * srcDataSize;
@@ -2992,7 +3043,7 @@ void Interpolate::InterpolateJitExecutor::cubicPlanar(const uint8_t* in_ptr_,
         arg.src_ptr[3] = static_cast<int*>(&sequenceOW[0]);
         arg.weight_ptr[0] = xFactor;
         arg.weight_ptr[1] = yFactor;
-        arg.work_amount = static_cast<size_t>(OW * OH);
+        arg.work_amount = static_cast<size_t>(OW) * OH;
         arg.oc_off = static_cast<size_t>(c * sizeof(float));
         arg.post_op_data = post_ops_data_;
         (*interpolateKernel)(&arg);
@@ -3018,7 +3069,7 @@ void Interpolate::InterpolateJitExecutor::pillowCGathered(const uint8_t* in_ptr_
         if (xPass && yPass) {
             size_t parallel_num = B;
             // IH * OW * C buf needed
-            size_t buffer_size = static_cast<size_t>(OW * IH * C);
+            auto buffer_size = static_cast<size_t>(OW) * IH * C;
             if (parallel_num < m_threads_num) {
                 arg.src_ptr[1] = static_cast<uint8_t*>(&pillow_working_buf[b * buffer_size * srcDataSize]);
             } else {
@@ -3085,29 +3136,24 @@ float Interpolate::InterpolateExecutorBase::coordTransToInput(int outCoord,
     switch (coordTransMode) {
     case InterpolateCoordTransMode::half_pixel: {
         return (outCoord + 0.5f) / scale - 0.5f;
-        break;
     }
     case InterpolateCoordTransMode::pytorch_half_pixel: {
-        if (outShape > 1)
+        if (outShape > 1) {
             return (outCoord + 0.5f) / scale - 0.5f;
-        else
-            return 0;
-        break;
+        }
+        return 0;
     }
     case InterpolateCoordTransMode::asymmetric: {
         return static_cast<float>(outCoord) / scale;
-        break;
     }
     case InterpolateCoordTransMode::tf_half_pixel_for_nn: {
         return (outCoord + 0.5f) / scale;
-        break;
     }
     case InterpolateCoordTransMode::align_corners: {
-        if (outShape > 1)
+        if (outShape > 1) {
             return outCoord * (static_cast<float>(inShape - 1) / static_cast<float>(outShape - 1));
-        else
-            return 0;
-        break;
+        }
+        return 0;
     }
     default: {
         OPENVINO_THROW("does not support specified coordinate transformation mode");
@@ -3121,29 +3167,25 @@ int Interpolate::InterpolateExecutorBase::nearestRound(float originCoord,
                                                        InterpolateNearestMode nearestMode) const {
     switch (nearestMode) {
     case InterpolateNearestMode::round_prefer_floor: {
-        if (originCoord == (static_cast<int>(originCoord) + 0.5f))
+        if (originCoord == (static_cast<int>(originCoord) + 0.5f)) {
             return static_cast<int>(std::floor(originCoord));
-        else
-            return static_cast<int>(std::round(originCoord));
-        break;
+        }
+        return static_cast<int>(std::round(originCoord));
     }
     case InterpolateNearestMode::round_prefer_ceil: {
         return static_cast<int>(std::round(originCoord));
-        break;
     }
     case InterpolateNearestMode::floor: {
         return static_cast<int>(std::floor(originCoord));
-        break;
     }
     case InterpolateNearestMode::ceil: {
         return static_cast<int>(std::ceil(originCoord));
-        break;
     }
     case InterpolateNearestMode::simple: {
-        if (isDownsample)
+        if (isDownsample) {
             return static_cast<int>(std::ceil(originCoord));
-        else
-            return static_cast<int>(originCoord);
+        }
+        return static_cast<int>(originCoord);
     }
     default: {
         OPENVINO_THROW("does not support specified nearest round mode");
@@ -3184,8 +3226,8 @@ void Interpolate::InterpolateExecutorBase::buildTblLinearOnnx(const VectorDims& 
     int ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
     int OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
-    std::vector<int*> indexPtr(MAX_INPUT_INTERPOLATE, 0);
-    std::vector<float*> weightPtr(MAX_INPUT_INTERPOLATE, 0);
+    std::vector<int*> indexPtr(MAX_INPUT_INTERPOLATE, nullptr);
+    std::vector<float*> weightPtr(MAX_INPUT_INTERPOLATE, nullptr);
     if (layout == InterpolateLayoutType::planar) {
         // FrontTopLeft:0, FrontTopRight:1, FrontBottomLeft:2, FrontBottomRight:3,
         // EndTopLeft:4,   EndTopRight:5,   EndBottomLeft:6,   EndBottomRight:7
@@ -3316,19 +3358,19 @@ void Interpolate::InterpolateExecutorBase::buildTblLinear(const VectorDims& srcD
         int sizeOH = OH * diaOH;
         int sizeOW = OW * diaOW;
         auxTable.resize((sizeOD + sizeOH + sizeOW) * 2);
-        float* weightTable = reinterpret_cast<float*>(&auxTable[0]);
-        float* weightOD = static_cast<float*>(&weightTable[0]);
-        float* weightOH = static_cast<float*>(&weightTable[sizeOD]);
-        float* weightOW = static_cast<float*>(&weightTable[sizeOD + sizeOH]);
+        auto* weightTable = reinterpret_cast<float*>(&auxTable[0]);
+        auto* weightOD = static_cast<float*>(&weightTable[0]);
+        auto* weightOH = static_cast<float*>(&weightTable[sizeOD]);
+        auto* weightOW = static_cast<float*>(&weightTable[sizeOD + sizeOH]);
 
-        int* idxTable = static_cast<int*>(&auxTable[sizeOD + sizeOH + sizeOW]);
-        int* idxOD = static_cast<int*>(&idxTable[0]);
-        int* idxOH = static_cast<int*>(&idxTable[sizeOD]);
-        int* idxOW = static_cast<int*>(&idxTable[sizeOD + sizeOH]);
+        auto* idxTable = static_cast<int*>(&auxTable[sizeOD + sizeOH + sizeOW]);
+        auto* idxOD = static_cast<int*>(&idxTable[0]);
+        auto* idxOH = static_cast<int*>(&idxTable[sizeOD]);
+        auto* idxOW = static_cast<int*>(&idxTable[sizeOD + sizeOH]);
 
         for (size_t oz = 0; oz < OD; oz++) {
             float iz = coordTransToInput(oz, fz, ID, OD);
-            int iz_r = static_cast<int>(std::round(iz));
+            auto iz_r = static_cast<int>(std::round(iz));
             for (int r = iz_r - rz, i = 0; r <= iz_r + rz; r++, i++) {
                 idxOD[oz * diaOD + i] = r;
                 if (r < 0 || r >= static_cast<int>(ID)) {
@@ -3341,7 +3383,7 @@ void Interpolate::InterpolateExecutorBase::buildTblLinear(const VectorDims& srcD
         }
         for (size_t oy = 0; oy < OH; oy++) {
             float iy = coordTransToInput(oy, fy, IH, OH);
-            int iy_r = static_cast<int>(std::round(iy));
+            auto iy_r = static_cast<int>(std::round(iy));
             for (int r = iy_r - ry, i = 0; r <= iy_r + ry; r++, i++) {
                 idxOH[oy * diaOH + i] = r;
                 if (r < 0 || r >= static_cast<int>(IH)) {
@@ -3354,7 +3396,7 @@ void Interpolate::InterpolateExecutorBase::buildTblLinear(const VectorDims& srcD
         }
         for (size_t ox = 0; ox < OW; ox++) {
             float ix = coordTransToInput(ox, fx, IW, OW);
-            int ix_r = static_cast<int>(std::round(ix));
+            auto ix_r = static_cast<int>(std::round(ix));
             for (int r = ix_r - rx, i = 0; r <= ix_r + rx; r++, i++) {
                 idxOW[ox * diaOW + i] = r;
                 if (r < 0 || r >= static_cast<int>(IW)) {
@@ -3404,12 +3446,12 @@ void Interpolate::InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDi
     }
 
     int tblAdvance = 0;
-    int* xOrigin = static_cast<int*>(&auxTable[tblAdvance]);
+    auto* xOrigin = static_cast<int*>(&auxTable[tblAdvance]);
     tblAdvance += OW;
-    float* xFactor = reinterpret_cast<float*>(&auxTable[tblAdvance]);
+    auto* xFactor = reinterpret_cast<float*>(&auxTable[tblAdvance]);
     for (int ox = 0; ox < OW; ox++) {
         float ix = coordTransToInput(ox, fx, IW, OW);
-        int ix_r = static_cast<int>(std::floor(ix));
+        auto ix_r = static_cast<int>(std::floor(ix));
         xOrigin[ox] = ix_r;
         float m = ix - ix_r;
         std::vector<float> coffes = getCubicCoeffs(m, cubicCoeff);
@@ -3420,12 +3462,12 @@ void Interpolate::InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDi
     }
 
     tblAdvance += CUBIC_GRID_LEN * OW;
-    int* yOrigin = static_cast<int*>(&auxTable[tblAdvance]);
+    auto* yOrigin = static_cast<int*>(&auxTable[tblAdvance]);
     tblAdvance += OH;
-    float* yFactor = reinterpret_cast<float*>(&auxTable[tblAdvance]);
+    auto* yFactor = reinterpret_cast<float*>(&auxTable[tblAdvance]);
     for (int oy = 0; oy < OH; oy++) {
         float iy = coordTransToInput(oy, fy, IH, OH);
-        int iy_r = static_cast<int>(std::floor(iy));
+        auto iy_r = static_cast<int>(std::floor(iy));
         yOrigin[oy] = iy_r;
         float m = iy - iy_r;
         std::vector<float> coffes = getCubicCoeffs(m, cubicCoeff);
@@ -3437,9 +3479,9 @@ void Interpolate::InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDi
 
     if (layout == InterpolateLayoutType::planar) {
         tblAdvance += CUBIC_GRID_LEN * OH;
-        int* sequenceOH = static_cast<int*>(&auxTable[tblAdvance]);
+        auto* sequenceOH = static_cast<int*>(&auxTable[tblAdvance]);
         tblAdvance += OH * OW;
-        int* sequenceOW = static_cast<int*>(&auxTable[tblAdvance]);
+        auto* sequenceOW = static_cast<int*>(&auxTable[tblAdvance]);
         for (int h = 0; h < OH; ++h) {
             int offset = h * OW;
             for (int w = 0; w < OW; ++w) {
@@ -3451,21 +3493,26 @@ void Interpolate::InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDi
 }
 
 float Interpolate::InterpolateExecutorBase::getPillowBilinearCoeffs(float m) {
-    if (m < 0.0f)
+    if (m < 0.0f) {
         m = -m;
-    if (m < 1.0)
+    }
+    if (m < 1.0) {
         return 1.0f - m;
+    }
     return 0.0f;
 }
 
 float Interpolate::InterpolateExecutorBase::getPillowBicubicCoeffs(float m) {
     float a = -0.5f;
-    if (m < 0.0f)
+    if (m < 0.0f) {
         m = -m;
-    if (m < 1.0)
+    }
+    if (m < 1.0) {
         return ((a + 2.0) * m - (a + 3.0)) * m * m + 1.0;
-    if (m < 2.0f)
+    }
+    if (m < 2.0f) {
         return (((m - 5) * m + 8) * m - 4) * a;
+    }
     return 0.0f;
 }
 
@@ -3511,13 +3558,13 @@ void Interpolate::InterpolateExecutorBase::buildTblPillow(const VectorDims& srcD
     auxTable[offset] = filterArgsX.filterLen;
     auxTable[offset + 1] = filterArgsY.filterLen;
     offset += 2;
-    float* weightX = reinterpret_cast<float*>(&auxTable[offset]);
+    auto* weightX = reinterpret_cast<float*>(&auxTable[offset]);
     offset += filterArgsX.filterLen * OW;
-    float* weightY = reinterpret_cast<float*>(&auxTable[offset]);
+    auto* weightY = reinterpret_cast<float*>(&auxTable[offset]);
     offset += filterArgsY.filterLen * OH;
-    int* indexX = static_cast<int*>(&auxTable[offset]);
+    auto* indexX = static_cast<int*>(&auxTable[offset]);
     offset += 2 * OW;
-    int* indexY = static_cast<int*>(&auxTable[offset]);
+    auto* indexY = static_cast<int*>(&auxTable[offset]);
 
     auto generateTbl = [&](int inLen, int outLen, float fScale, filterArgs args, float* weightTbl, int* idxTbl) {
         int min = 0;
@@ -3554,8 +3601,9 @@ void Interpolate::InterpolateExecutorBase::buildTblPillow(const VectorDims& srcD
             }
 
             // filterlen is maximum possible len, set others to 0 for possible uniform process(vector)
-            for (; ix < args.filterLen; ix++)
+            for (; ix < args.filterLen; ix++) {
                 weightTbl[offset + ix] = 0.f;
+            }
         }
     };
 
@@ -3573,12 +3621,12 @@ void Interpolate::InterpolateRefExecutor::NNRef(const uint8_t* in_ptr_,
                                                 int OD,
                                                 int OH,
                                                 int OW) {
-    int* index_d = static_cast<int*>(&auxTable[0]);
-    int* index_h = static_cast<int*>(&auxTable[OD]);
-    int* index_w = static_cast<int*>(&auxTable[OD + OH]);
+    auto* index_d = static_cast<int*>(&auxTable[0]);
+    auto* index_h = static_cast<int*>(&auxTable[OD]);
+    auto* index_w = static_cast<int*>(&auxTable[OD + OH]);
 
-    const float* in_ptr_f32 = reinterpret_cast<const float*>(in_ptr_);
-    float* out_ptr_f32 = reinterpret_cast<float*>(out_ptr_);
+    const auto* in_ptr_f32 = reinterpret_cast<const float*>(in_ptr_);
+    auto* out_ptr_f32 = reinterpret_cast<float*>(out_ptr_);
 
     parallel_for3d(B, C, OD, [&](size_t b, size_t c, size_t od) {
         const float* in_ptr = in_ptr_f32 + (IW * IH * ID * C * b + IW * IH * ID * c + IW * IH * index_d[od]);
@@ -3603,8 +3651,8 @@ void Interpolate::InterpolateRefExecutor::linearOnnxRef(const uint8_t* in_ptr_,
                                                         int OD,
                                                         int OH,
                                                         int OW) {
-    std::vector<int*> indexPtr(MAX_INPUT_INTERPOLATE, 0);
-    std::vector<float*> weightPtr(MAX_INPUT_INTERPOLATE, 0);
+    std::vector<int*> indexPtr(MAX_INPUT_INTERPOLATE, nullptr);
+    std::vector<float*> weightPtr(MAX_INPUT_INTERPOLATE, nullptr);
     // FrontTopLeft:0, FrontTopRight:1, FrontBottomLeft:2, FrontBottomRight:3,
     // EndTopLeft:4,   EndTopRight:5,   EndBottomLeft:6,   EndBottomRight:7
     // weight: Left:0, ritht:1, top:2, bottom:3, front:4, end:5
@@ -3631,8 +3679,8 @@ void Interpolate::InterpolateRefExecutor::linearOnnxRef(const uint8_t* in_ptr_,
         weightPtr[5] = reinterpret_cast<float*>(&auxTable[scratchLen + 5 * OW * OH * OD]);
     }
 
-    const float* in_ptr_f32 = reinterpret_cast<const float*>(in_ptr_);
-    float* out_ptr_f32 = reinterpret_cast<float*>(out_ptr_);
+    const auto* in_ptr_f32 = reinterpret_cast<const float*>(in_ptr_);
+    auto* out_ptr_f32 = reinterpret_cast<float*>(out_ptr_);
 
     parallel_for2d(B, C, [&](size_t b, size_t c) {
         float* out_ptr_nc = out_ptr_f32 + (OD * OH * OW * C * b + OD * OH * OW * c);
@@ -3701,13 +3749,13 @@ void Interpolate::InterpolateRefExecutor::cubicRef(const uint8_t* in_ptr_,
                                                    int OH,
                                                    int OW) {
     const int idxNum = 1;
-    int* xOrigin = static_cast<int*>(&auxTable[0]);
-    float* xFactor = reinterpret_cast<float*>(&auxTable[OW]);
-    int* yOrigin = static_cast<int*>(&auxTable[(CUBIC_GRID_LEN + idxNum) * OW]);
-    float* yFactor = reinterpret_cast<float*>(&auxTable[(CUBIC_GRID_LEN + idxNum) * OW + OH]);
+    auto* xOrigin = static_cast<int*>(&auxTable[0]);
+    auto* xFactor = reinterpret_cast<float*>(&auxTable[OW]);
+    auto* yOrigin = static_cast<int*>(&auxTable[(CUBIC_GRID_LEN + idxNum) * OW]);
+    auto* yFactor = reinterpret_cast<float*>(&auxTable[(CUBIC_GRID_LEN + idxNum) * OW + OH]);
 
-    const float* in_ptr_f32 = reinterpret_cast<const float*>(in_ptr_);
-    float* out_ptr_f32 = reinterpret_cast<float*>(out_ptr_);
+    const auto* in_ptr_f32 = reinterpret_cast<const float*>(in_ptr_);
+    auto* out_ptr_f32 = reinterpret_cast<float*>(out_ptr_);
 
     parallel_for4d(B, C, OH, OW, [&](size_t n, size_t c, size_t oy, size_t ox) {
         const float* in_ptr_nc = in_ptr_f32 + (IW * IH * C * n + IW * IH * c);
@@ -3739,17 +3787,17 @@ float Interpolate::InterpolateRefExecutor::getValue(const uint8_t* base, size_t 
         break;
     }
     case ov::element::i8: {
-        const int8_t* valuePtr = reinterpret_cast<const int8_t*>(baseOffset);
+        const auto* valuePtr = reinterpret_cast<const int8_t*>(baseOffset);
         return static_cast<float>(*valuePtr);
         break;
     }
     case ov::element::bf16: {
-        const uint16_t* valuePtr = reinterpret_cast<const uint16_t*>(baseOffset);
+        const auto* valuePtr = reinterpret_cast<const uint16_t*>(baseOffset);
         return bfloat16_t::from_bits(*valuePtr);
         break;
     }
     case ov::element::f32: {
-        const float* valuePtr = reinterpret_cast<const float*>(baseOffset);
+        const auto* valuePtr = reinterpret_cast<const float*>(baseOffset);
         return *valuePtr;
         break;
     }
@@ -3764,12 +3812,12 @@ void Interpolate::InterpolateRefExecutor::setValue(uint8_t* base, size_t offset,
     uint8_t* baseOffset = base + offset;
     switch (prec) {
     case ov::element::u8: {
-        uint8_t data = static_cast<uint8_t>(value < 0 ? 0 : value);
+        auto data = static_cast<uint8_t>(value < 0 ? 0 : value);
         cpu_memcpy(baseOffset, &data, 1);
         break;
     }
     case ov::element::i8: {
-        int8_t data = static_cast<int8_t>(value);
+        auto data = static_cast<int8_t>(value);
         cpu_memcpy(baseOffset, &data, 1);
         break;
     }
@@ -3838,15 +3886,15 @@ void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t* in_
     int sizeOH = OH * diaOH;
     int sizeOW = OW * diaOW;
 
-    float* weightTable = reinterpret_cast<float*>(&auxTable[0]);
-    float* weightOD = static_cast<float*>(&weightTable[0]);
-    float* weightOH = static_cast<float*>(&weightTable[sizeOD]);
-    float* weightOW = static_cast<float*>(&weightTable[sizeOD + sizeOH]);
+    auto* weightTable = reinterpret_cast<float*>(&auxTable[0]);
+    auto* weightOD = static_cast<float*>(&weightTable[0]);
+    auto* weightOH = static_cast<float*>(&weightTable[sizeOD]);
+    auto* weightOW = static_cast<float*>(&weightTable[sizeOD + sizeOH]);
 
-    int* idxTable = static_cast<int*>(&auxTable[sizeOD + sizeOH + sizeOW]);
-    int* idxOD = static_cast<int*>(&idxTable[0]);
-    int* idxOH = static_cast<int*>(&idxTable[sizeOD]);
-    int* idxOW = static_cast<int*>(&idxTable[sizeOD + sizeOH]);
+    auto* idxTable = static_cast<int*>(&auxTable[sizeOD + sizeOH + sizeOW]);
+    auto* idxOD = static_cast<int*>(&idxTable[0]);
+    auto* idxOH = static_cast<int*>(&idxTable[sizeOD]);
+    auto* idxOW = static_cast<int*>(&idxTable[sizeOD + sizeOH]);
 
     parallel_for2d(B, C, [&](size_t b, size_t c) {
         const uint8_t* in_ptr_nc = in_ptr_ + (IW * IH * ID * C * b + IW * IH * ID * c) * srcDataSize;
@@ -3887,8 +3935,9 @@ void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t* in_
                     //}
 
                     for (int iz = 0; iz < diaOD; iz++) {
-                        if (weightOD[oz * diaOD + iz] == 0.f)
+                        if (weightOD[oz * diaOD + iz] == 0.f) {
                             continue;
+                        }
                         for (int iy = 0; iy < diaOH; iy++) {
                             if (weightOH[oy * diaOH + iy] == 0.f) {
                                 continue;
@@ -3935,13 +3984,13 @@ void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t* in_ptr_,
     int filterLenX = auxTable[offset];
     int filterLenY = auxTable[offset + 1];
     offset += 2;
-    float* weightX = reinterpret_cast<float*>(&auxTable[offset]);
+    auto* weightX = reinterpret_cast<float*>(&auxTable[offset]);
     offset += filterLenX * OW;
-    float* weightY = reinterpret_cast<float*>(&auxTable[offset]);
+    auto* weightY = reinterpret_cast<float*>(&auxTable[offset]);
     offset += filterLenY * OH;
-    int* indexX = static_cast<int*>(&auxTable[offset]);
+    auto* indexX = static_cast<int*>(&auxTable[offset]);
     offset += 2 * OW;
-    int* indexY = static_cast<int*>(&auxTable[offset]);
+    auto* indexY = static_cast<int*>(&auxTable[offset]);
 
     // workBuffer needed when both pass is true
     bool xPass = IW != OW;
@@ -3973,7 +4022,7 @@ void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t* in_ptr_,
                     static_cast<const uint8_t*>(&pillow_working_buf[(OW * IH * C * b + OW * IH * c) * srcDataSize]);
             } else {
                 size_t threadsIdx = parallel_get_thread_num();
-                size_t buffer_size = static_cast<size_t>(OW * IH);
+                auto buffer_size = static_cast<size_t>(OW) * IH;
                 xpass_out_ptr_nc = static_cast<uint8_t*>(&pillow_working_buf[threadsIdx * buffer_size * srcDataSize]);
                 ypass_in_ptr_nc =
                     static_cast<const uint8_t*>(&pillow_working_buf[threadsIdx * buffer_size * srcDataSize]);
@@ -4032,8 +4081,9 @@ void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t* in_ptr_,
 }
 
 void Interpolate::InterpolateExecutorBase::create_pillow_working_buf(InterpolateLayoutType layout) {
-    if (srcDimPad5d[3] == dstDim5d[3] || srcDimPad5d[4] == dstDim5d[4])
+    if (srcDimPad5d[3] == dstDim5d[3] || srcDimPad5d[4] == dstDim5d[4]) {
         return;
+    }
     size_t bufSize = srcDimPad5d[3] * dstDim5d[4] * srcDataSize;  // IH * OW
     m_threads_num = parallel_get_max_threads();
     if (layout == InterpolateLayoutType::planar) {
@@ -4127,15 +4177,16 @@ Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAtt
 #if defined(OPENVINO_ARCH_X86_64)
     if (jcp.layout != InterpolateLayoutType::planar) {
         if (mayiuse(cpu::x64::avx512_core)) {
-            interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::avx512_core>(jcp, *attr.get()));
+            interpolateKernel =
+                std::make_shared<jit_uni_interpolate_kernel_f32<cpu::x64::avx512_core>>(jcp, *attr.get());
         } else if (mayiuse(cpu::x64::avx2)) {
-            interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
+            interpolateKernel = std::make_shared<jit_uni_interpolate_kernel_f32<cpu::x64::avx2>>(jcp, *attr.get());
         } else if (mayiuse(cpu::x64::sse41)) {
-            interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::sse41>(jcp, *attr.get()));
+            interpolateKernel = std::make_shared<jit_uni_interpolate_kernel_f32<cpu::x64::sse41>>(jcp, *attr.get());
         }
     } else if (mayiuse(cpu::x64::avx2) && interpAttrs.inPrc == ov::element::f32) {
         // gather ISA(for planar JIT kernel) for avx2 and fp32
-        interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
+        interpolateKernel = std::make_shared<jit_uni_interpolate_kernel_f32<cpu::x64::avx2>>(jcp, *attr.get());
     } else {
         OPENVINO_THROW("Can't create InterpolateJitExecutor");
     }
@@ -4275,6 +4326,4 @@ bool Interpolate::created() const {
     return getType() == Type::Interpolate;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

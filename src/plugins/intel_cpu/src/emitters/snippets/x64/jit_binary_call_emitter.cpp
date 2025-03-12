@@ -10,8 +10,7 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using jit_generator = dnnl::impl::cpu::x64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
@@ -21,8 +20,7 @@ jit_binary_call_emitter::jit_binary_call_emitter(dnnl::impl::cpu::x64::jit_gener
                                                  dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                  std::set<snippets::Reg> live_regs)
     : jit_emitter(h, isa),
-      m_regs_to_spill(std::move(live_regs)),
-      m_regs_initialized(false) {}
+      m_regs_to_spill(std::move(live_regs)) {}
 
 void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
                                                     const std::vector<size_t>& in,
@@ -37,16 +35,18 @@ void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
     OV_CPU_JIT_EMITTER_ASSERT(sizeof(abi_param_regs) / sizeof(*abi_param_regs) >= num_binary_args,
                               "Requested number of runtime arguments is not supported");
     // This regs will be corrupted, since we'll use them to pass runtime args
-    for (size_t i = 0; i < num_binary_args; i++)
+    for (size_t i = 0; i < num_binary_args; i++) {
         m_regs_to_spill.emplace(snippets::RegType::gpr, abi_param_regs[i]);
+    }
     // Note: aux_gpr idx must be non-empty because aux_gprs_count() returns 1 for this emitter
     OV_CPU_JIT_EMITTER_ASSERT(aux_gprs_count() >= 1, "Invalid aux_gpr count");
     m_call_address_reg = Reg64(static_cast<int>(aux_gpr_idxs.back()));
     aux_gpr_idxs.pop_back();
     bool spill_required = false;
     m_callee_saved_reg = Reg64(static_cast<int>(get_callee_saved_aux_gpr(aux_gpr_idxs, used_gpr_idxs, spill_required)));
-    if (spill_required)
+    if (spill_required) {
         m_regs_to_spill.emplace(snippets::RegType::gpr, m_callee_saved_reg.getIdx());
+    }
     m_regs_initialized = true;
 }
 
@@ -64,5 +64,4 @@ const std::set<snippets::Reg>& jit_binary_call_emitter::get_regs_to_spill() cons
     return m_regs_to_spill;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

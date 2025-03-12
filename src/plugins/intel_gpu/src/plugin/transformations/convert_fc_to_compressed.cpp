@@ -3,26 +3,26 @@
 //
 
 #include "convert_fc_to_compressed.hpp"
+
 #include <memory>
 
 #include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
-
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/subtract.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/transpose.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/core/rt_info.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyConnectedCompressed() {
     using namespace ov::pass::pattern;
@@ -103,20 +103,27 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             auto new_shape = (has_transpose || !grouped) ? ov::Shape{current_shape[0] * current_shape[1], current_shape[2]}
                                                          : ov::Shape{current_shape[0], current_shape[1] * current_shape[2]};
 
-            return std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
+            auto new_constant = std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
+
+            ov::copy_weightless_cache_attr(constant, new_constant);
+            return new_constant;
         };
 
         auto convert_const_to_u8 = [&](std::shared_ptr<ov::Node> node) {
             auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
+            std::shared_ptr<ov::Node> result = nullptr;
             // Convert ZP to u8
             if (constant->get_element_type() == ov::element::u8)
-                return std::dynamic_pointer_cast<ov::Node>(constant);
-            if (constant->get_element_type() == ov::element::u4)
-                return std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
-            if (weight_u8 && sub_with_convert)
-                return std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
+                result = std::dynamic_pointer_cast<ov::Node>(constant);
+            else if (constant->get_element_type() == ov::element::u4)
+                result = std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
+            else if (weight_u8 && sub_with_convert)
+                result = std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
+            else
+                result = std::dynamic_pointer_cast<ov::Node>(constant);
 
-            return std::dynamic_pointer_cast<ov::Node>(constant);
+            ov::copy_weightless_cache_attr(node, result);
+            return result;
         };
 
 
@@ -147,8 +154,12 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
 
             fc_input_b = transpose->clone_with_new_inputs({ fc_input_b->output(0), transpose_const });
             result_nodes.push_back(fc_input_b);
-            fc_input_scale = transpose->clone_with_new_inputs({ scale->output(0), transpose_const });
-            result_nodes.push_back(fc_input_scale);
+
+            if (ov::shape_size(scale->output(0).get_shape()) > 1) {
+                fc_input_scale = transpose->clone_with_new_inputs({ scale->output(0), transpose_const });
+                result_nodes.push_back(fc_input_scale);
+            }
+
             if (with_zero_point && ov::shape_size(optional_zero_point->output(0).get_shape()) > 1) {
                 fc_input_zp = transpose->clone_with_new_inputs({ optional_zero_point->output(0), transpose_const });
                 result_nodes.push_back(fc_input_zp);
@@ -157,7 +168,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
 
         if (pattern_map.count(mul2_m)) {
             auto mul2_op_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(mul2_const_m).get_node_shared_ptr());
-            fc_input_scale = ov::op::util::eltwise_fold<ov::op::v1::Multiply>(fc_input_scale, mul2_op_const).get_node_shared_ptr();
+            fc_input_scale = ov::op::util::make_try_fold<ov::op::v1::Multiply>(fc_input_scale, mul2_op_const);
         }
 
         std::shared_ptr<ov::Node> new_fc = nullptr;
@@ -188,5 +199,4 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

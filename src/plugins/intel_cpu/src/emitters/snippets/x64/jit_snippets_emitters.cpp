@@ -8,8 +8,7 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using jit_generator = dnnl::impl::cpu::x64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
@@ -36,11 +35,12 @@ jit_result_emitter::jit_result_emitter(jit_generator* h, cpu_isa_t isa, const Ex
 jit_broadcast_move_emitter::jit_broadcast_move_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_emitter(h, isa) {
     const auto n = expr->get_node();
-    if (n->get_input_element_type(0) != n->get_output_element_type(0))
+    if (n->get_input_element_type(0) != n->get_output_element_type(0)) {
         OV_CPU_JIT_EMITTER_THROW("supports only equal input and output types but gets: ",
                                  n->get_input_element_type(0),
                                  " and ",
                                  n->get_output_element_type(0));
+    }
     byte_size = n->get_input_element_type(0).size();
 }
 
@@ -60,8 +60,8 @@ template <cpu_isa_t isa>
 void jit_broadcast_move_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     using Vmm = typename dnnl::impl::utils::
         conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
-    Xmm xmm_src0 = Xmm(in[0]);
-    Vmm vmm_dst = Vmm(out[0]);
+    auto xmm_src0 = Xmm(in[0]);
+    auto vmm_dst = Vmm(out[0]);
 
     switch (byte_size) {
     case 4:
@@ -123,9 +123,8 @@ template <cpu_isa_t isa>
 void jit_scalar_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     using Vmm = typename dnnl::impl::utils::
         conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
-    Vmm vmm_dst = Vmm(out[0]);
+    auto vmm_dst = Vmm(out[0]);
     h->uni_vbroadcastss(vmm_dst, table_val("scalar"));
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

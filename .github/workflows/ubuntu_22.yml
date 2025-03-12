@@ -133,12 +133,14 @@ jobs:
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}"}'
 
   Conformance:
-    needs: [ Build, Smart_CI ]
+    needs: [ Docker, Build, Smart_CI ]
     timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 5 || 20 }}
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-22.04-16-cores
+    runs-on: aks-linux-16-cores-64gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
     strategy:
       max-parallel: 2
       fail-fast: false
@@ -202,10 +204,7 @@ jobs:
           self-hosted-runner: 'false'
 
       - name: Install Dependencies
-        run: |
-          sudo -E ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
-
-          python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
+        run: python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
 
       #
       # Tests
@@ -231,7 +230,7 @@ jobs:
 
       - name: Upload Conformance Artifacts
         if: ${{ always() }}
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: conformance_artifacts_${{ matrix.TEST_TYPE }}-${{ env.TEST_DEVICE }}
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
@@ -257,7 +256,7 @@ jobs:
 
       - name: Upload Conformance Artifacts
         if: ${{ matrix.TEST_TYPE == 'API' }}
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: conformance_artifacts_${{ matrix.TEST_TYPE }}-TEMPLATE
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
@@ -344,6 +343,16 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
+  Keras3_OpenVINO_Backend:
+    name: Keras 3 OpenVINO Backend Tests
+    if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
+    uses: ./.github/workflows/job_keras3_backend.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      python-version: '3.11'
+
   CPU_Functional_Tests:
     name: CPU functional tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
@@ -385,37 +394,35 @@ jobs:
       model_scope: 'nightly_hf'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
 
-  # TODO: Switch back to self-hosted runners
-  # container:
-  #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
-  #   volumes:
-  #     - /mount:/mount
   PyTorch_Models_Tests:
     name: PyTorch Models tests
     if: ${{ github.event_name != 'schedule' && fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test }}
-    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
-      runner: 'ubuntu-22.04-8-cores'
+      runner: 'aks-linux-8-cores-64gb'
       model_scope: 'precommit'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
 
   PyTorch_Models_Tests_Nightly_Scope1:
     name: PyTorch Models Nightly Scope1 tests
     if: ${{ github.event_name == 'schedule' }}
-    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
-      runner: 'ubuntu-22.04-16-cores'
+      runner: 'aks-linux-16-cores-64gb'
       model_scope: 'nightly_scope1'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
 
   PyTorch_Models_Tests_Nightly_Scope2:
     name: PyTorch Models Nightly Scope2 tests
     if: ${{ github.event_name == 'schedule' }}
-    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
-      runner: 'ubuntu-22.04-16-cores'
+      runner: 'aks-linux-16-cores-64gb'
       model_scope: 'nightly_scope2'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
 
   JAX_Models_Tests_Precommit:
     name: JAX/Flax Models tests
@@ -558,7 +565,8 @@ jobs:
   Overall_Status:
     name: ci/gha_overall_status
     needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests, TensorFlow_Layer_Tests, Pytorch_Layer_Tests,
-            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, JAX_Models_Tests_Precommit, NVIDIA_Plugin, Openvino_tokenizers, iGPU]
+            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, JAX_Models_Tests_Precommit, NVIDIA_Plugin, Openvino_tokenizers, iGPU,
+            Keras3_OpenVINO_Backend]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

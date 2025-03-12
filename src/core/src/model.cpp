@@ -221,6 +221,8 @@ ov::Model::Model(const ov::OutputVector& results, const ov::SinkVector& sinks, c
 
 ov::Model::Model(const OutputVector& results, const string& name) : Model(results, ov::SinkVector{}, name) {}
 
+ov::Model::~Model() = default;
+
 void ov::Model::prerequirements(bool detect_variables, bool detect_parameters) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::prerequirements");
 
@@ -1182,3 +1184,5 @@ void ov::set_batch(const std::shared_ptr<ov::Model>& f, ov::Dimension batch_size
         OPENVINO_ASSERT(false, stream.str());
     }
 }
+
+ov::AttributeAdapter<std::shared_ptr<ov::Model>>::~AttributeAdapter() = default;

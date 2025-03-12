@@ -6,7 +6,6 @@
 
 #include "ocl_common.hpp"
 #include "ocl_base_event.hpp"
-#include "intel_gpu/runtime/optionals.hpp"
 
 #include <vector>
 #include <memory>
@@ -42,7 +41,7 @@ private:
 
 protected:
     cl::Event _event;
-    optional_value<uint64_t> duration_nsec;
+    std::optional<uint64_t> duration_nsec;
 };
 
 struct ocl_events : public ocl_base_event {

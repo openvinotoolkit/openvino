@@ -15,10 +15,7 @@
 #endif
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace ov::Extensions::Cpu::XARCH {
 
 static void enumerate_proposals_cpu(const float* bottom4d,
                                     const float* d_anchor4d,
@@ -46,8 +43,8 @@ static void enumerate_proposals_cpu(const float* bottom4d,
     const float* p_anchors_hp = anchors + 3 * num_anchors;
 
     parallel_for2d(bottom_H, bottom_W, [&](size_t h, size_t w) {
-        const float x = static_cast<float>((swap_xy ? h : w) * feat_stride);
-        const float y = static_cast<float>((swap_xy ? w : h) * feat_stride);
+        const auto x = static_cast<float>((swap_xy ? h : w) * feat_stride);
+        const auto y = static_cast<float>((swap_xy ? w : h) * feat_stride);
 
         const float* p_box = d_anchor4d + h * bottom_W + w;
         const float* p_score = bottom4d + h * bottom_W + w;
@@ -165,12 +162,14 @@ static void nms_cpu(const int num_boxes,
 #endif
 
     for (int box = 0; box < num_boxes; ++box) {
-        if (is_dead[box])
+        if (is_dead[box]) {
             continue;
+        }
 
         index_out[count++] = base_index + box;
-        if (count == max_num_out)
+        if (count == max_num_out) {
             break;
+        }
 
         int tail = box + 1;
 
@@ -257,8 +256,9 @@ static void nms_cpu(const int num_boxes,
                 res = area / (A_area + B_area - area);
             }
 
-            if (nms_thresh < res)
+            if (nms_thresh < res) {
                 is_dead[tail] = 1;
+            }
         }
     }
 
@@ -311,8 +311,9 @@ static void retrieve_rois_cpu(const int num_rois,
         rois[roi * 5 + 3] = x1;
         rois[roi * 5 + 4] = y1;
 
-        if (probs)
+        if (probs) {
             probs[roi] = src_probs[index];
+        }
     });
 
     if (num_rois < post_nms_topn_) {
@@ -438,7 +439,4 @@ void proposal_exec(const float* input0,
     }
 }
 
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu::XARCH

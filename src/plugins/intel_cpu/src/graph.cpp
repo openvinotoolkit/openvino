@@ -6,6 +6,8 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdlib>
+#include <iterator>
 #include <limits>
 #include <map>
 #include <memory>
@@ -17,12 +19,16 @@
 #include <utility>
 #include <vector>
 
+#include "allocation_context.hpp"
 #include "common/primitive_desc_iface.hpp"
+#include "cpu_types.h"
 #include "edge.h"
+#include "graph_context.h"
 #include "graph_dumper.h"
 #include "graph_optimizer.h"
 #include "infer_request.h"
 #include "itt.h"
+#include "memory_control.hpp"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "node.h"
@@ -32,6 +38,7 @@
 #include "nodes/input.h"
 #include "nodes/memory.hpp"
 #include "nodes/reorder.h"
+#include "nodes/tensoriterator.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
@@ -51,8 +58,8 @@
 #endif
 
 using namespace dnnl;
-namespace ov {
-namespace intel_cpu {
+
+namespace ov::intel_cpu {
 
 Graph::~Graph() {
     CPU_DEBUG_CAP_ENABLE(summary_perf(*this));
@@ -68,12 +75,13 @@ void Graph::CreateGraph(NET& model, const GraphContext::CPtr& context) {
     Activate();
 }
 
-void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
-                        const std::vector<EdgePtr>& graphEdges,
-                        const GraphContext::CPtr& context,
-                        std::string name) {
-    if (IsReady())
+void Graph::Init(const std::vector<NodePtr>& graphNodes,
+                 const std::vector<EdgePtr>& graphEdges,
+                 const GraphContext::CPtr& context,
+                 std::string name) {
+    if (IsReady()) {
         ForgetGraphData();
+    }
 
     m_context = context;
     m_stream = dnnl::stream(getEngine());
@@ -96,6 +104,13 @@ void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
     }
 
     Configure();
+}
+
+void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
+                        const std::vector<EdgePtr>& graphEdges,
+                        const GraphContext::CPtr& context,
+                        std::string name) {
+    Init(graphNodes, graphEdges, context, std::move(name));
 
     Activate();
 }
@@ -211,8 +226,9 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
         const auto& childEdges = node->getChildEdges();
         return std::any_of(childEdges.begin(), childEdges.end(), [](const EdgeWeakPtr& edge) -> bool {
             auto edgePtr = edge.lock();
-            if (!edgePtr)
+            if (!edgePtr) {
                 return false;
+            }
             return edgePtr->getChild()->getType() == Type::Subgraph;
         });
     };
@@ -225,13 +241,14 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
         const auto& inputNode = input.second;
         const auto precToSet = inputNode->getOriginalOutputPrecisionAtPort(0);
         const auto childEdges = inputNode->getChildEdgesAtPort(0);
-        for (size_t i = 0; i < childEdges.size(); i++) {
-            const auto child = childEdges[i]->getChild();
-            const auto child_prec = child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum());
+        for (const auto& childEdge : childEdges) {
+            const auto child = childEdge->getChild();
+            const auto child_prec = child->getOriginalInputPrecisionAtPort(childEdge->getOutputNum());
             if (!one_of(child_prec, ov::element::bf16, ov::element::f16) &&
                 // remove this WA when #78939 is resolved
-                !hasSubgraphConsumers(child))
-                child->setOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum(), precToSet);
+                !hasSubgraphConsumers(child)) {
+                child->setOriginalInputPrecisionAtPort(childEdge->getOutputNum(), precToSet);
+            }
         }
     }
 
@@ -255,8 +272,9 @@ static std::vector<size_t> IdentifySyncPoints(const std::vector<NodePtr>& graphN
     for (size_t i = 0; i < graphNodes.size(); ++i) {
         const auto& node = graphNodes[i];
 
-        if (!node->isDynamicNode())
+        if (!node->isDynamicNode()) {
             continue;
+        }
 
         if (node->outputShapeDataDependency() ||
             // WA: for convolution plus sum(broadcast). Due to the fact that a convolution with sum use the same memory
@@ -284,12 +302,16 @@ static std::tuple<std::vector<NodePtr>, std::vector<size_t>> ExtractExecutableNo
     std::unordered_map<size_t, size_t> graphIdToExecutableId;
     std::vector<NodePtr> executableGraphNodes;
     for (size_t i = 0; i < graphNodes.size(); i++) {
-        const auto& graphNode = graphNodes[i];
-        if ((!graphNode->isConstant() && graphNode->isExecutable()) ||  // non-constant executable or
-            (graphNode->isDynamicNode() &&
-             !one_of(graphNode->getType(), Type::Input, Type::Output))) {  // dynamic, except inputs / outputs
+        const auto& node = graphNodes[i];
+        const bool staticZeroDims = !node->isDynamicNode() && !node->isExecutable() && !node->isInPlace();
+        const bool dynamicNonInputOutput = node->isDynamicNode() && !one_of(node->getType(), Type::Input, Type::Output);
+
+        if (!node->isConstant() &&  // constants are executed once in scope of compile_model
+            !staticZeroDims &&      // never execute static nodes with zero dim input / output tensors
+            (CPU_DEBUG_CAPS_ALWAYS_TRUE(!node->neverExecute()) ||  // execute all executable nodes
+             dynamicNonInputOutput)) {                             // plus dynamic ones, except inputs / outputs
             graphIdToExecutableId[i] = executableGraphNodes.size();
-            executableGraphNodes.emplace_back(graphNode);
+            executableGraphNodes.emplace_back(node);
         }
     }
 
@@ -316,8 +338,9 @@ void Graph::Init(const std::shared_ptr<const ov::Model>& model,
                  const GraphContext::CPtr& context,
                  const std::vector<node::Input::InputConfig>& inputConfigs,
                  const std::vector<node::Input::OutputConfig>& outputConfigs) {
-    if (IsReady())
+    if (IsReady()) {
         ForgetGraphData();
+    }
 
     m_context = context;
     m_stream = dnnl::stream(getEngine());
@@ -327,43 +350,12 @@ void Graph::Init(const std::shared_ptr<const ov::Model>& model,
     Configure();
 }
 
-static void UseExternalInputMemory(const std::map<std::size_t, NodePtr>& inputNodesMap,
-                                   const std::vector<MemoryPtr>& memory) {
-    for (size_t i = 0; i < memory.size(); i++) {
-        const auto& node = inputNodesMap.at(i);
-
-        auto childEdges = node->getChildEdgesAtPort(0);
-        for (const auto& childEdge : childEdges) {
-            OPENVINO_ASSERT(childEdge->getStatus() == Edge::Status::Uninitialized, "Unexpected edge status");
-
-            childEdge->reuse(memory[i]);
-        }
-    }
-}
-
-static void UseExternalOutputMemory(const std::map<std::size_t, NodePtr>& outputNodesMap,
-                                    const std::vector<MemoryPtr>& memory) {
-    for (size_t i = 0; i < memory.size(); i++) {
-        const auto& node = outputNodesMap.at(i);
-
-        const auto& parentEdge = node->getParentEdgeAt(0);
-        OPENVINO_ASSERT(parentEdge->getStatus() == Edge::Status::Uninitialized, "Unexpected edge status");
-
-        parentEdge->reuse(memory[i]);
-    }
-}
-
-void Graph::Activate(const std::vector<MemoryPtr>& externalInputMemory,
-                     const std::vector<MemoryPtr>& externalOutputMemory) {
-    OPENVINO_ASSERT(status == Status::Initialized, "Invalid graph status");
-
-    const bool hasDynNodes = ProcessDynNodes();
-    const auto syncNodesInds = hasDynNodes ? IdentifySyncPoints(graphNodes) : std::vector<size_t>{};
-
-    UseExternalInputMemory(inputNodesMap, externalInputMemory);
-    UseExternalOutputMemory(outputNodesMap, externalOutputMemory);
-
-    Allocate(syncNodesInds);
+void Graph::Activate() {
+    // @todo It is possible that execution graph is already created in scope of
+    // the allocation context collection from the outer graph so the state for inner graph is "Ready"
+    // We probably want to avoid such uncertancy
+    // OPENVINO_ASSERT(status == Status::Initialized, "Invalid graph status: ", static_cast<int>(status));
+    Allocate();
 
     CreatePrimitivesAndExecConstants();
 
@@ -373,23 +365,6 @@ void Graph::Activate(const std::vector<MemoryPtr>& externalInputMemory,
     }
 #endif
 
-    std::tie(m_executableGraphNodes, m_executableSyncNodesInds) =
-        ExtractExecutableNodesAndSyncPoints(syncNodesInds, graphNodes);
-
-    if (hasDynNodes) {
-        status = Status::ReadyDynamic;
-        // Here we use the following heuristic: if the number of sync nodes is less than 10 times of the number of exec
-        // nodes, it does make sense to use Sequential dynamic shapes processing due to the high overheads on context
-        // switching when the dynamic shapes are being processed in parallel and there are a lot of sync points. Also
-        // this rule works for short graphs (usually subgraphs) when the amount of nodes is to low to process them in
-        // parallel.
-        const auto exec2sync = m_executableGraphNodes.size() / m_executableSyncNodesInds.size();
-        if (exec2sync < 10 || parallel_get_max_threads() < 2) {
-            status = Status::ReadyDynamicSeq;
-        }
-    } else {
-        status = Status::ReadyStatic;
-    }
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
@@ -534,8 +509,9 @@ void Graph::CreatePrimitivesAndExecConstants() const {
                 if (edgePtr->isUseExternalMemory()) {
                     auto ptr = m_context->getWeightsCache()->get(edgePtr->hash());
                     outputs.emplace_back(ptr);
-                    if (!ptr->isValid())
+                    if (!ptr->isValid()) {
                         hasExternalInvalidEdges = true;
+                    }
                 } else {
                     hasLocalAllocatedEdges = true;
                 }
@@ -562,8 +538,9 @@ void Graph::CreatePrimitivesAndExecConstants() const {
             if (std::get<0>(sharedOutputs) || std::get<1>(sharedOutputs)) {
                 ExecuteNodeWithCatch(node);
 
-                for (auto& output : std::get<2>(sharedOutputs))
+                for (auto& output : std::get<2>(sharedOutputs)) {
                     output->valid(true);
+                }
             }
         } else {
             ExecuteNodeWithCatch(node);
@@ -654,9 +631,9 @@ void Graph::ResolveEdgeConflicts() {
 
     /* When inserting convert / reorder, two new edges are added (pushed to the end) to the graphEdges.
        So use a plain for loop, to handle newly inserted edges as well */
-    for (size_t i = 0; i < graphEdges.size(); i++) {
+    for (size_t i = 0; i < graphEdges.size(); i++) {  // NOLINT(modernize-loop-convert)
         auto& edge = graphEdges[i];
-        auto reorderStatus = edge->needReorder();
+        auto reorderStatus = edge->needReorder();  // NOLINT(modernize-loop-convert)
         DEBUG_LOG(*edge, " reorderStatus = ", reorderStatus);
 
         switch (reorderStatus) {
@@ -687,7 +664,7 @@ void Graph::ResolveEdgeConflicts() {
 void Graph::ResolveComplexInplaceConflicts() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveComplexInplaceConflicts");
 
-    ptrdiff_t numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
+    auto numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
 
     std::unordered_set<std::string> uniqueLayerNames = getUniqueLayerNames(graphNodes);
 
@@ -705,8 +682,9 @@ void Graph::ResolveComplexInplaceConflicts() {
             if (auto modifyingNode = edge->modifiedInPlace()) {
                 auto execIndex = modifyingNode->getExecIndex();
                 for (const auto& pEdgePeer : portChildEdges) {
-                    if (pEdgePeer == edge)
+                    if (pEdgePeer == edge) {
                         continue;
+                    }
                     std::vector<NodePtr> vecConsumers;
                     pEdgePeer->collectConsumers(vecConsumers);
 
@@ -731,98 +709,320 @@ void Graph::ResolveComplexInplaceConflicts() {
     }
 }
 
-static inline bool isConstOutput(const EdgePtr& edge) {
-    return edge->getParent()->isConstant() && !edge->getChild()->isConstant();
+/**
+ * Partition the \clusters of Edges, by moving to the end and allocating at the same time
+ * the clusters that cannot be handled as part of the generic memory solver algorithm.
+ * Such clusters meet one of the following criteria:
+ * - base edge of a cluster is a "ov::element::string" type of edge
+ * - base edge of a cluster is a Constant edge
+ *
+ * @return a remaining number of clusters to process (left partition)
+ */
+static size_t AllocateStringsAndConstants(EdgeClusters& clusters, size_t remaining, const GraphContext::CPtr& context) {
+    auto allocateConstantEdge = [&context](const EdgePtr& edge) {
+        if (edge->getParent()->getType() == Type::Input) {
+            auto constNode = std::static_pointer_cast<node::Input>(edge->getParent());
+            edge->reuse(std::const_pointer_cast<IMemory>(constNode->getMemoryPtr()));
+        } else {
+            edge->externalAllocate(context->getWeightsCache());
+        }
+    };
+
+    auto allocateStringMemory = [&context](const EdgePtr& edge) {
+        auto memory = std::make_shared<StringMemory>(context->getEngine(), edge->getOriginalDesc());
+        edge->reuse(memory);
+        return memory->getStringMemoryBlockPtr();
+    };
+
+    auto notAllocatedPartitionEnd = std::partition(
+        clusters.begin(),
+        clusters.begin() + remaining,
+        [&allocateStringMemory, &allocateConstantEdge, &context](const EdgeCluster& cluster) {
+            const auto& baseEdge = cluster.at(0);
+
+            // Allocate a cluster of the constants
+            if (baseEdge->getParent()->isConstant()) {
+                allocateConstantEdge(baseEdge);
+                return false;
+            }
+
+            // Allocate a non-constant string cluster
+            if (baseEdge->getOriginalDesc().getPrecision() == element::string) {
+                OPENVINO_ASSERT(std::all_of(cluster.begin(),
+                                            cluster.end(),
+                                            [](const EdgePtr& edge) {
+                                                return edge->getOriginalDesc().getPrecision() == element::string;
+                                            }),
+                                "All edges in the string cluster must be strings.");
+                auto memBlock = allocateStringMemory(baseEdge);
+                // reuse starting from second edge (skip the base edge)
+                for (size_t i = 1; i < cluster.size(); i++) {
+                    const auto& edge = cluster.at(i);
+                    edge->reuse(
+                        std::make_shared<StringMemory>(context->getEngine(), edge->getOriginalDesc(), memBlock));
+                }
+                return false;
+            }
+
+            return true;
+        });
+
+    return std::distance(clusters.begin(), notAllocatedPartitionEnd);
 }
 
-void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
-    edgeClusters edge_clusters = MemoryControl::findEdgeClusters(graphEdges);
+/**
+ * Partition the \clusters of Edges, by moving to the end and allocating at the same time
+ * the clusters that have dynamic output edge as a base edge.
+ * Also collect the memory blocks associated with dynamic output nodes, allowing infer requests to access them.
+ *
+ * @return a tuple of remaining number of clusters to process (left partition) and the output memory blocks
+ */
+static std::tuple<size_t, Graph::OutputMemoryBlocks> AllocateDynamicOutputEdges(
+    EdgeClusters& clusters,
+    size_t remaining,
+    const std::map<std::size_t, NodePtr>& outputNodes) {
+    Graph::OutputMemoryBlocks outputMemBlocks;
 
-    size_t remaining_edge_clusters_count = edge_clusters.size();
+    auto collectDynamicOutputMemBlocks = [&outputMemBlocks, &outputNodes](const EdgeCluster& cluster) {
+        const auto& baseEdge = cluster.at(0);
+        const auto& desc = baseEdge->getOriginalDesc();
+        const auto& child = baseEdge->getChild();
+        const bool dynamicOutputEdge = child->getType() == Type::Output && !desc.isDefined();
 
-    // Resolve special cases:
-    for (size_t i = 0; i < remaining_edge_clusters_count;) {
-        auto& cluster = edge_clusters[i];
-        bool erase = false;
-        for (auto& edge : cluster) {
-            // Remove already allocated edges from the mem reuse algo
-            if (edge->getStatus() == Edge::Status::Allocated) {
-                erase = true;
-                break;
-            }
-
-            // Special allocation for string tensors
-            if (edge->getDesc().getPrecision() == element::string &&
-                edge->getStatus() == Edge::Status::NeedAllocation) {
-                StringMemory::StringMemoryBlockPtr memBlcok;
-                if (edge->getParent()->isConstant()) {
-                    if (edge->getParent()->getType() == Type::Input) {
-                        auto constNode = static_cast<node::Input*>(edge->getParent().get());
-                        edge->reuse(std::const_pointer_cast<IMemory>(constNode->getMemoryPtr()));
-                    } else {
-                        edge->externalAllocate(m_context->getWeightsCache());
-                    }
-                    auto stringMemory = dynamic_cast<StringMemory*>(edge->getMemoryPtr().get());
-                    OPENVINO_ASSERT(stringMemory,
-                                    "[CPU] Edge between nodes '",
-                                    edge->getParent()->getName(),
-                                    "' and '",
-                                    edge->getChild()->getName(),
-                                    "' must have StringMemory.");
-                    memBlcok = stringMemory->getStringMemoryBlockPtr();
-                } else {
-                    auto memory = std::make_shared<StringMemory>(getEngine(), edge->getDesc());
-                    edge->reuse(memory);
-                    memBlcok = memory->getStringMemoryBlockPtr();
-                }
-                for (auto& edge_c : cluster) {
-                    if (edge_c == edge) {
-                        continue;
-                    }
-                    OPENVINO_ASSERT(edge_c->getDesc().getPrecision() == element::string,
-                                    "All edges in the cluster must be string.");
-                    if (edge_c->getStatus() == Edge::Status::NotAllocated) {
-                        auto memory = std::make_shared<StringMemory>(getEngine(), edge_c->getDesc(), memBlcok);
-                        edge_c->reuse(memory);
-                    } else {
-                        OPENVINO_THROW("[CPU] String tensors allocation in the cluster. Edge between nodes '",
-                                       edge_c->getParent()->getName(),
-                                       "' and '",
-                                       edge_c->getChild()->getName(),
-                                       "' has an unexpected status: ",
-                                       static_cast<int>(edge_c->getStatus()));
-                    }
-                }
-                erase = true;
-                continue;
-            }
-
-            // Special allocation for constants
-            if (edge->getStatus() != Edge::Status::NeedAllocation || !edge->getParent()->isConstant()) {
-                continue;
-            }
-            if (edge->getParent()->getType() == Type::Input) {
-                auto constNode = std::static_pointer_cast<node::Input>(edge->getParent());
-                edge->reuse(std::const_pointer_cast<IMemory>(constNode->getMemoryPtr()));
-            } else {
-                edge->externalAllocate(m_context->getWeightsCache());
-            }
-            erase = true;
+        if (!dynamicOutputEdge) {
+            return true;
         }
 
-        if (erase) {
-            std::swap(edge_clusters[i], edge_clusters[remaining_edge_clusters_count - 1]);
-            --remaining_edge_clusters_count;
-        } else {
-            ++i;
+        auto proxyMemBlock = std::make_shared<ProxyMemoryBlock>();
+        DEBUG_LOG("ProxyMemoryBlock ", proxyMemBlock);
+
+        baseEdge->allocate(proxyMemBlock);
+
+        int count = 0;
+        for (auto& output : outputNodes) {
+            if (output.second == child) {
+                outputMemBlocks[output.first] = proxyMemBlock;
+                count++;
+            }
+        }
+        // sometimes there are unused output ports.
+        OPENVINO_ASSERT(count <= 1, "CPU plugin cannot find output node. count ", count);
+        return false;
+    };
+
+    auto notAllocatedPartitionEnd =
+        std::partition(clusters.begin(), clusters.begin() + remaining, collectDynamicOutputMemBlocks);
+
+    remaining = std::distance(clusters.begin(), notAllocatedPartitionEnd);
+
+    return {remaining, outputMemBlocks};
+}
+
+static void AllocateBaseEdges(const EdgeClusters& edgeClusters, const MemoryControl::MemorySolution& memorySolution) {
+    // attach all the not yet allocated edges to the memory control
+    for (const auto& [regionId, memoryBlock] : memorySolution) {
+        const auto& cluster = edgeClusters.at(regionId);
+        const auto& baseEdge = cluster.at(0);
+
+        baseEdge->allocate(memoryBlock);
+        // TODO: WA for some test (like strided_slice_test) which use tensors with
+        //       shapes {0}. And it is implicitly converted into {1} tensor.
+        //       Zeroing of input data allow pass tests.
+        if (baseEdge->getParent()->getType() == Type::Input && baseEdge->getMemory().getDesc().hasDefinedMaxSize()) {
+            baseEdge->getMemoryPtr()->nullify();
         }
     }
+}
+
+static void AllocatedReferencingEdges(const EdgeClusters& clusters) {
+    for (const auto& cluster : clusters) {
+        // reuse starting from second edge (skip the base edge)
+        for (size_t i = 1; i < cluster.size(); i++) {
+            const auto& edge = cluster.at(i);
+            // child edges on the same port are in the same cluster
+            // and allocated in scope of single resolveInPlaceEdges call
+            if (edge->getStatus() == Edge::Status::Allocated) {
+                continue;
+            }
+
+            if (edge->inPlace(Edge::LOOK_DOWN)) {
+                edge->getChild()->resolveInPlaceEdges(Edge::LOOK_DOWN);
+            } else if (edge->inPlace(Edge::LOOK_UP)) {
+                edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);
+            } else {
+                auto sharedEdge = edge->getSharedEdge();
+                edge->allocate(sharedEdge->getMemoryPtr()->getMemoryBlock());
+                DEBUG_LOG(*edge, " sharedEdge with ", *sharedEdge);
+            }
+        }
+    }
+}
+
+std::vector<size_t> Graph::CreateExecutionGraph() {
+    const bool hasDynNodes = ProcessDynNodes();
+    auto syncNodesInds = hasDynNodes ? IdentifySyncPoints(graphNodes) : std::vector<size_t>{};
+
+    std::tie(m_executableGraphNodes, m_executableSyncNodesInds) =
+        ExtractExecutableNodesAndSyncPoints(syncNodesInds, graphNodes);
+
+    if (hasDynNodes) {
+        status = Status::ReadyDynamic;
+        // Here we use the following heuristic: if the number of sync nodes is less than 10 times of the number of exec
+        // nodes, it does make sense to use Sequential dynamic shapes processing due to the high overheads on context
+        // switching when the dynamic shapes are being processed in parallel and there are a lot of sync points. Also
+        // this rule works for short graphs (usually subgraphs) when the amount of nodes is to low to process them in
+        // parallel.
+        const auto exec2sync = m_executableGraphNodes.size() / m_executableSyncNodesInds.size();
+        if (exec2sync < 10 || parallel_get_max_threads() < 2) {
+            status = Status::ReadyDynamicSeq;
+        }
+    } else {
+        status = Status::ReadyStatic;
+    }
+
+    return syncNodesInds;
+}
+
+static void ResolveInOutInPlaceEdges(const std::vector<EdgePtr>& edges) {
+    for (const auto& edge : edges) {
+        if (edge->getStatus() == Edge::Status::Uninitialized) {
+            if (edge->getParent()->getParentEdges().empty() &&
+                one_of(edge->getParent()->getType(), Type::MemoryInput) && edge->inPlace(Edge::LOOK_UP)) {
+                edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);
+            } else if (edge->getChild()->getChildEdges().empty() &&
+                       one_of(edge->getChild()->getType(), Type::MemoryOutput) && edge->inPlace(Edge::LOOK_DOWN)) {
+                edge->getChild()->resolveInPlaceEdges(Edge::LOOK_DOWN);
+            }
+        }
+    }
+}
+
+int Graph::RegisterToAllocationContext(int offset, AllocationContext& context) {
+    auto syncNodesInds = CreateExecutionGraph();
+
+    ResolveInOutInPlaceEdges(graphEdges);
+
+    // nodes are expected to be topologically sorted
+    for (size_t execIndex = 0, syncNodeIdx = 0; execIndex < graphNodes.size(); execIndex++) {
+        const auto& node = graphNodes[execIndex];
+        const auto inputExecIndex = offset;
+        // register local sync node idx to global allocation context as well
+        if (syncNodeIdx < syncNodesInds.size() && syncNodesInds[syncNodeIdx] == execIndex) {
+            context.syncPoints.push_back(inputExecIndex);
+            syncNodeIdx++;
+        }
+
+        // an offset is the number of nodes in the internal graph minus the current node (-1)
+        offset = node->registerToAllocationContext(inputExecIndex, context);
+        const auto outputExecIndex = offset;
+        offset++;
+        context.execIndex[node] = {inputExecIndex, outputExecIndex};
+    }
+
+    context.edges.insert(context.edges.end(), graphEdges.begin(), graphEdges.end());
+
+    return offset - 1;
+}
+
+static void InitEdgeStatus(const std::vector<EdgePtr>& edges) {
+    for (auto& edge : edges) {
+        edge->init();
+    }
+}
+
+static void ValidateEdgeStatus(const std::vector<EdgePtr>& edges) {
+    for (auto& edge : edges) {
+        edge->validate();
+    }
+}
+
+/**
+ * Forms clusters of edges.
+ * An edge cluster is a collection of edges, with the following properties:
+ * - base edge is an edge with a Memory which other edges point to by means of inplace logic
+ * - first edge of a cluster is a base edge with a status NeedAllocation
+ * - rest of the edges in a cluster are NotAllocated ones and they point to the base edge
+ *
+ * A cluster essentially looks like:
+ * - std::vector<EdgePtr> cluster{base, edge1, edge2, edge3, ...}
+ */
+static EdgeClusters FormEdgeClusters(const std::vector<EdgePtr>& graphEdges) {
+    using EdgeClusterIdxMap = std::unordered_map<EdgePtr, size_t>;
+    EdgeClusters edgeClusters;
+    EdgeClusterIdxMap edgeClusterIndices;
+
+    std::function<size_t(EdgePtr)> addToCluster;
+    addToCluster = [&addToCluster, &edgeClusterIndices, &edgeClusters](const EdgePtr& edge) {
+        // cluster is already created for the edge
+        if (auto it = edgeClusterIndices.find(edge); it != edgeClusterIndices.end()) {
+            return it->second;
+        }
+        // create an edge cluster when the base edge is visited for the first time
+        // so the base edge is always the first edge in the cluster
+        if (edge == nullptr) {
+            edgeClusters.emplace_back();
+            return edgeClusters.size() - 1;
+        }
+
+        auto clusterIdx = addToCluster(edge->getSharedEdge(std::nothrow));
+
+        edgeClusterIndices[edge] = clusterIdx;
+        edgeClusters[clusterIdx].push_back(edge);
+
+        return clusterIdx;
+    };
+
+    for (auto& edge : graphEdges) {
+        const auto clusterIdx = addToCluster(edge);
+        MAYBE_UNUSED(clusterIdx);
+        DEBUG_LOG("Added edge: ", *edge, " to cluster: ", clusterIdx);
+    }
+
+    return edgeClusters;
+}
+
+/**
+ * @brief Validates the correctness of edge clusters.
+ *
+ * This function ensures that each edge cluster follows the expected structure:
+ * - The cluster must not be empty.
+ * - The first edge in the cluster (base edge) must have the status `NeedAllocation`.
+ * - All subsequent edges in the cluster must have the status `NotAllocated`.
+ *
+ * @param clusters   collection of edges.
+ * @param remaining  number of clusters to process (not allocated yet).
+ *
+ * @throws If any of the required conditions are violated
+ */
+static void ValidateEdgeClusters(const EdgeClusters& clusters, size_t remaining) {
+    for (size_t i = 0; i < remaining; i++) {
+        const auto& cluster = clusters.at(i);
+        OPENVINO_ASSERT(!cluster.empty(), "Unexpected empty edge cluster");
+
+        const auto& baseEdge = cluster.at(0);
+        OPENVINO_ASSERT(baseEdge->getStatus() == Edge::Status::NeedAllocation,
+                        "Unexpected status of edge: ",
+                        *baseEdge);
+
+        for (size_t i = 1; i < cluster.size(); ++i) {
+            const auto& edge = cluster.at(i);
+            OPENVINO_ASSERT(edge->getStatus() == Edge::Status::NotAllocated, "Unexpected status of edge: ", *edge);
+        }
+    }
+}
+
+static MemoryRegions FormMemoryRegions(const EdgeClusters& clusters,
+                                       size_t remaining,
+                                       const GlobalExecutionIndex& globalExecIndex) {
+    auto isConstOutput = [](const EdgePtr& edge) {
+        return edge->getParent()->isConstant() && !edge->getChild()->isConstant();
+    };
 
     // Markup the memory regions
-    std::vector<MemoryRegion> memoryRegions;
-    memoryRegions.reserve(remaining_edge_clusters_count);
+    MemoryRegions memoryRegions;
+    memoryRegions.reserve(remaining);
 
-    for (size_t i = 0; i < remaining_edge_clusters_count; ++i) {
+    for (size_t i = 0; i < remaining; ++i) {
         MemoryRegion reg = {std::numeric_limits<int>::max(),
                             0,
                             0,
@@ -832,11 +1032,26 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
 
         int64_t boxSize = 0;
         bool isConst = false, isOutput = false, isInput = false;
-        for (auto& edge : edge_clusters[i]) {
-            int e_start = edge->getParent()->getExecIndex();
-            int e_finish = edge->getChild()->getExecIndex();
 
-            auto&& desc = edge->getDesc();
+        for (auto& edge : clusters[i]) {
+            const auto& parent = edge->getParent();
+            const auto& child = edge->getChild();
+
+            auto usesInOutMemoryMultipleTimes = [](const NodePtr& node) {
+                if (auto tensorIterator = std::dynamic_pointer_cast<node::TensorIterator>(node)) {
+                    return tensorIterator->usesInOutMemoryMultipleTimes();
+                }
+
+                return false;
+            };
+            // If node uses its input / output memory multiple times in scope of a single execution (i.e TensorIterator)
+            // prolong the lifetime of a memory region till execution is finished
+            int e_start = usesInOutMemoryMultipleTimes(parent) ? globalExecIndex.at(parent).first
+                                                               : globalExecIndex.at(parent).second;
+            int e_finish = usesInOutMemoryMultipleTimes(child) ? globalExecIndex.at(child).second
+                                                               : globalExecIndex.at(child).first;
+
+            auto&& desc = edge->getOriginalDesc();
 
             if (boxSize != -1 && desc.isDefined()) {
                 int64_t e_size =
@@ -858,8 +1073,8 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
             reg.alloc_type = allocType;
 
             isConst |= isConstOutput(edge);
-            isOutput |= edge->getChild()->getType() == Type::Output;
-            isInput |= edge->getParent()->getType() == Type::Input;
+            isOutput |= child->getType() == Type::Output;
+            isInput |= parent->getType() == Type::Input;
         }
 
         reg.size = boxSize;
@@ -879,125 +1094,85 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
         memoryRegions.push_back(reg);
     }
 
-    // special processing of the dynamic output edges
-    auto it = std::remove_if(memoryRegions.begin(), memoryRegions.end(), [&](const MemoryRegion& region) {
-        if (region.size >= 0 || !one_of(region.type, MemoryRegion::RegionType::OUTPUT, MemoryRegion::RegionType::IO)) {
+    return memoryRegions;
+}
+
+static size_t SkipAllocatedClusters(EdgeClusters& clusters) {
+    auto notAllocatedPartitionEnd = std::partition(clusters.begin(), clusters.end(), [](const EdgeCluster& cluster) {
+        const auto& baseEdge = cluster.at(0);
+
+        if (baseEdge->getStatus() == Edge::Status::Allocated) {
             return false;
         }
-        bool result = false;
-        for (auto& edge : edge_clusters[region.id]) {
-            auto child = edge->getChild();
-            if (child->getType() == Type::Output && edge->getStatus() == Edge::Status::NeedAllocation) {
-                auto proxyMemBlock = std::make_shared<ProxyMemoryBlock>();
-                DEBUG_LOG("ProxyMemoryBlock ", proxyMemBlock, " ", this);
-                edge->allocate(proxyMemBlock);
 
-                // Store the output memory blocks.
-                // So that, the infer requests can be able to access them.
-                int count = 0;
-                for (auto& output : outputNodesMap) {
-                    if (output.second == child) {
-                        outputNodesMemBlocksMap[output.first] = proxyMemBlock;
-                        count++;
-                    }
-                }
-                // sometimes there are unused output ports.
-                OPENVINO_ASSERT(count <= 1, "CPU plugin cannot find output node. count ", count);
-                result = true;
-            }
-        }
-        return result;
+        return true;
     });
 
-    memoryRegions.erase(it, memoryRegions.end());
-
-    // Set up the memory control subsystem.
-    this->m_pMemoryControl = &(getGraphContext()->getNetworkMemoryControl()->createMemoryControlUnit(syncNodesInds));
-    auto memoryBlocks = m_pMemoryControl->insert(memoryRegions);
-
-    // attach all the not yet allocated edges to the memory contol
-    for (auto&& item : memoryBlocks) {
-        int count = 0;
-        for (auto&& edge : edge_clusters[item.first]) {
-            if (edge->getStatus() == Edge::Status::NeedAllocation) {
-                edge->allocate(item.second);
-
-                // TODO: WA for some test (like strided_slice_test) which use tensors with
-                //       shapes {0}. And it is implicitly converted into {1} tensor.
-                //       Zeroing of input data allow pass tests.
-                if (edge->getParent()->type == Type::Input && edge->hasDefinedMaxSize())
-                    edge->getMemoryPtr()->nullify();
-
-                count++;
-            }
-        }
-        OPENVINO_ASSERT(count == 1);
-    }
-
-    m_pMemoryControl->allocateMemory();
-
-    // Resolve all other edges with status NotAllocated and in-place
-    for (auto& cluster : edge_clusters) {
-        for (auto& edge : cluster) {
-            if (edge->getStatus() != Edge::Status::NotAllocated) {
-                continue;
-            }
-            std::vector<EdgePtr> edges_to_process;
-            edges_to_process.push_back(edge);
-            for (auto next_edge = edge->getSharedEdge(std::nothrow); next_edge;
-                 next_edge = next_edge->getSharedEdge(std::nothrow)) {
-                edges_to_process.push_back(next_edge);
-            }
-            std::for_each(edges_to_process.rbegin(), edges_to_process.rend(), [](const EdgePtr& edge) {
-                if (edge->getStatus() == Edge::Status::NotAllocated) {
-                    if (edge->inPlace(Edge::LOOK_DOWN)) {
-                        edge->getChild()->resolveInPlaceEdges(Edge::LOOK_DOWN);
-                    } else if (edge->inPlace(Edge::LOOK_UP)) {
-                        edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);
-                    } else {
-                        auto sharedEdge = edge->getSharedEdge();
-                        auto sharedEdgeParent = sharedEdge->getParent();
-                        edge->allocate(sharedEdge->getMemoryPtr()->getMemoryBlock());
-                        DEBUG_LOG(*edge, " sharedEdge with ", *sharedEdge);
-                    }
-                }
-            });
-        }
-    }
+    return std::distance(clusters.begin(), notAllocatedPartitionEnd);
 }
 
-void Graph::Allocate(const std::vector<size_t>& syncNodesInds) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::Allocate");
+/**
+ * Solve memory reuse
+ * Ideally only MemorySolution should be returned
+ * For now we have to additionally return:
+ * 1) EdgeClusters - to propagate the solution through the graph
+ * 2) OutputMemoryBlocks - to allow memory sharing between graph and infer request
+ */
+static std::tuple<MemoryControl::MemorySolution, EdgeClusters, Graph::OutputMemoryBlocks> SolveMemoryReuse(
+    const std::shared_ptr<MemoryControl>& memoryControl,
+    const AllocationContext& allocationContext,
+    const GraphContext::CPtr& graphContext,
+    const std::map<std::size_t, NodePtr>& outputNodesMap) {
+    const auto& edges = allocationContext.edges;
 
-    // resolve inplace dead end nodes
-    for (const auto& edge : graphEdges) {
-        if (edge->getStatus() == Edge::Status::Uninitialized) {
-            if (edge->getParent()->getParentEdges().empty() &&
-                one_of(edge->getParent()->getType(), Type::Input, Type::MemoryInput) && edge->inPlace(Edge::LOOK_UP)) {
-                edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);
-            } else if (edge->getChild()->getChildEdges().empty() &&
-                       one_of(edge->getChild()->getType(), Type::Output, Type::MemoryOutput) &&
-                       edge->inPlace(Edge::LOOK_DOWN)) {
-                edge->getChild()->resolveInPlaceEdges(Edge::LOOK_DOWN);
-            }
-        }
-    }
+    auto edgeClusters = FormEdgeClusters(edges);
 
-    // resolve edges. Define which will be a view on others
-    //   NeedAllocation - real blob
-    //   NotAllocated - view on other blob, peer or in-place
-    for (auto& edge : graphEdges)
-        edge->init();
+    size_t remaining = SkipAllocatedClusters(edgeClusters);
 
-    // Allocate memory space for all edges marked with NeedAllocation
-    AllocateWithReuse(syncNodesInds);
+    ValidateEdgeClusters(edgeClusters, remaining);
+    // strings and constant are allocated bypassing the memory control
+    // @todo allocate constants using dedicated memory control
+    remaining = AllocateStringsAndConstants(edgeClusters, remaining, graphContext);
+    // dynamic output edges are allocated bypassing the memory control
+    Graph::OutputMemoryBlocks outputNodesMemBlocks;
+    std::tie(remaining, outputNodesMemBlocks) = AllocateDynamicOutputEdges(edgeClusters, remaining, outputNodesMap);
 
-    // Check all getters. Should work.
-    for (auto& edge : graphEdges)
-        edge->validate();
+    auto memoryRegions = FormMemoryRegions(edgeClusters, remaining, allocationContext.execIndex);
+
+    memoryControl->insert(memoryRegions, allocationContext.syncPoints);
+    auto memoryBlocks = memoryControl->solve();
+
+    return std::make_tuple(memoryBlocks, edgeClusters, outputNodesMemBlocks);
 }
 
-bool Graph::ProcessDynNodes() {
+void Graph::Allocate() {
+    auto memoryControl = m_context->getMemoryControl();
+
+    if (memoryControl->allocated()) {
+        return;  // memory is already allocated globally
+    }
+
+    AllocationContext allocationContext;
+    RegisterToAllocationContext(0, allocationContext);
+
+    const auto& edges = allocationContext.edges;
+    InitEdgeStatus(edges);
+
+    MemoryControl::MemorySolution solution;
+    EdgeClusters edgeClusters;
+    std::tie(solution, edgeClusters, m_outputNodesMemBlocks) =
+        SolveMemoryReuse(memoryControl, allocationContext, m_context, outputNodesMap);
+
+    AllocateBaseEdges(edgeClusters, solution);
+
+    memoryControl->allocateMemory();
+
+    AllocatedReferencingEdges(edgeClusters);
+
+    ValidateEdgeStatus(edges);
+}
+
+bool Graph::ProcessDynNodes() const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ProcessDynNodes");
 
     const bool containsDynamicNodes = std::any_of(graphNodes.begin(), graphNodes.end(), [](const NodePtr& node) {
@@ -1008,8 +1183,9 @@ bool Graph::ProcessDynNodes() {
 }
 
 void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& input) {
-    if (!IsReady())
+    if (!IsReady()) {
         OPENVINO_THROW("Wrong state. Topology not ready.");
+    }
     auto input_itr = inputNodesMap.find(index);
     if (input_itr != inputNodesMap.end()) {
         auto node = input_itr->second;
@@ -1025,10 +1201,10 @@ void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& in
 
             if (actualDesc->getPrecision() == element::string) {
                 StringMemory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr);
-                edgeMemory->load(ext_mem);
+                edgeMemory->load(ext_mem, false, false);
             } else if (!actualDesc->isCompatible(*ext_tensor_desc)) {
                 Memory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr, false);
-                edgeMemory->load(ext_mem, false);
+                edgeMemory->load(ext_mem, false, false);
             } else {
                 size_t size_to_copy = ext_tensor_desc->getCurrentMemSize();
                 cpu_parallel_memcpy(inter_data_ptr, ext_data_ptr, size_to_copy);
@@ -1041,8 +1217,9 @@ void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& in
 
 // suppose always being shared infer_request intel_cpu::Tensor to Graph if isDynamic.
 void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& output) {
-    if (!IsReady())
+    if (!IsReady()) {
         OPENVINO_THROW("Wrong state. Topology not ready.");
+    }
 
     for (auto& outputMap : outputNodesMap) {
         auto output_index = outputMap.first;
@@ -1067,7 +1244,7 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
             const auto& actualDims = expected_desc_ptr->getShape().getStaticDims();
             isScalarOutput =
                 !actualDims.empty() &&
-                std::accumulate(actualDims.begin(), actualDims.end(), (size_t)1, std::multiplies<size_t>()) == 1;
+                std::accumulate(actualDims.begin(), actualDims.end(), static_cast<size_t>(1), std::multiplies<>()) == 1;
         }
 
         auto outDims = intr_blob.getStaticDims();
@@ -1105,12 +1282,13 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
 
         auto srcPrec = actualDesc->getPrecision();
         auto dstPrec = expected_desc_ptr->getPrecision();
-        if (srcPrec == dstPrec && ext_blob->get_byte_size() != intr_blob.getSize())
+        if (srcPrec == dstPrec && ext_blob->get_byte_size() != intr_blob.getSize()) {
             OPENVINO_THROW("Output tensor byte size is not equal model output byte size (",
                            ext_blob->get_byte_size(),
                            "!=",
                            intr_blob.getSize(),
                            ").");
+        }
 
         void* ext_blob_ptr = ext_blob->data();
         void* intr_blob_ptr = intr_blob.getData();
@@ -1126,15 +1304,16 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
                   "\r\n");
 
         // That is the same memory. No need to copy
-        if (ext_blob_ptr == intr_blob_ptr)
+        if (ext_blob_ptr == intr_blob_ptr) {
             continue;
+        }
 
         if (actualDesc->getPrecision() == element::string) {
             StringMemory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr);
-            outBloMem.load(intr_blob);
+            outBloMem.load(intr_blob, false, false);
         } else if (!actualDesc->isCompatible(*expected_desc_ptr) && !isScalarOutput) {
             Memory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr, false);
-            outBloMem.load(intr_blob, false);
+            outBloMem.load(intr_blob, false, false);
         } else {
             OPENVINO_ASSERT(srcPrec == dstPrec,
                             "The precision of the CPU output tensor index",
@@ -1409,15 +1588,16 @@ public:
 /* group all the profiling macros into a single one
  * to avoid cluttering a core logic */
 #define VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(ittScope, node, config) \
-    VERBOSE(node, config.debugCaps.verbose);                    \
-    PERF(node, config.collectPerfCounters);                     \
-    DUMP(node, config.debugCaps, infer_count);                  \
-    OV_ITT_SCOPED_TASK(ittScope, node->profiling.execute);      \
-    DEBUG_LOG(*node);
+    VERBOSE(node, (config).debugCaps.verbose);                  \
+    PERF(node, (config).collectPerfCounters);                   \
+    DUMP(node, (config).debugCaps, infer_count);                \
+    OV_ITT_SCOPED_TASK(ittScope, (node)->profiling.execute);    \
+    DEBUG_LOG(*(node));
 
 inline void Graph::ExecuteNode(const NodePtr& node, SyncInferRequest* request, int numaId) const {
-    if (request)
+    if (request) {
         request->throw_if_canceled();
+    }
 
     node->execute(m_stream, numaId);
 }
@@ -1463,13 +1643,7 @@ void Graph::Infer(SyncInferRequest* request) {
     DEBUG_LOG("Infer graph: ", GetName(), ". Status: ", static_cast<int>(status));
     const int numaId = GetNumaNodeId(m_context);
 
-    if (!m_pMemoryControl) {
-        OPENVINO_THROW("Memory control unit is not initilized in graph: ", GetName());
-    }
-
-    if (!m_pMemoryControl->allocated()) {
-        m_pMemoryControl->allocateMemory();
-    }
+    m_context->allocateMemory();
 
     switch (status) {
     case Status::ReadyDynamic:
@@ -1487,8 +1661,9 @@ void Graph::Infer(SyncInferRequest* request) {
                         static_cast<int>(status));
     }
 
-    if (infer_count != -1)
+    if (infer_count != -1) {
         infer_count++;
+    }
 }
 
 void Graph::SortTopologically() {
@@ -1507,8 +1682,9 @@ void Graph::SortTopologically() {
 
         std::function<void(const NodePtr)> visit;
         visit = [&execIndexCnt, &sorted, &visit](const NodePtr& node) {
-            if (node->execIndex >= 0)
+            if (node->execIndex >= 0) {
                 return;  // already visited
+            }
 
             for (size_t i = 0; i < node->getParentEdges().size(); i++) {
                 visit(node->getParentEdgeAt(i)->getParent());
@@ -1549,10 +1725,11 @@ void Graph::SortTopologically() {
         for (size_t i = 0; i < node->childEdges.size(); i++) {
             auto edge = node->getChildEdgeAt(i);
             int port = edge->getInputNum();
-            if (port < port_num && !res[port])
+            if (port < port_num && !res[port]) {
                 res[port] = edge;
-            else
+            } else {
                 res.push_back(edge);
+            }
         }
         node->childEdges = {res.begin(), res.end()};
     }
@@ -1579,10 +1756,11 @@ void Graph::GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const {
             }
         };
 
-    for (size_t i = 0; i < graphNodes.size(); i++) {
-        if (graphNodes[i]->isConstant())
+    for (const auto& graphNode : graphNodes) {
+        if (graphNode->isConstant()) {
             continue;
-        getPerfMapFor(perfMap, graphNodes[i]);
+        }
+        getPerfMapFor(perfMap, graphNode);
     }
 }
 
@@ -1614,24 +1792,30 @@ void Graph::DropNode(const NodePtr& node) {
     auto children = node->childEdges;
     auto parents = node->parentEdges;
 
-    for (size_t i = 0; i < parents.size(); i++) {
+    // The collections are being updated while iterating. So, range based for loops cannot be used.
+    for (size_t i = 0; i < parents.size(); i++) {  // NOLINT(modernize-loop-convert)
         auto p_edge = parents[i].lock();
-        if (!p_edge)
+        if (!p_edge) {
             continue;
+        }
         auto parent = p_edge->getParent();
-        if (!parent)
+        if (!parent) {
             continue;
+        }
 
         const int inNum = p_edge->getInputNum();
         RemoveEdge(p_edge);
 
-        for (size_t j = 0; j < children.size(); j++) {
+        // The collections are being updated while iterating. So, range based for loops cannot be used.
+        for (size_t j = 0; j < children.size(); j++) {  // NOLINT(modernize-loop-convert)
             auto c_edge = children[j].lock();
-            if (!c_edge)
+            if (!c_edge) {
                 continue;
+            }
             auto child = c_edge->getChild();
-            if (!child)
+            if (!child) {
                 continue;
+            }
 
             const int outNum = c_edge->getOutputNum();
             RemoveEdge(c_edge);
@@ -1645,32 +1829,39 @@ void Graph::DropDWConvNode(const NodePtr& node) {
     auto parents = node->parentEdges;
 
     auto parentConvEdge = parents[0].lock();
-    if (!parentConvEdge)
+    if (!parentConvEdge) {
         return;
+    }
     auto parentConv = parentConvEdge->getParent();
-    if (!parentConv)
+    if (!parentConv) {
         return;
+    }
 
     parentConv->outputShapes[0] = node->outputShapes[0];
 
     for (size_t i = 0; i < 1; i++) {
         auto p_edge = parents[i].lock();
-        if (!p_edge)
+        if (!p_edge) {
             continue;
+        }
         auto parent = p_edge->getParent();
-        if (!parent)
+        if (!parent) {
             continue;
+        }
 
         const int inNum = p_edge->getInputNum();
         RemoveEdge(p_edge);
 
-        for (size_t j = 0; j < children.size(); j++) {
+        // The collections are being updated while iterating. So, range based for loops cannot be used.
+        for (size_t j = 0; j < children.size(); j++) {  // NOLINT(modernize-loop-convert)
             auto c_edge = children[j].lock();
-            if (!c_edge)
+            if (!c_edge) {
                 continue;
+            }
             auto child = c_edge->getChild();
-            if (!child)
+            if (!child) {
                 continue;
+            }
 
             const int outNum = c_edge->getOutputNum();
             RemoveEdge(c_edge);
@@ -1680,11 +1871,13 @@ void Graph::DropDWConvNode(const NodePtr& node) {
 
     for (size_t i = 1; i < parents.size(); i++) {
         auto p_edge = parents[i].lock();
-        if (!p_edge)
+        if (!p_edge) {
             continue;
+        }
         auto parent = p_edge->getParent();
-        if (!parent)
+        if (!parent) {
             continue;
+        }
 
         const int inNum = p_edge->getInputNum();
         const int portCandidate = p_edge->getOutputNum();
@@ -1740,11 +1933,11 @@ NodePtr Graph::InsertReorder(const EdgePtr& edge,
     InsertNode(edge, reorder, true);
 
     // Using the method Edge::getDesc() we can check that input and output tensor descriptors are equal.
-    // Due to the specificity of GraphOptimizer::MergeTransposeAndReorder() that isOptimized flag uses, we shouldn't do
-    // these checks.
+    // Due to the specificity of GraphOptimizer::MergeTransposeAndReorder() that isOptimized flag uses, we shouldn't
+    // do these checks.
     if (!isOptimized) {
-        reorder->getParentEdgeAt(0)->getDesc();
-        reorder->getChildEdgeAt(0)->getDesc();
+        reorder->getParentEdgeAt(0)->getOriginalDesc();
+        reorder->getChildEdgeAt(0)->getOriginalDesc();
     }
 
     return reorder;
@@ -1753,7 +1946,7 @@ NodePtr Graph::InsertReorder(const EdgePtr& edge,
 bool Graph::InsertNode(const EdgePtr& edge, const NodePtr& node, bool initNode) {
     auto oIndex = edge->getOutputNum();
     auto iIndex = edge->getInputNum();
-    if (iIndex < 0 || oIndex < 0)
+    if (iIndex < 0 || oIndex < 0) {
         OPENVINO_THROW("Cannot insert node '",
                        node->getName(),
                        "' between nodes: ",
@@ -1761,6 +1954,7 @@ bool Graph::InsertNode(const EdgePtr& edge, const NodePtr& node, bool initNode) 
                        " and ",
                        edge->getChild()->getName(),
                        ".");
+    }
     edge->getParent()->removeChildEdge(edge);
     edge->getChild()->removeParentEdge(edge);
 
@@ -1793,9 +1987,9 @@ void Graph::EnforceInferencePrecision() {
     CPU_DEBUG_CAP_ENABLE(EnforceInferPrcDebug inferPrecDebug);
 
     const auto inferPrec = getConfig().inferencePrecision;
-
-    if (one_of(inferPrec, element::f32, element::undefined, ov::element::f16))
+    if (one_of(inferPrec, element::f32, element::dynamic, ov::element::f16, element::dynamic)) {
         return;  // nothing to do, only precision reduction is currently allowed
+    }
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     if (inferPrec == ov::element::f16)
         return;  // precision of configured by ov::pass::ConvertPrecision
@@ -1817,8 +2011,9 @@ void Graph::EnforceInferencePrecision() {
                            Type::Interpolate,     // super resolution nets
                            Type::PagedAttention,  // page attention
                            Type::QKVProjection,
-                           Type::LLMMLP))
+                           Type::LLMMLP)) {
                     continue;  // stop at significant nodes
+                }
             } else if (inferPrec == ov::element::f16) {
                 /* list of node types that must be forced to be executed in FP16 precision
                  * because of performance gains */
@@ -1828,14 +2023,16 @@ void Graph::EnforceInferencePrecision() {
                            Type::FullyConnected,  // conv / bert nets
                            Type::MatMul,          // bert nets
                            Type::Pooling,
-                           Type::MVN))
+                           Type::MVN)) {
                     continue;  // stop at significant nodes
+                }
             }
 
             const auto res = skipNodes.insert(parent);
 
-            if (res.second)  // node not visited yet
+            if (res.second) {  // node not visited yet
                 searchForNodesToSkip(parent, skipNodes);
+            }
         }
     };
 
@@ -1847,45 +2044,54 @@ void Graph::EnforceInferencePrecision() {
     for (const auto& entry : outputNodesMap) {
         const auto& output = entry.second;
         // do not skip outputs which precisions are explicitly set equal to inferPrec
-        if (output->getOriginalInputPrecisionAtPort(0) == inferPrec)
+        if (output->getOriginalInputPrecisionAtPort(0) == inferPrec) {
             continue;
+        }
 
         searchForNodesToSkip(output, nodesToSkip);
     }
 
     for (const auto& node : graphNodes) {
-        if (nodesToSkip.count(node) && !node->enforceBF16evenForGraphTail)
+        if (nodesToSkip.count(node) && !node->enforceBF16evenForGraphTail) {
             continue;
+        }
 
-        if (one_of(node->getType(), Type::Input, Type::Output, Type::MemoryInput, Type::MemoryOutput))
+        if (one_of(node->getType(), Type::Input, Type::Output, Type::MemoryInput, Type::MemoryOutput)) {
             continue;
-        if (node->keepOrigPrecision())
+        }
+        if (node->keepOrigPrecision()) {
             continue;
+        }
 #ifdef CPU_DEBUG_CAPS
-        if (!inferPrecDebug.enabled(NameFromType(node->getType()), node->getName(), node->getOriginalLayers()))
+        if (!inferPrecDebug.enabled(NameFromType(node->getType()), node->getName(), node->getOriginalLayers())) {
             continue;
+        }
 #endif
 
         for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
             auto keepOriginalInputPrecisionAtPort = [](const NodePtr& node, const size_t inPort) {
                 // keep non-float32 precisions
-                if (node->getOriginalInputPrecisionAtPort(inPort) != ov::element::f32)
+                if (node->getOriginalInputPrecisionAtPort(inPort) != ov::element::f32) {
                     return true;
+                }
 
                 // kvcache of PagedAttention should be written directly
-                if (node->getType() == Type::PagedAttention && (inPort == 3 || inPort == 4))
+                if (node->getType() == Type::PagedAttention && (inPort == 3 || inPort == 4)) {
                     return true;
+                }
                 const auto& parent = node->getParentEdgeAt(inPort)->getParent();
                 /* Skip BF16 enforcement for nodes after Constant Inputs for maintaining precision for fusing.
                  * Element type conversion to bf16 is done automatically, if convolution follows up after Constant
                  * Inputs and activation is bf16 */
                 if (parent->getType() == Type::Input && parent->isConstant() &&
                     // Concatenation node is exception because it doesn't change an accuracy for BF16 activation
-                    node->getType() != Type::Concatenation)
+                    node->getType() != Type::Concatenation) {
                     return true;
+                }
                 // Eltwise and Subgraph (snippets) nodes support precision conversion
-                if (parent->getType() == Type::Input && one_of(node->getType(), Type::Eltwise, Type::Subgraph))
+                if (parent->getType() == Type::Input && one_of(node->getType(), Type::Eltwise, Type::Subgraph)) {
                     return true;
+                }
 
                 // exclude Convert after Range since it may cause precision loss when integter type to LP.
                 if (parent->getType() == Type::Range && node->getType() == Type::Convert) {
@@ -1895,8 +2101,9 @@ void Graph::EnforceInferencePrecision() {
                 return false;
             };
 
-            if (keepOriginalInputPrecisionAtPort(node, i))
+            if (keepOriginalInputPrecisionAtPort(node, i)) {
                 continue;
+            }
 
             DEBUG_LOG("#",
                       node->getExecIndex(),
@@ -1913,17 +2120,20 @@ void Graph::EnforceInferencePrecision() {
 
         for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
             // keep non-float32 precisions
-            if (node->getOriginalOutputPrecisionAtPort(i) != ov::element::f32)
+            if (node->getOriginalOutputPrecisionAtPort(i) != ov::element::f32) {
                 continue;
+            }
 
             // exclude Convert before Range since it may cause precision loss when integter type to LP.
             // TODO: Incorrect subgraph is generated by ONNX FE + ticket 117861.
             const auto& child = node->getChildEdgeAt(i)->getChild();
-            if (child->getType() == Type::Range && node->getType() == Type::Convert)
+            if (child->getType() == Type::Range && node->getType() == Type::Convert) {
                 continue;
+            }
             // skip second output of PagedAttention
-            if (node->getType() == Type::PagedAttention && (i != 0))
+            if (node->getType() == Type::PagedAttention && (i != 0)) {
                 continue;
+            }
 
             DEBUG_LOG("#",
                       node->getExecIndex(),
@@ -1963,5 +2173,4 @@ void Graph::assignStates(const std::vector<MemStatePtr>& states) {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

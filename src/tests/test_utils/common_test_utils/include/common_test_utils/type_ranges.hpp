@@ -15,6 +15,21 @@ namespace ov {
 namespace test {
 namespace utils {
 
+static const std::vector<element::Type>& get_known_types() {
+    static const auto known_types = [] {
+        using namespace ov::element;
+        constexpr size_t enum_count = static_cast<std::underlying_type_t<Type_t>>(Type_t::f8e8m0) - 1;
+
+        std::vector<Type> types(enum_count);
+        for (size_t idx = 1, i = 0; i < types.size(); ++idx, ++i) {
+            types[i] = Type{static_cast<Type_t>(idx)};
+        }
+        return types;
+    }();
+
+    return known_types;
+}
+
 static ov::test::utils::InputGenerateData get_range_by_type(
     ov::element::Type elemType,
     uint32_t max_range_limit = testing::internal::Random::kMaxRange) {
@@ -53,11 +68,6 @@ static ov::test::utils::InputGenerateData get_range_by_type(
     }
 
     switch (elemType) {
-    case (ov::element::Type_t::undefined): {
-        inData.start_from = min_start;
-        inData.range = max_range_limit;
-        break;
-    }
     case (ov::element::Type_t::dynamic): {
         inData.start_from = min_start;
         inData.range = max_range_limit;
@@ -110,8 +120,8 @@ struct RangeByType {
     std::map<ov::element::Type, ov::test::utils::InputGenerateData> data;
 
     RangeByType() {
-        for (auto& type : ov::element::Type::get_known_types()) {
-            data[*type] = get_range_by_type(*type);
+        for (const auto& type : get_known_types()) {
+            data[type] = get_range_by_type(type);
         }
     }
 

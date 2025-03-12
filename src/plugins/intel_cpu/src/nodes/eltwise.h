@@ -14,65 +14,13 @@
 #include "dnnl_postops_composer_legacy.h"
 #include "executors/eltwise_list.hpp"
 #include "nodes/executors/eltwise.hpp"
-#include "nodes/kernels/jit_eltwise_call_args_ptrs.hpp"
-
-#if defined(OPENVINO_ARCH_ARM64)
-#    include "kernels/aarch64/jit_uni_eltwise_generic.hpp"
-#endif
+#include "nodes/kernels/jit_eltwise_common.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-#ifndef OPENVINO_ARCH_ARM64
-
-struct jit_eltwise_params {
-    size_t inputs_number;
-    size_t input_size;
-
-    ov::element::Type src_prc[MAX_ELTWISE_INPUTS];
-    ov::element::Type dst_prc;
-
-    VectorDims dims;
-    VectorDims src_offsets[MAX_ELTWISE_INPUTS];
-    VectorDims dst_offsets;
-    VectorDims oc_offsets;
-
-    size_t src_size[MAX_ELTWISE_INPUTS];
-    size_t dst_size;
-    size_t oc_size;
-
-    size_t work_amount;
-    bool use_runtime_ptrs;
-    bool do_output_saturation;
-};
-
-struct jit_eltwise_call_args_indexes {
-    size_t indexes[MAX_ELTWISE_DIM_RANK];
-};
-
-class Eltwise;
-
-struct jit_uni_eltwise_kernel {
-    void (*ker_)(const jit_eltwise_call_args_ptrs*, const jit_eltwise_call_args_indexes*);
-
-    void operator()(const jit_eltwise_call_args_ptrs* const_args, const jit_eltwise_call_args_indexes* indexes) {
-        assert(ker_);
-        ker_(const_args, indexes);
-    }
-
-    explicit jit_uni_eltwise_kernel(jit_eltwise_params jep) : ker_(nullptr), jep_(std::move(jep)) {}
-    virtual ~jit_uni_eltwise_kernel() {}
-
-    virtual void create_ker() = 0;
-
-    jit_eltwise_params jep_;
-};
-
-#endif
-
 enum class EltwiseImplType { reference = 0, optimized = 1, optimizedShapeAgnostic = 2 };
-
 class Eltwise : public Node {
 public:
     class IEltwiseExecutor {
@@ -95,16 +43,17 @@ public:
     void execute(const dnnl::stream& strm) override;
     bool created() const override;
     bool canBeInPlace() const override;
+    bool canFuseConvert(const NodePtr& convertNode) const;
     bool canFuseParent(const NodePtr& parentNode) const;
     bool canFuse(const NodePtr& node) const override;
     void appendPostOps(dnnl::post_ops& ops,
                        const VectorDims& postOpDims,
                        std::unordered_map<int, MemoryPtr>& postOpsMem,
-                       const int channelAxis = 1) override;
+                       const int channelAxis) override;
     void appendPostOps(dnnl::post_ops& ops,
                        const VectorDims& postOpDims,
                        std::vector<const void*>& postOpsMem,
-                       const int channelAxis = 1) override;
+                       const int channelAxis) override;
     bool appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
                            bool isLastPostOp,
                            dnnl::memory::data_type outDataType,
@@ -216,16 +165,6 @@ private:
     bool canUseEltwiseExecPtr = false;
     EltwiseAttrs eltwiseAttrs;
     std::shared_ptr<EltwiseExecutor> eltwiseExecPtr = nullptr;
-};
-
-class eltwise_precision_helper {
-public:
-    static ov::element::Type get_precision(const size_t inputs_number,
-                                           const ov::element::Type (&src_prc)[MAX_ELTWISE_INPUTS],
-                                           const std::vector<EltwiseData>& eltwise_data);
-
-private:
-    static std::set<std::vector<element::Type>> get_supported_precisions(const Algorithm& algo);
 };
 
 }  // namespace node

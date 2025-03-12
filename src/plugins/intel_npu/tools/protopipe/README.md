@@ -413,7 +413,7 @@ multi_inference:
   - network:
     - { name: A.xml, ip: FP16, input_data: A-inputs/, output_data: B-inputs/ }
       # overwrites global initializer for the model B.xml
-    - { name: B.xml, ip: FP16, input_data: B-inputs/, output_data: B-outptus/, random: { name: uniform, low: 0, high: 255.0 }
+    - { name: B.xml, ip: FP16, input_data: B-inputs/, output_data: B-outptus/, random: { dist: uniform, low: 0, high: 255.0 }}
 ```
 
 Run `Protopipe` in `reference` mode:

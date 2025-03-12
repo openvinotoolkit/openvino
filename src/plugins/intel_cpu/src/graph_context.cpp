@@ -9,8 +9,7 @@
 #include "memory_control.hpp"
 #include "nodes/memory.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 GraphContext::GraphContext(Config config,
                            WeightsSharing::Ptr w_cache,
@@ -23,15 +22,17 @@ GraphContext::GraphContext(Config config,
       m_isGraphQuantizedFlag(isGraphQuantized),
       m_streamExecutor(std::move(streamExecutor)),
       m_subMemoryManager(std::move(sub_memory_manager)),
-      m_numNumaNodes(1),
+
       m_memoryStatesRegister(std::make_shared<node::MemoryStatesRegister>()),
-      m_networkMemoryControl(std::make_shared<NetworkMemoryControl>()) {
-    if (streamExecutor) {
-        m_cpuStreamExecutor = std::dynamic_pointer_cast<ov::threading::CPUStreamsExecutor>(streamExecutor);
-        m_numaNodeId = m_cpuStreamExecutor ? m_cpuStreamExecutor->get_numa_node_id() : 0;
+      m_auxiliaryNetworkMemoryControl(std::make_shared<NetworkMemoryControl>()),
+      m_memoryControl(m_auxiliaryNetworkMemoryControl->createMemoryControlUnit()) {
+    if (m_streamExecutor) {
+        m_cpuStreamExecutor = std::dynamic_pointer_cast<ov::threading::CPUStreamsExecutor>(m_streamExecutor);
+        m_numaNodeId = m_cpuStreamExecutor ? std::max(0, m_cpuStreamExecutor->get_numa_node_id()) : 0;
         auto nNumaNodes = get_num_numa_nodes();
-        if (m_numNumaNodes < nNumaNodes)
+        if (m_numNumaNodes < nNumaNodes) {
             m_numNumaNodes = nNumaNodes;
+        }
     }
     // primitive/executors can be shared across sub-stream
     // but scratch pad cannot be shared.
@@ -45,5 +46,4 @@ const dnnl::engine& GraphContext::getEngine() {
     return eng;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

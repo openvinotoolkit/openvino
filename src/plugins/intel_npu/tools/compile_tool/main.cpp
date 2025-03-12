@@ -39,6 +39,8 @@ static constexpr char log_level_message[] = "Optional. Log level for OpenVINO li
 
 static constexpr char config_message[] = "Optional. Path to the configuration file.";
 
+static constexpr char perf_count_message[] = "Optional. Set PERF_COUNT config property.";
+
 static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of the network.";
 
 static constexpr char outputs_precision_message[] =
@@ -69,7 +71,7 @@ static constexpr char outputs_model_layout_message[] =
 
 static constexpr char ioml_message[] =
         "Optional. Specifies model layout for input and output tensors by name.\n"
-        "                                             Example: -ionl \"input:NCHW, output:NHWC\".\n"
+        "                                             Example: -ioml \"input:NCHW, output:NHWC\".\n"
         "                                             Notice that quotes are required.\n"
         "                                             Overwrites layout from il and ol options for specified layers.";
 
@@ -79,7 +81,7 @@ static const char shape_message[] =
         " For dynamic dimensions use symbol `?` or '-1'. Ex. [?,3,?,?]."
         " For bounded dimensions specify range 'min..max'. Ex. [1..10,3,?,?].";
 
-static const char override_model_batch_size[] = "Enforce a model to be compiled for batch size";
+static constexpr char override_model_batch_size_message[] = "Enforce a model to be compiled for batch size";
 
 DEFINE_bool(h, false, help_message);
 DEFINE_string(m, "", model_message);
@@ -87,6 +89,7 @@ DEFINE_string(d, "", targetDeviceMessage);
 DEFINE_string(o, "", output_message);
 DEFINE_string(log_level, "", log_level_message);
 DEFINE_string(c, "", config_message);
+DEFINE_bool(pc, false, perf_count_message);
 DEFINE_string(ip, "", inputs_precision_message);
 DEFINE_string(op, "", outputs_precision_message);
 DEFINE_string(iop, "", iop_message);
@@ -97,7 +100,7 @@ DEFINE_string(iml, "", inputs_model_layout_message);
 DEFINE_string(oml, "", outputs_model_layout_message);
 DEFINE_string(ioml, "", ioml_message);
 DEFINE_string(shape, "", shape_message);
-DEFINE_uint32(override_model_batch_size, 1, override_model_batch_size);
+DEFINE_uint32(override_model_batch_size, 1, override_model_batch_size_message);
 
 namespace {
 std::vector<std::string> splitStringList(const std::string& str, char delim) {
@@ -449,6 +452,9 @@ int main(int argc, char* argv[]) {
         auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
         std::cout << "Parsing configuration file" << std::endl;
         auto configs = parseConfigFile();
+        if (FLAGS_pc) {
+            configs["PERF_COUNT"] = "YES";
+        }
 
         std::cout << "Compiling model" << std::endl;
         auto compiledModel = core.compile_model(model, FLAGS_d, {configs.begin(), configs.end()});

@@ -24,6 +24,8 @@ public:
     void initDescriptor(const NodeConfig& config) override;
     void selectOptimalPrimitiveDescriptor() override;
     void initSupportedPrimitiveDescriptors() override;
+    int registerToAllocationContext(int offset, AllocationContext& context) override;
+    void createPrimitive() override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
@@ -180,7 +182,7 @@ private:
     MemoryPtr legacyOutputCompensationMemPtr;
     MemoryPtr stockInputZeroPointsMemPtr;
     dnnl::memory::data_type outputDataType = dnnl::memory::data_type::undef;
-    ov::element::Type sumPrc = ov::element::undefined;
+    ov::element::Type sumPrc = ov::element::dynamic;
     bool useJitPlanar = false;
     // TODO: migrate on convolution_auto algorithm for x64
 #if defined(OPENVINO_ARCH_X86_64)

@@ -17,8 +17,7 @@
 #    include "emitters/snippets/x64/verbose.hpp"
 #endif
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 enum emitter_in_out_map {
     vec_to_vec,
@@ -29,7 +28,7 @@ enum emitter_in_out_map {
 
 // structure for storage of emitter parameters to hash in map
 struct emitter_params {
-    virtual size_t hash() const = 0;
+    [[nodiscard]] virtual size_t hash() const = 0;
 };
 
 class jit_emitter : public ov::snippets::Emitter {
@@ -47,10 +46,6 @@ public:
         k_mask = Xbyak::Opmask(1);  // FIXME: in general case we need preserve k_mask state as well
     }
 
-    void emit_code(const std::vector<size_t>& in_idxs,
-                   const std::vector<size_t>& out_idxs,
-                   const std::vector<size_t>& pool_vec_idxs = {},
-                   const std::vector<size_t>& pool_gpr_idxs = {}) const override;
     void emit_data() const override;
 
     virtual size_t get_inputs_num() const = 0;
@@ -67,8 +62,9 @@ public:
 
 #ifdef SNIPPETS_DEBUG_CAPS
     const char* info() const {
-        if (!info_.is_initialized())
+        if (!info_.is_initialized()) {
             info_.init(this);
+        }
         return info_.c_str();
     }
 #endif
@@ -83,6 +79,11 @@ protected:
     dnnl::impl::cpu::x64::cpu_isa_t host_isa_;
     ov::element::Type exec_prc_;
     Xbyak::Opmask k_mask;
+
+    void emit_code_impl(const std::vector<size_t>& in_idxs,
+                        const std::vector<size_t>& out_idxs,
+                        const std::vector<size_t>& pool_vec_idxs,
+                        const std::vector<size_t>& pool_gpr_idxs) const override;
 
     virtual void prepare_table();
     virtual void register_table_entries() {}
@@ -151,9 +152,9 @@ protected:
     }
 
     void push_entries_of(const table_t& t) {
-        for (auto it = t.begin(); it != t.end(); it++) {
-            auto key = (*it).first;
-            auto te = (*it).second;  // copy values from table
+        for (const auto& it : t) {
+            auto key = it.first;
+            auto te = it.second;  // copy values from table
             push_arg_entry_of(key, te.val, te.bcast);
         }
     }
@@ -184,5 +185,4 @@ private:
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

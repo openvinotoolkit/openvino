@@ -28,14 +28,12 @@ using namespace ov::Extensions::Cpu::XARCH;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 struct PagedAttentionKey {
     ov::element::Type rtPrecision;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const PagedAttentionKey& rhs) const;
 };
 
@@ -56,15 +54,16 @@ PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphC
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        OPENVINO_THROW("CPU: " + errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     // output score may have no child
     m_hasScore = !op->get_output_target_inputs(1).empty();
 }
 
 void PagedAttention::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
     auto rtPrecision = getRuntimePrecision();
 
     NodeConfig config;
@@ -82,7 +81,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
-    OPENVINO_ASSERT(orgInputNumber == 13 || orgInputNumber == 16,
+    CPU_NODE_ASSERT(orgInputNumber == 13 || orgInputNumber == 16,
                     "The input number of PagedAttention should be 13 or 16.");
     // kvcache, float, []
     auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
@@ -151,6 +150,22 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
 
+bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode) noexcept {
+    // AUTO means select by primitive
+    // for non-x86 platform, by-channel quantization is disabled
+    // for x86 platform, by-channel quantization is disabled by default until further accuracy data collect
+    bool byChannel = false;
+    if (mode == Config::CacheQuantMode::BY_CHANNEL) {
+        byChannel = true;
+    } else if (mode == Config::CacheQuantMode::BY_HIDDEN) {
+        byChannel = false;
+    }
+#if defined(OPENVINO_ARCH_ARM64)
+    byChannel = false;
+#endif
+    return byChannel;
+}
+
 void PagedAttention::createPrimitive() {
     auto rtPrecision = getRuntimePrecision();
 
@@ -164,9 +179,13 @@ void PagedAttention::createPrimitive() {
         auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
         const auto& cpuConfig = context->getConfig();
 
-        size_t key_group_size = cpuConfig.keyCacheGroupSize;
-        size_t value_group_size = cpuConfig.valueCacheGroupSize;
-        return make_pa_executor(rtPrecision, kCachePrecision, vCachePrecision, key_group_size, value_group_size);
+        bool byChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode);
+        return make_pa_executor(rtPrecision,
+                                kCachePrecision,
+                                vCachePrecision,
+                                cpuConfig.keyCacheGroupSize,
+                                cpuConfig.valueCacheGroupSize,
+                                byChannel);
 #else
         return nullptr;
 #endif
@@ -175,7 +194,7 @@ void PagedAttention::createPrimitive() {
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
     if (!result.first) {
-        OPENVINO_THROW("PagedAttention AttentionExecutor creation fails with precision " + rtPrecision.to_string());
+        THROW_CPU_NODE_ERR("AttentionExecutor creation fails with precision " + rtPrecision.to_string());
     }
     m_executor = result.first;
 }
@@ -208,8 +227,9 @@ void PagedAttention::execute(const dnnl::stream& strm) {
         size_t len = 0;
         const auto& pastLensDims = inputs[5]->getStaticDims();
         auto pastLens = inputs[5]->getDataAs<const int32_t>();
-        for (size_t i = 0; i < pastLensDims[0]; i++)
+        for (size_t i = 0; i < pastLensDims[0]; i++) {
             len += pastLens[i];
+        }
         len += outDims[0];
         VectorDims scoreDims{len};
         redefineOutputMemory({outDims, scoreDims});
@@ -218,8 +238,9 @@ void PagedAttention::execute(const dnnl::stream& strm) {
     }
 
     outputs[0] = getDstMemoryAtPort(0);
-    if (m_hasScore)
+    if (m_hasScore) {
         outputs[1] = getDstMemoryAtPort(1);
+    }
 
     m_executor->execute(inputs, outputs);
 }
@@ -241,7 +262,7 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
                 return false;
             }
         }
-        int orgInput = static_cast<int>(op->get_input_size());
+        auto orgInput = static_cast<int>(op->get_input_size());
         if (op->get_type_name() == std::string("PagedAttentionExtension") &&
             orgInput == PagedAttentionExecutor::ID_SLIDING_WINDOW + 1) {
             return true;
@@ -265,6 +286,4 @@ ov::element::Type PagedAttention::getRuntimePrecision() const {
     return rtPrecision;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

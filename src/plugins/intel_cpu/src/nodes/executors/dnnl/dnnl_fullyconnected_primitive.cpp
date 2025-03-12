@@ -31,8 +31,7 @@
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace dnnl;
 using namespace ov::element;
@@ -112,8 +111,9 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
 DnnlMemoryDescPtr DnnlFCPrimitive::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
                                                                   const DnnlMemoryDescPtr& dstDesc,
                                                                   bool weightsNonTransposed) {
-    if (!weightsNonTransposed)
+    if (!weightsNonTransposed) {
         return srcDesc;
+    }
 
     const auto& weiDesc = srcDesc->getDnnlDesc();
     auto wDims = weiDesc.get_dims();
@@ -128,15 +128,17 @@ bool DnnlFCPrimitive::useWeightsDecompressionImpl(const ov::element::Type inputT
                                                   const ov::element::Type weightsType,
                                                   const ov::intel_cpu::Config::ModelType modelType) {
     if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
-        if (one_of(inputType, f32, bf16) && one_of(weightsType, u8, i8, nf4, u4, i4, f4e2m1))
+        if (one_of(inputType, f32, bf16) && one_of(weightsType, u8, i8, nf4, u4, i4, f4e2m1)) {
             return true;
+        }
 
         if (modelType == ov::intel_cpu::Config::ModelType::LLM) {
             // f16c kernel saves memory footprint with additional decompression computational overhead
             // which is only meaningful on LLM with small batch-size.
             // TODO: fall-back to use f32 weights on large batch-size
-            if (inputType == f32 && one_of(weightsType, f16, bf16))
+            if (inputType == f32 && one_of(weightsType, f16, bf16)) {
                 return true;
+            }
         }
     }
     return false;
@@ -147,15 +149,18 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
                                        const MemoryDescPtr& weightsDesc,
                                        const MemoryArgs& memory,
                                        bool needTranspose) {
-    if (dqGroupSize == 0)
+    if (dqGroupSize == 0) {
         return false;
+    }
 
     if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni) &&
-        !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni))
+        !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni)) {
         return false;
+    }
 
-    if (srcDesc->getPrecision() != ov::element::f32)
+    if (srcDesc->getPrecision() != ov::element::f32) {
         return false;
+    }
 
     MemoryCPtr zpPtr =
         memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS) ? memory.at(ARG_WEI | ARG_ATTR_ZERO_POINTS) : nullptr;
@@ -163,42 +168,36 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
     // To support dynamic quantization with weights symmetrically quantized as i8/i4
     // w/o zero-point, we will transform weight to u8/u4 weight with zp 128/8.
     if (!one_of(weightsDesc->getPrecision(), ov::element::u8, ov::element::u4) &&
-        !((one_of(weightsDesc->getPrecision(), ov::element::i8, ov::element::i4) && !zpPtr)))
+        !((one_of(weightsDesc->getPrecision(), ov::element::i8, ov::element::i4) && !zpPtr))) {
         return false;
-
-    if (zpPtr && !one_of(zpPtr->getDesc().getPrecision(), ov::element::u8, ov::element::u4, ov::element::undefined))
+    }
+    if (zpPtr && !one_of(zpPtr->getDesc().getPrecision(), ov::element::u8, ov::element::u4, ov::element::dynamic)) {
         return false;
-
-    // TODO: heuristic: disable avx2 asymmetric
-    bool is_asymmetric_weights = one_of(weightsDesc->getPrecision(), ov::element::u8, ov::element::u4);
-    if (is_asymmetric_weights && !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni))
-        return false;
+    }
 
     const size_t simdWidth = 16;
-    if (dqGroupSize % simdWidth)
+    if (dqGroupSize % simdWidth) {
         return false;
+    }
 
-    if (weightsDesc->getPrecision() == ov::element::u4) {
-        int ic = weightsDesc->getShape().getStaticDims()[1];
-        int minGroupSize = INT_MAX;
-
-        MemoryCPtr scalesPtr = memory.count(ARG_WEI | ARG_ATTR_SCALES) ? memory.at(ARG_WEI | ARG_ATTR_SCALES) : nullptr;
-
-        if (scalesPtr && scalesPtr->getShape().getRank() == 3) {
-            auto scalesDims = scalesPtr->getShape().getStaticDims();
-            auto groupsNum = needTranspose ? scalesDims[1] : scalesDims[0];
-            minGroupSize = ic / groupsNum;
-        }
-
-        if (zpPtr && zpPtr->getShape().getRank() == 3) {
-            auto zpDims = zpPtr->getShape().getStaticDims();
-            int groupsNum = needTranspose ? zpDims[1] : zpDims[0];
-            minGroupSize = std::min(minGroupSize, ic / groupsNum);
-        }
-
-        const size_t minLoopSize = 8;
-        if (minGroupSize != INT_MAX && minGroupSize % minLoopSize)
+    MemoryCPtr scalesPtr = memory.count(ARG_WEI | ARG_ATTR_SCALES) ? memory.at(ARG_WEI | ARG_ATTR_SCALES) : nullptr;
+    int ic = weightsDesc->getShape().getStaticDims()[1];
+    if (scalesPtr && scalesPtr->getShape().getRank() != 1) {
+        auto scalesDims = scalesPtr->getShape().getStaticDims();
+        auto groupsNum = scalesDims[1];
+        size_t groupSize = ic / groupsNum;
+        if (groupsNum != 1 && groupSize % std::min(dqGroupSize, groupSize)) {
             return false;
+        }
+    }
+
+    if (zpPtr && zpPtr->getShape().getRank() != 1) {
+        auto zpDims = zpPtr->getShape().getStaticDims();
+        int groupsNum = zpDims[1];
+        size_t groupSize = ic / groupsNum;
+        if (groupsNum != 1 && groupSize % std::min(dqGroupSize, groupSize)) {
+            return false;
+        }
     }
 
     return true;
@@ -225,8 +224,9 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
 
     if (memory.count(ARG_WEI | ARG_ATTR_SCALES)) {
         auto dstPrc = memory.at(ARG_WEI | ARG_ATTR_SCALES)->getPrecision();
-        if (dstPrc != f8e8m0 || useDynamicQuantization)
+        if (dstPrc != f8e8m0 || useDynamicQuantization) {
             dstPrc = ov::element::f32;
+        }
 
         dnnlpoc.appendDecompressionScalesLegacy(memory.at(ARG_WEI | ARG_ATTR_SCALES),
                                                 !attrs.weightsNonTransposed,
@@ -262,8 +262,9 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
 static dnnl::memory::desc normalizeDescriptor(const dnnl::memory::desc& desc) {
     const auto& dims = desc.get_dims();
 
-    if (dims.size() > 2)
+    if (dims.size() > 2) {
         return desc.reshape(reshapeDownToRank<2>(dims));
+    }
 
     return desc;
 }
@@ -290,10 +291,12 @@ static dnnl::inner_product_forward::primitive_desc createDescriptorInternal(cons
         uint64_t dynQuantGroupSize = 0;
         attr.get_src_dyn_quant_params(dynQuantGroupSize);
         if (dynQuantGroupSize > 0) {
-            if (wdt == dnnl::memory::data_type::s8)
+            if (wdt == dnnl::memory::data_type::s8) {
                 wdt = memory::data_type::u8;
-            if (wdt == dnnl::memory::data_type::s4)
+            }
+            if (wdt == dnnl::memory::data_type::s4) {
                 wdt = memory::data_type::u4;
+            }
         }
     } else if (indt == dnnl::memory::data_type::u8 || indt == dnnl::memory::data_type::s8) {
         wdt = memory::data_type::s8;
@@ -303,13 +306,13 @@ static dnnl::inner_product_forward::primitive_desc createDescriptorInternal(cons
         useSparseWeights ? dnnl::memory::desc().sparse_desc(normalizedWeightDesc.get_dims(), wdt)
                          : dnnl::memory::desc(normalizedWeightDesc.get_dims(), wdt, memory::format_tag::any);
 
-    return dnnl::inner_product_forward::primitive_desc(engine,
-                                                       dnnl::prop_kind::forward_inference,
-                                                       normalizedInputDesc,
-                                                       weightsDesc,
-                                                       biasDesc,
-                                                       normalizedOutputDesc,
-                                                       attr);
+    return {engine,
+            dnnl::prop_kind::forward_inference,
+            normalizedInputDesc,
+            weightsDesc,
+            biasDesc,
+            normalizedOutputDesc,
+            attr};
 }
 
 static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
@@ -336,8 +339,9 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
         return contains(implPriorities, implType);
     });
 
-    if (found)
+    if (found) {
         return std::move(prim_desc);
+    }
 
     return std::move(first_desc);
 }
@@ -395,8 +399,9 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
 
     const auto postOpData = createPrimitiveAttrs(attrs, postOps, memory, context, useDynamicQuantization);
 
-    if (!cacheWeights)
+    if (!cacheWeights) {
         return std::make_shared<DnnlShapeAgnosticData>(postOpData);
+    }
 
     if (srcDesc->getShape().isDynamic()) {
         const auto& inShape = srcDesc->getShape();
@@ -474,5 +479,4 @@ void DnnlFCPrimitive::execute(const dnnl_primitive_args& primArgs) const {
     m_prim.execute(m_stream, primArgs);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

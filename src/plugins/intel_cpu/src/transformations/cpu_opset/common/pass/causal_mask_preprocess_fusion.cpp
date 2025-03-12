@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,12 +68,16 @@ bool is_triu(ov::opset1::Constant* cmask, size_t rows, size_t columns) {
     const auto* ptr = reinterpret_cast<const T*>(cmask->get_data_ptr());
     for (size_t y = 0; y < rows; y++, ptr += columns) {
         size_t x;
-        for (x = 0; x <= y; x++)
-            if (ptr[x])
+        for (x = 0; x <= y; x++) {
+            if (ptr[x]) {
                 return false;
-        for (; x < columns; x++)
-            if (!ptr[x])
+            }
+        }
+        for (; x < columns; x++) {
+            if (!ptr[x]) {
                 return false;
+            }
+        }
     }
     return true;
 }
@@ -171,14 +175,14 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
     auto masked_fill_Select = makePattern<ov::opset1::Select>(
         {mul_LogicalAnd, -FLT_MAX, causal_mask_boolean_slice | causal_mask_boolean_strided_slice},
         {{"auto_broadcast", "numpy"}});  //  tensor_array<f32[?,1,8192,?]>
-    auto copy__ShapeOf = makePattern<ov::opset1::ShapeOf>(
+    auto copy_ShapeOf = makePattern<ov::opset1::ShapeOf>(
         {causal_mask_boolean_slice | causal_mask_boolean_strided_slice});  //  tensor_array<i32[4]>
     auto Constant_47319 = makeConst(ov::element::u8, ov::Shape({}), {0});
-    auto copy__Broadcast =
-        makePattern<ov::opset1::Broadcast>({masked_fill_Select, copy__ShapeOf, Constant_47319},
+    auto copy_Broadcast =
+        makePattern<ov::opset1::Broadcast>({masked_fill_Select, copy_ShapeOf, Constant_47319},
                                            {{"mode", "numpy"}});  //  tensor_array<f32[?,1,8192,..8192]>
     auto SliceAssign_201_Reshape_2 =
-        makePattern<ov::opset1::Reshape>({copy__Broadcast, {-1}}, {{"special_zero", false}});  //  tensor_array<f32[?]>
+        makePattern<ov::opset1::Reshape>({copy_Broadcast, {-1}}, {{"special_zero", false}});  //  tensor_array<f32[?]>
     auto SliceAssign_201_ScatterNDUpdate = makePattern<ov::opset4::ScatterNDUpdate>(
         {SliceAssign_201_Reshape_0, SliceAssign_201_Reshape_1, SliceAssign_201_Reshape_2});  //  tensor_array<f32[?]>
     auto SliceAssign_201_Reshape_3 =
@@ -210,20 +214,24 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
         auto triu = ov::as_type_ptr<ov::opset1::Constant>(pattern_map.find(const_triu)->second.get_node_shared_ptr());
 
         auto triu_shape = triu->get_output_shape(0);
-        if (triu_shape.size() != 4)
+        if (triu_shape.size() != 4) {
             return false;
-        if (triu_shape[0] != 1 || triu_shape[1] != 1 || triu_shape[2] != triu_shape[3])
+        }
+        if (triu_shape[0] != 1 || triu_shape[1] != 1 || triu_shape[2] != triu_shape[3]) {
             return false;
+        }
 
         if (!m_global_triu) {
             auto triu_dtype = triu->get_output_element_type(0);
             // check if it's triu
             if (triu_dtype == ov::element::i32) {
-                if (!is_triu<int32_t>(triu.get(), triu_shape[2], triu_shape[3]))
+                if (!is_triu<int32_t>(triu.get(), triu_shape[2], triu_shape[3])) {
                     return false;
+                }
             } else if (triu_dtype == ov::element::u8) {
-                if (!is_triu<uint8_t>(triu.get(), triu_shape[2], triu_shape[3]))
+                if (!is_triu<uint8_t>(triu.get(), triu_shape[2], triu_shape[3])) {
                     return false;
+                }
             } else {
                 return false;
             }
@@ -231,8 +239,9 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
             m_global_triu = triu;
         } else {
             // check identity insread of values to save time
-            if (triu != m_global_triu)
+            if (triu != m_global_triu) {
                 return false;
+            }
         }
 
         ov::OutputVector inputs{
