@@ -29,53 +29,51 @@ void DebugCapsConfig::readProperties() {
         OPENVINO_THROW("readDebugCapsProperties: Unknown dump format");
     };
 
-    const char* envVarValue = nullptr;
-
-    if ((envVarValue = readEnv("OV_CPU_EXEC_GRAPH_PATH"))) {
+    if (auto envVarValue = readEnv("OV_CPU_EXEC_GRAPH_PATH")) {
         execGraphPath = envVarValue;
     }
 
-    if ((envVarValue = readEnv("OV_CPU_VERBOSE"))) {
+    if (auto envVarValue = readEnv("OV_CPU_VERBOSE")) {
         verbose = envVarValue;
     }
 
-    if ((envVarValue = readEnv("OV_CPU_BLOB_DUMP_DIR"))) {
+    if (auto envVarValue = readEnv("OV_CPU_BLOB_DUMP_DIR")) {
         blobDumpDir = envVarValue;
     }
 
-    if ((envVarValue = readEnv("OV_CPU_BLOB_DUMP_FORMAT"))) {
+    if (auto envVarValue = readEnv("OV_CPU_BLOB_DUMP_FORMAT")) {
         blobDumpFormat = parseDumpFormat(envVarValue);
     }
 
-    if ((envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_EXEC_ID"))) {
+    if (auto envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_EXEC_ID")) {
         blobDumpFilters[FILTER::BY_EXEC_ID] = envVarValue;
     }
 
-    if ((envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_PORTS"))) {
+    if (auto envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_PORTS")) {
         blobDumpFilters[FILTER::BY_PORTS] = envVarValue;
     }
 
-    if ((envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_TYPE"))) {
+    if (auto envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_TYPE")) {
         blobDumpFilters[FILTER::BY_TYPE] = envVarValue;
     }
 
-    if ((envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_NAME"))) {
+    if (auto envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_NAME")) {
         blobDumpFilters[FILTER::BY_NAME] = envVarValue;
     }
 
-    if ((envVarValue = readEnv("OV_CPU_DISABLE"))) {
+    if (auto envVarValue = readEnv("OV_CPU_DISABLE")) {
         disable.parseAndSet(envVarValue);
     }
 
-    if ((envVarValue = readEnv("OV_CPU_DUMP_IR"))) {
+    if (auto envVarValue = readEnv("OV_CPU_DUMP_IR")) {
         dumpIR.parseAndSet(envVarValue);
     }
 
-    if ((envVarValue = readEnv("OV_CPU_SUMMARY_PERF"))) {
+    if (auto envVarValue = readEnv("OV_CPU_SUMMARY_PERF")) {
         summaryPerf = envVarValue;
     }
 
-    if ((envVarValue = readEnv("OV_CPU_AVERAGE_COUNTERS"))) {
+    if (auto envVarValue = readEnv("OV_CPU_AVERAGE_COUNTERS")) {
         averageCountersPath = envVarValue;
     }
 }

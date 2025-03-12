@@ -85,10 +85,10 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
 }
 
 const char* impl_type_to_string(impl_desc_type type) {
-#define CASE(_type)        \
-    do {                   \
-        if (type == _type) \
-            return #_type; \
+#define CASE(_type)          \
+    do {                     \
+        if (type == (_type)) \
+            return #_type;   \
     } while (0)
     CASE(unknown);
     CASE(undef);
