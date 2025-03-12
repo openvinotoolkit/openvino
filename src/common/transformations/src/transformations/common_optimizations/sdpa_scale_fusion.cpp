@@ -87,6 +87,8 @@ SDPAScaleFusion::SDPAScaleFusion() {
                 pattern_map.at(q).get_element_type() == q_input.get_element_type()) {
                 scale_q_value = ov::as_type_ptr<ov::op::v0::Constant>(scale_q_node)->cast_vector<float>()[0];
                 q_input = pattern_map.at(q);
+            } else {
+                has_q_scale = false;
             }
         }
         if (has_k_scale) {
@@ -95,12 +97,15 @@ SDPAScaleFusion::SDPAScaleFusion() {
                 pattern_map.at(k).get_element_type() == k_input.get_element_type()) {
                 scale_k_value = ov::as_type_ptr<ov::op::v0::Constant>(scale_k_node)->cast_vector<float>()[0];
                 k_input = pattern_map.at(k);
+            } else {
+                has_k_scale = false;
             }
         }
 
         Output<ov::Node> new_scale_node;
         auto new_scale_val = prev_scale_value * scale_q_value * scale_k_value;
-
+        if (!has_q_scale && !has_k_scale)
+            return false;
         // If new scale is 1 and we have non-constant scale node for either Q or K, then we can make it a scale of SDPA
         if (new_scale_val == 1.0f) {
             if (has_q_scale && !ov::is_type<ov::op::v0::Constant>(scale_q_node) &&
