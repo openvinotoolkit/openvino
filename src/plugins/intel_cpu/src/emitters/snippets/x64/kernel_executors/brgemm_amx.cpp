@@ -308,7 +308,14 @@ void BrgemmAMXKernelExecutor::execute(const BrgemmAMXKernelExecutor* executor, c
                                   K_body);
         // Post ops are applied only on last iteration, so they mustn't be applied if tail is present
         const bool apply_post_ops = !execute_tail;
-        execute_brgemm_kernel(K_body_kernel->brgemm_kernel, src_ptr, wei_ptr, args->C, scratch, false, apply_post_ops);
+        execute_brgemm_kernel(K_body_kernel->brgemm_kernel,
+                              src_ptr,
+                              wei_ptr,
+                              args->C,
+                              scratch,
+                              args->post_ops_binary_arg_vec,
+                              false,
+                              apply_post_ops);
 
         src_ptr = src_ptr + K_body * dnnl_data_type_size(config.get_dt_in0());
         wei_ptr = wei_ptr + (K_body * config.get_LDB()) * dnnl_data_type_size(config.get_dt_in1());
@@ -338,7 +345,14 @@ void BrgemmAMXKernelExecutor::execute(const BrgemmAMXKernelExecutor* executor, c
                                   config.get_M(),
                                   config.get_N(),
                                   K_tail);
-        execute_brgemm_kernel(K_tail_kernel->brgemm_kernel, src_ptr, wei_ptr, args->C, scratch, false, true);
+        execute_brgemm_kernel(K_tail_kernel->brgemm_kernel,
+                              src_ptr,
+                              wei_ptr,
+                              args->C,
+                              scratch,
+                              args->post_ops_binary_arg_vec,
+                              false,
+                              true);
     }
     if (print_data) {
         float* C_ptr = reinterpret_cast<float*>(args->C);
