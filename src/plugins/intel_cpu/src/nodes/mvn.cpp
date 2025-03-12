@@ -2316,9 +2316,9 @@ void MVN::execute(const dnnl::stream& strm) {
     if (execPtr) {
         auto* dst_data = dstMemPtr->getDataAs<uint8_t>();
         auto* src_data = srcMemPtr->getDataAs<uint8_t>();
-        execPtr->exec(src_data, dst_data, postOpsDataPtrs.data(), shape5D);
+        execPtr->exec(src_data, dst_data, reinterpret_cast<void*>(postOpsDataPtrs.data()), shape5D);
     } else if (aclExecPtr) {
-        aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, postOpsDataPtrs.data());
+        aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, reinterpret_cast<void*>(postOpsDataPtrs.data()));
     } else {
         THROW_CPU_NODE_ERR("Primitive wasn't created");
     }

@@ -4,7 +4,7 @@
 
 import io
 from types import TracebackType
-from typing import Any, Iterable, Union, Optional, Dict, Tuple, List
+from typing import Any, Iterable, Union, Optional, Dict
 from typing import Type as TypingType
 from pathlib import Path
 import traceback  # noqa: F811
@@ -14,8 +14,7 @@ from openvino._pyopenvino import Model as ModelBase
 from openvino._pyopenvino import Core as CoreBase
 from openvino._pyopenvino import CompiledModel as CompiledModelBase
 from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
-from openvino._pyopenvino import Op as OpBase
-from openvino._pyopenvino import Node, Output, Tensor, Type
+from openvino._pyopenvino import Node, Tensor, Type
 
 from openvino.utils.data_helpers import (
     OVDict,
@@ -24,19 +23,6 @@ from openvino.utils.data_helpers import (
     tensor_from_file,
 )
 from openvino.package_utils import deprecatedclassproperty
-
-
-class Op(OpBase):
-    def __init__(self, py_obj: "Op", inputs: Optional[Union[List[Union[Node, Output]], Tuple[Union[Node, Output, List[Union[Node, Output]]]]]] = None) -> None:
-        super().__init__(py_obj)
-        self._update_type_info()
-        if isinstance(inputs, tuple):
-            inputs = None if len(inputs) == 0 else list(inputs)
-            if inputs is not None and len(inputs) == 1 and isinstance(inputs[0], list):
-                inputs = inputs[0]
-        if inputs is not None:
-            self.set_arguments(inputs)
-            self.constructor_validate_and_infer_types()
 
 
 class ModelMeta(type):

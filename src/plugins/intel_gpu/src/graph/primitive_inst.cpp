@@ -9,7 +9,6 @@
 #include "primitive_inst.h"
 #include "data_inst.h"
 #include "mutable_data_inst.h"
-#include "reorder_inst.h"
 #include "input_layout_inst.h"
 #include "arg_max_min_inst.h"
 #include "fully_connected_inst.h"
@@ -271,6 +270,7 @@ event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, si
         ev = mem_new->copy_from(_network.get_stream(), *_outputs[idx], false);
     } else {
         _outputs[idx] = mem_new;
+        _max_output_layout_count[idx] = mem_new->get_layout().get_linear_size();
     }
     return ev;
 }
@@ -579,6 +579,23 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
 
     const auto& actual_layouts = updated_params.output_layouts;
     OPENVINO_ASSERT(actual_layouts[0].is_static(), "[GPU] Can't realloc mem for dynamic layout");
+
+    if (users.size() == 1 && users.front()->get_node().is_type<reorder>() && users.front()->can_be_optimized()) {
+        auto reorder_inst = users.front();
+        if (reorder_inst->is_output()
+            && reorder_inst->output_memory_ptr()
+            && get_network().has_output_remote_memory_ptr(reorder_inst->id())
+            && get_network().get_engine().is_the_same_buffer(get_network().get_output_remote_memory(reorder_inst->id()), reorder_inst->output_memory())) {
+            if (actual_layouts[0].get_linear_size() <= reorder_inst->get_max_output_layout_count()) {
+                this->_outputs[0] = reorder_inst->_outputs[0];
+                GPU_DEBUG_TRACE_DETAIL << id() << ": use reorder user's remote tensor memory " << this->_outputs[0]->buffer_ptr() << std::endl;
+                return;
+            } else {
+                GPU_DEBUG_TRACE_DETAIL << reorder_inst->id() << " cannot be optimized for the mismatch between input layout and output layout" << std::endl;
+                reorder_inst->set_can_be_optimized(false);
+            }
+        }
+    }
 
     // input_layout node is supposed to always use external memory in dynamic case
     if (_node->is_type<input_layout>())
@@ -2696,7 +2713,7 @@ bool primitive_inst::is_valid_fusion() const {
                                                          cldnn::format::dimension(data_layout.format),
                                                          false);
 
-            if (gemm_dims[0] != data_dims[0])
+            if (gemm_dims[0] != data_dims[0] && gemm_dims[1] != 1)
                 return false;
         } else if (_node->is_type<fully_connected>() && _node->get_preferred_impl_type() == impl_types::onednn) {
             const auto& fc_layout = _impl_params->get_output_layout();
