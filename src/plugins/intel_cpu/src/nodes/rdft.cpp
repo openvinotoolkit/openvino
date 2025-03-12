@@ -96,7 +96,7 @@ RDFT::RDFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
     if (axesNode) {
         axes = axesNode->cast_vector<int>();
         isAxesConstant = true;
-        auto rank = inputShapes[DATA_INDEX].getRank() - inverse;
+        auto rank = inputShapes[DATA_INDEX].getRank() - static_cast<size_t>(inverse);
         normalizeAxes(axes, rank);
     }
 
@@ -159,7 +159,7 @@ void RDFT::execute(const dnnl::stream& strm) {
     auto inputPtr = inputMem.getDataAs<float>();
     auto outputPtr = outputMem.getDataAs<float>();
 
-    auto rank = inputShape.size() - inverse;
+    auto rank = inputShape.size() - static_cast<size_t>(inverse);
 
     const auto& inputStrides = inputMem.getDescWithType<BlockedMemoryDesc>()->getStrides();
     const auto& outputStrides = outputMem.getDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -192,7 +192,7 @@ void RDFT::prepareParams() {
             axes.resize(newAxesSize);
         }
         auto axesPtr = axesMem->getDataAs<const int>();
-        auto inputRank = inputShapes[DATA_INDEX].getRank() - inverse;
+        auto inputRank = inputShapes[DATA_INDEX].getRank() - static_cast<size_t>(inverse);
         for (size_t i = 0; i < axes.size(); i++) {
             axes[i] = axesPtr[i] < 0 ? axesPtr[i] + inputRank : axesPtr[i];
         }
@@ -237,7 +237,7 @@ bool RDFT::axesChanged() const {
         return true;
     }
     auto axesPtr = axesMem->getDataAs<const int>();
-    auto inputRank = inputShapes[DATA_INDEX].getRank() - inverse;
+    auto inputRank = inputShapes[DATA_INDEX].getRank() - static_cast<size_t>(inverse);
     for (size_t i = 0; i < axes.size(); i++) {
         auto newAxis = axesPtr[i] < 0 ? axesPtr[i] + inputRank : axesPtr[i];
         if (static_cast<size_t>(axes[i]) != newAxis) {

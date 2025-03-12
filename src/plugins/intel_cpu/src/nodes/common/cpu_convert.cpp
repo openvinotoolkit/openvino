@@ -869,19 +869,19 @@ struct ConvertFrom4BitPrecision<std::tuple<src_t, dst_t>> {
         auto dst = static_cast<dst_t*>(ctx.dstPtr);
         if (ctx.inType == ov::element::nf4) {
             parallel_for(ctx.size, [&](size_t i) {
-                dst[i] = static_cast<dst_t>(ConvertNF4::dequantize(get_u4(src[i / 2], i % 2)));
+                dst[i] = static_cast<dst_t>(ConvertNF4::dequantize(get_u4(src[i / 2], (i % 2) != 0u)));
             });
         } else if (ctx.inType == ov::element::u4) {
             parallel_for(ctx.size, [&](size_t i) {
-                dst[i] = static_cast<dst_t>(get_u4(src[i / 2], i % 2));
+                dst[i] = static_cast<dst_t>(get_u4(src[i / 2], (i % 2) != 0u));
             });
         } else if (ctx.inType == ov::element::i4) {
             parallel_for(ctx.size, [&](size_t i) {
-                dst[i] = static_cast<dst_t>(get_i4(src[i / 2], i % 2));
+                dst[i] = static_cast<dst_t>(get_i4(src[i / 2], (i % 2) != 0u));
             });
         } else if (ctx.inType == ov::element::f4e2m1) {
             parallel_for(ctx.size, [&](size_t i) {
-                dst[i] = static_cast<dst_t>(float4_e2m1::from_bits(get_u4(src[i / 2], i % 2)));
+                dst[i] = static_cast<dst_t>(float4_e2m1::from_bits(get_u4(src[i / 2], (i % 2) != 0u)));
             });
         } else {
             OPENVINO_THROW("cpu_convert doesn't support input data type: ", ctx.inType, ". Not implemented.");

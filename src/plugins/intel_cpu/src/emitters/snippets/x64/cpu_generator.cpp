@@ -79,9 +79,9 @@ static bool is_segfault_detector_emitter(const intel_cpu::jit_emitter* emitter) 
     // default active for typical tensor memory access emitters
     bool ret = false;
     ret = is_load_emitter(emitter) || is_store_emitter(emitter) ||
-          dynamic_cast<const intel_cpu::jit_brgemm_emitter*>(emitter) ||
-          dynamic_cast<const intel_cpu::jit_brgemm_copy_b_emitter*>(emitter) ||
-          dynamic_cast<const intel_cpu::jit_kernel_emitter*>(emitter);
+          (dynamic_cast<const intel_cpu::jit_brgemm_emitter*>(emitter) != nullptr) ||
+          (dynamic_cast<const intel_cpu::jit_brgemm_copy_b_emitter*>(emitter) != nullptr) ||
+          (dynamic_cast<const intel_cpu::jit_kernel_emitter*>(emitter) != nullptr);
     return ret;
     // use below code to active all emitters for extend usage
     // return !dynamic_cast<const jit_nop_emitter*>(emitter);
