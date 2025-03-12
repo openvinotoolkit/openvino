@@ -820,7 +820,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     if (serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
         stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
         // Properties are required for ov::weights_path
-        return ov::npuw::LLMCompiledModel::deserialize(stream, shared_from_this(), properties);
+        return ov::npuw::LLMCompiledModel::import_model(stream, shared_from_this(), properties);
     }
     stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
 
