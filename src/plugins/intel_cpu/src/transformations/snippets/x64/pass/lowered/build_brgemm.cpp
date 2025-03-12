@@ -62,6 +62,9 @@ bool pass::BuildBrgemm::run(snippets::lowered::LinearIR& linear_ir,
             continue;
         }
 
+        if (inner_loop_info->get_work_amount() % inner_loop_info->get_increment() != 0) {
+            continue;
+        }
         auto iter_count = inner_loop_info->get_work_amount() / inner_loop_info->get_increment();
 
         std::shared_ptr<BrgemmCPU> brgemm_node;
