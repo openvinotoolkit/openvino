@@ -52,13 +52,13 @@ std::unordered_set<std::string> deserialize_tensor_names(const std::string_view&
     auto name_inserter = std::inserter(output_names, output_names.end());
     for (size_t pos = tensor_names.find(delim), start = 0; start != std::string::npos;
          pos = tensor_names.find(delim, pos)) {
-        if (auto delim_pos = pos - 1; delim_pos != std::string::npos && tensor_names[delim_pos] == esc_char) {
-            ++pos;
-        } else if (pos == std::string::npos) {
+        if (pos == std::string::npos) {
             if (auto name_view = tensor_names.substr(start); name_view.size() > 0) {
                 *name_inserter = std::regex_replace(std::string(name_view), escaped_delim, delim);
             }
             start = pos;
+        } else if (auto delim_pos = pos - 1; delim_pos != std::string::npos && tensor_names[delim_pos] == esc_char) {
+            ++pos;
         } else {
             if (auto length = pos - start; length > 0) {
                 *name_inserter =
