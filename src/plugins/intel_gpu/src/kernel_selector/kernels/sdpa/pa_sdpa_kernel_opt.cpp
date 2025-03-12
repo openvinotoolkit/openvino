@@ -247,6 +247,7 @@ JitConstants PagedAttentionSDPAKernelOpt::GetJitConstants(const pa_sdpa_params& 
     jit.AddConstant(MakeJitConstant("SLIDING_WINDOW_SIZE", config.paged_attention_sliding_window));
     jit.AddConstant(MakeJitConstant("IS_KV_COMPRESSED", params.conf.is_kv_compressed));
     jit.AddConstant(MakeJitConstant("SG_SCALE_FACTOR", get_sg_number_scale_factor(params, config.head_size, kernel_idx)));
+    jit.AddConstant(MakeJitConstant("XE2_QK_MULTIPLICATION", params.engineInfo.arch == gpu_arch::xe2));
 
     if (params.conf.is_kv_compressed) {
         auto scales_zp_size = params.inputs[0].ElementSize() * 2; // scale + zp

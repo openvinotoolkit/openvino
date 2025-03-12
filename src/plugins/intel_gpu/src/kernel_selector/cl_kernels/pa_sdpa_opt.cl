@@ -224,17 +224,20 @@ KERNEL(pa_sdpa_opt)(
                 #define KEY_BLOCK_UNCOMPRESSED MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_VEC_SIZE)
                 #define TO_KEY_BLOCK_UNCOMPRESSED_TYPE(val) CAT(convert_, KEY_BLOCK_UNCOMPRESSED)(val)
 
-                KEY_BLOCK k_vals_packed = 0;
-                unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
-                    k_vals_packed[i] = BLOCK_READN(INPUT1_TYPE, 1, key_cache, block_offset + qk_idx * SUBGROUP_SIZE * KEY_VEC_SIZE + i * SUBGROUP_SIZE);
-                }
-
 #if IS_KV_COMPRESSED
-                KEY_BLOCK_UNCOMPRESSED k_vals = (TO_KEY_BLOCK_UNCOMPRESSED_TYPE(k_vals_packed) - comp_zp) * comp_scale;
+                KEY_BLOCK_UNCOMPRESSED k_vals;
+                unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
+                    k_vals[i] = BLOCK_READN(INPUT1_TYPE, 1, key_cache, block_offset + qk_idx * SUBGROUP_SIZE * KEY_VEC_SIZE + i * SUBGROUP_SIZE);
+                    k_vals[i] = (k_vals[i] - comp_zp) * comp_scale;
+                }
 #else
-                KEY_BLOCK k_vals = k_vals_packed;
+                KEY_BLOCK k_vals = 0;
+                unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
+                    k_vals[i] = BLOCK_READN(INPUT1_TYPE, 1, key_cache, block_offset + qk_idx * SUBGROUP_SIZE * KEY_VEC_SIZE + i * SUBGROUP_SIZE);
+                }
 #endif
 
+#if XE2_QK_MULTIPLICATION
 #if STORE_QUERY_TO_SLM
                 MAKE_VECTOR_TYPE(INPUT0_TYPE, QUERIES_PER_WI) q_val;
                 unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
@@ -249,6 +252,20 @@ KERNEL(pa_sdpa_opt)(
                     qk_acc = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(sub_group_broadcast(q_val[qk_idx], i)), TO_SOFTMAX_ACCUMULATOR_TYPE(k_vals[i]), qk_acc);
 #endif
                 }
+#else // !XE2_QK_MULTIPLICATION
+                unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
+#if STORE_QUERY_TO_SLM
+                    SOFTMAX_ACCUMULATOR_TYPE q_val = slm_query[q_idx * HEAD_SIZE + qk_idx * KEY_VEC_SIZE + sglid];
+#endif
+                    unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
+#if STORE_QUERY_TO_SLM
+                        GET_VECTOR_ELEMENT(qk_acc, q_idx) = mad(sub_group_broadcast(q_val, i), TO_SOFTMAX_ACCUMULATOR_TYPE(k_vals[i]), GET_VECTOR_ELEMENT(qk_acc, q_idx));
+#else
+                        qk_acc = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(sub_group_broadcast(q_val[qk_idx], i)), TO_SOFTMAX_ACCUMULATOR_TYPE(k_vals[i]), qk_acc);
+#endif
+                    }
+                }
+#endif // XE2_QK_MULTIPLICATION
             }
 
             const uint token_idx = partition_idx * SEQ_LEN_PARTITION_SIZE + block_num * SUBGROUPS_PER_WG * SUBGROUP_SIZE + sgid * SUBGROUP_SIZE + sglid;
