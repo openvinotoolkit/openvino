@@ -195,6 +195,7 @@ void BrgemmBaseKernelExecutor::execute_brgemm_kernel(
     const void* wei,
     void* dst,
     void* scratch,
+    const void* post_ops_binary_arg_vec,
     bool with_comp,
     bool apply_post_ops) {
     cpu::x64::brgemm_kernel_params_t brgemm_p;
@@ -210,8 +211,13 @@ void BrgemmBaseKernelExecutor::execute_brgemm_kernel(
     brgemm_p.skip_accm = 0;
     brgemm_p.BS = 1;  // default value
 
+    if (std::getenv("DEBUG_PRINT")) {
+        std::cout << "[ INFO ] execute_brgemm_kernel: " << std::endl;
+        std::cout << "\t Pointer value: " << post_ops_binary_arg_vec << std::endl;
+    }
+
     // TODO: this value should be taken from kernel runtime args
-    brgemm_p.post_ops_binary_rhs_arg_vec = dst;  // default value
+    brgemm_p.post_ops_binary_rhs_arg_vec = post_ops_binary_arg_vec;
     // brgemm_p.post_ops_binary_rhs_arg_vec = post_ops_data.binary_post_ops_rhs;
     brgemm_p.data_C_ptr_ = reinterpret_cast<char*>(dst);
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr Brgemm kernel");

@@ -114,10 +114,14 @@ protected:
                                const std::vector<ptrdiff_t>& start_offset_out,
                                size_t ithr) {
         if (!std::getenv("REF") && !std::getenv("ONLY_MUL")) {
-            std::cout << "[ INFO ] init_call_args is called\n";
-            // TODO: need to write non-kernel data in a separate call_args section
+            // TODO: need to somehow determine (on previous pipeline steps) which ptrs are external
             for (size_t i = 0; i < srcMemPtrs.size() - 1; i++) {
                 call_args.src_ptrs[i] = srcMemPtrs[i]->getDataAs<const uint8_t>() + start_offset_in[i];
+            }
+            std::vector<const void*> external_ptrs{srcMemPtrs.back()->getDataAs<const uint8_t>() + start_offset_in.back()};
+            call_args.register_external_ptrs(external_ptrs);
+            if (std::getenv("DEBUG_PRINT")) {
+                std::cout << "\t call_args.external_ptrs: " << call_args.external_ptrs << std::endl;
             }
         } else {
             for (size_t i = 0; i < srcMemPtrs.size(); i++) {

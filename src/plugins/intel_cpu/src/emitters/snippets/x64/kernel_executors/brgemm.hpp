@@ -72,6 +72,7 @@ public:
         const void* B = nullptr;
         void* C = nullptr;
         void* scratch = nullptr;
+        const void* post_ops_binary_arg_vec = nullptr;
     };
     BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmKernelConfig config);
 

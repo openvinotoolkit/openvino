@@ -192,7 +192,6 @@ void jit_brgemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) con
                                                      GET_OFF_CALL_ARGS(B),
                                                      GET_OFF_CALL_ARGS(C),
                                                      GET_OFF_CALL_ARGS(scratch)};
-#undef GET_OFF_CALL_ARGS
 
     const auto& mem_ptrs = utils::transform_idxs_to_regs(mem_ptrs_idxs);
     for (size_t i = 0; i < mem_ptrs.size(); i++) {
@@ -211,6 +210,17 @@ void jit_brgemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) con
     if (mem_ptrs.size() < 4) {
         h->mov(h->qword[h->rsp + brgemm_args_offsets.back()], reinterpret_cast<uintptr_t>(nullptr));
     }
+
+    // Prepare external pointers
+    // TODO: this offset must be set in constructor
+    int binary_postops_offset = std::getenv("REF") || std::getenv("ONLY_MUL") ? -1 : 0;
+    if (binary_postops_offset == -1) {
+        h->mov(h->qword[h->rsp + GET_OFF_CALL_ARGS(post_ops_binary_arg_vec)], reinterpret_cast<uintptr_t>(nullptr));
+    } else {
+        h->mov(aux_reg, h->ptr[abi_param1 + GET_OFF(external_ptrs) + static_cast<size_t>(binary_postops_offset)]);
+        h->mov(h->qword[h->rsp + GET_OFF_CALL_ARGS(post_ops_binary_arg_vec)], aux_reg);
+    }
+    #undef GET_OFF_CALL_ARGS
 
     // abi_param1 always contains jit_snippets_call_args which has amx tile config for each thread
     if (std::is_same<T, BrgemmAMXKernelExecutor>()) {

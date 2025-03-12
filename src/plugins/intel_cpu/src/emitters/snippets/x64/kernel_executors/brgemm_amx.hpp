@@ -85,6 +85,7 @@ public:
         const uint8_t* B = nullptr;
         void* C = nullptr;
         uint8_t* scratch = nullptr;
+        const void* post_ops_binary_arg_vec = nullptr;
         amx_tile_config_t* amx_tile_config = nullptr;
     };
     BrgemmAMXKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmAMXKernelConfig config);
