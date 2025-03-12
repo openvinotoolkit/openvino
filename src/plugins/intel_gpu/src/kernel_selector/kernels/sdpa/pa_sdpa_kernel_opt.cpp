@@ -24,6 +24,20 @@ constexpr size_t subgroup_size = 16;
 constexpr size_t seq_len_partition_size = 256;
 constexpr size_t paged_attention_block_size = 16;
 constexpr Datatype softmax_acc_dt = Datatype::F32;
+
+size_t get_sg_number_scale_factor(const pa_sdpa_params& params, size_t head_size, size_t kernel_type) {
+    if (params.conf.is_kv_compressed) {
+        const size_t optimal_scale_factor = 2;
+        if (kernel_type == KernelsTypes::SINGLE_TOKEN ||
+            kernel_type == KernelsTypes::MULTI_TOKENS) {
+            if (head_size * optimal_scale_factor <= params.engineInfo.maxWorkGroupSize) {
+                return optimal_scale_factor;
+            }
+        }
+    }
+
+    return 1;
+}
 }  // namespace
 
 static std::string GetKernelName(std::string base_name, KernelsTypes type) {
@@ -155,10 +169,14 @@ ParamsKey PagedAttentionSDPAKernelOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT32);
 
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT32);
 
     k.EnableInputLayout(DataLayout::bfyx);
@@ -207,6 +225,16 @@ JitConstants PagedAttentionSDPAKernelOpt::GetJitConstants(const pa_sdpa_params& 
     jit.AddConstant(MakeJitConstant("PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size));
     jit.AddConstant(MakeJitConstant("SUBGROUP_SIZE", subgroup_size));
     jit.AddConstant(MakeJitConstant("SLIDING_WINDOW_SIZE", config.paged_attention_sliding_window));
+    jit.AddConstant(MakeJitConstant("IS_KV_COMPRESSED", params.conf.is_kv_compressed));
+    jit.AddConstant(MakeJitConstant("SG_SCALE_FACTOR", get_sg_number_scale_factor(params, config.head_size, kernel_idx)));
+
+    if (params.conf.is_kv_compressed) {
+        auto scales_zp_size = params.inputs[0].ElementSize() * 2; // scale + zp
+        jit.AddConstant(MakeJitConstant("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size));
+        jit.AddConstant(MakeJitConstant("ADJUSTED_HEAD_SIZE", params.conf.head_size + scales_zp_size));
+    } else {
+        jit.AddConstant(MakeJitConstant("ADJUSTED_HEAD_SIZE", params.conf.head_size));
+    }
 
     if (config.broadcast_axis != -1) {
         jit.AddConstant(MakeJitConstant("BROADCAST_GROUP_SIZE", config.group_size));
@@ -260,10 +288,11 @@ CommonDispatchData PagedAttentionSDPAKernelOpt::SetDefault(const pa_sdpa_params&
         const size_t head_size = static_cast<size_t>(params.conf.head_size);
 
         if (kernel_idx == KernelsTypes::SINGLE_TOKEN || kernel_idx == KernelsTypes::MULTI_TOKENS) {
+            auto sg_scale = get_sg_number_scale_factor(params, head_size, kernel_idx);
             dispatch_data.gws = { total_tokens,
                                   heads_num,
-                                  head_size * num_of_partitions };
-            dispatch_data.lws = { 1, 1, head_size };
+                                  head_size * num_of_partitions * sg_scale };
+            dispatch_data.lws = { 1, 1, head_size * sg_scale };
         } else if (kernel_idx == KernelsTypes::SCORES_CALCULATION) {
             const auto& past_lens = params.inputs[3];
             const auto subsequences_number = past_lens.Batch().v;
