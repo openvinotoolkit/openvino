@@ -16,7 +16,7 @@ template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const Col2Im* op,
                                  const std::vector<TShape>& input_shapes,
                                  const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 3 || input_shapes.size() == 1);  // XXX: please check whether "3 or 1" is a correct condition
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 3);
     const auto& data_shape = input_shapes[0];
     const auto& output_size_shape = input_shapes[1];
     const auto& kernel_shape = input_shapes[2];

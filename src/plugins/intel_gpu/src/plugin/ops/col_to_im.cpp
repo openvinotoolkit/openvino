@@ -35,6 +35,8 @@ static void CreateCol2ImOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15:
     // Create col2im prim
     auto CallToImPrim = cldnn::col_to_im(layerName,
                                             inputPrimitives[0],
+                                            inputPrimitives[1],
+                                            inputPrimitives[2],
                                             strides,
                                             dilations,
                                             padding_begin,

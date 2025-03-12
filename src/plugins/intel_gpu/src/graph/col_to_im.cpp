@@ -51,7 +51,9 @@ std::vector<layout> col_to_im_inst::calc_output_layouts(col_to_im_node const& no
     ov::op::v15::Col2Im op;
 
     std::vector<ShapeType> input_shapes = {
-        input_layout.get<ShapeType>()
+        input_layout.get<ShapeType>(),
+        impl_param.get_input_layout(1).get<ShapeType>(),
+        impl_param.get_input_layout(2).get<ShapeType>(),
     };
     std::vector<ShapeType> output_shapes = ov::op::v15::shape_infer(&op, input_shapes);
 
