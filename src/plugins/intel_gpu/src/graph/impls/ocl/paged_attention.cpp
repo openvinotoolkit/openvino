@@ -238,7 +238,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
             args.outputs = { instance.output_memory_ptr(0) };
         } else if (stage == Stage::PA_SDPA) {
-            if (kernel_idx == 0 || kernel_idx == 1) {
+            if (kernel_idx == 0 || kernel_idx == 1 || kernel_idx == 2) {
                 // 2nd+ token calculation or mixed stage tokens calculation
                 args.shape_info = instance.shape_info_memory_ptr();
 
@@ -262,7 +262,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                 if (desc->has_alibi) {
                     args.inputs.push_back(instance.alibi_memory_ptr());
                 }
-            } else if (kernel_idx == 2 || kernel_idx == 3) {
+            } else if (kernel_idx == 3 || kernel_idx == 4) {
                 // Finalization kernel or mixed stage finalization kernel
                 args.inputs = { instance.past_lens_memory_ptr() };
 
@@ -276,7 +276,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                     args.inputs.push_back(instance.rotation_deltas_memory_ptr());
                     args.inputs.push_back(instance.rotation_trig_lut_memory_ptr());
                 }
-            } else if (kernel_idx == 4) {
+            } else if (kernel_idx == 5) {
                 // Output scores calculation kernel
                 args.inputs = { instance.past_lens_memory_ptr(),
                                 instance.subsequence_begins_memory_ptr() };
@@ -284,7 +284,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
             args.outputs = { instance.output_memory_ptr(0) };
 
-            if (kernel_idx == 4) {
+            if (kernel_idx == 5) {
                 args.outputs.push_back(instance.output_memory_ptr(1));
             }
         }
@@ -660,7 +660,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
         if (desc->heads_num != desc->kv_heads_num) {
             config.broadcast_axis = 1;
-            config.group_size = desc->heads_num / desc->kv_heads_num;
+            config.kv_group_size = desc->heads_num / desc->kv_heads_num;
         }
 
         if (desc->has_scores_output() && !is_dynamic) {
