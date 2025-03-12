@@ -5,21 +5,21 @@
 #include <gmock/gmock.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "ov_ops/convolution_biased.hpp"
+#include "ov_ops/convolution.hpp"
 #include "utils.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;
 using namespace testing;
 
-class ConvolutionBiasedInternalStaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::internal::ConvolutionBiased> {
+class ConvolutionInternalStaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::internal::Convolution> {
 protected:
     void SetUp() override {
         output_shapes.resize(1);
     }
 };
 
-TEST_F(ConvolutionBiasedInternalStaticShapeInferenceTest, default_ctor) {
+TEST_F(ConvolutionInternalStaticShapeInferenceTest, default_ctor) {
     op = make_op();
     op->set_strides({1, 1});
     op->set_dilations({1, 1});
@@ -38,7 +38,7 @@ TEST_F(ConvolutionBiasedInternalStaticShapeInferenceTest, default_ctor) {
     EXPECT_EQ(shape_infer->get_pads_end(), CoordinateDiff({0, 0}));
 }
 
-TEST_F(ConvolutionBiasedInternalStaticShapeInferenceTest, default_ctor_plus_bias) {
+TEST_F(ConvolutionInternalStaticShapeInferenceTest, default_ctor_plus_bias) {
     op = make_op();
     op->set_strides({1, 1});
     op->set_dilations({1, 1});
@@ -57,7 +57,7 @@ TEST_F(ConvolutionBiasedInternalStaticShapeInferenceTest, default_ctor_plus_bias
     EXPECT_EQ(shape_infer->get_pads_end(), CoordinateDiff({0, 0}));
 }
 
-TEST_F(ConvolutionBiasedInternalStaticShapeInferenceTest, default_ctor_three_input_shapes) {
+TEST_F(ConvolutionInternalStaticShapeInferenceTest, default_ctor_three_input_shapes) {
     op = make_op();
     op->set_strides({1, 1});
     op->set_dilations({1, 1});
@@ -77,7 +77,7 @@ TEST_F(ConvolutionBiasedInternalStaticShapeInferenceTest, default_ctor_three_inp
     EXPECT_EQ(shape_infer->get_pads_end(), CoordinateDiff({0, 0}));
 }
 
-TEST_F(ConvolutionBiasedInternalStaticShapeInferenceTest, 2d_auto_pads_same_lower_inputs_dynamic_rank) {
+TEST_F(ConvolutionInternalStaticShapeInferenceTest, 2d_auto_pads_same_lower_inputs_dynamic_rank) {
     const auto strides = Strides{1, 1};
     const auto dilations = Strides{1, 1};
     const auto pads_begin = CoordinateDiff{0, 0};
@@ -96,7 +96,7 @@ TEST_F(ConvolutionBiasedInternalStaticShapeInferenceTest, 2d_auto_pads_same_lowe
     EXPECT_EQ(output_shapes[0], StaticShape({3, 7, 5, 5}));
 }
 
-TEST_F(ConvolutionBiasedInternalStaticShapeInferenceTest, 3d_auto_pad_same_lower_inputs_static_ranks) {
+TEST_F(ConvolutionInternalStaticShapeInferenceTest, 3d_auto_pad_same_lower_inputs_static_ranks) {
     const auto strides = Strides{1, 1, 1};
     const auto dilations = Strides{1, 1, 1};
     const auto pads_begin = CoordinateDiff{0, 0, 0};
@@ -115,7 +115,7 @@ TEST_F(ConvolutionBiasedInternalStaticShapeInferenceTest, 3d_auto_pad_same_lower
     EXPECT_EQ(output_shapes[0], StaticShape({3, 7, 5, 5, 5}));
 }
 
-TEST_F(ConvolutionBiasedInternalStaticShapeInferenceTest, data_and_filters_num_channels_not_same) {
+TEST_F(ConvolutionInternalStaticShapeInferenceTest, data_and_filters_num_channels_not_same) {
     const auto strides = Strides{1, 1, 1};
     const auto dilations = Strides{1, 1, 1};
     const auto pads_begin = CoordinateDiff{0, 0, 0};
@@ -134,7 +134,7 @@ TEST_F(ConvolutionBiasedInternalStaticShapeInferenceTest, data_and_filters_num_c
                     HasSubstr("Data batch channel count (5) does not match filter"));
 }
 
-TEST_F(ConvolutionBiasedInternalStaticShapeInferenceTest, data_rank_not_compatible_with_filters_rank) {
+TEST_F(ConvolutionInternalStaticShapeInferenceTest, data_rank_not_compatible_with_filters_rank) {
     const auto strides = Strides{1, 1};
     const auto dilations = Strides{1, 1};
     const auto pads_begin = CoordinateDiff{0, 0};

@@ -5,7 +5,7 @@
 
 #include "convolution_shape_inference_util.hpp"
 #include "openvino/op/convolution.hpp"
-#include "ov_ops/convolution_biased.hpp"
+#include "ov_ops/convolution.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -15,7 +15,7 @@ template <class TOp,
           class TShape,
           class TRShape = result_shape_t<TShape>,
           typename std::enable_if<std::is_same<TOp, v1::Convolution>::value ||
-                                  std::is_same<TOp, internal::ConvolutionBiased>::value ||
+                                  std::is_same<TOp, internal::Convolution>::value ||
                                   std::is_same<TOp, v1::BinaryConvolution>::value>::type* = nullptr>
 std::vector<TRShape> shape_infer(const TOp* op,
                                  const std::vector<TShape>& input_shapes,

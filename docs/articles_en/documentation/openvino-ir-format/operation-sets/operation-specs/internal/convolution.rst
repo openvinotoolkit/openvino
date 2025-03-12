@@ -1,12 +1,12 @@
-ConvolutionBiased
-=================
+Convolution
+===========
 
 
 .. meta::
-  :description: Learn about ConvolutionBiased - a 1D, 2D or 3D convolution operation with bias, which
+  :description: Learn about Convolution - a 1D, 2D or 3D convolution operation with bias, which
                 can be performed on input and kernel tensors in OpenVINO.
 
-**Versioned name**: *ConvolutionBiased*
+**Versioned name**: *Convolution*
 
 **Category**: *Convolution*
 

@@ -32,7 +32,7 @@
 #include "onednn/dnnl.h"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
-#include "ov_ops/convolution_biased.hpp"
+#include "ov_ops/convolution.hpp"
 #include "pooling.h"
 #include "reorder.h"
 #include "utils/cpu_utils.hpp"
@@ -225,10 +225,9 @@ private:
 
 bool Convolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ov::is_type_any_of<ov::op::v1::Convolution,
-                                ov::op::v1::GroupConvolution,
-                                ov::op::internal::ConvolutionBiased>(op)) {
-            errorMessage = "opset1 Convolution and GroupConvolution, internal opset ConvolutionBiased operations are "
+        if (!ov::is_type_any_of<ov::op::v1::Convolution, ov::op::v1::GroupConvolution, ov::op::internal::Convolution>(
+                op)) {
+            errorMessage = "opset1 Convolution and GroupConvolution and internal Convolution operations are "
                            "supported only";
             return false;
         }
@@ -270,34 +269,34 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
 
     auto convolutionOp = ov::as_type_ptr<ov::op::v1::Convolution>(op);
     auto groupConvolutionOp = ov::as_type_ptr<ov::op::v1::GroupConvolution>(op);
-    auto biasedConvolutionOp = ov::as_type_ptr<ov::op::internal::ConvolutionBiased>(op);
+    auto internalConvolutionOp = ov::as_type_ptr<ov::op::internal::Convolution>(op);
 
-    if (biasedConvolutionOp) {
+    if (internalConvolutionOp) {
         algorithm = Algorithm::ConvolutionBiased;
         withBiases = true;
         groupNum = 1;
         isGrouped = false;
 
-        weightDims = biasedConvolutionOp->input_value(1).get_shape();
+        weightDims = internalConvolutionOp->input_value(1).get_shape();
 
         IC = weightDims[1];
         groupIC = IC;
         groupOC = weightDims[0];
 
-        if (biasedConvolutionOp->inputs().size() > 2) {
-            expectedBiasDims = biasedConvolutionOp->input_value(2).get_shape();
+        if (internalConvolutionOp->inputs().size() > 2) {
+            expectedBiasDims = internalConvolutionOp->input_value(2).get_shape();
         }
 
-        for (size_t i : biasedConvolutionOp->get_strides()) {
+        for (size_t i : internalConvolutionOp->get_strides()) {
             stride.emplace_back(i);
         }
-        for (size_t i : biasedConvolutionOp->get_dilations()) {
+        for (size_t i : internalConvolutionOp->get_dilations()) {
             dilation.emplace_back(static_cast<ptrdiff_t>(i) - 1);
         }
-        paddingL = biasedConvolutionOp->get_pads_begin();
-        paddingR = biasedConvolutionOp->get_pads_end();
+        paddingL = internalConvolutionOp->get_pads_begin();
+        paddingR = internalConvolutionOp->get_pads_end();
         autoPadding =
-            one_of(biasedConvolutionOp->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
+            one_of(internalConvolutionOp->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
     } else if (convolutionOp) {
         algorithm = Algorithm::ConvolutionCommon;
 
