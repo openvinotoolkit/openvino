@@ -30,12 +30,16 @@ struct col_to_im : public primitive_base<col_to_im> {
                    ov::Strides stride,
                    ov::Strides dilation,
                    ov::CoordinateDiff padding_begin,
-                   ov::CoordinateDiff padding_end)
+                   ov::CoordinateDiff padding_end,
+                   ov::Shape output_shape,
+                   ov::Shape kernel_shape)
         : primitive_base(id, {input, output_size, kernel_size})
         , stride(stride)
         , dilation(dilation)
         , padding_begin(padding_begin)
-        , padding_end(padding_end) {}
+        , padding_end(padding_end)
+        , output_shape(output_shape)
+        , kernel_shape(kernel_shape) {}
 
     /// @brief Defines shift in input buffer
     ov::Strides stride;
@@ -45,6 +49,8 @@ struct col_to_im : public primitive_base<col_to_im> {
     ov::CoordinateDiff padding_begin;
     /// @param padding_end Defines a padding added to input image on right (x axis) and bottom (y axis).
     ov::CoordinateDiff padding_end;
+    ov::Shape output_shape;
+    ov::Shape kernel_shape;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
