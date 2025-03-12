@@ -7,7 +7,6 @@ cmake-build*
 !__init__.py
 !__main__.py
 !*.pyi
-!_pyopenvino/
 
 # and sphinx documentation folders
 !docs/sphinx_setup/_*
