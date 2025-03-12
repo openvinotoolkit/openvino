@@ -92,29 +92,14 @@ else
     echo "No stub files were generated."
     exit 1
 fi
-echo "C++ bindings stubs generated."
-
-# Find all opset directories
-script_dir="$(dirname "$0")"
-opset_dirs=$(find "$script_dir/../src/openvino" -maxdepth 1 -type d -name 'opset*')
-
-# Generate the stubgen command with all opset directories
-stubgen_command="stubgen --output $output_dir"
-for dir in $opset_dirs; do
-    stubgen_command+=" \"$dir\""
-done
-
-# Execute the stubgen command
-eval $stubgen_command
-
-echo "Pure Python stubs generated."
+echo "Python stubs generated."
 # Workaround for pybind11-stubgen issue where it doesn't import some modules for stubs generated from .py files 
 # Ticket: 163225
-#pyi_file="$output_dir/openvino/_ov_api.pyi"
-#if [ -f "$pyi_file" ]; then
-#    sed -i '2i import typing' "$pyi_file"
-#    sed -i '2i import pathlib' "$pyi_file"
-#else
-#    echo "File $pyi_file not found."
-#    exit 1
-#fi
+pyi_file="$output_dir/openvino/_ov_api.pyi"
+if [ -f "$pyi_file" ]; then
+    sed -i '2i import typing' "$pyi_file"
+    sed -i '2i import pathlib' "$pyi_file"
+else
+    echo "File $pyi_file not found."
+    exit 1
+fi

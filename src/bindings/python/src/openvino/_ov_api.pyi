@@ -1,4 +1,6 @@
 from __future__ import annotations
+import pathlib
+import typing
 from builtins import traceback as TracebackType
 import openvino._pyopenvino
 from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase

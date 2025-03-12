@@ -10,8 +10,8 @@ from openvino.opset1.ops import avg_pool
 from openvino.opset1.ops import batch_norm_inference
 from openvino.opset1.ops import binary_convolution
 from openvino.opset1.ops import broadcast
-from openvino.opset1.ops import ceiling
 from openvino.opset1.ops import ceiling as ceil
+from openvino.opset1.ops import ceiling
 from openvino.opset1.ops import clamp
 from openvino.opset1.ops import concat
 from openvino.opset1.ops import constant

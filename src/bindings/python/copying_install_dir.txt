@@ -1,0 +1,41 @@
+set(openvino_meta_info_subdir "openvino-${OpenVINO_VERSION}-py${python_xy}.egg-info")
+set(openvino_meta_info_file "${ov_install_lib}/${openvino_meta_info_subdir}/PKG-INFO")
+
+execute_process(COMMAND ${Python3_EXECUTABLE} -m pip --version
+            OUTPUT_VARIABLE pip_version OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+string(REGEX MATCH "pip[ ]+([\\.0-9]*)" pip_version "${pip_version}")
+set(pip_version ${CMAKE_MATCH_1})
+
+if(pip_version VERSION_LESS 23.0)
+    message(FATAL_ERROR "pip version ${pip_version} is not supported. Please update pip to version 23.0 or higher.")
+endif()
+    
+add_custom_command(OUTPUT ${openvino_meta_info_file}
+    COMMAND ${CMAKE_COMMAND} -E remove_directory
+        "${ov_python_package_prefix}"
+    COMMAND ${setup_py_env}
+            # variables to reflect options (extensions only or full wheel package)
+            PYTHON_EXTENSIONS_ONLY=ON
+            SKIP_RPATH=ON
+            SETUPTOOLS_INSTALL_LIB=${ov_install_lib}
+            SETUPTOOLS_INSTALL_SCRIPTS=${ov_python_package_prefix}/bin
+            "${Python3_EXECUTABLE}" -m pip install --verbose --ignore-requires-python --no-deps --no-compile --break-system-packages --prefix "${ov_python_package_prefix}" "${CMAKE_CURRENT_SOURCE_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${ov_python_package_prefix}/lib/python3"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${ov_python_package_prefix}/lib/python3.8/site-packages" "${ov_python_package_prefix}/lib/python3/site-packages"
+    COMMAND ${CMAKE_COMMAND} -E remove_directory "${ov_python_package_prefix}/lib/python3.8"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    DEPENDS ${ov_setup_py_deps}
+    COMMENT "Create python package with ${openvino_meta_info_subdir} folder")
+
+# Install OpenVINO Telemetry
+set(OpenVINO_Telemetry_SOURCE_DIR "${OpenVINO_SOURCE_DIR}/thirdparty/telemetry")
+file(GLOB_RECURSE telemetry_files ${OpenVINO_Telemetry_SOURCE_DIR}/*)
+
+set(telemetry_python_package_prefix "${CMAKE_CURRENT_BINARY_DIR}/telemetry/install_${pyversion}")
+set(telemetry_install_lib "${telemetry_python_package_prefix}/lib/python3/${ov_site_packages}")
+set(openvino_telemetry_meta_info_subdir "openvino-telemetry-${OpenVINO_VERSION}-py${python_xy}.egg-info")
+set(openvino_telemetry_meta_info_file "${telemetry_install_lib}/${openvino_telemetry_meta_info_subdir}/PKG-INFO")
+
+add_custom_command(OUTPUT ${openvino_telemetry_meta_info_file}
+    COMMAND ${CMAKE_COMMAND} -E remove_directory
