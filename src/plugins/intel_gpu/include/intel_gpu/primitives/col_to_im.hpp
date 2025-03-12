@@ -17,17 +17,21 @@ struct col_to_im : public primitive_base<col_to_im> {
     /// @brief Constructs col_to_im primitive.
     /// @param id This primitive id.
     /// @param input Input dictionary primitive id.
+    /// @param output_size Input
+    /// @param kernel_size Input
     /// @param stride Defines shift in input buffer
     /// @param dilation Defines gaps in the input
     /// @param padding_begin Defines a padding added to input image on left (x axis) and top (y axis).
     /// @param padding_end Defines a padding added to input image on right (x axis) and bottom (y axis).
     col_to_im(const primitive_id& id,
                    const input_info& input,
+                   const input_info& output_size,
+                   const input_info& kernel_size,
                    ov::Strides stride,
                    ov::Strides dilation,
                    ov::CoordinateDiff padding_begin,
                    ov::CoordinateDiff padding_end)
-        : primitive_base(id, {input})
+        : primitive_base(id, {input, output_size, kernel_size})
         , stride(stride)
         , dilation(dilation)
         , padding_begin(padding_begin)
