@@ -102,5 +102,5 @@ def unique(*args, **kwargs) -> openvino._pyopenvino.Node:
         
     """
 NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
-_get_node_factory_opset10: functools.partial  # value = functools.partial(<function _get_node_factory at 0x7f0b53e61d00>, 'opset10')
-_get_node_factory_opset4: functools.partial  # value = functools.partial(<function _get_node_factory at 0x7f0b53e61d00>, 'opset4')
+_get_node_factory_opset10: functools.partial  # value = functools.partial(<function _get_node_factory at 0x7fb4604e1d00>, 'opset10')
+_get_node_factory_opset4: functools.partial  # value = functools.partial(<function _get_node_factory at 0x7fb4604e1d00>, 'opset4')

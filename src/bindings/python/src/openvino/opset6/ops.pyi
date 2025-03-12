@@ -62,5 +62,5 @@ def mvn(*args, **kwargs) -> openvino._pyopenvino.Node:
 NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
 NumericType: typing._UnionGenericAlias  # value = typing.Union[type, numpy.dtype]
 TensorShape: typing._GenericAlias  # value = typing.List[int]
-_get_node_factory_opset6: functools.partial  # value = functools.partial(<function _get_node_factory at 0x7f0b53e61d00>, 'opset6')
+_get_node_factory_opset6: functools.partial  # value = functools.partial(<function _get_node_factory at 0x7fb4604e1d00>, 'opset6')
 read_value: openvino.utils.decorators.MultiMethod  # value = <openvino.utils.decorators.MultiMethod object>

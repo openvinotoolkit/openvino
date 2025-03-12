@@ -111,8 +111,8 @@ from openvino.opset2.ops import space_to_batch
 from openvino.opset3.ops import assign
 from openvino.opset3.ops import broadcast
 from openvino.opset3.ops import bucketize
-from openvino.opset3.ops import cum_sum
 from openvino.opset3.ops import cum_sum as cumsum
+from openvino.opset3.ops import cum_sum
 from openvino.opset3.ops import embedding_bag_offsets_sum
 from openvino.opset3.ops import embedding_bag_packed_sum
 from openvino.opset3.ops import embedding_segments_sum

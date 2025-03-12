@@ -190,6 +190,6 @@ def scaled_dot_product_attention(*args, **kwargs) -> openvino._pyopenvino.Node:
 NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
 NumericData: typing._UnionGenericAlias  # value = typing.Union[int, float, numpy.ndarray]
 NumericType: typing._UnionGenericAlias  # value = typing.Union[type, numpy.dtype]
-_get_node_factory_opset13: functools.partial  # value = functools.partial(<function _get_node_factory at 0x7f0b53e61d00>, 'opset13')
+_get_node_factory_opset13: functools.partial  # value = functools.partial(<function _get_node_factory at 0x7fb4604e1d00>, 'opset13')
 constant: openvino.utils.decorators.MultiMethod  # value = <openvino.utils.decorators.MultiMethod object>
 log: logging.Logger  # value = <Logger openvino.opset13.ops (INFO)>

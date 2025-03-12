@@ -179,4 +179,4 @@ def softsign(node: typing.Union[openvino._pyopenvino.Node, int, float, numpy.nda
         
     """
 NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
-_get_node_factory_opset9: functools.partial  # value = functools.partial(<function _get_node_factory at 0x7f0b53e61d00>, 'opset9')
+_get_node_factory_opset9: functools.partial  # value = functools.partial(<function _get_node_factory at 0x7fb4604e1d00>, 'opset9')

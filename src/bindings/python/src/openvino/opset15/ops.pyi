@@ -202,5 +202,5 @@ def string_tensor_unpack(*args, **kwargs) -> openvino._pyopenvino.Node:
         
     """
 NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
-_get_node_factory_opset15: functools.partial  # value = functools.partial(<function _get_node_factory at 0x7f0b53e61d00>, 'opset15')
+_get_node_factory_opset15: functools.partial  # value = functools.partial(<function _get_node_factory at 0x7fb4604e1d00>, 'opset15')
 constant: openvino.utils.decorators.MultiMethod  # value = <openvino.utils.decorators.MultiMethod object>
