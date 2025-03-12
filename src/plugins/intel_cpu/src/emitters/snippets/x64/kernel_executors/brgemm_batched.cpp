@@ -224,10 +224,7 @@ void BrgemmBatchedKernelExecutor::execute(const BrgemmBatchedKernelExecutor* exe
     auto iter_count = config.get_iter_count();
     auto iter_size = config.get_K();
 
-    if (config.get_K() % iter_count) {  // test
-        --iter_count;
-    }
-
+    OPENVINO_ASSERT(iter_size % iter_count == 0, "Incompatible iterations count in brgemm");
     iter_size /= iter_count;
 
     size_t stride_A = iter_size * dnnl_data_type_size(config.get_dt_in0());
