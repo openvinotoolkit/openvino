@@ -459,7 +459,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
         }
         LOG_INFO_TAG("device:%s, priority:%ld", iter->device_name.c_str(), iter->device_priority);
     }
+    // disable cpu helper when the model is LLM
     auto_s_context->m_startup_fallback = is_LLM_model ? false : load_config.get_property(ov::intel_auto::enable_startup_fallback);
+    // disable runtime_fallback for only one device need to compile model when the model is LLM
     auto_s_context->m_runtime_fallback = is_LLM_model ? false : load_config.get_property(ov::intel_auto::enable_runtime_fallback);
     // in case of mismatching shape conflict when AUTO creates the infer requests for actual device with reshaped model
     auto_s_context->m_model = model_path.empty() ? std::const_pointer_cast<ov::Model>(model) : nullptr;
