@@ -21,7 +21,7 @@ inline bool pass_through_expr(const ExpressionPtr& expr) {
             || ov::is_type<op::PerfCountEndBase>(node)
 #endif
             || ov::is_type<BufferExpression>(expr) ||
-            expr->get_node()->get_rt_info().count("SKIP_REGISTER_ASSIGNMENT");
+            expr->get_node()->get_rt_info().count("POSTOP_INPUT");
 }
 
 } // namespace

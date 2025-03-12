@@ -29,7 +29,7 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h,
     std::vector<snippets::Reg> data_ptr_regs;
     size_t count = 0;
     for (const auto& param : parameters) {
-        if (param->get_node()->get_rt_info().count("SKIP_REGISTER_ASSIGNMENT")) {
+        if (param->get_node()->get_rt_info().count("POSTOP_INPUT")) {
             std::cout << "[ INFO ] jit_kernel_emitter: parameter is skipped: " << param->get_node() << std::endl;
             count++;
             continue;
