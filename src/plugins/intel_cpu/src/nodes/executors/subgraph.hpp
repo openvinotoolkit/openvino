@@ -101,7 +101,8 @@ protected:
 // Class for Subgraphs with static shapes
 class SubgraphStaticBaseExecutor {
 public:
-    SubgraphStaticBaseExecutor() = default;
+    SubgraphStaticBaseExecutor(const std::shared_ptr<CPURuntimeConfig>& snippet_config)
+        : m_external_ptrs_idces(snippet_config->external_ptrs_idces) {};
     virtual ~SubgraphStaticBaseExecutor() = default;
 
 protected:
@@ -113,26 +114,27 @@ protected:
                                const std::vector<ptrdiff_t>& start_offset_in,
                                const std::vector<ptrdiff_t>& start_offset_out,
                                size_t ithr) {
-        if (!std::getenv("REF") && !std::getenv("ONLY_MUL")) {
-            // TODO: need to somehow determine (on previous pipeline steps) which ptrs are external
-            for (size_t i = 0; i < srcMemPtrs.size() - 1; i++) {
-                call_args.src_ptrs[i] = srcMemPtrs[i]->getDataAs<const uint8_t>() + start_offset_in[i];
-            }
-            std::vector<const void*> external_ptrs{srcMemPtrs.back()->getDataAs<const uint8_t>() + start_offset_in.back()};
-            call_args.register_external_ptrs(external_ptrs);
-            if (std::getenv("DEBUG_PRINT")) {
-                std::cout << "\t call_args.external_ptrs: " << call_args.external_ptrs << std::endl;
-            }
-        } else {
-            for (size_t i = 0; i < srcMemPtrs.size(); i++) {
-                call_args.src_ptrs[i] = srcMemPtrs[i]->getDataAs<const uint8_t>() + start_offset_in[i];
+        call_args.init_external_ptrs(m_external_ptrs_idces.size());
+        size_t external_ptrs_idx = 0;
+        size_t src_ptrs_idx = 0;
+
+        for (size_t i = 0; i < srcMemPtrs.size(); i++) {
+            const auto ptr = srcMemPtrs[i]->getDataAs<const uint8_t>() + start_offset_in[i];
+            if (m_external_ptrs_idces.count(i)) {
+                call_args.external_ptrs[external_ptrs_idx++] = ptr;
+            } else {
+                call_args.src_ptrs[src_ptrs_idx++] = ptr;
             }
         }
-
+        if (std::getenv("DEBUG_PRINT")) {
+            std::cout << "\t call_args.external_ptrs: " << call_args.external_ptrs << std::endl;
+        }
         for (size_t i = 0; i < dstMemPtrs.size(); i++) {
             call_args.dst_ptrs[i] = dstMemPtrs[i]->getDataAs<uint8_t>() + start_offset_out[i];
         }
     }
+
+    std::set<size_t> m_external_ptrs_idces = {};
 };
 
 // Specialized dynamic executor based on shape agnostic kernel for the specific input shapes
@@ -141,7 +143,8 @@ public:
     SubgraphDynamicSpecializedBaseExecutor(const std::shared_ptr<CPURuntimeConfig>& snippet_config)
         : m_buffer_offsets(snippet_config->buffer_cluster_offsets),
           m_data_offsets(snippet_config->io_data_offsets),
-          m_loop_args(snippet_config->loop_args) {
+          m_loop_args(snippet_config->loop_args),
+          m_external_ptrs_idces(snippet_config->external_ptrs_idces) {
         m_reset_exec_table_state = snippet_config->kernel_executor_table->get_state_reset();
     }
     virtual ~SubgraphDynamicSpecializedBaseExecutor() = default;
@@ -151,6 +154,7 @@ protected:
 
     inline void init_call_args(jit_snippets_call_args& call_args, size_t ithr) {
         call_args.register_loops(m_loop_args);
+        call_args.init_external_ptrs(m_external_ptrs_idces.size());
         std::copy(m_buffer_offsets.cbegin(), m_buffer_offsets.cend(), call_args.buffer_offsets);
     }
 
@@ -178,12 +182,19 @@ protected:
                             const std::vector<const uint8_t*>& src_ptrs,
                             const std::vector<uint8_t*>& dst_ptrs,
                             const std::vector<size_t>& indexes) const {
+        size_t external_ptrs_idx = 0;
+        size_t src_ptrs_idx = 0;
+
         for (size_t i = 0; i < src_ptrs.size(); i++) {
             auto i_ptr = src_ptrs[i];
             for (size_t j = 0; j < indexes.size(); j++) {
                 i_ptr += m_data_offsets[i][j] * indexes[j];
             }
-            call_args.src_ptrs[i] = i_ptr;
+            if (m_external_ptrs_idces.count(i)) {
+                call_args.external_ptrs[external_ptrs_idx++] = i_ptr;
+            } else {
+                call_args.src_ptrs[src_ptrs_idx++] = i_ptr;
+            }
         }
         for (size_t i = 0; i < dst_ptrs.size(); i++) {
             auto i_ptr = dst_ptrs[i];
@@ -198,6 +209,8 @@ protected:
     std::vector<std::vector<size_t>> m_data_offsets = {};
     std::vector<jit_snippets_call_args::loop_args_t> m_loop_args = {};
     std::function<void()> m_reset_exec_table_state;
+
+    std::set<size_t> m_external_ptrs_idces = {};
 };
 
 }  // namespace ov::intel_cpu

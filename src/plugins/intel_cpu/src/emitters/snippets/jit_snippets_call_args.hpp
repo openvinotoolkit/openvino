@@ -35,7 +35,7 @@ struct jit_snippets_call_args {
     ~jit_snippets_call_args();
 
     void register_loops(const std::vector<loop_args_t>& loops);
-    void register_external_ptrs(const std::vector<const void *>& external_ptrs);
+    void init_external_ptrs(const size_t size);
 
     const void* src_ptrs[SNIPPETS_MAX_DATA_PTR_COUNT] = {};
     void* dst_ptrs[SNIPPETS_MAX_DATA_PTR_COUNT] = {};
