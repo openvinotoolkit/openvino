@@ -134,18 +134,26 @@ std::shared_ptr<ov::Model> FQMatMulFunction::initOriginal() const {
 
     auto data1 = make_matmul_b_input(ov::element::i8, input_shapes[1], matmul_type, params);
     auto convert = std::make_shared<op::v0::Convert>(data1, ov::element::f32);
-    auto deq_mul = std::make_shared<op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{0.00499185826});
+
+    const auto& out_channels = *input_shapes[1].rbegin();
+    OPENVINO_ASSERT(out_channels.is_static());
+
+    ov::Shape dq_scale_shape(input_shapes[1].size(), 1);
+    dq_scale_shape.back() = out_channels.get_length();
+    if (pos == 1) {
+        dq_scale_shape = {};
+    }
+    std::vector<float> dq_scale_data(ov::shape_size(dq_scale_shape), 0.00499185826f * 2);
+    dq_scale_data.back() = 0.00499185826f;
+    auto deq_mul = ov::op::v0::Constant::create(ov::element::f32, dq_scale_shape, dq_scale_data);
     auto mul = std::make_shared<op::v1::Multiply>(convert, deq_mul);
     std::shared_ptr<ov::Node> in1 = mul;
     if (pos == 1) {
         in1 = std::make_shared<op::v1::Transpose>(in1, const_order);
     }
     auto matmul = std::make_shared<op::v0::MatMul>(in0, in1);
-    const auto& out_shape = matmul->get_output_partial_shape(0);
-    const auto& out_channels = *out_shape.rbegin();
-    OPENVINO_ASSERT(out_channels.is_static());
 
-    ov::Shape bias_shape(out_shape.size(), 1);
+    ov::Shape bias_shape(matmul->get_output_partial_shape(0).size(), 1);
     bias_shape.back() = out_channels.get_length();
     const auto bias = ov::test::utils::make_constant(matmul->get_output_element_type(0), bias_shape);
     const auto add = std::make_shared<ov::op::v1::Add>(matmul, bias);
