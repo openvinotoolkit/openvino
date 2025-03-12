@@ -62,6 +62,10 @@ SubgraphCodeGenerator::SubgraphCodeGenerator(const std::shared_ptr<SubgraphAttrs
 
     jit_snippets_compile_args jcp;
     jcp.data_offsets = config->io_data_offsets;
+    if (!std::getenv("REF") && !std::getenv("ONLY_MUL")) {
+        // TODO: handle it in a common way: need to filter params which are not used in the kernel
+        jcp.data_offsets.pop_back();
+    }
     SubgraphBaseExecutor::init_parallel_domain(config, jcp.exec_domain);
     schedule =
         std::make_shared<ov::snippets::Schedule>(snippet_attrs->snippet->generate(reinterpret_cast<const void*>(&jcp)));
