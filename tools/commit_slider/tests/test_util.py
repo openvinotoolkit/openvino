@@ -153,7 +153,7 @@ def getActualCommit(td: TestData):
     sliderOutput = runCS(td)
     rejectReason, foundCommit = parseSliderOutput(sliderOutput)
     # clear temp data
-    [shutil.rmtree(dir) for dir in [
+    [shutil.rmtree(dir, ignore_errors=True) for dir in [
             td.repoName,
             td.userCachePath,
             td.userLogPath
@@ -200,7 +200,7 @@ def runCS(td: TestData):
 
     # run slider and check output
     sliderOutput = runCmd(
-        "python3.8 commit_slider.py -cfg tests/{}".format(td.testCfgName),
+        "python3 commit_slider.py -cfg tests/{}".format(td.testCfgName),
         "../")
 
     sliderOutput = '\n'.join(map(str, sliderOutput))
