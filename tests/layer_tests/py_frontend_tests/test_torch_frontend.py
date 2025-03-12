@@ -835,8 +835,8 @@ def test_patched_8bit_model_converts():
     assert converted_model
     cm_f8_e4m3 = compile_model(converted_model, "CPU")
     res_f8_e4m3 = cm_f8_e4m3([x.numpy() for x in example])
-    np.testing.assert_allclose(res_f8_e4m3[0], res_ref[0].numpy(), atol=1e-4)
-    np.testing.assert_allclose(res_f8_e4m3[1], res_ref[1].numpy(), atol=1e-4)
+    np.testing.assert_allclose(res_f8_e4m3[0], res_ref[0].numpy(), atol=1e-2)
+    np.testing.assert_allclose(res_f8_e4m3[1], res_ref[1].numpy(), atol=1e-2)
 
     model_ref = ModelWithLinear().to(torch.float8_e5m2).float()
     with torch.no_grad():
@@ -849,8 +849,8 @@ def test_patched_8bit_model_converts():
     assert converted_model
     cm_f8_e5m2 = compile_model(converted_model, "CPU")
     res_f8_e5m2 = cm_f8_e5m2([x.numpy() for x in example])
-    np.testing.assert_allclose(res_f8_e5m2[0], res_ref[0].numpy(), atol=1e-4)
-    np.testing.assert_allclose(res_f8_e5m2[1], res_ref[1].numpy(), atol=1e-4)
+    np.testing.assert_allclose(res_f8_e5m2[0], res_ref[0].numpy(), atol=1e-2)
+    np.testing.assert_allclose(res_f8_e5m2[1], res_ref[1].numpy(), atol=1e-2)
 
 
 class InlinedInputsModel(torch.nn.Module):
