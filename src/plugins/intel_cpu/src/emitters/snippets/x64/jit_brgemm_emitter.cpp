@@ -36,12 +36,17 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
     // Create helper which will compose postops based on the node configuration
     const auto& fused_ops = brgemm_node->get_postops();
 
-    const auto out_shape = ov::snippets::utils::get_preordered_vdims(expr->get_output_port(0));
-    const auto OC = out_shape.back();
-    if (!fused_ops.empty()) {
-        OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(OC),
-                        "Postops are supported only for static output channels");
-    }
+    const auto OC = [&]() {
+        const auto out_shape = ov::snippets::utils::get_preordered_vdims(expr->get_output_port(0));
+        const auto N = out_shape.back();
+        if (!fused_ops.empty()) {
+            OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(N),
+                            "Postops are supported only for static output channels");
+        }
+        const auto& subtensor = expr->get_output_port_descriptor(0)->get_subtensor();
+        auto n_block = *subtensor.rbegin();
+        return ov::snippets::utils::is_full_dim_value(n_block) ? N : n_block;
+    }();
 
     // Form 2 types of shapes supported by postops
     const size_t tile_rank = 2;
@@ -51,6 +56,25 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
 
     const auto postop_inputs = brgemm_node->get_postop_inputs();
     dnnl_post_ops post_ops;
+
+    auto append_linear = [&](float alpha, float beta) {
+        return post_ops.append_eltwise(1.f, dnnl::impl::alg_kind_t::dnnl_eltwise_linear, alpha, beta);
+    };
+
+    auto append_binary = [&](const std::shared_ptr<ov::op::v0::Parameter>& param, dnnl::impl::alg_kind_t alg_kind) {
+        // TODO: should dynamic postops be supported? It seems like we don't need it
+        const auto dims = param->get_partial_shape().to_shape();
+        OPENVINO_ASSERT(ov::shape_size(dims) == OC, "shape size = ", ov::shape_size(dims), " != OC = ", OC);
+
+        const auto& rt_info = brgemm_node->get_rt_info();
+        OPENVINO_ASSERT(rt_info.count("EXTERNAL_PTR_OFFSET"), "EXTERNAL_PTR_OFFSET is not set for the postop input");
+        m_binary_postops_offset = rt_info.at("EXTERNAL_PTR_OFFSET").as<int>();
+        OPENVINO_ASSERT(m_binary_postops_offset >= 0, "EXTERNAL_PTR_OFFSET is invalid: ", m_binary_postops_offset);
+
+        DnnlBlockedMemoryDesc memory_desc(ov::element::f32, Shape(per_channel_shape));
+        return post_ops.append_binary(alg_kind, memory_desc.getDnnlDesc().get());
+    };
+
     for (size_t i = 0; i < fused_ops.size(); ++i) {
         const auto& postop_config = fused_ops[i];
         const auto& postop_input = postop_inputs[i];
@@ -59,36 +83,40 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
         // 2. What is the shape of the tensor (per-tensor or per-channel)?
         // Note: it seems like in case of per-channel shape, only append_binary can be used
         if (postop_config == ov::op::v1::Multiply::get_type_info_static()) {
-            const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(postop_input.get_node_shared_ptr());
-            OPENVINO_ASSERT(constant);
-            const auto values = constant->cast_vector<float>();
-            OPENVINO_ASSERT(values.size() == 1);
-            OPENVINO_ASSERT(post_ops.append_eltwise(1.f, dnnl::impl::alg_kind_t::dnnl_eltwise_linear, values[0], 0) == dnnl_success);
-            std::cout << "[ INFO ] Eltwise scale postop was successfully added: " << values[0] << std::endl;
+            if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(postop_input.get_node_shared_ptr())) {
+                const auto values = constant->cast_vector<float>();
+                OPENVINO_ASSERT(values.size() == 1 && append_linear(values[0], 0) == dnnl_success);
+                std::cout << "[ INFO ] Eltwise scale postop was successfully added: " << values[0] << std::endl;
+            } else if (const auto param = ov::as_type_ptr<ov::op::v0::Parameter>(postop_input.get_node_shared_ptr())) {
+                OPENVINO_ASSERT(append_binary(param, dnnl::impl::alg_kind_t::dnnl_binary_mul) == dnnl_success);
+                std::cout << "[ INFO ] Binary mul postop was successfully added. m_binary_postops_offset = "
+                          << m_binary_postops_offset << std::endl;
+            } else {
+                OPENVINO_THROW("Unsupported postop input type: ", postop_input.get_node_shared_ptr());
+            }
         } else if (postop_config == ov::op::v1::Add::get_type_info_static()) {
-            const auto param = ov::as_type_ptr<ov::op::v0::Parameter>(postop_input.get_node_shared_ptr());
-            OPENVINO_ASSERT(param);
-            // TODO: should dynamic postops be supported? It seems like we don't need it
-            const auto dims = param->get_partial_shape().to_shape();
-            OPENVINO_ASSERT(ov::shape_size(dims) == OC);
-
-            DnnlBlockedMemoryDesc memory_desc(ov::element::f32, Shape(per_channel_shape));
-            OPENVINO_ASSERT(post_ops.append_binary(dnnl::impl::alg_kind_t::dnnl_binary_add, memory_desc.getDnnlDesc().get()) == dnnl_success);
-
-            const auto& rt_info = brgemm_node->get_rt_info();
-            OPENVINO_ASSERT(rt_info.count("EXTERNAL_PTR_OFFSET"), "EXTERNAL_PTR_OFFSET is not set for the postop input");
-            m_binary_postops_offset = rt_info.at("EXTERNAL_PTR_OFFSET").as<int>();
-            OPENVINO_ASSERT(m_binary_postops_offset >= 0, "EXTERNAL_PTR_OFFSET is invalid: ", m_binary_postops_offset);
-
-            std::cout << "[ INFO ] Binary add postop was successfully added. m_binary_postops_offset = "
-                      << m_binary_postops_offset << std::endl;
+            if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(postop_input.get_node_shared_ptr())) {
+                const auto values = constant->cast_vector<float>();
+                OPENVINO_ASSERT(values.size() == 1 && append_linear(1.f, values[0]) == dnnl_success);
+                std::cout << "[ INFO ] Eltwise shift postop was successfully added: " << values[0] << std::endl;
+            } else if (const auto param = ov::as_type_ptr<ov::op::v0::Parameter>(postop_input.get_node_shared_ptr())) {
+                OPENVINO_ASSERT(append_binary(param, dnnl::impl::alg_kind_t::dnnl_binary_add) == dnnl_success);
+                std::cout << "[ INFO ] Binary add postop was successfully added. m_binary_postops_offset = "
+                          << m_binary_postops_offset << std::endl;
+            } else {
+                OPENVINO_THROW("Unsupported postop input type: ", postop_input.get_node_shared_ptr());
+            }
         } else {
             OPENVINO_THROW("Unsupported postop type: ", postop_config);
         }
     }
 
     if (brgemm_utils::with_amx(brgemm_type)) {
-        BrgemmAMXKernelConfig kernel_config(brg0Prc, brg1Prc, brgOutPrc, brgemm_utils::get_primitive_isa(brg0Prc, true), post_ops);
+        BrgemmAMXKernelConfig kernel_config(brg0Prc,
+                                            brg1Prc,
+                                            brgOutPrc,
+                                            brgemm_utils::get_primitive_isa(brg0Prc, true),
+                                            post_ops);
         m_kernel_executor =
             kernel_table->register_kernel<BrgemmAMXKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
     } else {
@@ -219,15 +247,14 @@ void jit_brgemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) con
     }
 
     // Prepare external pointers
-    // TODO: this offset must be set in constructor
-    int binary_postops_offset = std::getenv("REF") || std::getenv("ONLY_MUL") ? -1 : 0;
-    if (binary_postops_offset == -1) {
+    if (m_binary_postops_offset == -1) {
         h->mov(h->qword[h->rsp + GET_OFF_CALL_ARGS(post_ops_binary_arg_vec)], reinterpret_cast<uintptr_t>(nullptr));
     } else {
-        h->mov(aux_reg, h->ptr[abi_param1 + GET_OFF(external_ptrs) + static_cast<size_t>(binary_postops_offset)]);
+        h->mov(aux_reg, h->ptr[abi_param1 + GET_OFF(external_ptrs)]);
+        h->add(aux_reg, static_cast<size_t>(m_binary_postops_offset) * sizeof(void**));
         h->mov(h->qword[h->rsp + GET_OFF_CALL_ARGS(post_ops_binary_arg_vec)], aux_reg);
     }
-    #undef GET_OFF_CALL_ARGS
+#undef GET_OFF_CALL_ARGS
 
     // abi_param1 always contains jit_snippets_call_args which has amx tile config for each thread
     if (std::is_same<T, BrgemmAMXKernelExecutor>()) {

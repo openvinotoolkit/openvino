@@ -46,6 +46,10 @@ public:
         return m_post_ops;
     }
 
+    size_t get_main_inputs_count() const {
+        return m_main_inputs_count;
+    }
+
     ov::OutputVector get_postop_inputs() const;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
