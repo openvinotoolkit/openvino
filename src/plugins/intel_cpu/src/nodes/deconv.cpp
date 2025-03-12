@@ -252,8 +252,12 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
 
     externOutShape = inputShapes.size() == 3;
     biasPort = externOutShape ? 3 : 2;
-    if (externOutShape && (isConstOutShape = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2)))) {
-        lastOutputSpatialDims = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2))->cast_vector<int32_t>();
+    if (externOutShape) {
+        isConstOutShape = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+        if (isConstOutShape) {
+            lastOutputSpatialDims =
+                ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2))->cast_vector<int32_t>();
+        }
     }
     if (externOutShape && isDynamicNode()) {
         const auto spDimsNum = getInputShapeAtPort(0).getRank() - 2;

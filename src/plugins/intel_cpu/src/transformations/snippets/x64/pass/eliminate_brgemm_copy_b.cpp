@@ -31,13 +31,8 @@ pass::EliminateBrgemmCopyB::EliminateBrgemmCopyB() {
         const auto& in_desc = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(copy_b_node->input(0));
         const auto& layout = in_desc->get_layout();
 
-        auto is_supported_layout = [](const std::vector<size_t>& layout) {
-            return layout.empty() || (layout.size() - 1 == layout.back());
-        };
-
         // TODO [157340]: support external repacking for copyB with compensations
-        if (!is_supported_layout(layout) || brgemm_utils::with_compensations(copy_b_node->get_type()) ||
-            transformation_callback(copy_b_node)) {
+        if (brgemm_utils::with_compensations(copy_b_node->get_type()) || transformation_callback(copy_b_node)) {
             return false;
         }
 
