@@ -24,7 +24,7 @@ public:
         m_byte_size = 0;
     }
 
-protected:
+private:
     T _shared_object;
 };
 
