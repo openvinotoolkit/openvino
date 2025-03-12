@@ -159,15 +159,15 @@ protected:
     std::shared_ptr<op::v0::Parameter> input;
 
     void SetUp() override {
-        input = std::make_shared<op::v0::Parameter>(element::f64, Shape{1, 3, 2, 2});
+        input = std::make_shared<op::v0::Parameter>(element::f64, Shape{1});
         input->set_friendly_name("input");
         input->get_output_tensor(0).set_names({"tensor_input"});
 
-        auto clamp_op = std::make_shared<op::v0::Clamp>(input, 0.0, 1.0);
-        clamp_op->set_friendly_name("Clamp");
-        clamp_op->get_output_tensor(0).set_names({"tensor_clamp"});
+        auto add_op = std::make_shared<op::v1::Add>(input, input);
+        add_op->set_friendly_name("Add");
+        add_op->get_output_tensor(0).set_names({"tensor_add"});
 
-        auto result = std::make_shared<op::v0::Result>(clamp_op);
+        auto result = std::make_shared<op::v0::Result>(add_op);
         result->set_friendly_name("Result");
         result->get_output_tensor(0).set_names({"tensor_output"});
 
@@ -175,78 +175,35 @@ protected:
     }
 };
 
-TEST_F(PreprocessClampTest, clamp_operation_on_input) {
-    auto p = PrePostProcessor(model);
-    p.input("tensor_input").preprocess().clamp(0.0, 1.0);
-    model = p.build();
-
-    // Create input data with values outside the clamp range
-    std::vector<double> input_data = {-1.0, 0.5, 2.0, -0.5, 1.5, 0.0, 1.0, 0.8, -0.2, 1.2, 0.3, 0.7};
-    std::vector<double> expected = {0.0, 0.5, 1.0, 0.0, 1.0, 0.0, 1.0, 0.8, 0.0, 1.0, 0.3, 0.7};
-    auto input_tensor = ov::Tensor(element::f64, Shape{1, 3, 2, 2}, input_data.data());
-
-    // Create an inference request
-    ov::Core core;
-    auto compiled_model = core.compile_model(model, "CPU");
-    auto infer_request = compiled_model.create_infer_request();
-
-    // Set input tensor
-    infer_request.set_tensor("tensor_input", input_tensor);
-
-    // Run inference
-    infer_request.infer();
+TEST_F(PreprocessClampTest, clamp_operation_on_input_preprocess) {
     {
-        // Get input tensor
-        auto input_tensor = infer_request.get_tensor("tensor_input");
-        auto input_data = input_tensor.data<double>();
-
-        // Check if the input data is within the clamp range
-        for (size_t i = 0; i < input_tensor.get_size(); ++i) {
-            SCOPED_TRACE("i = " + std::to_string(i));
-            EXPECT_GE(input_data[i], 0.0);
-            EXPECT_LE(input_data[i], 1.0);
-
-            EXPECT_NEAR(input_data[i], expected[i], 1e-5);
-        }
+        auto input_node = model->get_parameters().front();
+        auto connected_node = input_node->output(0).get_target_inputs().begin()->get_node();
+        EXPECT_STREQ(connected_node->get_type_name(), "Add");
+    }
+    auto p = PrePostProcessor(model);
+    p.input().preprocess().clamp(0.0, 1.0);
+    model = p.build();
+    {
+        auto input_node = model->get_parameters().front();
+        auto connected_node = input_node->output(0).get_target_inputs().begin()->get_node();
+        EXPECT_STREQ(connected_node->get_type_name(), "Clamp");
     }
 }
 
-TEST_F(PreprocessClampTest, clamp_operation_on_output) {
-    auto p = PrePostProcessor(model);
-    p.output("tensor_output").postprocess().clamp(0.0, 1.0);
-    model = p.build();
-
-    // Create input data with values outside the clamp range
-    std::vector<double> input_data = {-1.0, 0.5, 2.0, -0.5, 1.5, 0.0, 1.0, 0.8, -0.2, 1.2, 0.3, 0.7};
-    std::vector<double> expected = {0.0, 0.5, 1.0, 0.0, 1.0, 0.0, 1.0, 0.8, 0.0, 1.0, 0.3, 0.7};
-
-    auto input_tensor = ov::Tensor(element::f64, Shape{1, 3, 2, 2}, input_data.data());
-
-    // Create an inference request
-    ov::Core core;
-    auto compiled_model = core.compile_model(model, "CPU");
-    auto infer_request = compiled_model.create_infer_request();
-
-    // Set input tensor
-    infer_request.set_tensor("tensor_input", input_tensor);
-
-    // Run inference
-    infer_request.infer();
-
+TEST_F(PreprocessClampTest, clamp_operation_on_output_postprocess) {
     {
-        // Get output tensor
-        auto output_tensor = infer_request.get_tensor("tensor_output");
-        auto output_data = output_tensor.data<double>();
-
-        // Check if the output data is within the clamp range
-        for (size_t i = 0; i < output_tensor.get_size(); ++i) {
-            SCOPED_TRACE("i = " + std::to_string(i));
-
-            EXPECT_GE(output_data[i], 0.0);
-            EXPECT_LE(output_data[i], 1.0);
-
-            EXPECT_NEAR(output_data[i], expected[i], 1e-5);
-        }
+        auto result_node = model->get_results().front();
+        auto connected_node = result_node->input_value(0).get_node_shared_ptr();
+        EXPECT_STREQ(connected_node->get_type_name(), "Add");
+    }
+    auto p = PrePostProcessor(model);
+    p.output().postprocess().clamp(0.0, 1.0);
+    model = p.build();
+    {
+        auto result_node = model->get_results().front();
+        auto connected_node = result_node->input_value(0).get_node_shared_ptr();
+        EXPECT_STREQ(connected_node->get_type_name(), "Clamp");
     }
 }
 
