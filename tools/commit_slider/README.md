@@ -5,7 +5,7 @@ Tool for automatic iteration over commit set with provided operation. For exampl
 ## Prerequisites
 
 git >= *2.0*
-cmake >= OpenVino minimum required version ([CMakeLists.txt](../../../../CMakeLists.txt))
+cmake >= OpenVino minimum required version ([CMakeLists.txt](../CMakeLists.txt))
 python >= *3.6*
 ccache >= *3.0*
 
