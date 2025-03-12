@@ -13,7 +13,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateCol2ImOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15::Col2Im>& op) {
-    validate_inputs_count(op, {1});
+    validate_inputs_count(op, {3}); // XXX Please check whether 3 is correct number
     auto inputPrimitives = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -24,14 +24,21 @@ static void CreateCol2ImOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15:
     auto dilations = op->get_dilations();
     auto pads_begin = op->get_pads_begin();
     auto pads_end = op->get_pads_end();
+    ov::CoordinateDiff padding_begin;
+    ov::CoordinateDiff padding_end;
+
+    for (auto p: op->get_pads_begin())
+        padding_begin.push_back(p);
+    for (auto p: op->get_pads_end())
+        padding_end.push_back(p);
 
     // Create col2im prim
     auto CallToImPrim = cldnn::col_to_im(layerName,
                                             inputPrimitives[0],
                                             strides,
                                             dilations,
-                                            pads_begin,
-                                            pads_end);
+                                            padding_begin,
+                                            padding_end);
 
     p.add_primitive(*op, CallToImPrim);
 }
