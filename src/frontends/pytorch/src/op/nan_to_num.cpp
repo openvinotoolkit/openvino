@@ -31,7 +31,7 @@ OutputVector translate_nan_to_num(const NodeContext& context) {
     auto posinf_replacement = context.mark_node(std::make_shared<v1::ConvertLike>(posinf_value, x));
     auto neginf_replacement = context.mark_node(std::make_shared<v1::ConvertLike>(neginf_value, x));
 
-    auto is_nan = context.mark_node(std::make_shared<v10::IsNan>(x));
+    auto is_nan = context.mark_node(std::make_shared<v10::IsNaN>(x));
     auto is_posinf = context.mark_node(std::make_shared<v10::IsInf>(x, v10::IsInf::Attributes(false, true)));
     auto is_neginf = context.mark_node(std::make_shared<v10::IsInf>(x, v10::IsInf::Attributes(true, false)));
 
