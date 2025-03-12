@@ -113,34 +113,16 @@ bool Tensor::is_continuous() const {
 }
 
 namespace {
-class StaticBufferAllocator {
-    std::shared_ptr<ov::AlignedBuffer> buffer;
-    bool allocated = false;  // if buffer was returned as allocated region
-
-public:
-    StaticBufferAllocator(std::shared_ptr<ov::AlignedBuffer> _buffer) : buffer(std::move(_buffer)) {}
-
-    void* allocate(const size_t bytes, const size_t alignment) {
-        OPENVINO_ASSERT(alignment == alignof(max_align_t) || alignment == 0);
-        OPENVINO_ASSERT(!allocated);
-        OPENVINO_ASSERT(bytes == buffer->size());
-        allocated = true;
-        return buffer->get_ptr();
-    }
-
-    void deallocate(void* handle, const size_t bytes, const size_t alignment) {}
-
-    bool is_equal(const StaticBufferAllocator&) const {
-        return true;
-    }
-};
-
 ov::Shape calc_static_shape_for_file(const std::filesystem::path& file_name,
                                      const ov::element::Type& element_type,
                                      const ov::PartialShape& partial_shape,
                                      size_t offset) {
+    auto file_size = std::filesystem::file_size(file_name);
     if (partial_shape.is_static()) {
-        return partial_shape.get_shape();
+        auto static_shape = partial_shape.get_shape();
+        OPENVINO_ASSERT((ov::shape_size(static_shape)) * element_type.bitwidth() + offset * 8 == file_size * 8,
+                        "Cannot fit file size into requested static PartialShape");
+        return static_shape;
     }
     auto partial_shape_copy = partial_shape;
     auto rank = partial_shape_copy.rank();
@@ -159,7 +141,6 @@ ov::Shape calc_static_shape_for_file(const std::filesystem::path& file_name,
                     dynamic_dimension_numbers.size());
     auto& dynamic_dimension = partial_shape_copy[dynamic_dimension_numbers[0]];
 
-    auto file_size = std::filesystem::file_size(file_name);
     OPENVINO_ASSERT(file_size > offset, "Offset is bigger than size of file to read.");
     auto file_size_to_read = file_size - offset;
 
@@ -191,10 +172,16 @@ Tensor read_tensor_data(const std::filesystem::path& file_name,
     auto static_shape = calc_static_shape_for_file(file_name, element_type, partial_shape, offset_in_bytes);
 
     auto mapped_memory = ov::load_mmap_object(file_name);
-    auto mmaped =
+    auto shared_buffer =
         std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data() + offset_in_bytes,
                                                                               mapped_memory->size() - offset_in_bytes,
                                                                               mapped_memory);
-    return ov::Tensor(element_type, static_shape, StaticBufferAllocator(mmaped));
+
+    auto view_tensor = Tensor(element_type, static_shape, shared_buffer->get_ptr());
+    auto impl = get_tensor_impl(view_tensor);
+    impl._so = shared_buffer;
+    view_tensor = make_tensor(impl);
+
+    return view_tensor;
 }
 }  // namespace ov
