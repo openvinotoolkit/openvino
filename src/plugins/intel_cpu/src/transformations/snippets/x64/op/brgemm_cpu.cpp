@@ -14,16 +14,15 @@ namespace ov::intel_cpu {
 using namespace brgemm_utils;
 
 size_t BrgemmCPU::compute_main_inputs_count(const BRGEMM_TYPE type) {
-    switch (type)
-    {
-        case BRGEMM_TYPE::STAND_ALONE:
-        case BRGEMM_TYPE::REPACKING_ONLY:
-            return 2;
-        case BRGEMM_TYPE::WITH_AMX:
-        case BRGEMM_TYPE::WITH_COMPENSATIONS:
-            return 3;
-        default:
-            OPENVINO_THROW("Unexpected brgemm type!");
+    switch (type) {
+    case BRGEMM_TYPE::STAND_ALONE:
+    case BRGEMM_TYPE::REPACKING_ONLY:
+        return 2;
+    case BRGEMM_TYPE::WITH_AMX:
+    case BRGEMM_TYPE::WITH_COMPENSATIONS:
+        return 3;
+    default:
+        OPENVINO_THROW("Unexpected brgemm type!");
     }
 }
 

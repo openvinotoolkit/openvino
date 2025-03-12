@@ -4,6 +4,7 @@
 
 #include "brgemm_base.hpp"
 
+#include "common/primitive_hashing_utils.hpp"
 #include "common/utils.hpp"
 #include "dnnl_extension_utils.h"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
@@ -70,15 +71,7 @@ size_t BrgemmBaseKernelConfig::StaticBaseParams::compute_hash(size_t hash_seed,
     HASH(dt_in1);
     HASH(dt_out);
     HASH(isa);
-    // for (int i = 0; i < post_ops.len(); i++) {
-    //     const auto& entry = post_ops.entry_[i];
-    //     HASH(entry.kind);
-    //     if (entry.kind == dnnl::primitive_kind::eltwise) {
-    //         HASH(entry.eltwise.alg);
-    //         HASH(entry.eltwise.alpha);
-    //         HASH(entry.eltwise.beta);
-    //     }
-    // }
+    dnnl::impl::primitive_hashing::get_post_op_hash(seed, post_ops);
     return seed;
 }
 
@@ -89,15 +82,6 @@ std::string BrgemmBaseKernelConfig::StaticBaseParams::to_string() const {
     PRINT(dt_in1);
     PRINT(dt_out);
     PRINT(isa);
-    // ss << "post_ops = ";
-    // for (int i = 0; i < post_ops.len(); i++) {
-    //     const auto& entry = post_ops.entry_[i];
-    //     ss << entry.kind << " ";
-    //     if (entry.kind == dnnl::primitive_kind::eltwise) {
-    //         ss << entry.eltwise.alg << " " << entry.eltwise.alpha << " " << entry.eltwise.beta << " ";
-    //     }
-    // }
-    // ss << "\n";
     return ss.str();
 }
 
@@ -172,12 +156,6 @@ void BrgemmBaseKernelExecutor::create_brgemm_kernel(std::shared_ptr<brgemm_kerne
     OV_CPU_JIT_EMITTER_ASSERT(brgemm_desc_set_postops(&desc, &attr, dst_desc.get(), LDC) == dnnl_success,
                               "Cannot set postops to brgemm descriptor");
 
-    std::cout << "[ INFO ] Brgemm desc creation:" << std::endl;
-    std::cout << "\t desc.dt_a: " << desc.dt_a << std::endl;
-    std::cout << "\t desc.dt_b: " << desc.dt_b << std::endl;
-    std::cout << "\t desc.dt_c: " << desc.dt_c << std::endl;
-    std::cout << "\t desc.dt_d: " << desc.dt_d << std::endl;
-
     if (with_amx) {
         OV_CPU_JIT_EMITTER_ASSERT(palette && brgemm_init_tiles(desc, palette) == dnnl_success,
                                   "Cannot initialize brgemm tiles due to invalid params");
@@ -211,13 +189,8 @@ void BrgemmBaseKernelExecutor::execute_brgemm_kernel(
     brgemm_p.skip_accm = 0;
     brgemm_p.BS = 1;  // default value
     brgemm_p.post_ops_binary_rhs_arg_vec = post_ops_binary_arg_vec;
-    // It seems like we don't need it
-    // brgemm_p.data_C_ptr_ = reinterpret_cast<char*>(dst);
-
-    if (std::getenv("DEBUG_PRINT")) {
-        std::cout << "[ INFO ] execute_brgemm_kernel: " << std::endl;
-        std::cout << "\t Pointer value: " << post_ops_binary_arg_vec << std::endl;
-    }
+    // This ptr must be initialized if binary postops are applied
+    brgemm_p.data_C_ptr_ = reinterpret_cast<char*>(dst);
 
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr Brgemm kernel");
     (*kernel)(&brgemm_p);

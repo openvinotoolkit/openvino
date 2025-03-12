@@ -41,7 +41,7 @@ std::string CPURuntimeConfig::to_string() const {
     // TODO: rename
     out << "External indices:"
         << "\n";
-    for (const auto& idx : external_ptrs_idces) {
+    for (const auto& idx : brgemm_external_ptrs_idces) {
         out << idx << " ";
     }
     out << "\n";
@@ -107,21 +107,28 @@ void CPURuntimeConfigurator::init_external_ptrs(const ov::snippets::lowered::Lin
     const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_config);
     OPENVINO_ASSERT(cpu_config, "CPURuntimeConfigurator expects CPURuntimeConfig");
 
+    std::unordered_set<snippets::lowered::ExpressionPtr> visited_brgemms;
+
     const auto& parameters = linear_ir->get_parameters();
     size_t external_ptrs_count = 0;
     for (size_t i = 0; i < parameters.size(); ++i) {
         const auto& param_expr = parameters[i];
         const auto& param_info = param_expr->get_node()->get_rt_info();
         if (param_info.count("POSTOP_INPUT")) {
-            cpu_config->external_ptrs_idces.insert(i);
             std::cout << "[ INFO ] CPURuntimeConfigurator::init_external_ptrs - POSTOP_INPUT: " << i << std::endl;
+            cpu_config->brgemm_external_ptrs_idces.insert(i);
             for (const auto& connector : param_expr->get_output_port_connectors()) {
                 for (const auto& consumer : connector->get_consumers()) {
-                    const auto consumer_node = consumer.get_expr()->get_node();
+                    const auto& consumer_expr = consumer.get_expr();
+                    const auto& consumer_node = consumer_expr->get_node();
                     auto& rt_info = consumer_node->get_rt_info();
                     // TODO: this communication must be done in a more transparent way then using RT info
-                    if (ov::is_type<ov::intel_cpu::BrgemmCPU>(consumer_node) && !rt_info.count("EXTERNAL_PTR_OFFSET")) {
-                        rt_info["EXTERNAL_PTR_OFFSET"] = external_ptrs_count;
+                    if (ov::is_type<ov::intel_cpu::BrgemmCPU>(consumer_node)) {
+                        if (visited_brgemms.count(consumer_expr) == 0) {
+                            rt_info["EXTERNAL_PTR_OFFSET"] = external_ptrs_count;
+
+                            visited_brgemms.insert(consumer_expr);
+                        }
                     }
                 }
             }

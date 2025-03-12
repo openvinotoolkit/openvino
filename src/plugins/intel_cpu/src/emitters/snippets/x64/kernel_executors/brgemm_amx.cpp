@@ -273,7 +273,6 @@ void BrgemmAMXKernelExecutor::execute_brgemm_copy_a_kernel(
 }
 
 void BrgemmAMXKernelExecutor::execute(const BrgemmAMXKernelExecutor* executor, call_args* args) {
-    const bool print_data = std::getenv("PRINT_EXECUTE");
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
     auto kernel = executor->get_kernel();
     const auto& config = static_cast<const BrgemmAMXKernelConfig&>(executor->get_config());
@@ -288,16 +287,6 @@ void BrgemmAMXKernelExecutor::execute(const BrgemmAMXKernelExecutor* executor, c
 
     const bool execute_main_body = K_body != 0;
     const bool execute_tail = K_tail != 0;
-
-    if (print_data) {
-        float* C_ptr = reinterpret_cast<float*>(args->C);
-        std::memset(C_ptr, 0, config.get_M() * config.get_N() * dnnl_data_type_size(config.get_dt_out()) * 2);
-        std::cout << "Before computations: \n";
-        for (int64_t i = 0; i < config.get_M() * config.get_N() * 2 + 10; i++) {
-            std::cout << static_cast<float>(C_ptr[i]) << ',';
-        }
-        std::cout << std::endl;
-    }
 
     if (execute_main_body) {
         const auto& K_body_kernel = kernel->K_body_kernel;
@@ -319,16 +308,6 @@ void BrgemmAMXKernelExecutor::execute(const BrgemmAMXKernelExecutor* executor, c
 
         src_ptr = src_ptr + K_body * dnnl_data_type_size(config.get_dt_in0());
         wei_ptr = wei_ptr + (K_body * config.get_LDB()) * dnnl_data_type_size(config.get_dt_in1());
-    }
-
-    
-    if (print_data) {
-        float* C_ptr = reinterpret_cast<float*>(args->C);
-        std::cout << "After main body: \n";
-        for (int64_t i = 0; i < config.get_M() * config.get_N() * 2 + 10; i++) {
-            std::cout << static_cast<float>(C_ptr[i]) << ',';
-        }
-        std::cout << std::endl;
     }
 
     if (execute_tail) {
@@ -353,14 +332,6 @@ void BrgemmAMXKernelExecutor::execute(const BrgemmAMXKernelExecutor* executor, c
                               args->post_ops_binary_arg_vec,
                               false,
                               true);
-    }
-    if (print_data) {
-        float* C_ptr = reinterpret_cast<float*>(args->C);
-        std::cout << "After tail: \n";
-        for (int64_t i = 0; i < config.get_M() * config.get_N() * 2 + 10; i++) {
-            std::cout << static_cast<float>(C_ptr[i]) << ',';
-        }
-        std::cout << std::endl;
     }
 }
 

@@ -30,7 +30,7 @@ public:
 
     RepackedInputConfig repacked_input_config = {};
     std::vector<jit_snippets_call_args::loop_args_t> loop_args = {};
-    std::set<size_t> external_ptrs_idces = {};
+    std::set<size_t> brgemm_external_ptrs_idces = {};
 };
 
 class CPURuntimeConfigurator : public ov::snippets::RuntimeConfigurator {

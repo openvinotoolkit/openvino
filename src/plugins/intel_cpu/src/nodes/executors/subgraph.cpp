@@ -62,9 +62,9 @@ SubgraphCodeGenerator::SubgraphCodeGenerator(const std::shared_ptr<SubgraphAttrs
 
     jit_snippets_compile_args jcp;
     jcp.data_offsets.reserve(config->io_data_offsets.size());
-    const auto& external_ptrs_idces = config->external_ptrs_idces;
+    const auto& brgemm_external_ptrs_idces = config->brgemm_external_ptrs_idces;
     for (size_t i = 0; i < config->io_data_offsets.size(); ++i) {
-        if (!external_ptrs_idces.count(i)) {
+        if (!brgemm_external_ptrs_idces.count(i)) {
             jcp.data_offsets.push_back(config->io_data_offsets[i]);
         } else {
             std::cout << "[ WARNING ] jcp.data_offsets push back skipped" << std::endl;
