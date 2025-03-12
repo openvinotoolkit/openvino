@@ -111,4 +111,4 @@ Proceed to guides on:
 
 * :doc:`OpenVINO GenAI <./openvino-workflow-generative/inference-with-genai>`
 * :doc:`Hugging Face and Optimum Intel <./openvino-workflow-generative/inference-with-optimum-intel>`
-* `Generative AI with Base OpenVINO <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/llm-inference-native-ov.html>`__
+* `Generative AI with OpenVINO Inference Engine <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/llm-inference-native-ov.html>`__
