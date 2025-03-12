@@ -211,8 +211,8 @@ void BrgemmBaseKernelExecutor::execute_brgemm_kernel(
     brgemm_p.skip_accm = 0;
     brgemm_p.BS = 1;  // default value
     brgemm_p.post_ops_binary_rhs_arg_vec = post_ops_binary_arg_vec;
-    // It seems like we don't need it
-    // brgemm_p.data_C_ptr_ = reinterpret_cast<char*>(dst);
+    // This ptr must be initialized if binary postops are applied
+    brgemm_p.data_C_ptr_ = reinterpret_cast<char*>(dst);
 
     if (std::getenv("DEBUG_PRINT")) {
         std::cout << "[ INFO ] execute_brgemm_kernel: " << std::endl;
