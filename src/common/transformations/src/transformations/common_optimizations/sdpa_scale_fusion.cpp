@@ -49,8 +49,8 @@ SDPAScaleFusion::SDPAScaleFusion() {
 
         auto sdpa = m.get_match_root();
 
-        const bool has_q_scale = pattern_map.count(scaled_q);
-        const bool has_k_scale = pattern_map.count(scaled_k);
+        bool has_q_scale = pattern_map.count(scaled_q);
+        bool has_k_scale = pattern_map.count(scaled_k);
 
         // Nothing to do
         if (!has_q_scale && !has_k_scale)
