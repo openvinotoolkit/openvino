@@ -738,6 +738,19 @@ def test_serialize_complex_rt_info(request, tmp_path):
     os.remove(bin_path)
 
 
+def test_rt_info_gil():
+    model = generate_add_model()
+
+    from enum import Enum
+    class EnumInfo(Enum):
+        INFO_A: str = "info_a"
+
+    core = Core()
+    model.set_rt_info(EnumInfo.INFO_A, "EnumInfo")
+    core.compile_model(model, "CPU")
+    assert model.get_rt_info("EnumInfo") == EnumInfo.INFO_A
+
+
 def test_model_add_remove_result_parameter_sink():
     param = ops.parameter(PartialShape([1]), dtype=np.float32, name="param")
     relu1 = ops.relu(param, name="relu1")
