@@ -150,17 +150,17 @@ std::vector<size_t> get_optimal_lws(const std::vector<size_t>& gws,
     }
 
     size_t lws_max = info.max_work_group_size;
-    constexpr const std::array optimal_lws_values = {1024, 960, 896, 832, 768, 704, 640, 576, 512, 480, 448, 416, 384, 352, 320, 288, 256,
-                                                     227,  224, 192, 160, 128, 96,  64,  32,  16,  8,   7,   6,   5,   4,   2,   1};
-    constexpr const std::array suboptimal_lws_values = {1024, 960, 896, 832, 768, 704, 640, 576, 512, 480, 448, 416, 384, 352,
-                                                        320,  288, 256, 227, 224, 192, 160, 128, 96,  64,  32,  16,  15,  14,
-                                                        13,   12,  11,  10,  9,   8,   7,   6,   5,   4,   3,   2,   1};
+    constexpr const std::array<size_t, 33> optimal_lws_values = {1024, 960, 896, 832, 768, 704, 640, 576, 512, 480, 448, 416, 384, 352, 320, 288, 256,
+                                                                 227,  224, 192, 160, 128, 96,  64,  32,  16,  8,   7,   6,   5,   4,   2,   1};
+    constexpr const std::array<size_t, 41> suboptimal_lws_values = {1024, 960, 896, 832, 768, 704, 640, 576, 512, 480, 448, 416, 384, 352,
+                                                                    320,  288, 256, 227, 224, 192, 160, 128, 96,  64,  32,  16,  15,  14,
+                                                                    13,   12,  11,  10,  9,   8,   7,   6,   5,   4,   3,   2,   1};
 
     size_t first_lws_idx = lws_max == 1024 ? 0 : lws_max == 512 ? 8 : 16;
     // Reduces max local wgs for some cases on Gen12+ devices
     if (lws_max >= 512) {
         auto two_dims_are_odd_and_equal =
-            (gws[0] % 2 && gws[0] > 7 && (gws[0] == gws[1] || gws[0] == gws[2])) || (gws[1] % 2 && gws[1] > 7 && gws[1] == gws[2]);
+            (((gws[0] % 2) != 0) && gws[0] > 7 && (gws[0] == gws[1] || gws[0] == gws[2])) || (((gws[1] % 2) != 0) && gws[1] > 7 && gws[1] == gws[2]);
 
         // Known cases when lws_max = 256 works better than lws_max > 256
         auto max_wgs_exception1 = gws[priority_order[0]] == 1278 && gws[priority_order[1]] == 718 && gws[priority_order[2]] % 10 == 0;
@@ -206,7 +206,7 @@ std::vector<size_t> get_optimal_lws(const std::vector<size_t>& gws,
 
         auto can_use_suboptimal_lws1 = (i == 1) && ((gws[priority_order[0]] % 32 == 0) || (gws[priority_order[0]] == 1 && gws[priority_order[2]] % 16 != 0));
         auto can_use_suboptimal_lws2 = (i == 2) && (total_lws == total_gws);
-        const int* lws_values = can_use_suboptimal_lws1 || can_use_suboptimal_lws2 ? suboptimal_lws_values.data() : optimal_lws_values.data();
+        const size_t* lws_values = can_use_suboptimal_lws1 || can_use_suboptimal_lws2 ? suboptimal_lws_values.data() : optimal_lws_values.data();
 
         while (rest_lws < lws_values[lws_idx]) {
             lws_idx++;

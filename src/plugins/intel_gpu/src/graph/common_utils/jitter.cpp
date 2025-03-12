@@ -522,7 +522,6 @@ JitConstants make_layout_jit_constants(const std::string& name, const cldnn::lay
         LayoutJitter jitter(value, shape_info_offset);
         definitions.add(make_indexing_jit_functions(name, value));
         definitions.add({make_jit_constant(name + "_OFFSET", jitter.offset()),
-
                          make_jit_constant(name + "_SIZE_X", jitter.dim(ChannelName::X)),
                          make_jit_constant(name + "_SIZE_Y", jitter.dim(ChannelName::Y)),
                          make_jit_constant(name + "_SIZE_Z", jitter.dim(ChannelName::Z)),
