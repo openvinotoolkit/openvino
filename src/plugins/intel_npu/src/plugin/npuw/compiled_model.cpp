@@ -632,7 +632,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
 
         // Also read weights into LazyTensors
         for (std::size_t cidx = 0; cidx < closure.size(); ++cidx) {
-            if (closure_uid[cidx] != -1) {  // previously registered before serialization
+            if (closure_uid[cidx] != -1 && lazy_closure[cidx]) {  // previously registered before serialization
                 lazy_closure[cidx].read_weight(weights);
             }
         }
@@ -1427,6 +1427,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::spatial_dyn, NPUW_SPATIAL_DYN),
                           BIND(npuw::partitioning::host_gather, NPUW_HOST_GATHER),
                           BIND(npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL),
+                          BIND(npuw::partitioning::f16_interconnect, NPUW_F16IC),
                           BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),
                           BIND(npuw::partitioning::dcoff_with_scale, NPUW_DCOFF_SCALE),
                           BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),

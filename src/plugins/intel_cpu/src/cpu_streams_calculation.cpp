@@ -729,18 +729,17 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
             get_streams_rank_table(streams_info_table, config.streamsRankLevel, config.numSubStreams);
     }
 
-    auto cpu_pinning = get_cpu_pinning(config.enableCpuPinning,
-                                       config.changedCpuPinning,
-                                       config.enableCpuReservation,
-                                       proc_type_table,
-                                       streams_info_table);
+    config.enableCpuPinning = check_cpu_pinning(config.enableCpuPinning,
+                                                config.changedCpuPinning,
+                                                config.enableCpuReservation,
+                                                streams_info_table);
 
     config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor",
                                                            config.streams,
                                                            config.threadsPerStream,
                                                            ov::hint::SchedulingCoreType::ANY_CORE,
                                                            config.enableCpuReservation,
-                                                           cpu_pinning,
+                                                           config.enableCpuPinning,
                                                            true,
                                                            std::move(streams_info_table),
                                                            {},

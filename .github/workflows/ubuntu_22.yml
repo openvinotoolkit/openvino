@@ -204,10 +204,7 @@ jobs:
           self-hosted-runner: 'false'
 
       - name: Install Dependencies
-        run: |
-          sudo -E ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
-
-          python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
+        run: python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
 
       #
       # Tests
@@ -365,7 +362,6 @@ jobs:
       runner: 'aks-linux-8-cores-32gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
       python-version: '3.11'
-      scope: ${{ contains(fromJSON('["schedule", "workflow_dispatch"]'), github.event_name)  && 'nightly' || 'smoke' }}
 
   TensorFlow_Models_Tests_Precommit:
     name: TensorFlow Models tests
