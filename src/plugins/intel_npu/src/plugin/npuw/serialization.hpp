@@ -5,6 +5,7 @@
 #pragma once
 
 #include <array>
+#include <functional>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -26,7 +27,7 @@ using IndicatorType = std::array<uint8_t, 6>;
 const constexpr ov::npuw::s11n::IndicatorType NPUW_SERIALIZATION_INDICATOR =
     {char{0x13}, char{0x37}, char{0x6e}, char{0x70}, char{0x75}, char{0x77}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.1";
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.2";
 
 // Forward declaration
 namespace intel_npu {
@@ -74,6 +75,22 @@ struct Context {
           const_to_offset(_const_to_offset) {}
     bool is_weightless;
     const std::unordered_map<const void*, std::size_t>& const_to_offset;
+};
+
+struct LLMSerializeContext {
+    explicit LLMSerializeContext(bool _encrypted, std::function<std::string(const std::string&)> _encrypt)
+        : encrypted(_encrypted),
+          encrypt(_encrypt) {}
+    bool encrypted = false;
+    std::function<std::string(const std::string&)> encrypt = nullptr;
+};
+
+struct LLMDeserializeContext {
+    explicit LLMDeserializeContext(bool _encrypted, std::function<std::string(const std::string&)> _decrypt)
+        : encrypted(_encrypted),
+          decrypt(_decrypt) {}
+    bool encrypted = false;
+    std::function<std::string(const std::string&)> decrypt = nullptr;
 };
 
 using Weights = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>;
