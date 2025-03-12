@@ -65,6 +65,7 @@
 #include "gru_cell_shape_inference.hpp"
 #include "gru_sequence_shape_inference.hpp"
 #include "i420_shape_inference.hpp"
+#include "internal_convolution_shape_inference.hpp"
 #include "interpolate_shape_inference.hpp"
 #include "inverse_shape_inference.hpp"
 #include "irdft_shape_inference.hpp"

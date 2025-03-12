@@ -110,7 +110,9 @@ ov::pass::ConvolutionBiasFusion::ConvolutionBiasFusion() {
                                                                         conv->get_pads_begin(),
                                                                         conv->get_pads_end(),
                                                                         conv->get_dilations(),
-                                                                        conv->get_auto_pad());
+                                                                        conv->get_groups(),
+                                                                        conv->get_auto_pad(),
+                                                                        conv->get_output_element_type(0));
 
         new_ops.push_back(new_conv);
 

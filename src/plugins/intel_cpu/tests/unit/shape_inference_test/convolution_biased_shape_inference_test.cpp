@@ -86,8 +86,9 @@ TEST_F(ConvolutionInternalStaticShapeInferenceTest, 2d_auto_pads_same_lower_inpu
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
     const auto filters = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto bias = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
 
-    op = make_op(data, filters, strides, pads_begin, pads_end, dilations, auto_pad);
+    op = make_op(data, filters, bias, strides, pads_begin, pads_end, dilations, -1, auto_pad, element::f32);
 
     input_shapes = StaticShapeVector{{3, 6, 5, 5}, {7, 6, 3, 3}};
     output_shapes = shape_inference(op.get(), input_shapes);
@@ -105,8 +106,9 @@ TEST_F(ConvolutionInternalStaticShapeInferenceTest, 3d_auto_pad_same_lower_input
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1, -1});
     const auto filters = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1, -1});
+    const auto bias = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1, -1});
 
-    op = make_op(data, filters, strides, pads_begin, pads_end, dilations, auto_pad);
+    op = make_op(data, filters, bias, strides, pads_begin, pads_end, dilations, -1, auto_pad, element::f32);
 
     input_shapes = StaticShapeVector{{3, 6, 5, 5, 5}, {7, 6, 3, 3, 3}};
     output_shapes = shape_inference(op.get(), input_shapes);
@@ -124,8 +126,9 @@ TEST_F(ConvolutionInternalStaticShapeInferenceTest, data_and_filters_num_channel
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1, -1});
     const auto filters = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1, -1});
+    const auto bias = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1, -1});
 
-    op = make_op(data, filters, strides, pads_begin, pads_end, dilations, auto_pad);
+    op = make_op(data, filters, bias, strides, pads_begin, pads_end, dilations, -1, auto_pad, element::f32);
 
     input_shapes = StaticShapeVector{{3, 5, 5, 5, 5}, {7, 6, 3, 3, 3}};
 
@@ -143,8 +146,9 @@ TEST_F(ConvolutionInternalStaticShapeInferenceTest, data_rank_not_compatible_wit
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
     const auto filters = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    const auto bias = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
 
-    op = make_op(data, filters, strides, pads_begin, pads_end, dilations, auto_pad);
+    op = make_op(data, filters, bias, strides, pads_begin, pads_end, dilations, -1, auto_pad, element::f32);
 
     input_shapes = StaticShapeVector{{3, 6, 5, 5, 5}, {7, 6, 3, 3}};
 

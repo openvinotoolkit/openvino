@@ -272,21 +272,26 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
     auto internalConvolutionOp = ov::as_type_ptr<ov::op::internal::Convolution>(op);
 
     if (internalConvolutionOp) {
-        algorithm = Algorithm::ConvolutionBiased;
-        withBiases = true;
-        groupNum = 1;
-        isGrouped = false;
+        withBiases = internalConvolutionOp->inputs().size() > 2;
+        isGrouped = internalConvolutionOp->get_groups() > 1;
+        groupNum = isGrouped ? internalConvolutionOp->input_value(1).get_shape()[0] : 1;
+        algorithm = isGrouped ? Algorithm::ConvolutionGrouped : Algorithm::ConvolutionBiased;
 
         weightDims = internalConvolutionOp->input_value(1).get_shape();
 
-        IC = weightDims[1];
-        groupIC = IC;
-        groupOC = weightDims[0];
-
-        if (internalConvolutionOp->inputs().size() > 2) {
-            expectedBiasDims = internalConvolutionOp->input_value(2).get_shape();
+        if (isGrouped) {
+            groupIC = weightDims[2];
+            IC = groupIC * groupNum;
+            groupOC = weightDims[1];
+            expectedBiasDims = {groupOC * groupNum};
+        } else {
+            IC = weightDims[1];
+            groupIC = IC;
+            groupOC = weightDims[0];
+            if (internalConvolutionOp->inputs().size() > 2) {
+                expectedBiasDims = internalConvolutionOp->input_value(2).get_shape();
+            }
         }
-
         for (size_t i : internalConvolutionOp->get_strides()) {
             stride.emplace_back(i);
         }

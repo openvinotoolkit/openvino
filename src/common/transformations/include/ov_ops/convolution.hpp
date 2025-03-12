@@ -22,25 +22,38 @@ public:
 
     Convolution(const Output<Node>& data_batch,
                 const Output<Node>& filters,
-                const Strides& strides,
-                const CoordinateDiff& pads_begin,
-                const CoordinateDiff& pads_end,
-                const Strides& dilations,
-                const PadType& auto_pad = PadType::EXPLICIT);
-
-    Convolution(const Output<Node>& data_batch,
-                const Output<Node>& filters,
                 const Output<Node>& bias,
                 const Strides& strides,
                 const CoordinateDiff& pads_begin,
                 const CoordinateDiff& pads_end,
                 const Strides& dilations,
-                const PadType& auto_pad = PadType::EXPLICIT);
+                const int64_t& groups,
+                const PadType& auto_pad,
+                const element::Type& output_type);
 
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+    bool has_groups() const;
+    int64_t get_groups() const;
+
+    bool is_asymmetric() const;
+
+    struct Args {
+        static constexpr const size_t INPUT = 0;
+        static constexpr const size_t WEIGHTS = 1;
+        static constexpr const size_t BIAS = 2;
+        static constexpr const size_t AZP = 3;
+        static constexpr const size_t WZP = 4;
+        static constexpr const size_t COMPENSATION = 5;
+    };
+
+protected:
+    int64_t m_groups = -1;  // negative value means no groups
+    bool m_asymmetric = false;
+    ov::element::Type m_output_type = ov::element::dynamic;
 };
 
 }  // namespace internal
