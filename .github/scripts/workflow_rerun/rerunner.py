@@ -51,6 +51,7 @@ if __name__ == '__main__':
 
     if log_analyzer.found_matching_error:
         LOGGER.info(f'FOUND MATCHING ERROR, RETRIGGERING {run.html_url}')
+
         if is_dry_run:
             LOGGER.info(f'RUNNING IN DRY RUN MODE, NOT RETRIGGERING, EXITING')
             sys.exit(0)
