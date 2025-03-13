@@ -1,0 +1,84 @@
+// Copyright (C) 2018-2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+#include "primitive.hpp"
+
+namespace cldnn {
+
+/// @brief
+/// @details
+struct col_to_im : public primitive_base<col_to_im> {
+    CLDNN_DECLARE_PRIMITIVE(col_to_im)
+
+    col_to_im() : primitive_base("", {}) {}
+
+    /// @brief Constructs col_to_im primitive.
+    /// @param id This primitive id.
+    /// @param input Input dictionary primitive id.
+    /// @param stride Defines shift in input buffer
+    /// @param dilation Defines gaps in the input
+    /// @param padding_begin Defines a padding added to input image on left (x axis) and top (y axis).
+    /// @param padding_end Defines a padding added to input image on right (x axis) and bottom (y axis).
+    col_to_im(const primitive_id& id,
+                   const input_info& input,
+                   ov::Strides stride,
+                   ov::Strides dilation,
+                   ov::CoordinateDiff padding_begin,
+                   ov::CoordinateDiff padding_end)
+        : primitive_base(id, {input})
+        , stride(stride)
+        , dilation(dilation)
+        , padding_begin(padding_begin)
+        , padding_end(padding_end) {}
+
+    /// @brief Defines shift in input buffer
+    ov::Strides stride;
+    // @brief Defines gaps in the input
+    ov::Strides dilation;
+    /// @param padding_begin Defines a padding added to input image on left (x axis) and top (y axis).
+    ov::CoordinateDiff padding_begin;
+    /// @param padding_end Defines a padding added to input image on right (x axis) and bottom (y axis).
+    ov::CoordinateDiff padding_end;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_range(seed, padding_end.begin(), padding_end.end());
+        seed = hash_range(seed, padding_begin.begin(), padding_begin.end());
+        seed = hash_range(seed, dilation.begin(), dilation.end());
+        seed = hash_range(seed, stride.begin(), stride.end());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const col_to_im>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(stride) &&
+               cmp_fields(dilation) &&
+               cmp_fields(padding_begin) &&
+               cmp_fields(padding_end);
+        #undef cmp_fields
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<col_to_im>::save(ob);
+        ob << stride;
+        ob << dilation;
+        ob << padding_begin;
+        ob << padding_end;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<col_to_im>::load(ib);
+        ib >> stride;
+        ib >> dilation;
+        ib >> padding_begin;
+        ib >> padding_end;
+    }
+};
+}  // namespace cldnn
