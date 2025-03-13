@@ -72,6 +72,7 @@ from openvino import properties as properties
 # Helper functions for openvino module
 from openvino.utils.data_helpers import tensor_from_file
 from openvino._ov_api import compile_model
+from openvino.frontend.pytorch.inlined_extension import inlined_extension
 
 
 # Import opsets
