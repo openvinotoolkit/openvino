@@ -174,8 +174,8 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
         auto check_port = [&](const ov::snippets::lowered::LoopPort& p) {
             return p.get_dim_idx() == 0 && p.is_processed();
         };
-        OPENVINO_ASSERT(in_ports.size() >= 2 && !in_ports.front().is_processed() &&
-                            std::all_of(in_ports.cbegin() + 1, in_ports.cend(), check_port) && out_ports.size() == 1 &&
+        // TODO: check compensations port
+        OPENVINO_ASSERT(in_ports.size() >= 2 && !in_ports.front().is_processed() && check_port(in_ports[1]) &&
                             check_port(out_ports.back()),
                         "Incorrect Loop by Brgemm dimension N");
         N = current_expanded_loop_info->get_work_amount() > 0 ? current_expanded_loop_info->get_increment() : 0;
@@ -197,8 +197,8 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
         const auto& out_ports = current_expanded_loop_info->get_output_ports();
         // Quick validation check: Should we check that port is really Brgemm port?
         OPENVINO_ASSERT(in_ports.size() >= 2 && in_ports.front().get_dim_idx() == 0 &&
-                            in_ports.front().is_processed() && in_ports.back().get_dim_idx() == 1 &&
-                            in_ports.back().is_processed() && out_ports.size() == 1 &&
+                            in_ports.front().is_processed() && in_ports[1].get_dim_idx() == 1 &&
+                            in_ports[1].is_processed() && out_ports.size() == 1 &&
                             !out_ports.front().is_processed(),
                         "Incorrect Loop by Brgemm dimension K");
         K = current_expanded_loop_info->get_work_amount() > 0 ? current_expanded_loop_info->get_increment() : 0;
