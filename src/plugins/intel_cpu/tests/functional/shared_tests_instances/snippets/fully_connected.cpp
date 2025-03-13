@@ -39,14 +39,14 @@ static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 
     return prc;
 }
 
-const size_t M = std::getenv("M") ? std::stoi(std::getenv("M")) : 2;
-const size_t N = std::getenv("N") ? std::stoi(std::getenv("N")) : 3;
-const size_t K = std::getenv("K") ? std::stoi(std::getenv("K")) : 4;
+const size_t M = std::getenv("M") ? std::stoi(std::getenv("M")) : 32;
+const size_t N = std::getenv("N") ? std::stoi(std::getenv("N")) : 256;
+const size_t K = std::getenv("K") ? std::stoi(std::getenv("K")) : 2500;
 
 std::vector<std::vector<ov::test::InputShape>> fc_input_shapes{
     {
-        {PartialShape{}, {{1, 1, M, K}}},
-        {{}, {{K, N}}}
+        {PartialShape{}, {{2, 1, 32, 2500}}},
+        {{}, {{2500, 256}}}
     },
 };
 
