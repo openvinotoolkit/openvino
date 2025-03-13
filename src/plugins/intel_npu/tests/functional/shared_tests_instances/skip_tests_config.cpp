@@ -247,53 +247,56 @@ std::vector<std::string> disabledTestPatterns() {
         const AvailableDevices devices;
         const CurrentOS currentOS;
 
-        // Check if skip xml is set to be read
-        const auto& filePath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_SKIP_CONFIG_FILE;
-        if (filePath.empty()) {
-            _log.warning("OV_NPU_TESTS_SKIP_CONFIG_FILE not set");
-        } else {
-            _log.info("Using %s as skip config", filePath.c_str());
-        }
-
-        auto xmlResult = ov::util::pugixml::parse_xml(filePath.c_str());
-        if (!xmlResult.error_msg.empty() && !filePath.empty()) {
-            _log.error(xmlResult.error_msg.c_str());
-        }
-
-        pugi::xml_document& xmlSkipConfig = *xmlResult.xml;
-
-        // Select the parent node
-        pugi::xml_node skipConfigsList = xmlSkipConfig.child("skip_configs");
-
-        // Iterate through each skip rule
-        FOREACH_CHILD (skipConfigRule, skipConfigsList, "skip_config") {
-            // Extract skip message, it will get printed in the test logs
-            auto skipMessageEntry = skipConfigRule.child("message").text().get();
-
-            // Read enable/disable conditions
-            // There can be multiple rules for each category
-            // If "!" is found, then rule is inverted
-            pugi::xml_node enableRules = skipConfigRule.child("enable_rules");
-            bool ruleFlag = true;
-            if (!enableRules.empty()) {
-                // Accumulate rule for each category
-                ruleFlag &= categoryRuleEnabler("backend", {backendName.getName()}, enableRules);
-                ruleFlag &= categoryRuleEnabler("device", devices.getAvailableDevices(), enableRules);
-                ruleFlag &= categoryRuleEnabler("operating_system", {currentOS.getName()}, enableRules);
+        try {
+            const auto& filePath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_SKIP_CONFIG_FILE;
+            // Check if skip xml path is set and read it
+            if (filePath.empty()) {
+                _log.warning("OV_NPU_TESTS_SKIP_CONFIG_FILE not set");
+                throw std::runtime_error("Using legacy skip config");
+            } else {
+                _log.info("Using %s as skip config", filePath.c_str());
             }
 
-            // Select individual filters and add them to the skipRegistry
-            pugi::xml_node skipFiltersList = skipConfigRule.child("filters");
-            FOREACH_CHILD (skipFilter, skipFiltersList, "filter") {
-                auto skipFilterEntry = skipFilter.text().get();
-                // Add skip to registry
-                _skipRegistry.addPatterns(ruleFlag, skipMessageEntry, {skipFilterEntry});
+            auto xmlResult = ov::util::pugixml::parse_xml(filePath.c_str());
+            // Error returned from pugixml, fallback to legacy skips
+            if (!xmlResult.error_msg.empty()) {
+                _log.error(xmlResult.error_msg.c_str());
+                throw std::runtime_error("Using legacy skip config");
             }
-        }
 
-        // OV_NPU_TESTS_SKIP_CONFIG_FILE not present
-        if (filePath.empty() || !xmlResult.error_msg.empty()) {
-            _log.warning("Using legacy skip config");
+            pugi::xml_document& xmlSkipConfig = *xmlResult.xml;
+
+            // Select the parent node
+            pugi::xml_node skipConfigsList = xmlSkipConfig.child("skip_configs");
+
+            // Iterate through each skip rule
+            FOREACH_CHILD (skipConfigRule, skipConfigsList, "skip_config") {
+                // Extract skip message, it will get printed in the test logs
+                auto skipMessageEntry = skipConfigRule.child("message").text().get();
+
+                // Read enable/disable conditions
+                // There can be multiple rules for each category
+                // If "!" is found, then rule is inverted
+                pugi::xml_node enableRules = skipConfigRule.child("enable_rules");
+                bool ruleFlag = true;
+                if (!enableRules.empty()) {
+                    // Accumulate rule for each category
+                    ruleFlag &= categoryRuleEnabler("backend", {backendName.getName()}, enableRules);
+                    ruleFlag &= categoryRuleEnabler("device", devices.getAvailableDevices(), enableRules);
+                    ruleFlag &= categoryRuleEnabler("operating_system", {currentOS.getName()}, enableRules);
+                }
+
+                // Select individual filters and add them to the skipRegistry
+                pugi::xml_node skipFiltersList = skipConfigRule.child("filters");
+                FOREACH_CHILD (skipFilter, skipFiltersList, "filter") {
+                    auto skipFilterEntry = skipFilter.text().get();
+                    // Add skip to registry
+                    _skipRegistry.addPatterns(ruleFlag, skipMessageEntry, {skipFilterEntry});
+                }
+            }
+        } catch (const std::runtime_error& e) {
+            // Fallback to legacy skips
+            _log.warning(e.what());
 
             // clang-format off
 
@@ -896,7 +899,7 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*OVClassModelOptionalTestP.CompileModelCreateDefaultExecGraphResult.*",
         });
 
-        // OV_NPU_TESTS_SKIP_CONFIG_FILE not present
+        // catch () -> Fallback legacy skips
         }
         return _skipRegistry;
     }();
