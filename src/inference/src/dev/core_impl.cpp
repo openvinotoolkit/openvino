@@ -234,8 +234,8 @@ ov::SoPtr<ov::ICompiledModel> import_compiled_model(const ov::Plugin& plugin,
                 cfg[ov::hint::model.name()] = std::const_pointer_cast<ov::Model>(model_ptr);
             }
             ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size()};
-            std::istream empty{&buffer};
-            compiled_model = context ? plugin.import_model(empty, context, cfg) : plugin.import_model(empty, cfg);
+            std::istream stream{&buffer};
+            compiled_model = context ? plugin.import_model(stream, context, cfg) : plugin.import_model(stream, cfg);
         } catch (...) {
         }
     }
