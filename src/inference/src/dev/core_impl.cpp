@@ -220,6 +220,21 @@ ov::util::Path extract_weight_path(const std::string& compiled_properties) {
         return {};
     }
 }
+
+ov::SoPtr<ov::ICompiledModel> import_compiled_model(const ov::Plugin& plugin,
+                                                    const ov::SoPtr<ov::IRemoteContext>& context,
+                                                    const ov::AnyMap& config) {
+    ov::SoPtr<ov::ICompiledModel> compiled_model;
+    if (config.count(ov::hint::compiled_blob.name())) {
+        try {
+            std::ifstream empty{};
+            compiled_model = context ? plugin.import_model(empty, context, config) : plugin.import_model(empty, config);
+        } catch (...) {
+        }
+    }
+
+    return compiled_model;
+}
 }  // namespace
 
 bool ov::is_config_applicable(const std::string& user_device_name, const std::string& subprop_device_name) {
@@ -783,11 +798,13 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, coreConfig, config_with_batch, is_proxy_device(deviceName));
     auto plugin = get_plugin(parsed._deviceName);
-    ov::SoPtr<ov::ICompiledModel> res;
     // will consume ov::cache_dir if plugin not support it
     auto cacheManager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
+    auto res = import_compiled_model(plugin, {}, parsed._config);
     // Skip caching for proxy plugin. HW plugin will load network from the cache
-    if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
+    if (res) {
+        // hint::compiled_blob is set and imported skip compilation
+    } else if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
         cacheContent.model = std::const_pointer_cast<ov::Model>(model);
@@ -818,11 +835,13 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, coreConfig, config_with_batch, is_proxy_device(deviceName));
     auto plugin = get_plugin(parsed._deviceName);
-    ov::SoPtr<ov::ICompiledModel> res;
     // will consume ov::cache_dir if plugin not support it
     auto cacheManager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
+    auto res = import_compiled_model(plugin, context, parsed._config);
     // Skip caching for proxy plugin. HW plugin will load network from the cache
-    if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
+    if (res) {
+        // hint::compiled_blob is set and imported skip compilation
+    } else if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
@@ -843,11 +862,13 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     auto parsed = parse_device_config(device_name, coreConfig, config, false);
     // in case of compile_model(file_name), we need to clear-up core-level properties
     auto plugin = get_plugin(parsed._deviceName);
-    ov::SoPtr<ov::ICompiledModel> compiled_model;
     // will consume ov::cache_dir if plugin not support it
     auto cacheManager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
+    auto compiled_model = import_compiled_model(plugin, {}, parsed._config);
 
-    if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
+    if (compiled_model) {
+        // hint::compiled_blob is set and imported skip compilation
+    } else if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
         // Skip caching for proxy plugin. HW plugin will load network from the cache
         CoreConfig::remove_core_skip_cache_dir(parsed._config);
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap(), model_path};
@@ -871,11 +892,13 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::compile_model::from_memory");
     auto parsed = parseDeviceNameIntoConfig(device_name, coreConfig, config);
     auto plugin = get_plugin(parsed._deviceName);
-    ov::SoPtr<ov::ICompiledModel> compiled_model;
     // will consume ov::cache_dir if plugin not support it
     auto cacheManager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
+    auto compiled_model = import_compiled_model(plugin, {}, parsed._config);
     // Skip caching for proxy plugin. HW plugin will load network from the cache
-    if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
+    if (compiled_model) {
+        // hint::compiled_blob is set and imported skip compilation
+    } else if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
         cacheContent.blobId =
             ov::ModelCache::compute_hash(model_str, weights, create_compile_config(plugin, parsed._config));
@@ -1510,30 +1533,17 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                         update_config[ov::hint::model.name()] = cacheContent.model;
                     }
                 }
+
                 if (model_buffer) {
                     auto compiled_blob =
-                        Tensor(element::from<char>(), Shape{model_buffer->size()}, model_buffer->get_ptr());
+                        Tensor(element::from<uint8_t>(), Shape{model_buffer->size()}, model_buffer->get_ptr());
                     auto impl = get_tensor_impl(compiled_blob);
                     impl._so = model_buffer;
                     compiled_blob = make_tensor(impl);
                     update_config[ov::hint::compiled_blob.name()] = compiled_blob;
                 }
-
-                if (update_config.count(ov::weights_path.name()) != 0) {
-                    if (!model_buffer) {
-                        auto size = networkStream.rdbuf()->in_avail();
-                        ov::Tensor model_blob{element::from<char>(), ov::Shape{static_cast<size_t>(size)}};
-                        networkStream.read(model_blob.data<char>(), model_blob.get_byte_size());
-                        update_config[ov::hint::compiled_blob.name()] = model_blob;
-                    }
-
-                    compiled_model = context ? plugin.compile_model(cacheContent.model, context, update_config)
-                                             : plugin.compile_model(cacheContent.model, update_config);
-                } else {
-                    // regular blob stream, can be imported or fail if there is no weights
-                    compiled_model = context ? plugin.import_model(networkStream, context, update_config)
-                                             : plugin.import_model(networkStream, update_config);
-                }
+                compiled_model = context ? plugin.import_model(networkStream, context, update_config)
+                                         : plugin.import_model(networkStream, update_config);
             });
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work

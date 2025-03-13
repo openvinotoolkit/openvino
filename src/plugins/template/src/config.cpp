@@ -14,10 +14,7 @@ Configuration::Configuration() {}
 
 Configuration::Configuration(const ov::AnyMap& config, const Configuration& defaultCfg, bool throwOnUnsupported) {
     *this = defaultCfg;
-    for (auto&& c : config) {
-        const auto& key = c.first;
-        const auto& value = c.second;
-
+    for (auto&& [key, value] : config) {
         if (ov::template_plugin::disable_transformations == key) {
             disable_transformations = value.as<bool>();
         } else if (ov::internal::exclusive_async_requests == key) {
@@ -90,6 +87,8 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
             if (!weights_path.empty()) {
                 compiled_model_runtime_properties[ov::weights_path.name()] = weights_path.string();
             }
+        } else if (ov::cache_mode == key) {
+            cache_mode = value.as<CacheMode>();
         } else if (throwOnUnsupported) {
             OPENVINO_THROW("Property was not found: ", key);
         }
@@ -127,6 +126,8 @@ ov::Any Configuration::Get(const std::string& name) const {
         return weights_path.string();
     } else if (name == ov::internal::compiled_model_runtime_properties) {
         return compiled_model_runtime_properties;
+    } else if (name == ov::cache_mode) {
+        return cache_mode;
     } else {
         OPENVINO_THROW("Property was not found: ", name);
     }

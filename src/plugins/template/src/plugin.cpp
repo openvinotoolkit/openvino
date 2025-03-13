@@ -38,23 +38,51 @@ uint64_t get_blob_data_size(std::istream& model) {
 
 std::string get_model_str(std::istream& model) {
     const auto model_size = get_blob_data_size(model);
-    std::cout << "read size: " << model_size << std::endl;
     std::string xml;
     xml.resize(model_size);
     model.read(xml.data(), model_size);
     return xml;
 }
 
-ov::Tensor read_wights(std::istream& model, const size_t weights_size) {
-    ov::Tensor weights(ov::element::from<char>(), ov::Shape{weights_size});
-    model.read(weights.data<char>(), weights_size);
+ov::Tensor read_weights(std::istream& model, const size_t weights_size) {
+    ov::Tensor weights(ov::element::from<uint8_t>(), ov::Shape{weights_size});
+    model.read(reinterpret_cast<char*>(weights.data()), weights_size);
     return weights;
 }
 
 ov::Tensor get_model_weights(std::istream& model) {
     const auto weights_size = get_blob_data_size(model);
-    return weights_size != 0 ? read_wights(model, weights_size) : ov::Tensor();
+    return weights_size != 0 ? read_weights(model, weights_size) : ov::Tensor();
 }
+
+ov::Tensor get_model_weights(const ov::AnyMap& properties) {
+    ov::Tensor weights;
+    if (auto weights_path = properties.find(ov::weights_path.name()); weights_path != properties.end()) {
+        const auto w_path = std::filesystem::path(weights_path->second.as<std::string>());
+        if (auto size = ov::util::file_size(w_path); size > 0) {
+            auto f_weights = std::ifstream(w_path, std::ios::binary | std::ios::in);
+            weights = read_weights(f_weights, size);
+        }
+    }
+    return weights;
+}
+
+std::shared_ptr<ov::Model> get_ov_model_from_blob(const ov::template_plugin::Plugin& plugin,
+                                                  const ov::AnyMap& properties) {
+    if (auto blob_it = properties.find(ov::hint::compiled_blob.name()); blob_it != properties.end()) {
+        if (auto&& blob = blob_it->second.as<ov::Tensor>(); blob) {
+            ov::SharedStreamBuffer shared_buffer(reinterpret_cast<char*>(blob.data()), blob.get_byte_size());
+            std::istream blob_stream(&shared_buffer);
+            const auto model = get_model_str(blob_stream);
+            auto weights = get_model_weights(properties);
+            if (!weights) {
+                weights = get_model_weights(blob_stream);
+            }
+            return weights ? plugin.get_core()->read_model(model, weights) : nullptr;
+        }
+    }
+    return nullptr;
+};
 }  // namespace
 
 // ! [plugin:ctor]
@@ -138,6 +166,7 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
         auto _properties = properties;
         // remove not supported properties which are consumed by compile_model
         _properties.erase(ov::loaded_from_cache.name());
+        _properties.erase(ov::hint::model.name());
         _properties.erase(ov::hint::compiled_blob.name());
         fullConfig = Configuration{_properties, m_cfg};
     }
@@ -150,30 +179,6 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
     fullConfig.streams = streamsExecutorConfig.get_streams();
     fullConfig.threads = streamsExecutorConfig.get_threads();
     fullConfig.threads_per_stream = streamsExecutorConfig.get_threads_per_stream();
-
-    auto get_ov_model_from_blob = [](const Plugin& plugin, const AnyMap& properties) -> std::shared_ptr<ov::Model> {
-        Tensor weights;
-        if (auto weights_path = properties.find(ov::weights_path.name()); weights_path != properties.end()) {
-            const auto w_path = std::filesystem::path(weights_path->second.as<std::string>());
-            if (auto size = util::file_size(w_path); size > 0) {
-                auto f_weights = std::ifstream(w_path, std::ios::binary | std::ios::in);
-                weights = read_wights(f_weights, size);
-            }
-        }
-
-        if (auto blob_it = properties.find(ov::hint::compiled_blob.name()); blob_it != properties.end()) {
-            if (auto&& blob = blob_it->second.as<ov::Tensor>(); blob) {
-                ov::SharedStreamBuffer shared_buffer(reinterpret_cast<char*>(blob.data()), blob.get_byte_size());
-                std::istream blob_stream(&shared_buffer);
-                const auto model = get_model_str(blob_stream);
-                if (!weights) {
-                    weights = get_model_weights(blob_stream);
-                }
-                return weights ? plugin.get_core()->read_model(model, weights) : nullptr;
-            }
-        }
-        return nullptr;
-    };
 
     auto ov_model = get_ov_model_from_blob(*this, properties);
     bool loaded_from_cache = false;
@@ -220,18 +225,26 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
         loaded_from_cache = it->second.as<bool>();
         _properties.erase(it);
     }
+    _properties.erase(ov::hint::model.name());
+    _properties.erase(ov::hint::compiled_blob.name());
 
     auto fullConfig = Configuration{_properties, m_cfg};
     fullConfig.streams_executor_config = ov::threading::IStreamsExecutor::Config{stream_executor_name,
                                                                                  fullConfig.streams,
                                                                                  fullConfig.threads_per_stream};
-    // read XML content
-    std::string xmlString = get_model_str(model);
+    auto ov_model = get_ov_model_from_blob(*this, properties);
+    auto weights = get_model_weights(properties);
+    if (!ov_model) {
+        // read XML content
+        std::string xmlString = get_model_str(model);
 
-    // read blob content
-    auto weights = get_model_weights(model);
+        // read blob content
+        if (!weights) {
+            weights = get_model_weights(model);
+        }
 
-    auto ov_model = get_core()->read_model(xmlString, weights);
+        ov_model = get_core()->read_model(xmlString, weights);
+    }
     auto streamsExecutorConfig =
         ov::threading::IStreamsExecutor::Config::make_default_multi_threaded(fullConfig.streams_executor_config);
     fullConfig.streams = streamsExecutorConfig.get_streams();

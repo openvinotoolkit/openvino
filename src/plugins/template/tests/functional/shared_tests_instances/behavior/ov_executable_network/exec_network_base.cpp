@@ -74,11 +74,10 @@ std::shared_ptr<Model> make_model_with_weights() {
 TEST_P(OVCompiledModelBaseTest, import_from_weightless_blob) {
     const auto w_file_path =
         ov::util::path_join({utils::getCurrentWorkingDir(), utils::generateTestFilePrefix() + "_weights.bin"});
-    // TEMPLATE will export model as weightless blob.
-    configuration.emplace(ov::weights_path(w_file_path.string()));
 
     std::stringstream export_stream;
     {
+        configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
         auto model = make_model_with_weights();
         auto compiled_model = core->compile_model(model, target_device, configuration);
         ASSERT_FALSE(!compiled_model);
@@ -92,7 +91,7 @@ TEST_P(OVCompiledModelBaseTest, import_from_weightless_blob) {
 
 TEST_P(OVCompiledModelBaseTest, compile_from_regular_blob) {
     auto compiled_model_ref = core->compile_model(make_model_with_weights(), target_device, configuration);
-    ASSERT_FALSE(!compiled_model_ref);
+    ASSERT_TRUE(compiled_model_ref);
     Tensor exported_model;
     {
         std::stringstream export_stream;
@@ -129,20 +128,20 @@ TEST_P(OVCompiledModelBaseTest, compile_from_weightless_blob) {
         ov::util::path_join({utils::getCurrentWorkingDir(), utils::generateTestFilePrefix() + "_weights.bin"});
 
     Tensor exported_model;
-    // add weights the TEMPLATE will export model as weightless blob.
-    configuration.emplace(ov::weights_path(w_file_path.string()));
     {
         std::stringstream export_stream;
+        auto export_cfg = configuration;
+        configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
         auto model = make_model_with_weights(weights);
-        auto compiled_model_ref = core->compile_model(model, target_device, configuration);
-        ASSERT_FALSE(!compiled_model_ref);
+        auto compiled_model_ref = core->compile_model(model, target_device, export_cfg);
+        ASSERT_TRUE(compiled_model_ref);
         compiled_model_ref.export_model(export_stream);
         exported_model = from_stream(export_stream, export_stream.str().size());
     }
 
     auto expected = utils::create_tensor(element::f32, Shape{5}, std::vector<float>{3.0f, 5.0f, 3.0f, 3.0f, 3.0f});
     {
-        // store weights in file, not same as in orignal model model
+        // store weights in file, not same as in original model model
         auto w = utils::create_tensor(element::f32, Shape{5}, std::vector<float>{1.0f, 3.0f, 1.0f, 1.0f, 1.0f});
         auto w_file = std::ofstream(w_file_path, std::ios::binary);
         w_file.write(reinterpret_cast<const char*>(w.data()), w.get_byte_size());
@@ -152,6 +151,7 @@ TEST_P(OVCompiledModelBaseTest, compile_from_weightless_blob) {
     auto input = utils::create_tensor(element::f32, Shape{1}, std::vector<float>{2.0f});
     // Infer compiled from weightless stream
     {
+        configuration.emplace(ov::weights_path(w_file_path.string()));
         configuration.emplace(ov::hint::compiled_blob(exported_model));
         auto empty_model = std::make_shared<Model>(OutputVector{}, ParameterVector{}, "Empty model");
         auto import_model = core->compile_model(empty_model, target_device, configuration);
@@ -170,13 +170,13 @@ TEST_P(OVCompiledModelBaseTest, compile_from_weightless_blob_but_no_weights) {
     auto w_file_path =
         ov::util::path_join({utils::getCurrentWorkingDir(), utils::generateTestFilePrefix() + "_weights.bin"});
 
-    // add weights the TEMPLATE will export model as weightless blob.
-    configuration.emplace(ov::weights_path(w_file_path.string()));
     auto model = make_model_with_weights();
     {
-        auto compiled_model_ref = core->compile_model(model, target_device, configuration);
+        auto export_cfg = configuration;
+        configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+        auto compiled_model_ref = core->compile_model(model, target_device, export_cfg);
         std::stringstream export_stream;
-        ASSERT_FALSE(!compiled_model_ref);
+        ASSERT_TRUE(compiled_model_ref);
         compiled_model_ref.export_model(export_stream);
         exported_model = from_stream(export_stream, export_stream.str().size());
     }
@@ -187,6 +187,7 @@ TEST_P(OVCompiledModelBaseTest, compile_from_weightless_blob_but_no_weights) {
     // Infer compiled from weightless stream and no weights use original model
     {
         configuration.emplace(ov::hint::compiled_blob(exported_model));
+        configuration.emplace(ov::weights_path(w_file_path.string()));
         auto import_model = core->compile_model(model, target_device, configuration);
         auto infer_request_import = import_model.create_infer_request();
         infer_request_import.set_tensor("input", input);
@@ -209,19 +210,19 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_use_hint) {
         w_file.write(reinterpret_cast<const char*>(w.data()), w.get_byte_size());
     }
 
-    // add weights the TEMPLATE will export model as weightless blob.
+    configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
     configuration.emplace(ov::weights_path(w_file_path.string()));
     configuration.emplace(ov::cache_dir(cache_dir));
     auto model = make_model_with_weights();
 
     {
         auto compiled_model = core->compile_model(model, target_device, configuration);
-        ASSERT_FALSE(!compiled_model);
+        ASSERT_TRUE(compiled_model);
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache.name()).as<bool>());
     }
     {
         auto compiled_model = core->compile_model(model, target_device, configuration);
-        ASSERT_FALSE(!compiled_model);
+        ASSERT_TRUE(compiled_model);
         EXPECT_TRUE(compiled_model.get_property(ov::loaded_from_cache.name()).as<bool>());
     }
 
@@ -239,20 +240,20 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_no_hint) {
         w_file.write(reinterpret_cast<const char*>(w.data()), w.get_byte_size());
     }
 
-    // add weights the TEMPLATE will export model as weightless blob.
     configuration.emplace(ov::cache_dir(cache_dir));
     auto model = make_model_with_weights();
 
     {
         auto cfg_with_hint = configuration;
         cfg_with_hint.emplace(ov::weights_path(w_file_path.string()));
+        cfg_with_hint.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
         auto compiled_model = core->compile_model(model, target_device, configuration);
-        ASSERT_FALSE(!compiled_model);
+        ASSERT_TRUE(compiled_model);
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache.name()).as<bool>());
     }
     {
         auto compiled_model = core->compile_model(model, target_device, configuration);
-        ASSERT_FALSE(!compiled_model);
+        ASSERT_TRUE(compiled_model);
         EXPECT_TRUE(compiled_model.get_property(ov::loaded_from_cache.name()).as<bool>());
     }
 
@@ -264,20 +265,19 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_but_no_weigh
     auto w_file_path = cache_dir / (utils::generateTestFilePrefix() + "_weights.bin");
     std::filesystem::create_directories(cache_dir);
 
-    // add weights the TEMPLATE will export model as weightless blob.
-    configuration.emplace(ov::weights_path(w_file_path.string()));
+    configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
     configuration.emplace(ov::cache_dir(cache_dir));
     auto model = make_model_with_weights();
 
     {
         auto compiled_model = core->compile_model(model, target_device, configuration);
-        ASSERT_FALSE(!compiled_model);
+        ASSERT_TRUE(compiled_model);
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache.name()).as<bool>());
     }
     {
         // model not loaded from cache as no weights on path
         auto compiled_model = core->compile_model(model, target_device, configuration);
-        ASSERT_FALSE(!compiled_model);
+        ASSERT_TRUE(compiled_model);
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache.name()).as<bool>());
     }
 
