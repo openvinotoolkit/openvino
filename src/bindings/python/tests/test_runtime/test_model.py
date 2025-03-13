@@ -743,7 +743,7 @@ def test_rt_info_gil():
     model = generate_add_model()
 
     from enum import Enum
-    
+
     class EnumInfo(Enum):
         INFO_A: str = "info_a"
 
