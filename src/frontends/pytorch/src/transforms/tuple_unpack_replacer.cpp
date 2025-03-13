@@ -30,6 +30,12 @@ PrimTupleUnpackReplacer::PrimTupleUnpackReplacer() {
         auto input_node = tuple_unpack->get_input_node_shared_ptr(0);
         auto tuple_construct = cast_fw_node(input_node, "prim::TupleConstruct");
         if (!tuple_construct) {
+            if(!ov::as_type_ptr<ov::op::util::FrameworkNode>(input_node)) {
+                // remove TupleUnpack just bypassing it with all outputs from any op except FrameworkNode
+                // We are leaving FrameworkNode case for further processing
+                replace_node(tuple_unpack, input_node->outputs());
+                return true;
+            }
             return false;
         }
         for (const auto& input : input_node->inputs()) {
