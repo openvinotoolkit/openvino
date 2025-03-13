@@ -2,6 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+
+// #if __OPENCL_C_VERSION__ >= CL_VERSION_3_0
+  #pragma OPENCL EXTENSION cl_ext_float_atomics : enable
+  #define atomicadd(a,b) atomic_fetch_add((volatile atomic_float *)(a),(b)) 
+// #else
+//   inline float atomicadd(volatile __global float* address, const float value) {
+//     float old = value, orig;
+//     while ((old = atomic_xchg(address, (orig = atomic_xchg(address, 0.0f)) + old)) != 0.0f);
+//     return orig;
+//   }
+// #endif
+
+inline int calcDivisor(int idx, int frameSize, int frameStep, int bufferSize) {
+    int earliestStartIdx = max(0,idx-frameSize+1);
+    int realStartIdx = ((earliestStartIdx+frameStep-1)/frameStep)*frameStep;
+    int lastPossibleIdx = bufferSize-frameSize;
+
+    if(lastPossibleIdx<realStartIdx)
+        return 0;
+
+    int ret = ((min(lastPossibleIdx,idx)-realStartIdx)/frameStep) + 1;
+    return ret;
+}
+
 // alternative: https://github.com/OpenCL/ComplexMath/blob/master/clcomplex.h
 typedef float2 cfloat;
 #define real(a)      ((a).s0)
@@ -15,12 +39,14 @@ typedef float2 cfloat;
 #define czero()      ((cfloat)(0))
 #define conj(x)      ((cfloat)(real(x), -imag(x)))
 
-// Unoptimized, the most obvious stft impl from the definition.
+// Unoptimized, the most obvious istft impl from the definition.
+// __attribute__((reqd_work_group_size(1, 1, 128)))
+// __attribute__((intel_reqd_sub_group_size(16)))
 KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict signal,
                   const __global INPUT1_TYPE* restrict window,
                   const __global INPUT2_TYPE* restrict frame_size_buff,
                   const __global INPUT3_TYPE* restrict frame_step_buff,
-                  __global OUTPUT_TYPE* restrict output) {
+                  volatile __global OUTPUT_TYPE* restrict output) {
     const int batch = get_global_id(0);
     const int frame_id = get_global_id(1);
     const int window_id = get_global_id(2);
@@ -37,6 +63,11 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
     //        INPUT0_FEATURE_NUM,
     //        INPUT0_SIZE_Y,
     //        INPUT0_SIZE_X);
+
+    // TEMP: 'Memset' at the begining
+    const int frameOffset = frame_id * frame_step;
+    const int offset = OUTPUT_GET_INDEX(0, 0, batch, window_id + frameOffset);
+    output[offset]=0;
 
     const float windowVal = (float)window[window_id];
 
@@ -72,13 +103,21 @@ KERNEL(istft_ref)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* restrict s
 
     // printf("window_id=%i, real(res)=%f\n", window_id, real(res)/frame_size);
 
+    const int divisor = calcDivisor(window_id + frameOffset, frame_size, frame_step, OUTPUT_SIZE_X);
     // TODO: handle case when windowVal == 0.0
-    const float finalVAl = finalIRDFTVal / windowVal;
-
-    const int frameOffset = frame_id * frame_step;
+    const float finalVAl = (finalIRDFTVal / windowVal)/((float)divisor);
 
     // TODO: Handle sumation from different frames...(atomics?)
     const OUTPUT_TYPE finalVal = (OUTPUT_TYPE)(finalVAl);
 
-    output[OUTPUT_GET_INDEX(0, 0, batch, window_id + frameOffset)] = finalVal;
+    // if( offset == 2 )
+        // printf("idx: %i, finalVal: %f, divisior: %i\n", offset, finalVal, divisor);
+
+    // *(output+offset)=finalVal;
+
+    const float prev = atomicadd(output+offset, finalVal);
+
+    //printf("idx: %i, finalVal: %f, divisior: %i, prev: %f\n", offset, finalVal, divisor, prev);
+
+    //output[OUTPUT_GET_INDEX(0, 0, batch, window_id + frameOffset)] = finalVal;
 }
