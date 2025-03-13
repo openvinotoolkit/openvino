@@ -1986,9 +1986,6 @@ void TopK::initSupportedPrimitiveDescriptors() {
                                                            ov::element::u8};
 
     ov::element::Type dataPrecision = getOriginalOutputPrecisionAtPort(TOPK_DATA);
-    if (dataPrecision == ov::element::bf16 && !hasHardwareSupport(ov::element::bf16)) {
-        THROW_CPU_NODE_ERR("gets incorrect isa for BF16!");
-    }
     bool precisionSupported = std::find(std::begin(supportedPrecision), std::end(supportedPrecision), dataPrecision) !=
                               std::end(supportedPrecision);
     // BF16 is not supported for AVX2_VNNI_2 platforms

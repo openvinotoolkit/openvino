@@ -306,12 +306,11 @@ void SubgraphBaseTest::compile_model() {
         std::cout << "[ PLUGIN      ] `SubgraphBaseTest::compile_model()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
     }
     try {
-        inference_precision = core->get_property(targetDevice, ov::hint::inference_precision);
-        // for avx2_vnni_2 platforms use the set inference_precision hint in case generate higher threshold during
-        // following calculate_thresholds stage
-        if (ov::with_cpu_x86_avx2_vnni_2() &&
-            configuration.find(ov::hint::inference_precision.name()) != configuration.end()) {
-            inference_precision = configuration.at(ov::hint::inference_precision.name()).as<ov::element::Type>();
+        // TODO: use this compiledModel property for all platforms when the new failed testcases are fixed
+        if (ov::with_cpu_x86_avx2_vnni()) {
+            inference_precision = compiledModel.get_property(ov::hint::inference_precision);
+        } else {
+            inference_precision = core->get_property(targetDevice, ov::hint::inference_precision);
         }
     } catch (std::exception& e) {
         std::cout << "[ WARNING ] Impossible to get Inference Precision with exception: " << e.what() << std::endl;

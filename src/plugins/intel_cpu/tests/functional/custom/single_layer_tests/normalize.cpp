@@ -65,7 +65,7 @@ protected:
             selectedType = getPrimitiveType();
         }
         // BF16 is not supported for NormalizeL2 on AVX2_VNNI_2 platforms
-        if (ov::with_cpu_x86_avx2_vnni_2() && inType == ElementType::bf16) {
+        if (with_cpu_x86_avx2_vnni_2() && inType == ElementType::bf16) {
             selectedType = makeSelectedTypeStr("unknown", ElementType::f32);
         } else {
             selectedType = makeSelectedTypeStr("unknown", inType);

@@ -179,8 +179,7 @@ static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 
             prc.emplace_back(std::vector<element::Type>{element::u8, element::i8});
         }
         // In Snippets MatMul BF16 is supported only on bf16/AMX platforms
-        if ((ov::with_cpu_x86_bfloat16() && !ov::with_cpu_x86_avx2_vnni_2()) ||
-            ov::with_cpu_x86_avx512_core_amx_bf16()) {
+        if (ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx512_core_amx_bf16()) {
             prc.emplace_back(std::vector<element::Type>{element::bf16, element::bf16});
         }
     }
