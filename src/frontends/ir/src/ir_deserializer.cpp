@@ -44,18 +44,30 @@ namespace {
  * @return A set of unique tensor names.
  */
 std::unordered_set<std::string> deserialize_tensor_names(const std::string_view& tensor_names) {
-    // tensor names are separated by comma, but ignore escaped comma
-    static const auto splitter = std::regex(R"((?:[^\\,\n]|\\.)+)");
+    static const auto escaped_delim = std::regex(R"(\\,)");
+    constexpr auto delim = ",";
+    constexpr auto esc_char = '\\';
 
     auto output_names = std::unordered_set<std::string>();
-    std::transform(std::cregex_token_iterator{tensor_names.data(), tensor_names.data() + tensor_names.size(), splitter},
-                   std::cregex_token_iterator{},
-                   std::inserter(output_names, output_names.end()),
-                   [](const auto& token) {
-                       // If tensor name contains escaped comma, replace it with comma
-                       static const auto escaped_delim = std::regex(R"(\\,)");
-                       return std::regex_replace(token.str(), escaped_delim, ",");
-                   });
+    auto name_inserter = std::inserter(output_names, output_names.end());
+    for (size_t pos = tensor_names.find(delim), start = 0; start != std::string::npos;
+         pos = tensor_names.find(delim, pos)) {
+        if (pos == std::string::npos) {
+            if (auto name_view = tensor_names.substr(start); name_view.size() > 0) {
+                *name_inserter = std::regex_replace(std::string(name_view), escaped_delim, delim);
+            }
+            start = pos;
+        } else if (auto delim_pos = pos - 1; delim_pos != std::string::npos && tensor_names[delim_pos] == esc_char) {
+            ++pos;
+        } else {
+            if (auto length = pos - start; length > 0) {
+                *name_inserter =
+                    std::regex_replace(std::string(tensor_names.substr(start, length)), escaped_delim, delim);
+            }
+            start = ++pos;
+        }
+    }
+
     return output_names;
 }
 }  // namespace
