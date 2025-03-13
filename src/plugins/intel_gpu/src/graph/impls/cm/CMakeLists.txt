@@ -40,7 +40,7 @@ foreach(KERNEL IN LISTS KERNELS)
     get_filename_component(FILENAME ${KERNEL} NAME)
     add_custom_command(
         OUTPUT "${CODEGEN_CACHE_DIR}/cm_kernels/${FILENAME}"
-        COMMAND ${CMAKE_COMMAND} -E copy ${KERNEL} "${CODEGEN_CACHE_DIR}/cm_kernels/${FILENAME}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${KERNEL} "${CODEGEN_CACHE_DIR}/cm_kernels/${FILENAME}"
         DEPENDS ${KERNEL} "${CODEGEN_CACHE_DIR}/cm_kernels"
         COMMENT "Copying ${FILE} ${CODEGEN_CACHE_DIR}/cm_kernels"
     )

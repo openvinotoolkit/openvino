@@ -184,7 +184,7 @@ class Code2CHeaders(object):
 
 
         # Process kernel files
-        for filename in os.listdir(self.kernels_folder):
+        for filename in sorted(os.listdir(self.kernels_folder)):
             if filename.endswith(source_ext[self.language]):
                 filepath = os.path.join(self.kernels_folder, filename)
                 print('processing {}'.format(filename))
@@ -198,7 +198,7 @@ class Code2CHeaders(object):
         # Process batch header files in include directory
         include_dir = os.path.join(self.kernels_folder, 'include/batch_headers')
         if os.path.exists(include_dir):
-            for filename in os.listdir(include_dir):
+            for filename in sorted(os.listdir(include_dir)):
                 if filename.endswith(headers_ext[self.language]):
                     filepath = os.path.join(include_dir, filename)
                     map_entry = self.process_file(filepath, is_batch_header=True)

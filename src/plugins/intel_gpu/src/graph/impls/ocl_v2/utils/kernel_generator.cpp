@@ -115,7 +115,7 @@ std::string KernelGenerator::get_build_options(const RuntimeParams& params) cons
 
 JitConstants KernelGenerator::get_jit_constants(const RuntimeParams& params) const {
     auto jit = make_base_jit_constants(params);
-    jit.merge(make_tensors_jit_constants(params));
+    jit.add(make_tensors_jit_constants(params));
     jit.add(make_activation_jit_constants(activation_func::none, ov::element::dynamic, "", false, false));
     return jit;
 }

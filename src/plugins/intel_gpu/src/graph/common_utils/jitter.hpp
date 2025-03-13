@@ -161,10 +161,6 @@ struct JitConstants : public std::vector<JitConstant> {
         insert(end(), constants.begin(), constants.end());
     }
 
-    void merge(const JitConstants& jit) {
-        add(jit);
-    }
-
     void remove(const std::string& name) {
         erase(std::remove_if(begin(),
                              end(),

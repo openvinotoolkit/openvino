@@ -398,8 +398,8 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
 JitConstants make_indexing_jit_functions(const std::string& name, const layout& l) {
     JitConstants definitions;
     auto fmt = l.format;
-    JitTerm args{""};
-    JitTerm rank_suffix{""};
+    JitTerm args;
+    JitTerm rank_suffix;
     switch (fmt.dimension()) {
     case 8:
         args = JitTerm{"b, f, u, v, w, z, y, x"};

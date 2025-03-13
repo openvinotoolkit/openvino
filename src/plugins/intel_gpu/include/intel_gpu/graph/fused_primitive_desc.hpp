@@ -131,3 +131,8 @@ struct fused_primitive_desc_onednn {
 };
 #endif // ENABLE_ONEDNN_FOR_GPU
 } // namespace cldnn
+
+
+namespace ov::intel_gpu {
+    using FusedPrimitiveDesc = cldnn::fused_primitive_desc;
+}  // namespace ov::intel_gpu
