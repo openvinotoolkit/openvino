@@ -25,6 +25,7 @@ from openvino import (
     get_batch,
     serialize,
     save_model,
+    OVAny,
 )
 from openvino import Output
 from openvino.op.util import VariableInfo, Variable
@@ -736,6 +737,21 @@ def test_serialize_complex_rt_info(request, tmp_path):
 
     os.remove(xml_path)
     os.remove(bin_path)
+
+
+def test_rt_info_gil():
+    model = generate_add_model()
+
+    from enum import Enum
+    class EnumInfo(Enum):
+        INFO_A: str = "info_a"
+
+    core = Core()
+    model.set_rt_info(EnumInfo.INFO_A, "EnumInfo")
+    core.compile_model(model, "CPU")
+    assert model.get_rt_info("EnumInfo").value == EnumInfo.INFO_A
+    assert type(model.get_rt_info("EnumInfo").value) == EnumInfo
+    assert type(model.get_rt_info("EnumInfo")) == OVAny
 
 
 def test_model_add_remove_result_parameter_sink():
