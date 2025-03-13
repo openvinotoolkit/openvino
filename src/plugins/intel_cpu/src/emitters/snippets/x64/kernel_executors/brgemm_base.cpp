@@ -4,6 +4,7 @@
 
 #include "brgemm_base.hpp"
 
+#include "common/primitive_hashing_utils.hpp"
 #include "common/utils.hpp"
 #include "dnnl_extension_utils.h"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
@@ -70,15 +71,7 @@ size_t BrgemmBaseKernelConfig::StaticBaseParams::compute_hash(size_t hash_seed,
     HASH(dt_in1);
     HASH(dt_out);
     HASH(isa);
-    // for (int i = 0; i < post_ops.len(); i++) {
-    //     const auto& entry = post_ops.entry_[i];
-    //     HASH(entry.kind);
-    //     if (entry.kind == dnnl::primitive_kind::eltwise) {
-    //         HASH(entry.eltwise.alg);
-    //         HASH(entry.eltwise.alpha);
-    //         HASH(entry.eltwise.beta);
-    //     }
-    // }
+    dnnl::impl::primitive_hashing::get_post_op_hash(seed, post_ops);
     return seed;
 }
 
@@ -89,15 +82,6 @@ std::string BrgemmBaseKernelConfig::StaticBaseParams::to_string() const {
     PRINT(dt_in1);
     PRINT(dt_out);
     PRINT(isa);
-    // ss << "post_ops = ";
-    // for (int i = 0; i < post_ops.len(); i++) {
-    //     const auto& entry = post_ops.entry_[i];
-    //     ss << entry.kind << " ";
-    //     if (entry.kind == dnnl::primitive_kind::eltwise) {
-    //         ss << entry.eltwise.alg << " " << entry.eltwise.alpha << " " << entry.eltwise.beta << " ";
-    //     }
-    // }
-    // ss << "\n";
     return ss.str();
 }
 

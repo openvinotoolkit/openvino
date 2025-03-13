@@ -36,12 +36,17 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
     // Create helper which will compose postops based on the node configuration
     const auto& fused_ops = brgemm_node->get_postops();
 
-    const auto out_shape = ov::snippets::utils::get_preordered_vdims(expr->get_output_port(0));
-    const auto OC = out_shape.back();
-    if (!fused_ops.empty()) {
-        OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(OC),
-                        "Postops are supported only for static output channels");
-    }
+    const auto OC = [&]() {
+        const auto out_shape = ov::snippets::utils::get_preordered_vdims(expr->get_output_port(0));
+        const auto N = out_shape.back();
+        if (!fused_ops.empty()) {
+            OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(N),
+            "Postops are supported only for static output channels");
+        }
+        const auto& subtensor = expr->get_output_port_descriptor(0)->get_subtensor();
+        auto n_block = *subtensor.rbegin();
+        return ov::snippets::utils::is_full_dim_value(n_block) ? N : n_block;
+    }();
 
     // Form 2 types of shapes supported by postops
     const size_t tile_rank = 2;
