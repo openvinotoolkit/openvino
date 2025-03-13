@@ -270,9 +270,12 @@ using TensorVector = std::vector<Tensor>;
 ///              length of the file content and `offset`. Default value is [?].
 /// \param offset_in_bytes Read file starting from specified offset. Default is 0. The remining size of the file should
 /// be compatible with shape.
+/// \param mmap Use mmap that postpones real read from file until data is accessed. If mmap is used, the file
+///             should not be modified until returned tensor is destroyed.
 OPENVINO_API
 Tensor read_tensor_data(const std::filesystem::path& file_name,
                         const element::Type& element_type = element::u8,
                         const PartialShape& shape = PartialShape::dynamic(1),
-                        std::size_t offset_in_bytes = 0);
+                        std::size_t offset_in_bytes = 0,
+                        bool mmap = true);
 }  // namespace ov
