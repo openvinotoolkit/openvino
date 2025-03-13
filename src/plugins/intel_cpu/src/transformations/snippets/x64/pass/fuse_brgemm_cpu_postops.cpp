@@ -22,7 +22,10 @@ using PortDescriptorUtils = snippets::lowered::PortDescriptorUtils;
 pass::FuseBrgemmCPUPostops::FuseBrgemmCPUPostops() {
     MATCHER_SCOPE(FuseBrgemmCPUPostops);
     using namespace ov::pass::pattern;
-    auto m_brgemm = wrap_type<BrgemmCPU>(has_static_shape());
+    auto brgemm_predicate = [](const Output<Node>& output) {
+        return has_static_shape()(output) && consumers_count(1)(output);
+    };
+    auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
     auto m_optional_convert = optional<ov::snippets::op::ConvertSaturation>(m_brgemm);
 
     auto postop_input_predicate = [](const Output<Node>& output) {
