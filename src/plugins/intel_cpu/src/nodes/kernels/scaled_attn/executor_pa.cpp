@@ -1187,11 +1187,11 @@ static inline void dequant(float* dst, void* src, const size_t N, const size_t K
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
           std::enable_if_t<SRC_PREC == ov::element::u4 || SRC_PREC == ov::element::u8, bool> = true>
-void dequant(TDST* dst, uint8_t* src, const size_t N, const size_t K, const size_t group_size) {
+void dequant(TDST* dst, void* src, const size_t N, const size_t K, const size_t group_size) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
     // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
-    auto s = src;
+    auto s = reinterpret_cast<uint8_t*>(src);
     const size_t params_offset = sizeof(float) * 2;
     const size_t sub_byte_mulitplier = get_sub_byte_multiplier(SRC_PREC);
 
@@ -1883,11 +1883,7 @@ struct MHAHelper {
             auto block_number = block_table[i];
             for (size_t pq = 0; pq < q_len; pq++) {
                 for (size_t h = hq_beg; h < hq_end; h++) {
-                    auto sub_byte_multiplier = get_sub_byte_multiplier(present_value.get_precision());
-                    size_t v_stride = (block_number * present_value.m_strides[0] + hk * present_value.m_strides[1]) *
-                                      present_value.get_precision().size() / sub_byte_multiplier;
-                    auto* v_ptr = reinterpret_cast<typename element_type_traits<VALUE_PREC>::value_type*>(
-                        present_value.m_ptr.get() + v_stride);
+                    auto* v_ptr = present_value.ptr<typename element_type_traits<VALUE_PREC>::value_type>(block_number, hk);
                     attn_acc_value_block<typename element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(
                         _output.ptr<float>(ithr, pq, h),
                         _weight.ptr<float>(ithr, h, pq) + pv,
@@ -2075,11 +2071,7 @@ struct MHAHelper {
                 auto block_number = block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[b] + pv_in_blocks];
                 for (size_t pq = 0; pq < q_len; pq++) {
                     for (size_t h = hq_beg; h < hq_end; h++) {
-                        auto sub_byte_multiplier = get_sub_byte_multiplier(value_cache.get_precision());
-                        size_t v_stride = (block_number * value_cache.m_strides[0] + hk * value_cache.m_strides[1]) *
-                                          value_cache.get_precision().size() / sub_byte_multiplier;
-                        auto* v_ptr = reinterpret_cast<typename element_type_traits<VALUE_PREC>::value_type*>(
-                            value_cache.m_ptr.get() + v_stride);
+                        auto* v_ptr = value_cache.ptr<typename element_type_traits<VALUE_PREC>::value_type>(block_number, hk);
                         attn_acc_value_block<typename element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(
                             _output_bhl.ptr<float>(ithr, b, pq, h),
                             _weight_bhl.ptr<float>(b, h, pq) + pv,
@@ -2260,10 +2252,7 @@ struct MHA {
                 _helper._key_group_size,        // group_size
                 _helper._quant_key_bychannel);  // quant_by_channel
             if (q_is_xf16) {
-                auto sub_byte_multiplier = get_sub_byte_multiplier(v_cache.get_precision());
-                size_t v_stride = (block_number * v_cache.m_strides[0] + hk * v_cache.m_strides[1]) *
-                                  v_cache.get_precision().size() / sub_byte_multiplier;
-                auto* v_ptr = v_cache.m_ptr.get() + v_stride;
+                auto* v_ptr = v_cache.ptr<typename element_type_traits<VALUE_PREC>::value_type>(block_number, hk);
                 pack_32NxK<DATA_TYPE, VALUE_PREC>(
                     _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
                     v_ptr,
@@ -2276,10 +2265,7 @@ struct MHA {
             } else {
                 // need to decompress
                 if (!q_cache_is_same) {
-                    auto sub_byte_multiplier = get_sub_byte_multiplier(v_cache.get_precision());
-                    size_t v_stride = (block_number * v_cache.m_strides[0] + hk * v_cache.m_strides[1]) *
-                                      v_cache.get_precision().size() / sub_byte_multiplier;
-                    auto* v_ptr = v_cache.m_ptr.get() + v_stride;
+                    auto* v_ptr = v_cache.ptr<typename ov::element_type_traits<VALUE_PREC>::value_type>(block_number, hk);
                     dequant<DATA_TYPE, VALUE_PREC>(
                         _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
                         v_ptr,
@@ -2668,17 +2654,12 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 auto SV = v_cache.m_dims[3];
                 auto Hk = k_cache.m_dims[1];  // shape: [block, H, 32, S]
                 parallel_for2d(Hk, zero_tokens, [&](size_t h, size_t l) {
-                    auto set_zero =
-                        [](PlainTensor& cache, size_t block_number, size_t h, size_t l, size_t hidden_dims) {
-                            auto sub_byte_multiplier = get_sub_byte_multiplier(cache.get_precision());
-                            size_t cache_stride =
-                                (block_number * cache.stride(0) + h * cache.stride(1) + l * cache.stride(2)) *
-                                cache.get_precision().size() / sub_byte_multiplier;
-                            auto cache_ptr = cache.m_ptr.get() + cache_stride;
-                            std::memset(cache_ptr, 0, hidden_dims * cache.m_element_size / sub_byte_multiplier);
-                        };
-                    set_zero(k_cache, block_number, h, block_offset + l, S);
-                    set_zero(v_cache, block_number, h, block_offset + l, SV);
+                    // zero out key cache
+                    auto* key_cache_ptr = k_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type>(block_number, h, block_offset + l);
+                    std::memset(key_cache_ptr, 0, S * k_cache.m_element_size / get_sub_byte_multiplier(k_cache.get_precision()));
+                    // zero out value cache
+                    auto* value_cache_ptr = v_cache.ptr<typename ov::element_type_traits<VALUE_PREC>::value_type>(block_number, h, block_offset + l);
+                    std::memset(value_cache_ptr, 0, SV * v_cache.m_element_size / get_sub_byte_multiplier(v_cache.get_precision()));
                 });
             }
         }

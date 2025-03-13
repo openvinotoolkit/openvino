@@ -121,7 +121,7 @@ struct PlainTensor {
     }
 
     [[nodiscard]] size_t stride_bytes(int i) const {
-        return stride(i) * m_element_size;
+        return stride(i) * m_element_size / sub_byte_data_type_multiplier();
     }
 
     template <typename T>
@@ -383,6 +383,12 @@ struct PlainTensor {
         resize(new_dims, sizeof(DT), precision_of<DT>::value, data, strides);
     }
 
+    size_t sub_byte_data_type_multiplier() const {
+        if (one_of(m_dt, ov::element::i4, ov::element::u4))
+            return 2;
+        return 1;
+    }
+
     template <int dim>
     [[nodiscard]] int64_t offset() const {
         return m_offset;
@@ -397,12 +403,12 @@ struct PlainTensor {
     }
     template <typename DT, typename... Is>
     DT* ptr(Is... indices) const {
-        return reinterpret_cast<DT*>(m_ptr.get()) + offset<0>(indices...);
+        return reinterpret_cast<DT*>(m_ptr.get()) + offset<0>(indices...) / sub_byte_data_type_multiplier();
     }
 
     template <typename... Is>
     void* ptr_v(Is... indices) const {
-        return reinterpret_cast<void*>(m_ptr.get() + offset<0>(indices...) * m_element_size);
+        return reinterpret_cast<void*>(m_ptr.get() + offset<0>(indices...) * m_element_size / sub_byte_data_type_multiplier());
     }
 
     // when allow_broadcast is true, index to size-1 dim will always access 0.

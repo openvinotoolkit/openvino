@@ -184,6 +184,7 @@ static void find_params_by_channel(const T* src,
                                    float* zp,
                                    size_t bits) {
     size_t j = 0;
+    float integer_range = static_cast<float>((1 << bits) - 1);
 #if defined(HAVE_AVX512F)
     for (; j + vec_len_f32_avx512 <= hidden_dims; j += vec_len_f32_avx512) {
         auto v_max = _mm512_set1_ps(-std::numeric_limits<float>::max());
@@ -194,7 +195,7 @@ static void find_params_by_channel(const T* src,
             v_min = _mm512_min_ps(v_min, v_cur);
         }
         auto v_scale = _mm512_sub_ps(v_max, v_min);
-        v_scale = _mm512_mul_ps(v_scale, _mm512_set1_ps(1 / ((1 << bits) - 1)));
+        v_scale = _mm512_mul_ps(v_scale, _mm512_set1_ps(1 / integer_range));
         auto v_mask = _mm512_cmp_ps_mask(v_scale, _mm512_setzero_ps(), _CMP_EQ_OQ);
         v_scale = _mm512_mask_add_ps(v_scale, v_mask, v_scale, _mm512_set1_ps(0.0001f));
         auto v_zp = _mm512_mul_ps(v_min, _mm512_set1_ps(-1.0f));
@@ -214,7 +215,7 @@ static void find_params_by_channel(const T* src,
             v_min = _mm256_min_ps(v_min, v_cur);
         }
         auto v_scale = _mm256_sub_ps(v_max, v_min);
-        v_scale = _mm256_mul_ps(v_scale, _mm256_set1_ps(1 / ((1 << bits) - 1)));
+        v_scale = _mm256_mul_ps(v_scale, _mm256_set1_ps(1 / integer_range));
         auto v_cond = _mm256_cmp_ps(v_scale, _mm256_setzero_ps(), _CMP_EQ_OQ);
         auto v_comp = _mm256_and_ps(v_cond, _mm256_set1_ps(0.0001f));
         v_scale = _mm256_add_ps(v_scale, v_comp);
@@ -232,7 +233,7 @@ static void find_params_by_channel(const T* src,
             max = std::max(max, tmp);
             min = std::min(min, tmp);
         }
-        float temp_scale = (max - min) / ((1 << bits) - 1);
+        float temp_scale = (max - min) / integer_range;
         if (temp_scale == 0)
             temp_scale = 0.0001f;
         float temp_zp = -min / temp_scale;
