@@ -15,6 +15,7 @@
 #include <string>
 
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 
@@ -69,7 +70,7 @@ public:
     /**
      * @brief Function passing created input stream
      */
-    using StreamReader = std::function<void(std::istream&, std::shared_ptr<ov::AlignedBuffer>)>;
+    using StreamReader = std::function<void(std::istream&, ov::Tensor&)>;
 
     /**
      * @brief Callback when OpenVINO intends to read model from cache
@@ -137,16 +138,15 @@ private:
         ScopedLocale plocal_C(LC_ALL, "C");
         auto blob_file_name = getBlobFile(id);
         if (ov::util::file_exists(blob_file_name)) {
+            Tensor compiled_blob;
             if (enable_mmap) {
-                auto mmap = ov::load_mmap_object(blob_file_name);
-                auto shared_buffer =
-                    std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mmap->data(), mmap->size(), mmap);
-                OwningSharedStreamBuffer buf(shared_buffer);
+                compiled_blob = ov::read_tensor_data(blob_file_name);
+                SharedStreamBuffer buf{reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size()};
                 std::istream stream(&buf);
-                reader(stream, shared_buffer);
+                reader(stream, compiled_blob);
             } else {
                 std::ifstream stream(blob_file_name, std::ios_base::binary);
-                reader(stream, nullptr);
+                reader(stream, compiled_blob);
             }
         }
     }

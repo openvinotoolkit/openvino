@@ -14,6 +14,7 @@
 #include "openvino/core/op_extension.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/so_extension.hpp"
+#include "openvino/core/tensor_util.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/opsets/opset.hpp"
 #include "openvino/pass/manager.hpp"
@@ -1479,7 +1480,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
             cacheContent.blobId,
             cacheContent.mmap_enabled && ov::util::contains(plugin.get_property(ov::internal::supported_properties),
                                                             ov::internal::caching_with_mmap),
-            [&](std::istream& networkStream, std::shared_ptr<ov::AlignedBuffer> model_buffer) {
+            [&](std::istream& networkStream, ov::Tensor& compiled_blob) {
                 OV_ITT_SCOPE(FIRST_INFERENCE,
                              ov::itt::domains::LoadTime,
                              "Core::load_model_from_cache::ReadStreamAndImport");
@@ -1534,12 +1535,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                     }
                 }
 
-                if (model_buffer) {
-                    auto compiled_blob =
-                        Tensor(element::from<uint8_t>(), Shape{model_buffer->size()}, model_buffer->get_ptr());
-                    auto impl = get_tensor_impl(compiled_blob);
-                    impl._so = model_buffer;
-                    compiled_blob = make_tensor(impl);
+                if (compiled_blob) {
                     update_config[ov::hint::compiled_blob.name()] = compiled_blob;
                 }
                 compiled_model = context ? plugin.import_model(networkStream, context, update_config)
