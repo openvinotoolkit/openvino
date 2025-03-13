@@ -36,7 +36,7 @@ public:
         }
     }
 
-    ~InterpolateExecutorFactory() = default;
+    ~InterpolateExecutorFactory() override = default;
     virtual InterpolateExecutorPtr makeExecutor(const InterpolateAttrs& interpolateAttrs,
                                                 const std::vector<MemoryDescPtr>& srcDescs,
                                                 const std::vector<MemoryDescPtr>& dstDescs,
