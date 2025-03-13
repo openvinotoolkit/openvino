@@ -857,3 +857,8 @@ def test_model_dir():
 
     assert type(dir(model)) == list
     assert len(dir(model)) >= num_of_attrs
+
+
+def test_model_without_arguments():
+    with pytest.raises(ValueError, match="Model cannot be instantiated without arguments."):
+        Model()

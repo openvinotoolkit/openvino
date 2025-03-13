@@ -87,6 +87,7 @@ class OPENVINO_API AttributeAdapter<op::util::MulticlassNmsBase::SortResultType>
 public:
     AttributeAdapter(op::util::MulticlassNmsBase::SortResultType& value)
         : EnumAttributeAdapterBase<op::util::MulticlassNmsBase::SortResultType>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::util::MulticlassNmsBase::SortResultType>");
 };
