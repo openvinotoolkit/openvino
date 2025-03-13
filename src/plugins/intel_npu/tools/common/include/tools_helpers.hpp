@@ -149,6 +149,12 @@ void modelDynamismCheck(std::shared_ptr<ov::Model>& model) {
                                    " is dynamic which is not supported by NPU");
         }
         auto layout = item->get_layout();
+        // Add batch N = 1 if not found in layout, and user does not provide `override_model_batch_size` or `shape`
+        if (!ov::layout::has_batch(layout)) {
+            std::cout << "WARNING: Batch layout not found. Inserting 'N' dimension = 1 to the layout." << std::endl;
+            item->set_layout(ov::Layout(layout.to_string().insert(1, "N,")));
+            layout = item->get_layout();
+        }
         if (shape[ov::layout::batch_idx(layout)].is_dynamic()) {
             throw std::logic_error("ERROR: Shape \"" + shape.to_string() + "\"" +
                                    " has dynamic batch size which is not supported by NPU\n");
