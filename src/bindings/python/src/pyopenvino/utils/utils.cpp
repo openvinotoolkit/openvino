@@ -267,6 +267,10 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::frontend::type::PyNone>());
     } else if (any.is<ov::frontend::type::PyScalar>()) {
         return py::cast(any.as<ov::frontend::type::PyScalar>());
+        // Check for py::object of type enum.Enum
+    } else if (auto enum_ptr = any.as<std::shared_ptr<py::object>>();
+               enum_ptr && py::isinstance(*enum_ptr, py::module_::import("enum").attr("Enum"))) {
+        return *enum_ptr;
     } else {
         PyErr_SetString(PyExc_TypeError, "Failed to convert parameter to Python representation!");
         return py::cast<py::object>((PyObject*)NULL);
@@ -417,6 +421,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py_obj.cast<double>();
     } else if (py::isinstance(py_obj, float_32_type)) {
         return py_obj.cast<float>();
+    } else if (py::isinstance(py_obj, py::module_::import("enum").attr("Enum"))) {
+        return std::make_shared<py::object>(std::move(py_obj));
     } else if (py::isinstance<py::int_>(py_obj)) {
         return py_obj.cast<int64_t>();
     } else if (py::isinstance<py::none>(py_obj)) {
