@@ -189,6 +189,24 @@ bool isRuleInverted(std::string& rule) {
     return false;
 }
 
+/** Reads multiple rules from specified categories:
+ *      - "Backend" rule category
+ *      - "Device" rule category
+ *      - "Operating System" rule category
+ *
+ *  When a rule is found it will get inverted if it starts with "!"
+ *  it will then be checked agains the current system config
+ *
+ *  If the rule is true,then the skip will be enabled and the test will not run.
+ *  If the rule is false, then the skip will be disabled and the test will run.
+ *
+ *  No rule means skip remains enabled
+ *
+ * @param category Input category that will be searched for rules
+ * @param localSettings Input current system setting, by category
+ * @param enableRules xml node to the category that will be checked and read
+ * @return true if a rule is found to match current system config
+ */
 bool categoryRuleEnabler(const std::string& category,
                          const std::vector<std::string>& localSettings,
                          const pugi::xml_node& enableRules);
