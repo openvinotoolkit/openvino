@@ -8,6 +8,7 @@
 #include <cassert>
 #include <cstdint>
 #include <fstream>
+#include <filesystem>
 #include <openvino/cc/pass/itt.hpp>
 #include <unordered_map>
 #include <unordered_set>
@@ -1333,7 +1334,7 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
     // ---- Disk Space Check Start ----
     {
-        #include <filesystem>
+
         namespace fs = std::filesystem;
         constexpr std::uintmax_t MIN_DISK_SPACE_REQUIRED = 50 * 1024 * 1024; // adjust as needed
 
