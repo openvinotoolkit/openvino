@@ -9,9 +9,10 @@
 #if defined(OPENVINO_ARCH_RISCV64)
 #   include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #endif
-
 #include <string>
 #include <vector>
+
+#include "utils/cpu_test_utils.hpp"
 
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> retVector{
@@ -579,7 +580,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 92895
         // on platforms which do not support AMX, we are disabling I8 input tests
         retVector.emplace_back(R"(smoke_LPT/FakeQuantizeWithNotOptimalTransformation.CompareWithRefImpl.*CPU.*i8.*)");
-    if ((!ov::with_cpu_x86_avx512_core_amx_bf16() && !ov::with_cpu_x86_bfloat16()) || ov::with_cpu_x86_avx2_vnni_2()) {
+    if (!ov::with_cpu_x86_avx512_core_amx_bf16() && !ov::with_cpu_x86_bfloat16()) {
         // ignored for not supported bf16 platforms
         retVector.emplace_back(R"(.*smoke_Snippets_EnforcePrecision_bf16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
@@ -638,7 +639,7 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_Deconv_(2|3)D_NSPC_INT8_AMX/DeconvolutionLayerCPUTest.*)");
     }
 
-    if (ov::with_cpu_x86_float16()) {
+    if (ov::with_cpu_x86_avx512_core_fp16() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()) {
         // Issue: 143852
         retVector.emplace_back(R"(smoke_ConvertRangeSubgraphCPUTest/ConvertRangeSubgraphCPUTest\.CompareWithRefs.*Prc=f16.*)");
         retVector.emplace_back(R"((smoke|nightly)_FC_3D_FP16/.*_Fused=Multiply\(PerChannel\).*)");
@@ -649,7 +650,7 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke_Conv_Sum_Broadcast_FP16/ConvSumInPlaceTest.*Relu\.Multiply\(PerChannel\)\.Add\(PerChannel\).*)");
     }
 
-    if (ov::with_cpu_x86_avx2_vnni_2()) {
+    if (CPUTestUtils::with_cpu_x86_avx2_vnni_2()) {
         // jit_gemm_BF16 kernels are not supported for conv,inner_product,matmul on avx2_vnni_2 platforms
         retVector.emplace_back(R"(smoke_Conv_.*D_GEMM_BF16.*)");
         retVector.emplace_back(
@@ -658,9 +659,6 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 163147
         retVector.emplace_back(
             R"(smoke_CompareWithRefs_4D.*[Ff]using.*EltwiseLayerCPUTest\.CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*enforceSnippets=1.*)");
-        // Issue: 163144
-        retVector.emplace_back(
-            R"(smoke_ScaledAttn_CPU/ScaledAttnLayerCPUTest.CompareWithRefs/netPRC=bf16.*_TS=\(2\.8\.16\.32\)_\(2\.8\.16\.32\)_\(2\.8\.16\.32\)_\(1\.8\.48\.32\)_\(1\.8\.48\.32\)_\(1\.8\.48\.32\)_\(16\.48\)_\(16\.1\)_\(1\.48\).*)");
     }
 
     return retVector;

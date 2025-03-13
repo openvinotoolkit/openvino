@@ -79,7 +79,7 @@ void RandomUniformLayerTestCPU::SetUp() {
             updateSelectedType(getPrimitiveType(), ElementType::f32, configuration);
         }
     } else if (output_prc == ElementType::bf16) {
-        if (ov::with_cpu_x86_bfloat16() && !ov::with_cpu_x86_avx2_vnni_2()) {
+        if (ov::with_cpu_x86_bfloat16()) {
             updateSelectedType(getPrimitiveType(), ElementType::bf16, configuration);
         } else {
             updateSelectedType("ref_any", ElementType::bf16, configuration);
