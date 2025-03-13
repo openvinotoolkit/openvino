@@ -9,6 +9,7 @@
 #include "openvino/op/equal.hpp"
 #include "openvino/op/erf.hpp"
 #include "openvino/op/exp.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/less.hpp"
@@ -47,6 +48,7 @@ OP_CONVERTER(translate_convolution);
 OP_CONVERTER(translate_copy);
 OP_CONVERTER(translate_dot_general);
 OP_CONVERTER(translate_erfc);
+OP_CONVERTER(translate_gather);
 OP_CONVERTER(translate_integer_pow);
 OP_T_CONVERTER(translate_reduce_op);
 OP_CONVERTER(translate_reduce_window_max);
@@ -78,6 +80,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
             {"erf", op::translate_1to1_match_1_input<v0::Erf>},
             {"erfc", op::translate_erfc},
             {"exp", op::translate_1to1_match_1_input<v0::Exp>},
+            {"gather", op::translate_gather},
             {"ge", op::translate_binary_op<v1::GreaterEqual>},
             {"gt", op::translate_binary_op<v1::Greater>},
             {"integer_pow", op::translate_integer_pow},
