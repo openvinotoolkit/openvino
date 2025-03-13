@@ -1,28 +1,27 @@
-from __future__ import annotations
-import pathlib
-import typing
 from builtins import traceback as TracebackType
-import openvino._pyopenvino
+from __future__ import annotations
+from openvino.package_utils import deprecatedclassproperty
 from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
 from openvino._pyopenvino import CompiledModel as CompiledModelBase
 from openvino._pyopenvino import Core as CoreBase
 from openvino._pyopenvino import Model as ModelBase
 from openvino._pyopenvino import Node
-from openvino._pyopenvino import Op as OpBase
-from openvino._pyopenvino import Output
 from openvino._pyopenvino import Tensor
 from openvino._pyopenvino import Type
-from openvino.package_utils import deprecatedclassproperty
 from openvino.utils.data_helpers.data_dispatcher import _data_dispatch
-import openvino.utils.data_helpers.wrappers
-from openvino.utils.data_helpers.wrappers import OVDict
 from openvino.utils.data_helpers.wrappers import _InferRequestWrapper
+from openvino.utils.data_helpers.wrappers import OVDict
 from openvino.utils.data_helpers.wrappers import tensor_from_file
 from pathlib import Path
+from typing import Any
+import io as io
+import openvino._pyopenvino
+import openvino.utils.data_helpers.wrappers
+import pathlib
 import traceback as traceback
 import typing
-from typing import Any
-__all__ = ['Any', 'AsyncInferQueue', 'AsyncInferQueueBase', 'CompiledModel', 'CompiledModelBase', 'Core', 'CoreBase', 'InferRequest', 'Model', 'ModelBase', 'ModelMeta', 'Node', 'OVDict', 'Op', 'OpBase', 'Output', 'Path', 'Tensor', 'TracebackType', 'Type', 'TypingType', 'compile_model', 'deprecatedclassproperty', 'tensor_from_file', 'traceback']
+import typing
+__all__ = ['Any', 'AsyncInferQueue', 'AsyncInferQueueBase', 'CompiledModel', 'CompiledModelBase', 'Core', 'CoreBase', 'InferRequest', 'Model', 'ModelBase', 'ModelMeta', 'Node', 'OVDict', 'Path', 'Tensor', 'TracebackType', 'Type', 'TypingType', 'compile_model', 'deprecatedclassproperty', 'io', 'tensor_from_file', 'traceback']
 class AsyncInferQueue(openvino._pyopenvino.AsyncInferQueue):
     """
     AsyncInferQueue with a pool of asynchronous requests.
@@ -336,7 +335,7 @@ class Core(openvino._pyopenvino.Core):
         """
     def query_model(self, model: Model, device_name: str, config: typing.Optional[typing.Dict[str, typing.Any]] = None) -> dict:
         ...
-    def read_model(self, model: typing.Union[str, bytes, object], weights: typing.Union[object, str, bytes, openvino._pyopenvino.Tensor] = None, config: typing.Optional[typing.Dict[str, typing.Any]] = None) -> Model:
+    def read_model(self, model: typing.Union[str, bytes, object, _io.BytesIO], weights: typing.Union[object, str, bytes, openvino._pyopenvino.Tensor, _io.BytesIO] = None, config: typing.Optional[typing.Dict[str, typing.Any]] = None) -> Model:
         ...
 class InferRequest(openvino.utils.data_helpers.wrappers._InferRequestWrapper):
     """
@@ -507,9 +506,6 @@ class Model:
         ...
 class ModelMeta(type):
     pass
-class Op(openvino._pyopenvino.Op):
-    def __init__(self, py_obj: Op, inputs: typing.Union[typing.List[typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output]], typing.Tuple[typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, typing.List[typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output]]]], NoneType] = None) -> None:
-        ...
 def compile_model(model: typing.Union[openvino._ov_api.Model, str, pathlib.Path], device_name: typing.Optional[str] = 'AUTO', config: typing.Optional[typing.Dict[str, typing.Any]] = None) -> CompiledModel:
     """
     Compact method to compile model with AUTO plugin.

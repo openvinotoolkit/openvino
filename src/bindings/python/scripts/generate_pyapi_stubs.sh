@@ -85,14 +85,6 @@ if ! python -m pybind11_stubgen \
     exit 1
 fi
 
-# Check if the stubs were actually generated
-if [ "$(ls -A "$output_dir/openvino")" ]; then
-    echo "Stub files generated successfully."
-else
-    echo "No stub files were generated."
-    exit 1
-fi
-echo "Python stubs generated."
 # Workaround for pybind11-stubgen issue where it doesn't import some modules for stubs generated from .py files 
 # Ticket: 163225
 pyi_file="$output_dir/openvino/_ov_api.pyi"
@@ -103,3 +95,43 @@ else
     echo "File $pyi_file not found."
     exit 1
 fi
+
+# Find all changed .pyi files
+changed_files=$(git diff --name-only | grep '\.pyi$')
+# Process each changed .pyi file
+for file in $changed_files; do
+    sed -i 's/<function _get_node_factory at 0x[0-9a-fA-F]\+>/<function _get_node_factory at memory_address>/' "$file"
+    sed -i "s/__version__: str = '[^']*'/__version__: str = 'version_string'/" "$file"
+    # Sort consecutive import statements
+    awk '
+    BEGIN { in_imports = 0; }
+    /^from / || /^import / {
+        if (in_imports == 0) {
+            start = NR;
+        }
+        in_imports++;
+        imports[in_imports] = $0;
+        next;
+    }
+    {
+        if (in_imports > 0) {
+            for (i = 1; i <= in_imports; i++) {
+                print imports[i] | "sort";
+            }
+            close("sort");
+            in_imports = 0;
+        }
+        print;
+    }
+    END {
+        if (in_imports > 0) {
+            for (i = 1; i <= in_imports; i++) {
+                print imports[i] | "sort";
+            }
+            close("sort");
+        }
+    }
+    ' "$file" > "$file.sorted"
+    mv "$file.sorted" "$file"     
+
+done

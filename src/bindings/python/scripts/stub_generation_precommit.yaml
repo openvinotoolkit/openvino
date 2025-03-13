@@ -13,4 +13,5 @@ repos:
           git add ./*.pyi'
         files: .*src/bindings/python/.*
         pass_filenames: false
+        verbose: true
         stages: [pre-commit]

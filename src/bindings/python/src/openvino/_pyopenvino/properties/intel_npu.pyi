@@ -4,7 +4,7 @@ openvino.properties.intel_npu submodule that simulates ov::intel_npu
 from __future__ import annotations
 import openvino._pyopenvino
 import typing
-__all__ = ['bypass_umd_caching', 'compilation_mode_params', 'compiler_dynamic_quantization', 'compiler_version', 'defer_weights_load', 'device_alloc_mem_size', 'device_total_mem_size', 'driver_version', 'max_tiles', 'tiles', 'turbo']
+__all__ = ['bypass_umd_caching', 'compilation_mode_params', 'compiler_dynamic_quantization', 'compiler_version', 'defer_weights_load', 'device_alloc_mem_size', 'device_total_mem_size', 'driver_version', 'max_tiles', 'qdq_optimization', 'tiles', 'turbo']
 @typing.overload
 def bypass_umd_caching() -> str:
     ...
@@ -42,6 +42,12 @@ def max_tiles() -> str:
     ...
 @typing.overload
 def max_tiles(arg0: int) -> tuple[str, openvino._pyopenvino.OVAny]:
+    ...
+@typing.overload
+def qdq_optimization() -> str:
+    ...
+@typing.overload
+def qdq_optimization(arg0: bool) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
 @typing.overload
 def tiles() -> str:

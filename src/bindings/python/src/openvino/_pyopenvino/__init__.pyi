@@ -2,18 +2,18 @@
 Package openvino._pyopenvino which wraps openvino C++ APIs
 """
 from __future__ import annotations
-import datetime
-import numpy
-import typing
-from . import _offline_transformations
 from . import experimental
 from . import frontend
 from . import layout_helpers
+from . import _offline_transformations
 from . import op
 from . import passes
 from . import preprocess
 from . import properties
 from . import util
+import datetime
+import numpy
+import typing
 __all__ = ['AsyncInferQueue', 'AttributeVisitor', 'AxisSet', 'AxisVector', 'CompiledModel', 'ConstOutput', 'ConversionExtension', 'ConversionExtensionBase', 'Coordinate', 'CoordinateDiff', 'Core', 'DecoderTransformationExtension', 'DescriptorTensor', 'Dimension', 'DiscreteTypeInfo', 'Extension', 'FrontEnd', 'FrontEndManager', 'GeneralFailure', 'InferRequest', 'InitializationFailure', 'Input', 'InputModel', 'Iterator', 'Layout', 'Model', 'Node', 'NodeContext', 'NodeFactory', 'NotImplementedFailure', 'OVAny', 'Op', 'OpConversionFailure', 'OpExtension', 'OpValidationFailure', 'Output', 'PartialShape', 'Place', 'ProfilingInfo', 'ProgressReporterExtension', 'RTMap', 'RemoteContext', 'RemoteTensor', 'Shape', 'Strides', 'Symbol', 'TelemetryExtension', 'Tensor', 'Type', 'VAContext', 'VASurfaceTensor', 'VariableState', 'Version', 'experimental', 'frontend', 'get_batch', 'get_version', 'layout_helpers', 'op', 'passes', 'preprocess', 'properties', 'save_model', 'serialize', 'set_batch', 'shutdown', 'util']
 class AsyncInferQueue:
     """
@@ -189,7 +189,7 @@ class CompiledModel:
                     :rtype: openvino.InferRequest
         """
     @typing.overload
-    def export_model(self) -> bytes:
+    def export_model(self) -> typing.Any:
         """
                     Exports the compiled model to bytes/output stream.
         
@@ -865,7 +865,7 @@ class Core:
                                     For PDPD format (*.pdmodel) weights parameter is not used.
                                     For TF format (*.pb): weights parameter is not used.
                                     For TFLite format (*.tflite) weights parameter is not used.
-                    :type weights: typing.Optional[pathlib.Path]
+                    :type weights: typing.Union[pathlib.Path, io.BytesIO]
                     :param config: Optional map of pairs: (property name, property value) relevant only for this read operation.
                     :type config: typing.Dict[str, typing.Any], optional
                     :return: A model.
@@ -3150,20 +3150,56 @@ class Node:
     openvino.Node wraps ov::Node
     """
     friendly_name: str
-    def __add__(self, arg0: Node) -> ov::op::v1::Add:
-        ...
-    def __div__(self, arg0: Node) -> ov::op::v1::Divide:
+    def __add__(self, right: Node | int | float | numpy.ndarray[typing.Any, numpy.dtype[typing.Any]]) -> Node:
+        """
+                    Return node which applies f(A,B) = A+B to the input nodes element-wise.
+        
+                    :param right: The right operand.
+                    :type right: Union[openvino.Node, int, float, numpy.ndarray]
+                    :return: The node performing element-wise addition.
+                    :rtype: openvino.Node
+        """
+    def __array_ufunc__(self, arg0: typing.Any, arg1: str, *args, **kwargs) -> typing.Any:
         ...
     def __getattr__(self, arg0: str) -> typing.Callable:
         ...
-    def __mul__(self, arg0: Node) -> ov::op::v1::Multiply:
+    def __mul__(self, right: Node | int | float | numpy.ndarray[typing.Any, numpy.dtype[typing.Any]]) -> Node:
+        """
+                    Return node which applies f(A,B) = A*B to the input nodes element-wise.
+        
+                    :param right: The right operand.
+                    :type right: Union[openvino.Node, int, float, numpy.ndarray]
+                    :return: The node performing element-wise multiplication.
+                    :rtype: openvino.Node
+        """
+    def __radd__(self, arg0: Node | int | float | numpy.ndarray[typing.Any, numpy.dtype[typing.Any]]) -> Node:
         ...
     def __repr__(self) -> str:
         ...
-    def __sub__(self, arg0: Node) -> ov::op::v1::Subtract:
+    def __rmul__(self, arg0: Node | int | float | numpy.ndarray[typing.Any, numpy.dtype[typing.Any]]) -> Node:
         ...
-    def __truediv__(self, arg0: Node) -> ov::op::v1::Divide:
+    def __rsub__(self, arg0: Node | int | float | numpy.ndarray[typing.Any, numpy.dtype[typing.Any]]) -> Node:
         ...
+    def __rtruediv__(self, arg0: Node | int | float | numpy.ndarray[typing.Any, numpy.dtype[typing.Any]]) -> Node:
+        ...
+    def __sub__(self, right: Node | int | float | numpy.ndarray[typing.Any, numpy.dtype[typing.Any]]) -> Node:
+        """
+                    Return node which applies f(A,B) = A-B to the input nodes element-wise.
+        
+                    :param right: The right operand.
+                    :type right: Union[openvino.Node, int, float, numpy.ndarray]
+                    :return: The node performing element-wise subtraction.
+                    :rtype: openvino.Node
+        """
+    def __truediv__(self, right: Node | int | float | numpy.ndarray[typing.Any, numpy.dtype[typing.Any]]) -> Node:
+        """
+                    Return node which applies f(A,B) = A/B to the input nodes element-wise.
+        
+                    :param right: The right operand.
+                    :type right: Union[openvino.Node, int, float, numpy.ndarray]
+                    :return: The node performing element-wise division.
+                    :rtype: openvino.Node
+        """
     def constructor_validate_and_infer_types(self) -> None:
         ...
     @typing.overload
