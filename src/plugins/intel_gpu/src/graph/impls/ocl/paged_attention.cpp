@@ -19,6 +19,7 @@
 
 namespace cldnn {
 namespace ocl {
+using PagedAttentionStage = kernel_selector::PagedAttentionStage;
 
 struct paged_attention_impl : multi_stage_primitive<paged_attention> {
     using parent = multi_stage_primitive<paged_attention>;
@@ -141,7 +142,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         ob << make_data(&use_micro_sdpa, sizeof(bool));
     }
 
-    std::vector<kernel_selector::InternalBuffer> get_internal_buffers_desc() const {
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
         /*
         * Internal buffers allocation owners and users:
         * +--------------------------------------+--------------------+--------------------+
@@ -181,12 +182,14 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         *           Filled in paged_attention_inst::on_execute() call for sdpa-micro kernel only.
         */
 
-        auto add_internal_buffers = [](std::vector<kernel_selector::InternalBuffer>& internal_buffers,
+        auto add_internal_buffers = [](std::vector<BufferDescriptor>& internal_buffers,
                                        const kernel_selector::KernelData& kd) {
-            internal_buffers.insert(internal_buffers.end(), kd.internalBuffers.begin(), kd.internalBuffers.end());
+            for (const auto& buffer_desc : kd.internalBuffers) {
+                internal_buffers.emplace_back(buffer_desc.byte_count, ov::element::u8, buffer_desc.lockable);
+            }
         };
 
-        std::vector<kernel_selector::InternalBuffer> internal_buffers;
+        std::vector<BufferDescriptor> internal_buffers;
         add_internal_buffers(internal_buffers, _kernels_data[Stage::KV_CACHE_UPDATE]);
         add_internal_buffers(internal_buffers, _kernels_data[Stage::PA_SDPA]);
 
@@ -194,15 +197,6 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
             add_internal_buffers(internal_buffers, _kernels_data[Stage::SDPA]);
 
         return internal_buffers;
-    }
-
-    std::vector<layout> get_internal_buffer_layouts_impl() const override {
-        std::vector<layout> layouts;
-
-        for (const auto& buffer : get_internal_buffers_desc())
-            layouts.emplace_back(ov::PartialShape{static_cast<int64_t>(buffer.byte_count)}, ov::element::u8, format::bfyx);
-
-        return layouts;
     }
 
     kernel_arguments_data get_arguments(const paged_attention_inst& instance, size_t stage, size_t kernel_idx, bool is_mixed_mode) const {
@@ -244,7 +238,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
             args.outputs = { instance.output_memory_ptr(0) };
         } else if (stage == Stage::PA_SDPA) {
-            if (kernel_idx == 0 || kernel_idx == 1) {
+            if (kernel_idx == 0 || kernel_idx == 1 || kernel_idx == 2) {
                 // 2nd+ token calculation or mixed stage tokens calculation
                 args.shape_info = instance.shape_info_memory_ptr();
 
@@ -268,7 +262,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                 if (desc->has_alibi) {
                     args.inputs.push_back(instance.alibi_memory_ptr());
                 }
-            } else if (kernel_idx == 2 || kernel_idx == 3) {
+            } else if (kernel_idx == 3 || kernel_idx == 4) {
                 // Finalization kernel or mixed stage finalization kernel
                 args.inputs = { instance.past_lens_memory_ptr() };
 
@@ -282,7 +276,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                     args.inputs.push_back(instance.rotation_deltas_memory_ptr());
                     args.inputs.push_back(instance.rotation_trig_lut_memory_ptr());
                 }
-            } else if (kernel_idx == 4) {
+            } else if (kernel_idx == 5) {
                 // Output scores calculation kernel
                 args.inputs = { instance.past_lens_memory_ptr(),
                                 instance.subsequence_begins_memory_ptr() };
@@ -290,25 +284,13 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
             args.outputs = { instance.output_memory_ptr(0) };
 
-            if (kernel_idx == 4) {
+            if (kernel_idx == 5) {
                 args.outputs.push_back(instance.output_memory_ptr(1));
             }
         }
 
         return args;
     }
-
-    std::set<size_t> get_lockable_internal_buffers() const override {
-        std::set<size_t> lockable_ids;
-        const auto& internal_buffers = get_internal_buffers_desc();
-        for (size_t i = 0; i < internal_buffers.size(); i++) {
-            if (internal_buffers[i].lockable) {
-                lockable_ids.insert(i);
-            }
-        }
-
-        return lockable_ids;
-    };
 
     void prepare_internal_buffers(paged_attention_inst& instance, const PagedAttentionStage& stage) {
         const auto& desc = instance.get_impl_params()->typed_desc<paged_attention>();
@@ -678,7 +660,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
         if (desc->heads_num != desc->kv_heads_num) {
             config.broadcast_axis = 1;
-            config.group_size = desc->heads_num / desc->kv_heads_num;
+            config.kv_group_size = desc->heads_num / desc->kv_heads_num;
         }
 
         if (desc->has_scores_output() && !is_dynamic) {
@@ -686,6 +668,11 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
             const auto max_context_len = input_mem.at(12);
             mem_lock<int32_t, mem_lock_type::read> max_context_len_mem_lock(max_context_len, *impl_param.strm);
             config.paged_attention_max_len = max_context_len_mem_lock[0];
+        }
+
+        if (data_type_traits::is_i8_u8(impl_param.get_input_layout(3).data_type)) {
+            config.is_kv_compressed = true;
+            config.use_asymmetric_quantization = true;
         }
 
         return config;
@@ -710,6 +697,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         params.inputs[2] = rotation_trig_lut_tensor;
         params.outputs[0] = key_cache_tensor;
 
+        params.original_cache_dt = to_data_type(impl_param.get_input_layout(1).data_type);
         params.conf = get_sdpa_configuration(impl_param, is_dynamic);
 
         const auto& in_offsets_map = impl_param.in_port_to_shape_info_offset;
@@ -826,6 +814,11 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         }
 
         params.conf = get_sdpa_configuration(impl_param, is_dynamic);
+
+        // Currently, for the processing of the 1st token, plain SDPA kernels are used, which expect
+        // uncompressed plain QKV inputs. Therefore, set is_kv_compressed=false
+        params.conf.is_kv_compressed = false;
+        params.conf.use_asymmetric_quantization = false;
 
         const std::vector<int64_t> default_order = {0, 1, 2, 3};
         params.input0_order = default_order;
@@ -992,6 +985,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         auto kv_cache_update_kernel_params = get_kv_cache_update_kernel_params(impl_param, stage, input_tensors, impl_param.is_dynamic());
         auto& kv_cache_update_kernel_selector = kv_cache_update_kernel_selector_t::Instance();
         kernels_data.push_back(kv_cache_update_kernel_selector.get_best_kernel(kv_cache_update_kernel_params));
+
         auto sdpa_kernel_params = get_sdpa_kernel_params(impl_param, stage, input_tensors, 0, impl_param.is_dynamic());
         auto& sdpa_kernel_selector = sdpa_kernel_selector_t::Instance();
         kernels_data.push_back(sdpa_kernel_selector.get_best_kernel(sdpa_kernel_params));

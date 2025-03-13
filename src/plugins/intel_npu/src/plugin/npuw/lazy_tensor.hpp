@@ -49,6 +49,7 @@ public:
     static LazyTensor deserialize(std::istream& stream);
     void read_weight(const ov::npuw::s11n::Weights& weights);
     void read_weight(const std::shared_ptr<const ov::Model>& model);
+    operator bool() const;
 
 private:
     std::shared_ptr<LazyTensorImpl> m_impl = nullptr;

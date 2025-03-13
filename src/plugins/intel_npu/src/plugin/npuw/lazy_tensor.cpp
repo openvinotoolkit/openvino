@@ -203,7 +203,9 @@ struct Unpack {
     }
     void read_weight(const ov::npuw::s11n::Weights& weights) {
         w.read_weight(weights);
-        z.read_weight(weights);
+        if (z) {  // could be empty
+            z.read_weight(weights);
+        }
         s.read_weight(weights);
     }
     void read_weight(const std::shared_ptr<const ov::Model>& model) {
@@ -522,6 +524,10 @@ void LazyTensor::read_weight(const ov::npuw::s11n::Weights& weights) {
 void LazyTensor::read_weight(const std::shared_ptr<const ov::Model>& model) {
     NPUW_ASSERT(m_impl && "Trying to read weights into uninitialized tensor!");
     m_impl->read_weight(model);
+}
+
+LazyTensor::operator bool() const {
+    return m_impl != nullptr;
 }
 
 std::size_t LazyTensor::get_hash() const {

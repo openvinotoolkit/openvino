@@ -5,6 +5,7 @@
 #pragma once
 
 #include <array>
+#include <functional>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -15,10 +16,18 @@
 #include <unordered_set>
 #include <vector>
 
-const constexpr std::array<uint8_t, 6> NPUW_SERIALIZATION_INDICATOR =
+namespace ov {
+namespace npuw {
+namespace s11n {
+using IndicatorType = std::array<uint8_t, 6>;
+}  // namespace s11n
+}  // namespace npuw
+}  // namespace ov
+
+const constexpr ov::npuw::s11n::IndicatorType NPUW_SERIALIZATION_INDICATOR =
     {char{0x13}, char{0x37}, char{0x6e}, char{0x70}, char{0x75}, char{0x77}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.1";
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.2";
 
 // Forward declaration
 namespace intel_npu {
@@ -37,6 +46,7 @@ template <class>
 class SharedBuffer;
 class MappedMemory;
 class Model;
+enum class CacheMode;
 namespace element {
 class Type;
 }
@@ -69,6 +79,22 @@ struct Context {
     const std::unordered_map<const void*, std::pair<std::size_t, std::string>>& const_to_offset_name;
 };
 
+struct LLMSerializeContext {
+    explicit LLMSerializeContext(bool _encrypted, std::function<std::string(const std::string&)> _encrypt)
+        : encrypted(_encrypted),
+          encrypt(_encrypt) {}
+    bool encrypted = false;
+    std::function<std::string(const std::string&)> encrypt = nullptr;
+};
+
+struct LLMDeserializeContext {
+    explicit LLMDeserializeContext(bool _encrypted, std::function<std::string(const std::string&)> _decrypt)
+        : encrypted(_encrypted),
+          decrypt(_decrypt) {}
+    bool encrypted = false;
+    std::function<std::string(const std::string&)> decrypt = nullptr;
+};
+
 using Weights = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>;
 
 // Specific type overloads
@@ -82,6 +108,7 @@ void write(std::ostream& stream, const ::intel_npu::Config& var);
 void write(std::ostream& stream, const ov::Output<const ov::Node>& var);
 void write_any(std::ostream& stream, const ov::Any& var);
 void write(std::ostream& stream, const ov::npuw::weights::LazyTensor& var);
+void write(std::ostream& stream, const ov::CacheMode& var);
 void write(std::ostream& stream, const ov::element::Type& var);
 
 void read(std::istream& stream, std::streampos& var);
@@ -95,6 +122,7 @@ void read(std::istream& stream, std::shared_ptr<ov::op::v0::Parameter>& var);
 void read(std::istream& stream, std::shared_ptr<ov::Node>& var);
 void read_any(std::istream& stream, ov::Any& var);
 void read(std::istream& stream, ov::npuw::weights::LazyTensor& var);
+void read(std::istream& stream, ov::CacheMode& var);
 void read(std::istream& stream, ov::element::Type& var);
 
 // Weightless utils

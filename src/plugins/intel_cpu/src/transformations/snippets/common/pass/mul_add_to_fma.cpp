@@ -50,6 +50,6 @@ ov::intel_cpu::pass::MulAddToFMA::MulAddToFMA() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(add_m, "MulAddToFMA");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(add_m, matcher_name);
     register_matcher(m, callback);
 }
