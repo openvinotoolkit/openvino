@@ -1311,53 +1311,50 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // TODO xxx-105807: if rt_info is set in python api as a string ['precise_0'] = '',
     //  we need to convert value to a class in order to have rt_info in the IR. The code below will convert
     // ['precise_0'] = '' into => rt_info['precise_0'] = DisableFP16Compression{}
-    for (auto& node : model->get_ops())
-        if (fp16_compression_is_disabled(node))
-            disable_fp16_compression(node);
-            
- #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    const auto& xmlPath_ref = ov::util::string_to_wstring(m_xmlPath);
-    const auto& binPath_ref = ov::util::string_to_wstring(m_binPath);
-    std::string message_bin = "Can't open bin file.";
-    std::string message_xml = "Can't open xml file.";
+    #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    const auto xml_path = ov::util::string_to_wstring(m_xmlPath);
+    const auto bin_path = ov::util::string_to_wstring(m_binPath);
 #else
-    const auto& xmlPath_ref = m_xmlPath;
-    const auto& binPath_ref = m_binPath;
-    std::string message_bin = "Can't open bin file: \"" + binPath_ref + "\"";
-    std::string message_xml = "Can't open xml file: \"" + xmlPath_ref + "\"";
+    const auto xml_path = fs::path(m_xmlPath);
+    const auto bin_path = fs::path(m_binPath);
 #endif
 
-    // Ensure the xml directory exists.
-    auto xmlDir = ov::util::get_directory(xmlPath_ref);
-    if (xmlDir != xmlPath_ref)
-        ov::util::create_directory_recursive(xmlDir);
+for (auto& node : model->get_ops()) {
+    if (fp16_compression_is_disabled(node))
+        disable_fp16_compression(node);
+}
 
-    // ---- Disk Space Check Start ----
-    {
+// Unified error messages with proper path handling
+std::string message_bin = "Can't open bin file: \"" + bin_path.string() + "\"";
+std::string message_xml = "Can't open xml file: \"" + xml_path.string() + "\"";
 
-        namespace fs = std::filesystem;
-        constexpr std::uintmax_t MIN_DISK_SPACE_REQUIRED = 50 * 1024 * 1024; // adjust as needed
+// Ensure the XML directory exists.
+auto xmlDir = ov::util::get_directory(xml_path);
+if (xmlDir != xml_path)
+    ov::util::create_directory_recursive(xmlDir);
 
-        // Check available space for bin file directory
-        fs::path bin_dir(binPath_ref);
-        if (binDir.has_parent_path())
-            binDir = binDir.parent_path();
-        fs::space_info binSpace = fs::space(binDir);
-        if (binSpace.available < MIN_DISK_SPACE_REQUIRED) {
-            OPENVINO_ASSERT(binSpace.available > MIN_DISK_SPACE_REQUIRED, "Insufficient disk space for bin file: \"", binPath_ref,
-                                         "\". Available: ", binSpace.available, " bytes.");
-        }
+// ---- Disk Space Check Start ----
+{
+    namespace fs = std::filesystem;
+    constexpr std::uintmax_t MIN_DISK_SPACE_REQUIRED = 50 * 1024 * 1024; // 50 MB
 
-        // Check available space for xml file directory
-        fs::path xmlFileDir(xmlPath_ref);
-        if (xmlFileDir.has_parent_path())
-            xmlFileDir = xmlFileDir.parent_path();
-        fs::space_info xmlSpace = fs::space(xmlFileDir);
-        if (xmlSpace.available < MIN_DISK_SPACE_REQUIRED) {
-            OPENVINO_ASSERT(false, "Insufficient disk space for xml file: \"" + xmlPath_ref +
-                                         "\". Available: " + std::to_string(xmlSpace.available) + " bytes.");
-        }
+    // Check available space for bin file directory
+    fs::path binDir = bin_path.parent_path();
+    fs::space_info binSpace = fs::space(binDir);
+    if (binSpace.available < MIN_DISK_SPACE_REQUIRED) {
+        OPENVINO_ASSERT(false, "Insufficient disk space for bin file: \"" + bin_path.string() +
+                               "\". Available: " + std::to_string(binSpace.available) + " bytes.");
     }
+
+    // Check available space for XML file directory
+    fs::path xmlFileDir = xml_path.parent_path();
+    fs::space_info xmlSpace = fs::space(xmlFileDir);
+    if (xmlSpace.available < MIN_DISK_SPACE_REQUIRED) {
+        OPENVINO_ASSERT(false, "Insufficient disk space for XML file: \"" + xml_path.string() +
+                               "\". Available: " + std::to_string(xmlSpace.available) + " bytes.");
+    }
+}
+
     // ---- Disk Space Check End ----
 
     // Create and assert the output streams.
