@@ -17,10 +17,12 @@ ParamsKey DeformableConvolutionKernel_bfyx_Ref::GetSupportedKey() const {
     k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputWeightsType(WeightsType::F32);
     k.EnableInputWeightsType(WeightsType::INT8);
-    k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::bfyx);
-    k.EnableInputLayout(DataLayout::byxf);
-    k.EnableOutputLayout(DataLayout::byxf);
+    // k.EnableInputLayout(DataLayout::bfyx);
+    // k.EnableOutputLayout(DataLayout::bfyx);
+    // k.EnableInputLayout(DataLayout::byxf);
+    // k.EnableOutputLayout(DataLayout::byxf);
+    k.EnableAllInputLayout();   // XXX: this is hack to run e2e network. Not sure whether it is a correct fix or not.
+    k.EnableAllOutputLayout();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableDilation();
