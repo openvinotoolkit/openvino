@@ -241,3 +241,32 @@ static size_t hash_range(size_t seed, It first, It last) {
 /// @endcond
 /// @}
 }  // namespace cldnn
+
+
+namespace ov::intel_gpu {
+#ifndef __cpp_lib_to_array
+namespace detail {
+template<bool do_move, class ElementType, std::size_t N, std::size_t... I>
+[[nodiscard]] constexpr std::array<std::remove_cv_t<ElementType>, N> to_array_impl(ElementType (&arr)[N], std::index_sequence<I...>) {
+    if (do_move) {
+        return {{std::move(arr[I])...}};
+    }
+
+    return {{arr[I]...}};
+}
+}  // namespace detail
+
+template<class ElementType, std::size_t N>
+[[nodiscard]] constexpr std::array<std::remove_cv_t<ElementType>, N> to_array(ElementType (&arr)[N]) {
+    return detail::to_array_impl<false>(arr, std::make_index_sequence<N>{});
+}
+
+template<class ElementType, std::size_t N>
+[[nodiscard]] constexpr std::array<std::remove_cv_t<ElementType>, N> to_array(ElementType (&&arr)[N]) {
+    return detail::to_array_impl<true>(arr, std::make_index_sequence<N>{});
+}
+#else
+using to_array = std::to_array;
+#endif
+
+}  // namespace ov::intel_gpu
