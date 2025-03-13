@@ -8,7 +8,6 @@
 #include <cassert>
 #include <cstdint>
 #include <fstream>
-#include <filesystem>
 #include <openvino/cc/pass/itt.hpp>
 #include <unordered_map>
 #include <unordered_set>
@@ -1311,70 +1310,13 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // TODO xxx-105807: if rt_info is set in python api as a string ['precise_0'] = '',
     //  we need to convert value to a class in order to have rt_info in the IR. The code below will convert
     // ['precise_0'] = '' into => rt_info['precise_0'] = DisableFP16Compression{}
-    #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    const auto xml_path = ov::util::string_to_wstring(m_xmlPath);
-    const auto bin_path = ov::util::string_to_wstring(m_binPath);
 #else
-    const auto xml_path = fs::path(m_xmlPath);
-    const auto bin_path = fs::path(m_binPath);
 #endif
 
-for (auto& node : model->get_ops()) {
-    if (fp16_compression_is_disabled(node))
-        disable_fp16_compression(node);
 }
 
-// Unified error messages with proper path handling
-std::string message_bin = "Can't open bin file: \"" + bin_path.string() + "\"";
-std::string message_xml = "Can't open xml file: \"" + xml_path.string() + "\"";
-
-// Ensure the XML directory exists.
-auto xmlDir = ov::util::get_directory(xml_path);
-if (xmlDir != xml_path)
-    ov::util::create_directory_recursive(xmlDir);
-
-// ---- Disk Space Check Start ----
-{
-    namespace fs = std::filesystem;
-    constexpr std::uintmax_t MIN_DISK_SPACE_REQUIRED = 50 * 1024 * 1024; // 50 MB
-
-    // Check available space for bin file directory
-    fs::path binDir = bin_path.parent_path();
-    fs::space_info binSpace = fs::space(binDir);
-    if (binSpace.available < MIN_DISK_SPACE_REQUIRED) {
-        OPENVINO_ASSERT(false, "Insufficient disk space for bin file: \"" + bin_path.string() +
-                               "\". Available: " + std::to_string(binSpace.available) + " bytes.");
-    }
-
-    // Check available space for XML file directory
-    fs::path xmlFileDir = xml_path.parent_path();
-    fs::space_info xmlSpace = fs::space(xmlFileDir);
-    if (xmlSpace.available < MIN_DISK_SPACE_REQUIRED) {
-        OPENVINO_ASSERT(false, "Insufficient disk space for XML file: \"" + xml_path.string() +
-                               "\". Available: " + std::to_string(xmlSpace.available) + " bytes.");
     }
 }
-
-    // ---- Disk Space Check End ----
-
-    // Create and assert the output streams.
-    std::ofstream bin_file(binPath_ref, std::ios::out | std::ios::binary);
-    OPENVINO_ASSERT(bin_file, message_bin);
-
-    std::ofstream xml_file(xmlPath_ref, std::ios::out);
-    OPENVINO_ASSERT(xml_file, message_xml);
-
-    try {
-        serializeFunc(xml_file, bin_file, model, m_version);
-    } catch (const ov::AssertFailure&) {
-        // If serialization fails, close the streams and remove the created files.
-        xml_file.close();
-        bin_file.close();
-        std::ignore = std::remove(m_xmlPath.c_str());
-        std::ignore = std::remove(m_binPath.c_str());
-        throw;
-    }
-
 
 bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(StreamSerialize);
