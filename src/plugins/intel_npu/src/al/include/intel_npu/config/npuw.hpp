@@ -48,6 +48,7 @@ DEFINE_OPT(NPUW_PMM, std::string, "2", npuw::partitioning::par_matmul_merge_dims
 DEFINE_OPT(NPUW_SLICE_OUT, bool, false, npuw::partitioning::slice_out, CompileTime);
 DEFINE_OPT(NPUW_HOST_GATHER, bool, true, npuw::partitioning::host_gather, CompileTime);
 DEFINE_OPT(NPUW_SPATIAL, bool, false, npuw::partitioning::spatial, CompileTime);
+DEFINE_OPT(NPUW_F16IC, bool, false, npuw::partitioning::f16_interconnect, CompileTime);
 DEFINE_OPT(NPUW_SPATIAL_NWAY, std::size_t, 128, npuw::partitioning::spatial_nway, CompileTime);
 DEFINE_OPT(NPUW_SPATIAL_DYN, bool, true, npuw::partitioning::spatial_dyn, CompileTime);
 DEFINE_OPT(NPUW_DCOFF_TYPE, std::string, "", npuw::partitioning::dcoff_type, CompileTime);
@@ -76,9 +77,54 @@ DEFINE_OPT(NPUW_LLM_OPTIMIZE_V_TENSORS, bool, true, npuw::llm::optimize_v_tensor
 
 namespace npuw {
 namespace llm {
+enum class PrefillHint { DYNAMIC, STATIC };
 enum class GenerateHint { FAST_COMPILE, BEST_PERF };
 }  // namespace llm
 }  // namespace npuw
+
+struct NPUW_LLM_PREFILL_HINT final : OptionBase<NPUW_LLM_PREFILL_HINT, ::intel_npu::npuw::llm::PrefillHint> {
+    static std::string_view key() {
+        return ov::intel_npu::npuw::llm::prefill_hint.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "::intel_npu::npuw::llm::PrefillHint";
+    }
+
+    static ::intel_npu::npuw::llm::PrefillHint defaultValue() {
+        return ::intel_npu::npuw::llm::PrefillHint::STATIC;
+    }
+
+    static ::intel_npu::npuw::llm::PrefillHint parse(std::string_view val) {
+        if (val == "DYNAMIC") {
+            return ::intel_npu::npuw::llm::PrefillHint::DYNAMIC;
+        } else if (val == "STATIC") {
+            return ::intel_npu::npuw::llm::PrefillHint::STATIC;
+        }
+        OPENVINO_THROW("Unsupported \"PREFILL_HINT\" provided: ", val);
+        return {};
+    }
+
+    static std::string toString(const ::intel_npu::npuw::llm::PrefillHint& val) {
+        switch (val) {
+        case ::intel_npu::npuw::llm::PrefillHint::DYNAMIC:
+            return "DYNAMIC";
+        case ::intel_npu::npuw::llm::PrefillHint::STATIC:
+            return "STATIC";
+        default:
+            OPENVINO_THROW("Can't convert provided \"PREFILL_HINT\" : ", int(val), " to string.");
+        }
+        return {};
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+};
 
 struct NPUW_LLM_GENERATE_HINT final : OptionBase<NPUW_LLM_GENERATE_HINT, ::intel_npu::npuw::llm::GenerateHint> {
     static std::string_view key() {

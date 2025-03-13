@@ -85,7 +85,7 @@ std::vector<size_t> NonZero::getNonZeroElementsCount(const T* src, const Shape& 
     }
     default: {
         threadsCount = parallel_get_max_threads();
-        if (inSize < static_cast<size_t>(blockSize * threadsCount)) {
+        if (inSize < static_cast<size_t>(blockSize) * threadsCount) {
             threadsCount = 1;
         }
 
