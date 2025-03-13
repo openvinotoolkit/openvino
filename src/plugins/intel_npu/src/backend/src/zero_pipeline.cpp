@@ -24,16 +24,11 @@ Pipeline::Pipeline(const Config& config,
                    zeroProfiling::ProfilingQuery& profiling_query,
                    const std::shared_ptr<zeroProfiling::NpuInferProfiling>& npu_profiling,
                    const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors,
-                   const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors,
-                   uint32_t group_ordinal)
+                   const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors)
     : _graph(graph),
       _config(config),
       _id(_graph->get_unique_id()),
       _number_of_command_lists(_graph->get_batch_size().has_value() ? *_graph->get_batch_size() : 1),
-      _event_pool{
-          std::make_shared<EventPool>(init_structs->getDevice(),
-                                      init_structs->getContext(),
-                                      _number_of_command_lists ? static_cast<uint32_t>(_number_of_command_lists) : 1)},
       _npu_profiling(npu_profiling),
       _logger("Pipeline", _config.get<LOG_LEVEL>()) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::Pipeline::Pipeline");
@@ -60,7 +55,8 @@ Pipeline::Pipeline(const Config& config,
 
     _command_lists.reserve(_number_of_command_lists);
     for (size_t i = 0; i < _number_of_command_lists; i++) {
-        _command_lists.emplace_back(std::make_unique<CommandList>(init_structs, group_ordinal));
+        _command_lists.emplace_back(
+            std::make_unique<CommandList>(init_structs, _graph->get_command_queue_group_ordinal()));
     }
 
     if (_sync_output_with_fences) {

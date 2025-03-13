@@ -45,23 +45,16 @@ void RepackedWeightsBufferExpression::init_allocation_size(
     const size_t k_blk = *++in_subtensor.rbegin();
 
     const auto& precision = get_node()->get_input_element_type(0);
-    // Repacking buffer shape is set in accordance to OneDNN requirements
-    const size_t N_dim = compute_repacked_n_dim(n_blk, precision);
-    if (!in_layout.empty() && in_layout.back() != in_layout.size() - 1) {
-        // In case of transpose, K dimension must be rounded-up to number of elems in vector register
-        // For the details, please see 'transpose16x8' and 'fixup16x16' implementations and usage in
-        // onednn/src/cpu/x64/matmul/brgemm_matmul_copy_utils.cpp
-        const auto elems_in_vec = brgemm_utils::get_elems_in_vec(precision);
-        m_allocation_size = snippets::utils::dynamic_safe_mul(N_dim, snippets::utils::rnd_up(k_blk, elems_in_vec));
-    } else {
-        // Low precision repacking writes the result by m_brgemmVNNIFactor * m_inner_n_block blocks
-        // despite the actual size of the input data. Because of that we have to round-up the allocation shape to always
-        // have enough memory allocated. For the details, please see 'copy_4x64' and 'copy_2x32' implementations and
-        // usage in onednn/src/cpu/x64/matmul/brgemm_matmul_copy_utils.cpp
-        const auto brgemmVNNIFactor = brgemm_utils::compute_vnni_factor(precision);
-        OPENVINO_ASSERT(brgemmVNNIFactor > 0, "brgemmVNNIFactor value must be positive.");
-        m_allocation_size = snippets::utils::dynamic_safe_mul(N_dim, snippets::utils::rnd_up(k_blk, brgemmVNNIFactor));
-    }
+    const auto buffer_b_shape =
+        brgemm_utils::repacking::compute_buffer_b_allocation_shape(k_blk,
+                                                                   n_blk,
+                                                                   precision,
+                                                                   BrgemmCopyB::is_transposed(in_layout));
+    OPENVINO_ASSERT(buffer_b_shape.size() == 3, "Unexpected buffer B shape rank");
+    m_allocation_size =
+        std::accumulate(buffer_b_shape.cbegin(), buffer_b_shape.cend(), size_t(1), [](size_t a, size_t b) {
+            return snippets::utils::dynamic_safe_mul(a, b);
+        });
 }
 
 CompensationsBufferExpression::CompensationsBufferExpression(

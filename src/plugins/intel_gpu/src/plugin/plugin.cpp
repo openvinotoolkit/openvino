@@ -335,8 +335,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
 
     std::unique_ptr<cldnn::BinaryInputBuffer> ib_ptr =
         encryption_enabled ? std::make_unique<cldnn::EncryptedBinaryInputBuffer>(model,
-                                                                                   context_impl->get_engine(),
-                                                                                   encryption_callbacks.decrypt)
+                                                                                 context_impl->get_engine(),
+                                                                                 encryption_callbacks.decrypt)
                            : std::make_unique<cldnn::BinaryInputBuffer>(model, context_impl->get_engine());
     auto& ib = *ib_ptr;
 
@@ -348,8 +348,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     }
 
     std::string weights_path = config.get_weights_path();
-    if (config.get_cache_mode() == ov::CacheMode::OPTIMIZE_SIZE && !ov::util::validate_weights_path(weights_path)) {
-        return nullptr;
+    if (config.get_cache_mode() == ov::CacheMode::OPTIMIZE_SIZE) {
+        if (!ov::util::validate_weights_path(weights_path) && config.get_model() == nullptr) {
+            return nullptr;
+        }
     }
 
     return std::make_shared<CompiledModel>(ib, shared_from_this(), context_impl, config, loaded_from_cache);
