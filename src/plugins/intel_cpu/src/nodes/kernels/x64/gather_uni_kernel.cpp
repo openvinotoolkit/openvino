@@ -69,6 +69,7 @@ jitUniGatherKernel<isa>::jitUniGatherKernel(const jGatherConfParams& jcp)
         permMask8bitUni = permMask8bitA5;
         permMask16bitUni = permMask16bitA5;
     }
+    dstStep = is_real16_to_f32 ? 2 * vlen : vlen;
 }
 
 template <x64::cpu_isa_t isa>
@@ -752,23 +753,81 @@ void jitUniGatherKernel<isa>::process(bool isShortIdx, bool blocked) {
 }
 
 template <x64::cpu_isa_t isa>
+void jitUniGatherKernel<isa>::store(const Xbyak::Reg64& reg_dst, Vmm& vmmSrc) {
+    if (is_real16_to_f32) {
+        // keep reg_dst, incremented outside
+        constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
+        Xbyak::Ymm ymmSrc(vmmSrc.getIdx());
+        Xbyak::Xmm xmmSrc(vmmSrc.getIdx());
+        if (is_zmm) {
+            // if zmm, split to 2 ymms, up convert to 2 zmms, store
+            // last(31) is used as temp
+            Xbyak::Zmm zmmTemp(31);
+            Xbyak::Ymm ymmTemp(31);
+            if (jcp.in_prec == element::bf16) {
+                uni_vpmovzxwd(zmmTemp, ymmSrc);
+                uni_vpslld(zmmTemp, zmmTemp, 16);
+                uni_vmovups(ptr[reg_dst], zmmTemp);
+
+                vshuff64x2(zmmTemp, vmmSrc, vmmSrc, 0b00001110);
+                uni_vpmovzxwd(zmmTemp, ymmTemp);
+                uni_vpslld(zmmTemp, zmmTemp, 16);
+                uni_vmovups(ptr[reg_dst + vlen], zmmTemp);
+            } else {
+                vcvtph2ps(zmmTemp, ymmSrc);
+                uni_vmovups(ptr[reg_dst], zmmTemp);
+
+                vshuff64x2(zmmTemp, vmmSrc, vmmSrc, 0b00001110);
+                vcvtph2ps(zmmTemp, ymmTemp);
+                uni_vmovups(ptr[reg_dst + vlen], zmmTemp);
+            }
+        } else {
+            // if ymm, split to 2 xmms, up convert to 2 ymms, store
+            // vmmZeros is used as temp
+            Xbyak::Ymm ymmTemp(vmmZeros.getIdx());
+            Xbyak::Xmm xmmTemp(vmmZeros.getIdx());
+            if (jcp.in_prec == element::bf16) {
+                uni_vpmovzxwd(ymmTemp, xmmSrc);
+                uni_vpslld(ymmTemp, ymmTemp, 16);
+                uni_vmovups(ptr[reg_dst], ymmTemp);
+
+                vperm2f128(ymmTemp, ymmSrc, ymmSrc, 0x1);
+                uni_vpmovzxwd(ymmTemp, xmmTemp);
+                uni_vpslld(ymmTemp, ymmTemp, 16);
+                uni_vmovups(ptr[reg_dst + vlen], ymmTemp);
+            } else {
+                vcvtph2ps(ymmTemp, xmmSrc);
+                uni_vmovups(ptr[reg_dst], ymmTemp);
+
+                vperm2f128(ymmTemp, ymmSrc, ymmSrc, 0x1);
+                vcvtph2ps(ymmTemp, xmmTemp);
+                uni_vmovups(ptr[reg_dst + vlen], ymmTemp);
+            }
+            uni_vpxor(vmmZeros, vmmZeros, vmmZeros);
+        }
+    } else {
+        uni_vmovups(ptr[reg_dst], vmmSrc);
+    }
+}
+
+template <x64::cpu_isa_t isa>
 void jitUniGatherKernel<isa>::process32b(bool isShortIdx, bool blocked) {
     Xbyak::Label lDstIdxLoop, lTail;
 
     // First iteration
     shiftIdxAndGather(vmmAuxContainer, isShortIdx, false, blocked);
-    uni_vmovups(ptr[regDst], vmmAuxContainer[2]);
+    store(regDst, vmmAuxContainer[2]);
 
     // Main loop
     L(lDstIdxLoop);
     {
-        add(regDst, vlen);
+        add(regDst, dstStep);
         sub(regWorkAmount, dataElPerVec);
         cmp(regWorkAmount, dataElPerVec);
         jl(lTail, T_NEAR);
 
         shiftIdxAndGather(vmmAuxContainer, isShortIdx, true, blocked);
-        uni_vmovups(ptr[regDst], vmmAuxContainer[2]);
+        store(regDst, vmmAuxContainer[2]);
 
         jmp(lDstIdxLoop, T_NEAR);
     }
@@ -808,12 +867,12 @@ void jitUniGatherKernel<isa>::process16b(bool isShortIdx, bool blocked) {
     uni_vmovups(vPermMask, ptr[regAux1]);
     vpermd(vmmAuxContainer[0], vPermMask, vmmAuxContainer[0]);
 
-    uni_vmovups(ptr[regDst], vmmAuxContainer[0]);
+    store(regDst, vmmAuxContainer[0]);
 
     // Main loop.
     L(lDstIdxLoop1);
     {
-        add(regDst, vlen);
+        add(regDst, dstStep);
         sub(regWorkAmount, dataElPerVec);
         cmp(regWorkAmount, dataElPerVec);
         jl(lTail, T_NEAR);
@@ -832,7 +891,7 @@ void jitUniGatherKernel<isa>::process16b(bool isShortIdx, bool blocked) {
         }
         vpermd(vmmAuxContainer[0], vPermMask, vmmAuxContainer[0]);
 
-        uni_vmovups(ptr[regDst], vmmAuxContainer[0]);
+        store(regDst, vmmAuxContainer[0]);
 
         jmp(lDstIdxLoop1, T_NEAR);
     }
@@ -883,12 +942,12 @@ void jitUniGatherKernel<isa>::process8b(bool isShortIdx, bool blocked) {
 
     vpermd(vmmAuxContainer[0], vPermMask, vmmAuxContainer[0]);
 
-    uni_vmovups(ptr[regDst], vmmAuxContainer[0]);
+    store(regDst, vmmAuxContainer[0]);
 
     // Main loop.
     L(lDstIdxLoop1);
     {
-        add(regDst, vlen);
+        add(regDst, dstStep);
         sub(regWorkAmount, dataElPerVec);
         cmp(regWorkAmount, dataElPerVec);
         jl(lTail, T_NEAR);
@@ -917,7 +976,7 @@ void jitUniGatherKernel<isa>::process8b(bool isShortIdx, bool blocked) {
         }
         vpermd(vmmAuxContainer[0], vPermMask, vmmAuxContainer[0]);
 
-        uni_vmovups(ptr[regDst], vmmAuxContainer[0]);
+        store(regDst, vmmAuxContainer[0]);
 
         jmp(lDstIdxLoop1, T_NEAR);
     }
@@ -1067,12 +1126,29 @@ void jitUniGatherKernel<isa>::storeVectorPart(const Xbyak::Reg64& rDst,
             if (jcp.dataTypeSize == 4) {
                 uni_vpextrd(ptr[rDst], xAux, k);
             } else if (jcp.dataTypeSize == 2) {
-                uni_vpextrw(ptr[rDst], xAux, k * 2);
+                if (jcp.in_prec == jcp.out_prec) {
+                    uni_vpextrw(ptr[rDst], xAux, k * 2);
+                } else if (jcp.out_prec == element::f32) {
+                    Xbyak::Ymm yAux(vAux.getIdx());
+                    if (jcp.in_prec == element::bf16) {
+                        uni_vpmovzxwd(yAux, xAux);
+                        uni_vpslld(yAux, yAux, 16);
+                    }
+                    if (jcp.in_prec == element::f16) {
+                        vcvtph2ps(yAux, xAux);
+                    }
+                    if (k < 2) {
+                        uni_vpextrd(ptr[rDst], xAux, k * 2);
+                    } else {
+                        vperm2f128(yAux, yAux, yAux, 0x1);
+                        uni_vpextrd(ptr[rDst], xAux, k * 2 - 4);
+                    }
+                }
             } else if (jcp.dataTypeSize == 1) {
                 uni_vpextrb(ptr[rDst], xAux, k * 4);
             }
 
-            add(rDst, jcp.dataTypeSize);
+            add(rDst, jcp.out_prec.size());
             sub(rToStoreCounter, 1);
         }
     }

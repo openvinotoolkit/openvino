@@ -77,7 +77,10 @@ private:
 
     bool reverseIndexing = false;
 
+    ov::element::Type dataPrecision;
+    ov::element::Type outPrecision;
     uint64_t dataTypeSize = 1lu;
+    uint64_t outTypeSize = 1lu;
     static constexpr uint64_t idxTypeSize = sizeof(int);
 
     int axis = 0;
@@ -90,11 +93,13 @@ private:
     uint64_t betweenBatchAndAxisSize = 0lu;
     uint64_t afterAxisSize = 0lu;
     uint64_t afterAxisSizeInBytes = 0lu;
+    uint64_t afterAxisSizeInBytesOut = 0lu;
     uint64_t axisAndAfterAxisSizeInBytes = 0lu;
     uint64_t axisAndAfterAxisSize = 0lu;
     uint64_t srcAfterBatchSizeInBytes = 0lu;
     uint64_t srcAfterBatchSize = 0lu;
     uint64_t specIdxAndAfterAxSizeB = 0lu;
+    uint64_t specIdxAndAfterAxSizeBOut = 0lu;
     uint64_t specIdxAndAfterAxSize = 0lu;
     uint64_t totalWork = 0lu;
 
