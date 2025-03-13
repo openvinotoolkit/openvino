@@ -11,9 +11,7 @@
 #include "openvino/op/embeddingbag_packed.hpp"
 #include "openvino/op/embeddingbag_packedsum.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool EmbeddingBagPacked::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                               std::string& errorMessage) noexcept {
@@ -54,7 +52,7 @@ EmbeddingBagPacked::EmbeddingBagPacked(const std::shared_ptr<ov::Node>& op, cons
         }
     }
     if (getInputShapeAtPort(INDICES_IDX).getRank() != 2ul) {
-        OPENVINO_THROW("'", _layerName, "' layer has indices data with invalid rank.");
+        THROW_CPU_NODE_ERR("has indices data with invalid rank.");
     }
 }
 
@@ -63,7 +61,6 @@ void EmbeddingBagPacked::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    std::string logPrefix = std::string("Layer EmbeddingBag with name '") + _layerName + "' ";
     static const std::set<ov::element::Type> supportedPrecisions = {ov::element::f32,
                                                                     ov::element::i8,
                                                                     ov::element::u8,
@@ -75,7 +72,7 @@ void EmbeddingBagPacked::initSupportedPrimitiveDescriptors() {
     }
     if (!supportedPrecisions.empty()) {
         if (supportedPrecisions.find(inDataPrecision) == supportedPrecisions.end()) {
-            OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.get_type_name());
+            THROW_CPU_NODE_ERR("has unsupported precision: ", inDataPrecision.get_type_name());
         }
     } else {
         static const std::set<ov::element::Type> defaultSupportedPrecisions = {ov::element::f32,
@@ -83,14 +80,14 @@ void EmbeddingBagPacked::initSupportedPrimitiveDescriptors() {
                                                                                ov::element::u8,
                                                                                ov::element::i32};
         if (defaultSupportedPrecisions.find(inDataPrecision) == defaultSupportedPrecisions.end()) {
-            OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.get_type_name());
+            THROW_CPU_NODE_ERR("has unsupported precision: ", inDataPrecision.get_type_name());
         }
     }
 
     std::vector<PortConfigurator> inDataConfigurators(
         {{LayoutType::ncsp, inDataPrecision}, {LayoutType::ncsp, ov::element::i32}});
     if (inputShapes.size() > PER_SAMPLE_WEIGHTS_IDX) {
-        inDataConfigurators.push_back({LayoutType::ncsp, inDataPrecision});
+        inDataConfigurators.emplace_back(LayoutType::ncsp, inDataPrecision);
     }
 
     addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, inDataPrecision}}, impl_desc_type::ref_any);
@@ -112,7 +109,7 @@ void EmbeddingBagPacked::getIndices(size_t embIndex,
                                     int& weightsIdx,
                                     bool& withWeight) {
     if (static_cast<size_t>(embIndex) >= _batch * _indicesPerBag) {
-        OPENVINO_THROW("Invalid embedding bag index.");
+        THROW_CPU_NODE_ERR("Invalid embedding bag index.");
     }
 
     withWeight = true;
@@ -125,6 +122,10 @@ void EmbeddingBagPacked::getIndices(size_t embIndex,
 
 void EmbeddingBagPacked::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
+}
+
+bool EmbeddingBagPacked::neverExecute() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0);
 }
 
 bool EmbeddingBagPacked::isExecutable() const {
@@ -150,6 +151,4 @@ bool EmbeddingBagPacked::created() const {
     return getType() == Type::EmbeddingBagPacked;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

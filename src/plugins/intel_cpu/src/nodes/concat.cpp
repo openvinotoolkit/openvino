@@ -22,11 +22,13 @@
 #include "openvino/op/concat.hpp"
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 constexpr size_t channelAxis = 1lu;
+}
+
+bool Concat::neverExecute() const {
+    return isInPlace() || getSelectedPrimitiveDescriptor()->hasZeroOutputDims();
 }
 
 bool Concat::isExecutable() const {
@@ -63,7 +65,7 @@ Concat::Concat(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         axis += inRank;
     }
     if (axis >= static_cast<int64_t>(inRank) || axis < 0) {
-        OPENVINO_THROW("Concat node with name '", getName(), "' has invalid value of axis parameter: ", axis);
+        THROW_CPU_NODE_ERR("has invalid value of axis parameter: ", axis);
     }
     this->axis = axis;
 }
@@ -83,7 +85,7 @@ void Concat::getSupportedDescriptors() {
             }
         }
         if (incorrectDims || firstParentDims.size() == 0) {
-            OPENVINO_THROW("Incorrect input dimensions for concat node ", getName());
+            THROW_CPU_NODE_ERR("has incorrect input dimensions");
         }
     }
 
@@ -202,8 +204,8 @@ void Concat::initSupportedPrimitiveDescriptors() {
     for (auto refPdIndex : pdIndexesToReuse) {
         auto config = supportedPrimitiveDescriptors[refPdIndex].getConfig();
         ;
-        for (size_t i = 0; i < config.inConfs.size(); i++) {
-            config.inConfs[i].inPlace(0);
+        for (auto& inConf : config.inConfs) {
+            inConf.inPlace(0);
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     }
@@ -240,7 +242,7 @@ void Concat::selectOptimalPrimitiveDescriptor() {
         const auto& parent_config = parent_pdesc->getConfig();
         int outputIndex = parentEdge->getInputNum();
         if (outputIndex < 0 || outputIndex >= static_cast<int>(parent_config.outConfs.size())) {
-            OPENVINO_THROW("Cannot find index of output node");
+            THROW_CPU_NODE_ERR("Cannot find index of output node");
         }
         const auto& port_desc = parent_config.outConfs[outputIndex].getMemDesc();
         for (auto& item : supportedLayouts) {
@@ -260,7 +262,7 @@ void Concat::selectOptimalPrimitiveDescriptor() {
         const auto& config = prim_desc->getConfig();
         int inputIndex = childEdge->getOutputNum();
         if (inputIndex < 0 || inputIndex >= static_cast<int>(config.inConfs.size())) {
-            OPENVINO_THROW("Cannot find index of output node");
+            THROW_CPU_NODE_ERR("Cannot find index of output node");
         }
         const auto& port_desc = config.inConfs[inputIndex].getMemDesc();
         for (auto& item : supportedLayouts) {
@@ -278,9 +280,8 @@ void Concat::selectOptimalPrimitiveDescriptor() {
             maxCount = it.second;
             convertTo = it.first;
         } else if (it.second == maxCount) {
-            if (context->isGraphQuantized() && it.first == LayoutType::nspc) {
-                convertTo = it.first;
-            } else if (it.first == LayoutType::nCsp8c || it.first == LayoutType::nCsp16c) {
+            if ((context->isGraphQuantized() && it.first == LayoutType::nspc) || it.first == LayoutType::nCsp8c ||
+                it.first == LayoutType::nCsp16c) {
                 convertTo = it.first;
             }
         }
@@ -353,11 +354,11 @@ void Concat::prepareParams() {
 
     const auto& dstMemPtr = getDstMemoryAtPort(0);
     if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        OPENVINO_THROW("Destination memory is undefined.");
+        THROW_CPU_NODE_ERR("Destination memory is undefined.");
     }
     auto dstMemDesc = dstMemPtr->getDescWithType<BlockedMemoryDesc>();
     if (getSelectedPrimitiveDescriptor() == nullptr) {
-        OPENVINO_THROW("Preferable primitive descriptor is not set.");
+        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
     }
 
     const auto& outputStrides = dstMemDesc->getStrides();
@@ -404,7 +405,7 @@ void Concat::prepareParams() {
         const auto& srcMemPtr = getSrcMemoryAtPort(i);
         if (!srcMemPtr || !srcMemPtr->isDefined()) {
             auto parent = getParentEdgeAt(i)->getParent();
-            OPENVINO_THROW("Source memory from ", parent->getName(), " is undefined for node ", getName(), ".");
+            THROW_CPU_NODE_ERR("Source memory from ", parent->getName(), " is undefined.");
         }
 
         if (canExecRef) {
@@ -469,7 +470,7 @@ size_t Concat::inverseOrder(const VectorDims& order, size_t axis) {
 void Concat::initOptimalPrimitiveDescriptor() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr) {
-        OPENVINO_THROW("Preferable primitive descriptor is not set.");
+        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
     }
 
     if (!isInPlace()) {
@@ -563,7 +564,7 @@ void Concat::exec1DCase() {
 void Concat::execNspcSpecCase() {
     const auto& dst_memory = getChildEdgeAt(0)->getMemory();
     const size_t num_src = getParentEdges().size();
-    uint8_t* dst_ptr = dst_memory.getDataAs<uint8_t>();
+    auto* dst_ptr = dst_memory.getDataAs<uint8_t>();
     const size_t dataSize = DnnlExtensionUtils::sizeOfDataType(dst_memory.getDataType());
 
     std::vector<size_t> channelsDataSize;
@@ -605,7 +606,7 @@ void Concat::execNspcSpecCase() {
 void Concat::execRef() {
     const size_t numSrc = getParentEdges().size();
     const auto& dstMemory = getChildEdgeAt(0)->getMemory();
-    uint8_t* dstPtr = dstMemory.getDataAs<uint8_t>();
+    auto* dstPtr = dstMemory.getDataAs<uint8_t>();
     for (size_t i = 0; i < numSrc; i++) {
         const auto& srcMem = getParentEdgeAt(i)->getMemory();
         srcPtrs[i] = srcMem.getDataAs<const uint8_t>();
@@ -715,38 +716,34 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
 
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr) {
-        OPENVINO_THROW("Preferable primitive descriptor is not set.");
+        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
     }
     auto& config = selected_pd->getConfig();
     size_t numberOfInputs = config.inConfs.size();
     size_t inplaceOutIndx = selected_pd->getConfig().inConfs[0].inPlace();
     auto baseDim = outputShapes.front().getDims()[axis];
-    OPENVINO_ASSERT(baseDim != Shape::UNDEFINED_DIM,
-                    " Concat node: ",
-                    getName(),
-                    " can't use inPlace memory with concatenation on dynamic dimension");
+    CPU_NODE_ASSERT(baseDim != Shape::UNDEFINED_DIM,
+                    "can't use inPlace memory with concatenation on dynamic dimension");
 
     auto edges = getChildEdgesAtPort(inplaceOutIndx);
     auto itr = std::find_if(edges.begin(), edges.end(), [](const EdgePtr& edge) {
         return edge->getStatus() == Edge::Status::Allocated;
     });
-    OPENVINO_ASSERT(itr != edges.end(), " Could not find allocated child edge for concat node: ", getName());
+    CPU_NODE_ASSERT(itr != edges.end(), "Could not find allocated child edge");
 
     auto baseMemBlock = (*itr)->getMemory().getMemoryBlock();
-    OPENVINO_ASSERT(baseMemBlock != nullptr, " NULL base memory block in concat node: ", getName());
+    CPU_NODE_ASSERT(baseMemBlock != nullptr, "NULL base memory block");
 
     ptrdiff_t offset = 0;
     for (size_t i = 0; i < numberOfInputs; ++i) {
         auto partDim = inputShapes[i].getDims()[axis];
-        OPENVINO_ASSERT(partDim != Shape::UNDEFINED_DIM,
-                        " Concat node: ",
-                        getName(),
-                        " can't use inPlace memory with concatenation on dynamic dimension");
+        CPU_NODE_ASSERT(partDim != Shape::UNDEFINED_DIM,
+                        "can't use inPlace memory with concatenation on dynamic dimension");
 
         auto parentEdge = getParentEdgeAt(i);
 
-        OPENVINO_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated,
-                        " Unexpected inplace resolve call to an allocated edge: ",
+        CPU_NODE_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated,
+                        "Unexpected inplace resolve call to an allocated edge: ",
                         *parentEdge);
 
         auto memDesc = selected_pd->getConfig().inConfs[i].getMemDesc();
@@ -764,6 +761,4 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
     }
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -153,6 +153,15 @@ py::object from_ov_any(const ov::Any& any) {
     else if (any.is<std::vector<double>>()) {
         return py::cast(any.as<std::vector<double>>());
     }
+    // Check for std::vector<ov::Any>
+    else if (any.is<std::vector<ov::Any>>()) {
+        const auto& values = any.as<std::vector<ov::Any>>();
+        PyObject* list = PyList_New(0);
+        for (const auto& value : values) {
+            PyList_Append(list, from_ov_any(value).ptr());
+        }
+        return py::cast<py::object>(list);
+    }
     // Check for std::tuple<unsigned int, unsigned int>
     else if (any.is<std::tuple<unsigned int, unsigned int>>()) {
         return py::cast(any.as<std::tuple<unsigned int, unsigned int>>());
@@ -190,13 +199,29 @@ py::object from_ov_any(const ov::Any& any) {
         PyObject* dict = PyDict_New();
         for (const auto& it : val) {
             std::string property_name = it;
-            std::string mutability = it.is_mutable() ? "RW" : "RO";
-            PyDict_SetItemString(dict, property_name.c_str(), PyUnicode_FromString(mutability.c_str()));
+            auto mutability = it.get_mutability();
+            std::string mutability_str;
+            switch (mutability) {
+            case ov::PropertyMutability::RW:
+                mutability_str = "RW";
+                break;
+            case ov::PropertyMutability::RO:
+                mutability_str = "RO";
+                break;
+            case ov::PropertyMutability::WO:
+                mutability_str = "WO";
+                break;
+            default:
+                throw std::runtime_error("Unknown mutability type");
+            }
+            PyDict_SetItemString(dict, property_name.c_str(), PyUnicode_FromString(mutability_str.c_str()));
         }
         return py::cast<py::object>(dict);
     } else if (any.is<std::shared_ptr<ov::Meta>>()) {
         const ov::AnyMap& as_map = *any.as<std::shared_ptr<ov::Meta>>();
         return from_ov_any_map(as_map);
+    } else if (any.is<std::shared_ptr<ov::Symbol>>()) {
+        return py::cast(any.as<std::shared_ptr<ov::Symbol>>());
     } else if (any.is<ov::element::Type>()) {
         return py::cast(any.as<ov::element::Type>());
     } else if (any.is<ov::hint::Priority>()) {
@@ -236,6 +261,8 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::frontend::type::List>());
     } else if (any.is<ov::frontend::type::Tensor>()) {
         return py::cast(any.as<ov::frontend::type::Tensor>());
+    } else if (any.is<ov::frontend::type::Complex>()) {
+        return py::cast(any.as<ov::frontend::type::Complex>());
     } else if (any.is<ov::frontend::type::Str>()) {
         return py::cast(any.as<ov::frontend::type::Str>());
     } else if (any.is<ov::frontend::type::PyNone>()) {
@@ -273,14 +300,14 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
                 [py_encrypt](const std::string& in_str) -> std::string {
                 // Acquire GIL, execute Python function
                 py::gil_scoped_acquire acquire;
-                return (*py_encrypt)(in_str).cast<std::string>();
+                return (*py_encrypt)(py::bytes(in_str)).cast<std::string>();
             };
 
             std::function<std::string(const std::string&)> decrypt_func =
                 [py_decrypt](const std::string& in_str) -> std::string {
                 // Acquire GIL, execute Python function
                 py::gil_scoped_acquire acquire;
-                return (*py_decrypt)(in_str).cast<std::string>();
+                return (*py_decrypt)(py::bytes(in_str)).cast<std::string>();
             };
             ov::EncryptionCallbacks encryption_callbacks{encrypt_func, decrypt_func};
             properties_to_cpp[property.first] = encryption_callbacks;
@@ -460,6 +487,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         // Custom FrontEnd Types
     } else if (py::isinstance<ov::frontend::type::Tensor>(py_obj)) {
         return py::cast<ov::frontend::type::Tensor>(py_obj);
+    } else if (py::isinstance<ov::frontend::type::Complex>(py_obj)) {
+        return py::cast<ov::frontend::type::Complex>(py_obj);
     } else if (py::isinstance<ov::frontend::type::List>(py_obj)) {
         return py::cast<ov::frontend::type::List>(py_obj);
     } else if (py::isinstance<ov::frontend::type::Str>(py_obj)) {

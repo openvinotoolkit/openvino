@@ -5,13 +5,10 @@
 #pragma once
 
 #include "descriptor.hpp"
-#include "modifiers.hpp"
 #include "openvino/op/op.hpp"
+#include "transformations/tpp/common/op/modifiers.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
-namespace op {
+namespace ov::intel_cpu::tpp::op {
 
 class EquationTPP : public modifier::TensorProcessingPrimitive, public ov::op::Op {
 public:
@@ -28,7 +25,4 @@ private:
     std::vector<OpDescTPP> m_op_descs;
 };
 
-}  // namespace op
-}  // namespace tpp
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::tpp::op

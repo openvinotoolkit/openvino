@@ -10,8 +10,8 @@
 #include "openvino/util/pp.hpp"
 
 using namespace dnnl;
-namespace ov {
-namespace intel_cpu {
+
+namespace ov::intel_cpu {
 
 Edge::Edge(const NodePtr& parent, const NodePtr& child, int pr_port, int ch_port)
     : parent(parent),
@@ -242,8 +242,7 @@ Edge::ReorderStatus Edge::needReorder() {
     bool optimized = false;
     auto inputPortDesc = getInputPortDesc();
     auto outPortDesc = getOutputPortDesc();
-
-    if (inputPortDesc->getMemDesc()->getPrecision() == element::undefined) {
+    if (inputPortDesc->getMemDesc()->getPrecision() == element::dynamic) {
         return ReorderStatus::No;
     }
 
@@ -272,7 +271,7 @@ Edge::ReorderStatus Edge::needReorder() {
 }
 
 void Edge::reuse(MemoryPtr ptr) {
-    OPENVINO_ASSERT(ptr != nullptr, "Attempt to reuse initialized memory in ", *this);
+    OPENVINO_ASSERT(ptr != nullptr, "Attempt to reuse uninitialized memory in ", *this);
     memoryPtr = std::move(ptr);
     changeStatus(Status::Allocated);
 
@@ -328,8 +327,6 @@ void Edge::allocate(MemoryBlockPtr memBlock) {
 std::string Edge::hash() const {
     auto parentPtr = getParent();
     auto childPtr = getChild();
-
-    std::stringstream result;
 
     return parentPtr->getName() + "_" + std::to_string(parent_port) + "_" + childPtr->getName() + "_" +
            std::to_string(child_port);
@@ -461,13 +458,18 @@ const MemoryDesc& Edge::getOutputDesc() const {
     return *memDescPtr;
 }
 
-const MemoryDesc& Edge::getDesc() const {
-    if (getInputDesc().getPrecision() == element::undefined) {
+const MemoryDesc& Edge::getOriginalDesc() const {
+    OPENVINO_ASSERT(!one_of(status, Status::Validated, Status::Allocated),
+                    "Desc of an Allocated edge ",
+                    *this,
+                    " must be accessed through the memory object");
+
+    if (getInputDesc().getPrecision() == element::dynamic) {
         return getInputDesc();
     }
 
     if (!getInputDesc().isCompatible(getOutputDesc())) {
-        OPENVINO_THROW("Cannot get descriptor for edge: ", getParent()->getName(), "->", getChild()->getName());
+        OPENVINO_THROW("Cannot get descriptor for edge: ", *this);
     }
 
     return getInputDesc();
@@ -498,7 +500,7 @@ void Edge::validate() {
     getChild();
 
     if (status != Status::Allocated || !memoryPtr) {
-        OPENVINO_THROW("Error memory is not allocated!");
+        OPENVINO_THROW("Error memory is not allocated for edge: ", *this);
     }
     status = Status::Validated;
 }
@@ -566,7 +568,8 @@ EdgePtr Edge::getBaseEdge(int look) {
             }
         }
         return next_ch_edge;
-    } else if (parentInPlacePort >= 0 && (look & LOOK_UP)) {
+    }
+    if (parentInPlacePort >= 0 && (look & LOOK_UP)) {
         return getParent()->getParentEdgeAt(parentInPlacePort);
     }
 
@@ -663,5 +666,4 @@ std::ostream& operator<<(std::ostream& os, const Edge& edge) {
               << ":" << Edge::statusToString(edge.getStatus());
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

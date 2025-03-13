@@ -72,6 +72,11 @@ Prerequisites
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("flux.1-image-generation.ipynb")
 
 Select model
 ------------
@@ -198,7 +203,7 @@ tasks and model classes in Optimum TaskManager
 `documentation <https://huggingface.co/docs/optimum/exporters/task_manager>`__.
 Additionally, you can specify weights compression using
 ``--weight-format`` argument with one of following options: ``fp32``,
-``fp16``, ``int8`` and ``int4``. Fro int8 and int4
+``fp16``, ``int8`` and ``int4``. For int8 and int4
 `nncf <https://github.com/openvinotoolkit/nncf>`__ will be used for
 weight compression. More details about model export provided in `Optimum
 Intel

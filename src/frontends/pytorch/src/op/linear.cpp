@@ -23,20 +23,42 @@ OutputVector translate_linear(const NodeContext& context) {
     num_inputs_check(context, 2, 3);
     auto x = context.get_input(0);
     auto weight = context.get_input(1);
-    if (weight.get_element_type() == element::f16 || weight.get_element_type() == element::bf16) {
+    auto matmul = context.mark_node(std::make_shared<v0::MatMul>(x, weight, false, true));
+    if (!context.input_is_none(2)) {
+        auto bias = context.get_input(2);
+        matmul = context.mark_node(std::make_shared<v1::Add>(matmul, bias));
+    }
+    return {matmul};
+};
+
+OutputVector translate_linear_ext(const NodeContext& context) {
+    num_inputs_check(context, 2, 3);
+    auto x = context.get_input(0);
+    auto initial_x = x;
+    auto weight = context.get_input(1);
+    bool convert_back = false;
+    if (weight.get_element_type() != element::f32) {
         // In case of patched linear it can have mixed fp16/bf16 and fp32 input type.
         // In other cases these conversion is not required.
-        weight = context.mark_node(std::make_shared<v1::ConvertLike>(weight, x));
+        weight = context.mark_node(std::make_shared<v0::Convert>(weight, element::f32));
+        if (x.get_element_type() != element::f32) {
+            // Convert to f32
+            x = context.mark_node(std::make_shared<v0::Convert>(x, element::f32));
+            convert_back = true;
+        }
     }
     auto matmul = context.mark_node(std::make_shared<v0::MatMul>(x, weight, false, true));
     if (!context.input_is_none(2)) {
         auto bias = context.get_input(2);
 
-        if (bias.get_element_type() == element::f16 || bias.get_element_type() == element::bf16) {
+        if (bias.get_element_type() != element::f32) {
             // Same reason as for weight.
-            bias = context.mark_node(std::make_shared<v1::ConvertLike>(bias, x));
+            bias = context.mark_node(std::make_shared<v0::Convert>(bias, element::f32));
         }
         matmul = context.mark_node(std::make_shared<v1::Add>(matmul, bias));
+    }
+    if (convert_back) {
+        matmul = context.mark_node(std::make_shared<v1::ConvertLike>(matmul, initial_x));
     }
     return {matmul};
 };

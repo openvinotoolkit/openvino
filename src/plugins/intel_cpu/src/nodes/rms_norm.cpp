@@ -27,16 +27,14 @@
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 struct RMSNormKey {
     ov::element::Type precision;
     size_t data_size;
     size_t scale_size;
     float eps;
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const RMSNormKey& rhs) const;
 };
 
@@ -99,7 +97,7 @@ struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
     void execute(const std::vector<MemoryPtr>& inputs, const MemoryPtr output) override {
         auto src = inputs[0]->getDataAs<uint8_t>();
         auto dst = output->getDataAs<uint8_t>();
-        float* scale = inputs[1]->getDataAs<float>();
+        auto* scale = inputs[1]->getDataAs<float>();
 
         const auto& src_strides = inputs[0]->getDescWithType<BlockedMemoryDesc>()->getStrides();
         const auto& dst_strides = output->getDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -122,7 +120,7 @@ RMSNorm::RMSNorm(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
     : Node(op, context, RMSNormShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        OPENVINO_THROW("CPU: " + errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto rms = ov::as_type_ptr<const ov::op::internal::RMS>(op);
     m_eps = static_cast<float>(rms->get_epsilon());
@@ -234,6 +232,4 @@ bool RMSNorm::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
     return true;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

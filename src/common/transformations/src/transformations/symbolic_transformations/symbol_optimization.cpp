@@ -4,6 +4,8 @@
 
 #include "transformations/symbolic_transformations/symbol_optimization.hpp"
 
+#include <optional>
+
 #include "itt.hpp"
 #include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -379,7 +381,7 @@ struct OutputValue {
             });
     }
 
-    static ov::optional<OutputValue> make(const ov::Output<ov::Node>& output) {
+    static std::optional<OutputValue> make(const ov::Output<ov::Node>& output) {
         auto symbols = output.get_tensor().get_value_symbol();
         if (symbols.empty() || symbols.size() == 1)
             return {};

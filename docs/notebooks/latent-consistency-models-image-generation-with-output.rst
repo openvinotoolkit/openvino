@@ -105,6 +105,11 @@ Prerequisites
             r = requests.get(base_utils_url + utility_file.name)
             with utility_file.open("w") as f:
                 f.write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("latent-consistency-models-image-generation.ipynb")
 
 Convert models to OpenVINO format
 ---------------------------------
@@ -694,7 +699,7 @@ generative models as it already includes all the core functionality.
 
 ``openvino_genai.Text2ImagePipeline`` class supports inference of
 `Diffusers
-models <https://github.com/openvinotoolkit/openvino.genai/blob/master/SUPPORTED_MODELS.md#image-generation-models>`__.
+models <https://github.com/openvinotoolkit/openvino.genai/blob/master/src/docs/SUPPORTED_MODELS.md#text-2-image-models>`__.
 For pipeline initialization, we should provide directory with converted
 by Optimum Intel pipeline and specify inference device. Optionally, we
 can provide configuration for LoRA Adapters using ``adapter_config``.

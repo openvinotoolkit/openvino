@@ -5,6 +5,7 @@
 #include "rdft.h"
 
 #include <cmath>
+#include <memory>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/irdft.hpp>
 #include <openvino/op/rdft.hpp>
@@ -23,9 +24,7 @@
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 static constexpr size_t DATA_INDEX = 0;
 static constexpr size_t AXES_INDEX = 1;
@@ -81,15 +80,14 @@ RDFT::RDFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    std::string errorMsgPrefix = "RDFT layer with name '" + op->get_name() + "'";
     const size_t numInputs = getOriginalInputsNumber();
     if (numInputs != 2 && numInputs != 3) {
-        OPENVINO_THROW(errorMsgPrefix, " has invalid number of input/output edges: ", numInputs);
+        THROW_CPU_NODE_ERR("has invalid number of input/output edges: ", numInputs);
     }
 
     const auto axesRank = inputShapes[AXES_INDEX].getRank();
     if (axesRank != 1) {
-        OPENVINO_THROW(errorMsgPrefix, " has invalid 'axes' input tensor with rank: ", axesRank);
+        THROW_CPU_NODE_ERR("has invalid 'axes' input tensor with rank: ", axesRank);
     }
 
     inverse = ov::is_type<ov::op::v9::IRDFT>(op);
@@ -105,7 +103,7 @@ RDFT::RDFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
     if (numInputs > 2) {
         const auto signalSizeRank = inputShapes[SIGNAL_SIZE_INDEX].getRank();
         if (signalSizeRank != 1) {
-            OPENVINO_THROW(errorMsgPrefix, " has invalid 'signalSize' input tensor with rank: ", signalSizeRank);
+            THROW_CPU_NODE_ERR("has invalid 'signalSize' input tensor with rank: ", signalSizeRank);
         }
         auto signalSizesNode = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2));
         if (!signalSizesNode) {
@@ -128,27 +126,25 @@ void RDFT::initSupportedPrimitiveDescriptors() {
 
     const auto& dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
     if (!dataPrecision.is_real()) {
-        OPENVINO_THROW(errorMsgPrefix, " has unsupported 'data' input precision: ", dataPrecision.get_type_name());
+        THROW_CPU_NODE_ERR("has unsupported 'data' input precision: ", dataPrecision.get_type_name());
     }
 
     const auto& axesPrecision = getOriginalInputPrecisionAtPort(AXES_INDEX);
     if (axesPrecision != ov::element::i32 && axesPrecision != ov::element::i64) {
-        OPENVINO_THROW(errorMsgPrefix, " has unsupported 'axes' input precision: ", axesPrecision.get_type_name());
+        THROW_CPU_NODE_ERR("has unsupported 'axes' input precision: ", axesPrecision.get_type_name());
     }
 
     if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
         const auto& signalSizePrecision = getOriginalInputPrecisionAtPort(SIGNAL_SIZE_INDEX);
         if (signalSizePrecision != ov::element::i32 && signalSizePrecision != ov::element::i64) {
-            OPENVINO_THROW(errorMsgPrefix,
-                           " has unsupported 'signalSize' input precision: ",
-                           signalSizePrecision.get_type_name());
+            THROW_CPU_NODE_ERR("has unsupported 'signalSize' input precision: ", signalSizePrecision.get_type_name());
         }
     }
 
     std::vector<PortConfigurator> configurators(
         {{LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::i32}});
     if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
-        configurators.push_back({LayoutType::ncsp, ov::element::i32});
+        configurators.emplace_back(LayoutType::ncsp, ov::element::i32);
     }
 
     addSupportedPrimDesc(configurators, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
@@ -269,17 +265,16 @@ bool RDFT::signalSizesChanged() const {
         }
         return inverse ? static_cast<size_t>(signalSizes.back()) != 2 * (inputShape[axes.back()] - 1)
                        : static_cast<size_t>(signalSizes.back()) != inputShape[axes.back()];
-    } else {
-        const auto& signalSizesMem = getSrcMemoryAtPort(SIGNAL_SIZE_INDEX);
-        auto newSize = signalSizesMem->getStaticDims()[0];
-        if (signalSizes.size() != newSize || signalSizes.size() != axes.size()) {
+    }
+    const auto& signalSizesMem = getSrcMemoryAtPort(SIGNAL_SIZE_INDEX);
+    auto newSize = signalSizesMem->getStaticDims()[0];
+    if (signalSizes.size() != newSize || signalSizes.size() != axes.size()) {
+        return true;
+    }
+    const auto& signalSizesPtr = signalSizesMem->getDataAs<const int>();
+    for (size_t i = 0; i < newSize; i++) {
+        if (signalSizesPtr[i] != signalSizes[i]) {
             return true;
-        }
-        const auto& signalSizesPtr = signalSizesMem->getDataAs<const int>();
-        for (size_t i = 0; i < newSize; i++) {
-            if (signalSizesPtr[i] != signalSizes[i]) {
-                return true;
-            }
         }
     }
     return false;
@@ -643,8 +638,8 @@ void RDFTExecutor::dftOnAxis(enum dft_type type,
 
     bool useFFT = canUseFFT(signalSize);
 
-    size_t totalWorkSize = std::accumulate(iterationRange.begin(), iterationRange.end(), 1, std::multiplies<size_t>()) /
-                           iterationRange[axis];
+    size_t totalWorkSize =
+        std::accumulate(iterationRange.begin(), iterationRange.end(), 1, std::multiplies<>()) / iterationRange[axis];
     bool parallelizeOuterAxes = totalWorkSize > signalSize;
 
     if (parallelizeOuterAxes) {
@@ -758,8 +753,8 @@ void RDFTExecutor::irdftNd(float* inputPtr,
 
     float* output = outputPtr;
     std::vector<float> tmp;
-    size_t inputShapeSize = std::accumulate(inputShape.begin(), inputShape.end(), 1, std::multiplies<size_t>());
-    size_t outputShapeSize = std::accumulate(outputShape.begin(), outputShape.end(), 1, std::multiplies<size_t>());
+    size_t inputShapeSize = std::accumulate(inputShape.begin(), inputShape.end(), 1, std::multiplies<>());
+    size_t outputShapeSize = std::accumulate(outputShape.begin(), outputShape.end(), 1, std::multiplies<>());
     if (inputShapeSize > outputShapeSize) {
         tmp.resize(inputShapeSize);
         output = &tmp[0];
@@ -843,22 +838,22 @@ struct RDFTJitExecutor : public RDFTExecutor {
     RDFTJitExecutor(bool inverse, NodeDesc* primDesc) : RDFTExecutor(inverse) {
         enum dft_type rdftType = isInverse ? complex_to_real : real_to_complex;
         if (mayiuse(cpu::x64::avx512_core)) {
-            rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx512_core>(isInverse, rdftType));
-            dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx512_core>(isInverse, complex_to_complex));
+            rdftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::avx512_core>>(isInverse, rdftType);
+            dftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::avx512_core>>(isInverse, complex_to_complex);
             vlen = cpu_isa_traits<cpu::x64::avx512_core>::vlen;
             if (primDesc) {
                 primDesc->setImplementationType(jit_avx512);
             }
         } else if (mayiuse(cpu::x64::avx2)) {
-            rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx2>(isInverse, rdftType));
-            dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx2>(isInverse, complex_to_complex));
+            rdftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::avx2>>(isInverse, rdftType);
+            dftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::avx2>>(isInverse, complex_to_complex);
             vlen = cpu_isa_traits<cpu::x64::avx2>::vlen;
             if (primDesc) {
                 primDesc->setImplementationType(jit_avx2);
             }
         } else if (mayiuse(cpu::x64::sse41)) {
-            rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::sse41>(isInverse, rdftType));
-            dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::sse41>(isInverse, complex_to_complex));
+            rdftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::sse41>>(isInverse, rdftType);
+            dftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::sse41>>(isInverse, complex_to_complex);
             vlen = cpu_isa_traits<cpu::x64::sse41>::vlen;
             if (primDesc) {
                 primDesc->setImplementationType(jit_sse42);
@@ -1132,6 +1127,4 @@ std::shared_ptr<RDFTExecutor> RDFTExecutor::build(bool inverse, NodeDesc* primDe
     return executor;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -190,7 +190,7 @@ For the same reason, it is not recommended to leave dimensions as undefined, wit
 
 When specifying bounds, the lower bound is not as important as the upper one. The upper bound allows inference devices to allocate memory for intermediate tensors more precisely. It also allows using a fewer number of tuned kernels for different sizes.
 More precisely, benefits of specifying the lower or upper bound is device dependent.
-Depending on the plugin, specifying the upper bounds can be required. For information about dynamic shapes support on different devices, refer to the :doc:`feature support table <../../about-openvino/compatibility-and-support/supported-devices>`.
+Depending on the plugin, specifying the upper bounds can be required. For information about dynamic shapes support on different devices, refer to the :doc:`feature support table <../../documentation/compatibility-and-support/supported-devices>`.
 
 If the lower and upper bounds for a dimension are known, it is recommended to specify them, even if a plugin can execute a model without the bounds.
 

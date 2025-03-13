@@ -12,9 +12,7 @@
 #include "shape_inference/shape_inference.hpp"
 #include "utils/bfloat16.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 using namespace ov::intel_cpu;
 
 bool Eye::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -110,7 +108,7 @@ void Eye::executeSpecified() {
     const size_t onesPerBatchNum =
         static_cast<size_t>(shift > 0 ? std::min(countByColumns, static_cast<int64_t>(rowNum))
                                       : std::min(countByRows, static_cast<int64_t>(colNum)));
-    const size_t dataShift = static_cast<size_t>(shift >= 0 ? shift : -shift * colNum);
+    const auto dataShift = static_cast<size_t>(shift >= 0 ? shift : -shift * colNum);
 
     if (spatialSize >= l2CacheSize) {
         parallel_nt(0, [&](const size_t ithr, const size_t nthr) {
@@ -150,6 +148,4 @@ void Eye::executeSpecified() {
 bool Eye::created() const {
     return getType() == Type::Eye;
 }
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

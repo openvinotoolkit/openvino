@@ -15,8 +15,7 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 // @todo executor is not complete and covers only 1x1 fallback case for fullyconnected node
 class DnnlConvolutionPrimitive {
@@ -30,7 +29,7 @@ class DnnlConvolutionPrimitive {
 
         const dnnl::primitive_attr attr;
 
-        size_t hash() const;
+        [[nodiscard]] size_t hash() const;
         bool operator==(const Key& rhs) const;
     };
 
@@ -41,23 +40,23 @@ public:
 
     void execute(const dnnl_primitive_args& primArgs) const;
 
-    const DnnlMemoryDescPtr srcDesc() const {
+    [[nodiscard]] const DnnlMemoryDescPtr srcDesc() const {
         return m_srcDesc;
     }
 
-    const DnnlMemoryDescPtr dstDesc() const {
+    [[nodiscard]] const DnnlMemoryDescPtr dstDesc() const {
         return m_dstDesc;
     }
 
-    const DnnlMemoryDescPtr weightsDesc() const {
+    [[nodiscard]] const DnnlMemoryDescPtr weightsDesc() const {
         return m_weiDesc;
     }
 
-    const DnnlMemoryDescPtr scratchPadDesc() const {
+    [[nodiscard]] const DnnlMemoryDescPtr scratchPadDesc() const {
         return m_scratchPadDesc;
     }
 
-    impl_desc_type implType() const {
+    [[nodiscard]] impl_desc_type implType() const {
         return m_implType;
     }
 
@@ -90,5 +89,4 @@ private:
 
 using DnnlConvExecutorPtr = std::shared_ptr<DnnlConvolutionPrimitive>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

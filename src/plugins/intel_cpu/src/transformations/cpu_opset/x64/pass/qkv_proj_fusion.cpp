@@ -43,7 +43,7 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
                                               {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,4096]
     auto result = q_proj;
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         PatternValidator validator(m);
         if (!validator) {
             return false;
@@ -132,8 +132,8 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
             }
 
             proj_size.push_back(wshape[0]);
-            args.push_back(constw);
-            deq_scales.push_back(deq_scale);
+            args.emplace_back(constw);
+            deq_scales.emplace_back(deq_scale);
             outputs.push_back(mm->get_default_output());
         }
 
@@ -205,7 +205,7 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
 
     auto result = qkv_split->output(0);
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         PatternValidator validator(m);
         if (!validator) {
             return false;
@@ -247,7 +247,7 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
         }
 
         auto w_shape = qkv_proj_weight_node->get_shape();
-        if (w_shape[0] != static_cast<uint64_t>(proj_size * 3)) {
+        if (w_shape[0] != static_cast<uint64_t>(proj_size) * 3) {
             return false;
         }
 
@@ -262,9 +262,9 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
         OutputVector args = {pattern_map.at(input), qkv_proj_weight_node, qkv_proj_weight_node, qkv_proj_weight_node};
         if (is_quantized_int8) {
             auto scales = pattern_map.at(qkv_proj_weight_scales_per_OC).get_node_shared_ptr();
-            args.push_back(scales);
-            args.push_back(scales);
-            args.push_back(scales);
+            args.emplace_back(scales);
+            args.emplace_back(scales);
+            args.emplace_back(scales);
         }
         auto old_node = root;
         auto new_node = std::make_shared<QKVProjectionNode>(args, config);

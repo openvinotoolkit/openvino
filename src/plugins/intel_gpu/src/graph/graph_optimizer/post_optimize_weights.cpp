@@ -4,7 +4,7 @@
 
 #include "pass_manager.h"
 #include "program_helpers.h"
-#include "impls/registry/registry.hpp"
+#include "registry/registry.hpp"
 
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
@@ -43,10 +43,6 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
         return;
 
     if (impl->is_dynamic()) {
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->disable_build_time_weight_reorder_for_dynamic_nodes) {
-            return;
-        }
         // TODO: To relax current limitation w.r.t the future optimization of weight reorder process
         // In dynamic shape, selected weight format can change in runtime. However reordering blocked format to blocked format is not fully verified yet.
         // So we need to enable other primitives such as convolution with verifying reorder b/w the possible layouts

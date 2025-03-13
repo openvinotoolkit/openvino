@@ -21,10 +21,7 @@
 #    include "arm_neon.h"
 #endif
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace ov::Extensions::Cpu::XARCH {
 
 #if defined(HAVE_AVX2)
 inline void exp_ps_avx2(__m256& src) {
@@ -952,8 +949,7 @@ inline void multiply_scalar(float* a, float* a_dst, const float val, const size_
 }
 
 template <typename T,
-          typename = typename std::
-              enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
+          typename = std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>>
 inline void multiply_scalar(float* a, T* a_dst, const float val, const size_t size) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)
@@ -1286,7 +1282,4 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
 }
 #endif
 
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu::XARCH

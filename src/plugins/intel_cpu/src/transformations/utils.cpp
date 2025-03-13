@@ -9,8 +9,7 @@
 #include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 bool has_matmul_with_compressed_weights(const std::shared_ptr<const ov::Model>& model) {
     bool has_decompression_multiply = false;
@@ -23,7 +22,7 @@ bool has_matmul_with_compressed_weights(const std::shared_ptr<const ov::Model>& 
     };
 
     for (const auto& op : model->get_ops()) {
-        if (!ov::is_type<ov::op::v0::MatMul>(op) && !ov::is_type<ov::op::internal::FullyConnected>(op)) {
+        if (!ov::is_type_any_of<ov::op::v0::MatMul, ov::op::internal::FullyConnected>(op)) {
             continue;
         }
 
@@ -46,5 +45,4 @@ bool has_matmul_with_compressed_weights(const std::shared_ptr<const ov::Model>& 
     return false;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
