@@ -1303,7 +1303,7 @@ TEST_F(IRFrontendTests, model_with_tensor_names_with_spaces) {
                 <layer id="0" name="input2" type="Parameter" version="opset1">
                     <data shape="1,4,512" element_type="f32"/>
                     <output>
-                        <port id="0" precision="FP32" names="input2">
+                        <port id="0" precision="FP32" names="model/bert/encoder/layer_0/attention/self/query/Tensordot/MatMul;model/bert/encoder/layer_0/attention/self/query/BiasAdd;model/bert/encoder/layer_0/attention/output/dense/Tensordot/shape;model/bert/encoder/layer_0/attention/self/query/Tensordot;model/bert/encoder/layer_0/attention/self/query/BiasAdd/ReadVariableOp_Gemm__32:0">
                             <dim>1</dim>
                             <dim>4</dim>
                             <dim>512</dim>
