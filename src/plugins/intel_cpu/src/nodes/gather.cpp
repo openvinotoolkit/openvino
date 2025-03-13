@@ -16,6 +16,7 @@
 
 #include "common/cpu_memcpy.h"
 #include "kernels/x64/gather_uni_kernel.hpp"
+#include "nodes/common/cpu_convert.h"
 #include "openvino/core/parallel.hpp"
 #include "ov_ops/gather_compressed.hpp"
 #include "selective_build.h"
@@ -127,7 +128,13 @@ void Gather::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    dataTypeSize = getOriginalInputPrecisionAtPort(GATHER_DATA).size();
+    dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
+    outPrecision = getOriginalOutputPrecisionAtPort(0);
+    if (!(one_of(dataPrecision, ov::element::f16, ov::element::bf16) && outPrecision == ov::element::f32)) {
+        outPrecision = dataPrecision;
+    }
+    dataTypeSize = dataPrecision.size();
+    outTypeSize = outPrecision.size();
 
     const auto& dataDims = getInputShapeAtPort(GATHER_DATA).getDims();
     if (isAxisInputConst && isDataShapeStat) {
@@ -138,6 +145,7 @@ void Gather::initSupportedPrimitiveDescriptors() {
         afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1lu, std::multiplies<>());
 
         afterAxisSizeInBytes = afterAxisSize * dataTypeSize;
+        afterAxisSizeInBytesOut = afterAxisSize * outTypeSize;
         axisAndAfterAxisSize = axisDim * afterAxisSize;
         axisAndAfterAxisSizeInBytes = axisDim * afterAxisSizeInBytes;
         srcAfterBatchSize = betweenBatchAndAxisSize * axisAndAfterAxisSize;
@@ -153,11 +161,10 @@ void Gather::initSupportedPrimitiveDescriptors() {
         if (isDataShapeStat) {
             specIdxAndAfterAxSize = specIndicesSize * afterAxisSize;
             specIdxAndAfterAxSizeB = specIndicesSize * afterAxisSizeInBytes;
+            specIdxAndAfterAxSizeBOut = specIndicesSize * afterAxisSizeInBytesOut;
             totalWork = beforeBatchSize * betweenBatchAndAxisSize * specIndicesSize * afterAxisSize;
         }
     }
-
-    ov::element::Type dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
     if (compressed) {
         if (!one_of(dataPrecision, ov::element::u8, ov::element::u4, ov::element::i8, ov::element::i4)) {
             dataPrecision = ov::element::f32;
@@ -168,7 +175,6 @@ void Gather::initSupportedPrimitiveDescriptors() {
             scalePrecision = ov::element::f32;
         }
 
-        ov::element::Type outPrecision = getOriginalOutputPrecisionAtPort(0);
         if (!one_of(outPrecision, ov::element::f32, ov::element::f16, ov::element::bf16)) {
             outPrecision = ov::element::f32;
         }
@@ -211,6 +217,10 @@ void Gather::initSupportedPrimitiveDescriptors() {
 
     // Let's check for the special inPlace memory use case
     // in place only makes sense when we split by dense blocks since strided tensors are not supported by most nodes
+
+    if (dataPrecision != outPrecision) {
+        return;
+    }
 
     if (!isAxisInputConst) {
         return;
@@ -269,6 +279,8 @@ void Gather::createPrimitive() {
           (x64::mayiuse(x64::avx512_core) || (x64::mayiuse(x64::avx2) && dataTypeSize == 4))))) {
         jGatherConfParams jcp;
         jcp.dataTypeSize = dataTypeSize;
+        jcp.in_prec = dataPrecision;
+        jcp.out_prec = outPrecision;
         jcp.reverseIndexing = reverseIndexing;
         jcp.dynamicShapes = isDynamicNode();
         jcp.batchDims = batchDims;
@@ -382,6 +394,7 @@ void Gather::prepareParams() {
         afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1lu, std::multiplies<>());
 
         afterAxisSizeInBytes = afterAxisSize * dataTypeSize;
+        afterAxisSizeInBytesOut = afterAxisSize * outTypeSize;
         axisAndAfterAxisSize = axisDim * afterAxisSize;
         axisAndAfterAxisSizeInBytes = axisDim * afterAxisSizeInBytes;
         srcAfterBatchSize = betweenBatchAndAxisSize * axisAndAfterAxisSize;
@@ -390,6 +403,7 @@ void Gather::prepareParams() {
         if (isIdxShapeStat) {
             specIdxAndAfterAxSize = specIndicesSize * afterAxisSize;
             specIdxAndAfterAxSizeB = specIndicesSize * afterAxisSizeInBytes;
+            specIdxAndAfterAxSizeBOut = specIndicesSize * afterAxisSizeInBytesOut;
             totalWork = beforeBatchSize * betweenBatchAndAxisSize * specIndicesSize * afterAxisSize;
         }
     }
@@ -400,6 +414,7 @@ void Gather::prepareParams() {
 
         specIdxAndAfterAxSize = specIndicesSize * afterAxisSize;
         specIdxAndAfterAxSizeB = specIndicesSize * afterAxisSizeInBytes;
+        specIdxAndAfterAxSizeBOut = specIndicesSize * afterAxisSizeInBytesOut;
         totalWork = beforeBatchSize * betweenBatchAndAxisSize * specIndicesSize * afterAxisSize;
     }
 
@@ -441,7 +456,7 @@ void Gather::execute(const dnnl::stream& strm) {
             auto arg = gatherJitExecArgs();
 
             arg.src = srcData;
-            arg.dst = dstData + p.dstStart * dataTypeSize;
+            arg.dst = dstData + p.dstStart * outTypeSize;
             arg.indices = srcIndices;
             arg.start = &p.dstStart;
             arg.axisDim = &axisDim;
@@ -508,7 +523,7 @@ void Gather::executeDynamicImpl(const dnnl::stream& strm) {
             const uint64_t wpt = ((totalWork / dataElPerVec) / nthr + 1) * dataElPerVec;
             const uint64_t start = std::min(wpt * ithr, totalWork);
             const uint64_t end = std::min(wpt * (ithr + 1), totalWork);
-            const uint64_t workAmount = end - start;
+            const uint64_t workAmount = end - start;  // how many elements processed in this thread
 
             auto arg = gatherJitExecArgs();
 
@@ -886,7 +901,7 @@ void Gather::execReference() {
     const auto* srcData = getSrcDataAtPortAs<const uint8_t>(GATHER_DATA);
     auto* dstData = getDstDataAtPortAs<uint8_t>(0);
 
-    const size_t dstAfterBatchSize = betweenBatchAndAxisSize * specIdxAndAfterAxSizeB;
+    const size_t dstAfterBatchSize = betweenBatchAndAxisSize * specIdxAndAfterAxSizeBOut;
     parallel_for2d(beforeBatchSize, specIndicesSize, [&](const size_t b, const size_t j) {
         int ii = srcIndices[b * specIndicesSize + j];
         if (ii < 0) {
@@ -897,18 +912,22 @@ void Gather::execReference() {
             }
         }
         const size_t idx = ii;
-        const size_t c2 = dstAfterBatchSize * b + afterAxisSizeInBytes * j;
+        const size_t c2 = dstAfterBatchSize * b + afterAxisSizeInBytesOut * j;
         if (idx < static_cast<size_t>(axisDim)) {
             size_t c1 = srcAfterBatchSizeInBytes * b + afterAxisSizeInBytes * idx;
             for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
                 size_t srcIdx = c1 + axisAndAfterAxisSizeInBytes * i;
-                size_t dstIdx = c2 + specIdxAndAfterAxSizeB * i;
+                size_t dstIdx = c2 + specIdxAndAfterAxSizeBOut * i;
 
-                cpu_memcpy(&dstData[dstIdx], &srcData[srcIdx], afterAxisSizeInBytes);
+                if (dataPrecision == outPrecision) {
+                    cpu_memcpy(&dstData[dstIdx], &srcData[srcIdx], afterAxisSizeInBytes);
+                } else {
+                    cpu_convert(&srcData[srcIdx], &dstData[dstIdx], dataPrecision, outPrecision, afterAxisSize);
+                }
             }
         } else {
             for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
-                memset(&dstData[c2 + specIdxAndAfterAxSizeB * i], 0, afterAxisSizeInBytes);
+                memset(&dstData[c2 + specIdxAndAfterAxSizeBOut * i], 0, afterAxisSizeInBytesOut);
             }
         }
     });

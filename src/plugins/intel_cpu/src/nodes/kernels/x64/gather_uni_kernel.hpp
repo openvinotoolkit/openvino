@@ -29,6 +29,8 @@ namespace ov::intel_cpu {
 
 struct jGatherConfParams {
     uint64_t dataTypeSize = 1lu;
+    ov::element::Type in_prec = ov::element::f32;
+    ov::element::Type out_prec = ov::element::f32;
     bool reverseIndexing = true;
     bool dynamicShapes = false;
     uint64_t batchDims = 0lu;
@@ -78,7 +80,9 @@ struct jitGatherKernelBase {
         : jcp(jcp),
           vlen(vlen),
           dataElPerVec(vlen / jcp.dataTypeSize),
-          idxElPerVec(vlen / indicesTypeSize) {}
+          idxElPerVec(vlen / indicesTypeSize),
+          is_real16_to_f32((jcp.in_prec == element::f16 || jcp.in_prec == element::bf16) &&
+                           jcp.out_prec == element::f32) {}
     virtual ~jitGatherKernelBase() = default;
 
     virtual void create_ker() = 0;
@@ -108,6 +112,7 @@ protected:
 
     int shortPermIdx[16];
     int shortBeforeAxisDiff[16];
+    bool is_real16_to_f32 = false;
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
@@ -212,9 +217,11 @@ protected:
     void storeVectorPart(const Xbyak::Reg64& rDst, const Xbyak::Reg64& rToStoreCounter, Vmm& vmmSrc, Vmm& vAux);
     void uniVpGatherDd(Vmm& vDst, const Xbyak::Address& srcAddr, Vmask& vMask);
     void fillVlenVector();
+    void store(const Xbyak::Reg64& dst_reg, Vmm& vmmSrc);
 
     const unsigned* permMask8bitUni;
     const unsigned* permMask16bitUni;
+    size_t dstStep = 0;
 };
 
 }  // namespace ov::intel_cpu
