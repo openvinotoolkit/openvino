@@ -943,9 +943,9 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_no_hint) {
     auto model = make_model_with_weights();
 
     {
-        auto cfg_with_hint = configuration;
-        cfg_with_hint.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
-        auto compiled_model = core->compile_model(model, target_device, cfg_with_hint);
+        auto export_cfg = configuration;
+        export_cfg.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+        auto compiled_model = core->compile_model(model, target_device, export_cfg);
         ASSERT_TRUE(compiled_model);
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
     }
@@ -976,10 +976,10 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache) {
     auto model = make_model_with_weights();
 
     {
-        auto cfg_with_hint = configuration;
-        cfg_with_hint.emplace(ov::weights_path(w_file_path.string()));
-        cfg_with_hint.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
-        auto compiled_model = core->compile_model(model, target_device, cfg_with_hint);
+        auto export_cfg = configuration;
+        export_cfg.emplace(ov::weights_path(w_file_path.string()));
+        export_cfg.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+        auto compiled_model = core->compile_model(model, target_device, export_cfg);
         ASSERT_TRUE(compiled_model);
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
         std::ofstream blob_file(blob_file_path, std::ios::binary);
@@ -1011,9 +1011,9 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache_but_weight
     configuration.emplace(ov::cache_dir(cache_dir));
     auto model = make_model_with_weights();
     {
-        auto cfg_with_hint = configuration;
-        cfg_with_hint.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
-        auto compiled_model = core->compile_model(model, target_device, cfg_with_hint);
+        auto export_cfg = configuration;
+        export_cfg.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+        auto compiled_model = core->compile_model(model, target_device, export_cfg);
         ASSERT_TRUE(compiled_model);
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
         auto blob_file = std::ofstream(blob_file_path, std::ios::binary);
@@ -1023,6 +1023,35 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache_but_weight
         model->get_rt_info()["__weights_path"] = w_file_path.string();
         configuration.emplace(ov::hint::compiled_blob(ov::read_tensor_data(blob_file_path)));
         auto compiled_model = core->compile_model(model, target_device, configuration);
+        ASSERT_TRUE(compiled_model);
+        EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
+    }
+
+    std::filesystem::remove_all(cache_dir);
+}
+
+TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache_but_weights_from_model_path) {
+    auto cache_dir = ov::util::path_join({utils::getCurrentWorkingDir(), "cache"});
+    auto model_file_path = cache_dir / ((utils::generateTestFilePrefix() + "_model.xml"));
+    auto blob_file_path = cache_dir / (utils::generateTestFilePrefix() + "_export.blob");
+    std::filesystem::create_directories(cache_dir);
+
+    auto model = make_model_with_weights();
+    ov::save_model(model, model_file_path, false);
+
+    configuration.emplace(ov::cache_dir(cache_dir));
+    {
+        auto export_cfg = configuration;
+        export_cfg.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+        auto compiled_model = core->compile_model(model, target_device, export_cfg);
+        ASSERT_TRUE(compiled_model);
+        EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
+        auto blob_file = std::ofstream(blob_file_path, std::ios::binary);
+        compiled_model.export_model(blob_file);
+    }
+    {
+        configuration.emplace(ov::hint::compiled_blob(ov::read_tensor_data(blob_file_path)));
+        auto compiled_model = core->compile_model(model_file_path, target_device, configuration);
         ASSERT_TRUE(compiled_model);
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
     }
@@ -1046,9 +1075,9 @@ TEST_P(OVCompiledModelBaseTest, use_blob_hint_which_fails_load_from_cache) {
     auto model = make_model_with_weights();
 
     {
-        auto cfg_with_hint = configuration;
-        cfg_with_hint.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
-        auto compiled_model = core->compile_model(model, target_device, cfg_with_hint);
+        auto export_cfg = configuration;
+        export_cfg.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+        auto compiled_model = core->compile_model(model, target_device, export_cfg);
         ASSERT_TRUE(compiled_model);
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
     }
