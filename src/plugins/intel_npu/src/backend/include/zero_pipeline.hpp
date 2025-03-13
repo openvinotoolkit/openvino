@@ -59,7 +59,7 @@ protected:
     std::vector<std::unique_ptr<Fence>> _fences;
     std::shared_ptr<EventPool> _event_pool;
     std::vector<std::shared_ptr<Event>> _events;
-    bool sync_output_with_fences_ = true;
+    bool sync_output_with_fences_ = false;
     std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;
     Logger _logger;
 };
