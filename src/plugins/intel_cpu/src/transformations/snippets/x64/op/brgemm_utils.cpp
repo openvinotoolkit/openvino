@@ -109,7 +109,6 @@ size_t compute_inner_n_block(const ov::element::Type& precision) {
     case element::i8:
         return 64;
     case element::bf16:
-        return 32;
     case element::f16:
         return 32;
     case element::f32:
