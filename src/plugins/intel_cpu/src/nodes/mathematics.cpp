@@ -38,10 +38,7 @@ bool Math::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
 }
 
 Math::Math(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, PassThroughShapeInferFactory()),
-      alpha(0.f),
-      beta(0.f),
-      gamma(0.f) {
+    : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -70,8 +67,8 @@ void Math::executeDynamicImpl(const dnnl::stream& strm) {
 
 void Math::execute(const dnnl::stream& strm) {
     size_t dataSize = getChildEdgeAt(0)->getMemory().getShape().getElementsCount();
-    const float* src_data = getSrcDataAtPortAs<const float>(0);
-    float* dst_data = getDstDataAtPortAs<float>(0);
+    const auto* src_data = getSrcDataAtPortAs<const float>(0);
+    auto* dst_data = getDstDataAtPortAs<float>(0);
 
     switch (getAlgorithm()) {
     case Algorithm::MathAbs:

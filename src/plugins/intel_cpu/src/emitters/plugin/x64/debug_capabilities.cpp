@@ -36,10 +36,10 @@ void RegPrinter::print_reg_prc(const char* name, const char* ori_name, T* ptr) {
         ss << name << " | ";
     }
     ss << ori_name << ": ";
-    if (std::is_floating_point<T>::value) {
+    if (std::is_floating_point_v<T>) {
         ss << *ptr;
     } else {
-        if (std::is_signed<T>::value) {
+        if (std::is_signed_v<T>) {
             ss << static_cast<int64_t>(*ptr);
         } else {
             ss << static_cast<uint64_t>(*ptr);

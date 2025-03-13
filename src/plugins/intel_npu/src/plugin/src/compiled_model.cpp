@@ -76,7 +76,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
     size_t blobSizeBeforeVersioning = _graph->export_blob(stream);
 
-    auto meta = Metadata<CURRENT_METADATA_VERSION>(blobSizeBeforeVersioning, ov::get_openvino_version().buildNumber);
+    auto meta = Metadata<CURRENT_METADATA_VERSION>(blobSizeBeforeVersioning, CURRENT_OPENVINO_VERSION);
     meta.write(stream);
 }
 
@@ -270,6 +270,12 @@ void CompiledModel::initialize_properties() {
           ov::PropertyMutability::RO,
           [](const Config& config) {
               return config.get<COMPILER_DYNAMIC_QUANTIZATION>();
+          }}},
+        {ov::intel_npu::qdq_optimization.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<QDQ_OPTIMIZATION>();
           }}},
         {ov::intel_npu::turbo.name(),
          {isPropertySupported(ov::intel_npu::turbo.name()),

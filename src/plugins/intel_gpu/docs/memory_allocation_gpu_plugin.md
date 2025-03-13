@@ -20,7 +20,7 @@ calls the corresponding memory object wrapper for each allocation type: [gpu_buf
 
 ## Dump memory allocation history
 
-The memory allocation history is being managed by the `engine`, which can be dumped by setting the environment variable `OV_GPU_Verbose=2` if OpenVINO is built with the cmake configuration `ENABLE_DEBUG_CAPS=ON`.
+The memory allocation history is being managed by the `engine`, which can be dumped by setting the environment variable `OV_VERBOSE=2` if OpenVINO is built with the cmake configuration `ENABLE_DEBUG_CAPS=ON`.
 ```cpp
 ...
 GPU_Debug: Allocate 58982400 bytes of usm_host allocation type (current=117969612; max=117969612)

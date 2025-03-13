@@ -258,15 +258,6 @@ std::shared_ptr<Node> make_try_fold(Args&&... args) {
     return try_fold_unary_output(unary_output_node);
 }
 
-template <class T>
-Output<Node> eltwise_fold(const Output<Node>& input0, const Output<Node>& input1) {
-    auto eltwise = std::make_shared<T>(input0, input1);
-    OutputVector output(eltwise->get_output_size());
-    OPENVINO_ASSERT(eltwise->constant_fold(output, {input0, input1}), "Can not constant fold eltwise node");
-    OPENVINO_ASSERT(output.size() == 1, "Eltwise constant fold has unexpected number of outputs: ", output.size());
-    return output[0];
-}
-
 TRANSFORMATIONS_API std::vector<Input<Node>> get_node_target_inputs(const std::shared_ptr<Node>& node);
 
 TRANSFORMATIONS_API std::shared_ptr<Node> node_to_get_shape_value_of_indices_from_shape_node(
@@ -294,8 +285,8 @@ TRANSFORMATIONS_API bool is_on_constant_path(const ov::Output<ov::Node>& output)
 TRANSFORMATIONS_API bool process_subgraph(ov::pass::ModelPass& model_pass, const std::shared_ptr<Node>& node);
 
 template <typename T>
-ov::pass::pattern::op::ValuePredicate constant_predicate(std::function<bool(const std::vector<T>&)> predicate) {
-    return pass::pattern::op::as_value_predicate([=](std::shared_ptr<Node> n) -> bool {
+ov::pass::pattern::op::Predicate constant_predicate(std::function<bool(const std::vector<T>&)> predicate) {
+    return ov::pass::pattern::op::Predicate([=](std::shared_ptr<Node> n) -> bool {
         if (auto constant = as_type_ptr<v0::Constant>(n)) {
             auto values = constant->cast_vector<T>();
             return predicate(values);
