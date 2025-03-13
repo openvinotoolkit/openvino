@@ -426,13 +426,13 @@ JitConstants make_indexing_jit_functions(const std::string& name, const layout& 
     const JitTerm tensor_name{name};
     bool simple_format = format::is_simple_data_format(fmt);
 
-    const JitTerm layout_suffix{format::is_simple_data_format(fmt) ? "DATA" : format_string(fmt)};
+    const JitTerm layout_suffix{format::is_simple_data_format(fmt) ? "" : "_" + format_string(fmt)};
     if (!simple_format) {
         rank_suffix = JitTerm{""};
     }
 
     const JitTerm base_func_name{name + "_GET_INDEX"};
-    const JitTerm base_val_name{"GET_" + layout_suffix.str() + "_INDEX" + rank_suffix.str()};
+    const JitTerm base_val_name{"GET_DATA" + layout_suffix.str() + "_INDEX" + rank_suffix.str()};
     const JitTerm safe_suffix{"_SAFE"};
     const JitTerm raw_suffix{"_RAW"};
 
