@@ -773,12 +773,11 @@ TEST_P(OVCompiledModelBaseTest, import_from_weightless_blob) {
         auto compiled_model = core->compile_model(model, target_device, configuration);
         ASSERT_TRUE(compiled_model);
         compiled_model.export_model(export_stream);
+        if (target_device != utils::DEVICE_HETERO) {
+            EXPECT_EQ(ov::CacheMode::OPTIMIZE_SIZE, compiled_model.get_property(ov::cache_mode));
+        }
     }
-    if (target_device == "HETERO") {
-        OV_ASSERT_NO_THROW(core->import_model(export_stream, target_device));
-    } else {
-        OV_EXPECT_THROW(core->import_model(export_stream, target_device), ov::Exception, _);
-    }
+    OV_EXPECT_THROW(core->import_model(export_stream, target_device), ov::Exception, _);
 
     utils::removeFile(w_file_path.string());
 }
@@ -786,6 +785,9 @@ TEST_P(OVCompiledModelBaseTest, import_from_weightless_blob) {
 TEST_P(OVCompiledModelBaseTest, compile_from_regular_blob) {
     auto compiled_model_ref = core->compile_model(make_model_with_weights(), target_device, configuration);
     ASSERT_TRUE(compiled_model_ref);
+    if (target_device != utils::DEVICE_HETERO) {
+        EXPECT_EQ(ov::CacheMode::OPTIMIZE_SPEED, compiled_model_ref.get_property(ov::cache_mode));
+    }
     Tensor exported_model;
     {
         std::stringstream export_stream;
@@ -825,7 +827,7 @@ TEST_P(OVCompiledModelBaseTest, compile_from_weightless_blob) {
     {
         std::stringstream export_stream;
         auto export_cfg = configuration;
-        configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+        export_cfg.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
         auto model = make_model_with_weights(weights);
         auto compiled_model_ref = core->compile_model(model, target_device, export_cfg);
         ASSERT_TRUE(compiled_model_ref);
@@ -867,12 +869,15 @@ TEST_P(OVCompiledModelBaseTest, compile_from_weightless_blob_but_no_weights) {
     auto model = make_model_with_weights();
     {
         auto export_cfg = configuration;
-        configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+        export_cfg.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
         auto compiled_model_ref = core->compile_model(model, target_device, export_cfg);
         std::stringstream export_stream;
         ASSERT_TRUE(compiled_model_ref);
         compiled_model_ref.export_model(export_stream);
         exported_model = from_stream(export_stream, export_stream.str().size());
+        if (target_device != utils::DEVICE_HETERO) {
+            EXPECT_EQ(ov::CacheMode::OPTIMIZE_SIZE, compiled_model_ref.get_property(ov::cache_mode));
+        }
     }
 
     auto expected = utils::create_tensor(element::f32, Shape{5}, std::vector<float>{3.0f, 3.0f, 3.0f, 3.0f, 3.0f});
@@ -1076,11 +1081,7 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_but_no_weigh
         // model not loaded from cache as no weights on path
         auto compiled_model = core->compile_model(model, target_device, configuration);
         ASSERT_TRUE(compiled_model);
-        if (target_device == "HETERO") {
-            EXPECT_TRUE(compiled_model.get_property(ov::loaded_from_cache));
-        } else {
-            EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
-        }
+        EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
     }
 
     std::filesystem::remove_all(cache_dir);

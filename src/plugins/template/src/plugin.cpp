@@ -357,6 +357,7 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
             ov::log::level,
             ov::hint::model_priority,
             ov::weights_path,
+            ov::cache_mode,
         };
         return rw_properties;
     };
