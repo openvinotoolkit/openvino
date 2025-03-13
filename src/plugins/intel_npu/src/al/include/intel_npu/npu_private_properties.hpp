@@ -329,5 +329,12 @@ static constexpr ov::Property<std::string> backend_compilation_params{"NPU_BACKE
  */
 static constexpr ov::Property<bool> run_inferences_sequentially{"NPU_RUN_INFERENCES_SEQUENTIALLY"};
 
+/**
+ * @brief [Only for NPU compiler]
+ * Type: boolean, default is false.
+ * This option allows to store the log during compilation
+ */
+static constexpr ov::Property<bool> store_logger_log{"NPU_STORE_LOGGER_LOG"};
+
 }  // namespace intel_npu
 }  // namespace ov

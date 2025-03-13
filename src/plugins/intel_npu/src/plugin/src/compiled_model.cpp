@@ -321,6 +321,12 @@ void CompiledModel::initialize_properties() {
           [](const Config& config) {
               return config.get<DEFER_WEIGHTS_LOAD>();
           }}},
+        {ov::intel_npu::store_logger_log.name(),
+         {false,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<STORE_LOGGER_LOG>();
+          }}},
         {ov::intel_npu::batch_mode.name(),
          {false,
           ov::PropertyMutability::RO,
