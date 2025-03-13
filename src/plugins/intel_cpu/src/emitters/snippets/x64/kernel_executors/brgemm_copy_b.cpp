@@ -117,7 +117,7 @@ size_t BrgemmCopyBKernelConfig::StaticParams::init_hash(const dnnl_data_type_t& 
 }
 
 #ifdef SNIPPETS_DEBUG_CAPS
-#    define PRINT(X) ss << #X << " = " << X << "\n"
+#    define PRINT(X) ss << #X << " = " << (X) << "\n"
 std::string BrgemmCopyBKernelConfig::to_string() const {
     std::stringstream ss;
     ss << m_static_params->to_string() << "\n";

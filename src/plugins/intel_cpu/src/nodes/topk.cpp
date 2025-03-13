@@ -2040,15 +2040,15 @@ void TopK::preset_params() {
         blk_size = 8;
     }
 
+    bool can_use_heap_sort =
+        (layout == TopKLayoutType::topk_ncsp || layout == TopKLayoutType::topk_nspc) && topk_innermost;
+    bool use_bubble_sort = stable || !can_use_heap_sort;
     if (isDynamicNode()) {
-        if (stable) {
+        if (use_bubble_sort) {
             algorithm = TopKAlgorithm::topk_bubble_sort;
             bubble_inplace = false;
-        } else if ((layout == TopKLayoutType::topk_ncsp || layout == TopKLayoutType::topk_nspc) && topk_innermost) {
-            algorithm = TopKAlgorithm::topk_heap_sort;
         } else {
-            algorithm = TopKAlgorithm::topk_bubble_sort;
-            bubble_inplace = false;
+            algorithm = TopKAlgorithm::topk_heap_sort;
         }
     }
 }
