@@ -1462,16 +1462,11 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM4_PagedAttention_GPU) {
         auto input0 = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::PartialShape{DYN, 1, 4608});
         auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::PartialShape{DYN, 1, 32, 2});
 
-        auto ListUnpack =
-            makeOP<opset1::VariadicSplit>({input0, -1, {4096, 256, 256}});
-        auto aten_transpose = makeOP<opset1::Reshape>(
-            {ListUnpack->output(0), {-1, 32, 1, 128}},
-            {{"special_zero", false}});
+        auto ListUnpack = makeOP<opset1::VariadicSplit>({input0, -1, {4096, 256, 256}});
+        auto aten_transpose =
+            makeOP<opset1::Reshape>({ListUnpack->output(0), {-1, 32, 1, 128}}, {{"special_zero", false}});
         auto aten_slice_Slice =
-            makeOP<opset1::StridedSlice>({aten_transpose,
-                                          {0, 0, 0, 0},
-                                          {0, 0, 0, 64},
-                                          {1, 1, 1, 1}},
+            makeOP<opset1::StridedSlice>({aten_transpose, {0, 0, 0, 0}, {0, 0, 0, 64}, {1, 1, 1, 1}},
                                          {{"begin_mask", {1, 1, 1, 0}},
                                           {"end_mask", {1, 1, 1, 0}},
                                           {"new_axis_mask", {}},
@@ -1512,10 +1507,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM4_PagedAttention_GPU) {
         auto aten_stack = makeOP<opset1::Concat>({Unsqueeze_81695, Unsqueeze_81696}, {{"axis", -1}});
         auto aten_flatten_Reshape = makeOP<opset1::Reshape>({aten_stack, {0, 32, 0, 64}}, {{"special_zero", true}});
         auto aten_slice_Slice_3 =
-            makeOP<opset1::StridedSlice>({aten_transpose,
-                                          {0, 0, 0, 64},
-                                          {0, 0, 0, INT_MAX},
-                                          {1, 1, 1, 1}},
+            makeOP<opset1::StridedSlice>({aten_transpose, {0, 0, 0, 64}, {0, 0, 0, INT_MAX}, {1, 1, 1, 1}},
                                          {{"begin_mask", {1, 1, 1, 0}},
                                           {"end_mask", {1, 1, 1, 0}},
                                           {"new_axis_mask", {}},
