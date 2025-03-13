@@ -294,11 +294,14 @@ std::vector<std::string> disabledTestPatterns() {
                     _skipRegistry.addPatterns(ruleFlag, skipMessageEntry, {skipFilterEntry});
                 }
             }
+            return _skipRegistry;
+
         } catch (const std::runtime_error& e) {
             // Fallback to legacy skips
             _log.warning(e.what());
+        }
 
-            // clang-format off
+        // clang-format off
 
         //
         //  Disabled test patterns
@@ -898,9 +901,6 @@ std::vector<std::string> disabledTestPatterns() {
         _skipRegistry.addPatterns("get_runtime_model method is not supported on NPU", {
                 ".*OVClassModelOptionalTestP.CompileModelCreateDefaultExecGraphResult.*",
         });
-
-        // catch () -> Fallback legacy skips
-        }
         return _skipRegistry;
     }();
     // clang-format on
