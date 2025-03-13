@@ -620,14 +620,14 @@ void SyncInferRequest::sub_streams_infer() {
     size_t requests_num = requests.size();
 
     if (requests.size() > 0) {
+        for (const auto& output : outputs) {
+            auto tensor = get_tensor(output);
+            requests[0]->set_tensor(output, tensor);
+        }
         for (size_t i = 0; i < requests_num; i++) {
             for (auto& input : inputs) {
                 auto tensor = get_tensor(input);
                 requests[i]->set_tensor(input, tensor);
-            }
-            for (const auto& output : outputs) {
-                auto tensor = get_tensor(output);
-                requests[i]->set_tensor(output, tensor);
             }
 
             requests[i]->set_callback([message](const std::exception_ptr& ptr) {

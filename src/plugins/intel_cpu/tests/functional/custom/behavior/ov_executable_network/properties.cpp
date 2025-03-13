@@ -534,21 +534,6 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuModelDistributionPolicyTensorParallel) {
     std::set<ov::hint::ModelDistributionPolicy> model_distribution_policy_value = {};
     OV_ASSERT_NO_THROW(model_distribution_policy_value = compiledModel.get_property(ov::hint::model_distribution_policy));
     ASSERT_EQ(model_distribution_policy_value, setModels);
-
-    std::map<ov::Output<ov::Node>, ov::Tensor> inputs;
-    for (const auto& input : model->inputs()) {
-        auto tensor = ov::test::utils::create_and_fill_tensor_normal_distribution(input.get_element_type(),
-                                                                                  input.get_shape(),
-                                                                                  0.0f,
-                                                                                  0.2f,
-                                                                                  7235346);
-        inputs.insert({input, tensor});
-    }
-    auto req = compiledModel.create_infer_request();
-    for (const auto& input : inputs) {
-        req.set_tensor(input.first, input.second);
-    }
-    OV_ASSERT_NO_THROW(req.infer());
 }
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuModelDistributionPolicyTensorParallelAccurcay) {
