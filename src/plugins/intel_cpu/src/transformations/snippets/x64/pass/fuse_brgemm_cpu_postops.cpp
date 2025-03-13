@@ -54,6 +54,11 @@ pass::FuseBrgemmCPUPostops::FuseBrgemmCPUPostops() {
             return false;
         }
 
+        const auto postop_input_shape = post_op->get_input_shape(1);
+        if (ov::shape_size(postop_input_shape) != post_op->get_output_shape(0).back()) {
+            return false;
+        }
+
         // Log the addition of the post operation
         std::cout << "[ INFO ] Adding post operation: " << post_op->get_friendly_name()
                   << " to BrgemmCPU: " << brgemm->get_friendly_name() << std::endl;

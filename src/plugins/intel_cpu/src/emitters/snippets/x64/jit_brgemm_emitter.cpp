@@ -64,7 +64,7 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
     auto append_binary = [&](const std::shared_ptr<ov::op::v0::Parameter>& param, dnnl::impl::alg_kind_t alg_kind) {
         // TODO: should dynamic postops be supported? It seems like we don't need it
         const auto dims = param->get_partial_shape().to_shape();
-        OPENVINO_ASSERT(ov::shape_size(dims) == OC);
+        OPENVINO_ASSERT(ov::shape_size(dims) == OC, "shape size = ", ov::shape_size(dims), " != OC = ", OC);
 
         const auto& rt_info = brgemm_node->get_rt_info();
         OPENVINO_ASSERT(rt_info.count("EXTERNAL_PTR_OFFSET"), "EXTERNAL_PTR_OFFSET is not set for the postop input");
