@@ -658,10 +658,15 @@ bool Constant::has_evaluate() const {
 }
 
 bool Constant::evaluate_lower(TensorVector& outputs) const {
-    return evaluate(outputs, {});
+    outputs.resize(1);
+    outputs[0] = get_tensor_view();
+    return get_data_ptr();
 }
+
 bool Constant::evaluate_upper(TensorVector& outputs) const {
-    return evaluate(outputs, {});
+    outputs.resize(1);
+    outputs[0] = get_tensor_view();
+    return get_data_ptr();
 }
 
 bool Constant::can_constant_fold(const OutputVector& input_values) const {
