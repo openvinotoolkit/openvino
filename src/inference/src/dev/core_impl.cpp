@@ -223,12 +223,19 @@ ov::util::Path extract_weight_path(const std::string& compiled_properties) {
 
 ov::SoPtr<ov::ICompiledModel> import_compiled_model(const ov::Plugin& plugin,
                                                     const ov::SoPtr<ov::IRemoteContext>& context,
-                                                    const ov::AnyMap& config) {
+                                                    const ov::AnyMap& config,
+                                                    std::shared_ptr<const ov::Model> model_ptr = {}) {
     ov::SoPtr<ov::ICompiledModel> compiled_model;
-    if (config.count(ov::hint::compiled_blob.name())) {
+    if (auto blob_hint = config.find(ov::hint::compiled_blob.name()); blob_hint != config.end()) {
+        auto compiled_blob = blob_hint->second.as<ov::Tensor>();
         try {
-            std::ifstream empty{};
-            compiled_model = context ? plugin.import_model(empty, context, config) : plugin.import_model(empty, config);
+            auto cfg = config;
+            if (model_ptr != nullptr) {
+                cfg[ov::hint::model.name()] = std::const_pointer_cast<ov::Model>(model_ptr);
+            }
+            ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size()};
+            std::istream empty{&buffer};
+            compiled_model = context ? plugin.import_model(empty, context, cfg) : plugin.import_model(empty, cfg);
         } catch (...) {
         }
     }
@@ -800,7 +807,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     auto plugin = get_plugin(parsed._deviceName);
     // will consume ov::cache_dir if plugin not support it
     auto cacheManager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
-    auto res = import_compiled_model(plugin, {}, parsed._config);
+    auto res = import_compiled_model(plugin, {}, parsed._config, model);
     // Skip caching for proxy plugin. HW plugin will load network from the cache
     if (res) {
         // hint::compiled_blob is set and imported skip compilation
@@ -837,7 +844,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     auto plugin = get_plugin(parsed._deviceName);
     // will consume ov::cache_dir if plugin not support it
     auto cacheManager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
-    auto res = import_compiled_model(plugin, context, parsed._config);
+    auto res = import_compiled_model(plugin, context, parsed._config, model);
     // Skip caching for proxy plugin. HW plugin will load network from the cache
     if (res) {
         // hint::compiled_blob is set and imported skip compilation

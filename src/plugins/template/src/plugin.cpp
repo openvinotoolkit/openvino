@@ -68,16 +68,13 @@ ov::Tensor get_model_weights(const ov::AnyMap& properties) {
 }
 
 std::shared_ptr<ov::Model> get_ov_model_from_blob(const ov::template_plugin::Plugin& plugin,
+                                                  ov::Tensor& weights,
                                                   const ov::AnyMap& properties) {
     if (auto blob_it = properties.find(ov::hint::compiled_blob.name()); blob_it != properties.end()) {
         if (auto&& blob = blob_it->second.as<ov::Tensor>(); blob) {
             ov::SharedStreamBuffer shared_buffer(reinterpret_cast<char*>(blob.data()), blob.get_byte_size());
             std::istream blob_stream(&shared_buffer);
             const auto model = get_model_str(blob_stream);
-            auto weights = get_model_weights(properties);
-            if (!weights) {
-                weights = get_model_weights(blob_stream);
-            }
             return weights ? plugin.get_core()->read_model(model, weights) : nullptr;
         }
     }
@@ -180,7 +177,8 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
     fullConfig.threads = streamsExecutorConfig.get_threads();
     fullConfig.threads_per_stream = streamsExecutorConfig.get_threads_per_stream();
 
-    auto ov_model = get_ov_model_from_blob(*this, properties);
+    auto weights = get_model_weights(properties);
+    auto ov_model = get_ov_model_from_blob(*this, weights, properties);
     bool loaded_from_cache = false;
     if (!ov_model) {
         OPENVINO_ASSERT(model, "OpenVINO Model is empty!");
@@ -232,8 +230,20 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
     fullConfig.streams_executor_config = ov::threading::IStreamsExecutor::Config{stream_executor_name,
                                                                                  fullConfig.streams,
                                                                                  fullConfig.threads_per_stream};
-    auto ov_model = get_ov_model_from_blob(*this, properties);
     auto weights = get_model_weights(properties);
+    if (!weights) {
+        if (auto model_hint = properties.find(ov::hint::model.name()); model_hint != properties.end()) {
+            if (auto m = model_hint->second.as<std::shared_ptr<ov::Model>>()) {
+                if (m->has_rt_info("__weights_path")) {
+                    AnyMap rt_info;
+                    auto p = m->get_rt_info<std::string>("__weights_path");
+                    rt_info[ov::weights_path.name()] = m->get_rt_info<ov::Any>("__weights_path");
+                    weights = get_model_weights(rt_info);
+                }
+            }
+        }
+    }
+    auto ov_model = get_ov_model_from_blob(*this, weights, properties);
     if (!ov_model) {
         // read XML content
         std::string xmlString = get_model_str(model);
