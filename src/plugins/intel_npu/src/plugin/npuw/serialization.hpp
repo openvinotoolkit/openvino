@@ -70,14 +70,7 @@ class LazyTensor;
 
 namespace s11n {
 
-struct Context {
-    explicit Context(bool _is_weightless,
-                     const std::unordered_map<const void*, std::pair<std::size_t, std::string>>& _const_to_offset_name)
-        : is_weightless(_is_weightless),
-          const_to_offset_name(_const_to_offset_name) {}
-    bool is_weightless;
-    const std::unordered_map<const void*, std::pair<std::size_t, std::string>>& const_to_offset_name;
-};
+using Weights = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>;
 
 struct LLMSerializeContext {
     explicit LLMSerializeContext(bool _encrypted, std::function<std::string(const std::string&)> _encrypt)
@@ -95,7 +88,25 @@ struct LLMDeserializeContext {
     std::function<std::string(const std::string&)> decrypt = nullptr;
 };
 
-using Weights = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>;
+struct CompiledDescSerializeContext {
+    explicit CompiledDescSerializeContext(
+        bool _is_weightless,
+        const std::unordered_map<const void*, std::pair<std::size_t, std::string>>& _const_to_offset_name)
+        : is_weightless(_is_weightless),
+          const_to_offset_name(_const_to_offset_name) {}
+    bool is_weightless;
+    const std::unordered_map<const void*, std::pair<std::size_t, std::string>>& const_to_offset_name;
+};
+
+struct CompiledDescDeserializeContext {
+    explicit CompiledDescDeserializeContext(
+        const ov::npuw::s11n::Weights& _weights,
+        const std::unordered_map<std::string, std::shared_ptr<ov::Node>>& _consts_cache)
+        : weights(_weights),
+          consts_cache(_consts_cache) {}
+    ov::npuw::s11n::Weights weights = nullptr;
+    const std::unordered_map<std::string, std::shared_ptr<ov::Node>>& consts_cache;
+};
 
 // Specific type overloads
 void write(std::ostream& stream, const std::streampos& var);
@@ -126,10 +137,11 @@ void read(std::istream& stream, ov::CacheMode& var);
 void read(std::istream& stream, ov::element::Type& var);
 
 // Weightless utils
-void write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const Context& ctx);
+void write_weightless(std::ostream& stream,
+                      const std::vector<ov::Tensor>& var,
+                      const CompiledDescSerializeContext& ctx);
 // No allocation needed
-void read_weightless(std::istream& stream, std::vector<ov::Tensor>& var, const Weights& weights);
-void read_weightless(std::istream& stream, std::vector<ov::Tensor>& var, const std::shared_ptr<const ov::Model>& model);
+void read_weightless(std::istream& stream, std::vector<ov::Tensor>& var, const CompiledDescDeserializeContext& ctx);
 
 // Forward declaration
 template <typename T1, typename T2>

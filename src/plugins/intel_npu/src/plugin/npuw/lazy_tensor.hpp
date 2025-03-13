@@ -47,8 +47,7 @@ public:
 
     void serialize(std::ostream& stream) const;
     static LazyTensor deserialize(std::istream& stream);
-    void read_weight(const ov::npuw::s11n::Weights& weights);
-    void read_weight(const std::shared_ptr<const ov::Model>& model);
+    void read_weight(const ov::npuw::s11n::CompiledDescDeserializeContext& ctx);
     operator bool() const;
 
 private:
