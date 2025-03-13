@@ -23,6 +23,9 @@ static bool is_shape_of_subgraph_root(program_node& node) {
         return true;
     }
 
+    // Allow input_layout to be the root of the shape_of subgraph if it's 'max_context_len'
+    // input of PagedAttention, which can be used as a shape calculation flow source in some
+    // models like Qwen and Qwen2
     if (node.is_type<input_layout>()) {
         const auto& users = node.get_users();
         for (const auto& user : users) {
