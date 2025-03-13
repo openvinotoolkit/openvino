@@ -199,7 +199,7 @@ TEST_P(OVCompiledModelBaseTest, compile_from_weightless_blob_but_no_weights) {
     utils::removeFile(w_file_path.string());
 }
 
-TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_use_hint) {
+TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_use_weight_hint) {
     auto cache_dir = ov::util::path_join({utils::getCurrentWorkingDir(), "cache"});
     auto w_file_path = ov::util::path_join({cache_dir, utils::generateTestFilePrefix() + "_weights.bin"});
     {
@@ -252,6 +252,75 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_no_hint) {
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache.name()).as<bool>());
     }
     {
+        auto compiled_model = core->compile_model(model, target_device, configuration);
+        ASSERT_TRUE(compiled_model);
+        EXPECT_TRUE(compiled_model.get_property(ov::loaded_from_cache.name()).as<bool>());
+    }
+
+    std::filesystem::remove_all(cache_dir);
+}
+
+TEST_P(OVCompiledModelBaseTest, use_blob_hint_has_priority_over_cache) {
+    auto cache_dir = ov::util::path_join({utils::getCurrentWorkingDir(), "cache"});
+    auto w_file_path = ov::util::path_join({cache_dir, utils::generateTestFilePrefix() + "_weights.bin"});
+    auto blob_file_path = cache_dir / (utils::generateTestFilePrefix() + "_export.blob");
+
+    {
+        // store weights in file, not same as in original model model
+        std::filesystem::create_directories(cache_dir);
+        auto w = utils::create_tensor(element::f32, Shape{5}, std::vector<float>{1.0f, 3.0f, 1.0f, 1.0f, 1.0f});
+        auto w_file = std::ofstream(w_file_path, std::ios::binary);
+        w_file.write(reinterpret_cast<const char*>(w.data()), w.get_byte_size());
+    }
+
+    configuration.emplace(ov::cache_dir(cache_dir));
+    auto model = make_model_with_weights();
+
+    {
+        auto cfg_with_hint = configuration;
+        cfg_with_hint.emplace(ov::weights_path(w_file_path.string()));
+        cfg_with_hint.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+        auto compiled_model = core->compile_model(model, target_device, configuration);
+        ASSERT_TRUE(compiled_model);
+        EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache.name()).as<bool>());
+        std::ofstream blob_file(blob_file_path, std::ios::binary);
+        compiled_model.export_model(blob_file);
+    }
+    {
+        configuration.emplace(ov::hint::compiled_blob(ov::read_tensor_data(blob_file_path)));
+        auto compiled_model = core->compile_model(model, target_device, configuration);
+        ASSERT_TRUE(compiled_model);
+        EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache.name()).as<bool>());
+    }
+
+    std::filesystem::remove_all(cache_dir);
+}
+
+TEST_P(OVCompiledModelBaseTest, use_blob_hint_which_fails_compile_from_cache) {
+    auto cache_dir = ov::util::path_join({utils::getCurrentWorkingDir(), "cache"});
+    auto w_file_path = ov::util::path_join({cache_dir, utils::generateTestFilePrefix() + "_weights.bin"});
+
+    {
+        // store weights in file, not same as in original model model
+        std::filesystem::create_directories(cache_dir);
+        auto w = utils::create_tensor(element::f32, Shape{5}, std::vector<float>{1.0f, 3.0f, 1.0f, 1.0f, 1.0f});
+        auto w_file = std::ofstream(w_file_path, std::ios::binary);
+        w_file.write(reinterpret_cast<const char*>(w.data()), w.get_byte_size());
+    }
+
+    configuration.emplace(ov::cache_dir(cache_dir));
+    auto model = make_model_with_weights();
+
+    {
+        auto cfg_with_hint = configuration;
+        cfg_with_hint.emplace(ov::weights_path(w_file_path.string()));
+        cfg_with_hint.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+        auto compiled_model = core->compile_model(model, target_device, configuration);
+        ASSERT_TRUE(compiled_model);
+        EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache.name()).as<bool>());
+    }
+    {
+        configuration.emplace(ov::hint::compiled_blob(Tensor{}));
         auto compiled_model = core->compile_model(model, target_device, configuration);
         ASSERT_TRUE(compiled_model);
         EXPECT_TRUE(compiled_model.get_property(ov::loaded_from_cache.name()).as<bool>());

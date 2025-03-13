@@ -14,7 +14,6 @@
 #include "openvino/core/op_extension.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/so_extension.hpp"
-#include "openvino/core/tensor_util.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/opsets/opset.hpp"
 #include "openvino/pass/manager.hpp"
