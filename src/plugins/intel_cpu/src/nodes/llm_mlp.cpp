@@ -55,8 +55,8 @@ public:
 
         auto K_splits = std::min(m_threads_num,2);
         // split task on more cores is better on TBB
-        auto valid_nthr = std::max(1,m_threads_num / 2);
-        auto blkN_per_thread = (num_blk_N) / valid_nthr;
+        auto valid_nthr = std::max(1, m_threads_num / K_splits);  // Adjusting for K_splits
+        auto blkN_per_thread = num_blk_N / valid_nthr;
         auto blkN_leftover = num_blk_N - (blkN_per_thread * valid_nthr);
         auto start_blkN = 0;
         used_nthr = 0;
@@ -152,7 +152,7 @@ public:
                 auto sync_id = work.sync_flag->fetch_add(1);
                 // (0,1) (2,3)
                 if (sync_id & 1) {
-                    auto peer_ithr = (nthr == 1) ? 0 : ((ithr & 1) ? (ithr - 1) : (ithr + 1));
+                    auto peer_ithr = (nthr == 1) ? -1 : ((ithr & 1) ? (ithr - 1) : (ithr + 1));
                     auto* p_peerC = works[peer_ithr].m_C.template ptr<float>();
                     // the other one has finished, we can do the reduce sum
                     auto* p_curC = workC.template ptr<float>();
