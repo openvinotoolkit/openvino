@@ -5,6 +5,7 @@
 #include "dispatch_utils.hpp"
 
 #include <type_traits>
+#include "intel_gpu/runtime/utils.hpp"
 
 namespace ov::intel_gpu {
 
@@ -14,7 +15,7 @@ std::vector<size_t> get_optimal_lws(const std::vector<size_t>& gws,
                                     const cldnn::device_info& info,
                                     cldnn::format::type input_fmt,
                                     cldnn::format::type output_fmt,
-                                    std::vector<std::vector<ChannelName>> dims_by_gws) {
+                                    const std::vector<std::vector<ChannelName>>& dims_by_gws) {
     enum class Axis : uint8_t { x = 0, y = 1, z = 2, w = 3, u = 4, v = 5, f = 6, b = 7, unused_axis = 8 };
 
     // GWS/LWS priority order should be considered for better local WGS setting
@@ -34,8 +35,9 @@ std::vector<size_t> get_optimal_lws(const std::vector<size_t>& gws,
     }
 
     auto calculate_optimized_priority_order = [&]() -> void {
-        while (axis_by_gws[static_cast<std::underlying_type_t<Axis>>(layout_order[first_axis_idx])] == Axis::unused_axis)
+        while (axis_by_gws[static_cast<std::underlying_type_t<Axis>>(layout_order[first_axis_idx])] == Axis::unused_axis) {
             first_axis_idx++;
+        }
 
         for (size_t gws_idx = 0; gws_idx < gws_dims_num; gws_idx++) {
             for (size_t axis_idx = first_axis_idx; axis_idx < axis_num; axis_idx++) {
@@ -118,8 +120,6 @@ std::vector<size_t> get_optimal_lws(const std::vector<size_t>& gws,
                 layout_order = {Axis::x, Axis::y, Axis::z, Axis::w, Axis::u, Axis::f, Axis::b, Axis::v};
                 break;
             case format::bfvuwzyx:
-                layout_order = {Axis::x, Axis::y, Axis::z, Axis::w, Axis::u, Axis::v, Axis::f, Axis::b};
-                break;
             default:
                 layout_order = {Axis::x, Axis::y, Axis::z, Axis::w, Axis::u, Axis::v, Axis::f, Axis::b};
                 break;
@@ -150,11 +150,11 @@ std::vector<size_t> get_optimal_lws(const std::vector<size_t>& gws,
     }
 
     size_t lws_max = info.max_work_group_size;
-    constexpr const std::array<size_t, 33> optimal_lws_values = {1024, 960, 896, 832, 768, 704, 640, 576, 512, 480, 448, 416, 384, 352, 320, 288, 256,
-                                                                 227,  224, 192, 160, 128, 96,  64,  32,  16,  8,   7,   6,   5,   4,   2,   1};
-    constexpr const std::array<size_t, 41> suboptimal_lws_values = {1024, 960, 896, 832, 768, 704, 640, 576, 512, 480, 448, 416, 384, 352,
+    constexpr const auto optimal_lws_values = to_array<size_t>({1024, 960, 896, 832, 768, 704, 640, 576, 512, 480, 448, 416, 384, 352, 320, 288, 256,
+                                                                 227,  224, 192, 160, 128, 96,  64,  32,  16,  8,   7,   6,   5,   4,   2,   1});
+    constexpr const auto suboptimal_lws_values = to_array<size_t>({1024, 960, 896, 832, 768, 704, 640, 576, 512, 480, 448, 416, 384, 352,
                                                                     320,  288, 256, 227, 224, 192, 160, 128, 96,  64,  32,  16,  15,  14,
-                                                                    13,   12,  11,  10,  9,   8,   7,   6,   5,   4,   3,   2,   1};
+                                                                    13,   12,  11,  10,  9,   8,   7,   6,   5,   4,   3,   2,   1});
 
     size_t first_lws_idx = lws_max == 1024 ? 0 : lws_max == 512 ? 8 : 16;
     // Reduces max local wgs for some cases on Gen12+ devices
@@ -176,7 +176,6 @@ std::vector<size_t> get_optimal_lws(const std::vector<size_t>& gws,
             first_lws_idx = 16;
         }
     }
-
     size_t total_lws = 1;
     size_t total_gws = 1;
     std::vector<size_t> lws = {1, 1, 1};
@@ -241,7 +240,7 @@ std::vector<size_t> get_optimal_lws(const std::vector<size_t>& gws,
             auto rest_lws = lws_max / total_lws;
             size_t lws_idx = first_lws_idx;
 
-            const int* lws_values = suboptimal_lws_values.data();
+            const size_t* lws_values = suboptimal_lws_values.data();
 
             while (rest_lws < lws_values[lws_idx]) {
                 lws_idx++;
