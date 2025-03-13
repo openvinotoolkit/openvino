@@ -132,6 +132,6 @@ for file in $changed_files; do
         }
     }
     ' "$file" > "$file.sorted"
-    mv "$file.sorted" "$file"     
+    mv "$file.sorted" "$file"
 
 done
