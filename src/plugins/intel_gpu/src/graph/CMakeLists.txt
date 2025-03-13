@@ -88,7 +88,7 @@ set(CODEGEN_TEST_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/common_utils/test_kernels_d
 
 enable_testing()
 
-add_custom_target(run_codeged_test
+add_custom_target(run_codegen_test
     COMMAND ${Python3_EXECUTABLE} -B ${CODEGEN_TEST_SCRIPT}
     DEPENDS "${CODEGEN_SCRIPT}"
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
@@ -124,7 +124,7 @@ ov_add_target(
             ${EXTRA_LINK_LIBRARIES}
             openvino::reference # for loop primitive subroutines
     DEPENDENCIES
-        run_codeged_test
+        run_codegen_test
     ADD_CPPLINT
 )
 
