@@ -247,7 +247,7 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
         }
 
         auto w_shape = qkv_proj_weight_node->get_shape();
-        if (w_shape[0] != static_cast<uint64_t>(proj_size * 3)) {
+        if (w_shape[0] != static_cast<uint64_t>(proj_size) * 3) {
             return false;
         }
 
