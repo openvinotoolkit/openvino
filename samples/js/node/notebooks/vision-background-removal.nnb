@@ -38,7 +38,7 @@
         {
             "language": "typescript",
             "source": [
-                "// Details about this normalization:\n// https://docs.openvino.ai/2025/notebooks/vision-background-removal-with-output.html#load-and-pre-process-input-image\nfunction normalizeImage(imageData, width, height) {\n  // Mean and scale values\n  const inputMean = [123.675, 116.28, 103.53];\n  const inputScale = [58.395, 57.12, 57.375];\n\n  const normalizedData = new Float32Array(imageData.length);\n  const channels = 3;\n\n  for (let i = 0; i < height; i++) {\n    for (let j = 0; j < width; j++) {\n      for (let c = 0; c < channels; c++) {\n        const index = i * width * channels + j * channels + c;\n\n        normalizedData[index] =\n          (imageData[index] - inputMean[c]) / inputScale[c];\n      }\n    }\n  }\n\n  return normalizedData;\n}"
+                "// Details about this normalization:\n// https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/vision-background-removal/vision-background-removal.ipynb#Load-and-Pre-Process-Input-Image\nfunction normalizeImage(imageData, width, height) {\n  // Mean and scale values\n  const inputMean = [123.675, 116.28, 103.53];\n  const inputScale = [58.395, 57.12, 57.375];\n\n  const normalizedData = new Float32Array(imageData.length);\n  const channels = 3;\n\n  for (let i = 0; i < height; i++) {\n    for (let j = 0; j < width; j++) {\n      for (let c = 0; c < channels; c++) {\n        const index = i * width * channels + j * channels + c;\n\n        normalizedData[index] =\n          (imageData[index] - inputMean[c]) / inputScale[c];\n      }\n    }\n  }\n\n  return normalizedData;\n}"
             ],
             "outputs": []
         },

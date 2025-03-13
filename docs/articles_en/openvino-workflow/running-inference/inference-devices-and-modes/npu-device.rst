@@ -281,5 +281,5 @@ guaranteed.
 Additional Resources
 #############################
 
-* `Working with NPUs in OpenVINO™ Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/hello-npu/hello-npu.ipynb>`__
-* `Vision colorization Notebook <./../../../notebooks/vision-image-colorization-with-output.html>`__
+* `Working with NPUs in OpenVINO™ Notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/hello-npu>`__
+* `Vision colorization Notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/ddcolor-image-colorization>`__
