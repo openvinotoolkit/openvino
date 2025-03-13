@@ -227,37 +227,43 @@ using model_hint_t = std::variant<std::shared_ptr<const ov::Model>, std::string>
 
 ov::SoPtr<ov::ICompiledModel> import_compiled_model(const ov::Plugin& plugin,
                                                     const ov::SoPtr<ov::IRemoteContext>& context,
-                                                    const ov::AnyMap& config,
-                                                    const model_hint_t& model_hint = {}) {
+                                                    const ov::AnyMap& config) {
     ov::SoPtr<ov::ICompiledModel> compiled_model;
     if (auto blob_hint = config.find(ov::hint::compiled_blob.name()); blob_hint != config.end()) {
-        auto cfg = config;
-        const auto apply_model_hint = ov::util::VariantVisitor{
-            [&cfg](const std::shared_ptr<const ov::Model>& model_ptr) {
-                if (model_ptr != nullptr) {
-                    cfg[ov::hint::model.name()] = std::const_pointer_cast<ov::Model>(model_ptr);
-                }
-            },
-            [&cfg](const std::string& model_path) {
-                if (cfg.count(ov::weights_path.name()) == 0) {
-                    ov::util::Path weights_path{model_path};
-                    weights_path.replace_extension(".bin");
-                    if (ov::util::file_exists(weights_path)) {
-                        cfg[ov::weights_path.name()] = weights_path.string();
-                    }
-                }
-            }};
-        std::visit(apply_model_hint, model_hint);
-
         try {
             auto compiled_blob = blob_hint->second.as<ov::Tensor>();
             ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size()};
             std::istream stream{&buffer};
-            compiled_model = context ? plugin.import_model(stream, context, cfg) : plugin.import_model(stream, cfg);
+            compiled_model =
+                context ? plugin.import_model(stream, context, config) : plugin.import_model(stream, config);
         } catch (...) {
         }
     }
     return compiled_model;
+}
+
+ov::SoPtr<ov::ICompiledModel> import_compiled_model(const ov::Plugin& plugin,
+                                                    const ov::SoPtr<ov::IRemoteContext>& context,
+                                                    const ov::AnyMap& config,
+                                                    const model_hint_t& model_hint) {
+    auto cfg = config;
+    const auto apply_model_hint =
+        ov::util::VariantVisitor{[&cfg](const std::shared_ptr<const ov::Model>& model_ptr) {
+                                     if (model_ptr != nullptr) {
+                                         cfg[ov::hint::model.name()] = std::const_pointer_cast<ov::Model>(model_ptr);
+                                     }
+                                 },
+                                 [&cfg](const std::string& model_path) {
+                                     if (cfg.count(ov::weights_path.name()) == 0) {
+                                         ov::util::Path weights_path{model_path};
+                                         weights_path.replace_extension(".bin");
+                                         if (ov::util::file_exists(weights_path)) {
+                                             cfg[ov::weights_path.name()] = weights_path.string();
+                                         }
+                                     }
+                                 }};
+    std::visit(apply_model_hint, model_hint);
+    return import_compiled_model(plugin, context, cfg);
 }
 }  // namespace
 
