@@ -191,6 +191,7 @@ protected:
     std::shared_ptr<ov::Model> GetModel(const std::vector<ov::PartialShape>& shapes) const override {
         const auto subtensor_scalar = std::vector<size_t>{1};
         const auto subtensor_power = std::vector<size_t>{1, ov::snippets::utils::get_full_dim_value()};
+        const auto subtensor_full = std::vector<size_t>(2, ov::snippets::utils::get_full_dim_value());
         const auto subtensor_flat = std::vector<size_t>(1, ov::snippets::utils::get_full_dim_value());
 
         OPENVINO_ASSERT(shapes.size() == 3, "Incorrect count of input shapes");
@@ -238,10 +239,10 @@ protected:
         MarkOp(store, subtensor_scalar);
         MarkOp(power, subtensor_power);
 
-        MarkOp(brgemm_cpu0, subtensor_flat);
-        MarkOp(brgemm_cpu1, subtensor_flat);
-        MarkOp(brgemm_copyb0, subtensor_flat);
-        MarkOp(brgemm_copyb1, subtensor_flat);
+        MarkOp(brgemm_cpu0, subtensor_full);
+        MarkOp(brgemm_cpu1, subtensor_full);
+        MarkOp(brgemm_copyb0, subtensor_full);
+        MarkOp(brgemm_copyb1, subtensor_full);
         MarkOp(scratch0, subtensor_flat);
         MarkOp(scratch1, subtensor_flat);
 
