@@ -121,9 +121,10 @@ TEST_P(OVCompileAndInferRequest, PluginWorkloadType) {
         ASSERT_TRUE(is_called);
     } else {
         ASSERT_FALSE(workloadTypeSupported);
-        OV_EXPECT_THROW_HAS_SUBSTRING(core->compile_model(function, target_device, configuration),
-                                      ov::Exception,
-                                      "WorkloadType property is not supported by the current Driver Version!");
+        OV_EXPECT_THROW_HAS_SUBSTRING(
+            core->compile_model(function, target_device, configuration),
+            ov::Exception,
+            "[ NOT_FOUND ] Option 'WORKLOAD_TYPE' is not supported for current configuration");
     }
 }
 
@@ -152,9 +153,10 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadType) {
         ASSERT_TRUE(is_called);
     } else {
         ASSERT_FALSE(workloadTypeSupported);
-        OV_EXPECT_THROW_HAS_SUBSTRING(execNet.set_property(modelConfiguration),
-                                      ov::Exception,
-                                      "WorkloadType property is not supported by the current Driver Version!");
+        OV_EXPECT_THROW_HAS_SUBSTRING(
+            execNet.set_property(modelConfiguration),
+            ov::Exception,
+            "[ NOT_FOUND ] Option 'WORKLOAD_TYPE' is not supported for current configuration");
     }
 }
 
@@ -163,9 +165,9 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadTypeDelayedExecutor) {
     OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
     ov::AnyMap modelConfiguration;
     modelConfiguration[workload_type.name()] = WorkloadType::DEFAULT;
-    OV_ASSERT_NO_THROW(execNet.set_property(modelConfiguration));
 
     if (isCommandQueueExtSupported()) {
+        OV_ASSERT_NO_THROW(execNet.set_property(modelConfiguration));
         ov::InferRequest req;
         OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
         bool is_called = false;
@@ -177,9 +179,9 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadTypeDelayedExecutor) {
         OV_ASSERT_NO_THROW(req.wait());
         ASSERT_TRUE(is_called);
     } else {
-        OV_EXPECT_THROW_HAS_SUBSTRING(execNet.create_infer_request(),
+        OV_EXPECT_THROW_HAS_SUBSTRING(execNet.set_property(modelConfiguration),
                                       ov::Exception,
-                                      "WorkloadType property is not supported by the current Driver Version!");
+                                      "Unsupported configuration key: WORKLOAD_TYPE");
     }
 }
 
@@ -233,17 +235,9 @@ TEST_P(OVCompileAndInferRequestTurbo, CompiledModelTurbo) {
         OV_ASSERT_NO_THROW(req.wait());
         ASSERT_TRUE(is_called);
     } else {
-        auto cr_ex = configuration.find(intel_npu::defer_weights_load.name());
-        if (cr_ex->second.as<bool>() == false) {
-            OV_EXPECT_THROW_HAS_SUBSTRING(core->compile_model(function, target_device, configuration),
-                                          ov::Exception,
-                                          "Turbo is not supported by the current driver");
-        } else {
-            OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
-            OV_EXPECT_THROW_HAS_SUBSTRING(execNet.create_infer_request(),
-                                          ov::Exception,
-                                          "Turbo is not supported by the current driver");
-        }
+        OV_EXPECT_THROW_HAS_SUBSTRING(core->compile_model(function, target_device, configuration),
+                                      ov::Exception,
+                                      "[ NOT_FOUND ] Option 'NPU_TURBO' is not supported for current configuration");
     }
 }
 
