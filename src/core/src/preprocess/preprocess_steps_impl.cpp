@@ -111,12 +111,6 @@ void PreStepsList::add_clamp(double min_value, double max_value) {
                             "RGB/BGR color format using 'PreProcessSteps::convert_color'");
 
             const auto& node = nodes.front();
-            const auto& element_type = node.get_element_type();
-            OPENVINO_ASSERT(element_type.is_real(),
-                            "Clamp preprocessing can be applied to 'double' inputs. Consider using "
-                            "'convert_element_type' before clamping. Current type is: ",
-                            element_type);
-
             auto clamp_op = std::make_shared<ov::op::v0::Clamp>(node, min_value, max_value);
             return std::make_tuple(std::vector<Output<Node>>{clamp_op}, true);
         },
@@ -717,12 +711,6 @@ void PostStepsList::add_clamp(double min_value, double max_value) {
 
     m_actions.emplace_back(
         [min_value, max_value](const Output<Node>& node, PostprocessingContext& ctxt) {
-            auto element_type = node.get_element_type();
-            OPENVINO_ASSERT(element_type.is_real(),
-                            "Clamp postprocessing can be applied to 'double' inputs. Consider using "
-                            "'convert_element_type' before clamping. Current type is: ",
-                            element_type);
-
             auto clamp_op = std::make_shared<ov::op::v0::Clamp>(node, min_value, max_value);
             return std::make_tuple(Output<Node>{clamp_op}, true);
         },
