@@ -420,7 +420,7 @@ void DFT::fft(float* inBuffer,
     for (size_t numBlocks = 1; numBlocks < nComplex; numBlocks *= 2) {
         blockSize = nextIterationBlockSize;
         nextIterationBlockSize /= 2;
-        if (parallelize && blockSize >= static_cast<size_t>(4 * elementsPerCacheLine)) {
+        if (parallelize && blockSize >= 4 * static_cast<size_t>(elementsPerCacheLine)) {
             parallel_for(numBlocks, [&](const size_t block) {
                 blockIteration(block, 1, nextIterationBlockSize);
             });
