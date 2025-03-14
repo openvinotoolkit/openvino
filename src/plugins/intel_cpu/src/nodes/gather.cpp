@@ -130,9 +130,13 @@ void Gather::initSupportedPrimitiveDescriptors() {
 
     dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
     outPrecision = getOriginalOutputPrecisionAtPort(0);
-    if (!(one_of(dataPrecision, ov::element::f16, ov::element::bf16) && outPrecision == ov::element::f32)) {
-        outPrecision = dataPrecision;
+    if (!compressed) {
+        // gather(not GatherCompressed) support same input and output precision or real16->f32
+        if (!(one_of(dataPrecision, ov::element::f16, ov::element::bf16) && outPrecision == ov::element::f32)) {
+            outPrecision = dataPrecision;
+        }
     }
+
     dataTypeSize = dataPrecision.size();
     outTypeSize = outPrecision.size();
 
@@ -166,6 +170,7 @@ void Gather::initSupportedPrimitiveDescriptors() {
         }
     }
     if (compressed) {
+        // gatherCompressed support input precision (u4/i4/u8/i8) to output precision (f16/bf16/f32).
         if (!one_of(dataPrecision, ov::element::u8, ov::element::u4, ov::element::i8, ov::element::i4)) {
             dataPrecision = ov::element::f32;
         }
