@@ -77,9 +77,9 @@ void DebugCapsConfig::readProperties() {
         averageCountersPath = envVarValue;
     }
 
-    if ((envVarValue = readEnv("OV_CPU_MEMORY_STATISTICS_PATH"))) {
-        memoryStatisticsDumpPath = envVarValue;
-    }
+    // if ((envVarValue = readEnv("OV_CPU_MEMORY_STATISTICS_PATH"))) {
+    //     memoryStatisticsDumpPath = envVarValue;
+    // }
 }
 
 }  // namespace ov::intel_cpu

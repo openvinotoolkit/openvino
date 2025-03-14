@@ -10,9 +10,7 @@
 #include "openvino/op/util/convolution_base.hpp"
 #include "transformations_visibility.hpp"
 
-namespace ov {
-namespace op {
-namespace internal {
+namespace ov::op::internal {
 
 class TRANSFORMATIONS_API Convolution : public ov::op::util::ConvolutionFwdPropBase {
 public:
@@ -27,7 +25,7 @@ public:
                 const CoordinateDiff& pads_begin,
                 const CoordinateDiff& pads_end,
                 const Strides& dilations,
-                const int64_t& groups,
+                const int64_t groups,
                 const PadType& auto_pad,
                 const element::Type& output_type);
 
@@ -50,12 +48,10 @@ public:
         static constexpr const size_t COMPENSATION = 5;
     };
 
-protected:
+private:
     int64_t m_groups = -1;  // negative value means no groups
     bool m_asymmetric = false;
     ov::element::Type m_output_type = ov::element::dynamic;
 };
 
-}  // namespace internal
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::op::internal

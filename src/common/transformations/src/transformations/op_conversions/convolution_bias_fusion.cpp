@@ -18,13 +18,9 @@
 #include "transformations/utils/utils.hpp"
 
 static inline std::vector<size_t> getNormalizedDimsBySize(const std::vector<size_t>& dims, size_t ndims) {
-    if (dims.size() >= ndims) {
-        return dims;
-    }
-
-    std::vector<size_t> normalizedDims = dims;
-    for (size_t i = 0; i < (ndims - dims.size()); i++) {
-        normalizedDims.insert(normalizedDims.begin(), 1);
+    auto normalizedDims = dims;
+    if (size_t num_missing_dims = ndims - dims.size(); num_missing_dims <= ndims){
+        normalizedDims.insert(normalizedDims.begin(), num_missing_dims, 1);
     }
     return normalizedDims;
 }

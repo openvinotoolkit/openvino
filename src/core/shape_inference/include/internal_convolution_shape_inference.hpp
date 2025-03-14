@@ -8,8 +8,7 @@
 #include "ov_ops/convolution.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace op {
+namespace ov::op::internal {
 
 template <class TOp,
           class TShape,
@@ -89,5 +88,4 @@ std::vector<TRShape> shape_infer(const TOp* op,
     return output_shapes;
 }
 
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::op::internal
