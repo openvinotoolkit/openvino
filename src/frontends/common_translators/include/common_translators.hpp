@@ -18,8 +18,10 @@ COMMON_OP_CONVERTER(translate_imag);
 
 COMMON_OP_CONVERTER(translate_atan2);
 COMMON_OP_CONVERTER(translate_angle);
+COMMON_OP_CONVERTER(translate_erfc);
 
 OutputVector translate_atan2_util(const NodeContext& context, const Output<Node>& lhs, const Output<Node>& rhs);
+OutputVector translate_erfc_util(const NodeContext& context, const Output<Node>& data);
 
 }  // namespace common_translators
 }  // namespace frontend
