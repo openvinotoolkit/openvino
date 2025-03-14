@@ -173,7 +173,8 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         auto gather_indices_vals = std::vector<int64_t>();
         for (auto i = 0; i < num_groups; i++)
             gather_indices_vals.insert(gather_indices_vals.end(), num_channels / num_groups, i);
-        auto gather_indices_const_m = op::v0::Constant::create(element::i64, Shape{static_cast<size_t>(num_channels)}, gather_indices_vals);
+        auto gather_indices_const_m =
+            op::v0::Constant::create(element::i64, Shape{static_cast<size_t>(num_channels)}, gather_indices_vals);
         nodes.push_back(gather_indices_const_m);
 
         if (pattern_map.count(instance_norm_beta_m) > 0) {
