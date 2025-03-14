@@ -91,6 +91,8 @@ CheckOptions:
     value: google
   - key: modernize-use-auto.MinTypeNameLength
     value: "3"
+  - key: modernize-use-override.AllowOverrideAndFinal
+    value: true
 ### To be considered to enable:
 #  # Unifies the usage of the statements
 #  - key: readability-braces-around-statements.ShortStatementLines
