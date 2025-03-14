@@ -77,7 +77,7 @@ void DebugCapsConfig::readProperties() {
         averageCountersPath = envVarValue;
     }
 
-    if ((envVarValue = readEnv("OV_CPU_MEMORY_STATISTICS_PATH"))) {
+    if (auto envVarValue = readEnv("OV_CPU_MEMORY_STATISTICS_PATH")) {
         memoryStatisticsDumpPath = envVarValue;
     }
 }
