@@ -1411,25 +1411,29 @@ bool computeNRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
     return nrmseLoss <= FLAGS_nrmse_loss_threshold;
 }
 
-std::vector<float> softmax(std::vector<float>& logits) {
-    std::vector<float> probabilities(logits.size());
+std::vector<float> softmax(std::vector<float>& tensor) {
+    std::vector<double> probabilities(tensor.size());
+    std::vector<float> results(tensor.size());
 
-    // Find the maximum logit for numerical stability
-    float max_logit = *std::max_element(logits.begin(), logits.end());
+    // Find the maximum value for numerical stability
+    float max_value = *std::max_element(tensor.begin(), tensor.end());
 
-    // Compute the exponentials of the logits after subtracting max_logit for numerical stability
-    float sum_exp = 0.0;
-    for (size_t i = 0; i < logits.size(); ++i) {
-        probabilities[i] = exp(logits[i] - max_logit);  // exp(logit - max_logit) for stability
+    // Compute the exponentials of the tensor after subtracting max_value for numerical stability
+    double sum_exp = 0.0;
+    for (size_t i = 0; i < tensor.size(); ++i) {
+        probabilities[i] = exp(tensor[i] - max_value);  // exp(tensor_value - max_value) for stability
         sum_exp += probabilities[i];
     }
 
     // Normalize the probabilities by dividing by the sum of exponentials
-    for (size_t i = 0; i < logits.size(); ++i) {
+    for (size_t i = 0; i < tensor.size(); ++i) {
         probabilities[i] /= sum_exp;
     }
 
-    return probabilities;
+    std::transform(probabilities.begin(), probabilities.end(), results.begin(),
+                   [](double value) { return static_cast<float>(value); });
+
+    return results;
 }
 
 bool testNRMSE(const TensorMap& outputs, const TensorMap& references, size_t batch_size = 1) {
@@ -1454,18 +1458,18 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, size_t bat
 
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
-        bool applySoftMax= FLAGS_apply_soft_max;
+        bool applySoftMax = FLAGS_apply_soft_max;
 
         if (applySoftMax) {
-            std::vector<float> actSoftMax1;
-            std::vector<float> refSoftMax1;
+            std::vector<float> actOutput;
+            std::vector<float> refOutput;
 
-            std::copy_n((npu::utils::toFP32(output)).data<const float>(), output.get_size(), std::back_insert_iterator(actSoftMax1));
+            std::copy_n((npu::utils::toFP32(output)).data<const float>(), output.get_size(), std::back_insert_iterator(actOutput));
             std::copy_n((npu::utils::toFP32(referencesIterator->second)).data<const float>(), referencesIterator->second.get_size(),
-                std::back_insert_iterator(refSoftMax1));
+                std::back_insert_iterator(refOutput));
 
-            auto actSoftMax = softmax(actSoftMax1);
-            auto refSoftMax = softmax(refSoftMax1);
+            auto actSoftMax = softmax(actOutput);
+            auto refSoftMax = softmax(refOutput);
 
             std::copy_n(actSoftMax.begin(), output.get_size(), output.data<float>());
             std::copy_n(refSoftMax.begin(), referencesIterator->second.get_size(), referencesIterator->second.data<float>());
