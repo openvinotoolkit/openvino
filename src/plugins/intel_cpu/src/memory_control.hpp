@@ -22,6 +22,16 @@ struct MemoryRegion {
 };
 
 using MemoryRegions = std::vector<MemoryRegion>;
+struct MemoryStatisticsRecord {
+    const char* id;
+    size_t total_regions;        // number of regions
+    size_t total_unique_blocks;  // bytes
+    size_t total_size;           // bytes
+    size_t optimal_total_size;   // bytes
+    size_t max_region_size;      // bytes
+};
+
+using MemoryStatistics = std::vector<MemoryStatisticsRecord>;
 
 class MemoryControl {
 public:
@@ -44,13 +54,19 @@ public:
     void allocateMemory();
     void releaseMemory();
 
+    const std::string& getId() const {
+        return m_id;
+    }
+
 private:
-    MemoryControl();
+    explicit MemoryControl(std::string id);
     void insert(const MemoryRegion& region, const std::vector<size_t>& syncInds);
+    MemoryStatistics dumpStatistics() const;
 
     friend class NetworkMemoryControl;
 
 private:
+    std::string m_id;
     std::vector<RegionHandlerPtr> m_handlers;
     bool m_allocated = false;
 };
@@ -58,11 +74,12 @@ private:
 class NetworkMemoryControl {
 public:
     NetworkMemoryControl() = default;
-
-    MemoryControl::Ptr createMemoryControlUnit();
+    MemoryControl::Ptr createMemoryControlUnit(std::string id);
 
     void allocateMemory();
     void releaseMemory();
+
+    std::vector<std::pair<std::string, MemoryStatistics>> dumpStatistics() const;
 
     const std::vector<MemoryControl::Ptr>& controlUnits() const {
         return m_controlUnits;

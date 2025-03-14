@@ -80,6 +80,7 @@ public:
     bool resize(size_t size) override;
     bool hasExtBuffer() const noexcept override;
     void free();
+    size_t size() const;  // in bytes
 
 private:
     bool m_useExternalStorage = false;
