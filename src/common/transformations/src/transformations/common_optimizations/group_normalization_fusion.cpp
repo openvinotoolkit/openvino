@@ -142,13 +142,13 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         const auto& group_norm_gamma = pattern_map.at(group_norm_gamma_m);
         if (group_norm_gamma.get_element_type() != T)
             return false;
-        if (group_norm_gamma.get_partial_shape().rank().get_length() != num_channels)
+        if (ov::shape_size(group_norm_gamma.get_shape()) != static_cast<size_t>(num_channels))
             return false;
 
         const auto& group_norm_beta = pattern_map.at(group_norm_beta_m);
         if (group_norm_beta.get_element_type() != T)
             return false;
-        if (group_norm_beta.get_partial_shape().rank().get_length() != num_channels)
+        if (ov::shape_size(group_norm_beta.get_shape()) != static_cast<size_t>(num_channels))
             return false;
 
         ov::NodeVector nodes;
@@ -180,7 +180,7 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
             const auto& instance_norm_beta = pattern_map.at(instance_norm_beta_m);
             if (instance_norm_beta.get_element_type() != T)
                 return false;
-            if (instance_norm_beta.get_partial_shape().rank().get_length() != num_groups)
+            if (ov::shape_size(instance_norm_beta.get_shape()) != static_cast<size_t>(num_groups))
                 return false;
 
             // ensure that instance_norm_beta will have shape compatible
@@ -219,7 +219,7 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
             const auto& instance_norm_gamma = pattern_map.at(instance_norm_gamma_m);
             if (instance_norm_gamma.get_element_type() != T)
                 return false;
-            if (instance_norm_gamma.get_partial_shape().rank().get_length() != num_groups)
+            if (ov::shape_size(instance_norm_gamma.get_shape()) != static_cast<size_t>(num_groups))
                 return false;
 
             // ensure that instance_norm_gamma will have shape compatible
